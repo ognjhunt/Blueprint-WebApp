@@ -37,6 +37,15 @@ const GPT56_PRICING: Record<"sol" | "terra" | "luna", ModelPricing> = {
   },
 };
 
+/** Same figures the Pipeline records for gpt-6-luna (openai_prompt_cache.py). */
+const GPT6_LUNA_PRICING: ModelPricing = {
+  modelFamily: "gpt-6-luna",
+  uncachedInputPerMillionUsd: 0.1,
+  cacheWritePerMillionUsd: 0.125,
+  cachedReadPerMillionUsd: 0.01,
+  outputPerMillionUsd: 0.5,
+};
+
 export type PromptCacheEconomics = {
   stable_prefix_tokens: number;
   expected_reuse_probability: number;
@@ -112,6 +121,10 @@ export function pricingForOpenAIModel(model: string): ModelPricing | null {
     normalized === "gpt-5.6-luna"
     || normalized.startsWith("gpt-5.6-luna-")
   ) return GPT56_PRICING.luna;
+  if (
+    normalized === "gpt-6-luna"
+    || normalized.startsWith("gpt-6-luna-")
+  ) return GPT6_LUNA_PRICING;
   return null;
 }
 

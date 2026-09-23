@@ -88,8 +88,12 @@ describe("delivery sends what is pending, once", () => {
     expect(summary.sent).toBe(1);
     expect(sendEmailMock).toHaveBeenCalledOnce();
     expect(sendEmailMock).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "ops@acme.example", subject: "s", text: "b" }),
+      expect.objectContaining({ to: "ops@acme.example", subject: "s" }),
     );
+    // Every message leaves in the branded layout, text and HTML alike.
+    const sent = sendEmailMock.mock.calls[0][0];
+    expect(sent.text).toMatch(/^b\n\n--\nBlueprint Robotics, Inc\. · 1005 Crete St/);
+    expect(sent.html).toContain("Blueprint Robotics, Inc. · 1005 Crete St, Durham, NC 27707");
   });
 
   it("does not send a message it already sent", async () => {

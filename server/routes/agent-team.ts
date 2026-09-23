@@ -66,7 +66,7 @@ import {
   resolveAgentKey,
 } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
-import { TEAM_ACCOUNT_REQUIRED, teamAccountUid } from "../utils/robotTeamAccounts";
+import { TEAM_ACCOUNT_REQUIRED, teamAccountEmail, teamAccountUid } from "../utils/robotTeamAccounts";
 import { ensureSelfServeAgentExecution } from "../utils/selfServeAgentExecution";
 import {
   MAX_TOPUP_USD,
@@ -1101,6 +1101,8 @@ router.post("/runs/:reservationId/release", async (req: Request, res: Response) 
 const fundingSchema = z
   .object({
     amountUsd: z.number().finite().positive().max(1_000_000),
+    /** The task the payer is buying, so checkout returns to it. */
+    returnSceneId: z.string().trim().regex(/^[A-Za-z0-9._-]{1,120}$/).optional(),
   })
   .strict();
 
@@ -1141,7 +1143,12 @@ router.post("/funding", async (req: Request, res: Response) => {
     });
   }
 
-  const result = await startBalanceTopup({ teamId, amountUsd: parsed.data.amountUsd });
+  const result = await startBalanceTopup({
+    teamId,
+    amountUsd: parsed.data.amountUsd,
+    contactEmail: await teamAccountEmail(teamId),
+    returnSceneId: parsed.data.returnSceneId ?? null,
+  });
   if (!result.created) {
     return res.status(result.refusal === "stripe_unavailable" ? 503 : 400).json({
       error: result.detail,

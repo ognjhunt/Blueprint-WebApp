@@ -417,6 +417,28 @@ export async function notifySlackScreeningCallNeeded(options: {
   return sendSlackMessage(text, webhookUrl);
 }
 
+/**
+ * A walkthrough arrived and no automated footage review will read it.
+ *
+ * With BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED off, a person reviews coverage,
+ * and the site is told so; this is how that person hears there is one to do.
+ */
+export async function notifySlackFootageNeedsReview(options: {
+  requestId: string;
+}): Promise<{ sent: boolean; error?: unknown }> {
+  const webhookUrl =
+    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) {
+    logger.warn({ requestId: options.requestId }, "No Slack webhook configured; footage review has no bell");
+    return { sent: false };
+  }
+  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${options.requestId}`;
+  const text =
+    `:film_frames: *Site walkthrough received — review coverage by hand* — request \`${options.requestId}\`\n`
+    + `Automated footage review is off, so the site has been told a person will review it. ${adminUrl}`;
+  return sendSlackMessage(text, webhookUrl);
+}
+
 export async function sendSlackDirectMessage(
   message: string,
   options?: {

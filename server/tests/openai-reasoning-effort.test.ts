@@ -61,11 +61,12 @@ describe("reasoning effort", () => {
 });
 
 describe("model selection", () => {
-  it("defaults OpenAI lanes to the 5.6 Luna variant", async () => {
+  it("defaults OpenAI lanes to GPT-6 Luna", async () => {
     const { getTaskModelByProvider } = await import("../agents/provider-config");
     expect(getTaskModelByProvider("inbound_qualification").openai_responses).toBe(
-      "gpt-5.6-luna",
+      "gpt-6-luna",
     );
+    expect(getTaskModelByProvider("outbound_outreach").openai_responses).toBe("gpt-6-luna");
   });
 
   it("still honours a per-lane model override", async () => {

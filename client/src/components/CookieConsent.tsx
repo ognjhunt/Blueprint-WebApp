@@ -3,6 +3,12 @@ import { X } from "lucide-react";
 import { updateAnalyticsConsent } from "@/lib/analytics";
 
 const COOKIE_CONSENT_KEY = "blueprint_cookie_consent";
+/** Dispatched by the footer's "Cookie settings" link to reopen these choices. */
+export const OPEN_COOKIE_SETTINGS_EVENT = "blueprint:open-cookie-settings";
+
+export function openCookieSettings() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(OPEN_COOKIE_SETTINGS_EVENT));
+}
 
 type ConsentStatus = "accepted" | "rejected" | null;
 
@@ -20,6 +26,21 @@ export function CookieConsent() {
     marketing: false,
     necessary: true,
   });
+
+  // A choice made once can be changed: the footer link reopens the details
+  // with what was chosen last time.
+  useEffect(() => {
+    const reopen = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(COOKIE_CONSENT_KEY) || "null") as Partial<ConsentPreferences> | null;
+        if (stored) setPreferences({ necessary: true, analytics: stored.analytics === true, marketing: stored.marketing === true });
+      } catch { /* Keep the defaults. */ }
+      setShowDetails(true);
+      setIsVisible(true);
+    };
+    window.addEventListener(OPEN_COOKIE_SETTINGS_EVENT, reopen);
+    return () => window.removeEventListener(OPEN_COOKIE_SETTINGS_EVENT, reopen);
+  }, []);
 
   useEffect(() => {
     // The capture page is a tool someone was handed a link to, not a marketing

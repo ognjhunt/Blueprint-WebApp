@@ -44,7 +44,7 @@ export default function Contact() {
         <section className="ms-container ms-task-page">
           <p className="ms-eyebrow">For robot teams</p>
           <h1>Find work your robot could do.</h1>
-          <p>Browse live and past tasks. Choose a task before connecting your robot.</p>
+          <p>Choose a real site task, see what an evaluation of your robot would cost and tell you, then run it.</p>
           <TaskBrowse />
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
             <a className="ms-text-link" href="/contact/site-operator">
@@ -62,7 +62,7 @@ export default function Contact() {
         title="Start a task assessment | Blueprint"
         description="Describe a repetitive job, then share footage of the work area."
         canonical="/contact/site-operator"
-        image="https://tryblueprint.io/images/site-led/workcell.webp"
+       
       />
       <section className="ms-inquiry ms-container">
         <div className="ms-inquiry-intro">

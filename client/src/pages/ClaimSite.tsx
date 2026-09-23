@@ -27,7 +27,8 @@ import {
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { auth } from "@/lib/firebase";
 import { WorkspaceRequestError } from "@/lib/workspace";
-import { attachSiteClaim, claimVerificationUrl } from "@/lib/siteClaim";
+import { attachSiteClaim, claimVerificationUrl, friendlyAuthError } from "@/lib/siteClaim";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
 interface ClaimSummary {
   ok: boolean;
@@ -176,13 +177,7 @@ export function ClaimSite() {
       await attachClaim(token, user, summary, terms);
       setStage({ status: "claimed", summary });
     } catch (submitError) {
-      const message =
-        submitError instanceof WorkspaceRequestError
-          ? submitError.message
-          : submitError instanceof Error
-            ? submitError.message.replace("Firebase: ", "")
-            : "We could not complete the claim. Please try again.";
-      setError(message);
+      setError(friendlyAuthError(submitError, "We could not complete the claim. Please try again."));
     } finally {
       setBusy(false);
     }
@@ -202,11 +197,7 @@ export function ClaimSite() {
       await attachClaim(token, stage.user, stage.summary, terms);
       setStage({ status: "claimed", summary: stage.summary });
     } catch (verificationError) {
-      setError(
-        verificationError instanceof Error
-          ? verificationError.message.replace("Firebase: ", "")
-          : "We could not refresh your verification status. Please try again.",
-      );
+      setError(friendlyAuthError(verificationError, "We could not refresh your verification status. Please try again."));
     } finally {
       setBusy(false);
     }
@@ -219,11 +210,7 @@ export function ClaimSite() {
     try {
       await sendEmailVerification(stage.user, { url: verificationActionUrl(token) });
     } catch (verificationError) {
-      setError(
-        verificationError instanceof Error
-          ? verificationError.message.replace("Firebase: ", "")
-          : "We could not resend the verification email. Please try again.",
-      );
+      setError(friendlyAuthError(verificationError, "We could not resend the verification email. Please try again."));
     } finally {
       setBusy(false);
     }
@@ -344,7 +331,7 @@ export function ClaimSite() {
           <span>Password</span>
           <span className="ms-field-hint">
             {mode === "create"
-              ? "Choose one — six characters or more."
+              ? `Choose one — ${MIN_PASSWORD_LENGTH} characters or more.`
               : "The one your account already uses."}
           </span>
           <input
@@ -352,7 +339,7 @@ export function ClaimSite() {
             name="claimPassword"
             type="password"
             required
-            minLength={6}
+            minLength={MIN_PASSWORD_LENGTH}
             autoComplete={mode === "create" ? "new-password" : "current-password"}
             value={password}
             onChange={(event) => setPassword(event.target.value)}

@@ -15,6 +15,13 @@ export function TaskBrowse() {
   const [availability, setAvailability] = useState("");
   const [selected, setSelected] = useState<TaskBrowseCard | null>(null);
   const [saved, setSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Back from Stripe or a verification email for a plan that was not tied to
+  // one task: open that plan instead of leaving it in a closed section.
+  const [returning] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const params = new URLSearchParams(window.location.search);
+    return !params.get("sceneId") && (params.has("funded") || params.get("connect") === "1");
+  });
   useEffect(() => {
     const controller = new AbortController();
     setState("loading");
@@ -49,8 +56,20 @@ export function TaskBrowse() {
     <div className="ms-task-heading"><h2>{selected.title}</h2><TaskThumbnail src={selected.thumbnailUrl} title={selected.title} taskFamily={selected.taskFamily} /></div><TaskFacts details={selected} />
     <RobotTeamPlanPreview key={selected.id} sceneId={selected.id} />
   </section>;
+  const libraryEmpty = state === "ready" && items.length === 0;
+  const preferences = saved === "saved"
+    ? <p role="status">Saved. We will email you when a task like this is listed.</p>
+    : <form className="ms-form" onSubmit={saveInterest} aria-label="Task preferences">
+        <label>Task<input name="taskFamily" defaultValue={family} placeholder="e.g. Pick and place" maxLength={60} required /></label>
+        <label>Region<input name="region" defaultValue={region} placeholder="e.g. US, Midwest" maxLength={80} /></label>
+        <label>Site type<input name="siteType" placeholder="e.g. Warehouse" maxLength={80} /></label>
+        <label>Work email<input name="email" type="email" maxLength={320} required /></label>
+        <label className="ms-check-row"><input name="mayContact" type="checkbox" />You may email me about matching tasks.</label>
+        {saved === "error" && <p role="alert">Preferences could not be saved. Try again.</p>}
+        <button className="ms-button" disabled={saved === "saving"}>{saved === "saving" ? "Saving…" : "Save preferences"}</button>
+      </form>;
   return <section aria-label="Task library">
-    <details className="ms-browse-filters" open={!isLikelyPhone()}><summary>Filter tasks</summary>
+    {!libraryEmpty && <details className="ms-browse-filters" open={!isLikelyPhone()}><summary>Filter tasks</summary>
     <div className="ms-task-filters">
       <label>Task<select aria-label="Filter by task" value={family} onChange={e => setFamily(e.target.value)}>
         <option value="">All tasks</option>{[...new Set(items.map(item => item.taskFamily))].sort().map(value => <option key={value}>{value}</option>)}
@@ -61,16 +80,21 @@ export function TaskBrowse() {
         <option value="ready">Ready to evaluate</option><option value="past">Past opportunities</option>
       </select></label>
     </div>
-    </details>
+    </details>}
     {state === "loading" && <p role="status">Loading tasks…</p>}
     {state === "error" && <div role="alert"><p>The task library could not be loaded.</p>
       <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div>}
-    {state === "ready" && <>
+    {libraryEmpty && <div className="ms-task-empty">
+      <h2>The first site tasks are being prepared.</h2>
+      <p>Sites film their own tasks and choose whether to list them here. Tell us what your robot does and the work you want to test it on, and we will email you when a matching task is listed.</p>
+      {preferences}
+    </div>}
+    {state === "ready" && items.length > 0 && <>
       <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "task" : "tasks"} · Details shared by site owners. A past task can remain available for evaluation.</p>
       {filtered.length === 0 && <div className="ms-task-empty">
-        <h2>{items.length ? "No tasks match these filters." : "No public tasks to browse yet."}</h2>
-        <p>{items.length ? "Try a different task or region, or tell us what you need below." : "Tell us what work you are looking for. Sites appear here when their owners choose to share them."}</p>
-        {items.length > 0 && <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); }}>Clear filters</button>}
+        <h2>No tasks match these filters.</h2>
+        <p>Try a different task or region, or tell us what you need below.</p>
+        <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); }}>Clear filters</button>
       </div>}
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
         <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
@@ -78,21 +102,16 @@ export function TaskBrowse() {
         {item.evaluationAvailable ? <button className="ms-button" onClick={() => setSelected(item)}>Evaluate this task · ${item.costUsd}</button>
           : <p className="ms-field-hint">{item.stage === "capture" ? "Footage is the next step." : "The scene is being prepared for evaluation."} No runs available yet.</p>}
       </li>)}</ul>
+      <details className="ms-task-interest">
+        <summary>Tell us what you are looking for</summary>
+        {preferences}
+      </details>
     </>}
-    <details className="ms-task-interest" open={state === "ready" && items.length === 0 ? true : undefined}>
-      <summary>Tell us what you are looking for</summary>
-      {saved === "saved" ? <p role="status">Preferences saved. {"You can return here to browse new tasks."}</p> :
-        <form className="ms-form" onSubmit={saveInterest} aria-label="Task preferences">
-          <label>Task<input name="taskFamily" defaultValue={family} placeholder="e.g. Pick and place" maxLength={60} required /></label>
-          <label>Region<input name="region" defaultValue={region} placeholder="e.g. US, Midwest" maxLength={80} /></label>
-          <label>Site type<input name="siteType" placeholder="e.g. Warehouse" maxLength={80} /></label>
-          <label>Work email<input name="email" type="email" maxLength={320} required /></label>
-          <label className="ms-check-row"><input name="mayContact" type="checkbox" />You may email me about matching tasks.</label>
-          {saved === "error" && <p role="alert">Preferences could not be saved. Try again.</p>}
-          <button className="ms-button" disabled={saved === "saving"}>{saved === "saving" ? "Saving…" : "Save preferences"}</button>
-        </form>}
+    <details className="ms-task-interest" open={returning || undefined}
+      ref={(element) => { if (element && returning) element.scrollIntoView({ block: "start" }); }}>
+      <summary>Already have a robot policy to evaluate? Register it and see a plan</summary>
+      <RobotTeamPlanPreview />
     </details>
-    <details className="ms-task-interest"><summary>Already have a robot setup to evaluate?</summary><RobotTeamPlanPreview /></details>
-    <p className="ms-field-hint"><a href="/agent-access.openapi.json">For agents: API reference</a> · <a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
+    <p className="ms-field-hint"><a href="/agent-access.openapi.json">Agent API (OpenAPI spec, JSON)</a> · <a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
   </section>;
 }

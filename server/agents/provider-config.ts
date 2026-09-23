@@ -138,8 +138,8 @@ export function getOpenAiTimeoutMs(): number {
  * reads a real operator's description against their own dropdown answers and
  * decides whether a site moves forward, and the cost of getting that wrong is a
  * wasted visit or a company told no for the wrong reason. Luna is the
- * cheapest 5.6 variant, so buying the most thinking on the most consequential
- * lane is an easy trade.
+ * cheapest GPT-6 variant, so buying the most thinking on the most
+ * consequential lane is an easy trade.
  *
  * Everything else stays at "medium" — the default the adapter already used, so
  * no other lane changes behaviour.
@@ -176,7 +176,7 @@ export function getOpenAiReasoningEffort(
 const DEFAULT_MODELS: Record<StructuredProvider, string> = {
   deepseek_chat: "deepseek-v4-pro",
   zai_glm: "glm-5.3",
-  openai_responses: "gpt-5.6-luna",
+  openai_responses: "gpt-6-luna",
   anthropic_agent_sdk: "claude-sonnet-4-5",
   acp_harness: "codex",
   openclaw: "gpt-5.4",
@@ -263,6 +263,23 @@ export function getLaneProviderEnvKey(
   return suffix ? `BLUEPRINT_${suffix.replace(/_MODEL$/, "")}_PROVIDER` : null;
 }
 
+/**
+ * Lanes that write to a person default to OpenAI.
+ *
+ * These draft or send email: outbound outreach, waitlist, inbound
+ * qualification, support and post-signup scheduling. They run on the OpenAI
+ * default model (gpt-6-luna) unless a lane env override says otherwise. When
+ * OpenAI is not keyed they fall back to the global chain, and the resolution
+ * says so rather than pretending the default held.
+ */
+const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> = {
+  outbound_outreach: "openai_responses",
+  waitlist_triage: "openai_responses",
+  inbound_qualification: "openai_responses",
+  support_triage: "openai_responses",
+  post_signup_scheduling: "openai_responses",
+};
+
 export type StructuredProviderResolution = {
   provider: StructuredProvider;
   lane_env_key: string | null;
@@ -272,6 +289,8 @@ export type StructuredProviderResolution = {
     | "lane_override"
     | "lane_request_not_configured"
     | "lane_request_unrecognized"
+    | "lane_default"
+    | "lane_default_not_configured"
     | "global_selection";
 };
 
@@ -314,6 +333,18 @@ export function describeStructuredAutomationProvider(
       reason: laneProvider
         ? "lane_request_not_configured"
         : "lane_request_unrecognized",
+    };
+  }
+
+  const laneDefault = taskKind ? TASK_DEFAULT_PROVIDER[taskKind] : undefined;
+  if (laneDefault) {
+    const configured = isProviderConfigured(laneDefault);
+    return {
+      provider: configured ? laneDefault : globalProvider,
+      lane_env_key: laneEnvKey,
+      lane_request: null,
+      lane_request_honored: configured,
+      reason: configured ? "lane_default" : "lane_default_not_configured",
     };
   }
 

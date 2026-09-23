@@ -29,6 +29,7 @@ import type { MatchSummary } from "../../client/src/lib/robotMatch";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { footageSettlesAll } from "../../client/src/data/siteTaskQualification";
 import { bookingUrl } from "./bookingLink";
+import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
 
 /**
  * Where a booking link points, when one is warranted.
@@ -91,7 +92,7 @@ export function buildNotYetEmail(params: {
   const subject = "Your task, and what would have to change";
 
   const body = [
-    `Hi ${firstNameOf(firstName)},`,
+    emailGreeting(firstNameOf(firstName)),
     "",
     site
       ? `Thanks for describing the task at ${site}. We screen every site against four conditions before anyone commits engineering time, and this one does not clear all four today.`
@@ -109,7 +110,7 @@ export function buildNotYetEmail(params: {
     "",
     "Thanks for the detail you sent. It was more than most.",
     "",
-    "— The Blueprint team",
+    EMAIL_SIGN_OFF,
   ]
     .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
     .join("\n");
@@ -157,7 +158,7 @@ export function buildLetsTalkEmail(params: {
       : "A short call should settle this";
 
   const body = [
-    `Hi ${firstNameOf(firstName)},`,
+    emailGreeting(firstNameOf(firstName)),
     "",
     site
       ? `Thanks for describing the task at ${site}. It clears the conditions that can end a submission outright, and there ${openQuestions.length === 1 ? "is one thing" : `are ${openQuestions.length || "a few"} things`} a form genuinely cannot settle.`
@@ -183,7 +184,7 @@ export function buildLetsTalkEmail(params: {
       ? "If you would rather talk it through first, reply and we will find a time."
       : "If reading that list makes the answer obvious on your side, tell us and we will save us both the call.",
     "",
-    "— The Blueprint team",
+    EMAIL_SIGN_OFF,
   ]
     .filter(Boolean)
     .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
@@ -268,7 +269,7 @@ export function buildMatchEmail(params: {
 
   if (matched > 0) {
     const body = [
-      `Hi ${firstNameOf(firstName)},`,
+      emailGreeting(firstNameOf(firstName)),
       "",
       site
         ? `${site} clears the screen, and ${matched === 1 ? "one robot team on our list clears" : `${matched} robot teams on our list clear`} the constraints your task sets.`
@@ -281,7 +282,7 @@ export function buildMatchEmail(params: {
       "",
       matchNextStepLine(params.nextStep, calendly),
       "",
-      "— The Blueprint team",
+      EMAIL_SIGN_OFF,
     ]
       .filter(Boolean)
       .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
@@ -292,7 +293,7 @@ export function buildMatchEmail(params: {
 
   const blockers = summary.commonBlockers.slice(0, 2);
   const body = [
-    `Hi ${firstNameOf(firstName)},`,
+    emailGreeting(firstNameOf(firstName)),
     "",
     site
       ? `${site} clears our screening conditions — the site is workable. What it does not yet have is a robot team on our list that clears the constraints your task sets.`
@@ -314,7 +315,7 @@ export function buildMatchEmail(params: {
     "",
     "We keep the task on file either way.",
     "",
-    "— The Blueprint team",
+    EMAIL_SIGN_OFF,
   ]
     .filter(Boolean)
     .filter((line, index, all) => !(line === "" && all[index - 1] === ""))

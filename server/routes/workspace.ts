@@ -49,6 +49,9 @@ import { robotDescriptionSchema } from "../../client/src/types/robotDescription"
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { bindTeamToAccount, teamsForAccount } from "../utils/robotTeamAccounts";
+import { captureUploadUrlFor } from "../utils/captureUploadToken";
+import { getTeamBalance } from "../utils/robotTeamBalance";
+import { listRunsForTeam } from "../utils/agentRunResults";
 import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
@@ -507,6 +510,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password; }
         catch { return false; }
       });
+    task.sceneReady = scenePreviewReady;
     task.readiness = projectTaskStatus(
       taskStatusInputFrom({
         site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
@@ -818,6 +822,28 @@ router.get(
             createdAtIso: key.createdAtIso,
             lastUsedAtIso: key.lastUsedAtIso,
           })),
+        // What a signed-in team needs without its agent key in hand: what it
+        // has, what is held, and every run it bought with what each showed.
+        balance: await getTeamBalance(team.id).then(
+          (balance) => ({
+            availableUsd: balance.availableUsd,
+            reservedUsd: balance.reservedUsd,
+            creditedUsd: balance.creditedUsd,
+            spentUsd: balance.spentUsd,
+          }),
+          () => null,
+        ),
+        runs: (await listRunsForTeam(team.id, 25).catch(() => [])).map((run) => ({
+          runId: run.runId,
+          sceneId: run.sceneId,
+          taskFamily: run.taskFamily ?? null,
+          state: run.state,
+          quotedUsd: run.quotedUsd,
+          requestedAtIso: run.requestedAtIso,
+          episodesRun: run.result?.observed?.episodesRun ?? run.episodesRun ?? null,
+          episodesSucceeded: run.result?.observed?.episodesSucceeded ?? null,
+          resultStatus: run.result ? "reported" : run.state === "abandoned" || run.state === "blocked" ? "no_result" : "awaiting_result",
+        })),
       }))),
     });
   }),
@@ -906,6 +932,22 @@ router.post(
  * history stay intact. Consent remains authoritative continuously regardless:
  * pausing is the operator's day-to-day lever, not the takedown mechanism.
  */
+/**
+ * A fresh private link to the task page, for its signed-in owner.
+ *
+ * The emailed link expires after seven days; the account is the durable way
+ * back. The task page is where the brief is reviewed or edited, footage is
+ * added, and the scene is opened, so the workspace hands out a new link on
+ * demand rather than sending the owner to find an old email.
+ */
+router.post(
+  "/tasks/:taskId/task-link",
+  handle(async (req, res) => {
+    await ownedTask(req.params.taskId, res);
+    return res.json({ url: captureUploadUrlFor(req.params.taskId, "owner") });
+  }),
+);
+
 router.post(
   "/tasks/:taskId/listing",
   handle(async (req, res) => {

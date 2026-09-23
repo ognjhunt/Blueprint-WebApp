@@ -56,6 +56,7 @@ import {
   signInWithGoogleAccount,
   watchAuth,
 } from "@/lib/accountAuth";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 import { opportunityLabels, type TaskListingDetails } from "@/types/taskBrowse";
 
 type Basis = "description" | "observation" | "measurement" | "assumption";
@@ -72,6 +73,9 @@ export interface DraftedBrief {
   captureMode: string;
   proposed: ProposedAnswer[];
   unresolved: string[];
+  /** The operator's last confirmed answers, when the brief is being edited. */
+  operatorAnswers?: Record<string, string> | null;
+  operatorUnknown?: string[] | null;
 }
 
 type Screening = { headline: string; detail: string; bookingUrl: string | null };
@@ -175,8 +179,9 @@ export function TaskBriefReview(props: {
 
   // The operator's corrections, keyed by gate id, and the gates they said they
   // do not know. A correction wins over our reading; an "unknown" clears it.
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [unknown, setUnknown] = useState<Set<string>>(new Set());
+  // Editing a confirmed brief starts from what the operator said last time.
+  const [answers, setAnswers] = useState<Record<string, string>>(() => ({ ...(props.brief.operatorAnswers ?? {}) }));
+  const [unknown, setUnknown] = useState<Set<string>>(() => new Set(props.brief.operatorUnknown ?? []));
 
   // Everything to show as a row: our confirmable proposals, plus the gates we
   // could not settle from the evidence. Sorted so the questions we actually
@@ -233,7 +238,7 @@ export function TaskBriefReview(props: {
     if (google) {
       user = await signInWithGoogleAccount();
     } else {
-      if (password.length < 6) throw new Error("Choose a password of six characters or more.");
+      if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.`);
       user = accountMode === "create"
         ? await createPasswordAccount(ownerEmail!, password)
         : await signInPasswordAccount(ownerEmail!, password);
@@ -436,12 +441,19 @@ export function TaskBriefReview(props: {
     </label>
   );
 
+  // Only say we drafted answers when we did. With brief reading off, every
+  // question arrives open, and the honest framing is a short set of questions.
+  const drafted = rows.confirmable.length > 0;
+
   return (
     <div className="ms-form">
-      <h2 style={{ marginTop: 0 }}>Here is what we understood. Fix anything we got wrong.</h2>
+      <h2 style={{ marginTop: 0 }}>
+        {drafted ? "Here is what we understood. Fix anything we got wrong." : "A few questions about the task"}
+      </h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
-        We read what you sent and drafted this. Confirming it is what lets us act on it — you are
-        not filling in a form, you are correcting ours.
+        {drafted
+          ? "We read what you sent and drafted this. Confirming it is what lets us act on it — you are not filling in a form, you are correcting ours."
+          : "These tell us whether a robot evaluation will hold up at your site. Answer what you know; anything you are not sure about can stay open, and we cover it on a short call."}
       </p>
 
       <p style={{ fontWeight: 500 }}>{props.brief.summary}</p>
@@ -561,15 +573,16 @@ export function TaskBriefReview(props: {
           ) : (
             <>
               <p className="ms-field-hint" style={{ marginTop: 0 }}>
-                We build your scene once the site is saved to an account, so you can follow it, see
-                results and pause it any time. Use {ownerEmail}, the email you sent this task from.
+                We build your scene once the site is saved to an account. Your account is where you
+                follow the task, see results, and hide it from robot teams at any time. Use{" "}
+                {ownerEmail}, the email you sent this task from.
               </p>
               <label htmlFor="account-password">
                 <span>{accountMode === "create" ? "Choose a password" : "Your password"}</span>
                 <input
                   id="account-password"
                   type="password"
-                  minLength={6}
+                  minLength={MIN_PASSWORD_LENGTH}
                   autoComplete={accountMode === "create" ? "new-password" : "current-password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}

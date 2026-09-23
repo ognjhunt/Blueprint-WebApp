@@ -43,6 +43,7 @@ import { selfCaptureObjectPath } from "./captureUploadToken";
 import { getBrief } from "./siteTaskBrief";
 import { commitTaskUpdate } from "./taskUpdateCommitment";
 import { deliverOutbox } from "./captureOutbox";
+import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
 
 /** Long enough for a model to fetch the video, short enough not to be a handle. */
 const SIGNED_URL_TTL_MS = 30 * 60 * 1000;
@@ -184,13 +185,13 @@ export async function reviewCaptureCoverage(params: {
           kind: "coverage_shortfall",
           subject: "Blueprint — one more view would finish your capture",
           body:
-            `Hi ${contact.firstName || "there"},\n\n`
+            `${emailGreeting(contact.firstName)}\n\n`
             + (finding.supplementWouldFinish
               ? "Your footage shows the task clearly. To finish the scene we just need a little more:\n\n"
               : "Your footage needs more coverage before we can build the scene:\n\n")
             + finding.missingCoverage.map((view) => `- ${view}`).join("\n")
             + "\n\nYou can add these from the same capture link — no need to film it all again.\n\n"
-            + "— The Blueprint Team",
+            + EMAIL_SIGN_OFF,
         });
         await deliverOutbox({ limit: 5 }).catch(() => undefined);
       }

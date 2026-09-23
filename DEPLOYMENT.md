@@ -208,7 +208,9 @@ App bundle uploads through the capture link take optional limits:
 - Optional OpenAI budget and deadline: `BLUEPRINT_OPENAI_AGENT_MAX_OUTPUT_TOKENS`
   (default `16000`), `OPENAI_TIMEOUT_MS` (default `120000`). Reasoning tokens
   come out of `max_output_tokens` on the Responses API, so a lane at reasoning
-  effort `max` needs both. Default OpenAI model: `gpt-5.6-luna`.
+  effort `max` needs both. Default OpenAI model: `gpt-6-luna`. The lanes that
+  write to a person (outbound outreach, waitlist, inbound qualification, support,
+  post-signup scheduling) default to OpenAI when `OPENAI_API_KEY` is set.
 - Optional: `ANTHROPIC_DEFAULT_MODEL`
 - Optional: `ACP_DEFAULT_HARNESS`
 - Optional managed-runtime spend guardrails:

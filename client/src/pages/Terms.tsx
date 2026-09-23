@@ -1,68 +1,134 @@
-import { BadgeDollarSign, Briefcase, Gavel, ShieldCheck } from "lucide-react";
 import { SEO } from "@/components/SEO";
-const sections = [
-  {
-    title: "Services",
-    body:
-      "Blueprint provides software and related services for capture intake, maintained Site-Task Testbeds, Task Evaluation Runs, hosted evidence review, and supporting buyer or operator workflows. Post-training is only a permitted use of qualifying run evidence, not a separate service promise. Specific deliverables, usage rights, and commercial terms may also be set in an order form, statement of work, listing-specific terms, or other written agreement.",
-    icon: Briefcase,
-  },
-  {
-    title: "Payments and plans",
-    body:
-      "Fees are set in the applicable checkout flow, order form, or agreement. Unless a written agreement says otherwise, fees are non-refundable once digital access is granted or work has started.",
-    icon: BadgeDollarSign,
-  },
-  {
-    title: "Rights and ownership",
-    body:
-      "Blueprint keeps its pre-existing software, tooling, workflows, and other intellectual property. Buyers and operators receive only the rights granted in the applicable listing, checkout flow, or written agreement. Capture provenance, privacy metadata, and consent metadata remain part of the product record.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Operator rules",
-    body:
-      "If you provide access to a facility, you represent that you have the authority to do so or that you have obtained the permissions required to allow capture, packaging, or commercialization. Site-specific restrictions on access, privacy, and downstream use continue to apply after capture.",
-    icon: Gavel,
-  },
-] as const;
+import { COMPANY } from "@/data/company";
+import { entryPrice, minTopupUsd } from "@/lib/evaluationPricing";
+import { TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
-const roleTerms = [
+type Section = { title: string; paragraphs?: readonly string[]; items?: readonly string[] };
+
+export const termsSections: readonly Section[] = [
   {
-    title: "Buyer schedule",
-    items: [
-      "Historical package access and hosted sessions remain controlled by their listing, checkout, order form, or written agreement; current run exports follow the run's permitted-use record.",
-      "A Task Evaluation Run is decision support scoped to its request, evidence, validation envelope, and artifacts.",
-      "Buyer sharing, internal use, and downstream export rights must match the rights sheet or written terms.",
+    title: "1. The Service",
+    paragraphs: [
+      "Blueprint helps sites and robot teams find out whether a robot fits a real task before a physical pilot. A site can submit a task, film its work area, review a short task brief, and choose whether robot teams can see a card for the task. We may rebuild the work area as a simulated scene and run robot teams' policies against it. Robot teams can plan and buy evaluation runs against listed tasks, on the website or through our API.",
+      "The Service is in beta. Features may change, be limited, or be withdrawn, and we may pause or stop an evaluation, for example to protect a site's privacy or the integrity of a result.",
+      "An evaluation result is a measurement in a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site. Any pilot or deployment is agreed separately between the site and the robot team involved.",
     ],
   },
   {
-    title: "Operator schedule",
+    title: "2. Accounts and API keys",
     items: [
-      "Operators must have authority to approve capture, listing visibility, policy evaluation, buyer access, and commercialization.",
-      "Restricted zones, capture windows, privacy instructions, and revocation or refresh requirements remain part of the site record.",
-      "Private or employee-only spaces require explicit approval before capture or buyer-facing use.",
+      "Give accurate information and keep it current. You must be at least 18 and able to enter a contract.",
+      "Keep your password and API keys secure. You are responsible for activity under your account and keys, including runs an agent buys within the spending limits you set.",
+      "Tell us promptly at " + COMPANY.emails.support + " if you think your account or a key has been misused. You can revoke keys at any time in your account settings.",
     ],
   },
   {
-    title: "Capturer schedule",
+    title: "3. For sites: your authority and your footage",
     items: [
-      "Capturers may submit only lawful public-facing routes unless Blueprint and the operator approve otherwise.",
-      "Capturers must avoid restricted areas, payment terminals, sensitive screens, private records, and people when possible.",
-      "Submission review, approval, payout eligibility, and downstream use are not automatic.",
+      "When you submit a task you confirm that you are authorized to record the site and to let Blueprint use the recording as these Terms describe.",
+      "Avoid recording people, screens, documents and restricted areas where you can. We may blur or remove what we find.",
+      "You grant Blueprint a non-exclusive license to use your footage, photos and task details to provide the Service for your task: to review them, build a simulated scene, run the evaluations your listing allows, and show you the results. We never give your recording to a robot team, and we do not license it to anyone for training without your written agreement.",
+      "Robot teams see only the task card you approve. You can hide it at any time; hiding it stops new runs. Results already produced remain in our records.",
+      "Finding out costs a site nothing. A physical pilot is agreed and paid for separately.",
+    ],
+  },
+  {
+    title: "4. For robot teams: prices, your balance and refunds",
+    items: [
+      `Each evaluation entry has a flat price, shown before you buy (currently $${entryPrice}). One entry is one policy, running on one embodiment, against one task at one site. Blueprint sets the length of every run, so every entry on a task is measured the same way.`,
+      `You pay from a prepaid balance. Top-ups are charged by Stripe at face value; the smallest is $${minTopupUsd}. Your balance does not expire while your account is open.`,
+      "Confirming a run places a hold for its quoted price. You are charged only for the episodes that actually run, pro-rated against the quote; anything that does not run returns to your balance. A robot failing the task is a result and is charged. A failure on our side, such as a scene that will not launch, is not.",
+      `You can ask for a refund of unused balance at any time by writing to ${COMPANY.emails.hello} from your account email. We refund it to the original payment method, less amounts held for runs in progress.`,
+      "Prices do not include taxes unless we say so. You are responsible for taxes that apply to your purchases, other than taxes on our income.",
+      "You are responsible for the policies, endpoints and container images you submit: you must have the right to submit them, and they must not contain malware or other people's confidential data. We run them only to perform the evaluations you buy. Sites see an alias for your team and your results, not your identity or your policy.",
+    ],
+  },
+  {
+    title: "5. Acceptable use",
+    items: [
+      "Do not record a site or submit data you are not authorized to share.",
+      "Do not break the law, infringe others' rights, or misuse other people's personal information.",
+      "Do not attack, probe, overload or reverse engineer the Service, or access it by automated means other than our published API.",
+      "Do not present a simulation result as a physical test result or a safety certification.",
+    ],
+  },
+  {
+    title: "6. Ownership",
+    paragraphs: [
+      "You keep ownership of the content you give us. Blueprint owns the Service, our software, and the scenes, simulation assets and reports we create, subject to the rights these Terms give you and to the site's control over its footage. If you send us feedback, we may use it without obligation to you.",
+    ],
+  },
+  {
+    title: "7. Third-party services",
+    paragraphs: [
+      "Payments are processed by Stripe, and other providers help us run the Service; our Privacy Policy lists them. Their own terms apply to the services they provide.",
+    ],
+  },
+  {
+    title: "8. Disclaimers",
+    paragraphs: [
+      "The Service is provided “as is” and “as available”, as a beta. To the fullest extent the law allows, Blueprint disclaims all warranties, express or implied, including merchantability, fitness for a particular purpose, accuracy and non-infringement. We do not warrant that the Service will be uninterrupted or error-free, or that a result will predict how a robot performs at a real site.",
+    ],
+  },
+  {
+    title: "9. Limitation of liability",
+    paragraphs: [
+      "To the fullest extent the law allows, Blueprint is not liable for indirect, incidental, special, consequential or punitive damages, or for lost profits, revenue, data or goodwill, arising from or related to the Service. Blueprint's total liability for all claims related to the Service is limited to the greater of the amounts you paid Blueprint in the 12 months before the claim arose and $100.",
+      "Some places do not allow these limits, so they may not all apply to you.",
+    ],
+  },
+  {
+    title: "10. Indemnity",
+    paragraphs: [
+      "You will defend and indemnify Blueprint against third-party claims arising from content you submit, including recordings you were not authorized to make and policies you were not entitled to submit, or from your breach of these Terms or of the law.",
+    ],
+  },
+  {
+    title: "11. Suspension and termination",
+    paragraphs: [
+      "You can stop using the Service and close your account at any time. We may suspend or end your access if you breach these Terms, if your use creates a security or legal risk, or if we stop offering the Service. If we end the Service for a reason other than your breach, we refund your unused balance. Sections 3 (license for completed work), 6, 8, 9, 10 and 13 survive termination.",
+    ],
+  },
+  {
+    title: "12. Changes to these Terms",
+    paragraphs: [
+      "We may update these Terms. We will post the new version here with its effective date, and tell account holders about material changes by email before they take effect. Continuing to use the Service after that means you accept the updated Terms.",
+    ],
+  },
+  {
+    title: "13. Governing law and general terms",
+    paragraphs: [
+      "These Terms are governed by the laws of the State of North Carolina, without regard to conflict-of-law rules, and disputes will be heard in the state or federal courts located in North Carolina. These Terms, together with any order form or written agreement you sign with us, are the entire agreement about the Service; a signed agreement controls where it differs. If a provision is unenforceable, the rest remains in effect. You may not assign these Terms without our consent. We may send notices to your account email.",
     ],
   },
 ];
 
 export default function Terms() {
   return <>
-    <SEO title="Terms of Service | Blueprint" description="Terms for Blueprint Task Evaluation Runs, capture workflows, and related services." canonical="/terms" image="https://tryblueprint.io/images/site-led/workcell.webp" />
+    <SEO title="Terms of Service | Blueprint" description={`The terms for using Blueprint, from ${COMPANY.legalName}.`} canonical="/terms" />
     <article className="ms-legal ms-container">
-      <h1>Terms of Service</h1><p>Effective March 23, 2026</p><p>Agreement to use Blueprint services and site products.</p>
-      {sections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.body}</p></section>)}
-      <section><h2>Disclaimer</h2><p>Blueprint does not promise that a site package or hosted session is a deployment guarantee. The product helps teams evaluate a real site earlier and make better decisions before travel or deployment work.</p></section>
-      <section><h2>Governing law and contact</h2><p>These terms are governed by the laws of the State of North Carolina, without regard to conflict-of-law rules. Questions can be sent to Blueprint Legal.</p><p><a href="mailto:legal@tryblueprint.io">legal@tryblueprint.io</a></p></section>
-      {roleTerms.map((role) => <section key={role.title}><h2>{role.title}</h2><ul>{role.items.map((item) => <li key={item}>{item}</li>)}</ul></section>)}
+      <h1>Terms of Service</h1>
+      <p>Effective {legalEffectiveDate(TERMS_VERSION)}</p>
+      <p>
+        These Terms are an agreement between you and {COMPANY.legalName} (&ldquo;Blueprint&rdquo;, &ldquo;we&rdquo;),{" "}
+        {COMPANY.mailingAddress}. They apply to tryblueprint.io, the private task links we send, Blueprint accounts
+        and our API (the &ldquo;Service&rdquo;). If you use the Service for a company, you accept these Terms on its
+        behalf and confirm you are authorized to. If you do not agree, do not use the Service.
+      </p>
+      {termsSections.map((section) => (
+        <section key={section.title}>
+          <h2>{section.title}</h2>
+          {section.paragraphs?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          {section.items && <ul>{section.items.map((item) => <li key={item}>{item}</li>)}</ul>}
+        </section>
+      ))}
+      <section>
+        <h2>Contact</h2>
+        <p>
+          Questions about these Terms: <a href={`mailto:${COMPANY.emails.legal}`}>{COMPANY.emails.legal}</a>.
+          By post: {COMPANY.legalName}, {COMPANY.mailingAddress}.
+        </p>
+      </section>
     </article>
   </>;
 }

@@ -7,6 +7,8 @@ import path from "node:path";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
+import { brandedEmail, EMAIL_SIGN_OFF } from "../utils/emailLayout";
+import { COMPANY } from "../../client/src/data/company";
 import {
   isApprovedCaptureRegion,
   isCaptureRegion,
@@ -227,7 +229,10 @@ function siteCaptureUrl(
 
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_IP = 10; // Max 10 submissions per IP per window
-const RATE_LIMIT_MAX_EMAIL = 3; // Max 3 submissions per email per window
+// Per sender address, never per domain. A domain key throttled everyone on
+// gmail.com (and every colleague at one company) after three submissions in
+// fifteen minutes, which is exactly the burst an outreach send produces.
+const RATE_LIMIT_MAX_EMAIL = 3; // Max 3 submissions per email address per window
 const RATE_LIMIT_PREFIX = "rl:inbound:";
 const LOCAL_RATE_LIMIT_MAX_ENTRIES = 10_000;
 
@@ -297,7 +302,7 @@ const DEV_INBOUND_REQUEST_LOG = path.join(
 );
 
 /**
- * Hash IP address for privacy in logs/rate-limit keys
+ * Hash an IP or email address for privacy in logs/rate-limit keys
  */
 function hashIp(ip: string): string {
   return crypto.createHash("sha256").update(ip).digest("hex").slice(0, 16);
@@ -911,138 +916,21 @@ function validateEmail(email: string): { valid: boolean; error?: string } {
 }
 
 /**
- * Generate confirmation email HTML
+ * The confirmation a requester gets when no richer first email applies: a
+ * robot team, or a site we cannot take a recording from yet. Plain words, no
+ * internal terms, and only links that resolve to a real page.
  */
-function confirmationNextSteps(commercialRequestPath: CommercialRequestPath): string[] {
-  if (commercialRequestPath === "hosted_evaluation") {
-    return [
-      "We route the request as a hosted-evaluation path tied to the submitted site, task, robot, and requested outputs.",
-      "We check proof, entitlement, rights, package readiness, and hosted-session availability before we confirm a launch path.",
-      "If the record is blocked, we reply with the first missing proof, access, runtime, or buyer-scope detail instead of implying live availability.",
-    ];
-  }
-
-  if (commercialRequestPath === "capture_access") {
-    return [
-      "We route the request as a capture-access path tied to the requested site or workflow.",
-      "We check lawful access, rights/privacy boundaries, capture feasibility, and whether an existing package should be reviewed first.",
-      "If capture cannot move yet, we reply with the first missing access, proof, or site-detail blocker instead of implying field work is scheduled.",
-    ];
-  }
-
-  if (commercialRequestPath === "site_claim") {
-    return [
-      "We route the request as a site-operator claim with access, privacy, and commercialization boundaries attached.",
-      "We check whether the site can be reviewed from the submitted rules or whether a human access/rights pass is required.",
-      "If more review is needed, we ask for the narrow missing boundary before listing, package access, or buyer visibility changes.",
-    ];
-  }
-
+export function requestConfirmationText(params: { firstName: string; buyerType: string }): string {
+  const greeting = params.firstName ? `Hi ${params.firstName},` : "Hi,";
+  const body = params.buyerType === "site_operator"
+    ? "Thanks for telling us about your site and the task you want a robot to take on. We read every request and will reply by email with the next step."
+    : "Thanks for telling us about your robot and the work you want to evaluate it on. We read every request and will reply by email with the site tasks that fit, or with what we would need to know first.";
   return [
-    "We normalize the intake into a Task Evaluation Run decision request tied to the submitted buyer, site, task, candidates, claims, thresholds, and constraints.",
-    "We check testbed provenance, rights/privacy, available evidence, authorization, and the validation strength the decision requires before promising execution or access.",
-    "If the current evidence is insufficient, the run remains blocked or abstains with the next evidence needed instead of fabricating a result.",
-  ];
-}
-
-function generateConfirmationEmailHtml(
-  firstName: string,
-  commercialRequestPath: CommercialRequestPath,
-): string {
-  const requestPathLabel =
-    COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request";
-  const nextSteps = confirmationNextSteps(commercialRequestPath);
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Blueprint submission received</title>
-  </head>
-  <body style="margin:0;padding:0;background-color:#f9fafb;color:#1f2937;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;padding:32px 16px;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;">
-            <!-- Header -->
-            <tr>
-              <td style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);padding:32px;text-align:center;">
-                <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">Blueprint</h1>
-              </td>
-            </tr>
-            <!-- Content -->
-            <tr>
-              <td style="padding:40px 32px;">
-                <h2 style="margin:0 0 16px;font-size:24px;font-weight:600;color:#111827;">Thanks, ${firstName}. Your ${requestPathLabel.toLowerCase()} is in.</h2>
-                <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#4b5563;">
-                  Blueprint has your intake details. We will review the buyer, site, task, robot, and proof boundaries and follow up with the right next step.
-                </p>
-
-                <!-- What happens next -->
-                <div style="background-color:#f3f4f6;border-radius:8px;padding:24px;margin-bottom:24px;">
-                  <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;color:#111827;">What happens next?</h3>
-                  <ol style="margin:0;padding-left:20px;color:#4b5563;font-size:14px;line-height:1.8;">
-                    ${nextSteps.map((step) => `<li>${step}</li>`).join("\n                    ")}
-                  </ol>
-                </div>
-
-                <div style="background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px;margin-bottom:32px;">
-                  <p style="margin:0;font-size:14px;line-height:1.6;color:#9a3412;">
-                    This confirmation does not grant instant access, rights clearance, payment, provider execution, fulfillment, or live hosted availability. Blueprint will confirm those only when the backing record supports them.
-                  </p>
-                </div>
-
-                <!-- Resources -->
-                <div style="border-top:1px solid #e5e7eb;padding-top:24px;">
-                  <h3 style="margin:0 0 16px;font-size:14px;font-weight:600;color:#111827;">Useful links while we review:</h3>
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                    <tr>
-                      <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/product" style="color:#4f46e5;text-decoration:none;font-size:14px;">Product</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Task Evaluation Runs, decisions or abstentions, and proof boundaries</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/sites" style="color:#4f46e5;text-decoration:none;font-size:14px;">Sites</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Captured-site packages and hosted access</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/proof" style="color:#4f46e5;text-decoration:none;font-size:14px;">Proof</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Truth-labeled sample proof and story packets</span>
-                      </td>
-                    </tr>
-                  </table>
-                </div>
-              </td>
-            </tr>
-            <!-- Footer -->
-            <tr>
-              <td style="background-color:#f9fafb;padding:24px 32px;border-top:1px solid #e5e7eb;">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                  <tr>
-                    <td style="text-align:center;">
-                      <p style="margin:0 0 8px;font-size:14px;color:#6b7280;">
-                        <a href="https://www.linkedin.com/company/blueprintsim/" style="color:#6b7280;text-decoration:none;margin:0 8px;">LinkedIn</a>
-                        <a href="https://twitter.com/try_blueprint" style="color:#6b7280;text-decoration:none;margin:0 8px;">X</a>
-                        <a href="https://www.youtube.com/c/BlueprintAI" style="color:#6b7280;text-decoration:none;margin:0 8px;">YouTube</a>
-                      </p>
-                      <p style="margin:0;font-size:12px;color:#9ca3af;">
-                        Blueprint | 1005 Crete St, Durham, NC 27707
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
+    greeting,
+    body,
+    "How an evaluation works and what it costs:\nhttps://tryblueprint.io/how-it-works",
+    EMAIL_SIGN_OFF,
+  ].join("\n\n");
 }
 
 /**
@@ -1078,10 +966,13 @@ export async function submitInboundRequest(req: Request, res: Response) {
       payload.helpWith
     );
     const buyerType = normalizeBuyerType(payload.buyerType);
+    // What the person typed, before the site path fills placeholders below.
+    // Emails greet with this, so nobody is ever greeted as "there".
+    const typedFirstName = payload.firstName?.trim() || "";
     // The camera-first site path needs a job, an email, and consent — identity
     // fields would only slow the walk to the camera, so they are optional
     // there and the email (required and validated below) stands in: its domain
-    // names the company, "there" greets the confirmation email. A shallow copy
+    // names the company. A shallow copy
     // keeps every downstream consumer unchanged. Robot teams keep the strict
     // required set; they are a business counterpart and these fields matter.
     if (buyerType === "site_operator") {
@@ -1325,17 +1216,18 @@ export async function submitInboundRequest(req: Request, res: Response) {
     }
 
     const emailDomain = emailLower.split("@")[1];
+    const emailHash = hashIp(emailLower);
     const emailRateLimit = await checkRateLimit(
-      `${RATE_LIMIT_PREFIX}email:${emailDomain}`,
+      `${RATE_LIMIT_PREFIX}email:${emailHash}`,
       RATE_LIMIT_MAX_EMAIL
     );
     if (!emailRateLimit.allowed) {
-      logger.warn({ emailDomain }, "Email domain rate limit exceeded");
+      logger.warn({ emailHash }, "Email address rate limit exceeded");
       return res.status(429).json({
         ok: false,
         requestId: payload.requestId,
         status: "submitted",
-        message: "Too many requests from this email domain. Please try again later.",
+        message: "You have sent several requests in the last few minutes. Please wait a little and try again.",
       } satisfies SubmitInboundRequestResponse);
     }
 
@@ -2141,42 +2033,25 @@ export async function submitInboundRequest(req: Request, res: Response) {
       );
     }
 
-    // Confirmation email
-    automationPromises.push(
+    // Confirmation email. A site that has its private link already got the
+    // task-received email above, which is the better first message; a second,
+    // generic one would only compete with it.
+    const siteHasTaskEmail =
+      buyerType === "site_operator" && Boolean(siteCaptureUrl(buyerType, payload.requestId, captureRegion));
+    if (!siteHasTaskEmail) automationPromises.push(
       (async () => {
         try {
-          const confirmationHtml = generateConfirmationEmailHtml(
-            payload.firstName.trim(),
-            commercialRequestPath,
-          );
-          const requestPathLabel =
-            COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request";
-          const confirmationSteps = confirmationNextSteps(commercialRequestPath);
-          const confirmationText = `Hi ${payload.firstName.trim()},
-
-Thank you for your request. We received your ${requestPathLabel.toLowerCase()}.
-
-What happens next?
-${confirmationSteps.map((step, index) => `${index + 1}. ${step}`).join("\n")}
-
-This confirmation does not grant instant access, rights clearance, payment, provider execution, fulfillment, or live hosted availability. Blueprint will confirm those only when the backing record supports them.
-
-In the meantime, explore our resources:
-- Product: https://tryblueprint.io/product
-- Sites: https://tryblueprint.io/sites
-- Proof: https://tryblueprint.io/proof
-
-Best,
-The Blueprint Team
-
-Blueprint | 1005 Crete St, Durham, NC 27707`;
-
+          const subject = "We received your request";
+          const message = brandedEmail({
+            subject,
+            text: requestConfirmationText({ firstName: typedFirstName, buyerType }),
+          });
           const emailResult = await sendEmail({
             to: emailLower,
-            subject: "Blueprint - We received your request",
-            text: confirmationText,
-            html: confirmationHtml,
-            replyTo: "ops@tryblueprint.io",
+            subject,
+            text: message.text,
+            html: message.html,
+            replyTo: COMPANY.emails.hello,
           });
 
           if (emailResult.sent) {

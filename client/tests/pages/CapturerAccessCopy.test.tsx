@@ -158,10 +158,11 @@ describe("Capturer access copy", () => {
     expect(terms).not.toHaveAccessibleName(/payout setup happen in Blueprint Capture/i);
   });
 
-  it("keeps capturers on the mobile path from the sign-in page", () => {
+  it("no longer sends anyone from the sign-in page to the retired capture app", () => {
     render(<Login />);
 
     expect(screen.getByRole("heading", { name: /Sign In/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Capture app access" })).toHaveAttribute("href", "/capture-app");
+    expect(screen.queryByRole("link", { name: "Capture app access" })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="/capture-app"]')).toBeNull();
   });
 });

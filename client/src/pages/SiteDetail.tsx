@@ -66,14 +66,14 @@ function ConfiguredSceneOfferingDetail({ offering }: { offering: ConfiguredScene
             alt={`Derived configured-scene view for ${offering.title}`}
             className="aspect-[16/10] w-full border border-runway-line object-cover"
           />
-          <p className="runway-meta mt-2">Derived appearance evidence selected from the configuration run; not a captured or physical-outcome image.</p>
+          <p className="runway-meta mt-2">A view rendered from the simulated scene, not a photo of the site or of a robot run.</p>
         </div>
       </section>
 
       <section className="grid gap-8 py-12 md:grid-cols-[0.34fr_0.66fr]">
         <div>
           <h2 className="font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">Configured task</h2>
-          <p className="mt-4 text-sm leading-[1.6] text-runway-mute">This identity is bound to the immutable configured-scene revision. Controls and policy results remain separate evidence.</p>
+          <p className="mt-4 text-sm leading-[1.6] text-runway-mute">The task is tied to this exact version of the scene. Results from robot runs are reported separately.</p>
         </div>
         <article className="runway-panel p-5">
           <p className="text-lg font-semibold text-runway-text">{offering.task.identity.id}</p>
@@ -85,7 +85,7 @@ function ConfiguredSceneOfferingDetail({ offering }: { offering: ConfiguredScene
       <section className="flex gap-4 border-t border-runway-line pt-8">
         <ShieldCheck className="h-7 w-7 shrink-0 text-runway-signal" aria-hidden="true" />
         <p className="max-w-4xl text-sm font-semibold leading-[1.6] text-runway-mute">
-          This public projection proves only that an authorized configured-scene offering was published by Pipeline. It does not prove policy execution, ranking performance, physical success, deployment safety, or safety approval.
+          This page shows only that the site approved publishing this scene. It is not a result: it says nothing about how any robot performed, how candidates rank, or whether a deployment would be safe.
         </p>
       </section>
     </>
@@ -104,11 +104,12 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     setSite(null);
     fetch(`/api/site-worlds/${encodeURIComponent(params.slug)}`, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error(response.status === 404 ? "Site record not found" : `Site record unavailable (${response.status})`);
+        if (!response.ok) throw new Error(response.status === 404 ? "We could not find this site." : "This site is not available right now. Try again shortly.");
         return response.json() as Promise<PublicSiteCatalogItem>;
       })
       .then((record) => {
-        if (record.dataSource !== "pipeline") throw new Error("Site record is not backed by Pipeline");
+        // Only records published from real site work are shown; a static fixture never is.
+        if (record.dataSource !== "pipeline") throw new Error("This site record is not a published site.");
         setSite(record);
         setError(null);
       })
@@ -123,19 +124,19 @@ export default function SiteDetail({ params }: SiteDetailProps) {
 
   const siteName = site
     ? isConfiguredScenePublicOffering(site) ? site.title : site.siteName
-    : "Pipeline record";
+    : "Site record";
   return (
     <>
       <SEO
         title={`${siteName} | Sites | Blueprint`}
-        description="Inspect a Pipeline-backed workflow record that may ground a months 0–2 deployment-preparation run."
+        description="A real site task that robot teams can be evaluated against."
         canonical={`/sites/${params.slug}`}
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={[
           webPageJsonLd({
             path: `/sites/${params.slug}`,
             name: `${siteName} capture record`,
-            description: "Pipeline-backed capture and task scope for a request-specific robot evaluation.",
+            description: "The recorded task at a real site, for robot evaluation.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -159,7 +160,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
             <section className="runway-panel mt-8 p-8">
               <Database className="h-7 w-7 text-runway-signal" aria-hidden="true" />
               <h1 className="mt-5 font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">This public site record is not available.</h1>
-              <p className="mt-3 text-runway-mute">{error || "No Pipeline-backed record was returned."}</p>
+              <p className="mt-3 text-runway-mute">{error || "We could not load this site."}</p>
               <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=capture-access&path=new-capture&source=site-detail-unavailable" className="runway-cta mt-7">
                 Request the exact site
               </a>
@@ -171,7 +172,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
               <section className="mt-8 grid gap-10 border-b border-runway-line pb-12 md:grid-cols-[0.9fr_1.1fr] md:items-center">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="runway-prov"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-runway-green" />Pipeline record</span>
+                    <span className="runway-prov"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-runway-green" />Site record</span>
                     {site.evaluationReadiness?.qualification_state ? (
                       <span className="runway-chip runway-chip-neutral">
                         {site.evaluationReadiness.qualification_state.replace(/_/g, " ")}
@@ -193,7 +194,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
               <section className="grid gap-8 py-12 md:grid-cols-[0.34fr_0.66fr]">
                 <div>
                   <h2 className="font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">Recorded task scope</h2>
-                  <p className="mt-4 text-sm leading-[1.6] text-runway-mute">Tasks and scenarios below come from this record. Run outcomes appear only after an owned evaluation executes.</p>
+                  <p className="mt-4 text-sm leading-[1.6] text-runway-mute">The tasks below come from the site. Results appear only after a robot team runs an evaluation.</p>
                 </div>
                 <div className="grid gap-3">
                   {site.taskCatalog.length ? site.taskCatalog.map((task) => (
@@ -202,7 +203,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                       {task.taskCategory ? <p className="mt-2 text-sm text-runway-mute">{task.taskCategory}</p> : null}
                     </article>
                   )) : (
-                    <div className="runway-panel p-5 text-sm text-runway-mute">Task detail will be scoped with the buyer request.</div>
+                    <div className="runway-panel p-5 text-sm text-runway-mute">Task details are agreed when a robot team asks to evaluate here.</div>
                   )}
                 </div>
               </section>
@@ -210,7 +211,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
               <section className="flex gap-4 border-t border-runway-line pt-8">
                 <ShieldCheck className="h-7 w-7 shrink-0 text-runway-signal" aria-hidden="true" />
                 <p className="max-w-4xl text-sm font-semibold leading-[1.6] text-runway-mute">
-                  This page proves only that a current public capture record exists. It does not prove policy execution, ranking performance, deployment safety, rights beyond the stated request, or fulfillment.
+                  This page shows only that the site has recorded its task. It is not a result: it says nothing about how any robot performed, how candidates rank, or whether a deployment would be safe.
                 </p>
               </section>
             </>

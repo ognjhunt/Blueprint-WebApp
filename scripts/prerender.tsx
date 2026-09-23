@@ -1,5 +1,7 @@
 import { minimalMarketingRedirects } from "../client/src/data/minimalPublicSite";
 import { stampCanvasSurface } from "../client/src/app/canvasSurface";
+import { appRoutePatterns } from "../client/src/app/routes";
+import { ROUTE_PATTERNS_FILE } from "../client/src/app/routeMatch";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -14,16 +16,14 @@ import { AuthProvider } from "../client/src/contexts/AuthContext";
 import { SiteLayout } from "../client/src/components/site/SiteLayout";
 import HowItWorks from "../client/src/pages/HowItWorks";
 import Pricing from "../client/src/pages/Pricing";
+import About from "../client/src/pages/About";
 import Home from "../client/src/pages/Home";
-import Capture from "../client/src/pages/Capture";
-import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
 import Contact from "../client/src/pages/Contact";
 import Sites from "../client/src/pages/Sites";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
 import BusinessSignUpFlow from "../client/src/pages/BusinessSignUpFlow";
-import CapturerSignUpFlow from "../client/src/pages/CapturerSignUpFlow";
 import ForgotPassword from "../client/src/pages/ForgotPassword";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -73,18 +73,6 @@ function MinimalStaticPage({
   );
 }
 
-const PrerenderCaptureLaunchAccessSummary = () => (
-  <MinimalStaticPage
-    title="Capture Launch Access | Blueprint"
-    description="Request Blueprint Capture launch access for approved city and site capture workflows."
-    heading="Request capture launch access"
-    body="Blueprint Capture access is review-based and tied to lawful public-facing routes, privacy rules, city coverage, and downstream package usefulness."
-    primaryHref="/capture-app/launch-access"
-    primaryLabel="Request access"
-    canonical="/capture-app/launch-access"
-  />
-);
-
 const PrerenderFallbackSummary = () => (
   <MinimalStaticPage
     title="Blueprint"
@@ -101,9 +89,7 @@ const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
   { path: "/how-it-works", component: HowItWorks },
   { path: "/pricing", component: Pricing },
-  { path: "/capture", component: Capture },
-  { path: "/capture-app", component: CaptureAppPlaceholder },
-  { path: "/capture-app/launch-access", component: PrerenderCaptureLaunchAccessSummary, shell: "bare" },
+  { path: "/about", component: About },
   { path: "/sites", component: Sites },
   { path: "/contact/robot-team", component: Contact },
   { path: "/contact/site-operator", component: Contact },
@@ -112,7 +98,6 @@ const staticRoutes: StaticRoute[] = [
   { path: "/signup/business", component: BusinessSignUpFlow, shell: "bare" },
   { path: "/signup/robot-team", component: BusinessSignUpFlow, shell: "bare" },
   { path: "/signup/site-operator", component: BusinessSignUpFlow, shell: "bare" },
-  { path: "/signup/capturer", component: CapturerSignUpFlow, shell: "bare" },
   { path: "/forgot-password", component: ForgotPassword, shell: "bare" },
   { path: "/privacy", component: Privacy },
   { path: "/terms", component: Terms },
@@ -239,6 +224,15 @@ async function main() {
   await fs.promises.writeFile(
     path.join(distPath, "app-shell.html"),
     shellHtml,
+    "utf8",
+  );
+
+  // The server answers a path no route renders with a 404 status. It reads the
+  // patterns from here rather than importing the React route table. Written
+  // outside `public` so it is not served.
+  await fs.promises.writeFile(
+    path.resolve(distPath, "..", ROUTE_PATTERNS_FILE),
+    JSON.stringify({ patterns: appRoutePatterns() }, null, 2),
     "utf8",
   );
 

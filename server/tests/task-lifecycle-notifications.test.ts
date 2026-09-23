@@ -43,7 +43,7 @@ describe("task lifecycle notifications", () => {
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
     expect(row.to).toBe("owner@example.com");
     expect(row.kind).toBe("video_received");
-    expect(row.body).toMatch(/reviewing privacy and coverage/i);
+    expect(row.body).toMatch(/covers the work area and that nothing private is in view/i);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
   });
@@ -54,9 +54,11 @@ describe("task lifecycle notifications", () => {
 
     const scene = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_ready") as Record<string, unknown>;
     const screening = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:screening_started") as Record<string, unknown>;
-    expect(scene.body).toMatch(/persisted and ready to view/i);
-    expect(screening.body).toMatch(/picked up/i);
-    expect(screening.body).toMatch(/not an observed episode or result/i);
+    expect(scene.body).toMatch(/your scene is ready/i);
+    expect(screening.body).toMatch(/has started an evaluation run/i);
+    expect(screening.body).toMatch(/again when it reports a result/i);
+    expect(screening.body).not.toMatch(/succeeded|result:/i);
+    expect(screening.body).toMatch(/— The Blueprint team$/);
   });
 
   it("sends each run or request its own email, and a retry of one event none", async () => {

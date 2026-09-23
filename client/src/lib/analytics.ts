@@ -130,6 +130,16 @@ function ensureGaLoaded() {
     window.gtag = function gtag(...args: unknown[]) {
       window.dataLayer?.push(args);
     };
+    // Denied until the visitor chooses. This has to precede "config": GA
+    // reads the consent state when it configures, so an update that only
+    // arrives after the banner is answered let it set cookies first.
+    window.gtag("consent", "default", {
+      analytics_storage: "denied",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+      wait_for_update: 500,
+    });
     window.gtag("js", new Date());
   }
 

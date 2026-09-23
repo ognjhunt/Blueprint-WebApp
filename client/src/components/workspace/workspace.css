@@ -52,7 +52,7 @@
   display: block;
   height: 30px;
   width: 30px;
-  border: 2px solid currentColor;
+  background: url("/brand/mark.svg") center / contain no-repeat;
   flex-shrink: 0;
 }
 .ws-sidebar nav {

@@ -65,6 +65,15 @@ describe("the decision ladder", () => {
     expect(status.operatorAction).toBeNull();
   });
 
+  it("never claims an automated check when a person reviews the footage", () => {
+    const manual = projectTaskStatus(
+      base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, footageReviewAutomated: false }),
+    );
+    expect(manual.decision).toBe("footage_received");
+    expect(manual.headline).toMatch(/our team reviews it and emails you/i);
+    expect(manual.headline).not.toMatch(/checking/i);
+  });
+
   it("keeps a measured shortfall above the footage-received state", () => {
     const status = projectTaskStatus(
       base({

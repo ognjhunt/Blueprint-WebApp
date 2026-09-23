@@ -92,7 +92,7 @@ describe("Sites", () => {
   it("offers demand capture instead of fixture supply when inventory is empty", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }));
     render(<Sites />);
-    expect(await screen.findByText("No public tasks to browse yet.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "The first site tasks are being prepared." })).toBeInTheDocument();
     expect(screen.getByRole("form", { name: "Task preferences" })).toBeInTheDocument();
     expect(screen.queryByText("Move totes between two stations")).not.toBeInTheDocument();
   });
@@ -101,7 +101,7 @@ describe("Sites", () => {
     render(<SiteDetail params={{ slug: "site-live-1" }} />);
     expect(await screen.findByRole("heading", { name: "Owner-backed warehouse" })).toBeInTheDocument();
     expect(screen.getByText("Move a tote")).toBeInTheDocument();
-    expect(screen.getByText(/proves only that a current public capture record exists/i)).toBeInTheDocument();
+    expect(screen.getByText(/shows only that the site has recorded its task/i)).toBeInTheDocument();
     expect(screen.getByText(/Illustrative workflow image/i)).toBeInTheDocument();
   });
 
@@ -110,6 +110,6 @@ describe("Sites", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /not available/i })).toBeInTheDocument();
     });
-    expect(screen.getByText(/not backed by Pipeline/i)).toBeInTheDocument();
+    expect(screen.getByText(/not a published site/i)).toBeInTheDocument();
   });
 });

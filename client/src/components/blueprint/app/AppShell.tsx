@@ -91,7 +91,10 @@ export function AppShell({
         ]
       : [
           ["overview", "Overview", "/app"],
-          ["opportunities", "Openings", "/app/opportunities"],
+          // The $99 task library, not the pilot-openings list the capture-first
+          // intake never fills; and the runs and balance a team paid for.
+          ["opportunities", "Task library", "/sites"],
+          ["runs", "Runs & balance", "/settings?tab=agent"],
           ["history", "History", "/app/history"],
           ["settings", "Settings", "/settings"],
         ];

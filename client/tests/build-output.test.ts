@@ -50,21 +50,31 @@ describe("build output", () => {
       "how-it-works/index.html",
       "pricing/index.html",
       "sites/index.html",
-      "capture/index.html",
+      "about/index.html",
       "contact/robot-team/index.html",
       "contact/site-operator/index.html",
-      "capture-app/index.html",
-      "capture-app/launch-access/index.html",
       "sign-in/index.html",
       "signup/index.html",
       "signup/business/index.html",
-      "signup/capturer/index.html",
       "forgot-password/index.html",
       "privacy/index.html",
       "terms/index.html",
     ].forEach((file) => {
       expect(fs.existsSync(distPath(file))).toBe(true);
     });
+  });
+
+  it("ships the retired capture-app pages no more, and the current brand's icons and share image", () => {
+    for (const file of ["capture/index.html", "capture-app/index.html", "capture-app/launch-access/index.html", "signup/capturer/index.html"]) {
+      expect(fs.existsSync(distPath(file))).toBe(false);
+    }
+    for (const file of ["favicon.ico", "favicon.svg", "apple-touch-icon.png", "brand/mark.svg", "brand/og-default.png"]) {
+      expect(fs.existsSync(distPath(file))).toBe(true);
+    }
+    const home = fs.readFileSync(distPath("index.html"), "utf8");
+    expect(home).toContain('content="https://tryblueprint.io/brand/og-default.png"');
+    expect(home).not.toContain("blueprint-og-hosted-review");
+    expect(home).not.toMatch(/og:image" content="[^"]+\.webp"/);
   });
 
   it("ships the recorded evaluation example and all six episode videos", () => {
@@ -80,7 +90,10 @@ describe("build output", () => {
   });
 
   it("prerenders the real auth forms in the shared minimal shell", () => {
-    for (const route of ["sign-in", "signup/business", "signup/capturer", "forgot-password"]) {
+    // The capturer sign-up is retired (it redirects to the site intake), so it
+    // is not prerendered.
+    expect(fs.existsSync(distPath("signup/capturer/index.html"))).toBe(false);
+    for (const route of ["sign-in", "signup/business", "forgot-password"]) {
       const html = fs.readFileSync(distPath(route, "index.html"), "utf8");
       expect(html).toContain("auth-shell");
       expect(html).toContain("/images/site-led/auth/packing.webp");
@@ -104,7 +117,6 @@ describe("build output", () => {
       "capture-visit/index.html",
       "site-task/index.html",
       "robot-intake/index.html",
-      "about/index.html",
       "vision/index.html",
       "product/index.html",
       "robot-team/eval/index.html",
@@ -149,10 +161,10 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/pricing", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"].forEach((route) => {
+    ["/", "/how-it-works", "/pricing", "/contact/site-operator", "/contact/robot-team", "/sites", "/about", "/privacy", "/terms"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(7);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(9);
 
     [
       "https://tryblueprint.io/product",
@@ -226,8 +238,8 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Find work your robot could do.");
-    expect(robotHtml).toContain("Choose a task before connecting your robot.");
-    expect(robotHtml).toContain("Already have a robot setup to evaluate?");
+    expect(robotHtml).toContain("Choose a real site task, see what an evaluation of your robot would cost");
+    expect(robotHtml).toContain("Already have a robot policy to evaluate?");
     expect(robotHtml).toContain("Nothing runs or is charged here.");
     expect(robotHtml).toContain("See what we would run");
     expect(robotHtml).toContain("/agent-access.openapi.json");
@@ -268,5 +280,23 @@ describe("build output", () => {
     // Evaluation Run" left the site page when it stopped leading with a screen.
     expect(browserJavaScript).toContain("A pilot worth running.");
     expect(browserJavaScript).toContain("What the footage shows is what decides");
+  });
+
+  it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {
+    for (const page of ["index.html", "pricing/index.html", "how-it-works/index.html", "about/index.html"]) {
+      const html = fs.readFileSync(distPath(page), "utf8");
+      const preloaded = [...html.matchAll(/(?:src|href)="\/assets\/([^"]+\.js)"/g)].map((match) => match[1]);
+      expect(preloaded.length, page).toBeGreaterThan(0);
+      for (const file of preloaded) {
+        expect(file, `${page} preloads ${file}`).not.toMatch(/recharts|firebase|sentry|radix/);
+      }
+    }
+  });
+
+  it("writes the client route patterns outside the served directory for real 404s", () => {
+    const file = path.resolve(process.cwd(), "dist", "app-route-patterns.json");
+    const { patterns } = JSON.parse(fs.readFileSync(file, "utf8")) as { patterns: string[] };
+    expect(patterns).toEqual(expect.arrayContaining(["/", "/pricing", "/about", "/sites", "/capture-upload/:token"]));
+    expect(fs.existsSync(distPath("app-route-patterns.json"))).toBe(false);
   });
 });

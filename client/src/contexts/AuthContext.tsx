@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import type { IdTokenResult, User as FirebaseUser } from "firebase/auth";
 import type { UserData } from "@/lib/firebase";
 import { resolveOperatorQaAuth } from "@/lib/operatorQaAuth";
+import { onFirebaseClientLoaded } from "@/lib/firebaseLoadSignal";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -95,6 +96,49 @@ function hasPersistedFirebaseAuthSession() {
   );
 }
 
+/**
+ * Whether this browser may hold a Firebase session. The sync check covers
+ * local persistence; the database check covers a session Firebase kept in
+ * IndexedDB (its default before persistence is set). When the browser cannot
+ * say, assume it may, which is how every page behaved before.
+ */
+async function mayHoldFirebaseSession(): Promise<boolean> {
+  if (hasPersistedFirebaseAuthSession()) return true;
+  try {
+    if (typeof indexedDB === "undefined" || typeof indexedDB.databases !== "function") return true;
+    const databases = await indexedDB.databases();
+    return databases.some((database) => database.name === "firebaseLocalStorageDb");
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Runs `task` once Firebase is worth loading: after page load when this
+ * browser may hold a session, or as soon as anything else loads the client (a
+ * sign-in form, a claim page). A first-time visitor on a marketing page never
+ * downloads the SDK.
+ */
+function whenFirebaseMayBeNeeded(task: () => void): () => void {
+  let settled = false;
+  const run = () => {
+    if (settled) return;
+    settled = true;
+    task();
+  };
+  const stopWatching = onFirebaseClientLoaded(run);
+  const cancelIdle = schedulePostLoadIdleTask(() => {
+    void mayHoldFirebaseSession().then((may) => {
+      if (may) run();
+    });
+  });
+  return () => {
+    settled = true;
+    stopWatching();
+    cancelIdle();
+  };
+}
+
 function scheduleIdleTask(task: () => void) {
   if (typeof window === "undefined") {
     return () => {};
@@ -168,7 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    return schedulePostLoadIdleTask(() => {
+    return whenFirebaseMayBeNeeded(() => {
       void initPersistence();
     });
   }, [initializeAuthImmediately, operatorQaAuth.enabled]);
@@ -383,7 +427,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const cancelScheduledAuthListener = initializeAuthImmediately
       ? (startAuthListener(), () => {})
-      : schedulePostLoadIdleTask(startAuthListener);
+      : whenFirebaseMayBeNeeded(startAuthListener);
 
     if (!initializeAuthImmediately) {
       setLoading(false);

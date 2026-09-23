@@ -17,7 +17,7 @@ test("pricing keeps the site's bill and the robot team's bill apart", async ({ p
 
   const team = page.locator("section", { has: page.getByRole("heading", { name: /One price for each policy you put on a task/i }) });
   await expect(team.getByText("$99", { exact: true })).toBeVisible();
-  await expect(team.getByRole("link", { name: /Apply as a robot team/i })).toHaveAttribute(
+  await expect(team.getByRole("link", { name: /Find a task for your robot/i })).toHaveAttribute(
     "href",
     "/contact/robot-team",
   );

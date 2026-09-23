@@ -9,6 +9,8 @@ import { GLOBAL_RATE_LIMIT_SKIP_PATHS } from "./utils/globalRateLimitPolicy";
 import { registerRoutes } from "./routes";
 import { privateWorkLogPath } from "./utils/blueprintWorkLogPrivacy";
 import { stripeWebhookHandler } from "./routes/stripe-webhooks";
+import { drainStripeWebhookQueueOnce, stripeWebhookInlineMode } from "./utils/stripeWebhookQueue";
+import { startOutboxPump } from "./utils/captureOutbox";
 import { handleHostedSessionUiUpgrade } from "./routes/site-world-sessions";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
@@ -29,6 +31,7 @@ import {
   DEFAULT_PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT,
   PIPELINE_TASK_EVALUATION_RESULT_PATH,
 } from "./utils/pipelineTaskEvaluationResultBodyParser";
+import { describeSiteVideoEvidenceConfig } from "./utils/siteVideoEvidenceConfig";
 
 const env = validateEnv();
 
@@ -43,6 +46,15 @@ if (firehoseConfig) {
   logger.warn(
     { event: "firehose_config_unavailable" },
     "Firehose not configured: missing FIREHOSE_API_TOKEN or FIREHOSE_BASE_URL. Firehose signals will be skipped.",
+  );
+}
+
+// Footage review switched on with nothing to run it holds every upload.
+const siteVideoEvidenceConfig = describeSiteVideoEvidenceConfig();
+if (!siteVideoEvidenceConfig.ready) {
+  logger.warn(
+    { event: "site_video_evidence_unkeyed" },
+    siteVideoEvidenceConfig.detail,
   );
 }
 
@@ -430,16 +442,22 @@ app.use((req, res, next) => {
     { from: "/world-models", to: "/sites" },
     { from: "/world-models/:slug", to: "/sites" },
     { from: "/agents", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
-    { from: "/capture-jobs", to: "/capture" },
-    { from: "/capture-network", to: "/capture" },
-    { from: "/capturer", to: "/capture" },
-    { from: "/capturers", to: "/capture" },
-    { from: "/capturer-access", to: "/capture" },
-    { from: "/become-a-capturer", to: "/capture" },
-    { from: "/for-capturers", to: "/capture" },
-    { from: "/earn", to: "/capture" },
+    // The capturer network and its app pages are retired for now: sites film
+    // their own tasks. Every old entry point lands on the site start page.
+    { from: "/capture", to: "/contact/site-operator" },
+    { from: "/capture-app", to: "/contact/site-operator" },
+    { from: "/capture-app/launch-access", to: "/contact/site-operator" },
+    { from: "/signup/capturer", to: "/contact/site-operator" },
+    { from: "/capture-jobs", to: "/contact/site-operator" },
+    { from: "/capture-network", to: "/contact/site-operator" },
+    { from: "/capturer", to: "/contact/site-operator" },
+    { from: "/capturers", to: "/contact/site-operator" },
+    { from: "/capturer-access", to: "/contact/site-operator" },
+    { from: "/become-a-capturer", to: "/contact/site-operator" },
+    { from: "/for-capturers", to: "/contact/site-operator" },
+    { from: "/earn", to: "/contact/site-operator" },
     { from: "/sample-deliverables", to: "/proof" },
-    { from: "/launch-map", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
+    { from: "/launch-map", to: "/contact/site-operator" },
     { from: "/updates", to: "/" },
     { from: "/careers", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
     { from: "/help", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
@@ -501,9 +519,35 @@ app.use((req, res, next) => {
   }
 
   const PORT = env.PORT;
+  // Settle anything a queue-mode deployment left behind. Claims are
+  // transactional, so this is safe beside a worker that also drains.
+  if (stripeWebhookInlineMode()) {
+    void drainStripeWebhookQueueOnce()
+      .then((result) => {
+        if (result.claimed || result.reclaimed) {
+          logger.info(
+            attachRequestMeta({ route: "stripe-webhook-queue" }),
+            `Settled ${result.claimed + result.reclaimed} queued Stripe event(s) left from queue mode`,
+          );
+        }
+      })
+      .catch((error) => {
+        logger.error(
+          attachRequestMeta({ route: "stripe-webhook-queue" }),
+          `Could not settle queued Stripe events: ${(error as Error).message}`,
+        );
+      });
+  }
   const stopOpsAutomationScheduler =
     runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
       ? startOpsAutomationScheduler()
+      : () => undefined;
+  // Customer email must not depend on the ops scheduler being enabled here.
+  // (When the scheduler runs here, its capture_outbox lane already does this;
+  // local QA that disables the scheduler sends nothing either.)
+  const stopOutboxPump =
+    !runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
+      ? startOutboxPump()
       : () => undefined;
   if (!runOpsAutomationInWebProcess) {
     logger.info(
@@ -518,6 +562,7 @@ app.use((req, res, next) => {
   }
   server.on("close", () => {
     stopOpsAutomationScheduler();
+    stopOutboxPump();
   });
   server.listen(PORT, "0.0.0.0", () => {
     logger.info({ port: PORT }, "Server listening");

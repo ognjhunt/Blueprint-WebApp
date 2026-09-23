@@ -110,7 +110,6 @@ export default function Login() {
         <button type="submit" className="auth-primary" disabled={isLoading}>{isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" />Signing in…</> : <>Sign in<ArrowRight size={18} aria-hidden="true" /></>}</button>
       </form>
       <p className="auth-account-link">New to Blueprint? <a href="/signup/business">Create an account</a></p>
-      <a className="auth-utility" href="/capture-app">Capture app access</a>
     </AuthLayout>
   );
 }

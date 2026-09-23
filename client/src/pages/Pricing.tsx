@@ -19,6 +19,7 @@
 import { ArrowRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
+import { qualifyingConditions } from "@/data/qualifyingEnvironments";
 import {
   billingRules,
   entryBoundaries,
@@ -58,8 +59,8 @@ export default function Pricing() {
           <p className="ms-eyebrow">Pricing</p>
           <h1>Sites pay nothing.<br />Robot teams pay {formatPrice(entryPrice)} an entry.</h1>
           <p>
-            One payer. A site records a walkthrough and gets an answer; robot teams pay for each
-            policy they put on a task, and that is what funds it.
+            Only robot teams pay. A site records a walkthrough and gets an answer; robot teams pay
+            for each policy they put on a task, and that pays for the work.
           </p>
         </header>
 
@@ -108,7 +109,7 @@ export default function Pricing() {
             */}
             <p className="ms-price-note"><strong>{entryModel.fairness}</strong></p>
             <a className="ms-text-link" href="/contact/robot-team">
-              Apply as a robot team <ArrowRight size={20} aria-hidden="true" />
+              Find a task for your robot <ArrowRight size={20} aria-hidden="true" />
             </a>
           </section>
         </div>
@@ -172,6 +173,16 @@ export default function Pricing() {
           <ul className="ms-price-list">
             {included.map((item) => <li key={item}>{item}</li>)}
           </ul>
+          {/* The conditions the second line refers to, named where it names
+              them, so a buyer is never pointed at a list no page shows. */}
+          <dl className="ms-price-conditions" aria-label="Blueprint's four conditions">
+            {qualifyingConditions.map((condition) => (
+              <div key={condition.id}>
+                <dt>{condition.name}</dt>
+                <dd>{condition.test}</dd>
+              </div>
+            ))}
+          </dl>
           {/* A flat price is a promise about cost, not about certainty. The
               difference is the easiest thing here for a buyer to misread. */}
           <p className="ms-price-note"><strong>{includedLimit}</strong></p>
@@ -199,7 +210,7 @@ export default function Pricing() {
             Start a task assessment <ArrowRight size={20} aria-hidden="true" />
           </a>
           <a className="ms-text-link" href="/contact/robot-team">
-            Apply as a robot team <ArrowRight size={20} aria-hidden="true" />
+            Find a task for your robot <ArrowRight size={20} aria-hidden="true" />
           </a>
         </div>
       </article>

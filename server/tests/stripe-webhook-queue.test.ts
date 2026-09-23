@@ -126,10 +126,13 @@ beforeEach(() => {
   constructEvent.mockReset();
   process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
   delete process.env.BLUEPRINT_STRIPE_WEBHOOK_INLINE;
+  // Queue mode is opt-in; these tests exercise it explicitly.
+  process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE = "1";
 });
 
 afterEach(() => {
   delete process.env.STRIPE_WEBHOOK_SECRET;
+  delete process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE;
 });
 
 describe("stripe webhook queue transport", () => {
@@ -198,6 +201,23 @@ describe("stripe webhook queue transport", () => {
         key.startsWith("stripeLedgerJournal/"),
       );
       expect(journalEntries).toEqual([journalKey]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("settles in the request by default, so no deployment depends on a queue drainer", async () => {
+    delete process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE;
+    const order = await seedPaidCheckoutFixture();
+    const event = paidCheckoutEvent(order);
+    constructEvent.mockReturnValue(event);
+
+    const { server, baseUrl } = await startWebhookServer();
+    try {
+      const response = await postWebhook(baseUrl);
+      expect(response.status).toBe(200);
+      expect(docs.get(`stripeWebhookQueue/${event.id}`)).toBeUndefined();
+      expect(docs.get(`buyerOrders/${order.id}`)).toMatchObject({ payment_status: "paid" });
     } finally {
       await stopServer(server);
     }

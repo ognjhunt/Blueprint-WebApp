@@ -13,7 +13,10 @@ import type { InboundRequest } from "../types/inbound-request";
 export function operatorListingPaused(
   request: InboundRequest | Record<string, unknown> | null | undefined,
 ): boolean {
-  const task = (request as { workspace_task?: { paused?: boolean } | undefined } | null | undefined)
+  const task = (request as { workspace_task?: { paused?: boolean; archived?: boolean } | undefined } | null | undefined)
     ?.workspace_task;
-  return task?.paused === true;
+  // A closed task is off the library and out of paid runs too. "Close task"
+  // used to set only `archived`, which nothing here read, so a site that
+  // closed its task stayed listed and buyable.
+  return task?.paused === true || task?.archived === true;
 }

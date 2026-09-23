@@ -149,6 +149,20 @@ export function projectWorkspaceTask(
       : "private",
     published,
     archived: workspace.archived === true,
+    paused: workspace.paused === true,
+    captureMode: request.capture_mode === "self_capture" || request.capture_mode === "site_visit"
+      ? request.capture_mode
+      : null,
+    listing: {
+      approved: object(record.public_task_listing).enabled === true,
+      live:
+        object(record.public_task_listing).enabled === true &&
+        workspace.paused !== true &&
+        workspace.archived !== true,
+      cardUrl: object(record.public_task_listing).enabled === true
+        ? `/sites?sceneId=${encodeURIComponent(id)}`
+        : null,
+    },
     potentialMatches: number(match.matchedCount),
     capture: null,
     results: [],

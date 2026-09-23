@@ -178,6 +178,33 @@ export function verifyCaptureUploadToken(token: string): CaptureUploadTokenPaylo
 }
 
 /**
+ * The request a genuine link was minted for, even after it expired.
+ *
+ * Only for asking us to email a fresh link to the address already on file. It
+ * grants nothing by itself: the signature proves we issued it, and the new
+ * link goes to the site's own inbox, never to whoever holds the old one.
+ */
+export function requestIdFromExpiredCaptureUploadToken(token: string): string | null {
+  const [encodedPayload, signature] = String(token || "").split(".");
+  if (!encodedPayload || !signature) return null;
+  let serialized: string;
+  try {
+    serialized = fromBase64Url(encodedPayload);
+  } catch {
+    return null;
+  }
+  const provided = Buffer.from(signature, "utf-8");
+  const expected = Buffer.from(signPayload(serialized), "utf-8");
+  if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) return null;
+  try {
+    const payload = JSON.parse(serialized) as CaptureUploadTokenPayload;
+    return payload.kind === "capture_upload" && payload.requestId ? payload.requestId : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Where a self-captured walkthrough is written.
  *
  * This is the canonical path the `extractFrames` Cloud Function already

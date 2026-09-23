@@ -19,6 +19,7 @@ import {
 } from "@/lib/accountAuth";
 import { friendlyAuthError } from "@/lib/siteClaim";
 import { connectRobotTeam, robotTeamVerificationUrl, setUpRobotTeamWorkspace } from "@/lib/robotTeamAccount";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
 type Step =
   | { status: "form" }
@@ -29,6 +30,8 @@ export function RobotTeamAccountStep(props: {
   agentKey: string;
   email: string;
   teamName: string;
+  /** The task this plan is for, so the verification link reopens it. */
+  returnSceneId?: string;
   /** Called once the team is connected to a verified account. */
   onConnected: () => void;
   /** Called before the page may be left for the verification email. */
@@ -74,7 +77,7 @@ export function RobotTeamAccountStep(props: {
     }
     await setUpRobotTeamWorkspace(user, { teamName: props.teamName, acceptedTerms: terms });
     props.onAwaitingVerification?.();
-    await sendAccountVerification(user, robotTeamVerificationUrl());
+    await sendAccountVerification(user, robotTeamVerificationUrl(props.returnSceneId));
     setStep({ status: "verify", user });
   }
 
@@ -83,8 +86,8 @@ export function RobotTeamAccountStep(props: {
       setError("Accept the Terms and Privacy Policy to create your account.");
       return;
     }
-    if (!google && password.length < 6) {
-      setError("Choose a password of six characters or more.");
+    if (!google && password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.`);
       return;
     }
     setError(null);
@@ -159,7 +162,7 @@ export function RobotTeamAccountStep(props: {
         <input
           id="team-account-password"
           type="password"
-          minLength={6}
+          minLength={MIN_PASSWORD_LENGTH}
           autoComplete={mode === "create" ? "new-password" : "current-password"}
           value={password}
           onChange={(event) => setPassword(event.target.value)}

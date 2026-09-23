@@ -90,5 +90,5 @@ test("shows the public proof boundary on the offering detail page", async ({ pag
 
   await expect(page.getByRole("heading", { name: "Scene 839873 simple relocation" })).toBeVisible();
   await expect(page.getByText("Configured — controls pending", { exact: true })).toBeVisible();
-  await expect(page.getByText(/does not prove policy execution, ranking performance, physical success/)).toBeVisible();
+  await expect(page.getByText(/It is not a result: it says nothing about how any robot performed/)).toBeVisible();
 });

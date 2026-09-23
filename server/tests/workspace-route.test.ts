@@ -3,6 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSiteClaimToken } from "../utils/request-review-auth";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
@@ -333,6 +334,39 @@ describe("workspace access and projections", () => {
     expect(response.evaluations[0].targetsMet).toBeNull();
   });
 });
+describe("a site finds its way back to its own task", () => {
+  it("mints a fresh private task link for the owner only", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    const response = await api("/tasks/task-1/task-link", "site-1", {});
+    expect(response.status).toBe(200);
+    expect((await response.json()).url).toMatch(/\/capture-upload\//);
+    expect((await api("/tasks/task-1/task-link", "site-2", {})).status).toBe(404);
+  });
+
+  it("projects the listing, the capture mode, and takes a closed task off the library", async () => {
+    const { operatorListingPaused } = await import("../utils/operatorListing");
+    const record = {
+      ...task(),
+      request: { ...task().request, capture_mode: "self_capture" },
+      public_task_listing: { enabled: true },
+    };
+    state.records.set("inboundRequests/task-1", record);
+    const listed = (await (await api("/", "site-1")).json()).tasks[0];
+    expect(listed).toMatchObject({
+      captureMode: "self_capture",
+      paused: false,
+      listing: { approved: true, live: true, cardUrl: "/sites?sceneId=task-1" },
+    });
+    expect(operatorListingPaused(record)).toBe(false);
+    expect(operatorListingPaused({ ...record, workspace_task: { archived: true } })).toBe(true);
+    expect(operatorListingPaused({ ...record, workspace_task: { paused: true } })).toBe(true);
+
+    state.records.set("inboundRequests/task-1", { ...record, workspace_task: { archived: true } });
+    const closed = (await (await api("/", "site-1")).json()).tasks[0];
+    expect(closed.listing).toMatchObject({ approved: true, live: false });
+  });
+});
+
 describe("workspace requests and lifecycle", () => {
   it("can record a decision when the source task prose is encrypted", async () => {
     const source: any = task();
@@ -698,8 +732,8 @@ describe("account workspace setup", () => {
       finishedOnboarding: true,
       termsAcceptance: {
         accepted_terms: true,
-        terms_version: "2026-07-09",
-        privacy_version: "2026-07-09",
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
       },
     });
     expect(state.records.get("users/other")).toEqual({
@@ -713,8 +747,8 @@ describe("account workspace setup", () => {
       buyerType: "site_operator",
       name: "Site Owner",
       acceptedTerms: true,
-      termsVersion: "2026-07-09",
-      privacyVersion: "2026-07-09",
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
     });
     const existing = task();
     state.records.set("inboundRequests/task-1", existing);

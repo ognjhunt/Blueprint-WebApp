@@ -64,6 +64,8 @@ import {
   recordSiteCaptureUploadIdentity,
   siteCaptureBundleClaimed,
 } from "../utils/siteCaptureUploadIdentity";
+import { isSiteVideoEvidenceEnabled } from "../config/env";
+import { notifySlackFootageNeedsReview } from "../utils/slack";
 
 const router = Router();
 
@@ -415,6 +417,9 @@ async function finishStoredCapture(params: {
     });
   } catch (error) {
     logger.warn({ error, requestId: payload.requestId }, "Could not enqueue video-received notice");
+  }
+  if (!isSiteVideoEvidenceEnabled()) {
+    void notifySlackFootageNeedsReview({ requestId: payload.requestId }).catch(() => undefined);
   }
 
   const privacy = await screenCaptureForPrivacy({

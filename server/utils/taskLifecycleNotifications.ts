@@ -12,6 +12,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { enqueueOutbox, CAPTURE_OUTBOX_COLLECTION, type OutboxKind } from "./captureOutbox";
 import { decryptFieldValue } from "./field-encryption";
+import { EMAIL_SIGN_OFF } from "./emailLayout";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -51,39 +52,39 @@ export function reconstructionIsViewable(record: {
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string) => string }> = {
   task_received: {
     subject: "We have your Blueprint task — here is your link",
-    body: (url) => `We have your task. This private link is where you film the work area on your phone, confirm the task brief, and follow everything that happens next. Keep it to yourself: it acts for your site.\n\n${url}\n\nWe will email you each time something happens on your task.`,
+    body: (url) => `Thanks for sending us your task. This private link is where you film the work area on your phone, review the task brief, and follow everything that happens next. It opens your site's task without a password, so please don't forward it.\n\nOpen your task:\n${url}\n\nWe will email you each time something happens on your task.`,
   },
   video_received: {
     subject: "We received your Blueprint walkthrough",
-    body: (url) => `Your walkthrough is stored. We are reviewing privacy and coverage before deriving a scene; this message does not mean that review has cleared.\n\nFollow the task here:\n${url}`,
+    body: (url) => `Your walkthrough arrived safely. Next we check that it covers the work area and that nothing private is in view, then we build the scene. We will email you when that is done.\n\nOpen your task:\n${url}`,
   },
   scene_ready: {
     subject: "Your Blueprint scene is ready to view",
-    body: (url) => `The reconstructed scene is persisted and ready to view on your task page.\n\nOpen your task:\n${url}`,
+    body: (url) => `Your scene is ready: a 3D reconstruction of the work area you filmed. You can look around it on your task page.\n\nOpen your task:\n${url}`,
   },
   listing_live: {
     subject: "Your task card is in the robot-team library",
-    body: (url) => `Robot teams can now see the task card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it from your task page at any time.\n\nOpen your task:\n${url}`,
+    body: (url) => `Robot teams can now see the task card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time from your Blueprint account: https://tryblueprint.io/app/tasks\n\nOpen your task:\n${url}`,
   },
   screening_cleared: {
     subject: "Your task cleared our screen",
-    body: (url, detail) => `Thanks for the call. Your task now clears our screen, so we build your scene from your recording${detail ? ` ${detail}` : ""}.\n\nOpen your task:\n${url}`,
+    body: (url, detail) => `Thanks for the call. Your task now clears our screen, so we will build your scene from your recording${detail ? ` ${detail}` : ""}.\n\nOpen your task:\n${url}`,
   },
   screening_not_now: {
     subject: "An update on your Blueprint task",
-    body: (url) => `Thanks for the call. One answer still means a robot evaluation would not hold up at your site today, so we are not building a scene yet. Your task page shows what is in the way; when it changes, update the brief and we will screen it again.\n\nOpen your task:\n${url}`,
+    body: (url) => `Thanks for the call. One answer still means a robot evaluation would not hold up at your site today, so we are not building a scene yet. Your task page shows what is in the way. When it changes, edit your answers there and we will screen the task again.\n\nOpen your task:\n${url}`,
   },
   screening_started: {
     subject: "A robot team picked up your task",
-    body: (url) => `A robot team picked up your task: its evaluation against your scene has started. This confirms the run started, not an observed episode or result; we email you again when it reports.\n\nOpen your task:\n${url}`,
+    body: (url) => `A robot team has started an evaluation run against your scene. We will email you again when it reports a result.\n\nOpen your task:\n${url}`,
   },
   results_ready: {
     subject: "Results are in from a robot team",
-    body: (url, detail) => `A robot team's screening run against your scene reported its result${detail ? `: ${detail}` : ""}. This is a simulation result for one team, not a physical test or a recommendation.\n\nSee it on your task page:\n${url}`,
+    body: (url, detail) => `A robot team's evaluation run against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one team's robot, not a physical test or a recommendation.\n\nSee it on your task page:\n${url}`,
   },
   run_no_result: {
     subject: "A robot team's run ended without a result",
-    body: (url) => `A robot team's run against your scene ended without an observed episode, so there is no result to show from it. Nothing is needed from you.\n\nOpen your task:\n${url}`,
+    body: (url) => `A robot team's run against your scene ended before any episode was observed, so there is no result to show from it. Nothing is needed from you.\n\nOpen your task:\n${url}`,
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
@@ -121,7 +122,7 @@ export async function enqueueTaskLifecycleNotification(params: {
     kind: params.milestone,
     to,
     subject: message.subject,
-    body: message.body(url, params.detail?.trim() ?? ""),
+    body: `${message.body(url, params.detail?.trim() ?? "")}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "ops@tryblueprint.io",
   });
 }

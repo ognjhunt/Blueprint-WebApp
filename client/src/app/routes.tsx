@@ -3,6 +3,7 @@ import { lazy } from "react";
 import type { ComponentType, LazyExoticComponent } from "react";
 import { MarketingRedirect } from "../pages/MarketingRedirect";
 import type { AccessRole } from "../lib/adminAccess";
+import { routePatternMatches } from "./routeMatch";
 
 export type AppRoute = {
   path?: string;
@@ -41,15 +42,12 @@ function lazyRoute<P = any>(
 
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
 const Pricing = lazyRoute(() => import("../pages/Pricing"));
+const About = lazyRoute(() => import("../pages/About"));
 const Home = lazyRoute(() => import("../pages/Home"));
-const Capture = lazyRoute(() => import("../pages/Capture"));
 const SelfCaptureUpload = lazyRoute(() => import("../pages/SelfCaptureUpload"));
 const ClaimSite = lazyRoute(() => import("../pages/ClaimSite"));
-const CaptureAppPlaceholder = lazyRoute(() => import("../pages/CaptureAppPlaceholder"));
 const CapturerAccount = lazyRoute(() => import("../pages/CapturerAccount"));
-const CaptureLaunchAccess = lazyRoute(() => import("../pages/CaptureLaunchAccess"));
 const BusinessSignUpFlow = lazyRoute(() => import("../pages/BusinessSignUpFlow"));
-const CapturerSignUpFlow = lazyRoute(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazyRoute(() => import("../pages/OnboardingChecklist"));
 // /robot-team/eval merged into /for-robot-teams (#intake); keep the URL as a redirect.
 const Sites = lazyRoute(() => import("../pages/Sites"));
@@ -135,9 +133,6 @@ const ContactRedirect = () => {
   );
 };
 
-const LegacyCaptureJobsRedirect = () => (
-  <MarketingRedirect to="/capture" />
-);
 
 // Legacy redirects
 const LegacyPilotExchangeRedirect = () => (
@@ -238,25 +233,28 @@ export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/pricing", layout: "public", component: Pricing },
-  { path: "/launch-map", layout: "public", component: CaptureLaunchAccess },
+  { path: "/about", layout: "public", component: About },
+  // The capturer network and its app are retired for now: sites film their own
+  // tasks. Old entry points go to the site start page.
+  { path: "/launch-map", layout: "public", component: SiteOperatorCaptureRedirect },
 
-  // Capture / Earn direct flows
-  { path: "/capture", layout: "public", component: Capture },
+  // The site's own capture link and claim.
+  { path: "/capture", layout: "public", component: SiteOperatorCaptureRedirect },
   // The link in a dispatch email. Bare shell and no nav: whoever opens this was
   // sent here to do one thing, and has no account to navigate with.
   { path: "/capture-upload/:token", layout: "public", shell: "bare", component: SelfCaptureUpload },
   { path: "/claim/:token", layout: "public", shell: "bare", component: ClaimSite },
-  { path: "/capture-app", layout: "public", shell: "bare", component: CaptureAppPlaceholder },
+  { path: "/capture-app", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
   { path: "/capture-app/account", layout: "protected", shell: "bare", component: CapturerAccount },
-  { path: "/capture-app/launch-access", layout: "public", component: CaptureLaunchAccess },
-  { path: "/capture-jobs", layout: "public", component: LegacyCaptureJobsRedirect },
-  { path: "/capture-network", layout: "public", component: LegacyCaptureJobsRedirect },
-  { path: "/capturer", layout: "public", component: LegacyCaptureJobsRedirect },
-  { path: "/capturers", layout: "public", component: LegacyCaptureJobsRedirect },
-  { path: "/capturer-access", layout: "public", component: LegacyCaptureJobsRedirect },
-  { path: "/become-a-capturer", layout: "public", component: LegacyCaptureJobsRedirect },
-  { path: "/for-capturers", layout: "public", component: LegacyCaptureJobsRedirect },
-  { path: "/earn", layout: "public", component: LegacyCaptureJobsRedirect },
+  { path: "/capture-app/launch-access", layout: "public", component: SiteOperatorCaptureRedirect },
+  { path: "/capture-jobs", layout: "public", component: SiteOperatorCaptureRedirect },
+  { path: "/capture-network", layout: "public", component: SiteOperatorCaptureRedirect },
+  { path: "/capturer", layout: "public", component: SiteOperatorCaptureRedirect },
+  { path: "/capturers", layout: "public", component: SiteOperatorCaptureRedirect },
+  { path: "/capturer-access", layout: "public", component: SiteOperatorCaptureRedirect },
+  { path: "/become-a-capturer", layout: "public", component: SiteOperatorCaptureRedirect },
+  { path: "/for-capturers", layout: "public", component: SiteOperatorCaptureRedirect },
+  { path: "/earn", layout: "public", component: SiteOperatorCaptureRedirect },
 
   // City landing aliases stay request-first instead of implying open city coverage.
   { path: "/city/:citySlug", layout: "public", component: ContactRedirect },
@@ -329,7 +327,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/signup/business", layout: "public", shell: "bare", component: BusinessSignUpFlow },
   { path: "/signup/robot-team", layout: "public", shell: "bare", component: RobotTeamSignupRedirect },
   { path: "/signup/site-operator", layout: "public", shell: "bare", component: SiteOperatorSignupRedirect },
-  { path: "/signup/capturer", layout: "public", shell: "bare", component: CapturerSignUpFlow },
+  { path: "/signup/capturer", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
   { path: "/onboarding", layout: "protected", shell: "bare", component: OnboardingChecklist },
   { path: "/forgot-password", layout: "public", shell: "bare", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },
@@ -466,17 +464,14 @@ function hasPreload(component: ComponentType<any>): component is PreloadableComp
 // segments plus `:param` segments) so main.tsx can resolve the same route
 // the live <Router> will render, without rendering it.
 export function matchAppRoute(pathname: string): AppRoute | undefined {
-  const segments = pathname.split("/").filter(Boolean);
-  const staticMatch = appRoutes.find((route) => {
-    if (!route.path) return false;
-    const routeSegments = route.path.split("/").filter(Boolean);
-    if (routeSegments.length !== segments.length) return false;
-    return routeSegments.every(
-      (segment, index) => segment.startsWith(":") || segment === segments[index],
-    );
-  });
+  const staticMatch = appRoutes.find((route) => route.path !== undefined && routePatternMatches(route.path, pathname));
 
   return staticMatch ?? appRoutes.find((route) => !route.path);
+}
+
+/** Every path pattern the router renders, for the server's 404 decision. */
+export function appRoutePatterns(): string[] {
+  return appRoutes.flatMap((route) => (route.path === undefined ? [] : [route.path]));
 }
 
 // Preloads the JS chunk for the route matching `pathname`, if it's lazy. Used

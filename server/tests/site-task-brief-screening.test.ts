@@ -151,3 +151,31 @@ describe("the brief tells the owner link whether the site is saved to an account
     expect(claimed.account).toEqual({ claimed: true, email: "ops@acme.example", claimToken: null });
   });
 });
+
+describe("an expired task link asks for a fresh one", () => {
+  it("emails a fresh owner link to the address on file, and answers a forged link the same way", async () => {
+    const { enqueueOutbox } = await import("../utils/captureOutbox");
+    const enqueue = vi.mocked(enqueueOutbox);
+    enqueue.mockClear();
+    const expired = createCaptureUploadToken({
+      requestId: "req-1", captureId: "walkthrough-req-1", sceneId: "site-req-1", ttlSeconds: -60,
+    });
+    const post = (token: string) => fetch(`${baseUrl}/api/site-task-brief/${encodeURIComponent(token)}/fresh-link`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+    });
+
+    const genuine = await post(expired);
+    expect(genuine.status).toBe(202);
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    const message = enqueue.mock.calls[0][0] as { to: string; kind: string; body: string };
+    expect(message).toMatchObject({ to: "ops@acme.example", kind: "fresh_link" });
+    expect(message.body).toMatch(/^Hi Dana,/);
+    expect(message.body).toMatch(/\/capture-upload\//);
+
+    const forged = await post(`${expired.split(".")[0]}.not-a-signature`);
+    expect(forged.status).toBe(202);
+    expect(await forged.json()).toEqual(await (await post("garbage")).json());
+    expect(enqueue).toHaveBeenCalledTimes(1);
+  });
+});
+

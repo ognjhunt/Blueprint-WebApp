@@ -56,6 +56,14 @@ export type WorkspaceTask = {
   visibility: "private" | "anonymized" | "approved_robot_teams";
   published: boolean;
   archived: boolean;
+  /** The owner hid the task from robot teams (the listing control). */
+  paused?: boolean;
+  /** Filmed by the site itself, or by a Blueprint visit. */
+  captureMode?: "self_capture" | "site_visit" | null;
+  /** The task card in the robot-team library, as the owner approved it. */
+  listing?: { approved: boolean; live: boolean; cardUrl: string | null } | null;
+  /** The reconstructed scene can be opened from the task page. */
+  sceneReady?: boolean;
   potentialMatches: number | null;
   capture: CaptureVisit | null;
   results: WorkspaceResult[];

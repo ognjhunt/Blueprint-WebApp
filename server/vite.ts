@@ -9,6 +9,8 @@ import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { stampCanvasSurface } from "../client/src/app/canvasSurface";
 import { stampAppClipBanner } from "./utils/appClipBanner";
+import { ROUTE_PATTERNS_FILE, routePatternMatches } from "../client/src/app/routeMatch";
+import { logger } from "./logger";
 
 export async function setupVite(app: Express, server: Server) {
   const vite = await createViteServer({
@@ -54,7 +56,29 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
-export function serveStatic(app: Express, distPathOverride?: string) {
+/**
+ * The client's route patterns, written by the build next to `public`. Without
+ * them every unknown path is served with 200, which is how this used to work.
+ */
+function loadRoutePatterns(distPath: string): string[] | null {
+  const file = path.resolve(distPath, "..", ROUTE_PATTERNS_FILE);
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as { patterns?: unknown };
+    if (Array.isArray(parsed.patterns) && parsed.patterns.every((item) => typeof item === "string")) {
+      return parsed.patterns as string[];
+    }
+  } catch {
+    // Missing or unreadable: fall through to the warning.
+  }
+  logger.warn({ file }, "Client route patterns not found; unknown paths will be served with status 200");
+  return null;
+}
+
+export function serveStatic(
+  app: Express,
+  distPathOverride?: string,
+  options: { routePatterns?: string[] | null } = {},
+) {
   const distPath =
     distPathOverride ?? path.resolve(__dirname, "..", "dist", "public");
   const indexPath = path.resolve(distPath, "index.html");
@@ -93,6 +117,13 @@ export function serveStatic(app: Express, distPathOverride?: string) {
 
   app.use(express.static(distPath, { redirect: false }));
 
+  const routePatterns = options.routePatterns !== undefined ? options.routePatterns : loadRoutePatterns(distPath);
+  // Case-insensitive so a path the router might still render is never
+  // reported missing; the error only ever goes toward serving 200.
+  const knownRoute = (pathname: string) =>
+    !routePatterns ||
+    routePatterns.some((pattern) => routePatternMatches(pattern.toLowerCase(), pathname.toLowerCase()));
+
   // fall through to route-specific HTML first, then the SPA shell.
   app.use((req, res) => {
     if (req.method !== "GET" && req.method !== "HEAD") {
@@ -121,8 +152,17 @@ export function serveStatic(app: Express, distPathOverride?: string) {
       }
     }
 
+    const known = knownRoute(req.path);
+    if (hasExtension && !known) {
+      // A missing file (an old chunk, a mistyped icon) is not a page.
+      res.sendStatus(404);
+      return;
+    }
+
+    // The shell still boots the app, which renders the not-found page; only
+    // the status changes, so crawlers and link checkers see a real 404.
     res
-      .status(200)
+      .status(known ? 200 : 404)
       .type("html")
       .send(stampAppClipBanner(stampCanvasSurface(shellHtml, req.path), req.path));
   });

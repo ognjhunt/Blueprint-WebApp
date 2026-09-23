@@ -12,7 +12,9 @@ import { withCsrfHeader } from "./csrf";
  * 3. Optionally enable the smoke test helper via VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST
  */
 
-import * as Sentry from "@sentry/react";
+// Loaded on demand so the Sentry SDK (~80 kB) is not in the bundle every
+// marketing page downloads before it can render.
+type SentryModule = typeof import("@sentry/react");
 
 interface ErrorContext {
   componentStack?: string;
@@ -41,6 +43,8 @@ class ErrorTrackingService {
   private maxBreadcrumbs = 100;
   private errorQueue: Array<{ error: Error; context: ErrorContext }> = [];
   private sentryEnabled = false;
+  private sentry: SentryModule | null = null;
+  private sentryPending: Array<(sentry: SentryModule) => void> = [];
 
   /**
    * Initialize the error tracking service
@@ -52,12 +56,19 @@ class ErrorTrackingService {
     this.environment = options?.environment || import.meta.env.MODE || "development";
 
     if (this.dsn) {
-      Sentry.init({
-        dsn: this.dsn,
-        environment: this.environment,
-        enabled: true,
-      });
+      const dsn = this.dsn;
+      const environment = this.environment;
       this.sentryEnabled = true;
+      void import("@sentry/react")
+        .then((sentry) => {
+          sentry.init({ dsn, environment, enabled: true });
+          this.sentry = sentry;
+          for (const apply of this.sentryPending.splice(0)) apply(sentry);
+        })
+        .catch(() => {
+          this.sentryEnabled = false;
+          this.sentryPending = [];
+        });
     }
 
     // Set up global error handlers
@@ -179,14 +190,12 @@ class ErrorTrackingService {
       level: data.level || "info",
     });
 
-    if (this.sentryEnabled) {
-      Sentry.addBreadcrumb({
-        category: data.category,
-        message: data.message,
-        level: data.level,
-        data: data.data,
-      });
-    }
+    this.withSentry((sentry) => sentry.addBreadcrumb({
+      category: data.category,
+      message: data.message,
+      level: data.level,
+      data: data.data,
+    }));
 
     // Keep only the last N breadcrumbs
     if (this.breadcrumbs.length > this.maxBreadcrumbs) {
@@ -206,8 +215,16 @@ class ErrorTrackingService {
       });
     }
 
-    if (this.sentryEnabled) {
-      Sentry.setUser(user ?? null);
+    this.withSentry((sentry) => sentry.setUser(user ?? null));
+  }
+
+  /** Runs now if the SDK has loaded, otherwise once it has (bounded). */
+  private withSentry(apply: (sentry: SentryModule) => void) {
+    if (!this.sentryEnabled) return;
+    if (this.sentry) {
+      apply(this.sentry);
+    } else if (this.sentryPending.length < this.maxBreadcrumbs) {
+      this.sentryPending.push(apply);
     }
   }
 
@@ -220,7 +237,7 @@ class ErrorTrackingService {
     }
 
     let eventId: string | undefined;
-    Sentry.withScope((scope) => {
+    this.withSentry((sentry) => sentry.withScope((scope) => {
       if (context.level) {
         scope.setLevel(context.level);
       }
@@ -243,9 +260,10 @@ class ErrorTrackingService {
         });
       }
 
-      eventId = Sentry.captureException(error);
-    });
+      eventId = sentry.captureException(error);
+    }));
 
+    // Undefined until the SDK has loaded; the event is still sent once it has.
     return eventId;
   }
 
