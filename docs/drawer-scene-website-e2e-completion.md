@@ -104,10 +104,10 @@ centred on the middle drawer front.
 | 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **done** — whole-cabinet `under-desk cabinet` track retained 186 observations; 14 candidate views, independent same-frame corroboration passed on original frame 173 (tracked share 0.213993, fresh SAM share 0.207911). The whole-video path was used for this capture; the separately merged view-first canary remains off for it |
 | 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | **done** — configured `gpt-image-2.5-sunburst` backend edited five views. First review identified the unedited, unmasked original frame 0; controller excluded exactly that view and a second Gemini review passed. Clean-plate manifest is `objects_removed`, `prepared_images`, five reviewed views, no blockers. Originals and failed review retained |
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | **done** — retained 14 candidate views, five digest-bound prepared views admitted to the configured Marble 1.1 Plus multi-image input; originals remain separate |
-| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **Marble complete; geometry pending** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized, and website visual publication was written. Attempt 9 used an old input bundle; PR #2123 fixed that and is deployed. Attempt 11 used the exact bundle, but its GPU worker exited without output. Both rentals have teardown `PASS` and provider-zero `PASS`. Diagnostic, billing and one further bounded retry changes are under review. Marble's scale and ground plane are estimates; source-frame camera poses remain unproven. |
+| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | unproven |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture prepared, website handoff pending** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -928,8 +928,79 @@ and $0.010 for the second, including GPU, disk, and bandwidth. The WebApp
 still holds each $0.50 reservation because it lacks a Vast settlement route;
 the scene has 29/32 requests and $4.555/$5 reserved or settled. The owner has
 authorized more requests, while the fixed $5 preparation spend cap remains.
-Candidate Pipeline and WebApp changes now retain typed worker failure evidence,
-allow one more new-release retry only after failed execution plus teardown and
-provider-zero proof, reconcile exact provider charges, and support one
-append-only request-limit extension. Focused local tests pass; these changes
-are not yet merged or deployed. Steps 8–14 remain unproved.
+Pipeline PR #2124 merged as `67d0a3ff3a9133c120602474b88ab70677490183`.
+It retains typed worker failure evidence, allows one further new-release retry
+only after failed execution plus teardown and provider-zero proof, and
+reconciles exact-instance provider charges under the unchanged $5 spend cap.
+Focused tests and the hosted impacted/sentinel gate passed. Its exact pushed
+source `44d5a3af0caf0fb90f193054ec2d2fa9adad291b` is in canonical canary
+deployment, with the listener stopped and Vast reporting zero live resources.
+
+WebApp PR #672 merged as `926392e952f23819d8cbc29214818df5b8f3a808`.
+Its exact-SHA Render deployment reports both web and worker live at that
+commit, and the live version and readiness endpoints agree. The owner-approved
+append-only preparation request extension from 32 to 48 was applied and
+re-read with receipt digest
+`sha256:f5fe0224c20de3b7481b60303059fafdde0598866b95a8e9d82463af92c60950`.
+The $5 preparation and $20 simulation spend caps are unchanged. Step 8
+remains incomplete until a MapAnything geometry receipt and teardown pass;
+steps 9–14 remain unproved.
+
+### MapAnything third bounded rental: dispatched after exact-charge settlement
+
+The canonical Pipeline canary deploy completed at source
+`44d5a3af0caf0fb90f193054ec2d2fa9adad291b`. Its receipt is `deployed`;
+the live intake endpoint proves that commit with no blockers, and the
+service-user active-release inspector reports `verified_active_release`,
+`development_iteration`. Vast's authenticated global inventory was zero
+before restarting the listener. The production runtime preflight passed.
+
+The controller settled both earlier Vast reservations from the provider's
+exact-instance charges: $0.228 for instance `52147319` and $0.010 for
+`52151169`. It admitted `controller_geometry_retry_2` with a distinct
+request, a $0.50 maximum, no in-rental retry, an independent watchdog, and
+the original scene authority. The Vast instance started at 02:44 UTC on
+2026-09-23. It returned a validated `website_source_geometry.v1` result with
+13 original-frame camera and depth estimates, including frame 35. The GPU
+execution receipt is `completed`; teardown and provider-zero are both `PASS`.
+This closes MapAnything acquisition. The estimates are not measured dimensions
+or physical registration.
+
+The next controller boundary refused captured-room registration with
+`website_registration_anchor_frame_missing`: Marble declares original frame
+34 as its first-input camera, while the MapAnything sample contains frame 35
+but not 34. Read-only registration trials using frame 35 as a proxy and using
+no anchor both returned `website_registration_ambiguous`. Captured-room
+integration stays pending. Pipeline PR #2125 adds the exact refusal to the
+authorized, separately named `development_drawer_fixture` path and preserves
+the prismatic middle-drawer task without a destination. The exact saved-input
+scratch replay produced captured-scene `needs_input` and a distinct fixture
+`intake_ready`; it did not call a provider or write a scene receipt. PR #2125
+merged as `c8c5a30b21d7fab8853f2566ac50f94af43e82bb` after the hosted
+impacted/sentinel checks passed. The exact scene was added to the controller's
+development allowlist, preserving the other entries, and the canonical canary
+deployment completed at the merged source with the listener paused. On
+controller attempt 13, the named development fixture and its construction,
+rights, and runtime inputs were written. The website refused the fixture
+handoff with HTTP 409 `website_scene_development_test_not_authorized`, so no
+website intake outbox or authoring receipt was created. The refusal was not
+caused by fixture construction; its website-side cause was still under review.
+The exact scene context digest was appended to each Render service's existing
+development allowlist without changing the other entries. Render requires a
+deploy for an environment change to take effect; both web and worker deploys
+are live on unchanged application commit
+`926392e952f23819d8cbc29214818df5b8f3a808`. The public version and
+readiness endpoints agree, and the listener has resumed controller attempt
+14. Steps 9–10 and 12–14 remain unproved; step 11 has only fixture-preparation
+evidence.
+
+Controller attempt 14 retried after both Render services were live with the
+scene-specific allowlist and still received the same HTTP 409. Comparing the
+retained request with the deployed WebApp validator found that the validator
+admitted only the older `authored_surface_component_test` kind and label. The
+controller correctly supplied the distinct `development_drawer_fixture` kind
+and its explicit captured-room-pending label. The WebApp now admits both exact
+kind/label pairs under the existing scene digest allowlist, while still
+requiring development-only scope and refusing mismatched labels or a claim
+that captured-room evaluation is ready. A focused route test and TypeScript
+typecheck passed locally; deploy and live retry remain pending.

@@ -1524,6 +1524,50 @@ it("admits only explicitly authorized development surfaces without creating a se
   expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
 });
 
+it("admits the separately labeled drawer fixture under the same scene sponsorship", async () => {
+  sponsoredCapture();
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+  });
+  const grant = await (await post("scene-sponsorship")).json();
+  const test = {
+    kind: "development_drawer_fixture",
+    label: "Development drawer fixture; captured scene integration pending.",
+    claim_scope: "development_only", source_task_context_digest: grant.task_context_digest,
+    source_preparation_digest: sha("b"), captured_scene_integration: "pending",
+    captured_scene_evaluation_allowed: false,
+    source_scene_blockers: ["website_registration_anchor_frame_missing", "support_surface_not_found_under_subject"],
+  };
+  const request = {
+    schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+    owner: grant.owner, consent: grant.consent,
+    source: { kind: "mesh", binding_id: `website-development-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: { task_id: `website-${grant.task_context_digest.slice(7, 27)}-development`,
+      strategy: "articulated_open_close",
+      subject: { description: "middle drawer of the wood-front cabinet", geometry_origin: "removed_before_reconstruction", test_environment: test },
+      support: { description: "authored development surface" },
+      articulation: { assembly_label: "three-drawer wood-front cabinet", part_label: "middle drawer",
+        joint_type: "prismatic", estimated_usable_stroke_m: 0.1222,
+        travel_authority: "object_prior_estimate_from_estimated_visible_bounds",
+        estimated_front_normal_world: [0, -1, 0], lock_status: "unknown",
+        part_observed_open_in_footage: false, physical_measurement_proven: false },
+      success: { control_frequency_hz: 15, maximum_episode_seconds: 30,
+        minimum_opening_fraction_of_estimated_stroke: 0.6, minimum_hold_seconds: 1,
+        maximum_retries: 0 } },
+    execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+      max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+      allowed_providers: ["vast", "openai"] },
+  };
+  process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS = JSON.stringify([grant.task_context_digest]);
+  const acceptedFixture = await post("prepared-scene", { request });
+  expect(acceptedFixture.status, await acceptedFixture.text()).toBe(202);
+  expect((await post("prepared-scene", { request: { ...request, task: { ...request.task,
+    subject: { ...request.task.subject, test_environment: { ...test,
+      label: "Development test on an authored surface; captured scene integration pending." } } } } })).status).toBe(409);
+});
+
 
 describe("site-only scene preparation", () => {
   it("accepts preparation without selecting robot-team policies", () => {
