@@ -11,13 +11,13 @@ test("capture app access page renders the handoff flow", async ({ page }) => {
   await expect(
     page
       .getByRole("link", {
-        name: /Open assignment app|Request assignment access/i,
+        name: /Open Blueprint Capture|Request assignment access/i,
       })
       .first(),
   ).toBeVisible();
   await expect(
     page.getByText(
-      /Open Blueprint Capture when you have an approved assignment/i,
+      /Blueprint Capture is a camera for iPhone/i,
     ),
   ).toBeVisible();
   await expect(

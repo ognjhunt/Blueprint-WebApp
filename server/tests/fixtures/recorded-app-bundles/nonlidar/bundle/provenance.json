@@ -1,0 +1,14 @@
+{
+  "bundle_sha256" : "74f2adb84e63da051aee55d42a79319bf7ef9ed816057c930b9928f5a73132aa",
+  "device_installation_id" : "capture_link",
+  "capture_source" : "iphoneVideo",
+  "bundle_created_at" : "2026-09-23T00:37:44Z",
+  "schema_version" : "v1",
+  "capture_id" : "walkthrough-stub-request",
+  "scene_id" : "site-stub-request",
+  "captured_by_user_id" : "capture_link",
+  "capture_app_build" : "1",
+  "capture_app_version" : "1.0",
+  "uploaded_by_user_id" : "capture_link",
+  "upload_completed_at" : "2026-09-23T00:37:47Z"
+}

@@ -310,7 +310,7 @@ for (const role of ["site_operator", "robot_team"] as const) {
               ["/app/tasks/task-1?tab=capture", "Pack cartons into totes"],
               ["/app/history", "History"],
               ["/settings", "Settings"],
-              ["/app/captures", "New Capture"],
+              ["/app/captures", "Captures"],
             ]
           : [
               ["/app", "Overview"],

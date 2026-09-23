@@ -1,0 +1,48 @@
+{
+  "reflective_surface_notes" : [
+
+  ],
+  "non_routine_modes" : [
+
+  ],
+  "schema_version" : "v1",
+  "movable_obstacles" : [
+
+  ],
+  "access_rules" : [
+
+  ],
+  "capture_restrictions" : [
+
+  ],
+  "lighting_windows" : [
+
+  ],
+  "adjacent_systems" : [
+
+  ],
+  "known_blockers" : [
+
+  ],
+  "benchmark_stations" : [
+
+  ],
+  "required_coverage_areas" : [
+
+  ],
+  "privacy_security_limits" : [
+
+  ],
+  "shift_traffic_windows" : [
+
+  ],
+  "floor_condition_notes" : [
+
+  ],
+  "people_traffic_notes" : [
+
+  ],
+  "task_steps" : [
+
+  ]
+}

@@ -70,7 +70,13 @@ describe("sending composes a film-scoped link and reports honestly", () => {
     });
     expect(result.sent).toBe(true);
     expect(result.filmUrl).toMatch(/\/capture-upload\//);
-    expect((sendEmailMock.mock.calls[0][0] as { text: string }).text).toContain(result.filmUrl);
+    const text = (sendEmailMock.mock.calls[0][0] as { text: string }).text;
+    expect(text).toContain(result.filmUrl);
+    // Says what opens: the App Clip on an iPhone once it is available, the
+    // browser recorder everywhere else. Never that there is no app.
+    expect(text).toMatch(/On an iPhone it opens a small Blueprint camera when that is available/);
+    expect(text).toMatch(/everywhere else the recorder opens in your browser/);
+    expect(text).not.toMatch(/no app|app to install|app needed/i);
   });
 
   it("refuses a bad email or number before sending", async () => {
@@ -90,6 +96,8 @@ describe("sending composes a film-scoped link and reports honestly", () => {
     sendSmsMock.mockResolvedValueOnce({ sent: true, provider: "twilio", messageId: "SM1" });
     const result = await sendFilmLinkHandoff({ requestId: "r", channel: "sms", to: "+15551234567" });
     expect(result.sent).toBe(true);
-    expect((sendSmsMock.mock.calls[0][0] as { body: string }).body).toContain(result.filmUrl);
+    const body = (sendSmsMock.mock.calls[0][0] as { body: string }).body;
+    expect(body).toContain(result.filmUrl);
+    expect(body).not.toMatch(/no app|app to install|app needed/i);
   });
 });

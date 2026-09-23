@@ -114,6 +114,16 @@ describe("Capturer access copy", () => {
     expect(screen.getByText(/Open capture markets/i)).toBeInTheDocument();
     expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/\$(40|45|80)\b/i)).not.toBeInTheDocument();
+    // The app is capture-only: it films from a capture link. The page must not
+    // advertise assignments, payouts or field guidance inside it.
+    expect(screen.getByText(/Blueprint Capture is a camera for iPhone/i)).toBeInTheDocument();
+    expect(screen.getByText(/It does not list assignments or show payouts/i)).toBeInTheDocument();
+    expect(screen.queryByText(/assignment app/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/follow app guidance/i)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Open Blueprint Capture/i })[0]).toHaveAttribute(
+      "href",
+      "https://capture.blueprint.test/app",
+    );
   });
 
   it("keeps launch-access copy focused on city demand and local capturer signals", () => {
@@ -143,6 +153,9 @@ describe("Capturer access copy", () => {
     expect(screen.getByRole("checkbox", { name: /Smartphone/i })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: /360 camera/i })).toBeInTheDocument();
     expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
+    const terms = screen.getByRole("checkbox", { name: /payout eligibility requires an accepted capture after review/i });
+    expect(terms).toHaveAccessibleName(/payout setup happens in your capturer account on the web/i);
+    expect(terms).not.toHaveAccessibleName(/payout setup happen in Blueprint Capture/i);
   });
 
   it("keeps capturers on the mobile path from the sign-in page", () => {

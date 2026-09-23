@@ -23,6 +23,13 @@ describe("Pricing", () => {
     expect(within(team).getByText("$99")).toBeInTheDocument();
   });
 
+  it("states the entries × tasks × $99 arithmetic once, under the worked examples", () => {
+    render(<Pricing />);
+    expect(screen.getAllByText(/Entries × tasks ×/i)).toHaveLength(1);
+    const quote = screen.getByRole("heading", { name: "What it comes to" }).closest("section") as HTMLElement;
+    expect(within(quote).getByText(/Entries × tasks × \$99/)).toBeInTheDocument();
+  });
+
   it("keeps the site's column free of anything it has to price", () => {
     render(<Pricing />);
     const site = screen

@@ -1,0 +1,404 @@
+{
+  "binding_digest" : "sha256:1893a804841917993a662bb98bfffafb6ee66161147f53d99ffbcfdd494bff44",
+  "client" : "ios_app_clip",
+  "device_manifest" : {
+    "app_build" : "1",
+    "app_version" : "1.0",
+    "arkit_mesh_manifest_uri" : "arkit/mesh_manifest.json",
+    "calibration_assets" : [
+
+    ],
+    "camera_intrinsics" : {
+      "intrinsic_matrix" : [
+        500,
+        0,
+        0,
+        0,
+        500,
+        0,
+        320,
+        240,
+        1
+      ],
+      "resolution_height" : 480,
+      "resolution_width" : 640
+    },
+    "capture_capabilities" : {
+      "camera_intrinsics" : true,
+      "camera_pose" : true,
+      "companion_phone_calibration" : false,
+      "companion_phone_intrinsics" : false,
+      "companion_phone_pose" : false,
+      "confidence_frames" : 0,
+      "depth" : false,
+      "depth_authority" : "not_available",
+      "depth_confidence" : false,
+      "depth_frames" : 0,
+      "device_imu" : false,
+      "device_imu_unavailable_reason" : "app_clip_runtime",
+      "feature_point_rows" : 45,
+      "feature_points" : true,
+      "geometry_expected_downstream" : true,
+      "geometry_source" : "arkit",
+      "intrinsics_authority" : "authoritative_raw",
+      "intrinsics_valid" : true,
+      "light_estimate" : true,
+      "light_estimate_rows" : 45,
+      "mesh" : false,
+      "mesh_files" : 0,
+      "missing_depth_reason" : "not_supported",
+      "motion" : false,
+      "motion_authoritative" : false,
+      "motion_authority" : "not_available",
+      "motion_samples" : 0,
+      "plane_rows" : 0,
+      "planes" : false,
+      "point_cloud" : true,
+      "point_cloud_samples" : 45,
+      "pose_authority" : "authoritative_raw",
+      "pose_rows" : 45,
+      "relocalization_event_rows" : 0,
+      "relocalization_events" : false,
+      "tracking_state" : true,
+      "tracking_state_rows" : 45
+    },
+    "capture_evidence" : {
+      "arcore_confidence_frames" : 0,
+      "arcore_depth_frames" : 0,
+      "arcore_frame_rows" : 0,
+      "arcore_intrinsics_valid" : false,
+      "arcore_light_estimate_rows" : 0,
+      "arcore_plane_rows" : 0,
+      "arcore_point_cloud_samples" : 0,
+      "arcore_pose_rows" : 0,
+      "arcore_tracking_state_rows" : 0,
+      "arkit_confidence_frames" : 0,
+      "arkit_depth_frames" : 0,
+      "arkit_feature_point_rows" : 45,
+      "arkit_frame_rows" : 45,
+      "arkit_intrinsics_valid" : true,
+      "arkit_light_estimate_rows" : 45,
+      "arkit_mesh_files" : 0,
+      "arkit_plane_rows" : 0,
+      "arkit_pose_rows" : 45,
+      "arkit_relocalization_event_rows" : 0,
+      "arkit_tracking_state_rows" : 45,
+      "companion_phone_calibration_present" : false,
+      "companion_phone_intrinsics_valid" : false,
+      "companion_phone_pose_rows" : 0,
+      "confidence_frames" : 0,
+      "declared_depth_supported" : false,
+      "depth_authority" : "not_available",
+      "depth_frames" : 0,
+      "geometry_expected_downstream" : true,
+      "geometry_source" : "arkit",
+      "glasses_device_state_rows" : 0,
+      "glasses_frame_timestamp_rows" : 0,
+      "glasses_health_event_rows" : 0,
+      "intrinsics_authority" : "authoritative_raw",
+      "intrinsics_valid" : true,
+      "motion_authority" : "not_available",
+      "motion_samples" : 0,
+      "motion_timestamps_capture_relative" : false,
+      "p95_pose_delta_sec" : 0,
+      "pose_authority" : "authoritative_raw",
+      "pose_match_rate" : 1,
+      "pose_rows" : 45,
+      "tracking_state_rows" : 45
+    },
+    "capture_id" : "walkthrough-stub-request",
+    "capture_modality" : "iphone_arkit_non_lidar",
+    "capture_profile_id" : "iphone_arkit_non_lidar",
+    "capture_schema_version" : "3.2.0",
+    "capture_source" : "iphone",
+    "capture_start_epoch_ms" : 1790123864044,
+    "capture_tier_hint" : "tier1_iphone",
+    "capture_topology" : {
+      "arkit_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "capture_session_id" : "stub-request",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "entry_anchor_id" : "anchor_entry",
+      "intended_pass_role" : "primary",
+      "pass_id" : "pass_primary_1",
+      "pass_index" : 1,
+      "route_id" : "route_unknown",
+      "site_visit_id" : "stub-request"
+    },
+    "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+    "coverage_plan" : [
+
+    ],
+    "depth_supported" : false,
+    "device_camera" : {
+      "arkit_managed_camera" : true,
+      "calibration_authority" : "arkit_arframe_exact_per_observation",
+      "capture_authority" : "arkit_arframe_captured_image",
+      "has_scene_depth_semantics" : false,
+      "position" : "back",
+      "uses_ar_session_recorder" : true
+    },
+    "device_health" : {
+      "available_storage_bytes" : 99963437056,
+      "claim_boundary" : "device_health_snapshot_is_capture_client_runtime_context",
+      "duration_safeguard_warning" : null,
+      "finalize_current_segment_requested" : false,
+      "low_light_warning" : null,
+      "max_segment_duration_seconds" : 1200,
+      "memory_warning_count" : 0,
+      "thermal_state" : "nominal",
+      "warning" : null
+    },
+    "device_imu_unavailable_reason" : "app_clip_runtime",
+    "device_model" : "arm64",
+    "device_model_marketing" : "iPhone",
+    "downstream_candidate_manifest_uri" : "downstream_candidate_manifest.json",
+    "exposure_settings" : {
+      "mode" : "arSession",
+      "white_balance_mode" : "automatic"
+    },
+    "fps_source" : 30,
+    "hardware_model_identifier" : "arm64",
+    "has_lidar" : false,
+    "height" : 480,
+    "intended_space_type" : "unknown",
+    "ios_build" : "25G83",
+    "ios_version" : "26.2",
+    "os_version" : "26.2",
+    "reconstruction_qualification_request_uri" : "reconstruction_qualification_request.json",
+    "recording_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+    "scaffolding_used" : [
+      "arkit_pose_log"
+    ],
+    "scaffolding_validation" : {
+      "checkpoint_count" : 0,
+      "hidden_zone_bound" : null,
+      "scale_anchor_count" : 0,
+      "validated_metric_bundle" : false,
+      "validated_pose_coverage" : null,
+      "validated_scale_m" : null
+    },
+    "scale_hint_m_per_unit" : 1,
+    "scene_id" : "site-stub-request",
+    "scene_memory_capture" : {
+      "continuity_score" : null,
+      "dynamic_object_density" : "unknown",
+      "geometry_expected_downstream" : true,
+      "geometry_source" : "arkit",
+      "inaccessible_areas" : [
+
+      ],
+      "lighting_consistency" : "unknown",
+      "motion_provenance" : null,
+      "motion_timestamps_capture_relative" : false,
+      "operator_notes" : [
+
+      ],
+      "overlap_checkpoint_count" : null,
+      "p95_pose_delta_sec" : 0,
+      "pose_match_rate" : 1,
+      "relocalization_count" : null,
+      "semantic_anchors_observed" : [
+
+      ],
+      "sensor_availability" : {
+        "arkit_confidence" : false,
+        "arkit_depth" : false,
+        "arkit_intrinsics" : true,
+        "arkit_meshes" : false,
+        "arkit_poses" : true,
+        "motion" : false
+      },
+      "world_model_candidate" : false,
+      "world_model_candidate_reasoning" : [
+        "capture_mode_site_world_candidate:false",
+        "site_id_present:false",
+        "arkit_poses_valid:true",
+        "arkit_intrinsics_valid:true",
+        "depth_coverage_ok:false",
+        "pose_alignment_ok:true",
+        "pose_authority:authoritative_raw",
+        "intrinsics_authority:authoritative_raw",
+        "depth_authority:not_available",
+        "geometry_source:arkit",
+        "geometry_expected_downstream:true",
+        "pose_match_rate:1.0000",
+        "p95_pose_delta_sec:0.0000",
+        "intake_complete:false",
+        "derived_scene_generation_allowed:true"
+      ]
+    },
+    "schema_version" : "v3",
+    "site_extent" : {
+      "claim_boundary" : "site_extent_is_capturer_recorded_context_not_verified_measurement",
+      "source" : "not_provided",
+      "status" : "not_provided"
+    },
+    "site_extent_source" : "not_provided",
+    "site_extent_status" : "not_provided",
+    "site_type" : "unknown",
+    "site_type_source" : "capturer_selected",
+    "uncertainty_priors" : {
+
+    },
+    "video_uri" : "walkthrough.mov",
+    "width" : 640
+  },
+  "files" : [
+    {
+      "bytes" : 404,
+      "md5" : "rbxpTCUbLSVEdwzVI4H8SQ==",
+      "path" : "arkit/confidence_manifest.json",
+      "sha256" : "6e321ae17e1819461309c1931ec71a01d0fc40d3a2b77a7e124b919d45d63947"
+    },
+    {
+      "bytes" : 547,
+      "md5" : "EjgDpeBPj56ndz+vjF78mw==",
+      "path" : "arkit/depth_manifest.json",
+      "sha256" : "37c4f790fa02b20baf1563765c41f9a97ed2940c18b760a59edbd44ba5e7d25b"
+    },
+    {
+      "bytes" : 18067,
+      "md5" : "hye5S6b3/sI8NAfr3Wdnug==",
+      "path" : "arkit/feature_points.jsonl",
+      "sha256" : "a6e35ce71facfeed9f4a3cf62fb5e9b9ea62a5ed3968f3159af71d0507e763d6"
+    },
+    {
+      "bytes" : 15227,
+      "md5" : "Ee9vLoK/QL10pkhBHBkpow==",
+      "path" : "arkit/frame_quality.jsonl",
+      "sha256" : "ce5542a27db3341494ace4a9a05ef0985fb7050899cebc1174a11e07e01449b1"
+    },
+    {
+      "bytes" : 26525,
+      "md5" : "2qNH65/RC4TMNwsmhgjtAg==",
+      "path" : "arkit/frames.jsonl",
+      "sha256" : "1cde211158a60d1411519acd408b074cfde27235aa43d60cf4cdd482e7e6a9b9"
+    },
+    {
+      "bytes" : 93,
+      "md5" : "2j7uWMd7sUjoYCYDWuqNOA==",
+      "path" : "arkit/intrinsics.json",
+      "sha256" : "0d4e765617600546d394ba86865c1429a5a65a46a48d3aaafb8ee5ea7bf71009"
+    },
+    {
+      "bytes" : 9607,
+      "md5" : "uqZM22XD/sltBXKpTdBtPQ==",
+      "path" : "arkit/light_estimates.jsonl",
+      "sha256" : "251413c34cdfb73a6aedc10db89d8b30f05eb1f468fea0b5acccf14bda3595a6"
+    },
+    {
+      "bytes" : 470,
+      "md5" : "VCCdgxXRaqZibPFbAwUfRA==",
+      "path" : "arkit/mesh_manifest.json",
+      "sha256" : "180719f3823dc0724d0276e3ea0f6e545fc203a947c6e55e47168848fbf54c6f"
+    },
+    {
+      "bytes" : 15835,
+      "md5" : "NRzxXPGiFpL5elQ/suqynA==",
+      "path" : "arkit/per_frame_camera_state.jsonl",
+      "sha256" : "701878fc840b4cde5a4a3e2b33f7cb767dfbbbb517b3b3a252b56296721c4cac"
+    },
+    {
+      "bytes" : 0,
+      "md5" : "1B2M2Y8AsgTpgAmY7PhCfg==",
+      "path" : "arkit/plane_observations.jsonl",
+      "sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes" : 53568,
+      "md5" : "42vYVSjWbUvmTKJBPeCKCg==",
+      "path" : "arkit/poses.jsonl",
+      "sha256" : "e4e873e3c8a636e3708e4c63b97125af61787129223668336f5a9a614a814ada"
+    },
+    {
+      "bytes" : 2204,
+      "md5" : "ZzgAZjWQm2wpYRQIvk0OpQ==",
+      "path" : "arkit/session_intrinsics.json",
+      "sha256" : "208e9432be9124fbef0312e492ef605d120ce1f4555b3fadfd2e9a7008231272"
+    },
+    {
+      "bytes" : 374,
+      "md5" : "VPIupFob8078hro/L3DOFA==",
+      "path" : "capture_topology.json",
+      "sha256" : "e419d37402f780263e0030b4338b8b1c3651bf141deb283ff4b22c59d838ddfb"
+    },
+    {
+      "bytes" : 61,
+      "md5" : "xHxCaIksQSjtUCl8fgEitA==",
+      "path" : "checkpoint_events.json",
+      "sha256" : "0525f84d8a1877e8f55752bfd6f7560012489b5786088562f131b275847e2044"
+    },
+    {
+      "bytes" : 121970,
+      "md5" : "lgNO0BoNbbP1g1H7ILEP+Q==",
+      "path" : "downstream_candidate_manifest.json",
+      "sha256" : "856aab15fd466cc9f3a0e0ea6ec7485f4eae5ee4e5502554ed770f5158466c40"
+    },
+    {
+      "bytes" : 334,
+      "md5" : "tYTgOw+MajFjNH3fnCXAVA==",
+      "path" : "overlap_graph.json",
+      "sha256" : "931c7c224aa7cc3e2a3d99d11fc48115e93c3a32050712376025238002372433"
+    },
+    {
+      "bytes" : 1938,
+      "md5" : "75OT0rKAYDrX7/Sa5+npCw==",
+      "path" : "reconstruction_qualification_request.json",
+      "sha256" : "44e42536735fc2a857872b684f53ec5d0be57d4a5d7fa8530f7a064a21a833dc"
+    },
+    {
+      "bytes" : 889,
+      "md5" : "kxrHIABBippescFRbDxk2w==",
+      "path" : "recording_session.json",
+      "sha256" : "6662a6a6b19e533adcc93b4b4911f84d55622d7ca2e603663419000baa85f908"
+    },
+    {
+      "bytes" : 65,
+      "md5" : "dnn/ElA4Lgpsswigu+rDyA==",
+      "path" : "relocalization_events.json",
+      "sha256" : "3f9cdc5ff34270d80c327649be4920ef843ef36e0a150cdfa8fbeca6607f1f2c"
+    },
+    {
+      "bytes" : 300,
+      "md5" : "AhNJoJ9Nn/IvtPeuMZfC4A==",
+      "path" : "route_anchors.json",
+      "sha256" : "8a89ff7ac6139e4d13ac0e30af28554995edd90ca03a4261c7a01fe6321ba9d5"
+    },
+    {
+      "bytes" : 0,
+      "md5" : "1B2M2Y8AsgTpgAmY7PhCfg==",
+      "path" : "semantic_anchor_observations.jsonl",
+      "sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes" : 60,
+      "md5" : "9mx8wWsFV7XKkHVHeDzkpQ==",
+      "path" : "semantic_anchors.json",
+      "sha256" : "b33df5e23fab724a6be14c81ee499454e52f3c1e274c8e8e93cb23562e359b53"
+    },
+    {
+      "bytes" : 15382,
+      "md5" : "iRY2aT+g5+nZVPm7GvH8VA==",
+      "path" : "sync_map.jsonl",
+      "sha256" : "cdf396c9f9f255283b23c1eb02ec1cfb39c64845118213170ebd9deac0dc8c77"
+    },
+    {
+      "bytes" : 13863,
+      "md5" : "zC653s44+4ovvB5i/jpa3w==",
+      "path" : "video_frame_retention.jsonl",
+      "sha256" : "8e5649a50f18d75e13cb13603624ca485b101e372e8cf91966d8a3a3e44140f8"
+    },
+    {
+      "bytes" : 661,
+      "md5" : "0sYL2Eb8FYJnh7L5JWQevw==",
+      "path" : "video_track.json",
+      "sha256" : "cf25dc035dddd6d45f755f3970745f76e6ecabd60b4e30b913d5e9162126223b"
+    },
+    {
+      "bytes" : 53695,
+      "md5" : "7HcyZOeLB/3/AhQuwnWCqg==",
+      "path" : "walkthrough.mov",
+      "sha256" : "0ddeb7079d535f45743c1872b98b59ccbeefc657c107c6257fea865964c0f1b3"
+    }
+  ]
+}

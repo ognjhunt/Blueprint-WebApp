@@ -196,3 +196,12 @@ chips, the eyebrow, and the run id and JSON button in the header (both are in
 longer print as "p ≈ 0.00", and candidate resolution no longer throws when a
 compact delivery omits its episode list.
 
+
+## 6. 2026-09-22 round 2 — every other kind of result
+
+Results that are not head-to-head policy tests now use the same plain layout
+(one visibility-and-simulation line, a counts list, one comparison table, one
+closed drawer per episode, downloads, and a run-details drawer). The run
+progress, run record, runs list, tasks, setup, and captures pages were
+simplified in the same pass; see
+[`workspace-simplification-2026-09-22.md`](workspace-simplification-2026-09-22.md).

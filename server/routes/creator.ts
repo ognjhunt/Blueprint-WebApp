@@ -28,6 +28,7 @@ import { dispatchCityLaunchCandidatePaperclipHandoff } from "../utils/cityLaunch
 import { intakeCityLaunchCandidateSignals } from "../utils/cityLaunchLedgers";
 import { deriveCreatedAtShard } from "../utils/captureShard";
 import { creatorIdFromRequest } from "../utils/creatorIdentity";
+import { captureUploadIdentity } from "../utils/captureUploadIdentity";
 import { clientVersionSatisfiesMinimum } from "../utils/client-runtime-config";
 import { loadClientRuntimeConfig } from "./client-runtime-config";
 
@@ -486,39 +487,6 @@ function optionalTrimmedString(value: unknown, maxLength = 400): string | null {
   return trimmed ? trimmed.slice(0, maxLength) : null;
 }
 
-const SHA256_DIGEST_RE = /^sha256:[0-9a-f]{64}$/;
-
-function captureUploadIdentity(body: Record<string, unknown>) {
-  const rawBundleDigest = optionalTrimmedString(body.raw_bundle_digest, 80);
-  const rawManifestUri = optionalTrimmedString(body.raw_manifest_uri, 800);
-  const completionDigest = optionalTrimmedString(body.upload_completion_digest, 80);
-  const supplied = [rawBundleDigest, rawManifestUri, completionDigest].filter(Boolean).length;
-  if (supplied === 0) {
-    return { value: null, error: null };
-  }
-  const bucket = String(
-    process.env.BLUEPRINT_CAPTURE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com",
-  ).trim();
-  if (
-    supplied !== 3
-    || !SHA256_DIGEST_RE.test(rawBundleDigest || "")
-    || !SHA256_DIGEST_RE.test(completionDigest || "")
-    || !rawManifestUri?.startsWith(`gs://${bucket}/`)
-    || !rawManifestUri.endsWith("/manifest.json")
-    || rawManifestUri.includes("..")
-  ) {
-    return { value: null, error: "invalid_immutable_upload_identity" };
-  }
-  return {
-    value: {
-      raw_bundle_digest: rawBundleDigest,
-      raw_manifest_uri: rawManifestUri,
-      upload_completion_digest: completionDigest,
-      verification_status: "pending_pipeline_storage_readback",
-    },
-    error: null,
-  };
-}
 router.post("/captures", async (req: Request, res: Response) => {
   if (!db) {
     return res.status(500).json({ error: "Database not available" });

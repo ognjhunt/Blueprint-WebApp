@@ -1,0 +1,18 @@
+{
+  "schema_version" : "arkit_confidence_manifest.v2",
+  "representation" : "per_frame_confidence_map",
+  "encoding" : "png_u8",
+  "frames" : [
+
+  ],
+  "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+  "confidence_encoding" : "uint8_png",
+  "confidence_scale" : {
+    "2" : "high",
+    "1" : "medium",
+    "0" : "low_or_missing"
+  },
+  "accepted_confidence_values" : [
+    2
+  ]
+}

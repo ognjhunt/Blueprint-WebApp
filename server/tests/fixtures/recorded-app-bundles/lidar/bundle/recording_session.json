@@ -1,0 +1,26 @@
+{
+  "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "captured_at" : "2026-09-23T00:37:37Z",
+  "site_visit_id" : "stub-request",
+  "schema_version" : "v1",
+  "pass_index" : 1,
+  "arkit_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "capture_id" : "walkthrough-stub-request",
+  "world_frame_definition" : "arkit_world_origin_at_session_start",
+  "gravity_aligned" : true,
+  "route_id" : "route_unknown",
+  "session_reset_count" : 0,
+  "post_origin_reset_count" : 0,
+  "pass_role" : "primary",
+  "units" : "meters",
+  "up_axis" : "Y",
+  "scene_id" : "site-stub-request",
+  "handedness" : "right_handed",
+  "initial_world_origin_reset_performed" : true,
+  "pass_id" : "pass_primary_1",
+  "coordinate_frame_continuity_status" : "single_continuous_coordinate_frame",
+  "initial_session_run_options" : [
+    "reset_tracking",
+    "remove_existing_anchors"
+  ]
+}

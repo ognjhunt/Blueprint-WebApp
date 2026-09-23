@@ -1,0 +1,4733 @@
+{
+  "allowed_use_scope" : {
+    "data_licensing_allowed" : false,
+    "derived_processing_allowed" : true,
+    "latest_revocation_check_required" : true,
+    "privacy_security_limits" : [
+
+    ],
+    "provider_upload_requires_separate_downstream_authorization" : true,
+    "raw_observation_indexing_allowed" : true,
+    "redaction_required_before_derived_use" : true,
+    "requested_outputs" : [
+      "qualification"
+    ]
+  },
+  "candidate_count" : 45,
+  "candidate_order" : "encoded_frame_index_ascending",
+  "candidates" : [
+    {
+      "arkit_frame_row_ordinal" : 0,
+      "arkit_pose_row_ordinal" : 0,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000000",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 0,
+      "decoded_pts_sec" : 0,
+      "decoded_source_pts_sec" : 0,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 0,
+      "frame_id" : "000001",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000000.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000001",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0,
+      "t_monotonic_ns" : 468387697542,
+      "T_site_camera" : [
+        [
+          -0.086864955723285675,
+          0,
+          -0.99622011184692383,
+          1.4943301677703857
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.99622011184692383,
+          0,
+          -0.086864970624446869,
+          0.13029754161834717
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.086864955723285675,
+          0,
+          -0.99622011184692383,
+          1.4943301677703857
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.99622011184692383,
+          0,
+          -0.086864970624446869,
+          0.13029754161834717
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 0
+    },
+    {
+      "arkit_frame_row_ordinal" : 1,
+      "arkit_pose_row_ordinal" : 1,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000001",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 1,
+      "decoded_pts_sec" : 0.066666666666666666,
+      "decoded_source_pts_sec" : 0.066666666666666666,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 1,
+      "frame_id" : "000002",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000001.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000002",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.066493416666617122,
+      "t_monotonic_ns" : 468454190958,
+      "T_site_camera" : [
+        [
+          -0.096796765923500061,
+          0,
+          -0.9953041672706604,
+          1.492956280708313
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9953041672706604,
+          0,
+          -0.096796758472919464,
+          0.14519527554512024
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.096796765923500061,
+          0,
+          -0.9953041672706604,
+          1.492956280708313
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9953041672706604,
+          0,
+          -0.096796758472919464,
+          0.14519527554512024
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 1
+    },
+    {
+      "arkit_frame_row_ordinal" : 2,
+      "arkit_pose_row_ordinal" : 2,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000002",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 2,
+      "decoded_pts_sec" : 0.13500000000000001,
+      "decoded_source_pts_sec" : 0.13500000000000001,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 2,
+      "frame_id" : "000003",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000002.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000003",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.1353654999999776,
+      "t_monotonic_ns" : 468523063042,
+      "T_site_camera" : [
+        [
+          -0.10707368701696396,
+          0,
+          -0.9942510724067688,
+          1.4913766384124756
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9942510724067688,
+          0,
+          -0.10707368701696396,
+          0.16061072051525116
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.10707368701696396,
+          0,
+          -0.9942510724067688,
+          1.4913766384124756
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9942510724067688,
+          0,
+          -0.10707368701696396,
+          0.16061072051525116
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 2
+    },
+    {
+      "arkit_frame_row_ordinal" : 3,
+      "arkit_pose_row_ordinal" : 3,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000003",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 3,
+      "decoded_pts_sec" : 0.20333333333333334,
+      "decoded_source_pts_sec" : 0.20333333333333334,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 3,
+      "frame_id" : "000004",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000003.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000004",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.20308062499998414,
+      "t_monotonic_ns" : 468590778167,
+      "T_site_camera" : [
+        [
+          -0.11716693639755249,
+          0,
+          -0.99311226606369019,
+          1.4896683692932129
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.99311226606369019,
+          0,
+          -0.1171669214963913,
+          0.1757504791021347
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.11716693639755249,
+          0,
+          -0.99311226606369019,
+          1.4896683692932129
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.99311226606369019,
+          0,
+          -0.1171669214963913,
+          0.1757504791021347
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 3
+    },
+    {
+      "arkit_frame_row_ordinal" : 4,
+      "arkit_pose_row_ordinal" : 4,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000004",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 4,
+      "decoded_pts_sec" : 0.27166666666666667,
+      "decoded_source_pts_sec" : 0.27166666666666667,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 4,
+      "frame_id" : "000005",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000004.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000005",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.27115829166666572,
+      "t_monotonic_ns" : 468658855833,
+      "T_site_camera" : [
+        [
+          -0.1273019015789032,
+          0,
+          -0.99186408519744873,
+          1.4877960681915283
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.99186408519744873,
+          0,
+          -0.12730191648006439,
+          0.19095301628112793
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.1273019015789032,
+          0,
+          -0.99186408519744873,
+          1.4877960681915283
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.99186408519744873,
+          0,
+          -0.12730191648006439,
+          0.19095301628112793
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 4
+    },
+    {
+      "arkit_frame_row_ordinal" : 5,
+      "arkit_pose_row_ordinal" : 5,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000005",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 5,
+      "decoded_pts_sec" : 0.33500000000000002,
+      "decoded_source_pts_sec" : 0.33500000000000002,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 5,
+      "frame_id" : "000006",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000005.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000006",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.33482320833331869,
+      "t_monotonic_ns" : 468722520750,
+      "T_site_camera" : [
+        [
+          -0.13676795363426208,
+          0,
+          -0.99060314893722534,
+          1.4859046936035156
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.99060314893722534,
+          0,
+          -0.13676793873310089,
+          0.20515215396881104
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.13676795363426208,
+          0,
+          -0.99060314893722534,
+          1.4859046936035156
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.99060314893722534,
+          0,
+          -0.13676793873310089,
+          0.20515215396881104
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 5
+    },
+    {
+      "arkit_frame_row_ordinal" : 6,
+      "arkit_pose_row_ordinal" : 6,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000006",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 6,
+      "decoded_pts_sec" : 0.40833333333333333,
+      "decoded_source_pts_sec" : 0.40833333333333333,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 6,
+      "frame_id" : "000007",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000006.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000007",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.40797445833328538,
+      "t_monotonic_ns" : 468795672000,
+      "T_site_camera" : [
+        [
+          -0.14762918651103973,
+          0,
+          -0.98904269933700562,
+          1.4835641384124756
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98904269933700562,
+          0,
+          -0.14762917160987854,
+          0.22144384682178497
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.14762918651103973,
+          0,
+          -0.98904269933700562,
+          1.4835641384124756
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98904269933700562,
+          0,
+          -0.14762917160987854,
+          0.22144384682178497
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 6
+    },
+    {
+      "arkit_frame_row_ordinal" : 7,
+      "arkit_pose_row_ordinal" : 7,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000007",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 7,
+      "decoded_pts_sec" : 0.45666666666666667,
+      "decoded_source_pts_sec" : 0.45666666666666667,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 7,
+      "frame_id" : "000008",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000007.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000008",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.45708991666663223,
+      "t_monotonic_ns" : 468844787458,
+      "T_site_camera" : [
+        [
+          -0.15491166710853577,
+          0,
+          -0.98792839050292969,
+          1.481892466545105
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98792839050292969,
+          0,
+          -0.15491163730621338,
+          0.23236763477325439
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.15491166710853577,
+          0,
+          -0.98792839050292969,
+          1.481892466545105
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98792839050292969,
+          0,
+          -0.15491163730621338,
+          0.23236763477325439
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 7
+    },
+    {
+      "arkit_frame_row_ordinal" : 8,
+      "arkit_pose_row_ordinal" : 8,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000008",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 8,
+      "decoded_pts_sec" : 0.54500000000000004,
+      "decoded_source_pts_sec" : 0.54500000000000004,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 8,
+      "frame_id" : "000009",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000008.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000009",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.54560129166662819,
+      "t_monotonic_ns" : 468933298833,
+      "T_site_camera" : [
+        [
+          -0.16801416873931885,
+          0,
+          -0.98578453063964844,
+          1.4786769151687622
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98578453063964844,
+          0,
+          -0.16801415383815765,
+          0.25202122330665588
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.16801416873931885,
+          0,
+          -0.98578453063964844,
+          1.4786769151687622
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98578453063964844,
+          0,
+          -0.16801415383815765,
+          0.25202122330665588
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 8
+    },
+    {
+      "arkit_frame_row_ordinal" : 9,
+      "arkit_pose_row_ordinal" : 9,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000009",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 9,
+      "decoded_pts_sec" : 0.58999999999999997,
+      "decoded_source_pts_sec" : 0.58999999999999997,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 9,
+      "frame_id" : "000010",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000009.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000010",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.58916483333331371,
+      "t_monotonic_ns" : 468976862375,
+      "T_site_camera" : [
+        [
+          -0.1744520515203476,
+          0,
+          -0.98466569185256958,
+          1.4769984483718872
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98466569185256958,
+          0,
+          -0.1744520515203476,
+          0.26167821884155273
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.1744520515203476,
+          0,
+          -0.98466569185256958,
+          1.4769984483718872
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98466569185256958,
+          0,
+          -0.1744520515203476,
+          0.26167821884155273
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 9
+    },
+    {
+      "arkit_frame_row_ordinal" : 10,
+      "arkit_pose_row_ordinal" : 10,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000010",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 10,
+      "decoded_pts_sec" : 0.66666666666666663,
+      "decoded_source_pts_sec" : 0.66666666666666663,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 10,
+      "frame_id" : "000011",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000010.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000011",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.66727516666662723,
+      "t_monotonic_ns" : 469054972708,
+      "T_site_camera" : [
+        [
+          -0.18597675859928131,
+          0,
+          -0.98255413770675659,
+          1.4738311767578125
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98255413770675659,
+          0,
+          -0.18597674369812012,
+          0.27896520495414734
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.18597675859928131,
+          0,
+          -0.98255413770675659,
+          1.4738311767578125
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98255413770675659,
+          0,
+          -0.18597674369812012,
+          0.27896520495414734
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 10
+    },
+    {
+      "arkit_frame_row_ordinal" : 11,
+      "arkit_pose_row_ordinal" : 11,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000011",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 11,
+      "decoded_pts_sec" : 0.73833333333333329,
+      "decoded_source_pts_sec" : 0.73833333333333329,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 11,
+      "frame_id" : "000012",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000011.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000012",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.73875445833328968,
+      "t_monotonic_ns" : 469126452000,
+      "T_site_camera" : [
+        [
+          -0.19650056958198547,
+          0,
+          -0.98050367832183838,
+          1.4707555770874023
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98050367832183838,
+          0,
+          -0.19650058448314667,
+          0.29475110769271851
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.19650056958198547,
+          0,
+          -0.98050367832183838,
+          1.4707555770874023
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.98050367832183838,
+          0,
+          -0.19650058448314667,
+          0.29475110769271851
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 11
+    },
+    {
+      "arkit_frame_row_ordinal" : 12,
+      "arkit_pose_row_ordinal" : 12,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000012",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 12,
+      "decoded_pts_sec" : 0.79833333333333334,
+      "decoded_source_pts_sec" : 0.79833333333333334,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 12,
+      "frame_id" : "000013",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000012.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000013",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.79838687499994876,
+      "t_monotonic_ns" : 469186084417,
+      "T_site_camera" : [
+        [
+          -0.20526304841041565,
+          0,
+          -0.97870683670043945,
+          1.4680601358413696
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.97870683670043945,
+          0,
+          -0.20526306331157684,
+          0.30789485573768616
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.20526304841041565,
+          0,
+          -0.97870683670043945,
+          1.4680601358413696
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.97870683670043945,
+          0,
+          -0.20526306331157684,
+          0.30789485573768616
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 12
+    },
+    {
+      "arkit_frame_row_ordinal" : 13,
+      "arkit_pose_row_ordinal" : 13,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000013",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 13,
+      "decoded_pts_sec" : 0.86499999999999999,
+      "decoded_source_pts_sec" : 0.86499999999999999,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 13,
+      "frame_id" : "000014",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000013.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000014",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.86509112499999219,
+      "t_monotonic_ns" : 469252788667,
+      "T_site_camera" : [
+        [
+          -0.21504534780979156,
+          0,
+          -0.97660404443740845,
+          1.4649060964584351
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.97660404443740845,
+          0,
+          -0.21504536271095276,
+          0.32256808876991272
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.21504534780979156,
+          0,
+          -0.97660404443740845,
+          1.4649060964584351
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.97660404443740845,
+          0,
+          -0.21504536271095276,
+          0.32256808876991272
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 13
+    },
+    {
+      "arkit_frame_row_ordinal" : 14,
+      "arkit_pose_row_ordinal" : 14,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000014",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 14,
+      "decoded_pts_sec" : 0.93166666666666664,
+      "decoded_source_pts_sec" : 0.93166666666666664,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 14,
+      "frame_id" : "000015",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000014.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000015",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 0.93213758333331498,
+      "t_monotonic_ns" : 469319835125,
+      "T_site_camera" : [
+        [
+          -0.22485600411891937,
+          0,
+          -0.97439205646514893,
+          1.4615880250930786
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.97439205646514893,
+          0,
+          -0.22485604882240295,
+          0.33728405833244324
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.22485600411891937,
+          0,
+          -0.97439205646514893,
+          1.4615880250930786
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.97439205646514893,
+          0,
+          -0.22485604882240295,
+          0.33728405833244324
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 14
+    },
+    {
+      "arkit_frame_row_ordinal" : 15,
+      "arkit_pose_row_ordinal" : 15,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000015",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 15,
+      "decoded_pts_sec" : 1.0049999999999999,
+      "decoded_source_pts_sec" : 1.0049999999999999,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 15,
+      "frame_id" : "000016",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000015.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000016",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.0052667499999757,
+      "t_monotonic_ns" : 469392964292,
+      "T_site_camera" : [
+        [
+          -0.23553061485290527,
+          0,
+          -0.9718669056892395,
+          1.4578003883361816
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9718669056892395,
+          0,
+          -0.23553059995174408,
+          0.35329616069793701
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.23553061485290527,
+          0,
+          -0.9718669056892395,
+          1.4578003883361816
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9718669056892395,
+          0,
+          -0.23553059995174408,
+          0.35329616069793701
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 15
+    },
+    {
+      "arkit_frame_row_ordinal" : 16,
+      "arkit_pose_row_ordinal" : 16,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000016",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 16,
+      "decoded_pts_sec" : 1.0566666666666666,
+      "decoded_source_pts_sec" : 1.0566666666666666,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 16,
+      "frame_id" : "000017",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000016.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000017",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.0570256249999943,
+      "t_monotonic_ns" : 469444723167,
+      "T_site_camera" : [
+        [
+          -0.2430688887834549,
+          0,
+          -0.9700089693069458,
+          1.4550135135650635
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9700089693069458,
+          0,
+          -0.2430688887834549,
+          0.36460348963737488
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.2430688887834549,
+          0,
+          -0.9700089693069458,
+          1.4550135135650635
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9700089693069458,
+          0,
+          -0.2430688887834549,
+          0.36460348963737488
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 16
+    },
+    {
+      "arkit_frame_row_ordinal" : 17,
+      "arkit_pose_row_ordinal" : 17,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000017",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 17,
+      "decoded_pts_sec" : 1.1283333333333334,
+      "decoded_source_pts_sec" : 1.1283333333333334,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 17,
+      "frame_id" : "000018",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000017.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000018",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.1286488749999535,
+      "t_monotonic_ns" : 469516346417,
+      "T_site_camera" : [
+        [
+          -0.25347593426704407,
+          0,
+          -0.96734166145324707,
+          1.4510124921798706
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.96734166145324707,
+          0,
+          -0.25347590446472168,
+          0.38021409511566162
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.25347593426704407,
+          0,
+          -0.96734166145324707,
+          1.4510124921798706
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.96734166145324707,
+          0,
+          -0.25347590446472168,
+          0.38021409511566162
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 17
+    },
+    {
+      "arkit_frame_row_ordinal" : 18,
+      "arkit_pose_row_ordinal" : 18,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000018",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 18,
+      "decoded_pts_sec" : 1.2016666666666667,
+      "decoded_source_pts_sec" : 1.2016666666666667,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 18,
+      "frame_id" : "000019",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000018.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000019",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.2009884166666325,
+      "t_monotonic_ns" : 469588685958,
+      "T_site_camera" : [
+        [
+          -0.26395738124847412,
+          0,
+          -0.96453434228897095,
+          1.4468015432357788
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.96453434228897095,
+          0,
+          -0.26395738124847412,
+          0.39593619108200073
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.26395738124847412,
+          0,
+          -0.96453434228897095,
+          1.4468015432357788
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.96453434228897095,
+          0,
+          -0.26395738124847412,
+          0.39593619108200073
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 18
+    },
+    {
+      "arkit_frame_row_ordinal" : 19,
+      "arkit_pose_row_ordinal" : 19,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000019",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 19,
+      "decoded_pts_sec" : 1.2616666666666667,
+      "decoded_source_pts_sec" : 1.2616666666666667,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 19,
+      "frame_id" : "000020",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000019.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000020",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.2608273749999626,
+      "t_monotonic_ns" : 469648524917,
+      "T_site_camera" : [
+        [
+          -0.27260413765907288,
+          0,
+          -0.96212625503540039,
+          1.4431893825531006
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.96212625503540039,
+          0,
+          -0.27260413765907288,
+          0.40890640020370483
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.27260413765907288,
+          0,
+          -0.96212625503540039,
+          1.4431893825531006
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.96212625503540039,
+          0,
+          -0.27260413765907288,
+          0.40890640020370483
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 19
+    },
+    {
+      "arkit_frame_row_ordinal" : 20,
+      "arkit_pose_row_ordinal" : 20,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000020",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 20,
+      "decoded_pts_sec" : 1.3283333333333334,
+      "decoded_source_pts_sec" : 1.3283333333333334,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 20,
+      "frame_id" : "000021",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000020.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000021",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.3278125416666171,
+      "t_monotonic_ns" : 469715510083,
+      "T_site_camera" : [
+        [
+          -0.28225746750831604,
+          0,
+          -0.95933866500854492,
+          1.4390079975128174
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.95933866500854492,
+          0,
+          -0.28225746750831604,
+          0.42338627576828003
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.28225746750831604,
+          0,
+          -0.95933866500854492,
+          1.4390079975128174
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.95933866500854492,
+          0,
+          -0.28225746750831604,
+          0.42338627576828003
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 20
+    },
+    {
+      "arkit_frame_row_ordinal" : 21,
+      "arkit_pose_row_ordinal" : 21,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000021",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 21,
+      "decoded_pts_sec" : 1.3966666666666667,
+      "decoded_source_pts_sec" : 1.3966666666666667,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 21,
+      "frame_id" : "000022",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000021.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000022",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.3966962499999909,
+      "t_monotonic_ns" : 469784393792,
+      "T_site_camera" : [
+        [
+          -0.29215463995933533,
+          0,
+          -0.95637112855911255,
+          1.4345566034317017
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.95637112855911255,
+          0,
+          -0.29215466976165771,
+          0.43823209404945374
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.29215463995933533,
+          0,
+          -0.95637112855911255,
+          1.4345566034317017
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.95637112855911255,
+          0,
+          -0.29215466976165771,
+          0.43823209404945374
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "limited",
+      "write_attempt_index" : 21
+    },
+    {
+      "arkit_frame_row_ordinal" : 22,
+      "arkit_pose_row_ordinal" : 22,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000022",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 22,
+      "decoded_pts_sec" : 1.4683333333333333,
+      "decoded_source_pts_sec" : 1.4683333333333333,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 22,
+      "frame_id" : "000023",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000022.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000023",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.4688187083332878,
+      "t_monotonic_ns" : 469856516250,
+      "T_site_camera" : [
+        [
+          -0.30248373746871948,
+          0,
+          -0.95315450429916382,
+          1.4297317266464233
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.95315450429916382,
+          0,
+          -0.30248373746871948,
+          0.45372569561004639
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.30248373746871948,
+          0,
+          -0.95315450429916382,
+          1.4297317266464233
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.95315450429916382,
+          0,
+          -0.30248373746871948,
+          0.45372569561004639
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 22
+    },
+    {
+      "arkit_frame_row_ordinal" : 23,
+      "arkit_pose_row_ordinal" : 23,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000023",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 23,
+      "decoded_pts_sec" : 1.5433333333333332,
+      "decoded_source_pts_sec" : 1.5433333333333332,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 23,
+      "frame_id" : "000024",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000023.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000024",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.5426060833332826,
+      "t_monotonic_ns" : 469930303625,
+      "T_site_camera" : [
+        [
+          -0.31301465630531311,
+          0,
+          -0.94974839687347412,
+          1.4246224164962769
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.94974839687347412,
+          0,
+          -0.31301462650299072,
+          0.46952199935913086
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.31301465630531311,
+          0,
+          -0.94974839687347412,
+          1.4246224164962769
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.94974839687347412,
+          0,
+          -0.31301462650299072,
+          0.46952199935913086
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 23
+    },
+    {
+      "arkit_frame_row_ordinal" : 24,
+      "arkit_pose_row_ordinal" : 24,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000024",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 24,
+      "decoded_pts_sec" : 1.5916666666666666,
+      "decoded_source_pts_sec" : 1.5916666666666666,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 24,
+      "frame_id" : "000025",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000024.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000025",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.5915737083333283,
+      "t_monotonic_ns" : 469979271250,
+      "T_site_camera" : [
+        [
+          -0.31998223066329956,
+          0,
+          -0.94742357730865479,
+          1.421135425567627
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.94742357730865479,
+          0,
+          -0.31998220086097717,
+          0.47997331619262695
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.31998223066329956,
+          0,
+          -0.94742357730865479,
+          1.421135425567627
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.94742357730865479,
+          0,
+          -0.31998220086097717,
+          0.47997331619262695
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 24
+    },
+    {
+      "arkit_frame_row_ordinal" : 25,
+      "arkit_pose_row_ordinal" : 25,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000025",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 25,
+      "decoded_pts_sec" : 1.6666666666666667,
+      "decoded_source_pts_sec" : 1.6666666666666667,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 25,
+      "frame_id" : "000026",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000025.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000026",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.6661157916666411,
+      "t_monotonic_ns" : 470053813333,
+      "T_site_camera" : [
+        [
+          -0.33055534958839417,
+          0,
+          -0.94378668069839478,
+          1.4156798124313354
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.94378668069839478,
+          0,
+          -0.33055534958839417,
+          0.49583309888839722
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.33055534958839417,
+          0,
+          -0.94378668069839478,
+          1.4156798124313354
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.94378668069839478,
+          0,
+          -0.33055534958839417,
+          0.49583309888839722
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 25
+    },
+    {
+      "arkit_frame_row_ordinal" : 26,
+      "arkit_pose_row_ordinal" : 26,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000026",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 26,
+      "decoded_pts_sec" : 1.73,
+      "decoded_source_pts_sec" : 1.73,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 26,
+      "frame_id" : "000027",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000026.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000027",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.730612416666645,
+      "t_monotonic_ns" : 470118309958,
+      "T_site_camera" : [
+        [
+          -0.33967036008834839,
+          0,
+          -0.94054460525512695,
+          1.4108166694641113
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.94054460525512695,
+          0,
+          -0.339670330286026,
+          0.50950568914413452
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.33967036008834839,
+          0,
+          -0.94054460525512695,
+          1.4108166694641113
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.94054460525512695,
+          0,
+          -0.339670330286026,
+          0.50950568914413452
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 26
+    },
+    {
+      "arkit_frame_row_ordinal" : 27,
+      "arkit_pose_row_ordinal" : 27,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000027",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 27,
+      "decoded_pts_sec" : 1.8166666666666667,
+      "decoded_source_pts_sec" : 1.8166666666666667,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 27,
+      "frame_id" : "000028",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000027.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000028",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.8171475833332806,
+      "t_monotonic_ns" : 470204845125,
+      "T_site_camera" : [
+        [
+          -0.3518500030040741,
+          0,
+          -0.93605643510818481,
+          1.4040845632553101
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.93605643510818481,
+          0,
+          -0.3518500030040741,
+          0.52777504920959473
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.3518500030040741,
+          0,
+          -0.93605643510818481,
+          1.4040845632553101
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.93605643510818481,
+          0,
+          -0.3518500030040741,
+          0.52777504920959473
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 27
+    },
+    {
+      "arkit_frame_row_ordinal" : 28,
+      "arkit_pose_row_ordinal" : 28,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000028",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 28,
+      "decoded_pts_sec" : 1.8600000000000001,
+      "decoded_source_pts_sec" : 1.8600000000000001,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 28,
+      "frame_id" : "000029",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000028.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000029",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.8599166666666633,
+      "t_monotonic_ns" : 470247614208,
+      "T_site_camera" : [
+        [
+          -0.35784783959388733,
+          0,
+          -0.93377995491027832,
+          1.4006698131561279
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.93377995491027832,
+          0,
+          -0.35784780979156494,
+          0.53677183389663696
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.35784783959388733,
+          0,
+          -0.93377995491027832,
+          1.4006698131561279
+        ],
+        [
+          0,
+          1.0000001192092896,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.93377995491027832,
+          0,
+          -0.35784780979156494,
+          0.53677183389663696
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 28
+    },
+    {
+      "arkit_frame_row_ordinal" : 29,
+      "arkit_pose_row_ordinal" : 29,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000029",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 29,
+      "decoded_pts_sec" : 1.9266666666666667,
+      "decoded_source_pts_sec" : 1.9266666666666667,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 29,
+      "frame_id" : "000030",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000029.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000030",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.9270321249999824,
+      "t_monotonic_ns" : 470314729667,
+      "T_site_camera" : [
+        [
+          -0.36723023653030396,
+          0,
+          -0.9301300048828125,
+          1.3951951265335083
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9301300048828125,
+          0,
+          -0.36723023653030396,
+          0.55084538459777832
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.36723023653030396,
+          0,
+          -0.9301300048828125,
+          1.3951951265335083
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9301300048828125,
+          0,
+          -0.36723023653030396,
+          0.55084538459777832
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 29
+    },
+    {
+      "arkit_frame_row_ordinal" : 30,
+      "arkit_pose_row_ordinal" : 30,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000030",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 30,
+      "decoded_pts_sec" : 1.9966666666666666,
+      "decoded_source_pts_sec" : 1.9966666666666666,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 30,
+      "frame_id" : "000031",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000030.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000031",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 1.9965194583332959,
+      "t_monotonic_ns" : 470384217000,
+      "T_site_camera" : [
+        [
+          -0.37690490484237671,
+          0,
+          -0.92625188827514648,
+          1.3893779516220093
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.92625188827514648,
+          0,
+          -0.37690490484237671,
+          0.56535744667053223
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.37690490484237671,
+          0,
+          -0.92625188827514648,
+          1.3893779516220093
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.92625188827514648,
+          0,
+          -0.37690490484237671,
+          0.56535744667053223
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 30
+    },
+    {
+      "arkit_frame_row_ordinal" : 31,
+      "arkit_pose_row_ordinal" : 31,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000031",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 31,
+      "decoded_pts_sec" : 2.0649999999999999,
+      "decoded_source_pts_sec" : 2.0649999999999999,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 31,
+      "frame_id" : "000032",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000031.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000032",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.0644201249999696,
+      "t_monotonic_ns" : 470452117667,
+      "T_site_camera" : [
+        [
+          -0.38631922006607056,
+          0,
+          -0.92236518859863281,
+          1.3835476636886597
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.92236518859863281,
+          0,
+          -0.38631922006607056,
+          0.57947885990142822
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.38631922006607056,
+          0,
+          -0.92236518859863281,
+          1.3835476636886597
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.92236518859863281,
+          0,
+          -0.38631922006607056,
+          0.57947885990142822
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 31
+    },
+    {
+      "arkit_frame_row_ordinal" : 32,
+      "arkit_pose_row_ordinal" : 32,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000032",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 32,
+      "decoded_pts_sec" : 2.1299999999999999,
+      "decoded_source_pts_sec" : 2.1299999999999999,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 32,
+      "frame_id" : "000033",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000032.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000033",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.129389500000002,
+      "t_monotonic_ns" : 470517087042,
+      "T_site_camera" : [
+        [
+          -0.39528945088386536,
+          0,
+          -0.9185565710067749,
+          1.3778347969055176
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9185565710067749,
+          0,
+          -0.39528942108154297,
+          0.59293437004089355
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.39528945088386536,
+          0,
+          -0.9185565710067749,
+          1.3778347969055176
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.9185565710067749,
+          0,
+          -0.39528942108154297,
+          0.59293437004089355
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 32
+    },
+    {
+      "arkit_frame_row_ordinal" : 33,
+      "arkit_pose_row_ordinal" : 33,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000033",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 33,
+      "decoded_pts_sec" : 2.1966666666666668,
+      "decoded_source_pts_sec" : 2.1966666666666668,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 33,
+      "frame_id" : "000034",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000033.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000034",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.1958088333333308,
+      "t_monotonic_ns" : 470583506375,
+      "T_site_camera" : [
+        [
+          -0.40442118048667908,
+          0,
+          -0.91457289457321167,
+          1.3718593120574951
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.91457289457321167,
+          0,
+          -0.40442121028900146,
+          0.60663187503814697
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.40442118048667908,
+          0,
+          -0.91457289457321167,
+          1.3718593120574951
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.91457289457321167,
+          0,
+          -0.40442121028900146,
+          0.60663187503814697
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 33
+    },
+    {
+      "arkit_frame_row_ordinal" : 34,
+      "arkit_pose_row_ordinal" : 34,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000034",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 34,
+      "decoded_pts_sec" : 2.2616666666666667,
+      "decoded_source_pts_sec" : 2.2616666666666667,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 34,
+      "frame_id" : "000035",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000034.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000035",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.2616316666666307,
+      "t_monotonic_ns" : 470649329208,
+      "T_site_camera" : [
+        [
+          -0.41343137621879578,
+          0,
+          -0.91053533554077148,
+          1.3658028841018677
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.91053533554077148,
+          0,
+          -0.41343137621879578,
+          0.62014710903167725
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.41343137621879578,
+          0,
+          -0.91053533554077148,
+          1.3658028841018677
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.91053533554077148,
+          0,
+          -0.41343137621879578,
+          0.62014710903167725
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 34
+    },
+    {
+      "arkit_frame_row_ordinal" : 35,
+      "arkit_pose_row_ordinal" : 35,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000035",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 35,
+      "decoded_pts_sec" : 2.3233333333333333,
+      "decoded_source_pts_sec" : 2.3233333333333333,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 35,
+      "frame_id" : "000036",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000035.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000036",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.3227534999999762,
+      "t_monotonic_ns" : 470710451042,
+      "T_site_camera" : [
+        [
+          -0.42176184058189392,
+          0,
+          -0.90670669078826904,
+          1.3600599765777588
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.90670669078826904,
+          0,
+          -0.42176184058189392,
+          0.63264286518096924
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.42176184058189392,
+          0,
+          -0.90670669078826904,
+          1.3600599765777588
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.90670669078826904,
+          0,
+          -0.42176184058189392,
+          0.63264286518096924
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 35
+    },
+    {
+      "arkit_frame_row_ordinal" : 36,
+      "arkit_pose_row_ordinal" : 36,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000036",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 36,
+      "decoded_pts_sec" : 2.3999999999999999,
+      "decoded_source_pts_sec" : 2.3999999999999999,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 36,
+      "frame_id" : "000037",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000036.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000037",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.3990239999999972,
+      "t_monotonic_ns" : 470786721542,
+      "T_site_camera" : [
+        [
+          -0.43210718035697937,
+          0,
+          -0.90182232856750488,
+          1.3527332544326782
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.90182232856750488,
+          0,
+          -0.43210718035697937,
+          0.64816105365753174
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.43210718035697937,
+          0,
+          -0.90182232856750488,
+          1.3527332544326782
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.90182232856750488,
+          0,
+          -0.43210718035697937,
+          0.64816105365753174
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 36
+    },
+    {
+      "arkit_frame_row_ordinal" : 37,
+      "arkit_pose_row_ordinal" : 37,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000037",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 37,
+      "decoded_pts_sec" : 2.4616666666666664,
+      "decoded_source_pts_sec" : 2.4616666666666664,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 37,
+      "frame_id" : "000038",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000037.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000038",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.4620824166666466,
+      "t_monotonic_ns" : 470849779958,
+      "T_site_camera" : [
+        [
+          -0.44061791896820068,
+          0,
+          -0.89769476652145386,
+          1.3465421199798584
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.89769476652145386,
+          0,
+          -0.44061791896820068,
+          0.66092699766159058
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.44061791896820068,
+          0,
+          -0.89769476652145386,
+          1.3465421199798584
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.89769476652145386,
+          0,
+          -0.44061791896820068,
+          0.66092699766159058
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 37
+    },
+    {
+      "arkit_frame_row_ordinal" : 38,
+      "arkit_pose_row_ordinal" : 38,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000038",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 38,
+      "decoded_pts_sec" : 2.5299999999999998,
+      "decoded_source_pts_sec" : 2.5299999999999998,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 38,
+      "frame_id" : "000039",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000038.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000039",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.5295918749999942,
+      "t_monotonic_ns" : 470917289417,
+      "T_site_camera" : [
+        [
+          -0.44968563318252563,
+          0,
+          -0.89318686723709106,
+          1.339780330657959
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.89318686723709106,
+          0,
+          -0.44968566298484802,
+          0.67452859878540039
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.44968563318252563,
+          0,
+          -0.89318686723709106,
+          1.339780330657959
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.89318686723709106,
+          0,
+          -0.44968566298484802,
+          0.67452859878540039
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 38
+    },
+    {
+      "arkit_frame_row_ordinal" : 39,
+      "arkit_pose_row_ordinal" : 39,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000039",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 39,
+      "decoded_pts_sec" : 2.5933333333333333,
+      "decoded_source_pts_sec" : 2.5933333333333333,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 39,
+      "frame_id" : "000040",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000039.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000040",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.5924705833332951,
+      "t_monotonic_ns" : 470980168125,
+      "T_site_camera" : [
+        [
+          -0.45808973908424377,
+          0,
+          -0.88890594244003296,
+          1.3333587646484375
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.88890594244003296,
+          0,
+          -0.45808976888656616,
+          0.68713486194610596
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.45808973908424377,
+          0,
+          -0.88890594244003296,
+          1.3333587646484375
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.88890594244003296,
+          0,
+          -0.45808976888656616,
+          0.68713486194610596
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 39
+    },
+    {
+      "arkit_frame_row_ordinal" : 40,
+      "arkit_pose_row_ordinal" : 40,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000040",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 40,
+      "decoded_pts_sec" : 2.6616666666666666,
+      "decoded_source_pts_sec" : 2.6616666666666666,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 40,
+      "frame_id" : "000041",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000040.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000041",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.6621562499999527,
+      "t_monotonic_ns" : 471049853792,
+      "T_site_camera" : [
+        [
+          -0.46735629439353943,
+          0,
+          -0.88406908512115479,
+          1.3261035680770874
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.88406908512115479,
+          0,
+          -0.46735629439353943,
+          0.7010345458984375
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.46735629439353943,
+          0,
+          -0.88406908512115479,
+          1.3261035680770874
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.88406908512115479,
+          0,
+          -0.46735629439353943,
+          0.7010345458984375
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 40
+    },
+    {
+      "arkit_frame_row_ordinal" : 41,
+      "arkit_pose_row_ordinal" : 41,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000041",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 41,
+      "decoded_pts_sec" : 2.73,
+      "decoded_source_pts_sec" : 2.73,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 41,
+      "frame_id" : "000042",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000041.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000042",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.7294354999999655,
+      "t_monotonic_ns" : 471117133042,
+      "T_site_camera" : [
+        [
+          -0.47625413537025452,
+          0,
+          -0.87930762767791748,
+          1.3189613819122314
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.87930762767791748,
+          0,
+          -0.47625410556793213,
+          0.71438145637512207
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.47625413537025452,
+          0,
+          -0.87930762767791748,
+          1.3189613819122314
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.87930762767791748,
+          0,
+          -0.47625410556793213,
+          0.71438145637512207
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 41
+    },
+    {
+      "arkit_frame_row_ordinal" : 42,
+      "arkit_pose_row_ordinal" : 42,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000042",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 42,
+      "decoded_pts_sec" : 2.7999999999999998,
+      "decoded_source_pts_sec" : 2.7999999999999998,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 42,
+      "frame_id" : "000043",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000042.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000043",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.7992232499999545,
+      "t_monotonic_ns" : 471186920792,
+      "T_site_camera" : [
+        [
+          -0.48543265461921692,
+          0,
+          -0.87427401542663574,
+          1.3114110231399536
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.87427401542663574,
+          0,
+          -0.48543265461921692,
+          0.7281491756439209
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.48543265461921692,
+          0,
+          -0.87427401542663574,
+          1.3114110231399536
+        ],
+        [
+          0,
+          0.99999994039535522,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.87427401542663574,
+          0,
+          -0.48543265461921692,
+          0.7281491756439209
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 42
+    },
+    {
+      "arkit_frame_row_ordinal" : 43,
+      "arkit_pose_row_ordinal" : 43,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000043",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 43,
+      "decoded_pts_sec" : 2.8650000000000002,
+      "decoded_source_pts_sec" : 2.8650000000000002,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 43,
+      "frame_id" : "000044",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000043.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000044",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.8648461249999855,
+      "t_monotonic_ns" : 471252543667,
+      "T_site_camera" : [
+        [
+          -0.49401482939720154,
+          0,
+          -0.86945348978042603,
+          1.3041800260543823
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.86945348978042603,
+          0,
+          -0.49401479959487915,
+          0.74102252721786499
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.49401482939720154,
+          0,
+          -0.86945348978042603,
+          1.3041800260543823
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.86945348978042603,
+          0,
+          -0.49401479959487915,
+          0.74102252721786499
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 43
+    },
+    {
+      "arkit_frame_row_ordinal" : 44,
+      "arkit_pose_row_ordinal" : 44,
+      "camera_calibration_digest" : "sha256:610d1d84c67d0f3ea879011bb9c0e2563e4c0dd303d6a25650662b675f4a6b94",
+      "camera_intrinsics" : {
+        "authority" : "arkit_arframe_exact_per_observation",
+        "cx" : 320,
+        "cy" : 240,
+        "fx" : 500,
+        "fy" : 500,
+        "height" : 480,
+        "matrix_column_major" : [
+          500,
+          0,
+          0,
+          0,
+          500,
+          0,
+          320,
+          240,
+          1
+        ],
+        "width" : 640
+      },
+      "candidate_id" : "rgb_000044",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "decoded_frame_ordinal" : 44,
+      "decoded_pts_sec" : 2.9433333333333334,
+      "decoded_source_pts_sec" : 2.9433333333333334,
+      "downstream_artifact_authority" : false,
+      "encoded_frame_index" : 44,
+      "frame_id" : "000045",
+      "gravity_aligned" : true,
+      "handedness" : "right_handed",
+      "output_image_relative_path" : "candidate_rgb/000044.png",
+      "pose_assisted_eligible" : true,
+      "pose_frame_id" : "000045",
+      "raw_observation_authority" : true,
+      "relocalization_event" : false,
+      "site_frame_definition" : "arkit_world_origin_at_session_start",
+      "site_frame_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "source_video_uri" : "walkthrough.mov",
+      "t_capture_sec" : 2.9424949583333273,
+      "t_monotonic_ns" : 471330192500,
+      "T_site_camera" : [
+        [
+          -0.5041080117225647,
+          0,
+          -0.86364066600799561,
+          1.2954609394073486
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.86364066600799561,
+          0,
+          -0.50410807132720947,
+          0.75616204738616943
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "T_world_camera" : [
+        [
+          -0.5041080117225647,
+          0,
+          -0.86364066600799561,
+          1.2954609394073486
+        ],
+        [
+          0,
+          1,
+          0,
+          1.3999999761581421
+        ],
+        [
+          0.86364066600799561,
+          0,
+          -0.50410807132720947,
+          0.75616204738616943
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "tracking_reason" : null,
+      "tracking_state" : "normal",
+      "transform_semantics" : "row_major_camera_to_site",
+      "units" : "meters",
+      "up_axis" : "Y",
+      "world_mapping_status" : "mapped",
+      "write_attempt_index" : 44
+    }
+  ],
+  "capture_id" : "walkthrough-stub-request",
+  "claim_boundary" : {
+    "candidate_manifest_proves_task_success" : false,
+    "candidate_manifest_qualifies_collision_or_physics" : false,
+    "candidate_manifest_qualifies_metric_scale" : false,
+    "candidate_manifest_qualifies_reconstruction" : false,
+    "raw_capture_remains_authoritative" : true
+  },
+  "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+  "decoded_timing_authority" : "sync_map_decoded_sample_presentation_timestamps",
+  "manifest_digest" : "sha256:a1363d6dead9cb2727b1e01994fdee81857aee81dcb510ca7796b34e37514f7f",
+  "provider_neutrality" : {
+    "mobile_app_direct_provider_upload_allowed" : false,
+    "provider_authorization_status" : "not_granted_by_capture_manifest",
+    "provider_selection_authority" : "blueprint_pipeline",
+    "third_party_provider_upload_authorized" : false
+  },
+  "scene_id" : "site-stub-request",
+  "schema_version" : "downstream_candidate_manifest.v1",
+  "selection_contract" : {
+    "allowed_deterministic_selectors" : [
+      "explicit_encoded_frame_ordinals",
+      "profile_bound_even_decoded_pts_coverage",
+      "profile_bound_quality_filter"
+    ],
+    "capture_default_selection" : null,
+    "selection_authority" : "blueprint_pipeline_task_site_profile",
+    "selection_parameters_required" : true,
+    "smallest_missing_input_when_unselectable" : "task_site_evidence_profile_with_frame_selection_parameters"
+  },
+  "source_video_authority" : "immutable_raw_capture_video",
+  "source_video_sha256" : "0ddeb7079d535f45743c1872b98b59ccbeefc657c107c6257fea865964c0f1b3",
+  "source_video_uri" : "walkthrough.mov"
+}

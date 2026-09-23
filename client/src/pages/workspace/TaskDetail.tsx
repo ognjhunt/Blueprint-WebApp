@@ -128,10 +128,6 @@ export default function TaskDetail() {
                     ],
                   ]}
                 />
-                <p className="ws-note">
-                  Targets are requirements for this task. Evaluation results are
-                  separate from physical pilot outcomes.
-                </p>
               </section>
               <section>
                 <h2>Pilot & deployment</h2>
@@ -153,6 +149,10 @@ export default function TaskDetail() {
                     ],
                   ]}
                 />
+                <p className="ws-note">
+                  Budgets are planning figures. Pilot scope, commercial terms,
+                  and any deployment are agreed separately.
+                </p>
                 {task.potentialMatches !== null && (
                   <p className="ws-note">
                     {task.potentialMatches} potential matches from the latest
@@ -181,7 +181,6 @@ export default function TaskDetail() {
                     ? "to be agreed"
                     : `≤${task.terms.cycleTimeSeconds} sec`}
                 </span>
-                <span>Pilot budget {money(task.terms.pilotBudgetUsd)}</span>
               </div>
               <section className="ws-section">
                 <h2>Team results</h2>
@@ -259,9 +258,8 @@ export default function TaskDetail() {
                       </table>
                     </div>
                     <p className="ws-note">
-                      Teams are anonymized. Results report their recorded
-                      evidence; physical performance must be confirmed in the
-                      pilot.
+                      Teams are anonymized. These results come from evaluation;
+                      how a robot does on site is confirmed in the pilot.
                     </p>
                   </>
                 ) : (
@@ -276,23 +274,6 @@ export default function TaskDetail() {
                 <p>
                   {task.terms.successDefinition ||
                     "Success criteria are still being agreed."}
-                </p>
-              </details>
-              <details>
-                <summary>Pilot scope & costs</summary>
-                <Facts
-                  rows={[
-                    ["Pilot budget", money(task.terms.pilotBudgetUsd)],
-                    [
-                      "Deployment budget",
-                      money(task.terms.deploymentBudgetUsd),
-                    ],
-                    ["Target start", dateLabel(task.terms.targetDate)],
-                  ]}
-                />
-                <p className="ws-note">
-                  Budgets are planning figures. Pilot scope, commercial terms,
-                  and any deployment are agreed separately.
                 </p>
               </details>
               <section className="ws-next ws-section">
@@ -532,7 +513,7 @@ export default function TaskDetail() {
               <p>
                 {pilotAction === "invite"
                   ? "Blueprint will coordinate the invitation. Pilot scope, pricing, and terms must be agreed before work starts."
-                  : "Record the actual site decision and supporting notes. This does not change evaluation scores or certify physical performance."}
+                  : "Record the site's decision and any notes. This doesn't change evaluation scores."}
               </p>
               <Feedback error={action.error} />
               <form
@@ -579,8 +560,7 @@ export default function TaskDetail() {
                   ? "These results cannot be compared with every current target."
                   : details.targetsMet
                     ? "This result meets the recorded targets."
-                    : "This result is below one or more targets."}{" "}
-                Physical pilot outcomes are evaluated separately.
+                    : "This result is below one or more targets."}
               </p>
             </Modal>
           )}

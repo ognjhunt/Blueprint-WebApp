@@ -1,0 +1,57 @@
+{
+  "threshold_source" : "task_site_evidence_profile_digest_bound",
+  "qualification_authority" : "blueprint_pipeline",
+  "capture_observations" : {
+    "loop_closure_translation_residual_m" : null,
+    "median_depth_valid_fraction" : null,
+    "loop_closure_rotation_residual_deg" : null,
+    "loop_closure_detected" : false,
+    "loop_closure_max_excursion_m" : null,
+    "mesh_triangle_count" : 0,
+    "device_calibration_qualified" : false,
+    "relocalization_count" : 0,
+    "normal_tracking_fraction" : 1,
+    "horizontal_plane_observation_count" : 0
+  },
+  "capture_decision" : "abstain_pending_downstream_measurements",
+  "schema_version" : "reconstruction_qualification_request.v1",
+  "requested_checks" : [
+    {
+      "capture_observation_available" : false,
+      "check" : "loop_closure"
+    },
+    {
+      "capture_observation_available" : true,
+      "check" : "tracking_quality"
+    },
+    {
+      "capture_observation_available" : false,
+      "check" : "depth_reprojection_error"
+    },
+    {
+      "capture_observation_available" : true,
+      "check" : "mesh_coverage"
+    },
+    {
+      "capture_observation_available" : false,
+      "check" : "floor_support_continuity"
+    },
+    {
+      "capture_observation_available" : false,
+      "check" : "physical_collision_probes"
+    },
+    {
+      "check" : "postshot_registered_reconstruction",
+      "capture_observation_available" : false
+    }
+  ],
+  "collision_artifact_status" : "candidate_only",
+  "capture_workflow" : "single_guided_closed_loop_walk",
+  "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+  "smallest_missing_evidence" : [
+    "return_to_start_hold_or_targeted_return_segment_recapture",
+    "targeted_depth_coverage_recapture",
+    "current_device_known_rig_calibration_if_sensor_scale_gate_requires_it"
+  ],
+  "automatic_promotion_rule" : "qualify_only_when_every_requested_check_passes_under_the_bound_task_site_profile"
+}

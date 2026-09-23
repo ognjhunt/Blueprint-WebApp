@@ -252,7 +252,8 @@ export function SiteCaptureStart() {
                   + "whether they cover the work area well enough to build the scene, or which extra "
                   + "views would finish the job — you will not be asked to film it all again."
                 : "One video of one work area, on any phone. Thirty seconds of the actual cycle is "
-                  + "enough. No app and nothing to install."}
+                  + "enough. On an iPhone the link opens a small Blueprint camera when that is "
+                  + "available; everywhere else the recorder opens in the browser. No account needed."}
             </p>
             {!onAPhone && <CaptureHandoffQr url={state.captureUrl} label="Point your phone at this to film" />}
             <p style={{ marginTop: "20px" }}>

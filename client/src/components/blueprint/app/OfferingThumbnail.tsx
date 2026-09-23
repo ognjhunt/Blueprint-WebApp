@@ -12,10 +12,12 @@ export function OfferingThumbnail({
   currentUser: Parameters<typeof withFirebaseAuthHeaders>[0];
 }) {
   const [source, setSource] = useState("");
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!currentUser) return undefined;
     let objectUrl = "";
     let cancelled = false;
+    setFailed(false);
     void withFirebaseAuthHeaders(currentUser)
       .then((headers) => fetchAuthenticatedConfiguredSceneThumbnail(
         thumbnailUrl,
@@ -26,7 +28,11 @@ export function OfferingThumbnail({
         objectUrl = URL.createObjectURL(blob);
         setSource(objectUrl);
       })
-      .catch(() => setSource(""));
+      .catch(() => {
+        if (cancelled) return;
+        setSource("");
+        setFailed(true);
+      });
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -40,7 +46,7 @@ export function OfferingThumbnail({
     />
   ) : (
     <div className="flex aspect-video items-center justify-center bg-ink-50 text-caption text-ink-400">
-      Loading private thumbnail…
+      {failed ? "Preview unavailable" : "Loading preview…"}
     </div>
   );
 }

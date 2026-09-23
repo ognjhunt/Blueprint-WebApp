@@ -436,7 +436,7 @@ export class EvaluationRunStatusError extends Error {
   constructor(public readonly status: number, public readonly retryAfterSeconds: number | null = null) {
     super(status === 401 ? "Sign in again to view this run."
       : status === 403 ? "You do not have permission to view this run."
-      : status === 404 ? "This run was not found in your permitted scope."
+      : status === 404 ? "This run wasn't found in your account."
       : `Evaluation run status is unavailable (${status})`);
   }
 }

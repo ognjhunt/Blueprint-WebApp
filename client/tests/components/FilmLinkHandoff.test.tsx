@@ -41,7 +41,8 @@ describe("sending the film link", () => {
     type("maria@floor.example");
     fireEvent.click(screen.getByRole("button", { name: /Send link/ }));
 
-    await screen.findByText(/Sent to maria@floor.example/);
+    const confirmation = await screen.findByText(/Sent to maria@floor.example/);
+    expect(confirmation.textContent).not.toMatch(/no app/i);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("/film-link/send");
     expect(JSON.parse(String(init.body))).toMatchObject({ channel: "email", to: "maria@floor.example" });

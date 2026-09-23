@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PolicyCanarySetupView } from "@/lib/policyCanaryRuns";
@@ -131,28 +131,70 @@ describe("PolicyCanarySetup", () => {
     fetchPolicyCanarySetup.mockReset().mockResolvedValue(setup());
   });
 
-  it("shows the exact Scene 839873 two-policy Quick-10 confirmation path", async () => {
+  it("shows the Scene 839873 two-policy quick run on one plain page", async () => {
     const { default: PolicyCanarySetup } = await import("../../src/pages/app/PolicyCanarySetup");
     render(<PolicyCanarySetup />);
 
     await waitFor(() => expect(screen.getByText("scene-839873 · simple-relocation")).toBeTruthy());
-    expect(screen.getByText("PI 0.5 DROID")).toBeTruthy();
-    expect(screen.getByText("GR00T N1.7 DROID")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "Run a policy test" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "← Tasks" }).getAttribute("href")).toBe("/app/packs");
+    expect(screen.queryByText(/internal policy canary|internal recipient|policy canary/i)).toBeNull();
+    // The unqualified boundary is stated once, in plain words.
+    expect(screen.getAllByText(/results are unqualified/i)).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(screen.getByText("20", { selector: "dd" })).toBeTruthy();
-    expect(screen.getByText("20 nonblocking")).toBeTruthy();
-    expect(screen.getByText("Deterministic cell 10")).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: "PI 0.5 DROID" })).toHaveProperty("checked", true);
+    expect(screen.getByRole("checkbox", { name: "GR00T N1.7 DROID" })).toHaveProperty("checked", true);
+    expect(screen.getByText(/10 scenarios per policy: 20 policy episodes, plus\s+20 control episodes/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(screen.getByDisplayValue("team@tryblueprint.io")).toBeTruthy();
-    expect(screen.getByText(/20 learned rollouts · 20 nonblocking diagnostic controls/)).toBeTruthy();
+    const scenarios = screen.getByText("Scenarios", { selector: "summary" }).closest("details")!;
+    expect(scenarios.open).toBe(false);
+    expect(within(scenarios).getByText("10. Deterministic cell 10")).toBeTruthy();
+
     expect(screen.getByRole("heading", { name: "Task success criteria" })).toBeTruthy();
     expect(screen.getByText("Eventual placement")).toBeTruthy();
-    expect(screen.getByText("Ignored")).toBeTruthy();
-    expect(screen.getByText("ignored")).toBeTruthy();
-    expect(screen.getByText("cleared")).toBeTruthy();
-    expect(screen.getByText(/independent episode interpreter/i)).toBeTruthy();
+    // Already-confirmed rules stay one click away; only a proposal opens them for review.
+    expect(screen.getByText(/^The \d+ rules$/, { selector: "summary" }).closest("details")!.open).toBe(false);
+    expect(screen.getByDisplayValue("team@tryblueprint.io")).toBeTruthy();
+    expect(screen.getByText("$4.25")).toBeTruthy();
+    expect(screen.getByText(/AI review of this run only/)).toBeTruthy();
     expect(screen.getByText(/separate \$1\.50 maximum/i)).toBeTruthy();
+
+    // Raw runtime and policy identifiers stay in the closed details drawer.
+    const details = screen.getByText("Setup details", { selector: "summary" }).closest("details")!;
+    expect(details.open).toBe(false);
+    expect(within(details).getByText("registry.example/isaac@sha256")).toBeTruthy();
+    expect(within(details).getByText(/pi05_droid · adapter-0 · verified-internal-use/)).toBeTruthy();
+  });
+
+  it("starts only after both approvals and routes to the run's progress", async () => {
+    const { createPolicyCanaryRun } = await import("@/lib/policyCanaryRuns");
+    vi.mocked(createPolicyCanaryRun).mockResolvedValue({ run: { run_id: "scene-839873-launch-policy-canary-1" } } as any);
+    const { default: PolicyCanarySetup } = await import("../../src/pages/app/PolicyCanarySetup");
+    render(<PolicyCanarySetup />);
+
+    const start = await screen.findByRole("button", { name: "Start policy test" });
+    expect(start).toHaveProperty("disabled", true);
+    fireEvent.click(screen.getByRole("checkbox", { name: /I approve one simulator run/ }));
+    expect(start).toHaveProperty("disabled", true);
+    fireEvent.click(screen.getByRole("checkbox", { name: /I allow an AI review/ }));
+    expect(start).toHaveProperty("disabled", false);
+
+    fireEvent.change(screen.getByLabelText(/Email me at/), { target: { value: "someone@example.com" } });
+    expect(start).toHaveProperty("disabled", true);
+    expect(screen.getByText("Use team@tryblueprint.io.")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/Email me at/), { target: { value: "team@tryblueprint.io" } });
+
+    fireEvent.click(start);
+    await waitFor(() => expect(createPolicyCanaryRun).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(createPolicyCanaryRun).mock.calls[0][0].input).toMatchObject({
+      run_kind: "internal_policy_canary",
+      policy_candidate_ids: ["pi05_droid", "groot_n17_droid"],
+      episode_preset_id: "quick_10",
+      notification: { email: "team@tryblueprint.io" },
+      authorization: { maximum_cost_usd: 4.25, maximum_provider_allocations: 1, retry_cap: 0 },
+      episode_interpretation: { provider_training_authorized: false, public_redistribution_authorized: false, maximum_cost_usd: 1.5 },
+      confirm_unqualified_execution: true,
+    });
+    expect(navigate).toHaveBeenCalledWith("/app/evaluation-runs/scene-839873-launch-policy-canary-1");
   });
 });
