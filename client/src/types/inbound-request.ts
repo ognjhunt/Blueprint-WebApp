@@ -967,7 +967,27 @@ export interface InboundRequestListItem {
 }
 
 // Full request detail for admin view
+/** Our screen's verdict on a site task, as the admin lead detail returns it. */
+export interface SiteScreeningSummary {
+  disposition: "qualified" | "needs_conversation" | "not_now";
+  blocking_field_ids: string[];
+  blockers: string[];
+  open_questions: string[];
+  open_question_field_ids?: string[];
+  unanswered_field_ids: string[];
+  call_resolution?: {
+    cleared_field_ids: string[];
+    answered_field_ids: string[];
+    resolved_by: string;
+    resolved_at: string;
+    note: string;
+  } | null;
+}
+
 export interface InboundRequestDetail extends InboundRequestListItem {
+  site_task_triage?: SiteScreeningSummary | null;
+  site_task_gates_on_file?: Record<string, string>;
+  site_task_brief_confirmed?: boolean;
   context: {
     sourcePageUrl: string;
     referrer?: string | null;

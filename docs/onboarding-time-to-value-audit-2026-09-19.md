@@ -385,3 +385,43 @@ invitations, a unified workspace pilot-feed projection, and capturer-page
 restyling. The broader proof-of-task and physical-pilot vision in section 4 is
 not a claim that a real robot, payment, deployment or inbox delivery has been
 qualified by these UI and integration tests.
+
+## 9. Accounts, event emails and self-serve payment setup (2026-09-23)
+
+Owner-directed follow-up to the lifecycle review. What changed, and where:
+
+- **Confirmed answers now count.** `confirmBrief` wrote gate answers to the
+  top-level `siteTaskGates`; every reader read `request.siteTaskGates`, which the
+  capture-first form leaves empty, so no confirmed site became runnable supply.
+  Readers go through `gateAnswersOnFile` (`server/utils/gateAnswersOnFile.ts`);
+  confirmed answers win outright, so a gate marked "not sure" stays open.
+- **Scenes are funded only for `qualified` sites that are saved to an
+  account** (`websiteSceneSponsorship`). `needs_conversation` rings ops
+  (Slack + `ops.next_step`), the site gets a booking link, and ops records
+  the call under Screening in admin leads (`recordSiteTaskCallOutcome`); the
+  Pipeline's held capture builds on its next retry. `not_now` builds nothing.
+  The status page and confirmation email say which of these applies.
+- **The account comes at brief confirmation.** The brief screen asks "Show
+  this task to robot teams?" (required yes or no, with the card fields) and
+  saves the site to an account (password or Google). A password account gets
+  one verification click, which lands on `/claim/:token?auto=1` and attaches
+  the site without another form. The first form stays account-free.
+- **Robot teams pay from a verified account.** Planning and dry runs stay open
+  to any key. Funding, switching agent spend on, and confirming runs answer
+  `403 team_account_required` until a verified account owns the team. The plan
+  page asks for the account before the pay button; Settings → Agent access
+  issues and revokes the team's keys. The plan page no longer reveals a key.
+- **Every real event emails the site; timed check-ins are retired.** New
+  events: task received (with the private link), card live, call outcome, each
+  team pickup, each result, each no-result, each pilot request. Scheduled
+  check-ins and any already queued are cancelled; the page says "We email you
+  each time something happens on this task."
+- **The payment setup record is prepared automatically** for bound teams
+  (`selfServeAgentExecution`), through the same request validation a person's
+  request uses, from the Pipeline's execution offer (capture root, scenario,
+  episode count) published by `BlueprintCapturePipeline` once episode specs
+  exist. Missing facts are plan `lineBlockers`; nothing is filled in.
+
+Not verified here: live inbox delivery, a real Stripe payment, the Pipeline
+publishing an offer against production captures, and the executor running a
+self-serve run end to end. Tests mock those boundaries.

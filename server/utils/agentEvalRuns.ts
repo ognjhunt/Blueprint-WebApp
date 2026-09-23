@@ -128,7 +128,8 @@ export async function reportRunOutcome(params: {
 
   const ref = db.collection(RUNS_COLLECTION).doc(params.runId);
   const episodesRun = Math.max(0, Math.round(params.episodesRun));
-  return db.runTransaction(async transaction => {
+  let endedWithoutResult: { sceneId: string } | null = null;
+  const accepted = await db.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     // An outcome for a run we never reserved money for has nothing to settle.
     if (!snapshot.exists) return false;
@@ -162,8 +163,20 @@ export async function reportRunOutcome(params: {
       reportedAtIso: nowIso(),
       settlementDueAtMs: 0,
     }, { merge: true });
+    endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId } : null;
     return true;
   });
+  // The site hears about a run that ended with nothing to show, too. A run
+  // with episodes gets its email when the result is recorded.
+  const ended = endedWithoutResult as { sceneId: string } | null;
+  if (ended) {
+    try {
+      await enqueueTaskLifecycleNotification({ requestId: ended.sceneId, milestone: "run_no_result", eventId: params.runId });
+    } catch (error) {
+      logger.warn({ error, runId: params.runId }, "Could not enqueue a no-result notice");
+    }
+  }
+  return accepted;
 }
 
 export interface ReconciliationSummary {
@@ -556,6 +569,8 @@ export async function markRunStarted(params: {
     await enqueueTaskLifecycleNotification({
       requestId: claimed.sceneId,
       milestone: "screening_started",
+      // One email per run: each team picking the task up is its own event.
+      eventId: params.runId,
     });
   } catch (error) {
     logger.warn({ error, runId: params.runId }, "Could not enqueue screening-started notice");

@@ -55,6 +55,7 @@ import {
   safelyDispatchHumanBlocker,
 } from "../utils/human-blocker-autonomy";
 import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
+import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 
 type WaitlistSubmissionRecord = {
   id: string;
@@ -1306,6 +1307,7 @@ export async function runWaitlistAutomationLoop(params?: {
 }
 
 function extractInboundQualificationInput(request: InboundRequest) {
+  const gateAnswers = gateAnswersOnFile(request);
   return {
     requestId: request.requestId,
     priority: request.priority,
@@ -1336,7 +1338,7 @@ function extractInboundQualificationInput(request: InboundRequest) {
     // The deterministic gate verdict, handed to the model as settled fact. The
     // prompt tells it not to re-score these; `clampRecommendationToGates`
     // enforces that regardless of whether it listens.
-    siteTaskGates: request.request.siteTaskGates || null,
+    siteTaskGates: Object.keys(gateAnswers).length ? gateAnswers : null,
     gateDisposition: request.site_task_triage?.disposition ?? null,
     gateBlockers: request.site_task_triage?.blockers ?? null,
     gateOpenQuestions: request.site_task_triage?.open_questions ?? null,

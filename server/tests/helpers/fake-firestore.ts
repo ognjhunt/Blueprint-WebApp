@@ -161,6 +161,9 @@ export function createFakeFirestore(state: FakeFirestoreState) {
         const existing = readDoc(collectionName, id) || {};
         state.docs.set(docKey(collectionName, id), deepMerge(existing, payload));
       },
+      delete: async () => {
+        state.docs.delete(docKey(collectionName, id));
+      },
       create: async (payload: StoredDoc) => {
         const key = docKey(collectionName, id);
         if (state.docs.has(key)) {
@@ -231,6 +234,7 @@ export function createFakeFirestore(state: FakeFirestoreState) {
         makeQuery(collectionName, [{ field, op, value }]),
       orderBy: (field: string, direction: "asc" | "desc" = "asc") =>
         makeQuery(collectionName, [], [{ field, direction }]),
+      limit: (count: number) => makeQuery(collectionName, [], [], count),
     }),
     runTransaction: async <T>(
       updateFn: (tx: {

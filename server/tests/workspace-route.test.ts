@@ -7,6 +7,10 @@ const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
   intakes: [] as any[],
+  notices: vi.fn(async () => ({ enqueued: true })),
+}));
+vi.mock("../utils/taskLifecycleNotifications", () => ({
+  enqueueTaskLifecycleNotification: state.notices,
 }));
 function ref(path: string): any {
   return {
@@ -507,6 +511,13 @@ describe("workspace requests and lifecycle", () => {
     expect(state.intakes[0].body).not.toMatchObject({
       siteName: "Confidential Site",
     });
+    // The site hears that a team asked, once per request.
+    expect(state.notices).toHaveBeenCalledWith({
+      requestId: "task-1",
+      milestone: "pilot_request",
+      eventId: "application-1",
+    });
+    state.notices.mockClear();
     const source = task();
     source.ops.rights_status = "pending";
     state.records.set("inboundRequests/task-1", source);
@@ -520,6 +531,7 @@ describe("workspace requests and lifecycle", () => {
         })
       ).status,
     ).toBe(404);
+    expect(state.notices).not.toHaveBeenCalled();
   });
   it("records cancellation as pending without falsifying the actual schedule", async () => {
     state.records.set("inboundRequests/task-1", task());

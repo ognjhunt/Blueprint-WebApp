@@ -92,6 +92,36 @@ Nothing spendable. A registration lands at status `self_registered` with an empt
 
 The first real payment is what proves a counterparty exists, which is why open registration is safe rather than an abuse surface.
 
+## Paying needs a verified account (2026-09-23)
+
+Registration, planning and dry runs stay open to any key. Funding, switching agent spend on (`PUT /policy` with `agentSpendEnabled: true`), and `POST /runs` with `confirm: true` now answer `403 team_account_required` until the team is bound to a verified Blueprint account. Switching spend off is always allowed.
+
+A person binds the team once, in one of two ways:
+
+- **From the plan page.** After the plan shows, the page asks for an account (password or Google). A verified account connects the team behind the key the page holds (`POST /api/workspace/robot-team/connect`); a password account gets one verification click first, and the plan waits in session storage for the return trip.
+- **From Settings → Agent access.** `POST /api/workspace/robot-team/agent-keys` issues a key, creating and binding a team on first use. The same tab lists the team's keys and revokes them.
+
+The binding is written once (`accountUid`, `accountEmail`, `accountBoundAtIso` on the team record) and is never moved to a second account. `POST /keys/reissue` no longer emails a key for a bound team; the message points to Settings instead, so a contact address that is not the account cannot mint spend authority.
+
+This keeps the autonomy goal intact: nobody at Blueprint is in the loop. It changes who the customer is from "whoever holds a key" to a named, verified account.
+
+## The payment setup record is prepared automatically (2026-09-23)
+
+A plan is payable only when `discoverAgentExecutionAdmission` finds exactly one prepared Task Evaluation Run request binding the team, checkpoint, capture, testbed, task, scenario, episode count and price. That record used to be built by hand per team, robot and site.
+
+Now `POST /plan` and dry-run `POST /runs` prepare it for an account-bound team (`server/utils/selfServeAgentExecution.ts`) from facts already on file:
+
+- the verified account bound to the team, as `authorized_by_user_id`;
+- the team's checkpoint (`policy_endpoint` or `container_image`; a model artifact is never prepared);
+- a runnable site whose consent scope includes `robot_evaluation` and whose rights review is not blocked;
+- the Pipeline's published testbed for the scene (approved task, capture and testbed digests);
+- the Pipeline's execution offer for the capture (capture root on the executor's partition, the one scenario, the episode count), published by `BlueprintCapturePipeline` once episode specs exist and stored on the request as `agent_execution_offer`;
+- the standing self-serve quote.
+
+It then calls `submitTaskEvaluationRunRequest`, the extracted body of `POST /api/task-evaluation-runs`, so an automatic record passes the same validation, normalization, beta-cohort gate, entitlement verification and persistence as a person's. The self-serve entitlement (sku `self-serve-agent-execution`) is bound to the buyer, team and site and is not consumed at preparation. Ids are derived from every bound fact, so a repeated plan reuses the record and a changed checkpoint or testbed makes a new one.
+
+Anything missing is a line blocker in the plan response (`lineBlockers`), and the plan stays unsigned. Preparing a record moves no money; only a confirmed, funded hold does, and the executor re-checks the capture root and episode count before it claims a run.
+
 ## Funding: self-serve, at face value
 
 `POST /api/agent-team/funding` takes `amountUsd` and returns a Stripe Checkout URL. Ask for $100, pay $100, get $100 of balance.

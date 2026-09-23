@@ -181,4 +181,34 @@ describe("ClaimSite", () => {
     fireEvent.click(screen.getByRole("button", { name: /resend verification email/i }));
     await waitFor(() => expect(mocks.sendVerification).toHaveBeenCalledTimes(2));
   });
+
+  it("finishes the claim on its own when the verification link returns the verified owner", async () => {
+    window.history.replaceState({}, "", "/claim/claim-token-123?auto=1");
+    try {
+      claimResponse();
+      mocks.auth.currentUser = user();
+      render(<ClaimSite />);
+
+      await screen.findByRole("heading", { name: /this site is yours/i });
+      expect(mocks.workspaceRequest).toHaveBeenCalledWith(
+        mocks.auth.currentUser, "/claim", "POST", { token: "claim-token-123" },
+      );
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+
+  it("does not claim on its own for an unverified or different account", async () => {
+    window.history.replaceState({}, "", "/claim/claim-token-123?auto=1");
+    try {
+      claimResponse();
+      mocks.auth.currentUser = user({ emailVerified: false });
+      render(<ClaimSite />);
+      await screen.findByRole("heading", { name: /keep track of packing line/i });
+      await act(async () => undefined);
+      expect(mocks.workspaceRequest).not.toHaveBeenCalled();
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
 });

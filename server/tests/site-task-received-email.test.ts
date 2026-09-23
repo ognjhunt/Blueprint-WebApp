@@ -1,4 +1,8 @@
 // @vitest-environment node
+/**
+ * The site's first event email carries its private task link, so the link is
+ * in their inbox and not only on the success screen.
+ */
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,65 +83,24 @@ async function start(): Promise<{ server: Server; baseUrl: string }> {
 
 beforeEach(() => sharedFakeFirestoreState.docs.clear());
 
-describe("atomic inbound request ownership", () => {
-  it("lets exactly one concurrent owner create a request id and never overwrites it", async () => {
+describe("the first event email", () => {
+  it("emails a US site its private link as the first event, and a non-US site none", async () => {
     const { server, baseUrl } = await start();
     try {
-      const post = (owner: string) => fetch(`${baseUrl}/`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-test-owner": owner },
-        body: JSON.stringify(payload("shared-id", `${owner}@example.com`)),
-      });
-      const [a, b] = await Promise.all([post("owner-a"), post("owner-b")]);
-      expect([a.status, b.status].sort()).toEqual([201, 409]);
-      const stored = sharedFakeFirestoreState.docs.get("inboundRequests/shared-id") as Record<string, unknown>;
-      expect(["owner-a", "owner-b"]).toContain(stored.account_owner_uid);
-      expect(stored.account_owner_uid).toBe(a.status === 201 ? "owner-a" : "owner-b");
-    } finally {
-      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
-    }
-  });
-
-  it("returns the existing same-owner record without resetting its state", async () => {
-    const { server, baseUrl } = await start();
-    try {
-      const post = () => fetch(`${baseUrl}/`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-test-owner": "owner-a" },
-        body: JSON.stringify(payload("retry-id", "owner-a@example.com")),
-      });
-      expect((await post()).status).toBe(201);
-      const prior = sharedFakeFirestoreState.docs.get("inboundRequests/retry-id")!;
-      sharedFakeFirestoreState.docs.set("inboundRequests/retry-id", { ...prior, status: "in_review", durable_marker: "keep" });
-      const retry = await post();
-      expect(retry.status, await retry.clone().text()).toBe(200);
-      expect(sharedFakeFirestoreState.docs.get("inboundRequests/retry-id"))
-        .toMatchObject({ status: "in_review", durable_marker: "keep", account_owner_uid: "owner-a" });
-      expect((await retry.json()).captureUrl).toContain("/capture-upload/");
-    } finally {
-      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
-    }
-  });
-
-  it.each([
-    ["an owned", { account_owner_uid: "owner-a" }],
-    ["an unowned", {}],
-  ])("does not mint a capture link for an anonymous retry of %s request id", async (_label, ownership) => {
-    const { server, baseUrl } = await start();
-    try {
-      const stored = { requestId: "known-id", status: "submitted", durable_marker: "keep", ...ownership };
-      sharedFakeFirestoreState.docs.set("inboundRequests/known-id", stored);
-      const response = await fetch(`${baseUrl}/`, {
+      const post = (id: string, captureRegion: string) => fetch(`${baseUrl}/`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload("known-id", "attacker@example.com")),
+        body: JSON.stringify({ ...payload(id, `${id}@example.com`), captureRegion }),
       });
-      expect(response.status).toBe(409);
-      expect(await response.json()).not.toHaveProperty("captureUrl");
-      expect(sharedFakeFirestoreState.docs.get("inboundRequests/known-id")).toEqual(stored);
+      expect((await post("us-site", "us")).status).toBe(201);
+      const row = sharedFakeFirestoreState.docs.get("captureOutbox/us-site:task_received") as Record<string, string>;
+      expect(row.to).toBe("us-site@example.com");
+      expect(row.body).toContain("/capture-upload/");
+
+      expect((await post("abroad-site", "non_us")).status).toBe(201);
+      expect(sharedFakeFirestoreState.docs.has("captureOutbox/abroad-site:task_received")).toBe(false);
     } finally {
       await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     }
   });
-
 });

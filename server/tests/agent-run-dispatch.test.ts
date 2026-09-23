@@ -110,8 +110,11 @@ describe("marking a run started", () => {
     expect(typeof (after.dispatch as { startedAtIso: string }).startedAtIso).toBe("string");
     expect(Number(after.settlementDueAtMs)).toBeGreaterThanOrEqual(Date.now() + reservationTtlMs() - 5_000);
     expect(after.state).toBe("requested");
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:screening_started"))
-      .toMatchObject({ kind: "screening_started", to: "owner@example.com" });
+    // One email per run: each team picking the task up is its own event.
+    const notices = [...sharedFakeFirestoreState.docs.entries()]
+      .filter(([key]) => key.startsWith("captureOutbox/req-1:screening_started:"));
+    expect(notices).toHaveLength(1);
+    expect(notices[0][1]).toMatchObject({ kind: "screening_started", to: "owner@example.com" });
   });
 
   it("refuses to start a run that already concluded", async () => {

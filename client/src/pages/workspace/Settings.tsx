@@ -13,16 +13,16 @@ import {
   useAction,
 } from "@/components/workspace/WorkspaceUI";
 import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
+import { AgentAccessPanel } from "@/components/workspace/AgentAccessPanel";
 import type { RobotSetup } from "@/types/workspace";
 function WorkspaceSettings() {
   const query = useWorkspace(),
     action = useAction(query),
     { currentUser, userData } = useAuth(),
-    [tab, setTab] = useState(
-      new URLSearchParams(window.location.search).get("tab") === "robots"
-        ? "robots"
-        : "account",
-    ),
+    [tab, setTab] = useState(() => {
+      const requested = new URLSearchParams(window.location.search).get("tab");
+      return requested === "robots" || requested === "agent" ? requested : "account";
+    }),
     [editing, setEditing] = useState<RobotSetup | "new" | null>(null),
     [removing, setRemoving] = useState<RobotSetup | null>(null);
   const robot = query.data?.role === "robot_team";
@@ -34,6 +34,7 @@ function WorkspaceSettings() {
           {[
             ["account", "Account"],
             ["robots", "Robots & policies"],
+            ["agent", "Agent access"],
           ].map(([value, label]) => (
             <button
               key={value}
@@ -179,6 +180,7 @@ function WorkspaceSettings() {
           </section>
         </>
       )}
+      {tab === "agent" && robot && <AgentAccessPanel user={currentUser} />}
       {tab === "robots" && robot && (
         <>
           <div className="ws-section-title">

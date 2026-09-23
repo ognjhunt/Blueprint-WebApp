@@ -115,3 +115,32 @@ it("publishes a first visual scene without claiming evaluation readiness and rej
     expect(state.persisted).toEqual([]);
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
 });
+
+it("stores the Pipeline's execution offer only for the signed, matching capture", async () => {
+  const { default: router } = await import("../routes/internal-capture-worlds");
+  const app = express(); app.use(express.json()); app.use(router);
+  const server = createServer(app);
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address(); if (!address || typeof address === "string") throw new Error("bind failed");
+  const offer = (patch: Record<string, unknown> = {}) => ({
+    schema_version: "blueprint.agent_execution_offer.v1", scene_id: "site-req1", capture_id: "walkthrough-req1",
+    capture_root: "/srv/partition/scenes/site-req1/captures/walkthrough-req1", scenario_id: "capture_observed",
+    episode_count: 50, episode_specs_sha256: `sha256:${"e".repeat(64)}`, ...patch,
+  });
+  const post = (body: unknown, capture = "walkthrough-req1") => fetch(`http://127.0.0.1:${address.port}/creator-captures/${capture}/agent-execution-offer`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  try {
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer() })).status).toBe(200);
+    expect(state.persisted.at(-1)).toMatchObject({ agent_execution_offer: { scenario_id: "capture_observed", episode_count: 50 } });
+
+    // A root for another capture, or one that climbs out of the partition, is refused.
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer({ capture_root: "/srv/partition/scenes/site-req1/captures/other" }) })).status).toBe(409);
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer({ capture_root: "/srv/../etc/scenes/site-req1/captures/walkthrough-req1" }) })).status).toBe(409);
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer() }, "walkthrough-other")).status).toBe(409);
+    state.authorized = false;
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer() })).status).toBe(401);
+  } finally {
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});

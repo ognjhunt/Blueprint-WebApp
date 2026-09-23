@@ -139,6 +139,14 @@ export interface RobotTeamRecord {
    * the other, instead of deduping two unlinked rows by hand later.
    */
   selfServeTeamIds?: string[] | null;
+  /**
+   * The verified Blueprint account this team belongs to. Planning works
+   * without one; funding, switching spend on and confirming runs do not.
+   * Written once by `bindTeamToAccount` and never moved.
+   */
+  accountUid?: string | null;
+  accountEmail?: string | null;
+  accountBoundAtIso?: string | null;
   createdAt: string;
   updatedAt: string;
 }

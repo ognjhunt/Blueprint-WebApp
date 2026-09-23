@@ -23,7 +23,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
-import { TaskBriefReview, type DraftedBrief } from "@/components/site/TaskBriefReview";
+import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
@@ -215,6 +215,7 @@ export default function SelfCaptureUpload() {
    */
   const [brief, setBrief] = useState<DraftedBrief | null>(null);
   const [briefConfirmed, setBriefConfirmed] = useState(false);
+  const [siteAccount, setSiteAccount] = useState<SiteAccount | null>(null);
   /**
    * What this link may do. A film-only colleague link never shows the brief
    * confirm UI -- confirming is an attestation only the operator's own link
@@ -283,6 +284,7 @@ export default function SelfCaptureUpload() {
           ready?: boolean;
           scope?: "owner" | "film";
           brief?: (DraftedBrief & { shotList?: ChecklistItem[]; confirmedAtIso?: string | null });
+          account?: SiteAccount | null;
         } | null;
         if (cancelled || !response.ok) return;
         if (data?.scope === "film" || data?.scope === "owner") setScope(data.scope);
@@ -295,6 +297,7 @@ export default function SelfCaptureUpload() {
           unresolved: data.brief.unresolved ?? [],
         });
         setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
+        setSiteAccount(data.account ?? null);
       } catch {
         // No list. The camera still works.
       }
@@ -640,6 +643,7 @@ export default function SelfCaptureUpload() {
                   <TaskBriefReview
                     token={token}
                     brief={brief}
+                    account={siteAccount}
                     onConfirmed={() => setBriefConfirmed(true)}
                   />
                 </details>
@@ -795,6 +799,7 @@ export default function SelfCaptureUpload() {
                   <TaskBriefReview
                     token={token}
                     brief={brief}
+                    account={siteAccount}
                     onConfirmed={() => setBriefConfirmed(true)}
                   />
                 </details>

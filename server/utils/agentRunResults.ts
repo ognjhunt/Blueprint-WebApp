@@ -51,6 +51,7 @@ import type { RobotCapabilityField } from "../types/robot-team-registry";
 import { recordCohortEpisodes } from "./cohortEconomics";
 import { settlementAmountUsd } from "./agentEvalRuns";
 import { recordEvaluationOutcome } from "./robotTeamRegistry";
+import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
 import type { EvalRunRecord } from "./agentEvalRuns";
 
 const RUNS_COLLECTION = "evaluationRuns";
@@ -279,9 +280,11 @@ export async function recordRunResult(params: {
     reportedAtIso: new Date().toISOString(),
   };
 
+  let firstReport = false;
   await db.runTransaction(async transaction => {
     const current = await transaction.get(ref);
     const prior = current.data()?.result as EvalRunResult | undefined;
+    firstReport = !prior;
     if (prior) {
       const { reportedAtIso: _priorTime, ...priorEvidence } = prior;
       const { reportedAtIso: _newTime, ...newEvidence } = result;
@@ -291,6 +294,20 @@ export async function recordRunResult(params: {
     }
     transaction.set(ref, { result, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   });
+
+  // The site hears when a team's result lands, once per run.
+  if (firstReport) {
+    try {
+      await enqueueTaskLifecycleNotification({
+        requestId: run.sceneId,
+        milestone: "results_ready",
+        eventId: run.runId,
+        detail: `${episodesSucceeded} of ${episodesRun} simulated episodes succeeded`,
+      });
+    } catch (error) {
+      logger.warn({ error, runId: run.runId }, "Could not enqueue a results notice");
+    }
+  }
 
   // The registry write. `recordEvaluationOutcome` is the one that also promotes
   // a self-registered team into the supply sites are shown, which is the only

@@ -54,6 +54,7 @@ import {
   type ReadinessVerdict,
 } from "../../client/src/lib/siteTaskReadiness";
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
+import { gateAnswersOnFile } from "./gateAnswersOnFile";
 
 export const TASK_BRIEFS_COLLECTION = "siteTaskBriefs";
 
@@ -388,6 +389,7 @@ export async function confirmBrief(params: {
             open_questions: verdict.openQuestions.map(
               (question) => `${question.answer} — ${question.detail}`,
             ),
+            open_question_field_ids: verdict.openQuestions.map((question) => question.fieldId),
             unanswered_field_ids: verdict.unanswered,
             incomplete: verdict.incomplete,
             evaluated_at: nowIso(),
@@ -427,5 +429,136 @@ export async function confirmBrief(params: {
     sources,
     disposition: verdict.disposition,
     readiness,
+  };
+}
+
+export interface CallOutcomeResult {
+  disposition: "qualified" | "needs_conversation" | "not_now";
+  answers: Record<string, string>;
+  clearedFieldIds: string[];
+  blockingFieldIds: string[];
+  openQuestionFieldIds: string[];
+  unansweredFieldIds: string[];
+}
+
+export class CallOutcomeError extends Error {}
+
+/**
+ * Records what a screening call settled, and re-screens the site.
+ *
+ * `needs_conversation` means our screen cannot decide from a form: an answer
+ * is marginal, or a gate is still open. The call decides it. What the site
+ * said on the call is operator-stated -- we transcribe it -- so answers given
+ * here join the confirmed set and the same deterministic scorer runs again.
+ *
+ * A marginal answer can stay the same and still be settled: "the room mostly
+ * stays put" is fine once somebody has asked what "mostly" means. Those go in
+ * `clearedFieldIds`. Clearing is only for marginal answers. A blocker has to
+ * change its answer, and a blank has to be answered; neither is waved through.
+ *
+ * When the result is `qualified`, the Pipeline's next retry of the held capture
+ * is funded and the scene builds. Nothing else has to be re-sent.
+ */
+export async function recordSiteTaskCallOutcome(params: {
+  requestId: string;
+  answers?: Record<string, string>;
+  clearedFieldIds?: readonly string[];
+  note: string;
+  resolvedBy: string;
+}): Promise<CallOutcomeResult> {
+  if (!db) throw new CallOutcomeError("Database not available");
+  const ref = db.collection("inboundRequests").doc(params.requestId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new CallOutcomeError("Request not found");
+  const record = snap.data() as Record<string, any>;
+  if (record.request?.buyerType !== "site_operator") {
+    throw new CallOutcomeError("Only a site task has a screening call");
+  }
+  if (!record.site_task_brief_confirmed_at) {
+    throw new CallOutcomeError("The site has not confirmed its brief yet");
+  }
+
+  const answers = { ...gateAnswersOnFile(record) };
+  const sources: Record<string, "operator_stated"> = {};
+  for (const [fieldId, value] of Object.entries(params.answers ?? {})) {
+    const field = gateFields.find((candidate) => candidate.id === fieldId);
+    if (!field || !field.options.some((option) => option.value === value)) {
+      throw new CallOutcomeError(`Unknown answer for ${fieldId}`);
+    }
+    answers[fieldId] = value;
+    sources[fieldId] = "operator_stated";
+  }
+
+  const captureMode = isCaptureMode(record.request?.capture_mode)
+    ? record.request.capture_mode
+    : defaultCaptureMode;
+  const verdict = triageGateAnswers(answers, undefined, captureMode);
+  const cleared = new Set(params.clearedFieldIds ?? []);
+  const notMarginal = [...cleared].filter(
+    (fieldId) => !verdict.openQuestions.some((question) => question.fieldId === fieldId),
+  );
+  if (notMarginal.length) {
+    throw new CallOutcomeError(
+      `Only a marginal answer can be settled on a call: ${notMarginal.join(", ")}`,
+    );
+  }
+  const openQuestions = verdict.openQuestions.filter((question) => !cleared.has(question.fieldId));
+  const disposition = verdict.blockers.length
+    ? "not_now"
+    : openQuestions.length || verdict.unanswered.length
+      ? "needs_conversation"
+      : "qualified";
+
+  await ref.set(
+    {
+      siteTaskGates: answers,
+      site_task_gate_sources: { ...(record.site_task_gate_sources ?? {}), ...sources },
+      site_task_triage: {
+        disposition,
+        blocking_field_ids: verdict.blockers.map((blocker) => blocker.fieldId),
+        blockers: verdict.blockers.map((blocker) => `${blocker.answer} — ${blocker.detail}`),
+        open_questions: openQuestions.map((question) => `${question.answer} — ${question.detail}`),
+        open_question_field_ids: openQuestions.map((question) => question.fieldId),
+        unanswered_field_ids: verdict.unanswered,
+        incomplete: verdict.incomplete,
+        evaluated_at: nowIso(),
+        call_resolution: {
+          cleared_field_ids: [...cleared],
+          answered_field_ids: Object.keys(sources),
+          resolved_by: params.resolvedBy,
+          resolved_at: nowIso(),
+          note: params.note,
+        },
+      },
+    },
+    { merge: true },
+  );
+
+  logger.info(
+    { requestId: params.requestId, disposition, cleared: [...cleared], answered: Object.keys(sources) },
+    "Site screening call outcome recorded",
+  );
+
+  // The site hears what the call decided. Still needing a conversation is not
+  // news to them -- they were on the call -- so only a decision is emailed.
+  if (disposition !== "needs_conversation") {
+    const { enqueueTaskLifecycleNotification } = await import("./taskLifecycleNotifications");
+    await enqueueTaskLifecycleNotification({
+      requestId: params.requestId,
+      milestone: disposition === "qualified" ? "screening_cleared" : "screening_not_now",
+      eventId: String(Date.now()),
+      detail: disposition === "qualified" && !record.account_owner_uid
+        ? "once the site is saved to your account (claim it from your task page)"
+        : undefined,
+    }).catch((error) => logger.warn({ error, requestId: params.requestId }, "Could not queue the call-outcome email"));
+  }
+
+  return {
+    disposition,
+    answers,
+    clearedFieldIds: [...cleared],
+    blockingFieldIds: verdict.blockers.map((blocker) => blocker.fieldId),
+    openQuestionFieldIds: openQuestions.map((question) => question.fieldId),
+    unansweredFieldIds: [...verdict.unanswered],
   };
 }

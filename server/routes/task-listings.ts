@@ -7,6 +7,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { listingConsentVersion, taskListingSchema } from "../utils/taskListingDetails";
 import { csrfProtection } from "../middleware/csrf";
+import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 
 const router = Router();
 router.use(rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }));
@@ -41,10 +42,12 @@ router.route("/owner/:token")
       try { if (parsed.data.thumbnailPng) thumbnail = sanitizeTaskThumbnail(parsed.data.thumbnailPng); }
       catch { return res.status(400).json({ error: "Choose a valid task image and review its crop." }); }
       const imageRef = db.collection("taskThumbnails").doc(res.locals.requestId);
+      let wentLive: string | null = null;
       await db.runTransaction(async transaction => {
         const current = await transaction.get(ref);
         if (!current.exists) throw new Error("Task removed");
         const previousDigest = current.data()?.public_task_listing?.thumbnailDigest ?? null;
+        wentLive = parsed.data.enabled && current.data()?.public_task_listing?.enabled !== true ? new Date().toISOString() : null;
         transaction.update(ref, { public_task_listing: {
           enabled: parsed.data.enabled, details: parsed.data.details,
           consentVersion: listingConsentVersion, approvedAtIso: new Date().toISOString(),
@@ -54,6 +57,11 @@ router.route("/owner/:token")
         if (thumbnail) transaction.set(imageRef, { ...thumbnail, approvedAtIso: new Date().toISOString(), consentVersion: "public-task-thumbnail-v1" });
         else if (parsed.data.thumbnailPng === null) transaction.delete(imageRef);
       });
+      // The site hears the moment its card goes live, once per time it is switched on.
+      if (wentLive) {
+        await enqueueTaskLifecycleNotification({ requestId: res.locals.requestId, milestone: "listing_live", eventId: wentLive })
+          .catch(() => undefined);
+      }
       return res.json({ ok: true });
     } catch { return res.status(503).json({ error: "The public card was not saved. Try again." }); }
   });

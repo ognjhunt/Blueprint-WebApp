@@ -15,12 +15,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
           return { exists: Boolean(value), data: () => value };
         },
       }),
-      limit: () => ({
-        get: async () => ({
-          docs: [...(records.get(name)?.entries() || [])].map(([id, value]) => ({
-            id,
-            data: () => value,
-          })),
+      where: (field: string, _op: string, expected: unknown) => ({
+        limit: () => ({
+          get: async () => ({
+            docs: [...(records.get(name)?.entries() || [])]
+              .filter(([, value]) => value[field] === expected)
+              .map(([id, value]) => ({ id, data: () => value })),
+          }),
         }),
       }),
     }),

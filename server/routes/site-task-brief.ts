@@ -1,4 +1,3 @@
-import { ensureTaskStatusUpdate } from "../utils/taskStatusUpdates";
 /**
  * The brief an operator reads, and the confirmation that makes it binding.
  *
@@ -54,6 +53,9 @@ import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
 import { loadSceneScreening } from "../utils/agentEvalRuns";
 import { createSiteClaimToken } from "../utils/request-review-auth";
+import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
+import { bookingUrl } from "../utils/bookingLink";
+import { notifySlackScreeningCallNeeded } from "../utils/slack";
 
 const router = Router();
 
@@ -80,6 +82,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   contactFirstName?: string | null;
   /** Set once the operator has claimed the site into an account. */
   account_owner_uid?: string | null;
+  site_task_triage?: { disposition?: string | null } | null;
 } | null> {
   if (!db) return null;
   const snap = await db.collection("inboundRequests").doc(requestId).get();
@@ -87,7 +90,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   const data = snap.data() as Record<string, unknown>;
   const contact = data.contact as { email?: string; firstName?: string } | undefined;
   return {
-    siteTaskGates: (data.request as { siteTaskGates?: Record<string, string> } | undefined)?.siteTaskGates ?? null,
+    siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
     site_task_next_update_iso: (data.site_task_next_update_iso as string | null) ?? null,
@@ -97,6 +100,63 @@ async function readRequestForStatus(requestId: string): Promise<{
       typeof data.account_owner_uid === "string" && data.account_owner_uid
         ? data.account_owner_uid
         : null,
+    site_task_triage: (data.site_task_triage as { disposition?: string | null } | undefined) ?? null,
+  };
+}
+
+/**
+ * What a confirmed site hears when our screen does not clear it yet.
+ *
+ * Blueprint builds a scene only for a `qualified` site, so the email, the
+ * confirmation response and the task page all say the same thing about the
+ * other two verdicts. Null for `qualified`, which proceeds as before.
+ */
+function screeningOutcome(disposition: string): {
+  headline: string;
+  detail: string;
+  bookingUrl: string | null;
+} | null {
+  if (disposition === "not_now") {
+    return {
+      headline: "Not yet: we are not building a scene for this site today.",
+      detail:
+        "One of your answers means a robot evaluation would not hold up here. Your task page shows "
+        + "what is in the way. When it changes, update the brief and we will screen it again.",
+      bookingUrl: null,
+    };
+  }
+  if (disposition === "needs_conversation") {
+    return {
+      headline: "Close. A short call settles the last questions.",
+      detail:
+        "We build your scene once the call clears them. It takes about thirty minutes and the "
+        + "agenda is already written.",
+      bookingUrl: bookingUrl(),
+    };
+  }
+  return null;
+}
+
+/**
+ * Whether the site is saved to an account yet, for the owner link only.
+ *
+ * Confirming the brief is where the operator saves the site to an account:
+ * Blueprint spends money on a scene only once a site has one. The claim token
+ * lets the confirmation screen attach the site in place; it binds to the
+ * submission's own email, so a forwarded owner link still cannot transfer it.
+ */
+async function siteAccountFor(requestId: string): Promise<{
+  claimed: boolean;
+  email: string | null;
+  claimToken: string | null;
+} | null> {
+  const request = await readRequestForStatus(requestId).catch(() => null);
+  if (!request) return null;
+  const claimed = Boolean(request.account_owner_uid);
+  return {
+    claimed,
+    email: request.contactEmail?.toLowerCase() ?? null,
+    claimToken: claimed ? null : createSiteClaimToken(requestId),
   };
 }
 
@@ -231,6 +291,7 @@ router.get("/:token", async (req: Request, res: Response) => {
       scope: payload.scope,
       brief:
         payload.scope === "owner" ? presentBrief(brief) : presentBriefForFilming(brief),
+      account: payload.scope === "owner" ? await siteAccountFor(payload.requestId) : null,
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load a task brief");
@@ -446,18 +507,29 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       const request = await readRequestForStatus(payload.requestId).catch(() => null);
       if (!request?.contactEmail) return;
       const firstName = request.contactFirstName || "there";
-      const decision = result.readiness.blockingCapture.length
-        ? "We need a couple of details before you record."
-        : "We can assess this task — a recording of the work area is the next step.";
+      // What we tell them has to match what we will do: Blueprint builds a
+      // scene only for a site our screen clears.
+      const held = screeningOutcome(result.disposition);
+      const decision = held
+        ? `${held.headline} ${held.detail}${held.bookingUrl ? ` Book a time that suits you: ${held.bookingUrl}` : ""}`
+        : result.readiness.blockingCapture.length
+          ? "We need a couple of details before you record."
+          : request.account_owner_uid
+            ? "Your task clears our screen, so we will build your scene from your recording."
+            : "Your task clears our screen. We build your scene once the site is saved to your "
+              + "account: verify your email from the message we sent, or claim the site from your "
+              + "task page.";
       await commitTaskUpdate({
         requestId: payload.requestId,
         to: request.contactEmail,
-        kind: result.readiness.blockingCapture.length ? "input_needed" : "brief_confirmed",
+        kind: result.disposition === "qualified" && !result.readiness.blockingCapture.length
+          ? "brief_confirmed"
+          : "input_needed",
         subject: "Blueprint — we have your task brief",
         body:
           `Hi ${firstName},\n\n`
           + `Thanks for confirming the task brief. ${decision}\n\n`
-          + `${result.readiness.nextAction}\n\n`
+          + (result.disposition === "qualified" ? `${result.readiness.nextAction}\n\n` : "")
           + "You can come back to your task any time from the link we sent you. "
           + "We will email you when there is something new.\n\n"
           + "— The Blueprint Team",
@@ -467,8 +539,23 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       await deliverOutbox({ limit: 5 }).catch(() => undefined);
     })();
 
+    // A site that needs a call gets no scene until ops records the call, so
+    // ops has to hear about it: the request carries the next step and Slack
+    // rings. Best-effort; neither may fail the operator's confirmation.
+    if (result.disposition === "needs_conversation" && db) {
+      const agenda = await db.collection("inboundRequests").doc(payload.requestId).get()
+        .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
+        .catch(() => []);
+      void db.collection("inboundRequests").doc(payload.requestId)
+        .set({ ops: { next_step: "Book the screening call, then record its outcome under Screening." } }, { merge: true })
+        .catch((error) => logger.warn({ error, requestId: payload.requestId }, "Could not set screening call next step"));
+      void notifySlackScreeningCallNeeded({ requestId: payload.requestId, openQuestions: agenda })
+        .catch(() => undefined);
+    }
+
     return res.status(200).json({
       ok: true,
+      screening: screeningOutcome(result.disposition),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,
@@ -578,11 +665,14 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         scenePreviewReady: Boolean(sceneViewUrl),
         stage,
         screening,
+        site_task_triage: request?.site_task_triage ?? null,
+        bookingUrl: bookingUrl(),
+        account_owner_uid: request?.account_owner_uid ?? null,
       }),
     );
 
-    try { status.nextUpdateIso = await ensureTaskStatusUpdate(payload.requestId, status.decision) ?? status.nextUpdateIso; }
-    catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not schedule status update"); }
+    // Updates follow events by email; no timed check-in is promised.
+    status.nextUpdateIso = null;
     // Keep the optional claim from brief confirmation onward, including the
     // first visual scene. A reconstruction is not an evaluation result.
     const claimUrl =

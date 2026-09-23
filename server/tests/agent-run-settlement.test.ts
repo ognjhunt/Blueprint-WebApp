@@ -136,6 +136,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   },
 }));
 
+const lifecycleNotice = vi.hoisted(() => vi.fn(async () => ({ enqueued: true })));
+vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: lifecycleNotice }));
+
 vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   attachRequestMeta: (value: unknown) => value,
@@ -417,6 +420,17 @@ describe("a reported run settles for what it ran", () => {
     const balance = await getTeamBalance(TEAM);
     expect(balance.spentUsd).toBe(0);
     expect(balance.availableUsd).toBe(1_000);
+  });
+
+  it("tells the site when a run ends with nothing to show, once", async () => {
+    const { run } = await fundedTeamWithOneHold();
+    lifecycleNotice.mockClear();
+
+    await reportRunOutcome({ runId: run.runId, state: "blocked", episodesRun: 0, note: "scene would not load" });
+    await reportRunOutcome({ runId: run.runId, state: "blocked", episodesRun: 0, note: "scene would not load" });
+
+    expect(lifecycleNotice).toHaveBeenCalledTimes(1);
+    expect(lifecycleNotice).toHaveBeenCalledWith({ requestId: "scene-1", milestone: "run_no_result", eventId: run.runId });
   });
 
   it("reports an outcome as due immediately rather than waiting for expiry", async () => {

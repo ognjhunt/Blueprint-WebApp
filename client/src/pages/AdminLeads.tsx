@@ -52,6 +52,7 @@ import {
   REQUEST_STATUS_LABELS as statusLabels,
 } from "@/types/inbound-request";
 import AdminAgentConsole from "@/components/admin/AdminAgentConsole";
+import { SiteScreeningCallPanel } from "@/components/admin/SiteScreeningCallPanel";
 
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -2712,6 +2713,15 @@ export default function AdminLeads() {
                     Trigger preview
                   </button>
                 </div>
+
+                {selectedLead.request.buyerType === "site_operator" ? (
+                  <SiteScreeningCallPanel
+                    requestId={selectedLead.requestId}
+                    triage={selectedLead.site_task_triage}
+                    gatesOnFile={selectedLead.site_task_gates_on_file ?? {}}
+                    briefConfirmed={Boolean(selectedLead.site_task_brief_confirmed)}
+                  />
+                ) : null}
 
                 {selectedLead.request.pilotOpportunity?.requested ? (
                   <div className="border border-runway-line p-4">

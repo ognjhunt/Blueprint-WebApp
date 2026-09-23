@@ -1,38 +1,16 @@
 /**
- * The promise we can keep: "next update by <a real time>".
+ * Record a decision on a task and queue the email that tells the site.
  *
- * ## Why this is the strongest idea in the audit
- *
- * A waiting state fails when it says "still processing" forever. It succeeds
- * when it makes a commitment the operator can hold us to -- and the one
- * commitment we can always make, even when reconstruction, review and
- * participation are all uncertain, is *when we will next say something*. Not
- * when the work finishes; when we speak next.
- *
- * So `site_task_next_update_iso` is a time we put on the request, the status
- * projection surfaces it, and the outbox is what actually sends by it. A
- * committed time nobody meets is worse than none, which is why setting it and
- * enqueuing the message that honours it happen together, here.
- *
- * ## What it does not do
- *
- * Invent a turnaround. There is no credible "your scene will be ready in N
- * hours" to promise, because the Pipeline does not report and Atlas timing is
- * unmeasured. This commits to *communication*, and the default window is a
- * staffed promise to come back, not a delivery estimate dressed up as one.
+ * The site hears about each decision when it happens. There is no longer a
+ * "next update by" deadline behind it: the timed check-in that kept that
+ * promise is retired, because every real event now sends its own email. So
+ * this records what was decided, clears any old deadline, and queues the
+ * message, as one act.
  */
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { enqueueOutbox, type OutboxKind } from "./captureOutbox";
-
-/** How far out we commit to speak next, when a step does not set its own. */
-const DEFAULT_UPDATE_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
-
-function updateWindowMs(): number {
-  const raw = Number(process.env.BLUEPRINT_TASK_UPDATE_WINDOW_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_UPDATE_WINDOW_MS;
-}
 
 /**
  * Record a decision, commit to the next update, and queue the email — as one act.
@@ -49,16 +27,8 @@ export async function commitTaskUpdate(params: {
   subject: string;
   body: string;
   replyTo?: string | null;
-  /** When we next commit to speak. Defaults to the standard window. */
-  nextUpdateAtMs?: number;
-  /** Clear the commitment instead of extending it -- when the answer is delivered. */
-  clearNextUpdate?: boolean;
 }): Promise<void> {
   if (!db) return;
-
-  const nextUpdateIso = params.clearNextUpdate
-    ? null
-    : new Date(params.nextUpdateAtMs ?? Date.now() + updateWindowMs()).toISOString();
 
   try {
     await db
@@ -66,7 +36,8 @@ export async function commitTaskUpdate(params: {
       .doc(params.requestId)
       .set(
         {
-          site_task_next_update_iso: nextUpdateIso,
+          // Updates follow events now; no deadline is promised.
+          site_task_next_update_iso: null,
           site_task_last_decision: {
             kind: params.kind,
             decided_at_iso: new Date().toISOString(),

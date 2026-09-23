@@ -390,6 +390,33 @@ export async function notifySlackCapturePrivacyEscalation(options: {
   return sendSlackMessage(text, webhookUrl);
 }
 
+/**
+ * Tell ops a confirmed site needs a screening call before its scene is built.
+ *
+ * Blueprint funds a scene only for a `qualified` site, so a
+ * `needs_conversation` site waits on this call. The request's `ops.next_step`
+ * is the record; this is the bell, on the channel ops already reads.
+ */
+export async function notifySlackScreeningCallNeeded(options: {
+  requestId: string;
+  openQuestions: readonly string[];
+}): Promise<{ sent: boolean; error?: unknown }> {
+  const webhookUrl =
+    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) {
+    logger.warn({ requestId: options.requestId }, "No Slack webhook configured; screening call has no bell");
+    return { sent: false };
+  }
+  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${options.requestId}`;
+  const agenda = options.openQuestions.length
+    ? options.openQuestions.map((question) => `• ${question}`).join("\n")
+    : "• Unanswered gates on the brief";
+  const text =
+    `:telephone_receiver: *Site needs a screening call before its scene is built* — request \`${options.requestId}\`\n`
+    + `${agenda}\nRecord the outcome: ${adminUrl}`;
+  return sendSlackMessage(text, webhookUrl);
+}
+
 export async function sendSlackDirectMessage(
   message: string,
   options?: {

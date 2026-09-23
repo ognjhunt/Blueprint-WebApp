@@ -20,6 +20,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FAKE_FIELD_DELETE, sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
+// Paying needs an account-bound team; that gate has its own suite
+// (robot-team-account-gate.test.ts). These suites exercise what happens after
+// a verified account has claimed the team.
+vi.mock("../utils/robotTeamAccounts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/robotTeamAccounts")>()),
+  teamAccountUid: async () => "account-uid",
+}));
+
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE: del } = await import(
     "./helpers/fake-firestore"

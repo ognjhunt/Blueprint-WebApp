@@ -40,8 +40,11 @@ vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-const { draftBrief, saveBrief, getBrief, confirmBrief } = await import("../utils/siteTaskBrief");
+const { draftBrief, saveBrief, getBrief, confirmBrief, recordSiteTaskCallOutcome } = await import(
+  "../utils/siteTaskBrief"
+);
 const { assessReadiness } = await import("../../client/src/lib/siteTaskReadiness");
+const { isRunnableTask } = await import("../utils/teamEvalCandidates");
 const { gateFields } = await import("../../client/src/data/siteTaskQualification");
 
 const REQUEST = "req-funnel-1";
@@ -181,6 +184,57 @@ describe("the join: a confirmed, reconstructed site is runnable supply", () => {
     expect(readiness.stage).toBe("evaluation_ready");
   });
 
+  it("is runnable through the real supply predicate once the scene is proven", async () => {
+    // The check above passes the confirmed answers in by hand. `isRunnableTask`
+    // reads them off the stored record itself, and it used to read only the
+    // intake answers -- empty in the capture-first flow -- so every confirmed
+    // site looked unanswered and never reached a robot team.
+    await submitSiteTask();
+    const brief = await getBrief(REQUEST);
+    const answers: Record<string, string> = {};
+    for (const fieldId of brief!.unresolved) answers[fieldId] = clearValue(fieldId);
+    await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana", operatorAnswers: answers });
+
+    const stored = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as Record<
+      string,
+      any
+    >;
+    expect(stored.request.siteTaskGates).toEqual({});
+
+    const withScene = {
+      ...stored,
+      pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site/world.json" } },
+      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" },
+    };
+    expect(isRunnableTask(withScene as never)).toBe(true);
+  });
+
+  it("does not bring back an intake answer the operator marked not sure", async () => {
+    await submitSiteTask({ sceneStability: clearValue("sceneStability") });
+    const brief = await getBrief(REQUEST);
+    const answers: Record<string, string> = {};
+    for (const fieldId of brief!.unresolved) answers[fieldId] = clearValue(fieldId);
+    await confirmBrief({
+      requestId: REQUEST,
+      confirmedBy: "Dana",
+      operatorAnswers: answers,
+      operatorUnknown: ["sceneStability"],
+    });
+
+    const stored = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as Record<
+      string,
+      any
+    >;
+    const withScene = {
+      ...stored,
+      pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site/world.json" } },
+      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" },
+    };
+    // Intake still says "stable"; the operator withdrew it, so it is open.
+    expect(stored.request.siteTaskGates.sceneStability).toBeTruthy();
+    expect(isRunnableTask(withScene as never)).toBe(false);
+  });
+
   it("is NOT supply until the operator confirms, however complete the gates look", async () => {
     // The guard that makes the whole thing safe: a drafted-but-unconfirmed
     // brief, even with a scene, is our reading rather than the operator's
@@ -201,5 +255,93 @@ describe("the join: a confirmed, reconstructed site is runnable supply", () => {
     });
 
     expect(readiness.isSupply).toBe(false);
+  });
+});
+
+describe("a screening call settles a needs_conversation site", () => {
+  async function confirmWith(overrides: Record<string, string>, unknown: string[] = []) {
+    await submitSiteTask();
+    const brief = await getBrief(REQUEST);
+    const answers: Record<string, string> = {};
+    for (const fieldId of brief!.unresolved) answers[fieldId] = clearValue(fieldId);
+    return confirmBrief({
+      requestId: REQUEST,
+      confirmedBy: "Dana",
+      operatorAnswers: { ...answers, ...overrides },
+      operatorUnknown: unknown,
+    });
+  }
+  const stored = () =>
+    sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as Record<string, any>;
+
+  it("clears a marginal answer the call settled, and records who and why", async () => {
+    const confirmed = await confirmWith({ sceneStability: "minor_drift" });
+    expect(confirmed!.disposition).toBe("needs_conversation");
+    expect(stored().site_task_triage.open_question_field_ids).toEqual(["sceneStability"]);
+
+    const result = await recordSiteTaskCallOutcome({
+      requestId: REQUEST,
+      clearedFieldIds: ["sceneStability"],
+      note: "Pallet positions are taped; drift is under 5 cm.",
+      resolvedBy: "ops@tryblueprint.io",
+    });
+
+    expect(result.disposition).toBe("qualified");
+    expect(stored().site_task_triage.disposition).toBe("qualified");
+    // The site hears what the call decided, including that the scene waits on its account.
+    const notice = [...sharedFakeFirestoreState.docs.entries()]
+      .find(([key]) => key.startsWith(`captureOutbox/${REQUEST}:screening_cleared:`));
+    expect(notice?.[1]).toMatchObject({ to: "ops@acme.example", kind: "screening_cleared" });
+    expect(String((notice?.[1] as { body: string }).body)).toMatch(/saved to your account/);
+    expect(stored().site_task_triage.call_resolution).toMatchObject({
+      cleared_field_ids: ["sceneStability"],
+      resolved_by: "ops@tryblueprint.io",
+    });
+    // The operator's answer stands; the call settled what it meant.
+    expect(stored().siteTaskGates.sceneStability).toBe("minor_drift");
+  });
+
+  it("answers a gate the operator did not know, as their statement", async () => {
+    const confirmed = await confirmWith({}, ["taskShape"]);
+    expect(confirmed!.disposition).toBe("needs_conversation");
+
+    const result = await recordSiteTaskCallOutcome({
+      requestId: REQUEST,
+      answers: { taskShape: clearValue("taskShape") },
+      note: "One pick point, one place point, confirmed on the call.",
+      resolvedBy: "ops@tryblueprint.io",
+    });
+
+    expect(result.disposition).toBe("qualified");
+    expect(stored().site_task_gate_sources.taskShape).toBe("operator_stated");
+  });
+
+  it("never waves a blocker through, and never invents a disposition", async () => {
+    await confirmWith({ sceneStability: "reconfigured" });
+    await expect(
+      recordSiteTaskCallOutcome({
+        requestId: REQUEST,
+        clearedFieldIds: ["sceneStability"],
+        note: "They said it is probably fine.",
+        resolvedBy: "ops@tryblueprint.io",
+      }),
+    ).rejects.toThrow(/Only a marginal answer/);
+    expect(stored().site_task_triage.disposition).toBe("not_now");
+
+    // A changed answer does move it, through the same scorer.
+    const result = await recordSiteTaskCallOutcome({
+      requestId: REQUEST,
+      answers: { sceneStability: clearValue("sceneStability") },
+      note: "The line was re-laid last month and is now fixed.",
+      resolvedBy: "ops@tryblueprint.io",
+    });
+    expect(result.disposition).toBe("qualified");
+  });
+
+  it("refuses before the site has confirmed its brief", async () => {
+    await submitSiteTask();
+    await expect(
+      recordSiteTaskCallOutcome({ requestId: REQUEST, note: "Spoke to them already.", resolvedBy: "ops" }),
+    ).rejects.toThrow(/not confirmed/);
   });
 });
