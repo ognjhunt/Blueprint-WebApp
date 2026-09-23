@@ -38,7 +38,7 @@ export default function Contact() {
       <>
         <SEO
           title="Early access for robot teams | Blueprint"
-          description="Blueprint is in early access for robot teams. Apply to test your robot against real site tasks, matched by hand."
+          description="Blueprint is in early access for robot teams. Apply to test your robot against real site tasks."
           canonical="/contact/robot-team"
         />
         <section className="ms-container ms-task-page">

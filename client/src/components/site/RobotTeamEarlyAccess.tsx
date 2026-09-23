@@ -1,8 +1,8 @@
 /**
  * What a robot team sees before it is in early access.
  *
- * Blueprint opens to a small group of robot teams first and matches each one
- * to site tasks by hand, so the library is shown to approved teams only. Every
+ * Blueprint opens to robot teams a few at a time, so the library is shown to
+ * approved teams only. Every
  * other visitor gets the one thing they can do next: apply, wait for a person
  * to read it, or verify the email that was approved.
  */
@@ -125,8 +125,8 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
       <div className="ms-task-empty">
         <h2>Early access for robot teams.</h2>
         <p>
-          We are opening Blueprint to a small group of robot teams first and matching each one to site
-          tasks by hand. Tell us what your robot does and the work you want to test it on.
+          We are opening Blueprint to robot teams a few at a time. Tell us what your robot does and the
+          work you want to test it on.
         </p>
       </div>
       <ApplicationForm email={email} />

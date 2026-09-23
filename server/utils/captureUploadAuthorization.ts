@@ -54,6 +54,8 @@ export interface CaptureUploadAuthorization {
   blockers: string[];
   /** Marginal answers a form could not settle — the agenda for a call. */
   openQuestions: string[];
+  /** What the site chose at intake, when known; a visit can be switched to self-capture. */
+  captureMode?: string | null;
 }
 
 function held(
@@ -67,6 +69,7 @@ function held(
     detail,
     blockers: request?.site_task_triage?.blockers ?? [],
     openQuestions: request?.site_task_triage?.open_questions ?? [],
+    captureMode: request?.request?.capture_mode ?? null,
   };
 }
 
@@ -124,5 +127,12 @@ export async function authorizeCaptureUpload(
     );
   }
 
-  return { allowed: true, holdReason: null, detail: null, blockers: [], openQuestions: [] };
+  return {
+    allowed: true,
+    holdReason: null,
+    detail: null,
+    blockers: [],
+    openQuestions: [],
+    captureMode: request.request?.capture_mode ?? null,
+  };
 }

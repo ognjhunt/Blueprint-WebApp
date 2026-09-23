@@ -209,7 +209,7 @@ export default function TaskDetail() {
                   </p>
                 ) : task.listing.live ? (
                   <>
-                    <p>Listed. Robot teams in Blueprint's early-access group can see the card you approved and start evaluation runs. Your task page shows the card as they see it.</p>
+                    <p>Listed. Robot teams on Blueprint can see the card you approved and start evaluation runs. Your task page shows the card as they see it.</p>
                     <div className="ws-form-actions">
                       <button
                         className="ws-link"

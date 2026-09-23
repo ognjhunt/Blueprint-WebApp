@@ -491,3 +491,92 @@ describe("failing closed", () => {
     });
   });
 });
+
+describe("a site that asked for a visit can film it itself instead", () => {
+  const status = (baseUrl: string, url: string) =>
+    fetch(`${baseUrl}/api/self-capture/uploads/${tokenFrom(url)}`).then(
+      (response) => response.json() as Promise<Record<string, unknown>>,
+    );
+  const switchMode = (baseUrl: string, url: string) =>
+    fetch(`${baseUrl}/api/self-capture/uploads/${tokenFrom(url)}/self-capture`, { method: "POST" });
+
+  it("turns a link held for a visit into an upload page, with nobody booking anything", async () => {
+    seedRequest("req-switch", { disposition: "qualified" }, "site_visit");
+    const url = captureUploadUrlFor("req-switch");
+
+    const result = await withRoutes(async (baseUrl) => {
+      const before = await status(baseUrl, url);
+      const response = await switchMode(baseUrl, url);
+      return { before, after: (await response.json()) as Record<string, unknown>, code: response.status };
+    });
+
+    expect(result.before).toMatchObject({
+      state: "held",
+      holdReason: "capturer_visit_scheduled",
+      selfCaptureSwitchAvailable: true,
+    });
+    expect(result.code).toBe(200);
+    expect(result.after).toMatchObject({ switched: true, state: "ready", selfCaptureSwitchAvailable: false });
+    const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-switch") as Record<string, any>;
+    expect(stored.request.capture_mode).toBe("self_capture");
+    expect(stored.capture_mode_switch).toMatchObject({ from: "site_visit", to: "self_capture", by: "site_owner_link" });
+  });
+
+  it("clears the visit-only service-area block, and keeps what a call already settled", async () => {
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-far", {
+      requestId: "req-far",
+      request: {
+        buyerType: "site_operator",
+        capture_mode: "site_visit",
+        capture_region: "us",
+        siteTaskGates: { serviceArea: "outside_texas" },
+      },
+      site_task_triage: {
+        disposition: "not_now",
+        blocking_field_ids: ["serviceArea"],
+        blockers: ["Outside Texas — a visit cannot reach it"],
+        open_questions: [],
+        unanswered_field_ids: [],
+        incomplete: false,
+        evaluated_at: "2026-09-17T00:00:00.000Z",
+        call_resolution: {
+          cleared_field_ids: [], answered_field_ids: [], resolved_by: "ops",
+          resolved_at: "2026-09-18T00:00:00.000Z", note: "called",
+        },
+      },
+    });
+    const url = captureUploadUrlFor("req-far");
+
+    const after = await withRoutes(async (baseUrl) => {
+      expect(await status(baseUrl, url)).toMatchObject({ holdReason: "not_qualified", selfCaptureSwitchAvailable: true });
+      return (await (await switchMode(baseUrl, url)).json()) as Record<string, unknown>;
+    });
+
+    expect(after.state).toBe("ready");
+    const triage = (sharedFakeFirestoreState.docs.get("inboundRequests/req-far") as Record<string, any>).site_task_triage;
+    expect(triage.blocking_field_ids).not.toContain("serviceArea");
+    expect(triage.call_resolution).toMatchObject({ note: "called" });
+  });
+
+  it("is the site owner's decision, and goes one way only", async () => {
+    seedRequest("req-own", { disposition: "qualified" }, "site_visit");
+    seedRequest("req-self", { disposition: "qualified" }, "self_capture");
+
+    const codes = await withRoutes(async (baseUrl) => {
+      const filmer = await switchMode(baseUrl, captureUploadUrlFor("req-own", "film"));
+      const filmerStatus = await status(baseUrl, captureUploadUrlFor("req-own", "film"));
+      const already = await switchMode(baseUrl, captureUploadUrlFor("req-self"));
+      return {
+        filmer: filmer.status,
+        filmerOffer: filmerStatus.selfCaptureSwitchAvailable,
+        already: (await already.json()) as Record<string, unknown>,
+      };
+    });
+
+    expect(codes.filmer).toBe(403);
+    expect(codes.filmerOffer).toBe(false);
+    expect(codes.already).toMatchObject({ switched: false, state: "ready" });
+    expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-own") as Record<string, any>).request.capture_mode)
+      .toBe("site_visit");
+  });
+});

@@ -36,7 +36,19 @@ function statusTone(status: Application["status"]) {
   return "warn" as const;
 }
 
-type Library = { listedTaskCount: number | null; autoApproveMinimumTasks: number | null };
+type Library = {
+  listedTaskCount: number | null;
+  autoApproveMinimumTasks: number | null;
+  gated?: boolean;
+  openSuggestedAtTasks?: number;
+};
+
+/** Once browsing is worth it on its own, say so: opening is one Render variable. */
+function openLibraryLine(library: Library | undefined) {
+  if (!library?.gated || library.listedTaskCount === null || !library.openSuggestedAtTasks) return null;
+  if (library.listedTaskCount < library.openSuggestedAtTasks) return null;
+  return `${library.listedTaskCount} site tasks are listed, enough for teams to browse on their own. You can open the library to every robot team by setting BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS=0 on Render.`;
+}
 
 function libraryLine(library: Library | undefined) {
   if (!library) return null;
@@ -167,9 +179,10 @@ export default function AdminRobotTeamAccess() {
             <h1 className="mt-5 font-display text-4xl font-semibold tracking-[0.005em] text-runway-text">Early-access applications</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-runway-mute">
               Approved teams see the site tasks sites have shared, once they sign in with the approved,
-              verified email. Book a call with each approved team and ask which site they would test at.
+              verified email. Calls are optional: teams reply with the site they would test at, and book one only if it helps.
             </p>
             {libraryLine(query.data?.library) ? <p className="mt-2 max-w-2xl text-sm text-runway-text">{libraryLine(query.data?.library)}</p> : null}
+            {openLibraryLine(query.data?.library) ? <p role="status" className="mt-2 max-w-2xl text-sm text-runway-text">{openLibraryLine(query.data?.library)}</p> : null}
           </div>
           <Button variant="secondary" iconLeft={<RefreshCw />} onClick={() => query.refetch()}>Refresh</Button>
         </header>

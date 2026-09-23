@@ -562,3 +562,80 @@ export async function recordSiteTaskCallOutcome(params: {
     unansweredFieldIds: [...verdict.unanswered],
   };
 }
+
+export type SelfCaptureSwitchResult =
+  | "switched"
+  | "already_self_capture"
+  | "not_a_site_task"
+  | "not_found";
+
+/**
+ * A site that asked for someone to come decides to film it itself.
+ *
+ * A visit is scheduled by hand and bound to where a person can drive, so the
+ * site's own phone is nearly always the faster path, and nobody has to find a
+ * free afternoon before the site can move. The switch goes one way only:
+ * self-capture is the looser mode (the service-area gate stops binding), and
+ * going back to a visit commits someone's time, so that stays a conversation.
+ *
+ * The gates are re-scored by the same deterministic scorer under the new mode,
+ * and whatever a screening call already settled stays settled.
+ */
+export async function switchSiteToSelfCapture(requestId: string): Promise<SelfCaptureSwitchResult> {
+  if (!db) throw new Error("Database not available");
+  const store = db;
+  const requestRef = store.collection("inboundRequests").doc(requestId);
+  const briefRef = store.collection(TASK_BRIEFS_COLLECTION).doc(requestId);
+  return store.runTransaction(async (tx) => {
+    const [snap, briefSnap] = await Promise.all([tx.get(requestRef), tx.get(briefRef)]);
+    if (!snap.exists) return "not_found" as const;
+    const record = snap.data() as Record<string, any>;
+    if (record.request?.buyerType !== "site_operator") return "not_a_site_task" as const;
+    if (record.request?.capture_mode === "self_capture") return "already_self_capture" as const;
+
+    const verdict = triageGateAnswers(gateAnswersOnFile(record), undefined, "self_capture");
+    const priorCall = record.site_task_triage?.call_resolution;
+    const cleared = new Set<string>(priorCall?.cleared_field_ids ?? []);
+    const openQuestions = verdict.openQuestions.filter((question) => !cleared.has(question.fieldId));
+    const disposition = verdict.blockers.length
+      ? "not_now"
+      : openQuestions.length || verdict.unanswered.length
+        ? "needs_conversation"
+        : "qualified";
+    const at = nowIso();
+
+    tx.set(
+      requestRef,
+      {
+        request: { capture_mode: "self_capture" },
+        capture_mode_switch: { from: "site_visit", to: "self_capture", by: "site_owner_link", at },
+        site_task_triage: {
+          disposition,
+          blocking_field_ids: verdict.blockers.map((blocker) => blocker.fieldId),
+          blockers: verdict.blockers.map((blocker) => `${blocker.answer} — ${blocker.detail}`),
+          open_questions: openQuestions.map((question) => `${question.answer} — ${question.detail}`),
+          open_question_field_ids: openQuestions.map((question) => question.fieldId),
+          unanswered_field_ids: verdict.unanswered,
+          incomplete: verdict.incomplete,
+          evaluated_at: at,
+          ...(priorCall ? { call_resolution: priorCall } : {}),
+        },
+      },
+      { merge: true },
+    );
+    if (briefSnap.exists) {
+      const brief = briefSnap.data() as SiteTaskBriefRecord;
+      const binding = new Set(bindingGates("self_capture").map((field) => field.id));
+      tx.set(
+        briefRef,
+        {
+          captureMode: "self_capture",
+          unresolved: (brief.unresolved ?? []).filter((fieldId) => binding.has(fieldId)),
+        },
+        { merge: true },
+      );
+    }
+    logger.info({ requestId, disposition }, "Site switched from a visit to filming it themselves");
+    return "switched" as const;
+  });
+}

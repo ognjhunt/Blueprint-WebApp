@@ -203,8 +203,11 @@ export function buildLetsTalkEmail(params: {
 export type MatchNextStep =
   /** An upload link was issued. The site films it themselves. */
   | { kind: "self_capture"; uploadUrl: string }
-  /** Dispatchable, but somebody has to drive. Scheduling is a human exchange. */
-  | { kind: "capturer_visit" }
+  /**
+   * Dispatchable, but somebody has to drive. Scheduling is a human exchange,
+   * so the site's own link is offered first: it can switch to filming it.
+   */
+  | { kind: "capturer_visit"; taskUrl?: string }
   /** Held. We say we are reviewing rather than inventing a next step. */
   | { kind: "held" };
 
@@ -213,7 +216,9 @@ function matchNextStepLine(nextStep: MatchNextStep | undefined, calendly: string
     return `The next step takes about a minute: film the work area on a phone and upload it here — ${nextStep.uploadUrl}. You do not need an app, an account, or a call. We turn that into a 3D scene and run the shortlisted robots against it.`;
   }
   if (nextStep?.kind === "capturer_visit") {
-    return "The next step is a walkthrough capture on site. Reply with a couple of windows that suit and we will confirm one — or, if it is easier, tell us and you can film it yourself in about a minute instead.";
+    return nextStep.taskUrl
+      ? `The next step is a walkthrough of the work area. Visits are booked by hand, so the quickest way to start is to film it yourself: about a minute on any phone. Open ${nextStep.taskUrl} and choose "I'll film it myself instead". If you would rather someone came, reply with a couple of windows that suit and we will confirm one.`
+      : "The next step is a walkthrough capture on site. Reply with a couple of windows that suit and we will confirm one — or, if it is easier, tell us and you can film it yourself in about a minute instead.";
   }
   if (nextStep?.kind === "held") {
     // Deliberately no link and no promise. Something upstream wanted a person,

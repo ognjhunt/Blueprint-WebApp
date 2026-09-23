@@ -1,6 +1,12 @@
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { logger } from "../logger";
 import { enqueueOutbox } from "./captureOutbox";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
-import type { RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
+import {
+  accessRecordId,
+  ROBOT_TEAM_ACCESS_COLLECTION,
+  type RobotTeamAccessRecord,
+} from "./robotTeamEarlyAccess";
 
 const APP_URL = () => (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
 
@@ -30,7 +36,7 @@ export function accessReceivedEmail(
 ) {
   const body = options.thinLibrary
     ? [
-      "Thanks for applying. We are opening Blueprint to a few robot teams at a time and matching each one to a real site by hand, so a person will reply to you here, usually within a business day.",
+      "Thanks for applying. We are opening Blueprint to a few robot teams at a time and matching each one to a real site, so a person will reply to you here.",
       "",
       record.testSite
         ? `We will start from the site you named (${record.testSite}). If there is anyone we should talk to there, reply with their name.`
@@ -39,7 +45,7 @@ export function accessReceivedEmail(
     : [
       "Thanks for applying. Blueprint is opening to a small group of robot teams first, and a person reads every application.",
       "",
-      "If there is a fit, we will email you here with how to create your account. From then on you will see the site tasks open to your team, and we will tell you when a new one fits your robot.",
+      "If there is a fit, we will email you here with how to create your account. From then on you will see the site tasks open to your team, and we email you whenever a site lists a new one.",
       "",
       "Nothing else is needed from you now. Reply to this email if you want to add anything.",
     ];
@@ -69,12 +75,13 @@ export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" |
       `${base}/contact/robot-team`,
       "",
       ...(invited ? [] : [
+        "Reply with the site or customer you would most want to test at, and we will look for a match.",
         call
-          ? `We match every team to a site by hand at this stage. Book 20 minutes with us so we can find the right one: ${call}`
-          : "We match every team to a site by hand at this stage. Reply to this email with a time for a 20-minute call so we can find the right one.",
+          ? `If a call would help, book one here: ${call}`
+          : "If a call would help, say so in your reply and we will find a time.",
         "",
       ]),
-      "We will also email you when a new site task fits your robot.",
+      "We email you whenever a site lists a new task.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
@@ -90,7 +97,7 @@ export function accessNotYetEmail(record: Pick<RobotTeamAccessRecord, "name">) {
       "",
       "Thanks for applying. We are opening Blueprint to a small number of robot teams at a time, matched to the sites we have today, and we can't offer your team access yet.",
       "",
-      "We have kept your application and will email you when a site task fits your robot. If something changes on your side, reply here and a person will read it.",
+      "We have kept your application on file. If something changes on your side, reply here and a person will read it.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
@@ -122,4 +129,62 @@ export async function enqueueAccessEmail(params: {
     body: message.body,
     replyTo: "hello@tryblueprint.io",
   });
+}
+
+type ListedCard = { title: string; taskFamily?: string; siteType?: string; region?: string };
+
+/** The alert an approved team gets when a site lists a task. Card text only. */
+export function newTaskEmail(record: Pick<RobotTeamAccessRecord, "name">, card: ListedCard) {
+  const facts = [card.taskFamily, card.siteType, card.region].map((value) => String(value || "").trim()).filter(Boolean);
+  return {
+    subject: `New site task on Blueprint: ${card.title}`,
+    body: [
+      emailGreeting(firstName(record.name)),
+      "",
+      `A site just shared a new task: ${card.title}${facts.length ? ` (${facts.join(", ")})` : ""}.`,
+      "",
+      "See the card and start an evaluation run from the task library:",
+      `${APP_URL()}/contact/robot-team`,
+      "",
+      "You get one of these each time a site lists a task. Reply to stop them.",
+      "",
+      EMAIL_SIGN_OFF,
+    ].join("\n"),
+  };
+}
+
+/**
+ * Tell every approved team that a site listed a task, so nobody has to watch
+ * the library or wait for a person to notice a match. Only the card's own
+ * text goes out, which is what the site approved for these teams to see.
+ */
+export async function enqueueNewTaskAlerts(params: {
+  requestId: string;
+  card: ListedCard;
+  /** When the card went live; one alert per team per time it is switched on. */
+  wentLiveIso: string;
+}): Promise<{ enqueued: number }> {
+  if (!db) return { enqueued: 0 };
+  const snapshot = await db.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved").limit(500).get();
+  let enqueued = 0;
+  for (const doc of snapshot.docs) {
+    const record = doc.data() as RobotTeamAccessRecord;
+    if (!record?.email) continue;
+    const message = newTaskEmail(record, params.card);
+    try {
+      const result = await enqueueOutbox({
+        idempotencyKey: `robot_team_new_task:${params.requestId}:${params.wentLiveIso}:${accessRecordId(record.email)}`,
+        requestId: `robot-team-access:${accessRecordId(record.email)}`,
+        kind: "robot_team_new_task",
+        to: record.email,
+        subject: message.subject,
+        body: message.body,
+        replyTo: "hello@tryblueprint.io",
+      });
+      if (result.enqueued) enqueued += 1;
+    } catch (error) {
+      logger.warn({ error, requestId: params.requestId }, "Could not queue a new-task alert");
+    }
+  }
+  return { enqueued };
 }

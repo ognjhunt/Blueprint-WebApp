@@ -66,7 +66,16 @@ type LinkState =
    * way, and the difference matters because the second one becomes an upload
    * page on its own the moment that thing resolves.
    */
-  | { status: "held"; detail: string; blockers: string[]; openQuestions: string[] }
+  | {
+      status: "held";
+      detail: string;
+      blockers: string[];
+      openQuestions: string[];
+      /** Why it is held, from the dispatch rule. */
+      holdReason?: string | null;
+      /** The site asked for a visit and may film it itself instead. */
+      selfCaptureSwitch?: boolean;
+    }
   | { status: "invalid"; message: string };
 
 type UploadState =
@@ -233,6 +242,39 @@ export default function SelfCaptureUpload() {
       setFreshLink("failed");
     }
   }
+  // A site set up for a visit can film it itself instead. Visits are booked by
+  // hand, so this is the path that does not wait on anyone.
+  const [switching, setSwitching] = useState<"idle" | "sending" | "failed">("idle");
+  async function filmItMyself() {
+    setSwitching("sending");
+    try {
+      // The link is the credential here, exactly as for the upload itself.
+      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token ?? "")}/self-capture`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) throw new Error("switch_failed");
+      setSwitching("idle");
+      setLink(data.state === "held"
+        ? {
+            status: "held",
+            detail: String(data.detail || "This capture cannot start yet."),
+            blockers: Array.isArray(data.blockers) ? data.blockers.map(String) : [],
+            openQuestions: Array.isArray(data.openQuestions) ? data.openQuestions.map(String) : [],
+            holdReason: typeof data.holdReason === "string" ? data.holdReason : null,
+            selfCaptureSwitch: data.selfCaptureSwitchAvailable === true,
+          }
+        : {
+            status: "valid",
+            accepts: Array.isArray(data.accepts) ? data.accepts : ["mov", "mp4"],
+            expiresAt: String(data.expiresAt || ""),
+          });
+    } catch {
+      setSwitching("failed");
+    }
+  }
   // A confirmed brief can be reopened: emails tell a site that was not cleared
   // to update its answers when something changes, so the answers stay editable.
   const [editingBrief, setEditingBrief] = useState(false);
@@ -348,6 +390,8 @@ export default function SelfCaptureUpload() {
             openQuestions: Array.isArray(data.openQuestions)
               ? data.openQuestions.map(String)
               : [],
+            holdReason: typeof data.holdReason === "string" ? data.holdReason : null,
+            selfCaptureSwitch: data.selfCaptureSwitchAvailable === true,
           });
           return;
         }
@@ -558,7 +602,28 @@ export default function SelfCaptureUpload() {
 
       {link.status === "held" && (
         <>
-          <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>{link.detail}</p>
+          {link.selfCaptureSwitch && (
+            <section aria-label="Film it yourself" style={{ marginBottom: "24px" }}>
+              <p style={{ marginBottom: "12px" }}>
+                You asked for someone to come and record the work area. Visits are booked by hand,
+                so they take longer. The quickest way to start is to film it yourself: about a
+                minute on any phone, with no account or booking.
+              </p>
+              <button type="button" className="ms-button" disabled={switching === "sending"} onClick={filmItMyself}>
+                {switching === "sending" ? "Switching…" : "I'll film it myself instead"}
+              </button>
+              {switching === "failed" && (
+                <p role="alert" style={{ marginTop: "8px" }}>That did not go through. Try again in a moment.</p>
+              )}
+              <p style={{ color: "var(--ms-muted)", marginTop: "12px" }}>
+                Would rather someone came? Visits cover the Austin metro for now and are booked by
+                email. Keep this link either way.
+              </p>
+            </section>
+          )}
+          {link.holdReason !== "capturer_visit_scheduled" && (
+            <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>{link.detail}</p>
+          )}
 
           {link.blockers.length > 0 && (
             <ul style={{ paddingLeft: "20px", marginBottom: "24px", lineHeight: 1.7 }}>

@@ -6,10 +6,10 @@
  * not a model: at early volume every application is read by a person anyway,
  * and a rule's reason is exact.
  *
- * Auto-approval is for clear fits only, and only once the library has enough
- * open site tasks to be worth showing. Approval unlocks the task cards sites
- * chose to share (never footage, names or addresses), and still needs the
- * approved email to be verified at sign-in.
+ * Auto-approval is for clear fits only, and only once the library lists a site
+ * task to show. Approval unlocks the task cards sites chose to share (never
+ * footage, names or addresses), and still needs the approved email to be
+ * verified at sign-in.
  */
 import type { RobotTeamAccessApplication } from "./robotTeamEarlyAccess";
 
@@ -108,12 +108,17 @@ export function assessAccessFit(
   };
 }
 
-const DEFAULT_AUTO_APPROVE_MIN_TASKS = 5;
+const DEFAULT_AUTO_APPROVE_MIN_TASKS = 1;
+/** Below this many listed tasks, teams are matched to sites by hand. */
+const THIN_LIBRARY_TASKS = 5;
+/** At this many listed tasks, browsing is worth it without a match. */
+export const OPEN_LIBRARY_SUGGESTED_AT_TASKS = 10;
 
 /**
  * How many listed site tasks the library needs before clear fits are approved
  * without a person, or null when auto-approval is off. Approving a team into
- * a near-empty library is a worse first impression than a personal reply.
+ * an empty library is a worse first impression than a personal reply, so it
+ * waits for one listed task; after that nobody waits on a person's calendar.
  */
 export function autoApproveMinimumTasks(): number | null {
   const raw = String(process.env.BLUEPRINT_ROBOT_TEAM_AUTO_APPROVE_MIN_TASKS ?? "").trim().toLowerCase();
@@ -128,7 +133,7 @@ export function shouldAutoApprove(fit: AccessFit): boolean {
   return minimum !== null && fit.clearFit && fit.listedTaskCount >= minimum;
 }
 
-/** Fewer listed tasks than auto-approval needs: reply as a person, match by hand. */
+/** So few listed tasks that each team is matched to a site by hand. */
 export function libraryIsThin(listedTaskCount: number): boolean {
-  return listedTaskCount < (autoApproveMinimumTasks() ?? DEFAULT_AUTO_APPROVE_MIN_TASKS);
+  return listedTaskCount < THIN_LIBRARY_TASKS;
 }

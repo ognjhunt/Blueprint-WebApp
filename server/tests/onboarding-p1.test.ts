@@ -127,6 +127,26 @@ describe("owner authorization and durable demand", () => {
     await post(true);
     expect(live()).toHaveLength(2);
   });
+  it("tells every approved robot team once when a card goes live, with the card's text only", async () => {
+    const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
+    const team = (email: string, status: string) => state.docs.set(`robotTeamAccess/${accessRecordId(email)}`, {
+      name: "Ada Lovelace", email, company: "Arm Co", status,
+      appliedAtIso: "2026-09-23T00:00:00.000Z", updatedAtIso: "2026-09-23T00:00:00.000Z",
+    } as never);
+    team("ada@arm.example", "approved");
+    team("grace@arm.example", "approved");
+    team("mallory@arm.example", "declined");
+    state.docs.set("inboundRequests/req1", record({ public_task_listing: undefined }) as never);
+    const alerts = () => [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_new_task:req1:"));
+    const post = () => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: true, details, consent: true }) });
+    expect((await post()).status).toBe(200);
+    expect(alerts().map(([, value]) => (value as { to: string }).to).sort()).toEqual(["ada@arm.example", "grace@arm.example"]);
+    const body = String((alerts()[0][1] as { body: string }).body);
+    expect(body).toContain(details.title);
+    expect(body).not.toMatch(/owner@|PRIVATE/);
+    expect((await post()).status).toBe(200);
+    expect(alerts()).toHaveLength(2);
+  });
   it("requires photo permission, serves sanitized approved pixels, and revokes access on pause or withdrawal", async () => {
     const post = (body: unknown) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const grant = { enabled: true, consent: true, details, thumbnailPng: thumbnail() };
