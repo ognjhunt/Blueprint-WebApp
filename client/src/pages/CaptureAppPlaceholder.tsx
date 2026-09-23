@@ -31,11 +31,11 @@ const captureLocationTypes = [
 const steps = [
   {
     label: "Apply",
-    body: "Enter the city or invite path. Approved assignments show the route, rules, and payout before you start.",
+    body: "Enter the city or invite path. The route, rules, and payout for an approved assignment are set out before you start.",
   },
   {
     label: "Walk",
-    body: "Use a phone first to walk one public-facing route, follow app guidance, and keep private or sensitive areas out.",
+    body: "Use a phone first to walk one public-facing route, and keep private or sensitive areas out.",
   },
   {
     label: "Review",
@@ -177,7 +177,7 @@ export default function CaptureAppPlaceholder() {
     <>
       <SEO
 	        title="Capture App | Blueprint"
-	        description="Open Blueprint Capture for approved phone-first field assignments, lawful public-facing walkthroughs, and review-gated payout eligibility."
+	        description="Blueprint Capture films a space from a Blueprint capture link. Capturer access is approval-gated, and payout eligibility is review-gated."
 	        canonical="/capture-app"
 	        noIndex
 	      />
@@ -272,18 +272,19 @@ export default function CaptureAppPlaceholder() {
 	                      Phone first.
 	                    </h1>
 	                    <p className="mt-5 max-w-[22rem] text-base leading-8 text-runway-body">
-	                      Open Blueprint Capture when you have an approved assignment: record the
-                        named workflow, follow the access boundary, upload one complete walkthrough,
-                        and wait for QA.
+	                      Blueprint Capture is a camera for iPhone: open a Blueprint capture link, film
+                        the space, and it uploads. It does not list assignments or show payouts —
+                        approved assignments are coordinated with you directly, then reviewed after
+                        upload.
 	                    </p>
                       <p className="mt-4 max-w-[22rem] text-sm leading-7 text-runway-mute">
-                        Payout applies only to an accepted capture. The assignment payout is shown
+                        Payout applies only to an accepted capture. The assignment payout is set out
                         before you start; review is required after upload.
                       </p>
                     <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                       {showExternalHandoff ? (
                         <a href={captureAppUrl} className="runway-cta">
-                          Open assignment app
+                          Open Blueprint Capture
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       ) : (
@@ -338,7 +339,7 @@ export default function CaptureAppPlaceholder() {
                       </div>
                     <p className="mt-4 text-center text-sm leading-6 text-runway-mute">
                       {showExternalHandoff
-                        ? "Capturers use this stable path to open the app, follow field rules, and submit accepted-capture candidates for review."
+                        ? "Capturers use this stable path to open Blueprint Capture. The app films a space from a Blueprint capture link and uploads it for review."
                         : "The app link is invite-gated for now. Request access or apply as a capturer so Blueprint can route the right city, invite, and review path."}
                     </p>
                     </div>
@@ -351,7 +352,7 @@ export default function CaptureAppPlaceholder() {
                         }
                         className="runway-cta-ghost w-full"
                       >
-                        {showExternalHandoff ? "Open assignment app" : "Request assignment access"}
+                        {showExternalHandoff ? "Open Blueprint Capture" : "Request assignment access"}
                       </a>
                     </div>
                   </div>

@@ -132,4 +132,41 @@ describe("capture reconstruction terminal binding", () => {
       await stop(server);
     }
   });
+
+  it("binds a site's own app bundle through its capture session when no creator record exists", async () => {
+    state.docs.set("captureUploadSessions/capture-1", {
+      site_capture_bundle: { schema_version: "site_capture_bundle_session.v1", capture_id: "capture-1" },
+      immutable_upload_identity: {
+        raw_bundle_digest: `sha256:${"a".repeat(64)}`,
+        verification_status: "pending_pipeline_storage_readback",
+      },
+    });
+    const { server, url } = await start();
+    try {
+      const response = await fetch(`${url}/api/internal/pipeline/creator-captures/capture-1/reconstruction`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(status()),
+      });
+      expect(response.status).toBe(201);
+      expect(state.docs.get("captureUploadSessions/capture-1")?.immutable_upload_identity)
+        .toMatchObject({ verification_status: "pipeline_storage_bytes_verified" });
+      expect(state.docs.has("creatorCaptures/capture-1")).toBe(false);
+    } finally {
+      await stop(server);
+    }
+  });
+
+  it("does not bind a browser capture session that carries no app bundle record", async () => {
+    state.docs.set("captureUploadSessions/capture-1", {
+      immutable_upload_identity: { raw_bundle_digest: `sha256:${"a".repeat(64)}` },
+    });
+    const { server, url } = await start();
+    try {
+      const response = await fetch(`${url}/api/internal/pipeline/creator-captures/capture-1/reconstruction`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(status()),
+      });
+      expect(response.status).toBe(404);
+    } finally {
+      await stop(server);
+    }
+  });
 });

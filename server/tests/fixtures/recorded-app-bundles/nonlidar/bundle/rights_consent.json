@@ -1,0 +1,59 @@
+{
+  "capture_contributor_payout_eligible" : false,
+  "redaction_required" : true,
+  "permission_document_uri" : null,
+  "retention" : {
+    "raw_truth_preserved" : true,
+    "live_enforcement_proven_by_bundle" : false,
+    "policy_reference" : "docs/STORAGE_RETENTION_POLICY_2026-07-09.md",
+    "review_window_days" : 30,
+    "routine_delete_rule_present" : false,
+    "archive_after_days" : 365,
+    "minimum_retention_floor_days_if_delete_is_ever_introduced" : 2555,
+    "policy_id" : "blueprint_raw_capture_lifecycle_2026-07-09"
+  },
+  "scene_id" : "site-stub-request",
+  "schema_version" : "v1",
+  "data_licensing_allowed" : false,
+  "capture_basis" : "unknown",
+  "consent_notes" : [
+
+  ],
+  "consent_scope" : [
+
+  ],
+  "privacy_processing" : {
+    "privacy_authority" : "explicit_capture_intake_and_downstream_policy",
+    "raw_media_contains_unredacted_observations" : true,
+    "derived_use_requires_privacy_preprocessing" : true,
+    "privacy_security_limits" : [
+
+    ],
+    "restricted_capture_areas" : [
+
+    ],
+    "redaction_required" : true
+  },
+  "provider_upload" : {
+    "third_party_provider_upload_authorized" : false,
+    "capture_manifest_cannot_authorize_provider" : true,
+    "provider_selection_authority" : "blueprint_pipeline",
+    "provider_authorization_status" : "separate_downstream_gate_required",
+    "allowed_mobile_destination_class" : "blueprint_first_party_capture_storage_only",
+    "mobile_app_direct_provider_upload_allowed" : false
+  },
+  "derived_scene_generation_allowed" : true,
+  "revocation" : {
+    "revocation_effective_at" : null,
+    "latest_status_check_required_before_downstream_use" : true,
+    "provider_upload_blocked_until_latest_status_check" : true,
+    "revocation_authority" : "blueprint_backend_and_authoritative_rights_records",
+    "raw_retention_effect" : "subject_to_authoritative_policy_and_legal_process",
+    "status_at_capture" : "no_revocation_record_attached_to_bundle",
+    "revocation_requested_at" : null
+  },
+  "consent_status" : "unknown",
+  "retention_policy" : "standard_blueprint_site_capture",
+  "permission_document_sha256" : null,
+  "capture_id" : "walkthrough-stub-request"
+}

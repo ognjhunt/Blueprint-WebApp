@@ -83,13 +83,25 @@ router.post(
       });
     }
 
-    const captureRef = db.collection("creatorCaptures").doc(status.capture_id);
+    const creatorRef = db.collection("creatorCaptures").doc(status.capture_id);
+    // A site that filmed itself with the Blueprint app has no creator
+    // registration. Its upload identity is recorded on its own capture session
+    // (`siteCaptureUploadIdentity`), and only a session carrying that bundle
+    // record is eligible here.
+    const siteSessionRef = db.collection("captureUploadSessions").doc(status.capture_id);
     type Outcome = "written" | "replayed" | "not_found" | "capture_digest_mismatch" | "terminal_conflict";
     let outcome: Outcome;
     try {
       outcome = await db.runTransaction<Outcome>(async (transaction) => {
-        const snapshot = await transaction.get(captureRef);
-        if (!snapshot.exists) return "not_found";
+        let captureRef = creatorRef;
+        let snapshot = await transaction.get(creatorRef);
+        if (!snapshot.exists) {
+          const siteSnapshot = await transaction.get(siteSessionRef);
+          const siteRecord = siteSnapshot.exists ? (siteSnapshot.data() || {}) as Record<string, any> : null;
+          if (!siteRecord?.site_capture_bundle || !siteRecord.immutable_upload_identity) return "not_found";
+          captureRef = siteSessionRef;
+          snapshot = siteSnapshot;
+        }
         const record = (snapshot.data() || {}) as Record<string, any>;
         const identity = record.immutable_upload_identity as Record<string, unknown> | undefined;
         if (identity?.raw_bundle_digest !== status.capture_digest) {

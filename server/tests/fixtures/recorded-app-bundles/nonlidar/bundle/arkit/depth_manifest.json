@@ -1,0 +1,17 @@
+{
+  "depth_registered_to_arkit_camera" : true,
+  "invalid_value_semantics" : "0_means_missing",
+  "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+  "representation" : "per_frame_depth_map",
+  "frames" : [
+
+  ],
+  "camera_ray_convention" : "arkit_x_right_y_up_z_backward",
+  "schema_version" : "arkit_depth_manifest.v2",
+  "depth_encoding" : "uint16_png",
+  "scale_to_meters" : 0.001,
+  "missing_depth_reason" : null,
+  "units" : "millimeters",
+  "encoding" : "png_u16_mm",
+  "registration_authority" : "arkit_scene_depth"
+}

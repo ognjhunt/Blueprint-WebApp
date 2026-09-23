@@ -1,0 +1,11 @@
+{
+  "capture_session_id" : "stub-request",
+  "intended_pass_role" : "primary",
+  "pass_index" : 1,
+  "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "site_visit_id" : "stub-request",
+  "entry_anchor_id" : "anchor_entry",
+  "arkit_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "route_id" : "route_unknown",
+  "pass_id" : "pass_primary_1"
+}

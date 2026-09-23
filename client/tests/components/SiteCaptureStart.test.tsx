@@ -166,6 +166,8 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByText("Film the work area.", { selector: "h2" });
   expect(screen.getByRole("link", { name: "Open your task page" })).toHaveAttribute("href", captureUrl);
+  expect(screen.getByText(/On an iPhone the link opens a small Blueprint camera when that is available/)).toBeInTheDocument();
+  expect(screen.queryByText(/No app and nothing to install/)).toBeNull();
 
   received = true;
   await screen.findByText("Your recording is in.", { selector: "h2" }, { timeout: 10_000 });

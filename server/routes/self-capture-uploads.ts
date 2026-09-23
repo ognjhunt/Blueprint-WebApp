@@ -1,7 +1,7 @@
 /**
  * A site uploading its own walkthrough, from a browser.
  *
- * The person on the other end of this route has no account and no app. They
+ * The person on the other end of this route has no account. They
  * are a site employee who filmed one work area on their phone because the link
  * we emailed told them to. So the route is deliberately small: the link is the
  * credential, the video is the payload, and there is nothing to configure.
@@ -48,6 +48,22 @@ import { reviewCaptureCoverage } from "../utils/captureCoverageReview";
 import { recordCapturePrivacyScreen } from "../utils/capturePrivacyRecord";
 import { getBrief } from "../utils/siteTaskBrief";
 import { loadWebsiteCaptureRights, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
+import { bundleLimitsFromEnv } from "../utils/siteCaptureBundle";
+import {
+  acceptBundlePlan,
+  completeBundle,
+  describeBundleLink,
+  finishClearedBundle,
+  mintMoreTargets,
+  type BundleServiceDeps,
+} from "../utils/siteCaptureBundleService";
+import { resolveBundleStorage, type BundleStorage } from "../utils/siteCaptureBundleStorage";
+import {
+  claimSiteCaptureBundle,
+  recordSiteCaptureUploadIdentity,
+  siteCaptureBundleClaimed,
+} from "../utils/siteCaptureUploadIdentity";
 
 const router = Router();
 
@@ -497,6 +513,76 @@ async function finishStoredCapture(params: {
   };
 }
 
+/* ------------------------------------------------------------ app bundles */
+
+/**
+ * The Blueprint app and App Clip upload a Raw Contract V3.2 bundle through the
+ * same link. The sequence lives in `siteCaptureBundleService`; this wires it to
+ * the real request, rights, brief, privacy screen and storage.
+ */
+export function bundleServiceDeps(storage: BundleStorage): BundleServiceDeps {
+  return {
+    storage,
+    limits: bundleLimitsFromEnv(),
+    async loadAuthority(requestId) {
+      if (!dbAdmin) throw new Error("website_capture_rights_store_unavailable");
+      const snapshot = await dbAdmin.collection("inboundRequests").doc(requestId).get();
+      const record = snapshot.exists ? (snapshot.data() as Record<string, any>) : undefined;
+      return {
+        captureRights: projectWebsiteCaptureRights(record),
+        consentAttestation: record?.request?.consent_attestation ?? null,
+      };
+    },
+    async loadBrief(requestId) {
+      const brief = await getBrief(requestId);
+      return brief ? { summary: brief.summary ?? "", confirmedAtIso: brief.confirmedAtIso ?? null } : null;
+    },
+    async notifyVideoReceived(requestId) {
+      await enqueueTaskLifecycleNotification({ requestId, milestone: "video_received" });
+    },
+    screenForPrivacy: (params) => screenCaptureForPrivacy(params),
+    recordPrivacy: (params) => recordCapturePrivacyScreen(params),
+    async loadPrivacyState(requestId) {
+      if (!dbAdmin) return null;
+      const snapshot = await dbAdmin.collection("inboundRequests").doc(requestId).get();
+      return (snapshot.exists ? snapshot.data()?.capture_privacy_screen : null) ?? null;
+    },
+    recordUploadIdentity: (params) => recordSiteCaptureUploadIdentity(params),
+    claimBundle: (params) => claimSiteCaptureBundle(params),
+    startCoverageReview(params) {
+      void reviewCaptureCoverage(params).catch((error) => {
+        logger.warn({ error, captureId: params.captureId }, "Coverage review could not be started for a stored capture");
+      });
+    },
+    now: () => new Date(),
+  };
+}
+
+/**
+ * The browser recorder overwrites its own video, manifest and marker by design.
+ * An app bundle's raw files are immutable, so once one is recorded for a link
+ * the browser routes stand aside rather than write over it.
+ */
+async function refuseIfAppBundle(
+  payload: { requestId: string; sceneId: string; captureId: string },
+  res: Response,
+): Promise<boolean> {
+  let occupied = false;
+  try {
+    occupied = await siteCaptureBundleClaimed(payload.captureId);
+  } catch (error) {
+    logger.error({ error, captureId: payload.captureId }, "Could not check for an app bundle before a browser upload");
+    res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
+    return true;
+  }
+  if (!occupied) return false;
+  res.status(409).json({
+    error: "This space was already recorded with the Blueprint app on an iPhone, so it cannot be replaced from a browser.",
+    code: "capture_recorded_in_app",
+  });
+  return true;
+}
+
 router.get("/:token", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
@@ -516,22 +602,33 @@ router.get("/:token", async (req: Request, res: Response) => {
     });
 
     if (resumed.action === "cleared") {
-      // It cleared on retry, so the thing that was missing is the marker. The
-      // extension is not on the token, so it comes from the stored manifest
-      // path -- see `resolveStoredObjectPath`.
-      const stored = await resolveStoredObjectPath(payload.sceneId, payload.captureId);
-      if (stored) {
-        await writeCompletionMarker({
-          sceneId: payload.sceneId,
-          captureId: payload.captureId,
-          rawPrefix: stored.rawPrefix,
-          objectPath: stored.objectPath,
-        });
-      } else {
+      // It cleared on retry, so the thing that was missing is the marker. An
+      // app bundle finishes from its completion record, byte for byte; a
+      // browser upload writes its marker as before.
+      const bundleStorage = resolveBundleStorage();
+      const bundle = bundleStorage ? await finishClearedBundle(payload, bundleStorage) : "not_a_bundle";
+      if (bundle === "conflict") {
         logger.error(
           { requestId: payload.requestId, captureId: payload.captureId },
-          "Privacy screen cleared on retry but the stored video could not be located",
+          "A cleared app bundle could not be finished: its marker differs from the completion record",
         );
+      } else if (bundle === "not_a_bundle") {
+        // The extension is not on the token, so it comes from the stored
+        // manifest path -- see `resolveStoredObjectPath`.
+        const stored = await resolveStoredObjectPath(payload.sceneId, payload.captureId);
+        if (stored) {
+          await writeCompletionMarker({
+            sceneId: payload.sceneId,
+            captureId: payload.captureId,
+            rawPrefix: stored.rawPrefix,
+            objectPath: stored.objectPath,
+          });
+        } else {
+          logger.error(
+            { requestId: payload.requestId, captureId: payload.captureId },
+            "Privacy screen cleared on retry but the stored video could not be located",
+          );
+        }
       }
     }
   } catch (error) {
@@ -545,11 +642,26 @@ router.get("/:token", async (req: Request, res: Response) => {
 
   const authorization = await authorizeCaptureUpload(payload.requestId);
 
+  // What the Blueprint app needs to record a bundle for this link: the
+  // server-issued ids, the rights binding, and whether something is already
+  // stored. Additive; the browser page ignores it. Absent when storage cannot be
+  // read, which the app treats as "try again", never as "nothing stored".
+  let bundle: Awaited<ReturnType<typeof describeBundleLink>> | null = null;
+  const bundleStorage = resolveBundleStorage();
+  if (bundleStorage) {
+    try {
+      bundle = await describeBundleLink(payload, bundleServiceDeps(bundleStorage));
+    } catch (error) {
+      logger.warn({ error, captureId: payload.captureId }, "Could not describe the app bundle state for a link");
+    }
+  }
+
   return res.json({
     ok: true,
     captureId: payload.captureId,
     expiresAt: new Date(payload.exp * 1000).toISOString(),
     accepts: [...ALLOWED_EXTENSIONS],
+    ...(bundle ? { bundle } : {}),
     state: authorization.allowed ? "ready" : "held",
     holdReason: authorization.holdReason,
     detail: authorization.detail,
@@ -586,6 +698,11 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
   const file = req.file;
   if (!file || !file.size) {
     return res.status(400).json({ error: "No video was attached." });
+  }
+
+  if (await refuseIfAppBundle(payload, res)) {
+    await discardUploadedFile(file);
+    return;
   }
 
   const extension = extensionOf(file.originalname);
@@ -783,6 +900,7 @@ router.put(
     if (!part || !part.size) {
       return res.status(400).json({ error: "That part was empty." });
     }
+    if (await refuseIfAppBundle(payload, res)) return;
     if (!storageAdmin) {
       return res.status(503).json({ error: "Uploads are unavailable right now." });
     }
@@ -834,6 +952,7 @@ router.post("/:token/parts/complete", async (req: Request, res: Response) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "We could not read that upload's details." });
   }
+  if (await refuseIfAppBundle(payload, res)) return;
 
   const extension = parsed.data.extension.toLowerCase();
   if (!ALLOWED_EXTENSIONS.has(extension)) {
@@ -903,6 +1022,71 @@ router.post("/:token/parts/complete", async (req: Request, res: Response) => {
   await discardParts(bucket, rawPrefix);
 
   return res.status(outcome.status).json(outcome.body);
+});
+
+/* ------------------------------------------------------------ app bundle routes */
+
+/** Token → 404, live permission → 409, storage → 503, as every upload route. */
+async function bundleGate(req: Request, res: Response) {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    res.status(404).json({ error: "This upload link is not valid or has expired." });
+    return null;
+  }
+  const authorization = await authorizeCaptureUpload(payload.requestId);
+  if (!authorization.allowed) {
+    res.status(409).json({
+      error: authorization.detail || "This capture cannot start yet.",
+      code: authorization.holdReason || "capture_held",
+      blockers: authorization.blockers,
+    });
+    return null;
+  }
+  const storage = resolveBundleStorage();
+  if (!storage) {
+    res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
+    return null;
+  }
+  return { payload, deps: bundleServiceDeps(storage) };
+}
+
+router.post("/:token/bundle", async (req: Request, res: Response) => {
+  const gate = await bundleGate(req, res);
+  if (!gate) return;
+  try {
+    const outcome = await acceptBundlePlan(gate.payload, req.body, gate.deps);
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(outcome.status).json(outcome.body);
+  } catch (error) {
+    logger.error({ error, captureId: gate.payload.captureId }, "Could not accept an app bundle plan");
+    return res.status(503).json({ error: "We could not start your upload. It will be retried." });
+  }
+});
+
+router.post("/:token/bundle/targets", async (req: Request, res: Response) => {
+  const gate = await bundleGate(req, res);
+  if (!gate) return;
+  try {
+    const outcome = await mintMoreTargets(gate.payload, req.body, gate.deps);
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(outcome.status).json(outcome.body);
+  } catch (error) {
+    logger.error({ error, captureId: gate.payload.captureId }, "Could not mint app bundle upload targets");
+    return res.status(503).json({ error: "We could not continue your upload. It will be retried." });
+  }
+});
+
+router.post("/:token/bundle/complete", async (req: Request, res: Response) => {
+  const gate = await bundleGate(req, res);
+  if (!gate) return;
+  try {
+    const outcome = await completeBundle(gate.payload, req.body, gate.deps);
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(outcome.status).json(outcome.body);
+  } catch (error) {
+    logger.error({ error, captureId: gate.payload.captureId }, "Could not complete an app bundle upload");
+    return res.status(503).json({ error: "We could not finish your upload. It will be retried." });
+  }
 });
 
 /** Phone-camera image formats a site will actually send. */

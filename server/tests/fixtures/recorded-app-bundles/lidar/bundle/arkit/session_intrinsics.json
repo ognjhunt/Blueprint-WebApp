@@ -1,0 +1,75 @@
+{
+  "camera_ray_convention" : "arkit_x_right_y_up_z_backward",
+  "pixel_orientation" : "encoded_source_no_autorotate",
+  "schema_version" : "arkit_session_intrinsics.v2",
+  "intrinsics" : {
+    "fy" : 500,
+    "fx" : 500,
+    "width" : 640,
+    "cx" : 320,
+    "height" : 480,
+    "cy" : 240
+  },
+  "camera_model" : "pinhole",
+  "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "camera_identity" : {
+    "has_scene_depth_semantics" : true,
+    "uses_ar_session_recorder" : true,
+    "position" : "back",
+    "arkit_managed_camera" : true,
+    "capture_authority" : "arkit_arframe_captured_image",
+    "calibration_authority" : "arkit_arframe_exact_per_observation"
+  },
+  "exposure_settings" : {
+    "white_balance_mode" : "automatic",
+    "mode" : "arSession"
+  },
+  "distortion_coeffs" : [
+
+  ],
+  "calibration_identity" : {
+    "binding" : {
+      "session_intrinsics_source" : "arkit/intrinsics.json",
+      "camera_identity" : {
+        "has_scene_depth_semantics" : true,
+        "uses_ar_session_recorder" : true,
+        "position" : "back",
+        "arkit_managed_camera" : true,
+        "capture_authority" : "arkit_arframe_captured_image",
+        "calibration_authority" : "arkit_arframe_exact_per_observation"
+      },
+      "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+      "authority" : "arkit_arframe_exact_per_observation",
+      "intrinsics_source" : "arkit/frames.jsonl",
+      "session_intrinsics" : {
+        "fy" : 500,
+        "fx" : 500,
+        "width" : 640,
+        "cx" : 320,
+        "height" : 480,
+        "cy" : 240
+      },
+      "scope" : "coordinate_frame_session",
+      "pixel_orientation" : "encoded_source_no_autorotate"
+    },
+    "calibration_digest" : "sha256:8510c6d3480492b84e0b6606b447e4cdc8dcb61b801735bc7a9cc613c65b63ad"
+  },
+  "distortion_model" : "arkit_managed_not_portably_declared",
+  "rolling_shutter_model" : "not_declared",
+  "principal_point_reference" : "full_resolution_image",
+  "camera_intrinsics" : {
+    "resolution_height" : 480,
+    "resolution_width" : 640,
+    "intrinsic_matrix" : [
+      500,
+      0,
+      0,
+      0,
+      500,
+      0,
+      320,
+      240,
+      1
+    ]
+  }
+}

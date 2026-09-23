@@ -146,7 +146,7 @@ export const captureModeField = {
       value: "self_capture" as const,
       label: "We'll record it ourselves",
       detail:
-        "You film the work area on any phone and upload it. No app, no scheduling, and no restriction on where the site is.",
+        "You film the work area on any phone and upload it from a link. No account, no scheduling, and no restriction on where the site is.",
     },
     {
       value: "site_visit" as const,
@@ -173,7 +173,7 @@ export const defaultCaptureMode: CaptureMode = "site_visit";
  * What a site is offered first.
  *
  * The opposite of the scoring fallback, and for the opposite reason. Recording
- * their own workcell is the path that needs no scheduling, no app and no
+ * their own workcell is the path that needs no scheduling, no account and no
  * service area, so it is the one that should be in front of somebody by
  * default. Asking for a visit stays available and is one click away; it is just
  * no longer the front door, because making it the front door is what limited

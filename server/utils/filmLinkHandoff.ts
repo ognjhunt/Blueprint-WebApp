@@ -81,7 +81,7 @@ export async function sendFilmLinkHandoff(params: {
       to,
       body:
         `Blueprint: you've been asked to film a site walkthrough${clause}. ` +
-        `Open on your phone — no app needed: ${filmUrl}`,
+        `Open it on your phone to film — no account needed: ${filmUrl}`,
     });
     if (result.sent) return { sent: true, filmUrl };
     return {
@@ -97,7 +97,7 @@ export async function sendFilmLinkHandoff(params: {
     subject: "You've been asked to film a Blueprint site capture",
     text:
       `Someone has asked you to film a short walkthrough of a work area${clause} for a Blueprint robot evaluation.\n\n` +
-      `Open this link on your phone — no app to install, and about thirty seconds of the actual cycle is enough:\n${filmUrl}\n\n` +
+      `Open this link on your phone. On an iPhone it opens a small Blueprint camera when that is available; everywhere else the recorder opens in your browser. No account is needed, and about thirty seconds of the actual cycle is enough:\n${filmUrl}\n\n` +
       `You can record and upload from this link. Confirming the task details stays with the site operator who sent it to you.`,
     replyTo: "ops@tryblueprint.io",
   });

@@ -187,6 +187,13 @@ app.use(
     verify: captureRawBody,
   }),
 );
+// An app capture bundle plan lists every file of one Raw V3.2 recording — a
+// few thousand depth and confidence maps — so that one route parses with room
+// for it. Everything else keeps the default below.
+app.use(
+  /^\/api\/self-capture\/uploads\/[^/]+\/bundle$/,
+  express.json({ limit: process.env.SELF_CAPTURE_BUNDLE_PLAN_BODY_LIMIT || "8mb", verify: captureRawBody }),
+);
 app.use(express.json({ limit: defaultBodyLimit, verify: captureRawBody }));
 app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 

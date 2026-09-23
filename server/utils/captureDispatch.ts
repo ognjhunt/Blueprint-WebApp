@@ -55,7 +55,7 @@ import {
 } from "../../client/src/data/captureResidency";
 
 export type CaptureChannel =
-  /** The site films it. We send an upload link; no app, no scheduling. */
+  /** The site films it. We send an upload link; no account, no scheduling. */
   | "self_capture_upload"
   /** A capturer is dispatched. Austin metro only, because someone drives. */
   | "capturer_visit";

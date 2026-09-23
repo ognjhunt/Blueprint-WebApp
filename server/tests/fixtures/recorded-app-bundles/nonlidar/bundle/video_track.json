@@ -1,0 +1,21 @@
+{
+  "color_space" : "unknown",
+  "video_start_pts_sec" : 0,
+  "height" : 480,
+  "video_time_origin" : "first_decoded_sample_presentation_timestamp",
+  "frame_count_source" : "decoded_sample_presentation_timestamps",
+  "nominal_fps" : 14.892443656921387,
+  "t_video_semantics" : "decoded_source_pts_minus_video_start_pts",
+  "duration_sec" : 3.0216666666666665,
+  "contains_vfr" : true,
+  "codec" : "h264",
+  "orientation" : "portrait",
+  "frame_count" : 45,
+  "video_file" : "walkthrough.mov",
+  "decoded_pts_verified" : true,
+  "write_attempt_count" : 45,
+  "schema_version" : "v1",
+  "width" : 640,
+  "retained_frame_count" : 45,
+  "dropped_frame_count" : 0
+}

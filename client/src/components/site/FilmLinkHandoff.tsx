@@ -101,7 +101,7 @@ export function FilmLinkHandoff({ token }: { token: string }) {
 
       {send.status === "sent" && (
         <p className="ms-field-hint" style={{ marginTop: "8px", color: "var(--ms-ok, #157347)" }}>
-          Sent to {send.to} ✓ — they can open it on their phone, no app needed.
+          Sent to {send.to} ✓ — they open it on their phone and film from there. No account needed.
         </p>
       )}
       {send.status === "failed" && (
