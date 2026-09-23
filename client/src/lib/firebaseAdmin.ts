@@ -91,6 +91,12 @@ const firebaseAdminApp = initializeFirebaseAdmin();
 export const dbAdmin = firebaseAdminApp
   ? admin.firestore(firebaseAdminApp)
   : null;
+// Claude Code cloud sessions reach Google through a TLS-terminating egress
+// proxy; REST works through any HTTPS proxy where gRPC may not. Their
+// bootstrap sets this flag; nothing else does.
+if (dbAdmin && process.env.BLUEPRINT_FIRESTORE_PREFER_REST === "1") {
+  dbAdmin.settings({ preferRest: true });
+}
 export const storageAdmin = firebaseAdminApp
   ? admin.storage(firebaseAdminApp)
   : null;
