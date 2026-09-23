@@ -107,7 +107,7 @@ centred on the middle drawer front.
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; bounded CPU retry running** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The third `ac39dabb` attempt stopped in CAD/Blender on `credit_balance_exhausted`; the owner reported adding credits and extended the cumulative internal cap. A new `3c177ad5` release attempt was admitted and began CPU prestage at 14:34 UTC. No completed asset or room integration is proved. Captured-room integration remains unqualified. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; CPU authoring repair deploying** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The `3c177ad5` attempt completed CPU stages 1–2 and authored a cabinet carcass candidate, then stopped in stage 3 before the drawer repair request on `authoring_session_context_ceiling_exceeded`. The bounded fix merged as `15c94f6f` and its deploy is running; no controller retry has completed. No articulated asset or room integration is proved. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1159,3 +1159,38 @@ GPU guard reported zero live instances. This is a live bounded development
 fixture attempt, not a completed CAD/Blender asset, native qualification,
 policy episode, website result, or captured-room evaluation. The new OpenAI
 credit balance remains unverified until a successful bounded authoring call.
+
+## 2026-09-23: drawer author context failure and bounded repair
+
+The `3c177ad5` fixture launch completed CPU stages 1 and 2 and checkpointed
+both. Stage 3 authored the separate cabinet carcass candidate and rendered a
+first drawer candidate. Its independent visual review found that the drawer
+front was too cool and uniformly striped compared with original frames 0 and 3,
+and found black patches near the box corners and handle mounts. It requested a
+warmer wood finish, more natural grain, and removal of those artifacts. Before
+the author could make that correction, the per-request context gate refused the
+next GPT-6 Sol call with `authoring_session_context_ceiling_exceeded`. The
+archived CPU bundle retains the 22-row authoring conversation, original image
+references, visual review, and typed `failure.json`. The allocator result is
+`blocked` with `provider_mutations_performed: 0`; the process exited and the
+15:16:58 UTC global GPU guard passed with zero live instances. This is not a
+finished drawer, native import, policy episode, or website result.
+
+The old compactor kept older generated inspection images in the next request.
+Pipeline PR [#2136](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2136)
+merged as `15c94f6ffd700830de6278aa43b4c565499cd96f`. It selects progressively
+smaller, bounded inference views while keeping the original source and complete
+current repair turn, retaining the latest editable program when it fits. The
+80,000-unit ceiling, persistent history and spend gates are unchanged. All 34
+focused authoring/resume tests, changed-file Ruff, and hosted impacted/sentinel
+checks passed. A read-only replay of the saved drawer history as the `blueprint`
+service user fit at 76,811 units with a deliberately generous 40,000-unit
+non-history allowance, keeping the original source, current review, and latest
+render program. No provider call was made in that replay.
+
+Canonical canary deployment of that merge began as
+`blueprint-drawer-context-deploy-15c94f.service` at approximately 15:32 UTC;
+its receipt, live commit proof, controller recovery and next paid attempt remain
+unverified. The 14-step matrix remains unchanged except for this status note:
+step 10 and steps 12–14 are unproven, step 11 is partial, and captured-room
+registration remains unqualified.
