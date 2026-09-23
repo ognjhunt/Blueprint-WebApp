@@ -520,7 +520,7 @@ function summarizeEnv() {
   }
 
   return {
-    sendgridMissing: missingEnv(["SENDGRID_API_KEY", "SENDGRID_FROM_EMAIL"]),
+    resendMissing: missingEnv(["RESEND_API_KEY", "RESEND_FROM_EMAIL"]),
     citySenderVerification,
     humanReplyMissing,
     notionGrowthStudioMissing: missingEnv([

@@ -761,7 +761,7 @@ function requiredInputsForChecklistKey(input: {
       return /recipient-backed|fake|placeholder|contact/i.test(entry);
     }
     if (input.key === "reply_durability_resume") {
-      return /gmail|human_reply|sender|verification|sendgrid|reply/i.test(entry);
+      return /gmail|human_reply|sender|verification|resend|reply/i.test(entry);
     }
     return false;
   });

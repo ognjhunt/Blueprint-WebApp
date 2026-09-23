@@ -138,8 +138,8 @@ beforeEach(() => {
   executeCityLaunchSends.mockReset();
   resolveHistoricalRecipientEvidence.mockReset();
 
-  vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-  vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+  vi.stubEnv("RESEND_API_KEY", "sg-key");
+  vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
   vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
   vi.stubEnv("SEARCH_API_KEY", "");
   vi.stubEnv("SEARCH_API_PROVIDER", "");

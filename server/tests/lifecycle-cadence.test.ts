@@ -342,7 +342,7 @@ describe("email suppression ledger", () => {
       email: "buyer@robotics.co",
       scope: "lifecycle",
       reason: "unsubscribe",
-      source: "sendgrid:webhook",
+      source: "resend:webhook",
     });
 
     expect(await isEmailSuppressed("buyer@robotics.co", "lifecycle")).toBe(true);
@@ -350,7 +350,7 @@ describe("email suppression ledger", () => {
       email: "buyer@robotics.co",
       suppressed_scopes: ["lifecycle"],
       reason: "unsubscribe",
-      source: "sendgrid:webhook",
+      source: "resend:webhook",
     });
   });
 });

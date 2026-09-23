@@ -111,10 +111,7 @@ function hasAny(...keys) {
 }
 
 function getEmailTransportStatus() {
-  return Boolean(
-    (envValue("SENDGRID_API_KEY") && envValue("SENDGRID_FROM_EMAIL"))
-    || (envValue("SMTP_HOST") && envValue("SMTP_PORT") && envValue("SMTP_USER") && envValue("SMTP_PASS")),
-  );
+  return Boolean(envValue("RESEND_API_KEY") && envValue("RESEND_FROM_EMAIL"));
 }
 
 const checks = [
@@ -193,7 +190,7 @@ const checks = [
     label: "Email delivery",
     ok: getEmailTransportStatus(),
     required: [
-      "(SENDGRID_API_KEY + SENDGRID_FROM_EMAIL) | (SMTP_HOST + SMTP_PORT + SMTP_USER + SMTP_PASS)",
+      "RESEND_API_KEY + RESEND_FROM_EMAIL",
     ],
   },
   {
@@ -246,7 +243,7 @@ function configuredProviderKeys() {
 
 function buildNeedsHumanChecks() {
   const needsHuman = [];
-  const senderEmail = envValue("BLUEPRINT_CITY_LAUNCH_FROM_EMAIL", "SENDGRID_FROM_EMAIL");
+  const senderEmail = envValue("BLUEPRINT_CITY_LAUNCH_FROM_EMAIL", "RESEND_FROM_EMAIL");
   const senderVerification = envValue("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION").toLowerCase();
   if (senderEmail && senderVerification !== "verified") {
     needsHuman.push({

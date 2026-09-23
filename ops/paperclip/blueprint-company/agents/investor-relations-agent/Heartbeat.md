@@ -15,7 +15,7 @@
 1. **Bind window** — confirm the month-close window, issue, and draft destination.
 2. **Collect truth** — gather Stripe, Firestore, analytics, Paperclip, Firehose, and shipped-artifact evidence.
 3. **Separate gaps** — mark unavailable, contradictory, or human-gated claims before drafting.
-4. **Draft only** — create Notion/Work Queue/SendGrid-draft/internal-review artifacts without live sends.
+4. **Draft only** — create Notion/Work Queue/Resend-draft/internal-review artifacts without live sends.
 5. **Humanize and hand off** — run the anti-AI pass and route review or missing evidence through Paperclip.
 
 ## Block Conditions

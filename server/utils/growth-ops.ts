@@ -116,7 +116,7 @@ function buildLifecycleEmail(params: {
 }
 
 function normalizeCampaignEventType(value: unknown) {
-  const raw = normalizeString(value).toLowerCase().replace(/[\s-]+/g, "_");
+  const raw = normalizeString(value).toLowerCase().replace(/^email\./, "").replace(/[\s-]+/g, "_");
   if (!raw) return "unknown";
 
   if (["sent", "send", "accepted", "queued", "processed"].includes(raw)) return "sent";
@@ -243,7 +243,7 @@ export async function createGrowthCampaignDraft(params: {
     || params.automationContext?.recipientEvidenceRequired === true
     || params.automationContext?.requiresRecipientEvidence === true;
   const creativeContext = await latestCreativeRunContext();
-  const channel = "sendgrid";
+  const channel = "resend";
   const createdAtIso = new Date().toISOString();
 
   const ref = await db.collection("growthCampaigns").add({
@@ -258,7 +258,7 @@ export async function createGrowthCampaignDraft(params: {
     recipient_evidence: Array.isArray(params.recipientEvidence)
       ? params.recipientEvidence
       : [],
-    delivery_provider: getEmailTransportStatus().provider || "sendgrid",
+    delivery_provider: getEmailTransportStatus().provider || "resend",
     creative_context: creativeContext,
     automation_context:
       params.automationContext && typeof params.automationContext === "object"
@@ -320,7 +320,7 @@ export async function queueGrowthCampaignSend(params: {
   }
 
   const campaign = doc.data() as Record<string, unknown>;
-  const channel = normalizeString(campaign.channel) || "sendgrid";
+  const channel = normalizeString(campaign.channel) || "resend";
   const recipientEmails = normalizeRecipientEmails(campaign.recipient_emails);
   const recipientEvidenceRequired = campaign.recipient_evidence_required === true
     || (
@@ -340,7 +340,7 @@ export async function queueGrowthCampaignSend(params: {
       : null;
 
   if (recipientEmails.length === 0) {
-    throw new Error("Campaign has no recipients configured for SendGrid delivery.");
+    throw new Error("Campaign has no recipients configured for Resend delivery.");
   }
 
   const result = await executeAction({
@@ -704,7 +704,7 @@ export async function verifyGrowthIntegrations() {
   };
 }
 
-export async function ingestSendGridWebhook(payload: unknown) {
+export async function ingestResendWebhook(payload: unknown, webhookId: string) {
   if (!db) {
     throw new Error("Database not available");
   }
@@ -713,28 +713,33 @@ export async function ingestSendGridWebhook(payload: unknown) {
   const results: Array<Record<string, unknown>> = [];
 
   for (const item of events) {
-    const event = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const envelope = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const event = envelope.data && typeof envelope.data === "object"
+      ? envelope.data as Record<string, unknown>
+      : {};
+    const tags = event.tags && typeof event.tags === "object"
+      ? event.tags as Record<string, unknown>
+      : {};
     const localCampaignId =
-      normalizeString(event.bp_campaign_id) ||
-      normalizeString(event.campaign_id) ||
+      normalizeString(tags.bp_campaign_id) ||
+      normalizeString(tags.campaign_id) ||
       null;
-    const eventType = normalizeCampaignEventType(event.event);
-    const recipient = normalizeString(event.email);
-    const receivedAtIso =
-      typeof event.timestamp === "number"
-        ? new Date(event.timestamp * 1000).toISOString()
-        : new Date().toISOString();
+    const eventType = normalizeCampaignEventType(envelope.type);
+    const recipient = Array.isArray(event.to) ? normalizeString(event.to[0]) : "";
+    const receivedAtIso = normalizeString(envelope.created_at) || new Date().toISOString();
+    const eventRef = db.collection("growth_campaign_events").doc(webhookId);
+    if ((await eventRef.get()).exists) continue;
 
-    await db.collection("growth_campaign_events").add({
+    await eventRef.create({
       campaign_id: localCampaignId || "unknown",
       local_campaign_id: localCampaignId,
-      sendgrid_message_id: normalizeString(event.sg_message_id),
+      resend_email_id: normalizeString(event.email_id),
       event_type: eventType,
       recipient,
-      payload: event,
+      payload: envelope,
       received_at_iso: receivedAtIso,
       received_at: admin.firestore.FieldValue.serverTimestamp(),
-      source: "sendgrid",
+      source: "resend",
     });
 
     if (localCampaignId) {
@@ -754,12 +759,19 @@ export async function ingestSendGridWebhook(payload: unknown) {
       );
     }
 
-    if (recipient && (eventType === "unsubscribed" || eventType === "complained")) {
+    const bounce = event.bounce && typeof event.bounce === "object"
+      ? event.bounce as Record<string, unknown>
+      : {};
+    const shouldSuppress = eventType === "unsubscribed"
+      || eventType === "complained"
+      || eventType === "suppressed"
+      || (eventType === "bounced" && normalizeString(bounce.type).toLowerCase() === "permanent");
+    if (recipient && shouldSuppress) {
       await recordEmailSuppression({
         email: recipient,
         scope: ["lifecycle", "growth_campaign"],
-        reason: eventType === "complained" ? "complaint" : "unsubscribe",
-        source: "sendgrid:webhook",
+        reason: eventType === "complained" ? "complaint" : eventType,
+        source: "resend:webhook",
         campaignId: localCampaignId,
       });
     }

@@ -7,8 +7,8 @@ afterEach(() => {
 
 describe("city launch outbound readiness", () => {
   it("blocks when no recipient-backed direct-outreach send exists", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "sg-key");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
     vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
 
     const { assessCityLaunchOutboundReadiness } = await import("../utils/cityLaunchSendExecutor");
@@ -24,7 +24,7 @@ describe("city launch outbound readiness", () => {
   });
 
   it("blocks when email transport is not configured", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "");
+    vi.stubEnv("RESEND_API_KEY", "");
     vi.stubEnv("SMTP_HOST", "");
     vi.stubEnv("SMTP_PORT", "");
     vi.stubEnv("SMTP_USER", "");
@@ -71,8 +71,8 @@ describe("city launch outbound readiness", () => {
   });
 
   it("blocks live readiness when sender verification cannot be proven programmatically", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "sg-key");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
 
     const { assessCityLaunchOutboundReadiness } = await import("../utils/cityLaunchSendExecutor");
     const result = assessCityLaunchOutboundReadiness({
@@ -113,8 +113,8 @@ describe("city launch outbound readiness", () => {
   });
 
   it("holds recipient-backed first buyer sends for founder approval", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "sg-key");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
     vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
 
     const { assessCityLaunchOutboundReadiness } = await import("../utils/cityLaunchSendExecutor");
@@ -159,8 +159,8 @@ describe("city launch outbound readiness", () => {
   });
 
   it("keeps reserved recipient emails out of recipient-backed readiness", async () => {
-    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
-    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("RESEND_API_KEY", "sg-key");
+    vi.stubEnv("RESEND_FROM_EMAIL", "launches@tryblueprint.io");
     vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
 
     const { assessCityLaunchOutboundReadiness } = await import("../utils/cityLaunchSendExecutor");

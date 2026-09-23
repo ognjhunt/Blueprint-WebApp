@@ -170,9 +170,9 @@ export function buildGrowthIntegrationSummary(params?: {
       recipientsConfigured: Boolean(getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS")),
       note: marketSignalProvider.note,
     },
-    sendgrid: email,
-    sendgridWebhook: {
-      configured: Boolean(getConfiguredEnvValue("SENDGRID_EVENT_WEBHOOK_SECRET")),
+    resend: email,
+    resendWebhook: {
+      configured: Boolean(getConfiguredEnvValue("RESEND_WEBHOOK_SECRET")),
     },
     googleImage: getGoogleCreativeStatus(params?.googleImage),
   };

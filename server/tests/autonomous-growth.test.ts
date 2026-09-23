@@ -81,7 +81,7 @@ beforeEach(() => {
   vi.stubEnv("FIREHOSE_BASE_URL", "https://firehose.test");
   vi.stubEnv("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS", "warehouse robotics,field robotics deployment");
   vi.stubEnv("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS", "ops@tryblueprint.io,team@tryblueprint.io");
-  vi.stubEnv("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL", "sendgrid");
+  vi.stubEnv("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL", "resend");
   createGrowthCampaignDraft.mockResolvedValue({
     id: "campaign-1",
   });
@@ -253,7 +253,7 @@ describe("runAutonomousResearchOutboundLoop", () => {
     expect(queueGrowthCampaignSend).not.toHaveBeenCalled();
   });
 
-  it("queues a sendgrid campaign when recipients exist", async () => {
+  it("queues a resend campaign when recipients exist", async () => {
     mockFetchJson({
       items: [
         {
@@ -280,7 +280,7 @@ describe("runAutonomousResearchOutboundLoop", () => {
     ]);
     expect(createGrowthCampaignDraft).toHaveBeenCalledWith(
       expect.objectContaining({
-        channel: "sendgrid",
+        channel: "resend",
         recipientEmails: ["ops@tryblueprint.io", "team@tryblueprint.io"],
         recipientEvidenceRequired: true,
         automationContext: expect.objectContaining({

@@ -749,7 +749,7 @@ async function sendLedgeredConfirmationEmail(params: {
       if (!emailStatus.configured) {
         return summarizeLedgerActionResult(
           "blocked_missing_config",
-          "SMTP is not configured for post-signup email delivery.",
+          "Resend is not configured for post-signup email delivery.",
           { retryable: true },
         );
       }
@@ -761,10 +761,10 @@ async function sendLedgeredConfirmationEmail(params: {
       });
 
       return emailResult.sent
-        ? summarizeLedgerActionResult("executed", `Sent confirmation email to ${params.to}.`, {
+        ? summarizeLedgerActionResult("executed", `Resend accepted confirmation email to ${params.to}.`, {
             id: null,
           })
-        : summarizeLedgerActionResult("failed", "SMTP send failed for the post-signup confirmation email.");
+        : summarizeLedgerActionResult("failed", "Resend rejected the post-signup confirmation email.");
     },
   });
 }

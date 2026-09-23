@@ -113,7 +113,7 @@ curl -fsS "$PAPERCLIP_API_URL/api/issues/$PAPERCLIP_TASK_ID" \
 ## Outputs
 - Weekly community update draft → Notion
 - Review item → Notion Work Queue
-- Draft community email campaign → SendGrid-backed draft path
+- Draft community email campaign → Resend-backed draft path
 - Internal growth digest → Slack
 
 ## Human Gates

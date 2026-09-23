@@ -86,7 +86,7 @@ const DEFAULT_ALLOWED_VENDOR_TOKENS_BY_CATEGORY: Record<CityLaunchBudgetCategory
     "google workspace",
     "linkedin",
     "paperclip",
-    "sendgrid",
+    "resend",
   ],
   community: [
     "eventbrite",
@@ -104,7 +104,7 @@ const DEFAULT_ALLOWED_VENDOR_TOKENS_BY_CATEGORY: Record<CityLaunchBudgetCategory
     "openai",
     "paperclip",
     "render",
-    "sendgrid",
+    "resend",
     "stripe",
     "vercel",
   ],

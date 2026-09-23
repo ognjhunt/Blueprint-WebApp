@@ -59,6 +59,15 @@ npm run test:coverage
 npm run test:e2e
 ```
 
+## Cloud sessions
+
+- A Claude Code cloud session (claude.ai/code) starts with `bash scripts/cloud/bootstrap.sh`, then
+  `bash scripts/cloud/doctor.sh`; clear every FAIL before driving a scene. Single-repo sessions
+  already run bootstrap in the background from a SessionStart hook, and `. ~/.blueprint-cloud/env.sh`
+  gives a shell the Pipeline virtualenv, the pinned uv and the operator door URL.
+- The procedure, environment values and constraints live in `docs/runbooks/cloud-scene-runs.md`.
+- Host access goes through the Pipeline repo's `scripts/operator_door.py`, never SSH.
+
 ## gstack
 
 - Use the repo-local gstack install at `.agents/skills/gstack` when you need slash-skill workflows.

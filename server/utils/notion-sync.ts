@@ -211,7 +211,7 @@ function normalizeContentAssetType(value: unknown) {
 }
 
 function normalizeReviewChannels(values: unknown) {
-  const allowed = new Set(["sendgrid", "landing_page", "hosted_review", "web"]);
+  const allowed = new Set(["resend", "sendgrid", "landing_page", "hosted_review", "web"]);
   const normalized = normalizeStringArray(values).map((value) => value.toLowerCase());
   if (normalized.length === 0) {
     return ["other"];
@@ -551,7 +551,7 @@ async function syncCampaignDrafts(params: {
           Name: titleProperty(normalizeString(data.name) || doc.id),
           "Campaign ID": richTextProperty(doc.id),
           Subject: richTextProperty(normalizeString(data.subject)),
-          Channel: selectProperty(normalizeString(data.channel) || "sendgrid"),
+          Channel: selectProperty(normalizeString(data.channel) || "resend"),
           "Send Status": selectProperty(normalizeCampaignSendStatus(data.send_status)),
           "Recipient Count": numberProperty(data.recipient_count),
           "Creative Run ID": richTextProperty(normalizeString(creativeContext.creative_run_id)),
@@ -560,7 +560,7 @@ async function syncCampaignDrafts(params: {
           "Last Event Type": richTextProperty(normalizeString(responseTracking.last_event_type)),
           "Last Recipient": emailProperty(normalizeString(responseTracking.last_recipient)),
           "Last Synced At": dateProperty(params.syncedAtIso),
-          "Authoritative Source": selectProperty("WebApp API / SendGrid"),
+          "Authoritative Source": selectProperty("WebApp API / Resend"),
         },
       });
       incrementCounts(counts, status);
@@ -673,13 +673,13 @@ async function syncIntegrationChecks(params: {
         summary.researchOutbound && typeof summary.researchOutbound === "object"
           ? (summary.researchOutbound as Record<string, any>)
           : {};
-      const sendgrid =
-        summary.sendgrid && typeof summary.sendgrid === "object"
-          ? (summary.sendgrid as Record<string, any>)
+      const resend =
+        summary.resend && typeof summary.resend === "object"
+          ? (summary.resend as Record<string, any>)
           : {};
-      const sendgridWebhook =
-        summary.sendgridWebhook && typeof summary.sendgridWebhook === "object"
-          ? (summary.sendgridWebhook as Record<string, any>)
+      const resendWebhook =
+        summary.resendWebhook && typeof summary.resendWebhook === "object"
+          ? (summary.resendWebhook as Record<string, any>)
           : {};
       const googleImage =
         summary.googleImage && typeof summary.googleImage === "object"
@@ -697,8 +697,10 @@ async function syncIntegrationChecks(params: {
           "Checked At": dateProperty(
             normalizeString(data.verified_at_iso) || extractTimestampFromFirestore(data.verified_at),
           ),
-          "SendGrid Configured": checkboxProperty(sendgrid.configured === true),
-          "SendGrid Webhook Configured": checkboxProperty(sendgridWebhook.configured === true),
+          // Existing Notion databases still have the historical columns. Keep
+          // them truthful and put Resend state in Notes until their schema is migrated.
+          "SendGrid Configured": checkboxProperty(false),
+          "SendGrid Webhook Configured": checkboxProperty(false),
           "Google Image Configured": checkboxProperty(googleImage.configured === true),
           "Google Image State": selectProperty(normalizeString(googleImage.executionState) || "not_configured"),
           "Runway Configured": checkboxProperty(runway.configured === true),
@@ -714,6 +716,8 @@ async function syncIntegrationChecks(params: {
               normalizeString(analytics.alignment?.note),
               normalizeString(googleImage.note),
               normalizeString(googleImage.lastError),
+              `resend_configured:${resend.configured === true}`,
+              `resend_webhook_configured:${resendWebhook.configured === true}`,
               `last_synced_at:${params.syncedAtIso}`,
             ),
           ),

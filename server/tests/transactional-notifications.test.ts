@@ -66,7 +66,7 @@ beforeEach(() => {
   state.docs.clear();
   state.sendEmail.mockReset().mockResolvedValue({
     sent: true,
-    provider: "sendgrid",
+    provider: "resend",
     messageId: "sg-message-1",
   });
   state.sendPush.mockReset().mockResolvedValue("push-message-1");
@@ -116,7 +116,7 @@ describe("transactional notifications", () => {
         subject_id: "evaluation-run-1",
         channel: "email",
         status: "sent",
-        delivery_provider: "sendgrid",
+        delivery_provider: "resend",
         provider_message_id: "sg-message-1",
         data: expect.objectContaining({ result_url: "/app/results/result-record-1" }),
       }),
@@ -128,7 +128,7 @@ describe("transactional notifications", () => {
       .mockReset()
       .mockResolvedValueOnce({
         sent: false,
-        provider: "sendgrid",
+        provider: "resend",
         messageId: null,
         error: new Error("provider refused request"),
       })
@@ -157,7 +157,7 @@ describe("transactional notifications", () => {
 
     expect(failed.find((record) => record.channel === "email")).toMatchObject({
       status: "failed",
-      delivery_provider: "sendgrid",
+      delivery_provider: "resend",
     });
     expect(accepted.find((record) => record.channel === "email")).toMatchObject({
       status: "sent",

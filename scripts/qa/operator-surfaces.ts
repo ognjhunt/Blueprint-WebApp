@@ -423,7 +423,7 @@ const growthStudioFixture = {
         id: "growth-campaign-op-qa",
         name: "Exact-Site Hosted Review fixture campaign",
         subject: "Fixture campaign for local operator QA",
-        channel: "sendgrid",
+        channel: "resend",
         send_status: "draft",
         recipient_count: 0,
         last_ledger_doc_id: "ledger-op-qa",

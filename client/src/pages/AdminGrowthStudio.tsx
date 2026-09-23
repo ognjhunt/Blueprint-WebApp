@@ -821,8 +821,8 @@ export default function AdminGrowthStudio() {
                 <p>GA4 live access: {String(Boolean(verifyResult.analytics?.ga4?.liveAccessConfigured))}</p>
                 <p>GA4 measurement: {String(Boolean(verifyResult.analytics?.ga4?.configured))}</p>
                 <p>PostHog configured: {String(Boolean(verifyResult.analytics?.posthog?.configured))}</p>
-                <p>SendGrid configured: {String(Boolean(verifyResult.sendgrid?.configured))}</p>
-                <p>SendGrid webhook configured: {String(Boolean(verifyResult.sendgridWebhook?.configured))}</p>
+                <p>Resend configured: {String(Boolean(verifyResult.resend?.configured))}</p>
+                <p>Resend webhook configured: {String(Boolean(verifyResult.resendWebhook?.configured))}</p>
                 <p>Server-side image generation: disabled by policy</p>
                 <p>OpenRouter video configured: {String(Boolean(verifyResult.runway?.configured))}</p>
                 <p>ElevenLabs configured: {String(Boolean(verifyResult.elevenlabs?.configured))}</p>
@@ -1124,7 +1124,7 @@ export default function AdminGrowthStudio() {
                     Recent Campaigns
                   </p>
                   <p className="mt-2 text-sm text-runway-mute">
-                    Draft, approval, delivery, and response state from the local campaign store, with SendGrid as the default delivery path.
+                    Draft, approval, delivery, and response state from the local campaign store, with Resend as the default delivery path.
                   </p>
                 </div>
                 <button

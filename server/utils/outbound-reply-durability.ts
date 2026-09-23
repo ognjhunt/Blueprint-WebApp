@@ -81,10 +81,10 @@ export async function buildOutboundReplyDurabilityStatus(): Promise<OutboundRepl
       title: "Email transport is not configured",
       owner: "blueprint-chief-of-staff",
       exactAsk:
-        "Configure the production mail transport by providing either SendGrid credentials or SMTP credentials plus an approved Blueprint from address.",
+        "Configure Resend with a sending API key and an approved Blueprint from address.",
       requiredInputs: [
-        "SENDGRID_API_KEY or SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS",
-        "SENDGRID_FROM_EMAIL or BLUEPRINT_CITY_LAUNCH_FROM_EMAIL",
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL",
       ],
       safeProofCommand: safeAuditCommand,
       retryCondition:
@@ -102,7 +102,7 @@ export async function buildOutboundReplyDurabilityStatus(): Promise<OutboundRepl
       owner: "blueprint-chief-of-staff",
       exactAsk:
         "Set the approved outbound sender address for city-launch and human-blocker mail.",
-      requiredInputs: ["BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or SENDGRID_FROM_EMAIL"],
+      requiredInputs: ["BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or RESEND_FROM_EMAIL"],
       safeProofCommand: safeAuditCommand,
       retryCondition:
         "Rerun the safe audit after the live environment resolves a non-empty sender address.",
@@ -131,7 +131,7 @@ export async function buildOutboundReplyDurabilityStatus(): Promise<OutboundRepl
       retryCondition:
         "Rerun the safe audit after the provider verification is complete and the live env has the verified flag.",
       disallowedWorkaround:
-        "Do not treat configured SendGrid/SMTP credentials, Slack updates, dry-run sends, or first-send approvals as sender/domain proof.",
+        "Do not treat configured Resend credentials, Slack updates, dry-run sends, or first-send approvals as sender/domain proof.",
       resumeTarget: "city-launch send and human-blocker send paths may resume only after durability status is ready.",
     });
   }
@@ -139,11 +139,11 @@ export async function buildOutboundReplyDurabilityStatus(): Promise<OutboundRepl
   if (!sender.transport.configured) {
     addMissing(
       missingEnv,
-      "SENDGRID_API_KEY or SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS",
-      "SENDGRID_FROM_EMAIL or BLUEPRINT_CITY_LAUNCH_FROM_EMAIL",
+      "RESEND_API_KEY",
+      "RESEND_FROM_EMAIL",
     );
   } else if (!sender.sender.fromEmail) {
-    addMissing(missingEnv, "SENDGRID_FROM_EMAIL or BLUEPRINT_CITY_LAUNCH_FROM_EMAIL");
+    addMissing(missingEnv, "RESEND_FROM_EMAIL or BLUEPRINT_CITY_LAUNCH_FROM_EMAIL");
   }
 
   const ingestTokenConfigured = configured("BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN");

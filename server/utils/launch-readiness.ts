@@ -148,7 +148,7 @@ export function buildLaunchReadinessSnapshot() {
     !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim());
   const agentRuntimeReady = !anyAutomationEnabled || agentRuntime.configured;
   const outboundChannel = (
-    getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL") || "sendgrid"
+    getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL") || "resend"
   ).toLowerCase();
   const outboundRecipientsConfigured = Boolean(
     getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS"),
@@ -157,7 +157,7 @@ export function buildLaunchReadinessSnapshot() {
     getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS"),
   );
   const researchDeliveryReady =
-    outboundChannel === "sendgrid"
+    outboundChannel === "resend"
       ? emailTransport.configured && outboundRecipientsConfigured
       : false;
   const experimentAutorolloutReady = !automationFlags.experimentRollout || firebaseAdminReady;
@@ -267,15 +267,15 @@ export function buildLaunchReadinessSnapshot() {
       ready: emailReady,
       detail: emailRequired
         ? emailReady
-          ? "SMTP delivery is configured."
-          : "SMTP delivery is required but not fully configured."
-        : "SMTP delivery is not required.",
+          ? "Resend delivery is configured."
+          : "Resend delivery is required but not fully configured."
+        : "Resend delivery is not required.",
     },
     cityLaunchSender: {
       required: false,
       ready: Boolean(cityLaunchSender.fromEmail) && cityLaunchSender.verificationStatus !== "unverified",
       detail: !cityLaunchSender.fromEmail
-        ? "City-launch sender email is not configured. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or SENDGRID_FROM_EMAIL before claiming outbound city launchability."
+        ? "City-launch sender email is not configured. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or RESEND_FROM_EMAIL before claiming outbound city launchability."
         : cityLaunchSender.verificationStatus === "verified"
           ? `City-launch sender ${cityLaunchSender.fromEmail} is configured and manually marked verified.`
           : cityLaunchSender.verificationStatus === "unverified"
@@ -328,9 +328,9 @@ export function buildLaunchReadinessSnapshot() {
       detail: automationFlags.researchOutbound
         ? researchOutboundReady
           ? `Autonomous research outbound is configured for ${growthIntegrations.researchOutbound.providerKey || "market-signal"} discovery and the ${outboundChannel} delivery path.`
-          : outboundChannel === "sendgrid"
-            ? "Autonomous research outbound needs a configured market-signal provider, research topics, BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS, and a configured SendGrid/SMTP delivery path."
-            : `Autonomous research outbound channel "${outboundChannel}" is not supported. Use sendgrid.`
+          : outboundChannel === "resend"
+            ? "Autonomous research outbound needs a configured market-signal provider, research topics, BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS, and Resend delivery."
+            : `Autonomous research outbound channel "${outboundChannel}" is not supported. Use resend.`
         : "Autonomous research outbound is disabled.",
     },
     creativeFactory: {

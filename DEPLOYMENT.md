@@ -351,11 +351,11 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
   `VITE_FIREBASE_MEASUREMENT_ID` as the documented fallback alias when the GA-specific key is not set
 - Optional first-party growth event mirror:
   `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`
-- Optional SendGrid email delivery:
-  `SENDGRID_API_KEY`
-  `SENDGRID_FROM_EMAIL`
-  `SENDGRID_FROM_NAME`
-  `SENDGRID_EVENT_WEBHOOK_SECRET`
+- Optional Resend email delivery:
+  `RESEND_API_KEY`
+  `RESEND_FROM_EMAIL`
+  `RESEND_FROM_NAME`
+  `RESEND_WEBHOOK_SECRET`
 - Optional city-launch outbound sender overrides:
   `BLUEPRINT_CITY_LAUNCH_FROM_EMAIL`
   `BLUEPRINT_CITY_LAUNCH_FROM_NAME`
@@ -569,12 +569,15 @@ Post-signup automation also requires:
 - `GOOGLE_CALENDAR_ID`
 - `POST_SIGNUP_SPREADSHEET_ID` or `SPREADSHEET_ID`
 - `SLACK_WEBHOOK_URL`
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASS`
-- `SMTP_SECURE` (optional; `true` only for port 465)
-- `SMTP_FROM` (optional; defaults to the caller's sender, then `SMTP_USER`)
+- `RESEND_API_KEY` (server-only sending key)
+- `RESEND_FROM_EMAIL` (sender on a verified Resend domain)
+
+Resend accepts outbound application mail; the API response is a provider acceptance
+receipt, not inbox delivery proof. Configure the signed delivery webhook at
+`/api/growth/webhooks/resend` and set `RESEND_WEBHOOK_SECRET` from its webhook
+details to record delivery, bounce, and complaint events. Keep `hello@` and
+`support@` human replies on their existing mailbox/inbox route; Resend does not
+replace that inbox or the approved Gmail human-reply watcher.
 
 ## Notes
 

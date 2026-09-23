@@ -52,7 +52,7 @@ Produce Blueprint's weekly community update as a concise, human-sounding draft f
 ## Draft Artifact Workflow
 1. Create the long-form draft with `notion-write-knowledge`.
 2. Create the review artifact with `notion-write-work-queue`.
-3. If SendGrid or SMTP is configured, prepare the weekly email draft through the active growth-campaign draft path.
+3. If Resend is configured, prepare the weekly email draft through the active growth-campaign draft path.
 5. If Slack is configured, post an internal `#growth` draft-ready digest with `slack-post-digest`.
 
 ## Visual Handoff Rule

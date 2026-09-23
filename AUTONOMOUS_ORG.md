@@ -237,7 +237,7 @@ If live Paperclip is unavailable, the closeout should record the health/read com
 **Outputs:**
 - Investor update draft → Notion Knowledge DB
 - Review artifact → Notion Work Queue
-- Draft investor campaign → SendGrid-backed draft path (when configured)
+- Draft investor campaign → Resend-backed draft path (when configured)
 - Internal review note → Slack `#exec` (when configured)
 
 **Policy guardrails:** Any live send/publish, fundraising language, projections, runway claims, or board-sensitive disclosures.
@@ -442,7 +442,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Rejections and edge cases
 - Rights/privacy/commercial commitment cases
 
-**External needs:** Firestore read/write, SendGrid or email API (drafts), Notion API.
+**External needs:** Firestore read/write, Resend or email API (drafts), Notion API.
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
@@ -1394,7 +1394,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 **Outputs:**
 - Weekly update draft → Notion Knowledge DB
 - Review artifact → Notion Work Queue
-- Draft community campaign → SendGrid-backed draft path (when configured)
+- Draft community campaign → Resend-backed draft path (when configured)
 - Internal review note → Slack `#growth` (when configured)
 
 **Policy guardrails:** Any live send/publish, unsupported traction claims, sensitive rights/commercial disclosures, or persona variant that implies proof or adoption the source systems do not support.
@@ -1730,7 +1730,7 @@ Creative execution routing on this host is narrower than the general model ladde
 | Analytics (PostHog/GA4) | Analytics, Conversion, Growth Lead | P0 | Free tier | **Repo wired; account config still needed** |
 | Web Search API | Market Intel | P1 | ~$50/mo | **Configured** |
 | Slack Incoming Webhook | All leads + CEO | P1 | Free | **Configured** |
-| SendGrid / Email API | Intake, Finance/Support, Growth | P1 | Free tier | **Repo wired; account config still needed** |
+| Resend / Email API | Intake, Finance/Support, Growth | P1 | Free tier | **Repo wired; account config still needed** |
 | Codex OAuth image generation (`gpt-image-2`) | Growth, Community Updates, Robot Team Growth | P1 | Included with Codex lane availability | **Route through `webapp-codex`; no separate image API key path for final assets** |
 | Higgsfield MCP video generation (Seedance 2.0) | WebApp Codex, Growth Lead, Community Updates, Robot Team Growth, Capturer Growth | P1 | Higgsfield credits | **Agent-side MCP configured; requires Higgsfield account OAuth before use; use only through `higgsfield-creative-video`** |
 | ElevenLabs voice | Support, Growth, Buyer-facing demo booking | P1 | Usage-based | **Repo wired; key/voice config still needed** |

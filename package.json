@@ -144,7 +144,6 @@
     "@sentry/react": "^10.34.0",
     "@tanstack/react-query": "^5.60.5",
     "@types/google.maps": "^3.58.1",
-    "@types/nodemailer": "^7.0.3",
     "backblaze-b2": "^1.7.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.0",
@@ -158,9 +157,9 @@
     "lucide-react": "^0.453.0",
     "multer": "^2.3.0",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^9.1.1",
     "openai": "^4.104.0",
     "pino": "^9.9.5",
+    "pngjs": "^5.0.0",
     "posthog-js": "^1.364.1",
     "qrcode": "^1.5.4",
     "rate-limit-redis": "^4.3.1",
@@ -170,12 +169,12 @@
     "recharts": "^2.13.0",
     "redis": "^5.10.0",
     "remotion": "^4.0.438",
+    "resend": "^6.28.1",
     "stripe": "^17.5.0",
     "tailwind-merge": "^2.5.4",
     "validator": "^13.15.26",
     "wouter": "^3.3.5",
-    "zod": "3.25.76",
-    "pngjs": "^5.0.0"
+    "zod": "3.25.76"
   },
   "overrides": {
     "d3-color": "^3.1.0",

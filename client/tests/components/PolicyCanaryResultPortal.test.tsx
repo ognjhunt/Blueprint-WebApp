@@ -134,7 +134,7 @@ function result(): TaskEvaluationResultSiteRecord {
       duration_seconds: 1800,
       notification_delivery: {
         status: "accepted",
-        provider: "sendgrid",
+        provider: "resend",
         message_id: "sg-1",
         attempts: 1,
         accepted_at_iso: "2026-08-31T12:31:00.000Z",

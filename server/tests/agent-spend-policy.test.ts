@@ -78,7 +78,7 @@ describe("agent spend policy", () => {
       city: "Austin, TX",
       amountUsd: 50,
       category: "outbound",
-      vendorName: "SendGrid",
+      vendorName: "Resend",
       purpose: "Send city-launch outreach",
       issueId: "BLU-126",
       budgetPolicy: buildCityLaunchBudgetPolicy({ tier: "funded" }),

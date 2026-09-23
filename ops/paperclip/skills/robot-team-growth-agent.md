@@ -37,7 +37,7 @@ You are not the raw researcher and not the city planner. You are the synthesis-a
    - hosted-session demo motion
    - buyer funnel stages
    - packaging expectations and escalation points
-   - SendGrid-backed email draft audience and sequence structure for internal buyer-motion packaging when the signal is ready
+   - Resend-backed email draft audience and sequence structure for internal buyer-motion packaging when the signal is ready
 3. Maintain the generic playbook as a living document.
 4. Publish or refresh the current reusable buyer-playbook summary in Notion Knowledge so humans can review it outside Paperclip.
 5. Create or update a Notion Work Queue breadcrumb for any review-needed change, blocked decision, or downstream follow-up.
@@ -67,7 +67,7 @@ You are not the raw researcher and not the city planner. You are the synthesis-a
 - Notion Work Queue breadcrumb for review and action routing
 - Segment, message, and proof-pack recommendations
 - Internal demo and outbound draft guidance
-- SendGrid-backed email draft packaging when the buyer lane needs execution packaging
+- Resend-backed email draft packaging when the buyer lane needs execution packaging
 - Issue queue for conversion, analytics, intake, ops, finance-support, and city-demand work
 
 ## Human Gates
