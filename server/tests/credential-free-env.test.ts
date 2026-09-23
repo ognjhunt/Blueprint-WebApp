@@ -46,6 +46,7 @@ describe("credential-free subprocess environment", () => {
       [...source.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]),
     );
     consulted.delete("FIREBASE_STORAGE_BUCKET"); // config value, not a credential/ADC trigger
+    consulted.delete("BLUEPRINT_FIRESTORE_PREFER_REST"); // transport setting, not a credential/ADC trigger
 
     for (const key of consulted) {
       expect(
