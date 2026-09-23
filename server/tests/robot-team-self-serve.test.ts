@@ -20,9 +20,18 @@
 import express from "express";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState, fakeArrayUnion } from "./helpers/fake-firestore";
+import { listedTaskCard } from "./helpers/listedTaskCard";
+
+// Early access is covered in robot-team-early-access.test.ts. These tests are
+// about planning, spending and settling, so every team here is admitted.
+vi.mock("../utils/robotTeamEarlyAccess", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/robotTeamEarlyAccess")>()),
+  teamHasEarlyAccess: async () => true,
+}));
+
 
 // Runtime admission has its own contract suite. These exercise the authenticated
 // plan/payment wiring with an explicitly prepared execution fixture.
@@ -138,6 +147,8 @@ function seedOneRunnableSite() {
       },
     },
     site_task_triage: { disposition: "qualified" },
+    // Teams plan only against sites that shared a card.
+    public_task_listing: listedTaskCard(),
     // The attestation: the operator confirmed our reading of their evidence.
     site_task_brief_confirmed_at: "2026-09-17T00:00:00.000Z",
     // And a scene actually exists, which nothing checked before.

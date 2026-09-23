@@ -109,7 +109,7 @@ export default function Pricing() {
             */}
             <p className="ms-price-note"><strong>{entryModel.fairness}</strong></p>
             <a className="ms-text-link" href="/contact/robot-team">
-              Find a task for your robot <ArrowRight size={20} aria-hidden="true" />
+              Apply for early access <ArrowRight size={20} aria-hidden="true" />
             </a>
           </section>
         </div>
@@ -210,7 +210,7 @@ export default function Pricing() {
             Start a task assessment <ArrowRight size={20} aria-hidden="true" />
           </a>
           <a className="ms-text-link" href="/contact/robot-team">
-            Find a task for your robot <ArrowRight size={20} aria-hidden="true" />
+            Apply for early access <ArrowRight size={20} aria-hidden="true" />
           </a>
         </div>
       </article>

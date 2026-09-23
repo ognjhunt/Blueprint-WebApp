@@ -2,11 +2,9 @@ import { sanitizeTaskThumbnail } from "../utils/taskThumbnail";
 import { Router } from "express";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
-import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { listingConsentVersion, taskListingSchema } from "../utils/taskListingDetails";
-import { csrfProtection } from "../middleware/csrf";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 
 const router = Router();
@@ -66,20 +64,4 @@ router.route("/owner/:token")
     } catch { return res.status(503).json({ error: "The public card was not saved. Try again." }); }
   });
 
-const interestSchema = z.object({
-  email: z.string().trim().email().max(320), taskFamily: z.string().trim().max(60),
-  region: z.string().trim().max(80), siteType: z.string().trim().max(80),
-  mayContact: z.boolean(),
-}).strict();
-router.post("/interests", csrfProtection, async (req, res) => {
-  const parsed = interestSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Enter a valid email and task preference." });
-  if (!db) return res.status(503).json({ error: "Preferences unavailable" });
-  try {
-    const email = parsed.data.email.toLowerCase();
-    const id = createHash("sha256").update(email).digest("hex");
-    await db.collection("taskInterests").doc(id).set({ ...parsed.data, email, updatedAtIso: new Date().toISOString() });
-    return res.json({ ok: true });
-  } catch { return res.status(503).json({ error: "Your preferences were not saved. Try again." }); }
-});
 export default router;

@@ -355,7 +355,7 @@ describe("a site finds its way back to its own task", () => {
     expect(listed).toMatchObject({
       captureMode: "self_capture",
       paused: false,
-      listing: { approved: true, live: true, cardUrl: "/sites?sceneId=task-1" },
+      listing: { approved: true, live: true },
     });
     expect(operatorListingPaused(record)).toBe(false);
     expect(operatorListingPaused({ ...record, workspace_task: { archived: true } })).toBe(true);

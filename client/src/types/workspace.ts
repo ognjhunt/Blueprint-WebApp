@@ -61,7 +61,7 @@ export type WorkspaceTask = {
   /** Filmed by the site itself, or by a Blueprint visit. */
   captureMode?: "self_capture" | "site_visit" | null;
   /** The task card in the robot-team library, as the owner approved it. */
-  listing?: { approved: boolean; live: boolean; cardUrl: string | null } | null;
+  listing?: { approved: boolean; live: boolean } | null;
   /** The reconstructed scene can be opened from the task page. */
   sceneReady?: boolean;
   potentialMatches: number | null;

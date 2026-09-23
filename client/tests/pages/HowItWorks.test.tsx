@@ -16,7 +16,7 @@ describe("How it works", () => {
     expect(screen.getByText(/All robotics teams can apply/)).toBeInTheDocument();
     expect(screen.getByText(/clear reason to pause/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Start a task assessment" })).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.getByRole("link", { name: "Find a task for your robot" })).toHaveAttribute("href", "/contact/robot-team");
+    expect(screen.getByRole("link", { name: "Apply for early access" })).toHaveAttribute("href", "/contact/robot-team");
     expect(screen.queryByText(/quadruped|inspection/i)).not.toBeInTheDocument();
   });
 });

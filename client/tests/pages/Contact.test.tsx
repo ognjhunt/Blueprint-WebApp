@@ -45,7 +45,7 @@ describe("the site page", () => {
 
   it("points at the other persona and at a person", () => {
     render(<Contact />);
-    expect(screen.getByRole("link", { name: /building robots\? find a task/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /building robots\? apply for early access/i })).toHaveAttribute(
       "href",
       "/contact/robot-team",
     );
@@ -57,17 +57,35 @@ describe("the site page", () => {
 });
 
 describe("the robot page", () => {
-  it("leads with the task library, points back at sites, and asks for no application", () => {
+  it("shows a visitor outside early access the application, and points back at sites", async () => {
     mockLocation = "/contact/robot-team";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } }),
+    }));
     render(<Contact />);
-    expect(screen.getByRole("region", { name: "Task library" })).toBeInTheDocument();
+    expect(await screen.findByRole("form", { name: "Early access application" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Task library" })).toBeNull();
     expect(screen.getByRole("link", { name: /operate a site\? start here/i })).toHaveAttribute(
       "href",
       "/contact/site-operator",
     );
-    expect(screen.queryByRole("button", { name: "Send application" })).toBeNull();
     expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
+  });
+
+  it("shows an approved team the task library", async () => {
+    mockLocation = "/contact/robot-team";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [], access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false } }),
+    }));
+    render(<Contact />);
+    expect(await screen.findByRole("heading", { name: "The first site tasks are being prepared." })).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Early access application" })).toBeNull();
   });
 });
 
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: null, loading: false }) }));
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ currentUser: null, loading: false }),
+  useOptionalAuth: () => ({ currentUser: null, loading: false }),
+}));

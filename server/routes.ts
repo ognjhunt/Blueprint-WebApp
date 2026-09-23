@@ -1,4 +1,6 @@
 import taskListingsRouter from "./routes/task-listings";
+import robotTeamAccessRouter from "./routes/robot-team-access";
+import adminRobotTeamAccessRouter from "./routes/admin-robot-team-access";
 import type { Express } from "express";
 import createCheckoutSessionHandler from "./routes/api/create-checkout-session";
 import googlePlacesHandler from "./routes/api/google-places";
@@ -147,6 +149,14 @@ export function registerRoutes(app: Express) {
   app.post("/api/paperclip/ops-firestore-relay", paperclipOpsFirestoreRelayHandler);
   app.use("/api/slack", slackEventsRouter);
   app.use("/api/task-listings", taskListingsRouter);
+  // Robot-team early access: the public application, and the review queue.
+  app.use("/api/robot-team-access", csrfProtection, robotTeamAccessRouter);
+  app.use(
+    "/api/admin/robot-team-access",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminRobotTeamAccessRouter,
+  );
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
   app.use("/api/task-evaluation-runs", evaluationReadyRunsRouter);

@@ -439,6 +439,26 @@ export async function notifySlackFootageNeedsReview(options: {
   return sendSlackMessage(text, webhookUrl);
 }
 
+export async function notifySlackRobotTeamAccessApplication(options: {
+  name: string;
+  company: string;
+  email: string;
+  robot: string;
+  workWanted: string;
+}): Promise<{ sent: boolean; error?: unknown }> {
+  const webhookUrl =
+    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) {
+    logger.warn("No Slack webhook configured; a robot-team application has no bell");
+    return { sent: false };
+  }
+  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/robot-team-access`;
+  const text =
+    `:robot_face: *Robot-team early-access application* — ${options.name}, ${options.company} (${options.email})\n`
+    + `Robot: ${options.robot}\nWants to test on: ${options.workWanted}\nReview: ${adminUrl}`;
+  return sendSlackMessage(text, webhookUrl);
+}
+
 export async function sendSlackDirectMessage(
   message: string,
   options?: {

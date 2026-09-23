@@ -23,6 +23,14 @@ vi.mock("../utils/site-worlds", () => ({
   listPublicSiteWorlds: listPublicSiteWorldsMock,
 }));
 
+const viewer = vi.hoisted(() => ({ staff: true }));
+vi.mock("../utils/robotTeamLibraryAccess", () => ({
+  libraryAccessForRequest: async () => ({
+    gated: true, status: viewer.staff ? "approved" : "none", signedIn: viewer.staff,
+    emailVerified: viewer.staff, allowed: viewer.staff, staff: viewer.staff,
+  }),
+}));
+
 import siteWorldsRouter from "../routes/site-worlds";
 import type { SiteWorldCard } from "../../client/src/data/siteWorlds";
 import { buildSiteWorldSearchDoc, parseSiteWorldSearchQuery, searchPublicSiteWorlds } from "../retrieval/siteWorldSearch";
@@ -235,7 +243,21 @@ describe("site-world search ranking", () => {
 });
 
 describe("GET /api/site-worlds/search", () => {
-  it("returns explainable public search results before /:siteWorldId matching", async () => {
+  it("returns no site records to anyone but staff, because sites never agreed to be listed there", async () => {
+    viewer.staff = false;
+    try {
+      const response = await fetch(`${baseUrl}/api/site-worlds/search?q=whole%20foods&limit=5`);
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as any;
+      expect(payload.results).toEqual([]);
+      expect(payload.note).toMatch(/task library/);
+      expect((await fetch(`${baseUrl}/api/site-worlds/fixture-retail`)).status).toBe(404);
+    } finally {
+      viewer.staff = true;
+    }
+  });
+
+  it("returns explainable search results to staff before /:siteWorldId matching", async () => {
     const response = await fetch(`${baseUrl}/api/site-worlds/search?q=whole%20foods&limit=5`);
     expect(response.status).toBe(200);
     const payload = (await response.json()) as any;

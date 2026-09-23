@@ -97,6 +97,7 @@ import {
   runIdForReservation,
 } from "../utils/agentEvalRuns";
 import { createEvalPlanToken, verifyEvalPlanToken } from "../utils/evalPlanToken";
+import { EARLY_ACCESS_REQUIRED, teamHasEarlyAccess } from "../utils/robotTeamEarlyAccess";
 import { getRunForTeam, listRunsForTeam } from "../utils/agentRunResults";
 
 const router = Router();
@@ -454,6 +455,17 @@ async function requireAccountBoundTeam(teamId: string, res: Response): Promise<b
 }
 
 /**
+ * Refuse any call that shows site tasks or spends on them for a team outside
+ * early access. Registering, checkpoints and a team's own runs stay open;
+ * seeing sites does not.
+ */
+async function requireEarlyAccess(teamId: string, res: Response): Promise<boolean> {
+  if (await teamHasEarlyAccess(teamId)) return true;
+  res.status(403).json({ ...EARLY_ACCESS_REQUIRED, apply: EARLY_ACCESS_REQUIRED.apply });
+  return false;
+}
+
+/**
  * The admission for each selected line, preparing it first when a verified
  * account owns the team. Preparation is what used to be done by hand; it
  * builds nothing the records do not already establish, and a line it cannot
@@ -612,6 +624,7 @@ const PLANNING_PREVIEW_RUNS = 10;
 router.post("/plan", async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
+  if (!(await requireEarlyAccess(teamId, res))) return;
 
   const parsed = planSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -713,6 +726,7 @@ const runsSchema = z
 router.post("/runs", async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
+  if (!(await requireEarlyAccess(teamId, res))) return;
 
   const parsed = runsSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -1133,6 +1147,7 @@ router.post("/funding", async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
   if (!(await requireAccountBoundTeam(teamId, res))) return;
+  if (!(await requireEarlyAccess(teamId, res))) return;
 
   const parsed = fundingSchema.safeParse(req.body);
   if (!parsed.success) {

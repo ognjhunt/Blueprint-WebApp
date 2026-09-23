@@ -117,6 +117,10 @@ async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
     // runs — listing is the operator's lever, and this is where it bites.
     // Already-committed runs settle by their own contract.
     .filter((request) => operatorListingPaused(request) === false)
+    // A team sees only the card a site approved. A runnable site that never
+    // shared one is not offered, not even as "Task abc123": its existence
+    // and fit are the site's to share.
+    .filter((request) => approvedTaskDetails(request) !== null)
     .filter(isRunnableTask);
 }
 
