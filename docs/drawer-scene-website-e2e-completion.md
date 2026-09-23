@@ -107,7 +107,7 @@ centred on the middle drawer front.
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; CPU authoring blocked** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. Two CPU attempts reached articulated asset authoring but neither produced a complete cabinet-and-drawer asset or native import receipt. Captured-room integration remains unqualified. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; new CPU attempt running** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. Two earlier CPU attempts stopped before a complete cabinet-and-drawer asset. A third attempt began on `ac39dabb` after an owner-authorized cumulative spend extension; no authored asset or native import receipt has been observed yet. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1086,3 +1086,29 @@ simulation holds are $5 plus $13 against its fixed $20 limit, while another
 full articulated attempt is quoted at $13. No further paid attempt is implied
 by the code merge. Steps 10 and 12–14 remain unproven; step 11 remains a
 separately labeled development fixture handoff, not captured-room readiness.
+
+## 2026-09-23: owner grant and third fixture attempt
+
+The scene's original simulation authority was $20 through 18:50:52 UTC on
+2026-09-23. Signed terminal settlements stayed intact. The controller's
+evidence-bound budget projection retained $5 for one prior CPU attempt and
+$13 for the latest unreconciled attempt, or $18 in all; the next attempt
+quoted $7 CPU authoring plus $6 native compute. The owner explicitly
+authorized raising this scene's spend cap. The existing append-only owner
+grant set the cumulative simulation cap to **$31**, the minimum that admits
+one more $13 attempt, while keeping the 16-attempt limit and per-attempt
+limits. Grant digest:
+`sha256:2b657b24ebf6dc857714626fd31519a5676ef597d4debe0dab1c48e4be4b6851`.
+This is additional internal development exposure; the website's fixed $25
+task price and no-charge development handling were not changed.
+
+On deployed Pipeline commit `ac39dabb9af5b46dbb2f90a73d2edf1a3fee32bf`,
+the durable controller cleared `scene_intake_spend_cap_exhausted` on the
+same intent and source attempt `source-6fce2c277e294a9b03ffd3cf`.
+Activation materialized with no blockers. The WebApp accepted launch
+`website-52ff463bc7855063836d5861-ac39dabb-20260923t104154z-activation-auto-launch`
+with HTTP 202. Allocator admission was `admitted` with no blockers and the
+controller wrote `launch_started.json` at 12:21:05 UTC. As of 12:26 UTC,
+its live CPU prestage log had advanced to tick 4; no GPU instance, completed
+articulated asset, policy episode, or website result was proved. The run
+remains a development fixture and does not qualify the captured room.
