@@ -4,6 +4,25 @@ Date: 2026-09-23. Status: approved by the founder (host access "read + deploy",
 agent sign-in through the service account, host install gated on a second
 confirmation).
 
+## Revision after security review (2026-09-23)
+
+The review found that `stage-replay` (operate scope) and canary deploys
+(deploy scope) both ran unreviewed pushed code as root on the host. Both were
+removed before install:
+
+- The door deploys and self-upgrades only commits already on `origin/main`,
+  with no `mode` field. A `deploy` token can therefore ship merged code and
+  nothing else.
+- A failed stage is replayed inside the cloud session against inputs pulled
+  through the door (runbook step 6), where the VM has no provider credentials.
+- The root runner has no capabilities. Everything root writes under the spool
+  is root-owned, and only `pending/` is writable, through a `blueprint-door`
+  group that only the door unit has.
+
+Where the sections below mention `stage-replay`, canary mode or
+`CAP_DAC_OVERRIDE`, this revision supersedes them. The Pipeline repo's
+`docs/OPERATOR_DOOR.md` describes the installed design.
+
 ## Goal
 
 A Claude Code cloud session (claude.ai/code, Anthropic-hosted VM) can start and

@@ -3,8 +3,8 @@
 A cloud session (claude.ai/code, Anthropic-hosted VM) can drive a website
 scene end to end: both repositories with working toolchains, the source video,
 the website in headless Chromium (account-free upload and the signed-in robot
-team step), the Firestore authority, host observation, isolated stage replays
-and host deploys. What it cannot do is SSH: all cloud egress goes through an
+team step), the Firestore authority, host observation, stage replays against
+pulled inputs, and deploys of merged commits. What it cannot do is SSH: all cloud egress goes through an
 HTTPS proxy, so everything on the control-plane host goes through the
 **operator door** (BlueprintCapturePipeline `docs/OPERATOR_DOOR.md`).
 
@@ -186,16 +186,30 @@ Anything the door refuses comes back with its rule (`secret_name_refused`,
 
 ### 6. A stage fails: replay, fix, deploy
 
-1. Replay the failed child against a pushed candidate commit, in isolation (no
-   network, no GPU, no model call, never a paid phase):
-   `door replay --child sam31-<digest> --commit <sha> --wait`, then read
-   `door cat /var/lib/blueprint-operator-door/requests/results/<request id>.replay.json`.
+1. Replay the failed child in the session against your branch's code. Nothing
+   unreviewed runs on the host, and the VM has no provider credentials, so a
+   replay can never reach a paid call. The session runs as root, so mirror the
+   host paths and the job's absolute references resolve unchanged:
+
+   ```bash
+   q=/var/lib/blueprint/pipeline-control-plane/sam31-preparation-executions
+   door ls $q/failed --match 'sam31-<digest>*'        # or completed/, processing/
+   door pull $q/failed/sam31-<digest>.json $q/failed/sam31-<digest>.json
+   door pull $q/results/sam31-<digest>.json $q/results/sam31-<digest>.json
+   door cat $q/failed/sam31-<digest>.json              # names plan_ref.path and the inputs
+   door pull <plan directory under task-evaluation-inputs/prepared-references> <same path>
+   cd BlueprintCapturePipeline
+   python -m blueprint_pipeline.task_evaluation_stage_replay --child sam31-<digest>
+   ```
+
+   A missing input comes back as a blocker naming its path; pull that path and
+   rerun. Never pass `--allow-paid`.
 2. Fix on a branch, open a PR, merge when CI is green.
-3. Deploy: `door deploy <sha> --wait` (on main), or `door deploy <sha> --mode
-   canary --wait` for a pushed branch (development-only evidence). The door waits
-   for the progression oneshots to go idle, refuses while another deploy runs,
-   and the deploy tool refuses while a paid launch holds a Vast lock. It keeps
-   the configured-controls pause.
+3. Deploy the merged commit: `door deploy <sha on main> --wait`. The door only
+   deploys commits on `origin/main`. It waits for the progression oneshots to
+   go idle, refuses while another deploy runs, and the deploy tool refuses
+   while a paid launch holds a Vast lock. It keeps the configured-controls
+   pause.
 4. Confirm: `door status` shows `deployed.source_commit` equal to the sha,
    `commit_proven: true` and no blockers. Deploys quiesce timers; if the handoff
    listener did not come back, `door unit start
@@ -231,8 +245,8 @@ without its artifact.
   signed manifests, patch records to fake completion, or run modelling the
   controller cannot reproduce.
 - Never replay a paid stage against a live scene's ledger; its binding digests
-  collide with the real run's one-dispatch grants. The door's replay never
-  allows paid phases.
+  collide with the real run's one-dispatch grants. Replays run in the session,
+  without `--allow-paid`.
 - The preparation amendment is one-shot. Measure which limit is exhausted,
   usually attempts rather than dollars, before asking.
 - Controls stay paused; door deploys preserve that.

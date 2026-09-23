@@ -6,6 +6,10 @@
 
 **Architecture:** A stdlib-only "operator door" on the control-plane host exposes a token-authenticated HTTPS API behind Caddy (read endpoints served by an unprivileged sandboxed process, privileged actions spooled to a root oneshot). The WebApp repository carries the cloud-environment setup, bootstrap, doctor, media and sign-in tooling plus the runbook. Spec: `docs/superpowers/specs/2026-09-23-cloud-scene-run-parity-design.md`.
 
+> **Revised after security review:** stage replay and canary deploys were
+> removed from the door (they ran unreviewed code as root). See the spec's
+> revision section; the tasks below that build them are historical.
+
 **Tech Stack:** Python 3.10+ stdlib (host door, client), systemd 255, Caddy 2.11, bash, TypeScript via tsx, firebase-admin 13, Playwright 1.57, pytest, vitest.
 
 **Worktrees:**
