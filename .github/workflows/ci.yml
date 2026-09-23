@@ -62,6 +62,8 @@ jobs:
         run: npm run rules:parity
 
       - name: Typecheck
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run check
 
       - name: Claims guard (public-claims truthfulness gate)
