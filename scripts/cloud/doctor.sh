@@ -184,12 +184,14 @@ check_ffmpeg() {
 }
 
 check_chromium() {
-  local out rc
+  local out rc target=about:blank
+  # A real https page proves the browser trusts the egress proxy, not just that it starts.
+  [ "${offline:-0}" = 1 ] || target=$SITE_VERSION_URL
   if [ ! -d "$CLOUD_REPO_ROOT/node_modules/@playwright/test" ]; then
     result FAIL "chromium launch" "@playwright/test is not installed" "$FIX_BOOTSTRAP"
     return
   fi
-  out=$(cd "$CLOUD_REPO_ROOT" && cloud_timeout 45 node -e '
+  out=$(cd "$CLOUD_REPO_ROOT" && DOCTOR_TARGET="$target" cloud_timeout 45 node -e '
 const { chromium } = require("@playwright/test");
 const options = { headless: true };
 if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE) options.executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
@@ -197,7 +199,8 @@ if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE) options.executablePath = process
   const browser = await chromium.launch(options);
   try {
     const page = await browser.newPage();
-    await page.goto("about:blank");
+    const response = await page.goto(process.env.DOCTOR_TARGET);
+    if (response && !response.ok()) throw new Error("HTTP " + response.status() + " from " + process.env.DOCTOR_TARGET);
     console.log(browser.version());
   } finally {
     await browser.close();
@@ -210,10 +213,16 @@ if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE) options.executablePath = process
   rc=$?
   out=$(printf '%s\n' "$out" | tail -n 1)
   case $rc in
-    0) result PASS "chromium launch" "headless Chromium $out loaded about:blank" ;;
+    0) result PASS "chromium launch" "headless Chromium $out loaded $target" ;;
     124 | 137 | 142) result FAIL "chromium launch" "timed out after 45s" "npx playwright install --with-deps chromium" ;;
-    *) result FAIL "chromium launch" "${out:-launch failed (exit $rc)}" \
-      "npx playwright install --with-deps chromium (or $FIX_BOOTSTRAP as root)" ;;
+    *)
+      case $out in
+        *CERT*) result FAIL "chromium launch" "$out" \
+          "$FIX_BOOTSTRAP (its browser-trust step imports the egress proxy's CA into ~/.pki/nssdb)" ;;
+        *) result FAIL "chromium launch" "${out:-launch failed (exit $rc)}" \
+          "npx playwright install --with-deps chromium (or $FIX_BOOTSTRAP as root)" ;;
+      esac
+      ;;
   esac
 }
 
@@ -368,13 +377,15 @@ check_ops_email() {
   fi
 }
 
+# WARN, not FAIL: pull requests still work through Claude's own GitHub tools.
 check_gh() {
   if ! have gh; then
-    result FAIL "gh" "gh is not on PATH" "install the GitHub CLI"
-  elif cloud_timeout 20 gh auth status >/dev/null 2>&1; then
+    result WARN "gh" "gh is not on PATH" "$FIX_BOOTSTRAP as root (installs the gh package)"
+  elif cloud_timeout 20 gh api user --jq .login >/dev/null 2>&1; then
     result PASS "gh" "authenticated"
   else
-    result FAIL "gh" "gh auth status failed" "authenticate gh (cloud sessions get it through the proxy)"
+    result WARN "gh" "gh is installed but cannot reach the GitHub API" \
+      "use Claude's GitHub tools for pull requests, or authenticate gh"
   fi
 }
 

@@ -19,7 +19,7 @@ CLOUD_TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
 CLOUD_PIPELINE_REPO_NAME=BlueprintCapturePipeline
 CLOUD_FIREBASE_PROJECT_ID=blueprint-8c1ca
 CLOUD_DOOR_DEFAULT_URL=https://paperclip.tryblueprint.io/api/live-pipeline/operator/v1
-CLOUD_APT_PACKAGES="ffmpeg libgl1 libegl1 libosmesa6 libglfw3 jq"
+CLOUD_APT_PACKAGES="ffmpeg libgl1 libegl1 libosmesa6 libglfw3 jq gh libnss3-tools"
 CLOUD_STATE_DIR=${BLUEPRINT_CLOUD_STATE_DIR:-/opt/blueprint-cloud}
 CLOUD_USER_DIR=${HOME:-/root}/.blueprint-cloud
 CLOUD_SKIP=100         # a step returns this when it does not apply here (recorded as n/a)
@@ -227,7 +227,8 @@ cloud_missing_apt_packages() {
 }
 
 # ffmpeg/ffprobe for the review-video tests and media checks, the GL
-# libraries MuJoCo needs for MUJOCO_GL=osmesa, and jq.
+# libraries MuJoCo needs for MUJOCO_GL=osmesa, jq, the GitHub CLI (not in the
+# cloud image), and certutil for the browser-trust step.
 cloud_step_system_packages() {
   local missing
   if ! cloud_has_apt; then
@@ -443,6 +444,54 @@ cloud_step_playwright_deps() {
   touch "$marker"
 }
 
+# Cloud egress goes through a TLS-terminating proxy. curl, Python, Node and
+# gRPC trust it through SSL_CERT_FILE and friends, but Chromium keeps its own
+# NSS store, so without this step every https page fails with
+# ERR_CERT_AUTHORITY_INVALID. Imports only the certificates in SSL_CERT_FILE
+# that the system bundle lacks (the proxy's CA), idempotently.
+cloud_step_browser_trust() {
+  local bundle=${SSL_CERT_FILE:-} nssdb="${HOME:-/root}/.pki/nssdb"
+  if [ -z "$bundle" ] || [ ! -f "$bundle" ]; then
+    echo "SSL_CERT_FILE is not set; no proxy certificate to trust"
+    return "$CLOUD_SKIP"
+  fi
+  have certutil || {
+    echo "certutil is missing (libnss3-tools; see the system-packages step)"
+    return 1
+  }
+  python3 - "$bundle" /etc/ssl/certs/ca-certificates.crt "$nssdb" <<'PY'
+import base64, hashlib, os, re, subprocess, sys, tempfile
+bundle, system, nssdb = sys.argv[1:]
+block = re.compile(rb"-----BEGIN CERTIFICATE-----(.+?)-----END CERTIFICATE-----", re.S)
+def ders(path):
+    try:
+        data = open(path, "rb").read()
+    except OSError:
+        return []
+    return [base64.b64decode(b"".join(body.split())) for body in block.findall(data)]
+known = {hashlib.sha256(der).hexdigest() for der in ders(system)}
+extra = [der for der in ders(bundle) if hashlib.sha256(der).hexdigest() not in known]
+if not extra:
+    print("SSL_CERT_FILE adds nothing beyond the system bundle")
+    sys.exit(0)
+os.makedirs(nssdb, mode=0o700, exist_ok=True)
+db = "sql:" + nssdb
+if not os.path.exists(os.path.join(nssdb, "cert9.db")):
+    subprocess.run(["certutil", "-d", db, "-N", "--empty-password"], check=True)
+added = 0
+for der in extra:
+    name = "blueprint-cloud-proxy-" + hashlib.sha256(der).hexdigest()[:12]
+    if subprocess.run(["certutil", "-d", db, "-L", "-n", name], capture_output=True).returncode == 0:
+        continue
+    with tempfile.NamedTemporaryFile(suffix=".der") as tmp:
+        tmp.write(der)
+        tmp.flush()
+        subprocess.run(["certutil", "-d", db, "-A", "-t", "C,,", "-n", name, "-i", tmp.name], check=True)
+    added += 1
+print("Chromium trusts %d proxy certificate(s) in %s (%d newly added)" % (len(extra), nssdb, added))
+PY
+}
+
 # --full-history: blob-less unshallow of the Pipeline clone, and origin/main in
 # both repos (cloud clones are shallow at a detached HEAD).
 cloud_step_git_history() {
@@ -489,6 +538,8 @@ cloud_install_all() {
   cloud_lane_webapp &
   webapp_pid=$!
   wait "$system_pid" "$pipeline_pid" "$webapp_pid"
+  # Needs certutil from the system lane, so it runs after the lanes join.
+  cloud_run_step browser-trust cloud_step_browser_trust
 }
 
 # --- session environment ---------------------------------------------------
@@ -506,6 +557,11 @@ cloud_write_env_file() {
     printf 'export BLUEPRINT_PIPELINE_PYTHON=%q\n' "$(cloud_venv_python)"
     printf 'export UV_PROJECT_ENVIRONMENT=%q\n' "$(cloud_venv_dir)"
     echo "export MUJOCO_GL=osmesa"
+    if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
+      # Firestore over REST works through the cloud's TLS-terminating proxy
+      # where gRPC may not; read by client/src/lib/firebaseAdmin.ts.
+      echo "export BLUEPRINT_FIRESTORE_PREFER_REST=1"
+    fi
     # shellcheck disable=SC2016 # expanded when env.sh is sourced, keeping an explicit override
     printf 'export BLUEPRINT_OPERATOR_DOOR_URL="${BLUEPRINT_OPERATOR_DOOR_URL:-%s}"\n' "$CLOUD_DOOR_DEFAULT_URL"
     if [ -n "${PLAYWRIGHT_BROWSERS_PATH:-}" ]; then
