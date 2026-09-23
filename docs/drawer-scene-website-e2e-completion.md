@@ -106,8 +106,8 @@ centred on the middle drawer front.
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | **done** — retained 14 candidate views, five digest-bound prepared views admitted to the configured Marble 1.1 Plus multi-image input; originals remain separate |
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
-| 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture CPU authoring not yet accepted** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The `83f5277a` retry produced separate cabinet and drawer candidates, but its third independent drawer appearance review rejected the cool uniform wood and dark squared handle. CPU stage 3 stopped at `authoring_independent_review_limit_reached`; no accepted articulated asset or room integration is proved. Captured-room integration remains unqualified. |
+| 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | **partial: reviewed parts, no accepted assembly** — the `44fdc9b` attempt produced separate CAD/Blender/USD candidates for cabinet carcass and drawer. Independent appearance and physical reviews accepted both parts, including the revised wood-grain drawer. Articulated packaging then refused the carcass mass uncertainty against the signed simulation bound; no accepted multi-link USD or static qualification receipt was published. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff, assembly not accepted** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The latest CPU attempt ended before assembly publication. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1375,3 +1375,39 @@ accepted articulation, native qualification, a GPU policy episode, or a
 website result. The independent watchdog is active; do not deploy over this
 healthy paid attempt. Matrix step 11 remains partial and steps 10 and 12–14
 remain unproven.
+
+## 2026-09-23: reviewed drawer parts, mass-bound packaging refusal
+
+That launch ended `blocked` at 21:30:55 UTC in CPU stage 3, before any GPU
+allocation, policy query, or evaluation episode. Its retained output archive
+contains successful separate carcass and drawer CAD/Blender candidates,
+independent physical reviews, and an accepted third visual review of the
+drawer. Packaging raised
+`authoring_packaging_estimate_outside_admitted_bounds:mass_kg`: the reviewed
+carcass value was 10.84 kg, within the signed [4, 12] kg simulated mass
+range, while its estimated physical uncertainty was [4.93, 22.99] kg. The
+review did not claim a measured mass or suppress that interval. The allocator
+reported `provider_mutations_performed: 0`; the Vast watchdog reported
+`cancelled_no_allocation`. This does not say the OpenAI model calls were free.
+
+Pipeline [PR #2144](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2144)
+merged as `89c7bd020e6c52d61774627d23dc654b22aecda8`. For articulated
+development candidates, the packager now admits the *simulated nominal* mass
+within the scene's unchanged signed range and retains the full estimated
+uncertainty plus an explicit out-of-range flag in the digest-bound link
+receipt. The drawer remains 4.47 kg per generated link with estimated
+[2.89, 5.93] kg uncertainty. Measured mass and contact-property intervals
+retain strict full-range admission. Forty-one focused local tests, 32 adapter
+and packaging tests, Ruff, and diff checks passed; hosted PR checks stopped
+before tests because GitHub Actions artifact storage was full.
+
+The exact failed stage-3 archive was replayed through the candidate's
+production articulated packager as the `blueprint` service user, inside a
+private Linux mount and network namespace. It passed without a model call or
+GPU rental and produced candidate asset digest
+`sha256:84d3dafb1a0bab7ca631d53859a5117ca9a274e436acd3fb0a6eefc8b8dd6aa7`.
+The canonical canary deploy of the merged commit started as
+`blueprint-drawer-mass-deploy-89c7bd0.service`; deployment and a later
+controller-owned retry were still pending at this observation. Replay is a
+fix check, not an accepted scene artifact. Steps 10 and 11 remain partial;
+steps 12–14 and captured-room readiness remain unproven.
