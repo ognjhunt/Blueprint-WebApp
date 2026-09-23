@@ -18,6 +18,7 @@ const ENV_KEYS = [
   "BLUEPRINT_INBOUND_QUALIFICATION_PROVIDER",
   "BLUEPRINT_SUPPORT_TRIAGE_PROVIDER",
   "BLUEPRINT_OPERATOR_THREAD_PROVIDER",
+  "OPENAI_DEFAULT_MODEL",
   "CODEX_LOCAL_AVAILABLE",
   "DEEPSEEK_API_KEY",
   "OPENAI_API_KEY",
@@ -52,14 +53,13 @@ function lunaOnQualificationOnly() {
 }
 
 describe("per-lane provider override", () => {
-  it("moves one lane to OpenAI and leaves the others on DeepSeek", async () => {
+  it("moves one lane to OpenAI and leaves lanes without a default on DeepSeek", async () => {
     lunaOnQualificationOnly();
     const { getStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(getStructuredAutomationProvider("inbound_qualification")).toBe("openai_responses");
-    expect(getStructuredAutomationProvider("support_triage")).toBe("deepseek_chat");
-    expect(getStructuredAutomationProvider("waitlist_triage")).toBe("deepseek_chat");
     expect(getStructuredAutomationProvider("operator_thread")).toBe("deepseek_chat");
+    expect(getStructuredAutomationProvider("preview_diagnosis")).toBe("deepseek_chat");
     expect(getStructuredAutomationProvider()).toBe("deepseek_chat");
   });
 
@@ -70,18 +70,39 @@ describe("per-lane provider override", () => {
     );
 
     const provider = getStructuredAutomationProvider("inbound_qualification");
-    expect(getTaskModelByProvider("inbound_qualification")[provider]).toBe("gpt-5.6-luna");
+    expect(getTaskModelByProvider("inbound_qualification")[provider]).toBe("gpt-6-luna");
   });
 
-  it("leaves every lane on the global provider when no override is set", async () => {
+  it("sends the lanes that write to people to OpenAI by default, and nothing else", async () => {
     process.env.DEEPSEEK_API_KEY = "deepseek-key";
     process.env.OPENAI_API_KEY = "openai-key";
     process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
     vi.resetModules();
-    const { getStructuredAutomationProvider } = await import("../agents/provider-config");
+    const { describeStructuredAutomationProvider, getStructuredAutomationProvider } = await import(
+      "../agents/provider-config"
+    );
 
-    expect(getStructuredAutomationProvider("inbound_qualification")).toBe("deepseek_chat");
-    expect(getStructuredAutomationProvider("support_triage")).toBe("deepseek_chat");
+    for (const lane of ["outbound_outreach", "waitlist_triage", "inbound_qualification", "support_triage", "post_signup_scheduling"] as const) {
+      expect(describeStructuredAutomationProvider(lane)).toMatchObject({
+        provider: "openai_responses",
+        reason: "lane_default",
+      });
+    }
+    expect(getStructuredAutomationProvider("operator_thread")).toBe("deepseek_chat");
+    expect(getStructuredAutomationProvider("payout_exception_triage")).toBe("deepseek_chat");
+  });
+
+  it("keeps an email lane running on the global provider when OpenAI has no key", async () => {
+    process.env.DEEPSEEK_API_KEY = "deepseek-key";
+    process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
+    vi.resetModules();
+    const { describeStructuredAutomationProvider } = await import("../agents/provider-config");
+
+    expect(describeStructuredAutomationProvider("outbound_outreach")).toMatchObject({
+      provider: "deepseek_chat",
+      lane_request_honored: false,
+      reason: "lane_default_not_configured",
+    });
   });
 
   it("keeps the lane running when the override names a provider with no key", async () => {
@@ -159,15 +180,17 @@ describe("task definitions", () => {
 
     expect(inboundQualificationTask.default_provider).toBe("openai_responses");
     expect(inboundQualificationTask.model_by_provider?.openai_responses).toBe(
-      "gpt-5.6-luna",
+      "gpt-6-luna",
     );
   });
 
-  it("leaves a lane without an override on the global provider", async () => {
+  it("puts an email lane on OpenAI and a lane with no default on the global provider", async () => {
     lunaOnQualificationOnly();
     const { supportTriageTask } = await import("../agents/tasks/support-triage");
+    const { previewDiagnosisTask } = await import("../agents/tasks/preview-diagnosis");
 
-    expect(supportTriageTask.default_provider).toBe("deepseek_chat");
+    expect(supportTriageTask.default_provider).toBe("openai_responses");
+    expect(previewDiagnosisTask.default_provider).toBe("deepseek_chat");
   });
 });
 
@@ -180,9 +203,11 @@ describe("runtime connectivity metadata", () => {
 
     const metadata = getAgentRuntimeConnectionMetadata();
     expect(metadata.task_providers.inbound_qualification).toBe("openai_responses");
-    expect(metadata.task_providers.support_triage).toBe("deepseek_chat");
-    expect(metadata.task_models.inbound_qualification).toBe("gpt-5.6-luna");
-    expect(metadata.task_models.support_triage).toBe("deepseek-v4-pro");
+    expect(metadata.task_providers.support_triage).toBe("openai_responses");
+    expect(metadata.task_providers.operator_thread).toBe("deepseek_chat");
+    expect(metadata.task_models.inbound_qualification).toBe("gpt-6-luna");
+    expect(metadata.task_models.outbound_outreach).toBe("gpt-6-luna");
+    expect(metadata.task_models.operator_thread).toBe("deepseek-v4-pro");
   });
 
   it("surfaces a lane override that did not take effect", async () => {

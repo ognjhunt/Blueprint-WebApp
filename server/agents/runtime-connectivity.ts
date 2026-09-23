@@ -26,6 +26,7 @@ const CONNECTIVITY_TASK_KINDS = [
   "support_triage",
   "payout_exception_triage",
   "preview_diagnosis",
+  "outbound_outreach",
 ] as const satisfies readonly AgentTaskKind[];
 
 type ConnectivityTaskKind = (typeof CONNECTIVITY_TASK_KINDS)[number];
