@@ -1,6 +1,7 @@
 // @vitest-environment node
 /**
- * Robot teams see site tasks only once a person approves them.
+ * Robot teams see site tasks only once they are approved: by a person, or by
+ * the fit checklist for a clear fit once enough site tasks are listed.
  *
  * Blueprint opens to a small group of robot teams first and matches each one
  * to sites by hand. These tests pin who sees what: the library, a plan, the

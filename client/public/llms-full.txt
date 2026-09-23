@@ -13,7 +13,7 @@ A Task Evaluation Run is a paid engagement around a qualified site opportunity. 
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams join by early access: a person reviews each application and matches approved teams to site tasks by hand, and a site task is shown only to approved teams and only with the site's approval. Robot teams pay a flat $99 per entry from a prepaid balance (the smallest top-up is $50); a site pays nothing. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
+Robot teams join by early access: each application is reviewed, approved teams are matched to site tasks by hand, and a site task is shown only to approved teams and only with the site's approval. Robot teams pay a flat $99 per entry from a prepaid balance (the smallest top-up is $50); a site pays nothing. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 

@@ -225,8 +225,9 @@ export function verifyPolicyCanaryGradedReportSidecar(params: {
   // report that disagrees with the published (or corrected) score is refused.
   const corrected = new Map((params.scoreCorrection?.correction.score_updates || [])
     .map((row) => [scoreKey(row), row.new_score.task_succeeded]));
-  const delivered = new Map((params.publication.result_delivery.episodes || [])
-    .map((row: Record<string, any>) => [String(row.episode_id), row.score?.task_succeeded ?? null]));
+  const deliveredEpisodes: unknown = (params.publication.result_delivery as Record<string, unknown>).episodes;
+  const delivered = new Map((Array.isArray(deliveredEpisodes) ? deliveredEpisodes : [])
+    .map((row: Record<string, any>) => [String(row?.episode_id), row?.score?.task_succeeded ?? null]));
   const disagreement = sidecar.episodes.some((row) => {
     const official = corrected.has(scoreKey(row))
       ? corrected.get(scoreKey(row))

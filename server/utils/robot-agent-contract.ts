@@ -119,10 +119,10 @@ export function buildRobotAgentAccessManifest() {
        * paying — which is a fact about money, not a queue.
        */
       selfServe: {
-        // Early access: a person approves each team before it sees sites.
+        // Early access: a team is approved before it sees sites.
         noOperatorRequired: false,
         earlyAccess:
-          "Blueprint is in early access for robot teams. Apply at https://tryblueprint.io/contact/robot-team; a person approves the team's email. Until the key's team is connected to that approved, verified account, plan, runs and funding answer 403 early_access_required.",
+          "Blueprint is in early access for robot teams. Apply at https://tryblueprint.io/contact/robot-team; Blueprint approves the team's email. Until the key's team is connected to that approved, verified account, plan, runs and funding answer 403 early_access_required.",
         sequence: [
           "Apply at /contact/robot-team, then create or sign in to the Blueprint account with the approved email and verify it.",
           "POST /api/agent-team/register — no credential, no questions. Returns a team id and a key, once. Connect it to the approved account (Settings → Agent access), or issue the key there.",
