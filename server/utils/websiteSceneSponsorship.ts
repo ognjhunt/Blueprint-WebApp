@@ -93,13 +93,21 @@ export const preparationSpendRequest = z.object({
   || (value.provider === "vast" && value.resource_class === "gpu_render"),
   "website_preparation_provider_resource_mismatch");
 
-export const preparationSettlementRequest = z.object({
+const completedPreparationSettlement = z.object({
   task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   provider: z.literal("world_labs"), operation_id: z.string().min(1).max(200),
   operation_done: z.literal(true), total_credits: z.number().int().min(0).max(1_250_000),
   provider_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict();
+const rejectedPreparationSettlement = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("world_labs"),
+  rejection_code: z.literal("insufficient_api_credits_before_generation"),
+  provider_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+}).strict();
+export const preparationSettlementRequest = z.union([completedPreparationSettlement, rejectedPreparationSettlement]);
 
 /** Pipeline-signed final provider billing releases only the unused reservation. */
 export async function settleWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSettlementRequest>) {
@@ -111,7 +119,7 @@ export async function settleWebsitePreparationSpend(requestId: string, input: z.
     const record = (await transaction.get(ref)).data();
     const key = command.allocation_binding_digest.slice(7);
     const row = record?.website_preparation_reservations?.[key];
-    const actualCost = command.total_credits / 1250;
+    const actualCost = "total_credits" in command ? command.total_credits / 1250 : 0;
     if (!row || row.admission.provider !== command.provider
       || row.admission.resource_class !== "provider_reconstruction_api"
       || row.admission.task_context_digest !== command.task_context_digest

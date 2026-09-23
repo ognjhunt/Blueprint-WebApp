@@ -1383,6 +1383,33 @@ it("settles final Marble billing without resetting request count or granting ano
   expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
 });
 
+it("releases only the quote after a signed pre-generation credit rejection", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, world_labs: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const first = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "provider_reconstruction_api" as const, provider: "world_labs" as const,
+    maximum_cost_usd: 2.48, request_count: 1 };
+  const second = { ...first, allocation_binding_digest: sha("2"), maximum_cost_usd: 3 };
+  await reserveWebsitePreparationSpend("req1", first);
+  await expect(reserveWebsitePreparationSpend("req1", second)).rejects.toThrow("budget_exhausted");
+  const rejection = { task_context_digest: grant.task_context_digest,
+    allocation_binding_digest: first.allocation_binding_digest, provider: "world_labs" as const,
+    rejection_code: "insufficient_api_credits_before_generation" as const, provider_receipt_digest: sha("a") };
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1/preparation-settlement");
+  const response = await realFetch(base, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", settlement: rejection }) });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ status: "settled", actual_cost_usd: 0, ...rejection });
+  expect(await settleWebsitePreparationSpend("req1", rejection)).toMatchObject({ actual_cost_usd: 0 });
+  await expect(settleWebsitePreparationSpend("req1", { ...rejection, provider_receipt_digest: sha("b") }))
+    .rejects.toThrow("idempotency_conflict");
+  expect(await reserveWebsitePreparationSpend("req1", second)).toMatchObject({ status: "admitted" });
+  expect((await reserveWebsitePreparationSpend("req1", first)).status).toBe("already_reserved");
+  await expect(settleWebsitePreparationSpend("req1", { ...rejection, rejection_code: "unknown" as any })).rejects.toThrow();
+});
+
 it("cannot release a reservation using missing, mismatched or excessive provider billing", async () => {
   sponsoredCapture();
   const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
