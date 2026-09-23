@@ -125,6 +125,7 @@ export function websiteSceneSponsorship(input: {
     authoring_provider: authoringChoice ? "anthropic" : "openai",
     ...(authoringChoice ? { authoring_choice_digest: authoringChoice.choice_digest,
       anthropic_provider_terms_reference: authoringChoice.provider_terms_reference,
+      preparation_provider_terms_reference: configured.provider_terms_reference,
       authoring_accepted_by: authoringChoice.accepted_by } : {}),
     owner: configured.owner,
     // These are disjoint caps, not two authorizations for the whole budget.
@@ -354,6 +355,7 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     const terms = sceneProviderTerms();
     const configured = policy();
     if (terms.anthropic?.digest !== authority.anthropic_provider_terms_reference
+        || authority.preparation_provider_terms_reference !== configured.provider_terms_reference
         || terms.vast?.digest !== configured.provider_terms_reference
         || terms.openai?.digest !== configured.provider_terms_reference)
       throw new Error("provider_terms_not_configured_or_changed");

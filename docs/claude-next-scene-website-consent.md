@@ -11,7 +11,8 @@ The choice is retained against the request and capture identities before the
 scene grant exists. It cannot be changed after a sponsorship or preparation
 reservation. The grant binds its digest and records the Anthropic reference in
 the scene consent; the existing Vast/OpenAI preparation terms remain separately
-bound to the configured reference. The prepared-scene intake accepts only
+bound to their configured reference and are checked again when the queued scene
+is forwarded. The prepared-scene intake accepts only
 `[vast, openai, anthropic]` for this opt-in grant. The default remains
 `[vast, openai]` and OpenAI authoring.
 

@@ -105,6 +105,7 @@ import {
   sceneIntakeCommand,
   sceneOwner,
   scenePipelineRequest,
+  validateSceneProviderTerms,
 } from "../utils/taskEvaluationSceneIntake";
 
 const sha = (char: string) => `sha256:${char.repeat(64)}`;
@@ -316,7 +317,8 @@ it("binds a future capture's explicit Claude choice to its signed grant and keep
   expect(choice.choice_digest).toBe(sceneDigest(Object.fromEntries(Object.entries(choice).filter(([key]) => key !== "choice_digest"))));
   const grant = await loadWebsiteSceneSponsorship("req1", true);
   expect(grant).toMatchObject({ capture_id: "walkthrough-req1", authoring_provider: "anthropic",
-    anthropic_provider_terms_reference: terms, authoring_choice_digest: choice.choice_digest,
+    anthropic_provider_terms_reference: terms, preparation_provider_terms_reference: sha("e"),
+    authoring_choice_digest: choice.choice_digest,
     preparation_max_total_spend_usd: 25, upstream_max_spend_usd: 5, max_total_spend_usd: 20 });
   expect(grant.consent.provider_terms_reference).toBe(terms);
   await expect(acceptWebsiteAnthropicAuthoring({ requestId: "req1", captureId: "walkthrough-req1",
@@ -329,6 +331,8 @@ it("binds a future capture's explicit Claude choice to its signed grant and keep
       expires_at_epoch: grant.expires_at_epoch, purpose: "scene_preparation", policy_candidates: [],
       allowed_providers: ["vast", "openai", "anthropic"], claim_scope: "development_only" } };
   expect(() => validateWebsiteSponsoredIntake(request, grant)).not.toThrow();
+  expect(() => validateSceneProviderTerms(request, grant.preparation_provider_terms_reference)).not.toThrow();
+  expect(() => validateSceneProviderTerms(request)).toThrow("provider_terms_not_configured_or_changed");
   expect(() => validateWebsiteSponsoredIntake({ ...request, execution: { ...request.execution,
     allowed_providers: ["vast", "openai"] } }, grant)).toThrow("sponsorship_binding_invalid");
 });

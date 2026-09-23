@@ -206,7 +206,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       const { accepted_by: _acceptedBy, accepted_at_epoch: _acceptedAt, ...consent } = request.consent;
       const command = { submission_id: request.submission_id, source_session_id: request.submission_id,
         task: request.task, execution: request.execution, consent };
-      validateSceneProviderTerms(command);
+      validateSceneProviderTerms(command, authority.preparation_provider_terms_reference);
       if (!db) throw new Error("website_capture_rights_store_unavailable");
       const id = `scene-${sceneDigest({ owner: request.owner, submission_id: request.submission_id }).slice(7)}`;
       const ref = db.collection(SCENE_INTAKE_COLLECTION).doc(id);
@@ -220,6 +220,8 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
           owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,
           source_session_id: request.submission_id, website_request_id: requestId,
           sponsorship_digest: authority.authority_digest, command, command_digest: sceneDigest(command),
+          ...(authority.authoring_provider === "anthropic" ? {
+            website_preparation_provider_terms_reference: authority.preparation_provider_terms_reference } : {}),
           request, request_digest: sceneDigest(request), state: "forward_pending",
           forward_attempt_count: 0, next_forward_at_ms: 0, created_at_iso: new Date().toISOString(),
         });

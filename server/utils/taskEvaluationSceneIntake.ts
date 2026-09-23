@@ -277,6 +277,7 @@ export function sceneProviderTerms() {
 }
 export function validateSceneProviderTerms(
   command: Pick<z.infer<typeof sceneIntakeCommand>, "execution" | "consent">,
+  preparationProviderTermsReference?: string,
 ) {
   const terms = sceneProviderTerms();
   // A website-sponsored future scene can bind its explicit Anthropic terms
@@ -286,7 +287,9 @@ export function validateSceneProviderTerms(
       && sceneDigest(command.execution.allowed_providers) === sceneDigest(["vast", "openai", "anthropic"])
       && command.consent.provider_terms_reference.startsWith("anthropic:")) {
     if (terms.anthropic?.digest !== command.consent.provider_terms_reference
-        || !terms.vast || !terms.openai)
+        || !digest.safeParse(preparationProviderTermsReference).success
+        || terms.vast?.digest !== preparationProviderTermsReference
+        || terms.openai?.digest !== preparationProviderTermsReference)
       throw new Error("provider_terms_not_configured_or_changed");
     return;
   }
@@ -779,7 +782,7 @@ export async function processSceneIntakeQueue(limit = 10) {
               if (sceneDigest(rebuilt) !== record.request_digest)
                 throw new Error("stored_request_digest_invalid");
             }
-            validateSceneProviderTerms(record.command);
+            validateSceneProviderTerms(record.command, record.website_preparation_provider_terms_reference);
             // Count a possibly dispatched POST, not a failed local precheck or
             // a read-only status poll. Reservation failures stay conservative.
             deliveryReserved = true;
