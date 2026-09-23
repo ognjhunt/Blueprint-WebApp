@@ -9,6 +9,7 @@ import { GLOBAL_RATE_LIMIT_SKIP_PATHS } from "./utils/globalRateLimitPolicy";
 import { registerRoutes } from "./routes";
 import { privateWorkLogPath } from "./utils/blueprintWorkLogPrivacy";
 import { stripeWebhookHandler } from "./routes/stripe-webhooks";
+import { drainStripeWebhookQueueOnce, stripeWebhookInlineMode } from "./utils/stripeWebhookQueue";
 import { handleHostedSessionUiUpgrade } from "./routes/site-world-sessions";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
@@ -501,6 +502,25 @@ app.use((req, res, next) => {
   }
 
   const PORT = env.PORT;
+  // Settle anything a queue-mode deployment left behind. Claims are
+  // transactional, so this is safe beside a worker that also drains.
+  if (stripeWebhookInlineMode()) {
+    void drainStripeWebhookQueueOnce()
+      .then((result) => {
+        if (result.claimed || result.reclaimed) {
+          logger.info(
+            attachRequestMeta({ route: "stripe-webhook-queue" }),
+            `Settled ${result.claimed + result.reclaimed} queued Stripe event(s) left from queue mode`,
+          );
+        }
+      })
+      .catch((error) => {
+        logger.error(
+          attachRequestMeta({ route: "stripe-webhook-queue" }),
+          `Could not settle queued Stripe events: ${(error as Error).message}`,
+        );
+      });
+  }
   const stopOpsAutomationScheduler =
     runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
       ? startOpsAutomationScheduler()

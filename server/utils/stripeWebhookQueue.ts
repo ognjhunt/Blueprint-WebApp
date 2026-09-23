@@ -61,8 +61,20 @@ function retryDelayMs(attempts: number): number {
   return BASE_RETRY_DELAY_MS * 2 ** Math.max(0, attempts - 1);
 }
 
+/**
+ * Whether the web process settles each verified event in the request.
+ *
+ * Inline is the default. Queue mode is opt-in with
+ * BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1, because it is only correct where a
+ * worker runs `startStripeWebhookQueueProcessor`. The deployed worker is
+ * launch-forward-only and never drains this queue, so a queue-by-default web
+ * process acknowledged every payment and credited none: a robot team's card
+ * was charged and its balance never moved. BLUEPRINT_STRIPE_WEBHOOK_INLINE=1
+ * still forces inline, whatever the queue flag says.
+ */
 export function stripeWebhookInlineMode(): boolean {
-  return process.env.BLUEPRINT_STRIPE_WEBHOOK_INLINE === "1";
+  if (process.env.BLUEPRINT_STRIPE_WEBHOOK_INLINE === "1") return true;
+  return process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE !== "1";
 }
 
 function isAlreadyExistsError(error: unknown): boolean {
