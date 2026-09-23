@@ -16,6 +16,7 @@ import {
 import { PolicyCanaryControls } from "./PolicyCanaryControls";
 import { PolicyCanaryEvidenceInventory } from "./PolicyCanaryEvidenceInventory";
 import { PolicyCanaryEpisodeExplorer } from "./PolicyCanaryEpisodeExplorer";
+import { PolicyCanaryGradedReport } from "./PolicyCanaryGradedReport";
 import { PolicyCanaryPrimarySummary } from "./PolicyCanaryPrimarySummary";
 
 const authorLabels: Record<AnyTaskSuccessContract["provenance"]["author_source"], string> = {
@@ -130,6 +131,7 @@ export function PolicyCanaryResultPortal({
       correctionApplied={Boolean(projectedResult.score_correction)}
       correctionRejected={Boolean(result.score_correction && !projectedResult.score_correction)}
     />
+    <PolicyCanaryGradedReport result={projectedResult} />
     <PolicyCanaryEpisodeExplorer result={projectedResult} user={user} />
     <div>
       <ScoringDetails result={projectedResult} contract={successContract} correctedContract={correctedContract} />

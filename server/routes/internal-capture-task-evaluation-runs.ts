@@ -32,11 +32,17 @@ import {
 import {
   verifyPolicyCanaryEpisodeInterpretationSidecar,
 } from "../utils/policyCanaryEpisodeInterpretationSidecar";
+import {
+  verifiedPolicyCanaryGradedReportSidecar,
+  verifyPolicyCanaryGradedReportSidecar,
+} from "../utils/policyCanaryGradedReportSidecar";
+import { verifiedPolicyCanaryScoreCorrectionSidecar } from "../utils/policyCanaryScoreCorrectionContract";
 
 const router = Router();
 const rateLimiter = createPipelineSyncRateLimiter();
 const POLICY_CANARY_SCORE_CORRECTION_MAX_BYTES = 3 * 1024 * 1024;
 const POLICY_CANARY_EPISODE_INTERPRETATION_MAX_BYTES = 768 * 1024;
+const POLICY_CANARY_GRADED_REPORT_MAX_BYTES = 1024 * 1024;
 
 function sameScientificIdentity(left: Record<string, any>, right: Record<string, any>) {
   return [
@@ -644,6 +650,113 @@ async function handlePolicyCanaryEpisodeInterpretationBackfill(
   });
 }
 
+/** The published score correction, when one verifies; graded reports bind to it. */
+function publishedScoreCorrection(record: Record<string, any>) {
+  const candidate = verifiedPolicyCanaryScoreCorrectionSidecar(record.policy_canary_score_correction);
+  return candidate ? {
+    sidecar_digest: candidate.sidecar_digest,
+    correction: { score_updates: candidate.correction.score_updates },
+  } : null;
+}
+
+async function handlePolicyCanaryGradedReport(runId: string, payload: unknown, res: Response) {
+  if (!db) return res.status(503).json({ error: "Task Evaluation Run store is unavailable" });
+  const policyRunRef = db.collection("taskEvaluationPolicyRuns").doc(runId);
+  let policyRunSnapshot;
+  try {
+    policyRunSnapshot = await policyRunRef.get();
+  } catch {
+    return res.status(503).json({ error: "Policy canary run store is unavailable" });
+  }
+  if (!policyRunSnapshot.exists) return res.status(404).json({ error: "Policy canary run not found" });
+  const recordId = String((policyRunSnapshot.data() as Record<string, any>).result_record_id || "");
+  if (!recordId) return res.status(409).json({ error: "Completed policy canary result is not published" });
+  const resultRef = db.collection("captureTaskEvaluationRuns").doc(recordId);
+  const sidecarRef = db.collection("taskEvaluationPolicyCanaryGradedReports").doc(recordId);
+  let resultSnapshot;
+  try {
+    resultSnapshot = await resultRef.get();
+  } catch {
+    return res.status(503).json({ error: "Policy canary result store is unavailable" });
+  }
+  if (!resultSnapshot.exists) return res.status(404).json({ error: "Policy canary result not found" });
+  const record = resultSnapshot.data() as Record<string, any>;
+  const publication = publicationFromResultRecord(record);
+  const parsedPublication = parsePipelinePolicyCanaryPublication(publication);
+  if (!parsedPublication.ok) return res.status(409).json({
+    error: "Original policy canary publication is invalid",
+  });
+  const scoreCorrection = publishedScoreCorrection(record);
+  const verified = verifyPolicyCanaryGradedReportSidecar({
+    payload,
+    publication: parsedPublication.publication,
+    recordId,
+    scoreCorrection,
+  });
+  if (!verified.ok) return res.status(400).json({
+    error: "Pipeline graded report is invalid",
+    code: verified.code,
+  });
+  let outcome: "created" | "replaced" | "replayed" | "conflict";
+  try {
+    outcome = await db.runTransaction(async (transaction) => {
+      const [latest, existingSidecar] = await Promise.all([
+        transaction.get(resultRef),
+        transaction.get(sidecarRef),
+      ]);
+      if (!latest.exists) return "conflict" as const;
+      const current = latest.data() as Record<string, any>;
+      const currentPublication = publicationFromResultRecord(current);
+      if (
+        !currentPublication
+        || stableJson(currentPublication) !== stableJson(publication)
+        || publishedScoreCorrection(current)?.sidecar_digest !== scoreCorrection?.sidecar_digest
+      ) return "conflict" as const;
+      let replacing = false;
+      if (existingSidecar.exists) {
+        if (stableJson(existingSidecar.data()) === stableJson(verified.sidecar)) return "replayed" as const;
+        // A report is immutable for the scores it graded. Only a later score
+        // correction makes it stale, and only then may a regraded one replace it.
+        const existing = verifiedPolicyCanaryGradedReportSidecar(existingSidecar.data());
+        if (
+          existing
+          && existing.source_binding.source_score_correction_sidecar_digest
+            === verified.sidecar.source_binding.source_score_correction_sidecar_digest
+        ) return "conflict" as const;
+        replacing = true;
+      }
+      transaction.set(sidecarRef, verified.sidecar);
+      transaction.set(resultRef, {
+        policy_canary_graded_report_sidecar_digest: verified.sidecar.sidecar_digest,
+      }, { merge: true });
+      transaction.set(policyRunRef, {
+        graded_report_sidecar_digest: verified.sidecar.sidecar_digest,
+        graded_report_generated_at_iso: verified.sidecar.audit.generated_at_iso,
+      }, { merge: true });
+      return replacing ? "replaced" as const : "created" as const;
+    });
+  } catch {
+    return res.status(503).json({ error: "Graded report store is unavailable" });
+  }
+  if (outcome === "conflict") return res.status(409).json({
+    error: "Immutable graded report conflict",
+    code: "POLICY_CANARY_GRADED_REPORT_IMMUTABLE_CONFLICT",
+  });
+  res.set("Cache-Control", "no-store");
+  return res.status(outcome === "replayed" ? 200 : 201).json({
+    schema_version: "capture_task_evaluation_graded_report_receipt.v1",
+    already_exists: outcome === "replayed",
+    replaced_stale_report: outcome === "replaced",
+    run_id: runId,
+    result_record_id: recordId,
+    sidecar_digest: verified.sidecar.sidecar_digest,
+    episode_count: verified.sidecar.episodes.length,
+    original_publication_preserved: true,
+    deterministic_scores_unchanged: true,
+    ranking_or_promotion_effect: "none",
+  });
+}
+
 async function resolveBlockedPolicyRun(payload: PipelinePolicyCanaryPreproviderBlocked) {
   if (!db) return { status: "not_found" as const };
   const collection = db.collection("taskEvaluationPolicyRuns");
@@ -852,6 +965,25 @@ router.post(
       req.body,
       res,
     );
+  },
+);
+
+router.post(
+  "/capture-task-evaluation-runs/:runId/graded-reports",
+  rateLimiter,
+  requirePipelineSignature,
+  async (req, res) => {
+    const rawBody = typeof (req as Request & { rawBody?: string }).rawBody === "string"
+      ? (req as Request & { rawBody?: string }).rawBody || "{}"
+      : JSON.stringify(req.body ?? {});
+    if (Buffer.byteLength(rawBody) > POLICY_CANARY_GRADED_REPORT_MAX_BYTES) {
+      return res.status(413).json({
+        error: "Graded report payload is too large",
+        code: "POLICY_CANARY_GRADED_REPORT_TOO_LARGE",
+        maximum_bytes: POLICY_CANARY_GRADED_REPORT_MAX_BYTES,
+      });
+    }
+    return handlePolicyCanaryGradedReport(req.params.runId, req.body, res);
   },
 );
 

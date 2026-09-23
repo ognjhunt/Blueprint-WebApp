@@ -229,6 +229,96 @@ export type PolicyCanaryEpisodeInterpretationSidecar = {
   sidecar_digest: string;
 };
 
+export type PolicyEpisodeGradedReport = {
+  schema_version: "policy_episode_graded_report.v1";
+  status: "graded" | "not_gradable";
+  not_gradable_reason: string | null;
+  task_succeeded: boolean | null;
+  outcome: string | null;
+  manipulation_strategy: string;
+  graded_score: number | null;
+  subtasks: Array<{
+    id: string;
+    label: string;
+    condition_met: boolean;
+    achieved: boolean;
+    first_step_index: number | null;
+  }>;
+  safety_ok: boolean | null;
+  failure_events: {
+    drops: number;
+    drop_steps: number[];
+    robot_body_hit_object: number;
+    robot_hit_scene: number;
+    object_hit_scene: number;
+    containment_excursion_steps: number;
+    workspace_excursion_steps: number;
+    retries: number | null;
+    regrasps: number | null;
+    wrong_object_interactions:
+      | { status: "measured"; count: number }
+      | { status: "not_measurable"; reason: string };
+  };
+  smoothness: {
+    end_effector_sparc: number | null;
+    joint_sparc: number | null;
+    end_effector_path_length_m: number | null;
+  };
+  timing: {
+    control_frequency_hz: number;
+    episode_duration_s: number | null;
+    first_task_contact_s: number | null;
+    first_object_motion_s: number | null;
+    settled_at_s: number | null;
+  };
+  report_digest: string;
+  [key: string]: unknown;
+};
+
+export type PolicyCanaryGradedCandidateSummary = {
+  schema_version: "policy_canary_graded_candidate_summary.v1";
+  candidate_id: string;
+  episode_count: number;
+  graded_episode_count: number;
+  success_count: number;
+  mean_graded_score: number | null;
+  subtask_completion_rate: Record<string, number>;
+  episodes_with_drop: number;
+  episodes_with_collision: number;
+  total_drops: number;
+  median_end_effector_sparc: number | null;
+  median_episode_duration_s: number | null;
+  median_settled_at_s: number | null;
+  ranking_permitted: false;
+};
+
+export type PolicyCanaryGradedReportSidecar = {
+  schema_version: "task_evaluation_policy_canary_graded_report_sidecar.v1";
+  source_binding: {
+    record_id: string;
+    source_run_id: string;
+    source_projection_digest: string;
+    source_delivery_digest: string;
+    source_score_correction_sidecar_digest: string | null;
+  };
+  candidates: PolicyCanaryGradedCandidateSummary[];
+  episodes: Array<{
+    episode_id: string;
+    candidate_id: string;
+    cell_id: string;
+    seed: number;
+    graded: PolicyEpisodeGradedReport;
+  }>;
+  audit: {
+    original_publication_preserved: true;
+    deterministic_scores_unchanged: true;
+    derived_only_from_sealed_episode_evidence: true;
+    ranking_or_promotion_effect: "none";
+    generated_at_iso: string;
+  };
+  sidecar_digest: string;
+};
+
 export type TaskEvaluationResultDelivery = {
   inline_compaction?: {
     schema_version: "task_evaluation_policy_canary_inline_compaction.v1";
@@ -379,6 +469,7 @@ export type TaskEvaluationResultSiteRecord = {
   };
   score_correction?: PolicyCanaryScoreCorrectionSidecar;
   episode_interpretation?: PolicyCanaryEpisodeInterpretationSidecar;
+  graded_report?: PolicyCanaryGradedReportSidecar;
   score_correction_audit?: {
     schema_version: "task_evaluation_policy_canary_score_correction_audit.v1";
     current_correction_sequence: number;

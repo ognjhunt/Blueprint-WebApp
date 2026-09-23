@@ -598,3 +598,109 @@ describe("control runs", () => {
     expect(screen.getByText("Control runs were skipped, so it isn't confirmed that the task can be completed in this scene.")).toBeTruthy();
   });
 });
+
+describe("graded report", () => {
+  const stages = [
+    ["contact", "Touched the object"],
+    ["moved", "Moved the object"],
+    ["placed", "Placed it at the destination"],
+  ] as const;
+
+  function graded(): TaskEvaluationResultSiteRecord {
+    const value = result();
+    (value.publication.policy_canary_result as Record<string, unknown>).projection_digest = sha("p");
+    const episodes = ["policy-a", "policy-b"].map((candidate_id, index) => ({
+      episode_id: `${candidate_id}-cell-1`,
+      candidate_id,
+      cell_id: "scene839873.quick10.01.canonical_anchor",
+      seed: 899,
+      graded: {
+        schema_version: "policy_episode_graded_report.v1" as const,
+        status: "graded" as const,
+        not_gradable_reason: null,
+        task_succeeded: index === 0,
+        outcome: null,
+        manipulation_strategy: "pick_and_place",
+        graded_score: index ? 1 / 3 : 1,
+        subtasks: stages.map(([id, label], stage) => ({
+          id, label, condition_met: !index || stage === 0, achieved: !index || stage === 0, first_step_index: null,
+        })),
+        safety_ok: true,
+        failure_events: {
+          drops: index, drop_steps: index ? [12] : [], robot_body_hit_object: 0, robot_hit_scene: 0,
+          object_hit_scene: 0, containment_excursion_steps: 0, workspace_excursion_steps: 0,
+          retries: null, regrasps: null,
+          wrong_object_interactions: { status: "not_measurable" as const, reason: "single_task_object_scene" },
+        },
+        smoothness: { end_effector_sparc: -1.4, joint_sparc: -2.1, end_effector_path_length_m: 0.2 },
+        timing: {
+          control_frequency_hz: 15, episode_duration_s: 4, first_task_contact_s: 1,
+          first_object_motion_s: 1.2, settled_at_s: index ? null : 3.2,
+        },
+        report_digest: sha("g"),
+      },
+    }));
+    value.graded_report = {
+      schema_version: "task_evaluation_policy_canary_graded_report_sidecar.v1",
+      source_binding: {
+        record_id: "result-1",
+        source_run_id: "run-1",
+        source_projection_digest: sha("p"),
+        source_delivery_digest: sha("d"),
+        source_score_correction_sidecar_digest: null,
+      },
+      candidates: ["policy-a", "policy-b"].map((candidate_id, index) => ({
+        schema_version: "policy_canary_graded_candidate_summary.v1" as const,
+        candidate_id,
+        episode_count: 1,
+        graded_episode_count: 1,
+        success_count: index ? 0 : 1,
+        mean_graded_score: index ? 1 / 3 : 1,
+        subtask_completion_rate: Object.fromEntries(stages.map(([id], stage) => [id, !index || stage === 0 ? 1 : 0])),
+        episodes_with_drop: index,
+        episodes_with_collision: 0,
+        total_drops: index,
+        median_end_effector_sparc: -1.4,
+        median_episode_duration_s: 4,
+        median_settled_at_s: index ? null : 3.2,
+        ranking_permitted: false as const,
+      })),
+      episodes,
+      audit: {
+        original_publication_preserved: true,
+        deterministic_scores_unchanged: true,
+        derived_only_from_sealed_episode_evidence: true,
+        ranking_or_promotion_effect: "none",
+        generated_at_iso: "2026-09-23T21:00:00Z",
+      },
+      sidecar_digest: sha("s"),
+    };
+    return value;
+  }
+
+  it("shows how far each policy got, what went wrong, and that no score changed", () => {
+    render(<PolicyCanaryResultPortal result={graded()} user={null} />);
+    const section = screen.getByRole("region", { name: "How far each policy got" });
+    const policyB = within(section).getByRole("region", { name: "Policy B progress" });
+    expect(within(policyB).getByText(/Average progress 33% across 1 of 1 episode$/)).toBeTruthy();
+    expect(within(policyB).getByRole("row", { name: /Placed it at the destination 0%/ })).toBeTruthy();
+    expect(within(policyB).getByText("Episodes with a drop").nextSibling?.textContent).toBe("1");
+    expect(within(policyB).getByText("Typical time to finish").nextSibling?.textContent).toBe("—");
+    const policyA = within(section).getByRole("region", { name: "Policy A progress" });
+    expect(within(policyA).getByText("Typical time to finish").nextSibling?.textContent).toBe("3.2 s");
+    expect(within(section).getByText(/doesn't change a score or pick a winner/)).toBeTruthy();
+    expect(within(section).getByText(/Wrong-object grasps can't happen/)).toBeTruthy();
+  });
+
+  it("hides a report bound to another delivery or correction", () => {
+    const stale = graded();
+    stale.graded_report!.source_binding.source_delivery_digest = sha("x");
+    const { unmount } = render(<PolicyCanaryResultPortal result={stale} user={null} />);
+    expect(screen.queryByRole("region", { name: "How far each policy got" })).toBeNull();
+    unmount();
+    const ranked = graded();
+    (ranked.graded_report!.candidates[0] as Record<string, unknown>).ranking_permitted = true;
+    render(<PolicyCanaryResultPortal result={ranked} user={null} />);
+    expect(screen.queryByRole("region", { name: "How far each policy got" })).toBeNull();
+  });
+});

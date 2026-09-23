@@ -764,3 +764,72 @@ export function pairedCanaryComparison(
     verdict,
   };
 }
+
+export type CanaryGradedCandidate = {
+  candidate_id: string;
+  display_name: string;
+  episode_count: number;
+  graded_episode_count: number;
+  mean_progress: number | null;
+  stages: Array<{ id: string; label: string; rate: number }>;
+  episodes_with_drop: number;
+  episodes_with_collision: number;
+  median_sparc: number | null;
+  median_duration_s: number | null;
+  median_settled_at_s: number | null;
+  wrong_object_measured: boolean;
+};
+
+/**
+ * The graded report for this exact result, or null. It must bind to the
+ * record, run, projection, delivery and the score correction shown, and it
+ * never changes a score or ranks anything.
+ */
+export function canaryGradedReport(result: TaskEvaluationResultSiteRecord): CanaryGradedCandidate[] | null {
+  const sidecar = result.graded_report;
+  if (
+    !sidecar
+    || sidecar.source_binding.record_id !== result.record_id
+    || sidecar.source_binding.source_run_id !== result.publication.run_id
+    || sidecar.source_binding.source_projection_digest
+      !== result.publication.policy_canary_result?.projection_digest
+    || sidecar.source_binding.source_delivery_digest
+      !== result.publication.result_delivery?.delivery_digest
+    || sidecar.source_binding.source_score_correction_sidecar_digest
+      !== (result.score_correction?.sidecar_digest || null)
+    || sidecar.audit.deterministic_scores_unchanged !== true
+    || sidecar.audit.ranking_or_promotion_effect !== "none"
+    || sidecar.candidates.some((candidate) => candidate.ranking_permitted !== false)
+  ) return null;
+  const names = new Map<string, string>(resolvedCanaryCandidates(result).map((candidate) => [
+    String(candidate.candidate_id),
+    String(candidate.display_name || candidate.candidate_id),
+  ]));
+  return sidecar.candidates.map((summary) => {
+    const episodes = sidecar.episodes.filter((row) => row.candidate_id === summary.candidate_id);
+    const labels = new Map<string, string>();
+    for (const row of episodes) {
+      for (const stage of row.graded.subtasks) if (!labels.has(stage.id)) labels.set(stage.id, stage.label);
+    }
+    return {
+      candidate_id: summary.candidate_id,
+      display_name: names.get(summary.candidate_id) || summary.candidate_id,
+      episode_count: summary.episode_count,
+      graded_episode_count: summary.graded_episode_count,
+      mean_progress: summary.mean_graded_score,
+      stages: Object.entries(summary.subtask_completion_rate).map(([id, rate]) => ({
+        id,
+        label: labels.get(id) || id.replaceAll("_", " "),
+        rate,
+      })),
+      episodes_with_drop: summary.episodes_with_drop,
+      episodes_with_collision: summary.episodes_with_collision,
+      median_sparc: summary.median_end_effector_sparc,
+      median_duration_s: summary.median_episode_duration_s,
+      median_settled_at_s: summary.median_settled_at_s,
+      wrong_object_measured: episodes.some((row) => (
+        row.graded.failure_events.wrong_object_interactions.status === "measured"
+      )),
+    };
+  });
+}
