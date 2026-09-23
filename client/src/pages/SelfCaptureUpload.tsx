@@ -26,6 +26,7 @@ import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRe
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
+import { AnthropicAuthoringChoice } from "@/components/site/AnthropicAuthoringChoice";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
 import { withCsrfHeader } from "@/lib/csrf";
 import { isCaptureMode, defaultCaptureMode } from "@/data/siteTaskQualification";
@@ -944,6 +945,8 @@ export default function SelfCaptureUpload() {
                   upload but cannot attest -- so a forwarded QR never carries the
                   authority to confirm operating facts on the site's behalf. */}
               {scope === "owner" && <details className="ms-task-interest"><summary>Ask someone else to film</summary><FilmLinkHandoff token={token} /></details>}
+
+              {scope === "owner" && <AnthropicAuthoringChoice token={token} />}
 
 
             </>

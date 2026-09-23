@@ -172,7 +172,7 @@ const sceneExecution = z
     max_retries: z.number().int().min(0).max(3),
     expires_at_epoch: z.number().positive(),
     allowed_providers: z
-      .array(z.enum(["vast", "runpod", "openai"]))
+      .array(z.enum(["vast", "runpod", "openai", "anthropic"]))
       .min(1)
       .max(3)
       .refine((v) => new Set(v).size === v.length),
@@ -252,15 +252,21 @@ const sealedDigest = (value: Record<string, unknown>, field: string) =>
   );
 export function sceneProviderTerms() {
   const schema = z.record(
-    z.enum(["vast", "runpod", "openai", "meta", "world_labs", "google"]),
+    z.enum(["vast", "runpod", "openai", "anthropic", "meta", "world_labs", "google"]),
     z
       .object({
-        digest,
+        digest: z.union([digest, z.string().regex(/^anthropic:[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/)]),
         label: z.string().min(1).max(200),
         url: z.string().url().startsWith("https://"),
       })
       .strict(),
-  );
+  ).superRefine((values, context) => {
+    for (const [provider, terms] of Object.entries(values)) {
+      if (provider !== "anthropic" && !digest.safeParse(terms.digest).success)
+        context.addIssue({ code: z.ZodIssueCode.custom, path: [provider, "digest"],
+          message: "Only Anthropic may use an anthropic: terms reference" });
+    }
+  });
   try {
     return schema.parse(
       JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON || "{}"),
@@ -271,8 +277,22 @@ export function sceneProviderTerms() {
 }
 export function validateSceneProviderTerms(
   command: Pick<z.infer<typeof sceneIntakeCommand>, "execution" | "consent">,
+  preparationProviderTermsReference?: string,
 ) {
   const terms = sceneProviderTerms();
+  // A website-sponsored future scene can bind its explicit Anthropic terms
+  // choice while retaining the separately configured preparation terms for
+  // Vast/OpenAI. The website grant checks both bindings before forwarding.
+  if (command.execution.purpose === "scene_preparation"
+      && sceneDigest(command.execution.allowed_providers) === sceneDigest(["vast", "openai", "anthropic"])
+      && command.consent.provider_terms_reference.startsWith("anthropic:")) {
+    if (terms.anthropic?.digest !== command.consent.provider_terms_reference
+        || !digest.safeParse(preparationProviderTermsReference).success
+        || terms.vast?.digest !== preparationProviderTermsReference
+        || terms.openai?.digest !== preparationProviderTermsReference)
+      throw new Error("provider_terms_not_configured_or_changed");
+    return;
+  }
   if (
     !command.execution.allowed_providers.every(
       (provider) =>
@@ -762,7 +782,7 @@ export async function processSceneIntakeQueue(limit = 10) {
               if (sceneDigest(rebuilt) !== record.request_digest)
                 throw new Error("stored_request_digest_invalid");
             }
-            validateSceneProviderTerms(record.command);
+            validateSceneProviderTerms(record.command, record.website_preparation_provider_terms_reference);
             // Count a possibly dispatched POST, not a failed local precheck or
             // a read-only status poll. Reservation failures stay conservative.
             deliveryReserved = true;
