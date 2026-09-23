@@ -107,7 +107,7 @@ centred on the middle drawer front.
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; CPU authoring blocked** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The third `ac39dabb` attempt reached two completed CPU stages and the articulated CAD/Blender stage, then OpenAI returned `credit_balance_exhausted` before a complete asset. The owner reported adding credits and extended the cumulative internal cap for one more bounded attempt; controller retry is pending. Captured-room integration remains unqualified. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; bounded CPU retry running** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The third `ac39dabb` attempt stopped in CAD/Blender on `credit_balance_exhausted`; the owner reported adding credits and extended the cumulative internal cap. A new `3c177ad5` release attempt was admitted and began CPU prestage at 14:34 UTC. No completed asset or room integration is proved. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1135,3 +1135,27 @@ website's $25 task price/no-charge development handling did not change.
 Progression remained at event 65 `scene_configuration_failed` when checked
 immediately after the grant; the listener timer was active and its service was
 activating. Steps 10 and 12–14 remain unproven.
+
+## 2026-09-23: retained-record repair and live CPU retry
+
+Pipeline PR #2133 merged the GPT-6 Sol model upgrade. Its first deployed
+release reached drawer activation, then global spend validation rejected
+historical signed GPT-5.6 Sol placement records from another scene. PR #2134
+restored read compatibility for those exact retained records while keeping
+GPT-6 Sol for new calls. The repair passed 55 focused tests and read-only
+validation of all 542 actual host attempt cancellations. PR #2134 merged as
+`3c177ad5cee75567f4dd7c128d63a5dfe06ea411`; the canonical deploy receipt
+says `deployed`, and the live version reports the exact commit with
+`commit_proven: true` and no blockers. No signed record was edited.
+
+The durable controller then advanced this fixture through preparation and
+website activation, published the profile and standing authorization, and
+queued launch
+`website-52ff463bc7855063836d5861-3c177ad5-20260923t141516z-activation-auto-launch`.
+Allocator admission is `admitted` with no blockers. `launch_started.json`
+records 14:34:10 UTC; the launch process and CPU provider child were alive at
+approximately 14:38 UTC, with CPU prestage heartbeats through tick 2. The
+GPU guard reported zero live instances. This is a live bounded development
+fixture attempt, not a completed CAD/Blender asset, native qualification,
+policy episode, website result, or captured-room evaluation. The new OpenAI
+credit balance remains unverified until a successful bounded authoring call.
