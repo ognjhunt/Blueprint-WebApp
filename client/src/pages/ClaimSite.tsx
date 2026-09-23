@@ -28,6 +28,7 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { auth } from "@/lib/firebase";
 import { WorkspaceRequestError } from "@/lib/workspace";
 import { attachSiteClaim, claimVerificationUrl } from "@/lib/siteClaim";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
 interface ClaimSummary {
   ok: boolean;
@@ -344,7 +345,7 @@ export function ClaimSite() {
           <span>Password</span>
           <span className="ms-field-hint">
             {mode === "create"
-              ? "Choose one — six characters or more."
+              ? `Choose one — ${MIN_PASSWORD_LENGTH} characters or more.`
               : "The one your account already uses."}
           </span>
           <input
@@ -352,7 +353,7 @@ export function ClaimSite() {
             name="claimPassword"
             type="password"
             required
-            minLength={6}
+            minLength={MIN_PASSWORD_LENGTH}
             autoComplete={mode === "create" ? "new-password" : "current-password"}
             value={password}
             onChange={(event) => setPassword(event.target.value)}

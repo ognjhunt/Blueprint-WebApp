@@ -53,6 +53,7 @@ import {
   type RunDispatch,
 } from "./agentRunRecord";
 import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
+import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
 export {
   buildRequestedRunRecord,
   reservationTtlMs,
@@ -128,7 +129,7 @@ export async function reportRunOutcome(params: {
 
   const ref = db.collection(RUNS_COLLECTION).doc(params.runId);
   const episodesRun = Math.max(0, Math.round(params.episodesRun));
-  let endedWithoutResult: { sceneId: string } | null = null;
+  let endedWithoutResult: { sceneId: string; teamId: string } | null = null;
   const accepted = await db.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     // An outcome for a run we never reserved money for has nothing to settle.
@@ -163,17 +164,22 @@ export async function reportRunOutcome(params: {
       reportedAtIso: nowIso(),
       settlementDueAtMs: 0,
     }, { merge: true });
-    endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId } : null;
+    endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId } : null;
     return true;
   });
   // The site hears about a run that ended with nothing to show, too. A run
   // with episodes gets its email when the result is recorded.
-  const ended = endedWithoutResult as { sceneId: string } | null;
+  const ended = endedWithoutResult as { sceneId: string; teamId: string } | null;
   if (ended) {
     try {
       await enqueueTaskLifecycleNotification({ requestId: ended.sceneId, milestone: "run_no_result", eventId: params.runId });
     } catch (error) {
       logger.warn({ error, runId: params.runId }, "Could not enqueue a no-result notice");
+    }
+    try {
+      await notifyTeamOfRunOutcome({ teamId: ended.teamId, runId: params.runId, outcome: { kind: "no_result" } });
+    } catch (error) {
+      logger.warn({ error, runId: params.runId }, "Could not enqueue the team's no-result notice");
     }
   }
   return accepted;

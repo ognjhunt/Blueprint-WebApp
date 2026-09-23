@@ -51,6 +51,18 @@ export async function teamAccountUid(teamId: string): Promise<string | null> {
 }
 
 /**
+ * Where to email a team: its verified account, else the contact it registered.
+ * Used for Stripe receipts and result notices.
+ */
+export async function teamAccountEmail(teamId: string): Promise<string | null> {
+  if (!db) return null;
+  const snapshot = await db.collection(ROBOT_TEAMS_COLLECTION).doc(teamId).get();
+  const team = snapshot.data() as RobotTeamRecord | undefined;
+  const email = String(team?.accountEmail || team?.contactEmail || "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+/**
  * Bind a team to the caller's account. Idempotent for the same account; a team
  * already bound to someone else is refused rather than moved.
  */

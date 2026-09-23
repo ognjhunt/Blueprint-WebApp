@@ -52,6 +52,7 @@ import { recordCohortEpisodes } from "./cohortEconomics";
 import { settlementAmountUsd } from "./agentEvalRuns";
 import { recordEvaluationOutcome } from "./robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
+import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
 import type { EvalRunRecord } from "./agentEvalRuns";
 
 const RUNS_COLLECTION = "evaluationRuns";
@@ -306,6 +307,16 @@ export async function recordRunResult(params: {
       });
     } catch (error) {
       logger.warn({ error, runId: run.runId }, "Could not enqueue a results notice");
+    }
+    // And the team that paid for it.
+    try {
+      await notifyTeamOfRunOutcome({
+        teamId: run.teamId,
+        runId: run.runId,
+        outcome: { kind: "result", episodesSucceeded, episodesRun },
+      });
+    } catch (error) {
+      logger.warn({ error, runId: run.runId }, "Could not enqueue the team's result notice");
     }
   }
 

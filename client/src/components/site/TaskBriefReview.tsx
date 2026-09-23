@@ -56,6 +56,7 @@ import {
   signInWithGoogleAccount,
   watchAuth,
 } from "@/lib/accountAuth";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 import { opportunityLabels, type TaskListingDetails } from "@/types/taskBrowse";
 
 type Basis = "description" | "observation" | "measurement" | "assumption";
@@ -233,7 +234,7 @@ export function TaskBriefReview(props: {
     if (google) {
       user = await signInWithGoogleAccount();
     } else {
-      if (password.length < 6) throw new Error("Choose a password of six characters or more.");
+      if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.`);
       user = accountMode === "create"
         ? await createPasswordAccount(ownerEmail!, password)
         : await signInPasswordAccount(ownerEmail!, password);
@@ -569,7 +570,7 @@ export function TaskBriefReview(props: {
                 <input
                   id="account-password"
                   type="password"
-                  minLength={6}
+                  minLength={MIN_PASSWORD_LENGTH}
                   autoComplete={accountMode === "create" ? "new-password" : "current-password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}

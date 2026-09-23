@@ -83,6 +83,8 @@ export async function startBalanceTopup(params: {
   teamId: string;
   amountUsd: number;
   contactEmail?: string | null;
+  /** The task the payer was buying, so checkout returns them to it. */
+  returnSceneId?: string | null;
 }): Promise<TopupResult> {
   // The amount first, deliberately. An agent asking for $5 has a bug in its own
   // code, and telling it "payments are not configured" would send it looking in
@@ -108,11 +110,15 @@ export async function startBalanceTopup(params: {
       created: false,
       refusal: "stripe_unavailable",
       detail:
-        "Payments are not configured on this deployment, so a balance cannot be funded here.",
+        "Payments are temporarily unavailable, and nothing was charged. Please try again shortly or write to hello@tryblueprint.io.",
     };
   }
 
   const origin = resolveOrigin();
+  const sceneId = params.returnSceneId?.trim() ?? "";
+  const returnScene = /^[A-Za-z0-9._-]{1,120}$/.test(sceneId)
+    ? `&sceneId=${encodeURIComponent(sceneId)}`
+    : "";
 
   try {
     const session = await stripeClient.checkout.sessions.create({
@@ -134,6 +140,10 @@ export async function startBalanceTopup(params: {
         },
       ],
       customer_email: params.contactEmail?.trim() || undefined,
+      // Stripe emails the receipt, so the payer has a record of the charge.
+      ...(params.contactEmail?.trim()
+        ? { payment_intent_data: { receipt_email: params.contactEmail.trim() } }
+        : {}),
       // The webhook reads these. `client_reference_id` is deliberately not used
       // for the team: the buyer-order handler already resolves orders through
       // it, and a top-up is not an order.
@@ -142,8 +152,8 @@ export async function startBalanceTopup(params: {
         blueprint_team_id: params.teamId,
         blueprint_amount_usd: amountUsd.toFixed(2),
       },
-      success_url: `${origin}/contact/robot-team?funded=1`,
-      cancel_url: `${origin}/contact/robot-team?funded=0`,
+      success_url: `${origin}/contact/robot-team?funded=1${returnScene}`,
+      cancel_url: `${origin}/contact/robot-team?funded=0${returnScene}`,
     });
 
     if (!session.url) {

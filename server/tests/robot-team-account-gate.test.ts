@@ -212,3 +212,48 @@ describe("the account issues and revokes the agent's keys", () => {
     expect(sent.text).not.toMatch(/bpk_/);
   });
 });
+
+describe("a signed-in team sees its money and its runs without its agent key", () => {
+  it("lists the balance and every run with what it showed", async () => {
+    const { teamId } = await (await account("/robot-team/agent-keys", "robot-owner", { label: "ci" })).json();
+    const { creditTeam } = await import("../utils/robotTeamBalance");
+    await creditTeam({ teamId, amountUsd: 150, reason: "top-up", idempotencyKey: "fund-a" });
+    sharedFakeFirestoreState.docs.set("evaluationRuns/run-1", {
+      runId: "run-1", teamId, sceneId: "req-1", taskFamily: "pick_place", state: "settled",
+      quotedUsd: 99, requestedAtIso: "2026-09-20T00:00:00.000Z", episodesRun: 50,
+      result: { observed: { episodesRun: 50, episodesSucceeded: 41 } },
+    });
+    sharedFakeFirestoreState.docs.set("evaluationRuns/run-2", {
+      runId: "run-2", teamId, sceneId: "req-2", taskFamily: "pick_place", state: "blocked",
+      quotedUsd: 99, requestedAtIso: "2026-09-21T00:00:00.000Z", episodesRun: 0,
+    });
+
+    const access = await (await account("/robot-team/agent-access", "robot-owner")).json();
+    const team = access.teams[0];
+    expect(team.balance).toMatchObject({ availableUsd: 150, creditedUsd: 150 });
+    expect(team.runs.map((run: { runId: string }) => run.runId)).toEqual(["run-2", "run-1"]);
+    expect(team.runs[1]).toMatchObject({ resultStatus: "reported", episodesRun: 50, episodesSucceeded: 41 });
+    expect(team.runs[0]).toMatchObject({ resultStatus: "no_result" });
+  });
+});
+
+describe("the team hears when a run it bought reports", () => {
+  it("emails the account once per run, for a result and for a run with none", async () => {
+    const { teamId } = await (await account("/robot-team/agent-keys", "robot-owner", {})).json();
+    const { notifyTeamOfRunOutcome } = await import("../utils/robotTeamNotifications");
+    await notifyTeamOfRunOutcome({ teamId, runId: "run-1", outcome: { kind: "result", episodesSucceeded: 41, episodesRun: 50 } });
+    await notifyTeamOfRunOutcome({ teamId, runId: "run-1", outcome: { kind: "result", episodesSucceeded: 41, episodesRun: 50 } });
+    await notifyTeamOfRunOutcome({ teamId, runId: "run-2", outcome: { kind: "no_result" } });
+
+    const rows = [...sharedFakeFirestoreState.docs.entries()]
+      .filter(([key]) => key.startsWith("captureOutbox/team:"))
+      .map(([, value]) => value as Record<string, string>);
+    expect(rows).toHaveLength(2);
+    const result = rows.find((row) => row.kind === "team_run_result")!;
+    expect(result.to).toBe("robot-owner@example.com");
+    expect(result.body).toContain("41 of 50 simulated episodes succeeded");
+    expect(result.body).toContain("https://tryblueprint.io/settings?tab=agent");
+    expect(rows.find((row) => row.kind === "team_run_no_result")!.body).toMatch(/not charged for episodes that did not run/);
+  });
+});
+

@@ -1,10 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "firebase/auth";
 import { workspaceRequest } from "@/lib/workspace";
-import type { AgentAccessTeam } from "@/lib/robotTeamAccount";
+import type { AgentAccessRun, AgentAccessTeam } from "@/lib/robotTeamAccount";
+
+function formatUsd(value: number) {
+  return `$${(Math.round(value * 100) / 100).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function taskFamilyLabel(value: string) {
+  const words = value.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function runResultLabel(run: AgentAccessRun) {
+  if (run.resultStatus === "reported" && run.episodesRun) {
+    return `${run.episodesSucceeded ?? 0} of ${run.episodesRun} simulated episodes succeeded`;
+  }
+  if (run.resultStatus === "no_result") return "Ended without a result (not charged for unrun episodes)";
+  return run.state === "requested" ? "Queued or running" : "Waiting for the result";
+}
 
 /**
- * Where a robot team's agent keys live.
+ * Where a robot team's agent keys, balance and runs live.
  *
  * A person with a verified email owns the team and its keys; the agent then
  * plans, pays and runs on its own inside the team's policy. A key is shown
@@ -103,6 +120,43 @@ export function AgentAccessPanel({ user }: { user: User | null }) {
               <p>
                 <strong>{team.name}</strong> <span className="ws-muted">{team.teamId}</span>
               </p>
+              <p aria-label={`${team.name} balance`}>
+                {team.balance
+                  ? <>
+                      <strong>{formatUsd(team.balance.availableUsd)}</strong> available
+                      {team.balance.reservedUsd > 0 ? <span className="ws-muted"> · {formatUsd(team.balance.reservedUsd)} held for runs in progress</span> : null}
+                      <span className="ws-muted"> · {formatUsd(team.balance.creditedUsd)} added, {formatUsd(team.balance.spentUsd)} spent</span>
+                    </>
+                  : <span className="ws-muted">The balance could not be loaded. Try again shortly.</span>}
+              </p>
+              <h3 className="ws-kicker">Runs</h3>
+              {team.runs?.length ? (
+                <table className="ws-table" aria-label={`${team.name} runs`}>
+                  <thead>
+                    <tr>
+                      <th>Requested</th>
+                      <th>Task</th>
+                      <th>Result</th>
+                      <th>Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {team.runs.map((run) => (
+                      <tr key={run.runId}>
+                        <td>{new Date(run.requestedAtIso).toLocaleDateString()}</td>
+                        <td>{run.taskFamily ? taskFamilyLabel(run.taskFamily) : "Site task"}</td>
+                        <td>{runResultLabel(run)}</td>
+                        <td>{formatUsd(run.quotedUsd)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="ws-muted">
+                  No runs yet. Choose a task in the <a href="/contact/robot-team">task library</a> to see a plan.
+                </p>
+              )}
+              <h3 className="ws-kicker">Keys</h3>
               {team.keys.length ? (
                 <table className="ws-table">
                   <thead>

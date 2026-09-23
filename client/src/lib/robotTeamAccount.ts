@@ -15,11 +15,26 @@ export interface AgentAccessKey {
   lastUsedAtIso: string | null;
 }
 
+export interface AgentAccessRun {
+  runId: string;
+  sceneId: string;
+  taskFamily: string | null;
+  state: string;
+  quotedUsd: number;
+  requestedAtIso: string;
+  episodesRun: number | null;
+  episodesSucceeded: number | null;
+  resultStatus: "reported" | "no_result" | "awaiting_result";
+}
+
 export interface AgentAccessTeam {
   teamId: string;
   name: string;
   connectedAtIso: string | null;
   keys: AgentAccessKey[];
+  /** Null when the ledger could not be read, rather than a misleading $0. */
+  balance?: { availableUsd: number; reservedUsd: number; creditedUsd: number; spentUsd: number } | null;
+  runs?: AgentAccessRun[];
 }
 
 /**
@@ -63,9 +78,10 @@ export async function setUpRobotTeamWorkspace(
   });
 }
 
-/** Where a verification email returns a person mid-purchase. */
-export function robotTeamVerificationUrl() {
+/** Where a verification email returns a person mid-purchase: the same task. */
+export function robotTeamVerificationUrl(sceneId?: string) {
   const url = new URL("/contact/robot-team", window.location.origin);
   url.searchParams.set("connect", "1");
+  if (sceneId) url.searchParams.set("sceneId", sceneId);
   return url.toString();
 }

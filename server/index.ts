@@ -10,6 +10,7 @@ import { registerRoutes } from "./routes";
 import { privateWorkLogPath } from "./utils/blueprintWorkLogPrivacy";
 import { stripeWebhookHandler } from "./routes/stripe-webhooks";
 import { drainStripeWebhookQueueOnce, stripeWebhookInlineMode } from "./utils/stripeWebhookQueue";
+import { startOutboxPump } from "./utils/captureOutbox";
 import { handleHostedSessionUiUpgrade } from "./routes/site-world-sessions";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
@@ -525,6 +526,13 @@ app.use((req, res, next) => {
     runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
       ? startOpsAutomationScheduler()
       : () => undefined;
+  // Customer email must not depend on the ops scheduler being enabled here.
+  // (When the scheduler runs here, its capture_outbox lane already does this;
+  // local QA that disables the scheduler sends nothing either.)
+  const stopOutboxPump =
+    !runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
+      ? startOutboxPump()
+      : () => undefined;
   if (!runOpsAutomationInWebProcess) {
     logger.info(
       attachRequestMeta({ route: "ops-automation-scheduler" }),
@@ -538,6 +546,7 @@ app.use((req, res, next) => {
   }
   server.on("close", () => {
     stopOpsAutomationScheduler();
+    stopOutboxPump();
   });
   server.listen(PORT, "0.0.0.0", () => {
     logger.info({ port: PORT }, "Server listening");

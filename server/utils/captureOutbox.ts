@@ -37,6 +37,7 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
 import { brandedEmail } from "./emailLayout";
+import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 
 export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 
@@ -57,7 +58,10 @@ export type OutboxKind =
   | "brief_confirmed"
   | "coverage_shortfall"
   | "assessment_ready"
-  | "input_needed";
+  | "input_needed"
+  /** To the robot team that bought a run, when it reports. */
+  | "team_run_result"
+  | "team_run_no_result";
 
 export type OutboxStatus = "pending" | "sent" | "failed" | "cancelled";
 
@@ -214,4 +218,28 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
   }
 
   return summary;
+}
+
+/**
+ * Deliver the outbox on a timer from the web process.
+ *
+ * The scheduler lane above only runs where the ops scheduler runs, and the
+ * deployed topology runs it in neither the web process (opt-in) nor the
+ * launch-forward worker. Without this, a message waited for someone to reopen
+ * a capture page, and a robot team's result email waited forever. The shared
+ * automation leader lease keeps two processes from delivering at once.
+ */
+export function startOutboxPump(intervalMs = 60_000): () => void {
+  const lease = getOpsAutomationLeaderLease();
+  lease.start();
+  let running = false;
+  const timer = setInterval(() => {
+    if (running || !lease.isLeader()) return;
+    running = true;
+    void deliverOutbox({ limit: 25 })
+      .catch((error) => logger.warn({ error }, "Outbox pump pass failed"))
+      .finally(() => { running = false; });
+  }, Math.max(10_000, intervalMs));
+  timer.unref?.();
+  return () => clearInterval(timer);
 }

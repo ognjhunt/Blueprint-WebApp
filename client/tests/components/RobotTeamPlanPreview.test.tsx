@@ -315,6 +315,7 @@ describe("funding and queueing the plan", () => {
   });
 
   afterEach(() => {
+    window.localStorage.clear();
     window.sessionStorage.clear();
     window.history.replaceState({}, "", "/contact/robot-team");
   });
@@ -527,6 +528,7 @@ describe("paying needs a verified account", () => {
     sceneId, siteLabel: "Warehouse", costUsd: 99, rationale: "Payload band unknown for this checkpoint.",
   });
   afterEach(() => {
+    window.localStorage.clear();
     window.sessionStorage.clear();
   });
 
@@ -575,7 +577,40 @@ describe("paying needs a verified account", () => {
     expect(accountMocks.setUp).toHaveBeenCalledWith(user, { teamName: "Alpha Robotics", acceptedTerms: true });
     expect(accountMocks.sendVerification).toHaveBeenCalledWith(user, expect.stringContaining("connect=1"));
     expect(accountMocks.connect).not.toHaveBeenCalled();
-    expect(JSON.parse(window.sessionStorage.getItem("bp-plan-account")!).plan.agentKey).toBe("bpk_x");
+    // Kept across tabs: mail clients open the verification link in a new one.
+    const stash = JSON.parse(window.localStorage.getItem("bp-plan-account")!);
+    expect(stash.plan.agentKey).toBe("bpk_x");
+    expect(typeof stash.savedAtMs).toBe("number");
     expect(screen.getByRole("button", { name: /add \$99 and queue these runs/i })).toBeDisabled();
+  });
+
+  it("finishes the connection in the new tab the verification link opens", async () => {
+    // Another tab saved the plan before the email was sent.
+    const saved = {
+      plan: {
+        teamId: "team-1", agentKey: "bpk_x", checkpointId: "ckpt-1", rows: [{ sceneId: "s1", siteLabel: "Site one", costUsd: 99, rationale: "r" }],
+        totalCostUsd: 99, planToken: null, availableBalanceUsd: 0, fundingNeededUsd: 99, email: "eng@alpha.example",
+        teamName: "Alpha Robotics", accountBound: false, taskFamilyLabel: "Pick and place", planUnavailable: false,
+      },
+      savedAtMs: Date.now(),
+    };
+    window.localStorage.setItem("bp-plan-account", JSON.stringify(saved));
+    window.history.replaceState({}, "", "/contact/robot-team?connect=1");
+    const user = { email: "eng@alpha.example", emailVerified: true, reload: vi.fn(), getIdToken: vi.fn() };
+    accountMocks.currentUser = user;
+    render(<RobotTeamPlanPreview />);
+    await screen.findByText(/1 site we would run this against/i);
+    await vi.waitFor(() => expect(accountMocks.connect).toHaveBeenCalledWith(user, "bpk_x", expect.anything()));
+    await vi.waitFor(() => expect(window.localStorage.getItem("bp-plan-account")).toBeNull());
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("drops a saved plan older than a day instead of reusing its key", async () => {
+    window.localStorage.setItem("bp-plan-account", JSON.stringify({ plan: { agentKey: "bpk_old" }, savedAtMs: Date.now() - 25 * 60 * 60 * 1000 }));
+    window.history.replaceState({}, "", "/contact/robot-team?connect=1");
+    render(<RobotTeamPlanPreview />);
+    expect(screen.queryByText(/we would run this against/i)).toBeNull();
+    expect(window.localStorage.getItem("bp-plan-account")).toBeNull();
+    window.history.replaceState({}, "", "/");
   });
 });

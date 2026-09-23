@@ -65,7 +65,7 @@ for (const mobile of [false, true]) {
 
 test("empty library records demand; outage is not shown as an empty library", async ({ page }) => {
   const mutations = await fixtures(page, []); await page.goto("/sites");
-  await expect(page.getByText("No public tasks to browse yet.")).toBeVisible();
+  await expect(page.getByText("The first site tasks are being prepared.")).toBeVisible();
   const preferences = page.getByRole("form", { name: "Task preferences" });
   await preferences.getByLabel("Task", { exact: true }).fill("Pick and place");
   await preferences.getByLabel("Region", { exact: true }).fill("Midwest");
@@ -73,12 +73,12 @@ test("empty library records demand; outage is not shown as an empty library", as
   await preferences.getByLabel("Work email").fill("team@example.test");
   await preferences.getByLabel("You may email me about matching tasks.").check();
   await preferences.getByRole("button", { name: "Save preferences" }).click();
-  await expect(page.getByRole("status")).toContainText("Preferences saved");
+  await expect(page.getByRole("status")).toContainText("We will email you when a task like this is listed");
   expect(mutations.at(-1)?.body).toMatchObject({ taskFamily: "Pick and place", region: "Midwest", mayContact: true });
   await screenshot(page, "empty-saved");
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ status: 503, json: { error: "offline" } }));
   await page.reload(); await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
-  await expect(page.getByText("No public tasks to browse yet.")).toHaveCount(0);
+  await expect(page.getByText("The first site tasks are being prepared.")).toHaveCount(0);
 });
 
 test("desktop capture has one status, adjacent upload, brand and owner-reviewed public card", async ({ page }) => {

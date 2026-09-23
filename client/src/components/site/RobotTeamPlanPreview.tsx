@@ -47,6 +47,7 @@ import type { TaskListingDetails } from "@/types/taskBrowse";
 import { useEffect, useState } from "react";
 
 import { robotGateFields } from "@/data/robotTeamQualification";
+import { describePlanBlockers } from "@/lib/robotRunBlockers";
 
 type Row = {
   sceneId: string;
@@ -71,6 +72,8 @@ type PlanResult = {
   teamName?: string;
   /** Whether a verified account owns this team. Paying waits on it. */
   accountBound?: boolean;
+  /** Why each selected site cannot be paid for yet, as the server reports it. */
+  lineBlockers?: Array<{ sceneId: string; blockers: string[] }>;
   taskFamilyLabel: string;
   /**
    * Whether the empty list is our outage rather than our library.
@@ -128,13 +131,40 @@ type QueueState =
   | { status: "failed"; message: string };
 
 const QUEUE_STASH_KEY = "bp-plan-queue";
-/** The plan waiting on a verification email, so the return trip can connect it. */
+/**
+ * The plan waiting on a verification email, so the return trip can connect it.
+ *
+ * Kept in localStorage, not sessionStorage: mail clients open the verification
+ * link in a new tab, and a per-tab copy left that tab with no plan and no key
+ * to connect. It expires after a day and is cleared as soon as the team is
+ * connected, so the key does not outlive the one trip it exists for.
+ */
 const ACCOUNT_STASH_KEY = "bp-plan-account";
+const ACCOUNT_STASH_TTL_MS = 24 * 60 * 60 * 1000;
 
-function readAccountStash(): { plan: PlanResult; sceneId?: string } | null {
+type AccountStash = { plan: PlanResult; sceneId?: string; savedAtMs?: number };
+
+function writeAccountStash(stash: { plan: PlanResult; sceneId?: string }) {
   try {
-    const raw = window.sessionStorage.getItem(ACCOUNT_STASH_KEY);
-    return raw ? (JSON.parse(raw) as { plan: PlanResult; sceneId?: string }) : null;
+    window.localStorage.setItem(ACCOUNT_STASH_KEY, JSON.stringify({ ...stash, savedAtMs: Date.now() }));
+  } catch { /* The original tab still works; its "I've verified" button connects. */ }
+}
+
+function clearAccountStash() {
+  try { window.localStorage.removeItem(ACCOUNT_STASH_KEY); } catch { /* Nothing to clear. */ }
+  try { window.sessionStorage.removeItem(ACCOUNT_STASH_KEY); } catch { /* Nothing to clear. */ }
+}
+
+function readAccountStash(): AccountStash | null {
+  try {
+    const raw = window.localStorage.getItem(ACCOUNT_STASH_KEY) ?? window.sessionStorage.getItem(ACCOUNT_STASH_KEY);
+    if (!raw) return null;
+    const stash = JSON.parse(raw) as AccountStash;
+    if (stash.savedAtMs && Date.now() - stash.savedAtMs > ACCOUNT_STASH_TTL_MS) {
+      clearAccountStash();
+      return null;
+    }
+    return stash;
   } catch {
     return null;
   }
@@ -191,7 +221,7 @@ const TASK_FAMILIES = [
 const RUNTIMES = [
   { value: "policy_endpoint", label: "An endpoint we can call" },
   { value: "container_image", label: "A container image" },
-  { value: "model_artifact", label: "A model artifact" },
+  { value: "model_artifact", label: "A model artifact (plan only; paid runs need one of the above)" },
 ] as const;
 
 function familyLabel(value: string) {
@@ -399,7 +429,7 @@ export function RobotTeamPlanPreview({
       const funding = await fetch("/api/agent-team/funding", {
         method: "POST",
         headers,
-        body: JSON.stringify({ amountUsd: topupUsd }),
+        body: JSON.stringify({ amountUsd: topupUsd, ...(sceneId ? { returnSceneId: sceneId } : {}) }),
       });
       const body = (await funding.json().catch(() => ({}))) as {
         checkoutUrl?: string;
@@ -506,6 +536,7 @@ export function RobotTeamPlanPreview({
       let fundingNeededUsd = 0;
       let planUnavailable = false;
       let accountBound = false;
+      let lineBlockers: Array<{ sceneId: string; blockers: string[] }> = [];
       const checkpointId = account.checkpoint?.checkpointId ?? null;
 
       if (checkpointId) {
@@ -525,8 +556,10 @@ export function RobotTeamPlanPreview({
           spendableNowUsd?: number;
           fundingNeededUsd?: number;
           accountBound?: boolean;
+          lineBlockers?: Array<{ sceneId: string; blockers: string[] }>;
         };
         if (planned.ok) {
+          lineBlockers = Array.isArray(plan.lineBlockers) ? plan.lineBlockers : [];
           rows = Array.isArray(plan.selected) ? plan.selected : [];
           totalCostUsd = Number(plan.totalCostUsd || 0);
           planToken = typeof plan.planToken === "string" ? plan.planToken : null;
@@ -552,6 +585,7 @@ export function RobotTeamPlanPreview({
           email,
           teamName,
           accountBound,
+          lineBlockers,
           taskFamilyLabel: familyLabel(taskFamily),
           planUnavailable,
         },
@@ -572,6 +606,7 @@ export function RobotTeamPlanPreview({
       const body = (await response.json().catch(() => ({}))) as {
         selected?: Row[]; totalCostUsd?: number; planToken?: string; availableBalanceUsd?: number;
         fundingNeededUsd?: number; accountBound?: boolean;
+        lineBlockers?: Array<{ sceneId: string; blockers: string[] }>;
       };
       if (!response.ok) throw new Error("Plan unavailable");
       setState({
@@ -584,6 +619,7 @@ export function RobotTeamPlanPreview({
           availableBalanceUsd: Number(body.availableBalanceUsd ?? plan.availableBalanceUsd),
           fundingNeededUsd: Number(body.fundingNeededUsd ?? plan.fundingNeededUsd),
           accountBound: body.accountBound !== false,
+          lineBlockers: Array.isArray(body.lineBlockers) ? body.lineBlockers : [],
         },
       });
     } catch {
@@ -607,7 +643,8 @@ export function RobotTeamPlanPreview({
         checkpointId: stash.checkpointId, rows: Array.isArray(body.selected) ? body.selected : [],
         totalCostUsd: Number(body.totalCostUsd || 0), planToken: body.planToken || null,
         availableBalanceUsd: Number(body.availableBalanceUsd || 0), fundingNeededUsd: Number(body.fundingNeededUsd || 0),
-        email: stash.email || "", taskFamilyLabel: stash.plan?.taskFamilyLabel || "this task", planUnavailable: false };
+        email: stash.email || "", taskFamilyLabel: stash.plan?.taskFamilyLabel || "this task", planUnavailable: false,
+        lineBlockers: Array.isArray(body.lineBlockers) ? body.lineBlockers : [] };
       setState({ status: "done", plan }); setQueue({ status: "idle" });
     } catch { setQueue({ status: "failed", message: "The updated plan could not be loaded. Your saved result access remains available." }); }
   }
@@ -667,11 +704,11 @@ export function RobotTeamPlanPreview({
             </ul>
           </>
         )}
-        {/* What happens next, stated as it is. Nothing emails a result today,
-            so nothing here says one is coming. */}
+        {/* What happens next, stated as it is: the account email hears when a
+            result reports, and Settings lists every run and the balance. */}
         <p className="ms-field-hint">
-          The runs are queued for the evaluation pipeline. This page can read the result receipt
-          when it is ready.
+          The runs are queued. We email you when each one reports, and your account's{" "}
+          <a href="/settings?tab=agent">Settings → Agent access</a> lists every run and your balance.
         </p>
         <button className="ms-button" type="button" onClick={() => {
           const stash = readQueueStash();
@@ -735,11 +772,10 @@ export function RobotTeamPlanPreview({
                 agentKey={plan.agentKey}
                 email={plan.email}
                 teamName={plan.teamName ?? ""}
-                onAwaitingVerification={() => {
-                  try { window.sessionStorage.setItem(ACCOUNT_STASH_KEY, JSON.stringify({ plan, sceneId })); } catch { /* The page still works; the return trip asks again. */ }
-                }}
+                returnSceneId={sceneId}
+                onAwaitingVerification={() => writeAccountStash({ plan, sceneId })}
                 onConnected={() => {
-                  try { window.sessionStorage.removeItem(ACCOUNT_STASH_KEY); } catch { /* Nothing to clear. */ }
+                  clearAccountStash();
                   void refreshPlan(plan);
                 }}
               />
@@ -764,7 +800,14 @@ export function RobotTeamPlanPreview({
                 : `Your existing $${plan.availableBalanceUsd} balance covers this one-time plan.`}
               {" "}The signed selection expires after 15 minutes; if it expires, you will review a fresh plan before spending.
             </p>
-            {plan.accountBound && !plan.planToken && <p role="status">This site is not ready for paid runs yet. Nothing is charged; check back soon.</p>}
+            {plan.accountBound && !plan.planToken && (
+              <div role="status">
+                {(describePlanBlockers(plan.lineBlockers).length
+                  ? describePlanBlockers(plan.lineBlockers)
+                  : ["This site isn't ready for paid runs yet. Nothing is charged, and the plan stays free to read."]
+                ).map((sentence) => <p key={sentence}>{sentence}</p>)}
+              </div>
+            )}
 
           </>
         ) : (

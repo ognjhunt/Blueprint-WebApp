@@ -8,6 +8,7 @@
  */
 import type { User } from "firebase/auth";
 import { WorkspaceRequestError, workspaceRequest } from "@/lib/workspace";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
 export interface ClaimContext {
   /** The submission's own email, which the account must use. */
@@ -69,7 +70,7 @@ export function friendlyAuthError(error: unknown, fallback: string): string {
   if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
     return "That password does not match this account.";
   }
-  if (code === "auth/weak-password") return "Choose a password of six characters or more.";
+  if (code === "auth/weak-password") return `Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.`;
   if (code === "auth/popup-closed-by-user") return "The Google window closed before signing in.";
   if (error instanceof Error) return error.message.replace("Firebase: ", "");
   return fallback;

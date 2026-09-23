@@ -49,6 +49,8 @@ import { robotDescriptionSchema } from "../../client/src/types/robotDescription"
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { bindTeamToAccount, teamsForAccount } from "../utils/robotTeamAccounts";
+import { getTeamBalance } from "../utils/robotTeamBalance";
+import { listRunsForTeam } from "../utils/agentRunResults";
 import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
@@ -818,6 +820,28 @@ router.get(
             createdAtIso: key.createdAtIso,
             lastUsedAtIso: key.lastUsedAtIso,
           })),
+        // What a signed-in team needs without its agent key in hand: what it
+        // has, what is held, and every run it bought with what each showed.
+        balance: await getTeamBalance(team.id).then(
+          (balance) => ({
+            availableUsd: balance.availableUsd,
+            reservedUsd: balance.reservedUsd,
+            creditedUsd: balance.creditedUsd,
+            spentUsd: balance.spentUsd,
+          }),
+          () => null,
+        ),
+        runs: (await listRunsForTeam(team.id, 25).catch(() => [])).map((run) => ({
+          runId: run.runId,
+          sceneId: run.sceneId,
+          taskFamily: run.taskFamily ?? null,
+          state: run.state,
+          quotedUsd: run.quotedUsd,
+          requestedAtIso: run.requestedAtIso,
+          episodesRun: run.result?.observed?.episodesRun ?? run.episodesRun ?? null,
+          episodesSucceeded: run.result?.observed?.episodesSucceeded ?? null,
+          resultStatus: run.result ? "reported" : run.state === "abandoned" || run.state === "blocked" ? "no_result" : "awaiting_result",
+        })),
       }))),
     });
   }),
