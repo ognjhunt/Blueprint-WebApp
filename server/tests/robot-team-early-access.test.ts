@@ -293,7 +293,9 @@ describe("the review queue", () => {
     tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
     listedSite("site-1");
     const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer ops", ...CSRF } });
-    expect(await response.json()).toMatchObject({ library: { listedTaskCount: 1, autoApproveMinimumTasks: 5 } });
+    expect(await response.json()).toMatchObject({
+      library: { listedTaskCount: 1, autoApproveMinimumTasks: 1, gated: true, openSuggestedAtTasks: 10 },
+    });
   });
 });
 
@@ -304,14 +306,13 @@ describe("the fit checklist", () => {
   const outbox = (kind: string) => [...state.docs.entries()].filter(([key]) => key.startsWith(`captureOutbox/${kind}`));
   const listFive = () => ["a", "b", "c", "d", "e"].forEach((id) => listedSite(`site-${id}`));
 
-  it("records its reasons, and while the library is thin a person replies to everyone", async () => {
-    listedSite("site-1");
+  it("records its reasons, and with nothing listed yet a person replies to everyone", async () => {
     expect(await (await apply({ ...application, testSite: "Our pilot warehouse in Ohio" })).json()).toEqual({ status: "applied" });
     const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>;
     expect(record.testSite).toBe("Our pilot warehouse in Ohio");
-    expect(record.fit).toMatchObject({ clearFit: true, listedTaskCount: 1 });
+    expect(record.fit).toMatchObject({ clearFit: true, listedTaskCount: 0 });
     expect(record.fit.checks.map((check: { id: string; passed: boolean }) => [check.id, check.passed])).toEqual([
-      ["work_email", true], ["website_matches_email", true], ["open_tasks_in_region", true],
+      ["work_email", true], ["website_matches_email", true], ["open_tasks_in_region", false],
     ]);
     const receipt = outbox("robot_team_access_received");
     expect(receipt).toHaveLength(1);
@@ -319,15 +320,20 @@ describe("the fit checklist", () => {
     expect(slack).toHaveBeenCalledWith(expect.objectContaining({ testSite: "Our pilot warehouse in Ohio", autoApproved: false }));
   });
 
-  it("approves a clear fit on its own once enough site tasks are listed", async () => {
-    listFive();
+  it("approves a clear fit on its own as soon as one site task is listed, with the call optional", async () => {
+    listedSite("site-1");
     expect(await (await apply(application)).json()).toEqual({ status: "approved" });
     expect(state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`))
       .toMatchObject({ status: "approved", decidedBy: "auto: fit checklist" });
     expect(outbox("robot_team_access_received")).toHaveLength(0);
     const approval = outbox("robot_team_access_approved");
     expect(approval).toHaveLength(1);
-    expect(String((approval[0][1] as { body: string }).body)).toMatch(/20-minute call/);
+    const body = String((approval[0][1] as { body: string }).body);
+    expect(body).toMatch(/Reply with the site or customer you would most want to test at/);
+    expect(body).toMatch(/If a call would help/);
+    expect(body).not.toMatch(/20-minute/);
+    expect((state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>)
+      .fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: true });
   });
 
   it("leaves anything short of a clear fit, or a switched-off rule, to a person", async () => {

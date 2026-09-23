@@ -76,7 +76,7 @@ export function TaskBrowse() {
     </details>}
     {libraryEmpty && <div className="ms-task-empty">
       <h2>The first site tasks are being prepared.</h2>
-      <p>Sites film their own tasks and choose whether to share them with robot teams. We are matching teams to sites by hand, and we will email you when a site task fits your robot.</p>
+      <p>Sites film their own tasks and choose whether to share them with robot teams. We email you as soon as a site lists a new task.</p>
     </div>}
     {state === "ready" && items.length > 0 && <>
       <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "task" : "tasks"} · Details shared by site owners. A past task can remain available for evaluation.</p>

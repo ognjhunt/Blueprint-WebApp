@@ -322,9 +322,14 @@ describe("a person is kept where something is actually being committed", () => {
     expect(policy.autoApproveCriteria(qualified)).toBe(true);
   });
 
-  it("keeps the person when somebody has to drive", () => {
+  it("keeps the person at the booking, not at the email that offers a phone first", () => {
+    // The visit email leads with the site filming it itself and books nothing:
+    // a visit is committed only when the site replies with times and a person
+    // confirms one. So the fixed email sends, and the person stays at the booking.
     const policy = createInboundEmailPolicy({ deterministic: true, dispatch: VISIT });
-    expect(policy.alwaysHumanReview(qualified)).toBe(true);
+    expect(policy.alwaysHumanReview(qualified)).toBe(false);
+    expect(policy.autoApproveCriteria(qualified)).toBe(true);
+    expect(createInboundEmailPolicy({ deterministic: false, dispatch: VISIT }).alwaysHumanReview(qualified)).toBe(true);
   });
 
   it("keeps the person when the body is model prose rather than fixed copy", () => {

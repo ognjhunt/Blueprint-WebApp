@@ -64,7 +64,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   listing_live: {
     subject: "Your task card is in the robot-team library",
-    body: (url) => `Robot teams in Blueprint's early-access group can now see the task card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time from your Blueprint account: https://tryblueprint.io/app/tasks\n\nOpen your task:\n${url}`,
+    body: (url) => `Robot teams on Blueprint can now see the task card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time from your Blueprint account: https://tryblueprint.io/app/tasks\n\nOpen your task:\n${url}`,
   },
   screening_cleared: {
     subject: "Your task cleared our screen",
@@ -88,7 +88,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
-    body: (url) => `A robot team asked to evaluate your site for a pilot. Blueprint reviews the fit with them first and will introduce you if it holds up; your details stay private until then.\n\nOpen your task:\n${url}`,
+    body: (url) => `A robot team asked to evaluate your site for a pilot. Your details stay private. If you would like to talk to them, reply to this email and we will introduce you; if not, there is nothing to do.\n\nOpen your task:\n${url}`,
   },
 };
 

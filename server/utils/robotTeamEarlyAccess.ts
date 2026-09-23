@@ -1,8 +1,8 @@
 /**
  * Early access for robot teams.
  *
- * Blueprint opens to a small group of robot teams first and matches each one
- * to site tasks by hand. Until a team is approved it sees no site tasks: not
+ * Blueprint opens to robot teams a few at a time. Until a team is approved
+ * (by a person, or by the fit checklist for a clear fit) it sees no site tasks: not
  * the library, not a plan, not the site catalog. Approval is by verified
  * email, recorded server-side in a collection clients cannot read or write,
  * because a flag on `users/{uid}` would be client-writable.
@@ -63,7 +63,7 @@ const APP_URL = () => (process.env.APP_URL || "https://tryblueprint.io").replace
 
 export const EARLY_ACCESS_REQUIRED = {
   error:
-    "Blueprint is in early access for robot teams. Site tasks are shown to approved teams only; apply and a person will review it.",
+    "Blueprint is in early access for robot teams. Site tasks are shown to approved teams only; apply and your application will be reviewed.",
   code: "early_access_required",
   get apply() {
     return `${APP_URL()}/contact/robot-team`;

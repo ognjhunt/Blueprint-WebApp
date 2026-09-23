@@ -532,8 +532,12 @@ function createWaitlistEmailPolicy(): LaneSafetyPolicy {
  * So the gate narrows to what is actually being committed, and the
  * conservative default stays everywhere else:
  *
- * - **A capturer visit** still needs a person. Somebody drives to a real
- *   address, and that is a real commitment.
+ * - **A capturer visit** still needs a person, at the booking. Somebody drives
+ *   to a real address, and that is a real commitment. The email that answers a
+ *   visit request commits to nothing: it leads with the site filming it itself
+ *   from its own link, and a visit is only booked when the site replies with
+ *   times and a person confirms one. So that fixed email sends on its own, and
+ *   the person stays where the commitment is.
  * - **A model-written follow-up** still needs a person. The deterministic
  *   variants are fixed copy selected by the site's own answers, which is what
  *   `qualificationEmails` means by reviewing the copy once instead of
@@ -551,8 +555,7 @@ export function createInboundEmailPolicy(params: {
   deterministic: boolean;
   dispatch: CaptureDispatchDecision;
 }): LaneSafetyPolicy {
-  const commitsAVisit = params.dispatch.dispatch && params.dispatch.channel === "capturer_visit";
-  if (!params.deterministic || commitsAVisit) {
+  if (!params.deterministic) {
     return INBOUND_POLICY;
   }
 
@@ -815,7 +818,8 @@ export function nextStepForDispatch(
   }
 
   if (decision.channel === "capturer_visit") {
-    return { kind: "capturer_visit" };
+    // The same link, held for a visit, offers the switch to filming it.
+    return { kind: "capturer_visit", taskUrl: captureUploadUrlFor(request.requestId) };
   }
 
   return {

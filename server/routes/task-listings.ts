@@ -6,6 +6,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { listingConsentVersion, taskListingSchema } from "../utils/taskListingDetails";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { enqueueNewTaskAlerts } from "../utils/robotTeamAccessEmails";
 
 const router = Router();
 router.use(rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }));
@@ -58,6 +59,9 @@ router.route("/owner/:token")
       // The site hears the moment its card goes live, once per time it is switched on.
       if (wentLive) {
         await enqueueTaskLifecycleNotification({ requestId: res.locals.requestId, milestone: "listing_live", eventId: wentLive })
+          .catch(() => undefined);
+        // Approved robot teams hear about it too, so a match never waits on a person.
+        await enqueueNewTaskAlerts({ requestId: res.locals.requestId, card: parsed.data.details, wentLiveIso: wentLive })
           .catch(() => undefined);
       }
       return res.json({ ok: true });

@@ -8,7 +8,7 @@
  * the phone" are the two ways it silently breaks.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
 
 vi.mock("wouter", () => ({
@@ -214,5 +214,60 @@ describe("SelfCaptureUpload once robot teams have run", () => {
       .toHaveAttribute("href", "/claim/scene-owner");
     expect(screen.getByRole("link", { name: "View your scene" })).toBeInTheDocument();
     expect(screen.queryByText(/41 of 50 episodes/)).not.toBeInTheDocument();
+  });
+});
+
+describe("SelfCaptureUpload for a site that asked for a visit", () => {
+  it("offers to film it themselves and opens the recorder when they do", async () => {
+    setUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36",
+    );
+    const calls: Array<{ url: string; method: string }> = [];
+    let switched = false;
+    const ready = { ok: true, state: "ready", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      calls.push({ url, method });
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/self-capture`)) {
+        switched = true;
+        return Promise.resolve({ ok: true, json: async () => ({ ...ready, switched: true }) });
+      }
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}`)) {
+        if (switched) return Promise.resolve({ ok: true, json: async () => ready });
+        return Promise.resolve({ ok: true, json: async () => ({
+          ok: true, state: "held", holdReason: "capturer_visit_scheduled",
+          detail: "This site is set up for a capturer visit rather than a self-recorded walkthrough.",
+          blockers: [], openQuestions: [], selfCaptureSwitchAvailable: true,
+        }) });
+      }
+      return mockFetch()(input);
+    }));
+    render(<SelfCaptureUpload />);
+
+    const button = await screen.findByRole("button", { name: "I'll film it myself instead" });
+    expect(screen.getByText(/Visits are booked by hand, so they take longer/)).toBeInTheDocument();
+    // The rule's internal wording is replaced by the offer, not shown beside it.
+    expect(screen.queryByText(/set up for a capturer visit/)).not.toBeInTheDocument();
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("heading", { name: "Point your phone at this." })).toBeInTheDocument();
+    expect(calls).toContainEqual({ url: `/api/self-capture/uploads/${TOKEN}/self-capture`, method: "POST" });
+  });
+
+  it("does not offer the switch unless the server does", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}`)) {
+        return Promise.resolve({ ok: true, json: async () => ({
+          ok: true, state: "held", holdReason: "not_qualified", detail: "Something is in the way.",
+          blockers: [], openQuestions: [], selfCaptureSwitchAvailable: false,
+        }) });
+      }
+      return mockFetch()(input);
+    }));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText("Something is in the way.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "I'll film it myself instead" })).not.toBeInTheDocument();
   });
 });

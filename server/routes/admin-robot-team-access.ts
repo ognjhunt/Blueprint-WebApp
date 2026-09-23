@@ -11,12 +11,13 @@ import { z } from "zod";
 
 import { logger } from "../logger";
 import { requireAdminRole } from "../middleware/requireAdminRole";
-import { autoApproveMinimumTasks } from "../utils/robotTeamAccessFit";
+import { autoApproveMinimumTasks, OPEN_LIBRARY_SUGGESTED_AT_TASKS } from "../utils/robotTeamAccessFit";
 import { enqueueAccessEmail } from "../utils/robotTeamAccessEmails";
 import {
   accessRecordId,
   decideAccessApplication,
   inviteRobotTeam,
+  isRobotTeamEarlyAccessGated,
   listAccessApplications,
 } from "../utils/robotTeamEarlyAccess";
 import { listTaskBrowseCards } from "../utils/taskBrowse";
@@ -41,6 +42,8 @@ router.get("/", async (_req: Request, res: Response) => {
       library: {
         listedTaskCount: listed?.length ?? null,
         autoApproveMinimumTasks: autoApproveMinimumTasks(),
+        gated: isRobotTeamEarlyAccessGated(),
+        openSuggestedAtTasks: OPEN_LIBRARY_SUGGESTED_AT_TASKS,
       },
     });
   } catch (error) {

@@ -151,7 +151,8 @@ export const captureModeField = {
     {
       value: "site_visit" as const,
       label: "Send someone to record it",
-      detail: "Available in the Austin metro today, because a person has to be there.",
+      detail:
+        "Available in the Austin metro, because a person has to be there. Visits are booked by hand, so they take longer than filming it yourself.",
     },
   ],
 } as const;

@@ -46,7 +46,7 @@ import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
 import { reviewCaptureCoverage } from "../utils/captureCoverageReview";
 import { recordCapturePrivacyScreen } from "../utils/capturePrivacyRecord";
-import { getBrief } from "../utils/siteTaskBrief";
+import { getBrief, switchSiteToSelfCapture } from "../utils/siteTaskBrief";
 import { loadWebsiteCaptureRights, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { bundleLimitsFromEnv } from "../utils/siteCaptureBundle";
@@ -672,11 +672,52 @@ router.get("/:token", async (req: Request, res: Response) => {
     detail: authorization.detail,
     blockers: authorization.blockers,
     openQuestions: authorization.openQuestions,
+    selfCaptureSwitchAvailable: authorization.captureMode === "site_visit" && payload.scope === "owner",
     // Present only when something was actually being held, so an ordinary
     // status check does not grow a field that reads as a problem.
     ...(resumed && resumed.action !== "nothing_held"
       ? { review: { action: resumed.action } }
       : {}),
+  });
+});
+
+/**
+ * "I'll film it myself instead": a site that asked for a visit switches to its
+ * own phone. Visits are scheduled by hand, so this is the path that does not
+ * wait on anyone. Only the site owner's link may switch; a filmer's link
+ * records, it does not change what the site asked for.
+ */
+router.post("/:token/self-capture", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This upload link is not valid or has expired." });
+  }
+  if (payload.scope !== "owner") {
+    return res.status(403).json({ error: "Only the site's own link can change how the task is recorded." });
+  }
+  let outcome: Awaited<ReturnType<typeof switchSiteToSelfCapture>>;
+  try {
+    outcome = await switchSiteToSelfCapture(payload.requestId);
+  } catch (error) {
+    logger.warn({ error, requestId: payload.requestId }, "Could not switch a site to self-capture");
+    return res.status(503).json({ error: "We could not change this right now. Try again shortly." });
+  }
+  if (outcome === "not_found" || outcome === "not_a_site_task") {
+    return res.status(404).json({ error: "This link does not point at a site task we hold." });
+  }
+  const authorization = await authorizeCaptureUpload(payload.requestId);
+  return res.json({
+    ok: true,
+    switched: outcome === "switched",
+    captureId: payload.captureId,
+    expiresAt: new Date(payload.exp * 1000).toISOString(),
+    accepts: [...ALLOWED_EXTENSIONS],
+    state: authorization.allowed ? "ready" : "held",
+    holdReason: authorization.holdReason,
+    detail: authorization.detail,
+    blockers: authorization.blockers,
+    openQuestions: authorization.openQuestions,
+    selfCaptureSwitchAvailable: authorization.captureMode === "site_visit",
   });
 });
 

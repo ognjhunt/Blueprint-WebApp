@@ -67,7 +67,9 @@ export type OutboxKind =
   /** A robot team's early-access application, received and decided. */
   | "robot_team_access_received"
   | "robot_team_access_approved"
-  | "robot_team_access_not_yet";
+  | "robot_team_access_not_yet"
+  /** To approved robot teams, when a site lists a new task card. */
+  | "robot_team_new_task";
 
 export type OutboxStatus = "pending" | "sent" | "failed" | "cancelled";
 
