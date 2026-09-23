@@ -107,7 +107,7 @@ centred on the middle drawer front.
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture CPU authoring retry running** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The `3c177ad5` attempt completed CPU stages 1–2 and authored a cabinet carcass candidate, then stopped in stage 3 before the drawer repair request on `authoring_session_context_ceiling_exceeded`. The bounded context fix deployed as `15c94f6f`; the archive-bound accounting fix deployed as `83f5277a`, and a controller-owned same-scene launch passed admission and entered CPU authoring. No articulated asset or room integration is proved yet. Captured-room integration remains unqualified. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture CPU authoring not yet accepted** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The `83f5277a` retry produced separate cabinet and drawer candidates, but its third independent drawer appearance review rejected the cool uniform wood and dark squared handle. CPU stage 3 stopped at `authoring_independent_review_limit_reached`; no accepted articulated asset or room integration is proved. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1242,9 +1242,35 @@ The durable controller progressed the same intent through event 91
 and standing authority without a provider call. It then submitted launch
 `website-52ff463bc7855063836d5861-83f5277a-20260923t161850z-activation-auto-launch`.
 The launch admission receipt is `admitted` with no blockers, and CPU prestage
-reported progress ticks while its provider runtime remained active. This is an
-active paid attempt, so no further deploy or WebApp merge is appropriate during
-it. The output archive, visual review, articulated drawer, native qualification,
-GPU policy episode, teardown, and website result remain pending. Matrix step 11
-is still partial, steps 10 and 12–14 unproven, and captured-room readiness
-unqualified.
+reported progress ticks while its provider runtime remained active. At that
+point it was an active paid attempt, so no deployment or WebApp merge ran over
+it. The later terminal result is recorded below. Matrix step 11 remained
+partial, steps 10 and 12–14 unproven, and captured-room readiness unqualified.
+
+## 2026-09-23: drawer appearance rejection and bounded Astra retry preparation
+
+That launch ended at CPU stage 3 with `authoring_independent_review_limit_reached`.
+The retained stage archive shows a cabinet carcass that passed independent
+appearance review and a separate drawer CAD candidate. Three drawer renders
+failed the independent appearance review: the front was cooler and more uniform
+than original frames 0 and 3, and the handle looked darker and more squared
+than the observed bright silver bar. The last author program mapped a
+17-pixel-wide source-image strip across the broad drawer front. No GPU provider
+mutation or policy episode followed this failure.
+
+The owner requested GPT-6 Astra for CPU CAD/Blender authoring. Pipeline PR
+[#2140](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2140) merged
+as `f4c2b87e562beb86fe8f63060443765d2fe5384b`; it restores Astra on this
+bounded stage, retains exact model provenance for Sol-authored prior records,
+and improves instructions for photographed surface patches. One hundred
+focused tests and changed-file lint passed. Its canonical deployment has
+started; a final deployed receipt and live exact-commit readback are still
+required. No retry is claimed from that code yet.
+
+The service-user ledger retained $39 in conservative exposure. Under the
+owner's previous bounded cap-increase authorization, an append-only grant
+raised this scene's cumulative internal simulation ceiling from $44 to $52,
+covering exactly one more $13 guarded attempt. The attempt count stays 16 and
+the $7 CPU/$6 GPU per-attempt limits and fixed $25 website development-test
+price stay unchanged. This grant is not evidence of actual provider billing or
+of a new launch. Steps 10 and 12–14 remain unproven; step 11 remains partial.
