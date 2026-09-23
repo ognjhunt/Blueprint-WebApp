@@ -1288,3 +1288,38 @@ no blockers; its result is pending. No CPU authoring acceptance, native
 qualification, GPU episode, or website result is claimed yet. Keep the evidence
 matrix at step 11 partial and steps 10 and 12–14 unproven while this guarded
 attempt runs.
+
+## 2026-09-23: Astra drawer review failed before articulation packaging
+
+The admitted `f4c2b87e` launch ended `blocked` at CPU stage 3. Its retained
+`cpu_prestage_output.zip` has SHA-256
+`d1cc5f52b098bf3bca8a9353749c11b8dfa09022a5e6524f50e902ec2bcc956e`.
+Stages 1 and 2 checkpointed. Astra authored the cabinet carcass and drawer
+CAD and Blender meshes. The carcass review passed as a development-only
+candidate. The drawer's first independent appearance review rejected broad,
+blurred wood grain against original frames 0, 2, and 3; it accepted the shape
+and handle presence. Astra rebuilt a finer-grained drawer and rendered its
+perspective, top, and side views, but that revised mesh never reached visual
+review. Physical-property review 3 returned an `object_id` with extra hash
+digits. Deterministic review rejected it as `object_identity_changed`, and the
+authoring loop ended `authoring_independent_review_limit_reached`.
+
+The allocator result reports `provider_mutations_performed=0`,
+`configuration_completed=false`, and `evaluation_episode_executed=false`.
+No articulated assembly, native qualification, GPU policy action, teardown of
+a GPU rental, or website policy result is claimed. Captured-room registration
+remains unqualified. The existing scene's simulation authority expired at
+18:50:52 UTC, and the $52 cumulative exposure grant covered only this last
+$13 quote; no further paid retry is authorized by that grant.
+
+Pipeline PR [#2142](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2142)
+merged as `44fdc9b98a6f6bf5331b24a123ae57b876784be6`. It preserves the bad
+physical-review proposal and deterministic rejection, allows one separately
+receipted, spend-guarded exact-ID correction call within the same render slot,
+validates both completions on resume, and stops with a typed error if the
+identifier remains wrong. Sixty-four focused authoring, resume, physical
+review, and articulated packaging tests passed; changed-file Ruff and diff
+checks passed. Hosted impact-plan upload was blocked by GitHub Actions artifact
+quota before its dependent checks ran. A canonical deployment has started but
+is not yet claimed complete here. Matrix step 11 remains partial; steps 10 and
+12–14 remain unproven.
