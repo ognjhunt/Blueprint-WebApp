@@ -1,4 +1,5 @@
 import { initializeApp, type FirebaseOptions } from "firebase/app";
+import { markFirebaseClientLoaded } from "./firebaseLoadSignal";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -82,6 +83,9 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const sendPasswordResetEmail = firebaseSendPasswordResetEmail;
 export { browserLocalPersistence, firebasePersistence };
+
+// Lets the auth provider start listening now that the client is here.
+markFirebaseClientLoaded();
 
 // Log Firebase service initialization
 logDebug(

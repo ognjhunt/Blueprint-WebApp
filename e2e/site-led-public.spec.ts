@@ -17,7 +17,7 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
     });
     for (const [name, path, heading] of [
       ["home", "/", "Your site."],
-      ["how", "/how-it-works", "Find the right fit."],
+      ["how", "/how-it-works", "the robot that fits your task"],
       ["site", "/contact/site-operator", "Let’s start with your site."],
       ["robot", "/contact/robot-team", "Find work your robot could do."],
       ["privacy", "/privacy", "Privacy Policy"],
@@ -50,7 +50,7 @@ test("mobile navigation and keyboard-accessible method disclosure work", async (
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
   await expect(page).toHaveURL(/\/how-it-works$/);
-  await expect(page.locator("h1")).toContainText("Find the right fit.");
+  await expect(page.locator("h1")).toContainText("the robot that fits your task");
   await page.goto("/");
   await page.locator("summary").nth(2).focus();
   await page.keyboard.press("Enter");

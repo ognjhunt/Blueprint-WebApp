@@ -3,6 +3,7 @@ import { lazy } from "react";
 import type { ComponentType, LazyExoticComponent } from "react";
 import { MarketingRedirect } from "../pages/MarketingRedirect";
 import type { AccessRole } from "../lib/adminAccess";
+import { routePatternMatches } from "./routeMatch";
 
 export type AppRoute = {
   path?: string;
@@ -463,17 +464,14 @@ function hasPreload(component: ComponentType<any>): component is PreloadableComp
 // segments plus `:param` segments) so main.tsx can resolve the same route
 // the live <Router> will render, without rendering it.
 export function matchAppRoute(pathname: string): AppRoute | undefined {
-  const segments = pathname.split("/").filter(Boolean);
-  const staticMatch = appRoutes.find((route) => {
-    if (!route.path) return false;
-    const routeSegments = route.path.split("/").filter(Boolean);
-    if (routeSegments.length !== segments.length) return false;
-    return routeSegments.every(
-      (segment, index) => segment.startsWith(":") || segment === segments[index],
-    );
-  });
+  const staticMatch = appRoutes.find((route) => route.path !== undefined && routePatternMatches(route.path, pathname));
 
   return staticMatch ?? appRoutes.find((route) => !route.path);
+}
+
+/** Every path pattern the router renders, for the server's 404 decision. */
+export function appRoutePatterns(): string[] {
+  return appRoutes.flatMap((route) => (route.path === undefined ? [] : [route.path]));
 }
 
 // Preloads the JS chunk for the route matching `pathname`, if it's lazy. Used

@@ -3,7 +3,7 @@ import { EmbodimentHero } from "@/components/site/EmbodimentHero";
 import { SEO } from "@/components/SEO";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
-const description = "Blueprint turns your site task into a qualified opportunity, coordinates robot-team evaluations, and helps you choose the right fit for a physical pilot.";
+const description = "Blueprint tests robot teams against your real site task and tells you which one deserves a physical pilot. Free for sites.";
 
 export default function Home() {
   return (
@@ -23,8 +23,8 @@ export default function Home() {
 
       <section className="ms-method ms-container" id="how-it-works" aria-label="How it works">
         <ol className="ms-steps">
-          <li><details><summary><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Define the task</span></summary><p>We define your task, success criteria, budget, and pilot window, then prepare a qualified listing for relevant robot teams.</p></details></li>
-          <li><details><summary><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Compare candidates</span></summary><p>We bring your qualified listing to relevant robot teams, who can test multiple embodiments, policies, and checkpoints. We coordinate the comparison around your task.</p></details></li>
+          <li><details><summary><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Define the task</span></summary><p>We define your task, what success looks like, your budget, and your pilot window. With your approval, robot teams can then see a card for the task.</p></details></li>
+          <li><details><summary><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Compare candidates</span></summary><p>Robot teams test their robots, policies, and checkpoints against your task. We run every entry the same way, so the results can be compared.</p></details></li>
           <li><details><summary><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Choose the pilot</span></summary><p>Get a practical shortlist, a pilot recommendation, expected failure points, and a physical test plan—or a clear reason to pause. Your site and robot team run the physical pilot.</p></details></li>
         </ol>
         <a className="ms-method-link" href="/how-it-works#evaluation-example">See an evaluation example <ArrowRight size={16} aria-hidden="true" /></a>

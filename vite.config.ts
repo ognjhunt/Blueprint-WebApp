@@ -62,9 +62,9 @@ export default defineConfig({
           if (packageName === "framer-motion") {
             return "vendor-motion";
           }
-          if (packageName.startsWith("@radix-ui/")) {
-            return "vendor-radix";
-          }
+          // Radix is left to Rollup: one combined chunk put every dialog,
+          // select and tab primitive on the first load of every page, when
+          // the shell only needs the toaster.
           if (
             packageName === "react" ||
             packageName === "react-dom" ||
@@ -85,6 +85,13 @@ export default defineConfig({
           }
           if (packageName === "lucide-react") {
             return "vendor-icons";
+          }
+          // Tiny helpers the app shell uses on every page. Left unassigned,
+          // Rollup folds each into a manual chunk that also imports it, and
+          // every marketing page then downloads that whole library: recharts
+          // to get `clsx`, or Firebase Auth to get `tslib`'s `__assign`.
+          if (["clsx", "tailwind-merge", "class-variance-authority", "tslib"].includes(packageName)) {
+            return "vendor-ui-utils";
           }
         },
       },

@@ -59,8 +59,8 @@ export default function Pricing() {
           <p className="ms-eyebrow">Pricing</p>
           <h1>Sites pay nothing.<br />Robot teams pay {formatPrice(entryPrice)} an entry.</h1>
           <p>
-            One payer. A site records a walkthrough and gets an answer; robot teams pay for each
-            policy they put on a task, and that is what funds it.
+            Only robot teams pay. A site records a walkthrough and gets an answer; robot teams pay
+            for each policy they put on a task, and that pays for the work.
           </p>
         </header>
 

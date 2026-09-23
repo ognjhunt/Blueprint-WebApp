@@ -101,7 +101,7 @@ describe("Sites", () => {
     render(<SiteDetail params={{ slug: "site-live-1" }} />);
     expect(await screen.findByRole("heading", { name: "Owner-backed warehouse" })).toBeInTheDocument();
     expect(screen.getByText("Move a tote")).toBeInTheDocument();
-    expect(screen.getByText(/proves only that a current public capture record exists/i)).toBeInTheDocument();
+    expect(screen.getByText(/shows only that the site has recorded its task/i)).toBeInTheDocument();
     expect(screen.getByText(/Illustrative workflow image/i)).toBeInTheDocument();
   });
 
@@ -110,6 +110,6 @@ describe("Sites", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /not available/i })).toBeInTheDocument();
     });
-    expect(screen.getByText(/not backed by Pipeline/i)).toBeInTheDocument();
+    expect(screen.getByText(/not a published site/i)).toBeInTheDocument();
   });
 });

@@ -1,5 +1,7 @@
 import { minimalMarketingRedirects } from "../client/src/data/minimalPublicSite";
 import { stampCanvasSurface } from "../client/src/app/canvasSurface";
+import { appRoutePatterns } from "../client/src/app/routes";
+import { ROUTE_PATTERNS_FILE } from "../client/src/app/routeMatch";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -222,6 +224,15 @@ async function main() {
   await fs.promises.writeFile(
     path.join(distPath, "app-shell.html"),
     shellHtml,
+    "utf8",
+  );
+
+  // The server answers a path no route renders with a 404 status. It reads the
+  // patterns from here rather than importing the React route table. Written
+  // outside `public` so it is not served.
+  await fs.promises.writeFile(
+    path.resolve(distPath, "..", ROUTE_PATTERNS_FILE),
+    JSON.stringify({ patterns: appRoutePatterns() }, null, 2),
     "utf8",
   );
 

@@ -11,7 +11,7 @@ import { serveStatic } from "../vite";
 const tmpRoots: string[] = [];
 const servers: http.Server[] = [];
 
-async function createStaticServer() {
+async function createStaticServer(routePatterns?: string[] | null) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "blueprint-static-"));
   tmpRoots.push(root);
 
@@ -24,7 +24,7 @@ async function createStaticServer() {
   );
 
   const app = express();
-  serveStatic(app, root);
+  serveStatic(app, root, { routePatterns: routePatterns === undefined ? null : routePatterns });
 
   const server = http.createServer(app);
   servers.push(server);
@@ -73,5 +73,31 @@ describe("serveStatic", () => {
     const response = await fetch(`${baseUrl}/pricing`, { method: "HEAD" });
 
     expect(response.status).toBe(200);
+  });
+
+  it("answers a path no client route renders with a real 404, still booting the app", async () => {
+    const baseUrl = await createStaticServer(["/", "/pricing", "/sites/:slug"]);
+
+    const missing = await fetch(`${baseUrl}/no-such-page`);
+    expect(missing.status).toBe(404);
+    await expect(missing.text()).resolves.toBe("home shell");
+
+    expect((await fetch(`${baseUrl}/sites/any-site`)).status).toBe(200);
+    expect((await fetch(`${baseUrl}/Pricing/`)).status).toBe(200);
+    expect((await fetch(`${baseUrl}/sites/a/b`)).status).toBe(404);
+  });
+
+  it("does not answer a missing file with the HTML shell", async () => {
+    const baseUrl = await createStaticServer(["/"]);
+
+    const response = await fetch(`${baseUrl}/assets/gone-abc123.js`);
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-type") ?? "").not.toMatch(/html/);
+  });
+
+  it("keeps serving 200 when the build did not write route patterns", async () => {
+    const baseUrl = await createStaticServer(null);
+
+    expect((await fetch(`${baseUrl}/no-such-page`)).status).toBe(200);
   });
 });
