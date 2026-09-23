@@ -101,10 +101,10 @@ centred on the middle drawer front.
 | 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | **done** — upload accepted HTTP 201; Pipeline decoded 520 frames from the retained object and every provider binding in this scene carries `source_video_digest: sha256:d63aa286…d130` |
 | 3 | Video/privacy/task review, timestamped original evidence, explicit unknowns | Retained review record with frame refs and unknowns | **done** — `gemini_capture_fidelity_review.json`, `capture_qa_scorecard.json` and `qa_report.json` written 03:40 UTC |
 | 4 | Task-relevant assembly selection and reconstruction plan | Plan names cabinet carcass + middle drawer + handle as the replacement assembly | **done** — Gemini returned `pedestal_cabinet` ("three-drawer wood-front cabinet") as one manipulated assembly with `articulated_part: "middle drawer"`, `articulation_kind: "prismatic"`, confidence 0.98, quoting the task text; the teal backpack stayed a `static_obstacle` with `collision_required: true` |
-| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **resolved, decoding** — `cabinet`, `file cabinet`, `filing cabinet`, `mobile pedestal`, `wooden cabinet` and `pedestal` returned no instance; `drawers` and `drawer unit` returned the three drawer fronts at 0.42 coverage and were refused; `dresser` returned one instance at 0.981 coverage and is the cabinet. Only that concept bought a clip |
-| 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | unproven |
-| 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | unproven |
-| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | unproven |
+| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **done** — whole-cabinet `under-desk cabinet` track retained 186 observations; 14 candidate views, independent same-frame corroboration passed on original frame 173 (tracked share 0.213993, fresh SAM share 0.207911). The whole-video path was used for this capture; the separately merged view-first canary remains off for it |
+| 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | **done** — configured `gpt-image-2.5-sunburst` backend edited five views. First review identified the unedited, unmasked original frame 0; controller excluded exactly that view and a second Gemini review passed. Clean-plate manifest is `objects_removed`, `prepared_images`, five reviewed views, no blockers. Originals and failed review retained |
+| 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | **done** — retained 14 candidate views, five digest-bound prepared views admitted to the configured Marble 1.1 Plus multi-image input; originals remain separate |
+| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **blocked at generation** — first request was admitted and prepared views uploaded, but World Labs rejected the generation POST with HTTP 402 before any operation/world ID. Owner added API credits; read-only API balance now 6,250 credits. Exact rejected-attempt reconciliation and one separately budgeted retry are merged but not deployed live yet |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
 | 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | unproven |
@@ -842,3 +842,24 @@ views remain retained. A named development drawer fixture is permitted by the
 owner contract, but the existing authored-surface fixture path is for rigid
 pick-and-place and is not an articulated drawer controller path; it cannot be
 claimed as completed or used to fabricate website results.
+
+### Credit recovery after owner top-up
+
+The owner added World Labs API credits. A read-only authenticated
+`GET /marble/v1/credits` returned HTTP 200 and 6,250 remaining API credits
+at 2026-09-23 00:05 UTC. This exceeds the documented 3,100-credit maximum
+for a Marble 1.1 Plus multi-image request. The check did not start a world.
+
+The scene's WebApp ledger, read before reconciliation, showed 26/32
+preparation requests and $4.755/$5 reserved or settled. The rejected Marble
+attempt held a $2.48 quote. Pipeline PR #2121 merged as
+`aa647d6c503591c688ae36429a5181add1f21941`; it accepts only the exact
+recorded pre-generation credit rejection, settles its unused quote, retains
+the original evidence, and permits one new generation attempt with a distinct
+bounded grant. WebApp PR #676 merged as
+`a040ea0611030bddadf943ef2113c8b6de4d2793`; its signed settlement route
+can record that rejection at zero cost without restoring the consumed request
+count. The Pipeline canary release is being deployed from exact pushed source
+`ad2ea98d426c35f671bd562ce6641f31ae32bb8e`. WebApp main CI passed and
+its exact-SHA Render deployment started. Until both live identities are
+verified, the listener remains paused and step 8 remains blocked.
