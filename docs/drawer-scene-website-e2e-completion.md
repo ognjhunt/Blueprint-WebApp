@@ -107,7 +107,7 @@ centred on the middle drawer front.
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture prepared, website handoff pending** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs. Captured-room integration remains unqualified. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; construction pending** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The production construction envelope is queued but no authored asset or native import receipt exists. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1004,3 +1004,44 @@ kind/label pairs under the existing scene digest allowlist, while still
 requiring development-only scope and refusing mismatched labels or a claim
 that captured-room evaluation is ready. A focused route test and TypeScript
 typecheck passed locally; deploy and live retry remain pending.
+
+On 2026-09-23 the WebApp web and worker both reached merged commit
+`1a75f62217989b434f8484c69dfe8ab37b05fcef` with ready endpoints.
+The controller retried the same scene, and the WebApp accepted and forwarded
+the named development fixture. The control plane registered owner intent
+`scene-bd07d5f70b11b9d53a84b8daef682efe42251db171705ee52c80a51906ab380b`.
+It initially refused whole-chain disk admission: 19,327,352,832 free bytes
+were required, about 15.2 GB were available. Canonical scratch GC retired
+three exact idle parent replay directories plus smaller old scratch entries,
+each with a manifest and receipt, without removing scene evidence. A separate
+release-retention patch was not used. The controller then prepared an immutable
+production scene-construction envelope and an activation intent; it has not
+started paid construction.
+
+The activation worker's saved-input lookahead refused the articulated drawer
+template because its continuation parser admitted only rigid relocation.
+Pipeline PR #2127 added the articulated template path with an estimated drawer
+front used only as a robot placement hint. It merged as
+`15d1b57ffcba7896e0f7f8d4e423bfd1f2c7b6e8`; 53 focused tests passed,
+and exact saved-input replay on the host accepted both downstream consumers
+with zero blockers and no provider mutation. Canary deployment of its exact
+source SHA `8fbe7b768cc0a8ab4d1250d4a1a12b959fbd6810` is underway. Step 11
+remains partial, steps 9–10 and 12–14 unproven; neither captured-room nor
+development fixture evaluation is ready to claim.
+
+The canary deployment later completed with both release surfaces at
+`8fbe7b768cc0a8ab4d1250d4a1a12b959fbd6810`, live version proof and no
+blockers. A fresh provider-zero observation allowed the controller to reserve
+a new attempt on that release. Its saved-input lookahead passed, and the
+authority-gated activation queued. The CPU provider-bundle stage then refused
+before allocation: `astra_authoring_configuration_kind_unsupported` for the
+articulated replacement configuration. The preflight had selected the rigid
+one-piece translator even though the existing Astra authoring worker supports
+carcass and drawer as distinct parts. Pipeline PR #2128 routes the exact
+articulated schema to that two-part preflight; 53 focused tests pass, and a
+scratch build from the retained production construction envelope returned a
+`ready` 1,194,261,436-byte provider bundle without allocating a provider.
+PR #2128 passed its hosted gate and merged as
+`abf84fe18f761087dad58d4272d20d38d3855c5f`; its exact-commit canary
+deployment is running. Step 10 remains unproven until the controller actually
+authors and validates the asset.
