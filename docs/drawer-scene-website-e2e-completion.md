@@ -107,7 +107,7 @@ centred on the middle drawer front.
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; CPU authoring retry awaiting deployed accounting fix** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The `3c177ad5` attempt completed CPU stages 1–2 and authored a cabinet carcass candidate, then stopped in stage 3 before the drawer repair request on `authoring_session_context_ceiling_exceeded`. The bounded context fix deployed as `15c94f6f`; controller recovery reached a spend-cap refusal before another paid call. The archive-bound accounting fix merged as `83f5277a` and its deploy is running. No articulated asset or room integration is proved. Captured-room integration remains unqualified. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture CPU authoring retry running** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The `3c177ad5` attempt completed CPU stages 1–2 and authored a cabinet carcass candidate, then stopped in stage 3 before the drawer repair request on `authoring_session_context_ceiling_exceeded`. The bounded context fix deployed as `15c94f6f`; the archive-bound accounting fix deployed as `83f5277a`, and a controller-owned same-scene launch passed admission and entered CPU authoring. No articulated asset or room integration is proved yet. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1227,3 +1227,24 @@ after a fresh global guard passed with zero live instances and no active paid
 allocator. Its receipt and live commit proof are pending. The controller owns
 any retry after deployment. Steps 10 and 12–14 remain unproven; step 11 remains
 partial, and the original captured-room registration remains unqualified.
+
+## 2026-09-23: controller-owned authoring retry admitted
+
+The canonical retry deploy receipt reports `deployed` for exact Pipeline commit
+`83f5277ab367bfe9a7c6b9763ca8ed7232842fc1`; the live version endpoint
+reports `commit_proven=true` with no blockers. A service-user read-only
+projection using the deployed code retained $26, leaving room for the next $13
+quote under the signed $44 cumulative limit. A fresh global GPU guard passed
+with zero live instances. The temporary deploy credential files were removed.
+
+The durable controller progressed the same intent through event 91
+`scene_configuration/awaiting_execution`. Activation published the scene profile
+and standing authority without a provider call. It then submitted launch
+`website-52ff463bc7855063836d5861-83f5277a-20260923t161850z-activation-auto-launch`.
+The launch admission receipt is `admitted` with no blockers, and CPU prestage
+reported progress ticks while its provider runtime remained active. This is an
+active paid attempt, so no further deploy or WebApp merge is appropriate during
+it. The output archive, visual review, articulated drawer, native qualification,
+GPU policy episode, teardown, and website result remain pending. Matrix step 11
+is still partial, steps 10 and 12–14 unproven, and captured-room readiness
+unqualified.
