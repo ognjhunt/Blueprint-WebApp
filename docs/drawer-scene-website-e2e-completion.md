@@ -106,8 +106,8 @@ centred on the middle drawer front.
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | **done** — retained 14 candidate views, five digest-bound prepared views admitted to the configured Marble 1.1 Plus multi-image input; originals remain separate |
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
-| 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | **partial: reviewed parts, no accepted assembly** — the `44fdc9b` attempt produced separate CAD/Blender/USD candidates for cabinet carcass and drawer. Independent appearance and physical reviews accepted both parts, including the revised wood-grain drawer. Articulated packaging then refused the carcass mass uncertainty against the signed simulation bound; no accepted multi-link USD or static qualification receipt was published. |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff, assembly not accepted** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The latest CPU attempt ended before assembly publication. Captured-room integration remains unqualified. |
+| 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | **partial: packaged candidate, no accepted assembly** — the latest `89c7bd02` attempt authored separate carcass and drawer parts, passed independent appearance review, and packaged an articulated USDZ with the middle drawer as the prismatic task link. The stage-3 adapter refused a real input mismatch: the task requested a 0.1222 m stroke, while the shallow 0.16287 m source box forced the plan to 0.07487 m. No stage-4 static qualification receipt exists. Merged Pipeline fixes add a scene-bound development depth estimate and pre-CAD gate, but have not been deployed or run live. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff, assembly not accepted** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The latest CPU attempt stopped before static or native qualification. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1411,3 +1411,51 @@ The canonical canary deploy of the merged commit started as
 controller-owned retry were still pending at this observation. Replay is a
 fix check, not an accepted scene artifact. Steps 10 and 11 remain partial;
 steps 12–14 and captured-room readiness remain unproven.
+
+## 2026-09-23: shallow cabinet diagnosis and cost-free pre-authoring repair
+
+The controller-owned `89c7bd02` retry ended before GPU. The CPU producer
+completed an articulated cabinet-and-drawer USDZ and the final independent
+appearance review passed, but its stage-3 adapter rejected the candidate. A
+read-only comparison of the retained stage input and graph found the exact
+cause: a source box projected to only 0.16287 m cabinet depth; the task input
+requested [0, 0.1222] m prismatic travel, while the assembly planner reduced
+the graph to [0, 0.07487] m to retain a drawer box. The strict graph-versus-task
+check was correct; its generic `content_agents_replacement_result_invalid`
+message hid the mismatch. The launch reports `configuration_completed:false`
+and `evaluation_episode_executed:false`. Its teardown receipt says
+`provider_zero_confirmed`, `provider_zero_verified:true`, and
+`continuing_spend_from_this_run:false`; a separate global GPU guard observed
+zero live instances. No policy query or website terminal result occurred.
+Official OpenAI completion recorded $3.91298 provider-observed usage with final
+cost reporting still pending.
+
+The depth was not measured from the video. Original frames show the cabinet
+mostly from the front or obliquely, without a clear rear edge. Manufacturer
+specifications for comparable mobile pedestals put depth around 0.50–0.61 m:
+[Steelcase Edvi](https://shop.steelcase.com/products/edvi-storage-copy),
+[Herman Miller Kumi](https://ukstore.hermanmiller.com/pages/product-details-kumi-pedestal),
+[IKEA MICKE](https://www.ikea.com/us/en/p/micke-drawer-unit-drop-file-storage-white-50213080/),
+and [Global wood veneer BBF](https://admin.globalfurnituregroup.com/storage/96152/Wood_Veneer_Price_List_01_23_26.pdf).
+These are object priors for a development fixture, not this cabinet's measured
+specifications. The source width (0.58636 m) and height (0.7815 m) also sit
+outside the cited examples and remain explicitly flagged for review.
+
+Pipeline PRs [#2146](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2146)
+(`25ff1df8`) and [#2145](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2145)
+(`eff6f8b2`) merged a before-Astra, scene-bound geometry hypothesis and stronger
+native import readback. The hypothesis retains the signed source AABB, names
+0.55 m estimated depth with [0.45, 0.65] m uncertainty, and derives 0.4125 m
+estimated travel and a 0.2475 m opening threshold before authoring. It remains
+`development_only`; the captured room is still unqualified. Pipeline PRs
+[#2147](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2147)
+(`178ae982`) and [#2148](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2148)
+(`5c28383e`) merged specific stage-3 mismatch reporting and stage-4 static
+USD/graph/receipt/physics checks. The exact retained preparation/runtime
+inputs and original-frame observation manifest passed a cost-free stage-3
+transition replay; focused local tests passed (63 for the prior, 26 for native
+import, 121 for the combined CPU chain, and 52 for the final static receipt
+change), plus Ruff. GitHub Actions jobs for these PRs failed before startup
+with an account billing/spending-limit annotation, so hosted checks did not
+run. None of these new commits has been deployed or used for a paid retry.
+Steps 10 and 11 remain partial; steps 12–14 remain unproven.
