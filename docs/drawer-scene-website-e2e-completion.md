@@ -1360,3 +1360,18 @@ then advanced on its next normal pass to event 105, `running` /
 authoring acceptance, native qualification, GPU policy episode, or website
 result at this observation. Matrix step 11 remains partial; steps 10 and
 12–14 remain unproven. Captured-room registration remains unqualified.
+
+## 2026-09-23: next guarded Astra fixture attempt admitted
+
+After normal source preparation and activation, the controller queued launch
+`website-52ff463bc7855063836d5861-44fdc9b9-20260923t201625z-activation-auto-launch`
+on deployed Pipeline `44fdc9b98a6f6bf5331b24a123ae57b876784be6`.
+Activation returned `profile_authority_materialized_no_execution` with no
+blockers. The canonical dispatcher started the launch, and allocator
+`admission.json` reports `admitted` with no blockers. The paid allocator is
+running the CPU prestage; its entrypoint log reached progress tick 1. The
+allocator result is pending. Do not count admission or a progress tick as
+accepted articulation, native qualification, a GPU policy episode, or a
+website result. The independent watchdog is active; do not deploy over this
+healthy paid attempt. Matrix step 11 remains partial and steps 10 and 12–14
+remain unproven.
