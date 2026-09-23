@@ -1338,3 +1338,25 @@ read still reports `scene_intake_authority_expired`; the effective cumulative
 budget is $52, and the last $13 quote is retained. The owner has been asked
 for a bounded same-scene time and spend extension. No extension, new paid
 attempt, native qualification, or GPU policy episode is claimed here.
+
+## 2026-09-23: owner-approved same-scene execution extension
+
+The owner approved a 48-hour time extension and a $91 cumulative simulation
+exposure ceiling for this existing intent, with the 16-attempt ceiling and
+$7 CPU/$6 GPU per-attempt bounds unchanged. As the `blueprint` service user,
+the canonical append-only window grant extended expiry to epoch
+`1790367906.5103035` (2026-09-25 20:25:06 UTC), then the canonical budget
+grant raised the effective cumulative ceiling from $52 to $91. The grant
+digests are `sha256:5989eef82d1033af6fdb4dff6a4ef4eae14a64eb2518280b449f35d91f5d19f4`
+and `sha256:f66c154239310cb4282145133309994aaf5f6f9601cd262deed8f46802b43c62`.
+Service-user readback verified both; historical holds and the prior 10 attempt
+records were retained. This does not alter the fixed $25 website
+development-test price or the $5 preparation guard.
+
+The 20:27 UTC global GPU guard passed with zero live instances and verified
+provider zero. Controller progression initially held a stale recovery blocker,
+then advanced on its next normal pass to event 105, `running` /
+`source_preparation`, with no blockers. There was no new paid launch, CPU
+authoring acceptance, native qualification, GPU policy episode, or website
+result at this observation. Matrix step 11 remains partial; steps 10 and
+12–14 remain unproven. Captured-room registration remains unqualified.
