@@ -33,6 +33,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../utils/slack", () => ({ notifySlackRobotTeamAccessApplication: slack }));
+// The per-address limit would otherwise carry across tests from one address.
+vi.mock("express-rate-limit", () => ({
+  default: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
 
 const early = await import("../utils/robotTeamEarlyAccess");
 const { createHash } = await import("node:crypto");
@@ -263,11 +267,108 @@ describe("the review queue", () => {
     expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
   });
 
-  it("declines without sending anything", async () => {
+  it("says a polite \"not yet\" by default, and nothing when the reviewer will reply", async () => {
     tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
     await early.recordAccessApplication({ ...application, website: null, region: null });
     const response = await decide("ops", early.accessRecordId("ada@arm.example"), "declined");
     expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ emailed: true });
     expect([...state.docs.keys()].some((key) => key.startsWith("captureOutbox/robot_team_access_approved"))).toBe(false);
+    const notYet = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_not_yet"));
+    expect(notYet).toHaveLength(1);
+    expect(String((notYet[0][1] as { body: string }).body)).toMatch(/can't offer your team access yet/);
+
+    await early.recordAccessApplication({ ...application, email: "grace@arm.example", website: null, region: null });
+    const quiet = await fetch(`${base}/api/admin/robot-team-access/${early.accessRecordId("grace@arm.example")}/decision`, {
+      method: "POST",
+      headers: { "content-type": "application/json", Authorization: "Bearer ops", ...CSRF },
+      body: JSON.stringify({ status: "declined", notify: false }),
+    });
+    expect(await quiet.json()).toMatchObject({ emailed: false, application: { status: "declined" } });
+    expect([...state.docs.keys()].filter((key) => key.startsWith("captureOutbox/robot_team_access_not_yet"))).toHaveLength(1);
+  });
+
+  it("reports how many site tasks are listed and when auto-approval starts", async () => {
+    tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
+    listedSite("site-1");
+    const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer ops", ...CSRF } });
+    expect(await response.json()).toMatchObject({ library: { listedTaskCount: 1, autoApproveMinimumTasks: 5 } });
+  });
+});
+
+describe("the fit checklist", () => {
+  const apply = (body: Record<string, unknown>) => fetch(`${base}/api/robot-team-access/apply`, {
+    method: "POST", headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify(body),
+  });
+  const outbox = (kind: string) => [...state.docs.entries()].filter(([key]) => key.startsWith(`captureOutbox/${kind}`));
+  const listFive = () => ["a", "b", "c", "d", "e"].forEach((id) => listedSite(`site-${id}`));
+
+  it("records its reasons, and while the library is thin a person replies to everyone", async () => {
+    listedSite("site-1");
+    expect(await (await apply({ ...application, testSite: "Our pilot warehouse in Ohio" })).json()).toEqual({ status: "applied" });
+    const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>;
+    expect(record.testSite).toBe("Our pilot warehouse in Ohio");
+    expect(record.fit).toMatchObject({ clearFit: true, listedTaskCount: 1 });
+    expect(record.fit.checks.map((check: { id: string; passed: boolean }) => [check.id, check.passed])).toEqual([
+      ["work_email", true], ["website_matches_email", true], ["open_tasks_in_region", true],
+    ]);
+    const receipt = outbox("robot_team_access_received");
+    expect(receipt).toHaveLength(1);
+    expect(String((receipt[0][1] as { body: string }).body)).toMatch(/a person will reply[\s\S]*Our pilot warehouse in Ohio/);
+    expect(slack).toHaveBeenCalledWith(expect.objectContaining({ testSite: "Our pilot warehouse in Ohio", autoApproved: false }));
+  });
+
+  it("approves a clear fit on its own once enough site tasks are listed", async () => {
+    listFive();
+    expect(await (await apply(application)).json()).toEqual({ status: "approved" });
+    expect(state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`))
+      .toMatchObject({ status: "approved", decidedBy: "auto: fit checklist" });
+    expect(outbox("robot_team_access_received")).toHaveLength(0);
+    const approval = outbox("robot_team_access_approved");
+    expect(approval).toHaveLength(1);
+    expect(String((approval[0][1] as { body: string }).body)).toMatch(/20-minute call/);
+  });
+
+  it("leaves anything short of a clear fit, or a switched-off rule, to a person", async () => {
+    listFive();
+    expect(await (await apply({ ...application, email: "ada@gmail.com" })).json()).toEqual({ status: "applied" });
+    expect(await (await apply({ ...application, email: "ada@other.example" })).json()).toEqual({ status: "applied" });
+    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_AUTO_APPROVE_MIN_TASKS", "off");
+    expect(await (await apply({ ...application, email: "grace@arm.example" })).json()).toEqual({ status: "applied" });
+    expect(outbox("robot_team_access_approved")).toHaveLength(0);
+    const personal = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@gmail.com")}`) as Record<string, any>;
+    expect(personal.fit.checks[0]).toMatchObject({ passed: false, detail: "gmail.com is a personal email provider" });
+  });
+});
+
+describe("inviting a team after a call", () => {
+  const invite = (token: string, body: Record<string, unknown>) => fetch(`${base}/api/admin/robot-team-access/invites`, {
+    method: "POST",
+    headers: { "content-type": "application/json", Authorization: `Bearer ${token}`, ...CSRF },
+    body: JSON.stringify(body),
+  });
+
+  it("grants that email access, sends one sign-up email, and is staff-only", async () => {
+    tokens.set("team", { uid: "u1", email: "ada@arm.example", email_verified: true });
+    expect((await invite("team", { name: "Ada", email: "ada@arm.example", company: "Arm Co" })).status).toBe(403);
+
+    tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
+    const first = await invite("ops", { name: "Ada Lovelace", email: "Ada@Arm.Example", company: "Arm Co", note: "Tote picking" });
+    expect(first.status).toBe(201);
+    expect(await first.json()).toMatchObject({
+      alreadyApproved: false, emailed: true,
+      application: { status: "approved", source: "invite", decidedBy: "ops@tryblueprint.io", email: "ada@arm.example" },
+    });
+    const emails = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_approved"));
+    expect(emails).toHaveLength(1);
+    expect(String((emails[0][1] as { body: string }).body)).toMatch(/Following our conversation/);
+
+    const again = await invite("ops", { name: "Ada Lovelace", email: "ada@arm.example", company: "Arm Co" });
+    expect(await again.json()).toMatchObject({ alreadyApproved: true, emailed: false });
+
+    listedSite("site-1");
+    tokens.set("ada", { uid: "u1", email: "ada@arm.example", email_verified: true });
+    const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
+    expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
   });
 });

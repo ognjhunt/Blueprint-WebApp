@@ -18,7 +18,7 @@ import {
 const SIGN_UP_URL = "/signup/business?buyerType=robot_team";
 
 function ApplicationForm({ email }: { email: string | null }) {
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "approved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -28,7 +28,7 @@ function ApplicationForm({ email }: { email: string | null }) {
     setState("sending");
     setError(null);
     try {
-      await applyForEarlyAccess({
+      const status = await applyForEarlyAccess({
         name: read("name"),
         email: read("email"),
         company: read("company"),
@@ -36,13 +36,23 @@ function ApplicationForm({ email }: { email: string | null }) {
         robot: read("robot"),
         workWanted: read("workWanted"),
         region: read("region") || undefined,
+        testSite: read("testSite") || undefined,
         acceptedTerms: true,
       });
-      setState("sent");
+      setState(status === "approved" ? "approved" : "sent");
     } catch (failure) {
       setError(failure instanceof EarlyAccessApplicationError ? failure.message : "The application could not be sent. Try again.");
       setState("error");
     }
+  }
+
+  if (state === "approved") {
+    return (
+      <div className="ms-task-empty" role="status">
+        <h2>You are approved.</h2>
+        <p>We emailed you how to create your account. Sign up with that email address, verify it, and the site tasks will show here.</p>
+      </div>
+    );
   }
 
   if (state === "sent") {
@@ -68,6 +78,9 @@ function ApplicationForm({ email }: { email: string | null }) {
         <textarea name="workWanted" rows={3} maxLength={1200} required placeholder="e.g. Tote picking in a warehouse, bin to conveyor" />
       </label>
       <label>Region <span className="ms-field-hint">(optional)</span><input name="region" placeholder="e.g. US, Midwest" maxLength={120} /></label>
+      <label>A site or customer you would want to test at <span className="ms-field-hint">(optional)</span>
+        <input name="testSite" placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
+      </label>
       <p className="ms-field-hint">
         By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.
       </p>

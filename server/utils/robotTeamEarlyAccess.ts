@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import type { AccessFit } from "./robotTeamAccessFit";
 import { getRobotTeam } from "./robotTeamRegistry";
 
 export const ROBOT_TEAM_ACCESS_COLLECTION = "robotTeamAccess";
@@ -27,9 +28,15 @@ export interface RobotTeamAccessApplication {
   robot: string;
   workWanted: string;
   region: string | null;
+  /** A site or customer the team would want to test at: a lead for the site side. */
+  testSite?: string | null;
 }
 
 export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
+  /** "invite" when a person granted access after a call, rather than on an application. */
+  source?: "application" | "invite";
+  /** The fit checklist as it stood on the latest application. */
+  fit?: AccessFit | null;
   status: RobotTeamAccessStatus;
   appliedAtIso: string;
   updatedAtIso: string;
@@ -92,6 +99,7 @@ export async function getAccessRecordForEmail(email: string | null | undefined):
  */
 export async function recordAccessApplication(
   application: RobotTeamAccessApplication,
+  options: { fit?: AccessFit | null } = {},
 ): Promise<{ record: RobotTeamAccessRecord; created: boolean }> {
   if (!db) throw new Error("firestore_unavailable");
   const email = normalizeAccessEmail(application.email);
@@ -103,6 +111,9 @@ export async function recordAccessApplication(
     const record: RobotTeamAccessRecord = {
       ...application,
       email,
+      testSite: application.testSite ?? null,
+      source: prior?.source ?? "application",
+      fit: options.fit ?? null,
       status: prior?.status === "approved" ? "approved" : "applied",
       appliedAtIso: prior?.appliedAtIso ?? now,
       updatedAtIso: now,
@@ -135,6 +146,49 @@ export async function decideAccessApplication(params: {
   };
   await ref.set(update, { merge: true });
   return { ...(snap.data() as RobotTeamAccessRecord), ...update };
+}
+
+/**
+ * Grant access to a team a person already spoke with: the outbound path.
+ * It is bound to the email exactly as an approval is, so it cannot be passed
+ * on the way an invite code can. An existing approval is kept as it was.
+ */
+export async function inviteRobotTeam(params: {
+  name: string;
+  email: string;
+  company: string;
+  note: string | null;
+  invitedBy: string;
+}): Promise<{ record: RobotTeamAccessRecord; created: boolean; alreadyApproved: boolean }> {
+  if (!db) throw new Error("firestore_unavailable");
+  const email = normalizeAccessEmail(params.email);
+  const ref = db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(accessRecordId(email));
+  const now = new Date().toISOString();
+  return db.runTransaction(async (tx) => {
+    const existing = await tx.get(ref);
+    const prior = existing.exists ? (existing.data() as RobotTeamAccessRecord) : null;
+    if (prior?.status === "approved") return { record: prior, created: false, alreadyApproved: true };
+    const record: RobotTeamAccessRecord = {
+      name: params.name,
+      email,
+      company: params.company,
+      website: prior?.website ?? null,
+      robot: prior?.robot ?? "",
+      workWanted: prior?.workWanted ?? params.note ?? "",
+      region: prior?.region ?? null,
+      testSite: prior?.testSite ?? null,
+      source: prior?.source ?? "invite",
+      fit: prior?.fit ?? null,
+      status: "approved",
+      appliedAtIso: prior?.appliedAtIso ?? now,
+      updatedAtIso: now,
+      decidedAtIso: now,
+      decidedBy: params.invitedBy,
+      decisionNote: params.note,
+    };
+    tx.set(ref, record);
+    return { record, created: !prior, alreadyApproved: false };
+  });
 }
 
 export async function listAccessApplications(limit = 200): Promise<Array<RobotTeamAccessRecord & { id: string }>> {

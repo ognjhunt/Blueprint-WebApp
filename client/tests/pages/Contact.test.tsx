@@ -10,7 +10,7 @@
  * explanation closed, and each persona pointing at the other.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
 let mockLocation = "/contact/site-operator";
@@ -82,6 +82,30 @@ describe("the robot page", () => {
     render(<Contact />);
     expect(await screen.findByRole("heading", { name: "The first site tasks are being prepared." })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Early access application" })).toBeNull();
+  });
+
+  it("sends the site a team would test at, and says so when a clear fit is approved on the spot", async () => {
+    mockLocation = "/contact/robot-team";
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => url.includes("/apply")
+        ? { status: "approved" }
+        : { items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Contact />);
+    const form = await screen.findByRole("form", { name: "Early access application" });
+    const fill = (label: RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    fill(/your name/i, "Ada Lovelace");
+    fill(/work email/i, "ada@arm.example");
+    fill(/^company/i, "Arm Co");
+    fill(/what does your robot do/i, "Fixed arm");
+    fill(/what work do you want/i, "Tote picking");
+    fill(/a site or customer you would want to test at/i, "Our pilot warehouse");
+    fireEvent.submit(form);
+    expect(await screen.findByRole("heading", { name: "You are approved." })).toBeInTheDocument();
+    const apply = fetchMock.mock.calls.find(([url]) => String(url).includes("/apply"))!;
+    expect(JSON.parse(String((apply[1] as RequestInit).body))).toMatchObject({ testSite: "Our pilot warehouse" });
   });
 });
 
