@@ -32,7 +32,7 @@ export default function Home() {
 
       <section className="ms-team ms-container" aria-labelledby="team-title">
         <div><h2 id="team-title">Build robots?</h2><p>Bring your embodiments, policies, and checkpoints to a real task.</p></div>
-        <a className="ms-text-link" href="/contact/robot-team">Find a task for your robot <ArrowRight size={24} strokeWidth={1.5} aria-hidden="true" /></a>
+        <a className="ms-text-link" href="/contact/robot-team">Apply for early access <ArrowRight size={24} strokeWidth={1.5} aria-hidden="true" /></a>
       </section>
     </>
   );

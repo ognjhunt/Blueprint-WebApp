@@ -205,7 +205,8 @@ describe("build output", () => {
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
     expect(llms).toContain("paid engagement");
     expect(llmsFull).toContain("simulation is not a deployment guarantee");
-    expect(llmsFull).toContain("participation depends on task fit and site approval");
+    expect(llmsFull).toContain("Robot teams join by early access");
+    expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/pricing");
     // The retired $0-for-sites model must not survive anywhere in the crawl map.
     expect(llms).not.toContain("The site pays nothing");
@@ -238,11 +239,11 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Find work your robot could do.");
-    expect(robotHtml).toContain("Choose a real site task, see what an evaluation of your robot would cost");
-    expect(robotHtml).toContain("Already have a robot policy to evaluate?");
-    expect(robotHtml).toContain("Nothing runs or is charged here.");
-    expect(robotHtml).toContain("See what we would run");
-    expect(robotHtml).toContain("/agent-access.openapi.json");
+    expect(robotHtml).toContain("Blueprint is in early access. Approved teams choose a real site task");
+    // Early access: nothing library-shaped is prerendered. The page asks the
+    // server who is looking before it shows tasks or the setup form.
+    expect(robotHtml).not.toContain("Already have a robot policy to evaluate?");
+    expect(robotHtml).not.toContain("See what we would run");
     expect(robotHtml).not.toContain('id="capture-mode"');
     expect(robotHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).not.toContain('id="gate-hardwareMaturity"');

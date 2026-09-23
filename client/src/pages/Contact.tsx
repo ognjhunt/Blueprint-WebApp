@@ -37,14 +37,14 @@ export default function Contact() {
     return (
       <>
         <SEO
-          title="Find a task for your robot | Blueprint"
-          description="Browse live and past site tasks. Connect your robot setup when you choose an evaluation."
+          title="Early access for robot teams | Blueprint"
+          description="Blueprint is in early access for robot teams. Apply to test your robot against real site tasks, matched by hand."
           canonical="/contact/robot-team"
         />
         <section className="ms-container ms-task-page">
           <p className="ms-eyebrow">For robot teams</p>
           <h1>Find work your robot could do.</h1>
-          <p>Choose a real site task, see what an evaluation of your robot would cost and tell you, then run it.</p>
+          <p>Blueprint is in early access. Approved teams choose a real site task, see what an evaluation of their robot would cost and tell them, then run it.</p>
           <TaskBrowse />
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
             <a className="ms-text-link" href="/contact/site-operator">
@@ -93,7 +93,7 @@ export default function Contact() {
           </details>
           <p className="ms-field-hint" style={{ marginTop: "20px" }}>
             <a className="ms-text-link" href="/contact/robot-team">
-              Building robots? Find a task <ArrowUpRight size={16} aria-hidden="true" />
+              Building robots? Apply for early access <ArrowUpRight size={16} aria-hidden="true" />
             </a>
             {" · "}
             <a className="ms-text-link" href={`mailto:${CONTACT_EMAIL}`}>

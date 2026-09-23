@@ -7,7 +7,7 @@ test("homepage leads with the site decision and separates supplier participation
   await expect(nav.getByRole("link", { name: "Start a task assessment" })).toHaveAttribute("href", "/contact/site-operator");
   await expect(nav.getByRole("link", { name: "Robot teams" })).toHaveAttribute("href", "/contact/robot-team");
   await expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
-  await expect(page.getByRole("link", { name: "Find a task for your robot" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Apply for early access" })).toBeVisible();
   await page.getByText("Choose the pilot", { exact: true }).click();
   await expect(page.getByText(/clear reason to pause/)).toBeVisible();
   await expect(page.getByText(/site and robot team run the physical pilot/)).toBeVisible();

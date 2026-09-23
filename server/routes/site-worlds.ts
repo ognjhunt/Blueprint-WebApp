@@ -10,6 +10,7 @@ import {
   listPublicConfiguredSceneOfferings,
 } from "../utils/configuredScenePublicOffering";
 import { readConfiguredSceneThumbnail } from "../utils/configuredSceneThumbnail";
+import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 
 const router = Router();
 
@@ -48,22 +49,37 @@ router.get("/tasks/:taskId/thumbnail", async (req, res) => {
   } catch { return res.status(503).end(); }
 });
 
-router.get("/tasks", async (_req, res) => {
+// Site task cards are for robot teams in early access. Anyone else gets no
+// items and the access state, which the page turns into the application.
+router.get("/tasks", async (req, res) => {
   res.set("Cache-Control", "no-store");
-  try { return res.json({ items: await listTaskBrowseCards() }); }
-  catch { return res.status(503).json({ error: "The task library could not be loaded." }); }
+  res.set("Vary", "Authorization");
+  try {
+    const access = await libraryAccessForRequest(req);
+    if (!access.allowed) return res.json({ items: [], access });
+    return res.json({ items: await listTaskBrowseCards(), access });
+  } catch { return res.status(503).json({ error: "The task library could not be loaded." }); }
 });
 
+/**
+ * Site-world records built from site requests carry the site's own name and
+ * address, and the site never agreed to show either. They are staff-only.
+ * Robot teams see sites through the task cards a site approves (`/tasks`);
+ * configured-scene offerings stay public because the Pipeline publishes them
+ * as public on purpose.
+ */
 router.get("/", async (req: Request, res: Response) => {
   const limit = Math.max(1, Math.min(Number(req.query.limit || 24), 100));
+  const access = await libraryAccessForRequest(req);
   const [siteWorlds, configuredScenes] = await Promise.all([
-    listPublicSiteWorlds(limit),
+    access.staff ? listPublicSiteWorlds(limit) : Promise.resolve([]),
     listPublicConfiguredSceneOfferings(limit),
   ]);
   const items = [...configuredScenes, ...siteWorlds].filter(
     (item) => item.dataSource === "pipeline",
   ).slice(0, limit);
-  res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+  res.set("Vary", "Authorization");
+  res.set("Cache-Control", access.staff ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300");
   res.json({
     items,
     count: items.length,
@@ -72,6 +88,12 @@ router.get("/", async (req: Request, res: Response) => {
 
 router.get("/search", async (req: Request, res: Response) => {
   const limit = Math.max(1, Math.min(Number(req.query.limit || 10), 100));
+  const access = await libraryAccessForRequest(req);
+  if (!access.staff) {
+    res.set("Vary", "Authorization");
+    return res.json({ query: queryString(req.query.q), results: [], count: 0, access,
+      note: "Site search is not open to robot teams. Approved teams see the task cards sites share in the task library." });
+  }
   const payload = await searchPublicSiteWorlds({
     query: queryString(req.query.q),
     limit,
@@ -116,7 +138,8 @@ router.get("/:siteWorldId", async (req: Request, res: Response) => {
     res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     return res.json(configuredScene.card);
   }
-  const item = await getPublicSiteWorldById(siteWorldId);
+  const access = await libraryAccessForRequest(req);
+  const item = access.staff ? await getPublicSiteWorldById(siteWorldId) : null;
   if (!item || item.dataSource !== "pipeline") {
     return res.status(404).json({ error: "Site world not found" });
   }

@@ -5,7 +5,7 @@ const { PNG } = createRequire(import.meta.url)("pngjs");
 const taskPhoto = PNG.sync.write({ width: 480, height: 300, data: Buffer.alloc(480 * 300 * 4, 180) });
 const out = "output/qa/onboarding-p1";
 const card = { id: "task-1", title: "Move sealed cartons from conveyor to pallet", taskFamily: "Palletizing", siteType: "Warehouse", region: "US Midwest", objects: "Sealed cartons", cycleTarget: "12 seconds", pilotTiming: "October", pilotBudget: "", opportunity: "open", stage: "ready", evaluationAvailable: true, costUsd: 25, thumbnailUrl: null, publishedAtIso: "2026-09-19T00:00:00Z" };
-async function fixtures(page: Page, items: unknown[] = [card, { ...card, id: "task-2", title: "Sort small rigid parts into bins", taskFamily: "Pick and place", objects: "Small rigid parts", cycleTarget: "15 seconds", siteType: "Assembly area", pilotTiming: "Past opportunity", opportunity: "past" }, { ...card, id: "task-3", title: "Transfer trays between two stations", taskFamily: "Transport", objects: "Loaded trays", siteType: "Manufacturing", cycleTarget: "20 seconds", pilotTiming: "November", stage: "capture", evaluationAvailable: false, costUsd: null }]) {
+async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, { ...card, id: "task-2", title: "Sort small rigid parts into bins", taskFamily: "Pick and place", objects: "Small rigid parts", cycleTarget: "15 seconds", siteType: "Assembly area", pilotTiming: "Past opportunity", opportunity: "past" }, { ...card, id: "task-3", title: "Transfer trays between two stations", taskFamily: "Transport", objects: "Loaded trays", siteType: "Manufacturing", cycleTarget: "20 seconds", pilotTiming: "November", stage: "capture", evaluationAvailable: false, costUsd: null }]) {
   const mutations: { path: string; body: any }[] = [];
   await page.addLocatorHandler(page.getByRole("button", { name: "Reject all", exact: true }), async button => { await button.click(); });
   await page.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1" ? route.continue() : route.fulfill({ status: 204, body: "" }));
@@ -13,9 +13,10 @@ async function fixtures(page: Page, items: unknown[] = [card, { ...card, id: "ta
     const req = route.request(), path = new URL(req.url()).pathname;
     if (req.method() === "POST" && !path.startsWith("/api/analytics/")) mutations.push({ path, body: req.postDataJSON() });
     let data: unknown = {};
-    if (path === "/api/site-worlds/tasks") data = { items };
+    if (path === "/api/site-worlds/tasks") data = Array.isArray(items) ? { items }
+      : { items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } };
+    else if (path === "/api/robot-team-access/apply") data = { status: "applied" };
     else if (path === "/api/csrf") data = { csrfToken: "local-only" };
-    else if (path === "/api/task-listings/interests") data = { ok: true };
     else if (path.startsWith("/api/task-listings/owner/")) data = { listing: null, ok: true };
     else if (path === "/api/agent-team/register") data = { teamId: "team-1", agentKey: "local-fixture", checkpoint: { checkpointId: "cp-1" } };
     else if (path === "/api/agent-team/plan") data = { selected: [{ sceneId: card.id, siteLabel: card.title, costUsd: 25, rationale: "Payload needs confirmation before execution.", details: card }], totalCostUsd: 25 };
@@ -63,22 +64,30 @@ for (const mobile of [false, true]) {
   });
 }
 
-test("empty library records demand; outage is not shown as an empty library", async ({ page }) => {
-  const mutations = await fixtures(page, []); await page.goto("/sites");
+test("an approved team's empty library says tasks are coming; an outage is not an empty library", async ({ page }) => {
+  await fixtures(page, []); await page.goto("/sites");
   await expect(page.getByText("The first site tasks are being prepared.")).toBeVisible();
-  const preferences = page.getByRole("form", { name: "Task preferences" });
-  await preferences.getByLabel("Task", { exact: true }).fill("Pick and place");
-  await preferences.getByLabel("Region", { exact: true }).fill("Midwest");
-  await preferences.getByLabel("Site type").fill("Warehouse");
-  await preferences.getByLabel("Work email").fill("team@example.test");
-  await preferences.getByLabel("You may email me about matching tasks.").check();
-  await preferences.getByRole("button", { name: "Save preferences" }).click();
-  await expect(page.getByRole("status")).toContainText("We will email you when a task like this is listed");
-  expect(mutations.at(-1)?.body).toMatchObject({ taskFamily: "Pick and place", region: "Midwest", mayContact: true });
-  await screenshot(page, "empty-saved");
+  await expect(page.getByRole("form", { name: "Task preferences" })).toHaveCount(0);
+  await screenshot(page, "empty-approved");
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ status: 503, json: { error: "offline" } }));
   await page.reload(); await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   await expect(page.getByText("The first site tasks are being prepared.")).toHaveCount(0);
+});
+
+test("a robot team outside early access applies instead of browsing", async ({ page }) => {
+  const mutations = await fixtures(page, { gated: true }); await page.goto("/contact/robot-team");
+  const form = page.getByRole("form", { name: "Early access application" });
+  await expect(form).toBeVisible();
+  await expect(page.getByText("Already have a robot policy to evaluate? Register it and see a plan", { exact: true })).toHaveCount(0);
+  await form.getByLabel("Your name").fill("Ada Lovelace");
+  await form.getByLabel("Work email").fill("ada@arm.example");
+  await form.getByLabel("Company").fill("Arm Co");
+  await form.getByLabel("What does your robot do?").fill("Fixed arm with a parallel gripper");
+  await form.getByLabel("What work do you want to test it on?").fill("Tote picking");
+  await form.getByRole("button", { name: "Apply for early access" }).click();
+  await expect(page.getByRole("heading", { name: "Application received." })).toBeVisible();
+  expect(mutations.at(-1)).toMatchObject({ path: "/api/robot-team-access/apply", body: { name: "Ada Lovelace", email: "ada@arm.example", acceptedTerms: true } });
+  await screenshot(page, "early-access-applied");
 });
 
 test("desktop capture has one status, adjacent upload, brand and owner-reviewed public card", async ({ page }) => {

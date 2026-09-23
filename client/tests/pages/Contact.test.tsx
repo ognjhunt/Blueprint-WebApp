@@ -10,7 +10,7 @@
  * explanation closed, and each persona pointing at the other.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
 let mockLocation = "/contact/site-operator";
@@ -45,7 +45,7 @@ describe("the site page", () => {
 
   it("points at the other persona and at a person", () => {
     render(<Contact />);
-    expect(screen.getByRole("link", { name: /building robots\? find a task/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /building robots\? apply for early access/i })).toHaveAttribute(
       "href",
       "/contact/robot-team",
     );
@@ -57,17 +57,59 @@ describe("the site page", () => {
 });
 
 describe("the robot page", () => {
-  it("leads with the task library, points back at sites, and asks for no application", () => {
+  it("shows a visitor outside early access the application, and points back at sites", async () => {
     mockLocation = "/contact/robot-team";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } }),
+    }));
     render(<Contact />);
-    expect(screen.getByRole("region", { name: "Task library" })).toBeInTheDocument();
+    expect(await screen.findByRole("form", { name: "Early access application" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Task library" })).toBeNull();
     expect(screen.getByRole("link", { name: /operate a site\? start here/i })).toHaveAttribute(
       "href",
       "/contact/site-operator",
     );
-    expect(screen.queryByRole("button", { name: "Send application" })).toBeNull();
     expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
+  });
+
+  it("shows an approved team the task library", async () => {
+    mockLocation = "/contact/robot-team";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [], access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false } }),
+    }));
+    render(<Contact />);
+    expect(await screen.findByRole("heading", { name: "The first site tasks are being prepared." })).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Early access application" })).toBeNull();
+  });
+
+  it("sends the site a team would test at, and says so when a clear fit is approved on the spot", async () => {
+    mockLocation = "/contact/robot-team";
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => url.includes("/apply")
+        ? { status: "approved" }
+        : { items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Contact />);
+    const form = await screen.findByRole("form", { name: "Early access application" });
+    const fill = (label: RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    fill(/your name/i, "Ada Lovelace");
+    fill(/work email/i, "ada@arm.example");
+    fill(/^company/i, "Arm Co");
+    fill(/what does your robot do/i, "Fixed arm");
+    fill(/what work do you want/i, "Tote picking");
+    fill(/a site or customer you would want to test at/i, "Our pilot warehouse");
+    fireEvent.submit(form);
+    expect(await screen.findByRole("heading", { name: "You are approved." })).toBeInTheDocument();
+    const apply = fetchMock.mock.calls.find(([url]) => String(url).includes("/apply"))!;
+    expect(JSON.parse(String((apply[1] as RequestInit).body))).toMatchObject({ testSite: "Our pilot warehouse" });
   });
 });
 
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: null, loading: false }) }));
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ currentUser: null, loading: false }),
+  useOptionalAuth: () => ({ currentUser: null, loading: false }),
+}));

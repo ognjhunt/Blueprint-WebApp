@@ -89,12 +89,52 @@ describe("Sites", () => {
     expect(screen.getByText("Move totes between two stations")).toBeInTheDocument();
   });
 
-  it("offers demand capture instead of fixture supply when inventory is empty", async () => {
+  it("says the first tasks are being prepared, without inventing supply, when the library is empty", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }));
     render(<Sites />);
     expect(await screen.findByRole("heading", { name: "The first site tasks are being prepared." })).toBeInTheDocument();
-    expect(screen.getByRole("form", { name: "Task preferences" })).toBeInTheDocument();
     expect(screen.queryByText("Move totes between two stations")).not.toBeInTheDocument();
+  });
+
+  it("shows a visitor outside early access the application instead of the library", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false },
+    }), { status: 200 }));
+    render(<Sites />);
+    expect(await screen.findByRole("form", { name: "Early access application" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Create your account" })).toHaveAttribute("href", "/signup/business?buyerType=robot_team");
+    expect(screen.queryByText(/Already have a robot policy/)).not.toBeInTheDocument();
+  });
+
+  it("sends an application and confirms it without claiming access", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: "t" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "applied" }), { status: 202 }));
+    render(<Sites />);
+    const form = await screen.findByRole("form", { name: "Early access application" });
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Ada Lovelace" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "ada@arm.example" } });
+    fireEvent.change(screen.getByLabelText("Company"), { target: { value: "Arm Co" } });
+    fireEvent.change(screen.getByLabelText("What does your robot do?"), { target: { value: "Fixed arm" } });
+    fireEvent.change(screen.getByLabelText("What work do you want to test it on?"), { target: { value: "Tote picking" } });
+    fireEvent.submit(form);
+    expect(await screen.findByRole("heading", { name: "Application received." })).toBeInTheDocument();
+    const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url) === "/api/robot-team-access/apply");
+    expect(call).toBeTruthy();
+    expect(JSON.parse(String((call![1] as RequestInit).body))).toMatchObject({
+      name: "Ada Lovelace", email: "ada@arm.example", company: "Arm Co", robot: "Fixed arm", workWanted: "Tote picking", acceptedTerms: true,
+    });
+  });
+
+  it("tells an applicant their application is in review", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      items: [], access: { gated: true, status: "applied", signedIn: true, emailVerified: true, allowed: false, staff: false },
+    }), { status: 200 }));
+    render(<Sites />);
+    expect(await screen.findByRole("heading", { name: "Your application is in review." })).toBeInTheDocument();
   });
 
   it("renders a Pipeline-backed site detail with an explicit proof boundary", async () => {

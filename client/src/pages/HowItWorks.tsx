@@ -19,7 +19,7 @@ export default function HowItWorks() {
         <section><span className="ms-how-number" aria-hidden="true">03</span><div><h2>Get a clear pilot recommendation.</h2><p>Get a practical shortlist, a recommended configuration, expected failure points, and a physical test plan—or a clear reason to pause. Your site and selected robot team own installation and operation.</p><span className="ms-how-result">A clear next step for your site.</span></div></section>
       </div>
       <aside className="ms-how-open"><h2>Any robot that fits the task can take part.</h2><p>Fixed arms, humanoids, wheeled humanoids, mobile manipulators, and the policies that run them. All robotics teams can apply, and a single team can evaluate multiple checkpoints. How many candidates a task gets depends on the task and the robots available for it.</p></aside>
-      <div className="ms-how-cta"><a className="ms-button ms-button-large" href="/contact/site-operator">Start a task assessment <ArrowRight size={20} aria-hidden="true" /></a><a className="ms-text-link" href="/contact/robot-team">Find a task for your robot <ArrowRight size={20} aria-hidden="true" /></a></div>
+      <div className="ms-how-cta"><a className="ms-button ms-button-large" href="/contact/site-operator">Start a task assessment <ArrowRight size={20} aria-hidden="true" /></a><a className="ms-text-link" href="/contact/robot-team">Apply for early access <ArrowRight size={20} aria-hidden="true" /></a></div>
     </article>
   </>;
 }

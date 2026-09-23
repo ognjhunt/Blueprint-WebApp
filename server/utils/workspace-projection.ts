@@ -159,9 +159,6 @@ export function projectWorkspaceTask(
         object(record.public_task_listing).enabled === true &&
         workspace.paused !== true &&
         workspace.archived !== true,
-      cardUrl: object(record.public_task_listing).enabled === true
-        ? `/sites?sceneId=${encodeURIComponent(id)}`
-        : null,
     },
     potentialMatches: number(match.matchedCount),
     capture: null,

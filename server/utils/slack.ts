@@ -439,6 +439,35 @@ export async function notifySlackFootageNeedsReview(options: {
   return sendSlackMessage(text, webhookUrl);
 }
 
+export async function notifySlackRobotTeamAccessApplication(options: {
+  name: string;
+  company: string;
+  email: string;
+  robot: string;
+  workWanted: string;
+  testSite?: string | null;
+  fit?: { checks: Array<{ label: string; passed: boolean; detail: string }> } | null;
+  autoApproved?: boolean;
+}): Promise<{ sent: boolean; error?: unknown }> {
+  const webhookUrl =
+    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) {
+    logger.warn("No Slack webhook configured; a robot-team application has no bell");
+    return { sent: false };
+  }
+  const adminUrl = `${process.env.APP_URL || "https://tryblueprint.io"}/admin/robot-team-access`;
+  const fit = options.fit?.checks.map((check) => `${check.passed ? ":white_check_mark:" : ":x:"} ${check.label}: ${check.detail}`) ?? [];
+  const text = [
+    `:robot_face: *Robot-team early-access application${options.autoApproved ? " (auto-approved: clear fit)" : ""}* — ${options.name}, ${options.company} (${options.email})`,
+    `Robot: ${options.robot}`,
+    `Wants to test on: ${options.workWanted}`,
+    ...(options.testSite ? [`Site lead — would test at: ${options.testSite}`] : []),
+    ...fit,
+    `${options.autoApproved ? "Book the call" : "Review"}: ${adminUrl}`,
+  ].join("\n");
+  return sendSlackMessage(text, webhookUrl);
+}
+
 export async function sendSlackDirectMessage(
   message: string,
   options?: {

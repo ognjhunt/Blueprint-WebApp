@@ -119,9 +119,13 @@ export function buildRobotAgentAccessManifest() {
        * paying — which is a fact about money, not a queue.
        */
       selfServe: {
-        noOperatorRequired: true,
+        // Early access: a team is approved before it sees sites.
+        noOperatorRequired: false,
+        earlyAccess:
+          "Blueprint is in early access for robot teams. Apply at https://tryblueprint.io/contact/robot-team; Blueprint approves the team's email. Until the key's team is connected to that approved, verified account, plan, runs and funding answer 403 early_access_required.",
         sequence: [
-          "POST /api/agent-team/register — no credential, no questions. Returns a team id and a key, once.",
+          "Apply at /contact/robot-team, then create or sign in to the Blueprint account with the approved email and verify it.",
+          "POST /api/agent-team/register — no credential, no questions. Returns a team id and a key, once. Connect it to the approved account (Settings → Agent access), or issue the key there.",
           "POST /api/agent-team/checkpoints — something we can run. Or send it inline with register.",
           "POST /api/agent-team/plan — free. What to run against, ranked, with a reason per row.",
           "POST /api/agent-team/funding — a Stripe link at face value. Balance lands on payment.",
@@ -131,7 +135,7 @@ export function buildRobotAgentAccessManifest() {
           "GET /api/agent-team/results — what each run showed, once it has been reported.",
         ],
         noGates:
-          "Registration asks no qualifying questions. The intake's four gates are deployment facts and are asked when a pilot is on the table, not to unlock an evaluation.",
+          "Registration asks no qualifying questions, and approval is about fit and capacity during early access, not a screen. The intake's four gates are deployment facts and are asked when a pilot is on the table, not to unlock an evaluation.",
         blankIsFine:
           "A team that has answered nothing gets the most informative plan, not the worst one: an unknown hard constraint is ranked above every other kind of run, because one result closes it for every site that shares it.",
       },
@@ -441,7 +445,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "planRobotTeamEvals",
           summary: "Rank which sites a checkpoint should be evaluated against, for a budget. Free.",
           description:
-            "Requires the team's agent key (Bearer). Builds evaluation candidates from the public site catalogue and ranks them by expected information gain per dollar. Commits nothing: no reservation, no ledger entry, no charge. The response reports spendable balance and any funding still needed.",
+            "Requires the team's agent key (Bearer), connected to a verified Blueprint account approved for early access (403 early_access_required otherwise). Builds evaluation candidates from the site tasks sites have shared with robot teams and ranks them by expected information gain per dollar. Commits nothing: no reservation, no ledger entry, no charge. The response reports spendable balance and any funding still needed.",
           security: bearerSecurity,
           requestBody: {
             required: true,
@@ -465,6 +469,10 @@ export function buildRobotAgentOpenApiContract() {
               },
             },
             ...errorResponses,
+            "403": jsonResponse(
+              "#/components/schemas/ErrorResponse",
+              "The team is not in early access yet (code early_access_required); apply at /contact/robot-team.",
+            ),
           },
         },
       },
@@ -474,7 +482,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "startRobotTeamRun",
           summary: "Buy and start evaluations from a plan. Dry run unless confirm is true.",
           description:
-            "Requires the team's agent key (Bearer). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
+            "Requires the team's agent key (Bearer) and early access (403 early_access_required otherwise). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
           security: bearerSecurity,
           requestBody: {
             required: true,
@@ -508,7 +516,7 @@ export function buildRobotAgentOpenApiContract() {
             ...errorResponses,
             "403": jsonResponse(
               "#/components/schemas/ErrorResponse",
-              "Confirming needs the team connected to a verified Blueprint account (code team_account_required).",
+              "Not in early access (code early_access_required), or confirming without a team connected to a verified Blueprint account (code team_account_required).",
             ),
           },
         },

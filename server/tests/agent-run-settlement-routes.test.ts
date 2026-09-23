@@ -16,9 +16,18 @@
 import express from "express";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FAKE_FIELD_DELETE, sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { listedTaskCard } from "./helpers/listedTaskCard";
+
+// Early access is covered in robot-team-early-access.test.ts. These tests are
+// about planning, spending and settling, so every team here is admitted.
+vi.mock("../utils/robotTeamEarlyAccess", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/robotTeamEarlyAccess")>()),
+  teamHasEarlyAccess: async () => true,
+}));
+
 
 // Paying needs an account-bound team; that gate has its own suite
 // (robot-team-account-gate.test.ts). These suites exercise what happens after
@@ -220,6 +229,8 @@ async function seedSpendableTeam() {
       },
     },
     site_task_triage: { disposition: "qualified" },
+    // Teams plan only against sites that shared a card.
+    public_task_listing: listedTaskCard(),
     site_task_brief_confirmed_at: "2026-09-17T00:00:00.000Z",
     pipeline: {
       scene_id: "site-1",

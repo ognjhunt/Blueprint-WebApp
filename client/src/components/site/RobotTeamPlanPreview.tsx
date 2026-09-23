@@ -49,6 +49,8 @@ import { useEffect, useState } from "react";
 import { robotGateFields } from "@/data/robotTeamQualification";
 import { describePlanBlockers } from "@/lib/robotRunBlockers";
 import { minTopupUsd } from "@/lib/evaluationPricing";
+import { currentAuthUser } from "@/lib/accountAuth";
+import { connectRobotTeam } from "@/lib/robotTeamAccount";
 
 type Row = {
   sceneId: string;
@@ -523,6 +525,16 @@ export function RobotTeamPlanPreview({
             || "We could not set that up. Check the details and try again.",
         });
         return;
+      }
+
+      // Early access belongs to a verified account, so a signed-in, approved
+      // team binds the new key to itself before planning; an unbound key is
+      // refused a plan. Anyone else is not shown this form.
+      try {
+        const user = await currentAuthUser();
+        if (user?.emailVerified) await connectRobotTeam(user, account.agentKey, { teamName, acceptedTerms: false });
+      } catch {
+        // The plan response below says what is missing.
       }
 
       // No checkpoint means nothing to rank yet, and that is a real state

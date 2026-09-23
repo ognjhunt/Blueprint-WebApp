@@ -14,6 +14,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState, fakeArrayUnion } from "./helpers/fake-firestore";
 
+// Early access is covered in robot-team-early-access.test.ts. These tests are
+// about planning, spending and settling, so every team here is admitted.
+vi.mock("../utils/robotTeamEarlyAccess", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/robotTeamEarlyAccess")>()),
+  teamHasEarlyAccess: async () => true,
+}));
+
+
 const sendEmail = vi.hoisted(() =>
   vi.fn(async () => ({ sent: true, provider: "test" as const, messageId: "test" })),
 );

@@ -182,6 +182,11 @@ export function useAuth() {
   return context;
 }
 
+/** The auth context when there is one; null on a page rendered without it. */
+export function useOptionalAuth() {
+  return React.useContext(AuthContext);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH is a dev-only bypass for local operator QA.
   const operatorQaAuth = React.useMemo(() => resolveOperatorQaAuth(viteEnv), []);

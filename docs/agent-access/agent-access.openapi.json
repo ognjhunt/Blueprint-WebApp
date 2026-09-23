@@ -268,7 +268,7 @@
         ],
         "operationId": "planRobotTeamEvals",
         "summary": "Rank which sites a checkpoint should be evaluated against, for a budget. Free.",
-        "description": "Requires the team's agent key (Bearer). Builds evaluation candidates from the public site catalogue and ranks them by expected information gain per dollar. Commits nothing: no reservation, no ledger entry, no charge. The response reports spendable balance and any funding still needed.",
+        "description": "Requires the team's agent key (Bearer), connected to a verified Blueprint account approved for early access (403 early_access_required otherwise). Builds evaluation candidates from the site tasks sites have shared with robot teams and ranks them by expected information gain per dollar. Commits nothing: no reservation, no ledger entry, no charge. The response reports spendable balance and any funding still needed.",
         "security": [
           {
             "BlueprintBearer": []
@@ -326,7 +326,7 @@
             }
           },
           "403": {
-            "description": "Authenticated account is not allowed to launch protected hosted sessions",
+            "description": "The team is not in early access yet (code early_access_required); apply at /contact/robot-team.",
             "content": {
               "application/json": {
                 "schema": {
@@ -365,7 +365,7 @@
         ],
         "operationId": "startRobotTeamRun",
         "summary": "Buy and start evaluations from a plan. Dry run unless confirm is true.",
-        "description": "Requires the team's agent key (Bearer). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
+        "description": "Requires the team's agent key (Bearer) and early access (403 early_access_required otherwise). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
         "security": [
           {
             "BlueprintBearer": []
@@ -429,7 +429,7 @@
             }
           },
           "403": {
-            "description": "Confirming needs the team connected to a verified Blueprint account (code team_account_required).",
+            "description": "Not in early access (code early_access_required), or confirming without a team connected to a verified Blueprint account (code team_account_required).",
             "content": {
               "application/json": {
                 "schema": {

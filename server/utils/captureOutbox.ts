@@ -63,7 +63,11 @@ export type OutboxKind =
   | "fresh_link"
   /** To the robot team that bought a run, when it reports. */
   | "team_run_result"
-  | "team_run_no_result";
+  | "team_run_no_result"
+  /** A robot team's early-access application, received and decided. */
+  | "robot_team_access_received"
+  | "robot_team_access_approved"
+  | "robot_team_access_not_yet";
 
 export type OutboxStatus = "pending" | "sent" | "failed" | "cancelled";
 

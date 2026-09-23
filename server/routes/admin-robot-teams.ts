@@ -21,6 +21,7 @@ import {
   listPendingProposals,
 } from "../utils/robotTeamRegistry";
 import { hasAnyRole } from "../utils/access-control";
+import { requireAdminRole } from "../middleware/requireAdminRole";
 import {
   creditTeam,
   getSpendPolicy,
@@ -35,6 +36,10 @@ import {
 } from "../utils/robotTeamAgentKeys";
 
 const router = Router();
+// Every route here is operator-only. The queue and the registry used to check
+// only that a caller was signed in, so any robot team or site with an account
+// could list every team.
+router.use(requireAdminRole);
 
 /** The queue, oldest proposals first so nothing rots at the bottom. */
 router.get("/proposals", async (_req: Request, res: Response) => {
@@ -70,9 +75,11 @@ router.post("/proposals/:proposalId", async (req: Request, res: Response) => {
       .json({ ok: false, error: "accept must be true or false" });
   }
 
+  // The auth middleware sets `firebaseUser`; this read `res.locals.user`,
+  // which nothing sets, so every review was refused as anonymous.
   const reviewedBy =
-    (res.locals?.user?.uid as string | undefined) ||
-    (res.locals?.user?.email as string | undefined) ||
+    (res.locals?.firebaseUser?.email as string | undefined) ||
+    (res.locals?.firebaseUser?.uid as string | undefined) ||
     null;
   if (!reviewedBy) {
     return res

@@ -147,15 +147,6 @@ describe("owner authorization and durable demand", () => {
     expect(state.docs.has("taskThumbnails/req1")).toBe(false);
     expect((await listTaskBrowseCards())[0].thumbnailUrl).toBeNull();
   });
-  it("requires CSRF and saves the specific preference without creating a team or running anything", async () => {
-    const body = { email: "TEAM@example.test", taskFamily: "Pick and place", region: "Midwest", siteType: "Warehouse", mayContact: true };
-    const post = (headers = {}) => fetch(`${base}/interests`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
-    expect((await post()).status).toBe(403);
-    expect((await post({ cookie: "csrf_token=test-token", "x-csrf-token": "test-token" })).status).toBe(200);
-    const entries = [...state.docs.entries()].filter(([key]) => key.startsWith("taskInterests/"));
-    expect(entries).toHaveLength(1); expect(entries[0][1]).toMatchObject({ ...body, email: "team@example.test" });
-    expect(sendEmail).not.toHaveBeenCalled();
-  });
 });
 
 // Add a valid PNG text chunk to prove that re-encoding drops location-like metadata.
