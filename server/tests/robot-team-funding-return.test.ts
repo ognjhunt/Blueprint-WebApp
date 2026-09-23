@@ -15,7 +15,8 @@ vi.mock("../constants/stripe", () => ({
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: null, storageAdmin: null }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
-const { startBalanceTopup } = await import("../utils/robotTeamFunding");
+const { MIN_TOPUP_USD, startBalanceTopup } = await import("../utils/robotTeamFunding");
+const { minTopupUsd } = await import("../../client/src/lib/evaluationPricing");
 
 beforeEach(() => createSession.mockClear());
 
@@ -36,5 +37,12 @@ describe("starting a top-up", () => {
     const params = createSession.mock.calls[0][0] as Record<string, any>;
     expect(params.success_url).toMatch(/\/contact\/robot-team\?funded=1$/);
     expect(params.payment_intent_data).toBeUndefined();
+  });
+});
+
+describe("the published minimum top-up", () => {
+  it("is the one the server enforces", () => {
+    // Pricing, the Terms and the plan preview all read `minTopupUsd`.
+    expect(minTopupUsd).toBe(MIN_TOPUP_USD);
   });
 });

@@ -565,5 +565,5 @@ export const taskVideoField = {
 export const qualifyingIntakeNote = {
   claim: "These questions are the screen, not a survey.",
   detail:
-    "Six of them can end a submission, and we would rather end it here than on a call. What you answer maps to the four conditions on the site-operator page — we ask about your room and do the mapping ourselves, because our words for these things are not yours.",
+    "Six of them can end a submission, and we would rather end it here than on a call. What you answer maps to our four conditions — a fixed scene, a bounded task, known objects, and a clear window with no untrained people in the space. We ask about your room and do the mapping ourselves.",
 } as const;

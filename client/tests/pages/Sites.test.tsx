@@ -92,7 +92,7 @@ describe("Sites", () => {
   it("offers demand capture instead of fixture supply when inventory is empty", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }));
     render(<Sites />);
-    expect(await screen.findByText("No public tasks to browse yet.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "The first site tasks are being prepared." })).toBeInTheDocument();
     expect(screen.getByRole("form", { name: "Task preferences" })).toBeInTheDocument();
     expect(screen.queryByText("Move totes between two stations")).not.toBeInTheDocument();
   });

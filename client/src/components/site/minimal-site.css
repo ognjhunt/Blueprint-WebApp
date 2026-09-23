@@ -60,6 +60,8 @@
 .ms-footer { border-top: 1px solid #dcdfd4; padding-block: 19px; display: flex; justify-content: space-between; align-items: center; gap: 20px; font-size: 11px; line-height: 1.5; color: var(--ms-muted); }
 .ms-footer nav { display: flex; align-items: center; gap: 25px; }
 .ms-footer a { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; }
+.ms-footer .ms-footer-link { background: none; border: 0; padding: 0; min-height: 32px; font: inherit; color: inherit; cursor: pointer; }
+.ms-footer .ms-footer-link:hover { color: #46705a; }
 .ms-inquiry { min-height: calc(100vh - 159px); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(50px, 8vw, 140px); padding-block: 65px 100px; }
 .ms-inquiry-intro { max-width: 480px; }
 .ms-back { display: inline-flex; align-items: center; gap: 9px; color: var(--ms-muted); font-size: 12px; margin-bottom: 50px; }
@@ -101,6 +103,7 @@
 .ms-legal section { border-top: 1px solid #d7dbd0; padding-top: 27px; margin-top: 32px; }
 .ms-legal ul { list-style: disc; padding-left: 20px; }
 .ms-legal a { text-decoration: underline; text-underline-offset: 4px; }
+.ms-legal .ms-inline-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 .ms-about h1 { margin-top: 14px; }
 .ms-about .ms-about-lead { font-size: 19px; line-height: 1.6; color: #53594e; max-width: 62ch; }
 .ms-about ol { list-style: decimal; padding-left: 20px; }
@@ -314,6 +317,10 @@
 .ms-price-split h2 { margin-top: 20px; max-width: 24ch; font-size: 23px; line-height: 1.3; letter-spacing: -.035em; }
 .ms-price-list { list-style: disc; padding-left: 19px; margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
 .ms-price-list li { font-size: 14px; line-height: 1.7; color: var(--ms-muted); max-width: 52ch; }
+.ms-price-conditions { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.ms-price-conditions div { border: 1px solid #d7dbd0; border-radius: 8px; padding: 12px 14px; }
+.ms-price-conditions dt { font-size: 14px; font-weight: 600; }
+.ms-price-conditions dd { font-size: 13px; line-height: 1.6; color: var(--ms-muted); margin-top: 4px; }
 .ms-price-note { margin-top: 20px; max-width: 62ch; font-size: 13px; line-height: 1.75; color: var(--ms-muted); }
 .ms-price-split > section > .ms-text-link { margin-top: auto; padding-top: 28px; }
 .ms-price-block { border-top: 1px solid var(--ms-rule); padding-block: 36px 40px; }

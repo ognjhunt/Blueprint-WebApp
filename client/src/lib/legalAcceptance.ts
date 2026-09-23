@@ -11,8 +11,20 @@
  * Bump these versions whenever the published Terms or Privacy documents change
  * so new signups record consent against the current revision.
  */
-export const TERMS_VERSION = "2026-07-09";
-export const PRIVACY_VERSION = "2026-07-09";
+export const TERMS_VERSION = "2026-09-23";
+export const PRIVACY_VERSION = "2026-09-23";
+
+/**
+ * "September 23, 2026" from a version. The pages print their effective date
+ * from the same constant acceptance records, so the date a visitor reads is
+ * always the version they accept.
+ */
+export function legalEffectiveDate(version: string): string {
+  const [year, month, day] = version.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-US", {
+    year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
+  });
+}
 
 export const TERMS_URL = "/terms";
 export const PRIVACY_URL = "/privacy";

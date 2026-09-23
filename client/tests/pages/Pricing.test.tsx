@@ -129,7 +129,7 @@ describe("Pricing", () => {
       "href",
       "/contact/site-operator",
     );
-    expect(screen.getAllByRole("link", { name: /Apply as a robot team/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Find a task for your robot/i })[0]).toHaveAttribute(
       "href",
       "/contact/robot-team",
     );

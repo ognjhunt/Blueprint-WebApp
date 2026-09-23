@@ -19,6 +19,7 @@
 import { ArrowRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
+import { qualifyingConditions } from "@/data/qualifyingEnvironments";
 import {
   billingRules,
   entryBoundaries,
@@ -172,6 +173,16 @@ export default function Pricing() {
           <ul className="ms-price-list">
             {included.map((item) => <li key={item}>{item}</li>)}
           </ul>
+          {/* The conditions the second line refers to, named where it names
+              them, so a buyer is never pointed at a list no page shows. */}
+          <dl className="ms-price-conditions" aria-label="Blueprint's four conditions">
+            {qualifyingConditions.map((condition) => (
+              <div key={condition.id}>
+                <dt>{condition.name}</dt>
+                <dd>{condition.test}</dd>
+              </div>
+            ))}
+          </dl>
           {/* A flat price is a promise about cost, not about certainty. The
               difference is the easiest thing here for a buyer to misread. */}
           <p className="ms-price-note"><strong>{includedLimit}</strong></p>

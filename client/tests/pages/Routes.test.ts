@@ -131,22 +131,20 @@ describe("Route registration", () => {
     expect(source).not.toContain("OpsSpendControls");
   });
 
-  it("keeps the capturer signup slug and capture app handoff routes reachable", () => {
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).toContain('{ path: "/capture", layout: "public", component: Capture }');
-    expect(source).toContain('path: "/capture-app"');
-    expect(source).toContain('path: "/signup/capturer"');
-  });
-
-  it("keeps old capturer public route names as aliases to Capture Jobs", () => {
+  it("sends every retired capture-app and capturer route to the site intake", () => {
+    // Sites film their own task; the capturer network and its app are not
+    // offered publicly. Old links land on the page that is live instead of
+    // the dark, all-caps pages that used to sit two clicks from home.
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
     const serverPath = path.resolve(process.cwd(), "server/index.ts");
     const serverSource = fs.readFileSync(serverPath, "utf-8");
 
     for (const route of [
+      "/capture",
+      "/capture-app",
+      "/capture-app/launch-access",
+      "/signup/capturer",
       "/capture-jobs",
       "/capture-network",
       "/capturer",
@@ -156,11 +154,9 @@ describe("Route registration", () => {
       "/for-capturers",
       "/earn",
     ]) {
-      expect(source).toContain(`path: "${route}"`);
-      expect(serverSource).toContain(`from: "${route}", to: "/capture"`);
+      expect(source).toMatch(new RegExp(`path: "${route}",[^}]*component: SiteOperatorCaptureRedirect`));
+      expect(serverSource).toContain(`from: "${route}", to: "/contact/site-operator"`);
     }
-
-    expect(serverSource).not.toContain('from: "/capture", to: "/capture-app/launch-access');
   });
 
   it("makes sign-in canonical and keeps login as a legacy alias", () => {

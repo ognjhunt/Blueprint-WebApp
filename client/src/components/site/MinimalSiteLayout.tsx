@@ -1,6 +1,7 @@
 import { useRef, useState, type PropsWithChildren } from "react";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { COMPANY } from "@/data/company";
+import { openCookieSettings } from "@/components/CookieConsent";
 
 export function MinimalSiteLayout({ children }: PropsWithChildren) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -34,6 +35,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
         <nav aria-label="Footer navigation">
           <a href={`mailto:${COMPANY.emails.hello}`}>Get in touch <ArrowUpRight size={14} aria-hidden="true" /></a>
           <a href="/about">About</a><a href="/sign-in">Sign in</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a>
+          <button type="button" className="ms-footer-link" onClick={openCookieSettings}>Cookie settings</button>
         </nav>
       </footer>
     </div>

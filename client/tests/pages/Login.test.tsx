@@ -24,7 +24,8 @@ describe("Minimal sign in", () => {
     render(<Login />);
     expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/signup/business");
     expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
-    expect(screen.getByRole("link", { name: "Capture app access" })).toHaveAttribute("href", "/capture-app");
+    // The capture app is not offered to the public, so sign-in no longer links to it.
+    expect(screen.queryByRole("link", { name: "Capture app access" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Secure Access Portal|Scope before signup/)).not.toBeInTheDocument();
   });
   it("signs in with the entered credentials and retains password visibility control", async () => {

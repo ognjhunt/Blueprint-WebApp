@@ -68,6 +68,9 @@ export const entryBoundaries = [
 /** A robot team's price, per entry. The only number a team has to read. */
 export const entryPrice = 99;
 
+/** The smallest top-up Stripe will charge. Mirrors `MIN_TOPUP_USD` on the server. */
+export const minTopupUsd = 50;
+
 /** What a site pays to find out: nothing. */
 export const siteAssessment = {
   amount: 0,
@@ -102,7 +105,7 @@ export const siteAssessment = {
 export const entryModel = {
   summary: "One price for each policy you put on a task.",
   detail:
-    "Add funds, enter the policies you want evaluated, and top up when the balance gets low. There is no other charge.",
+    `Add funds (from $${minTopupUsd}), enter the policies you want evaluated, and top up when the balance gets low. There is no other charge.`,
   notCharged: [
     "No subscription and no monthly minimum.",
     "No listing fee, seat fee, or fee to apply.",
@@ -126,7 +129,7 @@ export const entryModel = {
  */
 export const included = [
   "How much evaluation an entry gets, and under what conditions. We size it, and it is the same for every entry on the task.",
-  "The screen against Blueprint's four qualifying conditions.",
+  "The screen against Blueprint's four conditions for a site a robot can work in, listed below.",
   "The comparison against every other entry on the same task.",
   "The result: where the entry holds up, where it fails, and where the evidence stops short of a call.",
 ] as const;
@@ -154,7 +157,7 @@ export const billingRules = [
   {
     rule: "Top-ups and spend caps are separate settings.",
     detail:
-      "Auto top-up is optional, the monthly cap is its own control, and a balance you bought carries over rather than expiring.",
+      `The smallest top-up is $${minTopupUsd}. Auto top-up is optional, the monthly cap is its own control, and a balance you bought carries over rather than expiring.`,
   },
 ] as const;
 

@@ -3,6 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSiteClaimToken } from "../utils/request-review-auth";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
@@ -731,8 +732,8 @@ describe("account workspace setup", () => {
       finishedOnboarding: true,
       termsAcceptance: {
         accepted_terms: true,
-        terms_version: "2026-07-09",
-        privacy_version: "2026-07-09",
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
       },
     });
     expect(state.records.get("users/other")).toEqual({
@@ -746,8 +747,8 @@ describe("account workspace setup", () => {
       buyerType: "site_operator",
       name: "Site Owner",
       acceptedTerms: true,
-      termsVersion: "2026-07-09",
-      privacyVersion: "2026-07-09",
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
     });
     const existing = task();
     state.records.set("inboundRequests/task-1", existing);

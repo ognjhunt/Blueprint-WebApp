@@ -51,14 +51,12 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /^Policy Evaluation Set$/i })).not.toBeInTheDocument();
   });
 
-  it("uses a reduced proof-first action rail in the header", () => {
+  it("uses a single site-first action in the header", () => {
     render(<Header />);
 
-    const requestLink = screen.getAllByRole("link", { name: /^Prepare a deployment$/i })[0];
-    expect(requestLink).toHaveAttribute(
-      "href",
-      "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=header",
-    );
+    const requestLink = screen.getAllByRole("link", { name: /^Start a task assessment$/i })[0];
+    expect(requestLink).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.queryByRole("link", { name: /Capture network/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /See policy evaluation/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Book call$/i })).not.toBeInTheDocument();
   });

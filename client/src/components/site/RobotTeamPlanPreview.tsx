@@ -48,6 +48,7 @@ import { useEffect, useState } from "react";
 
 import { robotGateFields } from "@/data/robotTeamQualification";
 import { describePlanBlockers } from "@/lib/robotRunBlockers";
+import { minTopupUsd } from "@/lib/evaluationPricing";
 
 type Row = {
   sceneId: string;
@@ -169,8 +170,6 @@ function readAccountStash(): AccountStash | null {
     return null;
   }
 }
-/** Mirrors the server's smallest self-serve top-up. */
-const MIN_TOPUP_USD = 50;
 /** How long the return trip waits for Stripe's webhook to credit the balance. */
 const BALANCE_POLL_ATTEMPTS = 24;
 const BALANCE_POLL_INTERVAL_MS = 2500;
@@ -424,7 +423,7 @@ export function RobotTeamPlanPreview({
         return;
       }
 
-      const topupUsd = Math.max(plan.fundingNeededUsd, MIN_TOPUP_USD);
+      const topupUsd = Math.max(plan.fundingNeededUsd, minTopupUsd);
 
       const funding = await fetch("/api/agent-team/funding", {
         method: "POST",
@@ -791,12 +790,12 @@ export function RobotTeamPlanPreview({
               {queue.status === "funding"
                 ? "Opening checkout…"
                 : plan.fundingNeededUsd > 0
-                  ? `Add $${Math.max(plan.fundingNeededUsd, MIN_TOPUP_USD)} and queue these runs`
+                  ? `Add $${Math.max(plan.fundingNeededUsd, minTopupUsd)} and queue these runs`
                   : "Queue these runs from your balance"}
             </button>
             <p className="ms-field-hint" style={{ marginTop: "10px" }}>
               {plan.fundingNeededUsd > 0
-                ? `Your balance covers $${plan.availableBalanceUsd}. Stripe adds $${Math.max(plan.fundingNeededUsd, MIN_TOPUP_USD)}; any amount above the $${plan.fundingNeededUsd} shortfall remains in your balance.`
+                ? `Your balance covers $${plan.availableBalanceUsd}. Stripe adds $${Math.max(plan.fundingNeededUsd, minTopupUsd)}; any amount above the $${plan.fundingNeededUsd} shortfall remains in your balance.`
                 : `Your existing $${plan.availableBalanceUsd} balance covers this one-time plan.`}
               {" "}The signed selection expires after 15 minutes; if it expires, you will review a fresh plan before spending.
             </p>
