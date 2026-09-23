@@ -1263,9 +1263,11 @@ The owner requested GPT-6 Astra for CPU CAD/Blender authoring. Pipeline PR
 as `f4c2b87e562beb86fe8f63060443765d2fe5384b`; it restores Astra on this
 bounded stage, retains exact model provenance for Sol-authored prior records,
 and improves instructions for photographed surface patches. One hundred
-focused tests and changed-file lint passed. Its canonical deployment has
-started; a final deployed receipt and live exact-commit readback are still
-required. No retry is claimed from that code yet.
+focused tests and changed-file lint passed. Its canonical deployment receipt
+reports `deployed`, and the live endpoint reports that exact commit with
+`commit_proven=true` and no blockers. A fresh global GPU guard passed with zero
+live instances after deployment. The controller still owns the retry; no
+accepted drawer or policy episode is claimed from this code yet.
 
 The service-user ledger retained $39 in conservative exposure. Under the
 owner's previous bounded cap-increase authorization, an append-only grant
