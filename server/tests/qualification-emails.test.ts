@@ -63,7 +63,9 @@ describe("the not-yet reply", () => {
       firstName: "",
       triage: triage({ blockers: [] }),
     });
-    expect(email.body).toContain("Hi there,");
+    // A blank name greets plainly, never with a placeholder.
+    expect(email.body.startsWith("Hi,\n")).toBe(true);
+    expect(email.body).not.toContain("Hi there");
     expect(email.body).toContain("does not hold at the site today");
   });
 });

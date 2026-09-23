@@ -5,6 +5,8 @@ import { attachRequestMeta, logger } from "../logger";
 import { sendEmail } from "../utils/email";
 import { bookingUrl } from "../utils/bookingLink";
 import { isValidEmailAddress } from "../utils/validation";
+import { brandedEmail, EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
+import { COMPANY } from "../../client/src/data/company";
 
 function emailDomain(value: string) {
   const domain = value.split("@").pop()?.trim().toLowerCase();
@@ -414,83 +416,23 @@ export default async function contactHandler(req: Request, res: Response) {
   const { sent } = await sendEmail({ to, subject, text: summary, replyTo: email });
 
   if (email) {
-    const confirmationSubject = "Thank You for Your Submission!";
-    const firstName = requesterName.split(" ")[0] || requesterName;
-    const confirmationText = [
-      `Hi ${firstName},`,
-      "",
-      "Thank you for your interest in Blueprint. The team has received your request and will contact you if we determine our products are well-suited to meet your needs.",
-      "",
-      "In the meantime, please check out the following resources:",
-      "- Product: https://tryblueprint.io/product",
-      "- Captured sites: https://tryblueprint.io/sites",
-      "- Updates: https://tryblueprint.io/updates",
-      "",
-      "Best,",
-      "The Blueprint Team",
-      "",
-      "LinkedIn: https://www.linkedin.com/company/blueprintsim/",
-      "X: https://twitter.com/try_blueprint",
-      "YouTube: https://www.youtube.com/c/BlueprintAI",
-      "",
-      "Blueprint, 1005 Crete St, Durham, NC 27707",
-    ].join("\n");
-
-    const confirmationHtml = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Thank You for Your Submission!</title>
-  </head>
-  <body style="margin:0;padding:0;background-color:#0b0b0b;color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0b0b;padding:24px 0;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background-color:#141414;border-radius:8px;padding:32px;">
-            <tr>
-              <td style="text-align:center;padding-bottom:24px;">
-                <span style="display:inline-block;color:#f4f4f4;font-size:18px;font-weight:600;letter-spacing:0.05em;">Blueprint Logo</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding-bottom:24px;">
-                <h1 style="margin:0 0 16px;font-size:28px;color:#ffffff;">Thank You for Your Submission!</h1>
-                <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">Hi ${firstName},</p>
-                <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">
-                  Thank you for your interest in Blueprint. The team has received your request and will contact you if we determine our products are well-suited to meet your needs.
-                </p>
-                <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">In the meantime, please check out the following resources:</p>
-                <ul style="margin:0 0 24px;padding-left:20px;color:#78a0ff;">
-                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/product" style="color:#78a0ff;text-decoration:none;">Product</a></li>
-                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/sites" style="color:#78a0ff;text-decoration:none;">Captured sites</a></li>
-                  <li><a href="https://tryblueprint.io/updates" style="color:#78a0ff;text-decoration:none;">Updates</a></li>
-                </ul>
-                <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">Best,</p>
-                <p style="margin:0 0 24px;font-size:16px;color:#d8d8d8;">The Blueprint Team</p>
-                <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 24px;">
-                  <tr>
-                    <td style="padding:0 12px;"><a href="https://www.linkedin.com/company/blueprintsim/" style="color:#78a0ff;text-decoration:none;">LinkedIn</a></td>
-                    <td style="padding:0 12px;"><a href="https://twitter.com/try_blueprint" style="color:#78a0ff;text-decoration:none;">X</a></td>
-                    <td style="padding:0 12px;"><a href="https://www.youtube.com/c/BlueprintAI" style="color:#78a0ff;text-decoration:none;">YouTube</a></td>
-                  </tr>
-                </table>
-                <p style="margin:0;font-size:12px;color:#6b7280;">Blueprint, 1005 Crete St, Durham, NC 27707</p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
+    const confirmationSubject = "We received your message";
+    const confirmation = brandedEmail({
+      subject: confirmationSubject,
+      text: [
+        emailGreeting(requesterName),
+        "Thanks for getting in touch with Blueprint. We read every message and will reply by email.",
+        "How an evaluation works and what it costs:\nhttps://tryblueprint.io/how-it-works",
+        EMAIL_SIGN_OFF,
+      ].join("\n\n"),
+    });
 
     await sendEmail({
       to: email,
       subject: confirmationSubject,
-      text: confirmationText,
-      html: confirmationHtml,
-      replyTo: "ohstnhunt@gmail.com",
+      text: confirmation.text,
+      html: confirmation.html,
+      replyTo: COMPANY.emails.hello,
     });
   }
 

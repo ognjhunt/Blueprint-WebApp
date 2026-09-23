@@ -14,6 +14,7 @@ import {
 } from "@/data/captureResidency";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -118,8 +119,11 @@ export function SiteCaptureStart() {
           company: read("startCompany"),
           roleTitle: "Site operator",
           buyerType: "site_operator",
-          // No account, so no terms gate. The capture link is the credential.
+          // No account: the capture link is the credential. Terms and Privacy
+          // are accepted by starting, next to the button, and the server
+          // records the versions it holds rather than trusting this flag alone.
           accountSignup: false,
+          acceptedTerms: true,
           budgetBucket: "Undecided/Unsure",
           requestedLanes: [],
           siteName: location,
@@ -445,7 +449,7 @@ export function SiteCaptureStart() {
             grant is transmitted and stored with the sentence version — a tick
             the server never heard about protects nobody. */}
         <span style={{ fontWeight: 400 }}>
-          I am authorised to record this site and to let Blueprint use the recording to build a
+          I am authorized to record this site and to let Blueprint use the recording to build a
           scene robot teams can evaluate against.
         </span>
       </label>
@@ -455,6 +459,12 @@ export function SiteCaptureStart() {
           {state.message}
         </p>
       )}
+
+      <p className="ms-form-note">
+        By selecting Start, you agree to our{" "}
+        <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms of Service</a> and{" "}
+        <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a>.
+      </p>
 
       <button className="ms-button ms-button-large" type="submit" disabled={state.status === "working" || loading}>
         {state.status === "working" ? "Working…" : "Start"}

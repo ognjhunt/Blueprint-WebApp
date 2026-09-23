@@ -56,6 +56,7 @@ import { createSiteClaimToken } from "../utils/request-review-auth";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
+import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
 
 const router = Router();
 
@@ -527,12 +528,12 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
           : "input_needed",
         subject: "Blueprint — we have your task brief",
         body:
-          `Hi ${firstName},\n\n`
+          `${emailGreeting(firstName)}\n\n`
           + `Thanks for confirming the task brief. ${decision}\n\n`
           + (result.disposition === "qualified" ? `${result.readiness.nextAction}\n\n` : "")
           + "You can come back to your task any time from the link we sent you. "
           + "We will email you when there is something new.\n\n"
-          + "— The Blueprint Team",
+          + EMAIL_SIGN_OFF,
       });
       // Deliver opportunistically on this request's own path, so notifications
       // do not depend on a scheduler being enabled in this deployment.

@@ -1,4 +1,5 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin.js";
+import { COMPANY_POSTAL_LINE } from "../../client/src/data/company.js";
 
 export type EmailSuppressionScope =
   | "all"
@@ -6,7 +7,7 @@ export type EmailSuppressionScope =
   | "growth_campaign";
 
 const SUPPRESSION_COLLECTION = "email_suppressions";
-const BLUEPRINT_MAILING_ADDRESS = "Blueprint | 1005 Crete St, Durham, NC 27707";
+const BLUEPRINT_MAILING_ADDRESS = COMPANY_POSTAL_LINE;
 
 export function normalizeSuppressionEmail(value: unknown): string {
   return typeof value === "string" ? value.trim().toLowerCase() : "";

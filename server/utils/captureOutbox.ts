@@ -36,6 +36,7 @@ import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpd
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
+import { brandedEmail } from "./emailLayout";
 
 export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 
@@ -174,10 +175,12 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     }
     let result: Awaited<ReturnType<typeof sendEmail>>;
     try {
+      const message = brandedEmail({ subject: entry.subject, text: entry.body });
       result = await sendEmail({
         to: entry.to,
         subject: entry.subject,
-        text: entry.body,
+        text: message.text,
+        html: message.html,
         replyTo: entry.replyTo ?? undefined,
       });
     } catch (error) {
