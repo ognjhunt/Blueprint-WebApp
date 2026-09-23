@@ -101,10 +101,10 @@ centred on the middle drawer front.
 | 2 | Website upload of original bytes to existing storage, linked to the new capture/task | Retained object digest equals `d63aa286…d130` | **done** — upload accepted HTTP 201; Pipeline decoded 520 frames from the retained object and every provider binding in this scene carries `source_video_digest: sha256:d63aa286…d130` |
 | 3 | Video/privacy/task review, timestamped original evidence, explicit unknowns | Retained review record with frame refs and unknowns | **done** — `gemini_capture_fidelity_review.json`, `capture_qa_scorecard.json` and `qa_report.json` written 03:40 UTC |
 | 4 | Task-relevant assembly selection and reconstruction plan | Plan names cabinet carcass + middle drawer + handle as the replacement assembly | **done** — Gemini returned `pedestal_cabinet` ("three-drawer wood-front cabinet") as one manipulated assembly with `articulated_part: "middle drawer"`, `articulation_kind: "prismatic"`, confidence 0.98, quoting the task text; the teal backpack stayed a `static_obstacle` with `collision_required: true` |
-| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **resolved, decoding** — `cabinet`, `file cabinet`, `filing cabinet`, `mobile pedestal`, `wooden cabinet` and `pedestal` returned no instance; `drawers` and `drawer unit` returned the three drawer fronts at 0.42 coverage and were refused; `dresser` returned one instance at 0.981 coverage and is the cabinet. Only that concept bought a clip |
-| 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | unproven |
-| 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | unproven |
-| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | unproven |
+| 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **done** — whole-cabinet `under-desk cabinet` track retained 186 observations; 14 candidate views, independent same-frame corroboration passed on original frame 173 (tracked share 0.213993, fresh SAM share 0.207911). The whole-video path was used for this capture; the separately merged view-first canary remains off for it |
+| 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | **done** — configured `gpt-image-2.5-sunburst` backend edited five views. First review identified the unedited, unmasked original frame 0; controller excluded exactly that view and a second Gemini review passed. Clean-plate manifest is `objects_removed`, `prepared_images`, five reviewed views, no blockers. Originals and failed review retained |
+| 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | **done** — retained 14 candidate views, five digest-bound prepared views admitted to the configured Marble 1.1 Plus multi-image input; originals remain separate |
+| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **Marble complete; geometry pending** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized, and website visual publication was written. Attempt 9 used an old input bundle; PR #2123 fixed that and is deployed. Attempt 11 used the exact bundle, but its GPU worker exited without output. Both rentals have teardown `PASS` and provider-zero `PASS`. Diagnostic, billing and one further bounded retry changes are under review. Marble's scale and ground plane are estimates; source-frame camera poses remain unproven. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
 | 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | unproven |
@@ -547,3 +547,389 @@ This capture has therefore done its job: it found three real defects, all of
 them now fixed and two already deployed. Proving the lane end to end continues
 on a fresh capture of the same video, which starts with its own budget and runs
 on code that no longer has those defects.
+
+## Fresh capture continuation, 2026-09-22
+
+The owner reconfirmed that the office is in the United States and that Blueprint
+may use the recording for this drawer evaluation. The original local file was
+rechecked at SHA-256
+`d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130`.
+The owner chose `ohstnhunt@gmail.com` for this new submission.
+
+The unsigned website form at `/contact/site-operator` returned its generic save
+error twice. Firestore had no new inbound request after either attempt. The same
+form fields were then submitted to the website's existing
+`POST /api/inbound-request` route, with the route's normal CSRF cookie and
+header. It returned HTTP 201 and created the independent request
+`capture-7d655e25-34f2-4961-ae9c-6da11621ce8f`. This proves website API
+intake, **not** a completed browser form submission or video upload. The owner
+capture link was issued. The owner then directed us to use the website upload
+API without waiting for email delivery. The new owner link authorized the
+existing `POST /api/self-capture/uploads/:token` route; it returned HTTP 201 for
+`walkthrough-capture-7d655e25-34f2-4961-ae9c-6da11621ce8f`. The uploaded
+storage object was read back independently at 34,699,478 bytes and SHA-256
+`d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130`.
+This was a website API upload, not a browser file-picker action. The owner task
+brief was confirmed for the exact middle-drawer sentence; its unrelated site
+planning questions remained unresolved. The normal raw manifest and completion
+marker are present. No old capture's authority or remaining budget was reused.
+
+New scene `site-capture-7d655e25-34f2-4961-ae9c-6da11621ce8f` reached the
+host's `capture_pipeline` stage with preflight and materialization completed.
+The independent sponsorship digest is
+`sha256:5d09032a0fd359a7f7378b71dd0bbe45a991b62f352c54d17d08fefac61396b7`.
+The one-time preparation request-limit amendment was previewed and applied to
+32 requests for this request alone. The sponsorship still binds a $5 upstream
+provider budget and $20 native simulation budget; its
+`preparation_max_total_spend_usd: 25` field is the combined scene ceiling, not
+a new $25 upstream allowance. One preparation reservation existed when the
+amendment was verified.
+
+The active Pipeline release was verified as
+`b1aed954b08e5cee8c143640ab6d1b5776b45db1` with `commit_proven: true`
+and no identity blockers. WebApp main `e0078966de77a27558c2028bed940a85f14d455b`
+has a successful CI-gated Render deploy. Its articulated contract from PR #669
+superseded the then-open, conflicted PR #662; no code from #662 was deployed for this
+continuation. The unrelated policy result-delivery worker was active, so no
+control-plane deployment or paid launch was started.
+
+Fresh-capture evidence matrix: step 1 is **partial** (website API intake and
+confirmed task, but the browser form failed); step 2 is **done via the website
+upload API** with exact storage readback, though no browser file-picker claim is
+made. Capture QA artifacts for step 3 are present, but the separate
+`gemini_capture_fidelity_review.json` reports `not_run`, so step 3 is **partial**.
+Step 4 is **done**: this scene's completed Gemini removal analysis names
+`pedestal_cabinet` as the task object, `middle drawer` as its prismatic part,
+and retains `teal_backpack` as a collision-required obstacle. Steps 5–14 are
+**unproven**. Captured-room integration and development-fixture execution are
+both **unproven**.
+
+### Live continuation, 2026-09-22 ~20:40 UTC
+
+The controller service still owns this capture's `capture_pipeline` stage.
+Its live main process (PID 69739) was consuming CPU at the last check, the
+stage ledger remained `running` with no `failed_stage`, and only the first of
+two retained SAM 3.1 responses had a parsed-response receipt. The second
+whole-video response is retained and being converted into source-frame mask
+runs. No image-completion receipt exists. Step 5 therefore remains unproven;
+steps 6–14 have not been credited from this CPU activity.
+
+Pipeline PR #2113 merged as `1bb21d0c70ac88f578f9e33894c5af78c6023522`
+after an exact saved-response comparison of the same 462-mask response. It
+provides a faster official parser path, but the current process is on the
+older deployed release `b1aed954b08e5cee8c143640ab6d1b5776b45db1`.
+It was not restarted or deployed over this healthy run. The speed measurement
+is not evidence that the live mask stage completed.
+
+WebApp PR #669 already merged the articulated success/results contract as
+`a7a1093bd06ef35fba5ae329a5e00c58723a7c37`. The live website
+`/version.json` reports descendant commit
+`38de39ab809d4315e6eabe3ea065d76503fa86a8`. The older PR #662 had zero
+remaining file changes after reconciliation and was closed as superseded.
+This proves deployed code availability, not that this scene has policy
+episodes or visible results; step 14 still needs its own readback.
+
+### Parser recovery started, 2026-09-22 ~20:51 UTC
+
+At nearly two hours of live mask conversion, the second hosted SAM response
+remained unparsed. The exact retained response contains 462 masks. On the same
+local machine, the merged official JavaScript parser path converted it to the
+same deterministic track JSON in 32.08 seconds, compared with 1257.88 seconds
+for the improved single-pass Python candidate. The active release uses an older
+path with two decode passes. These are parser timings, not a host end-to-end
+completion estimate.
+
+The owner asked to interrupt the prolonged conversion if the faster approach
+would avoid further hours. The response receipt is durable; merged Pipeline
+commit `1bb21d0c70ac88f578f9e33894c5af78c6023522` validates and reuses it
+without another hosted SAM request. The GPU spend guard reported zero live
+instances. The canonical deploy started as
+`blueprint-drawer-parser-deploy-1bb21d0c.service` on a clean host clone, with
+receipt target `iteration_1bb21d0c_dwr.json`. The existing listener continued
+running while the deployment started. Deployment, listener restart, parser
+completion, masks, and all subsequent steps remain pending proof.
+
+At 20:58 UTC, with the new release files staged and no parsed second response,
+the old listener was stopped through systemd. Its durable job ledger remained
+on attempt 1 with lease expiry 21:12:45 UTC. The canonical deploy then
+completed with `status: deployed` for commit
+`1bb21d0c70ac88f578f9e33894c5af78c6023522`; both release surfaces were
+recorded, and the live intake version endpoint reported that commit with
+`commit_proven: true` and no blockers. The deploy briefly restored the queue
+timer; it and the new listener were stopped before the old lease expired. The
+timer will be restored after that lease expires so normal controller redelivery
+can resume from the retained response without repeated active-lease nacks.
+There is still no parsed-response-1 receipt or completed step 5.
+
+The selected part is independently visible in original decoded frames
+`decoded-000000150` (5.00 s) and `decoded-000000170` (5.67 s) of the
+SHA-256-bound video above. Frame 170 shows all three closed wood fronts, their
+silver handles, the middle handle between the upper keyed drawer and larger
+lower drawer, and the teal backpack on the floor in front. Frame 150 shows the
+same three-front pedestal under the desk from a wider angle. These references
+identify the middle drawer and an observed obstacle; they do not measure the
+drawer stroke, cabinet dimensions, friction, or clearance.
+
+### Partial SAM request recovery, 2026-09-22 ~21:28 UTC
+
+After the old job lease expired, the normal controller claimed attempt 2 under
+the verified `1bb21d0c` release. It failed before parsing the second retained
+response: `clean_plate` reported `task_masks_blocked` with
+`PaidResourceAdmissionBlocked`. The exact request has three prompts: cabinet,
+carpet/floor, and teal backpack. Responses 0 and 1 are durable; response 2 and
+its intent are absent. The existing code requested the already reserved
+three-prompt spend grant again, so the spending guard correctly refused it.
+No new hosted SAM request occurred on attempt 2. The job ledger is
+`failed_retryable`, attempt 2, and the listener timer is paused while the
+resume defect is repaired.
+
+Pipeline PR #2115, commit `c7406bf430a82b96c6fe13a2cc228af0c7041fc5`,
+validates and reuses existing responses, refuses uncertain or altered retained
+evidence before spend, and requests a new bounded grant only for prompts with
+no response. Seventy-one focused tests and 27 impacted tests passed. A scratch
+replay of the exact saved 520-frame clip and 462-mask response, with a fake
+grant/provider response for the missing backpack prompt, completed in 41.7
+seconds using the official fast parser. It requested only that fake missing
+prompt. No live provider or scene record was changed by the replay, and the
+scratch video copy was removed. A canonical canary deploy of the pushed commit
+has started as `blueprint-drawer-partial-deploy-c7406bf.service`; deployment,
+live parser completion, selected task masks, and steps 5–14 remain unproven.
+
+### Task noun recovery, 2026-09-22 ~21:53 UTC
+
+The canonical canary deploy of `c7406bf430a82b96c6fe13a2cc228af0c7041fc5`
+completed with both surfaces recorded and live `commit_proven: true`; the
+controller claimed attempt 3. It reused the earlier cabinet and floor SAM
+responses, parsed the 462 floor observations, then admitted only the missing
+teal-backpack prompt. It retained and parsed that response too. The initial
+`cabinet` prompt still found no cabinet. Exact-frame grounding and four
+one-frame concept probes then tried `filing cabinet` (no instance), `desk
+drawers` (three fronts), `drawer unit` (three fronts), and `mobile pedestal`
+(no instance). None passed the whole-cabinet coverage gate. The stage stopped
+with `task_target_track_ambiguous:pedestal_cabinet`, without editing the desk
+or claiming step 5 complete. The job ledger is `failed_retryable`, attempt 3,
+and the listener timer is paused to avoid repeating the same paid search.
+
+Pipeline PR #2116 adds one task-supported `under-desk cabinet` probe ahead of
+free-form synonyms when the confirmed task itself uses that setting. The same
+fresh-scene single-frame coverage gate remains mandatory, and the total search
+stays at four probes. This phrase covered 0.983 of the whole-unit box in the
+earlier capture of these same video bytes, but that earlier result is only a
+candidate noun, never this capture's mask evidence or spending authority.
+Forty-six focused task-mask/grounding tests, changed-file Ruff and diff check
+passed. PR, deploy, fresh probe, full target clip, background recovery, and
+steps 5–14 remain pending.
+
+The read-only website reservation ledger after attempt 3 shows 14 of the
+amended 32 preparation requests used and $0.576 reserved against the $5
+preparation cap. Pipeline PR #2116 passed its impacted/sentinel CI gate and
+merged to `main` as `7829d4b443b51c00f98828aeb99cd0f2b6c3607f`.
+The canonical isolated canary deploy of pushed source
+`258ee26f2d7ad5bfe2ba3f768abb6732b50c222b` has started under
+`blueprint-drawer-concept-deploy-258ee26f.service`. The listener remains
+paused pending a completed deploy receipt and live version proof.
+
+### Fresh capture attempt 4: cabinet tracked, corroboration blocked, 2026-09-22 ~22:23 UTC
+
+The canonical deploy of source `258ee26f2d7ad5bfe2ba3f768abb6732b50c222b`
+completed with two verified surfaces and `commit_proven: true`; the normal
+controller claimed attempt 4. Its `under-desk cabinet` one-frame probe found the
+whole pedestal. The refined hosted SAM video result was retained and decoded:
+`task_masks.object_removal.json` reports `object_removal_ready` and the selected
+cabinet source track contains 186 original-frame observations. This is evidence
+of the cabinet task mask, not a completed step 5 or a clean background.
+
+The next stage began an independent single-frame look at selected view 173,
+then stopped with `clean_plate: KeyError`. The selected target record omitted
+`segmentation_prompt`, which the corroboration stage needs to ask SAM for the
+same object. There is no completed corroboration or image edit. The controller
+ledger is `failed_retryable`, attempt 4; the listener timer and service were
+stopped to avoid repeated paid retries. Pipeline PR #2117 propagates the exact
+chosen SAM noun into the target manifest. Its 43 focused tests, changed-file
+Ruff/diff checks and hosted impacted/sentinel gate passed; it merged to main.
+A canonical canary deploy of pushed commit
+`1022228cf65ac717b9003552eee853db71951633` has started with GPU guard
+showing zero live instances. The listener stays paused until that deploy's
+receipt and live version prove the source commit.
+
+The owner also requested a faster view-first masking path. Draft Pipeline PR
+#2118 implements a separate, default-off development canary: select original
+views first, prove the text concept on one frame, then track across a short
+lossless selected-view clip. A no-provider scratch replay on the exact drawer
+video selected original frames 0, 30, 35, 138, 150, 242, 346 and 519 and
+prepared the clip in 19.32 seconds. This measures input preparation only;
+there is no hosted-SAM speed or end-to-end result claim for that path. The
+current fresh capture remains on the verified continuous-video path. Fresh
+step 5 has a retained cabinet mask but awaits corroboration and clean-plate
+completion; steps 6–14 and both room/fixture outcomes remain unproven.
+
+### Fresh capture attempt 5: mask check passed, clean-plate review blocked
+
+The hotfix deploy receipt for `1022228cf65ac717b9003552eee853db71951633`
+completed with both surfaces verified. The live version endpoint proved that
+commit with no blockers, and the listener resumed. The controller claimed
+attempt 5 and reused the retained full-video cabinet track. Independent
+single-frame SAM corroboration on original frame 173 compared a 21.3993% tracked
+mask with a 20.7911% fresh mask, passed, and retained all 14 candidate views.
+This closes the cabinet mask/corroboration substep, not the clean-plate stage.
+
+The configured `gpt-image-2.5-sunburst` image backend retained five edited
+outputs. Independent Gemini review then blocked the prepared views:
+`consistent_background`, `people_absent` and `unrelated_objects_preserved` were
+true, but `task_objects_removed` was false because the cabinet remained in the
+first selected view. That view is original frame 0 and had zero cabinet-mask
+pixels, so the editor could not remove it. No room reconstruction or GPU stage
+started. Attempt 5 is `failed_retryable`, and the listener timer is paused.
+
+Pipeline PR #2119 asks the reviewer to return exact frame IDs for remaining
+task objects. If all other checks pass, the controller may exclude only
+identified views that were never edited, retain both review receipts, and run
+one final review. It still blocks if an edited view fails or the second review
+fails. Focused tests cover both cases. The pushed canary source
+`35fda8ad43a63242a0add78ac286e606146fb095` is being deployed with the
+listener inactive and GPU guard at zero. Steps 6–14 and captured-room/fixture
+completion remain unproven.
+
+### Fresh capture attempt 6: clean plate passed, Marble admission blocked
+
+The controller reused the retained cabinet track and five image edits. The
+new structured review identified only `decoded-000000000` as an unedited view
+still showing the cabinet; the controller excluded it, retained the failed
+review, and independently reviewed the remaining five prepared views. That
+second review passed. The clean-plate stage manifest now reports
+`objects_removed`, `prepared_images`, no blockers, and the excluded original
+frame ID. This closes task-object background recovery for the prepared views;
+it does not prove room geometry or simulation.
+
+The same attempt then failed before a World Labs request:
+`website_reconstruction_release_not_admitted:gpu_canary_deployed_release_receipt_unverified`.
+The active release receipt is valid and the live intake endpoint proves its
+commit, but the paid-release checker expected the older fixed source checkout
+path. Canonical deployments in this lane use clean root-owned clones under
+`/opt/blueprint/control-plane-config-tools`, and the receipt accurately names
+that clone. Pipeline PR #2120 limits admission to the exact receipt-bound clone
+under that approved root (or the fixed canonical checkout), rejects outside,
+nested and symlink paths, and preserves the development-only claim. Thirty-five
+focused admission/allocator tests passed. A read-only replay on the host with
+the candidate source and current receipt returned `verified_active_release`,
+zero blockers, `development_iteration`, and `promotion_eligible: false`.
+The pushed source `5d7bcdb8b` is in canonical canary deployment. Listener
+service/timer remain inactive; GPU guard reports zero live instances. No
+Marble operation or provider spend was admitted on attempt 6. Steps 8–14 and
+captured-room/fixture outcomes remain unproven.
+
+### Fresh capture attempt 7: World Labs account credit blocker
+
+The clone-release admission fix deployed as
+`5d7bcdb8bc0096022dd71c24eda835a2167a0aea`; its canonical deploy
+receipt reports `deployed`, the live version endpoint proves the exact commit,
+and the paid-release inspector as the `blueprint` service user reports
+`verified_active_release`, no blockers, `development_iteration`, and no
+promotion eligibility. The controller claimed attempt 7 and admitted one
+World Labs request with a $2.48 maximum under this scene's preparation
+sponsorship. It uploaded the prepared input views and sent the generation
+request for `marble-1.1-plus`.
+
+World Labs rejected generation with HTTP 402: insufficient API credits. The
+provider returned no operation ID or world ID. The provider-run manifest is
+`failed` with that exact reason; the submission intent remains
+`status: submitting`, so the current controller correctly refuses an automatic
+repeat until the explicit rejection is reconciled in code. The listener timer
+and service are inactive. This is an external provider-account blocker, not a
+geometry or mask mismatch. No Marble reconstruction, captured-room integration,
+CPU articulated asset or GPU episode is proved. The five reviewed clean-plate
+views remain retained. A named development drawer fixture is permitted by the
+owner contract, but the existing authored-surface fixture path is for rigid
+pick-and-place and is not an articulated drawer controller path; it cannot be
+claimed as completed or used to fabricate website results.
+
+### Credit recovery after owner top-up
+
+The owner added World Labs API credits. A read-only authenticated
+`GET /marble/v1/credits` returned HTTP 200 and 6,250 remaining API credits
+at 2026-09-23 00:05 UTC. This exceeds the documented 3,100-credit maximum
+for a Marble 1.1 Plus multi-image request. The check did not start a world.
+
+The scene's WebApp ledger, read before reconciliation, showed 26/32
+preparation requests and $4.755/$5 reserved or settled. The rejected Marble
+attempt held a $2.48 quote. Pipeline PR #2121 merged as
+`aa647d6c503591c688ae36429a5181add1f21941`; it accepts only the exact
+recorded pre-generation credit rejection, settles its unused quote, retains
+the original evidence, and permits one new generation attempt with a distinct
+bounded grant. WebApp PR #676 merged as
+`a040ea0611030bddadf943ef2113c8b6de4d2793`; its signed settlement route
+can record that rejection at zero cost without restoring the consumed request
+count. The Pipeline canary release is being deployed from exact pushed source
+`ad2ea98d426c35f671bd562ce6641f31ae32bb8e`. WebApp main CI passed and
+its exact-SHA Render deployment started. Until both live identities are
+verified, the listener remains paused and step 8 remains blocked.
+
+### Marble world retained; retry settlement path repair
+
+Controller attempt 8 settled the initial credit rejection at $0 and started one
+separately bound Marble request. World Labs operation
+`51323203-7420-421a-a460-d6aa6ea63745` finished with world
+`baffc3ca-4c87-45dc-8531-52c3275820ed`, 1,600 credits ($1.28). The
+provider-run manifest is `ready`; downloaded collider GLB and full-resolution
+splat SPZ have a complete materialization manifest. The Marble-to-SimReady
+bridge is `review_ready_with_conversion_required`. The controller also wrote
+the website visual publication. These receipts do not prove MapAnything,
+registration, articulated CAD, native import, or policy evaluation.
+
+A controller path error saved the new request admission under the first
+attempt's filename. The existing world and price receipt remain usable, but
+the current release could not settle the $1.28 bill and the subsequent $0.50
+MapAnything reservation got a WebApp `budget_exhausted` response. Attempt 8
+ended `failed_retryable` without another Marble POST. Pipeline PR #2122 merged
+as `65ad58b0ec8ac3a97f4935497cc45beb98da1dfd`: future retry admissions
+use their own path, and the already-running request is recognized only when
+its binding exactly matches the retained operation and the first rejection is
+settled. The listener is paused and the canonical canary deployment of that
+exact merge commit is in progress. The next attempt should reuse the world,
+settle its actual cost, and then resume MapAnything under the same scene cap.
+
+### MapAnything first rental: bootstrap refusal, fully torn down
+
+The deployed `65ad58b` release settled the retained Marble operation at its
+actual $1.28 cost. Attempt 9 compiled a MapAnything bundle with SHA-256
+`87b5cdf545eaf11d4cab1d6fb275f0b1d4fb9fff42fab6e9bd75810882737188`,
+then its transport selected an older bundle under the same controller directory
+with SHA-256 `db39a28657038f34383d6b2a89d84d29d3421d7ea3d14bea2b1a3eb84ce9c745`.
+The GPU worker refused the mismatched download; it produced no geometry. The
+900-second bounded attempt cost $0.273980, ended `failed_retryable`, and wrote
+teardown `PASS` and provider-zero `PASS`. A subsequent pass on the old release
+refused to reuse the failed operation and did not launch another GPU.
+
+Pipeline PR #2123 merged as `401455a1f2bf65e9e873c4e4d5d6ec43ff75d99e`.
+The controller now stages the precise receipt-named bundle after digest and
+byte-count verification. A new release may make one distinct retry only when
+the earlier execution failure, teardown and provider-zero receipts validate;
+the same release and an uncertain allocation remain blocked. Twenty-five
+impacted tests and nineteen MapAnything/Vast tests passed. The retry predicate
+also passed against this capture's retained terminal receipts. Canonical canary
+deployment of the merged commit completed with exact live source proof. Step 8
+remains incomplete until MapAnything returns source-frame camera/depth estimates
+and the GPU tears down.
+
+### MapAnything second rental: exact bundle, worker ended without output
+
+Controller attempt 11 staged the precise receipt-named MapAnything bundle.
+Both staged bytes and the transport digest matched
+`sha256:f1eeb3ad7ec73054295b1e77a368b0cf2d0103b287d1e0803629f58456f8e62f`.
+The Vast instance exited after about 193 seconds without a geometry result.
+The execution receipt is `failed`, teardown is `PASS`, and provider-zero is
+`PASS`. The controller did not accept an image or a static validator as a
+policy episode. The listener timer and service were stopped after this failed
+attempt, with no live GPU instance. The worker's exact exception was not
+retained before destruction, so its cause remains open.
+
+Vast's per-instance charges API reports $0.228 for the first failed rental
+and $0.010 for the second, including GPU, disk, and bandwidth. The WebApp
+still holds each $0.50 reservation because it lacks a Vast settlement route;
+the scene has 29/32 requests and $4.555/$5 reserved or settled. The owner has
+authorized more requests, while the fixed $5 preparation spend cap remains.
+Candidate Pipeline and WebApp changes now retain typed worker failure evidence,
+allow one more new-release retry only after failed execution plus teardown and
+provider-zero proof, reconcile exact provider charges, and support one
+append-only request-limit extension. Focused local tests pass; these changes
+are not yet merged or deployed. Steps 8–14 remain unproved.

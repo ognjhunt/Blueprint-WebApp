@@ -107,7 +107,20 @@ const rejectedPreparationSettlement = z.object({
   rejection_code: z.literal("insufficient_api_credits_before_generation"),
   provider_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict();
-export const preparationSettlementRequest = z.union([completedPreparationSettlement, rejectedPreparationSettlement]);
+const vastSettlementRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("vast"), instance_id: z.string().regex(/^[1-9][0-9]{0,17}$/),
+  provider_charge_source: z.string().regex(/^instance-[1-9][0-9]{0,17}$/),
+  provider_charge_amount_usd: z.number().finite().min(0).max(1000),
+  provider_charge_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  execution_result_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider_zero_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+}).strict().refine(value => value.provider_charge_source === `instance-${value.instance_id}`);
+export const preparationSettlementRequest = z.union([
+  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest,
+]);
 
 /** Pipeline-signed final provider billing releases only the unused reservation. */
 export async function settleWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSettlementRequest>) {
@@ -119,9 +132,10 @@ export async function settleWebsitePreparationSpend(requestId: string, input: z.
     const record = (await transaction.get(ref)).data();
     const key = command.allocation_binding_digest.slice(7);
     const row = record?.website_preparation_reservations?.[key];
-    const actualCost = "total_credits" in command ? command.total_credits / 1250 : 0;
+    const actualCost = command.provider === "vast" ? command.provider_charge_amount_usd
+      : "total_credits" in command ? command.total_credits / 1250 : 0;
     if (!row || row.admission.provider !== command.provider
-      || row.admission.resource_class !== "provider_reconstruction_api"
+      || row.admission.resource_class !== (command.provider === "vast" ? "gpu_render" : "provider_reconstruction_api")
       || row.admission.task_context_digest !== command.task_context_digest
       || actualCost > row.admission.maximum_cost_usd)
       throw new Error("website_scene_preparation_settlement_invalid");
@@ -139,7 +153,7 @@ export async function settleWebsitePreparationSpend(requestId: string, input: z.
 
 const preparationLimitAmendment = z.object({
   authority_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
-  max_requests: z.number().int().min(1).max(32),
+  max_requests: z.number().int().min(1).max(64),
   approved_by: z.string().trim().min(1),
   approval_reference: z.string().trim().min(1).max(1000),
 }).strict();
@@ -155,7 +169,17 @@ function preparationRequestLimit(record: Record<string, any>, authority: Record<
     || value.approved_by !== authority.owner.user_id
     || value.max_requests < authority.max_paid_attempts)
     throw new Error("website_preparation_amendment_invalid");
-  return value.max_requests;
+  const extension = record.website_preparation_limit_extension;
+  if (!extension) return value.max_requests;
+  const { extension_digest, approved_at_epoch: extendedAt, prior_amendment_digest, ...extendedRaw } = extension;
+  const extended = preparationLimitAmendment.parse(extendedRaw);
+  if (digest({ ...extended, approved_at_epoch: extendedAt, prior_amendment_digest }) !== extension_digest
+    || !Number.isFinite(extendedAt) || prior_amendment_digest !== amendment_digest
+    || extended.authority_digest !== authority.authority_digest
+    || extended.approved_by !== authority.owner.user_id
+    || extended.max_requests <= value.max_requests)
+    throw new Error("website_preparation_amendment_invalid");
+  return extended.max_requests;
 }
 
 /** Operator-only amendment: never exposed as a public or Pipeline API. */
@@ -180,9 +204,17 @@ export async function amendWebsitePreparationRequestLimit(
     const previous = record!.website_preparation_limit_amendment;
     const current = preparationRequestLimit(record!, authority);
     if (previous) {
-      if (previous.max_requests === command.max_requests && previous.approval_reference === command.approval_reference)
+      const extension = record!.website_preparation_limit_extension;
+      if (extension?.max_requests === command.max_requests && extension.approval_reference === command.approval_reference)
+        return extension;
+      if (!extension && previous.max_requests === command.max_requests && previous.approval_reference === command.approval_reference)
         return previous;
-      throw new Error("website_preparation_amendment_conflict");
+      if (extension || command.max_requests <= current) throw new Error("website_preparation_amendment_conflict");
+      const value = { ...command, approved_at_epoch: Date.now() / 1000,
+        prior_amendment_digest: previous.amendment_digest };
+      const receipt = { ...value, extension_digest: digest(value) };
+      if (apply) transaction.update(ref, { website_preparation_limit_extension: receipt });
+      return receipt;
     }
     if (command.max_requests <= current) throw new Error("website_preparation_limit_not_increased");
     const value = { ...command, approved_at_epoch: Date.now() / 1000 };
