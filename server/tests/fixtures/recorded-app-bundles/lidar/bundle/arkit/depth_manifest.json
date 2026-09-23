@@ -1,0 +1,157 @@
+{
+  "scale_to_meters" : 0.001,
+  "encoding" : "png_u16_mm",
+  "camera_ray_convention" : "arkit_x_right_y_up_z_backward",
+  "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "registration_authority" : "arkit_scene_depth",
+  "frames" : [
+    {
+      "width" : 256,
+      "depth_valid_fraction" : 1,
+      "frame_id" : "000001",
+      "height" : 192,
+      "paired_confidence_path" : "arkit/confidence/000001.png",
+      "representation" : "per_frame_depth_map",
+      "depth_source" : "smoothed_scene_depth",
+      "missing_depth_fraction" : 0,
+      "depth_path" : "arkit/depth/000001.png"
+    },
+    {
+      "representation" : "per_frame_depth_map",
+      "frame_id" : "000005",
+      "paired_confidence_path" : "arkit/confidence/000005.png",
+      "depth_path" : "arkit/depth/000005.png",
+      "depth_valid_fraction" : 1,
+      "missing_depth_fraction" : 0,
+      "height" : 192,
+      "depth_source" : "smoothed_scene_depth",
+      "width" : 256
+    },
+    {
+      "depth_path" : "arkit/depth/000009.png",
+      "depth_valid_fraction" : 1,
+      "width" : 256,
+      "paired_confidence_path" : "arkit/confidence/000009.png",
+      "missing_depth_fraction" : 0,
+      "representation" : "per_frame_depth_map",
+      "height" : 192,
+      "depth_source" : "smoothed_scene_depth",
+      "frame_id" : "000009"
+    },
+    {
+      "frame_id" : "000013",
+      "depth_path" : "arkit/depth/000013.png",
+      "representation" : "per_frame_depth_map",
+      "missing_depth_fraction" : 0,
+      "width" : 256,
+      "height" : 192,
+      "depth_source" : "smoothed_scene_depth",
+      "depth_valid_fraction" : 1,
+      "paired_confidence_path" : "arkit/confidence/000013.png"
+    },
+    {
+      "missing_depth_fraction" : 0,
+      "depth_path" : "arkit/depth/000017.png",
+      "paired_confidence_path" : "arkit/confidence/000017.png",
+      "frame_id" : "000017",
+      "depth_valid_fraction" : 1,
+      "width" : 256,
+      "height" : 192,
+      "representation" : "per_frame_depth_map",
+      "depth_source" : "smoothed_scene_depth"
+    },
+    {
+      "paired_confidence_path" : "arkit/confidence/000021.png",
+      "depth_source" : "smoothed_scene_depth",
+      "width" : 256,
+      "height" : 192,
+      "representation" : "per_frame_depth_map",
+      "frame_id" : "000021",
+      "missing_depth_fraction" : 0,
+      "depth_path" : "arkit/depth/000021.png",
+      "depth_valid_fraction" : 1
+    },
+    {
+      "depth_source" : "smoothed_scene_depth",
+      "width" : 256,
+      "missing_depth_fraction" : 0,
+      "depth_path" : "arkit/depth/000025.png",
+      "frame_id" : "000025",
+      "depth_valid_fraction" : 1,
+      "paired_confidence_path" : "arkit/confidence/000025.png",
+      "height" : 192,
+      "representation" : "per_frame_depth_map"
+    },
+    {
+      "depth_path" : "arkit/depth/000029.png",
+      "width" : 256,
+      "missing_depth_fraction" : 0,
+      "depth_source" : "smoothed_scene_depth",
+      "representation" : "per_frame_depth_map",
+      "height" : 192,
+      "paired_confidence_path" : "arkit/confidence/000029.png",
+      "depth_valid_fraction" : 1,
+      "frame_id" : "000029"
+    },
+    {
+      "depth_valid_fraction" : 1,
+      "width" : 256,
+      "representation" : "per_frame_depth_map",
+      "depth_path" : "arkit/depth/000033.png",
+      "missing_depth_fraction" : 0,
+      "depth_source" : "smoothed_scene_depth",
+      "height" : 192,
+      "frame_id" : "000033",
+      "paired_confidence_path" : "arkit/confidence/000033.png"
+    },
+    {
+      "depth_valid_fraction" : 1,
+      "representation" : "per_frame_depth_map",
+      "paired_confidence_path" : "arkit/confidence/000037.png",
+      "depth_path" : "arkit/depth/000037.png",
+      "height" : 192,
+      "frame_id" : "000037",
+      "missing_depth_fraction" : 0,
+      "depth_source" : "smoothed_scene_depth",
+      "width" : 256
+    },
+    {
+      "frame_id" : "000041",
+      "height" : 192,
+      "missing_depth_fraction" : 0,
+      "representation" : "per_frame_depth_map",
+      "depth_source" : "smoothed_scene_depth",
+      "depth_path" : "arkit/depth/000041.png",
+      "width" : 256,
+      "depth_valid_fraction" : 1,
+      "paired_confidence_path" : "arkit/confidence/000041.png"
+    },
+    {
+      "depth_path" : "arkit/depth/000045.png",
+      "depth_source" : "smoothed_scene_depth",
+      "width" : 256,
+      "frame_id" : "000045",
+      "height" : 192,
+      "depth_valid_fraction" : 1,
+      "representation" : "per_frame_depth_map",
+      "paired_confidence_path" : "arkit/confidence/000045.png",
+      "missing_depth_fraction" : 0
+    }
+  ],
+  "schema_version" : "arkit_depth_manifest.v2",
+  "depth_registered_to_arkit_camera" : true,
+  "depth_intrinsics_source" : "scaled_arkit_rgb_intrinsics_to_registered_depth_resolution",
+  "depth_encoding" : "uint16_png",
+  "depth_intrinsics" : {
+    "fy" : 200,
+    "cx" : 128,
+    "fx" : 200,
+    "width" : 256,
+    "height" : 192,
+    "cy" : 96
+  },
+  "missing_depth_reason" : null,
+  "representation" : "per_frame_depth_map",
+  "invalid_value_semantics" : "0_means_missing",
+  "units" : "millimeters"
+}

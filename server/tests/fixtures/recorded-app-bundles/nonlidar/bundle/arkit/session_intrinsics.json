@@ -1,0 +1,75 @@
+{
+  "camera_model" : "pinhole",
+  "schema_version" : "arkit_session_intrinsics.v2",
+  "distortion_model" : "arkit_managed_not_portably_declared",
+  "camera_identity" : {
+    "capture_authority" : "arkit_arframe_captured_image",
+    "uses_ar_session_recorder" : true,
+    "arkit_managed_camera" : true,
+    "has_scene_depth_semantics" : false,
+    "calibration_authority" : "arkit_arframe_exact_per_observation",
+    "position" : "back"
+  },
+  "distortion_coeffs" : [
+
+  ],
+  "camera_intrinsics" : {
+    "intrinsic_matrix" : [
+      500,
+      0,
+      0,
+      0,
+      500,
+      0,
+      320,
+      240,
+      1
+    ],
+    "resolution_height" : 480,
+    "resolution_width" : 640
+  },
+  "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+  "pixel_orientation" : "encoded_source_no_autorotate",
+  "intrinsics" : {
+    "cy" : 240,
+    "cx" : 320,
+    "fy" : 500,
+    "height" : 480,
+    "fx" : 500,
+    "width" : 640
+  },
+  "camera_ray_convention" : "arkit_x_right_y_up_z_backward",
+  "principal_point_reference" : "full_resolution_image",
+  "rolling_shutter_model" : "not_declared",
+  "exposure_settings" : {
+    "white_balance_mode" : "automatic",
+    "mode" : "arSession"
+  },
+  "calibration_identity" : {
+    "calibration_digest" : "sha256:597ef6e362e8ee9be1e40ac85f3b2d453efe1cce039dc4179e6f84ef7bb036c1",
+    "binding" : {
+      "pixel_orientation" : "encoded_source_no_autorotate",
+      "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+      "authority" : "arkit_arframe_exact_per_observation",
+      "scope" : "coordinate_frame_session",
+      "session_intrinsics_source" : "arkit/intrinsics.json",
+      "intrinsics_source" : "arkit/frames.jsonl",
+      "session_intrinsics" : {
+        "cy" : 240,
+        "cx" : 320,
+        "fy" : 500,
+        "height" : 480,
+        "fx" : 500,
+        "width" : 640
+      },
+      "camera_identity" : {
+        "capture_authority" : "arkit_arframe_captured_image",
+        "uses_ar_session_recorder" : true,
+        "arkit_managed_camera" : true,
+        "has_scene_depth_semantics" : false,
+        "calibration_authority" : "arkit_arframe_exact_per_observation",
+        "position" : "back"
+      }
+    }
+  }
+}

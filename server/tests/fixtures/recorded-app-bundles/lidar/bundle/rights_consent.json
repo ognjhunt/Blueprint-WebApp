@@ -1,0 +1,59 @@
+{
+  "capture_basis" : "unknown",
+  "retention_policy" : "standard_blueprint_site_capture",
+  "retention" : {
+    "routine_delete_rule_present" : false,
+    "live_enforcement_proven_by_bundle" : false,
+    "archive_after_days" : 365,
+    "policy_id" : "blueprint_raw_capture_lifecycle_2026-07-09",
+    "review_window_days" : 30,
+    "minimum_retention_floor_days_if_delete_is_ever_introduced" : 2555,
+    "policy_reference" : "docs/STORAGE_RETENTION_POLICY_2026-07-09.md",
+    "raw_truth_preserved" : true
+  },
+  "schema_version" : "v1",
+  "privacy_processing" : {
+    "restricted_capture_areas" : [
+
+    ],
+    "derived_use_requires_privacy_preprocessing" : true,
+    "privacy_authority" : "explicit_capture_intake_and_downstream_policy",
+    "redaction_required" : true,
+    "raw_media_contains_unredacted_observations" : true,
+    "privacy_security_limits" : [
+
+    ]
+  },
+  "capture_contributor_payout_eligible" : false,
+  "consent_scope" : [
+
+  ],
+  "capture_id" : "walkthrough-stub-request",
+  "permission_document_sha256" : null,
+  "scene_id" : "site-stub-request",
+  "data_licensing_allowed" : false,
+  "consent_status" : "unknown",
+  "permission_document_uri" : null,
+  "consent_notes" : [
+
+  ],
+  "revocation" : {
+    "raw_retention_effect" : "subject_to_authoritative_policy_and_legal_process",
+    "provider_upload_blocked_until_latest_status_check" : true,
+    "revocation_requested_at" : null,
+    "revocation_effective_at" : null,
+    "revocation_authority" : "blueprint_backend_and_authoritative_rights_records",
+    "latest_status_check_required_before_downstream_use" : true,
+    "status_at_capture" : "no_revocation_record_attached_to_bundle"
+  },
+  "provider_upload" : {
+    "provider_selection_authority" : "blueprint_pipeline",
+    "third_party_provider_upload_authorized" : false,
+    "capture_manifest_cannot_authorize_provider" : true,
+    "allowed_mobile_destination_class" : "blueprint_first_party_capture_storage_only",
+    "provider_authorization_status" : "separate_downstream_gate_required",
+    "mobile_app_direct_provider_upload_allowed" : false
+  },
+  "derived_scene_generation_allowed" : true,
+  "redaction_required" : true
+}

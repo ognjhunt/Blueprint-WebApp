@@ -1,0 +1,56 @@
+{
+  "automatic_promotion_rule" : "qualify_only_when_every_requested_check_passes_under_the_bound_task_site_profile",
+  "requested_checks" : [
+    {
+      "capture_observation_available" : false,
+      "check" : "loop_closure"
+    },
+    {
+      "check" : "tracking_quality",
+      "capture_observation_available" : true
+    },
+    {
+      "check" : "depth_reprojection_error",
+      "capture_observation_available" : false
+    },
+    {
+      "capture_observation_available" : true,
+      "check" : "mesh_coverage"
+    },
+    {
+      "check" : "floor_support_continuity",
+      "capture_observation_available" : false
+    },
+    {
+      "check" : "physical_collision_probes",
+      "capture_observation_available" : false
+    },
+    {
+      "check" : "postshot_registered_reconstruction",
+      "capture_observation_available" : false
+    }
+  ],
+  "capture_decision" : "abstain_pending_downstream_measurements",
+  "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "capture_workflow" : "single_guided_closed_loop_walk",
+  "capture_observations" : {
+    "mesh_triangle_count" : 2,
+    "loop_closure_detected" : false,
+    "loop_closure_translation_residual_m" : null,
+    "normal_tracking_fraction" : 1,
+    "loop_closure_max_excursion_m" : null,
+    "relocalization_count" : 0,
+    "loop_closure_rotation_residual_deg" : null,
+    "horizontal_plane_observation_count" : 0,
+    "median_depth_valid_fraction" : 1,
+    "device_calibration_qualified" : false
+  },
+  "qualification_authority" : "blueprint_pipeline",
+  "schema_version" : "reconstruction_qualification_request.v1",
+  "collision_artifact_status" : "candidate_only",
+  "smallest_missing_evidence" : [
+    "return_to_start_hold_or_targeted_return_segment_recapture",
+    "current_device_known_rig_calibration_if_sensor_scale_gate_requires_it"
+  ],
+  "threshold_source" : "task_site_evidence_profile_digest_bound"
+}

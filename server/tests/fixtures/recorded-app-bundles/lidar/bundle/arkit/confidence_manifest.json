@@ -1,0 +1,113 @@
+{
+  "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "confidence_encoding" : "uint8_png",
+  "schema_version" : "arkit_confidence_manifest.v2",
+  "accepted_confidence_values" : [
+    2
+  ],
+  "encoding" : "png_u8",
+  "frames" : [
+    {
+      "representation" : "per_frame_confidence_map",
+      "confidence_path" : "arkit/confidence/000001.png",
+      "width" : 256,
+      "paired_depth_path" : "arkit/depth/000001.png",
+      "frame_id" : "000001",
+      "height" : 192
+    },
+    {
+      "frame_id" : "000005",
+      "confidence_path" : "arkit/confidence/000005.png",
+      "height" : 192,
+      "width" : 256,
+      "paired_depth_path" : "arkit/depth/000005.png",
+      "representation" : "per_frame_confidence_map"
+    },
+    {
+      "frame_id" : "000009",
+      "paired_depth_path" : "arkit/depth/000009.png",
+      "confidence_path" : "arkit/confidence/000009.png",
+      "representation" : "per_frame_confidence_map",
+      "width" : 256,
+      "height" : 192
+    },
+    {
+      "width" : 256,
+      "height" : 192,
+      "frame_id" : "000013",
+      "paired_depth_path" : "arkit/depth/000013.png",
+      "confidence_path" : "arkit/confidence/000013.png",
+      "representation" : "per_frame_confidence_map"
+    },
+    {
+      "frame_id" : "000017",
+      "width" : 256,
+      "paired_depth_path" : "arkit/depth/000017.png",
+      "representation" : "per_frame_confidence_map",
+      "confidence_path" : "arkit/confidence/000017.png",
+      "height" : 192
+    },
+    {
+      "width" : 256,
+      "height" : 192,
+      "frame_id" : "000021",
+      "representation" : "per_frame_confidence_map",
+      "confidence_path" : "arkit/confidence/000021.png",
+      "paired_depth_path" : "arkit/depth/000021.png"
+    },
+    {
+      "representation" : "per_frame_confidence_map",
+      "confidence_path" : "arkit/confidence/000025.png",
+      "width" : 256,
+      "paired_depth_path" : "arkit/depth/000025.png",
+      "height" : 192,
+      "frame_id" : "000025"
+    },
+    {
+      "frame_id" : "000029",
+      "confidence_path" : "arkit/confidence/000029.png",
+      "representation" : "per_frame_confidence_map",
+      "width" : 256,
+      "paired_depth_path" : "arkit/depth/000029.png",
+      "height" : 192
+    },
+    {
+      "confidence_path" : "arkit/confidence/000033.png",
+      "width" : 256,
+      "height" : 192,
+      "paired_depth_path" : "arkit/depth/000033.png",
+      "frame_id" : "000033",
+      "representation" : "per_frame_confidence_map"
+    },
+    {
+      "width" : 256,
+      "frame_id" : "000037",
+      "representation" : "per_frame_confidence_map",
+      "height" : 192,
+      "confidence_path" : "arkit/confidence/000037.png",
+      "paired_depth_path" : "arkit/depth/000037.png"
+    },
+    {
+      "frame_id" : "000041",
+      "width" : 256,
+      "paired_depth_path" : "arkit/depth/000041.png",
+      "representation" : "per_frame_confidence_map",
+      "confidence_path" : "arkit/confidence/000041.png",
+      "height" : 192
+    },
+    {
+      "representation" : "per_frame_confidence_map",
+      "frame_id" : "000045",
+      "paired_depth_path" : "arkit/depth/000045.png",
+      "confidence_path" : "arkit/confidence/000045.png",
+      "height" : 192,
+      "width" : 256
+    }
+  ],
+  "representation" : "per_frame_confidence_map",
+  "confidence_scale" : {
+    "0" : "low_or_missing",
+    "1" : "medium",
+    "2" : "high"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "units" : "meters",
+  "vertex_count" : 0,
+  "collision_status" : "candidate_only",
+  "coordinate_frame" : "arkit_world",
+  "schema_version" : "arkit_mesh_manifest.v1",
+  "triangle_count" : 0,
+  "handedness" : "right_handed",
+  "mesh_count" : 0,
+  "up_axis" : "Y",
+  "meshes" : [
+
+  ],
+  "qualification_authority" : "downstream_evidence_gates",
+  "coordinate_frame_session_id" : "5C354405-AB84-421F-AEBA-F3F8DEDE6245",
+  "source" : "arkit_scene_reconstruction_mesh"
+}

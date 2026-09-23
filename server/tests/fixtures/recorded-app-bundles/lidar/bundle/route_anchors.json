@@ -1,0 +1,13 @@
+{
+  "route_anchors" : [
+    {
+      "label" : "Site entry point",
+      "anchor_type" : "entry",
+      "expected_observation" : "pause_and_pan",
+      "anchor_id" : "anchor_entry",
+      "required_in_primary_pass" : true,
+      "required_in_revisit_pass" : true
+    }
+  ],
+  "schema_version" : "v1"
+}

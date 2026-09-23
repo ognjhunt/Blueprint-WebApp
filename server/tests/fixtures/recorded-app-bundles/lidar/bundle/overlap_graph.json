@@ -1,0 +1,15 @@
+{
+  "relocalization_event_count" : 0,
+  "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "route_id" : "route_unknown",
+  "pass_id" : "pass_primary_1",
+  "schema_version" : "v1",
+  "semantic_anchor_ids" : [
+
+  ],
+  "pass_role" : "primary",
+  "observed_anchor_ids" : [
+
+  ],
+  "site_visit_id" : "stub-request"
+}

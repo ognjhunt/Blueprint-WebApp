@@ -1,0 +1,555 @@
+{
+  "binding_digest" : "sha256:1893a804841917993a662bb98bfffafb6ee66161147f53d99ffbcfdd494bff44",
+  "client" : "ios_app_clip",
+  "device_manifest" : {
+    "app_build" : "1",
+    "app_version" : "1.0",
+    "arkit_mesh_manifest_uri" : "arkit/mesh_manifest.json",
+    "calibration_assets" : [
+
+    ],
+    "camera_intrinsics" : {
+      "intrinsic_matrix" : [
+        500,
+        0,
+        0,
+        0,
+        500,
+        0,
+        320,
+        240,
+        1
+      ],
+      "resolution_height" : 480,
+      "resolution_width" : 640
+    },
+    "capture_capabilities" : {
+      "camera_intrinsics" : true,
+      "camera_pose" : true,
+      "companion_phone_calibration" : false,
+      "companion_phone_intrinsics" : false,
+      "companion_phone_pose" : false,
+      "confidence_frames" : 12,
+      "depth" : true,
+      "depth_authority" : "authoritative_raw",
+      "depth_confidence" : true,
+      "depth_frames" : 12,
+      "device_imu" : false,
+      "device_imu_unavailable_reason" : "app_clip_runtime",
+      "feature_point_rows" : 45,
+      "feature_points" : true,
+      "geometry_expected_downstream" : false,
+      "geometry_source" : "arkit",
+      "intrinsics_authority" : "authoritative_raw",
+      "intrinsics_valid" : true,
+      "light_estimate" : true,
+      "light_estimate_rows" : 45,
+      "mesh" : true,
+      "mesh_files" : 1,
+      "motion" : false,
+      "motion_authoritative" : false,
+      "motion_authority" : "not_available",
+      "motion_samples" : 0,
+      "plane_rows" : 0,
+      "planes" : false,
+      "point_cloud" : true,
+      "point_cloud_samples" : 45,
+      "pose_authority" : "authoritative_raw",
+      "pose_rows" : 45,
+      "relocalization_event_rows" : 0,
+      "relocalization_events" : false,
+      "tracking_state" : true,
+      "tracking_state_rows" : 45
+    },
+    "capture_evidence" : {
+      "arcore_confidence_frames" : 0,
+      "arcore_depth_frames" : 0,
+      "arcore_frame_rows" : 0,
+      "arcore_intrinsics_valid" : false,
+      "arcore_light_estimate_rows" : 0,
+      "arcore_plane_rows" : 0,
+      "arcore_point_cloud_samples" : 0,
+      "arcore_pose_rows" : 0,
+      "arcore_tracking_state_rows" : 0,
+      "arkit_confidence_frames" : 12,
+      "arkit_depth_frames" : 12,
+      "arkit_feature_point_rows" : 45,
+      "arkit_frame_rows" : 45,
+      "arkit_intrinsics_valid" : true,
+      "arkit_light_estimate_rows" : 45,
+      "arkit_mesh_files" : 1,
+      "arkit_plane_rows" : 0,
+      "arkit_pose_rows" : 45,
+      "arkit_relocalization_event_rows" : 0,
+      "arkit_tracking_state_rows" : 45,
+      "companion_phone_calibration_present" : false,
+      "companion_phone_intrinsics_valid" : false,
+      "companion_phone_pose_rows" : 0,
+      "confidence_frames" : 12,
+      "declared_depth_supported" : true,
+      "depth_authority" : "authoritative_raw",
+      "depth_frames" : 12,
+      "geometry_expected_downstream" : false,
+      "geometry_source" : "arkit",
+      "glasses_device_state_rows" : 0,
+      "glasses_frame_timestamp_rows" : 0,
+      "glasses_health_event_rows" : 0,
+      "intrinsics_authority" : "authoritative_raw",
+      "intrinsics_valid" : true,
+      "motion_authority" : "not_available",
+      "motion_samples" : 0,
+      "motion_timestamps_capture_relative" : false,
+      "p95_pose_delta_sec" : 0,
+      "pose_authority" : "authoritative_raw",
+      "pose_match_rate" : 1,
+      "pose_rows" : 45,
+      "tracking_state_rows" : 45
+    },
+    "capture_id" : "walkthrough-stub-request",
+    "capture_modality" : "iphone_arkit_lidar",
+    "capture_profile_id" : "iphone_arkit_lidar",
+    "capture_schema_version" : "3.2.0",
+    "capture_source" : "iphone",
+    "capture_start_epoch_ms" : 1790123857475,
+    "capture_tier_hint" : "tier1_iphone",
+    "capture_topology" : {
+      "arkit_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+      "capture_session_id" : "stub-request",
+      "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+      "entry_anchor_id" : "anchor_entry",
+      "intended_pass_role" : "primary",
+      "pass_id" : "pass_primary_1",
+      "pass_index" : 1,
+      "route_id" : "route_unknown",
+      "site_visit_id" : "stub-request"
+    },
+    "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+    "coverage_plan" : [
+
+    ],
+    "depth_supported" : true,
+    "device_camera" : {
+      "arkit_managed_camera" : true,
+      "calibration_authority" : "arkit_arframe_exact_per_observation",
+      "capture_authority" : "arkit_arframe_captured_image",
+      "has_scene_depth_semantics" : true,
+      "position" : "back",
+      "uses_ar_session_recorder" : true
+    },
+    "device_health" : {
+      "available_storage_bytes" : 99963904000,
+      "claim_boundary" : "device_health_snapshot_is_capture_client_runtime_context",
+      "duration_safeguard_warning" : null,
+      "finalize_current_segment_requested" : false,
+      "low_light_warning" : null,
+      "max_segment_duration_seconds" : 1200,
+      "memory_warning_count" : 0,
+      "thermal_state" : "nominal",
+      "warning" : null
+    },
+    "device_imu_unavailable_reason" : "app_clip_runtime",
+    "device_model" : "arm64",
+    "device_model_marketing" : "iPhone",
+    "downstream_candidate_manifest_uri" : "downstream_candidate_manifest.json",
+    "exposure_settings" : {
+      "mode" : "arSession",
+      "white_balance_mode" : "automatic"
+    },
+    "fps_source" : 30,
+    "hardware_model_identifier" : "arm64",
+    "has_lidar" : true,
+    "height" : 480,
+    "intended_space_type" : "unknown",
+    "ios_build" : "25G83",
+    "ios_version" : "26.2",
+    "os_version" : "26.2",
+    "reconstruction_qualification_request_uri" : "reconstruction_qualification_request.json",
+    "recording_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+    "scaffolding_used" : [
+      "arkit_depth",
+      "arkit_meshes",
+      "arkit_pose_log"
+    ],
+    "scaffolding_validation" : {
+      "checkpoint_count" : 0,
+      "hidden_zone_bound" : null,
+      "scale_anchor_count" : 0,
+      "validated_metric_bundle" : false,
+      "validated_pose_coverage" : null,
+      "validated_scale_m" : null
+    },
+    "scale_hint_m_per_unit" : 1,
+    "scene_id" : "site-stub-request",
+    "scene_memory_capture" : {
+      "continuity_score" : null,
+      "dynamic_object_density" : "unknown",
+      "geometry_expected_downstream" : false,
+      "geometry_source" : "arkit",
+      "inaccessible_areas" : [
+
+      ],
+      "lighting_consistency" : "unknown",
+      "motion_provenance" : null,
+      "motion_timestamps_capture_relative" : false,
+      "operator_notes" : [
+
+      ],
+      "overlap_checkpoint_count" : null,
+      "p95_pose_delta_sec" : 0,
+      "pose_match_rate" : 1,
+      "relocalization_count" : null,
+      "semantic_anchors_observed" : [
+
+      ],
+      "sensor_availability" : {
+        "arkit_confidence" : true,
+        "arkit_depth" : true,
+        "arkit_intrinsics" : true,
+        "arkit_meshes" : true,
+        "arkit_poses" : true,
+        "motion" : false
+      },
+      "world_model_candidate" : false,
+      "world_model_candidate_reasoning" : [
+        "capture_mode_site_world_candidate:false",
+        "site_id_present:false",
+        "arkit_poses_valid:true",
+        "arkit_intrinsics_valid:true",
+        "depth_coverage_ok:true",
+        "pose_alignment_ok:true",
+        "pose_authority:authoritative_raw",
+        "intrinsics_authority:authoritative_raw",
+        "depth_authority:authoritative_raw",
+        "geometry_source:arkit",
+        "geometry_expected_downstream:false",
+        "pose_match_rate:1.0000",
+        "p95_pose_delta_sec:0.0000",
+        "intake_complete:false",
+        "derived_scene_generation_allowed:true"
+      ]
+    },
+    "schema_version" : "v3",
+    "site_extent" : {
+      "claim_boundary" : "site_extent_is_capturer_recorded_context_not_verified_measurement",
+      "source" : "not_provided",
+      "status" : "not_provided"
+    },
+    "site_extent_source" : "not_provided",
+    "site_extent_status" : "not_provided",
+    "site_type" : "unknown",
+    "site_type_source" : "capturer_selected",
+    "uncertainty_priors" : {
+
+    },
+    "video_uri" : "walkthrough.mov",
+    "width" : 640
+  },
+  "files" : [
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000001.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000005.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000009.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000013.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000017.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000021.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000025.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000029.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000033.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000037.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000041.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 465,
+      "md5" : "rOVg5ZYvp8YyIoJPTXf4VA==",
+      "path" : "arkit/confidence/000045.png",
+      "sha256" : "bd04b253e500d0246d7db1b7ee27860a8f7a7b41171b2468e4f1b8ea32d167fb"
+    },
+    {
+      "bytes" : 3378,
+      "md5" : "Fq7pwWvAJ9AfeUiwM0RKnw==",
+      "path" : "arkit/confidence_manifest.json",
+      "sha256" : "dbb6879f488894a9a19516ff8d10477c5510d8342833c856baeb9f1046243672"
+    },
+    {
+      "bytes" : 827,
+      "md5" : "kcmtq1uXskIJ6N91ZILrqg==",
+      "path" : "arkit/depth/000001.png",
+      "sha256" : "ea84b1d1a2c7ff868ff57b54cceaaa235bf60697dc7f83c61b3582fe159e12e1"
+    },
+    {
+      "bytes" : 818,
+      "md5" : "BY5w/B1gBljkjIfIxFC0cQ==",
+      "path" : "arkit/depth/000005.png",
+      "sha256" : "9c98075718a52d1f7e31b6ca8693ee25613a55c5e756b1bf278b67e7c3cf4f4f"
+    },
+    {
+      "bytes" : 824,
+      "md5" : "wUbljfP0JvjN3qz9YlrRfA==",
+      "path" : "arkit/depth/000009.png",
+      "sha256" : "6c01ec227b120e4c0a7cce604cb73ac32bbc15a9a810fe24150ee24ad08a48fe"
+    },
+    {
+      "bytes" : 820,
+      "md5" : "MnlT/Uh46hwsWCKSsFiLbw==",
+      "path" : "arkit/depth/000013.png",
+      "sha256" : "4215c2f73ec74f48ab617dc1d149b90700ec97e6379ac06f62a017e2786ce1e1"
+    },
+    {
+      "bytes" : 824,
+      "md5" : "3q8veOMT9rjFHrLxCpDfaw==",
+      "path" : "arkit/depth/000017.png",
+      "sha256" : "c79e10537e6c2486a8e666e27d868a1dcb96c831102c1e635027b887c7eedbcd"
+    },
+    {
+      "bytes" : 827,
+      "md5" : "kcmtq1uXskIJ6N91ZILrqg==",
+      "path" : "arkit/depth/000021.png",
+      "sha256" : "ea84b1d1a2c7ff868ff57b54cceaaa235bf60697dc7f83c61b3582fe159e12e1"
+    },
+    {
+      "bytes" : 818,
+      "md5" : "BY5w/B1gBljkjIfIxFC0cQ==",
+      "path" : "arkit/depth/000025.png",
+      "sha256" : "9c98075718a52d1f7e31b6ca8693ee25613a55c5e756b1bf278b67e7c3cf4f4f"
+    },
+    {
+      "bytes" : 824,
+      "md5" : "wUbljfP0JvjN3qz9YlrRfA==",
+      "path" : "arkit/depth/000029.png",
+      "sha256" : "6c01ec227b120e4c0a7cce604cb73ac32bbc15a9a810fe24150ee24ad08a48fe"
+    },
+    {
+      "bytes" : 820,
+      "md5" : "MnlT/Uh46hwsWCKSsFiLbw==",
+      "path" : "arkit/depth/000033.png",
+      "sha256" : "4215c2f73ec74f48ab617dc1d149b90700ec97e6379ac06f62a017e2786ce1e1"
+    },
+    {
+      "bytes" : 824,
+      "md5" : "3q8veOMT9rjFHrLxCpDfaw==",
+      "path" : "arkit/depth/000037.png",
+      "sha256" : "c79e10537e6c2486a8e666e27d868a1dcb96c831102c1e635027b887c7eedbcd"
+    },
+    {
+      "bytes" : 827,
+      "md5" : "kcmtq1uXskIJ6N91ZILrqg==",
+      "path" : "arkit/depth/000041.png",
+      "sha256" : "ea84b1d1a2c7ff868ff57b54cceaaa235bf60697dc7f83c61b3582fe159e12e1"
+    },
+    {
+      "bytes" : 818,
+      "md5" : "BY5w/B1gBljkjIfIxFC0cQ==",
+      "path" : "arkit/depth/000045.png",
+      "sha256" : "9c98075718a52d1f7e31b6ca8693ee25613a55c5e756b1bf278b67e7c3cf4f4f"
+    },
+    {
+      "bytes" : 5088,
+      "md5" : "o1e8vEoxUFUnora9+oqqFQ==",
+      "path" : "arkit/depth_manifest.json",
+      "sha256" : "b311c1e173fbbfab1070ec2a54a6e3185e10a5e32983a9c8d19afe9066b60f73"
+    },
+    {
+      "bytes" : 18064,
+      "md5" : "y7ZyA6xocjVFm7g70V8Fzw==",
+      "path" : "arkit/feature_points.jsonl",
+      "sha256" : "15950be0db71ec770a89a49b9c4f473b0eab269a50999ffede48ec2e1e2a42fc"
+    },
+    {
+      "bytes" : 17502,
+      "md5" : "m8CNAi1H8x3izWeU6dpmdw==",
+      "path" : "arkit/frame_quality.jsonl",
+      "sha256" : "1e3f38a8c5d04b5029d4ba3c5d509f32afe849f0a36cde0e74530cc4abcc17c4"
+    },
+    {
+      "bytes" : 29696,
+      "md5" : "kxdb4mVO4eFfqCMvKHF3Fw==",
+      "path" : "arkit/frames.jsonl",
+      "sha256" : "4c031bf0218c2f374cd409e82290a86889a5bcfeae7ad3960581b97fc53e0a63"
+    },
+    {
+      "bytes" : 93,
+      "md5" : "iVxoH2I/beGOOdo9fz5CPQ==",
+      "path" : "arkit/intrinsics.json",
+      "sha256" : "4f77bf7bb002af551fe7d1cd2da076f472ba2e7b3caf6cf73f44f83022a8205e"
+    },
+    {
+      "bytes" : 9604,
+      "md5" : "tJek9ZJnydxCSSybI+LA3Q==",
+      "path" : "arkit/light_estimates.jsonl",
+      "sha256" : "4e09c17235626a0658d86e8df99962c5f0cb2d54348794cad1de195ca16ed06b"
+    },
+    {
+      "bytes" : 817,
+      "md5" : "XnkTbk9xfxeeXbloQUGlHQ==",
+      "path" : "arkit/mesh_manifest.json",
+      "sha256" : "5cebda967cd1e4379524d1e2602f0aa845c8a52ceceb00fcdd743efb7b2f67c1"
+    },
+    {
+      "bytes" : 193,
+      "md5" : "fyn3PcsIBhN2zAHwO2OT/Q==",
+      "path" : "arkit/meshes/mesh-EF3A99A7-BF9C-4321-9FAF-5749228C65D2.obj",
+      "sha256" : "fe1f98bea1037beccda48c5f46e42377538e23b2dfc0863b89f0814f69ad4e23"
+    },
+    {
+      "bytes" : 15830,
+      "md5" : "M1hLqxE1IqyVFV8UUTtUUw==",
+      "path" : "arkit/per_frame_camera_state.jsonl",
+      "sha256" : "006c9296a553ad7e69fcf30a1225d2bbb349aa2e87d91fe80873443bca015c19"
+    },
+    {
+      "bytes" : 0,
+      "md5" : "1B2M2Y8AsgTpgAmY7PhCfg==",
+      "path" : "arkit/plane_observations.jsonl",
+      "sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes" : 53234,
+      "md5" : "t+N89fp3dsemDHX+lkdDow==",
+      "path" : "arkit/poses.jsonl",
+      "sha256" : "cf9d7463138f87d8bd634c80207aa2077bc11704efac0440fec8e1142d539648"
+    },
+    {
+      "bytes" : 2202,
+      "md5" : "eVhv/mo/lwNIDAa1eCVwJQ==",
+      "path" : "arkit/session_intrinsics.json",
+      "sha256" : "e629953644f8a8117ff64b2ed10dfb565d001c4bded3126d2ab3fdfd4a37ca99"
+    },
+    {
+      "bytes" : 374,
+      "md5" : "FDFSuELfNRXoiB8dIO3Eog==",
+      "path" : "capture_topology.json",
+      "sha256" : "241140053f77333f061201c9064c5e92612d1ee1584d46e2d427d5f622e5957e"
+    },
+    {
+      "bytes" : 61,
+      "md5" : "xHxCaIksQSjtUCl8fgEitA==",
+      "path" : "checkpoint_events.json",
+      "sha256" : "0525f84d8a1877e8f55752bfd6f7560012489b5786088562f131b275847e2044"
+    },
+    {
+      "bytes" : 123003,
+      "md5" : "bAJnTlndfjv+Qo7dUxRxNg==",
+      "path" : "downstream_candidate_manifest.json",
+      "sha256" : "ed2305c2c90ee8e4092c54af1e9e68a947b5fba1ef4bb6f7749400664bd4c2ed"
+    },
+    {
+      "bytes" : 334,
+      "md5" : "fyhdyLOwGVPZpBMOXIrloQ==",
+      "path" : "overlap_graph.json",
+      "sha256" : "818373c9634689e9482c441680c6d582f9118273570e65b63ae47e20e20f38b4"
+    },
+    {
+      "bytes" : 1894,
+      "md5" : "NB7N6l7NdwqjrBOTTXWRag==",
+      "path" : "reconstruction_qualification_request.json",
+      "sha256" : "c7014b92443ab2097d75f476596919ea77fc818d00f24e9a74d1de7aacdad640"
+    },
+    {
+      "bytes" : 889,
+      "md5" : "38XF4t6U/WDE9rv0agJztQ==",
+      "path" : "recording_session.json",
+      "sha256" : "37275b1f254d259291f25ad75e75a8b950eb3213f56527b96a2a20b89e97c642"
+    },
+    {
+      "bytes" : 65,
+      "md5" : "7/T1+Kro7XkkPxEQnsEOZQ==",
+      "path" : "relocalization_events.json",
+      "sha256" : "928dee5b9fa8aceade85acdf959e698a94a797160d5a8c98cb53e3e61687c8f1"
+    },
+    {
+      "bytes" : 300,
+      "md5" : "bgxR6sNz4cMttXtRVIJhNQ==",
+      "path" : "route_anchors.json",
+      "sha256" : "e4f71740d96fc22c353bd8a241ad02091c72692c427bf2db5f8d953e6922504f"
+    },
+    {
+      "bytes" : 0,
+      "md5" : "1B2M2Y8AsgTpgAmY7PhCfg==",
+      "path" : "semantic_anchor_observations.jsonl",
+      "sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes" : 60,
+      "md5" : "p24eK9FCcM9SsSwNxYnhCw==",
+      "path" : "semantic_anchors.json",
+      "sha256" : "8c5ff2125478e72a6d00bdcbf6a0f3ccb31f521f2dafd68ce32f84ac99b38363"
+    },
+    {
+      "bytes" : 15339,
+      "md5" : "qTrbIb68t6xwch6lzKqOIw==",
+      "path" : "sync_map.jsonl",
+      "sha256" : "d61a1b156ea829893f43955e41bc926aa33bf5e8bbf78be63365e65836ebf8b8"
+    },
+    {
+      "bytes" : 13838,
+      "md5" : "9YDUTUpFU/OygC06sgQZQg==",
+      "path" : "video_frame_retention.jsonl",
+      "sha256" : "2dc64cfd7f976c695dd93e92492f6d1e3bda164ab86233ff3b1b0265d0c19413"
+    },
+    {
+      "bytes" : 661,
+      "md5" : "gLpZ/LM/fjA2n28WE/50CQ==",
+      "path" : "video_track.json",
+      "sha256" : "fb4aacd886f62fe37002189a5b86ffc7a5884131511534ca01dabdae413bb0d2"
+    },
+    {
+      "bytes" : 53699,
+      "md5" : "YXgXFhZhQtr/I6Y3AydDVQ==",
+      "path" : "walkthrough.mov",
+      "sha256" : "dc6534f4e2927f657a696005d8eac94ca376979f69ae36ee3929cf5dee0c599e"
+    }
+  ]
+}

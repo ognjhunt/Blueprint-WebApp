@@ -1,0 +1,339 @@
+{
+  "buyer_request_id" : null,
+  "special_task_type" : null,
+  "has_lidar" : true,
+  "site_type_source" : "capturer_selected",
+  "region_id" : null,
+  "capture_job_id" : null,
+  "device_model_marketing" : "iPhone",
+  "capture_profile_id" : "iphone_arkit_lidar",
+  "width" : 640,
+  "capture_tier_hint" : "tier1_iphone",
+  "recording_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "site_type" : "unknown",
+  "video_uri" : "walkthrough.mov",
+  "scale_hint_m_per_unit" : 1,
+  "zone" : null,
+  "height" : 480,
+  "fps_source" : 30,
+  "capture_schema_version" : "3.2.0",
+  "site_submission_id" : "stub-request",
+  "requested_outputs" : [
+    "qualification"
+  ],
+  "uncertainty_priors" : {
+
+  },
+  "capture_profile" : {
+    "capture_restrictions" : [
+
+    ],
+    "benchmark_stations" : [
+
+    ],
+    "adjacent_systems" : [
+
+    ],
+    "known_blockers" : [
+
+    ],
+    "non_routine_modes" : [
+
+    ],
+    "facility_template" : null,
+    "required_coverage_areas" : [
+
+    ],
+    "privacy_security_limits" : [
+
+    ],
+    "people_traffic_notes" : [
+
+    ]
+  },
+  "task_steps" : [
+
+  ],
+  "schema_version" : "v3",
+  "rights_profile" : "site_capture_link_server_authored",
+  "site_extent_source" : "not_provided",
+  "calibration_assets" : [
+
+  ],
+  "evidence_tier" : "pre_screen_video",
+  "app_build" : "1",
+  "owner" : null,
+  "capture_rights" : {
+    "capture_contributor_payout_eligible" : false,
+    "mobile_app_direct_provider_upload_allowed" : false,
+    "provider_selection_authority" : "blueprint_pipeline",
+    "consent_notes" : [
+
+    ],
+    "third_party_provider_upload_authorized" : false,
+    "latest_revocation_check_required_before_downstream_use" : true,
+    "permission_document_uri" : null,
+    "derived_scene_generation_allowed" : true,
+    "redaction_required" : true,
+    "retention_live_enforcement_proven_by_bundle" : false,
+    "data_licensing_allowed" : false,
+    "consent_status" : "unknown",
+    "retention_policy_id" : "blueprint_raw_capture_lifecycle_2026-07-09",
+    "consent_scope" : [
+
+    ]
+  },
+  "capture_modality" : "iphone_arkit_lidar",
+  "device_model" : "arm64",
+  "ios_build" : "25G83",
+  "capture_id" : "walkthrough-stub-request",
+  "capture_start_epoch_ms" : 1790123857475,
+  "device_imu_unavailable_reason" : "app_clip_runtime",
+  "depth_supported" : true,
+  "os_version" : "26.2",
+  "camera_intrinsics" : {
+    "intrinsic_matrix" : [
+      500,
+      0,
+      0,
+      0,
+      500,
+      0,
+      320,
+      240,
+      1
+    ],
+    "resolution_width" : 640,
+    "resolution_height" : 480
+  },
+  "site_extent" : {
+    "claim_boundary" : "site_extent_is_capturer_recorded_context_not_verified_measurement",
+    "source" : "not_provided",
+    "status" : "not_provided"
+  },
+  "capture_topology" : {
+    "site_visit_id" : "stub-request",
+    "arkit_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+    "pass_id" : "pass_primary_1",
+    "route_id" : "route_unknown",
+    "intended_pass_role" : "primary",
+    "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+    "entry_anchor_id" : "anchor_entry",
+    "pass_index" : 1,
+    "capture_session_id" : "stub-request"
+  },
+  "scaffolding_used" : [
+    "arkit_depth",
+    "arkit_meshes",
+    "arkit_pose_log"
+  ],
+  "capture_capabilities" : {
+    "camera_intrinsics" : true,
+    "mesh" : true,
+    "device_imu" : false,
+    "depth_frames" : 12,
+    "relocalization_events" : false,
+    "point_cloud_samples" : 45,
+    "mesh_files" : 1,
+    "motion" : false,
+    "light_estimate" : true,
+    "geometry_expected_downstream" : false,
+    "point_cloud" : true,
+    "motion_authority" : "not_available",
+    "depth" : true,
+    "relocalization_event_rows" : 0,
+    "light_estimate_rows" : 45,
+    "depth_confidence" : true,
+    "feature_points" : true,
+    "motion_samples" : 0,
+    "companion_phone_pose" : false,
+    "plane_rows" : 0,
+    "intrinsics_authority" : "authoritative_raw",
+    "confidence_frames" : 12,
+    "intrinsics_valid" : true,
+    "tracking_state_rows" : 45,
+    "pose_authority" : "authoritative_raw",
+    "companion_phone_intrinsics" : false,
+    "geometry_source" : "arkit",
+    "motion_authoritative" : false,
+    "device_imu_unavailable_reason" : "app_clip_runtime",
+    "feature_point_rows" : 45,
+    "depth_authority" : "authoritative_raw",
+    "planes" : false,
+    "camera_pose" : true,
+    "pose_rows" : 45,
+    "companion_phone_calibration" : false,
+    "tracking_state" : true
+  },
+  "device_camera" : {
+    "arkit_managed_camera" : true,
+    "position" : "back",
+    "calibration_authority" : "arkit_arframe_exact_per_observation",
+    "uses_ar_session_recorder" : true,
+    "capture_authority" : "arkit_arframe_captured_image",
+    "has_scene_depth_semantics" : true
+  },
+  "capture_source" : "iphone",
+  "device_health" : {
+    "duration_safeguard_warning" : null,
+    "thermal_state" : "nominal",
+    "available_storage_bytes" : 99963904000,
+    "memory_warning_count" : 0,
+    "low_light_warning" : null,
+    "max_segment_duration_seconds" : 1200,
+    "claim_boundary" : "device_health_snapshot_is_capture_client_runtime_context",
+    "finalize_current_segment_requested" : false,
+    "warning" : null
+  },
+  "downstream_candidate_manifest_uri" : "downstream_candidate_manifest.json",
+  "scene_id" : "site-stub-request",
+  "upstream_handoff" : {
+    "hosted_review_truth_state" : "blocked_missing_upstream_ids",
+    "site_submission_id_present" : true,
+    "blockers" : [
+      "missing_buyer_request_id",
+      "missing_capture_job_id"
+    ],
+    "capture_job_id_present" : false,
+    "site_submission_id" : "stub-request",
+    "buyer_request_id_present" : false
+  },
+  "coverage_plan" : [
+
+  ],
+  "environment_variability" : {
+    "floor_condition_notes" : [
+
+    ],
+    "reflective_surface_notes" : [
+
+    ],
+    "access_rules" : [
+
+    ],
+    "movable_obstacles" : [
+
+    ],
+    "lighting_windows" : [
+
+    ],
+    "shift_traffic_windows" : [
+
+    ]
+  },
+  "quoted_payout_cents" : null,
+  "exposure_settings" : {
+    "mode" : "arSession",
+    "white_balance_mode" : "automatic"
+  },
+  "coordinate_frame_session_id" : "E573BA10-1F97-421F-9358-09FD87918978",
+  "capture_evidence" : {
+    "arcore_point_cloud_samples" : 0,
+    "arcore_confidence_frames" : 0,
+    "depth_frames" : 12,
+    "glasses_health_event_rows" : 0,
+    "arkit_confidence_frames" : 12,
+    "geometry_expected_downstream" : false,
+    "motion_authority" : "not_available",
+    "arkit_depth_frames" : 12,
+    "arcore_intrinsics_valid" : false,
+    "arkit_intrinsics_valid" : true,
+    "arkit_frame_rows" : 45,
+    "companion_phone_calibration_present" : false,
+    "motion_samples" : 0,
+    "intrinsics_authority" : "authoritative_raw",
+    "p95_pose_delta_sec" : 0,
+    "arkit_plane_rows" : 0,
+    "arkit_mesh_files" : 1,
+    "glasses_frame_timestamp_rows" : 0,
+    "arcore_light_estimate_rows" : 0,
+    "arkit_relocalization_event_rows" : 0,
+    "glasses_device_state_rows" : 0,
+    "companion_phone_intrinsics_valid" : false,
+    "pose_authority" : "authoritative_raw",
+    "intrinsics_valid" : true,
+    "confidence_frames" : 12,
+    "tracking_state_rows" : 45,
+    "arcore_tracking_state_rows" : 0,
+    "geometry_source" : "arkit",
+    "arcore_plane_rows" : 0,
+    "pose_match_rate" : 1,
+    "arkit_light_estimate_rows" : 45,
+    "depth_authority" : "authoritative_raw",
+    "companion_phone_pose_rows" : 0,
+    "arcore_frame_rows" : 0,
+    "pose_rows" : 45,
+    "arkit_tracking_state_rows" : 45,
+    "arcore_depth_frames" : 0,
+    "arkit_pose_rows" : 45,
+    "arcore_pose_rows" : 0,
+    "arkit_feature_point_rows" : 45,
+    "motion_timestamps_capture_relative" : false,
+    "declared_depth_supported" : true
+  },
+  "scene_memory_capture" : {
+    "p95_pose_delta_sec" : 0,
+    "geometry_expected_downstream" : false,
+    "pose_match_rate" : 1,
+    "overlap_checkpoint_count" : null,
+    "motion_provenance" : null,
+    "lighting_consistency" : "unknown",
+    "semantic_anchors_observed" : [
+
+    ],
+    "world_model_candidate" : false,
+    "geometry_source" : "arkit",
+    "relocalization_count" : null,
+    "inaccessible_areas" : [
+
+    ],
+    "motion_timestamps_capture_relative" : false,
+    "dynamic_object_density" : "unknown",
+    "continuity_score" : null,
+    "sensor_availability" : {
+      "arkit_confidence" : true,
+      "arkit_intrinsics" : true,
+      "arkit_meshes" : true,
+      "motion" : false,
+      "arkit_depth" : true,
+      "arkit_poses" : true
+    },
+    "operator_notes" : [
+
+    ],
+    "world_model_candidate_reasoning" : [
+      "capture_mode_site_world_candidate:false",
+      "site_id_present:false",
+      "arkit_poses_valid:true",
+      "arkit_intrinsics_valid:true",
+      "depth_coverage_ok:true",
+      "pose_alignment_ok:true",
+      "pose_authority:authoritative_raw",
+      "intrinsics_authority:authoritative_raw",
+      "depth_authority:authoritative_raw",
+      "geometry_source:arkit",
+      "geometry_expected_downstream:false",
+      "pose_match_rate:1.0000",
+      "p95_pose_delta_sec:0.0000",
+      "intake_complete:false",
+      "derived_scene_generation_allowed:true"
+    ]
+  },
+  "scaffolding_validation" : {
+    "scale_anchor_count" : 0,
+    "validated_pose_coverage" : null,
+    "hidden_zone_bound" : null,
+    "validated_metric_bundle" : false,
+    "checkpoint_count" : 0,
+    "validated_scale_m" : null
+  },
+  "hardware_model_identifier" : "arm64",
+  "site_extent_status" : "not_provided",
+  "shift" : null,
+  "app_version" : "1.0",
+  "intended_space_type" : "unknown",
+  "ios_version" : "26.2",
+  "arkit_mesh_manifest_uri" : "arkit/mesh_manifest.json",
+  "priority_weight" : null,
+  "reconstruction_qualification_request_uri" : "reconstruction_qualification_request.json"
+}
