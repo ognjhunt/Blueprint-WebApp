@@ -107,7 +107,7 @@ centred on the middle drawer front.
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; new CPU attempt running** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. Two earlier CPU attempts stopped before a complete cabinet-and-drawer asset. A third attempt began on `ac39dabb` after an owner-authorized cumulative spend extension; no authored asset or native import receipt has been observed yet. Captured-room integration remains unqualified. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; CPU authoring blocked** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The third `ac39dabb` attempt reached two completed CPU stages and the articulated CAD/Blender stage, then OpenAI returned `credit_balance_exhausted` before a complete asset. The owner reported adding credits and extended the cumulative internal cap for one more bounded attempt; controller retry is pending. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1112,3 +1112,26 @@ controller wrote `launch_started.json` at 12:21:05 UTC. As of 12:26 UTC,
 its live CPU prestage log had advanced to tick 4; no GPU instance, completed
 articulated asset, policy episode, or website result was proved. The run
 remains a development fixture and does not qualify the captured room.
+
+## 2026-09-23: credit failure and bounded continuation
+
+The third fixture launch stopped in CPU stage 3. The retained stage log records
+OpenAI HTTP 429 `insufficient_quota` / `credit_balance_exhausted` during
+articulated authoring. Stages 1 and 2 completed. The carcass and drawer CAD
+candidates and first independent drawer visual review were retained, but the
+review rejected a coarse texture; the later appearance pass did not finish.
+The allocator reported `provider_mutations_performed: 0`, and no GPU rental,
+policy action, native import qualification, or website result occurred.
+
+The owner reported adding OpenAI credits. The new balance is not yet verified
+by an authoring call. The ledger conservatively holds the failed launch's full
+$13 quote, giving $31 total retained exposure. An append-only owner grant
+raised this scene's cumulative *internal* simulation limit to **$44**, the
+minimum for one more $13 attempt; the 16-attempt count and original per-attempt
+guards stayed fixed. Grant digest:
+`sha256:694a027ea58018af755827d5d9a17b768e4bb09306cec019ab9fc93f6a1f58c6`.
+No signed settlement was edited, no new scene identity was created, and the
+website's $25 task price/no-charge development handling did not change.
+Progression remained at event 65 `scene_configuration_failed` when checked
+immediately after the grant; the listener timer was active and its service was
+activating. Steps 10 and 12–14 remain unproven.
