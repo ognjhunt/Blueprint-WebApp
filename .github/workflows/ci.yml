@@ -15,6 +15,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Validation commands gate CI; diagnostic artifact uploads are optional
+  # because GitHub can reject them when the repository storage quota is full.
   check:
     runs-on: ubuntu-latest
     steps:
@@ -74,6 +76,7 @@ jobs:
 
       - name: Upload claims-guard report
         if: ${{ always() && hashFiles('output/claims-guard/**') != '' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: claims-guard-report
@@ -159,6 +162,7 @@ jobs:
 
       - name: Upload coverage
         if: ${{ hashFiles('coverage/**') != '' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: coverage
@@ -221,6 +225,7 @@ jobs:
 
       - name: Upload Playwright report
         if: ${{ always() && hashFiles('playwright-report/**') != '' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
@@ -262,6 +267,7 @@ jobs:
 
       - name: Upload build metadata
         if: ${{ always() && hashFiles('dist/public/version.json') != '' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: build-metadata
