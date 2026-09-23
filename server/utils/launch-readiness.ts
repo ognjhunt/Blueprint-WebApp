@@ -10,6 +10,7 @@ import { getCityLaunchSenderStatus, getEmailTransportStatus } from "./email";
 import { getHostedSessionLiveStoreStatus } from "./hosted-session-live-store";
 import { buildGrowthIntegrationSummary } from "./provider-status";
 import { getBetaCohortPolicySnapshot } from "./beta-cohort-policy";
+import { describeSiteVideoEvidenceConfig } from "./siteVideoEvidenceConfig";
 
 type LaunchCheck = {
   required: boolean;
@@ -214,6 +215,8 @@ export function buildLaunchReadinessSnapshot() {
     notionSyncReady &&
     onboardingReady;
 
+  const siteVideoEvidence = describeSiteVideoEvidenceConfig();
+
   const checks = {
     server: true,
     firebaseAdmin: firebaseAdminReady || localLaunchSmoke,
@@ -225,9 +228,15 @@ export function buildLaunchReadinessSnapshot() {
     agentRuntime: agentRuntimeReady,
     betaCohortControls: betaCohortControlsReady,
     autonomousAutomation: autonomousAutomationReady,
+    siteVideoEvidence: siteVideoEvidence.ready,
   };
 
   const launchChecks = {
+    siteVideoEvidence: {
+      required: siteVideoEvidence.enabled,
+      ready: siteVideoEvidence.ready,
+      detail: siteVideoEvidence.detail,
+    },
     firebaseAdmin: {
       required: !localLaunchSmoke,
       ready: firebaseAdminReady,

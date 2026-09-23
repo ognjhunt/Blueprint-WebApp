@@ -31,6 +31,7 @@ import {
   DEFAULT_PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT,
   PIPELINE_TASK_EVALUATION_RESULT_PATH,
 } from "./utils/pipelineTaskEvaluationResultBodyParser";
+import { describeSiteVideoEvidenceConfig } from "./utils/siteVideoEvidenceConfig";
 
 const env = validateEnv();
 
@@ -45,6 +46,15 @@ if (firehoseConfig) {
   logger.warn(
     { event: "firehose_config_unavailable" },
     "Firehose not configured: missing FIREHOSE_API_TOKEN or FIREHOSE_BASE_URL. Firehose signals will be skipped.",
+  );
+}
+
+// Footage review switched on with nothing to run it holds every upload.
+const siteVideoEvidenceConfig = describeSiteVideoEvidenceConfig();
+if (!siteVideoEvidenceConfig.ready) {
+  logger.warn(
+    { event: "site_video_evidence_unkeyed" },
+    siteVideoEvidenceConfig.detail,
   );
 }
 
