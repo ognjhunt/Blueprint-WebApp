@@ -22,64 +22,90 @@ for install, token issue, revocation and upgrade.
 
 ### 2. The cloud environment
 
-In claude.ai/code open the environment selector (cloud icon above the prompt
-box), create **Blueprint scene runs** (or edit an existing environment), and set:
+This takes two passes, because the **API credentials** section appears only when
+you edit an environment that already exists. The new-environment dialog never
+shows it. All copy commands run on the Mac.
 
-**Network access.** *Full*, or *Custom* with "Also include default list of common
-package managers" plus these hosts:
+**Pass 1: create it.** In claude.ai/code, click the cloud icon above the message
+box and choose **Add cloud environment**.
 
-```
-tryblueprint.io
-*.tryblueprint.io
-blueprint-webapp.onrender.com
-*.googleapis.com
-blueprint-8c1ca.firebaseapp.com
-download.pytorch.org
-download-r2.pytorch.org
-cdn.playwright.dev
-playwright.download.prss.microsoft.com
-playwright.azureedge.net
-objects.githubusercontent.com
-release-assets.githubusercontent.com
-```
+- **Name:** `Blueprint scene runs` (the kickoff link below selects it by name).
+- **Network access:** **Full** is simplest. For a tighter list, choose **Custom**,
+  check "Also include default list of common package managers", and add these
+  domains:
 
-`*.tryblueprint.io` covers the door host; `*.googleapis.com` covers Firestore,
-Storage, Identity Toolkit and token exchange; the GitHub asset hosts serve the
-Python 3.12 build uv installs (the image ships 3.11).
+  ```
+  tryblueprint.io
+  *.tryblueprint.io
+  blueprint-webapp.onrender.com
+  *.googleapis.com
+  blueprint-8c1ca.firebaseapp.com
+  download.pytorch.org
+  download-r2.pytorch.org
+  cdn.playwright.dev
+  playwright.download.prss.microsoft.com
+  playwright.azureedge.net
+  objects.githubusercontent.com
+  release-assets.githubusercontent.com
+  ```
 
-**Environment variables** (`.env` format; they are visible to anyone who can use
-the environment):
+  `*.googleapis.com` covers Firestore, Storage, Identity Toolkit and token
+  exchange. The GitHub asset hosts serve the Python 3.12 build that uv installs
+  (the image ships 3.11). The door host needs no entry, because API-credential
+  hosts bypass the list.
+- **Environment variables:** copy both lines, then paste them into the box:
 
-```
-FIREBASE_SERVICE_ACCOUNT_JSON='<the blueprint-8c1ca service-account key as one line of JSON>'
-BLUEPRINT_CLOUD_OPS_EMAIL=ohstnhunt@gmail.com
-```
+  ```bash
+  python3 -c 'import json,sys; print("FIREBASE_SERVICE_ACCOUNT_JSON=\x27" + json.dumps(json.load(open(sys.argv[1]))) + "\x27\nBLUEPRINT_CLOUD_OPS_EMAIL=ohstnhunt@gmail.com", end="")' <service-account key file> | pbcopy
+  ```
 
-Produce the one-line JSON on the Mac and paste it between the single quotes:
-`python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1]))))' <key file> | pbcopy`.
-`BLUEPRINT_CLOUD_OPS_EMAIL` is the allowlist for the sign-in helper
-(comma-separated). `VITE_FIREBASE_API_KEY` is optional; the helper otherwise
-reads the public key from the live site.
+  The key goes in single quotes on one line, so the `\n` escapes in its private
+  key survive. Use a key Google still accepts; the doctor's Firestore check
+  fails on a revoked one. The dialog warns that anyone using the environment
+  can read these values. The key has to go here anyway: it signs its own
+  logins, and API credentials only carry header tokens. Personal environments
+  are private to your account, but commands in the session can read the key,
+  so revoke it in the Firebase console if it ever leaks.
+  `BLUEPRINT_CLOUD_OPS_EMAIL` is the allowlist for the sign-in helper
+  (comma-separated). `VITE_FIREBASE_API_KEY` is optional; without it the helper
+  reads the public key from the live site.
+- **Setup script:**
 
-**API credential** (so the door token never enters the VM): name
-`operator-door`, allowed website `paperclip.tryblueprint.io`, header
-`Authorization` with prefix `Bearer`, value from
-`pbcopy < ~/.blueprint-secrets/operator_door_token`.
+  ```bash
+  #!/bin/bash
+  setup=$(ls /home/*/Blueprint-WebApp/scripts/cloud/setup-environment.sh 2>/dev/null | head -n 1)
+  [ -n "$setup" ] && bash "$setup"
+  exit 0
+  ```
 
-**Setup script:**
+  It runs once as root, before Claude starts, and is cached for about a week,
+  so later sessions skip it. It never fails the session start. Within a
+  270-second budget it installs:
+  - ffmpeg, the MuJoCo GL libraries, `gh` and `certutil`;
+  - uv 0.10.7, with the Pipeline virtualenv outside the clone;
+  - CPU torch 2.10.0;
+  - the WebApp node modules and Playwright Chromium.
 
-```bash
-#!/bin/bash
-setup=$(ls /home/*/Blueprint-WebApp/scripts/cloud/setup-environment.sh 2>/dev/null | head -n 1)
-[ -n "$setup" ] && bash "$setup"
-exit 0
-```
+  `bootstrap.sh` finishes whatever it doesn't. A session with both repositories
+  runs no repository hooks, so the procedure below runs `bootstrap.sh` itself.
+- Click **Add environment**.
 
-It runs once as root, is cached for about a week, and never fails the session
-start: it installs ffmpeg, the MuJoCo GL libraries, `gh`, `certutil`, uv 0.10.7,
-the Pipeline virtualenv (outside the clone), CPU torch 2.10.0, the WebApp node
-modules and Playwright Chromium, within a 270-second budget. Whatever it does
-not finish, `bootstrap.sh` finishes in the session.
+**Pass 2: add the door token as an API credential.** Open the environment
+selector again, hover over **Blueprint scene runs** and click its gear icon. In
+the **Update cloud environment** dialog, under **API credentials**, choose
+**Add credential**, keep the credential type **Bearer**, and fill in:
+
+- **Name:** `operator-door`
+- **Allowed websites:** `paperclip.tryblueprint.io`
+- **Custom headers:** Name `Authorization`, Prefix `Bearer`, Value pasted from:
+
+  ```bash
+  tr -d '\n' < ~/.blueprint-secrets/operator_door_token | pbcopy
+  ```
+
+Click **Connect**. It saves at once and the value can't be viewed again. The
+agent proxy attaches the token to requests for that host after they leave the
+VM, so the token never enters the session.
 
 ## Kick off a run
 
