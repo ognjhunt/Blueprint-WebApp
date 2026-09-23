@@ -104,7 +104,7 @@ centred on the middle drawer front.
 | 5 | Hosted SAM whole-video tracking/masks for the assembly parts incl. partial views | Track manifest with per-frame masks for both visibility windows | **done** — whole-cabinet `under-desk cabinet` track retained 186 observations; 14 candidate views, independent same-frame corroboration passed on original frame 173 (tracked share 0.213993, fresh SAM share 0.207911). The whole-video path was used for this capture; the separately merged view-first canary remains off for it |
 | 6 | Task-specific image edits/background recovery, original/edited pairs retained | Edited views + review, originals unchanged | **done** — configured `gpt-image-2.5-sunburst` backend edited five views. First review identified the unedited, unmasked original frame 0; controller excluded exactly that view and a second Gemini review passed. Clean-plate manifest is `objects_removed`, `prepared_images`, five reviewed views, no blockers. Originals and failed review retained |
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | **done** — retained 14 candidate views, five digest-bound prepared views admitted to the configured Marble 1.1 Plus multi-image input; originals remain separate |
-| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **blocked at generation** — first request was admitted and prepared views uploaded, but World Labs rejected the generation POST with HTTP 402 before any operation/world ID. Owner added API credits; read-only API balance now 6,250 credits. Exact rejected-attempt reconciliation and one separately budgeted retry are merged but not deployed live yet |
+| 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **Marble complete; geometry pending** — the controller settled the initial 402 at zero, then World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized, and website visual publication was written. MapAnything has not run: the current release missed the retry admission during billing settlement and the next $0.50 geometry reservation hit the $5 cap. Exact settlement-path fix is merged, deployment in progress |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
 | 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
 | 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | unproven |
@@ -863,3 +863,27 @@ count. The Pipeline canary release is being deployed from exact pushed source
 `ad2ea98d426c35f671bd562ce6641f31ae32bb8e`. WebApp main CI passed and
 its exact-SHA Render deployment started. Until both live identities are
 verified, the listener remains paused and step 8 remains blocked.
+
+### Marble world retained; retry settlement path repair
+
+Controller attempt 8 settled the initial credit rejection at $0 and started one
+separately bound Marble request. World Labs operation
+`51323203-7420-421a-a460-d6aa6ea63745` finished with world
+`baffc3ca-4c87-45dc-8531-52c3275820ed`, 1,600 credits ($1.28). The
+provider-run manifest is `ready`; downloaded collider GLB and full-resolution
+splat SPZ have a complete materialization manifest. The Marble-to-SimReady
+bridge is `review_ready_with_conversion_required`. The controller also wrote
+the website visual publication. These receipts do not prove MapAnything,
+registration, articulated CAD, native import, or policy evaluation.
+
+A controller path error saved the new request admission under the first
+attempt's filename. The existing world and price receipt remain usable, but
+the current release could not settle the $1.28 bill and the subsequent $0.50
+MapAnything reservation got a WebApp `budget_exhausted` response. Attempt 8
+ended `failed_retryable` without another Marble POST. Pipeline PR #2122 merged
+as `65ad58b0ec8ac3a97f4935497cc45beb98da1dfd`: future retry admissions
+use their own path, and the already-running request is recognized only when
+its binding exactly matches the retained operation and the first rejection is
+settled. The listener is paused and the canonical canary deployment of that
+exact merge commit is in progress. The next attempt should reuse the world,
+settle its actual cost, and then resume MapAnything under the same scene cap.
