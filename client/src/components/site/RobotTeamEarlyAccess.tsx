@@ -9,6 +9,7 @@
 import { useState } from "react";
 
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import { currentAuthUser, sendAccountVerification } from "@/lib/accountAuth";
 import {
   applyForEarlyAccess,
   EarlyAccessApplicationError,
@@ -92,12 +93,30 @@ function ApplicationForm({ email }: { email: string | null }) {
 
 export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess | null; email: string | null }) {
   const status = access?.status ?? "none";
+  const [verification, setVerification] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  async function resendVerification() {
+    setVerification("sending");
+    try {
+      const user = await currentAuthUser();
+      if (!user || !email || user.email?.toLowerCase() !== email.toLowerCase()) throw new Error("account_changed");
+      await sendAccountVerification(user, `${window.location.origin}/sites`);
+      setVerification("sent");
+    } catch {
+      setVerification("error");
+    }
+  }
 
   if (status === "approved" && access && !access.emailVerified) {
     return (
       <div className="ms-task-empty">
         <h2>You are approved. Verify your email to see tasks.</h2>
         <p>Open the verification email we sent{email ? ` to ${email}` : ""}, then come back to this page.</p>
+        <button className="ms-button" type="button" disabled={verification === "sending"} onClick={() => void resendVerification()}>
+          {verification === "sending" ? "Sending…" : "Resend verification email"}
+        </button>
+        {verification === "sent" && <p role="status">Verification email sent. Check your inbox, then reload this page.</p>}
+        {verification === "error" && <p role="alert">We could not resend the email. Try again from Settings.</p>}
       </div>
     );
   }

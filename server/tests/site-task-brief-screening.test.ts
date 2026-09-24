@@ -47,6 +47,7 @@ const briefRouter = (await import("../routes/site-task-brief")).default;
 const { gateFields } = await import("../../client/src/data/siteTaskQualification");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { draftBrief, saveBrief } = await import("../utils/siteTaskBrief");
+const { enqueueOutbox } = await import("../utils/captureOutbox");
 
 let server: Server;
 let baseUrl: string;
@@ -54,6 +55,7 @@ let baseUrl: string;
 beforeEach(async () => {
   sharedFakeFirestoreState.docs.clear();
   notifySlackScreeningCallNeeded.mockClear();
+  vi.mocked(enqueueOutbox).mockClear();
   const app = express();
   app.use(express.json());
   app.use("/api/site-task-brief", briefRouter);
@@ -94,7 +96,8 @@ async function confirm(answers: Record<string, string> = {}) {
   return fetch(`${baseUrl}/api/site-task-brief/${tokenFor("owner")}/confirm`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ confirmedBy: "Dana Okafor", answers }),
+    body: JSON.stringify({ confirmedBy: "Dana Okafor", answers,
+      successCriteria: { successDefinition: "Carton reaches pallet intact", successRate: 95, cycleTimeSeconds: 30, unknown: false } }),
   });
 }
 
@@ -112,6 +115,9 @@ describe("the confirmation says what our screen decided", () => {
     expect(body.screening.headline).toMatch(/call/i);
     expect(body.screening.detail).toMatch(/build your scene once the call/i);
     expect(body.screening.bookingUrl).toMatch(/^https:\/\//);
+    expect(enqueueOutbox).toHaveBeenCalledWith(expect.objectContaining({
+      to: "ops@acme.example", subject: expect.stringMatching(/call/i),
+    }));
 
     await vi.waitFor(() => expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(1));
     await vi.waitFor(() => {
@@ -126,6 +132,12 @@ describe("the confirmation says what our screen decided", () => {
     expect(body.disposition).toBe("qualified");
     expect(body.screening).toBeNull();
     expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();
+    expect(enqueueOutbox).toHaveBeenCalledWith(expect.objectContaining({
+      to: "ops@acme.example", kind: "brief_confirmed",
+    }));
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
+      workspace_task: { terms: { successDefinition: "Carton reaches pallet intact", successRate: 95, cycleTimeSeconds: 30 } },
+    });
   });
 
   it("says not yet, without a call, when an answer blocks it", async () => {
@@ -134,6 +146,9 @@ describe("the confirmation says what our screen decided", () => {
     expect(body.disposition).toBe("not_now");
     expect(body.screening.headline).toMatch(/not building a scene/);
     expect(body.screening.bookingUrl).toBeNull();
+    expect(enqueueOutbox).toHaveBeenCalledWith(expect.objectContaining({
+      to: "ops@acme.example", subject: "Your task, and what would have to change",
+    }));
   });
 });
 
@@ -178,4 +193,3 @@ describe("an expired task link asks for a fresh one", () => {
     expect(enqueue).toHaveBeenCalledTimes(1);
   });
 });
-

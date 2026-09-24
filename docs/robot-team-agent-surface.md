@@ -43,7 +43,7 @@ pending queue. The owner sees `screening` and then individual `results`.
 
 The public panel on `/contact/robot-team` confirms a **one-time** signed plan.
 It never changes the recurring spend policy. Existing funds can pay directly;
-otherwise the page shows the actual Stripe top-up (at least $50), and unused
+otherwise the page shows the actual Stripe top-up (at least $99), and unused
 funds remain in the balance. The exact plan, session credential and retry key
 survive checkout, and the saved receipt provides result access after a reload.
 The 15-minute plan binds team, checkpoint, tasks, prices and execution digests.
@@ -126,7 +126,7 @@ Anything missing is a line blocker in the plan response (`lineBlockers`), and th
 
 `POST /api/agent-team/funding` takes `amountUsd` and returns a Stripe Checkout URL. Ask for $100, pay $100, get $100 of balance.
 
-**No price is invented here**, which is what makes it shippable as self-serve. Run prices still come from `episodePricing` and are quoted per run; a top-up is a number the team chose, charged at face value, and that is not a commercial term anybody has to approve. Bounds are $50 (unused funds remain available for later runs) to $25,000 (a decimal-point bug should not move six figures in one call).
+**No price is invented here**, which is what makes it shippable as self-serve. The $99 entry price comes from `evaluationPricing`; a top-up is a number the team chose, charged at face value. Bounds are $99 (unused funds remain available for later runs) to $25,000 (a decimal-point bug should not move six figures in one call).
 
 **The credit lands on the webhook, not on the redirect.** A success URL is just a URL anyone could open; `checkout.session.completed` with `payment_status: "paid"` is the proof. The checkout session id is the idempotency key, so a redelivered event credits once. The amount credited is `amount_total` — what Stripe actually collected — never what the request metadata claimed.
 
@@ -219,15 +219,15 @@ It is **Pipeline-signed, not agent-authenticated** — if it sat on the agent su
 
 It records the outcome **before** moving any money, so a ledger failure leaves the run durable and due rather than waiting on a retry that may never come.
 
-**It caps the settlement at the quote.** `deriveBalance` books a settle at face value and does not clamp it to the hold, so a wrong `rate_usd` from the Pipeline came out of a team's balance as real spend, past what their agent authorised. The quote is the ceiling: a partial run is pro-rated against it, and no number reported from outside can charge more than was agreed.
+**It settles the flat quoted entry.** The Pipeline's `rate_usd` stays in the receipt for diagnosis but cannot set the customer charge. If any policy episodes execute, the reservation settles for the $99 quote; if none execute, the hold is released.
 
 It is deliberately separate from the evaluation-run schemas next door. Those carry the *result* of the work; this carries what the work *cost*. Coupled, a change to either schema could silently stop money moving.
 
 The split follows the published rule:
 
-- **Episodes executed** → settled for what they cost, whatever the robot did in them. A robot dropping the box is a result, and results are the product.
+- **Episodes executed** → the $99 entry settles, whatever the robot did in them. A robot dropping the box is a result, and results are the product.
 - **Nothing executed** → the whole hold is released, not settled at zero, so the ledger records what happened rather than a spend of nothing.
-- **Fewer episodes than quoted** → settled for what ran; the rest returns automatically.
+- **Fewer episodes than quoted** → the entry still settles at the quoted flat price.
 
 Keyed on the reservation rather than the delivery attempt, so a Pipeline retry cannot charge twice.
 

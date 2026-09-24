@@ -203,13 +203,12 @@ describe("build output", () => {
     expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
-    expect(llms).toContain("paid engagement");
+    expect(llms).toContain("$99 per policy entry");
     expect(llmsFull).toContain("simulation is not a deployment guarantee");
     expect(llmsFull).toContain("Robot teams join by early access");
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/pricing");
-    // The retired $0-for-sites model must not survive anywhere in the crawl map.
-    expect(llms).not.toContain("The site pays nothing");
+    expect(llms).toContain("Sites pay nothing for assessment or scene preparation");
 
   });
 

@@ -15,10 +15,14 @@ function humanize(value: string) {
 }
 
 /** One status and one next step per task; the offering's own state decides both. */
-function taskState(offering: ConfiguredSceneOfferingCard) {
+function taskState(offering: ConfiguredSceneOfferingCard, developmentAccess = false) {
   const base = `/app/packs/${encodeURIComponent(offering.source_launch_id)}`;
+  if (!developmentAccess) {
+    return { tag: offering.status === "evaluation_ready" ? "Ready" : offering.status === "configured_controls_pending" ? "Scene checks pending" : "Being prepared",
+      action: { label: "Evaluate a task · $99 per policy", href: "/sites" } };
+  }
   if (offering.presentation.appearance_review_status === "prepared_scene_ungraded") {
-    return { action: { label: "View task · $25", href: `${base}/evaluate?select=team` } };
+    return { action: { label: "View task", href: `${base}/evaluate?select=team` } };
   }
   if (offering.status === "configured_controls_pending") {
     return {
@@ -48,6 +52,7 @@ function appearanceNote(offering: ConfiguredSceneOfferingCard) {
 export default function SitePacks() {
   const { currentUser, userData } = useAuth();
   const siteOperator = userData?.buyerType === "site_operator";
+  const developmentAccess = userData?.role === "ops" || userData?.roles?.includes("ops") || userData?.role === "admin" || userData?.roles?.includes("admin") || false;
   const [offerings, setOfferings] = useState<ConfiguredSceneOfferingCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,7 +90,7 @@ export default function SitePacks() {
         <>
           <div className="ws-openings" role="list" aria-label="Tasks">
             {offerings.map((offering) => {
-              const state = taskState(offering);
+              const state = taskState(offering, developmentAccess);
               const appearance = appearanceNote(offering);
               return (
                 <article className="ws-opening" role="listitem" key={offering.offering_digest}>

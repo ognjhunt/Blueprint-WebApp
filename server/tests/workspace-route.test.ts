@@ -1,6 +1,7 @@
 // @vitest-environment node
 import express from "express";
 import { createServer, type Server } from "node:http";
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
@@ -531,6 +532,10 @@ describe("workspace requests and lifecycle", () => {
   it("rechecks opportunity rights before accepting a setup-backed evaluation request", async () => {
     state.records.set("inboundRequests/task-1", task());
     await api("/setups", "robot-1", setup);
+    const request = { id: "application-1", opportunityId: "task-1", setupId: "setup-1", notes: "" };
+    expect((await api("/evaluations", "robot-1", request)).status).toBe(403);
+    const accessId = createHash("sha256").update("robot-1@example.com").digest("hex");
+    state.records.set(`robotTeamAccess/${accessId}`, { status: "approved" });
     expect(
       (
         await api("/evaluations", "robot-1", {

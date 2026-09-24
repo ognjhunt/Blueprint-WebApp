@@ -76,6 +76,7 @@ export interface DraftedBrief {
   /** The operator's last confirmed answers, when the brief is being edited. */
   operatorAnswers?: Record<string, string> | null;
   operatorUnknown?: string[] | null;
+  successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean } | null;
 }
 
 type Screening = { headline: string; detail: string; bookingUrl: string | null };
@@ -143,6 +144,10 @@ export function TaskBriefReview(props: {
 }) {
   const [state, setState] = useState<State>({ status: "reviewing" });
   const [name, setName] = useState("");
+  const [successDefinition, setSuccessDefinition] = useState(props.brief.successCriteria?.successDefinition ?? "");
+  const [successRate, setSuccessRate] = useState(props.brief.successCriteria?.successRate?.toString() ?? "");
+  const [cycleTimeSeconds, setCycleTimeSeconds] = useState(props.brief.successCriteria?.cycleTimeSeconds?.toString() ?? "");
+  const [successUnknown, setSuccessUnknown] = useState(props.brief.successCriteria?.unknown ?? false);
 
   // The listing decision. Null until they choose: a yes or no is required, so
   // nobody skips past the card without seeing it.
@@ -219,6 +224,7 @@ export function TaskBriefReview(props: {
 
   function problem(): string | null {
     if (!name.trim()) return "Please add your name so we know who confirmed this.";
+    if (!successUnknown && !successDefinition.trim()) return "Describe a successful cycle, or select I don't know yet.";
     if (!listChoice) return "Choose whether to show this task to robot teams.";
     if (listChoice === "list") {
       if (listing.title.trim().length < 8) return "Describe the task for the public card in a few words.";
@@ -278,6 +284,12 @@ export function TaskBriefReview(props: {
           confirmedBy: name.trim(),
           answers,
           unknown: [...unknown],
+          successCriteria: {
+            successDefinition: successUnknown ? null : successDefinition.trim(),
+            successRate: successUnknown || !successRate ? null : Number(successRate),
+            cycleTimeSeconds: successUnknown || !cycleTimeSeconds ? null : Number(cycleTimeSeconds),
+            unknown: successUnknown,
+          },
         }),
       });
       const body = (await response.json().catch(() => ({}))) as Partial<Verdict> & {
@@ -521,6 +533,21 @@ export function TaskBriefReview(props: {
           </select>
         </fieldset>
       ))}
+
+      <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
+        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What counts as success?</legend>
+        <p className="ms-field-hint">Confirm the outcome a robot should achieve. These are your targets for the task, not a claim that any robot meets them.</p>
+        <label htmlFor="success-definition"><span>Successful cycle</span>
+          <input id="success-definition" value={successDefinition} onChange={(event) => setSuccessDefinition(event.target.value)} disabled={successUnknown} maxLength={1000} placeholder="For example, the carton reaches the pallet without damage" />
+        </label>
+        <label htmlFor="success-rate"><span>Minimum success rate (%)</span>
+          <input id="success-rate" type="number" min="0" max="100" step="0.1" value={successRate} onChange={(event) => setSuccessRate(event.target.value)} disabled={successUnknown} placeholder="If known" />
+        </label>
+        <label htmlFor="cycle-time"><span>Maximum cycle time (seconds)</span>
+          <input id="cycle-time" type="number" min="0.01" max="86400" step="0.01" value={cycleTimeSeconds} onChange={(event) => setCycleTimeSeconds(event.target.value)} disabled={successUnknown} placeholder="If known" />
+        </label>
+        <label htmlFor="success-unknown"><input id="success-unknown" type="checkbox" checked={successUnknown} onChange={(event) => setSuccessUnknown(event.target.checked)} /> I don't know the success criteria yet</label>
+      </fieldset>
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0 10px" }}>
         <legend style={{ padding: "0 6px", fontWeight: 600 }}>Show this task to robot teams?</legend>

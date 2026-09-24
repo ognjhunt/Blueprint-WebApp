@@ -86,6 +86,7 @@ function brief(overrides: Partial<DraftedBrief> = {}): DraftedBrief {
       },
     ],
     unresolved: ["accessWindow"],
+    successCriteria: { successDefinition: "Carton reaches the pallet without damage", successRate: 95, cycleTimeSeconds: 30, unknown: false },
     ...overrides,
   };
 }

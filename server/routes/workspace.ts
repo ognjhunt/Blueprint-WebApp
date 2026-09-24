@@ -55,6 +55,7 @@ import { listRunsForTeam } from "../utils/agentRunResults";
 import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 
 const router = Router();
 const id = z
@@ -1089,6 +1090,8 @@ router.post(
       caller = identity(res);
     if (!caller.verified)
       refuse(403, "Verify your email before requesting an evaluation.");
+    const access = await resolveViewerAccess({ email: caller.email, emailVerified: true, isOps: false });
+    if (!access.allowed) refuse(403, "Robot-team early access is required before requesting an evaluation.");
     const source = await readRequest(input.opportunityId);
     const opportunity = projectPilotOpportunityForRobotTeam(
       source.record as InboundRequest,

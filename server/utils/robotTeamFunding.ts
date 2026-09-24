@@ -48,7 +48,7 @@ export const TOPUP_PURPOSE = "robot_team_balance_topup";
  * an agent with a decimal-point bug should not be able to move six figures in
  * one call; a team wanting more can top up twice, or talk to us.
  */
-export const MIN_TOPUP_USD = 50;
+export const MIN_TOPUP_USD = 99;
 export const MAX_TOPUP_USD = 25_000;
 
 export type TopupRefusal =

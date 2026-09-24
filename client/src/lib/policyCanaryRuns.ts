@@ -267,10 +267,10 @@ export async function fetchPolicyCanaryRun(
   );
   if (response.status === 403 || response.status === 404) return null;
   const data = await payload(response);
-  if (!response.ok) throw new Error(apiError(data, `Policy canary status unavailable (${response.status})`));
+  if (!response.ok) throw new Error(apiError(data, `Policy test status unavailable (${response.status})`));
   if (
     data.run_kind !== "internal_policy_canary"
     || data.claim_ceiling !== "diagnostic_policy_execution"
-  ) throw new Error("Run is not an internal policy canary");
+  ) throw new Error("This run is not a policy test");
   return data;
 }

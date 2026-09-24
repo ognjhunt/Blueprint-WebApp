@@ -546,8 +546,7 @@ export default function SelfCaptureUpload() {
         </p>
       )}
       {status.claimUrl && (
-        /* The account moment. Offered from the confirmed brief onward, as an
-           option: the link keeps working without it. The URL is minted
+        /* The account moment. Offered from the confirmed brief onward. The URL is minted
            server-side for the owner's link alone; a film-only link never
            receives one. */
         <p style={{ margin: "10px 0 0" }}>
@@ -560,7 +559,7 @@ export default function SelfCaptureUpload() {
           </a>
           {status.decision !== "results" && status.decision !== "screening" && (
             <span className="ms-field-hint" style={{ display: "block", marginTop: "4px" }}>
-              Optional. This link keeps working; an account adds a task page that tracks every step.
+              Create and verify your site account before Blueprint builds the scene. Your filming link keeps working while you do that.
             </span>
           )}
         </p>

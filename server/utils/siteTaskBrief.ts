@@ -115,6 +115,7 @@ export interface SiteTaskBriefRecord {
   operatorAnswers: Record<string, string> | null;
   /** Gates the operator explicitly said they did not know. */
   operatorUnknown: string[] | null;
+  successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean } | null;
 }
 
 function nowIso() {
@@ -161,6 +162,7 @@ export function draftBrief(params: {
     confirmedBy: null,
     operatorAnswers: null,
     operatorUnknown: null,
+    successCriteria: null,
   };
 }
 
@@ -322,6 +324,7 @@ export async function confirmBrief(params: {
   operatorAnswers?: Record<string, string>;
   /** Gates the operator said they do not know. Left blank, recorded, not looped. */
   operatorUnknown?: readonly string[];
+  successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean };
 }): Promise<ConfirmationResult | null> {
   const brief = await getBrief(params.requestId);
   if (!brief) return null;
@@ -363,6 +366,7 @@ export async function confirmBrief(params: {
     confirmedBy: params.confirmedBy,
     operatorAnswers: supplied,
     operatorUnknown: [...unknown],
+    successCriteria: params.successCriteria ?? brief.successCriteria ?? null,
     // Whatever they did not answer stays outstanding, in the same order.
     unresolved: brief.unresolved.filter((fieldId) => !answers[fieldId]),
   };
@@ -395,6 +399,13 @@ export async function confirmBrief(params: {
             evaluated_at: nowIso(),
           },
           site_task_brief_confirmed_at: admin.firestore.FieldValue.serverTimestamp(),
+          ...(params.successCriteria ? {
+            workspace_task: { terms: {
+              successDefinition: params.successCriteria.successDefinition ?? "",
+              successRate: params.successCriteria.successRate,
+              cycleTimeSeconds: params.successCriteria.cycleTimeSeconds,
+            } },
+          } : {}),
         },
         { merge: true },
       );

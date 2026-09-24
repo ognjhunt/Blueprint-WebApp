@@ -337,6 +337,18 @@ router.post(
       });
     }
 
+    if (parsed.data.site_submission_id) {
+      if (!db) return res.status(503).json({ code: "site_reconstruction_store_unavailable" });
+      const site = await db.collection("inboundRequests").doc(parsed.data.site_submission_id).get()
+        .catch(() => null);
+      if (!site) return res.status(503).json({ code: "site_reconstruction_store_unavailable" });
+      const record = site.data();
+      if (!site.exists || record?.site_task_triage?.disposition !== "qualified"
+        || typeof record?.account_owner_uid !== "string" || !record.account_owner_uid) {
+        return res.status(409).json({ code: "site_reconstruction_requires_qualified_claimed_site" });
+      }
+    }
+
     try {
       // Read the walkthrough before paying to reconstruct it. Null means no
       // review is possible — the lane is off, or the video is not where we

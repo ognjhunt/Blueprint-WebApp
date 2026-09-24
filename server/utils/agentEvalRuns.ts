@@ -196,20 +196,16 @@ export interface ReconciliationSummary {
 /**
  * What a run should be billed for, given what it actually ran.
  *
- * Pro-rated against the quote rather than against a rate passed in, so the
- * number on the bill can only ever be derived from the number the team was
- * quoted. A run that executed more episodes than it was quoted for still bills
- * the quote: we do not get to charge for work nobody agreed to.
+ * An entry has one flat price. If any episodes ran, settle the quoted entry;
+ * if none ran, release the hold. A partial provider failure after useful work
+ * does not create a second episode-based customer price.
  */
 export function settlementAmountUsd(run: {
   quotedUsd: number;
   quotedEpisodes: number;
   episodesRun: number | null;
 }): number {
-  const ran = Math.max(0, run.episodesRun ?? 0);
-  const quotedEpisodes = Math.max(1, run.quotedEpisodes || 1);
-  if (ran >= quotedEpisodes) return round2(run.quotedUsd);
-  return round2((run.quotedUsd * ran) / quotedEpisodes);
+  return (run.episodesRun ?? 0) > 0 ? round2(run.quotedUsd) : 0;
 }
 
 /**
