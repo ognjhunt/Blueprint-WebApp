@@ -25,7 +25,7 @@ The source video observes the desk and teal backpack; both remain obstacles.
 Only the middle drawer is the task joint. Captured-room and development-fixture
 completion are scored separately.
 
-| Step | Required evidence | State at 2026-09-24 12:12 UTC |
+| Step | Required evidence | State at 2026-09-24 12:30 UTC |
 | --- | --- | --- |
 | 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
 | 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
@@ -36,8 +36,8 @@ completion are scored separately.
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
 | 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
 | 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
-| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **retry preparing; authoring unproven** — the 11:33 controller launch passed paid admission but its isolated Python import preflight failed before stage 1, a Claude call, or GPU allocation. Timing is consistent with its 90-second timeout, though the wrapper retained a generic error. Stage 3's sealed configuration selects Anthropic `claude-opus-5-5`; `astra_cad_blender_v1` is a legacy toolchain name. The exact retained bundle passed a no-network scratch import replay. Merged and deployed Pipeline PR #2164 raises the bounded import-check timeout and records a typed timeout. Same-scene successor `source-7dc9b92c5c87fda55d4d4b20` is running; no CAD/Blender/USD output yet |
-| 11 | Captured-room integration or separately named development fixture | **fixture prepared and intent accepted; retry underway** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. WebApp accepted and forwarded the retained intake; Pipeline accepted scene intent `scene-53d1de9d…` and disk admission passed. The first launch stopped in Python setup; the controller reconciled ownership and started a same-scene successor. Captured room stays `needs_input` and unqualified |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **blocked at accounting gate; authoring unproven** — the first launch stopped in Python setup before stage 1, a Claude call, or GPU allocation. Merged/deployed Pipeline PR #2164 increases the bounded setup timeout. The controller's same-scene successor `source-7dc9b92c5c87fda55d4d4b20` now refuses `scene_intake_spend_cap_exhausted`: the signed settlement conservatively retains the first launch's full $13 quote. Pipeline PR #2165 has a focused candidate rule to recognize the exact sealed zero-authoring/no-allocation proof; it is not merged or deployed yet. No CAD/Blender/USD output |
+| 11 | Captured-room integration or separately named development fixture | **fixture prepared and intent accepted; execution blocked** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. WebApp accepted and forwarded the retained intake; Pipeline accepted scene intent `scene-53d1de9d…` and disk admission passed. The first launch stopped in Python setup; the same-scene successor is blocked by the full retained quote. Captured room stays `needs_input` and unqualified |
 | 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
 | 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
 | 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
@@ -128,6 +128,20 @@ UTC reported zero live instances; the controller then created same-scene
 successor `source-7dc9b92c5c87fda55d4d4b20` on `6bec7f70…` and entered
 `running/source_preparation` with no blockers at 12:11 UTC. This is neither a
 new sponsorship nor CAD or GPU execution proof.
+
+At 12:13 UTC, the successor reached `scene_intake_spend_cap_exhausted` before
+authoring. The controller had sealed the prior scene-configuration row as
+`settled_after_terminal_attempt`, retaining its full $13 quote with basis
+`terminal_launch_unreconciled` under the unchanged $20 scene cap. The first
+launch's retained archive proves `first_stage_started: false`, no policy query,
+no Claude call, no GPU allocation, and Vast adapter never invoked, but the
+existing budget rule did not recognize this particular Python-runtime setup
+blocker. Pipeline PR #2165 adds a narrow proof rule requiring that exact
+archive, setup log, provider result and no-allocation teardown. A read-only
+service-user replay validated the signed settlement and computed a $0 budget
+hold for this already terminal row; the original receipt stays unedited. Eleven
+focused tests and Ruff pass. The PR is pending merge/deployment; until then
+the production controller correctly remains blocked.
 
 ## Historical drawer attempts (2026-09-22 to 2026-09-23)
 
