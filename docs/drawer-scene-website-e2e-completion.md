@@ -1457,5 +1457,36 @@ transition replay; focused local tests passed (63 for the prior, 26 for native
 import, 121 for the combined CPU chain, and 52 for the final static receipt
 change), plus Ruff. GitHub Actions jobs for these PRs failed before startup
 with an account billing/spending-limit annotation, so hosted checks did not
-run. None of these new commits has been deployed or used for a paid retry.
+run. The subsequent deployment and cost-free compiler result are recorded below.
 Steps 10 and 11 remain partial; steps 12–14 remain unproven.
+
+## 2026-09-24: depth-aware website preflight and opening criterion repair
+
+The canonical control-plane iteration deployed Pipeline `5c28383e6f3c46e659c8c24966d2583f54b28531`.
+Its receipt reports `deployed`, both source and active-release heads match, and
+the live version endpoint reports `commit_proven:true` with no blockers. The
+controller then retried the *same* scene. Before any new paid model call or GPU
+rental, website submission stopped at
+`website_articulated_depth_opening_criterion_mismatch`. The revised proposed
+stroke was 0.4125 m; multiplying by the owner's unchanged 60% requirement
+produced the floating-point number `0.24749999999999997`, while the sealed
+development hypothesis stored `0.2475` m. Exact float equality rejected the
+same opening criterion.
+
+Pipeline [PR #2149](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2149)
+merged as `a566f85cf848b65d2c08924e81390aed073d505f`. It permits only
+1e-8 m absolute representation noise in that estimated threshold comparison,
+keeps exact stroke equality, and still rejects changed thresholds. Three
+focused website tests and Ruff passed locally. The merged candidate's
+production website submission compiler passed a full cost-free replay as the
+`blueprint` service user against this scene's exact saved source and release
+binding, producing a validated pending-publication manifest in scratch space.
+That replay is a preflight, not a published attempt or asset qualification.
+GitHub Actions checks were queued or skipped at merge, not verified green.
+
+A canonical deploy of `a566f85` started as
+`blueprint-drawer-opening-deploy-a566f85.service`; its deployment receipt and
+live version have not yet been verified. No new paid authoring, native import,
+policy episode, or website result follows from the code merge or preflight.
+The development fixture remains separate from unqualified captured-room
+registration. Matrix steps 10 and 11 are partial; steps 12–14 are unproven.
