@@ -1506,3 +1506,42 @@ progress tick 3; the independent Vast watchdog was active. This is a running
 authoring attempt, not an accepted articulated assembly. No native import,
 GPU policy episode, or website terminal result was observed. The separate
 development fixture and captured-room completion states remain unchanged.
+
+### Drawer review and retained budget stop
+
+The live CPU run authored the cabinet carcass as a development-only candidate.
+Its independent visual review passed with no blockers, while physical review
+kept the 0.55 m depth estimate and uncertainty explicit. The separate middle
+drawer CAD readback and physical review also passed, retaining estimated
+drawer mass uncertainty rather than presenting it as measured. The first
+drawer visual review rejected coarse, rippled wood grain against the original
+frame references. The author then produced a finer second render (perspective
+SHA-256 `294500407481947636dcf985e6ba48b6bdb67a073486566c207cb1c4562e44d3`),
+but that second candidate never received an independent review.
+
+The attempt ended at CPU stage 3 with
+`agents_sdk_inference_budget_ceiling_exceeded`. Its retained inference journal
+records 19 completed Astra requests with $5.6741 reconciled actual usage
+against the $7 stage limit. The next visual review reserved a $1.40 maximum,
+exceeding the $1.3259 remaining allowance, so it was refused before a model
+request. The canonical launch receipt is `blocked`; its post-teardown receipt
+is `provider_zero_confirmed` with no blockers. There is no accepted drawer,
+assembled articulated asset, native import, GPU rental, policy query, or
+website policy result from this attempt. The owner said the shown wood
+appearance was adequate; that preference does not rewrite the first
+independent review or accept the unreviewed revision.
+
+Pipeline [PR #2150](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2150)
+merged as `1221980e5d8fcd7d2deec8304d0efce0d1780bcf`. It guides future
+independent reviews to treat modest grain, hue, or brightness differences as
+cosmetic while retaining blocking checks for wrong parts, shape, material,
+color family, opacity, and conspicuous texture artifacts. Review capability
+`observable_v3` prevents silent reuse of prior verdicts under this guidance.
+Pipeline [PR #2151](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2151)
+merged as `a9d67e5f35b3e8d72839fc9cb54f59b7ebd0e70d`. It reduces only the
+structured appearance review maximum output from 12,000 to 8,192 tokens;
+the new worst-case quote is $1.2096, within the retained allowance. It keeps
+the $7 stage cap and the strict review predicate. Focused tests, changed-file
+Ruff, and the hosted impacted-test gate passed. A canonical control-plane
+deploy of `a9d67e5` has started; its receipt and any controller-owned retry
+remain pending. Matrix steps 10 and 11 remain partial and 12–14 unproven.
