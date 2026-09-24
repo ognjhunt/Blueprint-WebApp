@@ -765,7 +765,8 @@ router.post(
       const [siteSnapshot, profileSnapshot] = await Promise.all([
         transaction.get(item.ref), transaction.get(profileRef),
       ]);
-      const site = object(siteSnapshot.data()), user = object(profileSnapshot.data());
+      const site = await decodeWorkspaceRequest(siteSnapshot.data() as InboundRequestStored);
+      const user = object(profileSnapshot.data());
       const owner = text(site.account_owner_uid);
       if (owner && owner !== caller.uid)
         refuse(409, "Someone has already claimed this site.", "site_already_claimed");
