@@ -57,6 +57,7 @@ import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from ".
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
+import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
 const router = Router();
 const id = z
@@ -1258,9 +1259,12 @@ router.post(
         action: z.enum(["invite", "start", "complete", "deploy", "close"]),
         resultId: id.nullable(),
         notes: z.string().trim().min(1).max(2000),
+        siteVisitAnswer: z.enum(siteVisitOptions.map((option) => option.value) as ["yes", "subject_to_approval", "no", "undecided"]).optional(),
       })
       .strict()
       .parse(req.body);
+    if (input.action === "invite" && !input.siteVisitAnswer)
+      refuse(400, "Say whether the selected robot team could work on site before inviting a pilot.");
     const task = await hydrateTask(req.params.taskId, item.record);
     const selected = task.results.find(
       (result) => result.id === input.resultId,
@@ -1324,6 +1328,9 @@ router.post(
             : object(object(data.workspace_task).pilot).selectedResultId ||
               null,
         notes: encryptedNotes,
+        siteVisitAnswer: input.action === "invite"
+          ? input.siteVisitAnswer
+          : object(object(data.workspace_task).pilot).siteVisitAnswer ?? null,
         recordedBy: identity(res).uid,
         recordedAt: new Date().toISOString(),
         source: "site_reported",

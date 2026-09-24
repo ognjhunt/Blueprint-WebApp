@@ -50,10 +50,12 @@ function qualifiedRecord(
 describe("pilot opportunity projection", () => {
   it("redacts identity and full dossier fields from anonymized opportunities", () => {
     const record = qualifiedRecord("anonymized");
+    (record as any).workspace_task = { pilotIntent: { pilotConsideration: "yes", deploymentPath: "multiple_sites" } };
     expect(pilotOpportunityPassedGates(record)).toBe(true);
     expect(projectPilotOpportunityForRobotTeam(record, "any@robot.ai")).toEqual(
       expect.objectContaining({
         access_level: "anonymized",
+        pilot_intent: { pilotConsideration: "yes", deploymentPath: "multiple_sites" },
         site_name: null,
         site_location: null,
         object_profile: null,

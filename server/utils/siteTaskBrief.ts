@@ -54,6 +54,7 @@ import {
   type ReadinessVerdict,
 } from "../../client/src/lib/siteTaskReadiness";
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
+import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 
 export const TASK_BRIEFS_COLLECTION = "siteTaskBriefs";
@@ -118,6 +119,7 @@ export interface SiteTaskBriefRecord {
   /** Optional item details the owner supplied after uploading. */
   operatorTaskDetails?: { item_weight?: string; item_make_model?: string } | null;
   successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean } | null;
+  pilotIntent?: SitePilotIntent | null;
 }
 
 function nowIso() {
@@ -327,6 +329,7 @@ export async function confirmBrief(params: {
   /** Gates the operator said they do not know. Left blank, recorded, not looped. */
   operatorUnknown?: readonly string[];
   successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean };
+  pilotIntent?: SitePilotIntent;
 }): Promise<ConfirmationResult | null> {
   const brief = await getBrief(params.requestId);
   if (!brief) return null;
@@ -369,6 +372,7 @@ export async function confirmBrief(params: {
     operatorAnswers: supplied,
     operatorUnknown: [...unknown],
     successCriteria: params.successCriteria ?? brief.successCriteria ?? null,
+    pilotIntent: params.pilotIntent ?? brief.pilotIntent ?? null,
     // Whatever they did not answer stays outstanding, in the same order.
     unresolved: brief.unresolved.filter((fieldId) => !answers[fieldId]),
   };
@@ -401,12 +405,15 @@ export async function confirmBrief(params: {
             evaluated_at: nowIso(),
           },
           site_task_brief_confirmed_at: admin.firestore.FieldValue.serverTimestamp(),
-          ...(params.successCriteria ? {
-            workspace_task: { terms: {
-              successDefinition: params.successCriteria.successDefinition ?? "",
-              successRate: params.successCriteria.successRate,
-              cycleTimeSeconds: params.successCriteria.cycleTimeSeconds,
-            } },
+          ...(params.successCriteria || params.pilotIntent ? {
+            workspace_task: {
+              ...(params.successCriteria ? { terms: {
+                successDefinition: params.successCriteria.successDefinition ?? "",
+                successRate: params.successCriteria.successRate,
+                cycleTimeSeconds: params.successCriteria.cycleTimeSeconds,
+              } } : {}),
+              ...(params.pilotIntent ? { pilotIntent: params.pilotIntent } : {}),
+            },
           } : {}),
         },
         { merge: true },

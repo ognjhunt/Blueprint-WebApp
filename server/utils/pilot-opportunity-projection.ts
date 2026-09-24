@@ -3,6 +3,7 @@ import type {
   PilotDataUsePermissions,
   PilotOpportunityVisibility,
 } from "../types/inbound-request";
+import { sitePilotIntentFrom, type SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 
 export type PilotOpportunityAccessLevel = "anonymized" | "shortlisted_confidential";
 
@@ -11,6 +12,7 @@ export type PilotOpportunityProjection = {
   pilot_budget_usd?: number | null;
   deployment_budget_usd?: number | null;
   target_date?: string | null;
+  pilot_intent: SitePilotIntent | null;
   opportunity_id: string;
   access_level: PilotOpportunityAccessLevel;
   visibility: PilotOpportunityVisibility;
@@ -100,8 +102,9 @@ export function projectPilotOpportunityForRobotTeam(
   const workspace = (record as unknown as Record<string, any>).workspace_task || {};
   if (workspace.archived === true || workspace.paused === true) return null;
   const terms = workspace.terms || {};
+  const pilotIntent = sitePilotIntentFrom(workspace.pilotIntent);
   const finite = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : null;
-  const taskFields = { task_targets: { successRate: finite(terms.successRate), cycleTimeSeconds: finite(terms.cycleTimeSeconds) }, pilot_budget_usd: finite(terms.pilotBudgetUsd), deployment_budget_usd: finite(terms.deploymentBudgetUsd), target_date: typeof terms.targetDate === "string" ? terms.targetDate : null };
+  const taskFields = { task_targets: { successRate: finite(terms.successRate), cycleTimeSeconds: finite(terms.cycleTimeSeconds) }, pilot_budget_usd: finite(terms.pilotBudgetUsd), deployment_budget_usd: finite(terms.deploymentBudgetUsd), target_date: typeof terms.targetDate === "string" ? terms.targetDate : null, pilot_intent: pilotIntent };
   if (opportunity.visibility === "approved_robot_teams") {
     const allowedEmails = new Set(
       (opportunity.approvedRobotTeamEmails || []).map(normalizedEmail).filter(Boolean),

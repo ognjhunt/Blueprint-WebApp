@@ -6,6 +6,7 @@ import type {
 } from "../../client/src/types/workspace";
 import { pilotOpportunityPassedGates } from "./pilot-opportunity-projection";
 import type { InboundRequest } from "../types/inbound-request";
+import { sitePilotIntentFrom, siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
 export function object(value: unknown): Record<string, any> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -142,6 +143,7 @@ export function projectWorkspaceTask(
                 : "In review",
     nextStep: text(object(record.ops).next_step) || null,
     terms: termsFor(record),
+    pilotIntent: sitePilotIntentFrom(workspace.pilotIntent),
     visibility: ["anonymized", "approved_robot_teams"].includes(
       opportunity.visibility,
     )
@@ -167,6 +169,7 @@ export function projectWorkspaceTask(
       state: text(pilot.state) || "not_selected",
       selectedResultId: text(pilot.selectedResultId) || null,
       notes: text(pilot.notes) || null,
+      siteVisitAnswer: siteVisitOptions.find((option) => option.value === pilot.siteVisitAnswer)?.value ?? null,
     },
     createdAt: iso(record.createdAt),
   };

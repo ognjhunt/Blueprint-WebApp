@@ -195,6 +195,10 @@ const confirmSchema = z
       cycleTimeSeconds: z.number().finite().positive().max(86400).nullable(),
       unknown: z.boolean(),
     }).strict().refine((value) => value.unknown || Boolean(value.successDefinition)),
+    pilotIntent: z.object({
+      pilotConsideration: z.enum(["yes", "subject_to_review", "evaluation_only", "undecided"]),
+      deploymentPath: z.enum(["this_site", "multiple_sites", "pilot_only", "undecided"]),
+    }).strict().optional(),
   })
   .strict();
 
@@ -270,6 +274,7 @@ function presentBrief(brief: SiteTaskBriefRecord) {
     operatorAnswers: brief.operatorAnswers ?? null,
     operatorUnknown: brief.operatorUnknown ?? null,
     successCriteria: brief.successCriteria ?? null,
+    pilotIntent: brief.pilotIntent ?? null,
   };
 }
 
@@ -661,6 +666,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       operatorAnswers: answers,
       operatorUnknown: (parsed.data.unknown ?? []).filter((id) => GATE_IDS.has(id)),
       successCriteria: parsed.data.successCriteria,
+      pilotIntent: parsed.data.pilotIntent,
     });
 
     if (!result) {

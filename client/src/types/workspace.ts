@@ -1,4 +1,5 @@
 import type { RobotDescription } from "./robotDescription";
+import type { SitePilotIntent, SiteVisitAnswer } from "@/data/sitePilotIntent";
 export type WorkspaceRole = "site_operator" | "robot_team";
 export type TaskTargets = {
   successRate: number | null;
@@ -53,6 +54,7 @@ export type WorkspaceTask = {
   status: string;
   nextStep: string | null;
   terms: TaskTerms;
+  pilotIntent?: SitePilotIntent | null;
   visibility: "private" | "anonymized" | "approved_robot_teams";
   published: boolean;
   archived: boolean;
@@ -71,6 +73,7 @@ export type WorkspaceTask = {
     state: string;
     selectedResultId: string | null;
     notes: string | null;
+    siteVisitAnswer?: SiteVisitAnswer | null;
   };
   /**
    * Where the task stands on the assessment ladder, when it is a site task.
