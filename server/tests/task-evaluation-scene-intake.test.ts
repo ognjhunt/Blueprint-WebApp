@@ -4,6 +4,7 @@ import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
 vi.mock("../utils/worldReconstruction", () => ({ startWorldReconstruction: vi.fn(), advanceWorldReconstruction: vi.fn() }));
@@ -266,6 +267,7 @@ afterEach(async () => {
   delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
   delete process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON;
   delete process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS;
+  delete process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS;
 });
 
 function sponsoredCapture() {
@@ -315,6 +317,84 @@ it.each(["needs_conversation", "not_now", undefined])("funds no scene for a site
     body: JSON.stringify({ request_id: "req1", scene_id: "site-req1" }) });
   expect(response.status).toBe(409);
   expect((await response.json()).code).toBe("website_scene_site_not_qualified");
+});
+
+it("funds only the exact owner-authorized exploratory development site without qualifying it for robot teams", async () => {
+  sponsoredCapture();
+  const record = store.rows.get("inboundRequests/req1");
+  record.request.capture_mode = "self_capture";
+  record.siteTaskGates = {
+    taskShape: "single", objectVariety: "under_10", deploymentTimeline: "exploratory",
+  };
+  record.site_task_triage = {
+    disposition: "not_now", blocking_field_ids: ["deploymentTimeline"],
+    open_question_field_ids: [], unanswered_field_ids: ["sceneStability", "accessWindow"],
+  };
+  const context = projectWebsiteTaskContext(
+    store.rows.get("siteTaskBriefs/req1"), projectWebsiteCaptureRights(record));
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_not_qualified");
+  process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS = JSON.stringify([sha("a")]);
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_not_qualified");
+  process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS = JSON.stringify([context.context_digest]);
+  delete record.account_owner_uid;
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_unclaimed");
+  record.account_owner_uid = "site-owner-uid";
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  expect(grant).toMatchObject({ sponsor: "blueprint", preparation_max_total_spend_usd: 25,
+    upstream_max_spend_usd: 5, max_total_spend_usd: 20,
+    task_context_digest: context.context_digest });
+  expect(grant.expires_at_epoch - grant.consent.accepted_at_epoch).toBe(3600);
+  expect(record.site_task_triage.disposition).toBe("not_now");
+  const retained = store.rows.get("inboundRequests/req1");
+  expect(retained.site_task_triage.unanswered_field_ids).toEqual(["sceneStability", "accessWindow"]);
+  expect(await loadWebsiteSceneSponsorship("req1", false)).toEqual(grant);
+  const base = { requestId: "req1", brief: store.rows.get("siteTaskBriefs/req1"),
+    record: retained, now: grant.consent.accepted_at_epoch };
+  expect(() => websiteSceneSponsorship({ ...base,
+    brief: { ...base.brief, summary: "Changed task" } })).toThrow("website_scene_sponsorship_changed");
+  expect(() => websiteSceneSponsorship({ ...base,
+    record: { ...retained, siteTaskGates: { ...retained.siteTaskGates,
+      objectVariety: "ten_to_fifty" } } })).toThrow("website_scene_sponsorship_changed");
+  expect(() => websiteSceneSponsorship({ ...base,
+    record: { ...retained, consent_revoked: true } })).toThrow("source_revoked");
+  delete process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS;
+  expect(() => websiteSceneSponsorship(base)).toThrow("website_scene_sponsorship_changed");
+  process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS = JSON.stringify([context.context_digest]);
+  expect(grant.policy_digest).not.toBe(websiteSceneSponsorship({
+    requestId: "req1", brief: store.rows.get("siteTaskBriefs/req1"),
+    record: { ...record, website_scene_sponsorship: undefined, site_task_triage: { disposition: "qualified" } },
+    now: Date.now() / 1000,
+  }).policy_digest);
+});
+
+it("refuses exploratory test when any other gate is marginal, blocked or unanswered", async () => {
+  sponsoredCapture();
+  const record = store.rows.get("inboundRequests/req1");
+  record.request.capture_mode = "self_capture";
+  record.siteTaskGates = {
+    taskShape: "single", objectVariety: "under_10", deploymentTimeline: "exploratory",
+  };
+  record.site_task_triage = {
+    disposition: "not_now", blocking_field_ids: ["deploymentTimeline"],
+    open_question_field_ids: [], unanswered_field_ids: ["sceneStability", "accessWindow"],
+  };
+  const context = projectWebsiteTaskContext(
+    store.rows.get("siteTaskBriefs/req1"), projectWebsiteCaptureRights(record));
+  process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS = JSON.stringify([context.context_digest]);
+  for (const changed of [
+    { sceneStability: "minor_drift" }, { taskShape: "open_category" },
+    { accessWindow: "continuous" }, { objectVariety: undefined },
+  ]) {
+    const altered = { ...record, siteTaskGates: { ...record.siteTaskGates, ...changed } };
+    expect(() => websiteSceneSponsorship({ requestId: "req1",
+      brief: store.rows.get("siteTaskBriefs/req1"), record: altered, now: Date.now() / 1000 }))
+      .toThrow("website_scene_site_not_qualified");
+  }
+  const wrong = { ...record, site_task_triage: { ...record.site_task_triage,
+    blocking_field_ids: ["deploymentTimeline", "taskShape"] } };
+  expect(() => websiteSceneSponsorship({ requestId: "req1",
+    brief: store.rows.get("siteTaskBriefs/req1"), record: wrong, now: Date.now() / 1000 }))
+    .toThrow("website_scene_site_not_qualified");
 });
 
 it("funds no scene until the site is saved to an account", async () => {

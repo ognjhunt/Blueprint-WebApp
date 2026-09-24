@@ -7,6 +7,7 @@ import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websit
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
+import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 
 const money = z.number().finite().positive().max(1000);
 const policySchema = z.object({
@@ -24,6 +25,43 @@ function policy() {
   catch { throw new Error("website_scene_sponsorship_not_configured"); }
 }
 
+/**
+ * An owner-approved development test may use an exploratory self-captured site
+ * without claiming that site is qualified for a robot-team deployment. The
+ * allowlist is scoped to the confirmed task context, never to a user or model.
+ * Scene stability and access window may stay unknown for this test; that
+ * absence remains in triage and bars captured-room or deployment readiness.
+ * It is separate from the allowlist for an authored fixture later in the run.
+ */
+export function developmentTestSiteEligible(record: Record<string, any>) {
+  if (record.request?.capture_mode !== "self_capture") return false;
+  const gates = record.siteTaskGates;
+  if (!gates || typeof gates !== "object" || gates.deploymentTimeline !== "exploratory") return false;
+  const verified = triageGateAnswers(gates, undefined, "self_capture");
+  const retained = record.site_task_triage;
+  const allowedUnknowns = new Set(["sceneStability", "accessWindow"]);
+  const unknowns = verified.unanswered;
+  return verified.disposition === "not_now"
+    && verified.blockers.length === 1
+    && verified.blockers[0].fieldId === "deploymentTimeline"
+    && verified.openQuestions.length === 0
+    && unknowns.every(field => allowedUnknowns.has(field))
+    && retained?.disposition === "not_now"
+    && retained.blocking_field_ids?.length === 1
+    && retained.blocking_field_ids[0] === "deploymentTimeline"
+    && retained.open_question_field_ids?.length === 0
+    && Array.isArray(retained.unanswered_field_ids)
+    && digest(retained.unanswered_field_ids) === digest(unknowns);
+}
+
+function developmentTestSiteAuthorized(record: Record<string, any>, contextDigest: string) {
+  let allowed: unknown;
+  try { allowed = JSON.parse(process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS || "[]"); }
+  catch { return false; }
+  return Array.isArray(allowed) && allowed.includes(contextDigest)
+    && developmentTestSiteEligible(record);
+}
+
 export function websiteSceneSponsorship(input: {
   requestId: string; brief: SiteTaskBriefRecord; record: Record<string, any>; now: number;
 }) {
@@ -32,10 +70,20 @@ export function websiteSceneSponsorship(input: {
   if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
   const context = projectWebsiteTaskContext(input.brief, rights);
   if (!context.confirmed) throw new Error("website_task_context_not_confirmed");
+  const developmentSiteTest = developmentTestSiteAuthorized(input.record, context.context_digest);
+  const policyDigest = developmentSiteTest
+    ? digest({ policy: configured, development_test_site_context_digest: context.context_digest,
+      development_test_site_gates: input.record.siteTaskGates,
+      development_test_site_triage: {
+        disposition: input.record.site_task_triage.disposition,
+        blocking_field_ids: input.record.site_task_triage.blocking_field_ids,
+        unanswered_field_ids: input.record.site_task_triage.unanswered_field_ids,
+      } })
+    : digest(configured);
   const previous = input.record.website_scene_sponsorship;
   if (previous) {
     const { authority_digest: retainedDigest, ...payload } = previous;
-    if (digest(payload) !== retainedDigest || previous.policy_digest !== digest(configured)
+    if (digest(payload) !== retainedDigest || previous.policy_digest !== policyDigest
       || previous.request_id !== input.requestId || previous.task_context_digest !== context.context_digest)
       throw new Error("website_scene_sponsorship_changed");
     if (previous.expires_at_epoch <= input.now) throw new Error("consent_expired");
@@ -47,7 +95,8 @@ export function websiteSceneSponsorship(input: {
   // refusal is typed so the Pipeline holds the capture and retries rather than
   // failing it. Checked when the grant is first made, never on an existing
   // grant, so spend already authorized still settles.
-  if (input.record.site_task_triage?.disposition !== "qualified") {
+  if (input.record.site_task_triage?.disposition !== "qualified"
+    && !developmentSiteTest) {
     throw new Error("website_scene_site_not_qualified");
   }
   // And only once the site is saved to an account, so we know who we are
@@ -68,7 +117,7 @@ export function websiteSceneSponsorship(input: {
   const value = {
     schema_version: "website_scene_sponsorship.v1", sponsor: "blueprint",
     request_id: input.requestId, capture_id: context.capture_id, scene_id: context.scene_id,
-    task_context_digest: context.context_digest, policy_digest: digest(configured),
+    task_context_digest: context.context_digest, policy_digest: policyDigest,
     authoring_provider: authoringProvider,
     ...(anthropicTerms ? { anthropic_provider_terms_reference: anthropicTerms } : {}),
     owner: configured.owner,
