@@ -2,10 +2,12 @@
  * Process helpers shared by the TypeScript CLIs in scripts/cloud/.
  */
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const WEBAPP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const requireFromScript = createRequire(import.meta.url);
 
 /**
  * Node's built-in fetch (and https) ignore HTTPS_PROXY unless the process
@@ -38,7 +40,10 @@ export async function importFirebaseAdmin() {
   const log = console.log;
   console.log = (...args: unknown[]) => console.error(...args);
   try {
-    return await import("../../client/src/lib/firebaseAdmin");
+    // tsx's dynamic-import interop mistakes the Admin SDK default export's
+    // __esModule marker for this module's exports. require() keeps the named
+    // dbAdmin, storageAdmin and authAdmin exports intact.
+    return requireFromScript(path.join(WEBAPP_ROOT, "client/src/lib/firebaseAdmin.ts")) as typeof import("../../client/src/lib/firebaseAdmin");
   } finally {
     console.log = log;
   }
