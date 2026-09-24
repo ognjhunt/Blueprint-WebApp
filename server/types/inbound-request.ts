@@ -295,6 +295,8 @@ export interface RequestDetails {
   consent_attestation?: ConsentAttestationRecord | null;
   /** Explicit per-capture disclosure authority for Claude 3D authoring. */
   claude_authoring_consent?: ConsentAttestationRecord | null;
+  /** Explicit per-capture disclosure authority for OpenAI managed-agent 3D authoring. */
+  sol_agents_api_consent?: ConsentAttestationRecord | null;
   targetSiteType?: string | null;
   proofPathPreference?: ProofPathPreference | null;
   existingStackReviewWorkflow?: string | null;
@@ -1235,6 +1237,8 @@ export interface InboundRequestPayload {
   consentAttestation?: ConsentAttestationInput | null;
   /** Only sent by the scoped Claude development-test website form. */
   claudeAuthoringConsent?: ConsentAttestationInput | null;
+  /** Only sent by the scoped GPT-6 Sol managed-agent development-test website form. */
+  solAgentsApiConsent?: ConsentAttestationInput | null;
   targetSiteType?: string;
   proofPathPreference?: ProofPathPreference;
   existingStackReviewWorkflow?: string;

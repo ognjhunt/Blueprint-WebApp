@@ -20,9 +20,33 @@ const policySchema = z.object({
   provider_terms_reference: z.string().regex(/^sha256:[0-9a-f]{64}$/),
 }).strict().refine(p => p.upstream_max_spend_usd + p.native_max_spend_usd <= p.max_total_spend_usd);
 
+const agentsApiPolicySchema = z.object({
+  schema_version: z.literal("scene_configuration_agents_api_policy.v1"),
+  disclosure_scope: z.literal("task_asset_source_frames_and_metric_envelope"),
+  session_retention: z.literal("until_deleted"),
+  trace_retention: z.literal("provider_default"),
+  region: z.literal("us"),
+  budget_policy: z.literal("project_guard_accepted_uncertainty"),
+  project_guard_receipt_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  ttl_seconds: z.number().int().min(60).max(1800),
+  maximum_review_cycles: z.number().int().min(1).max(3),
+}).strict();
+
 function policy() {
   try { return policySchema.parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON || "null")); }
   catch { throw new Error("website_scene_sponsorship_not_configured"); }
+}
+
+function agentsApiPolicy() {
+  try { return agentsApiPolicySchema.parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_AGENTS_API_POLICY_JSON || "null")); }
+  catch { throw new Error("website_agents_api_policy_not_configured"); }
+}
+
+function agentsApiTaskAuthorized(contextDigest: string) {
+  let allowed: unknown;
+  try { allowed = JSON.parse(process.env.BLUEPRINT_WEBSITE_AGENTS_API_TASK_DIGESTS || "[]"); }
+  catch { return false; }
+  return Array.isArray(allowed) && allowed.includes(contextDigest);
 }
 
 /**
@@ -70,16 +94,28 @@ export function websiteSceneSponsorship(input: {
   if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
   const context = projectWebsiteTaskContext(input.brief, rights);
   if (!context.confirmed) throw new Error("website_task_context_not_confirmed");
+  const managedConsent = input.record.request?.sol_agents_api_consent;
+  const managedAgents = managedConsent !== undefined && managedConsent !== null;
+  if (managedAgents && (managedConsent.granted !== true
+    || managedConsent.statement_version !== "2026-09-24.v1"
+    || input.record.request?.capture_region !== "us"
+    || input.record.request?.capture_mode !== "self_capture"
+    || input.record.request?.claude_authoring_consent))
+    throw new Error("website_agents_api_disclosure_authority_invalid");
+  if (managedAgents && !agentsApiTaskAuthorized(context.context_digest))
+    throw new Error("website_agents_api_task_not_authorized");
+  const managedPolicy = managedAgents ? agentsApiPolicy() : null;
   const developmentSiteTest = developmentTestSiteAuthorized(input.record, context.context_digest);
   const policyDigest = developmentSiteTest
     ? digest({ policy: configured, development_test_site_context_digest: context.context_digest,
+      ...(managedPolicy ? { agents_api_policy: managedPolicy } : {}),
       development_test_site_gates: input.record.siteTaskGates,
       development_test_site_triage: {
         disposition: input.record.site_task_triage.disposition,
         blocking_field_ids: input.record.site_task_triage.blocking_field_ids,
         unanswered_field_ids: input.record.site_task_triage.unanswered_field_ids,
       } })
-    : digest(configured);
+    : digest(managedPolicy ? { policy: configured, agents_api_policy: managedPolicy } : configured);
   const previous = input.record.website_scene_sponsorship;
   if (previous) {
     const { authority_digest: retainedDigest, ...payload } = previous;
@@ -124,6 +160,8 @@ export function websiteSceneSponsorship(input: {
       unresolved_gate_ids: input.record.site_task_triage.unanswered_field_ids,
     } } : {}),
     authoring_provider: authoringProvider,
+    ...(managedPolicy ? { authoring_agent_runtime: "openai_agents_api",
+      authoring_model: "gpt-6-sol", agents_api_policy: managedPolicy } : {}),
     ...(anthropicTerms ? { anthropic_provider_terms_reference: anthropicTerms } : {}),
     owner: configured.owner,
     // These are disjoint caps, not two authorizations for the whole budget.

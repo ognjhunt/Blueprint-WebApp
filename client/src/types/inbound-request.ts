@@ -241,6 +241,7 @@ export interface InboundRequestPayload {
   details?: string;
   context: RequestContext;
   claudeAuthoringConsent?: { granted: boolean; statementVersion: string } | null;
+  solAgentsApiConsent?: { granted: boolean; statementVersion: string } | null;
   honeypot?: string; // Anti-bot honeypot field
 }
 

@@ -1170,12 +1170,23 @@ export async function submitInboundRequest(req: Request, res: Response) {
       : null;
     const claudeAuthoringConsent = payload.claudeAuthoringConsent == null
       ? null : buildConsentAttestation(payload.claudeAuthoringConsent);
+    const solAgentsApiConsent = payload.solAgentsApiConsent == null
+      ? null : buildConsentAttestation(payload.solAgentsApiConsent);
     if (claudeAuthoringConsent === "refused"
       || (claudeAuthoringConsent && (claudeAuthoringConsent.statement_version !== "2026-09-24.v1"
         || buyerType !== "site_operator" || captureMode !== "self_capture" || captureRegion !== "us"))) {
       return res.status(400).json({
         ok: false, requestId: payload.requestId, status: "submitted",
         message: "Claude authoring needs an explicit United States site-capture disclosure grant",
+      } satisfies SubmitInboundRequestResponse);
+    }
+    if (solAgentsApiConsent === "refused" || (solAgentsApiConsent && (
+      solAgentsApiConsent.statement_version !== "2026-09-24.v1"
+      || buyerType !== "site_operator" || captureMode !== "self_capture" || captureRegion !== "us"
+      || claudeAuthoringConsent !== null))) {
+      return res.status(400).json({
+        ok: false, requestId: payload.requestId, status: "submitted",
+        message: "Managed-agent authoring needs an explicit United States site-capture disclosure grant",
       } satisfies SubmitInboundRequestResponse);
     }
 
@@ -1473,6 +1484,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           // Already past the refusal check above, so this is Record | null.
           consent_attestation: consentAttestation,
           claude_authoring_consent: claudeAuthoringConsent,
+          sol_agents_api_consent: solAgentsApiConsent,
           taskVideoUrl:
             normalizeTaskVideoUrl(payload.taskVideoUrl) ??
             normalizeTaskVideoUrls(payload.taskVideoUrls)[0] ??
@@ -1611,6 +1623,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         // Already past the refusal check above, so this is Record | null.
         consent_attestation: consentAttestation,
         claude_authoring_consent: claudeAuthoringConsent,
+        sol_agents_api_consent: solAgentsApiConsent,
         taskVideoUrl:
           normalizeTaskVideoUrl(payload.taskVideoUrl) ??
           normalizeTaskVideoUrls(payload.taskVideoUrls)[0] ??

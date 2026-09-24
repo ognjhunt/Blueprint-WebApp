@@ -991,6 +991,8 @@ router.post(
       consentAttestation: z.object({ granted: z.literal(true), statementVersion: z.literal("2026-09-18.v1") }),
       claudeAuthoringConsent: z.object({ granted: z.literal(true),
         statementVersion: z.literal("2026-09-24.v1") }).optional(),
+      solAgentsApiConsent: z.object({ granted: z.literal(true),
+        statementVersion: z.literal("2026-09-24.v1") }).optional(),
       honeypot: z.string().optional(),
     }).parse(req.body);
     res.locals.workspaceIntake = {
