@@ -667,6 +667,10 @@ function normalizeAgentProvider(provider?: AgentProvider): AgentProvider {
     case "anthropic_agent_sdk":
     case "acp_harness":
     case "openclaw":
+    // Video lanes pin this provider and have their own executor below. Without
+    // it here the pin was rewritten to codex_local, which the website host
+    // cannot spawn, so every upload's privacy screen held and never handed off.
+    case "gemini_video":
       return provider;
     default:
       return "codex_local";
