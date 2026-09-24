@@ -418,6 +418,17 @@ router.get("/:launchId/evaluation-setup", async (req, res) => {
 });
 
 router.get("/:launchId/policy-canary-setup", async (req, res) => {
+  const setupDigest = req.query.setup_digest;
+  const robotPresetId = req.query.robot_preset_id;
+  const hasSelection = setupDigest !== undefined || robotPresetId !== undefined;
+  if (hasSelection && (typeof setupDigest !== "string"
+    || !/^sha256:[a-f0-9]{64}$/.test(setupDigest)
+    || typeof robotPresetId !== "string" || !robotPresetId.trim())) {
+    return res.status(422).json(policyCanaryError(
+      "POLICY_CANARY_SETUP_SELECTION_INVALID",
+      "Choose a published robot and setup together.",
+    ));
+  }
   let resolved;
   try {
     resolved = await accessibleOffering(req.params.launchId, res);
@@ -444,7 +455,8 @@ router.get("/:launchId/policy-canary-setup", async (req, res) => {
       { offering_status: resolved.offering.status },
     ));
   }
-  const setup = await policyCanarySetupFor(req.params.launchId, resolved.offering);
+  const setup = await policyCanarySetupFor(req.params.launchId, resolved.offering,
+    hasSelection ? { setupDigest: setupDigest as string, robotPresetId: robotPresetId as string } : undefined);
   if (!setup.ok) return res.status(setup.status).json(policyCanaryError(
     setup.code,
     "A verified runnable policy-canary setup is not published for this exact configured revision.",
@@ -452,6 +464,7 @@ router.get("/:launchId/policy-canary-setup", async (req, res) => {
   res.set("Cache-Control", "private, no-store");
   return res.status(200).json({
     ...setup.setup,
+    available_setups: setup.availableSetups,
     offering: {
       scene_id: resolved.offering.scene_identity.id,
       scene_version: resolved.offering.scene_identity.version,

@@ -11,9 +11,10 @@ vi.mock("wouter", () => ({
   useLocation: () => ["/app/packs/scene-839873-launch/policy-canary", navigate],
   useParams: () => ({ sourceLaunchId: "scene-839873-launch" }),
 }));
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ currentUser: { uid: "team-user-1", email: "team@tryblueprint.io" } }),
-}));
+vi.mock("@/contexts/AuthContext", () => {
+  const currentUser = { uid: "team-user-1", email: "team@tryblueprint.io" };
+  return { useAuth: () => ({ currentUser }) };
+});
 vi.mock("@/lib/policyCanaryRuns", async () => {
   const actual = await vi.importActual<typeof import("@/lib/policyCanaryRuns")>("@/lib/policyCanaryRuns");
   return {
@@ -72,6 +73,13 @@ function setup(): PolicyCanarySetupView {
     run_kind: "internal_policy_canary",
     claim_ceiling: "diagnostic_policy_execution",
     registry_digest: sha("e"),
+    available_setups: [{
+      setup_digest: sha("9"),
+      robot_preset_id: "franka_panda_robotiq_2f85_v1",
+      display_name: "Franka Panda + Robotiq 2F-85",
+      task_family_id: "rigid-relocation-v1",
+      readiness: { status: "verified_runnable", receipt: { uri: "gs://receipt/robot", digest: sha("f") }, reason: null },
+    }],
     robot_presets: [{
       robot_preset_id: "franka_panda_robotiq_2f85_v1",
       display_name: "Franka Panda + Robotiq 2F-85",
@@ -229,5 +237,60 @@ describe("PolicyCanarySetup", () => {
     await waitFor(() => expect(createPolicyCanaryRun).toHaveBeenCalledTimes(1));
     expect(vi.mocked(createPolicyCanaryRun).mock.calls[0][0].input.policy_candidate_ids)
       .toEqual(["pi05_droid", "groot_n17_droid"]);
+  });
+
+  it("loads G1's sealed setup and clears Franka approvals before booking", async () => {
+    const franka = setup();
+    const g1 = setup();
+    g1.setup_digest = sha("7");
+    const robot = g1.robot_presets[0];
+    robot.robot_preset_id = "unitree_g1_v1";
+    robot.embodiment_id = "unitree_g1_v1";
+    robot.display_name = "Unitree G1";
+    robot.policy_candidates = robot.policy_candidates.map((candidate, index) => ({
+      ...candidate,
+      candidate_id: `g1_policy_${index}`,
+      display_name: `G1 policy ${index + 1}`,
+      compatibility: {
+        ...candidate.compatibility,
+        robot_preset_ids: ["unitree_g1_v1"],
+        embodiment_ids: ["unitree_g1_v1"],
+      },
+    }));
+    const choices = [franka.available_setups[0], {
+      setup_digest: g1.setup_digest,
+      robot_preset_id: robot.robot_preset_id,
+      display_name: robot.display_name,
+      task_family_id: robot.task_family_id,
+      readiness: robot.readiness,
+    }];
+    franka.available_setups = choices;
+    g1.available_setups = choices;
+    fetchPolicyCanarySetup.mockImplementation(async (_user, _launch, selection) => selection ? g1 : franka);
+    const { createPolicyCanaryRun } = await import("@/lib/policyCanaryRuns");
+    vi.mocked(createPolicyCanaryRun).mockReset().mockResolvedValue({ run: { run_id: "g1-run" } } as any);
+    const { default: PolicyCanarySetup } = await import("../../src/pages/app/PolicyCanarySetup");
+    render(<PolicyCanarySetup />);
+
+    await screen.findByRole("checkbox", { name: "PI 0.5 DROID" });
+    fireEvent.click(screen.getByRole("checkbox", { name: /I approve one simulator run/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /I allow an AI review/ }));
+    fireEvent.change(screen.getByLabelText("Robot"), { target: { value: `${sha("7")}:unitree_g1_v1` } });
+    await screen.findByRole("checkbox", { name: "G1 policy 1" });
+    expect(fetchPolicyCanarySetup).toHaveBeenCalledWith(expect.anything(), "scene-839873-launch", {
+      setupDigest: sha("7"), robotPresetId: "unitree_g1_v1",
+    });
+    expect(screen.queryByRole("checkbox", { name: "PI 0.5 DROID" })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: /I approve one simulator run/ })).toHaveProperty("checked", false);
+    expect(screen.getByRole("checkbox", { name: /I allow an AI review/ })).toHaveProperty("checked", false);
+    fireEvent.click(screen.getByRole("checkbox", { name: /I approve one simulator run/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /I allow an AI review/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Start policy test" }));
+    await waitFor(() => expect(createPolicyCanaryRun).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(createPolicyCanaryRun).mock.calls[0][0].input).toMatchObject({
+      setup_digest: sha("7"),
+      robot_preset_id: "unitree_g1_v1",
+      policy_candidate_ids: ["g1_policy_0", "g1_policy_1"],
+    });
   });
 });

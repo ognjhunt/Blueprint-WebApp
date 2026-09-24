@@ -84,7 +84,7 @@ export async function loadConfiguredSceneOffering(launchId: string) {
 export async function policyCanarySetupFor(
   sourceLaunchId: string,
   offering: ConfiguredSceneOffering,
-  setupDigest?: string,
+  selection?: { setupDigest: string; robotPresetId: string },
 ) {
   const catalog = await resolvePublishedLaunchProfileCatalog();
   if (catalog.blocker) return {
@@ -97,7 +97,6 @@ export async function policyCanarySetupFor(
     return Boolean(
       profile.source_commit
       && setup
-      && (!setupDigest || setup.setup_digest === setupDigest)
       && setup.source_launch_id === sourceLaunchId
       && setup.offering_digest === offering.offering_digest
       && setup.scene_revision_digest
@@ -107,15 +106,30 @@ export async function policyCanarySetupFor(
       && profile.task_evaluation_run.configuration_run_id === offering.configuration_run_id,
     );
   });
-  if (matches.length !== 1) return {
+  const availableSetups = matches.flatMap((profile) =>
+    profile.internal_policy_canary_setup!.robot_presets.map((robot) => ({
+      setup_digest: profile.internal_policy_canary_setup!.setup_digest,
+      robot_preset_id: robot.robot_preset_id,
+      display_name: robot.display_name,
+      task_family_id: robot.task_family_id,
+      readiness: robot.readiness,
+    })),
+  );
+  const duplicateChoices = new Set(availableSetups.map((item) =>
+    `${item.setup_digest}:${item.robot_preset_id}`)).size !== availableSetups.length;
+  const selected = selection
+    ? matches.filter((profile) => profile.internal_policy_canary_setup?.setup_digest === selection.setupDigest
+      && profile.internal_policy_canary_setup.robot_presets.some((robot) => robot.robot_preset_id === selection.robotPresetId))
+    : matches.slice().sort((a, b) => a.profile_id.localeCompare(b.profile_id)).slice(0, 1);
+  if (selected.length !== 1 || duplicateChoices) return {
     ok: false as const,
-    status: matches.length === 0 ? 409 : 503,
-    code: matches.length === 0
+    status: selected.length === 0 ? 409 : 503,
+    code: selected.length === 0
       ? "POLICY_CANARY_SETUP_NOT_PUBLISHED"
       : "POLICY_CANARY_SETUP_AMBIGUOUS",
   };
-  const successContract = matches[0].internal_policy_canary_setup?.task_success_contract;
-  const successContractDigest = matches[0].internal_policy_canary_setup
+  const successContract = selected[0].internal_policy_canary_setup?.task_success_contract;
+  const successContractDigest = selected[0].internal_policy_canary_setup
     ?.task_success_contract_digest;
   if (
     !successContract
@@ -135,8 +149,9 @@ export async function policyCanarySetupFor(
   };
   return {
     ok: true as const,
-    profile: matches[0],
-    setup: matches[0].internal_policy_canary_setup as InternalPolicyCanarySetup,
+    profile: selected[0],
+    setup: selected[0].internal_policy_canary_setup as InternalPolicyCanarySetup,
+    availableSetups,
   };
 }
 
@@ -177,7 +192,10 @@ export async function submitPolicyCanaryRun(params: {
       "Notification email must match the authenticated account or an admin-approved internal recipient.",
     ));
   }
-  const setup = await policyCanarySetupFor(launchId, offering, selection.setup_digest);
+  const setup = await policyCanarySetupFor(launchId, offering, {
+    setupDigest: selection.setup_digest,
+    robotPresetId: selection.robot_preset_id,
+  });
   if (!setup.ok) return res.status(setup.status).json(policyCanaryError(
     setup.code,
     "A verified runnable policy-canary setup is not published for this exact configured revision.",

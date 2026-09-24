@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "@/lib/helmet";
 import { Link, useLocation, useParams } from "wouter";
 
@@ -60,14 +60,17 @@ export default function PolicyCanarySetup() {
   const [proposalConfirmed, setProposalConfirmed] = useState(false);
   const [confirmedSuccessContract, setConfirmedSuccessContract] = useState<AnyTaskSuccessContract | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const setupRequest = useRef(0);
   const runId = useMemo(() => stableRunId(decodedLaunchId), [decodedLaunchId]);
 
   useEffect(() => {
     if (!currentUser || !decodedLaunchId) return;
     let cancelled = false;
+    const request = ++setupRequest.current;
     void fetchPolicyCanarySetup(currentUser, decodedLaunchId).then((value) => {
-      if (cancelled) return;
+      if (cancelled || request !== setupRequest.current) return;
       setSetup(value);
       const firstRobot = value.robot_presets.find((robot) => robot.readiness.status === "verified_runnable");
       if (firstRobot) {
@@ -75,8 +78,8 @@ export default function PolicyCanarySetup() {
         setPolicyIds(firstRobot.policy_candidates.filter((policy) => !optionReason(policy, firstRobot)).slice(0, 2).map((policy) => policy.candidate_id));
       }
       setEmail(value.notification_recipient_email || "");
-    }).catch((reason) => !cancelled && setError(reason instanceof Error ? reason.message : "This policy test isn't available."));
-    return () => { cancelled = true; };
+    }).catch((reason) => !cancelled && request === setupRequest.current && setError(reason instanceof Error ? reason.message : "This policy test isn't available."));
+    return () => { cancelled = true; setupRequest.current++; };
   }, [currentUser, decodedLaunchId]);
 
   useEffect(() => {
@@ -111,12 +114,38 @@ export default function PolicyCanarySetup() {
   const preset = setup?.episode_presets.find((item) => item.preset_id === "quick_10") || null;
   const canContinueSetup = Boolean(robot && policyIds.length === 2 && policyIds.every((id) => robot.policy_candidates.some((candidate) => candidate.candidate_id === id && !optionReason(candidate, robot))));
 
-  function changeRobot(nextId: string) {
-    if (!setup) return;
-    const next = setup.robot_presets.find((item) => item.robot_preset_id === nextId);
-    if (!next) return;
-    setRobotId(nextId);
-    setPolicyIds(next.policy_candidates.filter((policy) => !optionReason(policy, next)).slice(0, 2).map((policy) => policy.candidate_id));
+  async function changeRobot(choice: string) {
+    if (!setup || !currentUser) return;
+    const nextChoice = setup.available_setups.find((item) =>
+      `${item.setup_digest}:${item.robot_preset_id}` === choice);
+    if (!nextChoice) return;
+    setConfirmed(false);
+    setInterpretationConfirmed(false);
+    setProposalConfirmed(false);
+    setConfirmedSuccessContract(null);
+    setPolicyIds([]);
+    setError(null);
+    const request = ++setupRequest.current;
+    setSwitching(true);
+    try {
+      const value = nextChoice.setup_digest === setup.setup_digest
+        ? setup
+        : await fetchPolicyCanarySetup(currentUser, decodedLaunchId, {
+          setupDigest: nextChoice.setup_digest,
+          robotPresetId: nextChoice.robot_preset_id,
+        });
+      if (request !== setupRequest.current) return;
+      const next = value.robot_presets.find((item) => item.robot_preset_id === nextChoice.robot_preset_id);
+      if (!next || value.setup_digest !== nextChoice.setup_digest) throw new Error("The selected robot setup changed. Reload and try again.");
+      setSetup(value);
+      setRobotId(next.robot_preset_id);
+      setPolicyIds(next.policy_candidates.filter((policy) => !optionReason(policy, next)).slice(0, 2).map((policy) => policy.candidate_id));
+      setEmail(value.notification_recipient_email || "");
+    } catch (reason) {
+      if (request === setupRequest.current) setError(reason instanceof Error ? reason.message : "This robot setup isn't available.");
+    } finally {
+      if (request === setupRequest.current) setSwitching(false);
+    }
   }
 
   async function submit() {
@@ -163,7 +192,7 @@ export default function PolicyCanarySetup() {
   }
 
   const emailAllowed = Boolean(setup?.notification_recipient_options.includes(email.toLowerCase()));
-  const canSubmit = canContinueSetup && confirmed && interpretationConfirmed && Boolean(confirmedSuccessContract) && emailAllowed && !submitting;
+  const canSubmit = canContinueSetup && confirmed && interpretationConfirmed && Boolean(confirmedSuccessContract) && emailAllowed && !submitting && !switching;
   const otherSizes = setup?.episode_presets.filter((item) => item.preset_id !== "quick_10" && item.availability !== "enabled") || [];
 
   return <AppShell active="packs" breadcrumb="tasks / policy test">
@@ -185,8 +214,8 @@ export default function PolicyCanarySetup() {
         <h2 id="policy-test-robot">Robot and policies</h2>
         <div className="ws-fields mt-5">
           <Field label="Robot" wide>
-            <select value={robot.robot_preset_id} onChange={(event) => changeRobot(event.target.value)}>
-              {setup.robot_presets.map((item) => <option key={item.robot_preset_id} value={item.robot_preset_id} disabled={item.readiness.status !== "verified_runnable"}>
+            <select value={`${setup.setup_digest}:${robot.robot_preset_id}`} disabled={switching} onChange={(event) => { void changeRobot(event.target.value); }}>
+              {setup.available_setups.map((item) => <option key={`${item.setup_digest}:${item.robot_preset_id}`} value={`${item.setup_digest}:${item.robot_preset_id}`} disabled={item.readiness.status !== "verified_runnable"}>
                 {item.display_name}{item.readiness.status === "verified_runnable" ? "" : ` (${item.readiness.reason || "not available yet"})`}
               </option>)}
             </select>
