@@ -287,6 +287,25 @@ export function assertFetchableVideoUrl(raw: string): URL {
   return url;
 }
 
+const GENERIC_CONTENT_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
+const VIDEO_TYPE_BY_EXTENSION: Record<string, string> = {
+  mov: "video/quicktime", mp4: "video/mp4", m4v: "video/x-m4v", webm: "video/webm", mpeg: "video/mpeg", mpg: "video/mpeg",
+};
+
+/**
+ * The served type, or the file's own extension when the host only said
+ * "bytes". Storage serves an object under whatever type it was saved with, and
+ * a browser upload the browser could not classify was saved as
+ * `application/octet-stream`. A share page still reports `text/html` and is
+ * still refused.
+ */
+function videoContentType(served: string | null, url: URL): string {
+  const type = (served || "").split(";")[0].trim().toLowerCase();
+  if (!GENERIC_CONTENT_TYPES.has(type)) return type;
+  const extension = /\.([a-z0-9]+)$/i.exec(url.pathname)?.[1]?.toLowerCase() ?? "";
+  return VIDEO_TYPE_BY_EXTENSION[extension] ?? type;
+}
+
 /**
  * Open the clip for reading, measured and hashed as it is read.
  *
@@ -321,10 +340,7 @@ export async function openVideo(
       );
     }
 
-    const contentType = (response.headers.get("content-type") || "")
-      .split(";")[0]
-      .trim()
-      .toLowerCase();
+    const contentType = videoContentType(response.headers.get("content-type"), url);
     if (!(SUPPORTED_VIDEO_TYPES as readonly string[]).includes(contentType)) {
       throw new GeminiVideoError(
         "video_not_directly_readable",
