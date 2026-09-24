@@ -1490,3 +1490,19 @@ live version have not yet been verified. No new paid authoring, native import,
 policy episode, or website result follows from the code merge or preflight.
 The development fixture remains separate from unqualified captured-room
 registration. Matrix steps 10 and 11 are partial; steps 12–14 are unproven.
+
+### Deployed continuation and bounded CPU attempt
+
+The `a566f85` iteration receipt subsequently reported `deployed`, both
+release surfaces matched the merged commit, and the live version endpoint
+reported `commit_proven:true` with no blockers. The durable controller reused
+the same scene intent, compiled and published the website submission, and
+confirmed full-byte readback. Activation produced a standing execution
+profile without a paid call. The controller then queued launch
+`website-52ff463bc7855063836d5861-a566f85c-20260924t002250z-activation-auto-launch`.
+Its allocator admission is `admitted` with no blockers. As observed around
+00:43 UTC, the CPU prestage runner was live and its entrypoint log reached
+progress tick 3; the independent Vast watchdog was active. This is a running
+authoring attempt, not an accepted articulated assembly. No native import,
+GPU policy episode, or website terminal result was observed. The separate
+development fixture and captured-room completion states remain unchanged.
