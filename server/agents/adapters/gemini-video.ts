@@ -26,7 +26,7 @@
  *
  * Sites give us a link and keep custody. That link is fetched here, in the
  * worker, bounded by size and content type, and the bytes are handed to the
- * model inline and then dropped. Nothing is copied into Blueprint storage: the
+ * model through its Files API, deleted there once read, and then dropped. Nothing is copied into Blueprint storage: the
  * site revokes by unsharing, exactly as `taskVideoField` promises, and that
  * promise stays true only if we never keep a second copy.
  */
@@ -35,7 +35,7 @@ import type { ZodType } from "zod";
 
 import type { AgentResult, NormalizedAgentTask } from "../types";
 
-/** Kept below Gemini's 100MB inline ceiling, and well below it on purpose. */
+/** Bounds what the worker holds in memory; the Files API itself takes far more. */
 const MAX_VIDEO_BYTES = 64 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 60_000;
 const ANALYSIS_TIMEOUT_MS = 5 * 60_000;
@@ -49,46 +49,85 @@ interface VideoResponsePart {
   tool_response?: { tool_type?: string };
 }
 
-const VIDEO_DATA_PLACEHOLDER = "__blueprint_inline_video_base64__";
-/** A multiple of 3, so each chunk base64-encodes without padding mid-stream. */
-const BASE64_CHUNK_BYTES = 3 * 256 * 1024;
+const GEMINI_API = "https://generativelanguage.googleapis.com";
+const FILE_ACTIVE_TIMEOUT_MS = 3 * 60_000;
+const FILE_POLL_INTERVAL_MS = 2_000;
+
+type UploadedVideo = { name: string; uri: string; mimeType: string };
 
 /**
- * The request body, encoded as it is sent.
+ * Hand the clip to Gemini's Files API and wait until it can be read.
  *
- * Building it as one string held the video three more times over -- as base64,
- * inside the JSON string, and again as the encoded request -- which is several
- * hundred MB for a phone clip. That killed the website's 512MB web instance
- * mid-request, before the privacy screen could record the attempt. The wire
- * format is unchanged; only the video's base64 is produced a chunk at a time.
+ * The Pipeline's working Gemini video lanes all go this way; sending a phone
+ * clip inline never completed in production (the 60MB dishwasher upload sat
+ * until the analysis timeout). The file is deleted once the analysis is done,
+ * so the only copy that outlives the call is the one the site uploaded to us.
  */
-export function streamedRequestBody(prompt: string, bytes: Buffer, contentType: string): ReadableStream<Uint8Array> {
-  const [head, tail] = JSON.stringify({
-    contents: [{ role: "user", parts: [
-      { text: prompt },
-      { inline_data: { mime_type: contentType, data: VIDEO_DATA_PLACEHOLDER },
-        media_processing: "AGENTIC" },
-    ] }],
-    generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 },
-  }).split(VIDEO_DATA_PLACEHOLDER);
-  let offset = 0;
-  let stage: "head" | "video" | "tail" | "done" = "head";
-  return new ReadableStream<Uint8Array>({
-    pull(controller) {
-      if (stage === "head") {
-        controller.enqueue(Buffer.from(head, "utf8"));
-        stage = "video";
-      } else if (stage === "video" && offset < bytes.byteLength) {
-        const end = Math.min(offset + BASE64_CHUNK_BYTES, bytes.byteLength);
-        controller.enqueue(Buffer.from(bytes.subarray(offset, end).toString("base64"), "latin1"));
-        offset = end;
-      } else if (stage !== "done") {
-        controller.enqueue(Buffer.from(tail, "utf8"));
-        stage = "done";
-        controller.close();
-      }
+async function uploadVideoFile(input: {
+  apiKey: string; bytes: Buffer; contentType: string;
+}, fetcher: typeof fetch, sleep: (ms: number) => Promise<void>): Promise<UploadedVideo> {
+  const start = await fetcher(`${GEMINI_API}/upload/v1beta/files`, {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": input.apiKey,
+      "X-Goog-Upload-Protocol": "resumable",
+      "X-Goog-Upload-Command": "start",
+      "X-Goog-Upload-Header-Content-Length": String(input.bytes.byteLength),
+      "X-Goog-Upload-Header-Content-Type": input.contentType,
+      "Content-Type": "application/json",
     },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    body: JSON.stringify({ file: { display_name: "blueprint-site-capture" } }),
   });
+  const uploadUrl = start.headers.get("x-goog-upload-url");
+  if (!start.ok || !uploadUrl) {
+    throw new GeminiVideoError("gemini_video_upload_failed", `Gemini file upload start returned HTTP ${start.status}`);
+  }
+  const finish = await fetcher(uploadUrl, {
+    method: "POST",
+    headers: {
+      "X-Goog-Upload-Command": "upload, finalize",
+      "X-Goog-Upload-Offset": "0",
+      "Content-Type": input.contentType,
+    },
+    signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
+    body: input.bytes,
+  });
+  if (!finish.ok) {
+    throw new GeminiVideoError("gemini_video_upload_failed", `Gemini file upload returned HTTP ${finish.status}`);
+  }
+  let file = ((await finish.json()) as { file?: { name?: string; uri?: string; mimeType?: string; state?: string } }).file;
+  const deadline = Date.now() + FILE_ACTIVE_TIMEOUT_MS;
+  while (file?.name && file.state !== "ACTIVE") {
+    if (file.state === "FAILED") {
+      throw new GeminiVideoError("gemini_video_file_failed", "Gemini could not process the uploaded video");
+    }
+    if (Date.now() >= deadline) {
+      throw new GeminiVideoError("gemini_video_file_timeout", "Gemini did not finish processing the uploaded video");
+    }
+    await sleep(FILE_POLL_INTERVAL_MS);
+    const poll = await fetcher(`${GEMINI_API}/v1beta/${file.name}`, {
+      headers: { "x-goog-api-key": input.apiKey },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!poll.ok) {
+      throw new GeminiVideoError("gemini_video_file_failed", `Gemini file status returned HTTP ${poll.status}`);
+    }
+    file = (await poll.json()) as typeof file;
+  }
+  if (!file?.name || !file.uri) {
+    throw new GeminiVideoError("gemini_video_upload_failed", "Gemini did not return the uploaded file");
+  }
+  return { name: file.name, uri: file.uri, mimeType: file.mimeType || input.contentType };
+}
+
+async function deleteVideoFile(apiKey: string, name: string, fetcher: typeof fetch) {
+  // Best effort: the Files API also expires uploads on its own after 48 hours.
+  await fetcher(`${GEMINI_API}/v1beta/${name}`, {
+    method: "DELETE",
+    headers: { "x-goog-api-key": apiKey },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  }).catch(() => undefined);
 }
 
 /** Explicit REST fields avoid silently dropping new fields in the old SDK. */
@@ -98,16 +137,31 @@ export async function analyseAgenticVideo(input: {
   prompt: string;
   bytes: Buffer;
   contentType: string;
-}, fetcher: typeof fetch = fetch) {
+}, fetcher: typeof fetch = fetch, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) {
+  const video = await uploadVideoFile(input, fetcher, sleep);
+  try {
+    return await generateFromVideo(input, video, fetcher);
+  } finally {
+    await deleteVideoFile(input.apiKey, video.name, fetcher);
+  }
+}
+
+async function generateFromVideo(input: { apiKey: string; model: string; prompt: string },
+  video: UploadedVideo, fetcher: typeof fetch) {
   const response = await fetcher(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(input.model)}:generateContent`,
+    `${GEMINI_API}/v1beta/models/${encodeURIComponent(input.model)}:generateContent`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
       signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-      body: streamedRequestBody(input.prompt, input.bytes, input.contentType),
-      duplex: "half",
-    } as RequestInit,
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [
+          { text: input.prompt },
+          { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: "AGENTIC" },
+        ] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 },
+      }),
+    },
   );
   // Do not include upstream error bodies: they can echo source URLs or tokens.
   if (!response.ok) throw new GeminiVideoError("gemini_video_provider_failed", `Gemini returned HTTP ${response.status}`);

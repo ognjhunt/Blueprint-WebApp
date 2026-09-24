@@ -27,9 +27,10 @@
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { runAgentTask } from "../agents/runtime";
-import type {
-  SiteVideoEvidenceInput,
-  SiteVideoEvidenceOutput,
+import {
+  siteVideoEvidenceOutputSchema,
+  type SiteVideoEvidenceInput,
+  type SiteVideoEvidenceOutput,
 } from "../agents/tasks/site-video-evidence";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
@@ -122,6 +123,61 @@ async function loadOperatorContext(requestId: string): Promise<{
     bindingFieldIds,
     gateOptions,
   };
+}
+
+/**
+ * Longer than a review can legitimately take: fetch, Files API upload, file
+ * processing and the analysis each carry their own bound in the adapter. A run
+ * still marked running past this died with its process.
+ */
+const REVIEW_IN_FLIGHT_MS = 15 * 60_000;
+
+export type PriorFootageReview =
+  | { state: "none" }
+  | { state: "running" }
+  | { state: "completed"; output: SiteVideoEvidenceOutput };
+
+function toMillis(value: unknown): number | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  const stamp = value as { toMillis?: () => number; _seconds?: number; seconds?: number };
+  if (typeof stamp.toMillis === "function") return stamp.toMillis();
+  const seconds = stamp._seconds ?? stamp.seconds;
+  return typeof seconds === "number" ? seconds * 1000 : null;
+}
+
+/**
+ * The newest footage review this capture already has, if it is still worth
+ * waiting for or already answered.
+ *
+ * A video review outlives the privacy screen's wait: the screen gives up and
+ * holds, but the run keeps going and records its reading. Asking again from
+ * scratch threw that reading away, spent an attempt, and started a review that
+ * would outlive the next wait too, so a held capture could never clear.
+ */
+export async function findPriorFootageReview(
+  captureId: string,
+  now: number = Date.now(),
+): Promise<PriorFootageReview> {
+  if (!db) return { state: "none" };
+  const snapshot = await db.collection("agentRuns").where("metadata.capture_id", "==", captureId).get();
+  let latest: { at: number; run: Record<string, unknown> } | null = null;
+  for (const doc of snapshot.docs) {
+    const run = doc.data() as Record<string, unknown>;
+    if (run.task_kind !== "site_video_evidence") continue;
+    const at = toMillis(run.started_at) ?? toMillis(run.created_at) ?? 0;
+    if (!latest || at > latest.at) latest = { at, run };
+  }
+  if (!latest) return { state: "none" };
+  if (latest.run.status === "running" && now - latest.at < REVIEW_IN_FLIGHT_MS) return { state: "running" };
+  if (latest.run.status === "completed") {
+    const parsed = siteVideoEvidenceOutputSchema.safeParse(latest.run.output);
+    if (parsed.success) return { state: "completed", output: parsed.data };
+  }
+  return { state: "none" };
 }
 
 export interface CaptureFootageReviewer {

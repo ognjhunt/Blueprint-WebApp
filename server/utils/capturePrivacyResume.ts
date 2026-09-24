@@ -33,9 +33,12 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
+  privacyResultFromEvidence,
+  reviewStillRunning,
   screenCaptureForPrivacy,
   type PrivacyScreenResult,
 } from "./capturePrivacyScreen";
+import { findPriorFootageReview } from "./captureFootageReview";
 import { recordCapturePrivacyScreen } from "./capturePrivacyRecord";
 import { notifySlackCapturePrivacyEscalation } from "./slack";
 
@@ -91,6 +94,8 @@ export async function resumeHeldPrivacyScreen(params: {
   sceneId: string;
   /** Injectable so a test does not need a model. */
   screen?: typeof screenCaptureForPrivacy;
+  /** Injectable so a test does not need run records. */
+  findPrior?: typeof findPriorFootageReview;
 }): Promise<ResumeOutcome> {
   if (!db) return { action: "nothing_held" };
 
@@ -106,6 +111,34 @@ export async function resumeHeldPrivacyScreen(params: {
   if (stored.escalated) return { action: "nothing_held" };
 
   const attempts = Math.max(0, Number(stored.attempts) || 0);
+
+  // A review that outlived an earlier wait is waited on or used, never
+  // repeated: repeating it spends an attempt and starts a review that will
+  // outlive this wait too. Checked before the budget, because a reading that
+  // has arrived settles the hold however many attempts it took.
+  const findPrior = params.findPrior ?? findPriorFootageReview;
+  const prior = await Promise.resolve()
+    .then(() => findPrior(params.captureId))
+    .catch((error) => {
+      logger.warn({ error, ...params }, "Could not look up an earlier footage review; asking again");
+      return { state: "none" as const };
+    });
+  if (prior.state === "running") {
+    return { action: "still_pending", attempts, result: reviewStillRunning() };
+  }
+  if (prior.state === "completed") {
+    const result = privacyResultFromEvidence(prior.output);
+    await recordCapturePrivacyScreen({
+      requestId: params.requestId,
+      captureId: params.captureId,
+      result,
+      attempts,
+    });
+    if (result.eligibility === "rejected") return { action: "rejected", result };
+    logger.info({ ...params, attempts }, "Held capture cleared by a review that outlived its wait");
+    return { action: "cleared", result };
+  }
+
   const firstHeld = stored.first_held_at_iso || stored.screened_at_iso || null;
   const ageMs = firstHeld ? Date.now() - Date.parse(firstHeld) : 0;
 
