@@ -198,8 +198,18 @@ const vastSettlementRequest = z.object({
   teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   provider_zero_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict().refine(value => value.provider_charge_source === `instance-${value.instance_id}`);
+// Image edits are billed per request from the provider's usage. Release the
+// unused quote only once every request the reservation covered has a completed
+// receipt, so an uncertain in-flight request keeps its full hold.
+const openaiImageSettlementRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("openai"), completed_request_count: z.number().int().min(1).max(64),
+  provider_charge_amount_usd: z.number().finite().min(0).max(100),
+  usage_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+}).strict();
 export const preparationSettlementRequest = z.union([
-  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest,
+  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, openaiImageSettlementRequest,
 ]);
 
 /** Pipeline-signed final provider billing releases only the unused reservation. */
@@ -212,11 +222,13 @@ export async function settleWebsitePreparationSpend(requestId: string, input: z.
     const record = (await transaction.get(ref)).data();
     const key = command.allocation_binding_digest.slice(7);
     const row = record?.website_preparation_reservations?.[key];
-    const actualCost = command.provider === "vast" ? command.provider_charge_amount_usd
+    const actualCost = command.provider === "vast" || command.provider === "openai" ? command.provider_charge_amount_usd
       : "total_credits" in command ? command.total_credits / 1250 : 0;
+    const resourceClass = { vast: "gpu_render", openai: "openai_api_candidate", world_labs: "provider_reconstruction_api" }[command.provider];
     if (!row || row.admission.provider !== command.provider
-      || row.admission.resource_class !== (command.provider === "vast" ? "gpu_render" : "provider_reconstruction_api")
+      || row.admission.resource_class !== resourceClass
       || row.admission.task_context_digest !== command.task_context_digest
+      || (command.provider === "openai" && command.completed_request_count !== row.admission.request_count)
       || actualCost > row.admission.maximum_cost_usd)
       throw new Error("website_scene_preparation_settlement_invalid");
     const settlement = { ...command, actual_cost_usd: actualCost, status: "settled" };

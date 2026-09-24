@@ -1536,6 +1536,34 @@ it("releases only the quote after a signed pre-generation credit rejection", asy
   await expect(settleWebsitePreparationSpend("req1", { ...rejection, rejection_code: "unknown" as any })).rejects.toThrow();
 });
 
+it("releases the unused image-edit quote only after every covered request completed", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "openai_api_candidate" as const, provider: "openai" as const,
+    maximum_cost_usd: 2.4, request_count: 1 };
+  const first = await reserveWebsitePreparationSpend("req1", spend);
+  const next = { ...spend, allocation_binding_digest: sha("2"), maximum_cost_usd: 2.7 };
+  await expect(reserveWebsitePreparationSpend("req1", next)).rejects.toThrow("budget_exhausted");
+  const settlement = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    provider: "openai" as const, completed_request_count: 1, provider_charge_amount_usd: 0.53,
+    usage_receipt_digest: sha("a") };
+  // A partial batch leaves an uncertain request holding its quote.
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, completed_request_count: 2 }))
+    .rejects.toThrow("settlement_invalid");
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, provider_charge_amount_usd: 2.41 }))
+    .rejects.toThrow("settlement_invalid");
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1/preparation-settlement");
+  const response = await realFetch(base, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", settlement }) });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ status: "settled", actual_cost_usd: 0.53 });
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, provider_charge_amount_usd: 0.1 }))
+    .rejects.toThrow("idempotency_conflict");
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
+  expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
+});
+
 it("cannot release a reservation using missing, mismatched or excessive provider billing", async () => {
   sponsoredCapture();
   const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
