@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
-import { analyseAgenticVideo, openVideo } from "../agents/adapters/gemini-video";
+import { analyseAgenticVideo, openVideo, runGeminiVideoTask } from "../agents/adapters/gemini-video";
+import { captureVideoPrivacyTask } from "../agents/tasks/capture-video-privacy";
 
 const bytes = Buffer.from("fixture-video");
 const input = { apiKey: "test-key", model: "gemini-3.8-flash", prompt: "Inspect the task.",
@@ -81,6 +82,61 @@ describe("agentic video provider contract", () => {
       { toolResponse: { toolType: "MEDIA_PROCESSING" } }, { text: "{}" },
     ]));
     expect((await analyseAgenticVideo(input, fetcher, noSleep)).processing.media_tool_calls).toBe(1);
+  });
+
+  it("runs the narrow privacy question in static mode without requiring navigation tools", async () => {
+    const fetcher = gemini(() => reply([{ text: '{"decision":"clear","evidence_seconds":[]}' }]));
+    const result = await analyseAgenticVideo({ ...input, processingMode: "STATIC", maxOutputTokens: 8_192 }, fetcher, noSleep);
+    const [generate] = callsTo(fetcher, (url) => url.includes(":generateContent"));
+    const body = JSON.parse((generate[1] as RequestInit).body as string);
+    expect(body.contents[0].parts[1].media_processing).toBe("STATIC");
+    expect(body.generationConfig.maxOutputTokens).toBe(8_192);
+    expect(result.processing).toMatchObject({ mode: "static", media_tool_calls: 0, media_tool_responses: 0 });
+    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
+  });
+
+  it("passes the documented fixed frame rate for a static full review", async () => {
+    const fetcher = gemini(() => reply([{ text: "{}" }]));
+    await analyseAgenticVideo({ ...input, processingMode: "STATIC", samplingFps: 2 }, fetcher, noSleep);
+    const [generate] = callsTo(fetcher, (url) => url.includes(":generateContent"));
+    const body = JSON.parse((generate[1] as RequestInit).body as string);
+    expect(body.contents[0].parts[1]).toMatchObject({
+      media_processing: "STATIC", video_metadata: { fps: 2 },
+    });
+  });
+
+  it("still rejects an incomplete static privacy answer", async () => {
+    const fetcher = gemini(() => reply([{ text: '{"decision":"clear"}' }], "MAX_TOKENS"));
+    await expect(analyseAgenticVideo({ ...input, processingMode: "STATIC" }, fetcher, noSleep))
+      .rejects.toMatchObject({ code: "gemini_video_incomplete" });
+  });
+
+  it("wires the privacy task through static mode and keeps a human hold visible", async () => {
+    const google = gemini(() => reply([{ text: '{"decision":"hold","evidence_seconds":[2]}' }]));
+    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) =>
+      url === "https://example.com/clip.mp4"
+        ? new Response(bytes, { status: 200, headers: { "content-type": "video/mp4",
+          "content-length": String(bytes.byteLength) } })
+        : google(url, init));
+    vi.stubGlobal("fetch", fetcher);
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    try {
+      const result = await runGeminiVideoTask({
+        kind: "capture_video_privacy", model: "gemini-3.8-flash",
+        input: { taskVideoUrl: "https://example.com/clip.mp4" },
+        definition: captureVideoPrivacyTask, tool_policy: { mode: "api" },
+      } as never);
+      expect(result).toMatchObject({ status: "completed", requires_human_review: true,
+        output: { decision: "hold", evidence_seconds: [2] },
+        artifacts: { video_processing: { mode: "static", media_tool_calls: 0 } } });
+      const [generate] = callsTo(google, (url) => url.includes(":generateContent"));
+      const body = JSON.parse((generate[1] as RequestInit).body as string);
+      expect(body.contents[0].parts[1].media_processing).toBe("STATIC");
+      expect(body.generationConfig.maxOutputTokens).toBe(8_192);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
   });
 
   it("rejects a plausible answer without observed agentic processing, and still deletes the file", async () => {

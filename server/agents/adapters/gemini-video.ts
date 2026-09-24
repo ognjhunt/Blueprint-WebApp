@@ -16,8 +16,8 @@
  * others take pre-extracted frames, which loses the two things this lane is for:
  * the audio track, and real elapsed time between frames — and elapsed time is
  * the whole basis of the cycle measurement. Gemini returns timestamps that
- * refer to the actual clip. This adapter explicitly
- * requests agentic navigation and verifies the returned media-tool trace.
+ * refer to the actual clip. Agentic requests require a paired media-tool
+ * trace; short website reviews use a fixed static frame sample.
  *
  * Gemini is already a provider in this repo. The explicit REST request retains
  * media-processing fields unsupported by the older text SDK dependency.
@@ -152,6 +152,9 @@ export async function analyseAgenticVideo(input: {
   model: string;
   prompt: string;
   video: VideoSource;
+  processingMode?: "AGENTIC" | "STATIC";
+  samplingFps?: number;
+  maxOutputTokens?: number;
 }, fetcher: typeof fetch = fetch, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) {
   const video = await uploadVideoFile(input, fetcher, sleep);
   try {
@@ -161,8 +164,10 @@ export async function analyseAgenticVideo(input: {
   }
 }
 
-async function generateFromVideo(input: { apiKey: string; model: string; prompt: string },
+async function generateFromVideo(input: { apiKey: string; model: string; prompt: string;
+  processingMode?: "AGENTIC" | "STATIC"; samplingFps?: number; maxOutputTokens?: number },
   video: UploadedVideo, fetcher: typeof fetch) {
+  const processingMode = input.processingMode ?? "AGENTIC";
   const response = await fetcher(
     `${GEMINI_API}/v1beta/models/${encodeURIComponent(input.model)}:generateContent`,
     {
@@ -172,12 +177,15 @@ async function generateFromVideo(input: { apiKey: string; model: string; prompt:
       body: JSON.stringify({
         contents: [{ role: "user", parts: [
           { text: input.prompt },
-          { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: "AGENTIC" },
+          { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: processingMode,
+            ...(processingMode === "STATIC" && input.samplingFps
+              ? { video_metadata: { fps: input.samplingFps } } : {}) },
         ] }],
         // Agentic media processing and the model's reasoning spend this budget
         // before the answer does. At 8192 the first real review of a 30s phone
         // clip stopped short of its answer.
-        generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: MAX_OUTPUT_TOKENS },
+        generationConfig: { responseMimeType: "application/json", temperature: 0,
+          maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS },
       }),
     },
   );
@@ -202,13 +210,14 @@ async function generateFromVideo(input: { apiKey: string; model: string; prompt:
     (part.toolCall?.toolType ?? part.tool_call?.tool_type) === "MEDIA_PROCESSING").length;
   const responses = parts.filter((part) =>
     (part.toolResponse?.toolType ?? part.tool_response?.tool_type) === "MEDIA_PROCESSING").length;
-  if (!calls || !responses) {
+  if (processingMode === "AGENTIC" && (!calls || !responses)) {
     throw new GeminiVideoError("gemini_video_agentic_trace_missing", "Video navigation was requested but not evidenced by the response");
   }
   return {
     text: parts.filter((part) => !part.thought && typeof part.text === "string").map((part) => part.text).join("\n"),
     usage: payload.usageMetadata,
-    processing: { mode: "agentic", media_tool_calls: calls, media_tool_responses: responses,
+    processing: { mode: processingMode.toLowerCase(), media_tool_calls: calls, media_tool_responses: responses,
+      ...(processingMode === "STATIC" ? { sampling_fps_requested: input.samplingFps ?? null } : {}),
       model_version: payload.modelVersion ?? input.model },
   };
 }
@@ -475,18 +484,23 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     const video = await openVideo(videoUrl);
 
     const response = await analyseAgenticVideo({ apiKey, model: task.model,
-      prompt: task.definition.build_prompt(task.input), video });
+      prompt: task.definition.build_prompt(task.input), video,
+      processingMode: task.definition.video_processing_mode ?? "AGENTIC",
+      samplingFps: task.definition.video_sampling_fps,
+      maxOutputTokens: task.definition.video_max_output_tokens });
     const { bytes: videoBytes, sha256: videoSha256 } = video.receipt();
     const rawText = response.text;
     const parsed = extractJsonPayload(rawText);
     const output = (task.definition.output_schema as ZodType<TOutput>).parse(parsed);
 
-    // Footage that centres on identifiable people is a human's call, never an
-    // automated one — `/governance` treats consent as failing closed.
+    // A privacy hold or uncertainty needs a person; model completion alone
+    // cannot clear consent.
     const privacyFlagged =
       Boolean(output) &&
       typeof output === "object" &&
-      (output as Record<string, unknown>).privacy_flag === true;
+      ((output as Record<string, unknown>).privacy_flag === true
+        || (task.kind === "capture_video_privacy"
+          && (output as Record<string, unknown>).decision !== "clear"));
 
     const usage = response.usage;
 

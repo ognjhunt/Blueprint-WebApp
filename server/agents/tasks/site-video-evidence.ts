@@ -214,6 +214,10 @@ export const siteVideoEvidenceTask: StructuredTaskDefinition<
   // meaningful on a provider whose API ingests video natively.
   default_provider: "gemini_video",
   model_by_provider: { gemini_video: getGeminiVideoModel() },
+  // Short website walkthroughs previously exhausted agentic navigation's
+  // tool-call allowance. The full evidence schema and review gate still apply.
+  video_processing_mode: "STATIC",
+  video_sampling_fps: 2,
   output_schema: siteVideoEvidenceOutputSchema,
   tool_policy: {
     mode: "api",

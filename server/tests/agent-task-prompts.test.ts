@@ -92,6 +92,7 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     whatGoesWrong: "Shrink wrap snags about twice a shift.",
     operatorAnswers: { sceneStability: "stable", taskShape: "single" },
   },
+  capture_video_privacy: { taskVideoUrl: "https://example.com/clip.mp4" },
   capture_coverage: {
     videoUrl: "https://example.com/clip.mp4",
     taskSummary: "Totes move from the conveyor to a pallet.",

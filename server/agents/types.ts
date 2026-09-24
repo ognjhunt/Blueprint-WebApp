@@ -30,6 +30,8 @@ export type AgentTaskKind =
   | "adp_run_operator"
   | "external_harness_thread"
   | "site_video_evidence"
+  /** A bounded static-video answer to the upload-time privacy question only. */
+  | "capture_video_privacy"
   /** Reads a site's task description into brief proposals the operator confirms. */
   | "site_task_brief_reading"
   /**
@@ -197,6 +199,12 @@ export interface StructuredTaskDefinition<TInput = unknown, TOutput = unknown> {
   default_provider: AgentProvider;
   default_runtime?: AgentRuntime;
   model_by_provider?: Partial<Record<AgentProvider, string>>;
+  /** The Gemini video adapter defaults to agentic for existing tasks. */
+  video_processing_mode?: "AGENTIC" | "STATIC";
+  /** Optional fixed frame rate for a STATIC Gemini video task. */
+  video_sampling_fps?: number;
+  /** A fixed request ceiling; used to keep the privacy-only answer small. */
+  video_max_output_tokens?: number;
   output_schema: z.ZodType<TOutput>;
   build_prompt: (input: TInput) => string;
   build_outcome_contract?: (input: TInput) => OutcomeContract;
