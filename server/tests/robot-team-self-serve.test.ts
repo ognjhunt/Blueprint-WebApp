@@ -607,7 +607,7 @@ describe("funding needs no operator", () => {
 
     expect(result.status).toBe(503);
     expect(result.body.code).toBe("stripe_unavailable");
-    expect(result.body.bounds).toMatchObject({ minUsd: 50, maxUsd: 25_000 });
+    expect(result.body.bounds).toMatchObject({ minUsd: 99, maxUsd: 25_000 });
   });
 
   it("rejects an amount outside the bounds before touching Stripe", async () => {

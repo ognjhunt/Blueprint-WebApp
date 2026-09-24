@@ -61,13 +61,11 @@ describe("Tasks page (/app/packs)", () => {
     render(<SitePacks />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Tasks" })).toBeInTheDocument();
-    const setupLink = await screen.findByRole("link", { name: /set up an evaluation/i });
-    expect(setupLink).toHaveAttribute("href", "/app/packs/scene-839873-launch/evaluate");
-    const policyTestLink = screen.getByRole("link", { name: /run a policy test/i });
-    expect(policyTestLink).toHaveAttribute("href", "/app/packs/scene-pending-launch/policy-canary");
+    const paidLinks = await screen.findAllByRole("link", { name: /evaluate a task · \$99 per policy/i });
+    expect(paidLinks).toHaveLength(2);
+    paidLinks.forEach((link) => expect(link).toHaveAttribute("href", "/sites"));
     expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(screen.getByText("Scene checks pending")).toBeInTheDocument();
-    expect(screen.getAllByText("Results stay unqualified until the scene's checks pass.")).toHaveLength(1);
     expect(screen.getAllByRole("heading", { level: 2, name: "Rigid relocation" })).toHaveLength(2);
 
     // The image caveat is stated once for the page, not repeated on every card.
@@ -116,6 +114,6 @@ it("sends a generated-object preview to the team task page without implying revi
   vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ offerings: [value] }), { status: 200 }));
   render(<SitePacks />);
   expect(await screen.findByText("Scene appearance not reviewed yet.")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /view task · \$25/i })).toHaveAttribute("href", "/app/packs/website-launch/evaluate?select=team");
+  expect(screen.getByRole("link", { name: /evaluate a task · \$99 per policy/i })).toHaveAttribute("href", "/sites");
   expect(screen.queryByRole("link", { name: /run a policy test/i })).not.toBeInTheDocument();
 });

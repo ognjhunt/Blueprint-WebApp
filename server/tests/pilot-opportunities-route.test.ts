@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   users: new Map<string, Record<string, unknown>>(),
   requests: new Map<string, Record<string, unknown>>(),
+  earlyAccessAllowed: true,
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
@@ -40,6 +41,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 
 vi.mock("../utils/field-encryption", () => ({
   decryptInboundRequestForAdmin: async (record: Record<string, unknown>) => record,
+}));
+vi.mock("../utils/robotTeamEarlyAccess", () => ({
+  EARLY_ACCESS_REQUIRED: { code: "early_access_required" },
+  resolveViewerAccess: async () => ({ allowed: state.earlyAccessAllowed }),
 }));
 
 function opportunityRecord(overrides: Record<string, unknown> = {}) {
@@ -110,10 +115,24 @@ async function stopServer(server: Server) {
 afterEach(() => {
   state.users.clear();
   state.requests.clear();
+  state.earlyAccessAllowed = true;
   vi.resetModules();
 });
 
 describe("private pilot opportunities route", () => {
+  it("does not expose openings to a verified team outside early access", async () => {
+    state.users.set("robot-1", { buyerType: "robot_team", email: "lead@robot.ai" });
+    state.requests.set("qualified", opportunityRecord());
+    state.earlyAccessAllowed = false;
+    const { server, baseUrl } = await startRoute();
+    try {
+      const response = await fetch(`${baseUrl}/api/pilot-opportunities`, {
+        headers: { "x-test-uid": "robot-1", "x-test-email": "lead@robot.ai", "x-test-email-verified": "true" },
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "early_access_required" });
+    } finally { await stopServer(server); }
+  });
   it("returns only gate-passed projections to an authenticated robot-team account", async () => {
     state.users.set("robot-1", { buyerType: "robot_team", email: "lead@robot.ai" });
     state.requests.set("qualified", opportunityRecord());

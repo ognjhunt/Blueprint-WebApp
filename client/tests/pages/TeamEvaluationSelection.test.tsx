@@ -12,7 +12,7 @@ vi.mock("@/lib/csrf",()=>({withCsrfHeader:async(h:any)=>h}));
 vi.mock("@/lib/workspace",()=>({workspaceRequest:vi.fn(async()=>({}))}));
 const context={taskDetails:{title:"Move the blue container",description:"Pick up the container and place it on the target.",requirements:[{label:"Time limit",value:"30 seconds"}]},
   thumbnailUrl:"/api/task/thumbnail",dataSummary:{sceneVersion:"v1",sceneRevisionDigest:"revision",bundleSizeBytes:1024},
-  checkout:{priceCents:2500,currency:"USD",developmentNoCharge:true,paymentsEnabled:false},sourceLaunchId:"source-one",sourceProfileDigest:"profile",sceneRevisionDigest:"revision",
+  checkout:{priceCents:9900,currency:"USD",developmentNoCharge:true,paymentsEnabled:false},sourceLaunchId:"source-one",sourceProfileDigest:"profile",sceneRevisionDigest:"revision",
   configurations:[{id:"franka",label:"Franka test configuration",binding_digest:"binding",policy_candidates:[{id:"pi05_droid",artifact_digest:"pi"},{id:"groot_n17_droid",artifact_digest:"groot"}]}],
   setups:[{id:"saved-one",name:"My saved robot",policyName:"GR00T",updatedAt:"now"}],
   providerTerms:{openai:{digest:"terms"},vast:{digest:"terms"}},testEnvironment:{label:"Development surface"}};
@@ -28,7 +28,7 @@ beforeEach(()=>{
 afterEach(()=>vi.unstubAllGlobals());
 async function select() {
   await screen.findByText("My saved robot · GR00T");
-  expect(screen.getByRole("button",{name:"Start evaluation · $25"})).toBeDisabled();
+  expect(screen.getByRole("button",{name:"Start evaluation · $99"})).toBeDisabled();
   expect(workspaceRequest).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText("Saved robot and policy"),{target:{value:"saved-one"}});
   fireEvent.change(screen.getByLabelText(/Simulation configuration/),{target:{value:"franka"}});
@@ -37,7 +37,7 @@ async function select() {
 describe("team evaluation choice",()=>{
   it("requires explicit selection and saves the executable setup before queueing",async()=>{
     render(<TeamEvaluationSelection/>);await select();
-    fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $25"}).closest("form")!);
+    fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $99"}).closest("form")!);
     await screen.findByText("Evaluation queued");
     expect(workspaceRequest).toHaveBeenCalledWith(user,"/setups","POST",expect.objectContaining({id:"saved-one",executionBindingId:"franka"}));
     expect(posts).toHaveLength(1);
@@ -46,10 +46,10 @@ describe("team evaluation choice",()=>{
   });
   it("reuses the same run id after an uncertain submission instead of creating another run",async()=>{
     fail=true;render(<TeamEvaluationSelection/>);await select();
-    fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $25"}).closest("form")!);
+    fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $99"}).closest("form")!);
     await screen.findByRole("alert");fail=false;
-    await waitFor(()=>expect(screen.getByRole("button",{name:"Start evaluation · $25"})).toBeEnabled());
-    fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $25"}).closest("form")!);
+    await waitFor(()=>expect(screen.getByRole("button",{name:"Start evaluation · $99"})).toBeEnabled());
+    fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $99"}).closest("form")!);
     await screen.findByText("Evaluation queued");
     expect(posts).toHaveLength(2);expect(posts[0]).toEqual(posts[1]);
   });
@@ -58,13 +58,13 @@ describe("team evaluation choice",()=>{
 
 it("reopens the queued request from its page URL without another submission",async()=>{
   const first=render(<TeamEvaluationSelection/>);await select();
-  fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $25"}).closest("form")!);
+  fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $99"}).closest("form")!);
   await screen.findByText("Evaluation queued");
   expect(new URLSearchParams(window.location.search).get("intake")).toBe(`scene-${"a".repeat(64)}`);
   first.unmount();render(<TeamEvaluationSelection/>);
   await screen.findByText("Evaluation queued");
   expect(posts).toHaveLength(1);
-  expect(screen.queryByRole("button",{name:"Start evaluation · $25"})).not.toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Start evaluation · $99"})).not.toBeInTheDocument();
 });
 
 it("keeps task information, setup and fixed pricing on the same page",async()=>{
@@ -94,7 +94,7 @@ it("does not offer the development payment bypass to ordinary accounts",async()=
   context.checkout.developmentNoCharge=false;
   try {
     render(<TeamEvaluationSelection/>);await select();
-    expect(screen.getByRole("button",{name:"Start evaluation · $25"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Start evaluation · $99"})).toBeDisabled();
     expect(screen.queryByText(/you won’t be charged/)).not.toBeInTheDocument();
   } finally {context.checkout.developmentNoCharge=true;}
 });
@@ -113,7 +113,7 @@ it("saves a custom physical model independently of a private endpoint policy",as
   await screen.findByText("Mobile robot · Private policy");
   expect(workspaceRequest).toHaveBeenCalledWith(user,"/setups","POST",expect.objectContaining({delivery:"endpoint",robotDescription:{source:"model",format:"urdf",reference:"https://example.test/robot.urdf",mobility:"mobile",details:""}}));
   expect(screen.getByText(/needs simulation validation/)).toBeInTheDocument();
-  expect(screen.getByRole("button",{name:"Start evaluation · $25"})).toBeDisabled();
+  expect(screen.getByRole("button",{name:"Start evaluation · $99"})).toBeDisabled();
   expect(posts).toHaveLength(0);
 });
 
@@ -125,8 +125,8 @@ it("requires refreshing a saved catalog model after its execution configuration 
     render(<TeamEvaluationSelection/>);await screen.findByText("My saved robot · GR00T");
     fireEvent.change(screen.getByLabelText("Saved robot and policy"),{target:{value:"saved-one"}});
     expect(screen.getByText(/robot configuration has changed/)).toBeInTheDocument();
-    expect(screen.getByRole("button",{name:"Start evaluation · $25"})).toBeDisabled();
-    fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $25"}).closest("form")!);
+    expect(screen.getByRole("button",{name:"Start evaluation · $99"})).toBeDisabled();
+    fireEvent.submit(screen.getByRole("button",{name:"Start evaluation · $99"}).closest("form")!);
     expect(posts).toHaveLength(0);
   } finally {context.setups=original;}
 });

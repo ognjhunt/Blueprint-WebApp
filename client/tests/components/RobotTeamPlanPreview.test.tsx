@@ -354,13 +354,13 @@ describe("funding and queueing the plan", () => {
 
     // The old ending: "we will be in touch to start them". A queue with a person in it.
     expect(document.body.textContent).not.toMatch(/be in touch/i);
-    fireEvent.click(screen.getByRole("button", { name: /add \$50 and queue these runs/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add \$99 and queue these runs/i }));
 
     await waitFor(() => expect(onCheckout).toHaveBeenCalledWith("https://checkout.stripe.test/s1"));
     expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain("/api/agent-team/policy");
     const [fundingUrl, fundingInit] = fetchMock.mock.calls[3];
     expect(fundingUrl).toBe("/api/agent-team/funding");
-    expect(JSON.parse(String(fundingInit.body))).toEqual({ amountUsd: 50 });
+    expect(JSON.parse(String(fundingInit.body))).toEqual({ amountUsd: 99 });
     expect(screen.getByText(/amount above the \$20 shortfall remains in your balance/i)).toBeInTheDocument();
     expect(JSON.parse(window.sessionStorage.getItem(STASH_KEY)!)).toMatchObject({
       agentKey: "bpk_x",

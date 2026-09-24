@@ -91,7 +91,8 @@ async function confirm(token: string) {
   return fetch(`${baseUrl}/api/site-task-brief/${token}/confirm`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ confirmedBy: "Dana Okafor" }),
+    body: JSON.stringify({ confirmedBy: "Dana Okafor",
+      successCriteria: { successDefinition: "Carton reaches pallet intact", successRate: null, cycleTimeSeconds: null, unknown: false } }),
   });
 }
 

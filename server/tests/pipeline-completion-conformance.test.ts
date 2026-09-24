@@ -10,13 +10,13 @@
  * Six cases, as specified:
  *
  *  1. zero episodes execute                    → whole reservation released
- *  2. 37 valid episodes against a $25 quote    → $18.50 settled, $6.50 released
+ *  2. 37 valid episodes against a $99 entry    → $99 settled once there is a result
  *  3. the policy fails the task                → failure recorded, attempts billed
  *  4. our environment fails                    → affected attempts not billed
  *  5. completion delivered repeatedly          → one resolution, one result
  *  6. the team stops calling the API           → the reservation still resolves
  *
- * Case 2 our cap-and-prorate logic already gets right. Case 5 it did not: a
+ * Case 2 now uses the flat customer quote. Case 5 it did not: a
  * timeout could release a hold and a late completion then settle it, because
  * `deriveBalance` booked every settle unconditionally. That is fixed, and this
  * is where it stays fixed.
@@ -80,8 +80,8 @@ describe("1. zero episodes execute", () => {
   });
 });
 
-describe("2. 37 valid episodes against a $25 screening quote", () => {
-  it("settles $18.50 and returns the rest", () => {
+describe("2. 37 valid episodes against a $99 entry", () => {
+  it("settles the flat entry after useful execution", () => {
     const partial = record({
       episodes_run: 37,
       episodes_succeeded: 30,
@@ -90,22 +90,21 @@ describe("2. 37 valid episodes against a $25 screening quote", () => {
 
     expect(billableAmountUsd(partial)).toBeCloseTo(18.5, 2);
 
-    // And the quote is the ceiling, pro-rated by what ran -- so a wrong rate
-    // on the reporting side cannot charge past what was authorised.
+    // The Pipeline's rate is telemetry; the customer's price is the quote.
     expect(
-      settlementAmountUsd({ quotedUsd: 25, quotedEpisodes: 50, episodesRun: 37 }),
-    ).toBeCloseTo(18.5, 2);
+      settlementAmountUsd({ quotedUsd: 99, quotedEpisodes: 50, episodesRun: 37 }),
+    ).toBe(99);
 
-    // The hold clears whole, so the $6.50 difference is available again.
+    // The hold clears whole at the flat price.
     const balance = deriveBalance("team-1", [
-      entry({ kind: "credit", amountUsd: 25, createdAtIso: "2026-09-17T00:00:00.000Z", reservationId: null }),
-      entry({ kind: "reserve", amountUsd: 25, createdAtIso: "2026-09-17T00:01:00.000Z" }),
-      entry({ kind: "settle", amountUsd: 18.5, createdAtIso: "2026-09-17T00:02:00.000Z" }),
+      entry({ kind: "credit", amountUsd: 99, createdAtIso: "2026-09-17T00:00:00.000Z", reservationId: null }),
+      entry({ kind: "reserve", amountUsd: 99, createdAtIso: "2026-09-17T00:01:00.000Z" }),
+      entry({ kind: "settle", amountUsd: 99, createdAtIso: "2026-09-17T00:02:00.000Z" }),
     ]);
 
-    expect(balance.spentUsd).toBeCloseTo(18.5, 2);
+    expect(balance.spentUsd).toBe(99);
     expect(balance.reservedUsd).toBe(0);
-    expect(balance.availableUsd).toBeCloseTo(6.5, 2);
+    expect(balance.availableUsd).toBe(0);
   });
 
   it("never settles above the quote, whatever rate is reported", () => {

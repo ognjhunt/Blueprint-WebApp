@@ -43,7 +43,7 @@ pending queue. The owner sees `screening` and then individual `results`.
 
 The public panel on `/contact/robot-team` confirms a **one-time** signed plan.
 It never changes the recurring spend policy. Existing funds can pay directly;
-otherwise the page shows the actual Stripe top-up (at least $50), and unused
+otherwise the page shows the actual Stripe top-up (at least $99), and unused
 funds remain in the balance. The exact plan, session credential and retry key
 survive checkout, and the saved receipt provides result access after a reload.
 The 15-minute plan binds team, checkpoint, tasks, prices and execution digests.
@@ -126,7 +126,7 @@ Anything missing is a line blocker in the plan response (`lineBlockers`), and th
 
 `POST /api/agent-team/funding` takes `amountUsd` and returns a Stripe Checkout URL. Ask for $100, pay $100, get $100 of balance.
 
-**No price is invented here**, which is what makes it shippable as self-serve. Run prices still come from `episodePricing` and are quoted per run; a top-up is a number the team chose, charged at face value, and that is not a commercial term anybody has to approve. Bounds are $50 (unused funds remain available for later runs) to $25,000 (a decimal-point bug should not move six figures in one call).
+**No price is invented here**, which is what makes it shippable as self-serve. The $99 entry price comes from `evaluationPricing`; a top-up is a number the team chose, charged at face value. Bounds are $99 (unused funds remain available for later runs) to $25,000 (a decimal-point bug should not move six figures in one call).
 
 **The credit lands on the webhook, not on the redirect.** A success URL is just a URL anyone could open; `checkout.session.completed` with `payment_status: "paid"` is the proof. The checkout session id is the idempotency key, so a redelivered event credits once. The amount credited is `amount_total` — what Stripe actually collected — never what the request metadata claimed.
 

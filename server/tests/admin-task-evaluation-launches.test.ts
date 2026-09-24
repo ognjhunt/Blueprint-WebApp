@@ -1731,7 +1731,7 @@ describe("admin Task Evaluation launch route", () => {
   });
 
   it("reuses the original authorization when retrying a forward-blocked policy canary", async () => {
-    state.isOps = false;
+    state.isOps = true;
     const sourceLaunchId = "controls-pending-policy-canary";
     const offering = pausedUngradedConfiguredSceneOffering();
     const canaryProfile = internalPolicyCanaryProfile(sourceLaunchId, offering);
@@ -1811,8 +1811,31 @@ describe("admin Task Evaluation launch route", () => {
     }
   });
 
-  it("keeps a forward-blocked policy canary immutable when the selection changes", async () => {
+  it("refuses an unbilled customer policy test before creating a run", async () => {
     state.isOps = false;
+    const sourceLaunchId = "customer-policy-canary";
+    const offering = pausedUngradedConfiguredSceneOffering();
+    state.records.set(sourceLaunchId, {
+      configured_scene_offering_state: offering.status,
+      configured_scene_offering_team_namespace: offering.team_namespace,
+      configured_scene_offering_digest: offering.offering_digest,
+      configured_scene_offering: offering,
+    });
+    const { server, url } = await startTeamOfferingServer();
+    try {
+      const response = await fetch(`${url}/${sourceLaunchId}/policy-canary-runs`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+      });
+      expect(response.status).toBe(402);
+      await expect(response.json()).resolves.toMatchObject({ error: { code: "POLICY_CANARY_PAYMENT_REQUIRED" } });
+      expect(state.records.has("customer-policy-canary-run")).toBe(false);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("keeps a forward-blocked policy canary immutable when the selection changes", async () => {
+    state.isOps = true;
     const sourceLaunchId = "controls-pending-policy-canary-conflict";
     const offering = pausedUngradedConfiguredSceneOffering();
     const canaryProfile = internalPolicyCanaryProfile(sourceLaunchId, offering);
@@ -1867,7 +1890,7 @@ describe("admin Task Evaluation launch route", () => {
   });
 
   it("projects a locked team setup and idempotently queues its exact policy matrix", async () => {
-    state.isOps = false;
+    state.isOps = true;
     const offering = evaluationReadyConfiguredSceneOffering();
     state.records.set("evaluation-launch-001", {
       configured_scene_offering_state: offering.status,
@@ -1896,8 +1919,10 @@ describe("admin Task Evaluation launch route", () => {
       preset_id: "quick_10",
     };
     try {
+      state.isOps = false;
       const deniedSetup = await fetch(`${url}/other-evaluation-launch/evaluation-setup`);
       expect(deniedSetup.status).toBe(404);
+      state.isOps = true;
       const setup = await fetch(`${url}/evaluation-launch-001/evaluation-setup`);
       expect(setup.status).toBe(200);
       const setupJson = await setup.json() as any;
@@ -3851,8 +3876,8 @@ describe("saved team evaluation admission", () => {
       const context=await realFetch(`${url}/source-one/team-evaluation-context`);
       expect(context.status).toBe(200);
       expect(await context.json()).toMatchObject({sourceLaunchId:"source-one",setups:[{id:"saved-one"}],
-        taskDetails:{title:"Task evaluation"},checkout:{priceCents:2500,developmentNoCharge:true,paymentsEnabled:false}});
-      expect(stored.purchase).toEqual({price_cents:2500,currency:"USD",status:"development_no_charge"});
+        taskDetails:{title:"Task evaluation"},checkout:{priceCents:9900,developmentNoCharge:true,paymentsEnabled:false}});
+      expect(stored.purchase).toEqual({price_cents:9900,currency:"USD",status:"development_no_charge"});
       expect((await post({...body,id:"new-price",execution:{...body.execution,max_total_spend_usd:30}})).status).toBe(400);
       state.isOps=false;
       expect((await post({...body,id:"unpaid-team"})).status).toBe(402);

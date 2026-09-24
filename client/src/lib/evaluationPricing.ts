@@ -69,7 +69,7 @@ export const entryBoundaries = [
 export const entryPrice = 99;
 
 /** The smallest top-up Stripe will charge. Mirrors `MIN_TOPUP_USD` on the server. */
-export const minTopupUsd = 50;
+export const minTopupUsd = entryPrice;
 
 /** What a site pays to find out: nothing. */
 export const siteAssessment = {

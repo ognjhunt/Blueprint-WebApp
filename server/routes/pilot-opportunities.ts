@@ -4,6 +4,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest, InboundRequestStored } from "../types/inbound-request";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import { projectPilotOpportunityForRobotTeam } from "../utils/pilot-opportunity-projection";
+import { EARLY_ACCESS_REQUIRED, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 
 const router = Router();
 
@@ -27,6 +28,8 @@ router.get("/", async (_req, res) => {
   if (!email || firebaseUser?.email_verified !== true) {
     return res.status(403).json({ error: "Verified robot-team email required" });
   }
+  const access = await resolveViewerAccess({ email, emailVerified: true, isOps: false });
+  if (!access.allowed) return res.status(403).json(EARLY_ACCESS_REQUIRED);
 
   const snapshot = await db
     .collection("inboundRequests")

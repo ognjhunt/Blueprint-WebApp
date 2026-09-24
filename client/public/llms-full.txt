@@ -2,7 +2,7 @@
 
 > Blueprint helps site owners decide which robotics candidate deserves a physical pilot.
 
-A Task Evaluation Run is a paid engagement around a qualified site opportunity. With site approval, Blueprint brings the listing to relevant robot teams, who can evaluate multiple embodiments, policies, configurations, and checkpoints against the same task and success criteria. A single team may submit several checkpoints. Evaluation breadth is agreed around the task, available candidates, budget, and pilot window. Blueprint coordinates the comparison and returns a practical shortlist, pilot recommendation, and physical test plan—or a reason to pause. Physical outcomes check the prediction; simulation is not a deployment guarantee.
+A Task Evaluation Run assesses a qualified site task in simulation. With site approval, Blueprint shares a private task card with approved robot teams. A robot team pays $99 for each policy entry on a task. Results show per-policy success, stage reports, videos and traces without declaring a physical winner. A pilot requires agreement from the site and team; simulation is not a deployment guarantee.
 
 ## Public pages
 
@@ -13,7 +13,7 @@ A Task Evaluation Run is a paid engagement around a qualified site opportunity. 
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams join by early access: each application is reviewed, approved teams see the task cards sites chose to share and get an email when a new one is listed, and a site task is shown only to approved teams and only with the site's approval. Robot teams pay a flat $99 per entry from a prepaid balance (the smallest top-up is $50); a site pays nothing. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
+Robot teams join by early access. Approved teams see only task cards sites chose to share and get an email when a new task is listed. Sites pay nothing for assessment or scene preparation. Robot teams pay $99 per policy entry on one task from a prepaid balance; the smallest top-up is $99. Blueprint sets the run size, so teams do not choose an evaluation budget or buy a longer run. The current policy-test setup offers 10 scenarios per policy in simulation. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 

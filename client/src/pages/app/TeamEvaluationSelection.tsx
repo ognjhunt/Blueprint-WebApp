@@ -170,7 +170,7 @@ export default function TeamEvaluationSelection() {
       </div> : context && <section aria-label="Run this task" className="mt-7">
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="text-xl font-medium">Test your robot</h2>
-          <p className="text-xl font-medium">$25 <span className="text-sm font-normal text-ink-500">per evaluation</span></p>
+          <p className="text-xl font-medium">$99 <span className="text-sm font-normal text-ink-500">per policy entry</span></p>
         </div>
         {addingSetup && <form onSubmit={saveSetup} className="mt-5 space-y-4 rounded border border-line p-4">
           <h3 className="font-medium">Add a setup</h3>
@@ -212,7 +212,7 @@ export default function TeamEvaluationSelection() {
             <span>I confirm the task and authorize evaluation with this setup.</span>
           </label>
           <button disabled={busy || !configuration || robotVersionChanged || !canStart} className="ws-primary">
-            {busy?"Queueing…":"Start evaluation · $25"}
+            {busy?"Queueing…":"Start evaluation · $99"}
           </button>
         </form>
       </section>}

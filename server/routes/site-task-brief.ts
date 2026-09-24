@@ -46,9 +46,11 @@ import {
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { commitTaskUpdate } from "../utils/taskUpdateCommitment";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
-import { decryptFieldValue } from "../utils/field-encryption";
+import { decryptFieldValue, decryptInboundRequestForAdmin } from "../utils/field-encryption";
+import { buildLetsTalkEmail, buildNotYetEmail, buildMatchEmail } from "../utils/qualificationEmails";
+import { runSiteMatch } from "../utils/siteMatchRun";
+import type { InboundRequest, InboundRequestStored, SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { storedCaptureMarkerExists } from "../utils/captureParts";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -86,6 +88,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   /** Set once the operator has claimed the site into an account. */
   account_owner_uid?: string | null;
   site_task_triage?: { disposition?: string | null } | null;
+  siteName?: string | null;
 } | null> {
   if (!db) return null;
   const snap = await db.collection("inboundRequests").doc(requestId).get();
@@ -109,11 +112,12 @@ async function readRequestForStatus(requestId: string): Promise<{
     site_task_next_update_iso: (data.site_task_next_update_iso as string | null) ?? null,
     contactEmail,
     contactFirstName,
+    siteName: await plain((data.request as { siteName?: unknown } | undefined)?.siteName),
     account_owner_uid:
       typeof data.account_owner_uid === "string" && data.account_owner_uid
         ? data.account_owner_uid
         : null,
-    site_task_triage: (data.site_task_triage as { disposition?: string | null } | undefined) ?? null,
+    site_task_triage: (data.site_task_triage as SiteTaskTriageSummary | undefined) ?? null,
   };
 }
 
@@ -184,6 +188,12 @@ const confirmSchema = z
     answers: z.record(z.string().trim().max(200)).optional(),
     /** Gates they do not know. Recorded as outstanding, never looped on. */
     unknown: z.array(z.string().trim().min(1).max(100)).max(40).optional(),
+    successCriteria: z.object({
+      successDefinition: z.string().trim().max(1000).nullable(),
+      successRate: z.number().finite().min(0).max(100).nullable(),
+      cycleTimeSeconds: z.number().finite().positive().max(86400).nullable(),
+      unknown: z.boolean(),
+    }).strict().refine((value) => value.unknown || Boolean(value.successDefinition)),
   })
   .strict();
 
@@ -258,6 +268,7 @@ function presentBrief(brief: SiteTaskBriefRecord) {
     // answers rather than from our draft.
     operatorAnswers: brief.operatorAnswers ?? null,
     operatorUnknown: brief.operatorUnknown ?? null,
+    successCriteria: brief.successCriteria ?? null,
   };
 }
 
@@ -547,6 +558,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       confirmedBy: parsed.data.confirmedBy,
       operatorAnswers: answers,
       operatorUnknown: (parsed.data.unknown ?? []).filter((id) => GATE_IDS.has(id)),
+      successCriteria: parsed.data.successCriteria,
     });
 
     if (!result) {
@@ -556,45 +568,59 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       });
     }
 
-    // A decision was reached, so commit to the next update and queue the email
-    // that honours it -- through the outbox, so a crash between here and the
-    // send does not lose it. Best-effort read of the contact: a missing email
-    // means no message to send, not a failed confirmation.
-    void (async () => {
-      const request = await readRequestForStatus(payload.requestId).catch(() => null);
-      if (!request?.contactEmail) return;
-      const firstName = request.contactFirstName || "there";
-      // What we tell them has to match what we will do: Blueprint builds a
-      // scene only for a site our screen clears.
-      const held = screeningOutcome(result.disposition);
-      const decision = held
-        ? `${held.headline} ${held.detail}${held.bookingUrl ? ` Book a time that suits you: ${held.bookingUrl}` : ""}`
-        : result.readiness.blockingCapture.length
-          ? "We need a couple of details before you record."
-          : request.account_owner_uid
-            ? "Your task clears our screen, so we will build your scene from your recording."
-            : "Your task clears our screen. We build your scene once the site is saved to your "
-              + "account: verify your email from the message we sent, or claim the site from your "
-              + "task page.";
-      await commitTaskUpdate({
-        requestId: payload.requestId,
-        to: request.contactEmail,
-        kind: result.disposition === "qualified" && !result.readiness.blockingCapture.length
-          ? "brief_confirmed"
-          : "input_needed",
-        subject: "Blueprint — we have your task brief",
-        body:
-          `${emailGreeting(firstName)}\n\n`
-          + `Thanks for confirming the task brief. ${decision}\n\n`
-          + (result.disposition === "qualified" ? `${result.readiness.nextAction}\n\n` : "")
-          + "You can come back to your task any time from the link we sent you. "
-          + "We will email you when there is something new.\n\n"
-          + EMAIL_SIGN_OFF,
-      });
-      // Deliver opportunistically on this request's own path, so notifications
-      // do not depend on a scheduler being enabled in this deployment.
-      await deliverOutbox({ limit: 5 }).catch(() => undefined);
-    })();
+    // Screening occurs here for public-form sites. Queue the actual verdict
+    // before returning; the outbox can retry delivery without a timed check-in.
+    try {
+      const request = await readRequestForStatus(payload.requestId);
+      if (request?.contactEmail) {
+        const triage = request.site_task_triage as SiteTaskTriageSummary | null | undefined;
+        const firstName = request.contactFirstName || "there";
+        let email = triage?.disposition === "not_now"
+          ? buildNotYetEmail({ firstName, siteName: request.siteName, triage })
+          : triage?.disposition === "needs_conversation"
+            ? buildLetsTalkEmail({ firstName, siteName: request.siteName, triage })
+            : null;
+        if (triage?.disposition === "qualified" && db) {
+          const snapshot = await db.collection("inboundRequests").doc(payload.requestId).get();
+          const record = snapshot.exists
+            ? await decryptInboundRequestForAdmin(snapshot.data() as InboundRequestStored).catch(() => null)
+            : null;
+          const matches = record ? await runSiteMatch({
+            ...(record as InboundRequest),
+            request: { ...record.request, siteTaskGates: result.answers },
+          }).catch(() => null) : null;
+          if (matches) email = buildMatchEmail({ firstName, siteName: request.siteName,
+            summary: matches,
+            nextStep: result.brief.captureMode === "site_visit"
+              ? { kind: "capturer_visit" }
+              : { kind: "self_capture", uploadUrl: captureUploadUrlFor(payload.requestId) },
+          });
+        }
+        const nextStep = result.disposition === "qualified" && !email
+          ? result.brief.captureMode === "site_visit"
+            ? "Reply with an Austin visit date and the name of your on-site contact. We will confirm the visit."
+            : `Film the work area with your phone: ${captureUploadUrlFor(payload.requestId)}.`
+          : null;
+        const accountStep = result.disposition === "qualified" && !request.account_owner_uid
+          ? "Create and verify your site account from your task page before we build the scene."
+          : null;
+        const message = email?.body ?? `${emailGreeting(firstName)}\n\nYour task brief is confirmed. ${result.readiness.nextAction}\n\n${EMAIL_SIGN_OFF}`;
+        const additions = [nextStep, accountStep].filter(Boolean).join("\n\n");
+        const body = additions ? message.replace(EMAIL_SIGN_OFF, `${additions}\n\n${EMAIL_SIGN_OFF}`) : message;
+        await enqueueOutbox({
+          idempotencyKey: `${payload.requestId}:brief-screening:${result.disposition}`,
+          requestId: payload.requestId,
+          to: request.contactEmail,
+          kind: result.disposition === "qualified" ? "brief_confirmed" : "input_needed",
+          subject: email?.subject ?? (result.brief.captureMode === "site_visit" ? "Plan your Austin capture visit" : "Blueprint — your task brief is confirmed"),
+          body,
+        });
+        void deliverOutbox({ limit: 5 }).catch((error) =>
+          logger.warn({ error, requestId: payload.requestId }, "Screening email delivery deferred to outbox"));
+      }
+    } catch (error) {
+      logger.error({ error, requestId: payload.requestId }, "Could not queue brief screening email");
+    }
 
     // A site that needs a call gets no scene until ops records the call, so
     // ops has to hear about it: the request carries the next step and Slack

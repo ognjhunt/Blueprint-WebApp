@@ -86,7 +86,7 @@ const settlementSchema = z
     run_id: z.string().trim().min(1).max(200),
     /** Episodes that actually executed and produced a result. */
     episodes_run: z.number().int().min(0).max(100_000),
-    /** The rate those episodes were quoted at. */
+    /** Legacy Pipeline rate, retained for receipt compatibility; not the customer price. */
     rate_usd: z.number().finite().min(0).max(1_000),
     /**
      * Set when the environment failed rather than the robot. Settles at zero
@@ -270,16 +270,11 @@ router.post(
         });
       }
 
-      // What the Pipeline says the work cost, capped at what the team's agent
-      // actually authorised. `deriveBalance` books a settle at face value and
-      // does not clamp it to the hold, so a wrong rate on this side would come
-      // out of a team's balance as real spend. The quote is the ceiling: we
-      // never charge for more than was agreed, however many episodes ran.
+      // The funded entry has a flat customer quote. Pipeline's legacy rate is
+      // retained in the receipt for diagnosis but cannot set the charge.
       const reportedUsd = Math.round(episodesRun * rateUsd * 100) / 100;
       const record = recorded ? await getRunForReservation(reservationId) : null;
-      const amountUsd = record
-        ? settlementAmountUsd({ ...record, episodesRun })
-        : reportedUsd;
+      const amountUsd = settlementAmountUsd({ ...priorRun, episodesRun });
 
       const balance = await settleReservation({
         teamId,

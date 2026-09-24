@@ -394,7 +394,7 @@ export function RobotTeamPlanPreview({
    *
    * A one-time purchase never enables autonomous spend. Existing balance can
    * confirm immediately; otherwise Stripe adds only the shortfall (subject to
-   * its $50 minimum), and the signed plan is confirmed on return.
+   * its $99 minimum), and the signed plan is confirmed on return.
    */
   async function fundAndQueue(plan: PlanResult) {
     if (queue.status === "funding" || !plan.checkpointId) return;

@@ -95,7 +95,7 @@ export async function rebuildTeamEvaluation(record:Record<string,any>) {
 }
 
 /** Customer price is fixed; the provider budget is a separate internal limit. */
-export const TEAM_EVALUATION_PRICE_CENTS = 2500;
+export const TEAM_EVALUATION_PRICE_CENTS = 9900;
 export const TEAM_EVALUATION_PROVIDER_CAP_USD = 20;
 
 export function teamEvaluationTaskDetails(context:TeamEvaluationContext) {
