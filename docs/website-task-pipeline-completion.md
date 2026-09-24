@@ -59,6 +59,17 @@ owner (`user_id`, `organization_id`), `max_total_spend_usd`, disjoint
 This is server configuration, never an upload form field. Missing configuration
 holds automatic preparation; it does not request payment from the site owner.
 
+For a scoped Claude Opus 5.5 development capture, the operator opens the site
+start page with `?authoring=claude-opus-5-5` and explicitly authorizes selected
+frames and task evidence to go to Anthropic. The request retains that grant.
+The website signs `authoring_provider: anthropic` and a separate
+`anthropic_provider_terms_reference` into this new scene's sponsorship only
+when the grant is valid for a US self-capture and an Anthropic entry with its
+own digest is present in `TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON`.
+Preparation provider terms and the fixed $25 sponsorship policy digest remain
+unchanged, so existing scene authorities stay valid. The prepared-scene route
+and later forwarding worker recheck the separate Anthropic terms reference.
+
 The signed `scene-sponsorship` endpoint retains one grant on the existing
 inbound request, bound to the current confirmed task and recorded capture
 consent. Replays preserve its budget and expiry. Pipeline keeps this private

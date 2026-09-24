@@ -51,6 +51,10 @@ function splitName(value: string) {
 
 export function SiteCaptureStart() {
   const { currentUser, loading } = useAuth();
+  // A scoped development entry link exposes the optional Claude disclosure.
+  // Ordinary site captures keep the existing simple form and OpenAI route.
+  const claudeAuthoringRequested = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("authoring") === "claude-opus-5-5";
   // Which workspace the signed-in account holds. A robot-team account can
   // still start a site: it is saved to the emailed link rather than blocked.
   const [workspaceType, setWorkspaceType] = useState<string | null | undefined>(undefined);
@@ -91,6 +95,7 @@ export function SiteCaptureStart() {
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
   const [consent, setConsent] = useState(false);
+  const [claudeConsent, setClaudeConsent] = useState(false);
   // Whether the phone handoff below is worth anything here. This form is
   // filled in from whatever device is at hand, including the phone that is
   // about to do the filming -- and a code pointing a phone at itself is not a
@@ -99,7 +104,8 @@ export function SiteCaptureStart() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (state.status === "working" || loading || !region || !consent) return;
+    if (state.status === "working" || loading || !region || !consent
+      || (claudeAuthoringRequested && !claudeConsent)) return;
 
     const data = new FormData(event.currentTarget);
     const read = (key: string) => String(data.get(key) ?? "").trim();
@@ -144,6 +150,10 @@ export function SiteCaptureStart() {
             granted: consent,
             statementVersion: RIGHTS_STATEMENT_VERSION,
           },
+          ...(claudeAuthoringRequested ? { claudeAuthoringConsent: {
+            granted: claudeConsent,
+            statementVersion: "2026-09-24.v1",
+          } } : {}),
           // Bot bait: hidden from people; a filled value is a bot and the
           // server answers it with a fake success.
           honeypot: read("honeypot") || undefined,
@@ -298,6 +308,22 @@ export function SiteCaptureStart() {
         </span>
         <textarea id="start-task" name="startTask" required maxLength={2000} rows={4} />
       </label>
+
+      {claudeAuthoringRequested && (
+        <label htmlFor="start-claude-authoring" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
+          <input id="start-claude-authoring" name="startClaudeAuthoring" type="checkbox"
+            checked={claudeConsent} onChange={(event) => setClaudeConsent(event.target.checked)}
+            style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
+          <span style={{ fontWeight: 400 }}>
+            For this development test, I authorize Blueprint to send selected frames and task evidence
+            from this recording to Anthropic for Claude Opus 5.5 3D authoring. Blueprint pays the
+            bounded provider cost; this does not train a model on my recording. See Anthropic’s
+            {" "}<a href="https://www.anthropic.com/legal/commercial-terms" target="_blank" rel="noreferrer">
+              commercial API terms
+            </a>.
+          </span>
+        </label>
+      )}
 
       <label htmlFor="start-existing-footage" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
         <input

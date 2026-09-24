@@ -293,6 +293,8 @@ export interface RequestDetails {
   taskVideoUrls?: string[] | null;
   /** The rights-checkbox grant, recorded with the sentence version. Null = never asked. */
   consent_attestation?: ConsentAttestationRecord | null;
+  /** Explicit per-capture disclosure authority for Claude 3D authoring. */
+  claude_authoring_consent?: ConsentAttestationRecord | null;
   targetSiteType?: string | null;
   proofPathPreference?: ProofPathPreference | null;
   existingStackReviewWorkflow?: string | null;
@@ -1231,6 +1233,8 @@ export interface InboundRequestPayload {
   taskVideoUrls?: string[] | null;
   /** The rights-checkbox grant from the site forms. Absent = client predated the field. */
   consentAttestation?: ConsentAttestationInput | null;
+  /** Only sent by the scoped Claude development-test website form. */
+  claudeAuthoringConsent?: ConsentAttestationInput | null;
   targetSiteType?: string;
   proofPathPreference?: ProofPathPreference;
   existingStackReviewWorkflow?: string;

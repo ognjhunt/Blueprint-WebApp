@@ -554,6 +554,7 @@ export async function encryptInboundRequestForStorage<
         )
       ),
       consent_attestation: request.request.consent_attestation ?? null,
+      claude_authoring_consent: request.request.claude_authoring_consent ?? null,
       targetSiteType: await encryptOptionalField(
         request.request.targetSiteType ?? null
       ),

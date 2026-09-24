@@ -240,6 +240,7 @@ export interface InboundRequestPayload {
   pilotOpportunity?: PilotOpportunityInput | null;
   details?: string;
   context: RequestContext;
+  claudeAuthoringConsent?: { granted: boolean; statementVersion: string } | null;
   honeypot?: string; // Anti-bot honeypot field
 }
 

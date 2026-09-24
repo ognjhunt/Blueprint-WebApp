@@ -56,10 +56,21 @@ export function websiteSceneSponsorship(input: {
   if (typeof input.record.account_owner_uid !== "string" || !input.record.account_owner_uid) {
     throw new Error("website_scene_site_unclaimed");
   }
+  const claudeConsent = input.record.request?.claude_authoring_consent;
+  const authoringProvider = claudeConsent ? "anthropic" : "openai";
+  if (claudeConsent && (claudeConsent.granted !== true
+    || claudeConsent.statement_version !== "2026-09-24.v1"
+    || input.record.request?.capture_region !== "us"))
+    throw new Error("website_anthropic_disclosure_authority_invalid");
+  const anthropicTerms = authoringProvider === "anthropic" ? sceneProviderTerms().anthropic?.digest : null;
+  if (authoringProvider === "anthropic" && !anthropicTerms)
+    throw new Error("website_anthropic_provider_terms_not_configured");
   const value = {
     schema_version: "website_scene_sponsorship.v1", sponsor: "blueprint",
     request_id: input.requestId, capture_id: context.capture_id, scene_id: context.scene_id,
     task_context_digest: context.context_digest, policy_digest: digest(configured),
+    authoring_provider: authoringProvider,
+    ...(anthropicTerms ? { anthropic_provider_terms_reference: anthropicTerms } : {}),
     owner: configured.owner,
     // These are disjoint caps, not two authorizations for the whole budget.
     preparation_max_total_spend_usd: configured.max_total_spend_usd,
@@ -310,6 +321,20 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     || request.execution?.expires_at_epoch !== authority.expires_at_epoch
     || request.execution?.max_retries !== 0
     || request.execution?.claim_scope !== "development_only"
-    || digest(request.execution?.allowed_providers) !== digest(["vast", "openai"]))
+    || digest(request.execution?.allowed_providers) !== digest(authority.authoring_provider === "anthropic"
+      ? ["vast", "openai", "anthropic"] : ["vast", "openai"]))
     throw new Error("website_scene_sponsorship_binding_invalid");
+}
+
+/** Sponsored Claude disclosure has its own signed terms reference. */
+export function validateWebsiteSponsoredProviderTerms(
+  command: { execution: { allowed_providers: string[] }; consent: { provider_terms_reference: string } },
+  authority: Record<string, any>,
+) {
+  const terms = sceneProviderTerms();
+  if (!command.execution.allowed_providers.every(provider => provider === "anthropic"
+    ? authority.authoring_provider === "anthropic"
+      && terms.anthropic?.digest === authority.anthropic_provider_terms_reference
+    : terms[provider]?.digest === command.consent.provider_terms_reference))
+    throw new Error("provider_terms_not_configured_or_changed");
 }
