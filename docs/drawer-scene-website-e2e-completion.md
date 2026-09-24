@@ -15,7 +15,7 @@ this scene.
 | Task | Pull the middle drawer of the wood-front three-drawer mobile pedestal under the desk |
 | Intake truth | Owner confirmed Austin, Texas, US, recording rights, and the website task/terms for this scene |
 | Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32. Owner separately authorized two bounded internal simulation exposure increases to a cumulative $33; the per-attempt $13 quote, $7 CPU model cap, and 16-attempt limit remain enforced. This does not change the website price. |
-| Last proven control-plane release | `de30eba14f973376dc827750085b83518bfba9da`, canonical deploy and live exact `commit_proven: true`, no blockers at 15:39 UTC. |
+| Last proven control-plane release | `c452111b5a14e18e020390f0ae7e07f3e8850d43`, live exact `commit_proven: true` and no blockers at 16:54 UTC after an operator-door deploy. The drawer review fix `663a8a6ce1bd2b7dfe2fb7a9c80276fba5274560` is merged but not deployed at this entry. |
 
 ### Independent 14-step matrix for the current scene
 
@@ -25,7 +25,7 @@ The source video observes the desk and teal backpack; both remain obstacles.
 Only the middle drawer is the task joint. Captured-room and development-fixture
 completion are scored separately.
 
-| Step | Required evidence | State at 2026-09-24 15:26 UTC |
+| Step | Required evidence | State at 2026-09-24 16:54 UTC |
 | --- | --- | --- |
 | 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
 | 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
@@ -36,8 +36,8 @@ completion are scored separately.
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
 | 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
 | 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
-| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **partial; stage 3 failed before review** — after PR #2169 fixed the failed-render handoff, same-scene attempt `source-0965117a683eb1f105f233e2` made real Claude Opus 5.5 calls, exported a valid carcass STEP/STL (550 × 587 × 782 mm) and wrote all three Blender inspection images. The trusted Blender process exceeded its 600-second limit just after the third image, so there was no independent review, complete articulated assembly, or static qualification. PR #2174 merged a 16-sample/900-second bounded render fix; an isolated no-provider replay of this exact carcass finished all three views in 143 seconds. Production retry is pending deployment. |
-| 11 | Captured-room integration or separately named development fixture | **fixture execution entered, not qualified** — controller prepared and accepted a distinct `development_drawer_fixture` and reached CPU stage 3. The latest Blender timeout stopped before native integration. Captured room stays `needs_input` and unqualified |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **partial; latest stage 3 failed at drawer property-review JSON** — same-scene de30 launch reused completed stages 1 and 2, generated valid carcass and middle-drawer STEP and all six studio renders within 900 seconds. Carcass visual review passed; the drawer physical-property model call returned `invalid_structured_output` and was billed/receipted, so no complete articulated assembly or static qualification exists. Pipeline PR #2176 merged schema-constrained Claude review JSON as `663a8a6c`; deploy/retry pending. |
+| 11 | Captured-room integration or separately named development fixture | **fixture execution entered, not qualified** — controller accepted distinct `development_drawer_fixture`; latest stage 3 stopped before native integration. Captured room stays `needs_input` and unqualified. |
 | 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
 | 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
 | 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
@@ -1288,3 +1288,9 @@ By 16:06 UTC, the new launch had a controller `admitted` receipt with no blocker
 At 16:14 UTC, the active CPU prestage wrote completed-prefix checkpoint receipts for stages 1 and 2 and started stage 3, the articulated CAD/Blender authoring stage. The new stage 3 result and independent review are still pending.
 
 At 16:26 UTC, stage 3 generated a carcass STEP with passing readback (550 × 586.67 × 781.53 mm), watertight visual mesh, three finished studio renders and a `.blend` file. The separate Claude Opus 5.5 visual review returned all required booleans true and no blockers, while listing unseen interior and rear surfaces as generated. The carcass `result.json` says `candidate_authored_pending_native_qualification`; it is not final qualification. Drawer CAD authoring had started and was still running.
+
+### 2026-09-24 16:54 UTC — Drawer review failure and provider-zero
+
+The de30 launch completed its carcass candidate and generated a valid middle-drawer STEP at estimated 560 × 546.67 × 232.51 mm plus perspective, top and side renders and `.blend`. The carcass physical and visual reviews passed, with unseen surfaces labeled generated. The drawer physical-property review invocation returned `stop_reason=end_turn` but failed Pydantic validation (`invalid_structured_output`); the signed completion records $0.1764532 provider-reported list-price usage. Its raw response was not retained, so the exact field mismatch cannot be reconstructed. The controller marked stage 3 and the launch blocked before native qualification or GPU. Teardown returned `provider_zero_confirmed`, and the global GPU guard passed with live zero. The operator-door watcher was resumed and verified active at 16:40 UTC. Signed cumulative exposure is fully held at $33: prior effective holds $7, $0 and $13, plus this terminal launch at $13; these are conservative bounds, not confirmed bills.
+
+Pipeline PR #2176 sends Opus 5.5 reviews with Anthropic schema-constrained JSON while preserving full local Pydantic checks, signed call/spend admission, and an output-error diagnostic without raw model text. Fifty-six focused tests, changed-file Ruff and 60 impacted/sentinel tests passed; hosted impacted gate passed. It merged as `663a8a6ce1bd2b7dfe2fb7a9c80276fba5274560` and awaits a coordinated deploy. No paid retry is authorized by the current $33 cap.
