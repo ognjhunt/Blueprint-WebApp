@@ -15,18 +15,20 @@ the owner brief form, with site stability and access window explicitly unknown;
 the resulting triage is `not_now`, not commercial site qualification. The exact
 confirmed task digest is
 `sha256:aa9aaf64b6fe08ffe2bd2ee2b7b8292490f294f6158850c092b3b28487676aa7`.
-Sponsorship and processing have not started. Do not transfer the older scene's
-stage evidence or budget.
+The website issued this scene's distinct development-test sponsorship at
+21:09:51 UTC: $5 preparation and $20 simulation, with the one-shot preparation
+request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
+older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-24 20:36 UTC |
+| Step | Current evidence at 2026-09-24 21:52 UTC |
 | --- | --- |
-| 1. Intake, rights, confirmed task | **partial** — intake, rights, account claim and brief confirmation saved; signed sponsorship and Pipeline consumption pending |
-| 2. Original website upload and provider binding | **partial** — original upload accepted; no provider binding yet |
-| 3. Capture review and original-frame references | unproven |
-| 4. Cabinet/middle-drawer plan and observed obstacles | unproven for this scene |
-| 5. Hosted SAM 3.1 masks and track | unproven |
-| 6. Background edits and independent review | unproven |
-| 7. Provider-capacity view selection | unproven |
+| 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
+| 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
+| 3. Capture review and original-frame references | **done for preparation** — source decodes and Gemini analysis retained; task-critical registration remains a later gate |
+| 4. Cabinet/middle-drawer plan and observed obstacles | **done** — Gemini identified the articulated mobile cabinet and middle drawer, with desk and teal backpack to keep |
+| 5. Hosted SAM 3.1 masks and track | **done for preparation** — API tracks and independently corroborated task views retained; no local SAM model |
+| 6. Background edits and independent review | **blocked** — five image edits retained; first review rejected unedited frame 0 and claimed unrelated-object loss. A same-code retry also failed. No clean plate approved |
+| 7. Provider-capacity view selection | **done for preparation** — 14 selected source views retained; downstream provider acceptance unproven |
 | 8. Marble and MapAnything | unproven |
 | 9. Camera/task registration | unproven |
 | 10. CPU CAD/Blender/USD articulation and static qualification | unproven |
@@ -43,14 +45,11 @@ PRs #2179, #2182, #2183 and #2186 are merged; canonical deployment
 `31eef7c64524e6876c99b86bd9dc3bc971884c9d` with no blockers. The dedicated
 OpenAI project has an observed $7 monthly hard limit and a private, scene-bound
 project guard; the host has Sol-only scoped project/key and cost attestation
-references. A read-only model lookup returned `gpt-6-sol`; this scene has no
-paid model call or GPU rental. The shared listener retried the capture at
-20:31 UTC while the web configuration deployment was still in progress. It
-retained a retryable `website_scene_sponsorship_unavailable` error and did not
-create a grant. A read-only sponsorship preflight with the intended live
-configuration passed. The controller's post-deployment retry and signed
-website sponsorship remain pending. Captured-room integration
-remains unqualified; a later fixture would have its own completion state.
+references. A read-only model lookup returned `gpt-6-sol`; no CAD authoring or
+GPU rental has started for this scene. The shared listener obtained sponsorship
+on its fifth attempt; attempts 5 and 6 stopped at clean-plate review. Raw
+edited and original frames remain intact. Captured-room integration remains
+unqualified; a later fixture would have its own completion state.
 
 ## Previous scene: 2026-09-24 Claude website capture
 
@@ -1375,3 +1374,9 @@ WebApp PR #710 is live on Render at exact merge commit `378336c1a5404a752b004d74
 The owner signed in and confirmed the middle-drawer website brief. The confirmed task digest is `sha256:aa9aaf64b6fe08ffe2bd2ee2b7b8292490f294f6158850c092b3b28487676aa7`. The controller's fifth handoff attempt obtained the scene's separate website sponsorship at 21:09:51 UTC: authority digest `sha256:e90d7883b9b8f2702f3ed0001303564dfeb63cefd0d17723a709a881964606a4`, GPT-6 Sol through the OpenAI Agents API, $5 upstream preparation limit, $20 simulation limit, 16 simulation attempts, development-only. The owner-authorized one-shot preparation request amendment was previewed and applied at 32 requests; its digest is `sha256:234beb7ebfec0cfb44e6a5a8ecf56e6419e3d4d924f30e23a8ecd73236547612`. The $5 preparation spend cap did not change.
 
 Pipeline release `31eef7c64524e6876c99b86bd9dc3bc971884c9d` has a deployed canonical receipt and live exact-commit proof with no blockers. Both Render web and worker are live on WebApp descendant `91c90c86d6ad8474338e23d66e4299fb93db662d` with the scene-specific Sol guard and allowlists. The fifth host handoff is `processing`: it has written `website_task_context.json`, `website_scene_sponsorship.json`, Gemini video analysis, and local source-frame decodes. At this observation `run_e2e_stage_ledger.json` remains `running/capture_pipeline`. No completed masks, room registration, CAD, native qualification, GPU policy episode, or website result is claimed yet. Captured-room readiness remains unqualified; any later fixture must be separately labeled.
+
+### 2026-09-24 21:52 UTC — Cabinet masks passed; background review remains blocked
+
+The controller retained hosted Meta SAM 3.1 API tracks for the cabinet, desk and teal backpack, independently corroborated task masks, 14 selected views, and five completed GPT-image-2.5-sunburst background edits. The image batch settled approximately $0.50206. The independent Gemini review returned `consistent_background=true`, `task_objects_removed=false`, `unrelated_objects_preserved=false`: original frame 0 was selected without a cabinet edit, and the reviewer reported floor UPS/desk items missing. Attempt 6 reused the signed scene and retained edits and stopped at the same clean-plate gate; no CAD or GPU stage began.
+
+Visual inspection of original/edited frame pairs 26, 35, 138 and 173 found the raw generated views remove the drawer unit while the desk and backpack remain; the UPS remains in the edited viewpoints where it appears in the original. A diagnostic silhouette composite kept pixels outside SAM's cabinet-front mask but left a visible hard cabinet edge, so it was not merged or deployed. Pipeline PR #2199 merged as `7c946adbf70ea46b015ac9ab95ec3bab165b5797`: it asks the independent reviewer to compare each original/prepared pair at the same viewpoint, permits minor fill texture or lighting differences, and still rejects genuinely missing observed obstacles. Its 56 focused tests, changed-file Ruff and hosted impacted/sentinel gate passed. Pipeline PR #2194 queue fairness also merged as `43efcc4e4bbeaf0daae0b17a9635791b12689c12`. Neither merge proves a clean-plate pass; the active host release is still `31eef7c6` and a canonical deploy plus controller retry remain.
