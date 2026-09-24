@@ -1400,3 +1400,32 @@ Visual inspection of original/edited frame pairs 26, 35, 138 and 173 found the r
 ### 2026-09-24 22:26 UTC — Reviewed clean plate passed on the same scene
 
 Canonical deployment `iteration_c4442e3f.json` is `deployed`; the live Pipeline version endpoint reports exact `c4442e3fd4268d969b004283bcf42897d19886a3`, `commit_proven=true`, and no blockers. The durable listener started attempt 8. Its first new retained Gemini review named edited frames `decoded-000000138` and `decoded-000000519` as having unrelated-object loss, while also naming unedited frame `decoded-000000000` as still showing the cabinet. The controller excluded only the two generated views and reviewed again; that review confirmed unrelated objects preserved and identified only frame 0 as unremoved. The controller then excluded frame 0 and a third independent review passed with all hard booleans true and empty remaining/loss ID lists. The clean-plate stage manifest is `objects_removed` / `prepared_images` with no blockers and frames 26, 35, 173. All five raw edits and originals remain retained, including the two bad edits as failure evidence. The main capture pipeline was still running at this observation; Marble, MapAnything, registration, CAD, GPU and website result are not yet proven.
+
+### 2026-09-24 23:49 UTC — Fixture admitted; owner dimensions bound before CPU authoring
+
+The same capture has a settled World Labs Marble room/collider and a fully torn-down MapAnything rental that returned camera/depth estimates for 13 original frames. Neither is a metric measurement of the cabinet. Captured-room registration failed because Marble anchored on original frame 26, absent from that MapAnything sample; captured-room evaluation remains unqualified. Pipeline PR #2207 merged a future anchor-selection repair but does not change this already generated room. The controller independently prepared the named `development_drawer_fixture`; the website outbox and control plane admitted its scene intent. Its capacity gate required 19,327,352,832 free bytes. Exact inactive release cleanup restored 19,730,092,032 free bytes without touching current release or scene evidence, and progression reached `awaiting_execution/scene_configuration`.
+
+The first fixture launch activation stopped during no-spend provider-bundle preparation with `astra_articulated_cabinet_depth_implausible_hypothesis_required`. The source-derived cabinet envelope projected to roughly 0.093 m depth. No GPT-6 Sol managed Agents API CAD call or GPU rental began. The owner then reported tape measurements of 23 in tall, 16 in wide and 20 in deep (0.5842, 0.4064 and 0.508 m). Pipeline PR #2211 merged as `cd7dc09f6814878151dfab1096bb6fc8386ad867`, binding those values only to this fixture's own preparation, observation manifest, object identity and original-frame hashes. It retains the source-derived box separately, marks the owner dimensions as reported development inputs, and keeps stroke, interior geometry and mass estimates. The resulting stroke candidate is 0.381 m; the preregistered 60% opening threshold is 0.2286 m held one second, subject to native qualification before policy episodes. The exact saved inputs produced a stage-three successor in a read-only replay; 57 focused local tests, source governance, Ruff and the hosted impacted/sentinel gate passed. Canonical deployment of `cd7dc09f` started but is not yet proven live at this entry. Steps 10 and 12–14 remain open; the fixture intake portion of step 11 is complete, and it does not close captured-room readiness.
+
+#### Current capture `cc484026`: independent 14-step matrix
+
+This matrix is for the fresh GPT-6 Sol website capture only. Earlier scenes' rows elsewhere in this document do not confer authority on it.
+
+| Step | Evidence state for this capture |
+| --- | --- |
+| 1. Website task, rights, intent | **Done** — owner confirmed US office rights and the middle-drawer brief; signed sponsorship and Pipeline handoff carry this capture's identity. |
+| 2. Original video upload | **Done** — website uploader retained `IMG_4170.MOV` with source SHA-256 `d63aa286…d130`. |
+| 3. Capture review | **Done** — controller wrote review and source-frame records for this capture. |
+| 4. Task assembly selection | **Done** — Gemini identified the pedestal cabinet, middle prismatic drawer and observed obstacles. |
+| 5. Object masks | **Done** — hosted Meta SAM 3.1 track and independent selected-view corroboration retained. |
+| 6. Background recovery | **Done** — five GPT-image-2.5-sunburst edits retained; independent review passed only frames 26, 35 and 173 after excluding bad views. |
+| 7. Reconstruction views | **Done** — 14 provider-bound views selected, with reviewed clean plates and wide context retained. |
+| 8. Marble and MapAnything | **Done as estimated provider outputs** — Marble room/collider and 13 original-frame camera/depth estimates retained; MapAnything rental torn down and provider-zero passed. |
+| 9. Captured-room registration | **Blocked** — Marble anchor frame 26 is absent from the MapAnything camera sample; captured room is not qualified. |
+| 10. Articulated CAD/Blender/USD | **Open** — owner-reported dimensions and a no-spend stage-three successor are ready; no Sol CAD call, complete assembly or static qualification receipt yet. |
+| 11. Room integration or development fixture | **Partial** — the separately identified fixture intake and scene intent were admitted. No completed integrated fixture or captured-room claim. |
+| 12. Native import and physics | **Open** — no articulated import, reset, joint/contact or stability qualification. |
+| 13. GPU policy episodes | **Open** — no learned-policy actions or native numeric score. |
+| 14. Website result and teardown | **Open** — no terminal policy result visible on the task page. |
+
+Captured-room readiness: **unqualified**. Development fixture execution: **pending CPU authoring**.
