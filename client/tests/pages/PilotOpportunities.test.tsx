@@ -42,6 +42,7 @@ describe("PilotOpportunities", () => {
           site_location: null,
           site_type: "Fulfillment center",
           workflow: "Packed-tote transfer between automation islands.",
+          pilot_intent: { pilotConsideration: "subject_to_review", deploymentPath: "this_site" },
           anonymized_summary: "Packed-tote transfer between automation islands.",
           benchmark_profile: "Rigid totes, 97% success, 42 second target.",
           object_profile: null,
@@ -74,6 +75,8 @@ describe("PilotOpportunities", () => {
     expect(screen.getByText(/Simulation evidence does not establish deployment readiness/i)).toBeInTheDocument();
     expect(screen.getByText(/site-model files remain hosted inside Blueprint/i)).toBeInTheDocument();
     expect(screen.getByText(/General model training/i)).toBeInTheDocument();
+    expect(screen.getByText(/Possibly, after internal review/i)).toBeInTheDocument();
+    expect(screen.getByText(/Paid deployment at this site/i)).toBeInTheDocument();
     expect(screen.getByText(/completion rate, expected cycle time/i)).toBeInTheDocument();
     expect(screen.queryByText(/North line/i)).not.toBeInTheDocument();
   });

@@ -8,12 +8,14 @@ import type {
   PilotDataUsePermissions,
   PilotOpportunityVisibility,
 } from "@/types/inbound-request";
+import type { SitePilotIntent } from "@/data/sitePilotIntent";
 
 export type PilotOpportunityRecord = {
   task_targets?: { successRate: number | null; cycleTimeSeconds: number | null };
   pilot_budget_usd?: number | null;
   deployment_budget_usd?: number | null;
   target_date?: string | null;
+  pilot_intent: SitePilotIntent | null;
   opportunity_id: string;
   access_level: "anonymized" | "shortlisted_confidential";
   visibility: PilotOpportunityVisibility;

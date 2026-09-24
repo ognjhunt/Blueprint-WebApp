@@ -41,6 +41,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 
 import { gateFields } from "@/data/siteTaskQualification";
+import { deploymentPathOptions, pilotConsiderationOptions, type SitePilotIntent } from "@/data/sitePilotIntent";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
   attachSiteClaim,
@@ -77,6 +78,7 @@ export interface DraftedBrief {
   operatorAnswers?: Record<string, string> | null;
   operatorUnknown?: string[] | null;
   successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean } | null;
+  pilotIntent?: SitePilotIntent | null;
 }
 
 type Screening = { headline: string; detail: string; bookingUrl: string | null };
@@ -148,6 +150,8 @@ export function TaskBriefReview(props: {
   const [successRate, setSuccessRate] = useState(props.brief.successCriteria?.successRate?.toString() ?? "");
   const [cycleTimeSeconds, setCycleTimeSeconds] = useState(props.brief.successCriteria?.cycleTimeSeconds?.toString() ?? "");
   const [successUnknown, setSuccessUnknown] = useState(props.brief.successCriteria?.unknown ?? false);
+  const [pilotConsideration, setPilotConsideration] = useState<SitePilotIntent["pilotConsideration"] | "">(props.brief.pilotIntent?.pilotConsideration ?? "");
+  const [deploymentPath, setDeploymentPath] = useState<SitePilotIntent["deploymentPath"] | "">(props.brief.pilotIntent?.deploymentPath ?? "");
 
   // The listing decision. Null until they choose: a yes or no is required, so
   // nobody skips past the card without seeing it.
@@ -225,6 +229,7 @@ export function TaskBriefReview(props: {
   function problem(): string | null {
     if (!name.trim()) return "Please add your name so we know who confirmed this.";
     if (!successUnknown && !successDefinition.trim()) return "Describe a successful cycle, or select I don't know yet.";
+    if (!pilotConsideration || !deploymentPath) return "Answer the two pilot and deployment questions, even if you are undecided.";
     if (!listChoice) return "Choose whether to show this task to robot teams.";
     if (listChoice === "list") {
       if (listing.title.trim().length < 8) return "Describe the task for the public card in a few words.";
@@ -290,6 +295,7 @@ export function TaskBriefReview(props: {
             cycleTimeSeconds: successUnknown || !cycleTimeSeconds ? null : Number(cycleTimeSeconds),
             unknown: successUnknown,
           },
+          pilotIntent: { pilotConsideration, deploymentPath },
         }),
       });
       const body = (await response.json().catch(() => ({}))) as Partial<Verdict> & {
@@ -547,6 +553,23 @@ export function TaskBriefReview(props: {
           <input id="cycle-time" type="number" min="0.01" max="86400" step="0.01" value={cycleTimeSeconds} onChange={(event) => setCycleTimeSeconds(event.target.value)} disabled={successUnknown} placeholder="If known" />
         </label>
         <label htmlFor="success-unknown"><input id="success-unknown" type="checkbox" checked={successUnknown} onChange={(event) => setSuccessUnknown(event.target.checked)} /> I don't know the success criteria yet</label>
+      </fieldset>
+
+      <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
+        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What could follow this evaluation?</legend>
+        <p className="ms-field-hint">These answers describe your current plans. A pilot and any deployment would need separate agreement.</p>
+        <label htmlFor="pilot-consideration"><span>If the evaluation shows a plausible fit, would you consider a physical pilot here?</span>
+          <select id="pilot-consideration" value={pilotConsideration} onChange={(event) => setPilotConsideration(event.target.value as SitePilotIntent["pilotConsideration"])}>
+            <option value="">Choose…</option>
+            {pilotConsiderationOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label htmlFor="deployment-path"><span>If a pilot meets the agreed targets, what could happen next?</span>
+          <select id="deployment-path" value={deploymentPath} onChange={(event) => setDeploymentPath(event.target.value as SitePilotIntent["deploymentPath"])}>
+            <option value="">Choose…</option>
+            {deploymentPathOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
       </fieldset>
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0 10px" }}>

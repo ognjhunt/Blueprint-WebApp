@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useWorkspace, money, dateLabel } from "@/lib/workspace";
 import { usePilotOpportunities } from "@/lib/pilotOpportunities";
+import { deploymentPathOptions, optionLabel, pilotConsiderationOptions } from "@/data/sitePilotIntent";
 import {
   Frame,
   Empty,
@@ -79,6 +80,14 @@ export default function OpeningDetail() {
               </dl>
               <h2 className="ws-section">Pilot & deployment</h2>
               <dl className="ws-facts">
+                <div>
+                  <dt>Physical pilot interest</dt>
+                  <dd>{optionLabel(pilotConsiderationOptions, item.pilot_intent?.pilotConsideration)}</dd>
+                </div>
+                <div>
+                  <dt>After a successful pilot</dt>
+                  <dd>{optionLabel(deploymentPathOptions, item.pilot_intent?.deploymentPath)}</dd>
+                </div>
                 <div>
                   <dt>Pilot budget</dt>
                   <dd>{money(item.pilot_budget_usd ?? null)}</dd>

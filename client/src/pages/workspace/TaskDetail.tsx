@@ -13,6 +13,7 @@ import {
   useAction,
 } from "@/components/workspace/WorkspaceUI";
 import type { WorkspaceTask, WorkspaceResult } from "@/types/workspace";
+import { deploymentPathOptions, optionLabel, pilotConsiderationOptions, siteVisitOptions } from "@/data/sitePilotIntent";
 function Facts({ rows }: { rows: Array<[string, string]> }) {
   return (
     <dl className="ws-facts">
@@ -188,6 +189,10 @@ export default function TaskDetail() {
                   Budgets are planning figures. Pilot scope, commercial terms,
                   and any deployment are agreed separately.
                 </p>
+                <Facts rows={[
+                  ["Physical pilot interest", optionLabel(pilotConsiderationOptions, task.pilotIntent?.pilotConsideration)],
+                  ["After a successful pilot", optionLabel(deploymentPathOptions, task.pilotIntent?.deploymentPath)],
+                ]} />
                 {task.potentialMatches !== null && (
                   <p className="ws-note">
                     {task.potentialMatches} potential matches from the latest
@@ -358,6 +363,9 @@ export default function TaskDetail() {
                     {task.pilot.notes ||
                       "You choose the team after reviewing the results."}
                   </p>
+                  {task.pilot.siteVisitAnswer && (
+                    <p className="ws-note">Robot-team site access: {optionLabel(siteVisitOptions, task.pilot.siteVisitAnswer)}. A visit still needs separate approval and agreed terms.</p>
+                  )}
                   {["pilot", "pilot_complete", "deployed"].includes(
                     task.pilot.state,
                   ) && (
@@ -615,11 +623,23 @@ export default function TaskDetail() {
                       notes: String(
                         new FormData(event.currentTarget).get("notes") || "",
                       ),
+                      ...(pilotAction === "invite" ? {
+                        siteVisitAnswer: String(new FormData(event.currentTarget).get("siteVisitAnswer") || ""),
+                      } : {}),
                     },
                     () => setPilotAction(null),
                   );
                 }}
               >
+                {pilotAction === "invite" && (
+                  <Field label="Could this robot team bring people and equipment on site for a scoped visit or pilot?">
+                    <select name="siteVisitAnswer" required defaultValue="">
+                      <option value="" disabled>Choose…</option>
+                      {siteVisitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <p className="ws-note">This records your current answer. It does not grant site access or start physical work.</p>
+                  </Field>
+                )}
                 <Field label="Decision notes">
                   <textarea name="notes" required maxLength={2000} />
                 </Field>

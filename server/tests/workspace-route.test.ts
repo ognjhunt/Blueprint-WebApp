@@ -386,8 +386,10 @@ describe("workspace requests and lifecycle", () => {
       action: "invite",
       resultId: "application-1",
       notes: "Review terms",
+      siteVisitAnswer: "subject_to_approval",
     });
     expect(response.status).toBe(200);
+    expect(state.records.get("inboundRequests/task-1").workspace_task.pilot.siteVisitAnswer).toBe("subject_to_approval");
     expect(
       state.records.get("inboundRequests/task-1").workspace_task.pilot.notes,
     ).toMatch(/^encrypted:/);
@@ -428,6 +430,7 @@ describe("workspace requests and lifecycle", () => {
           action: "invite",
           resultId: "application-1",
           notes: "Select",
+          siteVisitAnswer: "undecided",
         })
       ).status,
     ).toBe(409);
@@ -628,6 +631,7 @@ describe("workspace requests and lifecycle", () => {
           action: "invite",
           resultId: "invented",
           notes: "Pick",
+          siteVisitAnswer: "undecided",
         })
       ).status,
     ).toBe(409);
@@ -645,24 +649,30 @@ describe("workspace requests and lifecycle", () => {
       workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
     });
     state.records.set("robotEvalJobRequests/run-1", run());
+    expect((await api("/tasks/task-1/pilot", "site-1", {
+      action: "invite", resultId: "application-1", notes: "Review pilot terms",
+    })).status).toBe(400);
     expect(
       (
         await api("/tasks/task-1/pilot", "site-1", {
           action: "invite",
           resultId: "application-1",
           notes: "Review pilot terms",
+          siteVisitAnswer: "yes",
         })
       ).status,
     ).toBe(200);
     expect(
       state.records.get("inboundRequests/task-1").workspace_task.pilot.state,
     ).toBe("selected");
+    expect(state.records.get("inboundRequests/task-1").workspace_task.pilot.siteVisitAnswer).toBe("yes");
     expect(
       (
         await api("/tasks/task-1/pilot", "site-1", {
           action: "invite",
           resultId: "application-1",
           notes: "Again",
+          siteVisitAnswer: "yes",
         })
       ).status,
     ).toBe(409);

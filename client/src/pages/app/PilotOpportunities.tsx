@@ -9,6 +9,7 @@ import {
   BuyerAppLoadingState,
 } from "@/components/blueprint/app/BuyerAppStates";
 import { usePilotOpportunities, type PilotOpportunityRecord } from "@/lib/pilotOpportunities";
+import { deploymentPathOptions, optionLabel, pilotConsiderationOptions } from "@/data/sitePilotIntent";
 
 function OpportunityCard({ opportunity }: { opportunity: PilotOpportunityRecord }) {
   const approvedFull = opportunity.access_level === "shortlisted_confidential";
@@ -36,6 +37,8 @@ function OpportunityCard({ opportunity }: { opportunity: PilotOpportunityRecord 
           <DataField label="Access" value={approvedFull ? "Shortlisted confidential dossier" : "Operator-approved anonymized summary"} mono={false} />
           <DataField label="Site type" value={opportunity.site_type || "Not disclosed"} mono={false} />
           <DataField label="Standardized benchmark" value={opportunity.benchmark_profile} mono={false} />
+          <DataField label="Physical pilot interest" value={optionLabel(pilotConsiderationOptions, opportunity.pilot_intent?.pilotConsideration)} mono={false} />
+          <DataField label="After a successful pilot" value={optionLabel(deploymentPathOptions, opportunity.pilot_intent?.deploymentPath)} mono={false} />
           {approvedFull ? (
             <>
               <DataField label="Location" value={opportunity.site_location || "Held in dossier"} mono={false} />

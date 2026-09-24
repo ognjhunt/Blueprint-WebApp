@@ -140,6 +140,27 @@ describe("the confirmation says what our screen decided", () => {
     });
   });
 
+  it("stores site-stated pilot and deployment intent without treating it as an access grant", async () => {
+    const response = await fetch(`${baseUrl}/api/site-task-brief/${tokenFor("owner")}/confirm`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        confirmedBy: "Dana Okafor",
+        successCriteria: { successDefinition: "Carton reaches pallet intact", successRate: 95, cycleTimeSeconds: 30, unknown: false },
+        pilotIntent: { pilotConsideration: "subject_to_review", deploymentPath: "pilot_only" },
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(sharedFakeFirestoreState.docs.get("siteTaskBriefs/req-1")).toMatchObject({
+      pilotIntent: { pilotConsideration: "subject_to_review", deploymentPath: "pilot_only" },
+    });
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
+      workspace_task: { pilotIntent: { pilotConsideration: "subject_to_review", deploymentPath: "pilot_only" } },
+    });
+    const film = await (await fetch(`${baseUrl}/api/site-task-brief/${tokenFor("film")}`)).json();
+    expect(film.brief.pilotIntent).toBeUndefined();
+  });
+
   it("says not yet, without a call, when an answer blocks it", async () => {
     const response = await confirm({ ...clearAnswers(), sceneStability: "reconfigured" });
     const body = (await response.json()) as { disposition: string; screening: any };

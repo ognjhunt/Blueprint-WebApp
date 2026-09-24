@@ -58,7 +58,13 @@ beforeEach(() => {
 });
 
 /** The listing question is required; most tests answer it "not now". */
+function answerPilotIntent() {
+  fireEvent.change(screen.getByLabelText(/would you consider a physical pilot here/i), { target: { value: "yes" } });
+  fireEvent.change(screen.getByLabelText(/if a pilot meets the agreed targets/i), { target: { value: "this_site" } });
+}
+
 function chooseNotNow() {
+  answerPilotIntent();
   fireEvent.click(screen.getByLabelText(/not now/i));
 }
 
@@ -196,9 +202,29 @@ const confirmed = (extra: Record<string, unknown> = {}) => ({
 });
 
 describe("the same step decides the listing", () => {
+  it("records pilot intent separately from a deployment path", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief()} />);
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    fireEvent.click(screen.getByLabelText(/not now/i));
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/pilot and deployment questions/i);
+    answerPilotIntent();
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    await waitFor(() => expect(screen.getByText(/that is confirmed/i)).toBeInTheDocument());
+    expect(lastConfirmBody().pilotIntent).toEqual({ pilotConsideration: "yes", deploymentPath: "this_site" });
+  });
+
+  it("loads the operator's previous intent when editing the brief", () => {
+    render(<TaskBriefReview token="tok" brief={brief({ pilotIntent: { pilotConsideration: "evaluation_only", deploymentPath: "pilot_only" } })} />);
+    expect(screen.getByLabelText(/would you consider a physical pilot here/i)).toHaveValue("evaluation_only");
+    expect(screen.getByLabelText(/if a pilot meets the agreed targets/i)).toHaveValue("pilot_only");
+  });
+
   it("will not confirm until the operator answers the listing question", async () => {
     render(<TaskBriefReview token="tok" brief={brief()} />);
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    answerPilotIntent();
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/show this task to robot teams/i);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -211,6 +237,7 @@ describe("the same step decides the listing", () => {
     fireEvent.change(screen.getByLabelText(/describe the task/i), { target: { value: "Move cartons onto a pallet" } });
     fireEvent.change(screen.getByLabelText(/task family/i), { target: { value: "Palletizing" } });
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    answerPilotIntent();
 
     // Not without the review consent.
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
