@@ -39,6 +39,7 @@ import type { AgentResult, NormalizedAgentTask } from "../types";
 const MAX_VIDEO_BYTES = 64 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 60_000;
 const ANALYSIS_TIMEOUT_MS = 5 * 60_000;
+const MAX_OUTPUT_TOKENS = 32_768;
 
 interface VideoResponsePart {
   text?: string;
@@ -173,7 +174,10 @@ async function generateFromVideo(input: { apiKey: string; model: string; prompt:
           { text: input.prompt },
           { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: "AGENTIC" },
         ] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 },
+        // Agentic media processing and the model's reasoning spend this budget
+        // before the answer does. At 8192 the first real review of a 30s phone
+        // clip stopped short of its answer.
+        generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: MAX_OUTPUT_TOKENS },
       }),
     },
   );
@@ -186,7 +190,12 @@ async function generateFromVideo(input: { apiKey: string; model: string; prompt:
   };
   const candidate = payload.candidates?.[0];
   if (candidate?.finishReason !== "STOP") {
-    throw new GeminiVideoError("gemini_video_incomplete", "Gemini did not finish the video analysis");
+    // The reason and token counts, never content: enough to tell a budget
+    // from a safety stop without a second paid call to find out.
+    const usage = payload.usageMetadata;
+    throw new GeminiVideoError("gemini_video_incomplete",
+      `Gemini did not finish the video analysis (finishReason=${candidate?.finishReason ?? "none"}, `
+      + `candidatesTokens=${usage?.candidatesTokenCount ?? "?"}, totalTokens=${usage?.totalTokenCount ?? "?"})`);
   }
   const parts = candidate.content?.parts ?? [];
   const calls = parts.filter((part) =>

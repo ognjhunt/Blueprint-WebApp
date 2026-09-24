@@ -95,6 +95,21 @@ describe("agentic video provider contract", () => {
     await expect(analyseAgenticVideo(input, fetcher, noSleep)).rejects.toMatchObject({ code: "gemini_video_incomplete" });
   });
 
+  it("says why an answer was incomplete, without its content", async () => {
+    const fetcher = gemini(() => reply([...trace, { text: "private-partial-answer" }], "MAX_TOKENS"));
+    const error = await analyseAgenticVideo(input, fetcher, noSleep).catch((caught) => caught as Error);
+    expect(error.message).toContain("finishReason=MAX_TOKENS");
+    expect(error.message).toContain("totalTokens=17");
+    expect(error.message).not.toContain("private-partial-answer");
+  });
+
+  it("gives the reasoning and media trace room before the answer", async () => {
+    const fetcher = gemini(() => reply([...trace, { text: "{}" }]));
+    await analyseAgenticVideo(input, fetcher, noSleep);
+    const [generate] = callsTo(fetcher, (url) => url.includes(":generateContent"));
+    expect(JSON.parse((generate[1] as RequestInit).body as string).generationConfig.maxOutputTokens).toBe(32_768);
+  });
+
   it("does not retry a provider rejection or expose its potentially sensitive body", async () => {
     const fetcher = gemini(() => new Response("signed-source-url-and-api-key", { status: 400 }));
     await expect(analyseAgenticVideo(input, fetcher, noSleep)).rejects.toThrow("Gemini returned HTTP 400");
