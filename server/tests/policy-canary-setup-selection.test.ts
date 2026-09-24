@@ -13,21 +13,23 @@ const offering: any = {
   team_namespace: "team", scene_identity: { id: "scene" }, configuration_run_id: "configuration", task: { identity: { id: "task" } },
 };
 function profile(id: string) {
-  return { source_commit: id, task_evaluation_run: { team_namespace: "team", scene_id: "scene", configuration_run_id: "configuration" },
+  return { profile_id: id, source_commit: id, task_evaluation_run: { team_namespace: "team", scene_id: "scene", configuration_run_id: "configuration" },
     internal_policy_canary_setup: { setup_digest: id, source_launch_id: "launch", offering_digest: "offering", scene_revision_digest: "revision",
+      robot_presets: [{ robot_preset_id: "franka", display_name: "Franka", task_family_id: "rigid_pick_place", readiness: { status: "verified_runnable", receipt: { uri: "fixture://robot", digest: "digest" }, reason: null } }],
       task_success_contract_digest: "contract", task_success_contract: { contract_digest: "contract", scope: { site_id: "scene", task_id: "task" } } } };
 }
 describe("immutable policy setup selection across releases", () => {
   beforeEach(() => { state.profiles = [profile("old"), profile("new")]; });
   it("selects the exact submitted setup while retained releases remain published", async () => {
-    const result = await policyCanarySetupFor("launch", offering, "new");
+    const result = await policyCanarySetupFor("launch", offering, { setupDigest: "new", robotPresetId: "franka" });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.setup.setup_digest).toBe("new");
   });
-  it("refuses unknown, duplicate, or unselected setup identities", async () => {
-    expect(await policyCanarySetupFor("launch", offering, "unknown")).toMatchObject({ ok: false });
-    expect(await policyCanarySetupFor("launch", offering)).toMatchObject({ ok: false, code: "POLICY_CANARY_SETUP_AMBIGUOUS" });
+  it("chooses a deterministic default but refuses unknown or duplicate identities", async () => {
+    expect(await policyCanarySetupFor("launch", offering, { setupDigest: "unknown", robotPresetId: "franka" })).toMatchObject({ ok: false });
+    const initial = await policyCanarySetupFor("launch", offering);
+    expect(initial).toMatchObject({ ok: true, setup: { setup_digest: "new" } });
     state.profiles.push(profile("new"));
-    expect(await policyCanarySetupFor("launch", offering, "new")).toMatchObject({ ok: false, code: "POLICY_CANARY_SETUP_AMBIGUOUS" });
+    expect(await policyCanarySetupFor("launch", offering, { setupDigest: "new", robotPresetId: "franka" })).toMatchObject({ ok: false, code: "POLICY_CANARY_SETUP_AMBIGUOUS" });
   });
 });

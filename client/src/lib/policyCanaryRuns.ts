@@ -105,6 +105,13 @@ export const policyCanarySetupViewSchema = z.object({
   run_kind: z.literal("internal_policy_canary"),
   claim_ceiling: z.literal("diagnostic_policy_execution"),
   registry_digest: digest,
+  available_setups: z.array(z.object({
+    setup_digest: digest,
+    robot_preset_id: z.string().min(1),
+    display_name: z.string().min(1),
+    task_family_id: z.string().min(1),
+    readiness,
+  }).strict()).min(1),
   robot_presets: z.array(robotPreset).min(1),
   episode_presets: z.array(episodePreset).length(3),
   diagnostics: z.object({
@@ -217,9 +224,14 @@ function apiError(data: Record<string, any>, fallback: string) {
 export async function fetchPolicyCanarySetup(
   currentUser: FirebaseUser,
   sourceLaunchId: string,
+  selection?: { setupDigest: string; robotPresetId: string },
 ) {
+  const query = selection ? `?${new URLSearchParams({
+    setup_digest: selection.setupDigest,
+    robot_preset_id: selection.robotPresetId,
+  })}` : "";
   const response = await fetch(
-    `/api/configured-scene-offerings/${encodeURIComponent(sourceLaunchId)}/policy-canary-setup`,
+    `/api/configured-scene-offerings/${encodeURIComponent(sourceLaunchId)}/policy-canary-setup${query}`,
     { credentials: "include", headers: await withFirebaseAuthHeaders(currentUser) },
   );
   const data = await payload(response);
