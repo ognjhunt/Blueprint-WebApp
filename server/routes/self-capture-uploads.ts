@@ -80,6 +80,21 @@ const router = Router();
  */
 export const ALLOWED_EXTENSIONS = new Set(["mov", "mp4"]);
 
+const VIDEO_CONTENT_TYPES: Record<string, string> = { mov: "video/quicktime", mp4: "video/mp4" };
+
+/**
+ * The type the object is stored under. A browser that does not recognise the
+ * file (Chromium for an uppercase `.MOV`, for one) sends a generic type, and
+ * storage then serves the walkthrough as `application/octet-stream`, which the
+ * footage reviewer rightly refuses to read as video. The extension has already
+ * been checked against the allowed list, so it decides unless the browser
+ * named a video type itself.
+ */
+export function storedVideoContentType(extension: string, declared: string | undefined): string {
+  if (declared && /^video\//i.test(declared)) return declared;
+  return VIDEO_CONTENT_TYPES[extension] ?? "video/quicktime";
+}
+
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 /**
@@ -786,7 +801,7 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
 
   try {
     await saveStreamedFile(file, objectPath, {
-      contentType: file.mimetype || "video/quicktime",
+      contentType: storedVideoContentType(extension, file.mimetype),
       metadata: {
         capture_id: payload.captureId,
         scene_id: payload.sceneId,

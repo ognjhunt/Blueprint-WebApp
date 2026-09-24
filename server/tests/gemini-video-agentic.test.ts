@@ -159,4 +159,16 @@ describe("opening the clip", () => {
     expect(video.byteLength).toBe(clip.length);
     expect(video.receipt().sha256).toBe(createHash("sha256").update(clip).digest("hex"));
   });
+
+  it("reads a stored upload served as generic bytes by its extension, and still refuses a web page", async () => {
+    const video = await openVideo("https://storage.googleapis.com/b/scenes/s/captures/c/raw/walkthrough.mov?X-Goog-Signature=x",
+      served(clip, { "content-type": "application/octet-stream", "content-length": String(clip.length) }));
+    expect(video.contentType).toBe("video/quicktime");
+    await drain(video.body);
+    await expect(openVideo("https://example.com/share/clip.mov", served(clip, { "content-type": "text/html" })))
+      .rejects.toMatchObject({ code: "video_not_directly_readable" });
+    await expect(openVideo("https://example.com/download", served(clip, { "content-type": "application/octet-stream" })))
+      .rejects.toMatchObject({ code: "video_not_directly_readable" });
+  });
 });
+
