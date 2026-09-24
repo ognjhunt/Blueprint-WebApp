@@ -1286,3 +1286,5 @@ At 16:02:46 UTC, durable launch `website-c577df51a964aa540227c710-de30eba1-20260
 By 16:06 UTC, the new launch had a controller `admitted` receipt with no blockers and the CPU prestage entrypoint had emitted its first progress tick. This proves paid admission and CPU process start, not CAD/Blender completion or independent review.
 
 At 16:14 UTC, the active CPU prestage wrote completed-prefix checkpoint receipts for stages 1 and 2 and started stage 3, the articulated CAD/Blender authoring stage. The new stage 3 result and independent review are still pending.
+
+At 16:26 UTC, stage 3 generated a carcass STEP with passing readback (550 × 586.67 × 781.53 mm), watertight visual mesh, three finished studio renders and a `.blend` file. The separate Claude Opus 5.5 visual review returned all required booleans true and no blockers, while listing unseen interior and rear surfaces as generated. The carcass `result.json` says `candidate_authored_pending_native_qualification`; it is not final qualification. Drawer CAD authoring had started and was still running.
