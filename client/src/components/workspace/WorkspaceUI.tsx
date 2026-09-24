@@ -44,6 +44,7 @@ export function Frame({
       active={active}
       breadcrumb={title}
       role={query.data?.role}
+      hasOwnedSites={Boolean(query.data?.tasks.length)}
       organization={query.data?.profile.organization}
     >
       <Helmet>

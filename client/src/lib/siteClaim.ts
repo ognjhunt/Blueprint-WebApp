@@ -25,11 +25,11 @@ export async function attachSiteClaim(
   acceptedTerms: boolean,
 ) {
   try {
-    return await workspaceRequest(user, "/claim", "POST", { token });
+    return await workspaceRequest(user, "/claim", "POST", { token, acceptedTerms });
   } catch (error) {
     if (error instanceof WorkspaceRequestError && error.code === "workspace_setup_required") {
       await setUpSiteWorkspace(user, context, acceptedTerms);
-      return workspaceRequest(user, "/claim", "POST", { token });
+      return workspaceRequest(user, "/claim", "POST", { token, acceptedTerms });
     }
     throw error;
   }

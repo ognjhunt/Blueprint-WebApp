@@ -166,6 +166,15 @@ export default function Overview() {
         </>
       ) : (
         <>
+          {tasks.length > 0 && (
+            <section>
+              <div className="ws-section-title">
+                <h2>Sites you own</h2>
+                <Link href="/app/tasks" className="ws-link">View all</Link>
+              </div>
+              <TaskRows tasks={tasks.slice(0, 4)} />
+            </section>
+          )}
           {nextResult && (
             <section className="ws-next">
               <div>
