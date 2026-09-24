@@ -393,6 +393,24 @@ describe("internal policy canary contract", () => {
       code: "POLICY_INCOMPATIBLE",
     });
   });
+
+  it("keeps movement candidates out of a manipulation-scored policy pair", () => {
+    const setupValue = setup();
+    const candidates = setupValue.robot_presets[0].policy_candidates;
+    candidates[1].evaluation_objective_id = "g1_navigation_goal";
+    setupValue.setup_digest = canonicalArtifactDigest(setupValue, "setup_digest");
+    expect(resolveInternalPolicyCanarySelection(setupValue, selection(setupValue))).toMatchObject({
+      ok: false,
+      code: "POLICY_OBJECTIVE_MISMATCH",
+    });
+
+    candidates[0].evaluation_objective_id = "g1_navigation_goal";
+    setupValue.setup_digest = canonicalArtifactDigest(setupValue, "setup_digest");
+    expect(resolveInternalPolicyCanarySelection(setupValue, selection(setupValue))).toMatchObject({
+      ok: false,
+      code: "POLICY_OBJECTIVE_CONTRACT_NOT_PUBLISHED",
+    });
+  });
 });
 
 describe("destination-qualified retreat contract", () => {

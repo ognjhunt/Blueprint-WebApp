@@ -43,6 +43,9 @@ function optionReason(candidate: PolicyCanaryCandidate, robot: PolicyCanaryRobot
     return candidate.readiness.reason || "Not available yet.";
   }
   if (!compatible(candidate, robot)) return `Doesn't work with ${robot.display_name}.`;
+  if (candidate.evaluation_objective_id === "g1_navigation_goal") {
+    return "This task needs a confirmed movement goal and score before this policy can run.";
+  }
   return null;
 }
 

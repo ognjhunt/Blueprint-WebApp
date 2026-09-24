@@ -61,6 +61,9 @@ const readinessSchema = z.object({
 export const policyCanaryCandidateSchema = z.object({
   candidate_id: identifier,
   display_name: z.string().trim().min(1).max(160),
+  // Older published Franka profiles have one task-success objective. Future
+  // profiles must name navigation explicitly so it cannot inherit that score.
+  evaluation_objective_id: z.enum(["task_success", "g1_navigation_goal"]).optional(),
   checkpoint: immutableReference,
   adapter_id: identifier,
   license_id: z.string().trim().min(1).max(200),
@@ -477,6 +480,18 @@ export function resolveInternalPolicyCanarySelection(
       },
     };
   }
+  const objectives = selectedCandidates.map((candidate) =>
+    candidate.evaluation_objective_id || "task_success");
+  if (objectives[0] !== objectives[1]) return {
+    ok: false,
+    code: "POLICY_OBJECTIVE_MISMATCH",
+    message: "Choose two policies evaluated against the same objective.",
+  };
+  if (objectives[0] !== "task_success") return {
+    ok: false,
+    code: "POLICY_OBJECTIVE_CONTRACT_NOT_PUBLISHED",
+    message: "This task/site does not yet publish a confirmed navigation success contract for a policy comparison.",
+  };
   const preset = setup.episode_presets.find(
     (candidate) => candidate.preset_id === selection.episode_preset_id,
   );
