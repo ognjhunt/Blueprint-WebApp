@@ -24,7 +24,7 @@ export const policyCanaryEpisodeInterpretationSidecarSchema = z.object({
   summary: pipelineEpisodeInterpretationSummarySchema,
   episodes: z.array(z.object({
     episode_id: identifier,
-    candidate_id: z.enum(["pi05_droid", "groot_n17_droid"]),
+    candidate_id: identifier,
     cell_id: identifier,
     seed: z.number().int().min(0).max(2_147_483_647),
     interpretation: pipelineEpisodeInterpretationSchema,

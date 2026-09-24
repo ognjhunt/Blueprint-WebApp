@@ -131,6 +131,10 @@ export default function PolicyCanarySetup() {
     ) return;
     setSubmitting(true);
     setError(null);
+    // The pair is unordered; list order is the one order a run is booked in.
+    const [firstPolicy, secondPolicy] = robot.policy_candidates
+      .map((candidate) => candidate.candidate_id)
+      .filter((candidateId) => policyIds.includes(candidateId));
     const input: PolicyCanarySelection = {
       schema_version: "task_evaluation_policy_canary_selection.v1",
       run_kind: "internal_policy_canary",
@@ -140,7 +144,7 @@ export default function PolicyCanarySetup() {
       setup_digest: setup.setup_digest,
       scene_revision_digest: setup.scene_revision_digest,
       robot_preset_id: robot.robot_preset_id,
-      policy_candidate_ids: [policyIds[0], policyIds[1]],
+      policy_candidate_ids: [firstPolicy, secondPolicy],
       episode_preset_id: "quick_10",
       variation_matrix_digest: preset.matrix.matrix_digest,
       task_success_contract: confirmedSuccessContract,

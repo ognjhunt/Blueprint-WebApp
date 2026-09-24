@@ -8,9 +8,9 @@ import { ActionLink } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
 import { EvaluationRunStatusError, fetchEvaluationReadyRun, type EvaluationReadyRunProjection } from "@/lib/evaluationReadyRuns";
 import type { PolicyCanaryRunProjection } from "@/lib/policyCanaryRuns";
+import { policyCandidateLabel as candidateLabel } from "@/lib/policyCandidateLabels";
 
 const terminalStates = new Set(["results_ready", "abstained", "blocked", "failed", "cancelled"]);
-const candidateLabels = { pi05_droid: "π0.5 DROID", groot_n17_droid: "GR00T N1.7 DROID" } as const;
 const familyLabels = {
   canonical_anchor: "Baseline",
   placement_approach: "Placement and approach",
@@ -70,13 +70,13 @@ function PolicySummary({ run }: { run: EvaluationReadyRunProjection }) {
       <section className="ws-section" aria-labelledby="terminal-summary-title">
         <p className="ws-kicker">Result</p>
         <h2 id="terminal-summary-title">
-          {decision === "abstain" ? "No decision" : decision === "tie" ? "Tie" : `${candidateLabels[decision]} selected`}
+          {decision === "abstain" ? "No decision" : decision === "tie" ? "Tie" : `${candidateLabel(decision)} selected`}
         </h2>
         <ul className="mt-4 flex flex-col">
           {policyResult.candidate_results.map((candidate) => {
             const canonical = candidate.family_metrics.canonical_anchor;
             return <li key={candidate.candidate_id} className="flex justify-between gap-4 border-t border-line py-3">
-              <span>{candidateLabels[candidate.candidate_id]}</span>
+              <span>{candidateLabel(candidate.candidate_id)}</span>
               <span className="tabular-nums">{canonical ? `${Math.round(canonical.success_rate * 100)}%` : "—"} <span className="text-sm text-ink-500">baseline success · {candidate.episodes_completed} episodes</span></span>
             </li>;
           })}
@@ -87,7 +87,7 @@ function PolicySummary({ run }: { run: EvaluationReadyRunProjection }) {
           <summary>Details</summary>
           <div className="ws-table-wrap">
             <table className="ws-table" aria-label="Per-family policy results">
-              <thead><tr><th>Scenario family</th>{policyResult.candidate_results.map((candidate) => <th key={candidate.candidate_id}>{candidateLabels[candidate.candidate_id]}</th>)}</tr></thead>
+              <thead><tr><th>Scenario family</th>{policyResult.candidate_results.map((candidate) => <th key={candidate.candidate_id}>{candidateLabel(candidate.candidate_id)}</th>)}</tr></thead>
               <tbody>{Object.entries(familyLabels).map(([family, label]) => <tr key={family}><td>{label}</td>{policyResult.candidate_results.map((candidate) => {
                 const metric = candidate.family_metrics[family as keyof typeof familyLabels];
                 return <td key={candidate.candidate_id} className="tabular-nums">{metric ? `${Math.round(metric.success_rate * 100)}%` : "—"}</td>;
@@ -96,7 +96,7 @@ function PolicySummary({ run }: { run: EvaluationReadyRunProjection }) {
           </div>
           <p className="ws-note">
             {policyResult.paired_comparison.matched_episode_pairs} matched scenario pairs · {policyResult.matrix.completed_episode_count} of {policyResult.matrix.expected_episode_count} episodes complete.{" "}
-            {policyResult.candidate_results.map((candidate) => `${candidateLabels[candidate.candidate_id]}: ${candidate.failures.reduce((total, failure) => total + failure.count, 0)} failures, ${candidate.contacts.violation_count} contact violations`).join(" · ")}.
+            {policyResult.candidate_results.map((candidate) => `${candidateLabel(candidate.candidate_id)}: ${candidate.failures.reduce((total, failure) => total + failure.count, 0)} failures, ${candidate.contacts.violation_count} contact violations`).join(" · ")}.
           </p>
           <p className="break-all text-xs text-ink-500">Projection {policyResult.projection_digest} · delivery {policyResult.result_delivery_digest}</p>
         </details>
@@ -110,11 +110,10 @@ function PolicySummary({ run }: { run: EvaluationReadyRunProjection }) {
       <p className="ws-kicker">Result</p>
       <h2 id="terminal-summary-title">Baseline success</h2>
       <ul className="mt-4 flex flex-col">
-        {(["pi05_droid", "groot_n17_droid"] as const).map((candidateId) => {
-          const metric = summary.canonical[candidateId];
+        {Object.entries(summary.canonical).map(([candidateId, metric]) => {
           if (!metric) return null;
           return <li key={candidateId} className="flex justify-between gap-4 border-t border-line py-3">
-            <span>{candidateLabels[candidateId]}</span>
+            <span>{candidateLabel(candidateId)}</span>
             <span className="tabular-nums">{Math.round(metric.success_rate * 100)}% <span className="text-sm text-ink-500">{metric.successes} of {metric.attempts}</span></span>
           </li>;
         })}

@@ -1837,9 +1837,11 @@ describe("admin Task Evaluation launch route", () => {
       expect(first.status).toBe(503);
       const originalRequestDigest = state.records.get(runId)?.request_digest;
 
+      // The same two policies in the other order are the same run, so the
+      // change here is to what the run is allowed to do.
       const changedSelection = {
         ...body,
-        policy_candidate_ids: ["groot_n17_droid", "pi05_droid"],
+        episode_interpretation: { enabled: false },
       };
       const conflict = await fetch(`${url}/${sourceLaunchId}/policy-canary-runs`, {
         method: "POST",

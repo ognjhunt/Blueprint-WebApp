@@ -930,6 +930,11 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
         saved.task_success_contract_digest = sha("b");
         expect((await postSigned(socketPath, body)).status).toBe(409);
         saved.task_success_contract_digest = contract.contract_digest;
+        // A result for a different pair than the run booked is refused; the
+        // same two policies in either order are the same run.
+        saved.policy_candidate_ids = ["pi05_droid", "cosmos3_nano_policy_droid"];
+        expect((await postSigned(socketPath, body)).status).toBe(409);
+        saved.policy_candidate_ids = ["groot_n17_droid", "pi05_droid"];
         expect(state.collections.get("captureTaskEvaluationRuns")?.size || 0).toBe(0);
         expect(state.sendEmail).not.toHaveBeenCalled();
       }

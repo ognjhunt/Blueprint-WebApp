@@ -4,14 +4,7 @@ import {
 } from "@/lib/evaluationResultAnalytics";
 import type { TaskEvaluationResultEpisode } from "@/lib/taskEvaluationResults";
 
-const candidateLabels: Record<string, string> = {
-  pi05_droid: "π0.5 DROID",
-  groot_n17_droid: "GR00T N1.7 DROID",
-};
-
-function candidateLabel(candidateId: string) {
-  return candidateLabels[candidateId] ?? candidateId.replaceAll("_", " ");
-}
+import { policyCandidateLabel as candidateLabel } from "@/lib/policyCandidateLabels";
 
 function rateLabel(metric: CandidateMetricSummary) {
   return metric.successRate === null ? "Not scored" : `${Math.round(metric.successRate * 100)}%`;
@@ -62,7 +55,9 @@ export function EvaluationResultOverview({ episodes }: { episodes: TaskEvaluatio
       </div>
       <p className="mt-3 text-sm text-ink-600">
         Paired outcomes: {paired.comparablePairs} scenarios run by both policies; {paired.discordantPairs} came out
-        differently (π0.5 {paired.pi05Wins}, GR00T {paired.grootWins}); {paired.ties} ties.
+        differently{paired.firstId && paired.secondId
+          ? ` (${candidateLabel(paired.firstId)} ${paired.firstWins}, ${candidateLabel(paired.secondId)} ${paired.secondWins})`
+          : ""}; {paired.ties} ties.
       </p>
 
       <details className="mt-4">

@@ -236,7 +236,7 @@ export async function submitPolicyCanaryRun(params: {
     request_digest: freshRequest.request_digest,
     configuration_digest: freshRequest.request_digest,
     robot_preset_id: selection.robot_preset_id,
-    policy_candidate_ids: selection.policy_candidate_ids,
+    policy_candidate_ids: selected.candidates.map((candidate) => candidate.candidate_id),
     scene: {
       id: offering.scene_identity.id,
       version: offering.scene_identity.version,

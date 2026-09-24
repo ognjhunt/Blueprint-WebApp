@@ -1,11 +1,7 @@
 import { useState } from "react";
 
 import type { EvaluationReadySetupView } from "@/lib/evaluationReadyRuns";
-
-const candidateLabels = {
-  pi05_droid: "π0.5 DROID",
-  groot_n17_droid: "GR00T N1.7 DROID",
-} as const;
+import { policyCandidateLabel } from "@/lib/policyCandidateLabels";
 
 const familyLabels: Record<string, string> = {
   canonical_anchor: "Baseline",
@@ -38,7 +34,7 @@ export function EvaluationRunConfiguration({
         <h2 id="setup-robot">Robot and policies</h2>
         <dl className="ws-facts">
           <div><dt>Robot</dt><dd>Franka Panda + Robotiq 2F-85</dd></div>
-          <div><dt>Policies</dt><dd>{setup.candidateIds.map((id) => candidateLabels[id]).join(" and ")}</dd></div>
+          <div><dt>Policies</dt><dd>{setup.candidateIds.map((id) => policyCandidateLabel(id)).join(" and ")}</dd></div>
         </dl>
         <p className="ws-note">Fixed for this task. Both policies run the same scenarios.</p>
       </section>

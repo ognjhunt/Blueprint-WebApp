@@ -82,6 +82,7 @@ jobs:
           name: claims-guard-report
           path: output/claims-guard
           if-no-files-found: ignore
+          retention-days: 7
 
       - name: Dependency security audit (production deps, fail on high+)
         # Audit the committed lock directly. `npm ci` has already proven the
@@ -168,6 +169,7 @@ jobs:
           name: coverage
           path: coverage
           if-no-files-found: ignore
+          retention-days: 7
 
   e2e:
     runs-on: ubuntu-latest
@@ -231,6 +233,7 @@ jobs:
           name: playwright-report
           path: playwright-report
           if-no-files-found: ignore
+          retention-days: 7
 
 
   build:
@@ -273,3 +276,4 @@ jobs:
           name: build-metadata
           path: dist/public/version.json
           if-no-files-found: ignore
+          retention-days: 7

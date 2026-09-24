@@ -637,15 +637,20 @@ function lifecycleProgress(record: EvaluationReadyRunRecord) {
   return null;
 }
 
-function canaryStageForPhase(phase: string | null): PolicyCanaryStage | null {
+function canaryStageForPhase(
+  phase: string | null,
+  candidateIds: readonly unknown[] = CANONICAL_POLICY_CANDIDATE_IDS,
+): PolicyCanaryStage | null {
   if (!phase) return null;
   if ((POLICY_CANARY_STAGE_ORDER as readonly string[]).includes(phase)) {
     return phase as PolicyCanaryStage;
   }
   if (phase === "intake_webapp_record_binding" || phase === "starting") return "queued";
   if (phase === "awaiting_episode_interpretation") return "artifacts_syncing";
-  if (phase.startsWith("policy_pi05_droid")) return "policy_a_running";
-  if (phase.startsWith("policy_groot_n17_droid")) return "policy_b_running";
+  // Policy A and B are the run's own pair, in booked order.
+  const [policyA, policyB] = candidateIds.length === 2 ? candidateIds : CANONICAL_POLICY_CANDIDATE_IDS;
+  if (typeof policyA === "string" && phase.startsWith(`policy_${policyA}`)) return "policy_a_running";
+  if (typeof policyB === "string" && phase.startsWith(`policy_${policyB}`)) return "policy_b_running";
   if (phase.startsWith("vast_instance_teardown") || phase.startsWith("awaiting_official_billing")) {
     return "billing_teardown";
   }
@@ -734,7 +739,10 @@ export function projectEvaluationReadyRun(record: EvaluationReadyRunRecord) {
   if (!internalPolicyCanary) return projection;
   const stage = terminal
     ? furthestCanaryStage(record.stage, "terminal")
-    : furthestCanaryStage(record.stage, canaryStageForPhase(observedPhase));
+    : furthestCanaryStage(record.stage, canaryStageForPhase(
+      observedPhase,
+      Array.isArray(record.policy_candidate_ids) ? record.policy_candidate_ids : undefined,
+    ));
   const stageIndex = POLICY_CANARY_STAGE_ORDER.indexOf(stage);
   const state = terminal
     ? record.state
