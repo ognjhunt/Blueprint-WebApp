@@ -136,6 +136,33 @@ describe("a held capture gets another chance", () => {
     expect(stored.capture_privacy_screen.attempts).toBe(3);
   });
 
+  it("spends the attempt before the review runs, so a review that crashes still counts", async () => {
+    seed({
+      eligibility: "pending",
+      outcome: "review_unavailable",
+      attempts: 4,
+      first_held_at_iso: new Date().toISOString(),
+    });
+
+    // The process dies inside the review: nothing after it runs.
+    const crash = vi.fn(async () => {
+      const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<
+        string,
+        Record<string, unknown>
+      >;
+      expect(stored.capture_privacy_screen.attempts).toBe(5);
+      throw new Error("process killed");
+    });
+    await expect(resumeHeldPrivacyScreen({ ...CAPTURE, screen: crash })).rejects.toThrow("process killed");
+
+    // The next poll finds the budget spent and hands it to a person instead of
+    // running the review that crashed again.
+    const again = screener({ eligibility: "approved" });
+    const outcome = await resumeHeldPrivacyScreen({ ...CAPTURE, screen: again });
+    expect(outcome).toMatchObject({ action: "escalated", attempts: 5 });
+    expect(again).not.toHaveBeenCalled();
+  });
+
   it("reports a reading that came back on the retry", async () => {
     seed({
       eligibility: "pending",

@@ -49,6 +49,48 @@ interface VideoResponsePart {
   tool_response?: { tool_type?: string };
 }
 
+const VIDEO_DATA_PLACEHOLDER = "__blueprint_inline_video_base64__";
+/** A multiple of 3, so each chunk base64-encodes without padding mid-stream. */
+const BASE64_CHUNK_BYTES = 3 * 256 * 1024;
+
+/**
+ * The request body, encoded as it is sent.
+ *
+ * Building it as one string held the video three more times over -- as base64,
+ * inside the JSON string, and again as the encoded request -- which is several
+ * hundred MB for a phone clip. That killed the website's 512MB web instance
+ * mid-request, before the privacy screen could record the attempt. The wire
+ * format is unchanged; only the video's base64 is produced a chunk at a time.
+ */
+export function streamedRequestBody(prompt: string, bytes: Buffer, contentType: string): ReadableStream<Uint8Array> {
+  const [head, tail] = JSON.stringify({
+    contents: [{ role: "user", parts: [
+      { text: prompt },
+      { inline_data: { mime_type: contentType, data: VIDEO_DATA_PLACEHOLDER },
+        media_processing: "AGENTIC" },
+    ] }],
+    generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 },
+  }).split(VIDEO_DATA_PLACEHOLDER);
+  let offset = 0;
+  let stage: "head" | "video" | "tail" | "done" = "head";
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (stage === "head") {
+        controller.enqueue(Buffer.from(head, "utf8"));
+        stage = "video";
+      } else if (stage === "video" && offset < bytes.byteLength) {
+        const end = Math.min(offset + BASE64_CHUNK_BYTES, bytes.byteLength);
+        controller.enqueue(Buffer.from(bytes.subarray(offset, end).toString("base64"), "latin1"));
+        offset = end;
+      } else if (stage !== "done") {
+        controller.enqueue(Buffer.from(tail, "utf8"));
+        stage = "done";
+        controller.close();
+      }
+    },
+  });
+}
+
 /** Explicit REST fields avoid silently dropping new fields in the old SDK. */
 export async function analyseAgenticVideo(input: {
   apiKey: string;
@@ -63,15 +105,9 @@ export async function analyseAgenticVideo(input: {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
       signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [
-          { text: input.prompt },
-          { inline_data: { mime_type: input.contentType, data: input.bytes.toString("base64") },
-            media_processing: "AGENTIC" },
-        ] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 },
-      }),
-    },
+      body: streamedRequestBody(input.prompt, input.bytes, input.contentType),
+      duplex: "half",
+    } as RequestInit,
   );
   // Do not include upstream error bodies: they can echo source URLs or tokens.
   if (!response.ok) throw new GeminiVideoError("gemini_video_provider_failed", `Gemini returned HTTP ${response.status}`);

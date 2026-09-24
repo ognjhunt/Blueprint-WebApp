@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { analyseAgenticVideo } from "../agents/adapters/gemini-video";
+import { analyseAgenticVideo, streamedRequestBody } from "../agents/adapters/gemini-video";
 
 const input = { apiKey: "test-key", model: "gemini-3.8-flash", prompt: "Inspect the task.",
   bytes: Buffer.from("fixture-video"), contentType: "video/mp4" };
@@ -20,7 +20,9 @@ describe("agentic video provider contract", () => {
     const [url, request] = fetcher.mock.calls[0];
     expect(url).toContain("gemini-3.8-flash:generateContent");
     expect(url).not.toContain(input.apiKey);
-    const body = JSON.parse(request.body);
+    expect(request.body).toBeInstanceOf(ReadableStream);
+    expect(request.duplex).toBe("half");
+    const body = JSON.parse(await new Response(request.body).text());
     expect(body.contents[0].parts[1]).toEqual({
       inline_data: { mime_type: "video/mp4", data: input.bytes.toString("base64") },
       media_processing: "AGENTIC",
@@ -54,5 +56,27 @@ describe("agentic video provider contract", () => {
     const fetcher = vi.fn().mockResolvedValue(new Response("signed-source-url-and-api-key", { status: 400 }));
     await expect(analyseAgenticVideo(input, fetcher)).rejects.toThrow("Gemini returned HTTP 400");
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("streams a multi-chunk video as exactly the JSON a single string would have been", async () => {
+    // Longer than one chunk and not a multiple of 3, so a padding bug at a
+    // chunk boundary would corrupt the base64 the model receives.
+    const bytes = Buffer.alloc(3 * 256 * 1024 * 2 + 7);
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = (i * 31 + 7) % 256;
+    const stream = streamedRequestBody("Inspect the task.", bytes, "video/quicktime");
+    const chunks: Uint8Array[] = [];
+    for (const reader = stream.getReader(); ;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    expect(chunks.length).toBeGreaterThan(3);
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    expect(body.contents[0].parts[0]).toEqual({ text: "Inspect the task." });
+    expect(body.contents[0].parts[1]).toEqual({
+      inline_data: { mime_type: "video/quicktime", data: bytes.toString("base64") },
+      media_processing: "AGENTIC",
+    });
+    expect(body.generationConfig).toEqual({ responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 });
   });
 });

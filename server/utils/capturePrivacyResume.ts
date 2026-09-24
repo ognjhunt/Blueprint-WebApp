@@ -153,6 +153,15 @@ export async function resumeHeldPrivacyScreen(params: {
     return { action: "escalated", attempts, reason };
   }
 
+  // Spent before the review runs, not after it returns. A review that takes
+  // the process down with it never returns, so counting afterwards left the
+  // budget untouched and every status poll retried -- and crashed -- again,
+  // never reaching the person the escalation above exists for.
+  await db
+    .collection("inboundRequests")
+    .doc(params.requestId)
+    .set({ capture_privacy_screen: { attempts: attempts + 1 } }, { merge: true });
+
   const screen = params.screen ?? screenCaptureForPrivacy;
   const result = await screen({
     requestId: params.requestId,
