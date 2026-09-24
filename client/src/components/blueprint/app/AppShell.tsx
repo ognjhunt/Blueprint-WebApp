@@ -26,6 +26,7 @@ export interface AppShellProps {
   publicView?: boolean;
   role?: WorkspaceRole;
   organization?: string;
+  hasOwnedSites?: boolean;
 }
 function handleWorkspaceTabs(event: KeyboardEvent<HTMLDivElement>) {
   const target = event.target as HTMLElement;
@@ -60,6 +61,7 @@ export function AppShell({
   publicView = false,
   role,
   organization,
+  hasOwnedSites = false,
 }: AppShellProps) {
   const { currentUser, userData, logout } = useAuth();
   const [open, setOpen] = useState(false),
@@ -91,6 +93,7 @@ export function AppShell({
         ]
       : [
           ["overview", "Overview", "/app"],
+          ...(hasOwnedSites ? [["tasks", "Owned sites", "/app/tasks"]] : []),
           // The $99 task library, not the pilot-openings list the capture-first
           // intake never fills; and the runs and balance a team paid for.
           ["opportunities", "Task library", "/sites"],

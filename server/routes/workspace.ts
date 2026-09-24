@@ -10,6 +10,7 @@ import {
   buildLegalAcceptanceRecord,
   TERMS_VERSION,
   PRIVACY_VERSION,
+  isCurrentLegalAcceptance,
 } from "../../client/src/lib/legalAcceptance";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import {
@@ -325,16 +326,17 @@ async function readRequest(requestId: string) {
   };
 }
 async function ownedTask(requestId: string, res: Response) {
-  requireRole(res, "site_operator");
   const item = await readRequest(requestId),
     caller = identity(res);
   const owner = text(item.record.account_owner_uid);
   const legacy =
     !owner &&
+    caller.role === "site_operator" &&
     caller.verified &&
     caller.user.structuredIntakeRequestId === requestId &&
     text(object(item.record.contact).email).toLowerCase() === caller.email;
   if (
+    !caller.verified ||
     object(item.record.request).buyerType !== "site_operator" ||
     (owner !== caller.uid && !legacy)
   )
@@ -552,6 +554,11 @@ router.get(
   handle(async (_req, res) => {
     const caller = identity(res),
       requests = await listOwnedRequests(res);
+    const tasks = await Promise.all(
+      (caller.verified ? requests : [])
+        .filter((item) => object(item.record.request).buyerType === "site_operator")
+        .map((item) => hydrateTask(item.id, item.record)),
+    );
     const profile = {
       name: text(caller.user.name || caller.user.displayName),
       organization:
@@ -563,13 +570,6 @@ router.get(
       email: caller.email,
     };
     if (caller.role === "site_operator") {
-      const tasks = await Promise.all(
-        requests
-          .filter(
-            (item) => object(item.record.request).buyerType === "site_operator",
-          )
-          .map((item) => hydrateTask(item.id, item.record)),
-      );
       return res.json({
         role: caller.role,
         profile,
@@ -693,7 +693,7 @@ router.get(
     return res.json({
       role: caller.role,
       profile,
-      tasks: [],
+      tasks,
       evaluations: evaluations.sort((a, b) =>
         (b.createdAt || "").localeCompare(a.createdAt || ""),
       ),
@@ -749,7 +749,6 @@ function intakeIdentity(res: Response) {
 router.post(
   "/claim",
   handle(async (req, res) => {
-    requireRole(res, "site_operator");
     const caller = identity(res);
     if (!caller.verified)
       refuse(403, "Verify your email before claiming a site.", "claim_email_unverified");
@@ -759,34 +758,46 @@ router.post(
       refuse(400, "That claim link is not valid any more.", "claim_token_invalid");
 
     const item = await readRequest(payload.requestId);
-    const owner = text(item.record.account_owner_uid);
-    if (owner && owner !== caller.uid)
-      refuse(409, "Someone has already claimed this site.", "site_already_claimed");
-
-    const operatorEmail = text(object(item.record.contact).email).toLowerCase();
-    if (operatorEmail && operatorEmail !== caller.email)
-      refuse(
-        403,
-        `Sign in with ${operatorEmail} to claim this site.`,
-        "claim_email_mismatch",
-      );
-
-    await item.ref.set(
-      {
-        account_owner_uid: caller.uid,
-        claimed_at: admin.firestore.FieldValue.serverTimestamp(),
-        claimed_at_iso: new Date().toISOString(),
-      },
-      { merge: true },
-    );
-    // Legacy operator surfaces read the link off the user doc; set it once,
-    // never steal one that is already pointed somewhere.
+    if (object(item.record.request).buyerType !== "site_operator")
+      refuse(404, "Site not found.");
     const profileRef = db!.collection("users").doc(caller.uid);
     await db!.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(profileRef);
-      const user = object(snapshot.data());
-      if (!text(user.structuredIntakeRequestId))
-        transaction.update(profileRef, { structuredIntakeRequestId: payload.requestId });
+      const [siteSnapshot, profileSnapshot] = await Promise.all([
+        transaction.get(item.ref), transaction.get(profileRef),
+      ]);
+      const site = object(siteSnapshot.data()), user = object(profileSnapshot.data());
+      const owner = text(site.account_owner_uid);
+      if (owner && owner !== caller.uid)
+        refuse(409, "Someone has already claimed this site.", "site_already_claimed");
+      const operatorEmail = text(object(site.contact).email).toLowerCase();
+      if (!operatorEmail || operatorEmail !== caller.email)
+        refuse(403, "Sign in with the submission email to claim this site.", "claim_email_mismatch");
+      const sourceTerms = site.terms_acceptance;
+      const needsTerms = !currentTermsAccepted(user);
+      if (needsTerms && !isCurrentLegalAcceptance(sourceTerms) && object(req.body).acceptedTerms !== true)
+        refuse(400, "Accept the Terms and Privacy Policy to claim this site.", "workspace_terms_required");
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      transaction.update(item.ref, {
+        account_owner_uid: caller.uid,
+        claimed_at: now,
+        claimed_at_iso: new Date().toISOString(),
+      });
+      const profilePatch = {
+        ...(!text(user.structuredIntakeRequestId)
+          ? { structuredIntakeRequestId: payload.requestId } : {}),
+        ...(needsTerms ? {
+          acceptedTerms: true,
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+          termsAcceptance: isCurrentLegalAcceptance(sourceTerms)
+            ? sourceTerms
+            : buildLegalAcceptanceRecord({ acceptedAt: now }),
+          termsAcceptanceSource: isCurrentLegalAcceptance(sourceTerms)
+            ? { kind: "site_capture_intake", requestId: payload.requestId }
+            : { kind: "site_claim", requestId: payload.requestId },
+        } : {}),
+      };
+      if (Object.keys(profilePatch).length > 0) transaction.update(profileRef, profilePatch);
     });
     return res.json({ ok: true, requestId: payload.requestId });
   }),

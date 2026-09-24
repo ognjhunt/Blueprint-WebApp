@@ -39,6 +39,18 @@ export interface LegalAcceptanceRecord<TAcceptedAt = unknown> {
   accepted_from_ip_hash: string | null;
 }
 
+/** Recognize a prior server-recorded acceptance of the current documents. */
+export function isCurrentLegalAcceptance(value: unknown): value is LegalAcceptanceRecord {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return record.accepted_terms === true &&
+    record.terms_version === TERMS_VERSION &&
+    record.privacy_version === PRIVACY_VERSION &&
+    record.terms_url === TERMS_URL &&
+    record.privacy_url === PRIVACY_URL &&
+    record.accepted_at != null;
+}
+
 /**
  * Build the persisted acceptance record. The Terms/Privacy versions and the
  * document URLs are sourced from the server-side constants above (not from the

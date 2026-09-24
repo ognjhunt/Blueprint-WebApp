@@ -26,7 +26,8 @@ import {
 } from "firebase/auth";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { auth } from "@/lib/firebase";
-import { WorkspaceRequestError } from "@/lib/workspace";
+import { workspaceRequest } from "@/lib/workspace";
+import type { WorkspaceAccountSetup } from "@/types/workspace";
 import { attachSiteClaim, claimVerificationUrl, friendlyAuthError } from "@/lib/siteClaim";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
@@ -35,6 +36,7 @@ interface ClaimSummary {
   requestId: string;
   alreadyClaimed: boolean;
   claimEmail: string | null;
+  siteTermsAcceptedCurrent: boolean;
   site: {
     siteName: string | null;
     siteLocation: string | null;
@@ -74,11 +76,26 @@ export function ClaimSite() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<User | null>(() => auth.currentUser);
+  const [accountTermsCurrent, setAccountTermsCurrent] = useState(false);
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setAuthUser(user);
     if (user) setMode("signin");
   }), []);
+
+  const claimEmail = stage.status === "ready" ? stage.summary.claimEmail : null;
+  const siteTermsAcceptedCurrent = stage.status === "ready" && stage.summary.siteTermsAcceptedCurrent;
+  useEffect(() => {
+    setAccountTermsCurrent(false);
+    if (!authUser?.emailVerified ||
+        authUser.email?.toLowerCase() !== claimEmail?.toLowerCase() ||
+        siteTermsAcceptedCurrent) return;
+    let live = true;
+    workspaceRequest<WorkspaceAccountSetup>(authUser, "/setup")
+      .then((account) => { if (live) setAccountTermsCurrent(account.termsRequired === false); })
+      .catch(() => { /* Keep the checkbox when account acceptance cannot be verified. */ });
+    return () => { live = false; };
+  }, [authUser, claimEmail, siteTermsAcceptedCurrent]);
 
   async function loadClaim() {
     setStage({ status: "loading" });
@@ -296,6 +313,11 @@ export function ClaimSite() {
   const matchingSignedInUser = Boolean(
     authUser && authUser.email?.toLowerCase() === email.trim().toLowerCase(),
   );
+  const priorAcceptanceApplies = Boolean(
+    authUser?.emailVerified &&
+    authUser.email?.toLowerCase() === stage.summary.claimEmail?.toLowerCase() &&
+    (stage.summary.siteTermsAcceptedCurrent || accountTermsCurrent),
+  );
   return (
     <Shell>
       <p className="ms-eyebrow">Claim your site</p>
@@ -345,7 +367,7 @@ export function ClaimSite() {
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>}
-        <label htmlFor="claim-terms" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
+        {!priorAcceptanceApplies && <label htmlFor="claim-terms" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
           <input
             id="claim-terms"
             name="claimTerms"
@@ -358,7 +380,7 @@ export function ClaimSite() {
           <span className="ms-field-hint">
             I accept the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
           </span>
-        </label>
+        </label>}
 
         {error && (
           <p className="ms-error" role="alert">

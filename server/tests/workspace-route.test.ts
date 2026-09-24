@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
+import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
@@ -835,6 +836,7 @@ describe("site claim and listing control", () => {
       ...task(),
       account_owner_uid: undefined,
       contact: { email: "site-1@example.com" },
+      terms_acceptance: buildLegalAcceptanceRecord({ acceptedAt: "2026-09-24T00:00:00Z" }),
     });
     const token = createSiteClaimToken("task-1");
 
@@ -848,6 +850,88 @@ describe("site claim and listing control", () => {
     expect(record.claimed_at_iso).toBeTruthy();
     // The legacy operator link is set for the claiming account.
     expect(state.records.get("users/site-1").structuredIntakeRequestId).toBe("task-1");
+  });
+
+  it("lets a verified robot-team account claim its own site while keeping its role and evaluations", async () => {
+    const sourceTerms = buildLegalAcceptanceRecord({ acceptedAt: "2026-09-24T00:00:00Z" });
+    state.records.set("users/robot-1", {
+      buyerType: "robot_team", name: "Robot Owner",
+      acceptedTerms: true, termsVersion: "2026-07-09", privacyVersion: "2026-07-09",
+    });
+    state.records.set("inboundRequests/task-1", {
+      ...task(), account_owner_uid: undefined,
+      contact: { email: "robot-1@example.com" }, terms_acceptance: sourceTerms,
+    });
+    state.records.set("inboundRequests/application-1", {
+      account_owner_uid: "robot-1",
+      request: { buyerType: "robot_team", taskStatement: "Evaluate packing", targetSiteType: "Office" },
+      workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
+      createdAt: "2026-09-24T00:00:00Z",
+    });
+    const token = createSiteClaimToken("task-1");
+    expect((await api("/claim", "robot-1", { token })).status).toBe(200);
+    expect(state.records.get("inboundRequests/task-1")).toMatchObject({
+      account_owner_uid: "robot-1", terms_acceptance: sourceTerms,
+    });
+    expect(state.records.get("users/robot-1")).toMatchObject({
+      buyerType: "robot_team", termsAcceptance: sourceTerms,
+      termsAcceptanceSource: { kind: "site_capture_intake", requestId: "task-1" },
+      termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION,
+    });
+    const workspace = await (await api("/", "robot-1")).json();
+    expect(workspace.role).toBe("robot_team");
+    expect(workspace.tasks.map((item: any) => item.id)).toContain("task-1");
+    expect(workspace.evaluations.map((item: any) => item.id)).toContain("application-1");
+    expect((await api("/tasks/task-1", "robot-1")).status).toBe(200);
+    expect((await api("/tasks/task-1/listing", "robot-1", { paused: true })).status).toBe(200);
+    expect((await api("/tasks/task-1", "robot-2")).status).toBe(404);
+  });
+
+  it("does not transfer stale or absent intake terms without fresh acceptance", async () => {
+    state.records.set("inboundRequests/task-1", {
+      ...task(), account_owner_uid: undefined,
+      contact: { email: "robot-1@example.com" },
+      terms_acceptance: { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-07-09T00:00:00Z" }), terms_version: "2026-07-09" },
+    });
+    const token = createSiteClaimToken("task-1");
+    const rejected = await api("/claim", "robot-1", { token });
+    expect(rejected.status).toBe(400);
+    expect((await rejected.json()).code).toBe("workspace_terms_required");
+    expect(state.records.get("inboundRequests/task-1").account_owner_uid).toBeUndefined();
+    expect(state.records.get("users/robot-1")).not.toHaveProperty("termsAcceptance");
+    expect((await api("/claim", "robot-1", { token, acceptedTerms: true })).status).toBe(200);
+    expect(state.records.get("users/robot-1")).toMatchObject({
+      termsAcceptanceSource: { kind: "site_claim", requestId: "task-1" },
+      termsAcceptance: { terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION },
+    });
+  });
+
+  it("requires fresh acceptance when the intake has no legal record", async () => {
+    state.records.set("inboundRequests/task-1", {
+      ...task(), account_owner_uid: undefined,
+      contact: { email: "robot-1@example.com" },
+    });
+    const token = createSiteClaimToken("task-1");
+    expect((await api("/claim", "robot-1", { token })).status).toBe(400);
+    expect(state.records.get("inboundRequests/task-1").account_owner_uid).toBeUndefined();
+    expect(state.records.get("users/robot-1")).not.toHaveProperty("termsAcceptance");
+  });
+
+  it("rejects unverified and wrong-email robot accounts without changing legal state", async () => {
+    state.records.set("inboundRequests/task-1", {
+      ...task(), account_owner_uid: undefined,
+      contact: { email: "robot-1@example.com" },
+      terms_acceptance: buildLegalAcceptanceRecord({ acceptedAt: "2026-09-24T00:00:00Z" }),
+    });
+    const token = createSiteClaimToken("task-1");
+    const unverified = await fetch(`${base}/claim`, {
+      method: "POST", headers: { "Content-Type": "application/json", "x-user": "robot-1", "x-unverified": "1" },
+      body: JSON.stringify({ token }),
+    });
+    expect(unverified.status).toBe(403);
+    expect((await api("/claim", "robot-2", { token })).status).toBe(403);
+    expect(state.records.get("inboundRequests/task-1").account_owner_uid).toBeUndefined();
+    expect(state.records.get("users/robot-1")).not.toHaveProperty("termsAcceptance");
   });
 
   it("refuses a second claimant once a site is claimed", async () => {
