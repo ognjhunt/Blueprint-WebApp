@@ -18,7 +18,7 @@ confirmed task digest is
 Sponsorship and processing have not started. Do not transfer the older scene's
 stage evidence or budget.
 
-| Step | Current evidence at 2026-09-24 20:04 UTC |
+| Step | Current evidence at 2026-09-24 20:36 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **partial** — intake, rights, account claim and brief confirmation saved; signed sponsorship and Pipeline consumption pending |
 | 2. Original website upload and provider binding | **partial** — original upload accepted; no provider binding yet |
@@ -35,18 +35,21 @@ stage evidence or budget.
 | 13. Frozen policy/setup and GPU policy episode | unproven |
 | 14. Numeric scoring, teardown and website result | unproven |
 
-WebApp Sol selection PR #710 is live at `378336c1a5404a752b004d7423b5ea56406d92ef`.
-Pipeline PRs #2179, #2182, #2183 and #2186 are merged; canonical deployment
-`iteration_18e2e234.json` and live intake prove release
-`18e2e234e2a58bac8713fd1f3b2f912432f2cb43` with no blockers. The dedicated
+WebApp Sol selection PR #710 is included in live descendant `91c90c86`.
+Both Render web and worker have live pinned deployments of that commit and the
+scene-scoped Sol policy and digest allowlists; public readiness passes. Pipeline
+PRs #2179, #2182, #2183 and #2186 are merged; canonical deployment
+`iteration_31eef7c6.json` and live intake prove release
+`31eef7c64524e6876c99b86bd9dc3bc971884c9d` with no blockers. The dedicated
 OpenAI project has an observed $7 monthly hard limit and a private, scene-bound
 project guard; the host has Sol-only scoped project/key and cost attestation
 references. A read-only model lookup returned `gpt-6-sol`; this scene has no
-paid model call or GPU rental. PR #2186's merged source-governance extraction
-at `31eef7c6` is not yet deployed. Its deployment and the WebApp task-specific
-Sol policy/allowlists are waiting for a separate live Vast MapAnything rental
-to finish, because releases must not interrupt active paid work. Signed
-website sponsorship remains pending that release/configuration. Captured-room integration
+paid model call or GPU rental. The shared listener retried the capture at
+20:31 UTC while the web configuration deployment was still in progress. It
+retained a retryable `website_scene_sponsorship_unavailable` error and did not
+create a grant. A read-only sponsorship preflight with the intended live
+configuration passed. The controller's post-deployment retry and signed
+website sponsorship remain pending. Captured-room integration
 remains unqualified; a later fixture would have its own completion state.
 
 ## Previous scene: 2026-09-24 Claude website capture
