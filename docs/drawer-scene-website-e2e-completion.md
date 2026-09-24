@@ -45,8 +45,10 @@ deployment `iteration_c4442e3f.json` and live intake prove release
 `c4442e3fd4268d969b004283bcf42897d19886a3` with no blockers. The dedicated
 OpenAI project has an observed $7 monthly hard limit and a private, scene-bound
 project guard; the host has Sol-only scoped project/key and cost attestation
-references. A read-only model lookup returned `gpt-6-sol`; no CAD authoring or
-GPU rental has started for this scene. The shared listener obtained sponsorship
+references. A read-only model lookup returned `gpt-6-sol`; CAD authoring and
+policy GPU execution have not started for this scene. The guarded MapAnything
+geometry rental in step 8 completed with output retrieval and provider-zero
+teardown. The shared listener obtained sponsorship
 on its fifth attempt; attempts 5 through 7 stopped at clean-plate review.
 Attempt 8 passed the reviewed clean-plate gate and produced the two provider
 outputs in step 8. It stopped before CPU authoring because the declared
