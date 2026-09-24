@@ -119,10 +119,14 @@ export async function policyCanarySetupFor(
   );
   const duplicateChoices = new Set(availableSetups.map((item) =>
     `${item.setup_digest}:${item.robot_preset_id}`)).size !== availableSetups.length;
+  const runnableMatches = matches.filter((profile) =>
+    profile.internal_policy_canary_setup!.robot_presets.some((robot) =>
+      robot.readiness.status === "verified_runnable"));
   const selected = selection
-    ? matches.filter((profile) => profile.internal_policy_canary_setup?.setup_digest === selection.setupDigest
-      && profile.internal_policy_canary_setup.robot_presets.some((robot) => robot.robot_preset_id === selection.robotPresetId))
-    : matches.slice().sort((a, b) => a.profile_id.localeCompare(b.profile_id)).slice(0, 1);
+    ? runnableMatches.filter((profile) => profile.internal_policy_canary_setup?.setup_digest === selection.setupDigest
+      && profile.internal_policy_canary_setup.robot_presets.some((robot) => robot.robot_preset_id === selection.robotPresetId
+        && robot.readiness.status === "verified_runnable"))
+    : runnableMatches.slice().sort((a, b) => a.profile_id.localeCompare(b.profile_id)).slice(0, 1);
   if (selected.length !== 1 || duplicateChoices) return {
     ok: false as const,
     status: selected.length === 0 ? 409 : 503,

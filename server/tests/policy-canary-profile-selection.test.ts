@@ -103,4 +103,18 @@ describe("per-embodiment execution profile selection", () => {
       }),
     ).toMatchObject({ ok: false, code: "POLICY_CANARY_SETUP_AMBIGUOUS" });
   });
+  it("keeps an unavailable G1 profile visible but defaults to a runnable robot", async () => {
+    const unavailable = profile("a-g1", "g1", sha("f"));
+    unavailable.internal_policy_canary_setup.robot_presets[0].readiness = {
+      status: "unavailable", receipt: null, reason: "Controller execution is not verified.",
+    };
+    state.profiles = [unavailable, profile("z-franka", "franka", sha("e"))];
+    const result = await policyCanarySetupFor("launch-1", offering);
+    expect(result).toMatchObject({ ok: true, setup: { setup_digest: sha("e") } });
+    if (!result.ok) throw new Error("selection refused");
+    expect(result.availableSetups.map((row) => row.robot_preset_id)).toEqual(["g1", "franka"]);
+    expect(await policyCanarySetupFor("launch-1", offering, {
+      setupDigest: sha("f"), robotPresetId: "g1",
+    })).toMatchObject({ ok: false, status: 409 });
+  });
 });
