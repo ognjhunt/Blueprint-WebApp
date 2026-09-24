@@ -70,6 +70,18 @@ const taskSuccess = z
 // travel and front direction; the numeric opening threshold is frozen by
 // Pipeline from the qualified asset's joint limit before any episode.
 const articulationJointType = z.enum(["prismatic", "revolute"]);
+// Evidence that the rebuilt assembly was covered as a whole object (every
+// observed part and state, body depth seen), not only the surfaces that fell
+// in the depth-sampling frames. Required for hinged doors; drawers follow once
+// every Pipeline deploy produces it.
+const wholeObjectCoverage = z
+  .object({
+    schema_version: z.literal("website_assembly_coverage.v1"),
+    status: z.literal("complete"),
+    digest,
+    reference_frame_count: z.number().int().min(1).max(16),
+  })
+  .strict();
 const taskArticulation = z
   .object({
     assembly_label: z.string().trim().min(1).max(200),
@@ -81,7 +93,8 @@ const taskArticulation = z
     estimated_front_normal_world: vector3,
     front_normal_basis: z.string().trim().min(1).max(200).optional(),
     lock_status: z.enum(["unknown", "locked", "unlocked"]),
-    part_observed_open_in_footage: z.literal(false),
+    part_observed_open_in_footage: z.boolean(),
+    whole_object_coverage: wholeObjectCoverage.optional(),
     observation_timestamps_seconds: z.array(z.number().finite().nonnegative()).max(2000).optional(),
     physical_measurement_proven: z.literal(false),
   })
@@ -90,6 +103,9 @@ const taskArticulation = z
     const travel = value.joint_type === "prismatic" ? value.estimated_usable_stroke_m : value.estimated_usable_swing_rad;
     if (travel === undefined) context.addIssue({ code: z.ZodIssueCode.custom, path: ["joint_type"],
       message: "articulation travel estimate must match the joint type" });
+    if (value.joint_type === "revolute" && !value.whole_object_coverage)
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["whole_object_coverage"],
+        message: "a hinged assembly requires whole-object coverage evidence" });
   });
 const articulatedTaskSuccess = z
   .object({

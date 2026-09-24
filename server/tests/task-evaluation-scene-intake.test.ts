@@ -1154,6 +1154,22 @@ describe("articulated open/close task intake", () => {
     expect(withTask({ ...articulatedTask(), success: { ...articulatedTask().success, minimum_opening_fraction_of_estimated_stroke: 1.5 } })).toBe(false);
     expect(withTask({ ...articulatedTask(), success: { ...articulatedTask().success, maximum_retries: 1 } })).toBe(false);
   });
+  it("requires whole-object coverage evidence for a hinged door, and admits a door seen open", () => {
+    const withTask = (task: unknown) => sceneIntakeCommand.safeParse({ ...command(), task }).success;
+    const coverage = { schema_version: "website_assembly_coverage.v1", status: "complete",
+      digest: `sha256:${"c".repeat(64)}`, reference_frame_count: 12 };
+    const door = { ...articulatedTask().articulation, assembly_label: "dishwasher", part_label: "dishwasher door",
+      joint_type: "revolute", estimated_usable_stroke_m: undefined, estimated_usable_swing_rad: 1.4,
+      part_observed_open_in_footage: true };
+    // Surfaces from the depth-sampling frames alone are not the whole appliance.
+    expect(withTask({ ...articulatedTask(), articulation: door })).toBe(false);
+    expect(withTask({ ...articulatedTask(), articulation: { ...door, whole_object_coverage: { ...coverage, status: "incomplete" } } })).toBe(false);
+    expect(withTask({ ...articulatedTask(), articulation: { ...door, whole_object_coverage: { ...coverage, reference_frame_count: 17 } } })).toBe(false);
+    expect(withTask({ ...articulatedTask(), articulation: { ...door, whole_object_coverage: coverage } })).toBe(true);
+    // Drawers from Pipeline deploys that predate coverage still pass until every deploy produces it.
+    expect(withTask(articulatedTask())).toBe(true);
+    expect(withTask({ ...articulatedTask(), articulation: { ...articulatedTask().articulation, whole_object_coverage: coverage } })).toBe(true);
+  });
 });
 
 describe("structured task destination and success contract", () => {
