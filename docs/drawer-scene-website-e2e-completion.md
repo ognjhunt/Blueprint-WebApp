@@ -15,7 +15,7 @@ this scene.
 | Task | Pull the middle drawer of the wood-front three-drawer mobile pedestal under the desk |
 | Intake truth | Owner confirmed Austin, Texas, US, recording rights, and the website task/terms for this scene |
 | Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32 |
-| Current control-plane release | `6bec7f7073449164af2d42c3d9ca562411214f1d`, canonical deploy and live `commit_proven: true`, no live-version blockers |
+| Last release proven for the drawer execution | `0be1f9a69312f382a6cf5da0c08290ae8c96b1b0`, canonical deploy and live `commit_proven: true`, no live-version blockers; a later operator-door deploy of `f4b0a5a04b7ca85cf51b5f3ffccedf0dd7859a6b` was still in progress at 13:39 UTC |
 
 ### Independent 14-step matrix for the current scene
 
@@ -25,7 +25,7 @@ The source video observes the desk and teal backpack; both remain obstacles.
 Only the middle drawer is the task joint. Captured-room and development-fixture
 completion are scored separately.
 
-| Step | Required evidence | State at 2026-09-24 12:30 UTC |
+| Step | Required evidence | State at 2026-09-24 13:39 UTC |
 | --- | --- | --- |
 | 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
 | 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
@@ -36,8 +36,8 @@ completion are scored separately.
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
 | 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
 | 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
-| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **blocked at accounting gate; authoring unproven** — the first launch stopped in Python setup before stage 1, a Claude call, or GPU allocation. Merged/deployed Pipeline PR #2164 increases the bounded setup timeout. The controller's same-scene successor `source-7dc9b92c5c87fda55d4d4b20` now refuses `scene_intake_spend_cap_exhausted`: the signed settlement conservatively retains the first launch's full $13 quote. Pipeline PR #2165 has a focused candidate rule to recognize the exact sealed zero-authoring/no-allocation proof; it is not merged or deployed yet. No CAD/Blender/USD output |
-| 11 | Captured-room integration or separately named development fixture | **fixture prepared and intent accepted; execution blocked** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. WebApp accepted and forwarded the retained intake; Pipeline accepted scene intent `scene-53d1de9d…` and disk admission passed. The first launch stopped in Python setup; the same-scene successor is blocked by the full retained quote. Captured room stays `needs_input` and unqualified |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **partial; stage 3 failed before review** — controller-owned attempt `source-78688cc27732f25fa8d0a421` made three Anthropic Claude Opus 5.5 calls and exported a valid carcass STEP/STL candidate. The retained STL extents are 550 × 587 × 782 mm. Its Blender script failed with `ValueError: not enough values to unpack (expected 4, got 3)`; the SDK stopped at the failed render tool and did not return `repair_needed` to Claude. No accepted Blender/USD assembly or static qualification. Pipeline PR #2169 is an open focused fix for that handoff, with 48 local tests passing |
+| 11 | Captured-room integration or separately named development fixture | **fixture execution entered, not qualified** — controller prepared and accepted a distinct `development_drawer_fixture`, passed disk admission and began CPU stages 1–3. The stage-3 failure stopped before native integration. Captured room stays `needs_input` and unqualified |
 | 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
 | 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
 | 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
@@ -140,8 +140,27 @@ blocker. Pipeline PR #2165 adds a narrow proof rule requiring that exact
 archive, setup log, provider result and no-allocation teardown. A read-only
 service-user replay validated the signed settlement and computed a $0 budget
 hold for this already terminal row; the original receipt stays unedited. Eleven
-focused tests and Ruff pass. The PR is pending merge/deployment; until then
-the production controller correctly remains blocked.
+focused tests and Ruff passed. PR #2165 subsequently merged and deployed as
+`0be1f9a6…`; its precise zero-allocation rule let the same scene progress
+without changing the signed settlement or the $20 simulation cap.
+
+At 13:12 UTC, the controller admitted the next launch
+`website-c577df51a964aa540227c710-0be1f9a6-20260924t125418z-activation-auto-launch`.
+CPU stages 1 and 2 completed; stage 3 made three real Anthropic Claude Opus 5.5
+inference calls. The carcass CAD export succeeded, and its retained STEP has
+SHA-256 `d8c82e07e7622ab40ccd16527566deef944a00533fcf452f25112a8386e73f6c`.
+The carcass STL bounds are 550 × 587 × 782 mm. The Blender appearance script
+then raised `ValueError: not enough values to unpack (expected 4, got 3)`.
+The local Agents SDK stopped at the failed render tool, so the model did not
+receive its `repair_needed` feedback. The launch terminalized before an
+accepted assembly, native checks, GPU allocation or policy query. The CPU
+archive, failed tool output and provider-zero teardown remain retained.
+An exact-artifact preview is available at
+`/private/tmp/bc15-carcass-review-20260924/carcass-preview.png`; it is CAD
+candidate evidence, not a completed task asset. Pipeline PR #2169 is open to
+return failed render feedback to the agent for a bounded repair turn; 48
+focused tests and changed-file Ruff passed locally. Captured-room readiness
+and fixture steps 10–14 remain unproven.
 
 ## Historical drawer attempts (2026-09-22 to 2026-09-23)
 
