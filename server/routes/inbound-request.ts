@@ -1168,6 +1168,16 @@ export async function submitInboundRequest(req: Request, res: Response) {
     const captureRegion = isCaptureRegion(payload.captureRegion)
       ? payload.captureRegion
       : null;
+    const claudeAuthoringConsent = payload.claudeAuthoringConsent == null
+      ? null : buildConsentAttestation(payload.claudeAuthoringConsent);
+    if (claudeAuthoringConsent === "refused"
+      || (claudeAuthoringConsent && (claudeAuthoringConsent.statement_version !== "2026-09-24.v1"
+        || buyerType !== "site_operator" || captureMode !== "self_capture" || captureRegion !== "us"))) {
+      return res.status(400).json({
+        ok: false, requestId: payload.requestId, status: "submitted",
+        message: "Claude authoring needs an explicit United States site-capture disclosure grant",
+      } satisfies SubmitInboundRequestResponse);
+    }
 
     // Preserve idempotent retries without charging the same request against
     // the intake rate limit again. This read is only a retry fast path; the
@@ -1462,6 +1472,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           taskVideoUrls: normalizeTaskVideoUrls(payload.taskVideoUrls),
           // Already past the refusal check above, so this is Record | null.
           consent_attestation: consentAttestation,
+          claude_authoring_consent: claudeAuthoringConsent,
           taskVideoUrl:
             normalizeTaskVideoUrl(payload.taskVideoUrl) ??
             normalizeTaskVideoUrls(payload.taskVideoUrls)[0] ??
@@ -1599,6 +1610,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         taskVideoUrls: normalizeTaskVideoUrls(payload.taskVideoUrls),
         // Already past the refusal check above, so this is Record | null.
         consent_attestation: consentAttestation,
+        claude_authoring_consent: claudeAuthoringConsent,
         taskVideoUrl:
           normalizeTaskVideoUrl(payload.taskVideoUrl) ??
           normalizeTaskVideoUrls(payload.taskVideoUrls)[0] ??

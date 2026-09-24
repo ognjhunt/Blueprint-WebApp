@@ -30,9 +30,10 @@ import { buildCaptureFootageReviewer } from "../utils/captureFootageReview";
 import { getBrief } from "../utils/siteTaskBrief";
 import { loadWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
+  validateWebsiteSponsoredProviderTerms,
   preparationSpendRequest, reserveWebsitePreparationSpend,
   preparationSettlementRequest, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
-import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, validateSceneProviderTerms } from "../utils/taskEvaluationSceneIntake";
+import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand } from "../utils/taskEvaluationSceneIntake";
 import {
   enqueueTaskLifecycleNotification,
   reconstructionIsViewable,
@@ -206,7 +207,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       const { accepted_by: _acceptedBy, accepted_at_epoch: _acceptedAt, ...consent } = request.consent;
       const command = { submission_id: request.submission_id, source_session_id: request.submission_id,
         task: request.task, execution: request.execution, consent };
-      validateSceneProviderTerms(command);
+      validateWebsiteSponsoredProviderTerms(command, authority);
       if (!db) throw new Error("website_capture_rights_store_unavailable");
       const id = `scene-${sceneDigest({ owner: request.owner, submission_id: request.submission_id }).slice(7)}`;
       const ref = db.collection(SCENE_INTAKE_COLLECTION).doc(id);

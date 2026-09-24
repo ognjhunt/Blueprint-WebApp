@@ -1155,4 +1155,34 @@ describe("inbound request: public-form payload contract", () => {
       await stopServer(server);
     }
   });
+
+  it("retains explicit Claude disclosure only for an approved US self-capture", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `site-claude-${Date.now()}`;
+      const payload = { ...buildSiteScreeningPayload(requestId, `ada+${Date.now()}@example.com`),
+        claudeAuthoringConsent: { granted: true, statementVersion: "2026-09-24.v1" } };
+      const response = await fetch(`${baseUrl}/`, { method: "POST",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      expect(response.status).toBe(201);
+      const saved = fs.readFileSync(devLogPath, "utf8").trim().split("\n")
+        .map(line => JSON.parse(line))
+        .find(row => row.requestId === requestId);
+      expect(saved?.request?.claude_authoring_consent).toMatchObject({
+        granted: true, statement_version: "2026-09-24.v1" });
+      const refused = await fetch(`${baseUrl}/`, { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, requestId: `${requestId}-outside`, captureRegion: "non_us" }) });
+      expect(refused.status).toBe(400);
+      const unticked = await fetch(`${baseUrl}/`, { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, requestId: `${requestId}-unticked`,
+          claudeAuthoringConsent: { ...payload.claudeAuthoringConsent, granted: false } }) });
+      expect(unticked.status).toBe(400);
+    } finally {
+      await stopServer(server);
+    }
+  });
 });

@@ -5,7 +5,8 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { Response } from "express";
 import { resolveExecutionAccessContext } from "./access-control";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
-import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake } from "./websiteSceneSponsorship";
+import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
+  validateWebsiteSponsoredProviderTerms } from "./websiteSceneSponsorship";
 
 export { sceneCanonicalJson, sceneDigest };
 
@@ -172,9 +173,9 @@ const sceneExecution = z
     max_retries: z.number().int().min(0).max(3),
     expires_at_epoch: z.number().positive(),
     allowed_providers: z
-      .array(z.enum(["vast", "runpod", "openai"]))
+      .array(z.enum(["vast", "runpod", "openai", "anthropic"]))
       .min(1)
-      .max(3)
+      .max(4)
       .refine((v) => new Set(v).size === v.length),
     policy_candidates: z.array(scenePolicyCandidate).max(2),
     claim_scope: z.literal("development_only"),
@@ -252,7 +253,7 @@ const sealedDigest = (value: Record<string, unknown>, field: string) =>
   );
 export function sceneProviderTerms() {
   const schema = z.record(
-    z.enum(["vast", "runpod", "openai", "meta", "world_labs", "google"]),
+    z.enum(["vast", "runpod", "openai", "anthropic", "meta", "world_labs", "google"]),
     z
       .object({
         digest,
@@ -711,12 +712,14 @@ export async function processSceneIntakeQueue(limit = 10) {
             throw new Error("transport_retry_cap_exhausted");
           const owner = record.request.owner;
           let sponsored = false;
+          let sponsoredAuthority: Awaited<ReturnType<typeof loadWebsiteSceneSponsorship>> | null = null;
           if (record.website_request_id) {
             const authority = await loadWebsiteSceneSponsorship(record.website_request_id);
             if (record.sponsorship_digest !== authority.authority_digest)
               throw new Error("website_scene_sponsorship_binding_invalid");
             validateWebsiteSponsoredIntake(record.request, authority);
             sponsored = true;
+            sponsoredAuthority = authority;
           }
           const access = sponsored ? null : await resolveExecutionAccessContext({
             locals: {
@@ -762,7 +765,8 @@ export async function processSceneIntakeQueue(limit = 10) {
               if (sceneDigest(rebuilt) !== record.request_digest)
                 throw new Error("stored_request_digest_invalid");
             }
-            validateSceneProviderTerms(record.command);
+            if (sponsoredAuthority) validateWebsiteSponsoredProviderTerms(record.command, sponsoredAuthority);
+            else validateSceneProviderTerms(record.command);
             // Count a possibly dispatched POST, not a failed local precheck or
             // a read-only status poll. Reservation failures stay conservative.
             deliveryReserved = true;

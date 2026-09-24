@@ -1601,6 +1601,70 @@ it("admits the separately labeled drawer fixture under the same scene sponsorshi
       label: "Development test on an authored surface; captured scene integration pending." } } } } })).status).toBe(409);
 });
 
+it("binds scoped Claude terms through preparation and rechecks them before forwarding", async () => {
+  sponsoredCapture();
+  const inbound = store.rows.get("inboundRequests/req1");
+  inbound.request.capture_region = "us";
+  inbound.request.claude_authoring_consent = { granted: true,
+    statement_version: "2026-09-24.v1", recorded_at_iso: new Date().toISOString() };
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  terms.anthropic = { digest: sha("d"), label: "Anthropic commercial API terms",
+    url: "https://www.anthropic.com/legal/commercial-terms" };
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(terms);
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+  });
+  const grant = await (await post("scene-sponsorship")).json();
+  expect(grant).toMatchObject({ authoring_provider: "anthropic",
+    anthropic_provider_terms_reference: sha("d"), max_total_spend_usd: 20 });
+  const test = { kind: "authored_surface_component_test",
+    label: "Development test on an authored surface; captured scene integration pending.",
+    claim_scope: "development_only", source_task_context_digest: grant.task_context_digest,
+    source_preparation_digest: sha("b"), captured_scene_integration: "pending",
+    captured_scene_evaluation_allowed: false, source_scene_blockers: ["support_surface_not_found_under_subject"] };
+  const request = { schema_version: "task_evaluation_scene_intake_request.v1",
+    submission_id: grant.capture_id, owner: grant.owner, consent: grant.consent,
+    source: { kind: "mesh", binding_id: `website-development-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}-development`,
+      subject: { description: "blue object", geometry_origin: "removed_before_reconstruction", test_environment: test } },
+    execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+      max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+      allowed_providers: ["vast", "openai", "anthropic"] } };
+  process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS = JSON.stringify([grant.task_context_digest]);
+  const prepared = await post("prepared-scene", { request });
+  expect(prepared.status, await prepared.text()).toBe(202);
+  expect((await post("prepared-scene", { request: { ...request, execution: {
+    ...request.execution, allowed_providers: ["vast", "openai"] } } })).status).toBe(409);
+  const fetcher = vi.fn(async (_url: any, init: any) =>
+    new Response(JSON.stringify(accepted(JSON.parse(init.body)))));
+  vi.stubGlobal("fetch", fetcher);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms,
+    anthropic: { ...terms.anthropic, digest: sha("c") } });
+  await processSceneIntakeQueue();
+  expect(stored()[1].state).toBe("forward_blocked");
+  expect(stored()[1].forward_attempt_count).toBe(0);
+  expect(fetcher).not.toHaveBeenCalled();
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify(terms);
+  stored()[1].next_forward_at_ms = 0;
+  await processSceneIntakeQueue();
+  expect(stored()[1].state).toBe("accepted");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it("refuses Claude sponsorship without disclosure or configured Anthropic terms", async () => {
+  sponsoredCapture();
+  const inbound = store.rows.get("inboundRequests/req1");
+  inbound.request.capture_region = "us";
+  inbound.request.claude_authoring_consent = { granted: false,
+    statement_version: "2026-09-24.v1", recorded_at_iso: new Date().toISOString() };
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("disclosure_authority_invalid");
+  inbound.request.claude_authoring_consent.granted = true;
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("provider_terms_not_configured");
+  expect(inbound.website_scene_sponsorship).toBeUndefined();
+});
+
 
 describe("site-only scene preparation", () => {
   it("accepts preparation without selecting robot-team policies", () => {
