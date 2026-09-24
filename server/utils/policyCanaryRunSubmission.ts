@@ -97,6 +97,8 @@ export async function policyCanarySetupFor(
     return Boolean(
       profile.source_commit
       && setup
+      && Array.isArray(setup.robot_presets)
+      && setup.robot_presets.length > 0
       && setup.source_launch_id === sourceLaunchId
       && setup.offering_digest === offering.offering_digest
       && setup.scene_revision_digest
