@@ -25,6 +25,7 @@ import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
+import { TaskFollowUp } from "@/components/site/TaskFollowUp";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -226,6 +227,18 @@ export default function SelfCaptureUpload() {
    * because a blank capture is still better than a blocked one.
    */
   const [brief, setBrief] = useState<DraftedBrief | null>(null);
+  const onFollowUpAnswered = useCallback((id: string, answer: string) => {
+    if (id !== "success_target") return;
+    setBrief((current) => current ? {
+      ...current,
+      successCriteria: {
+        successDefinition: answer,
+        successRate: current.successCriteria?.successRate ?? null,
+        cycleTimeSeconds: current.successCriteria?.cycleTimeSeconds ?? null,
+        unknown: false,
+      },
+    } : current);
+  }, []);
   const [briefConfirmed, setBriefConfirmed] = useState(false);
   // Links expire after a week; the expired page asks for a new one itself.
   const [freshLink, setFreshLink] = useState<"idle" | "sending" | "sent" | "failed">("idle");
@@ -358,6 +371,7 @@ export default function SelfCaptureUpload() {
           captureMode: data.brief.captureMode,
           proposed: data.brief.proposed ?? [],
           unresolved: data.brief.unresolved ?? [],
+          successCriteria: data.brief.successCriteria ?? null,
           operatorAnswers: data.brief.operatorAnswers ?? null,
           operatorUnknown: data.brief.operatorUnknown ?? null,
         });
@@ -379,6 +393,18 @@ export default function SelfCaptureUpload() {
             status: "invalid",
             message: data?.error || "This upload link is not valid or has expired.",
           });
+          return;
+        }
+
+        if (data.captureReceived === true) {
+          setLink({
+            status: "valid",
+            accepts: Array.isArray(data.accepts) ? data.accepts : ["mov", "mp4"],
+            expiresAt: String(data.expiresAt || ""),
+          });
+          setUpload(data.state === "held"
+            ? { status: "held", message: String(data.detail || "The review is still in progress.") }
+            : { status: "done" });
           return;
         }
 
@@ -587,7 +613,7 @@ export default function SelfCaptureUpload() {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" ? "Your task assessment" : saved ? "Your capture is saved" : onAPhone ? "Film the work area" : "Your task assessment"}
+        {link.status === "held" ? "Your task assessment" : saved || upload.status === "held" ? "A few details about the task" : onAPhone ? "Film the work area" : "Your task assessment"}
       </h1>
 
       {/* Where the task stands. Above the fold only when there is no camera on
@@ -696,39 +722,29 @@ export default function SelfCaptureUpload() {
             />
           )}
           {upload.status === "held" ? (
-            <div
-              style={{
-                border: "1px solid var(--ms-rule)",
-                padding: "20px",
-                background: "var(--ms-paper)",
-              }}
-            >
-              <strong>We have your video. Nothing is being processed from it yet.</strong>
-              <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                {upload.message} There is nothing to re-film and nothing for you to do — we will
-                come back to you about it.
-              </p>
-            </div>
+            <>
+              <div style={{ marginBottom: "8px" }}>
+                <strong>Video received.</strong>
+                <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
+                  {upload.message} You can answer the questions below while review is pending.
+                </p>
+              </div>
+              {scope === "owner" && <TaskFollowUp token={token} onAnswered={onFollowUpAnswered} />}
+            </>
           ) : saved ? (
             <>
               <div
-                style={{
-                  border: "1px solid var(--ms-rule)",
-                  padding: "20px",
-                  background: "var(--ms-paper)",
-                  marginBottom: "20px",
-                }}
+                style={{ marginBottom: "8px" }}
               >
-                <strong>Your capture is saved.</strong>
+                <strong>Video received.</strong>
                 <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                  {scope === "owner" && brief && !briefConfirmed
-                    ? "One thing left for you: check the task brief below and confirm it. "
-                    : "Nothing more is needed from you right now. "}
                   {status?.footageReviewAutomated === false
-                    ? "Our team reviews whether the video covers the work area well enough to build the scene, and emails you with the next step, including if one more view would finish the job."
-                    : "We check whether the video covers the work area well enough to build the scene, and we will come back to you either way, including if one more view would finish the job."}
+                    ? "Our team is reviewing whether it covers the work area."
+                    : "We are checking whether it covers the work area."}{" "}
+                  A few answers can help define the task while review continues.
                 </p>
               </div>
+              {scope === "owner" && <TaskFollowUp token={token} onAnswered={onFollowUpAnswered} />}
               {/* Saved is not finished. The brief confirmation is the site's
                   attestation — the thing that lets a robot team be matched — and
                   the item photos are the objects the task turns on. Hiding both
@@ -757,6 +773,7 @@ export default function SelfCaptureUpload() {
                     That is what lets a robot team be matched to your site.
                   </p>
                   <TaskBriefReview
+                    key={brief.successCriteria?.successDefinition ?? ""}
                     token={token}
                     brief={brief}
                     account={siteAccount}
@@ -765,7 +782,7 @@ export default function SelfCaptureUpload() {
                 </details>
               )}
 
-              <details className="ms-task-interest"><summary>Add photos of the task items</summary><TaskItemsPanel token={token} scope={scope} /></details>
+              {scope === "film" && <details className="ms-task-interest"><summary>Add photos of the task items</summary><TaskItemsPanel token={token} scope={scope} /></details>}
 
               <p className="ms-field-hint" style={{ marginBlock: "16px" }}>
                 Filmed another angle? We will use whichever views cover the work area best.{" "}
@@ -924,6 +941,7 @@ export default function SelfCaptureUpload() {
                     is what lets a robot team be matched to your site, before or after you film.
                   </p>
                   <TaskBriefReview
+                    key={brief.successCriteria?.successDefinition ?? ""}
                     token={token}
                     brief={brief}
                     account={siteAccount}
@@ -949,8 +967,10 @@ export default function SelfCaptureUpload() {
           )}
         </>
       )}
-      {link.status === "valid" && scope === "owner" && <PublicTaskListing token={token} />}
-      <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage, prepare the scene, and ask you to confirm the task before evaluation. Keep this link to follow progress.</p>
+      {link.status === "valid" && scope === "owner" && !saved && upload.status !== "held" && <PublicTaskListing token={token} />}
+      {!saved && upload.status !== "held" && (
+        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage, prepare the scene, and ask you to confirm the task before evaluation. Keep this link to follow progress.</p>
+      )}
       </div>
     </div>
   );

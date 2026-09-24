@@ -56,6 +56,7 @@ import { storedCaptureMarkerExists } from "../utils/captureParts";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
 import { loadSceneScreening } from "../utils/agentEvalRuns";
+import { FOLLOW_UP_IDS, FOLLOW_UP_QUESTIONS, selectFollowUps, type FollowUpId } from "../utils/siteTaskFollowUp";
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
@@ -327,6 +328,107 @@ router.get("/:token", async (req: Request, res: Response) => {
       error: "The brief could not be loaded",
       code: "task_brief_unavailable",
     });
+  }
+});
+
+/** Short, owner-only questions while footage is reviewed. The model chooses topics, never answers. */
+router.get("/:token/follow-up", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) return res.status(404).json({ error: "This link is not valid or has expired." });
+  if (payload.scope !== "owner") return res.status(403).json({ error: "This link is for filming only." });
+  if (!db) return res.status(503).json({ error: "Questions are temporarily unavailable." });
+
+  try {
+    const [brief, inventory, requestSnap, followUpSnap] = await Promise.all([
+      getBrief(payload.requestId),
+      getItemInventory(payload.requestId),
+      db.collection("inboundRequests").doc(payload.requestId).get(),
+      db.collection("siteTaskFollowups").doc(payload.requestId).get(),
+    ]);
+    if (!brief || !requestSnap.exists) return res.status(200).json({ questions: [], answers: {} });
+
+    const stored = followUpSnap.data() as { questionIds?: FollowUpId[]; answers?: Record<string, string> } | undefined;
+    const answers = stored?.answers ?? {};
+    const items = inventory?.items ?? [];
+    const photosMissing = items.length === 0 || items.some((item) => item.images.length < 2);
+    const eligible = FOLLOW_UP_IDS.filter((id) => {
+      if (id === "success_target") return !brief.successCriteria?.successDefinition;
+      if (id === "item_photos") return photosMissing;
+      return true;
+    });
+
+    let questionIds = stored?.questionIds;
+    if (!Array.isArray(questionIds)) {
+      const request = requestSnap.data()?.request as { taskStatement?: unknown } | undefined;
+      const taskStatement = request?.taskStatement
+        ? await decryptFieldValue(request.taskStatement as never)
+        : "";
+      questionIds = await selectFollowUps({
+        taskStatement: taskStatement || "",
+        briefSummary: brief.summary,
+        itemLabels: items.map((item) => item.label),
+        eligible,
+      });
+      await db.collection("siteTaskFollowups").doc(payload.requestId).set({
+        requestId: payload.requestId,
+        questionIds,
+        createdAtIso: new Date().toISOString(),
+      }, { merge: true });
+    }
+    const questions = questionIds
+      .filter((id): id is FollowUpId => FOLLOW_UP_IDS.includes(id))
+      .filter((id) => eligible.includes(id) && !answers[id])
+      .map((id) => ({ id, ...FOLLOW_UP_QUESTIONS[id] }));
+    return res.status(200).json({ questions, answers });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not load task follow-up questions");
+    return res.status(503).json({ error: "Questions are temporarily unavailable." });
+  }
+});
+
+const followUpAnswerSchema = z.object({
+  questionId: z.enum(FOLLOW_UP_IDS),
+  answer: z.string().trim().max(1000),
+}).strict();
+
+router.post("/:token/follow-up", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) return res.status(404).json({ error: "This link is not valid or has expired." });
+  if (payload.scope !== "owner") return res.status(403).json({ error: "This link is for filming only." });
+  const parsed = followUpAnswerSchema.safeParse(req.body);
+  if (!parsed.success || !db) {
+    return res.status(400).json({ error: "That answer could not be saved." });
+  }
+  try {
+    const { questionId, answer } = parsed.data;
+    const storedAnswer = questionId === "item_photos" ? "__reviewed__" : answer || "__unknown__";
+    await db.collection("siteTaskFollowups").doc(payload.requestId).set({
+      answers: { [questionId]: storedAnswer },
+      updatedAtIso: new Date().toISOString(),
+    }, { merge: true });
+    if (answer && questionId !== "item_photos") {
+      const brief = await getBrief(payload.requestId);
+      if (brief) {
+        if (questionId === "success_target" && !brief.confirmedAtIso) {
+          await db.collection("siteTaskBriefs").doc(payload.requestId).set({
+            successCriteria: {
+              successDefinition: answer,
+              successRate: null,
+              cycleTimeSeconds: null,
+              unknown: false,
+            },
+          }, { merge: true });
+        } else if (questionId === "item_weight" || questionId === "item_make_model") {
+          await db.collection("siteTaskBriefs").doc(payload.requestId).set({
+            operatorTaskDetails: { [questionId]: answer },
+          }, { merge: true });
+        }
+      }
+    }
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not save task follow-up answer");
+    return res.status(503).json({ error: "We could not save that. Try again." });
   }
 });
 

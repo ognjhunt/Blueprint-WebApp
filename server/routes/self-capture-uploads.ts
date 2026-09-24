@@ -661,6 +661,9 @@ router.get("/:token", async (req: Request, res: Response) => {
   }
 
   const authorization = await authorizeCaptureUpload(payload.requestId);
+  // A returning browser operator should reach the task questions after an
+  // upload, even while the privacy review is holding scene processing.
+  const captureReceived = Boolean(await resolveStoredObjectPath(payload.sceneId, payload.captureId));
 
   // What the Blueprint app needs to record a bundle for this link: the
   // server-issued ids, the rights binding, and whether something is already
@@ -683,6 +686,7 @@ router.get("/:token", async (req: Request, res: Response) => {
     accepts: [...ALLOWED_EXTENSIONS],
     ...(bundle ? { bundle } : {}),
     state: authorization.allowed ? "ready" : "held",
+    captureReceived,
     holdReason: authorization.holdReason,
     detail: authorization.detail,
     blockers: authorization.blockers,

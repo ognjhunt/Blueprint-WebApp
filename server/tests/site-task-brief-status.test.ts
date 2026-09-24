@@ -77,6 +77,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
@@ -183,5 +184,51 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, account_owner_uid: "uid-dana" });
     expect((await status()).body.claimUrl).toBeNull();
+  });
+});
+
+describe("task follow-up on the owner link", () => {
+  it("offers at most three missing topics and saves an operator target", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    const prior = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
+      ...prior,
+      request: { ...(prior.request as Record<string, unknown>), taskStatement: "Move cartons to a pallet" },
+    });
+    await saveBrief({
+      ...draftBrief({ requestId: "req-1", summary: "Move cartons to a pallet", captureMode: "self_capture", proposed: [] }),
+    });
+
+    const response = await fetch(`${baseUrl}/api/site-task-brief/${token()}/follow-up`);
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.questions.length).toBeLessThanOrEqual(3);
+    expect(body.questions.map((question: { id: string }) => question.id)).toContain("success_target");
+    expect(body.questions.map((question: { id: string }) => question.id)).toContain("item_photos");
+
+    const saved = await fetch(`${baseUrl}/api/site-task-brief/${token()}/follow-up`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ questionId: "success_target", answer: "At least 40 cartons per hour" }),
+    });
+    expect(saved.status).toBe(200);
+    expect(sharedFakeFirestoreState.docs.get("siteTaskFollowups/req-1")).toMatchObject({
+      answers: { success_target: "At least 40 cartons per hour" },
+    });
+    expect(sharedFakeFirestoreState.docs.get("siteTaskBriefs/req-1")).toMatchObject({
+      successCriteria: { successDefinition: "At least 40 cartons per hour" },
+    });
+  });
+
+  it("does not expose questions or accept answers from a film-only link", async () => {
+    const filmToken = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
+    const read = await fetch(`${baseUrl}/api/site-task-brief/${filmToken}/follow-up`);
+    const write = await fetch(`${baseUrl}/api/site-task-brief/${filmToken}/follow-up`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ questionId: "item_weight", answer: "10 kg" }),
+    });
+    expect(read.status).toBe(403);
+    expect(write.status).toBe(403);
   });
 });

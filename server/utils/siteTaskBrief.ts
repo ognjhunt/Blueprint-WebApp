@@ -115,6 +115,8 @@ export interface SiteTaskBriefRecord {
   operatorAnswers: Record<string, string> | null;
   /** Gates the operator explicitly said they did not know. */
   operatorUnknown: string[] | null;
+  /** Optional item details the owner supplied after uploading. */
+  operatorTaskDetails?: { item_weight?: string; item_make_model?: string } | null;
   successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean } | null;
 }
 
