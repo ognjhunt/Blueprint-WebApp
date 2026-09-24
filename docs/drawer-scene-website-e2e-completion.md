@@ -15,7 +15,7 @@ this scene.
 | Task | Pull the middle drawer of the wood-front three-drawer mobile pedestal under the desk |
 | Intake truth | Owner confirmed Austin, Texas, US, recording rights, and the website task/terms for this scene |
 | Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32 |
-| Current control-plane release | `088a341acbecf97ea8e09f59379ed07f56d37662`, canonical deploy and live `commit_proven: true`, no live-version blockers |
+| Current control-plane release | `8d580a0522893b1a5344f273a9bfe5f0dfd0d633`, canonical deploy and live `commit_proven: true`, no live-version blockers |
 
 ### Independent 14-step matrix for the current scene
 
@@ -25,7 +25,7 @@ The source video observes the desk and teal backpack; both remain obstacles.
 Only the middle drawer is the task joint. Captured-room and development-fixture
 completion are scored separately.
 
-| Step | Required evidence | State at 2026-09-24 10:33 UTC |
+| Step | Required evidence | State at 2026-09-24 11:00 UTC |
 | --- | --- | --- |
 | 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
 | 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
@@ -36,8 +36,8 @@ completion are scored separately.
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
 | 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
 | 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
-| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | unproven; Claude Opus 5.5 access and protected key reference verified, but no scene authoring call yet |
-| 11 | Captured-room integration or separately named development fixture | **fixture prepared, handoff blocked** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. Captured room stays `needs_input`; WebApp returned HTTP 409 `website_scene_development_test_not_authorized` because this scene's exact task digest is missing from the web/worker fixture allowlist. No CPU intake or fixture execution yet |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | unproven; Claude Opus 5.5 access and protected key reference verified, but no scene authoring call yet. Merged Pipeline PR #2163 passed a full no-spend authoring preflight against the saved fixture packet, yielding distinct cabinet-carcass and middle-drawer requests; this is preparation, not authoring success |
+| 11 | Captured-room integration or separately named development fixture | **fixture prepared, intake retry pending** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. Captured room stays `needs_input`. The previous WebApp HTTP 409 arose because this scene's task digest was absent from the web/worker fixture allowlist; both scoped allowlists are now deployed and verified, and normal controller redelivery is pending. No CPU intake or fixture execution yet |
 | 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
 | 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
 | 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
@@ -74,6 +74,21 @@ teardown and provider-zero passed at 10:30; the final bill remains pending.
 Controller attempt 19 ended `failed_retryable` when the website refused the
 named fixture due to its scene-specific development allowlist. The fixture
 itself is `intake_ready`; captured-room support remains unqualified.
+
+Pipeline PR #2163 is merged and canonically deployed as `8d580a05…`, with
+live `commit_proven: true` and no blockers. It adds a bc15-specific,
+development-only cabinet depth prior bound to this scene's own fixture
+preparation/observation digests and original-frame hashes. The original source
+depth estimate of 0.16327 m remains intact; the authoring candidate is 0.55 m
+with an estimated 0.4125 m usable drawer stroke. A full no-spend preflight on
+the saved fixture packet passed, including the two-part carcass/drawer
+authoring requests, rights, images and source digest verification; it is not
+a completed CAD or simulator check. Render web deployment
+`dep-daqg21e7bikc738d19bg` and worker deployment
+`dep-daqg3j8jo6nc73earlfg` are live on exact `af16cd7…`; both now have the
+same four-entry task-digest allowlist, retaining the prior three and adding
+only this scene. Public version and readiness checks pass. The normal listener
+timer was restored for a same-scene retry after both services became live.
 
 ## Historical drawer attempts (2026-09-22 to 2026-09-23)
 
