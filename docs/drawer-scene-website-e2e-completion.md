@@ -15,7 +15,7 @@ this scene.
 | Task | Pull the middle drawer of the wood-front three-drawer mobile pedestal under the desk |
 | Intake truth | Owner confirmed Austin, Texas, US, recording rights, and the website task/terms for this scene |
 | Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32 |
-| Current control-plane release | `8d580a0522893b1a5344f273a9bfe5f0dfd0d633`, canonical deploy and live `commit_proven: true`, no live-version blockers |
+| Current control-plane release | `6bec7f7073449164af2d42c3d9ca562411214f1d`, canonical deploy and live `commit_proven: true`, no live-version blockers |
 
 ### Independent 14-step matrix for the current scene
 
@@ -25,7 +25,7 @@ The source video observes the desk and teal backpack; both remain obstacles.
 Only the middle drawer is the task joint. Captured-room and development-fixture
 completion are scored separately.
 
-| Step | Required evidence | State at 2026-09-24 11:53 UTC |
+| Step | Required evidence | State at 2026-09-24 12:12 UTC |
 | --- | --- | --- |
 | 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
 | 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
@@ -36,8 +36,8 @@ completion are scored separately.
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
 | 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
 | 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
-| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **blocked before authoring** — the 11:33 controller launch passed paid admission but its isolated Python import preflight failed before stage 1, a Claude call, or GPU allocation. Timing is consistent with its 90-second timeout, though the wrapper retained a generic error. Stage 3's sealed configuration selects Anthropic `claude-opus-5-5`; `astra_cad_blender_v1` is a legacy toolchain name. The exact retained bundle passed a no-network scratch import replay. Pipeline PR #2164 raises the bounded import-check timeout and records a typed timeout; no CAD/Blender/USD output yet |
-| 11 | Captured-room integration or separately named development fixture | **fixture prepared and intent accepted; execution blocked** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. WebApp accepted and forwarded the retained intake; Pipeline accepted scene intent `scene-53d1de9d…` and disk admission passed. The first launch stopped in Python setup. Captured room stays `needs_input` and unqualified |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **retry preparing; authoring unproven** — the 11:33 controller launch passed paid admission but its isolated Python import preflight failed before stage 1, a Claude call, or GPU allocation. Timing is consistent with its 90-second timeout, though the wrapper retained a generic error. Stage 3's sealed configuration selects Anthropic `claude-opus-5-5`; `astra_cad_blender_v1` is a legacy toolchain name. The exact retained bundle passed a no-network scratch import replay. Merged and deployed Pipeline PR #2164 raises the bounded import-check timeout and records a typed timeout. Same-scene successor `source-7dc9b92c5c87fda55d4d4b20` is running; no CAD/Blender/USD output yet |
+| 11 | Captured-room integration or separately named development fixture | **fixture prepared and intent accepted; retry underway** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. WebApp accepted and forwarded the retained intake; Pipeline accepted scene intent `scene-53d1de9d…` and disk admission passed. The first launch stopped in Python setup; the controller reconciled ownership and started a same-scene successor. Captured room stays `needs_input` and unqualified |
 | 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
 | 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
 | 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
@@ -119,6 +119,15 @@ timeout under host contention, though the wrapper did not retain the exception
 type. Pipeline PR #2164 encodes a bounded 300-second check and a typed timeout
 error; three focused tests and changed-file Ruff passed. No spend ceiling,
 signed authority or scene receipt was edited.
+
+Pipeline PR #2164 merged as `6bec7f70…` and the canonical deploy receipt is
+`deployed`; live version reports that exact commit with `commit_proven: true`
+and no blockers. The first release-successor tick required a fresh global
+provider-zero check after its retained failure record. The guard at 12:07:37
+UTC reported zero live instances; the controller then created same-scene
+successor `source-7dc9b92c5c87fda55d4d4b20` on `6bec7f70…` and entered
+`running/source_preparation` with no blockers at 12:11 UTC. This is neither a
+new sponsorship nor CAD or GPU execution proof.
 
 ## Historical drawer attempts (2026-09-22 to 2026-09-23)
 
