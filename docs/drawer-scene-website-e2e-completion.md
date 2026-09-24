@@ -25,7 +25,7 @@ The source video observes the desk and teal backpack; both remain obstacles.
 Only the middle drawer is the task joint. Captured-room and development-fixture
 completion are scored separately.
 
-| Step | Required evidence | State at 2026-09-24 10:23 UTC |
+| Step | Required evidence | State at 2026-09-24 10:33 UTC |
 | --- | --- | --- |
 | 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
 | 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
@@ -34,10 +34,10 @@ completion are scored separately.
 | 5 | Hosted SAM 3.1 task mask/track and view corroboration | **done for preparation** — clean-plate `task_masks` status `object_removal_ready`, digest `sha256:5ab1099e…26d0c85929e7`; independent view corroboration retained |
 | 6 | Background edits, original/edited pairs, independent review | **done** — one bounded review found an invented panel in edited original frame 138; the controller excluded that generated view; fresh review passed on frames 34, 35, 173, 519; `clean_plate_stage_manifest.json` is `objects_removed` / `prepared_images`, with originals retained and no blockers |
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
-| 8 | Marble room and MapAnything geometry/camera estimates | **Marble failed; MapAnything rental active** — operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended at 09:18:54 UTC with provider error 500, no reported bill, and no collider/splat. Controller attempt 19 retained that failure, completed the deferred desk/backpack masks from its prior SAM response, and admitted a bounded MapAnything rental at 10:22 UTC. No geometry estimate or successful teardown is claimed yet |
-| 9 | Camera/task registration and provenance-tagged geometry | unproven |
+| 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
+| 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
 | 10 | CPU CAD/Blender/USD articulated assembly and static qualification | unproven; Claude Opus 5.5 access and protected key reference verified, but no scene authoring call yet |
-| 11 | Captured-room integration or separately named development fixture | unproven |
+| 11 | Captured-room integration or separately named development fixture | **fixture prepared, handoff blocked** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. Captured room stays `needs_input`; WebApp returned HTTP 409 `website_scene_development_test_not_authorized` because this scene's exact task digest is missing from the web/worker fixture allowlist. No CPU intake or fixture execution yet |
 | 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
 | 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
 | 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
@@ -53,9 +53,10 @@ zero-cost bill. The fixture path has passed 61 focused tests but has not execute
 on this capture. The controller's same-capture attempt 19 is processing under a
 heartbeating lease; its completed three-target mask manifest has digest
 `sha256:00e420d6780f0bd16d45c0e0e84e7c78f85b2edc3193339862e96833b9d1a1e0`.
-The last read of the preparation ledger showed 28/32 requests and $4.815/$5
-maximum quoted exposure, so subsequent admission must continue to honor both
-guards. With no reported provider cost, the full Marble quote remains reserved.
+The 10:31 preparation ledger read showed 29/32 requests and $4.99/$5 maximum
+quoted exposure, so subsequent admission must continue to honor both guards.
+The Marble bill is unreported and its full quote remains reserved. The new
+MapAnything quote is also still reserved; provider-zero does not settle its bill.
 
 At 10:06 UTC, Pipeline PR #2162 merged as `088a341a…`. It verifies and reuses
 this capture's already paid full-video SAM response for the desk and teal
@@ -68,8 +69,11 @@ geometry or simulator qualification. The canonical deploy of `088a341a…`
 completed with an immutable $0.175 MapAnything quote, $1.10/h rate ceiling,
 570-second hard TTL, 80 GB minimum, and the unchanged $5 scene cap. At 10:22
 UTC the controller admitted and launched Vast instance `52396769` for
-MapAnything under its independent watchdog. Its output, actual bill, and
-teardown remain pending.
+MapAnything under its independent watchdog. Output retrieval, validation,
+teardown and provider-zero passed at 10:30; the final bill remains pending.
+Controller attempt 19 ended `failed_retryable` when the website refused the
+named fixture due to its scene-specific development allowlist. The fixture
+itself is `intake_ready`; captured-room support remains unqualified.
 
 ## Historical drawer attempts (2026-09-22 to 2026-09-23)
 
