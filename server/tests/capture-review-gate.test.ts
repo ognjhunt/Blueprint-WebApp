@@ -111,19 +111,10 @@ describe("we do not pay to reconstruct a video that shows nothing", () => {
     ).toEqual({ reconstruct: true });
   });
 
-  it("sends a privacy flag to a person, ahead of everything else", () => {
-    // Consent about footage already in our bucket does not stop mattering
-    // because the footage also turned out to be blurry, and "film it again" is
-    // the wrong answer to it.
-    const decision = decideReconstructionFromReview({
-      evidence: evidence({ privacy_flag: true, footage_status: "unusable" }),
-    });
-
-    expect(decision).toMatchObject({
-      reconstruct: false,
-      blocker: "capture_footage_privacy_review",
-      refilm: false,
-    });
+  it("does not hold usable task footage because people appear", () => {
+    expect(decideReconstructionFromReview({
+      evidence: evidence({ privacy_flag: true }),
+    })).toEqual({ reconstruct: true });
   });
 
   it("refuses to spend when the review was asked for and did not answer", () => {

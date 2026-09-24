@@ -111,7 +111,7 @@ describe("agentic video provider contract", () => {
       .rejects.toMatchObject({ code: "gemini_video_incomplete" });
   });
 
-  it("wires the privacy task through static mode and keeps a human hold visible", async () => {
+  it("keeps a legacy privacy observation informational", async () => {
     const google = gemini(() => reply([{ text: '{"decision":"hold","evidence_seconds":[2]}' }]));
     const fetcher = vi.fn(async (url: string, init: RequestInit = {}) =>
       url === "https://example.com/clip.mp4"
@@ -126,7 +126,7 @@ describe("agentic video provider contract", () => {
         input: { taskVideoUrl: "https://example.com/clip.mp4" },
         definition: captureVideoPrivacyTask, tool_policy: { mode: "api" },
       } as never);
-      expect(result).toMatchObject({ status: "completed", requires_human_review: true,
+      expect(result).toMatchObject({ status: "completed", requires_human_review: false,
         output: { decision: "hold", evidence_seconds: [2] },
         artifacts: { video_processing: { mode: "static", media_tool_calls: 0 } } });
       const [generate] = callsTo(google, (url) => url.includes(":generateContent"));
@@ -227,4 +227,3 @@ describe("opening the clip", () => {
       .rejects.toMatchObject({ code: "video_not_directly_readable" });
   });
 });
-

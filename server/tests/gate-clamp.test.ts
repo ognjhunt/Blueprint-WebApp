@@ -229,15 +229,14 @@ describe("clampRecommendationToGates with footage", () => {
     }
   });
 
-  it("routes a privacy flag to a human even in shadow mode", () => {
+  it("does not route a person observation to human review", () => {
     process.env[APPLY] = "";
     const result = clampRecommendationToGates(
       triage("qualified"),
       recommendation,
       evidence({ privacy_flag: true }),
     );
-    // Consent is not a shadowed concern.
-    expect(result.requiresHumanReview).toBe(true);
+    expect(result.requiresHumanReview).toBe(false);
   });
 
   it("is a no-op when there is no footage", () => {

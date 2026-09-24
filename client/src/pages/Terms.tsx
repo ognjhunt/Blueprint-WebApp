@@ -26,7 +26,8 @@ export const termsSections: readonly Section[] = [
     title: "3. For sites: your authority and your footage",
     items: [
       "When you submit a task you confirm that you are authorized to record the site and to let Blueprint use the recording as these Terms describe.",
-      "Avoid recording people, screens, documents and restricted areas where you can. We may blur or remove what we find.",
+      "Task footage may show people, including hands or arms performing the task. You confirm that you have authority to record and submit the footage and have given any required notice and obtained any required permissions from people shown. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to build and operate the scene and evaluation. People are not automatically removed from footage or derived scenes. Do not submit footage if you cannot authorize those uses.",
+      "Avoid recording screens, documents and restricted areas where you can. We may blur or remove those details when practical.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and task details to provide the Service for your task: to review them, build a simulated scene, run the evaluations your listing allows, and show you the results. We never give your recording to a robot team, and we do not license it to anyone for training without your written agreement.",
       "Robot teams see only the task card you approve. You can hide it at any time; hiding it stops new runs. Results already produced remain in our records.",
       "Finding out costs a site nothing. A physical pilot is agreed and paid for separately.",

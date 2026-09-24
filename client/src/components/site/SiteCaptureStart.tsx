@@ -480,6 +480,12 @@ export function SiteCaptureStart() {
         </span>
       </label>
 
+      <p className="ms-form-note">
+        Your recording may show people performing the task. We may use the video and frames to build
+        the scene with the providers described in our Privacy Policy; people are not automatically
+        removed. Please submit only footage you are authorized to share.
+      </p>
+
       {state.status === "failed" && (
         <p role="alert" style={{ color: "var(--ms-alert, #b00)" }}>
           {state.message}

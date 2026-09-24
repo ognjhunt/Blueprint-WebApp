@@ -722,14 +722,6 @@ export function clampRecommendationToGates(
   }
 
   if (videoEvidence) {
-    // Footage centred on identifiable people is a consent question, and consent
-    // fails closed. This is deliberately outside the apply flag: it routes to a
-    // person whether or not footage is yet trusted to move a verdict, because
-    // what it flags is not a qualification finding at all.
-    if (videoEvidence.privacy_flag) {
-      requiresHumanReview = true;
-    }
-
     // Footage and form disagreeing is the same shape of problem as prose and
     // dropdowns disagreeing, so it gets the same answer: a person, not a
     // refusal. Note there is no branch that moves anything upward — a glowing

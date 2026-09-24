@@ -493,15 +493,6 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     const parsed = extractJsonPayload(rawText);
     const output = (task.definition.output_schema as ZodType<TOutput>).parse(parsed);
 
-    // A privacy hold or uncertainty needs a person; model completion alone
-    // cannot clear consent.
-    const privacyFlagged =
-      Boolean(output) &&
-      typeof output === "object" &&
-      ((output as Record<string, unknown>).privacy_flag === true
-        || (task.kind === "capture_video_privacy"
-          && (output as Record<string, unknown>).decision !== "clear"));
-
     const usage = response.usage;
 
     return {
@@ -509,7 +500,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
       status: "completed",
       output,
       raw_output_text: rawText,
-      requires_human_review: privacyFlagged,
+      requires_human_review: false,
       requires_approval: false,
       error: null,
       artifacts: {
