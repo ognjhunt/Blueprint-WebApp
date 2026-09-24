@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-24 22:51 UTC |
+| Step | Current evidence at 2026-09-24 23:04 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -32,7 +32,7 @@ older scene's stage evidence or budget.
 | 8. Marble and MapAnything | **provider outputs complete** — World Labs returned a room splat and collider (settled $1.28); MapAnything returned 13 original-frame camera/depth estimates through a guarded Vast job (execution estimate $0.16747), with output retrieval and provider-zero teardown. These are estimated geometry, not measured dimensions or qualified room physics. |
 | 9. Camera/task registration | **blocked for the captured room** — Marble declares original frame 26 as its first-view camera anchor, but MapAnything's 13-frame input batch omitted frame 26. The controller refused `website_registration_anchor_frame_missing`; no surrogate camera was used. |
 | 10. CPU CAD/Blender/USD articulation and static qualification | unproven |
-| 11. Captured-room integration or named development fixture | unproven |
+| 11. Captured-room integration or named development fixture | **fixture intake prepared, execution unproven** — the controller retained original-room blockers and created a separate `development_drawer_fixture` preparation and runtime packet. The website accepted its prepared-scene outbox and the host accepted the matching scene intent. No native assembly integration has passed. |
 | 12. Native import/physics/robot-interface qualification | unproven |
 | 13. Frozen policy/setup and GPU policy episode | unproven |
 | 14. Numeric scoring, teardown and website result | unproven |
@@ -54,8 +54,16 @@ camera anchor was missing from the source-geometry batch. The Pipeline host's
 exact-task development-test allowlist initially omitted this new task digest;
 that scoped configuration was corrected at 22:49 UTC, preserving the four
 previous entries and the signed scene authority. The normal controller retry
-is pending. Raw edited and original frames remain intact. Captured-room
-integration remains unqualified; a later fixture has its own completion state.
+completed under controller attempt 9. The resulting development fixture is
+`intake_ready` with no fixture blockers; the captured-room preparation remains
+`needs_input` with `website_registration_anchor_frame_missing` and
+`support_surface_not_found_under_subject`. The website prepared-scene outbox
+and host intent share ID
+`scene-7ce24adf3ee1d5f00905bdbebee0c8dfca373f8e8417ff5494c3f90cdb940406`.
+CPU authoring has not started. Raw edited and original frames remain intact.
+Pipeline PR #2207 merged as `1e7ba9e0` to ensure future reviewed Marble image
+sets start with a frame that has a MapAnything camera; it has not been deployed
+and does not alter this scene's paid World Labs result.
 
 ## Previous scene: 2026-09-24 Claude website capture
 
