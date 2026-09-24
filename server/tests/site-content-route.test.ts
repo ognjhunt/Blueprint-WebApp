@@ -56,6 +56,8 @@ describe("site-content route", () => {
       );
       expect(payload.safety).toContain("provider execution");
       expect(payload.safety).toContain("owner-system evidence");
+      expect(JSON.stringify(payload)).toContain("$99 per policy entry");
+      expect(JSON.stringify(payload)).not.toContain("per-episode rate");
       expect(JSON.stringify(payload)).not.toMatch(/Policy Shortlist|Robot Match|Policy Improvement Run|Post-Training Data Package/);
       expect(payload.safety).not.toMatch(/coming soon|not launched|not ready|placeholder/i);
     } finally {

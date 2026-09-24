@@ -219,15 +219,15 @@ It is **Pipeline-signed, not agent-authenticated** — if it sat on the agent su
 
 It records the outcome **before** moving any money, so a ledger failure leaves the run durable and due rather than waiting on a retry that may never come.
 
-**It caps the settlement at the quote.** `deriveBalance` books a settle at face value and does not clamp it to the hold, so a wrong `rate_usd` from the Pipeline came out of a team's balance as real spend, past what their agent authorised. The quote is the ceiling: a partial run is pro-rated against it, and no number reported from outside can charge more than was agreed.
+**It settles the flat quoted entry.** The Pipeline's `rate_usd` stays in the receipt for diagnosis but cannot set the customer charge. If any policy episodes execute, the reservation settles for the $99 quote; if none execute, the hold is released.
 
 It is deliberately separate from the evaluation-run schemas next door. Those carry the *result* of the work; this carries what the work *cost*. Coupled, a change to either schema could silently stop money moving.
 
 The split follows the published rule:
 
-- **Episodes executed** → settled for what they cost, whatever the robot did in them. A robot dropping the box is a result, and results are the product.
+- **Episodes executed** → the $99 entry settles, whatever the robot did in them. A robot dropping the box is a result, and results are the product.
 - **Nothing executed** → the whole hold is released, not settled at zero, so the ledger records what happened rather than a spend of nothing.
-- **Fewer episodes than quoted** → settled for what ran; the rest returns automatically.
+- **Fewer episodes than quoted** → the entry still settles at the quoted flat price.
 
 Keyed on the reservation rather than the delivery attempt, so a Pipeline retry cannot charge twice.
 

@@ -917,7 +917,7 @@ router.post("/runs", async (req: Request, res: Response) => {
     // know that a hold is not a permanent deduction. Nothing has to be polled
     // and nothing has to be chased: a run that never reports releases itself.
     holds: {
-      settlesOn: "episodes actually executed, pro-rated against the quote",
+      settlesOn: "the flat $99 entry once any policy episodes execute; zero if none execute",
       expiresAfterMs: reservationTtlMs(),
       onExpiry: "released in full; the run is marked abandoned and nothing is charged",
       inspect: "GET /api/agent-team/runs",

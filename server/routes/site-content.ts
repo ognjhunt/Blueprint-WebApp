@@ -152,7 +152,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "One price, paid by one side. A site pays nothing to have a task assessed; robot teams draw a per-episode rate from a prepaid balance to screen their checkpoints against real sites, and that funds it. No subscription on either side.",
+      "Sites pay nothing to have a task assessed. Robot teams pay $99 per policy entry on one site task from a prepaid balance. No subscription on either side.",
   },
   {
     path: "/contact",

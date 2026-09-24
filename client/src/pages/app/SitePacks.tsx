@@ -17,8 +17,8 @@ function humanize(value: string) {
 /** One status and one next step per task; the offering's own state decides both. */
 function taskState(offering: ConfiguredSceneOfferingCard, developmentAccess = false) {
   const base = `/app/packs/${encodeURIComponent(offering.source_launch_id)}`;
-  if (!developmentAccess && (offering.status === "configured_controls_pending" || offering.status === "evaluation_ready")) {
-    return { tag: offering.status === "evaluation_ready" ? "Ready" : "Scene checks pending",
+  if (!developmentAccess) {
+    return { tag: offering.status === "evaluation_ready" ? "Ready" : offering.status === "configured_controls_pending" ? "Scene checks pending" : "Being prepared",
       action: { label: "Evaluate a task · $99 per policy", href: "/sites" } };
   }
   if (offering.presentation.appearance_review_status === "prepared_scene_ungraded") {
