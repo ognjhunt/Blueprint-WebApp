@@ -118,6 +118,11 @@ export function websiteSceneSponsorship(input: {
     schema_version: "website_scene_sponsorship.v1", sponsor: "blueprint",
     request_id: input.requestId, capture_id: context.capture_id, scene_id: context.scene_id,
     task_context_digest: context.context_digest, policy_digest: policyDigest,
+    ...(developmentSiteTest ? { development_test_site: {
+      claim_scope: "development_only", commercial_site_qualification: false,
+      captured_room_readiness: false,
+      unresolved_gate_ids: input.record.site_task_triage.unanswered_field_ids,
+    } } : {}),
     authoring_provider: authoringProvider,
     ...(anthropicTerms ? { anthropic_provider_terms_reference: anthropicTerms } : {}),
     owner: configured.owner,

@@ -342,7 +342,10 @@ it("funds only the exact owner-authorized exploratory development site without q
   const grant = await loadWebsiteSceneSponsorship("req1", true);
   expect(grant).toMatchObject({ sponsor: "blueprint", preparation_max_total_spend_usd: 25,
     upstream_max_spend_usd: 5, max_total_spend_usd: 20,
-    task_context_digest: context.context_digest });
+    task_context_digest: context.context_digest,
+    development_test_site: { claim_scope: "development_only",
+      commercial_site_qualification: false, captured_room_readiness: false,
+      unresolved_gate_ids: ["sceneStability", "accessWindow"] } });
   expect(grant.expires_at_epoch - grant.consent.accepted_at_epoch).toBe(3600);
   expect(record.site_task_triage.disposition).toBe("not_now");
   const retained = store.rows.get("inboundRequests/req1");
