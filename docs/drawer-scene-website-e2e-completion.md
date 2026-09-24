@@ -20,15 +20,15 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-24 21:52 UTC |
+| Step | Current evidence at 2026-09-24 22:26 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
 | 3. Capture review and original-frame references | **done for preparation** — source decodes and Gemini analysis retained; task-critical registration remains a later gate |
 | 4. Cabinet/middle-drawer plan and observed obstacles | **done** — Gemini identified the articulated mobile cabinet and middle drawer, with desk and teal backpack to keep |
 | 5. Hosted SAM 3.1 masks and track | **done for preparation** — API tracks and independently corroborated task views retained; no local SAM model |
-| 6. Background edits and independent review | **blocked** — five image edits retained; first review rejected unedited frame 0 and claimed unrelated-object loss. A same-code retry also failed. No clean plate approved |
-| 7. Provider-capacity view selection | **done for preparation** — 14 selected source views retained; downstream provider acceptance unproven |
+| 6. Background edits and independent review | **done for preparation** — five paid edits retained; independent review excluded bad generated frames 138 and 519, then unedited frame 0 with visible cabinet; the third review passed on frames 26, 35 and 173 |
+| 7. Provider-capacity view selection | **done for preparation** — 14 source views considered, three safe prepared views retained; downstream provider acceptance unproven |
 | 8. Marble and MapAnything | unproven |
 | 9. Camera/task registration | unproven |
 | 10. CPU CAD/Blender/USD articulation and static qualification | unproven |
@@ -40,15 +40,16 @@ older scene's stage evidence or budget.
 WebApp Sol selection PR #710 is included in live descendant `91c90c86`.
 Both Render web and worker have live pinned deployments of that commit and the
 scene-scoped Sol policy and digest allowlists; public readiness passes. Pipeline
-PRs #2179, #2182, #2183 and #2186 are merged; canonical deployment
-`iteration_31eef7c6.json` and live intake prove release
-`31eef7c64524e6876c99b86bd9dc3bc971884c9d` with no blockers. The dedicated
+PRs #2179, #2182, #2183, #2186, #2194, #2199 and #2201 are merged; canonical
+deployment `iteration_c4442e3f.json` and live intake prove release
+`c4442e3fd4268d969b004283bcf42897d19886a3` with no blockers. The dedicated
 OpenAI project has an observed $7 monthly hard limit and a private, scene-bound
 project guard; the host has Sol-only scoped project/key and cost attestation
 references. A read-only model lookup returned `gpt-6-sol`; no CAD authoring or
 GPU rental has started for this scene. The shared listener obtained sponsorship
-on its fifth attempt; attempts 5 and 6 stopped at clean-plate review. Raw
-edited and original frames remain intact. Captured-room integration remains
+on its fifth attempt; attempts 5 through 7 stopped at clean-plate review.
+Attempt 8 passed the reviewed clean-plate gate. Raw edited and original frames
+remain intact. Captured-room integration remains
 unqualified; a later fixture would have its own completion state.
 
 ## Previous scene: 2026-09-24 Claude website capture
@@ -1380,3 +1381,7 @@ Pipeline release `31eef7c64524e6876c99b86bd9dc3bc971884c9d` has a deployed canon
 The controller retained hosted Meta SAM 3.1 API tracks for the cabinet, desk and teal backpack, independently corroborated task masks, 14 selected views, and five completed GPT-image-2.5-sunburst background edits. The image batch settled approximately $0.50206. The independent Gemini review returned `consistent_background=true`, `task_objects_removed=false`, `unrelated_objects_preserved=false`: original frame 0 was selected without a cabinet edit, and the reviewer reported floor UPS/desk items missing. Attempt 6 reused the signed scene and retained edits and stopped at the same clean-plate gate; no CAD or GPU stage began.
 
 Visual inspection of original/edited frame pairs 26, 35, 138 and 173 found the raw generated views remove the drawer unit while the desk and backpack remain. Frame 519 is a genuine bad edit: its cabinet mask covers only 661 pixels, while the full-frame output erased the floor UPS, papers and cables. A diagnostic silhouette composite kept pixels outside SAM's cabinet-front mask but left a visible hard cabinet edge, so it was not merged or deployed. Pipeline PR #2199 merged as `7c946adbf70ea46b015ac9ab95ec3bab165b5797`: it asks the independent reviewer to compare each original/prepared pair at the same viewpoint, permits minor fill texture or lighting differences, and still rejects genuinely missing observed obstacles. Its 56 focused tests, changed-file Ruff and hosted impacted/sentinel gate passed. Pipeline PR #2194 queue fairness also merged as `43efcc4e4bbeaf0daae0b17a9635791b12689c12`. A canonical 7c946adb deploy is in progress. A follow-on candidate PR #2201 (`5f52d3b67`) asks the reviewer to identify exact bad edited views and permits one bounded exclusion plus fresh independent review, without erasing originals, signed receipts or hard safety gates; 58 focused tests and Ruff passed, hosted gate pending. No merge or deployment proves a clean-plate pass; controller retry and fresh review remain required.
+
+### 2026-09-24 22:26 UTC — Reviewed clean plate passed on the same scene
+
+Canonical deployment `iteration_c4442e3f.json` is `deployed`; the live Pipeline version endpoint reports exact `c4442e3fd4268d969b004283bcf42897d19886a3`, `commit_proven=true`, and no blockers. The durable listener started attempt 8. Its first new retained Gemini review named edited frames `decoded-000000138` and `decoded-000000519` as having unrelated-object loss, while also naming unedited frame `decoded-000000000` as still showing the cabinet. The controller excluded only the two generated views and reviewed again; that review confirmed unrelated objects preserved and identified only frame 0 as unremoved. The controller then excluded frame 0 and a third independent review passed with all hard booleans true and empty remaining/loss ID lists. The clean-plate stage manifest is `objects_removed` / `prepared_images` with no blockers and frames 26, 35, 173. All five raw edits and originals remain retained, including the two bad edits as failure evidence. The main capture pipeline was still running at this observation; Marble, MapAnything, registration, CAD, GPU and website result are not yet proven.
