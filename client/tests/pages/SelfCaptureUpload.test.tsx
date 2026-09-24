@@ -114,6 +114,11 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
       if (url.includes("/items")) {
         return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
       }
+      if (url.includes("/follow-up")) {
+        return Promise.resolve({ ok: true, json: async () => ({ questions: [
+          { id: "success_target", question: "What would a good result look like?", hint: "An estimate is fine." },
+        ] }) });
+      }
       if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) {
         return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", brief: {
           summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null,
@@ -126,12 +131,36 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     }));
     render(<SelfCaptureUpload />);
 
-    await screen.findByRole("heading", { name: "Your capture is saved" });
+    await screen.findByRole("heading", { name: "A few details about the task" });
     expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
-    expect(screen.getByText(/One thing left for you: check the task brief below/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "What would a good result look like?" })).toBeInTheDocument();
     const details = screen.getByText("Next: check your task brief").closest("details")!;
     expect(details.open).toBe(true);
     expect(screen.getByRole("button", { name: "Add another video" })).toBeInTheDocument();
+  });
+
+  it("shows questions on a return visit while the received video remains held", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/follow-up")) return Promise.resolve({ ok: true, json: async () => ({ questions: [
+        { id: "item_weight", question: "About how much do the handled items weigh?", hint: "A range is fine." },
+      ] }) });
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", brief: {
+        summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null,
+      } }) });
+      if (url.includes(`/api/self-capture/uploads/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({
+        ok: true, state: "held", captureReceived: true, detail: "Review is still in progress.", accepts: ["mov", "mp4"],
+      }) });
+      if (url.includes("/status")) return Promise.resolve({ ok: false, json: async () => ({}) });
+      if (url.includes("/items")) return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
+    }));
+    render(<SelfCaptureUpload />);
+
+    expect(await screen.findByRole("heading", { name: "About how much do the handled items weigh?" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
+    expect(screen.getByText(/Review is still in progress/)).toBeInTheDocument();
   });
 });
 
