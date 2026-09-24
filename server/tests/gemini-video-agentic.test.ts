@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { analyseAgenticVideo } from "../agents/adapters/gemini-video";
+import { createHash } from "node:crypto";
+import { analyseAgenticVideo, openVideo } from "../agents/adapters/gemini-video";
 
+const bytes = Buffer.from("fixture-video");
 const input = { apiKey: "test-key", model: "gemini-3.8-flash", prompt: "Inspect the task.",
-  bytes: Buffer.from("fixture-video"), contentType: "video/mp4" };
+  video: { body: bytes, byteLength: bytes.byteLength, contentType: "video/mp4" } };
 const trace = [
   { tool_call: { tool_type: "MEDIA_PROCESSING" } },
   { tool_response: { tool_type: "MEDIA_PROCESSING" } },
@@ -47,11 +49,13 @@ describe("agentic video provider contract", () => {
     const [start] = callsTo(fetcher, (url) => url.endsWith("/upload/v1beta/files"));
     expect(start[1]).toMatchObject({ method: "POST", headers: expect.objectContaining({
       "X-Goog-Upload-Protocol": "resumable", "X-Goog-Upload-Command": "start",
-      "X-Goog-Upload-Header-Content-Length": String(input.bytes.byteLength),
+      "X-Goog-Upload-Header-Content-Length": String(bytes.byteLength),
       "X-Goog-Upload-Header-Content-Type": "video/mp4" }) });
     const [upload] = callsTo(fetcher, (url) => url === UPLOAD_URL);
     expect(upload[1]).toMatchObject({ headers: expect.objectContaining({ "X-Goog-Upload-Command": "upload, finalize" }) });
-    expect((upload[1] as RequestInit).body).toBe(input.bytes);
+    expect((upload[1] as RequestInit).body).toBe(bytes);
+    expect(upload[1]).toMatchObject({ duplex: "half",
+      headers: expect.objectContaining({ "Content-Length": String(bytes.byteLength) }) });
     expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && (init.method ?? "GET") === "GET")).toHaveLength(2);
 
     const [generate] = callsTo(fetcher, (url) => url.includes(":generateContent"));
@@ -62,7 +66,7 @@ describe("agentic video provider contract", () => {
       file_data: { mime_type: "video/mp4", file_uri: file("ACTIVE").uri },
       media_processing: "AGENTIC",
     });
-    expect(JSON.stringify(body)).not.toContain(input.bytes.toString("base64"));
+    expect(JSON.stringify(body)).not.toContain(bytes.toString("base64"));
     expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
 
     expect(result.text).toBe('{"objects":[]}');
@@ -108,5 +112,36 @@ describe("agentic video provider contract", () => {
   it("reports an upload the API refused rather than analysing nothing", async () => {
     const fetcher = vi.fn(async () => new Response("{}", { status: 403 }));
     await expect(analyseAgenticVideo(input, fetcher, noSleep)).rejects.toMatchObject({ code: "gemini_video_upload_failed" });
+  });
+});
+
+describe("opening the clip", () => {
+  const clip = Buffer.alloc(300_000, 7);
+  const served = (body: Buffer, headers: Record<string, string>) =>
+    vi.fn(async () => new Response(new Blob([body]).stream(), { status: 200, headers }));
+  const drain = async (body: Buffer | ReadableStream<Uint8Array>) =>
+    Buffer.isBuffer(body) ? body : Buffer.from(await new Response(body).arrayBuffer());
+
+  it("streams a clip whose length the link declares, measuring and hashing it on the way", async () => {
+    const video = await openVideo("https://storage.googleapis.com/b/walkthrough.mov",
+      served(clip, { "content-type": "video/quicktime", "content-length": String(clip.length) }));
+    expect(video.body).toBeInstanceOf(ReadableStream);
+    expect(video).toMatchObject({ byteLength: clip.length, contentType: "video/quicktime" });
+    expect(await drain(video.body)).toEqual(clip);
+    expect(video.receipt()).toEqual({ bytes: clip.length,
+      sha256: createHash("sha256").update(clip).digest("hex") });
+  });
+
+  it("fails the stream when the body is not the length the link declared", async () => {
+    const video = await openVideo("https://storage.googleapis.com/b/walkthrough.mov",
+      served(clip, { "content-type": "video/quicktime", "content-length": String(clip.length + 10) }));
+    await expect(drain(video.body)).rejects.toThrow("shorter than its link declared");
+  });
+
+  it("holds a clip of undeclared length in memory, bounded, as before", async () => {
+    const video = await openVideo("https://example.com/clip.mp4", served(clip, { "content-type": "video/mp4" }));
+    expect(Buffer.isBuffer(video.body)).toBe(true);
+    expect(video.byteLength).toBe(clip.length);
+    expect(video.receipt().sha256).toBe(createHash("sha256").update(clip).digest("hex"));
   });
 });

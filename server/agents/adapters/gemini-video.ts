@@ -63,8 +63,20 @@ type UploadedVideo = { name: string; uri: string; mimeType: string };
  * until the analysis timeout). The file is deleted once the analysis is done,
  * so the only copy that outlives the call is the one the site uploaded to us.
  */
+/**
+ * The clip as it goes to Gemini. A body whose length the link declared is a
+ * stream, piped from storage into the upload without ever being held: on the
+ * website's 512MB instance a 60MB phone clip held twice (once read, once
+ * copied by fetch for the upload) was enough to kill the process.
+ */
+export interface VideoSource {
+  body: Buffer | ReadableStream<Uint8Array>;
+  byteLength: number;
+  contentType: string;
+}
+
 async function uploadVideoFile(input: {
-  apiKey: string; bytes: Buffer; contentType: string;
+  apiKey: string; video: VideoSource;
 }, fetcher: typeof fetch, sleep: (ms: number) => Promise<void>): Promise<UploadedVideo> {
   const start = await fetcher(`${GEMINI_API}/upload/v1beta/files`, {
     method: "POST",
@@ -72,8 +84,8 @@ async function uploadVideoFile(input: {
       "x-goog-api-key": input.apiKey,
       "X-Goog-Upload-Protocol": "resumable",
       "X-Goog-Upload-Command": "start",
-      "X-Goog-Upload-Header-Content-Length": String(input.bytes.byteLength),
-      "X-Goog-Upload-Header-Content-Type": input.contentType,
+      "X-Goog-Upload-Header-Content-Length": String(input.video.byteLength),
+      "X-Goog-Upload-Header-Content-Type": input.video.contentType,
       "Content-Type": "application/json",
     },
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -88,11 +100,14 @@ async function uploadVideoFile(input: {
     headers: {
       "X-Goog-Upload-Command": "upload, finalize",
       "X-Goog-Upload-Offset": "0",
-      "Content-Type": input.contentType,
+      "Content-Type": input.video.contentType,
+      // Declared so a streamed body goes out at a fixed length, not chunked.
+      "Content-Length": String(input.video.byteLength),
     },
     signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-    body: input.bytes,
-  });
+    body: input.video.body,
+    duplex: "half",
+  } as RequestInit);
   if (!finish.ok) {
     throw new GeminiVideoError("gemini_video_upload_failed", `Gemini file upload returned HTTP ${finish.status}`);
   }
@@ -118,7 +133,7 @@ async function uploadVideoFile(input: {
   if (!file?.name || !file.uri) {
     throw new GeminiVideoError("gemini_video_upload_failed", "Gemini did not return the uploaded file");
   }
-  return { name: file.name, uri: file.uri, mimeType: file.mimeType || input.contentType };
+  return { name: file.name, uri: file.uri, mimeType: file.mimeType || input.video.contentType };
 }
 
 async function deleteVideoFile(apiKey: string, name: string, fetcher: typeof fetch) {
@@ -135,8 +150,7 @@ export async function analyseAgenticVideo(input: {
   apiKey: string;
   model: string;
   prompt: string;
-  bytes: Buffer;
-  contentType: string;
+  video: VideoSource;
 }, fetcher: typeof fetch = fetch, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) {
   const video = await uploadVideoFile(input, fetcher, sleep);
   try {
@@ -265,7 +279,11 @@ export function assertFetchableVideoUrl(raw: string): URL {
 }
 
 /**
- * Pull the clip into memory.
+ * Open the clip for reading, measured and hashed as it is read.
+ *
+ * Streamed when the link declares its length (storage signed URLs always do),
+ * and bounded in memory otherwise. `receipt()` is complete once the body has
+ * been read to the end.
  *
  * Many share links (Drive, Dropbox) return an HTML viewer page rather than
  * bytes. That is a normal and frequent outcome, and it is reported as its own
@@ -273,13 +291,14 @@ export function assertFetchableVideoUrl(raw: string): URL {
  * from "the model failed" — the first needs a note to the operator, the second
  * needs a retry.
  */
-export async function fetchVideoBytes(
+export async function openVideo(
   rawUrl: string,
   fetcher: typeof fetch = fetch,
-): Promise<{ bytes: Buffer; contentType: string }> {
+): Promise<VideoSource & { receipt: () => { bytes: number; sha256: string } }> {
   const url = assertFetchableVideoUrl(rawUrl);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let streaming = false;
 
   try {
     const response = await fetcher(url.toString(), {
@@ -312,7 +331,39 @@ export async function fetchVideoBytes(
       );
     }
 
+    const hash = createHash("sha256");
+    let read = 0;
+    const receipt = () => ({ bytes: read, sha256: hash.copy().digest("hex") });
+
+    if (declaredLength > 0 && response.body) {
+      // The read now lasts as long as the upload it feeds, so it gets the
+      // upload's bound rather than the header fetch's.
+      clearTimeout(timeout);
+      timeout = setTimeout(() => controller.abort(), ANALYSIS_TIMEOUT_MS);
+      const measured = response.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, sink) {
+          read += chunk.byteLength;
+          if (read > declaredLength) {
+            sink.error(new GeminiVideoError("video_length_mismatch", "Task video is longer than its link declared"));
+            return;
+          }
+          hash.update(chunk);
+          sink.enqueue(chunk);
+        },
+        flush(sink) {
+          clearTimeout(timeout);
+          if (read !== declaredLength) {
+            sink.error(new GeminiVideoError("video_length_mismatch", "Task video is shorter than its link declared"));
+          }
+        },
+      }));
+      streaming = true;
+      return { body: measured, byteLength: declaredLength, contentType, receipt };
+    }
+
     const bytes = Buffer.from(await response.arrayBuffer());
+    read = bytes.byteLength;
+    hash.update(bytes);
     if (bytes.byteLength === 0) {
       throw new GeminiVideoError("video_empty", "Task video link returned no data");
     }
@@ -323,7 +374,7 @@ export async function fetchVideoBytes(
       );
     }
 
-    return { bytes, contentType };
+    return { body: bytes, byteLength: bytes.byteLength, contentType, receipt };
   } catch (error) {
     if (error instanceof GeminiVideoError) throw error;
     if (error instanceof Error && error.name === "AbortError") {
@@ -334,7 +385,7 @@ export async function fetchVideoBytes(
       error instanceof Error ? error.message : "Task video link could not be read",
     );
   } finally {
-    clearTimeout(timeout);
+    if (!streaming) clearTimeout(timeout);
   }
 }
 
@@ -396,10 +447,11 @@ export async function runGeminiVideoTask<TInput, TOutput>(
 
   try {
     const videoUrl = readVideoUrl(task.input);
-    const { bytes, contentType } = await fetchVideoBytes(videoUrl);
+    const video = await openVideo(videoUrl);
 
     const response = await analyseAgenticVideo({ apiKey, model: task.model,
-      prompt: task.definition.build_prompt(task.input), bytes, contentType });
+      prompt: task.definition.build_prompt(task.input), video });
+    const { bytes: videoBytes, sha256: videoSha256 } = video.receipt();
     const rawText = response.text;
     const parsed = extractJsonPayload(rawText);
     const output = (task.definition.output_schema as ZodType<TOutput>).parse(parsed);
@@ -422,9 +474,9 @@ export async function runGeminiVideoTask<TInput, TOutput>(
       requires_approval: false,
       error: null,
       artifacts: {
-        video_bytes: bytes.byteLength,
-        video_content_type: contentType,
-        video_sha256: createHash("sha256").update(bytes).digest("hex"),
+        video_bytes: videoBytes,
+        video_content_type: video.contentType,
+        video_sha256: videoSha256,
         video_processing: response.processing,
         usage: usage
           ? {
@@ -438,7 +490,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
         {
           event_type: "provider.video.analysed",
           status: "success",
-          summary: `Read ${Math.round(bytes.byteLength / 1024)}KB of ${contentType}`,
+          summary: `Read ${Math.round(videoBytes / 1024)}KB of ${video.contentType}`,
         },
       ],
     };
