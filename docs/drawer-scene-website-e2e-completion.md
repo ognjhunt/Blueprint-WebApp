@@ -55,6 +55,18 @@ The last read of the preparation ledger showed 28/32 requests and $4.815/$5
 maximum quoted exposure, so subsequent admission must continue to honor both
 guards. With no reported provider cost, the full Marble quote remains reserved.
 
+At 10:06 UTC, Pipeline PR #2162 merged as `088a341a…`. It verifies and reuses
+this capture's already paid full-video SAM response for the desk and teal
+backpack before MapAnything. An isolated read-only selection on the retained
+tracks chose `meta-sam31-teal_backpack-0` and `meta-sam31-office_desk-1`; a
+service-user replay ran the new helper against exact retained inputs with its
+output redirected to scratch, producing a three-target completed mask manifest
+without a provider call or live-scene write. This is preparation evidence, not
+geometry or simulator qualification. A canonical deploy of `088a341a…` is in
+progress with an immutable $0.175 MapAnything quote, $1.10/h rate ceiling,
+570-second hard TTL, 80 GB minimum, and the unchanged $5 scene cap. No GPU
+lease has started.
+
 ## Historical drawer attempts (2026-09-22 to 2026-09-23)
 
 Owner request (2026-09-22 UTC): take a NEW capture (`IMG_4170.MOV`) through the
