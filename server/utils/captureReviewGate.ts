@@ -35,10 +35,9 @@
  *
  * ## Two kinds of no, and they are not interchangeable
  *
- * A bad video is cheap to fix: the site films it again, and forty-five seconds
- * later we try once more. A video that contradicts what the site told us, or
- * that shows people in a way consent has to cover, is not a filming problem and
- * telling someone to re-shoot it would be wrong. So a block says which it is.
+ * A bad video can be filmed again. A video that contradicts what the site told
+ * us needs review. People appearing in the task video are covered by the site's
+ * recorded authority and terms, and are not a reconstruction blocker.
  */
 
 import { VIDEO_CONTRADICTION_CONFIDENCE_FLOOR } from "../../client/src/lib/gateTriage";
@@ -47,8 +46,6 @@ import type { SiteVideoEvidenceOutput } from "../agents/tasks/site-video-evidenc
 export type ReconstructionBlocker =
   /** Too dark, too short, too shaky, or not the work area. Re-filmable. */
   | "capture_footage_unusable"
-  /** Footage shows people in a way the consent record has to cover first. */
-  | "capture_footage_privacy_review"
   /** Footage plainly disagrees with an answer the site gave. A person decides. */
   | "capture_footage_contradicts_gates"
   /** The review was requested and did not come back. We do not spend on a guess. */
@@ -63,9 +60,8 @@ export type ReconstructionReviewDecision =
       /**
        * Whether the honest next step is "film it again".
        *
-       * True only for footage problems. A contradiction or a consent question
-       * is not fixed by re-shooting, and asking someone to re-film over one
-       * would waste their time and hide the real issue.
+       * True only for footage problems. A contradiction is not fixed by
+       * re-shooting.
        */
       refilm: boolean;
     };
@@ -89,10 +85,7 @@ export interface CaptureReviewGateInput {
 /**
  * Decide whether this capture earns a paid reconstruction.
  *
- * Ordering is deliberate. Privacy comes before usability because a consent
- * question about footage already sitting in our bucket does not stop mattering
- * when the footage turns out to be blurry, and "film it again" would be the
- * wrong answer to it.
+ * Usability and task contradictions are the only video-specific decisions here.
  */
 export function decideReconstructionFromReview(
   input: CaptureReviewGateInput,
@@ -105,16 +98,6 @@ export function decideReconstructionFromReview(
       blocker: "capture_review_unavailable",
       detail:
         "The footage review did not complete, so nothing has confirmed this video shows the task. Reconstructing anyway would risk a scene that looks like a result and is not one.",
-      refilm: false,
-    };
-  }
-
-  if (evidence.privacy_flag) {
-    return {
-      reconstruct: false,
-      blocker: "capture_footage_privacy_review",
-      detail:
-        "The footage appears to centre identifiable people. Consent is a question for a person, not a re-shoot, and it is settled before the footage goes any further.",
       refilm: false,
     };
   }

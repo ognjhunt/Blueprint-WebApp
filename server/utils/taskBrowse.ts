@@ -12,8 +12,7 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest): TaskB
       || record.debug?.autoCreatedByPipeline === true) return null;
   const raw = record as unknown as Record<string, any>;
   if (raw.evidence_tier === "development_only" || raw.pipeline?.evidence_tier === "development_only"
-      || raw.pipeline?.rights_review_status === "blocked" || raw.pipeline?.rights_review_status === "needs_review"
-      || raw.capture_privacy_screen?.eligibility === "rejected") return null;
+      || raw.pipeline?.rights_review_status === "blocked" || raw.pipeline?.rights_review_status === "needs_review") return null;
   const ready = isRunnableTask(record);
   const captured = Boolean(raw.capture_privacy_screen?.screened_at_iso || raw.capture_coverage
     || record.pipeline?.artifacts?.worldlabs_world_manifest_uri);

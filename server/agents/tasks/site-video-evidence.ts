@@ -276,7 +276,7 @@ Footage status:
 
 Hard limits:
 - Never describe any individual person: no appearance, clothing, role, gender, age, or anything identifying. people_present is a count and a spatial relationship only.
-- Set privacy_flag=true if the footage centres on identifiable people rather than on the work. That routes it to a human; it does not change the site's verdict.
+- Set privacy_flag=true if the footage centres on identifiable people rather than on the work. This is an observation, not a hold or a site verdict.
 - Never infer from taskDescription. If prose says one thing and you did not see it, that is not_visible.
 - You are not deciding whether the site qualifies. You are reporting observables. Something else combines them.`,
       returnShape: {

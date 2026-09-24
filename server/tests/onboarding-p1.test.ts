@@ -57,6 +57,11 @@ describe("public task disclosure", () => {
     expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null }))).toMatchObject({ stage: "capture", evaluationAvailable: false });
     expect(isRunnableTask(record({ workspace_task: { paused: true } }))).toBe(false);
   });
+  it("does not hide an authorized task because a retired privacy screen rejected it", () => {
+    expect(projectTaskBrowseCard("req1", record({
+      capture_privacy_screen: { eligibility: "rejected" },
+    }))).toMatchObject({ id: "req1", stage: "ready" });
+  });
   it("listing reads share the same admission and withdrawal checks", async () => {
     state.docs.set("inboundRequests/req1", record() as never);
     expect(await listTaskBrowseCards()).toHaveLength(1);

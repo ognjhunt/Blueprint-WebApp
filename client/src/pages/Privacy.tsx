@@ -14,7 +14,7 @@ export const privacyPolicySections = [
   {
     title: "Site footage",
     body:
-      "When a site films its task, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. We use them to review the task, rebuild the work area as a simulated scene, and run the evaluations the site allows. Footage can show people, screens or paperwork, so we ask sites to avoid them and we blur or remove what we find.",
+      "When a site films its task, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. We and our listed processing providers use them to review the task, rebuild the work area as a simulated scene, and run the evaluations the site allows. Task footage and derived scenes may show people, including hands or arms performing the task; people are not automatically removed. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
     icon: Waypoints,
   },
   {
@@ -42,7 +42,8 @@ export const capturePrivacyAnnex = [
   // sufficient: a policy served through an endpoint has to be sent something to
   // look at, and what it is sent is derived from the site.
   ["What a robot team's policy is sent", "Images rendered from the reconstructed scene, never the walkthrough. Those images can still show layout, equipment and stock, so they are kept and shared on the same terms as the scene, and they are not licensed for training unless a written agreement says so."],
-  ["Faces, screens and paperwork", "Avoided when filming where practical, and blurred or removed where we find them before anything is shown outside Blueprint."],
+  ["People in task footage", "People may appear in task footage, derived frames, or a reconstructed scene. The site must have authority to submit the footage and provide any required notice or permissions to people shown. People are not automatically removed before approved processing providers receive the footage or frames."],
+  ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before buyer-facing use."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
   ["Buyer sharing", "Robot teams see the task card you approve and their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
 ];

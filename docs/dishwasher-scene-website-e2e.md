@@ -69,7 +69,7 @@ without the mail hop. Queued as a separate task.
 | 2 | Website upload of the original bytes | Retained object digest equals `c549b3b3…fedd` | **done**: uploaded through the capture page's "Upload a video file" chooser. The stored `raw/walkthrough.mov` was read back at 60,035,801 bytes with that sha256 |
 | 3 | Video/privacy/task review | Retained review record | **partial**: the privacy screen cleared at 05:24 (`eligibility: approved`, run `9eb213c5`, attempt 4). Frames (150), `qa_report.json`, `capture_descriptor.json` and `pipeline_handoff.json` were written at 05:24 |
 | 4 | Task-relevant assembly selection and reconstruction plan | Plan names the dishwasher door/tub assembly | **done**: `clean_plate/removal_plan.json` (Gemini `gemini-3.8-flash`, static) names `dishwasher` as the manipulated task object, `articulated_part: "dishwasher door"`, `articulation_kind: "revolute"`, `rebuild_and_compose`, confidence 0.98, quoting the task. A second target, `person` ("a person's hand and arm … manipulating the dishwasher racks and door"), is marked `remove` for privacy |
-| 5 | Hosted SAM tracking/masks | Track manifest | **blocked (owner decision)**: the controller stopped at `clean_plate` with `status=blocked mode=fill_machinery_pending`, reason `clean_plate_fill_machinery_not_implemented`, surfaced as `website_preparation_pending`. See "Current blocker" |
+| 5 | Hosted SAM tracking/masks | Track manifest | **blocked in the last observed live run**: the controller stopped at `clean_plate` with `status=blocked mode=fill_machinery_pending`, reason `clean_plate_fill_machinery_not_implemented`, surfaced as `website_preparation_pending`. The owner has since directed removal of the person-specific gate; a new live run has not yet been observed. |
 | 6 | Task-specific image edits/background recovery | Edited views + review | unproven |
 | 7 | Provider-capacity view selection | View manifest | unproven |
 | 8 | Marble reconstruction/preview | Provider receipt, splat/collider digests | unproven |
@@ -80,41 +80,22 @@ without the mail hop. Queued as a separate task.
 | 13 | Robot team selects saved setup; policies execute | Episode receipts | unproven |
 | 14 | Results on the website task page; provider-zero | Browser readback + provider-zero receipt | unproven |
 
-## Current blocker: a person in frame
+## Person handling decision and current evidence
 
-The Pipeline verifies privacy for a website capture only when its removal
-analysis finds **no** person (`clean_plate_stage.py`: `privacy_verified = … and
-not person_target_count`). It has no step that masks or erases people. Any
-capture showing the person doing the task, here a hand and forearm opening the
-dishwasher, therefore never gets past clean plate, however the website's own
-privacy screen reads it. The drawer capture passed only because no one was in
-frame.
+The owner directed that task videos with people, including a hand operating the
+dishwasher, follow the ordinary authorized upload and reconstruction path. The
+previous proposal to erase people from frames was superseded. The code change
+under review removes the website's separate people screen, its person-specific
+reconstruction hold, and the Pipeline's `person_target_count` and
+`people_absent` conditions. Person observations remain in analysis provenance,
+but are excluded from task-object masks and image edits. The source video is
+retained without person erasure. Updated Terms and Privacy disclose that people
+may appear in footage and derived scenes and that approved processing providers
+receive media to build them.
 
-A fix is written and tested but **not pushed**. The session's permission check
-refused the push as a privacy-policy change, which is the owner's call. What it
-does:
-
-- **Masks:** people found by the analysis are tracked by the same hosted SAM
-  call, under their concept and "hand". They are kept as `privacy_masks`, apart
-  from the task targets.
-- **Removal:** their pixels join each view's removal mask, and the editor fills
-  them.
-- **Verification:** privacy counts as verified only when the independent
-  completion review of the prepared set passes with `people_absent: true`.
-  Otherwise, or when no review ran, the stage fails closed. The analysis's own
-  `authorizes_person_pixel_removal: false` boundary is unchanged.
-- **Tests:** 6 new tests (fail without the change), `ruff` clean, impacted
-  selection 129 passed, neighbouring suites 55 passed, source governance
-  passed. The patch is in the session scratchpad
-  (`pipeline-people-removal.patch`).
-
-Owner options:
-
-1. Approve that change (or a variant). The Pipeline PR can then land and this
-   capture re-runs from the retained handoff.
-2. Re-film without a person in frame, for example the door opened and closed
-   off-camera or with the hand kept out of view. That path already works
-   today.
+The table above records the last observed live state. A merged and deployed
+change, a host retry from the saved handoff, and provider and website receipts
+are still required before this run can be called complete.
 
 ## Timeline (UTC)
 
