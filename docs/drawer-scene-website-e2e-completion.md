@@ -25,7 +25,7 @@ The source video observes the desk and teal backpack; both remain obstacles.
 Only the middle drawer is the task joint. Captured-room and development-fixture
 completion are scored separately.
 
-| Step | Required evidence | State at 2026-09-24 11:00 UTC |
+| Step | Required evidence | State at 2026-09-24 11:19 UTC |
 | --- | --- | --- |
 | 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
 | 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
@@ -36,8 +36,8 @@ completion are scored separately.
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
 | 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
 | 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
-| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | unproven; Claude Opus 5.5 access and protected key reference verified, but no scene authoring call yet. Merged Pipeline PR #2163 passed a full no-spend authoring preflight against the saved fixture packet, yielding distinct cabinet-carcass and middle-drawer requests; this is preparation, not authoring success |
-| 11 | Captured-room integration or separately named development fixture | **fixture prepared, intake retry pending** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. Captured room stays `needs_input`. The previous WebApp HTTP 409 arose because this scene's task digest was absent from the web/worker fixture allowlist; both scoped allowlists are now deployed and verified, and normal controller redelivery is pending. No CPU intake or fixture execution yet |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **control-plane preparation running; authoring unproven** — Claude Opus 5.5 access and protected key reference verified. Merged Pipeline PR #2163 passed a full no-spend authoring preflight against the saved fixture packet, yielding distinct cabinet-carcass and middle-drawer requests. No scene authoring call or CAD/Blender/USD output yet |
+| 11 | Captured-room integration or separately named development fixture | **fixture prepared and intent accepted; execution pending** — controller wrote distinct `development_drawer_fixture` preparation `intake_ready`, a versioned mesh seed, construction and runtime inputs. WebApp accepted the fixture and forwarded the retained intake; Pipeline accepted scene intent `scene-53d1de9d…` and progressed source preparation with disk admission passed. Captured room stays `needs_input` and unqualified |
 | 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
 | 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
 | 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
@@ -89,6 +89,19 @@ a completed CAD or simulator check. Render web deployment
 same four-entry task-digest allowlist, retaining the prior three and adding
 only this scene. Public version and readiness checks pass. The normal listener
 timer was restored for a same-scene retry after both services became live.
+
+The worker initially lacked the existing web service's Anthropic provider-terms
+entry, so the accepted fixture intake paused locally with
+`provider_terms_not_configured_or_changed` and zero Pipeline deliveries. A
+worker-only config deploy `dep-daqgb88u01pc7382qbu0` copied that exact entry;
+post-deploy terms match web and the scene's separately signed Anthropic
+reference. No consent or authority record changed. One subsequent transport
+attempt failed before a host POST, then the worker's automatic retry succeeded:
+Firestore intake `scene-53d1de9d9c6d71dd5d00ac7441a052e9fac3e235da02b9cc61520bd1f988f22a`
+is `accepted`, with Pipeline intent receipt and no blocker. Host progression is
+`running` on exact Pipeline `8d580a05…`; the whole-chain disk admission passed
+with about 20.16 GB free against 19.33 GB required. CPU authoring has not yet
+produced a provider receipt or asset.
 
 ## Historical drawer attempts (2026-09-22 to 2026-09-23)
 
