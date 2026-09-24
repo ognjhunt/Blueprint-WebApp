@@ -9,13 +9,18 @@ drawer and opts into GPT-6 Sol managed Agents API authoring. The original
 `IMG_4170.MOV` was uploaded by the website browser path and its temporary copy
 matched SHA-256 `d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130`.
 The website recorded capture Terms acceptance (`2026-09-24`) and video rights
-consent. Read-only account/brief records at 19:45 UTC show no
-`account_owner_uid` or `confirmedAtIso`, so sponsorship and processing have not
-started. Do not transfer the older scene's stage evidence or budget.
+consent. The owner claimed the site and confirmed the brief from the signed
+website link. The exploratory development-test answer was then saved through
+the owner brief form, with site stability and access window explicitly unknown;
+the resulting triage is `not_now`, not commercial site qualification. The exact
+confirmed task digest is
+`sha256:aa9aaf64b6fe08ffe2bd2ee2b7b8292490f294f6158850c092b3b28487676aa7`.
+Sponsorship and processing have not started. Do not transfer the older scene's
+stage evidence or budget.
 
-| Step | Current evidence at 2026-09-24 19:49 UTC |
+| Step | Current evidence at 2026-09-24 20:04 UTC |
 | --- | --- |
-| 1. Intake, rights, confirmed task | **partial** — intake and rights saved; account claim and task-brief confirmation pending |
+| 1. Intake, rights, confirmed task | **partial** — intake, rights, account claim and brief confirmation saved; signed sponsorship and Pipeline consumption pending |
 | 2. Original website upload and provider binding | **partial** — original upload accepted; no provider binding yet |
 | 3. Capture review and original-frame references | unproven |
 | 4. Cabinet/middle-drawer plan and observed obstacles | unproven for this scene |
@@ -31,16 +36,17 @@ started. Do not transfer the older scene's stage evidence or budget.
 | 14. Numeric scoring, teardown and website result | unproven |
 
 WebApp Sol selection PR #710 is live at `378336c1a5404a752b004d7423b5ea56406d92ef`.
-Pipeline PRs #2179, #2182 and #2183 are merged; canonical deployment
+Pipeline PRs #2179, #2182, #2183 and #2186 are merged; canonical deployment
 `iteration_18e2e234.json` and live intake prove release
 `18e2e234e2a58bac8713fd1f3b2f912432f2cb43` with no blockers. The dedicated
 OpenAI project has an observed $7 monthly hard limit and a private, scene-bound
 project guard; the host has Sol-only scoped project/key and cost attestation
-references. A read-only model lookup returned `gpt-6-sol`; no paid model call
-or GPU rental occurred. The fresh global GPU guard verified provider-zero.
-Source-governance cleanup PR #2186 is pending CI and has not been deployed.
-The exact confirmed task digest, signed website sponsorship and WebApp policy
-allowlists remain pending the account/brief step. Captured-room integration
+references. A read-only model lookup returned `gpt-6-sol`; this scene has no
+paid model call or GPU rental. PR #2186's merged source-governance extraction
+at `31eef7c6` is not yet deployed. Its deployment and the WebApp task-specific
+Sol policy/allowlists are waiting for a separate live Vast MapAnything rental
+to finish, because releases must not interrupt active paid work. Signed
+website sponsorship remains pending that release/configuration. Captured-room integration
 remains unqualified; a later fixture would have its own completion state.
 
 ## Previous scene: 2026-09-24 Claude website capture
