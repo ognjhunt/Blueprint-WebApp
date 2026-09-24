@@ -24,6 +24,7 @@ const readiness = z.object({
 const candidate = z.object({
   candidate_id: z.string().min(1),
   display_name: z.string().min(1),
+  evaluation_objective_id: z.enum(["task_success", "g1_navigation_goal"]).optional(),
   checkpoint: reference,
   adapter_id: z.string().min(1),
   license_id: z.string().min(1),
