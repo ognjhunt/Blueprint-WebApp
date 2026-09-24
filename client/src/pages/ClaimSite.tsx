@@ -28,7 +28,7 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { auth } from "@/lib/firebase";
 import { workspaceRequest } from "@/lib/workspace";
 import type { WorkspaceAccountSetup } from "@/types/workspace";
-import { attachSiteClaim, claimVerificationUrl, friendlyAuthError } from "@/lib/siteClaim";
+import { attachSiteClaim, claimVerificationUrl, friendlyAuthError, setUpSiteWorkspace } from "@/lib/siteClaim";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
 interface ClaimSummary {
@@ -187,6 +187,12 @@ export function ClaimSite() {
             ? (await createUserWithEmailAndPassword(getAuth(), email.trim(), password)).user
             : (await signInWithEmailAndPassword(getAuth(), email.trim(), password)).user;
       if (!user.emailVerified) {
+        // Record the workspace and the terms just accepted now, while they are
+        // on this page: the claim that follows the verification link runs on
+        // its own and has no checkbox to read. A refusal here leaves the form
+        // path, which reports the real error.
+        await setUpSiteWorkspace(user, { email: summary.claimEmail, siteName: summary.site.siteName }, terms)
+          .catch(() => undefined);
         await sendEmailVerification(user, { url: verificationActionUrl(token) });
         setStage({ status: "verify", summary, user });
         return;

@@ -157,7 +157,14 @@ describe("ClaimSite", () => {
       created,
       expect.objectContaining({ url: expect.stringContaining("claim-token-123") }),
     );
-    expect(mocks.workspaceRequest).not.toHaveBeenCalled();
+    // The workspace and the accepted terms are recorded before the email goes
+    // out, so the verification link can finish the claim with nothing to ask.
+    expect(mocks.workspaceRequest).toHaveBeenCalledTimes(1);
+    expect(mocks.workspaceRequest).toHaveBeenCalledWith(created, "/setup", "POST", expect.objectContaining({
+      workspaceType: "site_operator", acceptedTerms: true,
+    }));
+    expect(mocks.workspaceRequest.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.sendVerification.mock.invocationCallOrder[0]);
 
     created.emailVerified = true;
     fireEvent.click(screen.getByRole("button", { name: /i’ve verified/i }));
@@ -165,6 +172,22 @@ describe("ClaimSite", () => {
     expect(created.reload).toHaveBeenCalledOnce();
     expect(created.getIdToken).toHaveBeenCalledWith(true);
     expect(mocks.workspaceRequest).toHaveBeenCalled();
+  });
+
+  it("still sends the verification email when recording the workspace is refused", async () => {
+    claimResponse();
+    const created = user({ emailVerified: false });
+    mocks.create.mockResolvedValue({ user: created });
+    mocks.workspaceRequest.mockRejectedValueOnce(new Error("refused"));
+    render(<ClaimSite />);
+
+    await screen.findByRole("heading", { name: /keep track of packing line/i });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+
+    await screen.findByRole("heading", { name: /check your inbox/i });
+    expect(mocks.sendVerification).toHaveBeenCalledTimes(1);
   });
 
   it("resends verification only after the explicit resend action", async () => {
