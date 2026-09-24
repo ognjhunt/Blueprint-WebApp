@@ -1,5 +1,58 @@
 # Drawer scene: website-origin articulated evaluation, end to end
 
+## Current scene: 2026-09-24 website capture
+
+This section tracks the latest separately sponsored attempt. The older scene
+matrix below remains historical evidence and does not transfer completion to
+this scene.
+
+| Identity | Value |
+| --- | --- |
+| Website request | `capture-bc15f409-09b7-438c-9891-519ba24d728f` |
+| Scene | `site-capture-bc15f409-09b7-438c-9891-519ba24d728f` |
+| Capture | `walkthrough-capture-bc15f409-09b7-438c-9891-519ba24d728f` |
+| Original video | `IMG_4170.MOV`, SHA-256 `d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130` |
+| Task | Pull the middle drawer of the wood-front three-drawer mobile pedestal under the desk |
+| Intake truth | Owner confirmed Austin, Texas, US, recording rights, and the website task/terms for this scene |
+| Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32 |
+| Current control-plane release | `50223beee34cf43e338ece4db2d46a4dcb9038e4`, canonical deploy and live `commit_proven: true`, no live-version blockers |
+
+### Independent 14-step matrix for the current scene
+
+This is a development test. Cabinet dimensions, drawer stroke, mass, inertia,
+friction, and the unseen rear/interior remain estimates or generated assumptions.
+The source video observes the desk and teal backpack; both remain obstacles.
+Only the middle drawer is the task joint. Captured-room and development-fixture
+completion are scored separately.
+
+| Step | Required evidence | State at 2026-09-24 08:53 UTC |
+| --- | --- | --- |
+| 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
+| 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
+| 3 | Video/privacy/task review with original-frame references | **done** — `gemini_capture_fidelity_review.json` and capture QA artifacts retained |
+| 4 | Cabinet assembly and middle-drawer plan; obstacles preserved | **done** — Gemini selected the mobile cabinet/middle prismatic drawer and retained the desk/backpack as observed context/obstacles |
+| 5 | Hosted SAM 3.1 task mask/track and view corroboration | **done for preparation** — clean-plate `task_masks` status `object_removal_ready`, digest `sha256:5ab1099e…26d0c85929e7`; independent view corroboration retained |
+| 6 | Background edits, original/edited pairs, independent review | **done** — one bounded review found an invented panel in edited original frame 138; the controller excluded that generated view; fresh review passed on frames 34, 35, 173, 519; `clean_plate_stage_manifest.json` is `objects_removed` / `prepared_images`, with originals retained and no blockers |
+| 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
+| 8 | Marble room and MapAnything geometry/camera estimates | **in progress** — Marble operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` submitted 08:18 UTC. It remained `IN_PROGRESS` after the controller's first 20-minute poll and a direct read-only provider check. No completed room asset or MapAnything estimate is claimed yet |
+| 9 | Camera/task registration and provenance-tagged geometry | unproven |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | unproven; Claude Opus 5.5 access and protected key reference verified, but no scene authoring call yet |
+| 11 | Captured-room integration or separately named development fixture | unproven |
+| 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
+| 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
+| 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
+
+Current completion states: captured-room integration **unqualified**;
+development fixture execution **unproven**; policy result and website publication
+**unproven**. The Marble operation is retained in
+`website_reconstruction/submission.json`; the first controller poll ended
+`website_reconstruction_pending` at 08:38 UTC without a duplicate submission.
+The last read of the preparation ledger showed 28/32 requests and $4.815/$5
+maximum quoted exposure, so subsequent admission must continue to honor both
+guards and any provider settlement must come from its terminal bill.
+
+## Historical drawer attempts (2026-09-22 to 2026-09-23)
+
 Owner request (2026-09-22 UTC): take a NEW capture (`IMG_4170.MOV`) through the
 normal website upload path, prepare an articulated "open one drawer" task,
 let the durable controller author/qualify/dispatch it, execute the robot
