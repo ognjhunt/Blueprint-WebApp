@@ -95,6 +95,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 vi.mock("../utils/field-encryption", () => ({
   decryptInboundRequestForAdmin: async (value: any) => {
     const decoded = structuredClone(value);
+    if (typeof decoded.contact?.email === "string")
+      decoded.contact.email = decoded.contact.email.replace(/^encrypted:/, "");
     if (typeof decoded.request?.taskDescription === "string")
       decoded.request.taskDescription = decoded.request.taskDescription.replace(
         /^encrypted:/,
@@ -860,7 +862,7 @@ describe("site claim and listing control", () => {
     });
     state.records.set("inboundRequests/task-1", {
       ...task(), account_owner_uid: undefined,
-      contact: { email: "robot-1@example.com" }, terms_acceptance: sourceTerms,
+      contact: { email: "encrypted:robot-1@example.com" }, terms_acceptance: sourceTerms,
     });
     state.records.set("inboundRequests/application-1", {
       account_owner_uid: "robot-1",
