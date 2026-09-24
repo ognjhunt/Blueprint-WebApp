@@ -633,7 +633,7 @@ export default function TaskDetail() {
               >
                 {pilotAction === "invite" && (
                   <Field label="Could this robot team bring people and equipment on site for a scoped visit or pilot?">
-                    <select name="siteVisitAnswer" required defaultValue="">
+                    <select name="siteVisitAnswer" aria-label="Robot-team on-site access" required defaultValue="">
                       <option value="" disabled>Choose…</option>
                       {siteVisitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select>

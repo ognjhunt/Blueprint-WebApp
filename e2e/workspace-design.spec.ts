@@ -250,6 +250,7 @@ async function seed(
         state: "selected",
         selectedResultId: body.resultId,
         notes: body.notes,
+        siteVisitAnswer: body.siteVisitAnswer,
       };
       snapshot.tasks[0].results[0].selected = true;
       data = {
@@ -404,12 +405,14 @@ test("site chooses an anonymous pilot team with a deliberate confirmation", asyn
   await page.goto("/app/tasks/task-1");
   await page.getByRole("button", { name: "Invite to pilot →" }).first().click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("combobox", { name: "Robot-team on-site access" }).selectOption("subject_to_approval");
   await page
     .getByLabel("Decision notes")
     .fill("Review scope and pilot terms with this team.");
   await page.getByRole("button", { name: "Confirm pilot selection" }).click();
   await expect(page.getByRole("status")).toContainText("Pilot team selected");
   await expect(page.getByText("Pilot selected", { exact: true })).toBeVisible();
+  await expect(page.getByText(/robot-team site access: possibly, subject to site approval/i)).toBeVisible();
 });
 test("robot team saves a setup and requests an evaluation from an opening", async ({
   page,
