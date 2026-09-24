@@ -1309,4 +1309,6 @@ The owner accepted the third render's **appearance** in chat. This is human feed
 
 Draft Pipeline PR #2179 is developing an opt-in GPT-6 Sol managed Agents API CPU authoring route for a future separately identified website scene. It is not merged, deployed, or evidence that this Claude scene passed. Any future run still needs its own signed website authority, bounded spend and attempts, local physical/assembly validation, policy-action scoring and website publication.
 
+The public website now quotes $0 to site operators and $99 per robot-team policy entry. The $25 figure above is this scene's private Blueprint-funded development-test sponsorship ($5 preparation, $20 simulation), not a charge to the operator and not a request to change public pricing. WebApp PR #710 merged a scoped, consented Sol managed-agent selection as `378336c1`; it still needs a verified deployment and a dedicated project spend-guard receipt before a fresh scene can use it. Pipeline PR #2179 remains separate integration work.
+
 At 18:37:52 UTC, after a fresh global provider-zero guard passed with zero live instances and the launch was terminal, `blueprint-operator-door-runner.path` was resumed and verified active. No deploy process was running at the preflight check.
