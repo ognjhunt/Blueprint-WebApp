@@ -15,7 +15,7 @@ this scene.
 | Task | Pull the middle drawer of the wood-front three-drawer mobile pedestal under the desk |
 | Intake truth | Owner confirmed Austin, Texas, US, recording rights, and the website task/terms for this scene |
 | Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32 |
-| Last release proven for the drawer execution | `0be1f9a69312f382a6cf5da0c08290ae8c96b1b0`, canonical deploy and live `commit_proven: true`, no live-version blockers; a later operator-door deploy of `f4b0a5a04b7ca85cf51b5f3ffccedf0dd7859a6b` was still in progress at 13:39 UTC |
+| Last proven control-plane release | `b1da0c64f4ed558555ef7d61cff48fce6c0a6892`, canonical deploy and live exact `commit_proven: true`, no blockers; a separate operator-door deploy of `4088b46e…` was in progress at 14:02 UTC |
 
 ### Independent 14-step matrix for the current scene
 
@@ -36,7 +36,7 @@ completion are scored separately.
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
 | 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
 | 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
-| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **partial; stage 3 failed before review** — controller-owned attempt `source-78688cc27732f25fa8d0a421` made three Anthropic Claude Opus 5.5 calls and exported a valid carcass STEP/STL candidate. The retained STL extents are 550 × 587 × 782 mm. Its Blender script failed with `ValueError: not enough values to unpack (expected 4, got 3)`; the SDK stopped at the failed render tool and did not return `repair_needed` to Claude. No accepted Blender/USD assembly or static qualification. Pipeline PR #2169 is an open focused fix for that handoff, with 48 local tests passing |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **partial; stage 3 failed before review** — controller-owned attempt `source-78688cc27732f25fa8d0a421` made three Anthropic Claude Opus 5.5 calls and exported a valid carcass STEP/STL candidate. The retained STL extents are 550 × 587 × 782 mm. Its Blender script failed with `ValueError: not enough values to unpack (expected 4, got 3)`; the SDK stopped at the failed render tool and did not return `repair_needed` to Claude. No accepted Blender/USD assembly or static qualification. Pipeline PR #2169 fixed that handoff, merged/deployed as `b1da0c64…`; a same-scene retry is still pending |
 | 11 | Captured-room integration or separately named development fixture | **fixture execution entered, not qualified** — controller prepared and accepted a distinct `development_drawer_fixture`, passed disk admission and began CPU stages 1–3. The stage-3 failure stopped before native integration. Captured room stays `needs_input` and unqualified |
 | 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
 | 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
@@ -161,6 +161,24 @@ candidate evidence, not a completed task asset. Pipeline PR #2169 is open to
 return failed render feedback to the agent for a bounded repair turn; 48
 focused tests and changed-file Ruff passed locally. Captured-room readiness
 and fixture steps 10–14 remain unproven.
+
+Pipeline PR #2169 passed hosted checks, merged as `b1da0c64…`, and its
+canonical deploy/live version are proven. A read-only replay of the exact
+retained Claude CPU archive against the earlier OpenAI-only settlement proof
+returned no bounded hold even though Anthropic calls used only the CPU stage:
+the signed request sets OpenAI authoring allowance to $0 and Anthropic to $7.
+Pipeline PR #2171 added a digest-checked Anthropic proof that retains the full
+$7 authoring allowance instead of the earlier $13 whole-attempt quote; it does
+not use the observed ~$0.45 model usage estimate as a final bill. The exact
+95.9 MB archived CPU output, request and scratch-rebound result replay now
+return a $7 upper bound, so one $13 successor would fit the existing $20
+simulation cap. All 66 focused settlement tests, changed-file Ruff and hosted
+impacted checks passed. PR #2171 merged as `09c0586d…`, but was **not yet
+deployed** at 14:02 UTC because another lane's operator-door deploy was active.
+The owner authorized a spend-cap increase if needed; no extension has been
+issued, and the fixed $25 website test price is unchanged. The scene currently
+awaits a fresh controller-owned successor after deployment and provider-zero
+recovery; steps 10–14 remain unproven.
 
 ## Historical drawer attempts (2026-09-22 to 2026-09-23)
 
