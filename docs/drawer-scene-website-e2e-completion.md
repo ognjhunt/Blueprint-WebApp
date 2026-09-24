@@ -1545,3 +1545,18 @@ the $7 stage cap and the strict review predicate. Focused tests, changed-file
 Ruff, and the hosted impacted-test gate passed. A canonical control-plane
 deploy of `a9d67e5` has started; its receipt and any controller-owned retry
 remain pending. Matrix steps 10 and 11 remain partial and 12–14 unproven.
+
+### Verified deployment and same-scene recovery
+
+The `a9d67e5` iteration receipt reports `deployed`. The active release and
+source checkout resolve to the exact merged commit, and the live version
+endpoint reports `commit_proven:true` with no blockers. After a fresh
+provider-zero guard passed with zero live instances, the durable controller
+recovered this same scene and started source attempt
+`source-d74621b841e11bd370da2abf` on `a9d67e5`. Its website submission
+published with full-byte readback. Activation reported
+`profile_authority_materialized_no_execution`, no blockers, and no paid
+provider call. Scene event 143 is `awaiting_execution` at
+`scene_configuration`. The launch supervisor has not yet admitted a new CPU
+attempt, so the revised drawer still has no independent verdict or native/GPU
+result. The captured-room state remains unqualified.
