@@ -149,6 +149,14 @@ const PROCEED_UNSCREENED: PrivacyScreenResult = {
  * treating it as such is how frames of unconsented people end up in a bucket.
  * The upload is kept and the screen is retried.
  */
+/** A review is already running for this capture; waiting on it costs nothing. */
+export function reviewStillRunning(): PrivacyScreenResult {
+  return reviewUnavailable(
+    "The review is still running. Nothing has been processed from the footage yet, and we will "
+    + "check again shortly.",
+  );
+}
+
 function reviewUnavailable(detail: string): PrivacyScreenResult {
   return {
     proceed: false,
@@ -236,6 +244,13 @@ export async function screenCaptureForPrivacy(params: {
 
   if (evidence.privacy_flag) {
     logger.info(params, "Capture held at upload: footage appears to centre identifiable people");
+  }
+  return privacyResultFromEvidence(evidence);
+}
+
+/** What a reading decides, whether it arrived now or from a review that outlived an earlier wait. */
+export function privacyResultFromEvidence(evidence: SiteVideoEvidenceOutput): PrivacyScreenResult {
+  if (evidence.privacy_flag) {
     return {
       proceed: false,
       eligibility: "rejected",

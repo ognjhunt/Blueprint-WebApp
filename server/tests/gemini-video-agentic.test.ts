@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { analyseAgenticVideo, streamedRequestBody } from "../agents/adapters/gemini-video";
+import { analyseAgenticVideo } from "../agents/adapters/gemini-video";
 
 const input = { apiKey: "test-key", model: "gemini-3.8-flash", prompt: "Inspect the task.",
   bytes: Buffer.from("fixture-video"), contentType: "video/mp4" };
@@ -11,22 +11,60 @@ const reply = (parts: unknown[], finishReason = "STOP") => new Response(JSON.str
   candidates: [{ finishReason, content: { parts } }],
   modelVersion: "gemini-3.8-flash-test", usageMetadata: { totalTokenCount: 17 },
 }), { status: 200 });
+const UPLOAD_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files?upload_id=u1";
+const file = (state: string) => ({ name: "files/abc", uri: "https://generativelanguage.googleapis.com/v1beta/files/abc",
+  mimeType: "video/mp4", state });
+
+/** A Files API that is PROCESSING for `processingPolls` status reads, then answers `generate`. */
+function gemini(generate: () => Response, processingPolls = 0) {
+  let polls = 0;
+  return vi.fn(async (url: string, init: RequestInit = {}) => {
+    if (url.endsWith("/upload/v1beta/files")) {
+      return new Response("{}", { status: 200, headers: { "x-goog-upload-url": UPLOAD_URL } });
+    }
+    if (url === UPLOAD_URL) {
+      return new Response(JSON.stringify({ file: file(processingPolls ? "PROCESSING" : "ACTIVE") }), { status: 200 });
+    }
+    if (url.endsWith("/v1beta/files/abc") && (init.method ?? "GET") === "GET") {
+      polls += 1;
+      return new Response(JSON.stringify(file(polls >= processingPolls ? "ACTIVE" : "PROCESSING")), { status: 200 });
+    }
+    if (url.endsWith("/v1beta/files/abc") && init.method === "DELETE") return new Response("{}", { status: 200 });
+    if (url.includes(":generateContent")) return generate();
+    throw new Error(`unexpected ${url}`);
+  });
+}
+const noSleep = async () => undefined;
+const callsTo = (fetcher: ReturnType<typeof gemini>, match: (url: string, init: RequestInit) => boolean) =>
+  fetcher.mock.calls.filter(([url, init]) => match(url as string, (init ?? {}) as RequestInit));
 
 describe("agentic video provider contract", () => {
-  it("requests agentic navigation and retains its evidence without thought text", async () => {
-    const fetcher = vi.fn().mockResolvedValue(reply([...trace,
-      { thought: true, text: "private reasoning" }, { text: '{"objects":[]}' }]));
-    const result = await analyseAgenticVideo(input, fetcher);
-    const [url, request] = fetcher.mock.calls[0];
-    expect(url).toContain("gemini-3.8-flash:generateContent");
-    expect(url).not.toContain(input.apiKey);
-    expect(request.body).toBeInstanceOf(ReadableStream);
-    expect(request.duplex).toBe("half");
-    const body = JSON.parse(await new Response(request.body).text());
+  it("uploads through the Files API, waits for it, reads it by reference and deletes it", async () => {
+    const fetcher = gemini(() => reply([...trace,
+      { thought: true, text: "private reasoning" }, { text: '{"objects":[]}' }]), 2);
+    const result = await analyseAgenticVideo(input, fetcher, noSleep);
+
+    const [start] = callsTo(fetcher, (url) => url.endsWith("/upload/v1beta/files"));
+    expect(start[1]).toMatchObject({ method: "POST", headers: expect.objectContaining({
+      "X-Goog-Upload-Protocol": "resumable", "X-Goog-Upload-Command": "start",
+      "X-Goog-Upload-Header-Content-Length": String(input.bytes.byteLength),
+      "X-Goog-Upload-Header-Content-Type": "video/mp4" }) });
+    const [upload] = callsTo(fetcher, (url) => url === UPLOAD_URL);
+    expect(upload[1]).toMatchObject({ headers: expect.objectContaining({ "X-Goog-Upload-Command": "upload, finalize" }) });
+    expect((upload[1] as RequestInit).body).toBe(input.bytes);
+    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && (init.method ?? "GET") === "GET")).toHaveLength(2);
+
+    const [generate] = callsTo(fetcher, (url) => url.includes(":generateContent"));
+    expect(generate[0]).toContain("gemini-3.8-flash:generateContent");
+    for (const [url] of fetcher.mock.calls) expect(url).not.toContain(input.apiKey);
+    const body = JSON.parse((generate[1] as RequestInit).body as string);
     expect(body.contents[0].parts[1]).toEqual({
-      inline_data: { mime_type: "video/mp4", data: input.bytes.toString("base64") },
+      file_data: { mime_type: "video/mp4", file_uri: file("ACTIVE").uri },
       media_processing: "AGENTIC",
     });
+    expect(JSON.stringify(body)).not.toContain(input.bytes.toString("base64"));
+    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
+
     expect(result.text).toBe('{"objects":[]}');
     expect(result.processing).toEqual({ mode: "agentic", media_tool_calls: 1,
       media_tool_responses: 1, model_version: "gemini-3.8-flash-test" });
@@ -34,49 +72,41 @@ describe("agentic video provider contract", () => {
   });
 
   it("accepts the camelCase JSON wire representation of media tool parts", async () => {
-    const fetcher = vi.fn().mockResolvedValue(reply([
+    const fetcher = gemini(() => reply([
       { toolCall: { toolType: "MEDIA_PROCESSING" } },
       { toolResponse: { toolType: "MEDIA_PROCESSING" } }, { text: "{}" },
     ]));
-    expect((await analyseAgenticVideo(input, fetcher)).processing.media_tool_calls).toBe(1);
+    expect((await analyseAgenticVideo(input, fetcher, noSleep)).processing.media_tool_calls).toBe(1);
   });
 
-  it("rejects a plausible answer without observed agentic processing", async () => {
-    const fetcher = vi.fn().mockResolvedValue(reply([{ text: '{"objects":["box"]}' }]));
-    await expect(analyseAgenticVideo(input, fetcher)).rejects.toMatchObject({ code: "gemini_video_agentic_trace_missing" });
-    expect(fetcher).toHaveBeenCalledTimes(1);
+  it("rejects a plausible answer without observed agentic processing, and still deletes the file", async () => {
+    const fetcher = gemini(() => reply([{ text: '{"objects":["box"]}' }]));
+    await expect(analyseAgenticVideo(input, fetcher, noSleep)).rejects.toMatchObject({ code: "gemini_video_agentic_trace_missing" });
+    expect(callsTo(fetcher, (url) => url.includes(":generateContent"))).toHaveLength(1);
+    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
   });
 
   it("rejects incomplete answers even when they contain valid JSON and navigation", async () => {
-    const fetcher = vi.fn().mockResolvedValue(reply([...trace, { text: "{}" }], "MAX_TOKENS"));
-    await expect(analyseAgenticVideo(input, fetcher)).rejects.toMatchObject({ code: "gemini_video_incomplete" });
+    const fetcher = gemini(() => reply([...trace, { text: "{}" }], "MAX_TOKENS"));
+    await expect(analyseAgenticVideo(input, fetcher, noSleep)).rejects.toMatchObject({ code: "gemini_video_incomplete" });
   });
 
   it("does not retry a provider rejection or expose its potentially sensitive body", async () => {
-    const fetcher = vi.fn().mockResolvedValue(new Response("signed-source-url-and-api-key", { status: 400 }));
-    await expect(analyseAgenticVideo(input, fetcher)).rejects.toThrow("Gemini returned HTTP 400");
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    const fetcher = gemini(() => new Response("signed-source-url-and-api-key", { status: 400 }));
+    await expect(analyseAgenticVideo(input, fetcher, noSleep)).rejects.toThrow("Gemini returned HTTP 400");
+    expect(callsTo(fetcher, (url) => url.includes(":generateContent"))).toHaveLength(1);
   });
 
-  it("streams a multi-chunk video as exactly the JSON a single string would have been", async () => {
-    // Longer than one chunk and not a multiple of 3, so a padding bug at a
-    // chunk boundary would corrupt the base64 the model receives.
-    const bytes = Buffer.alloc(3 * 256 * 1024 * 2 + 7);
-    for (let i = 0; i < bytes.length; i += 1) bytes[i] = (i * 31 + 7) % 256;
-    const stream = streamedRequestBody("Inspect the task.", bytes, "video/quicktime");
-    const chunks: Uint8Array[] = [];
-    for (const reader = stream.getReader(); ;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-    }
-    expect(chunks.length).toBeGreaterThan(3);
-    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-    expect(body.contents[0].parts[0]).toEqual({ text: "Inspect the task." });
-    expect(body.contents[0].parts[1]).toEqual({
-      inline_data: { mime_type: "video/quicktime", data: bytes.toString("base64") },
-      media_processing: "AGENTIC",
-    });
-    expect(body.generationConfig).toEqual({ responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 });
+  it("fails closed when the uploaded file never becomes readable", async () => {
+    const fetcher = vi.fn(async (url: string) => url.endsWith("/upload/v1beta/files")
+      ? new Response("{}", { status: 200, headers: { "x-goog-upload-url": UPLOAD_URL } })
+      : new Response(JSON.stringify(url === UPLOAD_URL ? { file: file("PROCESSING") } : file("FAILED")), { status: 200 }));
+    await expect(analyseAgenticVideo(input, fetcher, noSleep)).rejects.toMatchObject({ code: "gemini_video_file_failed" });
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes(":generateContent"))).toBe(false);
+  });
+
+  it("reports an upload the API refused rather than analysing nothing", async () => {
+    const fetcher = vi.fn(async () => new Response("{}", { status: 403 }));
+    await expect(analyseAgenticVideo(input, fetcher, noSleep)).rejects.toMatchObject({ code: "gemini_video_upload_failed" });
   });
 });
