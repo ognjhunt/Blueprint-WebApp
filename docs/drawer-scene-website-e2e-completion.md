@@ -34,7 +34,7 @@ completion are scored separately.
 | 5 | Hosted SAM 3.1 task mask/track and view corroboration | **done for preparation** — clean-plate `task_masks` status `object_removal_ready`, digest `sha256:5ab1099e…26d0c85929e7`; independent view corroboration retained |
 | 6 | Background edits, original/edited pairs, independent review | **done** — one bounded review found an invented panel in edited original frame 138; the controller excluded that generated view; fresh review passed on frames 34, 35, 173, 519; `clean_plate_stage_manifest.json` is `objects_removed` / `prepared_images`, with originals retained and no blockers |
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
-| 8 | Marble room and MapAnything geometry/camera estimates | **in progress** — Marble operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` submitted 08:18 UTC. It remained `IN_PROGRESS` after the controller's first 20-minute poll and a direct read-only provider check. No completed room asset or MapAnything estimate is claimed yet |
+| 8 | Marble room and MapAnything geometry/camera estimates | **failed at Marble** — operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended at 09:18:54 UTC with provider error 500 and no reported bill. The world record has no collider or splat assets. The deployed adapter incorrectly labeled its placeholder URL ready; the scene handoff then refused `website_reconstruction_assets_pending`. No MapAnything estimate is claimed |
 | 9 | Camera/task registration and provenance-tagged geometry | unproven |
 | 10 | CPU CAD/Blender/USD articulated assembly and static qualification | unproven; Claude Opus 5.5 access and protected key reference verified, but no scene authoring call yet |
 | 11 | Captured-room integration or separately named development fixture | unproven |
@@ -44,12 +44,12 @@ completion are scored separately.
 
 Current completion states: captured-room integration **unqualified**;
 development fixture execution **unproven**; policy result and website publication
-**unproven**. The Marble operation is retained in
-`website_reconstruction/submission.json`; the first controller poll ended
-`website_reconstruction_pending` at 08:38 UTC without a duplicate submission.
+**unproven**. The terminal Marble operation and error are retained; no duplicate
+world was bought. Pipeline PR #2160 fixes the adapter's false-ready verdict but
+does not turn the provider error into a successful room or a zero-cost bill.
 The last read of the preparation ledger showed 28/32 requests and $4.815/$5
 maximum quoted exposure, so subsequent admission must continue to honor both
-guards and any provider settlement must come from its terminal bill.
+guards. With no reported provider cost, the full Marble quote remains reserved.
 
 ## Historical drawer attempts (2026-09-22 to 2026-09-23)
 
