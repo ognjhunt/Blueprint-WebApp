@@ -14,8 +14,8 @@ this scene.
 | Original video | `IMG_4170.MOV`, SHA-256 `d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130` |
 | Task | Pull the middle drawer of the wood-front three-drawer mobile pedestal under the desk |
 | Intake truth | Owner confirmed Austin, Texas, US, recording rights, and the website task/terms for this scene |
-| Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32 |
-| Last proven control-plane release | `b1da0c64f4ed558555ef7d61cff48fce6c0a6892`, canonical deploy and live exact `commit_proven: true`, no blockers; a separate operator-door deploy of `4088b46e…` was in progress at 14:02 UTC |
+| Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32. Owner separately authorized one bounded internal simulation exposure increase to a cumulative $27; the per-attempt $13 quote, $7 CPU model cap, and 16-attempt limit remain enforced. This does not change the website price. |
+| Last proven control-plane release | `34aab0fe86866fc67a8e1c746f9c758be52df4d7`, canonical deploy and live exact `commit_proven: true`, no blockers at 15:26 UTC. The merged render fix `de30eba14f973376dc827750085b83518bfba9da` is deploying but is not yet the proven live release. |
 
 ### Independent 14-step matrix for the current scene
 
@@ -25,7 +25,7 @@ The source video observes the desk and teal backpack; both remain obstacles.
 Only the middle drawer is the task joint. Captured-room and development-fixture
 completion are scored separately.
 
-| Step | Required evidence | State at 2026-09-24 13:39 UTC |
+| Step | Required evidence | State at 2026-09-24 15:26 UTC |
 | --- | --- | --- |
 | 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
 | 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
@@ -36,8 +36,8 @@ completion are scored separately.
 | 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
 | 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
 | 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
-| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **partial; stage 3 failed before review** — controller-owned attempt `source-78688cc27732f25fa8d0a421` made three Anthropic Claude Opus 5.5 calls and exported a valid carcass STEP/STL candidate. The retained STL extents are 550 × 587 × 782 mm. Its Blender script failed with `ValueError: not enough values to unpack (expected 4, got 3)`; the SDK stopped at the failed render tool and did not return `repair_needed` to Claude. No accepted Blender/USD assembly or static qualification. Pipeline PR #2169 fixed that handoff, merged/deployed as `b1da0c64…`; a same-scene retry is still pending |
-| 11 | Captured-room integration or separately named development fixture | **fixture execution entered, not qualified** — controller prepared and accepted a distinct `development_drawer_fixture`, passed disk admission and began CPU stages 1–3. The stage-3 failure stopped before native integration. Captured room stays `needs_input` and unqualified |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **partial; stage 3 failed before review** — after PR #2169 fixed the failed-render handoff, same-scene attempt `source-0965117a683eb1f105f233e2` made real Claude Opus 5.5 calls, exported a valid carcass STEP/STL (550 × 587 × 782 mm) and wrote all three Blender inspection images. The trusted Blender process exceeded its 600-second limit just after the third image, so there was no independent review, complete articulated assembly, or static qualification. PR #2174 merged a 16-sample/900-second bounded render fix; an isolated no-provider replay of this exact carcass finished all three views in 143 seconds. Production retry is pending deployment. |
+| 11 | Captured-room integration or separately named development fixture | **fixture execution entered, not qualified** — controller prepared and accepted a distinct `development_drawer_fixture` and reached CPU stage 3. The latest Blender timeout stopped before native integration. Captured room stays `needs_input` and unqualified |
 | 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
 | 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
 | 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
@@ -1268,3 +1268,11 @@ simulation holds are $5 plus $13 against its fixed $20 limit, while another
 full articulated attempt is quoted at $13. No further paid attempt is implied
 by the code merge. Steps 10 and 12–14 remain unproven; step 11 remains a
 separately labeled development fixture handoff, not captured-room readiness.
+
+## 2026-09-24: same-scene Claude retry and bounded render repair
+
+The durable website launch `website-c577df51a964aa540227c710-09c0586d-20260924t142508z-activation-auto-launch` passed admission on the development fixture. CPU stages 1 and 2 reused their retained inputs. Stage 3 used Claude Opus 5.5 through the existing Agents SDK, exported a valid carcass STEP/STL at estimated bounds 550 × 586.67 × 781.53 mm, and Blender wrote perspective, top and side studio images. The render subprocess had a 600-second bound and had not exited after the final image; the trusted runner raised `TimeoutExpired`. The controller marked the launch blocked before independent visual review, drawer authoring completion, native qualification, GPU rental or policy query. Its launch receipt, archived CPU output, website sync and post-teardown provider-zero receipt are retained. This is a completed failed CPU attempt, not a completed step 10 or policy episode.
+
+Pipeline PR #2174 reduced denoised CPU studio renders from 32 to 16 Cycles samples at unchanged 960 × 960 resolution and raised both bounded authoring render timeouts to 900 seconds. An isolated no-provider replay of this exact carcass and its saved images completed all three new studio renders in 143 seconds, compared with the failed production render's 600-second limit. The replay only verifies the render path; it is not scene qualification or evaluation. PR #2174 passed 42 focused tests, changed-file Ruff and hosted impacted checks, then merged as `de30eba14f973376dc827750085b83518bfba9da`. Deployment was started but was not yet proven live at this entry.
+
+The owner authorized a bounded spend increase. The canonical append-only budget API wrote extension `sha256:f4f296e65e416457ebd21ddeb5fece9c1795f6eb6258c97d9e1c97d2b5c7b017`, raising cumulative simulation exposure from $20 to $27 while keeping 16 attempts and all per-attempt limits. It did not change the fixed $25 website development-test price, erase historical reservations or authorize an unbounded retry. The next production attempt remains pending exact live deployment and a fresh controller preflight.
