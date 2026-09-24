@@ -1,10 +1,52 @@
 # Drawer scene: website-origin articulated evaluation, end to end
 
-## Current scene: 2026-09-24 website capture
+## Current scene: 2026-09-24 Sol website capture
 
-This section tracks the latest separately sponsored attempt. The older scene
-matrix below remains historical evidence and does not transfer completion to
-this scene.
+The new website request is `capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d`,
+capture `walkthrough-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d`, scene
+`site-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d`. It requests the middle
+drawer and opts into GPT-6 Sol managed Agents API authoring. The original
+`IMG_4170.MOV` was uploaded by the website browser path and its temporary copy
+matched SHA-256 `d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130`.
+The website recorded capture Terms acceptance (`2026-09-24`) and video rights
+consent. Read-only account/brief records at 19:45 UTC show no
+`account_owner_uid` or `confirmedAtIso`, so sponsorship and processing have not
+started. Do not transfer the older scene's stage evidence or budget.
+
+| Step | Current evidence at 2026-09-24 19:49 UTC |
+| --- | --- |
+| 1. Intake, rights, confirmed task | **partial** — intake and rights saved; account claim and task-brief confirmation pending |
+| 2. Original website upload and provider binding | **partial** — original upload accepted; no provider binding yet |
+| 3. Capture review and original-frame references | unproven |
+| 4. Cabinet/middle-drawer plan and observed obstacles | unproven for this scene |
+| 5. Hosted SAM 3.1 masks and track | unproven |
+| 6. Background edits and independent review | unproven |
+| 7. Provider-capacity view selection | unproven |
+| 8. Marble and MapAnything | unproven |
+| 9. Camera/task registration | unproven |
+| 10. CPU CAD/Blender/USD articulation and static qualification | unproven |
+| 11. Captured-room integration or named development fixture | unproven |
+| 12. Native import/physics/robot-interface qualification | unproven |
+| 13. Frozen policy/setup and GPU policy episode | unproven |
+| 14. Numeric scoring, teardown and website result | unproven |
+
+WebApp Sol selection PR #710 is live at `378336c1a5404a752b004d7423b5ea56406d92ef`.
+Pipeline PRs #2179, #2182 and #2183 are merged; canonical deployment
+`iteration_18e2e234.json` and live intake prove release
+`18e2e234e2a58bac8713fd1f3b2f912432f2cb43` with no blockers. The dedicated
+OpenAI project has an observed $7 monthly hard limit and a private, scene-bound
+project guard; the host has Sol-only scoped project/key and cost attestation
+references. A read-only model lookup returned `gpt-6-sol`; no paid model call
+or GPU rental occurred. The fresh global GPU guard verified provider-zero.
+Source-governance cleanup PR #2186 is pending CI and has not been deployed.
+The exact confirmed task digest, signed website sponsorship and WebApp policy
+allowlists remain pending the account/brief step. Captured-room integration
+remains unqualified; a later fixture would have its own completion state.
+
+## Previous scene: 2026-09-24 Claude website capture
+
+This section preserves the prior separately sponsored Claude attempt. Its
+completed preparation and failed CPU evidence do not transfer to the Sol scene.
 
 | Identity | Value |
 | --- | --- |
@@ -17,7 +59,7 @@ this scene.
 | Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32. Owner separately authorized three bounded internal simulation exposure increases to a cumulative $46; the per-attempt $13 quote, $7 CPU model cap, and 16-attempt limit remain enforced. This does not change the website price. |
 | Last proven control-plane release | `72f825349a6f5d60fa6b32c272464e06df545dff`, canonical deploy and live exact `commit_proven: true` with no blockers at 17:22 UTC. |
 
-### Independent 14-step matrix for the current scene
+### Independent 14-step matrix for the previous scene
 
 This is a development test. Cabinet dimensions, drawer stroke, mass, inertia,
 friction, and the unseen rear/interior remain estimates or generated assumptions.
