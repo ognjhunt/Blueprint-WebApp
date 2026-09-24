@@ -1185,4 +1185,34 @@ describe("inbound request: public-form payload contract", () => {
       await stopServer(server);
     }
   });
+
+  it("retains explicit Sol managed-agent disclosure and refuses mixed or non-US grants", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `site-sol-agents-${Date.now()}`;
+      const payload = { ...buildSiteScreeningPayload(requestId, `ada+${Date.now()}@example.com`),
+        solAgentsApiConsent: { granted: true, statementVersion: "2026-09-24.v1" } };
+      const response = await fetch(`${baseUrl}/`, { method: "POST",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      expect(response.status).toBe(201);
+      const saved = fs.readFileSync(devLogPath, "utf8").trim().split("\n")
+        .map(line => JSON.parse(line)).find(row => row.requestId === requestId);
+      expect(saved?.request?.sol_agents_api_consent).toMatchObject({
+        granted: true, statement_version: "2026-09-24.v1" });
+      for (const [suffix, changes] of [
+        ["outside", { captureRegion: "non_us" }],
+        ["unticked", { solAgentsApiConsent: { granted: false, statementVersion: "2026-09-24.v1" } }],
+        ["mixed", { claudeAuthoringConsent: { granted: true, statementVersion: "2026-09-24.v1" } }],
+      ] as const) {
+        const refused = await fetch(`${baseUrl}/`, { method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, requestId: `${requestId}-${suffix}`, ...changes }) });
+        expect(refused.status).toBe(400);
+      }
+    } finally {
+      await stopServer(server);
+    }
+  });
 });

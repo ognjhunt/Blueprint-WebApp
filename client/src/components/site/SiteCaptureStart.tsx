@@ -55,6 +55,8 @@ export function SiteCaptureStart() {
   // Ordinary site captures keep the existing simple form and OpenAI route.
   const claudeAuthoringRequested = typeof window !== "undefined"
     && new URLSearchParams(window.location.search).get("authoring") === "claude-opus-5-5";
+  const solAgentsRequested = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("authoring") === "gpt-6-sol-agents-api";
   // Which workspace the signed-in account holds. A robot-team account can
   // still start a site: it is saved to the emailed link rather than blocked.
   const [workspaceType, setWorkspaceType] = useState<string | null | undefined>(undefined);
@@ -96,6 +98,7 @@ export function SiteCaptureStart() {
   // required-only checkbox was a legal act the server never heard about.
   const [consent, setConsent] = useState(false);
   const [claudeConsent, setClaudeConsent] = useState(false);
+  const [solAgentsConsent, setSolAgentsConsent] = useState(false);
   // Whether the phone handoff below is worth anything here. This form is
   // filled in from whatever device is at hand, including the phone that is
   // about to do the filming -- and a code pointing a phone at itself is not a
@@ -105,7 +108,8 @@ export function SiteCaptureStart() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (state.status === "working" || loading || !region || !consent
-      || (claudeAuthoringRequested && !claudeConsent)) return;
+      || (claudeAuthoringRequested && !claudeConsent)
+      || (solAgentsRequested && !solAgentsConsent)) return;
 
     const data = new FormData(event.currentTarget);
     const read = (key: string) => String(data.get(key) ?? "").trim();
@@ -152,6 +156,10 @@ export function SiteCaptureStart() {
           },
           ...(claudeAuthoringRequested ? { claudeAuthoringConsent: {
             granted: claudeConsent,
+            statementVersion: "2026-09-24.v1",
+          } } : {}),
+          ...(solAgentsRequested ? { solAgentsApiConsent: {
+            granted: solAgentsConsent,
             statementVersion: "2026-09-24.v1",
           } } : {}),
           // Bot bait: hidden from people; a filled value is a bot and the
@@ -321,6 +329,19 @@ export function SiteCaptureStart() {
             {" "}<a href="https://www.anthropic.com/legal/commercial-terms" target="_blank" rel="noreferrer">
               commercial API terms
             </a>.
+          </span>
+        </label>
+      )}
+
+      {solAgentsRequested && (
+        <label htmlFor="start-sol-agents-authoring" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
+          <input id="start-sol-agents-authoring" name="startSolAgentsAuthoring" type="checkbox"
+            checked={solAgentsConsent} onChange={(event) => setSolAgentsConsent(event.target.checked)}
+            style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
+          <span style={{ fontWeight: 400 }}>
+            For this development test, I authorize Blueprint to send selected frames and task evidence
+            to OpenAI for GPT-6 Sol managed-agent 3D authoring. The agent session can retain that evidence
+            until it is deleted under the configured provider policy. Blueprint pays the bounded provider cost.
           </span>
         </label>
       )}

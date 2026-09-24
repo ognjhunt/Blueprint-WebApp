@@ -266,6 +266,8 @@ afterEach(async () => {
   delete process.env.TASK_EVALUATION_LAUNCH_URL;
   delete process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN;
   delete process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON;
+  delete process.env.BLUEPRINT_WEBSITE_AGENTS_API_POLICY_JSON;
+  delete process.env.BLUEPRINT_WEBSITE_AGENTS_API_TASK_DIGESTS;
   delete process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS;
   delete process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_SITE_TASK_DIGESTS;
 });
@@ -1734,6 +1736,38 @@ it("binds scoped Claude terms through preparation and rechecks them before forwa
   await processSceneIntakeQueue();
   expect(stored()[1].state).toBe("accepted");
   expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it("signs a scoped Sol managed-agent policy only after owner disclosure and an operator guard receipt", async () => {
+  sponsoredCapture();
+  const inbound = store.rows.get("inboundRequests/req1");
+  inbound.request.capture_mode = "self_capture";
+  inbound.request.capture_region = "us";
+  inbound.request.sol_agents_api_consent = { granted: true,
+    statement_version: "2026-09-24.v1", recorded_at_iso: new Date().toISOString() };
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_agents_api_task_not_authorized");
+  const context = projectWebsiteTaskContext(
+    store.rows.get("siteTaskBriefs/req1"), projectWebsiteCaptureRights(inbound));
+  process.env.BLUEPRINT_WEBSITE_AGENTS_API_TASK_DIGESTS = JSON.stringify([context.context_digest]);
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_agents_api_policy_not_configured");
+  const guard = sha("f");
+  const policy = { schema_version: "scene_configuration_agents_api_policy.v1",
+    disclosure_scope: "task_asset_source_frames_and_metric_envelope",
+    session_retention: "until_deleted", trace_retention: "provider_default",
+    region: "us", budget_policy: "project_guard_accepted_uncertainty",
+    project_guard_receipt_digest: guard, ttl_seconds: 1800, maximum_review_cycles: 3 };
+  process.env.BLUEPRINT_WEBSITE_AGENTS_API_POLICY_JSON = JSON.stringify(policy);
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  expect(grant).toMatchObject({ authoring_provider: "openai",
+    authoring_agent_runtime: "openai_agents_api", authoring_model: "gpt-6-sol",
+    agents_api_policy: { project_guard_receipt_digest: guard } });
+  expect(await loadWebsiteSceneSponsorship("req1", true)).toEqual(grant);
+  process.env.BLUEPRINT_WEBSITE_AGENTS_API_POLICY_JSON = JSON.stringify({ ...policy,
+    project_guard_receipt_digest: sha("a") });
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_sponsorship_changed");
+  delete inbound.website_scene_sponsorship;
+  inbound.request.sol_agents_api_consent.granted = false;
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_agents_api_disclosure_authority_invalid");
 });
 
 it("refuses Claude sponsorship without disclosure or configured Anthropic terms", async () => {
