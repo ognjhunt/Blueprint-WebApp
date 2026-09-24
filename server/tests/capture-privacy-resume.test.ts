@@ -34,7 +34,7 @@ vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-const { resumeHeldPrivacyScreen } = await import("../utils/capturePrivacyResume");
+const { resumeHeldPrivacyScreen, grantPrivacyRescreen } = await import("../utils/capturePrivacyResume");
 const { findPriorFootageReview } = await import("../utils/captureFootageReview");
 
 const CAPTURE = { requestId: "req-1", captureId: "cap-1", sceneId: "scene-1" };
@@ -347,5 +347,52 @@ describe("finding the earlier review", () => {
   it("does not reuse a failed review", async () => {
     seedRun("failed", { status: "failed", started_at: "2026-09-24T03:25:00Z", error: "gemini_video_failed" });
     expect(await findPriorFootageReview("cap-1", now)).toEqual({ state: "none" });
+  });
+});
+
+describe("a fresh budget for a hold that was our own failure", () => {
+  const GRANT = { requestId: "req-1", captureId: "cap-1", grantedBy: "ops@example.com",
+    reason: "Review lane defects fixed in #693-#697; re-ask the reviewer." };
+  const screenOf = () => (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as
+    Record<string, Record<string, unknown>>).capture_privacy_screen;
+
+  it("previews without writing", async () => {
+    seed({ ...HELD, capture_id: "cap-1", attempts: 5, escalated: true });
+    const result = await grantPrivacyRescreen({ ...GRANT, apply: false });
+    expect(result).toMatchObject({ applied: false, grant: { previous_attempts: 5, previous_escalated: true } });
+    expect(screenOf()).toMatchObject({ attempts: 5, escalated: true });
+  });
+
+  it("resets the budget, records who and why, and the next poll asks the reviewer again", async () => {
+    seed({ ...HELD, capture_id: "cap-1", attempts: 5, escalated: true });
+    await grantPrivacyRescreen({ ...GRANT, apply: true });
+    expect(screenOf()).toMatchObject({ attempts: 0, escalated: false, eligibility: "pending" });
+    expect(screenOf().rescreens).toEqual([expect.objectContaining({
+      previous_attempts: 5, previous_escalated: true, granted_by: "ops@example.com", reason: GRANT.reason })]);
+
+    const screen = screener({ proceed: true, eligibility: "approved", outcome: "cleared", detail: null, evidence: null });
+    const outcome = await resumeHeldPrivacyScreen({ ...CAPTURE, screen, findPrior: async () => ({ state: "none" }) });
+    expect(outcome.action).toBe("cleared");
+    expect(screen).toHaveBeenCalledTimes(1);
+  });
+
+  it("never overrides a reading: a flagged capture stays with a person", async () => {
+    seed({ eligibility: "rejected", outcome: "privacy_hold", capture_id: "cap-1", attempts: 1 });
+    await expect(grantPrivacyRescreen({ ...GRANT, apply: true })).rejects.toThrow("rescreen_refused_rejected");
+  });
+
+  it("refuses a capture that is not held, a wrong capture, and a missing reason", async () => {
+    seed({ eligibility: "approved", outcome: "cleared", capture_id: "cap-1", attempts: 1 });
+    await expect(grantPrivacyRescreen({ ...GRANT, apply: true })).rejects.toThrow("rescreen_refused_approved");
+    seed({ ...HELD, capture_id: "cap-9" });
+    await expect(grantPrivacyRescreen({ ...GRANT, apply: true })).rejects.toThrow("capture_mismatch");
+    seed({ ...HELD, capture_id: "cap-1" });
+    await expect(grantPrivacyRescreen({ ...GRANT, reason: "retry", apply: true })).rejects.toThrow("rescreen_reason_required");
+  });
+
+  it("stops after three grants", async () => {
+    seed({ ...HELD, capture_id: "cap-1" });
+    for (let i = 0; i < 3; i += 1) await grantPrivacyRescreen({ ...GRANT, apply: true });
+    await expect(grantPrivacyRescreen({ ...GRANT, apply: true })).rejects.toThrow("rescreen_limit_reached");
   });
 });
