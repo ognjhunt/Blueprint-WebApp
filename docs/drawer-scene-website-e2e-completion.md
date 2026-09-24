@@ -15,7 +15,7 @@ this scene.
 | Task | Pull the middle drawer of the wood-front three-drawer mobile pedestal under the desk |
 | Intake truth | Owner confirmed Austin, Texas, US, recording rights, and the website task/terms for this scene |
 | Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32 |
-| Current control-plane release | `9d87d54fd55ca72c8338e21fd45593919c73248b`, canonical deploy and live `commit_proven: true`, no live-version blockers |
+| Current control-plane release | `088a341acbecf97ea8e09f59379ed07f56d37662`, canonical deploy and live `commit_proven: true`, no live-version blockers |
 
 ### Independent 14-step matrix for the current scene
 
@@ -25,7 +25,7 @@ The source video observes the desk and teal backpack; both remain obstacles.
 Only the middle drawer is the task joint. Captured-room and development-fixture
 completion are scored separately.
 
-| Step | Required evidence | State at 2026-09-24 09:48 UTC |
+| Step | Required evidence | State at 2026-09-24 10:15 UTC |
 | --- | --- | --- |
 | 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
 | 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
@@ -46,7 +46,7 @@ Current completion states: captured-room integration **unqualified**;
 development fixture execution **unproven**; policy result and website publication
 **unproven**. The terminal Marble operation and error are retained; no duplicate
 world was bought. Pipeline PR #2160 is merged and deployed, fixing the
-adapter's false-ready verdict. Pipeline PR #2161 is merged but not yet deployed;
+adapter's false-ready verdict. Pipeline PR #2161 is merged and deployed;
 it adds an owner-allowlisted development fixture path after a retained terminal
 Marble error. Neither fix turns the provider error into a successful room or a
 zero-cost bill. The fixture path has passed 61 focused tests but has not executed
@@ -62,8 +62,8 @@ tracks chose `meta-sam31-teal_backpack-0` and `meta-sam31-office_desk-1`; a
 service-user replay ran the new helper against exact retained inputs with its
 output redirected to scratch, producing a three-target completed mask manifest
 without a provider call or live-scene write. This is preparation evidence, not
-geometry or simulator qualification. A canonical deploy of `088a341a…` is in
-progress with an immutable $0.175 MapAnything quote, $1.10/h rate ceiling,
+geometry or simulator qualification. The canonical deploy of `088a341a…`
+completed with an immutable $0.175 MapAnything quote, $1.10/h rate ceiling,
 570-second hard TTL, 80 GB minimum, and the unchanged $5 scene cap. No GPU
 lease has started.
 
