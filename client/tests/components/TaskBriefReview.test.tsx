@@ -259,7 +259,7 @@ describe("the same step saves the site to an account", () => {
     fireEvent.click(screen.getByRole("button", { name: /save with google/i }));
 
     await waitFor(() => expect(screen.getByText(/saved to your account/i)).toBeInTheDocument());
-    expect(authMocks.workspaceRequest).toHaveBeenCalledWith(expect.anything(), "/claim", "POST", { token: "claim-tok" });
+    expect(authMocks.workspaceRequest).toHaveBeenCalledWith(expect.anything(), "/claim", "POST", { token: "claim-tok", acceptedTerms: true });
     expect(authMocks.sendEmailVerification).not.toHaveBeenCalled();
   });
 

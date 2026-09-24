@@ -23,7 +23,7 @@ export default function Tasks() {
         </ActionLink>
       }
     >
-      {query.data?.role !== "site_operator" ? (
+      {query.data?.role !== "site_operator" && !tasks.length ? (
         <Empty
           title="Browse site openings"
           href="/app/opportunities"

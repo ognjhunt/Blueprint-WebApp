@@ -14,6 +14,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { verifySiteClaimToken } from "../utils/request-review-auth";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import { logger } from "../logger";
+import { isCurrentLegalAcceptance } from "../../client/src/lib/legalAcceptance";
 
 const router = Router();
 
@@ -42,6 +43,7 @@ router.get(
         // The address the invite was sent to, so the sign-in form can prefill
         // it — the holder of a valid link received that email anyway.
         claimEmail: typeof record.contact?.email === "string" ? record.contact.email : null,
+        siteTermsAcceptedCurrent: isCurrentLegalAcceptance(record.terms_acceptance),
         site: {
           siteName: request.siteName || null,
           siteLocation: request.siteLocation || null,

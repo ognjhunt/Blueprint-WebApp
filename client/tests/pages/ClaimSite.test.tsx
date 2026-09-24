@@ -42,6 +42,7 @@ const summary = {
   requestId: "request-1",
   alreadyClaimed: false,
   claimEmail: "operator@example.com",
+  siteTermsAcceptedCurrent: false,
   site: {
     siteName: "Packing line",
     siteLocation: "Austin",
@@ -111,7 +112,7 @@ describe("ClaimSite", () => {
       mocks.auth.currentUser,
       "/claim",
       "POST",
-      { token: "claim-token-123" },
+      { token: "claim-token-123", acceptedTerms: true },
     );
   });
 
@@ -136,7 +137,7 @@ describe("ClaimSite", () => {
       restored,
       "/claim",
       "POST",
-      { token: "claim-token-123" },
+      { token: "claim-token-123", acceptedTerms: true },
     );
   });
 
@@ -214,11 +215,49 @@ describe("ClaimSite", () => {
 
       await screen.findByRole("heading", { name: /this site is yours/i });
       expect(mocks.workspaceRequest).toHaveBeenCalledWith(
-        mocks.auth.currentUser, "/claim", "POST", { token: "claim-token-123" },
+        mocks.auth.currentUser, "/claim", "POST", { token: "claim-token-123", acceptedTerms: false },
       );
     } finally {
       window.history.replaceState({}, "", "/");
     }
+  });
+
+  it("reuses current site intake terms for the verified matching account without a repeat checkbox", async () => {
+    claimResponse({ ...summary, siteTermsAcceptedCurrent: true });
+    mocks.auth.currentUser = user();
+    render(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of packing line/i });
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    await screen.findByRole("heading", { name: /this site is yours/i });
+    expect(mocks.workspaceRequest).toHaveBeenCalledWith(
+      mocks.auth.currentUser, "/claim", "POST",
+      { token: "claim-token-123", acceptedTerms: false },
+    );
+  });
+
+  it("keeps the terms checkbox for an unverified account even when site intake terms are current", async () => {
+    claimResponse({ ...summary, siteTermsAcceptedCurrent: true });
+    mocks.auth.currentUser = user({ emailVerified: false });
+    render(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of packing line/i });
+    expect(screen.getByRole("checkbox")).toBeInTheDocument();
+  });
+
+  it("uses an existing current-version workspace acceptance when the site intake lacks one", async () => {
+    claimResponse();
+    mocks.auth.currentUser = user();
+    mocks.workspaceRequest.mockImplementation(async (_user, path) =>
+      path === "/setup" ? { termsRequired: false } : { ok: true });
+    render(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of packing line/i });
+    await waitFor(() => expect(screen.queryByRole("checkbox")).not.toBeInTheDocument());
+    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    await screen.findByRole("heading", { name: /this site is yours/i });
+    expect(mocks.workspaceRequest).toHaveBeenCalledWith(
+      mocks.auth.currentUser, "/claim", "POST",
+      { token: "claim-token-123", acceptedTerms: false },
+    );
   });
 
   it("does not claim on its own for an unverified or different account", async () => {
