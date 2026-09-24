@@ -32,6 +32,11 @@ import {
   type SiteVideoEvidenceInput,
   type SiteVideoEvidenceOutput,
 } from "../agents/tasks/site-video-evidence";
+import {
+  captureVideoPrivacyOutputSchema,
+  type CaptureVideoPrivacyInput,
+  type CaptureVideoPrivacyOutput,
+} from "../agents/tasks/capture-video-privacy";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
 import { selfCaptureObjectPath } from "./captureUploadToken";
@@ -178,6 +183,54 @@ export async function findPriorFootageReview(
     if (parsed.success) return { state: "completed", output: parsed.data };
   }
   return { state: "none" };
+}
+
+/** A later privacy-only reading can settle an upload whose first wait timed out. */
+export async function findPriorPrivacyReview(
+  captureId: string,
+  now: number = Date.now(),
+): Promise<{ state: "none" } | { state: "running" } |
+  { state: "completed"; output: CaptureVideoPrivacyOutput }> {
+  if (!db) return { state: "none" };
+  const snapshot = await db.collection("agentRuns").where("metadata.capture_id", "==", captureId).get();
+  let latest: { at: number; run: Record<string, unknown> } | null = null;
+  for (const doc of snapshot.docs) {
+    const run = doc.data() as Record<string, unknown>;
+    if (run.task_kind !== "capture_video_privacy") continue;
+    const at = toMillis(run.started_at) ?? toMillis(run.created_at) ?? 0;
+    if (!latest || at > latest.at) latest = { at, run };
+  }
+  if (!latest) return { state: "none" };
+  if (latest.run.status === "running" && now - latest.at < REVIEW_IN_FLIGHT_MS) return { state: "running" };
+  if (latest.run.status === "completed") {
+    const parsed = captureVideoPrivacyOutputSchema.safeParse(latest.run.output);
+    if (parsed.success) return { state: "completed", output: parsed.data };
+  }
+  return { state: "none" };
+}
+
+/** The upload gate avoids navigation and seven unrelated site-quality questions. */
+export async function buildCapturePrivacyReviewer(params: {
+  requestId: string; sceneId: string; captureId: string;
+}): Promise<{ review: () => Promise<CaptureVideoPrivacyOutput | null> } | null> {
+  if (!isSiteVideoEvidenceEnabled()) return null;
+  const videoUrl = await signWalkthroughUrl(params);
+  if (!videoUrl) return null;
+  return {
+    review: async () => {
+      const result = await runAgentTask<CaptureVideoPrivacyInput, CaptureVideoPrivacyOutput>({
+        kind: "capture_video_privacy",
+        input: { taskVideoUrl: videoUrl },
+        session_key: `capture_privacy:${params.captureId}`,
+        metadata: { capture_id: params.captureId, scene_id: params.sceneId },
+      });
+      if (result.status !== "completed" || !result.output) {
+        logger.warn({ captureId: params.captureId, error: result.error }, "Privacy-only video review did not complete");
+        return null;
+      }
+      return result.output;
+    },
+  };
 }
 
 export interface CaptureFootageReviewer {

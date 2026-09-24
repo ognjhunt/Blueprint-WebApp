@@ -122,6 +122,10 @@ export const captureCoverageTask: StructuredTaskDefinition<
   // meaningful on a provider whose API ingests video natively.
   default_provider: "gemini_video",
   model_by_provider: { gemini_video: getGeminiVideoModel() },
+  // A fixed sweep of a short walkthrough avoids agentic tool-call exhaustion.
+  // The prompt already requires `partial` when a requested view is uncertain.
+  video_processing_mode: "STATIC",
+  video_sampling_fps: 2,
   output_schema: captureCoverageOutputSchema,
   tool_policy: {
     mode: "api",

@@ -38,7 +38,7 @@ import {
   screenCaptureForPrivacy,
   type PrivacyScreenResult,
 } from "./capturePrivacyScreen";
-import { findPriorFootageReview } from "./captureFootageReview";
+import { findPriorPrivacyReview } from "./captureFootageReview";
 import { recordCapturePrivacyScreen } from "./capturePrivacyRecord";
 import { notifySlackCapturePrivacyEscalation } from "./slack";
 
@@ -95,7 +95,7 @@ export async function resumeHeldPrivacyScreen(params: {
   /** Injectable so a test does not need a model. */
   screen?: typeof screenCaptureForPrivacy;
   /** Injectable so a test does not need run records. */
-  findPrior?: typeof findPriorFootageReview;
+  findPrior?: typeof findPriorPrivacyReview;
 }): Promise<ResumeOutcome> {
   if (!db) return { action: "nothing_held" };
 
@@ -116,7 +116,7 @@ export async function resumeHeldPrivacyScreen(params: {
   // repeated: repeating it spends an attempt and starts a review that will
   // outlive this wait too. Checked before the budget, because a reading that
   // has arrived settles the hold however many attempts it took.
-  const findPrior = params.findPrior ?? findPriorFootageReview;
+  const findPrior = params.findPrior ?? findPriorPrivacyReview;
   const prior = await Promise.resolve()
     .then(() => findPrior(params.captureId))
     .catch((error) => {

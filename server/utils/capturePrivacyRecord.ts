@@ -6,10 +6,8 @@
  * silently failed. So the reading goes onto the request: what was seen, when,
  * and whether it stopped anything.
  *
- * It is also not free. Watching a walkthrough is a model call, and the
- * reconstruction-time review asks the same question of the same video minutes
- * later. Storing the evidence here means that second reading has something to
- * compare against rather than being the only record.
+ * It is also not free. The narrow privacy decision is stored separately from
+ * full site-video evidence so the two cannot masquerade as each other.
  *
  * Nothing here is allowed to fail an upload. The video is already stored and
  * the decision is already made by the time this is called; a Firestore hiccup
@@ -19,7 +17,6 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { notifySlackCapturePrivacyEscalation } from "./slack";
-import { mergeFootageIntoBrief } from "./siteTaskBriefReading";
 import type { PrivacyScreenResult } from "./capturePrivacyScreen";
 
 export async function recordCapturePrivacyScreen(params: {
@@ -64,30 +61,13 @@ export async function recordCapturePrivacyScreen(params: {
           },
           // Only when there was a real reading. An absent evidence block means
           // nothing was watched, which must not read as "watched and found
-          // nothing" -- the same distinction the footage schema draws with
-          // `not_evidenced`.
+          // nothing". Full footage interpretation has its own record.
           ...(params.result.evidence
-            ? { site_video_evidence: params.result.evidence }
+            ? { capture_privacy_evidence: params.result.evidence }
             : {}),
         },
         { merge: true },
       );
-
-    // What the footage showed, into the brief the operator will confirm. Only
-    // for a capture that cleared the screen: a held capture derives nothing,
-    // and that rule is the screen's, not repeated here. Fire-and-forget, so a
-    // brief that cannot be updated never fails an upload that succeeded.
-    if (params.result.proceed && params.result.evidence) {
-      void mergeFootageIntoBrief({
-        requestId: params.requestId,
-        evidence: params.result.evidence,
-      }).catch((error) =>
-        logger.warn(
-          { error, requestId: params.requestId },
-          "Footage observations could not be merged into the brief",
-        ),
-      );
-    }
 
     // A rejected reading never retries, so without a bell it waits for
     // nobody: the flag had zero consumers. Fire-and-forget with a logged

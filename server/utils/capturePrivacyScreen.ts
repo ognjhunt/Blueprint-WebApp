@@ -17,16 +17,17 @@
  * The gate was in front of the spending and behind the copying.
  *
  * Privacy is a question about data, not about cost, and a question about data
- * wants answering before the data multiplies. So this runs the same reviewer at
- * upload, on the video, and holds the completion marker — which is what starts
- * extraction — rather than holding the cheque.
+ * wants answering before the data multiplies. So this runs a bounded
+ * privacy-only reviewer at upload and holds the completion marker — which is
+ * what starts extraction — until it returns an explicit clear reading.
  *
  * ## It only ever asks the privacy question
  *
  * Deliberately narrow. "Unusable" and "contradicts" stay at reconstruction
  * where they belong: they are about whether to spend, they benefit from the
  * frames being in hand, and re-deciding them here would mean two places could
- * disagree about the same footage. This reads one boolean and ignores the rest.
+ * disagree about the same footage. This reads one enum decision; uncertain
+ * answers, errors and timeouts cannot clear the gate.
  *
  * ## Accepting an upload fails open. Deriving from it fails closed.
  *
@@ -66,9 +67,9 @@
   */
 
 import { logger } from "../logger";
-import { buildCaptureFootageReviewer } from "./captureFootageReview";
+import { buildCapturePrivacyReviewer } from "./captureFootageReview";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
-import type { SiteVideoEvidenceOutput } from "../agents/tasks/site-video-evidence";
+import type { CaptureVideoPrivacyOutput } from "../agents/tasks/capture-video-privacy";
 
 /**
  * How long an upload may wait on the reviewer.
@@ -117,12 +118,11 @@ export interface PrivacyScreenResult {
   /** Set on `pending`: whether asking again could plausibly help. */
   retryable?: boolean;
   /**
-   * The reading itself, when there was one, so it can be stored rather than
-   * thrown away — a second model call to ask the same question of the same
-   * video is waste, and a person handling a privacy hold needs to see what
-   * was seen.
+   * The bounded privacy reading itself, when there was one. Full task
+   * interpretation remains separate, and a person can inspect a held
+   * decision and timestamps without a description of anyone.
    */
-  evidence: SiteVideoEvidenceOutput | null;
+  evidence: CaptureVideoPrivacyOutput | null;
 }
 
 /**
@@ -197,9 +197,9 @@ export async function screenCaptureForPrivacy(params: {
   // Never configured. Status quo, named honestly.
   if (!isSiteVideoEvidenceEnabled()) return PROCEED_UNSCREENED;
 
-  let reviewer: Awaited<ReturnType<typeof buildCaptureFootageReviewer>> = null;
+  let reviewer: Awaited<ReturnType<typeof buildCapturePrivacyReviewer>> = null;
   try {
-    reviewer = await buildCaptureFootageReviewer(params);
+    reviewer = await buildCapturePrivacyReviewer(params);
   } catch (error) {
     logger.warn({ error, ...params }, "Could not build a privacy reviewer; holding for retry");
     return reviewUnavailable(
@@ -217,7 +217,7 @@ export async function screenCaptureForPrivacy(params: {
     );
   }
 
-  let evidence: SiteVideoEvidenceOutput | null = null;
+  let evidence: CaptureVideoPrivacyOutput | null = null;
   try {
     evidence = await withTimeout(reviewer.review(), timeoutMs());
   } catch (error) {
@@ -242,15 +242,15 @@ export async function screenCaptureForPrivacy(params: {
     );
   }
 
-  if (evidence.privacy_flag) {
-    logger.info(params, "Capture held at upload: footage appears to centre identifiable people");
+  if (evidence.decision !== "clear") {
+    logger.info({ ...params, decision: evidence.decision }, "Capture held at upload for privacy review");
   }
   return privacyResultFromEvidence(evidence);
 }
 
 /** What a reading decides, whether it arrived now or from a review that outlived an earlier wait. */
-export function privacyResultFromEvidence(evidence: SiteVideoEvidenceOutput): PrivacyScreenResult {
-  if (evidence.privacy_flag) {
+export function privacyResultFromEvidence(evidence: CaptureVideoPrivacyOutput): PrivacyScreenResult {
+  if (evidence.decision !== "clear") {
     return {
       proceed: false,
       eligibility: "rejected",
@@ -258,9 +258,11 @@ export function privacyResultFromEvidence(evidence: SiteVideoEvidenceOutput): Pr
       // video will give the same answer. This one needs a person.
       retryable: false,
       outcome: "privacy_hold",
-      detail:
-        "The footage appears to centre identifiable people. Consent is a question for a person "
-        + "rather than a re-shoot, so nothing is processed from it until that is settled.",
+      detail: evidence.decision === "hold"
+        ? "The footage appears to centre identifiable people. Consent is a question for a person "
+          + "rather than a re-shoot, so nothing is processed from it until that is settled."
+        : "The privacy review could not determine whether the footage centres identifiable people. "
+          + "Nothing is processed until a person settles that question.",
       evidence,
     };
   }

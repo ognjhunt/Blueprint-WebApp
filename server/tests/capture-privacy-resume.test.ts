@@ -35,7 +35,7 @@ vi.mock("../logger", () => ({
 }));
 
 const { resumeHeldPrivacyScreen, grantPrivacyRescreen } = await import("../utils/capturePrivacyResume");
-const { findPriorFootageReview } = await import("../utils/captureFootageReview");
+const { findPriorPrivacyReview } = await import("../utils/captureFootageReview");
 
 const CAPTURE = { requestId: "req-1", captureId: "cap-1", sceneId: "scene-1" };
 
@@ -246,21 +246,15 @@ describe("and if it never clears, a person gets it", () => {
 /** A reading with everything benign except what the test sets. */
 function evidence(overrides: Record<string, unknown> = {}) {
   return {
-    footage_status: "usable",
-    footage_status_reason: null,
-    summary: "A dishwasher door is opened and closed.",
-    observations: [],
-    cycle_measurement: { cycles: [], median_cycle_seconds: null, implied_band: null, note: "" },
-    people_present: { max_visible_at_once: 0, relationship_to_work: "none_visible", note: "" },
-    not_evidenced: [],
-    privacy_flag: false,
+    decision: "clear",
+    evidence_seconds: [],
     ...overrides,
   };
 }
 
 function seedRun(id: string, run: Record<string, unknown>) {
   sharedFakeFirestoreState.docs.set(`agentRuns/${id}`, {
-    task_kind: "site_video_evidence",
+    task_kind: "capture_video_privacy",
     metadata: { capture_id: "cap-1", scene_id: "scene-1" },
     ...run,
   });
@@ -312,7 +306,7 @@ describe("a review that outlived its wait is used, not repeated", () => {
     seed(HELD);
     const outcome = await resumeHeldPrivacyScreen({
       ...CAPTURE, screen: screener({}),
-      findPrior: async () => ({ state: "completed", output: evidence({ privacy_flag: true }) as never }),
+      findPrior: async () => ({ state: "completed", output: evidence({ decision: "hold" }) as never }),
     });
     expect(outcome.action).toBe("rejected");
   });
@@ -322,31 +316,33 @@ describe("finding the earlier review", () => {
   const now = Date.parse("2026-09-24T03:30:00Z");
 
   it("finds nothing when the capture has no review", async () => {
-    expect(await findPriorFootageReview("cap-1", now)).toEqual({ state: "none" });
+    expect(await findPriorPrivacyReview("cap-1", now)).toEqual({ state: "none" });
   });
 
   it("reports a recent running review, and treats an old one as dead", async () => {
     seedRun("r1", { status: "running", started_at: "2026-09-24T03:25:00Z" });
-    expect(await findPriorFootageReview("cap-1", now)).toEqual({ state: "running" });
-    expect(await findPriorFootageReview("cap-1", Date.parse("2026-09-24T04:00:00Z"))).toEqual({ state: "none" });
+    expect(await findPriorPrivacyReview("cap-1", now)).toEqual({ state: "running" });
+    expect(await findPriorPrivacyReview("cap-1", Date.parse("2026-09-24T04:00:00Z"))).toEqual({ state: "none" });
   });
 
   it("uses the newest review, and only a footage review of this capture", async () => {
-    seedRun("old", { status: "completed", started_at: "2026-09-24T03:00:00Z", output: evidence({ summary: "old" }) });
-    seedRun("new", { status: "completed", started_at: "2026-09-24T03:20:00Z", output: evidence({ summary: "new" }) });
+    seedRun("old", { status: "completed", started_at: "2026-09-24T03:00:00Z", output: evidence({ evidence_seconds: [1] }) });
+    seedRun("new", { status: "completed", started_at: "2026-09-24T03:20:00Z", output: evidence({ evidence_seconds: [2] }) });
     seedRun("coverage", { task_kind: "capture_coverage", status: "running", started_at: "2026-09-24T03:29:00Z" });
     seedRun("other", { status: "running", started_at: "2026-09-24T03:29:00Z", metadata: { capture_id: "cap-2" } });
-    expect(await findPriorFootageReview("cap-1", now)).toMatchObject({ state: "completed", output: { summary: "new" } });
+    seedRun("full", { task_kind: "site_video_evidence", status: "completed",
+      started_at: "2026-09-24T03:29:00Z", output: { privacy_flag: false } });
+    expect(await findPriorPrivacyReview("cap-1", now)).toMatchObject({ state: "completed", output: { evidence_seconds: [2] } });
   });
 
   it("does not trust a completed run whose output is not a valid reading", async () => {
     seedRun("bad", { status: "completed", started_at: "2026-09-24T03:20:00Z", output: { privacy_flag: false } });
-    expect(await findPriorFootageReview("cap-1", now)).toEqual({ state: "none" });
+    expect(await findPriorPrivacyReview("cap-1", now)).toEqual({ state: "none" });
   });
 
   it("does not reuse a failed review", async () => {
     seedRun("failed", { status: "failed", started_at: "2026-09-24T03:25:00Z", error: "gemini_video_failed" });
-    expect(await findPriorFootageReview("cap-1", now)).toEqual({ state: "none" });
+    expect(await findPriorPrivacyReview("cap-1", now)).toEqual({ state: "none" });
   });
 });
 

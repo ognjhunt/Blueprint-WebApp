@@ -194,6 +194,26 @@ describe("the privacy question is asked before anything is derived", () => {
       .toMatchObject({ kind: "video_received", to: "owner@example.com" });
   });
 
+  it("keeps an uncertain static privacy reading separate and writes no completion marker", async () => {
+    seedRequest("req-uncertain", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValue({
+      proceed: false,
+      eligibility: "rejected",
+      outcome: "privacy_hold",
+      retryable: false,
+      detail: "The privacy review could not settle the question.",
+      evidence: { decision: "uncertain", evidence_seconds: [] },
+    });
+
+    const result = await withRoutes((baseUrl) => uploadFor(baseUrl, "req-uncertain"));
+
+    expect(result.body).toMatchObject({ state: "held", eligibility: "rejected" });
+    expect([...written.keys()].some((path) => path.endsWith("capture_upload_complete.json"))).toBe(false);
+    const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-uncertain") as Record<string, unknown>;
+    expect(stored.capture_privacy_evidence).toMatchObject({ decision: "uncertain" });
+    expect(stored.site_video_evidence).toBeUndefined();
+  });
+
   it("a retried upload repairs the same durable notice without duplicating it", async () => {
     seedRequest("req-retry", { disposition: "qualified" });
     await withRoutes(async (baseUrl) => {
