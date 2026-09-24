@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-24 22:26 UTC |
+| Step | Current evidence at 2026-09-24 22:51 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -29,8 +29,8 @@ older scene's stage evidence or budget.
 | 5. Hosted SAM 3.1 masks and track | **done for preparation** — API tracks and independently corroborated task views retained; no local SAM model |
 | 6. Background edits and independent review | **done for preparation** — five paid edits retained; independent review excluded bad generated frames 138 and 519, then unedited frame 0 with visible cabinet; the third review passed on frames 26, 35 and 173 |
 | 7. Provider-capacity view selection | **done for preparation** — 14 source views considered, three safe prepared views retained; downstream provider acceptance unproven |
-| 8. Marble and MapAnything | unproven |
-| 9. Camera/task registration | unproven |
+| 8. Marble and MapAnything | **provider outputs complete** — World Labs returned a room splat and collider (settled $1.28); MapAnything returned 13 original-frame camera/depth estimates through a guarded Vast job (execution estimate $0.16747), with output retrieval and provider-zero teardown. These are estimated geometry, not measured dimensions or qualified room physics. |
+| 9. Camera/task registration | **blocked for the captured room** — Marble declares original frame 26 as its first-view camera anchor, but MapAnything's 13-frame input batch omitted frame 26. The controller refused `website_registration_anchor_frame_missing`; no surrogate camera was used. |
 | 10. CPU CAD/Blender/USD articulation and static qualification | unproven |
 | 11. Captured-room integration or named development fixture | unproven |
 | 12. Native import/physics/robot-interface qualification | unproven |
@@ -48,9 +48,14 @@ project guard; the host has Sol-only scoped project/key and cost attestation
 references. A read-only model lookup returned `gpt-6-sol`; no CAD authoring or
 GPU rental has started for this scene. The shared listener obtained sponsorship
 on its fifth attempt; attempts 5 through 7 stopped at clean-plate review.
-Attempt 8 passed the reviewed clean-plate gate. Raw edited and original frames
-remain intact. Captured-room integration remains
-unqualified; a later fixture would have its own completion state.
+Attempt 8 passed the reviewed clean-plate gate and produced the two provider
+outputs in step 8. It stopped before CPU authoring because the declared
+camera anchor was missing from the source-geometry batch. The Pipeline host's
+exact-task development-test allowlist initially omitted this new task digest;
+that scoped configuration was corrected at 22:49 UTC, preserving the four
+previous entries and the signed scene authority. The normal controller retry
+is pending. Raw edited and original frames remain intact. Captured-room
+integration remains unqualified; a later fixture has its own completion state.
 
 ## Previous scene: 2026-09-24 Claude website capture
 
