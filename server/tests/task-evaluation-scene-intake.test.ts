@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, amendWebsitePreparationSpendLimit, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
@@ -1458,6 +1458,40 @@ it("amends only preparation request count while retaining money, native authorit
     request_count: 32 })).rejects.toThrow("budget_exhausted");
   await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("5"),
     maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
+});
+
+it("raises only the upstream preparation dollar cap, once, by the owner, within three times the grant", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "evaluator_api" as const, provider: "meta" as const, maximum_cost_usd: 4, request_count: 1 };
+  const first = await reserveWebsitePreparationSpend("req1", spend);
+  const next = { ...spend, allocation_binding_digest: sha("2"), maximum_cost_usd: 2.48 };
+  await expect(reserveWebsitePreparationSpend("req1", next)).rejects.toThrow("budget_exhausted");
+  const input = { authority_digest: grant.authority_digest, upstream_max_spend_usd: 10,
+    approved_by: grant.owner.user_id, approval_reference: "owner-reply:raise-upstream-10" };
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, approved_by: "stranger" }, true))
+    .rejects.toThrow("binding_invalid");
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 16 }, true))
+    .rejects.toThrow("out_of_bounds");
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 5 }, true))
+    .rejects.toThrow("out_of_bounds");
+  await amendWebsitePreparationSpendLimit("req1", input);
+  expect(store.rows.get("inboundRequests/req1").website_preparation_spend_amendment).toBeUndefined();
+  const receipt = await amendWebsitePreparationSpendLimit("req1", input, true);
+  expect(await amendWebsitePreparationSpendLimit("req1", input, true)).toEqual(receipt);
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 12 }, true))
+    .rejects.toThrow("amendment_conflict");
+  // The grant itself, its native cap and existing reservations are unchanged.
+  expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
+  expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
+  expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
+  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
+    maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
+  // A tampered amendment fails closed rather than widening the cap.
+  store.rows.get("inboundRequests/req1").website_preparation_spend_amendment.upstream_max_spend_usd = 15;
+  await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("4"),
+    maximum_cost_usd: 0.1 })).rejects.toThrow("spend_amendment_invalid");
 });
 
 it("rejects stale, unauthorized, revoked and tampered preparation amendments", async () => {

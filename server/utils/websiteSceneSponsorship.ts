@@ -312,6 +312,64 @@ function preparationRequestLimit(record: Record<string, any>, authority: Record<
   return extended.max_requests;
 }
 
+const preparationSpendAmendment = z.object({
+  authority_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  upstream_max_spend_usd: money,
+  approved_by: z.string().trim().min(1),
+  approval_reference: z.string().trim().min(1).max(1000),
+}).strict();
+
+/** The upstream preparation cap, raised at most once, by the owner, to at most three times the grant. */
+function preparationSpendLimit(record: Record<string, any>, authority: Record<string, any>) {
+  const amendment = record.website_preparation_spend_amendment;
+  if (!amendment) return authority.upstream_max_spend_usd;
+  const { amendment_digest, approved_at_epoch, ...raw } = amendment;
+  const value = preparationSpendAmendment.parse(raw);
+  if (digest({ ...value, approved_at_epoch }) !== amendment_digest
+    || !Number.isFinite(approved_at_epoch)
+    || value.authority_digest !== authority.authority_digest
+    || value.approved_by !== authority.owner.user_id
+    || value.upstream_max_spend_usd <= authority.upstream_max_spend_usd
+    || value.upstream_max_spend_usd > authority.upstream_max_spend_usd * 3)
+    throw new Error("website_preparation_spend_amendment_invalid");
+  return value.upstream_max_spend_usd;
+}
+
+/** Operator-only, one-shot: raises only the upstream preparation cap. The native
+ * cap, expiry, request limit and existing reservations are unchanged. */
+export async function amendWebsitePreparationSpendLimit(
+  requestId: string, input: z.infer<typeof preparationSpendAmendment>, apply = false,
+) {
+  const command = preparationSpendAmendment.parse(input);
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const store = db;
+  return storeTimeout(store.runTransaction(async transaction => {
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const record = (await transaction.get(ref)).data();
+    const authority = record?.website_scene_sponsorship;
+    if (!authority) throw new Error("website_scene_sponsorship_missing");
+    const { authority_digest, ...payload } = authority;
+    if (digest(payload) !== authority_digest || command.authority_digest !== authority_digest
+      || authority.request_id !== requestId || command.approved_by !== authority.owner.user_id)
+      throw new Error("website_scene_sponsorship_binding_invalid");
+    if (authority.expires_at_epoch <= Date.now() / 1000) throw new Error("consent_expired");
+    if (!projectWebsiteCaptureRights(record!).derived_scene_generation_allowed) throw new Error("source_revoked");
+    const previous = record!.website_preparation_spend_amendment;
+    if (previous) {
+      if (previous.upstream_max_spend_usd === command.upstream_max_spend_usd
+          && previous.approval_reference === command.approval_reference) return previous;
+      throw new Error("website_preparation_amendment_conflict");
+    }
+    if (command.upstream_max_spend_usd <= authority.upstream_max_spend_usd
+        || command.upstream_max_spend_usd > authority.upstream_max_spend_usd * 3)
+      throw new Error("website_preparation_spend_amendment_out_of_bounds");
+    const value = { ...command, approved_at_epoch: Date.now() / 1000 };
+    const receipt = { ...value, amendment_digest: digest(value) };
+    if (apply) transaction.update(ref, { website_preparation_spend_amendment: receipt });
+    return receipt;
+  }));
+}
+
 /** Operator-only amendment: never exposed as a public or Pipeline API. */
 export async function amendWebsitePreparationRequestLimit(
   requestId: string, input: z.infer<typeof preparationLimitAmendment>, apply = false,
@@ -385,7 +443,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const micros = (amount: number) => Math.ceil(amount * 1_000_000);
     const reserved = previous.reduce((sum, row) => sum + micros(row.settlement?.actual_cost_usd ?? row.admission.maximum_cost_usd), 0);
     const attempts = previous.reduce((sum, row) => sum + row.admission.request_count, 0);
-    if (reserved + micros(command.maximum_cost_usd) > Math.floor(authority.upstream_max_spend_usd * 1_000_000)
+    if (reserved + micros(command.maximum_cost_usd) > Math.floor(preparationSpendLimit(record, authority) * 1_000_000)
         || attempts + command.request_count > preparationRequestLimit(record, authority))
       throw new Error("website_scene_preparation_budget_exhausted");
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
