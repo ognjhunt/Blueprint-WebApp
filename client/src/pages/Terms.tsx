@@ -9,9 +9,9 @@ export const termsSections: readonly Section[] = [
   {
     title: "1. The Service",
     paragraphs: [
-      "Blueprint helps sites and robot teams find out whether a robot fits a real task before a physical pilot. A site can submit a task, film its work area, review a short task brief, and choose whether robot teams can see a card for the task. We may rebuild the work area as a simulated scene and run robot teams' policies against it. Robot teams can plan and buy evaluation runs against listed tasks, on the website or through our API.",
+      "Blueprint helps sites and robot teams assess whether a robot fits a real task and plan a physical pilot. A site can submit a task, film its work area, review a short task brief, and choose whether robot teams can see a card for the task. We may rebuild the work area as a simulated scene and run robot teams' policies against it. Robot teams can plan and buy evaluation runs against listed tasks, on the website or through our API. If a site requests pilot preparation, coordination, or measurement, the scope and fee require a separate written agreement.",
       "The Service is in beta. Features may change, be limited, or be withdrawn, and we may pause or stop an evaluation, for example to protect a site's privacy or the integrity of a result.",
-      "An evaluation result is a measurement in a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site. Any pilot or deployment is agreed separately between the site and the robot team involved.",
+      "An evaluation result is a measurement in a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site. Any pilot or deployment requires separate agreement and site approval. The provider or integrator remains responsible for installation and operation; the site and responsible delivery parties approve the safety plan. Blueprint may coordinate and measure a pilot only under a separately agreed scope.",
     ],
   },
   {
@@ -30,7 +30,7 @@ export const termsSections: readonly Section[] = [
       "Avoid recording screens, documents and restricted areas where you can. We may blur or remove those details when practical.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and task details to provide the Service for your task: to review them, build a simulated scene, run the evaluations your listing allows, and show you the results. We never give your recording to a robot team, and we do not license it to anyone for training without your written agreement.",
       "Robot teams see only the task card you approve. You can hide it at any time; hiding it stops new runs. Results already produced remain in our records.",
-      "Finding out costs a site nothing. A physical pilot is agreed and paid for separately.",
+      "Initial task assessment and the evaluation described on our Pricing page cost the site nothing. A physical pilot, provider charges, and any Blueprint pilot preparation, coordination, or measurement service are agreed and paid for separately before that work begins.",
     ],
   },
   {

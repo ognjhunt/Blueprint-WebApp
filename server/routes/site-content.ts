@@ -9,14 +9,14 @@ const definitions = [
     definition: captureGroundedPublicCopy.productSummary,
   },
   {
-    term: "Robot evaluation and deployment preparation",
+    term: "Managed robot pilot preparation",
     definition:
-      "What Blueprint does: work out the job, recreate the site conditions, test which robots fit, and hand the result to the team doing the install. This is the months 0–2 phase. Blueprint does not perform onsite integration, commissioning, the physical pilot, or safety approval.",
+      "Blueprint helps a business define one recurring task, assess credible providers, agree on a funded and measurable physical pilot, and decide what follows. A separately agreed Blueprint service may prepare, coordinate, and measure the trial. The provider or integrator installs and operates the robot; the site and responsible delivery parties approve the safety plan.",
   },
   {
     term: "Paying-site admission bar",
     definition:
-      "Blueprint only runs evaluations for sites seeking a pilot or deployment they are prepared to pay for. Intake requires a budget range, a named internal owner, a pilot area, timing, and a procurement path before a workflow becomes an opportunity robot teams can see. This is an admission bar, not verified funding, a signed order, or a guaranteed purchase.",
+      "Blueprint checks a site's task, budget range, decision owner, timing, and procurement path before presenting an opportunity to robot teams. Those stated facts are an admission bar, not verified funding, a signed order, or a guaranteed purchase. The site separately approves any paid physical pilot.",
   },
   {
     term: "Exact-site world model",
@@ -110,13 +110,13 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "Blueprint captures one real workflow, builds a secure testbed, tests robot fit, and packages the onsite handoff before the robot arrives.",
+      "Blueprint helps a business turn one recurring task into a scoped, funded, measurable robot pilot and stays involved in the decision afterward.",
   },
   {
     path: "/for-robot-teams",
     title: "Captured workflows for robot teams",
     description:
-      "Robot teams start with a captured workflow, common acceptance criteria, controlled evaluation, and named integration gaps instead of a blank site.",
+      "Robot teams assess scoped site tasks against confirmed capabilities, support requirements, and a possible physical pilot instead of spending weeks on unsuitable opportunities.",
   },
   {
     path: "/sites",
@@ -134,13 +134,13 @@ const pages = [
     path: "/how-it-works",
     title: "How It Works",
     description:
-      "Four steps: record the job, rebuild it as a test, run the robots against it, and hand off the deployment before onsite work begins.",
+      "Four steps: scope one recurring task, check provider fit, agree on a paid physical pilot, and decide what to do after measured results.",
   },
   {
     path: "/faq",
     title: "FAQ",
     description:
-      "Plain-language answers about months 0–2, site capture, controlled evaluation, data access, onsite integration, physical pilots, and pricing.",
+      "Plain-language answers about task scoping, controlled evaluation, pilot coordination, onsite responsibilities, measured results, and pricing.",
   },
   {
     path: "/capture",
@@ -152,7 +152,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Sites pay nothing to have a task assessed. Robot teams pay $99 per policy entry on one site task from a prepaid balance. No subscription on either side.",
+      "Initial site assessment is free. Robot teams pay $99 per policy entry. Blueprint pilot preparation, coordination, and measurement may be separately quoted to the site; provider charges are separate.",
   },
   {
     path: "/contact",
@@ -173,9 +173,11 @@ const pages = [
 ];
 
 const queryThemes = [
+  "measured physical robot pilot",
+  "scoped funded robot pilot",
+  "robot pilot coordination and measurement",
+  "what to buy after a robot trial",
   "Task Evaluation Run",
-  "months 0-2 robot deployment",
-  "robot deployment preparation",
   "automate robot site discovery",
   "pre-deployment robot opportunity",
   "controlled digital twin evaluation",

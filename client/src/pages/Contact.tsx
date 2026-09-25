@@ -7,9 +7,8 @@
  * paragraphs before the first field; the robot page carried a six-question
  * application. Both screens are gone from the public site. The brief now
  * reads the description and the footage, the plan form asks the two facts
- * matching needs, and everything else those questions covered -- capacity,
- * timeline, budget -- belongs to the pilot conversation, where it is due
- * diligence rather than a queue.
+ * matching needs, and budget, timing, and decision authority are confirmed
+ * during task scoping before anyone agrees to a paid pilot.
  *
  * The API paths behind those screens stay for agents and legacy posters; what
  * left is the page asking a person to answer them before seeing anything.
@@ -38,13 +37,13 @@ export default function Contact() {
       <>
         <SEO
           title="Early access for robot teams | Blueprint"
-          description="Blueprint is in early access for robot teams. Apply to test your robot against real site tasks."
+          description="Robot teams can bring documented capabilities to scoped site tasks and focus on physical trials they can support. Apply for early access."
           canonical="/contact/robot-team"
         />
         <section className="ms-container ms-task-page">
           <p className="ms-eyebrow">For robot teams</p>
-          <h1>Find work your robot could do.</h1>
-          <p>Blueprint is in early access. Approved teams choose a real site task, see what an evaluation of their robot would cost and tell them, then run it.</p>
+          <h1>Find a task your robot can support.</h1>
+          <p>Spend less time on unsuitable opportunities. Approved teams review site-approved tasks and confirm their hardware, human support, installation, and service capacity. A suitable match can move toward a scoped physical pilot with the site's approval.</p>
           <TaskBrowse />
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
             <a className="ms-text-link" href="/contact/site-operator">
@@ -60,9 +59,8 @@ export default function Contact() {
     <>
       <SEO
         title="Start a task assessment | Blueprint"
-        description="Describe a repetitive job, then share footage of the work area."
-        canonical="/contact/site-operator"
-       
+          description="Describe one recurring task. Blueprint helps assess fit, scope a funded robot pilot, measure the trial, and decide what follows."
+          canonical="/contact/site-operator"
       />
       <section className="ms-inquiry ms-container">
         <div className="ms-inquiry-intro">
@@ -70,9 +68,9 @@ export default function Contact() {
             <ArrowLeft size={16} aria-hidden="true" /> Back to Blueprint
           </a>
           <p className="ms-eyebrow">For site owners</p>
-          <h1>Let’s start with your site.</h1>
+          <h1>Start with one recurring task.</h1>
           <p className="ms-inquiry-description">
-            Describe a repetitive job, then share footage of the work area.
+            Describe the work and share photos or phone video. We will help define the pilot target, budget, and next decision.
           </p>
         </div>
         <div className="ms-inquiry-forms">
@@ -80,10 +78,10 @@ export default function Contact() {
           <details className="ms-task-interest">
             <summary>How this works</summary>
             <p className="ms-field-hint">
-              What the footage shows is what decides, so there is nothing to pass first. We read
-              your description and your video, draft the task brief for you to correct, build the
-              scene, and screen robot teams against it. Your link shows each step and when the next
-              update is due.
+              We turn your description and footage into a task brief for you to correct, then check
+              which providers can credibly support it. If a trial makes sense, we help agree on its
+              scope, cost, responsibilities, and measures. You approve any paid work. Your task link
+              shows each step and the next update.
             </p>
             <p className="ms-field-hint">
               Geography, plainly: sending a person is an Austin-metro thing; anywhere in the US you

@@ -100,7 +100,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
   path: "/beta/buyer-guide",
   eyebrow: "Robot Team Beta Cohort",
   summary:
-    "What robot teams should expect when using a captured workflow, controlled evaluation, and months 0–2 deployment handoff.",
+    "What robot teams should expect when reviewing a scoped site task, testing fit where useful, and discussing a measured physical pilot.",
   heroImage: "/redesign/pov/machine-tending.jpg",
   heroAlt: "Industrial machine-tending task area",
   primaryAction: {
@@ -111,7 +111,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
     {
       title: "Cohort scope",
       body:
-        "The buyer beta covers the evaluation before onsite work: a request-scoped Task Evaluation Run grounded in captured real-site evidence.",
+        "The robot-team beta starts with site-approved tasks and request-scoped evaluation. A credible fit may lead to a separately agreed physical pilot.",
       items: [
         "Best-fit requests name the robot family, workflow, site type, interfaces, success criteria, and what the onsite proof of concept must settle.",
         "Blueprint may use captured real sites, generated support assets, and sim-backed comparison artifacts, but proof boundaries stay attached.",

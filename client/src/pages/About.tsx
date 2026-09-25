@@ -3,14 +3,14 @@ import { COMPANY } from "@/data/company";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Blueprint Robotics, Inc. makes the first months of a robot deployment fast: a site films one task, and robot teams are tested against it before anyone commits to a pilot.";
+  "Blueprint helps businesses turn one recurring task into a scoped, funded, measurable robot pilot and decide what happens afterward.";
 
 const principles = [
   "Start from the real task at a real site, not a demo.",
   "Keep a site's footage and details private unless the site chooses to share them.",
   "Say what a result does not show: a simulation result is not a physical test.",
   "Report failures and unknowns instead of manufacturing a green light.",
-  "Charge robot teams one flat, published price, and sites nothing to find out.",
+  "Keep initial screening free and agree on any paid pilot coordination before work begins.",
 ] as const;
 
 export default function About() {
@@ -30,20 +30,21 @@ export default function About() {
       />
       <article className="ms-legal ms-about ms-container">
         <p className="ms-eyebrow">About</p>
-        <h1>We make the first months of a robot deployment fast.</h1>
+        <h1>We help one real task reach a measured robot pilot.</h1>
         <p className="ms-about-lead">
-          Robots can already do a great deal of real work. What slows a deployment is the work
-          before a pilot: understanding one site's task, recreating its conditions, and finding out
-          which robot actually fits. Blueprint does that work once per site, so every robot team can
-          be tested against the same real task.
+          Blueprint works with a business to define a recurring job, check which robot providers
+          can credibly support it, and arrange a bounded physical trial with a budget and clear
+          measures. We stay involved when the business decides whether to stop, change, extend,
+          or deploy regularly.
         </p>
 
         <section>
           <h2>How it works</h2>
           <ol>
-            <li>A site films one repeated task on a phone. It costs the site nothing.</li>
-            <li>We rebuild the work area as a simulated scene and check whether a robot evaluation would hold up there.</li>
-            <li>Robot teams run their policies against the scene. The site sees who fits, and why, before anyone commits to a physical pilot.</li>
+            <li>A site describes one repeated task and can film it on a phone. Initial screening is free.</li>
+            <li>We confirm the requirements, budget range, timing, decision owner, and provider capability. Simulation can help answer specific questions when useful.</li>
+            <li>For a credible fit, we help scope and measure a paid physical pilot. The provider or integrator installs and operates the robot; the site approves the commitment.</li>
+            <li>We review the physical results with the site and help decide what to purchase next.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/pricing">Pricing</a></p>
         </section>

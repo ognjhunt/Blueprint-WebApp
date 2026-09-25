@@ -1,8 +1,8 @@
 # Blueprint
 
-> Blueprint helps site owners decide which robotics candidate deserves a physical pilot.
+> Blueprint helps a business turn one recurring task into a scoped, funded, measurable robot pilot and decide what happens afterward.
 
-A Task Evaluation Run assesses a qualified site task in simulation. With site approval, Blueprint shares a private task card with approved robot teams. A robot team pays $99 for each policy entry on a task. Results show per-policy success, stage reports, videos and traces without declaring a physical winner. A pilot requires agreement from the site and team; simulation is not a deployment guarantee.
+Initial site screening is free. Blueprint records the task, budget range, timing, and decision owner, checks whether a provider can credibly support it, and may use a Task Evaluation Run where simulation helps the decision. For a suitable task, Blueprint can separately quote a fixed site-paid fee to prepare, coordinate, and measure a physical pilot. The site approves the scope and funding; the provider or integrator installs and operates the robot. After the trial, Blueprint helps the site decide whether to stop, modify, extend, or deploy regularly. Simulation is not physical proof or a deployment guarantee.
 
 ## Public pages
 
@@ -14,7 +14,7 @@ A Task Evaluation Run assesses a qualified site task in simulation. With site ap
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams join by early access. Approved teams see only task cards sites chose to share and get an email when a new task is listed. Sites pay nothing for assessment or scene preparation. Robot teams pay $99 per policy entry on one task from a prepaid balance; the smallest top-up is $99. Blueprint sets the run size, so teams do not choose an evaluation budget or buy a longer run. The current policy-test setup offers 10 scenarios per policy in simulation. Contact: hello@tryblueprint.io.
+Robot teams join by early access. Approved teams see only task cards sites chose to share and get an email when a new task is listed. Sites pay nothing for initial assessment or scene preparation. Robot teams pay $99 per policy entry on one task from a prepaid balance; the smallest top-up is $99. The $99 entry carries no later supplier commission. Pilot coordination is a separately agreed site-paid service, and provider deployment charges are separate. Blueprint sets the run size, so teams do not choose an evaluation budget or buy a longer run. The current policy-test setup offers 10 scenarios per policy in simulation. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 

@@ -1,8 +1,8 @@
 export const captureGroundedPublicCopy = {
   productSummary:
-    "Blueprint evaluates robots for real sites and prepares the deployment. One Task Evaluation Run records a real workflow at a site with a named budget and owner, builds a permissioned Site-Task Testbed, tests robot fit, returns a bounded decision or explicit abstention, and packages the onsite handoff. Blueprint does not perform the onsite install, commissioning, or safety approval.",
+    "Blueprint helps a business turn one recurring task into a scoped, funded, measurable robot pilot and decide what happens afterward. Initial task assessment is free. Where there is a credible fit, Blueprint can separately agree to prepare, coordinate, and measure a physical trial. The site approves costs and commitments; the provider or integrator handles installation and operation while the site and responsible delivery parties approve the safety plan. A Task Evaluation Run returns a bounded decision or explicit abstention; it is not physical proof.",
   seoDescription:
-    "Blueprint helps sites and robot teams do the task discovery, site recreation, and robot-fit evaluation that happens before onsite deployment.",
+    "Blueprint helps businesses scope recurring tasks, assess robot providers, coordinate measured physical pilots, and make the next purchasing decision.",
   groundTruthDefinition:
     "Ground truth means immutable raw capture evidence, native timestamps, poses, device metadata, rights and privacy records, and provenance. Derived geometry, simulation, generated media, provider output, and runtime artifacts remain separately labeled evidence and do not automatically upgrade the claim.",
   supportSignalBoundary:

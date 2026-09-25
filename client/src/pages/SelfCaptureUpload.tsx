@@ -969,7 +969,7 @@ export default function SelfCaptureUpload() {
       )}
       {link.status === "valid" && scope === "owner" && !saved && upload.status !== "held" && <PublicTaskListing token={token} />}
       {!saved && upload.status !== "held" && (
-        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage, prepare the scene, and ask you to confirm the task before evaluation. Keep this link to follow progress.</p>
+        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage and ask you to confirm the task. We then assess provider fit and use a scene evaluation where it helps. Keep this link to follow progress.</p>
       )}
       </div>
     </div>

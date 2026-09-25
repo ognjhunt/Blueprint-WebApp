@@ -20,9 +20,7 @@ const footerColumns: FooterColumn[] = [
 ];
 
 /**
- * The footer restates the boundary rather than the pitch. It is the last thing
- * a skimming reader sees, and the one claim that must survive skimming is which
- * two months are ours and which four are not.
+ * The footer gives the buyer journey and keeps physical responsibility clear.
  */
 export function Footer() {
   return (
@@ -38,7 +36,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 font-display uppercase text-[clamp(1.35rem,2vw,1.9rem)] font-semibold leading-[1.22] tracking-[0.005em] text-runway-text">
-              Deployment is the bottleneck. We take out the first two months.
+              From one recurring task to a measured robot pilot.
             </p>
             {/*
               Service area sits in the footer so it is on every page rather than
@@ -81,8 +79,9 @@ export function Footer() {
         <div className="grid gap-3 py-7 font-mono text-[10px] leading-5 text-runway-faint sm:grid-cols-[auto_1fr] sm:items-start">
           <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
           <p className="sm:text-right">
-            Blueprint covers months 0–2: the evaluation and the deployment handoff. Onsite install,
-            physical validation, and safety approval stay with the site and the robot provider.
+            Blueprint helps scope, coordinate, and measure an agreed physical pilot, then review
+            what follows. The provider or integrator handles installation and robot operation;
+            the site approves scope, costs, and safety responsibilities.
           </p>
         </div>
       </div>

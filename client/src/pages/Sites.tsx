@@ -1,7 +1,7 @@
 import { SEO } from "@/components/SEO";
 import { TaskBrowse } from "@/components/site/TaskBrowse";
 export default function Sites() { return <>
-  <SEO title="Task library | Blueprint" description="Real site tasks shared by site owners, open to robot teams in early access." canonical="/sites" />
+  <SEO title="Task library | Blueprint" description="Site-approved recurring tasks for robot teams to assess against their capabilities and possible physical pilots." canonical="/sites" />
   <section className="ms-container ms-task-page"><a className="ms-back" href="/contact/robot-team">← Robot teams</a>
-    <h1>Task library</h1><p>Real site tasks, shared by the sites that run them, that approved robot teams can evaluate against.</p><TaskBrowse />
+    <h1>Task library</h1><p>Recurring tasks shared by site owners. Approved robot teams can assess fit and discuss a scoped physical pilot where capability, budget, and timing align.</p><TaskBrowse />
   </section></>; }

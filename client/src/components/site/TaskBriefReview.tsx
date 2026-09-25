@@ -556,9 +556,9 @@ export function TaskBriefReview(props: {
       </fieldset>
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
-        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What could follow this evaluation?</legend>
-        <p className="ms-field-hint">These answers describe your current plans. A pilot and any deployment would need separate agreement.</p>
-        <label htmlFor="pilot-consideration"><span>If the evaluation shows a plausible fit, would you consider a physical pilot here?</span>
+        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What could follow this assessment?</legend>
+        <p className="ms-field-hint">These answers describe your current plans, not approval to spend. For a credible fit, Blueprint can help plan and measure a physical trial under a separate quote. You approve any pilot and provider costs.</p>
+        <label htmlFor="pilot-consideration"><span>If a provider appears to fit, would you consider a physical pilot here?</span>
           <select id="pilot-consideration" value={pilotConsideration} onChange={(event) => setPilotConsideration(event.target.value as SitePilotIntent["pilotConsideration"])}>
             <option value="">Choose…</option>
             {pilotConsiderationOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}

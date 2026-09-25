@@ -129,7 +129,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     <>
       <SEO
         title={`${siteName} | Sites | Blueprint`}
-        description="A real site task that robot teams can be evaluated against."
+        description="A recorded site task for robot fit assessment and a possible scoped physical pilot, subject to site approval."
         canonical={`/sites/${params.slug}`}
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={[

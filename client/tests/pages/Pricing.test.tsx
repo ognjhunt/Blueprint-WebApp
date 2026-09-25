@@ -6,7 +6,7 @@ describe("Pricing", () => {
   it("splits the site's bill from the robot team's", () => {
     render(<Pricing />);
     expect(
-      screen.getByRole("heading", { level: 1, name: /Robot teams pay \$99 an entry/i }),
+      screen.getByRole("heading", { level: 1, name: /Agree on pilot costs before you commit/i }),
     ).toBeInTheDocument();
 
     const site = screen
@@ -74,12 +74,14 @@ describe("Pricing", () => {
   });
 
   it("tells a free site what it is giving and what is not free", () => {
-    // A site that pays nothing is not the customer. Saying so on the page is
-    // the difference between this model and the dishonest version of it.
+    // Free assessment and separately approved site-paid pilot work must be clear.
     render(<Pricing />);
     expect(screen.getByText(/Robot teams pay for evaluation runs/i)).toBeInTheDocument();
     expect(screen.getByText(/never receive your recording/i)).toBeInTheDocument();
     expect(screen.getByText(/A physical pilot/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pilot coordination" })).toBeInTheDocument();
+    expect(screen.getByText(/fixed site-paid fee/i)).toBeInTheDocument();
+    expect(screen.getByText(/provider or integrator quotes its own deployment work/i)).toBeInTheDocument();
   });
 
   it("promises a robot team that money cannot buy a longer run", () => {
