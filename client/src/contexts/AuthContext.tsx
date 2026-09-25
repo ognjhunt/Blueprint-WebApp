@@ -13,7 +13,8 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<string>;
   signUp: (email: string, password: string, name?: string) => Promise<string>;
-  signInWithGoogle: () => Promise<string>;
+  signInWithGoogle: () => Promise<string | void>;
+  completeGoogleRedirect: () => Promise<void>;
   prepareGoogleSignIn: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -549,6 +550,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!operatorQaAuth.enabled) await loadFirebaseClientModule();
   }, [operatorQaAuth.enabled]);
 
+  async function finishGoogleSignIn(user: FirebaseUser) {
+    const firebase = await loadFirebaseClientModule();
+    setCurrentUser(user);
+    let userDataRecord: UserData | null = null;
+
+    try {
+      userDataRecord = await firebase.getUserData(user.uid);
+    } catch (userDataError: any) {
+      console.error("Error fetching Google user data:", userDataError);
+      if (isPermissionDeniedError(userDataError)) {
+        throw createAccessDeniedError();
+      }
+      throw new Error(
+        "We couldn't load your profile after signing in with Google. Please try again.",
+      );
+    }
+
+    let createdProfile = false;
+
+    if (!userDataRecord) {
+      try {
+        await firebase.createUserDocument(user, {
+          name: user.displayName ?? undefined,
+        });
+        createdProfile = true;
+      } catch (creationError: any) {
+        console.error("Error creating user document after Google sign in:", creationError);
+        if (isPermissionDeniedError(creationError)) {
+          throw createAccessDeniedError();
+        }
+        throw new Error(
+          "We couldn't finish setting up your profile after Google sign in. Please try again.",
+        );
+      }
+
+      try {
+        userDataRecord = await firebase.getUserData(user.uid);
+      } catch (userDataFetchError: any) {
+        console.error(
+          "Error fetching user data after creating Google profile:",
+          userDataFetchError,
+        );
+        if (isPermissionDeniedError(userDataFetchError)) {
+          throw createAccessDeniedError();
+        }
+        throw new Error(
+          "Your account was created, but we couldn't finish loading it. Please try signing in again.",
+        );
+      }
+    }
+
+    if (!userDataRecord) {
+      throw createUserDataMissingError();
+    }
+
+    const normalizedUserData = normalizeUserData(userDataRecord);
+    if (!normalizedUserData) {
+      throw createUserDataMissingError();
+    }
+
+    const onboardingReadyUserData = createdProfile
+      ? { ...normalizedUserData, finishedOnboarding: false }
+      : normalizedUserData;
+
+    setUserData(onboardingReadyUserData);
+    setTokenClaims((await user.getIdTokenResult().catch(() => null))?.claims || null);
+    return navigateAfterAuth(onboardingReadyUserData);
+  }
+
+  async function beginGoogleRedirect(firebase: FirebaseClientModule) {
+    sessionStorage.setItem("googleRedirectPending", "1");
+    try {
+      await firebase.startGoogleSignInRedirect();
+    } catch (error) {
+      sessionStorage.removeItem("googleRedirectPending");
+      throw error;
+    }
+  }
+
   async function signInWithGoogle() {
     try {
       if (operatorQaAuth.enabled) {
@@ -559,84 +639,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return navigateAfterAuth(normalizedUserData);
       }
 
-      // Opening a popup must happen in the button's user gesture. Login waits
-      // for this module before enabling Google sign-in.
       const firebase = firebaseClientModule;
       if (!firebase) {
         throw new Error("Google sign-in is still loading. Please try again.");
       }
-      const user = await firebase.signInWithGoogle();
-      setCurrentUser(user);
-      let userDataRecord: UserData | null = null;
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+      if (firebase.canUseGoogleRedirect && isMobile) {
+        await beginGoogleRedirect(firebase);
+        return;
+      }
 
+      // Desktop popup sign-in must start within the button's user gesture.
       try {
-        userDataRecord = await firebase.getUserData(user.uid);
-      } catch (userDataError: any) {
-        console.error("Error fetching Google user data:", userDataError);
-        if (isPermissionDeniedError(userDataError)) {
-          throw createAccessDeniedError();
-        }
-        throw new Error(
-          "We couldn't load your profile after signing in with Google. Please try again.",
-        );
+        return await finishGoogleSignIn(await firebase.signInWithGoogle());
+      } catch (error: any) {
+        if (error?.code !== "auth/popup-blocked" || !firebase.canUseGoogleRedirect) throw error;
+        await beginGoogleRedirect(firebase);
       }
-
-      let createdProfile = false;
-
-      if (!userDataRecord) {
-        try {
-          await firebase.createUserDocument(user, {
-            name: user.displayName ?? undefined,
-          });
-          createdProfile = true;
-        } catch (creationError: any) {
-          console.error("Error creating user document after Google sign in:", creationError);
-          if (isPermissionDeniedError(creationError)) {
-            throw createAccessDeniedError();
-          }
-          throw new Error(
-            "We couldn't finish setting up your profile after Google sign in. Please try again.",
-          );
-        }
-
-        try {
-          userDataRecord = await firebase.getUserData(user.uid);
-        } catch (userDataFetchError: any) {
-          console.error(
-            "Error fetching user data after creating Google profile:",
-            userDataFetchError,
-          );
-          if (isPermissionDeniedError(userDataFetchError)) {
-            throw createAccessDeniedError();
-          }
-          throw new Error(
-            "Your account was created, but we couldn't finish loading it. Please try signing in again.",
-          );
-        }
-      }
-
-      if (!userDataRecord) {
-        throw createUserDataMissingError();
-      }
-
-      const normalizedUserData = normalizeUserData(userDataRecord);
-      if (!normalizedUserData) {
-        throw createUserDataMissingError();
-      }
-
-      const onboardingReadyUserData = createdProfile
-        ? { ...normalizedUserData, finishedOnboarding: false }
-        : normalizedUserData;
-
-      setUserData(onboardingReadyUserData);
-      setTokenClaims((await user.getIdTokenResult().catch(() => null))?.claims || null);
-      return navigateAfterAuth(onboardingReadyUserData);
     } catch (error: any) {
-      console.error("Google sign in error:", {
-        code: error.code,
-        message: error.message,
-      });
-      throw new Error(getAuthErrorMessage(error.code) || error.message);
+      console.error("Google sign in error:", { code: error.code, message: error.message });
+      const mapped = new Error(getAuthErrorMessage(error.code) || error.message || "Google sign-in failed.");
+      (mapped as Error & { code?: string }).code = error.code;
+      throw mapped;
+    }
+  }
+
+  async function completeGoogleRedirect() {
+    if (operatorQaAuth.enabled || sessionStorage.getItem("googleRedirectPending") !== "1") return;
+    try {
+      const firebase = await loadFirebaseClientModule();
+      const user = await firebase.getGoogleRedirectUser() || firebase.auth.currentUser;
+      if (!user) {
+        throw new Error("Google sign-in was not completed. Please try again.");
+      }
+      await finishGoogleSignIn(user);
+    } catch (error: any) {
+      console.error("Google redirect sign in error:", { code: error.code, message: error.message });
+      const mapped = new Error(getAuthErrorMessage(error.code) || error.message || "Google sign-in failed.");
+      (mapped as Error & { code?: string }).code = error.code;
+      throw mapped;
+    } finally {
+      sessionStorage.removeItem("googleRedirectPending");
     }
   }
 
@@ -682,7 +726,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       case "auth/popup-closed-by-user":
         return "Google sign-in was cancelled";
       case "auth/popup-blocked":
-        return "Google sign-in was blocked here. Open this page in your browser outside the email app, then try again, or sign in with email and password.";
+        return "Google sign-in was blocked by this browser. Open the result link in Safari or Chrome, then try again.";
       case "auth/network-request-failed":
         return "Network error occurred. Please check your connection";
       case ACCESS_DENIED_CODE:
@@ -703,6 +747,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signInWithGoogle,
+    completeGoogleRedirect,
     prepareGoogleSignIn,
     logout,
   };

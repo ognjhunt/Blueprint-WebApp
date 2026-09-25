@@ -96,6 +96,7 @@ partial control stack or allowing a red or unverified push to deploy.
 
 Launch-critical note:
 - The client no longer falls back to source-level Firebase values. These variables must be present in the runtime environment used for builds and tests.
+- On `tryblueprint.io` and `www.tryblueprint.io`, the client uses the app host as Firebase `authDomain` so mobile Google redirect sign-in can use the same-origin `/__/auth/` helper. Express transparently proxies that path to `blueprint-8c1ca.firebaseapp.com` before app body parsing and CSP middleware. The Firebase Google provider's OAuth web client must authorize `https://tryblueprint.io/__/auth/handler` and `https://www.tryblueprint.io/__/auth/handler`; both hosts must remain in Firebase Authentication authorized domains. Verify a 200 response from `/__/auth/handler` and `/__/auth/iframe` on the deployed host before testing a real mobile sign-in.
 
 ### Firebase Admin (server)
 Provide one of the following, or run on Cloud Run / Cloud Functions with an attached service account:

@@ -5,6 +5,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
@@ -49,7 +51,12 @@ function requireFirebaseEnv(key: string): string {
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: requireFirebaseEnv("VITE_FIREBASE_API_KEY"),
-  authDomain: requireFirebaseEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  // The app proxies /__/auth/ on its own domain. A same-origin helper is
+  // required for redirect sign-in in browsers that block third-party storage.
+  authDomain: typeof window !== "undefined" &&
+    ["tryblueprint.io", "www.tryblueprint.io"].includes(window.location.hostname)
+      ? window.location.hostname
+      : requireFirebaseEnv("VITE_FIREBASE_AUTH_DOMAIN"),
   projectId: requireFirebaseEnv("VITE_FIREBASE_PROJECT_ID"),
   storageBucket: requireFirebaseEnv("VITE_FIREBASE_STORAGE_BUCKET"),
   messagingSenderId: requireFirebaseEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
@@ -502,6 +509,16 @@ export const signInWithGoogle = async () => {
     throw error;
   }
 };
+
+export const canUseGoogleRedirect =
+  typeof window !== "undefined" &&
+  window.location.protocol === "https:" &&
+  firebaseConfig.authDomain === window.location.hostname;
+
+export const startGoogleSignInRedirect = () => signInWithRedirect(auth, googleProvider);
+
+export const getGoogleRedirectUser = async () =>
+  (await getRedirectResult(auth))?.user ?? null;
 
 export const logOut = async () => {
   try {

@@ -5,11 +5,13 @@ import Login from "@/pages/Login";
 const signIn = vi.hoisted(() => vi.fn());
 const signInWithGoogle = vi.hoisted(() => vi.fn());
 const prepareGoogleSignIn = vi.hoisted(() => vi.fn());
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle, prepareGoogleSignIn }) }));
+const completeGoogleRedirect = vi.hoisted(() => vi.fn());
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn }) }));
 beforeEach(() => {
   signIn.mockReset().mockResolvedValue(undefined);
   signInWithGoogle.mockReset().mockResolvedValue(undefined);
   prepareGoogleSignIn.mockReset().mockResolvedValue(undefined);
+  completeGoogleRedirect.mockReset().mockResolvedValue(undefined);
   sessionStorage.clear();
   window.history.replaceState({}, "", "/sign-in");
 });
@@ -76,6 +78,16 @@ describe("Minimal sign in", () => {
     render(<Login />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     expect(sessionStorage.getItem("redirectAfterAuth")).toBeNull();
+  });
+  it("offers a copyable result link when a browser blocks the popup", async () => {
+    window.history.replaceState({}, "", "/sign-in?next=%2Fapp%2Fresults%2Fcapture-run-123");
+    const blocked = Object.assign(new Error("Google sign-in was blocked here."), { code: "auth/popup-blocked" });
+    signInWithGoogle.mockRejectedValueOnce(blocked);
+    render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    expect(await screen.findByRole("button", { name: "Copy result link" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Result link to open in Safari")).toHaveValue(`${window.location.origin}/app/results/capture-run-123`);
   });
   it("shows an accessible generic error after credential rejection and retains input", async () => {
     signIn.mockRejectedValueOnce(new Error("auth/user-not-found"));

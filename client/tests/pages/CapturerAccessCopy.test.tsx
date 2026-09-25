@@ -43,6 +43,7 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
     signIn: vi.fn(),
     signInWithGoogle: vi.fn(),
+    completeGoogleRedirect: vi.fn().mockResolvedValue(undefined),
     prepareGoogleSignIn,
   }),
 }));
