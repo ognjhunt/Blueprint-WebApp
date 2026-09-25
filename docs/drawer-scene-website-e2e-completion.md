@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-24 23:04 UTC |
+| Step | Current evidence at 2026-09-25 14:10 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -31,11 +31,38 @@ older scene's stage evidence or budget.
 | 7. Provider-capacity view selection | **done for preparation** — 14 source views considered, three safe prepared views retained; downstream provider acceptance unproven |
 | 8. Marble and MapAnything | **provider outputs complete** — World Labs returned a room splat and collider (settled $1.28); MapAnything returned 13 original-frame camera/depth estimates through a guarded Vast job (execution estimate $0.16747), with output retrieval and provider-zero teardown. These are estimated geometry, not measured dimensions or qualified room physics. |
 | 9. Camera/task registration | **blocked for the captured room** — Marble declares original frame 26 as its first-view camera anchor, but MapAnything's 13-frame input batch omitted frame 26. The controller refused `website_registration_anchor_frame_missing`; no surrogate camera was used. |
-| 10. CPU CAD/Blender/USD articulation and static qualification | unproven |
-| 11. Captured-room integration or named development fixture | **fixture intake prepared, execution unproven** — the controller retained original-room blockers and created a separate `development_drawer_fixture` preparation and runtime packet. The website accepted its prepared-scene outbox and the host accepted the matching scene intent. No native assembly integration has passed. |
-| 12. Native import/physics/robot-interface qualification | unproven |
-| 13. Frozen policy/setup and GPU policy episode | unproven |
-| 14. Numeric scoring, teardown and website result | unproven |
+| 10. CPU CAD/Blender/USD articulation and static qualification | **done for the development fixture** — the controller reused the sealed CPU authoring result with separate carcass and middle-drawer parts; the source launch's six-stage chain completed and its published revision binds an articulated asset (`sha256:b6a11534…3ff12342`) and static qualification (`sha256:3009f730…d007b690a17`). This does not qualify captured-room geometry. |
+| 11. Captured-room integration or named development fixture | **done for the named fixture; captured room unqualified** — `site-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d-development` was separately identified, executed and published through the website/controller path. The original-room registration blockers remain; no claim of Marble-room integration is made. |
+| 12. Native import/physics/robot-interface qualification | **done for the development fixture** — native stage 5 completed; the published revision binds native import qualification (`sha256:4c7dfe4b…586db5d`) and robot mount/workspace/camera references. The source launch completed, synced to the website and retained provider-zero after teardown. |
+| 13. Frozen policy/setup and GPU policy episode | **partial, no policy episode** — robot placement was retained without another model call, episode preparation completed, and the production episode packet compiled with no blockers on Pipeline `dc02f419…`. Controls were omitted as directed. Policy presubmission then rejected the articulated success contract under a rigid-only setup schema, before any drawer GPU launch. PR #2267 fixes that boundary and is merged as `f705503d…`; its exact saved presubmission replay passes but the fix is not deployed while another paid GPU campaign owns the shared lock. |
+| 14. Numeric scoring, teardown and website result | **unproven** — no policy action, native joint trajectory, numeric episode score or terminal task-page result exists for this fixture yet. The earlier scene-configuration GPU teardown/provider-zero is evidence only for step 12. |
+
+Fixture completion state: **CPU and native scene ready; policy evaluation pending**.
+Captured-room integration state: **unqualified**. A fixture result, if later
+produced, cannot close the captured-room registration claim.
+
+### 2026-09-25 execution evidence
+
+Controller-owned scene-configuration launch
+`website-337b48b985d51b8fc299e055-a5a17ba4-20260925t042541z-activation-auto-launch`
+completed six stages, including CPU authoring/static qualification and native
+import, with blockers `[]`. Its published revision digest is
+`sha256:47ea3f720b0a20b76e286da043f9d2bfb32b8d2ad4ae2d2fb757828e19b27530`.
+The website sync receipt succeeded and the post-teardown provider-zero receipt
+was retained. The separate robot evaluation is
+`team-eval-feb0900f-d9dd-4cfe-b4cf-6f43559e3764`. The `dc02f419…` plan
+materialized after the placement-binding repair; its autostart result says
+`placement_calls_reexecuted: false` and `provider_mutation_performed: false`.
+Episode preparation returned `queued_for_production_episode_compilation` and
+compilation returned `compiled_for_production_launch` with blockers `[]`.
+The controller then recorded
+`policy_canary_handoff_presubmission_failed:policy_canary_setup_invalid:task_success_contract.criteria`.
+PR #2267 admits the articulated success schema; its focused and hosted checks
+passed, and a service-user replay of this scene's saved parameters emitted an
+articulated setup in a temporary directory. The deployment and policy GPU
+execution remain pending while a separate paid Vast run holds the global lock.
+
+### Historical preparation snapshot (2026-09-24 23:04 UTC)
 
 WebApp Sol selection PR #710 is included in live descendant `91c90c86`.
 Both Render web and worker have live pinned deployments of that commit and the
