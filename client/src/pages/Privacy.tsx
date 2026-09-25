@@ -8,7 +8,7 @@ export const privacyPolicySections = [
   {
     title: "What we collect",
     body:
-      "What you give us: your name, work email, company, role and phone number; the site and task you describe; your answers to the task brief; account details; and messages you send us. If you separately engage us for a physical pilot, we may also receive the agreed scope, costs, milestones, and operating measurements under that agreement. Robot teams also give us details of their robots and policies, and the endpoints or container images we run. Payment card details go straight to Stripe; we receive only a record of the payment. What we collect automatically: your IP address, browser and device type, pages you visit, and errors the site runs into.",
+      "What you give us: your name, work email, company, role and phone number; the site and task you describe; your answers to the task brief; account details; and messages you send us. If you approve a provider pilot and agree to share its outcomes with Blueprint, we may also receive its scope, price, milestones, and operating measurements under those permissions. Robot teams also give us details of their robots, policies, and indicative pilot offerings, and the endpoints or container images we run. Payment card details go straight to Stripe; we receive only a record of any payment to Blueprint. What we collect automatically: your IP address, browser and device type, pages you visit, and errors the site runs into.",
     icon: SquareStack,
   },
   {
@@ -20,7 +20,7 @@ export const privacyPolicySections = [
   {
     title: "How we use it",
     body:
-      "To run the Service: to reply to you, set up your task or account, rebuild scenes and run evaluations, prepare and measure a physical pilot only under a separate agreement, take payments, send the emails you need (such as a task update or a run result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information or share it for cross-context behavioral advertising, and we do not use your footage to train AI models without your written agreement.",
+      "To run the Service: to reply to you, set up your task or account, rebuild scenes and run evaluations, prepare provider-backed pilot offers, record physical-pilot outcomes only under the parties' agreed permissions, take payments owed to Blueprint, send the emails you need (such as a task update or a run result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information or share it for cross-context behavioral advertising, and we do not use your footage to train AI models without your written agreement.",
     icon: Shield,
   },
   {
@@ -46,7 +46,7 @@ export const capturePrivacyAnnex = [
   ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before buyer-facing use."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
   ["Buyer sharing", "Robot teams see the task card you approve and their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
-  ["Physical pilot records", "If you separately engage Blueprint to coordinate or measure a physical pilot, that agreement sets what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
+  ["Physical pilot records", "If the site and provider agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
 ];
 
 export const rolePrivacyAnnex = [

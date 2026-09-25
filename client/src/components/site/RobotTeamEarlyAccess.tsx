@@ -37,6 +37,7 @@ function ApplicationForm({ email }: { email: string | null }) {
         robot: read("robot"),
         workWanted: read("workWanted"),
         region: read("region") || undefined,
+        pilotPackage: read("pilotPackage") || undefined,
         testSite: read("testSite") || undefined,
         acceptedTerms: true,
       });
@@ -79,6 +80,14 @@ function ApplicationForm({ email }: { email: string | null }) {
         <textarea name="workWanted" rows={3} maxLength={1200} required placeholder="e.g. Tote picking in a warehouse, bin to conveyor" />
       </label>
       <label>Region <span className="ms-field-hint">(optional)</span><input name="region" placeholder="e.g. US, Midwest" maxLength={120} /></label>
+      <details>
+        <summary>Typical physical pilot (optional)</summary>
+        <label>What would it include?
+          <textarea name="pilotPackage" rows={3} maxLength={1200}
+            placeholder="Configuration, installation and support, typical duration, indicative price, and lead time" />
+        </label>
+        <p className="ms-field-hint">This stays private. You confirm any site-specific offer before a customer sees it.</p>
+      </details>
       <label>A site or customer you would want to test at <span className="ms-field-hint">(optional)</span>
         <input name="testSite" placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
       </label>

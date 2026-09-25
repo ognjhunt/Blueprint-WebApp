@@ -50,7 +50,7 @@ for (const mobile of [false, true]) {
     await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toBeVisible();
     await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
     await page.getByLabel("Filter by availability").selectOption("open");
-    await page.getByRole("button", { name: "Evaluate this task · $25" }).click();
+    await page.getByRole("button", { name: "Self-directed evaluation · $25" }).click();
     await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
     await page.locator("#plan-hardware").selectOption("prototype");
   await page.locator("#plan-geography").selectOption("yes");
@@ -185,7 +185,7 @@ test("a one-time paid plan keeps its receipt across reload and exposes results",
   });
   await page.route("**/api/agent-team/results", route => route.fulfill({ json: { runs: [{ runId: "local-run", state: "completed", result: { observed: { episodesRun: 50, episodesSucceeded: 41 } } }] } }));
   await page.goto("/contact/robot-team");
-  await page.getByRole("button", { name: "Evaluate this task · $25" }).first().click();
+  await page.getByRole("button", { name: "Self-directed evaluation · $25" }).first().click();
   await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
   await page.locator("#plan-hardware").selectOption("prototype");
   await page.locator("#plan-geography").selectOption("yes");

@@ -16,16 +16,16 @@ export default function Home() {
                 up being done, not the price of starting one -- a description is
                 enough to get a task brief back, and footage they already hold
                 gets reused rather than re-shot. */}
-            <p className="ms-hero-description">We help you scope the job, find a credible robot provider, agree on a funded physical trial, and decide what to do next. Start with a description, photos, or video.</p>
+            <p className="ms-hero-description">Show us one recurring task. We help turn it into a provider-backed pilot offer with a clear price, scope, and way to measure the result. Start with a description, photos, or video.</p>
             <a className="ms-button ms-button-large" href="/contact/site-operator">Start a task assessment <ArrowRight size={25} strokeWidth={1.5} aria-hidden="true" /></a>
           </div>
       </EmbodimentHero>
 
       <section className="ms-method ms-container" id="how-it-works" aria-label="How it works">
         <ol className="ms-steps">
-          <li><details><summary><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Scope the task</span></summary><p>We record the current process, output target, budget range, timing, and decision owner. We check provider capability and tell you whether a trial is plausible, what must change, or why there is no credible fit yet.</p></details></li>
-          <li><details><summary><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Agree on a pilot</span></summary><p>For a suitable task, we help agree on a provider, pilot cost, responsibilities, success criteria, and measurement plan. You approve the scope and funding. The provider or integrator installs and operates the robot.</p></details></li>
-          <li><details><summary><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Decide what follows</span></summary><p>We stay involved through the physical trial, compare the results with the agreed targets, and help you decide whether to stop, change, extend, or deploy regularly. Simulation supports a decision when useful; physical results settle physical claims.</p></details></li>
+          <li><details><summary><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Show us the task</span></summary><p>Describe the work, share phone footage, and tell us what a pilot and an ongoing service would need to cost. Exploring is fine; we label the funding status clearly.</p></details></li>
+          <li><details><summary><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Review a pilot offer</span></summary><p>We check fit and use evaluation where it helps. A suitable provider confirms its price, timing, and site conditions. You see the evidence and one itemized offer with Blueprint's fee and the total.</p></details></li>
+          <li><details><summary><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Approve and measure</span></summary><p>You decide whether to buy the trial. The provider installs and operates the robot; Blueprint coordinates the agreed plan and records the results so you can decide what follows.</p></details></li>
         </ol>
         <a className="ms-method-link" href="/how-it-works#evaluation-example">See an evaluation example <ArrowRight size={16} aria-hidden="true" /></a>
       </section>

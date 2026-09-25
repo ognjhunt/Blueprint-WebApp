@@ -57,6 +57,7 @@ const application = {
   robot: "Fixed arm with a parallel gripper, one diffusion policy",
   workWanted: "Tote picking",
   region: "US",
+  pilotPackage: "Two-week onsite trial, indicative $20,000, six-week lead time",
   acceptedTerms: true,
 };
 
@@ -212,7 +213,10 @@ describe("applying", () => {
 
     const records = [...state.docs.entries()].filter(([key]) => key.startsWith("robotTeamAccess/"));
     expect(records).toHaveLength(1);
-    expect(records[0][1]).toMatchObject({ email: "ada@arm.example", status: "applied" });
+    expect(records[0][1]).toMatchObject({
+      email: "ada@arm.example", status: "applied",
+      pilotPackage: "Two-week onsite trial, indicative $20,000, six-week lead time",
+    });
     const receipts = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_received"));
     expect(receipts).toHaveLength(1);
     expect(receipts[0][1]).toMatchObject({ to: "ada@arm.example" });

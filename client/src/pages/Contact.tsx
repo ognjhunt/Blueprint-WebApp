@@ -43,7 +43,7 @@ export default function Contact() {
         <section className="ms-container ms-task-page">
           <p className="ms-eyebrow">For robot teams</p>
           <h1>Find a task your robot can support.</h1>
-          <p>Spend less time on unsuitable opportunities. Approved teams review site-approved tasks and confirm their hardware, human support, installation, and service capacity. A suitable match can move toward a scoped physical pilot with the site's approval.</p>
+          <p>Tell us what your robot can do and what a standard pilot includes. We bring you suitable tasks and evaluation evidence. Confirm the configuration, price, timing, and site conditions before a customer sees your offer.</p>
           <TaskBrowse />
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
             <a className="ms-text-link" href="/contact/site-operator">
@@ -70,7 +70,7 @@ export default function Contact() {
           <p className="ms-eyebrow">For site owners</p>
           <h1>Start with one recurring task.</h1>
           <p className="ms-inquiry-description">
-            Describe the work and share photos or phone video. We will help define the pilot target, budget, and next decision.
+            Describe the work and share photos or phone video. Rough economics help, but you do not need an approved budget to start.
           </p>
         </div>
         <div className="ms-inquiry-forms">
@@ -79,8 +79,9 @@ export default function Contact() {
             <summary>How this works</summary>
             <p className="ms-field-hint">
               We turn your description and footage into a task brief for you to correct, then check
-              which providers can credibly support it. If a trial makes sense, we help agree on its
-              scope, cost, responsibilities, and measures. You approve any paid work. Your task link
+              which providers can credibly support it. We use evaluation when helpful. If a provider
+              confirms a pilot offer, you see its scope, price, timing, and uncertainties alongside
+              Blueprint's fee before you approve any paid work. Your task link
               shows each step and the next update.
             </p>
             <p className="ms-field-hint">

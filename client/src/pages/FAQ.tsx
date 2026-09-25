@@ -9,7 +9,7 @@ export const faqItems = [
   {
     question: "What does Blueprint do?",
     answer:
-      "We help a business define one recurring task, check whether a robot provider can credibly support it, scope a funded physical pilot, measure the trial, and decide what happens next. A provider or integrator installs and operates the robot.",
+      "We turn one recurring task into a provider-backed pilot offer when a credible fit exists. We use evaluation where it improves that offer, record the trial's physical results, and help the site decide what follows. The provider or integrator installs and operates the robot.",
   },
   {
     question: "Why is that useful?",
@@ -19,7 +19,7 @@ export const faqItems = [
   {
     question: "How do you find a robot team for my task?",
     answer:
-      "With your approval, we share a task card with approved robot teams and ask what they can actually install and support. We screen for capability, timing, and cost before deeper evaluation. We compare candidates when that helps your decision; a promising match can move to a separately approved physical trial.",
+      "We match your task to participating providers' configurations and pilot packages. With your permission, a suitable provider reviews the task, relevant evaluation evidence, and a prepared offer. It confirms the price, availability, and site conditions before you see it as an offer. A provider that has not committed is shown only as a potential match.",
   },
   {
     question: "Do I need to book a call or host Blueprint onsite?",
@@ -47,9 +47,14 @@ export const faqItems = [
       "We explain the specific mismatch or missing capability and what might need to change. If no provider can credibly support the task, we do not recommend spending on a physical pilot.",
   },
   {
+    question: "Who sets the physical pilot price?",
+    answer:
+      "The provider sets and confirms its physical-pilot price, using its package and any site-specific adjustments. Blueprint adds its own scoped fee to the same itemized proposal. You can share rough affordability without having an approved budget to start, and you approve the total before paid work begins.",
+  },
+  {
     question: "How is Blueprint paid?",
     answer:
-      `The initial task assessment is free for the site. Blueprint's pilot preparation, coordination, and measurement fee starts at ${formatPrice(pilotServiceStartingFeeUsd)} for one task at one site. The provider separately quotes installation and operation. The site approves the full trial budget before work begins, and a successful result does not trigger an extra Blueprint fee. Invited robot teams pay no evaluation entry fee for that project. Optional self-directed evaluations outside it cost ${formatPrice(entryPrice)} per entry, with no later supplier commission on that entry.`,
+      `Sites pay nothing to submit a task, see the evaluation findings, or review an offer. If you buy a pilot, you approve the provider's price plus Blueprint's scoped coordination and measurement fee, starting at ${formatPrice(pilotServiceStartingFeeUsd)}. The provider and Blueprint may invoice their own charges separately. Invited robot-team evaluations are free. Optional self-directed runs cost ${formatPrice(entryPrice)} per entry, with no later supplier commission on that entry.`,
   },
 ];
 

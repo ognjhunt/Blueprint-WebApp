@@ -16,6 +16,7 @@ type Application = {
   robot: string;
   workWanted: string;
   region: string | null;
+  pilotPackage?: string | null;
   testSite?: string | null;
   source?: "application" | "invite";
   fit?: {
@@ -218,6 +219,9 @@ export default function AdminRobotTeamAccess() {
                 <div><dt className="runway-meta">Wants to test on</dt><dd className="mt-1 text-runway-text">{application.workWanted}</dd></div>
                 <div><dt className="runway-meta">Region · applied</dt><dd className="mt-1 text-runway-text">{application.region || "Not given"} · {new Date(application.appliedAtIso).toLocaleDateString()}</dd></div>
               </dl>
+              {application.pilotPackage ? (
+                <p className="text-sm text-runway-text"><span className="runway-meta">Typical pilot · private, indicative</span> {application.pilotPackage}</p>
+              ) : null}
               {application.testSite ? (
                 <p className="text-sm text-runway-text"><span className="runway-meta">Site lead · would test at</span> {application.testSite}</p>
               ) : null}

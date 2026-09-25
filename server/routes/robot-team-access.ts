@@ -40,6 +40,7 @@ export const applicationSchema = z
     robot: text(1200),
     workWanted: text(1200),
     region: optionalText(120),
+    pilotPackage: optionalText(1200),
     testSite: optionalText(300),
     acceptedTerms: z.literal(true),
   })

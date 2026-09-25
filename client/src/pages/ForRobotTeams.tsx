@@ -53,7 +53,7 @@ export default function ForRobotTeams() {
     <>
       <SEO
         title="Real jobs at sites with budget | Blueprint for robot teams"
-        description="Every job on Blueprint comes from a site with a budget and a named owner. Test against it before you send anyone onsite — then retest each software build against the same recording."
+        description="Blueprint prepares suitable site tasks and evaluation evidence. Providers confirm a repeatable pilot offer and its site-specific price before a customer sees it."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({
@@ -72,7 +72,7 @@ export default function ForRobotTeams() {
       <PageHero
         eyebrow={robotTeamHero.eyebrow}
         title={robotTeamHero.title}
-        body="Tell us what your robot can do; we find matching work. The customer is qualified, the job is defined and the test is written before you fly — so your engineers commission instead of discover."
+        body="Tell us what your robot can do and what your standard pilot includes. We bring you suitable tasks and evidence, then you confirm the configuration, price, availability, and conditions for each offer."
         chips={robotTeamHero.chips}
         ctaHref={joinHref}
         ctaLabel="Join the robot network"

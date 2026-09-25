@@ -10,7 +10,7 @@ const principles = [
   "Keep a site's footage and details private unless the site chooses to share them.",
   "Say what a result does not show: a simulation result is not a physical test.",
   "Report failures and unknowns instead of manufacturing a green light.",
-  "Keep initial screening free and agree on any paid pilot coordination before work begins.",
+  "Show material findings and a provider-approved offer before anyone buys a pilot.",
 ] as const;
 
 export default function About() {
@@ -32,19 +32,17 @@ export default function About() {
         <p className="ms-eyebrow">About</p>
         <h1>We help one real task reach a measured robot pilot.</h1>
         <p className="ms-about-lead">
-          Blueprint works with a business to define a recurring job, check which robot providers
-          can credibly support it, and arrange a bounded physical trial with a budget and clear
-          measures. We stay involved when the business decides whether to stop, change, extend,
-          or deploy regularly.
+          Blueprint helps a business describe one recurring job and receive a credible robot-pilot
+          offer. A provider confirms the scope, price, and timing. We keep the task and outcome
+          record so the business can decide whether to stop, change, or continue.
         </p>
 
         <section>
           <h2>How it works</h2>
           <ol>
-            <li>A site describes one repeated task and can film it on a phone. Initial screening is free.</li>
-            <li>We confirm the requirements, budget range, timing, decision owner, and provider capability. Simulation can help answer specific questions when useful.</li>
-            <li>For a credible fit, we help scope and measure a paid physical pilot. The provider or integrator installs and operates the robot; the site approves the commitment.</li>
-            <li>We review the physical results with the site and help decide what to purchase next.</li>
+            <li>Show us the task, including phone footage and rough economics. You can start while exploring.</li>
+            <li>We check fit and use evaluation where helpful. A provider confirms its pilot scope and price; we add our scoped fee to one itemized offer.</li>
+            <li>You approve the total. The provider installs and operates the robot; we coordinate the plan and keep the outcome record.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/pricing">Pricing</a></p>
         </section>

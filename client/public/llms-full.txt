@@ -2,7 +2,7 @@
 
 > Blueprint helps a business turn one recurring task into a scoped, funded, measurable robot pilot and decide what happens afterward.
 
-Initial site screening is free. Blueprint records the task, budget range, timing, and decision owner, checks whether a provider can credibly support it, and may use a Task Evaluation Run where simulation helps the decision. For a suitable task, Blueprint can separately quote a fixed site-paid fee to prepare, coordinate, and measure a physical pilot. The site approves the scope and funding; the provider or integrator installs and operates the robot. After the trial, Blueprint helps the site decide whether to stop, modify, extend, or deploy regularly. Simulation is not physical proof or a deployment guarantee.
+Show Blueprint one recurring task, including phone footage and rough economics. An approved budget is not required to start. Blueprint checks fit and uses free, bounded evaluation when it improves the decision. A suitable provider confirms its configuration, scope, price, availability, and site conditions before the customer sees an offer. The customer sees the provider identity, evidence, uncertainties, and one itemized proposal with the provider price plus Blueprint's scoped fee. The site approves the total before paid work. The provider or integrator installs and operates the robot; Blueprint coordinates the agreed plan and measures the physical outcome. Simulation is not physical proof or a deployment guarantee.
 
 ## Public pages
 
@@ -13,7 +13,7 @@ Initial site screening is free. Blueprint records the task, budget range, timing
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams join by early access. Approved teams see only task cards sites chose to share and get an email when a new task is listed. Sites pay nothing for initial assessment or scene preparation. For a suitable project, the site agrees to a fixed Blueprint fee for pilot preparation, coordination, and measurement before teams are invited into the funded work. Invited teams pay no evaluation entry fee for that project. Optional self-directed runs outside it cost $99 per policy entry from a prepaid balance; the smallest top-up is $99, and the paid entry carries no later supplier commission. Provider deployment charges are separate. Blueprint sets the run size, so teams do not choose an evaluation budget or buy a longer run. The current policy-test setup offers 10 scenarios per policy in simulation. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
+Robot teams join by early access. Approved teams see only task cards sites chose to share. Invited evaluations are free within a bounded scope and carry no supplier commission. A provider confirms its site-specific pilot offer before it is shown as available. The site pays the provider's quoted price plus Blueprint's separately scoped fee if it accepts the pilot; the parties may invoice separately. Optional self-directed runs cost $99 per policy entry from a prepaid balance and retain their no-later-supplier-commission promise. Blueprint sets the run size. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 

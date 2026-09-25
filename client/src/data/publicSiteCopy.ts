@@ -71,17 +71,15 @@
 // returns. The moment a *result* is described in the headline's vocabulary,
 // that is the line being crossed.
 //
-// On "deploy". The offer is evaluation plus the handoff into deployment, and
-// the pricing proves the alignment: Blueprint is paid only on collected
-// provider revenue from a real deployment (see `pricingHero`). So "help get
-// the winner installed" is true and worth saying. What stays false, and is
+// On "deploy". The offer is a provider-backed physical pilot, with evaluation
+// used where it improves that offer. What stays false, and is
 // contradicted on the same page every time it appears, is that Blueprint
 // performs the install, the commissioning, the physical validation, or the
 // safety approval. Every surface carrying the deploy claim also carries the
 // boundary — that pairing is the rule, not a nicety.
 //
-// On "a paying site". See `demandQualifier` below for what backs it and what
-// it may never be stretched into.
+// On site demand. See `demandQualifier` below for the boundary between
+// exploratory interest, stated affordability, and an approved purchase.
 
 import type { EvidenceRung, ClaimInterval, OutcomeBand, DecisionCostRow, StatTile, LifecycleStage } from "@/components/site/figures";
 
@@ -103,10 +101,10 @@ export const homeHero = {
    */
   titleLines: ["Evaluate robots.", "Deploy the one that works."],
   body:
-    "We only run evaluations for real sites with a real job and a budget to fill it. We record the job, rebuild it as one test every robot takes, and help get the winner installed.",
+    "Show us one recurring task. We check fit and use evaluation where it helps, then bring you a provider-backed pilot offer with a price you can accept or decline.",
   chips: [
-    "Every job has a buyer behind it",
-    "One test, every robot takes it",
+    "Start while exploring",
+    "Evidence behind the offer",
     "The robot company still does the install",
   ],
 } as const;
@@ -115,28 +113,26 @@ export const homeHero = {
  * The demand rule, in one place, because it is the claim the whole site rests
  * on and it must read the same everywhere it appears.
  *
- * It is grounded, not aspirational. Site intake requires a budget range
- * (`BudgetBucket` in `types/inbound-request.ts`), and the pilot-opportunity
- * fields ask for a named internal owner, a pilot area, timing, and the
- * procurement path before an opportunity can be shown to robot teams. A site
- * that will not answer those does not become an evaluation.
+ * Site intake accepts an undecided budget. Rough affordability and funding
+ * status help decide whether to prepare an offer, but approval to buy comes
+ * only when the site accepts the provider's confirmed proposal.
  *
  * What it must never say: that a budget is a signed order, that a named owner
  * is a purchase commitment, or that Blueprint has verified funds. The honest
  * claim is about *who we accept*, not about a guaranteed sale.
  */
 export const demandQualifier = {
-  short: "Every evaluation has a paying site behind it.",
+  short: "A stated budget is not a purchase order.",
   body:
-    "We do not run evaluations against hypothetical sites. Before a job becomes an evaluation, the site names the work, a budget range, an internal owner, and how it buys. Robot teams are testing against demand, not a demo.",
-  note: "A budget and an owner are not a signed order. They are the bar to get in.",
+    "A site can start while exploring. We label whether funding is exploratory, available, or authorized. Only a provider-confirmed offer the site approves becomes a paid pilot.",
+  note: "Exploratory interest is not committed demand.",
 } as const;
 
 export const homeStats: readonly StatTile[] = [
   {
     label: "Services to choose from",
     value: "One",
-    detail: "A Task Evaluation Run. No tiers, no packages, no separate add-ons.",
+    detail: "One path from a recurring task to a provider-backed pilot offer.",
   },
   {
     label: "Ruled out by measurement",
@@ -448,19 +444,19 @@ export const robotTeamHero = {
   eyebrow: "For robot teams",
   title: "Arrive with the robot. Not before it.",
   body:
-    "Tell us your capability envelope; we find matching work. Customer qualified, task defined, site modelled, acceptance test written — so your engineers commission rather than discover.",
+    "Tell us what your robot can do and what a standard pilot includes. We bring suitable tasks and evidence; you confirm the site-specific offer before a buyer sees it.",
   chips: [
-    "Zero engineering hours before arrival",
+    "Less repeated site discovery",
     "Free to browse and screen",
-    "One standard evaluation included",
+    "Free invited evaluation",
   ],
 } as const;
 
 export const robotTeamValue = [
   {
-    title: "The site already wants to buy",
+    title: "A real site with clear funding status",
     body:
-      "Every workflow reaches you with a budget range, a named internal owner, and a procurement path. You are not qualifying the lead — that already happened.",
+      "An invited task comes from a real site. We label rough affordability and whether funding is exploratory, available, or authorized; the site still must approve your confirmed offer.",
   },
   {
     title: "Skip repeated site discovery",
@@ -599,10 +595,10 @@ export const pricingBoundaries = [
 
 export const aboutHero = {
   eyebrow: "About Blueprint",
-  title: "We evaluate robots for sites that are ready to buy.",
+  title: "We help sites buy a credible robot pilot.",
   body:
-    "A robot deployment starts with weeks of discovery, site recreation, simulation, and fit testing — repeated inside every vendor conversation. Blueprint does that work once, as one Task Evaluation Run, for sites that have a job and a budget.",
-  chips: ["Record the job once", "Test every robot on it", "Hand off to the install"],
+    "Blueprint turns one recurring task into a provider-backed pilot offer when a credible fit exists. Capture and evaluation support the offer where useful; the provider handles physical delivery.",
+  chips: ["Record the job once", "Review a provider offer", "Measure the trial"],
 } as const;
 
 export const aboutStats: readonly StatTile[] = [

@@ -101,11 +101,15 @@ describe("the robot page", () => {
     fill(/^company/i, "Arm Co");
     fill(/what does your robot do/i, "Fixed arm");
     fill(/what work do you want/i, "Tote picking");
+    fill(/what would it include/i, "Two-week trial, $20,000 indicative, six-week lead time");
     fill(/a site or customer you would want to test at/i, "Our pilot warehouse");
     fireEvent.submit(form);
     expect(await screen.findByRole("heading", { name: "You are approved." })).toBeInTheDocument();
     const apply = fetchMock.mock.calls.find(([url]) => String(url).includes("/apply"))!;
-    expect(JSON.parse(String((apply[1] as RequestInit).body))).toMatchObject({ testSite: "Our pilot warehouse" });
+    expect(JSON.parse(String((apply[1] as RequestInit).body))).toMatchObject({
+      testSite: "Our pilot warehouse",
+      pilotPackage: "Two-week trial, $20,000 indicative, six-week lead time",
+    });
   });
 });
 

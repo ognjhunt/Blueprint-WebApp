@@ -79,8 +79,9 @@ describe("the public surface carries one pricing model", () => {
     expect(paymentAnswer).toBeTruthy();
 
     // The $99 path stays tied to the API, without turning the FAQ into an
-    // arithmetic table or charging teams invited to a funded pilot project.
-    expect(paymentAnswer?.answer).toContain("Invited robot teams pay no evaluation entry fee");
+    // arithmetic table or charging teams invited to a qualified site task.
+    expect(paymentAnswer?.answer).toContain("provider's price plus Blueprint's scoped coordination and measurement fee");
+    expect(paymentAnswer?.answer).toContain("Invited robot-team evaluations are free");
     expect(paymentAnswer?.answer).toContain(`$${entryPrice}`);
   });
 

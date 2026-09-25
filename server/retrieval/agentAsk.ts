@@ -62,7 +62,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "capture backed evaluation",
     ],
     answer:
-      "Blueprint helps a business turn one recurring task into a scoped, funded, measurable physical robot pilot and decide what happens afterward. It confirms the site's task, budget range, timing, decision owner, and provider fit; a Task Evaluation Run can support that decision when useful. For a credible fit, Blueprint can separately agree to prepare, coordinate, and measure a paid trial. The site approves the commitment; the provider or integrator installs and operates the robot. Physical results inform whether to stop, modify, extend, or deploy regularly. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.",
+      "Blueprint helps a business turn one recurring task into a provider-backed, measurable robot-pilot offer and decide what happens afterward. The site can start while exploring; rough affordability and funding status are labeled honestly. Blueprint checks fit and uses bounded evaluation where useful. A suitable provider confirms its scope, price, availability, and site conditions before the site sees one itemized offer with Blueprint's separate fee. The site approves the total before paid work; the provider or integrator installs and operates the robot. Blueprint coordinates the agreed plan and keeps the outcome record. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.",
     citations: [`${CANONICAL_ORIGIN}/`, `${CANONICAL_ORIGIN}/proof`],
     actions: [
       { description: "Read the public discovery summary", method: "GET", endpoint: "/api/site-content" },
@@ -193,7 +193,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      "Initial site task assessment is free: the site can submit one recurring job, share a phone recording, approve the task brief, and receive a bounded assessment or reason to pause. For a suitable project, Blueprint quotes a fixed site-paid fee for pilot preparation, coordination, and measurement. The site agrees to that scope before Blueprint invites teams into the funded project; invited teams pay no evaluation entry fee for it. Optional self-directed evaluations outside the project cost $99 per policy entry, with no subscription or later supplier commission on that entry. The provider or integrator separately quotes installation and operation, and the site approves all costs before work begins. A Task Evaluation Run can support a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.",
+      "Submitting a site task, reviewing findings, and receiving a provider-backed pilot offer are free. The site can start while exploring. Invited teams evaluate within a bounded scope for free. If the site buys a pilot, it approves the provider's price plus Blueprint's separately scoped coordination and measurement fee in one itemized proposal; the parties may invoice separately. The provider performs physical installation and operation. Optional self-directed evaluations cost $99 per policy entry and retain their existing no-later-supplier-commission promise. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.",
 
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [

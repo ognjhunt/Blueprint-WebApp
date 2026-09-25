@@ -28,6 +28,8 @@ export interface RobotTeamAccessApplication {
   robot: string;
   workWanted: string;
   region: string | null;
+  /** Private, provider-supplied starting point; never a binding site quote. */
+  pilotPackage?: string | null;
   /** A site or customer the team would want to test at: a lead for the site side. */
   testSite?: string | null;
 }
@@ -112,6 +114,7 @@ export async function recordAccessApplication(
       ...application,
       email,
       testSite: application.testSite ?? null,
+      pilotPackage: application.pilotPackage ?? null,
       source: prior?.source ?? "application",
       fit: options.fit ?? null,
       status: prior?.status === "approved" ? "approved" : "applied",
@@ -177,6 +180,7 @@ export async function inviteRobotTeam(params: {
       workWanted: prior?.workWanted ?? params.note ?? "",
       region: prior?.region ?? null,
       testSite: prior?.testSite ?? null,
+      pilotPackage: prior?.pilotPackage ?? null,
       source: prior?.source ?? "invite",
       fit: prior?.fit ?? null,
       status: "approved",
