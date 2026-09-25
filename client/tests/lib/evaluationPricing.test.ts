@@ -9,6 +9,7 @@ import {
   finalistRoundRuns,
   formatPrice,
   included,
+  pilotIntroductionFeeUsd,
   quoteEntries,
   screeningRound,
   shortlistRule,
@@ -16,6 +17,12 @@ import {
 } from "@/lib/evaluationPricing";
 
 describe("evaluation pricing", () => {
+  it("caps the site fee on an introduced provider's purchased pilot", () => {
+    expect(pilotIntroductionFeeUsd(0)).toBe(0);
+    expect(pilotIntroductionFeeUsd(20_000)).toBe(1_000);
+    expect(pilotIntroductionFeeUsd(150_000)).toBe(5_000);
+    expect(() => pilotIntroductionFeeUsd(-1)).toThrow(RangeError);
+  });
   it("bills entries times tasks times the entry price", () => {
     // The three shapes stated on the page, which are the three a team asks
     // about: more policies, more tasks, and both at once.

@@ -193,7 +193,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      "Submitting a site task, reviewing findings, and receiving a provider-backed pilot offer are free. The site can start while exploring. Invited teams evaluate within a bounded scope for free. If the site buys a pilot, it approves the provider's price plus Blueprint's separately scoped coordination and measurement fee in one itemized proposal; the parties may invoice separately. The provider performs physical installation and operation. Optional self-directed evaluations cost $99 per policy entry and retain their existing no-later-supplier-commission promise. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.",
+      "Submitting a site task and receiving initial fit screening are free. Before invited free evaluation, an authorized site buyer separately agrees to Blueprint's task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at $5,000. It applies even if site and provider contract directly; no pilot purchase means no Blueprint fee. The provider sets its price and performs physical installation and operation. Optional self-directed evaluations cost $99 per policy entry and retain their no-later-supplier-commission promise. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.",
 
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [

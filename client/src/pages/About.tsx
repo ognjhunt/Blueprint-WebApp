@@ -41,8 +41,8 @@ export default function About() {
           <h2>How it works</h2>
           <ol>
             <li>Show us the task, including phone footage and rough economics. You can start while exploring.</li>
-            <li>We check fit and use evaluation where helpful. A provider confirms its pilot scope and price; we add our scoped fee to one itemized offer.</li>
-            <li>You approve the total. The provider installs and operates the robot; we coordinate the plan and keep the outcome record.</li>
+            <li>We check fit. Before invited free evaluation, your authorized buyer agrees to our fee if you buy a pilot from an introduced provider.</li>
+            <li>You review results and a provider-backed offer. The provider installs and operates the robot; we keep the outcome record.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/pricing">Pricing</a></p>
         </section>

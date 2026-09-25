@@ -557,7 +557,7 @@ export function TaskBriefReview(props: {
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
         <legend style={{ padding: "0 6px", fontWeight: 600 }}>What could follow this assessment?</legend>
-        <p className="ms-field-hint">These answers describe your current plans, not approval to spend. For a credible fit, you can review one itemized pilot offer with the provider's price and Blueprint's fee. You approve the total before paid work.</p>
+        <p className="ms-field-hint">These answers describe your plans; submitting them does not agree to a fee. Before we invite teams to evaluate for free, an authorized buyer for your site separately agrees to Blueprint's fee if you buy a pilot from an introduced provider.</p>
         <label htmlFor="pilot-consideration"><span>If a provider appears to fit, would you consider a physical pilot here?</span>
           <select id="pilot-consideration" value={pilotConsideration} onChange={(event) => setPilotConsideration(event.target.value as SitePilotIntent["pilotConsideration"])}>
             <option value="">Choose…</option>

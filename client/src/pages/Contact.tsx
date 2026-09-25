@@ -79,9 +79,9 @@ export default function Contact() {
             <summary>How this works</summary>
             <p className="ms-field-hint">
               We turn your description and footage into a task brief for you to correct, then check
-              which providers can credibly support it. We use evaluation when helpful. If a provider
-              confirms a pilot offer, you see its scope, price, timing, and uncertainties alongside
-              Blueprint's fee before you approve any paid work. Your task link
+              which providers can credibly support it. Before inviting teams to evaluate for free,
+              we ask an authorized buyer to agree to Blueprint's fee if you buy an introduced provider's pilot.
+              You see the provider's scope, price, and uncertainties before buying. Your task link
               shows each step and the next update.
             </p>
             <p className="ms-field-hint">

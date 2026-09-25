@@ -2,7 +2,7 @@ import { SEO } from "@/components/SEO";
 import { EditorialFaq } from "@/components/site/editorial";
 import { Reveal } from "@/components/site/motion";
 import { Band, ClosingCta, Inner } from "@/components/site/publicSections";
-import { entryPrice, formatPrice, pilotServiceStartingFeeUsd } from "@/lib/evaluationPricing";
+import { entryPrice, formatPrice, pilotIntroductionFeeCapUsd } from "@/lib/evaluationPricing";
 import { faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 export const faqItems = [
@@ -49,12 +49,12 @@ export const faqItems = [
   {
     question: "Who sets the physical pilot price?",
     answer:
-      "The provider sets and confirms its physical-pilot price, using its package and any site-specific adjustments. Blueprint adds its own scoped fee to the same itemized proposal. You can share rough affordability without having an approved budget to start, and you approve the total before paid work begins.",
+      "The provider sets and confirms its physical-pilot price. Blueprint shows its separate 5% fee, capped at $5,000, before you buy. You can share rough affordability without an approved budget to start.",
   },
   {
     question: "How is Blueprint paid?",
     answer:
-      `Sites pay nothing to submit a task, see the evaluation findings, or review an offer. If you buy a pilot, you approve the provider's price plus Blueprint's scoped coordination and measurement fee, starting at ${formatPrice(pilotServiceStartingFeeUsd)}. The provider and Blueprint may invoice their own charges separately. Invited robot-team evaluations are free. Optional self-directed runs cost ${formatPrice(entryPrice)} per entry, with no later supplier commission on that entry.`,
+      `Task submission and initial screening are free. Before teams are invited to evaluate, an authorized site buyer agrees to a task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at ${formatPrice(pilotIntroductionFeeCapUsd)}. The fee applies even if you contract directly with that provider; no pilot purchase means no Blueprint fee. Invited robot-team evaluations are free. Optional self-directed runs cost ${formatPrice(entryPrice)} per entry, with no later supplier commission on that entry.`,
   },
 ];
 
