@@ -30,7 +30,7 @@ vi.mock("@/lib/policyPairChoice", async () => {
 });
 vi.mock("@/lib/policyPacketPlanning", async () => {
   const actual = await vi.importActual<typeof import("@/lib/policyPacketPlanning")>("@/lib/policyPacketPlanning");
-  return { ...actual, parsePacketPlanningSetup: vi.fn(), downloadPacketPolicyPairChoice: vi.fn() };
+  return { ...actual, parsePacketPlanningSetup: vi.fn(), downloadPacketPolicyHandoff: vi.fn() };
 });
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
@@ -149,10 +149,10 @@ describe("PolicyCanarySetup", () => {
   });
 
   it("imports a retained task packet and downloads a planning pair without starting a run", async () => {
-    const { parsePacketPlanningSetup, downloadPacketPolicyPairChoice } = await import("@/lib/policyPacketPlanning");
+    const { parsePacketPlanningSetup, downloadPacketPolicyHandoff } = await import("@/lib/policyPacketPlanning");
     const { createPolicyCanaryRun } = await import("@/lib/policyCanaryRuns");
     vi.mocked(createPolicyCanaryRun).mockReset();
-    vi.mocked(downloadPacketPolicyPairChoice).mockReset();
+    vi.mocked(downloadPacketPolicyHandoff).mockReset();
     const published = setup();
     const robot = published.robot_presets[0];
     robot.robot_preset_id = "unitree_g1_dex3_sonic_v1";
@@ -198,14 +198,18 @@ describe("PolicyCanarySetup", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Plan a development policy pair" })).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: /G1 manipulation 1/ }));
     fireEvent.click(screen.getByRole("checkbox", { name: /G1 manipulation 2/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Download pair choice" }));
-    await waitFor(() => expect(vi.mocked(downloadPacketPolicyPairChoice)).toHaveBeenCalledWith(expect.objectContaining({
-      schema_version: "task_evaluation_packet_policy_pair_choice.v1",
-      setup_digest: sha("e"),
-      robot_preset_id: robot.robot_preset_id,
-      policy_candidate_ids: ["g1_manipulation_0", "g1_manipulation_1"],
-      objective_id: "task_success",
-      choice_digest: "sha256:d0d3a846fef678d0382aa8c4a3b4f8bb195a62ca41d9168f85197c7f88aba528",
+    fireEvent.click(screen.getByRole("button", { name: "Download task handoff" }));
+    await waitFor(() => expect(vi.mocked(downloadPacketPolicyHandoff)).toHaveBeenCalledWith(expect.objectContaining({
+      schema_version: "task_evaluation_packet_policy_handoff.v1",
+      claim_ceiling: "planning_only",
+      setup: packet,
+      choice: expect.objectContaining({
+        setup_digest: sha("e"),
+        robot_preset_id: robot.robot_preset_id,
+        policy_candidate_ids: ["g1_manipulation_0", "g1_manipulation_1"],
+        objective_id: "task_success",
+      }),
+      handoff_digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
     }), packet.task_id));
     expect(screen.queryByRole("button", { name: "Start policy test" })).toBeNull();
     expect(vi.mocked(createPolicyCanaryRun)).not.toHaveBeenCalled();
