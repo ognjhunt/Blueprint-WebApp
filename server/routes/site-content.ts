@@ -152,7 +152,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Sites can submit a task and review a provider-backed pilot offer for free. Invited evaluations are free. If a site buys a pilot, it approves the provider's price plus Blueprint's separately scoped coordination and measurement fee in one itemized proposal. Optional self-directed robot-team runs cost $99 per policy entry and keep their no-later-supplier-commission promise.",
+      "Sites submit a task and receive initial screening for free. Before invited free evaluation, an authorized site buyer separately agrees to a task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at $5,000. The fee applies even if the parties contract directly; no pilot purchase means no Blueprint fee. Providers set their own prices. Optional self-directed robot-team runs cost $99 per policy entry and keep their no-later-supplier-commission promise.",
   },
   {
     path: "/contact",

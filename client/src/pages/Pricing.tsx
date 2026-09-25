@@ -1,11 +1,11 @@
 import { ArrowRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { entryPrice, formatPrice, pilotServiceStartingFeeUsd, siteAssessment } from "@/lib/evaluationPricing";
+import { entryPrice, formatPrice, pilotIntroductionFeeCapUsd, siteAssessment } from "@/lib/evaluationPricing";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Submit one task, review evaluation results and a provider-backed robot pilot offer for free. Approve the provider price and Blueprint fee before paid work.";
+  "Submit a robot task for free. Agree to Blueprint's 5% pilot fee, capped at $5,000, before free evaluation; pay only if you buy an introduced provider's pilot.";
 
 export default function Pricing() {
   return (
@@ -39,9 +39,8 @@ export default function Pricing() {
             </p>
             <h2 id="site-price-title">Review an offer</h2>
             <p className="ms-price-note">
-              Share one recurring task. We check fit and show you the evidence and a provider-approved
-              pilot offer when one is credible. You approve the provider's price and Blueprint's fee
-              together before paid work. No card required to start.
+              Share one recurring task. Initial screening is free. Before we invite teams to evaluate,
+              an authorized buyer agrees to the fee below for this task. No card required to start.
             </p>
             <a className="ms-text-link" href="/contact/site-operator">
               Start a task assessment <ArrowRight size={20} aria-hidden="true" />
@@ -67,14 +66,14 @@ export default function Pricing() {
         </div>
 
         <section className="ms-price-block" aria-labelledby="pilot-service-title">
-          <h2 id="pilot-service-title">If you approve a pilot</h2>
+          <h2 id="pilot-service-title">If you buy a pilot</h2>
           <p>
-            You see one itemized offer: the provider's pilot price plus Blueprint's scoped coordination
-            and measurement fee, starting at {formatPrice(pilotServiceStartingFeeUsd)}. You approve the
-            total before work begins. The provider handles installation and operation; both parties may
-            invoice their own charges separately.
+            Blueprint charges the site 5% of the introduced provider's physical pilot price, capped at
+            {" "}{formatPrice(pilotIntroductionFeeCapUsd)}. A {formatPrice(20000)} pilot means a {formatPrice(1000)}
+            {" "}Blueprint fee. The provider sets its price and handles installation. You can contract directly;
+            the agreed fee still applies. No pilot purchase, no Blueprint fee.
           </p>
-          <a className="ms-text-link" href="/terms">Evaluation billing details in our Terms</a>
+          <a className="ms-text-link" href="/terms">Fee details in our Terms</a>
         </section>
       </article>
     </>

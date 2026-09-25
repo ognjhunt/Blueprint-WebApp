@@ -17,11 +17,11 @@ test("pricing shows current costs and separates physical pilot work", async ({ p
   await expect(team.getByText(/site decides whether to buy it/)).toBeVisible();
   await expect(team.getByRole("link", { name: /Apply for early access/ })).toHaveAttribute("href", "/contact/robot-team");
 
-  const pilot = page.locator("section", { has: page.getByRole("heading", { name: "If you approve a pilot" }) });
-  await expect(pilot.getByText(/provider's pilot price plus Blueprint's scoped coordination and measurement fee/)).toBeVisible();
-  await expect(pilot.getByText(/starting at \$5,000/)).toBeVisible();
-  await expect(pilot.getByText(/approve the total before work begins/)).toBeVisible();
-  await expect(pilot.getByRole("link", { name: /billing details in our Terms/ })).toHaveAttribute("href", "/terms");
+  const pilot = page.locator("section", { has: page.getByRole("heading", { name: "If you buy a pilot" }) });
+  await expect(pilot.getByText(/5% of the introduced provider's physical pilot price/)).toBeVisible();
+  await expect(pilot.getByText(/capped at \$5,000/)).toBeVisible();
+  await expect(pilot.getByText(/No pilot purchase, no Blueprint fee/)).toBeVisible();
+  await expect(pilot.getByRole("link", { name: /Fee details in our Terms/ })).toHaveAttribute("href", "/terms");
   await expect(page.getByRole("table")).toHaveCount(0);
 });
 
@@ -29,7 +29,8 @@ test("terms separate free invited participation from optional paid runs", async 
   await page.goto("/terms");
   await expect(page.getByText(/Invited teams pay no evaluation entry fee or supplier commission for work within the invitation's stated scope/)).toBeVisible();
   await expect(page.getByText(/currently \$99/)).toBeVisible();
-  await expect(page.getByText(/one itemized proposal showing the provider's scope and price, Blueprint's separate scoped coordination and measurement fee, and the total/)).toBeVisible();
+  await expect(page.getByText(/Before Blueprint invites robot teams to evaluate a site task for free, an authorized buyer for the site must separately agree in writing/)).toBeVisible();
+  await expect(page.getByText(/even if the site and provider contract or communicate directly/)).toBeVisible();
   await expect(page.getByText(/A paid entry retains its no-later-supplier-commission promise/)).toBeVisible();
 });
 
