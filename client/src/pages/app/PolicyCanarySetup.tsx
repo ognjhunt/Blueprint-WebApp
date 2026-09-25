@@ -218,14 +218,15 @@ export default function PolicyCanarySetup() {
         <div className="ws-fields mt-5">
           <Field label="Robot" wide>
             <select value={`${setup.setup_digest}:${robot.robot_preset_id}`} disabled={switching} onChange={(event) => { void changeRobot(event.target.value); }}>
-              {setup.available_setups.map((item) => <option key={`${item.setup_digest}:${item.robot_preset_id}`} value={`${item.setup_digest}:${item.robot_preset_id}`} disabled={item.readiness.status !== "verified_runnable"}>
-                {item.display_name}{item.readiness.status === "verified_runnable" ? "" : ` (${item.readiness.reason || "not available yet"})`}
+              {setup.available_setups.map((item) => <option key={`${item.setup_digest}:${item.robot_preset_id}`} value={`${item.setup_digest}:${item.robot_preset_id}`} disabled={item.readiness.status !== "verified_runnable" && item.setup_digest !== setup.setup_digest}>
+                {item.display_name}{item.readiness.status === "verified_runnable" ? "" : " (unavailable)"}
               </option>)}
             </select>
           </Field>
         </div>
+        {robot.readiness.status !== "verified_runnable" ? <p className="ws-note mt-4" role="status">{robot.readiness.reason}</p> : null}
         <fieldset className="mt-6">
-          <legend className="text-sm">Choose two policies</legend>
+          <legend className="text-sm">{robot.readiness.status === "verified_runnable" ? "Choose two policies" : "Policies for this robot"}</legend>
           {robot.policy_candidates.map((candidate) => {
             const reason = optionReason(candidate, robot);
             const checked = policyIds.includes(candidate.candidate_id);
@@ -235,10 +236,11 @@ export default function PolicyCanarySetup() {
               <span>{candidate.display_name}{reason ? <span className="block text-sm text-ink-500">{reason}</span> : null}</span>
             </label>;
           })}
-          <p className="ws-note">Both policies run the same scenarios with the same starting conditions and scoring.</p>
+          {robot.readiness.status === "verified_runnable" ? <p className="ws-note">Both policies run the same scenarios with the same starting conditions and scoring.</p> : null}
         </fieldset>
       </section>
 
+      {robot.readiness.status === "verified_runnable" ? <>
       <section aria-labelledby="policy-test-size">
         <h2 id="policy-test-size">Run size</h2>
         <p>
@@ -296,6 +298,7 @@ export default function PolicyCanarySetup() {
           <button type="submit" className="ws-primary" disabled={!canSubmit}>{submitting ? "Starting…" : "Start policy test"}</button>
         </div>
       </section>
+      </> : null}
 
       <details>
         <summary>Setup details</summary>
