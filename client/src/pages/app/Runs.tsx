@@ -114,8 +114,8 @@ export default function Runs() {
     retry: 1,
   });
 
-  const isLoading = runsLoading || entitlementsLoading || resultsLoading || g1Reviews.isLoading;
-  const loadError = runsError || resultsError || g1Reviews.error;
+  const isLoading = runsLoading || entitlementsLoading || resultsLoading;
+  const loadError = runsError || resultsError;
   const siteOperator = userData?.buyerType === "site_operator";
 
   return (
@@ -150,6 +150,7 @@ export default function Runs() {
               />)}
             </section>
           ) : null}
+          {g1Reviews.error ? <p role="alert" className="text-sm text-ink-600">Private G1 reviews are temporarily unavailable.</p> : null}
 
           {runs.length ? (
             <section className="ws-section" aria-label="Run requests">
