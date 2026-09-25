@@ -116,5 +116,29 @@ describe("per-embodiment execution profile selection", () => {
     expect(await policyCanarySetupFor("launch-1", offering, {
       setupDigest: sha("f"), robotPresetId: "g1",
     })).toMatchObject({ ok: false, status: 409 });
+    const inspected = await policyCanarySetupFor("launch-1", offering, {
+      setupDigest: sha("f"), robotPresetId: "g1",
+    }, { inspectionOnly: true });
+    expect(inspected).toMatchObject({
+      ok: true,
+      profile: { profile_id: "a-g1" },
+      setup: { robot_presets: [{ readiness: { status: "unavailable" } }] },
+    });
+  });
+  it("inspects unavailable G1 in the same setup without admitting a run", async () => {
+    const combined: any = profile("scene-profile", "franka", sha("e"));
+    combined.internal_policy_canary_setup.robot_presets.push({
+      robot_preset_id: "g1",
+      display_name: "Unitree G1",
+      task_family_id: "pick_place",
+      readiness: { status: "unavailable", receipt: null, reason: "No verified G1 episode." },
+    });
+    state.profiles = [combined];
+    expect(await policyCanarySetupFor("launch-1", offering, {
+      setupDigest: sha("e"), robotPresetId: "g1",
+    })).toMatchObject({ ok: false, status: 409 });
+    expect(await policyCanarySetupFor("launch-1", offering, {
+      setupDigest: sha("e"), robotPresetId: "g1",
+    }, { inspectionOnly: true })).toMatchObject({ ok: true });
   });
 });
