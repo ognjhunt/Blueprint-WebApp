@@ -436,6 +436,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/results/:recordId", layout: "public", shell: "bare", component: AppTaskEvaluationResultDetail },
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
   { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
+  { path: "/app/packs/policy-packet", layout: "protected", shell: "bare", component: AppPolicyCanarySetup },
   { path: "/app/packs/:sourceLaunchId/evaluate", layout: "protected", shell: "bare", component: AppEvaluationRunSetup },
   { path: "/app/packs/:sourceLaunchId/policy-canary", layout: "protected", shell: "bare", component: AppPolicyCanarySetup },
   { path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppTasksListRedirect },

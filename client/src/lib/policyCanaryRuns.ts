@@ -60,6 +60,8 @@ const robotPreset = z.object({
   policy_candidates: z.array(candidate).min(2),
 }).strict();
 
+export const policyCanaryRobotPresetSchema = robotPreset;
+
 const cell = z.object({
   cell_id: z.string().min(1),
   family: z.string().min(1),

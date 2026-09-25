@@ -75,6 +75,7 @@ export default function SitePacks() {
         <meta name="description" content="Tasks your team can test a robot on." />
       </Helmet>
       <header className="ws-heading"><div><h1>Tasks</h1></div></header>
+      {developmentAccess ? <p className="mb-6"><Link className="ws-link" href="/app/packs/policy-packet">Plan policies from a retained task packet</Link></p> : null}
       {error ? <BuyerAppErrorState message={error} /> : null}
       {!error && !offerings ? <BuyerAppLoadingState /> : null}
       {offerings && !offerings.length ? (
