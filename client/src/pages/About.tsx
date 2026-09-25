@@ -33,16 +33,17 @@ export default function About() {
         <h1>We help one real task reach a measured robot pilot.</h1>
         <p className="ms-about-lead">
           Blueprint helps a business describe one recurring job and receive a credible robot-pilot
-          offer. A provider confirms the scope, price, and timing. We keep the task and outcome
+          offer. The site may propose the pilot terms; a provider may accept or suggest changes.
+          We keep the task and outcome
           record so the business can decide whether to stop, change, or continue.
         </p>
 
         <section>
           <h2>How it works</h2>
           <ol>
-            <li>Show us the task, including phone footage and rough economics. You can start while exploring.</li>
+            <li>Show us the task, including phone footage and a proposed pilot price or target budget. Keep ongoing economics separate.</li>
             <li>We check fit. Before invited free evaluation, your authorized buyer agrees to our fee if you buy a pilot from an introduced provider.</li>
-            <li>You review results and a provider-backed offer. The provider installs and operates the robot; we keep the outcome record.</li>
+            <li>You review results and a mutually agreed pilot offer. A provider can accept your terms or suggest changes. It installs and operates the robot; we keep the outcome record.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/pricing">Pricing</a></p>
         </section>

@@ -3,7 +3,7 @@ import { TaskThumbnailEditor } from "./TaskThumbnailEditor";
 import { useEffect, useState } from "react";
 import { type TaskListingDetails, opportunityLabels } from "@/types/taskBrowse";
 import { TaskFacts } from "./TaskFacts";
-const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "not_seeking" };
+const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking" };
 
 /** Public text is a separate, explicit grant. A capture grant never populates this. */
 export function PublicTaskListing({ token }: { token: string }) {
@@ -20,7 +20,7 @@ export function PublicTaskListing({ token }: { token: string }) {
       const { listing, thumbnailPng: savedThumbnail } = await r.json();
       if (!active) return;
       setExistingThumbnail(savedThumbnail ?? null);
-      if (listing) { setDetails(listing.details); setEnabled(listing.enabled); }
+      if (listing) { setDetails({ ...blank, ...listing.details }); setEnabled(listing.enabled); }
       setState("idle");
     }).catch(() => { if (active) setState("load_error"); });
     return () => { active = false; };
@@ -38,7 +38,7 @@ export function PublicTaskListing({ token }: { token: string }) {
   }
   const previewThumbnail = thumbnailPng === undefined ? existingThumbnail : thumbnailPng;
   const field = (key: keyof TaskListingDetails, label: string, maxLength: number, required = false) =>
-    <label key={key}>{label}<input value={details[key]} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
+    <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required || (key === "pilotBudget" && details.pilotPriceStatus === "site_offer")}
       onChange={e => { setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
   return <details className="ms-task-interest"><summary>Share a task card with robot teams</summary>
     <p className="ms-field-hint">Optional. Share only the text and thumbnail you approve below. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
@@ -50,7 +50,15 @@ export function PublicTaskListing({ token }: { token: string }) {
         {field("region", "Region (optional)", 80)}
         <details><summary>More task details (optional)</summary>
           {field("siteType", "Site type", 80)}{field("cycleTarget", "Cycle target", 80)}
-          {field("pilotTiming", "Pilot timing", 80)}{field("pilotBudget", "Pilot budget", 80)}
+          {field("pilotTiming", "Pilot timing", 80)}
+          <label>Pilot price status<select value={details.pilotPriceStatus ?? "target_budget"} onChange={e => { setDetails({ ...details, pilotPriceStatus: e.target.value as TaskListingDetails["pilotPriceStatus"] }); setConsent(false); setState("idle"); }}>
+            <option value="target_budget">Target budget, open to proposals</option>
+            <option value="site_offer">Site's proposed price</option>
+          </select></label>
+          {field("pilotBudget", details.pilotPriceStatus === "site_offer" ? "Proposed provider pilot price (before Blueprint fee)" : "Target provider pilot budget (before Blueprint fee)", 80)}
+          <label>Pilot conditions (optional)<textarea value={details.pilotConditions ?? ""} maxLength={320} onChange={e => { setDetails({ ...details, pilotConditions: e.target.value }); setConsent(false); setState("idle"); }} placeholder="For example: four weeks, including setup and provider support" /></label>
+          {field("ongoingTarget", "Ongoing price target, if the pilot works (optional)", 80)}
+          <p className="ms-field-hint">A posted price is a proposal, not a purchase approval. Providers can accept it, ask for changes, or decline after evaluation.</p>
         </details>
         <label>Pilot availability<select value={details.opportunity} onChange={e => { setDetails({ ...details, opportunity: e.target.value as TaskListingDetails["opportunity"] }); setConsent(false); }}>
           {Object.entries(opportunityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}

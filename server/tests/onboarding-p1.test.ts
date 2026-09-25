@@ -15,7 +15,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 vi.mock("../utils/email", () => ({ sendEmail }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 const { projectTaskBrowseCard, listTaskBrowseCards } = await import("../utils/taskBrowse");
-const { approvedTaskDetails } = await import("../utils/taskListingDetails");
+const { approvedTaskDetails, taskListingSchema } = await import("../utils/taskListingDetails");
 const { isRunnableTask } = await import("../utils/teamEvalCandidates");
 const { ensureTaskStatusUpdate, TASK_STATUS_UPDATES } = await import("../utils/taskStatusUpdates");
 const { deliverOutbox } = await import("../utils/captureOutbox");
@@ -40,6 +40,14 @@ describe("public task disclosure", () => {
     const card = projectTaskBrowseCard("req1", record());
     expect(card).toMatchObject({ title: details.title, opportunity: "past", evaluationAvailable: true, stage: "ready", costUsd: 99 });
     expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs/);
+  });
+  it("keeps proposed site terms distinct from an exploratory budget", () => {
+    const proposed = { ...details, pilotBudget: "$20,000", pilotPriceStatus: "site_offer", pilotConditions: "Four weeks including setup and support", ongoingTarget: "$5,000 per month" };
+    expect(projectTaskBrowseCard("req1", record({ public_task_listing: {
+      enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-09-19T00:00:00.000Z", details: proposed,
+    } }))).toMatchObject(proposed);
+    expect(taskListingSchema.safeParse({ ...proposed, pilotBudget: "" }).success).toBe(false);
+    expect(approvedTaskDetails(record())).toMatchObject({ pilotBudget: "", opportunity: "past" });
   });
   it.each([
     { public_task_listing: undefined }, { public_task_listing: { enabled: true, details } },

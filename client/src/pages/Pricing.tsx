@@ -55,8 +55,8 @@ export default function Pricing() {
             </p>
             <h2 id="team-price-title">Evaluate a matched task</h2>
             <p className="ms-price-note">
-              Matched evaluations are free. You confirm the pilot scope and price; the site decides
-              whether to buy it. Optional self-directed runs cost {formatPrice(entryPrice)} per entry,
+              Matched evaluations are free. You can accept the site's proposed pilot terms, suggest
+              changes, or decline. Optional self-directed runs cost {formatPrice(entryPrice)} per entry,
               with no later supplier commission on that entry.
             </p>
             <a className="ms-text-link" href="/contact/robot-team">
@@ -70,7 +70,8 @@ export default function Pricing() {
           <p>
             Blueprint charges the site 5% of the introduced provider's physical pilot price, capped at
             {" "}{formatPrice(pilotIntroductionFeeCapUsd)}. A {formatPrice(20000)} pilot means a {formatPrice(1000)}
-            {" "}Blueprint fee. The provider sets its price and handles installation. You can contract directly;
+            {" "}Blueprint fee. The site may propose the provider price and conditions; the provider
+            may accept or counter. The provider handles installation. You can contract directly;
             the agreed fee still applies. No pilot purchase, no Blueprint fee.
           </p>
           <a className="ms-text-link" href="/terms">Fee details in our Terms</a>

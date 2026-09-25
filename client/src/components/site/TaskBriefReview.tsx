@@ -98,7 +98,7 @@ type AccountOutcome =
 
 const blankListing: TaskListingDetails = {
   title: "", taskFamily: "", siteType: "", region: "", objects: "",
-  cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "not_seeking",
+  cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking",
 };
 
 type Verdict = {
@@ -234,6 +234,7 @@ export function TaskBriefReview(props: {
     if (listChoice === "list") {
       if (listing.title.trim().length < 8) return "Describe the task for the public card in a few words.";
       if (listing.taskFamily.trim().length < 2) return "Add a task family for the public card.";
+      if (listing.pilotPriceStatus === "site_offer" && !listing.pilotBudget.trim()) return "Add a proposed pilot price or choose target budget.";
       if (!listingConsent) return "Confirm you reviewed the public card before listing it.";
     }
     return null;
@@ -592,6 +593,16 @@ export function TaskBriefReview(props: {
             {listingField("taskFamily", "Task family", 60, "Palletizing")}
             {listingField("objects", "Objects (optional)", 160)}
             {listingField("region", "Region (optional)", 80, "US Midwest")}
+            <details><summary>Pilot price and conditions (optional)</summary>
+              <label htmlFor="listing-price-status"><span>Price status</span><select id="listing-price-status" value={listing.pilotPriceStatus ?? "target_budget"} onChange={event => { setListing({ ...listing, pilotPriceStatus: event.target.value as TaskListingDetails["pilotPriceStatus"] }); setListingConsent(false); }}>
+                <option value="target_budget">Target budget, open to proposals</option>
+                <option value="site_offer">Site's proposed price</option>
+              </select></label>
+              {listingField("pilotBudget", listing.pilotPriceStatus === "site_offer" ? "Proposed provider pilot price (before Blueprint fee)" : "Target provider pilot budget (before Blueprint fee)", 80)}
+              <label htmlFor="listing-pilot-conditions"><span>Pilot conditions</span><textarea id="listing-pilot-conditions" value={listing.pilotConditions ?? ""} maxLength={320} onChange={event => { setListing({ ...listing, pilotConditions: event.target.value }); setListingConsent(false); }} placeholder="For example: four weeks, including setup and provider support" /></label>
+              {listingField("ongoingTarget", "Ongoing price target, if the pilot works (optional)", 80)}
+              <p className="ms-field-hint">A posted price is a proposal, not a purchase approval. Teams can accept it, ask for changes, or decline after evaluation.</p>
+            </details>
             <label htmlFor="listing-opportunity">
               <span>Pilot availability</span>
               <select

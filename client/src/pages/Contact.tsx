@@ -81,7 +81,8 @@ export default function Contact() {
               We turn your description and footage into a task brief for you to correct, then check
               which providers can credibly support it. Before inviting teams to evaluate for free,
               we ask an authorized buyer to agree to Blueprint's fee if you buy an introduced provider's pilot.
-              You see the provider's scope, price, and uncertainties before buying. Your task link
+              You may post your proposed pilot price and conditions, or a target budget if costs are uncertain.
+              Providers can accept, suggest changes, or decline. Your task link
               shows each step and the next update.
             </p>
             <p className="ms-field-hint">

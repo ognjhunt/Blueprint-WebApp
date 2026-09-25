@@ -19,7 +19,7 @@ export const faqItems = [
   {
     question: "How do you find a robot team for my task?",
     answer:
-      "We match your task to participating teams' configurations and run supported evaluations on tasks you approve for access. You see anonymized results first; each team sees its own results. If a promising team and your site both want a pilot discussion, we make a private introduction. That provider confirms its price, availability, and site conditions before you see a pilot offer.",
+      "We match your task to participating teams' configurations and run supported evaluations on tasks you approve for access. You see anonymized results first; each team sees its own results. A promising team can accept your proposed pilot terms, suggest changes, or decline. If both sides want to proceed, we make a private introduction. Evaluation alone does not commit either side to a pilot.",
   },
   {
     question: "Do I need to book a call or host Blueprint onsite?",
@@ -47,9 +47,9 @@ export const faqItems = [
       "We explain the specific mismatch or missing capability and what might need to change. If no provider can credibly support the task, we do not recommend spending on a physical pilot.",
   },
   {
-    question: "Who sets the physical pilot price?",
+    question: "Can we set the pilot price and conditions?",
     answer:
-      "The provider sets and confirms its physical-pilot price. Blueprint shows its separate 5% fee, capped at $5,000, before you buy. You can share rough affordability without an approved budget to start.",
+      "Yes. For a defined task, propose what you would pay and what the pilot must include. A provider can accept, suggest changes, or decline. If costs are still uncertain, mark the number as a target budget instead. A posted price is not a purchase order. Blueprint shows its separate 5% fee, capped at $5,000, before you buy.",
   },
   {
     question: "How is Blueprint paid?",
