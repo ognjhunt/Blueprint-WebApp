@@ -14,7 +14,7 @@ test("How it works opens its own page from desktop and mobile navigation", async
     await page.getByRole("navigation", { name: width === 390 ? "Mobile navigation" : "Main navigation", exact: true }).getByRole("link", { name: "How it works" }).click();
     await expect(page).toHaveURL(/\/how-it-works$/);
     await expect(page.locator("h1")).toContainText("From one task to a measured pilot.");
-    await expect(page.getByRole("heading", { name: "Check whether a pilot makes sense." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Review results, then an offer." })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
 });

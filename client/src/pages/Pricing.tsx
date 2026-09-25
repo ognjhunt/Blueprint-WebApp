@@ -5,7 +5,7 @@ import { entryPrice, formatPrice, pilotServiceStartingFeeUsd, siteAssessment } f
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  `Sites can submit a task and review a provider-backed pilot offer for free. If a site buys a pilot, it approves the provider's price plus Blueprint's fee, starting at ${formatPrice(pilotServiceStartingFeeUsd)}. Invited evaluations are free; optional self-directed robot-team runs cost ${formatPrice(entryPrice)} per entry.`;
+  "Submit one task, review evaluation results and a provider-backed robot pilot offer for free. Approve the provider price and Blueprint fee before paid work.";
 
 export default function Pricing() {
   return (

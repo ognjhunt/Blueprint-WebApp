@@ -54,7 +54,7 @@ test("mobile navigation and keyboard-accessible method disclosure work", async (
   await page.goto("/");
   await page.locator("summary").nth(2).focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByText(/physical results settle physical claims/)).toBeVisible();
+  await expect(page.getByText(/records the results so you can decide what follows/)).toBeVisible();
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {

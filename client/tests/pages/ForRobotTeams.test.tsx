@@ -16,8 +16,8 @@ describe("ForRobotTeams", () => {
         name: /not short of leads\. You are short of weeks/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Deployment-engineer weeks/i)).toBeInTheDocument();
-    expect(screen.getByText(/Zero engineering hours before arrival/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tell us what your robot can do and what your standard pilot includes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Evaluate the job without receiving a downloadable copy of the site/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /We prepare it\. You install it and prove it/i }),
     ).toBeInTheDocument();
