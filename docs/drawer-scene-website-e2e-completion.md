@@ -1450,12 +1450,12 @@ This matrix is for the fresh GPT-6 Sol website capture only. Earlier scenes' row
 | 8. Marble and MapAnything | **Done as estimated provider outputs** — Marble room/collider and 13 original-frame camera/depth estimates retained; MapAnything rental torn down and provider-zero passed. |
 | 9. Captured-room registration | **Blocked** — Marble anchor frame 26 is absent from the MapAnything camera sample; captured room is not qualified. |
 | 10. Articulated CAD/Blender/USD | **CPU authoring and static assembly qualification done** — under deployed `c67dd3c0`, Sol managed Agents API authored separate carcass and drawer parts with CAD/Blender renders and independent physical reviews. Stage 4 exported an articulated USD with a prismatic middle drawer, handle, closed reset, limits, link mass/inertia, collision geometry, and a passing static qualification receipt. Carcass readback is 0.508 × 0.4064 × 0.5842 m, matching the owner's reported depth/width/height. This does not prove native simulation behavior. |
-| 11. Room integration or development fixture | **Development fixture candidate built** — separately identified fixture intake and intent were admitted, and the stage-4 static USD candidate completed. Captured-room integration remains unqualified. The fixture has not passed native import or a policy episode. |
-| 12. Native import and physics | **Open** — no articulated import, reset, joint/contact or stability qualification. |
-| 13. GPU policy episodes | **Open** — no learned-policy actions or native numeric score. |
+| 11. Room integration or development fixture | **Development fixture built and handed to native execution** — the separately identified fixture passed scene-configuration publication and native import qualification. Captured-room integration remains unqualified. No policy episode has run on the fixture. |
+| 12. Native import and physics | **Done for the development fixture's qualification boundary** — the scene-configuration launch completed six stages and retained native import qualification `sha256:4c7dfe4b…` with provider-zero. This qualifies the fixture for a policy attempt; it does not show policy-driven drawer opening or captured-room validity. |
+| 13. GPU policy episodes | **Queued, not yet scored** — the release-bound WebApp run `team-eval-85e6d1ff3e66a639b2e8acf4d8a7737f-policy-canary-aef8b8388481` passed no-spend preparation, 10-cell episode compilation and activation. Its paid dispatch remains pending while another GPU run holds the Vast launch lock. No learned-policy actions or native numeric score yet. |
 | 14. Website result and teardown | **Open** — no terminal policy result visible on the task page. |
 
-Captured-room readiness: **unqualified**. Development fixture execution: **CPU stages 1–4 complete; GPU allocation and native qualification pending**.
+Captured-room readiness: **unqualified**. Development fixture execution: **CPU stages 1–4 and native qualification complete; GPU policy dispatch pending**.
 
 ### 2026-09-25 01:08 UTC — Same scene, stage 3 input correction deploying
 
