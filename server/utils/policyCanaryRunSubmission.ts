@@ -85,6 +85,7 @@ export async function policyCanarySetupFor(
   sourceLaunchId: string,
   offering: ConfiguredSceneOffering,
   selection?: { setupDigest: string; robotPresetId: string },
+  options?: { inspectionOnly?: boolean },
 ) {
   const catalog = await resolvePublishedLaunchProfileCatalog();
   if (catalog.blocker) return {
@@ -123,9 +124,9 @@ export async function policyCanarySetupFor(
     profile.internal_policy_canary_setup!.robot_presets.some((robot) =>
       robot.readiness.status === "verified_runnable"));
   const selected = selection
-    ? runnableMatches.filter((profile) => profile.internal_policy_canary_setup?.setup_digest === selection.setupDigest
+    ? (options?.inspectionOnly ? matches : runnableMatches).filter((profile) => profile.internal_policy_canary_setup?.setup_digest === selection.setupDigest
       && profile.internal_policy_canary_setup.robot_presets.some((robot) => robot.robot_preset_id === selection.robotPresetId
-        && robot.readiness.status === "verified_runnable"))
+        && (options?.inspectionOnly || robot.readiness.status === "verified_runnable")))
     : runnableMatches.slice().sort((a, b) => a.profile_id.localeCompare(b.profile_id)).slice(0, 1);
   if (selected.length !== 1 || duplicateChoices) return {
     ok: false as const,

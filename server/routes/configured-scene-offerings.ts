@@ -456,10 +456,11 @@ router.get("/:launchId/policy-canary-setup", async (req, res) => {
     ));
   }
   const setup = await policyCanarySetupFor(req.params.launchId, resolved.offering,
-    hasSelection ? { setupDigest: setupDigest as string, robotPresetId: robotPresetId as string } : undefined);
+    hasSelection ? { setupDigest: setupDigest as string, robotPresetId: robotPresetId as string } : undefined,
+    { inspectionOnly: true });
   if (!setup.ok) return res.status(setup.status).json(policyCanaryError(
     setup.code,
-    "A verified runnable policy-canary setup is not published for this exact configured revision.",
+    "A policy-canary setup is not published for this exact configured revision.",
   ));
   res.set("Cache-Control", "private, no-store");
   return res.status(200).json({

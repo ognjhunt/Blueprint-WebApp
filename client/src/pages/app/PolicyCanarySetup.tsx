@@ -115,6 +115,7 @@ export default function PolicyCanarySetup() {
 
   const robot = setup?.robot_presets.find((item) => item.robot_preset_id === robotId) || null;
   const preset = setup?.episode_presets.find((item) => item.preset_id === "quick_10") || null;
+  const inspectOnly = Boolean(robot && robot.readiness.status !== "verified_runnable");
   const canContinueSetup = Boolean(robot && policyIds.length === 2 && policyIds.every((id) => robot.policy_candidates.some((candidate) => candidate.candidate_id === id && !optionReason(candidate, robot))));
 
   async function changeRobot(choice: string) {
@@ -195,7 +196,7 @@ export default function PolicyCanarySetup() {
   }
 
   const emailAllowed = Boolean(setup?.notification_recipient_options.includes(email.toLowerCase()));
-  const canSubmit = canContinueSetup && confirmed && interpretationConfirmed && Boolean(confirmedSuccessContract) && emailAllowed && !submitting && !switching;
+  const canSubmit = !inspectOnly && canContinueSetup && confirmed && interpretationConfirmed && Boolean(confirmedSuccessContract) && emailAllowed && !submitting && !switching;
   const otherSizes = setup?.episode_presets.filter((item) => item.preset_id !== "quick_10" && item.availability !== "enabled") || [];
 
   return <AppShell active="packs" breadcrumb="tasks / policy test">
@@ -208,17 +209,17 @@ export default function PolicyCanarySetup() {
     {!setup && !error ? <BuyerAppLoadingState /> : null}
     {error ? <BuyerAppErrorState message={error} /> : null}
     {setup && robot && preset ? <form className="ws-form flex flex-col gap-12" onSubmit={(event) => { event.preventDefault(); if (canSubmit) void submit(); }}>
-      <p className="max-w-3xl text-ink-700">
+      {!inspectOnly ? <p className="max-w-3xl text-ink-700">
         This scene's control checks haven't passed yet, so the results are unqualified: they can't rank policies or
         promote the scene. Scenarios where a control check fails are left unscored, not counted against a policy.
-      </p>
+      </p> : null}
 
       <section aria-labelledby="policy-test-robot">
         <h2 id="policy-test-robot">Robot and policies</h2>
         <div className="ws-fields mt-5">
           <Field label="Robot" wide>
             <select value={`${setup.setup_digest}:${robot.robot_preset_id}`} disabled={switching} onChange={(event) => { void changeRobot(event.target.value); }}>
-              {setup.available_setups.map((item) => <option key={`${item.setup_digest}:${item.robot_preset_id}`} value={`${item.setup_digest}:${item.robot_preset_id}`} disabled={item.readiness.status !== "verified_runnable" && item.setup_digest !== setup.setup_digest}>
+              {setup.available_setups.map((item) => <option key={`${item.setup_digest}:${item.robot_preset_id}`} value={`${item.setup_digest}:${item.robot_preset_id}`}>
                 {item.display_name}{item.readiness.status === "verified_runnable" ? "" : " (unavailable)"}
               </option>)}
             </select>
@@ -226,19 +227,34 @@ export default function PolicyCanarySetup() {
         </div>
         {robot.readiness.status !== "verified_runnable" ? <p className="ws-note mt-4" role="status">{robot.readiness.reason}</p> : null}
         <fieldset className="mt-6">
-          <legend className="text-sm">{robot.readiness.status === "verified_runnable" ? "Choose two policies" : "Policies for this robot"}</legend>
+          <legend className="text-sm">Choose two policies</legend>
           {robot.policy_candidates.map((candidate) => {
             const reason = optionReason(candidate, robot);
             const checked = policyIds.includes(candidate.candidate_id);
-            const disabled = Boolean(reason) || (!checked && policyIds.length >= 2);
+            const selectedPolicy = robot.policy_candidates.find((item) => policyIds.includes(item.candidate_id));
+            const differentObjective = selectedPolicy && !checked
+              && (selectedPolicy.evaluation_objective_id || "task_success") !== (candidate.evaluation_objective_id || "task_success");
+            const disabled = !compatible(candidate, robot)
+              || (!inspectOnly && Boolean(reason))
+              || (!checked && (policyIds.length >= 2 || differentObjective));
             return <label key={candidate.candidate_id} className="ws-check">
               <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => setPolicyIds(event.target.checked ? [...policyIds, candidate.candidate_id] : policyIds.filter((id) => id !== candidate.candidate_id))} />
-              <span>{candidate.display_name}{reason ? <span className="block text-sm text-ink-500">{reason}</span> : null}</span>
+              <span>{candidate.display_name}{inspectOnly ? <span className="block text-sm text-ink-500">{candidate.evaluation_objective_id === "g1_navigation_goal" ? "Movement goal" : "Task success"}</span> : null}{reason ? <span className="block text-sm text-ink-500">{reason}</span> : null}</span>
             </label>;
           })}
-          {robot.readiness.status === "verified_runnable" ? <p className="ws-note">Both policies run the same scenarios with the same starting conditions and scoring.</p> : null}
+          <p className="ws-note">{inspectOnly
+            ? "Choose policies for the same objective to plan a pair. This robot and scene still need a verified execution profile before a run can start."
+            : "Both policies run the same scenarios with the same starting conditions and scoring."}</p>
         </fieldset>
       </section>
+
+      {inspectOnly ? <section aria-labelledby="policy-test-inspection">
+        <h2 id="policy-test-inspection">Selected policies</h2>
+        <p>{policyIds.length === 2
+          ? robot.policy_candidates.filter((candidate) => policyIds.includes(candidate.candidate_id)).map((candidate) => candidate.display_name).join(" and ")
+          : "Choose two compatible policies above to inspect a pair."}</p>
+        <p className="ws-note">This choice is for planning on this page. No simulator run or payment starts.</p>
+      </section> : null}
 
       {robot.readiness.status === "verified_runnable" ? <>
       <section aria-labelledby="policy-test-size">
@@ -310,8 +326,8 @@ export default function PolicyCanarySetup() {
           <div><dt>Actions</dt><dd>{robot.action_schema.space} · {robot.action_schema.control_hz} Hz</dd></div>
           <div><dt>Task family</dt><dd className="break-all">{robot.task_family_id}</dd></div>
           {robot.policy_candidates.map((candidate) => <div key={candidate.candidate_id}><dt>{candidate.display_name}</dt><dd className="break-all">{candidate.candidate_id} · {candidate.adapter_id} · {candidate.license_id}</dd></div>)}
-          <div><dt>Scenario set</dt><dd className="break-all">{preset.matrix.matrix_digest}</dd></div>
-          <div><dt>Estimate basis</dt><dd className="break-all">{preset.estimate.basis_digest} · {preset.estimate.as_of}</dd></div>
+          {!inspectOnly ? <><div><dt>Scenario set</dt><dd className="break-all">{preset.matrix.matrix_digest}</dd></div>
+          <div><dt>Estimate basis</dt><dd className="break-all">{preset.estimate.basis_digest} · {preset.estimate.as_of}</dd></div></> : null}
         </dl>
       </details>
     </form> : null}

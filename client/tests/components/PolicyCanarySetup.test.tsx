@@ -293,4 +293,65 @@ describe("PolicyCanarySetup", () => {
       policy_candidate_ids: ["g1_policy_0", "g1_policy_1"],
     });
   });
+
+  it("inspects an unavailable G1 pair from another setup without starting a run", async () => {
+    const franka = setup();
+    const g1 = setup();
+    g1.setup_digest = sha("7");
+    const robot = g1.robot_presets[0];
+    robot.robot_preset_id = "unitree_g1_dex3_sonic_v1";
+    robot.embodiment_id = "unitree_g1_dex3_v1";
+    robot.display_name = "Unitree G1 + Dex3 / SONIC";
+    robot.readiness = { status: "unavailable", receipt: null, reason: "No verified G1 episode for this scene." };
+    const base = robot.policy_candidates[0];
+    robot.policy_candidates = [
+      ["G1 DP manipulation", "task_success"],
+      ["G1 π0.5 manipulation", "task_success"],
+      ["G1 DP navigation", "g1_navigation_goal"],
+      ["G1 π0.5 navigation", "g1_navigation_goal"],
+    ].map(([displayName, objective], index) => ({
+      ...base,
+      candidate_id: `g1_policy_${index}`,
+      display_name: displayName,
+      evaluation_objective_id: objective as "task_success" | "g1_navigation_goal",
+      compatibility: {
+        ...base.compatibility,
+        robot_preset_ids: [robot.robot_preset_id],
+        embodiment_ids: [robot.embodiment_id],
+      },
+      readiness: { status: "unavailable" as const, receipt: null, reason: "Checkpoint episode required." },
+    }));
+    const choices = [franka.available_setups[0], {
+      setup_digest: g1.setup_digest,
+      robot_preset_id: robot.robot_preset_id,
+      display_name: robot.display_name,
+      task_family_id: robot.task_family_id,
+      readiness: robot.readiness,
+    }];
+    franka.available_setups = choices;
+    g1.available_setups = choices;
+    fetchPolicyCanarySetup.mockImplementation(async (_user, _launch, selection) => selection ? g1 : franka);
+    const { createPolicyCanaryRun } = await import("@/lib/policyCanaryRuns");
+    vi.mocked(createPolicyCanaryRun).mockReset();
+    const { default: PolicyCanarySetup } = await import("../../src/pages/app/PolicyCanarySetup");
+    render(<PolicyCanarySetup />);
+
+    await screen.findByRole("checkbox", { name: "PI 0.5 DROID" });
+    const g1Option = screen.getByRole("option", { name: /Unitree G1 \+ Dex3/ });
+    expect(g1Option).toHaveProperty("disabled", false);
+    fireEvent.change(screen.getByLabelText("Robot"), {
+      target: { value: `${sha("7")}:${robot.robot_preset_id}` },
+    });
+    const dp = await screen.findByRole("checkbox", { name: /G1 DP manipulation/ });
+    const pi = screen.getByRole("checkbox", { name: /G1 π0\.5 manipulation/ });
+    const navigation = screen.getByRole("checkbox", { name: /G1 DP navigation/ });
+    expect(dp).toHaveProperty("disabled", false);
+    fireEvent.click(dp);
+    expect(navigation).toHaveProperty("disabled", true);
+    fireEvent.click(pi);
+    expect(screen.getByText("G1 DP manipulation and G1 π0.5 manipulation")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start policy test" })).toBeNull();
+    expect(screen.queryByText(/10 scenarios per policy/)).toBeNull();
+    expect(vi.mocked(createPolicyCanaryRun)).not.toHaveBeenCalled();
+  });
 });
