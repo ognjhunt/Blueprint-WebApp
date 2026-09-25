@@ -197,6 +197,35 @@ function operatorRegistration(body: Record<string, any>, parent: Record<string, 
   return operatorPolicyCanaryRegistrationSchema.parse(value);
 }
 
+function bindWebsiteArticulatedOmission(body: Record<string, any>) {
+  const contract: Record<string, any> = {
+    schema_version: "articulated_task_success_contract.v1",
+    scope: { site_id: body.capture_session_id, task_id: "middle-drawer-open" },
+    provenance: { author_source: "task_owner", author_id: "owner", confirmation_status: "confirmed",
+      confirmed_by_team_id: "team-1", proposal_digest: null },
+    criteria: {
+      target_joint: { joint_id: "middle_drawer_joint", joint_ids: ["middle_drawer_joint"] },
+      opening: { mode: "required", success_interval: [0.2286, 0.381], joint_hard_limits: [0, 0.381], reset_position: 0 },
+      hold: { mode: "required", window_samples: 15, maximum_settled_target_speed: 0.02 },
+      locked_joints: { mode: "required", joint_ids: [], motion_tolerance: 0.01 },
+      reset: { tolerance: 0.005 }, motion: { movement_epsilon: 0.003 },
+      assembly_root: { mode: "required" }, safety: { mode: "required" },
+      temporal_invariants: { schema_version: "articulated_task_event_ledger_expectation.v1",
+        rebound_below_threshold_allowed: false, forbidden_collision_allowed: false,
+        joint_limit_violation_allowed: false, assembly_root_excursion_allowed: false },
+    },
+    contract_digest: sha("0"),
+  };
+  contract.contract_digest = canonicalArtifactDigest(contract, "contract_digest");
+  body.policy_canary_result.task_success_contract = contract;
+  body.policy_canary_result.task_success_contract_digest = contract.contract_digest;
+  body.policy_canary_result.control_omission.task_success_contract_digest = contract.contract_digest;
+  body.result_delivery.control_omission.task_success_contract_digest = contract.contract_digest;
+  body.result_delivery.delivery_digest = canonicalArtifactDigest(body.result_delivery, "delivery_digest");
+  body.policy_canary_result.result_delivery_digest = body.result_delivery.delivery_digest;
+  body.policy_canary_result.projection_digest = canonicalArtifactDigest(body.policy_canary_result, "projection_digest");
+}
+
 async function registerOperator(registration: ReturnType<typeof operatorRegistration>, actorId = "blueprint-production-runner") {
   process.env.BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL = "ohstnhunt@gmail.com";
   const result = { status: 0, body: {} as Record<string, any> };
@@ -840,7 +869,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
     }
   });
 
-  it.each(["legacy-compatible", "mixed-case", "website-controls-omitted", "controller-owned"])("stores a %s v4 canary publication and returns one exactly-once accepted notification receipt", async (variant) => {
+  it.each(["legacy-compatible", "mixed-case", "website-controls-omitted", "website-articulated-controls-omitted", "controller-owned"])("stores a %s v4 canary publication and returns one exactly-once accepted notification receipt", async (variant) => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
     state.sendEmail.mockResolvedValue({
@@ -864,10 +893,11 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       body.policy_canary_result.projection_digest = canonicalArtifactDigest(body.policy_canary_result, "projection_digest");
       state.collections.set("taskEvaluationSceneIntakes", new Map([[owner.id, owner.record]]));
     }
-    if (variant === "website-controls-omitted") {
+    if (variant === "website-controls-omitted" || variant === "website-articulated-controls-omitted") {
       operatorRegistration(body, offeringRecord);
       delete body.operator_registration_digest;
       delete body.plan_digest;
+      if (variant === "website-articulated-controls-omitted") bindWebsiteArticulatedOmission(body);
     }
     state.collections.set("taskEvaluationLaunches", new Map([[
       body.capture_session_id,
@@ -921,7 +951,7 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
       .not.toBe(offeringRecord.configured_scene_offering_digest);
     const { server, socketPath } = await startServer();
     try {
-      if (variant === "website-controls-omitted") {
+      if (variant === "website-controls-omitted" || variant === "website-articulated-controls-omitted") {
         const saved = state.collections.get("taskEvaluationPolicyRuns")!.get(body.run_id)!;
         const contract = saved.task_success_contract;
         delete saved.task_success_contract;
