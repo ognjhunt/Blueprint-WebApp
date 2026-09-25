@@ -100,7 +100,7 @@ test("brand polish QA sweeps key public routes", async ({ page, request }) => {
     for (const route of publicQaRoutes) {
       for (const viewport of qaViewports) {
         const currentRoute = ["/contact/robot-team", "/for-robot-teams", "/robot-team/eval", "/robot-intake"].includes(route.path)
-          ? { ...route, expectedHeading: "Find work your robot could do.", requiredCtas: [{ label: "Agent API (OpenAPI spec, JSON)", hrefStartsWith: "/agent-access.openapi.json" }] }
+          ? { ...route, expectedHeading: "Find a task your robot can support.", requiredCtas: [{ label: "Agent API (OpenAPI spec, JSON)", hrefStartsWith: "/agent-access.openapi.json" }] }
           : route;
         const result = await auditRouteViewport(page, currentRoute, viewport, {
           consoleErrors,

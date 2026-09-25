@@ -3,8 +3,8 @@
   "info": {
     "title": "Blueprint Robot-Team Agent API",
     "version": "2026-07-29",
-    "summary": "Headless Task Evaluation Run discovery, request drafting, and legacy-read compatibility for robot-team agents.",
-    "description": "Blueprint exposes capture-backed testbed discovery and Task Evaluation Run intake. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls, but new standalone commerce is retired."
+    "summary": "Headless discovery of scoped site tasks and bounded evaluation tools for robot teams.",
+    "description": "Blueprint helps businesses scope recurring tasks, assess suitable robot providers, coordinate measured physical pilots by separate agreement, and decide what follows. This API exposes capture-backed task discovery and Task Evaluation Run intake for robot teams; it does not authorize a physical pilot. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls, but new standalone commerce is retired."
   },
   "servers": [
     {

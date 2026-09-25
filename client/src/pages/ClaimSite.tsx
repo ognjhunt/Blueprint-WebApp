@@ -293,7 +293,7 @@ export function ClaimSite() {
         <h1>This site is yours.</h1>
         <p className="ms-field-hint">
           {stage.summary.site.siteName || "Your site"} is now in your workspace. You can pause its
-          listing at any time — pausing removes it from what robot teams can run against, and your
+          listing at any time — pausing removes it from what robot teams can assess, and your
           footage and rights are unchanged.
         </p>
         <a className="ms-button ms-button-large" href="/app">

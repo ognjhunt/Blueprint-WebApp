@@ -144,8 +144,8 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
       <div className="ms-task-empty">
         <h2>Early access for robot teams.</h2>
         <p>
-          We are opening Blueprint to robot teams a few at a time. Tell us what your robot does and the
-          work you want to test it on.
+          Blueprint is in early access. Approved teams choose a real site task to assess, confirm what
+          their hardware and support can deliver, and pursue a scoped physical pilot when there is a fit.
         </p>
       </div>
       <ApplicationForm email={email} />

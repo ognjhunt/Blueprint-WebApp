@@ -204,11 +204,11 @@ describe("build output", () => {
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
     expect(llms).toContain("$99 per policy entry");
-    expect(llmsFull).toContain("simulation is not a deployment guarantee");
+    expect(llmsFull).toMatch(/simulation is not physical proof or a deployment guarantee/i);
     expect(llmsFull).toContain("Robot teams join by early access");
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/pricing");
-    expect(llms).toContain("Sites pay nothing for assessment or scene preparation");
+    expect(llms).toContain("Sites pay nothing for initial assessment or scene preparation");
 
   });
 
@@ -216,29 +216,29 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("Your site.");
-    expect(homeHtml).toContain("A pilot worth running.");
+    expect(homeHtml).toContain("One recurring task.");
+    expect(homeHtml).toContain("A measured robot pilot.");
     expect(homeHtml).toContain("Illustrative scenes");
-    expect(homeHtml).toContain("clear reason to pause");
+    expect(homeHtml).toContain("no credible fit yet");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).not.toContain("The site pays nothing");
     for (const file of ["index.html", "how-it-works/index.html", "contact/robot-team/index.html", "contact/site-operator/index.html"]) {
       expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
     }
-    expect(siteHtml).toContain("Let’s start with your site.");
+    expect(siteHtml).toContain("Start with one recurring task.");
     // The published site form keeps the task and consent, without the retired
     // screening interview. These assertions inspect actual prerendered HTML.
     expect(siteHtml).toContain("What is the job?");
-    expect(siteHtml).toContain("Describe a repetitive job, then share footage of the work area.");
+    expect(siteHtml).toContain("Describe the work and share photos or phone video.");
     expect(siteHtml).toContain("How this works");
     expect(siteHtml).toContain('id="start-self-recording"');
     expect(siteHtml).toContain('id="start-region"');
     expect(siteHtml).toContain('id="start-rights"');
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
-    expect(robotHtml).toContain("Find work your robot could do.");
-    expect(robotHtml).toContain("Blueprint is in early access. Approved teams choose a real site task");
+    expect(robotHtml).toContain("Find a task your robot can support.");
+    expect(robotHtml).toContain("Spend less time on unsuitable opportunities. Approved teams review site-approved tasks");
     // Early access: nothing library-shaped is prerendered. The page asks the
     // server who is looking before it shows tasks or the setup form.
     expect(robotHtml).not.toContain("Already have a robot policy to evaluate?");
@@ -278,8 +278,8 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("A pilot worth running.");
-    expect(browserJavaScript).toContain("What the footage shows is what decides");
+    expect(browserJavaScript).toContain("A measured robot pilot.");
+    expect(browserJavaScript).toContain("We turn your description and footage into a task brief");
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {

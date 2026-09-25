@@ -16,10 +16,10 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       errors.push(error.message);
     });
     for (const [name, path, heading] of [
-      ["home", "/", "Your site."],
-      ["how", "/how-it-works", "the robot that fits your task"],
-      ["site", "/contact/site-operator", "Let’s start with your site."],
-      ["robot", "/contact/robot-team", "Find work your robot could do."],
+      ["home", "/", "One recurring task."],
+      ["how", "/how-it-works", "From one task to a measured pilot."],
+      ["site", "/contact/site-operator", "Start with one recurring task."],
+      ["robot", "/contact/robot-team", "Find a task your robot can support."],
       ["privacy", "/privacy", "Privacy Policy"],
       ["terms", "/terms", "Terms of Service"],
       ["not-found", "/this-page-does-not-exist", "That page isn’t here."],
@@ -50,11 +50,11 @@ test("mobile navigation and keyboard-accessible method disclosure work", async (
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
   await expect(page).toHaveURL(/\/how-it-works$/);
-  await expect(page.locator("h1")).toContainText("the robot that fits your task");
+  await expect(page.locator("h1")).toContainText("From one task to a measured pilot.");
   await page.goto("/");
   await page.locator("summary").nth(2).focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByText(/clear reason to pause/)).toBeVisible();
+  await expect(page.getByText(/physical results settle physical claims/)).toBeVisible();
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {

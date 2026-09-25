@@ -8,7 +8,7 @@ export const faqItems = [
   {
     question: "What does Blueprint do?",
     answer:
-      "We record one real job, rebuild it as a test every robot takes, find out which robots can do it, and hand the gaps and the pass mark to the team doing the install. We only take sites that want a pilot and have budget for one.",
+      "We help a business define one recurring task, check whether a robot provider can credibly support it, scope a funded physical pilot, measure the trial, and decide what happens next. A provider or integrator installs and operates the robot.",
   },
   {
     question: "Why is that useful?",
@@ -28,7 +28,7 @@ export const faqItems = [
   {
     question: "Does Blueprint replace the physical pilot?",
     answer:
-      "No. Simulation can filter and focus the trip. Real hardware is still required to prove uptime, throughput, reliability and safety at the actual site.",
+      "No. We can help coordinate and measure an agreed physical pilot. Real hardware and the responsible site and provider teams are still required to establish onsite performance and safety.",
   },
   {
     question: "Do robot teams download the site twin?",
@@ -38,12 +38,12 @@ export const faqItems = [
   {
     question: "What if a robot does not fit?",
     answer:
-      "That is a useful result — and often the most valuable one, because it stops a pilot that would have failed. Blueprint reports the mismatch and what would have to change. It never invents a winner.",
+      "We explain the specific mismatch or missing capability and what might need to change. If no provider can credibly support the task, we do not recommend spending on a physical pilot.",
   },
   {
     question: "How is Blueprint paid?",
     answer:
-      "Robot teams pay $99 per entry — one policy, on one embodiment, against one task at one site. Three policies on one task is $297; three policies on two tasks is $594. We decide how much evaluation an entry gets and run it, so there is nothing more to pay later. Nothing recurring, no seat or listing fee, and sites pay nothing.",
+      "Initial site assessment and evaluation are free for the site. Robot teams pay $99 per entry — one policy, on one embodiment, against one task at one site. Three policies on one task is $297; three policies on two tasks is $594. An entry has no later supplier commission. For a suitable physical pilot, Blueprint can separately quote a fixed site-paid fee for preparation, coordination, and measurement. The provider's installation and operation charges are separate and the site approves all commitments.",
   },
 ];
 
@@ -52,14 +52,14 @@ export default function FAQ() {
     <>
       <SEO
         title="FAQ | Robot evaluation and deployment | Blueprint"
-        description="Plain answers about how we record a job, test robots against it, hand off the deployment, and what we charge."
+        description="Plain answers about scoping a task, arranging a measured robot pilot, physical responsibilities, and pricing."
         canonical="/faq"
         jsonLd={[
           webPageJsonLd({
             path: "/faq",
             name: "Blueprint deployment preparation FAQ",
             description:
-              "Plain-English questions and answers about Blueprint's months 0–2 use case.",
+              "Plain-English questions and answers about Blueprint's managed robot pilot service.",
           }),
           faqJsonLd(faqItems),
         ]}
@@ -72,7 +72,7 @@ export default function FAQ() {
               Plain English
             </p>
             <h1 className="mt-6 max-w-[17ch] font-display uppercase text-[clamp(2.8rem,5.5vw,5.4rem)] font-semibold leading-[0.96] tracking-[0.005em] text-runway-text">
-              We find the robot that can do the job, then help you deploy it.
+              We help turn one task into a measured pilot.
             </h1>
             <p className="mt-7 max-w-[44rem] text-body-l leading-8 text-runway-mute">
               Short answers. No jargon.

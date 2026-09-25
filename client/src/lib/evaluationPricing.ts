@@ -1,8 +1,11 @@
 /**
- * What Blueprint charges. Two numbers, and no third one anywhere.
+ * Published prices for initial assessment and robot-team evaluation.
  *
  *   $0    a site pays nothing to find out.
  *   $99   a robot team pays per entry.
+ *
+ * Pilot preparation, coordination, and measurement are a separate site-paid
+ * service quoted for a specific physical trial. This module does not price it.
  *
  * WHAT AN ENTRY IS. One policy, running on one embodiment, against one task at
  * one site. Both halves are part of the unit: the same policy on a second
@@ -35,9 +38,9 @@
  * rooms running real repeated tasks with permission to be captured — not funded
  * robot teams starved of deployment data.
  *
- * WHAT A SITE IS AND IS NOT GIVEN. Free covers finding out: the capture, the
- * reconstruction, the evaluation, and the answer about who clears their
- * constraints. It does not cover acting on it. A physical pilot is a real
+ * WHAT A SITE IS AND IS NOT GIVEN. Free covers finding out: task scoping,
+ * capture and evaluation when useful, and an answer about provider fit. It
+ * does not cover acting on it. A physical pilot is a real
  * commitment with real cost, and that is where a site's money belongs — at the
  * point there is something to buy rather than something to learn.
  *
@@ -71,20 +74,20 @@ export const entryPrice = 99;
 /** The smallest top-up Stripe will charge. Mirrors `MIN_TOPUP_USD` on the server. */
 export const minTopupUsd = entryPrice;
 
-/** What a site pays to find out: nothing. */
+/** What a site pays for initial screening and evaluation: nothing. */
 export const siteAssessment = {
   amount: 0,
   unit: "to find out",
   summary: "An assessment of one task at one site.",
   covers: [
-    "The task defined: objects, cycle, exceptions, and the pass mark everything is measured against.",
-    "The site captured and rebuilt as the environment entries are evaluated in.",
-    "Every entry a robot team puts on the task, evaluated against it.",
-    "A pilot recommendation, the expected failure points, and a physical test plan — or a clear reason to pause.",
+    "The task defined: objects, cycle, exceptions, budget range, timing, and the pass mark for a trial.",
+    "A check of which providers can credibly support the job, with capture and controlled evaluation when useful.",
+    "A clear answer: ready for a trial, specific changes needed, or no credible fit yet.",
+    "For a credible fit, proposed success measures and a physical test plan to approve before spending.",
   ],
   allIn:
-    "No fee, no card, and nothing per run. You record one walkthrough on a phone; nothing is invoiced for any of the work above.",
-  bounded: "The final comparison covers up to five candidates.",
+    "No fee, no card, and nothing per run for the assessment above. You can start with a description and share phone footage when it helps.",
+  bounded: "When a comparison is useful, it covers up to five candidates.",
   /**
    * Precise about what a robot team actually receives, because the loose
    * version — "they buy your footage" — is both wrong and alarming. They buy
@@ -96,9 +99,9 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Robot teams pay for evaluation runs, and that is what funds this. They never receive your recording — it is reconstructed into a 3D scene, and the scene is what their robots are tested in, under the rights you grant at intake and nothing wider.",
+    "Robot teams pay for evaluation runs when we run them. A site may separately pay Blueprint for pilot coordination after approving a quote. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
-    "A physical pilot. That is a real commitment with real cost, quoted when there is something to buy rather than something to learn.",
+    "A physical pilot and any Blueprint pilot preparation, coordination, or measurement service. We quote that work separately for the site to approve; the provider or integrator quotes installation and operation.",
 } as const;
 
 /** How a robot team pays. No plan, no seat, no listing fee, no meter. */

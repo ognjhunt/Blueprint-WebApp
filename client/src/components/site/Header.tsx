@@ -30,13 +30,13 @@ const signupLinks = [
   {
     href: "/signup/business?buyerType=robot_team&source=header-signup",
     label: "Robot team",
-    description: "Real site jobs with a budget behind them. Test robot fit before you commit deployment engineers.",
+    description: "Review scoped site tasks, confirm what your team can support, and focus on credible physical pilots.",
     Icon: Bot,
   },
   {
     href: "/signup/business?buyerType=site_operator&source=header-signup",
     label: "Site operator",
-    description: "Show us one job you want a robot to do. We find which robots can actually do it.",
+    description: "Start with one recurring job. We help assess fit, scope a measured pilot, and decide what follows.",
     Icon: ShieldCheck,
   },
 ] as const;

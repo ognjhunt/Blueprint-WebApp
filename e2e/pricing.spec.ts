@@ -4,7 +4,7 @@ test("pricing keeps the site's bill and the robot team's bill apart", async ({ p
   await page.goto("/pricing");
   await expect(page).toHaveURL(/\/pricing$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "Robot teams pay $99 an entry.",
+    "Agree on pilot costs before you commit.",
   );
 
   const site = page.locator("section", { has: page.getByRole("heading", { name: /assessment of one task at one site/i }) });
@@ -78,7 +78,7 @@ test("legacy offer URLs still land on the pricing page itself", async ({ page, r
   await page.goto("/data-packages");
   await expect(page).toHaveURL(/\/pricing/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "Robot teams pay $99 an entry.",
+    "Agree on pilot costs before you commit.",
   );
 });
 

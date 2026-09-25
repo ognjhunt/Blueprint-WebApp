@@ -36,7 +36,7 @@ import {
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Sites pay nothing to find out whether a robot can do the job. Robot teams pay $99 for each policy they put on a site task — and nothing more.";
+  "Initial task screening is free for sites. Pilot preparation, coordination, and measurement are quoted separately. Robot evaluation entries remain $99 each.";
 
 export default function Pricing() {
   return (
@@ -57,10 +57,11 @@ export default function Pricing() {
       <article className="ms-pricing ms-container">
         <header className="ms-pricing-intro">
           <p className="ms-eyebrow">Pricing</p>
-          <h1>Sites pay nothing.<br />Robot teams pay {formatPrice(entryPrice)} an entry.</h1>
+          <h1>Start free.<br />Agree on pilot costs before you commit.</h1>
           <p>
-            Only robot teams pay. A site records a walkthrough and gets an answer; robot teams pay
-            for each policy they put on a task, and that pays for the work.
+            A site can describe a task and get an assessment without a card. If there is a credible
+            physical pilot, Blueprint's preparation, coordination, and measurement are a separately
+            agreed service. The provider's installation and operation charges are separate too.
           </p>
         </header>
 
@@ -78,9 +79,9 @@ export default function Pricing() {
             <p className="ms-price-note"><strong>{siteAssessment.allIn}</strong></p>
             <p className="ms-price-note">{siteAssessment.bounded}</p>
             {/*
-              Said plainly on the page rather than buried in terms. A site that
-              pays nothing is not the customer, and letting someone discover
-              that later is the dishonest version of this model.
+              Said plainly on the page rather than buried in terms. The free
+              assessment and a separately quoted, site-paid pilot service are
+              different commitments.
             */}
             <p className="ms-price-note">{siteAssessment.whatWeGetFromIt}</p>
             <p className="ms-price-note">
@@ -119,6 +120,16 @@ export default function Pricing() {
           embodiment, or a second policy, is a second bill. Both are. So the
           definition sits directly under the number rather than in the rules.
         */}
+        <section className="ms-price-block" aria-labelledby="pilot-service-title">
+          <h2 id="pilot-service-title">Pilot coordination</h2>
+          <p>For a suitable task, we can help agree on the supplier, scope, cost, success criteria,
+            responsibilities, and measurement plan, then stay involved through the decision after
+            the trial. We quote a fixed site-paid fee for that work before it begins. The site
+            approves it; the robot provider or integrator quotes its own deployment work.</p>
+          <p className="ms-price-note">This is a separate agreement. A {formatPrice(entryPrice)} robot-team
+            evaluation entry carries no later supplier commission, including if that team is selected.</p>
+        </section>
+
         <section className="ms-price-block" aria-labelledby="entry-title">
           <h2 id="entry-title">What one entry is</h2>
           <p className="ms-price-definition">{entryDefinition}</p>
