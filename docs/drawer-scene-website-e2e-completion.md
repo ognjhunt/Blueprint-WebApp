@@ -106,8 +106,8 @@ centred on the middle drawer front.
 | 7 | Provider-capacity view selection, wider context, originals preserved | View manifest with provider maximum and digests | **done** — retained 14 candidate views, five digest-bound prepared views admitted to the configured Marble 1.1 Plus multi-image input; originals remain separate |
 | 8 | Marble reconstruction/preview, durable provider artifacts, estimated geometry/scale/registration | Provider operation receipt, splat/collider digests, MapAnything estimate | **partial: Marble and MapAnything acquired; registration refused** — World Labs operation `51323203-7420-421a-a460-d6aa6ea63745` produced world `baffc3ca-4c87-45dc-8531-52c3275820ed` for 1,600 credits ($1.28). Collider GLB and full-resolution splat SPZ were materialized and website visual publication written. The third bounded MapAnything rental returned 13 original-frame camera/depth estimates; execution `completed`, teardown `PASS`, provider-zero `PASS`. These are estimates, not measurements. Marble's anchor frame 34 is absent from MapAnything's sample, and registration refused. |
 | 9 | Task-space/cabinet registration, removal/replacement boundary, provenance-tagged facts | Registration receipt with source/estimated/generated labels | unproven |
-| 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | unproven |
-| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff accepted; CPU authoring blocked** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. Two CPU attempts reached articulated asset authoring but neither produced a complete cabinet-and-drawer asset or native import receipt. Captured-room integration remains unqualified. |
+| 10 | Controller-created articulated CAD/Blender/USD asset with independent static validation | Multi-link USD, joint data, references, static qualification receipt | **partial: packaged candidate, no accepted assembly** — the latest `89c7bd02` attempt authored separate carcass and drawer parts, passed independent appearance review, and packaged an articulated USDZ with the middle drawer as the prismatic task link. The stage-3 adapter refused a real input mismatch: the task requested a 0.1222 m stroke, while the shallow 0.16287 m source box forced the plan to 0.07487 m. No stage-4 static qualification receipt exists. Merged Pipeline fixes add a scene-bound development depth estimate and pre-CAD gate, but have not been deployed or run live. |
+| 11 | Room integration with local geometry workaround, or separately identified development fixture | Integration receipt OR fixture receipt with explicit world label | **partial: fixture handoff, assembly not accepted** — the controller wrote separately named `development_drawer_fixture` construction, rights, and runtime inputs; the website accepted and forwarded the handoff, and the control plane registered its intent. The latest CPU attempt stopped before static or native qualification. Captured-room integration remains unqualified. |
 | 12 | Native articulated import/reset/limits/contact/physics qualification | Native qualification receipt with assumptions | unproven |
 | 13 | Robot team selects saved compatible setup; learned policies execute on GPU, controls skipped | Episode receipts with camera frames, actions, joint trajectories, metrics, failure reasons | unproven |
 | 14 | Results/replay/media and honest status on the same website task page; thumbnail visible; provider-zero after teardown | Browser readback + provider-zero receipt | unproven |
@@ -1086,3 +1086,477 @@ simulation holds are $5 plus $13 against its fixed $20 limit, while another
 full articulated attempt is quoted at $13. No further paid attempt is implied
 by the code merge. Steps 10 and 12–14 remain unproven; step 11 remains a
 separately labeled development fixture handoff, not captured-room readiness.
+
+## 2026-09-23: owner grant and third fixture attempt
+
+The scene's original simulation authority was $20 through 18:50:52 UTC on
+2026-09-23. Signed terminal settlements stayed intact. The controller's
+evidence-bound budget projection retained $5 for one prior CPU attempt and
+$13 for the latest unreconciled attempt, or $18 in all; the next attempt
+quoted $7 CPU authoring plus $6 native compute. The owner explicitly
+authorized raising this scene's spend cap. The existing append-only owner
+grant set the cumulative simulation cap to **$31**, the minimum that admits
+one more $13 attempt, while keeping the 16-attempt limit and per-attempt
+limits. Grant digest:
+`sha256:2b657b24ebf6dc857714626fd31519a5676ef597d4debe0dab1c48e4be4b6851`.
+This is additional internal development exposure; the website's fixed $25
+task price and no-charge development handling were not changed.
+
+On deployed Pipeline commit `ac39dabb9af5b46dbb2f90a73d2edf1a3fee32bf`,
+the durable controller cleared `scene_intake_spend_cap_exhausted` on the
+same intent and source attempt `source-6fce2c277e294a9b03ffd3cf`.
+Activation materialized with no blockers. The WebApp accepted launch
+`website-52ff463bc7855063836d5861-ac39dabb-20260923t104154z-activation-auto-launch`
+with HTTP 202. Allocator admission was `admitted` with no blockers and the
+controller wrote `launch_started.json` at 12:21:05 UTC. As of 12:26 UTC,
+its live CPU prestage log had advanced to tick 4; no GPU instance, completed
+articulated asset, policy episode, or website result was proved. The run
+remains a development fixture and does not qualify the captured room.
+
+## 2026-09-23: credit failure and bounded continuation
+
+The third fixture launch stopped in CPU stage 3. The retained stage log records
+OpenAI HTTP 429 `insufficient_quota` / `credit_balance_exhausted` during
+articulated authoring. Stages 1 and 2 completed. The carcass and drawer CAD
+candidates and first independent drawer visual review were retained, but the
+review rejected a coarse texture; the later appearance pass did not finish.
+The allocator reported `provider_mutations_performed: 0`, and no GPU rental,
+policy action, native import qualification, or website result occurred.
+
+The owner reported adding OpenAI credits. The new balance is not yet verified
+by an authoring call. The ledger conservatively holds the failed launch's full
+$13 quote, giving $31 total retained exposure. An append-only owner grant
+raised this scene's cumulative *internal* simulation limit to **$44**, the
+minimum for one more $13 attempt; the 16-attempt count and original per-attempt
+guards stayed fixed. Grant digest:
+`sha256:694a027ea58018af755827d5d9a17b768e4bb09306cec019ab9fc93f6a1f58c6`.
+No signed settlement was edited, no new scene identity was created, and the
+website's $25 task price/no-charge development handling did not change.
+Progression remained at event 65 `scene_configuration_failed` when checked
+immediately after the grant; the listener timer was active and its service was
+activating. Steps 10 and 12–14 remain unproven.
+
+## 2026-09-23: retained-record repair and live CPU retry
+
+Pipeline PR #2133 merged the GPT-6 Sol model upgrade. Its first deployed
+release reached drawer activation, then global spend validation rejected
+historical signed GPT-5.6 Sol placement records from another scene. PR #2134
+restored read compatibility for those exact retained records while keeping
+GPT-6 Sol for new calls. The repair passed 55 focused tests and read-only
+validation of all 542 actual host attempt cancellations. PR #2134 merged as
+`3c177ad5cee75567f4dd7c128d63a5dfe06ea411`; the canonical deploy receipt
+says `deployed`, and the live version reports the exact commit with
+`commit_proven: true` and no blockers. No signed record was edited.
+
+The durable controller then advanced this fixture through preparation and
+website activation, published the profile and standing authorization, and
+queued launch
+`website-52ff463bc7855063836d5861-3c177ad5-20260923t141516z-activation-auto-launch`.
+Allocator admission is `admitted` with no blockers. `launch_started.json`
+records 14:34:10 UTC; the launch process and CPU provider child were alive at
+approximately 14:38 UTC, with CPU prestage heartbeats through tick 2. The
+GPU guard reported zero live instances. This is a live bounded development
+fixture attempt, not a completed CAD/Blender asset, native qualification,
+policy episode, website result, or captured-room evaluation. The new OpenAI
+credit balance remains unverified until a successful bounded authoring call.
+
+## 2026-09-23: drawer author context failure and bounded repair
+
+The `3c177ad5` fixture launch completed CPU stages 1 and 2 and checkpointed
+both. Stage 3 authored the separate cabinet carcass candidate and rendered a
+first drawer candidate. Its independent visual review found that the drawer
+front was too cool and uniformly striped compared with original frames 0 and 3,
+and found black patches near the box corners and handle mounts. It requested a
+warmer wood finish, more natural grain, and removal of those artifacts. Before
+the author could make that correction, the per-request context gate refused the
+next GPT-6 Sol call with `authoring_session_context_ceiling_exceeded`. The
+archived CPU bundle retains the 22-row authoring conversation, original image
+references, visual review, and typed `failure.json`. The allocator result is
+`blocked` with `provider_mutations_performed: 0`; the process exited and the
+15:16:58 UTC global GPU guard passed with zero live instances. This is not a
+finished drawer, native import, policy episode, or website result.
+
+The old compactor kept older generated inspection images in the next request.
+Pipeline PR [#2136](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2136)
+merged as `15c94f6ffd700830de6278aa43b4c565499cd96f`. It selects progressively
+smaller, bounded inference views while keeping the original source and complete
+current repair turn, retaining the latest editable program when it fits. The
+80,000-unit ceiling, persistent history and spend gates are unchanged. All 34
+focused authoring/resume tests, changed-file Ruff, and hosted impacted/sentinel
+checks passed. A read-only replay of the saved drawer history as the `blueprint`
+service user fit at 76,811 units with a deliberately generous 40,000-unit
+non-history allowance, keeping the original source, current review, and latest
+render program. No provider call was made in that replay.
+
+Canonical canary deployment of that merge began as
+`blueprint-drawer-context-deploy-15c94f.service` at approximately 15:32 UTC;
+its receipt, live commit proof, controller recovery and next paid attempt remain
+unverified. The 14-step matrix remains unchanged except for this status note:
+step 10 and steps 12–14 are unproven, step 11 is partial, and captured-room
+registration remains unqualified.
+
+## 2026-09-23: verified deployment and unused GPU hold projection
+
+The `15c94f6f` canonical deploy receipt reports `deployed`; the live pipeline
+endpoint reported that exact commit with `commit_proven=true` and no blockers.
+After a fresh global provider-zero check, the durable controller advanced this
+same scene through event 84 `source_preparation/running`. Event 85 then stopped
+before a new paid launch with `scene_intake_spend_cap_exhausted`. No new model
+call, GPU rental, or policy episode occurred.
+
+The signed $44 cumulative exposure was fully held. A read-only service-user
+projection found three terminal CPU stage-3 attempts each holding the full $13
+CPU-plus-GPU quote although their complete, digest-bound archives show only
+stages 1–3, zero Vast provider mutations, completed no-GPU teardown, and a
+$7 OpenAI authoring reservation. Another terminal authoring attempt held $5;
+other settled rows held zero. This is conservative authorization accounting,
+not a claim that $44 was billed. The original signed settlements remain intact.
+
+Pipeline PR [#2137](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2137)
+merged as `83f5277ab367bfe9a7c6b9763ca8ed7232842fc1`. It extends the existing
+archive-bound projection to the observed rate-limit and asset-authoring failure
+forms, retaining the full $7 CPU model ceiling for each and releasing only the
+never-started GPU allowance. Unrecognized or tampered evidence retains the
+original hold. The 93 focused tests, Ruff, diff check, and hosted impacted and
+sentinel checks passed. A read-only service-user replay against the exact
+retained scene records projects $26 held, so the next $13 quote fits within the
+existing $44 owner grant. This is a cap projection, not final provider billing.
+
+The canonical deploy unit `blueprint-drawer-hold-deploy-83f5277.service` started
+after a fresh global guard passed with zero live instances and no active paid
+allocator. Its receipt and live commit proof are pending. The controller owns
+any retry after deployment. Steps 10 and 12–14 remain unproven; step 11 remains
+partial, and the original captured-room registration remains unqualified.
+
+## 2026-09-23: controller-owned authoring retry admitted
+
+The canonical retry deploy receipt reports `deployed` for exact Pipeline commit
+`83f5277ab367bfe9a7c6b9763ca8ed7232842fc1`; the live version endpoint
+reports `commit_proven=true` with no blockers. A service-user read-only
+projection using the deployed code retained $26, leaving room for the next $13
+quote under the signed $44 cumulative limit. A fresh global GPU guard passed
+with zero live instances. The temporary deploy credential files were removed.
+
+The durable controller progressed the same intent through event 91
+`scene_configuration/awaiting_execution`. Activation published the scene profile
+and standing authority without a provider call. It then submitted launch
+`website-52ff463bc7855063836d5861-83f5277a-20260923t161850z-activation-auto-launch`.
+The launch admission receipt is `admitted` with no blockers, and CPU prestage
+reported progress ticks while its provider runtime remained active. At that
+point it was an active paid attempt, so no deployment or WebApp merge ran over
+it. The later terminal result is recorded below. Matrix step 11 remained
+partial, steps 10 and 12–14 unproven, and captured-room readiness unqualified.
+
+## 2026-09-23: drawer appearance rejection and bounded Astra retry preparation
+
+That launch ended at CPU stage 3 with `authoring_independent_review_limit_reached`.
+The retained stage archive shows a cabinet carcass that passed independent
+appearance review and a separate drawer CAD candidate. Three drawer renders
+failed the independent appearance review: the front was cooler and more uniform
+than original frames 0 and 3, and the handle looked darker and more squared
+than the observed bright silver bar. The last author program mapped a
+17-pixel-wide source-image strip across the broad drawer front. No GPU provider
+mutation or policy episode followed this failure.
+
+The owner requested GPT-6 Astra for CPU CAD/Blender authoring. Pipeline PR
+[#2140](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2140) merged
+as `f4c2b87e562beb86fe8f63060443765d2fe5384b`; it restores Astra on this
+bounded stage, retains exact model provenance for Sol-authored prior records,
+and improves instructions for photographed surface patches. One hundred
+focused tests and changed-file lint passed. Its canonical deployment receipt
+reports `deployed`, and the live endpoint reports that exact commit with
+`commit_proven=true` and no blockers. A fresh global GPU guard passed with zero
+live instances after deployment. The controller still owns the retry; no
+accepted drawer or policy episode is claimed from this code yet.
+
+The service-user ledger retained $39 in conservative exposure. Under the
+owner's previous bounded cap-increase authorization, an append-only grant
+raised this scene's cumulative internal simulation ceiling from $44 to $52,
+covering exactly one more $13 guarded attempt. The attempt count stays 16 and
+the $7 CPU/$6 GPU per-attempt limits and fixed $25 website development-test
+price stay unchanged. This grant is not evidence of actual provider billing or
+of a new launch. Steps 10 and 12–14 remain unproven; step 11 remains partial.
+
+## 2026-09-23: Astra retry admitted on the same scene
+
+After the deployed Astra release and fresh provider-zero check, the durable
+controller completed source preparation and activation for the same fixture
+intent. It submitted launch
+`website-52ff463bc7855063836d5861-f4c2b87e-20260923t181453z-activation-auto-launch`
+through the canonical dispatcher. The allocator admission is `admitted` with
+no blockers; its result is pending. No CPU authoring acceptance, native
+qualification, GPU episode, or website result is claimed yet. Keep the evidence
+matrix at step 11 partial and steps 10 and 12–14 unproven while this guarded
+attempt runs.
+
+## 2026-09-23: Astra drawer review failed before articulation packaging
+
+The admitted `f4c2b87e` launch ended `blocked` at CPU stage 3. Its retained
+`cpu_prestage_output.zip` has SHA-256
+`d1cc5f52b098bf3bca8a9353749c11b8dfa09022a5e6524f50e902ec2bcc956e`.
+Stages 1 and 2 checkpointed. Astra authored the cabinet carcass and drawer
+CAD and Blender meshes. The carcass review passed as a development-only
+candidate. The drawer's first independent appearance review rejected broad,
+blurred wood grain against original frames 0, 2, and 3; it accepted the shape
+and handle presence. Astra rebuilt a finer-grained drawer and rendered its
+perspective, top, and side views, but that revised mesh never reached visual
+review. Physical-property review 3 returned an `object_id` with extra hash
+digits. Deterministic review rejected it as `object_identity_changed`, and the
+authoring loop ended `authoring_independent_review_limit_reached`.
+
+The allocator result reports `provider_mutations_performed=0`,
+`configuration_completed=false`, and `evaluation_episode_executed=false`.
+No articulated assembly, native qualification, GPU policy action, teardown of
+a GPU rental, or website policy result is claimed. Captured-room registration
+remains unqualified. The existing scene's simulation authority expired at
+18:50:52 UTC, and the $52 cumulative exposure grant covered only this last
+$13 quote; no further paid retry is authorized by that grant.
+
+Pipeline PR [#2142](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2142)
+merged as `44fdc9b98a6f6bf5331b24a123ae57b876784be6`. It preserves the bad
+physical-review proposal and deterministic rejection, allows one separately
+receipted, spend-guarded exact-ID correction call within the same render slot,
+validates both completions on resume, and stops with a typed error if the
+identifier remains wrong. Sixty-four focused authoring, resume, physical
+review, and articulated packaging tests passed; changed-file Ruff and diff
+checks passed. Hosted impact-plan upload was blocked by GitHub Actions artifact
+quota before its dependent checks ran. A canonical deployment has started but
+is not yet claimed complete here. Matrix step 11 remains partial; steps 10 and
+12–14 remain unproven.
+
+## 2026-09-23: exact-ID repair deployed; execution authority still expired
+
+The canonical iteration receipt
+`/var/lib/blueprint/pipeline-control-plane/deploy-receipts/iteration_44fdc9b_drawer_id_retry.json`
+reports `deployed` with both active-release and source-checkout heads at
+`44fdc9b98a6f6bf5331b24a123ae57b876784be6`. The live pipeline version
+endpoint reports that exact commit, `commit_proven=true`, and no blockers.
+Listener, scene-progression, and launch-reconciler timers are active. The
+20:05 UTC global GPU guard passed with zero live instances and verified
+provider zero. This is code deployment evidence only. A service-user status
+read still reports `scene_intake_authority_expired`; the effective cumulative
+budget is $52, and the last $13 quote is retained. The owner has been asked
+for a bounded same-scene time and spend extension. No extension, new paid
+attempt, native qualification, or GPU policy episode is claimed here.
+
+## 2026-09-23: owner-approved same-scene execution extension
+
+The owner approved a 48-hour time extension and a $91 cumulative simulation
+exposure ceiling for this existing intent, with the 16-attempt ceiling and
+$7 CPU/$6 GPU per-attempt bounds unchanged. As the `blueprint` service user,
+the canonical append-only window grant extended expiry to epoch
+`1790367906.5103035` (2026-09-25 20:25:06 UTC), then the canonical budget
+grant raised the effective cumulative ceiling from $52 to $91. The grant
+digests are `sha256:5989eef82d1033af6fdb4dff6a4ef4eae14a64eb2518280b449f35d91f5d19f4`
+and `sha256:f66c154239310cb4282145133309994aaf5f6f9601cd262deed8f46802b43c62`.
+Service-user readback verified both; historical holds and the prior 10 attempt
+records were retained. This does not alter the fixed $25 website
+development-test price or the $5 preparation guard.
+
+The 20:27 UTC global GPU guard passed with zero live instances and verified
+provider zero. Controller progression initially held a stale recovery blocker,
+then advanced on its next normal pass to event 105, `running` /
+`source_preparation`, with no blockers. There was no new paid launch, CPU
+authoring acceptance, native qualification, GPU policy episode, or website
+result at this observation. Matrix step 11 remains partial; steps 10 and
+12–14 remain unproven. Captured-room registration remains unqualified.
+
+## 2026-09-23: next guarded Astra fixture attempt admitted
+
+After normal source preparation and activation, the controller queued launch
+`website-52ff463bc7855063836d5861-44fdc9b9-20260923t201625z-activation-auto-launch`
+on deployed Pipeline `44fdc9b98a6f6bf5331b24a123ae57b876784be6`.
+Activation returned `profile_authority_materialized_no_execution` with no
+blockers. The canonical dispatcher started the launch, and allocator
+`admission.json` reports `admitted` with no blockers. The paid allocator is
+running the CPU prestage; its entrypoint log reached progress tick 1. The
+allocator result is pending. Do not count admission or a progress tick as
+accepted articulation, native qualification, a GPU policy episode, or a
+website result. The independent watchdog is active; do not deploy over this
+healthy paid attempt. Matrix step 11 remains partial and steps 10 and 12–14
+remain unproven.
+
+## 2026-09-23: reviewed drawer parts, mass-bound packaging refusal
+
+That launch ended `blocked` at 21:30:55 UTC in CPU stage 3, before any GPU
+allocation, policy query, or evaluation episode. Its retained output archive
+contains successful separate carcass and drawer CAD/Blender candidates,
+independent physical reviews, and an accepted third visual review of the
+drawer. Packaging raised
+`authoring_packaging_estimate_outside_admitted_bounds:mass_kg`: the reviewed
+carcass value was 10.84 kg, within the signed [4, 12] kg simulated mass
+range, while its estimated physical uncertainty was [4.93, 22.99] kg. The
+review did not claim a measured mass or suppress that interval. The allocator
+reported `provider_mutations_performed: 0`; the Vast watchdog reported
+`cancelled_no_allocation`. This does not say the OpenAI model calls were free.
+
+Pipeline [PR #2144](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2144)
+merged as `89c7bd020e6c52d61774627d23dc654b22aecda8`. For articulated
+development candidates, the packager now admits the *simulated nominal* mass
+within the scene's unchanged signed range and retains the full estimated
+uncertainty plus an explicit out-of-range flag in the digest-bound link
+receipt. The drawer remains 4.47 kg per generated link with estimated
+[2.89, 5.93] kg uncertainty. Measured mass and contact-property intervals
+retain strict full-range admission. Forty-one focused local tests, 32 adapter
+and packaging tests, Ruff, and diff checks passed; hosted PR checks stopped
+before tests because GitHub Actions artifact storage was full.
+
+The exact failed stage-3 archive was replayed through the candidate's
+production articulated packager as the `blueprint` service user, inside a
+private Linux mount and network namespace. It passed without a model call or
+GPU rental and produced candidate asset digest
+`sha256:84d3dafb1a0bab7ca631d53859a5117ca9a274e436acd3fb0a6eefc8b8dd6aa7`.
+The canonical canary deploy of the merged commit started as
+`blueprint-drawer-mass-deploy-89c7bd0.service`; deployment and a later
+controller-owned retry were still pending at this observation. Replay is a
+fix check, not an accepted scene artifact. Steps 10 and 11 remain partial;
+steps 12–14 and captured-room readiness remain unproven.
+
+## 2026-09-23: shallow cabinet diagnosis and cost-free pre-authoring repair
+
+The controller-owned `89c7bd02` retry ended before GPU. The CPU producer
+completed an articulated cabinet-and-drawer USDZ and the final independent
+appearance review passed, but its stage-3 adapter rejected the candidate. A
+read-only comparison of the retained stage input and graph found the exact
+cause: a source box projected to only 0.16287 m cabinet depth; the task input
+requested [0, 0.1222] m prismatic travel, while the assembly planner reduced
+the graph to [0, 0.07487] m to retain a drawer box. The strict graph-versus-task
+check was correct; its generic `content_agents_replacement_result_invalid`
+message hid the mismatch. The launch reports `configuration_completed:false`
+and `evaluation_episode_executed:false`. Its teardown receipt says
+`provider_zero_confirmed`, `provider_zero_verified:true`, and
+`continuing_spend_from_this_run:false`; a separate global GPU guard observed
+zero live instances. No policy query or website terminal result occurred.
+Official OpenAI completion recorded $3.91298 provider-observed usage with final
+cost reporting still pending.
+
+The depth was not measured from the video. Original frames show the cabinet
+mostly from the front or obliquely, without a clear rear edge. Manufacturer
+specifications for comparable mobile pedestals put depth around 0.50–0.61 m:
+[Steelcase Edvi](https://shop.steelcase.com/products/edvi-storage-copy),
+[Herman Miller Kumi](https://ukstore.hermanmiller.com/pages/product-details-kumi-pedestal),
+[IKEA MICKE](https://www.ikea.com/us/en/p/micke-drawer-unit-drop-file-storage-white-50213080/),
+and [Global wood veneer BBF](https://admin.globalfurnituregroup.com/storage/96152/Wood_Veneer_Price_List_01_23_26.pdf).
+These are object priors for a development fixture, not this cabinet's measured
+specifications. The source width (0.58636 m) and height (0.7815 m) also sit
+outside the cited examples and remain explicitly flagged for review.
+
+Pipeline PRs [#2146](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2146)
+(`25ff1df8`) and [#2145](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2145)
+(`eff6f8b2`) merged a before-Astra, scene-bound geometry hypothesis and stronger
+native import readback. The hypothesis retains the signed source AABB, names
+0.55 m estimated depth with [0.45, 0.65] m uncertainty, and derives 0.4125 m
+estimated travel and a 0.2475 m opening threshold before authoring. It remains
+`development_only`; the captured room is still unqualified. Pipeline PRs
+[#2147](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2147)
+(`178ae982`) and [#2148](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2148)
+(`5c28383e`) merged specific stage-3 mismatch reporting and stage-4 static
+USD/graph/receipt/physics checks. The exact retained preparation/runtime
+inputs and original-frame observation manifest passed a cost-free stage-3
+transition replay; focused local tests passed (63 for the prior, 26 for native
+import, 121 for the combined CPU chain, and 52 for the final static receipt
+change), plus Ruff. GitHub Actions jobs for these PRs failed before startup
+with an account billing/spending-limit annotation, so hosted checks did not
+run. The subsequent deployment and cost-free compiler result are recorded below.
+Steps 10 and 11 remain partial; steps 12–14 remain unproven.
+
+## 2026-09-24: depth-aware website preflight and opening criterion repair
+
+The canonical control-plane iteration deployed Pipeline `5c28383e6f3c46e659c8c24966d2583f54b28531`.
+Its receipt reports `deployed`, both source and active-release heads match, and
+the live version endpoint reports `commit_proven:true` with no blockers. The
+controller then retried the *same* scene. Before any new paid model call or GPU
+rental, website submission stopped at
+`website_articulated_depth_opening_criterion_mismatch`. The revised proposed
+stroke was 0.4125 m; multiplying by the owner's unchanged 60% requirement
+produced the floating-point number `0.24749999999999997`, while the sealed
+development hypothesis stored `0.2475` m. Exact float equality rejected the
+same opening criterion.
+
+Pipeline [PR #2149](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2149)
+merged as `a566f85cf848b65d2c08924e81390aed073d505f`. It permits only
+1e-8 m absolute representation noise in that estimated threshold comparison,
+keeps exact stroke equality, and still rejects changed thresholds. Three
+focused website tests and Ruff passed locally. The merged candidate's
+production website submission compiler passed a full cost-free replay as the
+`blueprint` service user against this scene's exact saved source and release
+binding, producing a validated pending-publication manifest in scratch space.
+That replay is a preflight, not a published attempt or asset qualification.
+GitHub Actions checks were queued or skipped at merge, not verified green.
+
+A canonical deploy of `a566f85` started as
+`blueprint-drawer-opening-deploy-a566f85.service`; its deployment receipt and
+live version have not yet been verified. No new paid authoring, native import,
+policy episode, or website result follows from the code merge or preflight.
+The development fixture remains separate from unqualified captured-room
+registration. Matrix steps 10 and 11 are partial; steps 12–14 are unproven.
+
+### Deployed continuation and bounded CPU attempt
+
+The `a566f85` iteration receipt subsequently reported `deployed`, both
+release surfaces matched the merged commit, and the live version endpoint
+reported `commit_proven:true` with no blockers. The durable controller reused
+the same scene intent, compiled and published the website submission, and
+confirmed full-byte readback. Activation produced a standing execution
+profile without a paid call. The controller then queued launch
+`website-52ff463bc7855063836d5861-a566f85c-20260924t002250z-activation-auto-launch`.
+Its allocator admission is `admitted` with no blockers. As observed around
+00:43 UTC, the CPU prestage runner was live and its entrypoint log reached
+progress tick 3; the independent Vast watchdog was active. This is a running
+authoring attempt, not an accepted articulated assembly. No native import,
+GPU policy episode, or website terminal result was observed. The separate
+development fixture and captured-room completion states remain unchanged.
+
+### Drawer review and retained budget stop
+
+The live CPU run authored the cabinet carcass as a development-only candidate.
+Its independent visual review passed with no blockers, while physical review
+kept the 0.55 m depth estimate and uncertainty explicit. The separate middle
+drawer CAD readback and physical review also passed, retaining estimated
+drawer mass uncertainty rather than presenting it as measured. The first
+drawer visual review rejected coarse, rippled wood grain against the original
+frame references. The author then produced a finer second render (perspective
+SHA-256 `294500407481947636dcf985e6ba48b6bdb67a073486566c207cb1c4562e44d3`),
+but that second candidate never received an independent review.
+
+The attempt ended at CPU stage 3 with
+`agents_sdk_inference_budget_ceiling_exceeded`. Its retained inference journal
+records 19 completed Astra requests with $5.6741 reconciled actual usage
+against the $7 stage limit. The next visual review reserved a $1.40 maximum,
+exceeding the $1.3259 remaining allowance, so it was refused before a model
+request. The canonical launch receipt is `blocked`; its post-teardown receipt
+is `provider_zero_confirmed` with no blockers. There is no accepted drawer,
+assembled articulated asset, native import, GPU rental, policy query, or
+website policy result from this attempt. The owner said the shown wood
+appearance was adequate; that preference does not rewrite the first
+independent review or accept the unreviewed revision.
+
+Pipeline [PR #2150](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2150)
+merged as `1221980e5d8fcd7d2deec8304d0efce0d1780bcf`. It guides future
+independent reviews to treat modest grain, hue, or brightness differences as
+cosmetic while retaining blocking checks for wrong parts, shape, material,
+color family, opacity, and conspicuous texture artifacts. Review capability
+`observable_v3` prevents silent reuse of prior verdicts under this guidance.
+Pipeline [PR #2151](https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2151)
+merged as `a9d67e5f35b3e8d72839fc9cb54f59b7ebd0e70d`. It reduces only the
+structured appearance review maximum output from 12,000 to 8,192 tokens;
+the new worst-case quote is $1.2096, within the retained allowance. It keeps
+the $7 stage cap and the strict review predicate. Focused tests, changed-file
+Ruff, and the hosted impacted-test gate passed. A canonical control-plane
+deploy of `a9d67e5` has started; its receipt and any controller-owned retry
+remain pending. Matrix steps 10 and 11 remain partial and 12–14 unproven.
+
+### Verified deployment and same-scene recovery
+
+The `a9d67e5` iteration receipt reports `deployed`. The active release and
+source checkout resolve to the exact merged commit, and the live version
+endpoint reports `commit_proven:true` with no blockers. After a fresh
+provider-zero guard passed with zero live instances, the durable controller
+recovered this same scene and started source attempt
+`source-d74621b841e11bd370da2abf` on `a9d67e5`. Its website submission
+published with full-byte readback. Activation reported
+`profile_authority_materialized_no_execution`, no blockers, and no paid
+provider call. Scene event 143 is `awaiting_execution` at
+`scene_configuration`. The launch supervisor has not yet admitted a new CPU
+attempt, so the revised drawer still has no independent verdict or native/GPU
+result. The captured-room state remains unqualified.
