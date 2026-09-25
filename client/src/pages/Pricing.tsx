@@ -5,7 +5,7 @@ import { entryDefinition, entryPrice, formatPrice, siteAssessment } from "@/lib/
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  `A site's initial task assessment is free. Robot teams pay ${formatPrice(entryPrice)} per evaluation entry. Physical pilots and Blueprint's pilot coordination are agreed separately.`;
+  `A site's initial task assessment is free. Invited robot teams join site-funded pilot projects at no charge; optional self-directed evaluations cost ${formatPrice(entryPrice)} per entry. Physical pilot costs are agreed separately.`;
 
 export default function Pricing() {
   return (
@@ -40,7 +40,8 @@ export default function Pricing() {
             <h2 id="site-price-title">Initial task assessment</h2>
             <p className="ms-price-note">
               Describe one recurring task. We assess whether a robot pilot is credible and what
-              needs to change if it is not. No card required.
+              needs to change if it is not. No card required. A suitable pilot project is quoted
+              separately for your approval.
             </p>
             <a className="ms-text-link" href="/contact/site-operator">
               Start a task assessment <ArrowRight size={20} aria-hidden="true" />
@@ -50,13 +51,14 @@ export default function Pricing() {
           <section aria-labelledby="team-price-title">
             <p className="ms-eyebrow">For robot teams</p>
             <p className="ms-price">
-              <span className="ms-price-figure">{formatPrice(entryPrice)}</span>
-              <span className="ms-price-unit">per evaluation entry</span>
+              <span className="ms-price-figure">{formatPrice(0)}</span>
+              <span className="ms-price-unit">to apply or join an invited pilot project</span>
             </p>
-            <h2 id="team-price-title">Task evaluation</h2>
+            <h2 id="team-price-title">Bring a credible solution</h2>
             <p className="ms-price-note">
-              {entryDefinition} Applying is free. You see the total before a run. No subscription
-              or later supplier commission on that entry.
+              Invited teams pay no evaluation entry fee for a site-funded pilot project. Optional
+              self-directed runs outside that project cost {formatPrice(entryPrice)} per entry.
+              {" "}{entryDefinition} There is no later supplier commission on a paid entry.
             </p>
             <a className="ms-text-link" href="/contact/robot-team">
               Apply for early access <ArrowRight size={20} aria-hidden="true" />
@@ -68,8 +70,9 @@ export default function Pricing() {
           <h2 id="pilot-service-title">Physical pilots</h2>
           <p>
             For a suitable task, Blueprint can prepare, coordinate, and measure a trial for a fixed,
-            site-approved fee. The robot provider or integrator quotes installation and operation
-            separately. The site approves the scope and costs before work begins.
+            site-approved fee. The site agrees to that scope before we invite teams into the funded
+            project. The robot provider or integrator quotes installation and operation separately.
+            All costs are approved before work begins.
           </p>
           <a className="ms-text-link" href="/terms">Evaluation billing details in our Terms</a>
         </section>

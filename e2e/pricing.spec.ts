@@ -10,13 +10,16 @@ test("pricing shows current costs and separates physical pilot work", async ({ p
   await expect(site.getByRole("link", { name: /Start a task assessment/ })).toHaveAttribute("href", "/contact/site-operator");
   await expect(site.getByText(/\$99|per entry|episode/i)).toHaveCount(0);
 
-  const team = page.locator("section", { has: page.getByRole("heading", { name: "Task evaluation" }) });
-  await expect(team.getByText("$99", { exact: true })).toBeVisible();
+  const team = page.locator("section", { has: page.getByRole("heading", { name: "Bring a credible solution" }) });
+  await expect(team.getByText("$0", { exact: true })).toBeVisible();
+  await expect(team.getByText(/Invited teams pay no evaluation entry fee for a site-funded pilot project/)).toBeVisible();
+  await expect(team.getByText(/Optional self-directed runs outside that project cost \$99 per entry/)).toBeVisible();
   await expect(team.getByText(/One entry is one policy, running on one embodiment/)).toBeVisible();
   await expect(team.getByRole("link", { name: /Apply for early access/ })).toHaveAttribute("href", "/contact/robot-team");
 
   const pilot = page.locator("section", { has: page.getByRole("heading", { name: "Physical pilots" }) });
   await expect(pilot.getByText(/fixed, site-approved fee/)).toBeVisible();
+  await expect(pilot.getByText(/site agrees to that scope before we invite teams into the funded project/)).toBeVisible();
   await expect(pilot.getByText(/provider or integrator quotes installation and operation separately/)).toBeVisible();
   await expect(pilot.getByRole("link", { name: /billing details in our Terms/ })).toHaveAttribute("href", "/terms");
   await expect(page.getByRole("table")).toHaveCount(0);

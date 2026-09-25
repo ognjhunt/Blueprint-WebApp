@@ -43,7 +43,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      "Initial site assessment and evaluation are free for the site. Robot teams pay $99 per entry — one policy, on one embodiment, against one task at one site. Three policies on one task is $297; three policies on two tasks is $594. An entry has no later supplier commission. For a suitable physical pilot, Blueprint can separately quote a fixed site-paid fee for preparation, coordination, and measurement. The provider's installation and operation charges are separate and the site approves all commitments.",
+      "The initial task assessment is free for the site. For a suitable project, the site approves a fixed Blueprint fee for pilot preparation, coordination, and measurement before we invite teams into the funded work. Invited robot teams pay no evaluation entry fee for that project. Optional self-directed evaluations outside it cost $99 per entry, with no later supplier commission on that entry. The provider separately quotes installation and operation; the site approves those costs before work begins.",
   },
 ];
 

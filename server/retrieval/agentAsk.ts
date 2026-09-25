@@ -193,7 +193,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      "Initial site task assessment is free: the site can submit one recurring job, share a phone recording, approve the task brief, and receive a bounded assessment or reason to pause. Robot teams pay $99 per policy entry against one task, with no subscription, listing fee, or later supplier commission for that entry. A suitable physical pilot is a separate commitment: Blueprint can quote a fixed site-paid fee for preparation, coordination, and measurement; the provider or integrator separately quotes installation and operation. The site approves all costs before work begins. A Task Evaluation Run can support a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.",
+      "Initial site task assessment is free: the site can submit one recurring job, share a phone recording, approve the task brief, and receive a bounded assessment or reason to pause. For a suitable project, Blueprint quotes a fixed site-paid fee for pilot preparation, coordination, and measurement. The site agrees to that scope before Blueprint invites teams into the funded project; invited teams pay no evaluation entry fee for it. Optional self-directed evaluations outside the project cost $99 per policy entry, with no subscription or later supplier commission on that entry. The provider or integrator separately quotes installation and operation, and the site approves all costs before work begins. A Task Evaluation Run can support a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.",
 
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [

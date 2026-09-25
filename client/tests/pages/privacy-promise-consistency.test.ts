@@ -48,7 +48,7 @@ describe("raw walkthrough media", () => {
     expect(detail).toMatch(/not licensed for training/i);
   });
 
-  it("agrees with the pricing page it is read alongside", () => {
+  it("agrees with the site assessment copy", () => {
     expect(siteAssessment.whatWeGetFromIt).toMatch(/never receive your recording/i);
   });
 });
