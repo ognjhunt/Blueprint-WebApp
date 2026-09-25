@@ -2,6 +2,7 @@ import { useState, type ReactNode, type KeyboardEvent } from "react";
 import { Link } from "wouter";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { resultSignInHref } from "@/lib/authReturnPath";
 import { WorkspaceContext } from "@/components/workspace/WorkspaceContext";
 import type { WorkspaceRole } from "@/types/workspace";
 import "@/components/workspace/workspace.css";
@@ -64,6 +65,7 @@ export function AppShell({
   hasOwnedSites = false,
 }: AppShellProps) {
   const { currentUser, userData, logout } = useAuth();
+  const signInHref = resultSignInHref(typeof window === "undefined" ? "" : window.location.pathname);
   const [open, setOpen] = useState(false),
     [error, setError] = useState("");
   const workspaceType = role || userData?.buyerType;
@@ -142,7 +144,7 @@ export function AppShell({
               {open ? <X size={22} /> : <Menu size={22} />}
             </button>
           ) : (
-            <Link href="/sign-in">Sign in</Link>
+            <Link href={signInHref}>Sign in</Link>
           )}
         </header>
         {!publicView ? (

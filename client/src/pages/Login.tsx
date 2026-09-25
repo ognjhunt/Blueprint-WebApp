@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { AuthLayout } from "@/components/auth/AuthLayout";
@@ -35,11 +35,33 @@ function GoogleMark() {
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [authError, setAuthError] = useState<string | null>(null);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, prepareGoogleSignIn } = useAuth();
+
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (next && /^\/app\/results\/[A-Za-z0-9_-]+$/.test(next)) {
+      try {
+        sessionStorage.setItem("redirectAfterAuth", next);
+      } catch {
+        // Sign-in still works when this browser disables session storage.
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void prepareGoogleSignIn().then(() => {
+      if (active) setGoogleReady(true);
+    }).catch(() => {
+      if (active) setAuthError("Google sign-in is unavailable. Please sign in with email and password.");
+    });
+    return () => { active = false; };
+  }, [prepareGoogleSignIn]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -83,7 +105,7 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (isLoading) return;
+    if (isLoading || !googleReady) return;
     setIsLoading(true);
     setAuthError(null);
     try {
@@ -100,7 +122,7 @@ export default function Login() {
       <SEO title="Sign in | Blueprint" description="Sign in to your Blueprint account." canonical="/sign-in" noIndex />
       <h1>Sign in</h1>
       <p className="auth-description">Welcome back to Blueprint.</p>
-      <button type="button" className="auth-google" onClick={handleGoogleSignIn} disabled={isLoading}><GoogleMark />Continue with Google</button>
+      <button type="button" className="auth-google" onClick={handleGoogleSignIn} disabled={isLoading || !googleReady}><GoogleMark />Continue with Google</button>
       <div className="auth-divider"><span>or</span></div>
       <form method="post" onSubmit={handleSubmit} className="auth-form" noValidate aria-label="Sign in" aria-busy={isLoading}>
         {authError && <p className="auth-error" role="alert">{authError}</p>}

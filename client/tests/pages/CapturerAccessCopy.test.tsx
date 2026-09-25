@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Capture from "@/pages/Capture";
 import CaptureAppPlaceholder from "@/pages/CaptureAppPlaceholder";
@@ -25,6 +25,7 @@ const launchStatusMock = vi.hoisted(() => ({
     error: null as string | null,
   },
 }));
+const prepareGoogleSignIn = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock("@/components/SEO", () => ({
   SEO: () => null,
@@ -42,6 +43,7 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
     signIn: vi.fn(),
     signInWithGoogle: vi.fn(),
+    prepareGoogleSignIn,
   }),
 }));
 
@@ -158,8 +160,9 @@ describe("Capturer access copy", () => {
     expect(terms).not.toHaveAccessibleName(/payout setup happen in Blueprint Capture/i);
   });
 
-  it("no longer sends anyone from the sign-in page to the retired capture app", () => {
+  it("no longer sends anyone from the sign-in page to the retired capture app", async () => {
     render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
 
     expect(screen.getByRole("heading", { name: /Sign In/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Capture app access" })).not.toBeInTheDocument();

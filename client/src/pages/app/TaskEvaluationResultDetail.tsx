@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Helmet } from "@/lib/helmet";
 import { Link, useParams } from "wouter";
 import type { User as FirebaseUser } from "firebase/auth";
+import { resultSignInHref } from "@/lib/authReturnPath";
 
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
@@ -278,7 +279,7 @@ export default function TaskEvaluationResultDetail() {
           <section className="ws-empty">
             <h2>Result not available</h2>
             <p>
-              No result you can see matches this link.{!currentUser ? <> <Link href="/sign-in" className="ws-link">Sign in</Link> to check for private results.</> : null}
+              No result you can see matches this link.{!currentUser ? <> <Link href={resultSignInHref(`/app/results/${recordId}`)} className="ws-link">Sign in</Link> to check for private results.</> : null}
             </p>
           </section>
         ) : null}
