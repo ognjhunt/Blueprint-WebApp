@@ -14,6 +14,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<string>;
   signUp: (email: string, password: string, name?: string) => Promise<string>;
   signInWithGoogle: () => Promise<string>;
+  prepareGoogleSignIn: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -27,6 +28,7 @@ const viteEnv =
 type FirebaseClientModule = typeof import("@/lib/firebase");
 
 let firebaseClientModulePromise: Promise<FirebaseClientModule> | null = null;
+let firebaseClientModule: FirebaseClientModule | null = null;
 
 function loadFirebaseClientModule(): Promise<FirebaseClientModule> {
   if (typeof window === "undefined") {
@@ -36,7 +38,13 @@ function loadFirebaseClientModule(): Promise<FirebaseClientModule> {
   }
 
   if (!firebaseClientModulePromise) {
-    firebaseClientModulePromise = import("@/lib/firebase");
+    firebaseClientModulePromise = import("@/lib/firebase").then((module) => {
+      firebaseClientModule = module;
+      return module;
+    }).catch((error) => {
+      firebaseClientModulePromise = null;
+      throw error;
+    });
   }
 
   return firebaseClientModulePromise;
@@ -537,6 +545,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const prepareGoogleSignIn = React.useCallback(async () => {
+    if (!operatorQaAuth.enabled) await loadFirebaseClientModule();
+  }, [operatorQaAuth.enabled]);
+
   async function signInWithGoogle() {
     try {
       if (operatorQaAuth.enabled) {
@@ -547,7 +559,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return navigateAfterAuth(normalizedUserData);
       }
 
-      const firebase = await loadFirebaseClientModule();
+      // Opening a popup must happen in the button's user gesture. Login waits
+      // for this module before enabling Google sign-in.
+      const firebase = firebaseClientModule;
+      if (!firebase) {
+        throw new Error("Google sign-in is still loading. Please try again.");
+      }
       const user = await firebase.signInWithGoogle();
       setCurrentUser(user);
       let userDataRecord: UserData | null = null;
@@ -664,6 +681,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "Invalid password";
       case "auth/popup-closed-by-user":
         return "Google sign-in was cancelled";
+      case "auth/popup-blocked":
+        return "Google sign-in was blocked here. Open this page in your browser outside the email app, then try again, or sign in with email and password.";
       case "auth/network-request-failed":
         return "Network error occurred. Please check your connection";
       case ACCESS_DENIED_CODE:
@@ -684,6 +703,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signInWithGoogle,
+    prepareGoogleSignIn,
     logout,
   };
 

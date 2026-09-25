@@ -1,11 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Login from "@/pages/Login";
 
 const signIn = vi.hoisted(() => vi.fn());
 const signInWithGoogle = vi.hoisted(() => vi.fn());
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle }) }));
-beforeEach(() => { signIn.mockReset().mockResolvedValue(undefined); signInWithGoogle.mockReset().mockResolvedValue(undefined); });
+const prepareGoogleSignIn = vi.hoisted(() => vi.fn());
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle, prepareGoogleSignIn }) }));
+beforeEach(() => {
+  signIn.mockReset().mockResolvedValue(undefined);
+  signInWithGoogle.mockReset().mockResolvedValue(undefined);
+  prepareGoogleSignIn.mockReset().mockResolvedValue(undefined);
+  sessionStorage.clear();
+  window.history.replaceState({}, "", "/sign-in");
+});
 
 function fillCredentials() {
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: "person@example.com" } });
@@ -13,18 +20,19 @@ function fillCredentials() {
 }
 
 describe("Minimal sign in", () => {
-  it("validates empty fields without calling authentication", () => {
+  it("validates empty fields without calling authentication", async () => {
     render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     expect(screen.getByText("Email is required")).toBeInTheDocument();
     expect(screen.getByText("Password is required")).toBeInTheDocument();
     expect(signIn).not.toHaveBeenCalled();
   });
-  it("retains the essential account and recovery links", () => {
+  it("retains the essential account and recovery links", async () => {
     render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/signup/business");
     expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
-    // The capture app is not offered to the public, so sign-in no longer links to it.
     expect(screen.queryByRole("link", { name: "Capture app access" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Secure Access Portal|Scope before signup/)).not.toBeInTheDocument();
   });
@@ -39,8 +47,35 @@ describe("Minimal sign in", () => {
   });
   it("keeps Google authentication connected", async () => {
     render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
     await waitFor(() => expect(signInWithGoogle).toHaveBeenCalledTimes(1));
+  });
+  it("waits for Firebase before allowing a popup click", async () => {
+    let finish!: () => void;
+    prepareGoogleSignIn.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+    render(<Login />);
+    const googleButton = screen.getByRole("button", { name: "Continue with Google" });
+    expect(googleButton).toBeDisabled();
+    fireEvent.click(googleButton);
+    expect(signInWithGoogle).not.toHaveBeenCalled();
+    await act(async () => { finish(); });
+    await waitFor(() => expect(googleButton).toBeEnabled());
+    fireEvent.click(googleButton);
+    expect(signInWithGoogle).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(googleButton).toBeEnabled());
+  });
+  it("keeps the emailed result path for sign-in", async () => {
+    window.history.replaceState({}, "", "/sign-in?next=%2Fapp%2Fresults%2Fcapture-run-123");
+    render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
+    expect(sessionStorage.getItem("redirectAfterAuth")).toBe("/app/results/capture-run-123");
+  });
+  it("rejects an external sign-in return path", async () => {
+    window.history.replaceState({}, "", "/sign-in?next=https%3A%2F%2Foutside.example");
+    render(<Login />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
+    expect(sessionStorage.getItem("redirectAfterAuth")).toBeNull();
   });
   it("shows an accessible generic error after credential rejection and retains input", async () => {
     signIn.mockRejectedValueOnce(new Error("auth/user-not-found"));
