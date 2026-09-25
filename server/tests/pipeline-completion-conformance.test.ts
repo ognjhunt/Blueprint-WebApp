@@ -81,7 +81,7 @@ describe("1. zero episodes execute", () => {
 });
 
 describe("2. 37 valid episodes against a $99 entry", () => {
-  it("settles the flat entry after useful execution", () => {
+  it("prorates the quoted entry after partial execution", () => {
     const partial = record({
       episodes_run: 37,
       episodes_succeeded: 30,
@@ -90,21 +90,21 @@ describe("2. 37 valid episodes against a $99 entry", () => {
 
     expect(billableAmountUsd(partial)).toBeCloseTo(18.5, 2);
 
-    // The Pipeline's rate is telemetry; the customer's price is the quote.
+    // The Pipeline's rate is telemetry; the customer's maximum price is the quote.
     expect(
       settlementAmountUsd({ quotedUsd: 99, quotedEpisodes: 50, episodesRun: 37 }),
-    ).toBe(99);
+    ).toBe(73.26);
 
-    // The hold clears whole at the flat price.
+    // The hold clears with the unrun share returned to available balance.
     const balance = deriveBalance("team-1", [
       entry({ kind: "credit", amountUsd: 99, createdAtIso: "2026-09-17T00:00:00.000Z", reservationId: null }),
       entry({ kind: "reserve", amountUsd: 99, createdAtIso: "2026-09-17T00:01:00.000Z" }),
-      entry({ kind: "settle", amountUsd: 99, createdAtIso: "2026-09-17T00:02:00.000Z" }),
+      entry({ kind: "settle", amountUsd: 73.26, createdAtIso: "2026-09-17T00:02:00.000Z" }),
     ]);
 
-    expect(balance.spentUsd).toBe(99);
+    expect(balance.spentUsd).toBe(73.26);
     expect(balance.reservedUsd).toBe(0);
-    expect(balance.availableUsd).toBe(0);
+    expect(balance.availableUsd).toBe(25.74);
   });
 
   it("never settles above the quote, whatever rate is reported", () => {

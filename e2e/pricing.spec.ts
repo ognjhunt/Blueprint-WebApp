@@ -19,10 +19,17 @@ test("pricing shows current costs and separates physical pilot work", async ({ p
 
   const pilot = page.locator("section", { has: page.getByRole("heading", { name: "Physical pilots" }) });
   await expect(pilot.getByText(/fixed, site-approved fee/)).toBeVisible();
-  await expect(pilot.getByText(/site agrees to that scope before we invite teams into the funded project/)).toBeVisible();
-  await expect(pilot.getByText(/provider or integrator quotes installation and operation separately/)).toBeVisible();
+  await expect(pilot.getByText(/written scope and budget showing/)).toBeVisible();
+  await expect(pilot.getByText(/provider's installation and operation quote/)).toBeVisible();
   await expect(pilot.getByRole("link", { name: /billing details in our Terms/ })).toHaveAttribute("href", "/terms");
   await expect(page.getByRole("table")).toHaveCount(0);
+});
+
+test("terms separate free invited participation from optional paid runs", async ({ page }) => {
+  await page.goto("/terms");
+  await expect(page.getByText(/Invited teams pay no evaluation entry fee for work within that project's agreed scope/)).toBeVisible();
+  await expect(page.getByText(/currently \$99/)).toBeVisible();
+  await expect(page.getByText(/written scope and budget showing Blueprint's fixed fee/)).toBeVisible();
 });
 
 test("pricing reaches the header on mobile without a horizontal scrollbar", async ({ page }) => {

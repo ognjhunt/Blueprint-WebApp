@@ -70,9 +70,9 @@ export default function Pricing() {
           <h2 id="pilot-service-title">Physical pilots</h2>
           <p>
             For a suitable task, Blueprint can prepare, coordinate, and measure a trial for a fixed,
-            site-approved fee. The site agrees to that scope before we invite teams into the funded
-            project. The robot provider or integrator quotes installation and operation separately.
-            All costs are approved before work begins.
+            site-approved fee. Before a trial begins, you receive a written scope and budget showing
+            our fee, the provider's installation and operation quote, and when each payment is due.
+            The provider or integrator handles installation and operation.
           </p>
           <a className="ms-text-link" href="/terms">Evaluation billing details in our Terms</a>
         </section>

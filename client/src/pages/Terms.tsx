@@ -9,7 +9,7 @@ export const termsSections: readonly Section[] = [
   {
     title: "1. The Service",
     paragraphs: [
-      "Blueprint helps sites and robot teams assess whether a robot fits a real task and plan a physical pilot. A site can submit a task, film its work area, review a short task brief, and choose whether robot teams can see a card for the task. We may rebuild the work area as a simulated scene and run robot teams' policies against it. Robot teams can plan and buy evaluation runs against listed tasks, on the website or through our API. If a site requests pilot preparation, coordination, or measurement, the scope and fee require a separate written agreement.",
+      "Blueprint helps sites and robot teams assess whether a robot fits a real task and plan a physical pilot. A site can submit a task, film its work area, review a short task brief, and choose whether robot teams can see a card for the task. We may rebuild the work area as a simulated scene and run robot teams' policies against it. Robot teams invited into a site-funded pilot project participate without an evaluation entry fee under that project's agreed scope. Separately, robot teams can buy self-directed evaluation runs against listed tasks on the website or through our API. If a site requests pilot preparation, coordination, or measurement, the scope and fee require a separate written agreement.",
       "The Service is in beta. Features may change, be limited, or be withdrawn, and we may pause or stop an evaluation, for example to protect a site's privacy or the integrity of a result.",
       "An evaluation result is a measurement in a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site. Any pilot or deployment requires separate agreement and site approval. The provider or integrator remains responsible for installation and operation; the site and responsible delivery parties approve the safety plan. Blueprint may coordinate and measure a pilot only under a separately agreed scope.",
     ],
@@ -30,13 +30,13 @@ export const termsSections: readonly Section[] = [
       "Avoid recording screens, documents and restricted areas where you can. We may blur or remove those details when practical.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and task details to provide the Service for your task: to review them, build a simulated scene, run the evaluations your listing allows, and show you the results. We never give your recording to a robot team, and we do not license it to anyone for training without your written agreement.",
       "Robot teams see only the task card you approve. You can hide it at any time; hiding it stops new runs. Results already produced remain in our records.",
-      "Initial task assessment and the evaluation described on our Pricing page cost the site nothing. A physical pilot, provider charges, and any Blueprint pilot preparation, coordination, or measurement service are agreed and paid for separately before that work begins.",
+      "Initial task assessment costs the site nothing. Before a physical pilot begins, the site approves a written scope and budget showing Blueprint's fixed fee for preparation, coordination, and measurement, any provider or integrator charges, who receives each payment, and when payments are due. A pilot's result may be to stop, modify, extend, or deploy; the agreed Blueprint fee pays for the scoped service, not a guaranteed robot outcome.",
     ],
   },
   {
-    title: "4. For robot teams: prices, your balance and refunds",
+    title: "4. Optional self-directed runs: prices, balance and refunds",
     items: [
-      `Each evaluation entry has a flat price, shown before you buy (currently $${entryPrice}). One entry is one policy, running on one embodiment, against one task at one site. Blueprint sets the length of every run, so every entry on a task is measured the same way.`,
+      `The prices in this section apply only to self-directed evaluation runs outside an invited, site-funded pilot project. Invited teams pay no evaluation entry fee for work within that project's agreed scope. Each optional self-directed entry has a flat quoted price, shown before you buy (currently $${entryPrice}). One entry is one policy, running on one embodiment, against one task at one site. Blueprint sets the length of every run, so every entry on a task is measured the same way.`,
       `You pay from a prepaid balance. Top-ups are charged by Stripe at face value; the smallest is $${minTopupUsd}. Your balance does not expire while your account is open.`,
       "Confirming a run places a hold for its quoted price. You are charged only for the episodes that actually run, pro-rated against the quote; anything that does not run returns to your balance. A robot failing the task is a result and is charged. A failure on our side, such as a scene that will not launch, is not.",
       `You can ask for a refund of unused balance at any time by writing to ${COMPANY.emails.hello} from your account email. We refund it to the original payment method, less amounts held for runs in progress.`,

@@ -196,16 +196,17 @@ export interface ReconciliationSummary {
 /**
  * What a run should be billed for, given what it actually ran.
  *
- * An entry has one flat price. If any episodes ran, settle the quoted entry;
- * if none ran, release the hold. A partial provider failure after useful work
- * does not create a second episode-based customer price.
+ * The quoted entry price is the maximum charge. Settle only the share of
+ * quoted episodes that ran; if none ran, release the hold.
  */
 export function settlementAmountUsd(run: {
   quotedUsd: number;
   quotedEpisodes: number;
   episodesRun: number | null;
 }): number {
-  return (run.episodesRun ?? 0) > 0 ? round2(run.quotedUsd) : 0;
+  if ((run.episodesRun ?? 0) <= 0) return 0;
+  if (run.quotedEpisodes <= 0) return round2(run.quotedUsd);
+  return round2(run.quotedUsd * Math.min((run.episodesRun ?? 0) / run.quotedEpisodes, 1));
 }
 
 /**
