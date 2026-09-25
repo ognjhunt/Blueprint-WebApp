@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PolicyCanarySetupView } from "@/lib/policyCanaryRuns";
+import type { PacketPlanningSetup } from "@/lib/policyPacketPlanning";
 
 const navigate = vi.fn();
 const fetchPolicyCanarySetup = vi.fn();
@@ -13,7 +14,7 @@ vi.mock("wouter", () => ({
 }));
 vi.mock("@/contexts/AuthContext", () => {
   const currentUser = { uid: "team-user-1", email: "team@tryblueprint.io" };
-  return { useAuth: () => ({ currentUser }) };
+  return { useAuth: () => ({ currentUser, userData: { role: "ops" } }) };
 });
 vi.mock("@/lib/policyCanaryRuns", async () => {
   const actual = await vi.importActual<typeof import("@/lib/policyCanaryRuns")>("@/lib/policyCanaryRuns");
@@ -26,6 +27,10 @@ vi.mock("@/lib/policyCanaryRuns", async () => {
 vi.mock("@/lib/policyPairChoice", async () => {
   const actual = await vi.importActual<typeof import("@/lib/policyPairChoice")>("@/lib/policyPairChoice");
   return { ...actual, downloadPolicyPairChoice: vi.fn() };
+});
+vi.mock("@/lib/policyPacketPlanning", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/policyPacketPlanning")>("@/lib/policyPacketPlanning");
+  return { ...actual, parsePacketPlanningSetup: vi.fn(), downloadPacketPolicyPairChoice: vi.fn() };
 });
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
@@ -141,6 +146,69 @@ describe("PolicyCanarySetup", () => {
   beforeEach(() => {
     navigate.mockReset();
     fetchPolicyCanarySetup.mockReset().mockResolvedValue(setup());
+  });
+
+  it("imports a retained task packet and downloads a planning pair without starting a run", async () => {
+    const { parsePacketPlanningSetup, downloadPacketPolicyPairChoice } = await import("@/lib/policyPacketPlanning");
+    const { createPolicyCanaryRun } = await import("@/lib/policyCanaryRuns");
+    vi.mocked(createPolicyCanaryRun).mockReset();
+    vi.mocked(downloadPacketPolicyPairChoice).mockReset();
+    const published = setup();
+    const robot = published.robot_presets[0];
+    robot.robot_preset_id = "unitree_g1_dex3_sonic_v1";
+    robot.embodiment_id = "unitree_g1_dex3_v1";
+    robot.display_name = "Unitree G1 + Dex3 / SONIC";
+    robot.readiness = { status: "unavailable", receipt: null, reason: "Live episode required." };
+    robot.policy_candidates = robot.policy_candidates.map((candidate, index) => ({
+      ...candidate,
+      candidate_id: `g1_manipulation_${index}`,
+      display_name: `G1 manipulation ${index + 1}`,
+      evaluation_objective_id: "task_success" as const,
+      compatibility: {
+        ...candidate.compatibility,
+        robot_preset_ids: [robot.robot_preset_id],
+        embodiment_ids: [robot.embodiment_id],
+      },
+      readiness: { status: "unavailable" as const, receipt: null, reason: "Live episode required." },
+    }));
+    const packet = {
+      schema_version: "task_evaluation_packet_planning_setup.v1",
+      claim_ceiling: "planning_only",
+      scene_id: "interiorgs-841757",
+      task_id: "scene-841757-book-to-marked-area",
+      source_packet_receipt_digest: sha("a"),
+      source_packet_request_digest: sha("b"),
+      source_scene_plan_digest: sha("c"),
+      source_declared_task_success_contract_digest: sha("d"),
+      task_success_contract: {
+        ...published.task_success_contract,
+        scope: { site_id: "interiorgs-841757", task_id: "scene-841757-book-to-marked-area" },
+      },
+      task_success_contract_digest: published.task_success_contract.contract_digest,
+      robot_presets: [robot],
+      setup_digest: sha("e"),
+    } as PacketPlanningSetup;
+    vi.mocked(parsePacketPlanningSetup).mockResolvedValue(packet);
+    const file = new File(["{}"], "packet.json", { type: "application/json" });
+    Object.defineProperty(file, "text", { value: async () => "{}" });
+    const { default: PolicyCanarySetup } = await import("../../src/pages/app/PolicyCanarySetup");
+    render(<PolicyCanarySetup />);
+    fireEvent.change(screen.getByLabelText("Packet planning setup"), { target: { files: [file] } });
+    await screen.findByText("interiorgs-841757 · scene-841757-book-to-marked-area");
+    expect(screen.getByRole("heading", { level: 1, name: "Plan a development policy pair" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /G1 manipulation 1/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /G1 manipulation 2/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Download pair choice" }));
+    await waitFor(() => expect(vi.mocked(downloadPacketPolicyPairChoice)).toHaveBeenCalledWith(expect.objectContaining({
+      schema_version: "task_evaluation_packet_policy_pair_choice.v1",
+      setup_digest: sha("e"),
+      robot_preset_id: robot.robot_preset_id,
+      policy_candidate_ids: ["g1_manipulation_0", "g1_manipulation_1"],
+      objective_id: "task_success",
+      choice_digest: "sha256:d0d3a846fef678d0382aa8c4a3b4f8bb195a62ca41d9168f85197c7f88aba528",
+    }), packet.task_id));
+    expect(screen.queryByRole("button", { name: "Start policy test" })).toBeNull();
+    expect(vi.mocked(createPolicyCanaryRun)).not.toHaveBeenCalled();
   });
 
   it("shows the Scene 839873 two-policy quick run on one plain page", async () => {

@@ -9,6 +9,12 @@ import { Field } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadPolicyPairChoice, makePolicyPairChoice } from "@/lib/policyPairChoice";
 import {
+  downloadPacketPolicyPairChoice,
+  makePacketPolicyPairChoice,
+  parsePacketPlanningSetup,
+  type PacketPlanningSetup,
+} from "@/lib/policyPacketPlanning";
+import {
   createPolicyCanaryRun,
   fetchPolicyCanarySetup,
   type PolicyCanaryCandidate,
@@ -53,9 +59,12 @@ function optionReason(candidate: PolicyCanaryCandidate, robot: PolicyCanaryRobot
 export default function PolicyCanarySetup() {
   const { sourceLaunchId = "" } = useParams<{ sourceLaunchId?: string }>();
   const decodedLaunchId = decodeURIComponent(sourceLaunchId);
-  const { currentUser } = useAuth();
+  const { currentUser, userData } = useAuth();
+  const developmentAccess = userData?.role === "ops" || userData?.roles?.includes("ops")
+    || userData?.role === "admin" || userData?.roles?.includes("admin") || false;
   const [, navigate] = useLocation();
   const [setup, setSetup] = useState<PolicyCanarySetupView | null>(null);
+  const [packetSetup, setPacketSetup] = useState<PacketPlanningSetup | null>(null);
   const [robotId, setRobotId] = useState("");
   const [policyIds, setPolicyIds] = useState<string[]>([]);
   const [email, setEmail] = useState("");
@@ -70,7 +79,7 @@ export default function PolicyCanarySetup() {
   const runId = useMemo(() => stableRunId(decodedLaunchId), [decodedLaunchId]);
 
   useEffect(() => {
-    if (!currentUser || !decodedLaunchId) return;
+    if (!currentUser || !decodedLaunchId || packetSetup) return;
     let cancelled = false;
     const request = ++setupRequest.current;
     void fetchPolicyCanarySetup(currentUser, decodedLaunchId).then((value) => {
@@ -84,7 +93,7 @@ export default function PolicyCanarySetup() {
       setEmail(value.notification_recipient_email || "");
     }).catch((reason) => !cancelled && request === setupRequest.current && setError(reason instanceof Error ? reason.message : "This policy test isn't available."));
     return () => { cancelled = true; setupRequest.current++; };
-  }, [currentUser, decodedLaunchId]);
+  }, [currentUser, decodedLaunchId, packetSetup]);
 
   useEffect(() => {
     if (!setup) {
@@ -114,12 +123,48 @@ export default function PolicyCanarySetup() {
     return () => { cancelled = true; };
   }, [proposalConfirmed, setup]);
 
-  const robot = setup?.robot_presets.find((item) => item.robot_preset_id === robotId) || null;
+  const activeSetup = packetSetup || setup;
+  const robot = activeSetup?.robot_presets.find((item) => item.robot_preset_id === robotId) || null;
   const preset = setup?.episode_presets.find((item) => item.preset_id === "quick_10") || null;
-  const inspectOnly = Boolean(robot && robot.readiness.status !== "verified_runnable");
+  const availableSetups = packetSetup
+    ? packetSetup.robot_presets.map((item) => ({
+      setup_digest: packetSetup.setup_digest,
+      robot_preset_id: item.robot_preset_id,
+      display_name: item.display_name,
+      task_family_id: item.task_family_id,
+      readiness: item.readiness,
+    }))
+    : setup?.available_setups || [];
+  const inspectOnly = Boolean(packetSetup || (robot && robot.readiness.status !== "verified_runnable"));
   const canContinueSetup = Boolean(robot && policyIds.length === 2 && policyIds.every((id) => robot.policy_candidates.some((candidate) => candidate.candidate_id === id && !optionReason(candidate, robot))));
 
+  async function importPacketSetup(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    try {
+      const imported = await parsePacketPlanningSetup(await file.text());
+      setupRequest.current++;
+      setSetup(null);
+      setPacketSetup(imported);
+      setRobotId(imported.robot_presets[0].robot_preset_id);
+      setPolicyIds([]);
+      setConfirmed(false);
+      setInterpretationConfirmed(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The packet setup could not be read.");
+    }
+  }
+
   async function changeRobot(choice: string) {
+    if (packetSetup) {
+      const next = packetSetup.robot_presets.find((item) =>
+        `${packetSetup.setup_digest}:${item.robot_preset_id}` === choice);
+      if (next) {
+        setRobotId(next.robot_preset_id);
+        setPolicyIds([]);
+      }
+      return;
+    }
     if (!setup || !currentUser) return;
     const nextChoice = setup.available_setups.find((item) =>
       `${item.setup_digest}:${item.robot_preset_id}` === choice);
@@ -197,28 +242,50 @@ export default function PolicyCanarySetup() {
   }
 
   async function downloadChoice() {
-    if (!setup || !robot) return;
+    if (!robot) return;
     try {
-      downloadPolicyPairChoice(await makePolicyPairChoice(setup, robot, policyIds));
+      if (packetSetup) {
+        downloadPacketPolicyPairChoice(
+          await makePacketPolicyPairChoice(packetSetup, robot.robot_preset_id, policyIds),
+          packetSetup.task_id,
+        );
+      } else if (setup) {
+        downloadPolicyPairChoice(await makePolicyPairChoice(setup, robot, policyIds));
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The policy pair could not be downloaded.");
     }
   }
 
   const emailAllowed = Boolean(setup?.notification_recipient_options.includes(email.toLowerCase()));
-  const canSubmit = !inspectOnly && canContinueSetup && confirmed && interpretationConfirmed && Boolean(confirmedSuccessContract) && emailAllowed && !submitting && !switching;
+  const canSubmit = !packetSetup && !inspectOnly && canContinueSetup && confirmed && interpretationConfirmed && Boolean(confirmedSuccessContract) && emailAllowed && !submitting && !switching;
   const otherSizes = setup?.episode_presets.filter((item) => item.preset_id !== "quick_10" && item.availability !== "enabled") || [];
 
   return <AppShell active="packs" breadcrumb="tasks / policy test">
-    <Helmet><title>Run a policy test · Blueprint</title><meta name="description" content="Run two policies on this task in simulation before the scene's checks pass." /></Helmet>
+    <Helmet><title>Configure a policy test · Blueprint</title><meta name="description" content="Choose compatible robot policies for one task." /></Helmet>
     <Link className="ws-back" href="/app/packs">← Tasks</Link>
     <header className="ws-heading"><div>
-      <h1>Run a policy test</h1>
-      {setup ? <p className="mt-2">{setup.offering.scene_id} · {setup.offering.task_id}</p> : null}
+      <h1>{packetSetup ? "Plan a development policy pair" : "Run a policy test"}</h1>
+      {packetSetup ? <p className="mt-2">{packetSetup.scene_id} · {packetSetup.task_id}</p>
+        : setup ? <p className="mt-2">{setup.offering.scene_id} · {setup.offering.task_id}</p> : null}
     </div></header>
-    {!setup && !error ? <BuyerAppLoadingState /> : null}
+    {developmentAccess ? <section aria-labelledby="packet-planning-import" className="mb-8">
+      <h2 id="packet-planning-import">Retained task packet</h2>
+      <p className="ws-note mt-2">Import a planning setup exported from a verified Pipeline packet to choose policies for its exact task revision. The file stays in this browser; Pipeline verifies the packet and choice before staging a run.</p>
+      <Field label="Packet planning setup" wide>
+        <input type="file" accept=".json,application/json" onChange={(event) => { void importPacketSetup(event.target.files?.[0]); }} />
+      </Field>
+      {packetSetup && decodedLaunchId ? <button type="button" className="ws-secondary mt-3" onClick={() => {
+        setPacketSetup(null);
+        setRobotId("");
+        setPolicyIds([]);
+        setError(null);
+      }}>Use published setup</button> : null}
+    </section> : null}
+    {!decodedLaunchId && !developmentAccess ? <BuyerAppErrorState message="This planning page requires operator access." /> : null}
+    {!activeSetup && !error && decodedLaunchId ? <BuyerAppLoadingState /> : null}
     {error ? <BuyerAppErrorState message={error} /> : null}
-    {setup && robot && preset ? <form className="ws-form flex flex-col gap-12" onSubmit={(event) => { event.preventDefault(); if (canSubmit) void submit(); }}>
+    {activeSetup && robot && (packetSetup || preset) ? <form className="ws-form flex flex-col gap-12" onSubmit={(event) => { event.preventDefault(); if (canSubmit) void submit(); }}>
       {!inspectOnly ? <p className="max-w-3xl text-ink-700">
         This scene's control checks haven't passed yet, so the results are unqualified: they can't rank policies or
         promote the scene. Scenarios where a control check fails are left unscored, not counted against a policy.
@@ -228,8 +295,8 @@ export default function PolicyCanarySetup() {
         <h2 id="policy-test-robot">Robot and policies</h2>
         <div className="ws-fields mt-5">
           <Field label="Robot" wide>
-            <select value={`${setup.setup_digest}:${robot.robot_preset_id}`} disabled={switching} onChange={(event) => { void changeRobot(event.target.value); }}>
-              {setup.available_setups.map((item) => <option key={`${item.setup_digest}:${item.robot_preset_id}`} value={`${item.setup_digest}:${item.robot_preset_id}`}>
+            <select value={`${activeSetup.setup_digest}:${robot.robot_preset_id}`} disabled={switching} onChange={(event) => { void changeRobot(event.target.value); }}>
+              {availableSetups.map((item) => <option key={`${item.setup_digest}:${item.robot_preset_id}`} value={`${item.setup_digest}:${item.robot_preset_id}`}>
                 {item.display_name}{item.readiness.status === "verified_runnable" ? "" : " (unavailable)"}
               </option>)}
             </select>
@@ -264,10 +331,11 @@ export default function PolicyCanarySetup() {
           ? robot.policy_candidates.filter((candidate) => policyIds.includes(candidate.candidate_id)).map((candidate) => candidate.display_name).join(" and ")
           : "Choose two compatible policies above to inspect a pair."}</p>
         <p className="ws-note">Download this pair for the operator to bind to a sealed scene packet and reviewed model rights. No simulator run or payment starts.</p>
+        {packetSetup ? <p className="ws-note">Packet receipt: <span className="break-all">{packetSetup.source_packet_receipt_digest}</span></p> : null}
         <button type="button" className="ws-secondary mt-4" disabled={policyIds.length !== 2 || switching} onClick={() => { void downloadChoice(); }}>Download pair choice</button>
       </section> : null}
 
-      {robot.readiness.status === "verified_runnable" ? <>
+      {setup && preset && !packetSetup && robot.readiness.status === "verified_runnable" ? <>
       <section aria-labelledby="policy-test-size">
         <h2 id="policy-test-size">Run size</h2>
         <p>
@@ -330,14 +398,18 @@ export default function PolicyCanarySetup() {
       <details>
         <summary>Setup details</summary>
         <dl className="ws-facts">
-          <div><dt>Scene revision</dt><dd className="break-all">{setup.scene_revision_digest}</dd></div>
-          <div><dt>Setup</dt><dd className="break-all">{setup.setup_digest}</dd></div>
+          {packetSetup ? <>
+            <div><dt>Source packet</dt><dd className="break-all">{packetSetup.source_packet_receipt_digest}</dd></div>
+            <div><dt>Declared task digest</dt><dd className="break-all">{packetSetup.source_declared_task_success_contract_digest}</dd></div>
+            <div><dt>Confirmed task digest</dt><dd className="break-all">{packetSetup.task_success_contract_digest}</dd></div>
+          </> : setup ? <div><dt>Scene revision</dt><dd className="break-all">{setup.scene_revision_digest}</dd></div> : null}
+          <div><dt>Setup</dt><dd className="break-all">{activeSetup.setup_digest}</dd></div>
           <div><dt>Runtime image</dt><dd className="break-all">{robot.runtime_image.uri}</dd></div>
           <div><dt>Observations</dt><dd>{robot.observation_schema.cameras.join(", ")} · {robot.observation_schema.modalities.join(", ")}</dd></div>
           <div><dt>Actions</dt><dd>{robot.action_schema.space} · {robot.action_schema.control_hz} Hz</dd></div>
           <div><dt>Task family</dt><dd className="break-all">{robot.task_family_id}</dd></div>
           {robot.policy_candidates.map((candidate) => <div key={candidate.candidate_id}><dt>{candidate.display_name}</dt><dd className="break-all">{candidate.candidate_id} · {candidate.adapter_id} · {candidate.license_id}</dd></div>)}
-          {!inspectOnly ? <><div><dt>Scenario set</dt><dd className="break-all">{preset.matrix.matrix_digest}</dd></div>
+          {!inspectOnly && preset ? <><div><dt>Scenario set</dt><dd className="break-all">{preset.matrix.matrix_digest}</dd></div>
           <div><dt>Estimate basis</dt><dd className="break-all">{preset.estimate.basis_digest} · {preset.estimate.as_of}</dd></div></> : null}
         </dl>
       </details>
