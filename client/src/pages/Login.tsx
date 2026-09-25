@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { AuthLayout } from "@/components/auth/AuthLayout";
@@ -38,9 +38,17 @@ export default function Login() {
   const [googleReady, setGoogleReady] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authErrorCode, setAuthErrorCode] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const redirectChecked = useRef(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const { signIn, signInWithGoogle, prepareGoogleSignIn } = useAuth();
+  const { signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn } = useAuth();
+  const browserLocation = typeof window === "undefined" ? null : window.location;
+  const resultPath = new URLSearchParams(browserLocation?.search || "").get("next");
+  const resultLink = resultPath && /^\/app\/results\/[A-Za-z0-9_-]+$/.test(resultPath)
+    ? new URL(resultPath, browserLocation?.origin || "https://tryblueprint.io").href
+    : browserLocation?.href || "";
 
   useEffect(() => {
     const next = new URLSearchParams(window.location.search).get("next");
@@ -51,6 +59,24 @@ export default function Login() {
         // Sign-in still works when this browser disables session storage.
       }
     }
+  }, []);
+
+  useEffect(() => {
+    if (redirectChecked.current) return;
+    redirectChecked.current = true;
+    let redirectPending = false;
+    try {
+      redirectPending = sessionStorage.getItem("googleRedirectPending") === "1";
+    } catch {
+      // The auth context will report a storage error if redirect recovery needs it.
+    }
+    if (redirectPending) setIsLoading(true);
+    void completeGoogleRedirect().catch((error: unknown) => {
+      setAuthError(error instanceof Error ? error.message : "Google sign-in failed. Please try again.");
+      setAuthErrorCode((error as { code?: string } | null)?.code || null);
+    }).finally(() => {
+      if (redirectPending) setIsLoading(false);
+    });
   }, []);
 
   useEffect(() => {
@@ -95,6 +121,7 @@ export default function Login() {
     if (isLoading || !validateForm()) return;
     setIsLoading(true);
     setAuthError(null);
+    setAuthErrorCode(null);
     try {
       await signIn(formData.email, formData.password);
     } catch {
@@ -108,12 +135,24 @@ export default function Login() {
     if (isLoading || !googleReady) return;
     setIsLoading(true);
     setAuthError(null);
+    setAuthErrorCode(null);
     try {
       await signInWithGoogle();
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Google sign-in failed. Please try again.");
+      setAuthErrorCode((error as { code?: string } | null)?.code || null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const copyResultLink = async () => {
+    try {
+      await navigator.clipboard.writeText(resultLink);
+      setLinkCopied(true);
+    } catch {
+      setLinkCopied(false);
+      setAuthError("Copying was blocked here. Select the link below and copy it manually.");
     }
   };
 
@@ -126,6 +165,13 @@ export default function Login() {
       <div className="auth-divider"><span>or</span></div>
       <form method="post" onSubmit={handleSubmit} className="auth-form" noValidate aria-label="Sign in" aria-busy={isLoading}>
         {authError && <p className="auth-error" role="alert">{authError}</p>}
+        {authErrorCode === "auth/popup-blocked" && (
+          <div className="auth-browser-handoff">
+            <p>Tap the browser menu and choose <strong>Open in Safari</strong>. If that option is unavailable, copy this link and paste it into Safari. Your result will open after sign-in.</p>
+            <button type="button" onClick={copyResultLink}>{linkCopied ? "Link copied" : "Copy result link"}</button>
+            <input aria-label="Result link to open in Safari" readOnly value={resultLink} onFocus={(event) => event.currentTarget.select()} />
+          </div>
+        )}
         <div><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" inputMode="email" value={formData.email} onChange={handleInputChange} onBlur={handleBlur} placeholder="you@company.com" disabled={isLoading} aria-invalid={Boolean(errors.email && touched.email)} aria-describedby={errors.email && touched.email ? "email-error" : undefined} />{errors.email && touched.email && <p id="email-error" className="auth-field-error">{errors.email}</p>}</div>
         <div><label htmlFor="password">Password</label><div className="auth-password"><input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={formData.password} onChange={handleInputChange} onBlur={handleBlur} disabled={isLoading} aria-invalid={Boolean(errors.password && touched.password)} aria-describedby={errors.password && touched.password ? "password-error" : undefined} /><button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}</button></div>{errors.password && touched.password && <p id="password-error" className="auth-field-error">{errors.password}</p>}</div>
         <a className="auth-forgot" href="/forgot-password">Forgot password?</a>

@@ -32,6 +32,7 @@ import {
   PIPELINE_TASK_EVALUATION_RESULT_PATH,
 } from "./utils/pipelineTaskEvaluationResultBodyParser";
 import { describeSiteVideoEvidenceConfig } from "./utils/siteVideoEvidenceConfig";
+import { firebaseAuthProxy } from "./utils/firebaseAuthProxy";
 
 const env = validateEnv();
 
@@ -179,6 +180,9 @@ const hostedSessionLimiter = createRateLimiter({
 });
 
 // Configure middleware
+// Firebase redirects must return to a helper on this same origin. Register
+// before body parsing and app CSP so the upstream helper stays byte-for-byte.
+app.use("/__/auth", firebaseAuthProxy);
 const defaultBodyLimit = env.API_BODY_LIMIT || "1mb";
 const pipelineTaskEvaluationResultBodyLimit =
   env.PIPELINE_TASK_EVALUATION_RESULT_BODY_LIMIT ||

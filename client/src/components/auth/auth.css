@@ -33,6 +33,10 @@
 .auth-account-link a { color: var(--ms-green); text-decoration: underline; text-underline-offset: 4px; }
 .auth-utility { display: inline-block; font-size: 11px; color: var(--ms-muted); margin-top: 15px; }
 .auth-error { color: #9c352d; padding: 12px 14px; border: 1px solid #dcb4ad; border-radius: 3px; font-size: 14px; line-height: 1.6; }
+.auth-browser-handoff { border: 1px solid #bac0b2; border-radius: 3px; padding: 14px; font-size: 13px; line-height: 1.5; }
+.auth-browser-handoff p { margin: 0 0 12px; }
+.auth-browser-handoff button { border: 1px solid var(--ms-green); border-radius: 3px; color: var(--ms-green); padding: 9px 12px; font-weight: 500; }
+.auth-browser-handoff input { display: block; width: 100%; margin-top: 10px; padding: 8px; font-size: 12px; }
 .auth-field-error { color: #9c352d; font-size: 12px; margin-top: 7px; }
 .auth-reset-form, .auth-reset-return { margin-top: 32px; }
 .auth-back { display: inline-flex; align-items: center; gap: 9px; margin-top: 24px; font-size: 13px; }
