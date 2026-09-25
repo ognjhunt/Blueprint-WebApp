@@ -22,13 +22,13 @@ describe("Pricing", () => {
     expect(within(team).getByRole("link", { name: /Apply for early access/ })).toHaveAttribute("href", "/contact/robot-team");
   });
 
-  it("separates Blueprint's site-approved pilot fee from provider charges", () => {
+  it("shows a starting Blueprint pilot fee and a full quote before commitment", () => {
     render(<Pricing />);
     const pilot = screen.getByRole("heading", { name: "Physical pilots" }).closest("section") as HTMLElement;
-    expect(within(pilot).getByText(/fixed, site-approved fee/)).toBeInTheDocument();
-    expect(within(pilot).getByText(/site agrees to that scope before we invite teams into the funded project/)).toBeInTheDocument();
-    expect(within(pilot).getByText(/provider or integrator quotes installation and operation separately/)).toBeInTheDocument();
-    expect(within(pilot).getByText(/All costs are approved before work begins/)).toBeInTheDocument();
+    expect(within(pilot).getByText(/fee starts at \$5,000/)).toBeInTheDocument();
+    expect(within(pilot).getByText(/Provider installation and operation cost extra/)).toBeInTheDocument();
+    expect(within(pilot).getByText(/itemized quote for the full trial/)).toBeInTheDocument();
+    expect(within(pilot).getByText(/result adds no extra Blueprint fee/)).toBeInTheDocument();
     expect(within(pilot).getByRole("link", { name: /billing details in our Terms/ })).toHaveAttribute("href", "/terms");
   });
 

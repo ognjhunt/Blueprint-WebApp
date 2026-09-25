@@ -7,7 +7,8 @@
  *   $99   a robot team pays per entry.
  *
  * Pilot preparation, coordination, and measurement are a separate site-paid
- * service quoted for a specific physical trial. This module does not price it.
+ * service. The published starting fee is a planning floor; the actual fixed
+ * fee and provider costs are quoted for a specific physical trial.
  *
  * WHAT AN ENTRY IS. One policy, running on one embodiment, against one task at
  * one site. Both halves are part of the unit: the same policy on a second
@@ -72,6 +73,9 @@ export const entryBoundaries = [
 
 /** A robot team's price, per entry. The only number a team has to read. */
 export const entryPrice = 99;
+
+/** Published starting Blueprint fee for one site's scoped physical pilot. */
+export const pilotServiceStartingFeeUsd = 5000;
 
 /** The smallest top-up Stripe will charge. Mirrors `MIN_TOPUP_USD` on the server. */
 export const minTopupUsd = entryPrice;

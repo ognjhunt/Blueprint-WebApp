@@ -18,9 +18,9 @@ test("pricing shows current costs and separates physical pilot work", async ({ p
   await expect(team.getByRole("link", { name: /Apply for early access/ })).toHaveAttribute("href", "/contact/robot-team");
 
   const pilot = page.locator("section", { has: page.getByRole("heading", { name: "Physical pilots" }) });
-  await expect(pilot.getByText(/fixed, site-approved fee/)).toBeVisible();
-  await expect(pilot.getByText(/written scope and budget showing/)).toBeVisible();
-  await expect(pilot.getByText(/provider's installation and operation quote/)).toBeVisible();
+  await expect(pilot.getByText(/fee starts at \$5,000/)).toBeVisible();
+  await expect(pilot.getByText(/itemized quote for the full trial/)).toBeVisible();
+  await expect(pilot.getByText(/result adds no extra Blueprint fee/)).toBeVisible();
   await expect(pilot.getByRole("link", { name: /billing details in our Terms/ })).toHaveAttribute("href", "/terms");
   await expect(page.getByRole("table")).toHaveCount(0);
 });

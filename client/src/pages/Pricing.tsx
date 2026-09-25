@@ -1,11 +1,11 @@
 import { ArrowRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { entryDefinition, entryPrice, formatPrice, siteAssessment } from "@/lib/evaluationPricing";
+import { entryDefinition, entryPrice, formatPrice, pilotServiceStartingFeeUsd, siteAssessment } from "@/lib/evaluationPricing";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  `A site's initial task assessment is free. Invited robot teams join site-funded pilot projects at no charge; optional self-directed evaluations cost ${formatPrice(entryPrice)} per entry. Physical pilot costs are agreed separately.`;
+  `A site's initial task assessment is free. Blueprint's pilot service starts at ${formatPrice(pilotServiceStartingFeeUsd)}, with provider costs quoted separately. Invited robot teams join funded pilot projects at no charge; optional self-directed evaluations cost ${formatPrice(entryPrice)} per entry.`;
 
 export default function Pricing() {
   return (
@@ -69,10 +69,10 @@ export default function Pricing() {
         <section className="ms-price-block" aria-labelledby="pilot-service-title">
           <h2 id="pilot-service-title">Physical pilots</h2>
           <p>
-            For a suitable task, Blueprint can prepare, coordinate, and measure a trial for a fixed,
-            site-approved fee. Before a trial begins, you receive a written scope and budget showing
-            our fee, the provider's installation and operation quote, and when each payment is due.
-            The provider or integrator handles installation and operation.
+            Blueprint's preparation, coordination, and measurement fee starts at {formatPrice(pilotServiceStartingFeeUsd)}
+            {" "}for one task at one site. Provider installation and operation cost extra. Before you commit,
+            we provide an itemized quote for the full trial. The result adds no extra Blueprint fee;
+            any ongoing deployment is agreed separately.
           </p>
           <a className="ms-text-link" href="/terms">Evaluation billing details in our Terms</a>
         </section>
