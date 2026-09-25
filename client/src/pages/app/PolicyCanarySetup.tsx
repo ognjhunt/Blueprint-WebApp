@@ -7,6 +7,7 @@ import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint
 import { TaskSuccessContractPanel } from "@/components/blueprint/app/TaskSuccessContractPanel";
 import { Field } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
+import { downloadPolicyPairChoice, makePolicyPairChoice } from "@/lib/policyPairChoice";
 import {
   createPolicyCanaryRun,
   fetchPolicyCanarySetup,
@@ -195,6 +196,15 @@ export default function PolicyCanarySetup() {
     }
   }
 
+  async function downloadChoice() {
+    if (!setup || !robot) return;
+    try {
+      downloadPolicyPairChoice(await makePolicyPairChoice(setup, robot, policyIds));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The policy pair could not be downloaded.");
+    }
+  }
+
   const emailAllowed = Boolean(setup?.notification_recipient_options.includes(email.toLowerCase()));
   const canSubmit = !inspectOnly && canContinueSetup && confirmed && interpretationConfirmed && Boolean(confirmedSuccessContract) && emailAllowed && !submitting && !switching;
   const otherSizes = setup?.episode_presets.filter((item) => item.preset_id !== "quick_10" && item.availability !== "enabled") || [];
@@ -253,7 +263,8 @@ export default function PolicyCanarySetup() {
         <p>{policyIds.length === 2
           ? robot.policy_candidates.filter((candidate) => policyIds.includes(candidate.candidate_id)).map((candidate) => candidate.display_name).join(" and ")
           : "Choose two compatible policies above to inspect a pair."}</p>
-        <p className="ws-note">This choice is for planning on this page. No simulator run or payment starts.</p>
+        <p className="ws-note">Download this pair for the operator to bind to a sealed scene packet and reviewed model rights. No simulator run or payment starts.</p>
+        <button type="button" className="ws-secondary mt-4" disabled={policyIds.length !== 2 || switching} onClick={() => { void downloadChoice(); }}>Download pair choice</button>
       </section> : null}
 
       {robot.readiness.status === "verified_runnable" ? <>

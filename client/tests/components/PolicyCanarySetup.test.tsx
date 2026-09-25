@@ -23,6 +23,10 @@ vi.mock("@/lib/policyCanaryRuns", async () => {
     createPolicyCanaryRun: vi.fn(),
   };
 });
+vi.mock("@/lib/policyPairChoice", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/policyPairChoice")>("@/lib/policyPairChoice");
+  return { ...actual, downloadPolicyPairChoice: vi.fn() };
+});
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 
@@ -350,6 +354,18 @@ describe("PolicyCanarySetup", () => {
     expect(navigation).toHaveProperty("disabled", true);
     fireEvent.click(pi);
     expect(screen.getByText("G1 DP manipulation and G1 π0.5 manipulation")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Download pair choice" }));
+    const { downloadPolicyPairChoice } = await import("@/lib/policyPairChoice");
+    await waitFor(() => expect(vi.mocked(downloadPolicyPairChoice)).toHaveBeenCalledWith(expect.objectContaining({
+      schema_version: "task_evaluation_policy_pair_choice.v1",
+      claim_ceiling: "planning_only",
+      setup_digest: sha("7"),
+      robot_preset_id: robot.robot_preset_id,
+      policy_candidate_ids: ["g1_policy_0", "g1_policy_1"],
+      objective_id: "task_success",
+      // Python Pipeline's canonical_digest for these exact transport fields.
+      choice_digest: "sha256:0dc73178c9ebe710c6e4cdf07d68ce9cee217f3ad1c5efd1f4d4273a19e5c1e4",
+    })));
     expect(screen.queryByRole("button", { name: "Start policy test" })).toBeNull();
     expect(screen.queryByText(/10 scenarios per policy/)).toBeNull();
     expect(vi.mocked(createPolicyCanaryRun)).not.toHaveBeenCalled();
