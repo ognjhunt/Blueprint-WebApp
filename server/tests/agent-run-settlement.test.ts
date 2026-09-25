@@ -339,7 +339,7 @@ describe("a reported run settles for what it ran", () => {
       .rejects.toBeInstanceOf(RunOutcomeConflictError);
 
     expect(collectionStore("evaluationRuns").get(run.runId)).toEqual(resolved);
-    expect((await getTeamBalance(TEAM)).spentUsd).toBe(250);
+    expect((await getTeamBalance(TEAM)).spentUsd).toBe(125);
   });
 
   it("refuses a financial outcome after cancellation without blocking late result evidence", async () => {
@@ -383,16 +383,16 @@ describe("a reported run settles for what it ran", () => {
     expect(balance.reservedUsd).toBe(0);
   });
 
-  it("bills one flat entry once any episodes ran", async () => {
+  it("bills only the completed share of a partially run entry", async () => {
     const { run } = await fundedTeamWithOneHold();
 
     await reportRunOutcome({ runId: run.runId, state: "completed", episodesRun: 25 });
     await reconcileAgentRunSettlements();
 
     const balance = await getTeamBalance(TEAM);
-    expect(balance.spentUsd).toBe(250);
+    expect(balance.spentUsd).toBe(125);
     expect(balance.reservedUsd).toBe(0);
-    expect(balance.availableUsd).toBe(750);
+    expect(balance.availableUsd).toBe(875);
   });
 
   it("never bills past the quote, however many episodes are claimed", async () => {
@@ -527,11 +527,11 @@ describe("what an agent can see about its own held money", () => {
   });
 });
 
-describe("the settlement amount is derived from the quote, not from a rate", () => {
+describe("the settlement amount is prorated from the quote, not a reported rate", () => {
   it.each([
     { episodesRun: 0, expected: 0 },
-    { episodesRun: 1, expected: 250 },
-    { episodesRun: 25, expected: 250 },
+    { episodesRun: 1, expected: 5 },
+    { episodesRun: 25, expected: 125 },
     { episodesRun: 50, expected: 250 },
     { episodesRun: 99, expected: 250 },
     { episodesRun: null, expected: 0 },

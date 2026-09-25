@@ -469,11 +469,11 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     expect(result.balance.spentUsd).toBe(result.quotedUsd);
   });
 
-  it("settles the flat entry after a partial run produced results", async () => {
+  it("prorates the entry when a partial run produced results", async () => {
     const result = await holdThenSettle({ episodes_run: 25, rate_usd: 5 });
 
-    expect(result.settlement.amountUsd).toBe(result.quotedUsd);
-    expect(result.balance.spentUsd).toBe(result.quotedUsd);
+    expect(result.settlement.amountUsd).toBe(result.quotedUsd / 2);
+    expect(result.balance.spentUsd).toBe(result.quotedUsd / 2);
     expect(result.balance.reservedUsd).toBe(0);
   });
 

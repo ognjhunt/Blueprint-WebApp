@@ -2,6 +2,7 @@ import { SEO } from "@/components/SEO";
 import { EditorialFaq } from "@/components/site/editorial";
 import { Reveal } from "@/components/site/motion";
 import { Band, ClosingCta, Inner } from "@/components/site/publicSections";
+import { entryPrice, formatPrice, pilotServiceStartingFeeUsd } from "@/lib/evaluationPricing";
 import { faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 export const faqItems = [
@@ -19,6 +20,11 @@ export const faqItems = [
     question: "How do you find a robot team for my task?",
     answer:
       "With your approval, we share a task card with approved robot teams and ask what they can actually install and support. We screen for capability, timing, and cost before deeper evaluation. We compare candidates when that helps your decision; a promising match can move to a separately approved physical trial.",
+  },
+  {
+    question: "Do I need to book a call or host Blueprint onsite?",
+    answer:
+      "No. Start with a task description and phone footage. We collect missing details and approvals in writing. A call may help with an unusual scope, while the robot provider or integrator handles the physical work onsite.",
   },
   {
     question: "Does Blueprint replace onsite integration?",
@@ -43,7 +49,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      "The initial task assessment is free for the site. For a suitable project, the site approves a fixed Blueprint fee for pilot preparation, coordination, and measurement before we invite teams into the funded work. Invited robot teams pay no evaluation entry fee for that project. Optional self-directed evaluations outside it cost $99 per entry, with no later supplier commission on that entry. The provider separately quotes installation and operation; the site approves those costs before work begins.",
+      `The initial task assessment is free for the site. Blueprint's pilot preparation, coordination, and measurement fee starts at ${formatPrice(pilotServiceStartingFeeUsd)} for one task at one site. The provider separately quotes installation and operation. The site approves the full trial budget before work begins, and a successful result does not trigger an extra Blueprint fee. Invited robot teams pay no evaluation entry fee for that project. Optional self-directed evaluations outside it cost ${formatPrice(entryPrice)} per entry, with no later supplier commission on that entry.`,
   },
 ];
 
