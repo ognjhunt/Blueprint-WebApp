@@ -1,5 +1,7 @@
 /**
- * Published prices for initial assessment and robot-team evaluation.
+ * Published prices for initial assessment and optional self-directed
+ * robot-team evaluation. Invited evaluation within a separately agreed,
+ * site-funded pilot project does not use this team-paid entry price.
  *
  *   $0    a site pays nothing to find out.
  *   $99   a robot team pays per entry.
@@ -99,7 +101,7 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Robot teams pay for evaluation runs when we run them. A site may separately pay Blueprint for pilot coordination after approving a quote. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Robot teams pay for optional self-directed evaluation runs. Invited teams pay no entry fee for evaluation included in a site-funded pilot project. A site may separately pay Blueprint for pilot coordination after approving a quote. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
     "A physical pilot and any Blueprint pilot preparation, coordination, or measurement service. We quote that work separately for the site to approve; the provider or integrator quotes installation and operation.",
 } as const;

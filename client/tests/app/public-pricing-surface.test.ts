@@ -1,9 +1,10 @@
 /**
- * One price, on one surface.
+ * One price for self-directed entries, on every public surface.
  *
- * Two commercial models exist in this repo. The one that ships is the flat
- * entry price: `@/lib/evaluationPricing` says $99 per entry, where an entry is
- * one policy on one embodiment against one task. The other is
+ * Two commercial models exist in this repo. The self-directed entry price
+ * is `@/lib/evaluationPricing`'s $99 per entry. Invited participation in a
+ * separately agreed, site-funded pilot project carries no team entry fee.
+ * The retired model is
  * `@/lib/deploymentPricing`: $1,000 to evaluate a site-task, $10,000 on award.
  *
  * The second one was reachable. `/internal/opportunity-board` and its five
@@ -70,18 +71,17 @@ describe("the public surface carries one pricing model", () => {
     }
   });
 
-  it("states the flat entry price the API actually quotes", async () => {
-    const { entryPrice, quoteEntries } = await import("@/lib/evaluationPricing");
+  it("states both the free invited path and the flat self-directed price", async () => {
+    const { entryPrice } = await import("@/lib/evaluationPricing");
     const { faqItems } = await import("@/pages/FAQ");
 
     const paymentAnswer = faqItems.find((item) => item.question === "How is Blueprint paid?");
     expect(paymentAnswer).toBeTruthy();
 
-    // The figures in the answer have to be the figures in the module, or the
-    // FAQ becomes the third price.
+    // The $99 path stays tied to the API, without turning the FAQ into an
+    // arithmetic table or charging teams invited to a funded pilot project.
+    expect(paymentAnswer?.answer).toContain("Invited robot teams pay no evaluation entry fee");
     expect(paymentAnswer?.answer).toContain(`$${entryPrice}`);
-    expect(paymentAnswer?.answer).toContain(`$${quoteEntries(3, 1).usd}`);
-    expect(paymentAnswer?.answer).toContain(`$${quoteEntries(3, 2).usd}`);
   });
 
   it("quotes a robot team the same price the server charges it", async () => {
