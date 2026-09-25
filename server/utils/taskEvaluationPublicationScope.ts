@@ -1,15 +1,16 @@
 import { configuredSceneOfferingSchema } from "./configuredSceneOfferingContract";
 import type { PipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
-import { confirmedRigidTaskSuccessContractSchema } from "./rigidTaskSuccessContract";
+import { confirmedTaskSuccessContractSchema } from "./articulatedTaskSuccessContract";
 import { stableJson } from "./taskCandidateContract";
 
 export function normalOwnerControlOmissionMatches(
   policyRun: Record<string, any>, publication: PipelinePolicyCanaryPublication,
 ) {
   if (!publication.policy_canary_result.control_omission) return true;
-  const savedTask = confirmedRigidTaskSuccessContractSchema.safeParse(policyRun.task_success_contract);
+  const savedTask = confirmedTaskSuccessContractSchema.safeParse(policyRun.task_success_contract);
   return savedTask.success
-    && savedTask.data.criteria.controls?.mode !== "required_per_cell"
+    && (!("controls" in savedTask.data.criteria)
+      || savedTask.data.criteria.controls?.mode !== "required_per_cell")
     && policyRun.task_success_contract_digest === savedTask.data.contract_digest
     && stableJson(savedTask.data) === stableJson(publication.policy_canary_result.task_success_contract);
 }

@@ -14,6 +14,7 @@ import {
   type ArticulatedTaskSuccessContract,
 } from "../utils/articulatedTaskSuccessContract";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import { normalOwnerControlOmissionMatches } from "../utils/taskEvaluationPublicationScope";
 
 const SITE = "site-capture-drawer";
 const TASK = "website-drawer-open";
@@ -75,6 +76,31 @@ function reseal(contract: ArticulatedTaskSuccessContract) {
 }
 
 describe("articulated task success contract", () => {
+  it("binds a website controls omission to the saved confirmed drawer contract", () => {
+    const contract = seal();
+    const policyRun = {
+      task_success_contract: contract,
+      task_success_contract_digest: contract.contract_digest,
+    };
+    const publication = {
+      policy_canary_result: {
+        control_omission: { authority_digest: `sha256:${"a".repeat(64)}` },
+        task_success_contract: contract,
+      },
+    } as Parameters<typeof normalOwnerControlOmissionMatches>[1];
+    expect(normalOwnerControlOmissionMatches(policyRun, publication)).toBe(true);
+    expect(normalOwnerControlOmissionMatches({
+      ...policyRun, task_success_contract_digest: `sha256:${"b".repeat(64)}`,
+    }, publication)).toBe(false);
+    expect(normalOwnerControlOmissionMatches(policyRun, {
+      ...publication,
+      policy_canary_result: {
+        ...publication.policy_canary_result,
+        task_success_contract: seal({ scope: { site_id: SITE, task_id: "other-drawer" } }),
+      },
+    })).toBe(false);
+  });
+
   it("parses a sealed contract and reads its kind", () => {
     const contract = seal();
     expect(articulatedTaskSuccessContractSchema.parse(contract)).toEqual(contract);
