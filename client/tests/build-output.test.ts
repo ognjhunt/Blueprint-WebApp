@@ -208,7 +208,7 @@ describe("build output", () => {
     expect(llmsFull).toContain("Robot teams join by early access");
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/pricing");
-    expect(llms).toContain("Sites pay nothing for initial assessment or scene preparation");
+    expect(llms).toContain("The site pays the provider's quoted price plus Blueprint's separately scoped fee if it accepts the pilot");
 
   });
 
@@ -219,7 +219,7 @@ describe("build output", () => {
     expect(homeHtml).toContain("One recurring task.");
     expect(homeHtml).toContain("A measured robot pilot.");
     expect(homeHtml).toContain("Illustrative scenes");
-    expect(homeHtml).toContain("no credible fit yet");
+    expect(homeHtml).toContain("one itemized offer with Blueprint&#x27;s fee and the total");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).not.toContain("The site pays nothing");
@@ -238,7 +238,7 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Find a task your robot can support.");
-    expect(robotHtml).toContain("Spend less time on unsuitable opportunities. Approved teams review site-approved tasks");
+    expect(robotHtml).toContain("Tell us what your robot can do and what a standard pilot includes.");
     // Early access: nothing library-shaped is prerendered. The page asks the
     // server who is looking before it shows tasks or the setup form.
     expect(robotHtml).not.toContain("Already have a robot policy to evaluate?");
