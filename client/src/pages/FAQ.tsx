@@ -19,7 +19,7 @@ export const faqItems = [
   {
     question: "How do you find a robot team for my task?",
     answer:
-      "We match your task to participating providers' configurations and pilot packages. With your permission, a suitable provider reviews the task, relevant evaluation evidence, and a prepared offer. It confirms the price, availability, and site conditions before you see it as an offer. A provider that has not committed is shown only as a potential match.",
+      "We match your task to participating teams' configurations and run supported evaluations on tasks you approve for access. You see anonymized results first; each team sees its own results. If a promising team and your site both want a pilot discussion, we make a private introduction. That provider confirms its price, availability, and site conditions before you see a pilot offer.",
   },
   {
     question: "Do I need to book a call or host Blueprint onsite?",

@@ -2,7 +2,7 @@
 
 > Blueprint helps a business turn one recurring task into a scoped, funded, measurable robot pilot and decide what happens afterward.
 
-Show Blueprint one recurring task, including phone footage and rough economics. An approved budget is not required to start. Blueprint checks fit and uses free, bounded evaluation when it improves the decision. A suitable provider confirms its configuration, scope, price, availability, and site conditions before the customer sees an offer. The customer sees the provider identity, evidence, uncertainties, and one itemized proposal with the provider price plus Blueprint's scoped fee. The site approves the total before paid work. The provider or integrator installs and operates the robot; Blueprint coordinates the agreed plan and measures the physical outcome. Simulation is not physical proof or a deployment guarantee.
+Show Blueprint one recurring task, including phone footage and rough economics. An approved budget is not required to start. Blueprint checks fit and uses free, bounded evaluation when it improves the decision. The site sees anonymized candidate results; each team sees its own results. A promising team and site may then approve a private introduction. The provider confirms its configuration, scope, price, availability, and site conditions before the customer sees one itemized proposal with the provider price plus Blueprint's scoped fee. The site approves the total before paid work. The provider or integrator installs and operates the robot; Blueprint coordinates the agreed plan and measures the physical outcome. Simulation is not physical proof or a deployment guarantee.
 
 ## Public pages
 

@@ -11,7 +11,7 @@ const definitions = [
   {
     term: "Managed robot pilot preparation",
     definition:
-      "Blueprint helps a business describe one recurring task, review a provider-backed pilot offer, and measure the resulting physical trial. Evaluation supports the offer where useful. The provider confirms its scope and price; Blueprint adds its separately scoped fee to one itemized proposal. The site approves the total before paid work. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
+      "Blueprint helps a business describe one recurring task, review anonymized evaluation results, then consider a provider-backed pilot offer. A promising team and site may approve a private introduction. The provider confirms its scope and price; Blueprint adds its separately scoped fee to one itemized proposal. The site approves the total before paid work. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
   },
   {
     term: "Paying-site admission bar",

@@ -219,7 +219,7 @@ describe("build output", () => {
     expect(homeHtml).toContain("One recurring task.");
     expect(homeHtml).toContain("A measured robot pilot.");
     expect(homeHtml).toContain("Illustrative scenes");
-    expect(homeHtml).toContain("one itemized offer with Blueprint&#x27;s fee and the total");
+    expect(homeHtml).toContain("You see anonymized results first.");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).not.toContain("The site pays nothing");
