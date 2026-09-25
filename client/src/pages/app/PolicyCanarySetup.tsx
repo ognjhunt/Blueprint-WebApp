@@ -9,7 +9,8 @@ import { Field } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadPolicyPairChoice, makePolicyPairChoice } from "@/lib/policyPairChoice";
 import {
-  downloadPacketPolicyPairChoice,
+  downloadPacketPolicyHandoff,
+  makePacketPolicyHandoff,
   makePacketPolicyPairChoice,
   parsePacketPlanningSetup,
   type PacketPlanningSetup,
@@ -245,10 +246,8 @@ export default function PolicyCanarySetup() {
     if (!robot) return;
     try {
       if (packetSetup) {
-        downloadPacketPolicyPairChoice(
-          await makePacketPolicyPairChoice(packetSetup, robot.robot_preset_id, policyIds),
-          packetSetup.task_id,
-        );
+        const choice = await makePacketPolicyPairChoice(packetSetup, robot.robot_preset_id, policyIds);
+        downloadPacketPolicyHandoff(await makePacketPolicyHandoff(packetSetup, choice), packetSetup.task_id);
       } else if (setup) {
         downloadPolicyPairChoice(await makePolicyPairChoice(setup, robot, policyIds));
       }
@@ -330,9 +329,9 @@ export default function PolicyCanarySetup() {
         <p>{policyIds.length === 2
           ? robot.policy_candidates.filter((candidate) => policyIds.includes(candidate.candidate_id)).map((candidate) => candidate.display_name).join(" and ")
           : "Choose two compatible policies above to inspect a pair."}</p>
-        <p className="ws-note">Download this pair for the operator to bind to a sealed scene packet and reviewed model rights. No simulator run or payment starts.</p>
+        <p className="ws-note">Download this selection for the operator to bind to a sealed scene packet and reviewed model rights. No simulator run or payment starts.</p>
         {packetSetup ? <p className="ws-note">Packet receipt: <span className="break-all">{packetSetup.source_packet_receipt_digest}</span></p> : null}
-        <button type="button" className="ws-secondary mt-4" disabled={policyIds.length !== 2 || switching} onClick={() => { void downloadChoice(); }}>Download pair choice</button>
+        <button type="button" className="ws-secondary mt-4" disabled={policyIds.length !== 2 || switching} onClick={() => { void downloadChoice(); }}>{packetSetup ? "Download task handoff" : "Download pair choice"}</button>
       </section> : null}
 
       {setup && preset && !packetSetup && robot.readiness.status === "verified_runnable" ? <>

@@ -50,6 +50,14 @@ export type PacketPolicyPairChoice = {
   choice_digest: string;
 };
 
+export type PacketPolicyHandoff = {
+  schema_version: "task_evaluation_packet_policy_handoff.v1";
+  claim_ceiling: "planning_only";
+  setup: PacketPlanningSetup;
+  choice: PacketPolicyPairChoice;
+  handoff_digest: string;
+};
+
 export async function parsePacketPlanningSetup(input: string): Promise<PacketPlanningSetup> {
   if (input.length > 1_000_000) throw new Error("The packet setup file is too large.");
   let raw: unknown;
@@ -113,6 +121,33 @@ export function downloadPacketPolicyPairChoice(choice: PacketPolicyPairChoice, t
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = `${taskId.replace(/[^A-Za-z0-9._-]/g, "-")}-packet-policy-pair-choice.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function makePacketPolicyHandoff(
+  setup: PacketPlanningSetup,
+  choice: PacketPolicyPairChoice,
+): Promise<PacketPolicyHandoff> {
+  if (setup.setup_digest !== choice.setup_digest
+    || setup.source_packet_receipt_digest !== choice.source_packet_receipt_digest) {
+    throw new Error("The policy choice does not match this task packet.");
+  }
+  const handoff = {
+    schema_version: "task_evaluation_packet_policy_handoff.v1" as const,
+    claim_ceiling: "planning_only" as const,
+    setup,
+    choice,
+  };
+  return { ...handoff, handoff_digest: await crossRuntimeDigest(handoff, "handoff_digest") };
+}
+
+export function downloadPacketPolicyHandoff(handoff: PacketPolicyHandoff, taskId: string) {
+  const blob = new Blob([`${JSON.stringify(handoff, null, 2)}\n`], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${taskId.replace(/[^A-Za-z0-9._-]/g, "-")}-policy-handoff.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
