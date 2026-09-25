@@ -1,0 +1,128 @@
+{
+  "campaign_plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "claim_ceiling": "development_only",
+  "container_image": "pinned-isaac-image",
+  "embodiment_id": "unitree_g1_dex3_v1",
+  "episodes": [
+    {
+      "candidate_id": "humanoidarena_dp_g1_dex3_sonic",
+      "frame_manifest": {
+        "relative_path": "manipulation_pair/humanoidarena_dp_g1_dex3_sonic/frames.json",
+        "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size_bytes": 42
+      },
+      "objective_id": "task_success",
+      "policy_query_count": 1,
+      "review_videos": {
+        "head": {
+          "relative_path": "manipulation_pair/humanoidarena_dp_g1_dex3_sonic/head.mp4",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 42
+        },
+        "overview": {
+          "relative_path": "manipulation_pair/humanoidarena_dp_g1_dex3_sonic/overview.mp4",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 42
+        }
+      },
+      "score": {
+        "episode_result_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "outcome": "task_succeeded",
+        "progress_score": 1.0,
+        "score_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "candidate_id": "humanoidarena_pi05_g1_dex3_sonic",
+      "frame_manifest": {
+        "relative_path": "manipulation_pair/humanoidarena_pi05_g1_dex3_sonic/frames.json",
+        "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size_bytes": 42
+      },
+      "objective_id": "task_success",
+      "policy_query_count": 2,
+      "review_videos": {
+        "head": {
+          "relative_path": "manipulation_pair/humanoidarena_pi05_g1_dex3_sonic/head.mp4",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 42
+        },
+        "overview": {
+          "relative_path": "manipulation_pair/humanoidarena_pi05_g1_dex3_sonic/overview.mp4",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 42
+        }
+      },
+      "score": {
+        "episode_result_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "outcome": "task_succeeded",
+        "score_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "candidate_id": "humanoidarena_dp_g1_dex3_sonic_vision_navi",
+      "frame_manifest": {
+        "relative_path": "movement_pair/humanoidarena_dp_g1_dex3_sonic_vision_navi/frames.json",
+        "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size_bytes": 42
+      },
+      "objective_id": "g1_navigation_goal",
+      "policy_query_count": 3,
+      "review_videos": {
+        "head": {
+          "relative_path": "movement_pair/humanoidarena_dp_g1_dex3_sonic_vision_navi/head.mp4",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 42
+        },
+        "overview": {
+          "relative_path": "movement_pair/humanoidarena_dp_g1_dex3_sonic_vision_navi/overview.mp4",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 42
+        }
+      },
+      "score": {
+        "episode_result_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "outcome": "task_succeeded",
+        "score_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "candidate_id": "humanoidarena_pi05_g1_dex3_sonic_vision_navi",
+      "frame_manifest": {
+        "relative_path": "movement_pair/humanoidarena_pi05_g1_dex3_sonic_vision_navi/frames.json",
+        "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size_bytes": 42
+      },
+      "objective_id": "g1_navigation_goal",
+      "policy_query_count": 4,
+      "review_videos": {
+        "head": {
+          "relative_path": "movement_pair/humanoidarena_pi05_g1_dex3_sonic_vision_navi/head.mp4",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 42
+        },
+        "overview": {
+          "relative_path": "movement_pair/humanoidarena_pi05_g1_dex3_sonic_vision_navi/overview.mp4",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 42
+        }
+      },
+      "score": {
+        "episode_result_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "outcome": "task_succeeded",
+        "score_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  ],
+  "physical_outcome_claimed": false,
+  "provider_bundle_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "public_redistribution_authorized": false,
+  "review_digest": "sha256:3513e2de6b5ab90d7fa01bd5a3a21255a6090e6f0cf26058dd28a4a1d1714714",
+  "runtime_delivery_mode": "container",
+  "scene_id": "interiorgs-841757",
+  "schema_version": "native_g1_private_review.v1",
+  "simulator_result_is_physical_proof": false,
+  "status": "verified_private_development_review",
+  "task_id": "scene-841757-book-to-marked-area",
+  "terminal_result_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

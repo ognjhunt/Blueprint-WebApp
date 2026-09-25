@@ -100,6 +100,7 @@ const AppEvaluationRunProgress = lazyRoute(() => import("../pages/app/Evaluation
 const AppTaskEvaluationResultDetail = lazyRoute(
   () => import("../pages/app/TaskEvaluationResultDetail"),
 );
+const AppNativeG1PrivateReview = lazyRoute(() => import("../pages/app/NativeG1PrivateReview"));
 const AppSitePacks = lazyRoute(() => import("../pages/app/SitePacks"));
 const AppPilotOpportunities = lazyRoute(() => import("../pages/workspace/Openings"));
 
@@ -434,6 +435,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/advanced/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
   { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },
   { path: "/app/results/:recordId", layout: "public", shell: "bare", component: AppTaskEvaluationResultDetail },
+  { path: "/app/g1-reviews/:runId", layout: "protected", shell: "bare", component: AppNativeG1PrivateReview },
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
   { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
   { path: "/app/packs/policy-packet", layout: "protected", shell: "bare", component: AppPolicyCanarySetup },
