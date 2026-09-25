@@ -3,17 +3,17 @@ import { describe, expect, it } from "vitest";
 import FAQ from "@/pages/FAQ";
 
 describe("FAQ", () => {
-  it("answers the months 0–2 use case in plain English", () => {
+  it("explains the managed pilot and provider path in plain English", () => {
     render(<FAQ />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /We find the robot that can do the job, then help you deploy it/i,
+        name: /We help turn one task into a measured pilot/i,
       }),
     ).toBeInTheDocument();
     for (const question of [
       "What does Blueprint do?",
-      "Why call this months 0–2?",
+      "How do you find a robot team for my task?",
       "Does Blueprint replace onsite integration?",
       "Do robot teams download the site twin?",
       "How is Blueprint paid?",
@@ -21,7 +21,7 @@ describe("FAQ", () => {
       expect(screen.getByText(question)).toBeInTheDocument();
     }
     expect(
-      screen.getByText(/Simulation can filter and focus the trip/i),
+      screen.getByText(/We can help coordinate and measure an agreed physical pilot/i),
     ).toBeInTheDocument();
   });
 });

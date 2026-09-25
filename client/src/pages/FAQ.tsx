@@ -16,9 +16,9 @@ export const faqItems = [
       "Without Blueprint, every robot company redoes site discovery, modelling and early testing from scratch — and basic mismatches often surface only after engineers and hardware are already onsite. That is slow and expensive on both sides.",
   },
   {
-    question: "Why call this months 0–2?",
+    question: "How do you find a robot team for my task?",
     answer:
-      "Agility's published timeline labels its first roughly two months as proof of technology: test the skills, confirm the task fits, and define the workflow — before the robot ever ships. That is the phase Blueprint does.",
+      "With your approval, we share a task card with approved robot teams and ask what they can actually install and support. We screen for capability, timing, and cost before deeper evaluation. We compare candidates when that helps your decision; a promising match can move to a separately approved physical trial.",
   },
   {
     question: "Does Blueprint replace onsite integration?",

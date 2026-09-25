@@ -17,7 +17,7 @@ function accountStep() {
 function workspaceStep(role: "site_operator" | "robot_team" = "robot_team") {
   fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Test User" } });
   fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Test Team" } });
-  fireEvent.click(screen.getByLabelText(role === "robot_team" ? "Test my robots on site tasks" : "Find a robot for my site"));
+  fireEvent.click(screen.getByLabelText(role === "robot_team" ? "Assess site tasks for my robots" : "Plan a robot pilot for my site"));
   fireEvent.click(screen.getByRole("checkbox"));
 }
 beforeEach(() => {
@@ -83,7 +83,7 @@ describe("minimal business signup", () => {
   it("honors site query links and keeps typed values when going back", () => {
     window.history.pushState({}, "", "/signup/business?buyerType=site_operator&intent=pilot-opportunity");
     render(<BusinessSignUpFlow />);accountStep();
-    expect(screen.getByLabelText("Find a robot for my site")).toBeChecked();
+    expect(screen.getByLabelText("Plan a robot pilot for my site")).toBeChecked();
     fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Saved Team" } });
     fireEvent.click(screen.getByRole("button", { name: /Back/ }));
     expect(screen.getByLabelText("Work email")).toHaveValue(user.email);

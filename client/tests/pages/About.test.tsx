@@ -7,7 +7,7 @@ describe("About", () => {
   it("says what the company does and who is behind it", () => {
     render(<About />);
     expect(
-      screen.getByRole("heading", { level: 1, name: /We make the first months of a robot deployment fast/i }),
+      screen.getByRole("heading", { level: 1, name: /We help one real task reach a measured robot pilot/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /How it works/i })).toBeInTheDocument();
     expect(screen.getByText(/a simulation result is not a physical test/i)).toBeInTheDocument();

@@ -25,7 +25,7 @@ describe("privacy policy content", () => {
           defaultWindow: "14 days after processing succeeds",
         }),
         expect.objectContaining({
-          record: "Scenes, evaluation results and reports",
+          record: "Scenes, evaluation results, pilot records and reports",
           defaultWindow: "365 days after the task closes or the contract ends",
         }),
         expect.objectContaining({

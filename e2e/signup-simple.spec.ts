@@ -11,7 +11,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('heading', { name: 'Set up your workspace', exact: true })).toBeFocused();
     await expect(page.getByRole('radio')).toHaveCount(2);
     await expect(page.getByRole('textbox')).toHaveCount(2);
-    await expect(page.getByLabel('Test my robots on site tasks')).toBeChecked();
+    await expect(page.getByLabel('Assess site tasks for my robots')).toBeChecked();
     await expect(page.getByText(/Requested lane|Proof path|Standardized benchmark|Company size|Progressive access/)).toHaveCount(0);
     await page.getByLabel('Your name', { exact: true }).fill('Alex Morgan');
     await page.getByLabel('Organization', { exact: true }).fill('Example Robotics');
@@ -30,8 +30,8 @@ test('site signups point at the capture form, not a second intake', async ({ pag
   await page.getByLabel('Work email').fill('preview@example.com');
   await page.getByLabel('Password', { exact: true }).fill('preview-password-123');
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expect(page.getByLabel('Find a robot for my site')).toBeChecked();
+  await expect(page.getByLabel('Plan a robot pilot for my site')).toBeChecked();
   await expect(page.getByRole('textbox')).toHaveCount(2);
   await expect(page.getByRole('checkbox')).not.toBeChecked();
-  await expect(page.getByText(/describe one job and film the work area/)).toBeVisible();
+  await expect(page.getByText(/describe one recurring job and share footage/)).toBeVisible();
 });
