@@ -50,6 +50,7 @@ export function TaskBrowse() {
   if (selected) return <section aria-label="Evaluate selected task">
     <button className="ms-text-link" type="button" onClick={() => setSelected(null)}>← All tasks</button>
     <div className="ms-task-heading"><h2>{selected.title}</h2><TaskThumbnail src={selected.thumbnailUrl} title={selected.title} taskFamily={selected.taskFamily} /></div><TaskFacts details={selected} />
+    <p className="ms-field-hint">The site's price and conditions are proposals. Evaluation does not commit you to a pilot; you can accept, suggest changes, or decline afterward.</p>
     <RobotTeamPlanPreview key={selected.id} sceneId={selected.id} />
   </section>;
   // Nothing library-shaped renders until the server has said who may see it,

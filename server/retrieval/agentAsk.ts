@@ -62,7 +62,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "capture backed evaluation",
     ],
     answer:
-      "Blueprint helps a business turn one recurring task into a provider-backed, measurable robot-pilot offer and decide what happens afterward. The site can start while exploring; rough affordability and funding status are labeled honestly. Blueprint checks fit and uses bounded evaluation where useful. The site sees anonymized results; each team sees its own results. A promising team and site may approve a private introduction. The provider then confirms its scope, price, availability, and site conditions before the site sees one itemized offer with Blueprint's separate fee. The site approves the total before paid work; the provider or integrator installs and operates the robot. Blueprint coordinates the agreed plan and keeps the outcome record. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.",
+      "Blueprint helps a business turn one recurring task into a provider-backed, measurable robot-pilot offer and decide what happens afterward. The site may propose a pilot price and conditions or state a target budget, with ongoing economics separate. Blueprint checks fit and uses bounded evaluation where useful. The site sees anonymized results; each team sees its own. A promising provider may accept proposed terms, suggest changes, or decline; evaluation alone does not commit either side. Both sides may approve a private introduction and final offer with Blueprint's separate fee. The provider or integrator installs and operates the robot. Blueprint coordinates the agreed plan and keeps the outcome record. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.",
     citations: [`${CANONICAL_ORIGIN}/`, `${CANONICAL_ORIGIN}/proof`],
     actions: [
       { description: "Read the public discovery summary", method: "GET", endpoint: "/api/site-content" },
@@ -193,7 +193,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      "Submitting a site task and receiving initial fit screening are free. Before invited free evaluation, an authorized site buyer separately agrees to Blueprint's task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at $5,000. It applies even if site and provider contract directly; no pilot purchase means no Blueprint fee. The provider sets its price and performs physical installation and operation. Optional self-directed evaluations cost $99 per policy entry and retain their no-later-supplier-commission promise. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.",
+      "Submitting a site task and receiving initial fit screening are free. The site may propose a pilot price and conditions or state a target budget; the provider can accept or counter. Before invited free evaluation, an authorized site buyer separately agrees to Blueprint's task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at $5,000. It applies even if site and provider contract directly; no pilot purchase means no Blueprint fee. The provider performs physical installation and operation. Optional self-directed evaluations cost $99 per policy entry and retain their no-later-supplier-commission promise. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.",
 
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [

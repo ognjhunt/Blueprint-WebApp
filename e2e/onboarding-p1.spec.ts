@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 const { PNG } = createRequire(import.meta.url)("pngjs");
 const taskPhoto = PNG.sync.write({ width: 480, height: 300, data: Buffer.alloc(480 * 300 * 4, 180) });
 const out = "output/qa/onboarding-p1";
-const card = { id: "task-1", title: "Move sealed cartons from conveyor to pallet", taskFamily: "Palletizing", siteType: "Warehouse", region: "US Midwest", objects: "Sealed cartons", cycleTarget: "12 seconds", pilotTiming: "October", pilotBudget: "", opportunity: "open", stage: "ready", evaluationAvailable: true, costUsd: 25, thumbnailUrl: null, publishedAtIso: "2026-09-19T00:00:00Z" };
+const card = { id: "task-1", title: "Move sealed cartons from conveyor to pallet", taskFamily: "Palletizing", siteType: "Warehouse", region: "US Midwest", objects: "Sealed cartons", cycleTarget: "12 seconds", pilotTiming: "October", pilotBudget: "$20,000", pilotPriceStatus: "site_offer", pilotConditions: "Four weeks including setup and provider support", ongoingTarget: "$5,000 per month", opportunity: "open", stage: "ready", evaluationAvailable: true, costUsd: 25, thumbnailUrl: null, publishedAtIso: "2026-09-19T00:00:00Z" };
 async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, { ...card, id: "task-2", title: "Sort small rigid parts into bins", taskFamily: "Pick and place", objects: "Small rigid parts", cycleTarget: "15 seconds", siteType: "Assembly area", pilotTiming: "Past opportunity", opportunity: "past" }, { ...card, id: "task-3", title: "Transfer trays between two stations", taskFamily: "Transport", objects: "Loaded trays", siteType: "Manufacturing", cycleTarget: "20 seconds", pilotTiming: "November", stage: "capture", evaluationAvailable: false, costUsd: null }]) {
   const mutations: { path: string; body: any }[] = [];
   await page.addLocatorHandler(page.getByRole("button", { name: "Reject all", exact: true }), async button => { await button.click(); });
@@ -51,6 +51,10 @@ for (const mobile of [false, true]) {
     await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
     await page.getByLabel("Filter by availability").selectOption("open");
     await page.getByRole("button", { name: "Self-directed evaluation · $25" }).click();
+    await expect(page.getByText("Site's proposed pilot price")).toBeVisible();
+    await expect(page.getByText("Four weeks including setup and provider support")).toBeVisible();
+    await expect(page.getByText("$5,000 per month")).toBeVisible();
+    await expect(page.getByText(/Evaluation does not commit you to a pilot/)).toBeVisible();
     await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
     await page.locator("#plan-hardware").selectOption("prototype");
   await page.locator("#plan-geography").selectOption("yes");

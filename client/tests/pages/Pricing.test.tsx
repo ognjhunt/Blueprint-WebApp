@@ -17,7 +17,7 @@ describe("Pricing", () => {
     expect(within(team).getByText("$0")).toBeInTheDocument();
     expect(within(team).getByText(/Matched evaluations are free/)).toBeInTheDocument();
     expect(within(team).getByText(/Optional self-directed runs cost \$99 per entry/)).toBeInTheDocument();
-    expect(within(team).getByText(/site decides whether to buy it/)).toBeInTheDocument();
+    expect(within(team).getByText(/accept the site's proposed pilot terms, suggest changes, or decline/)).toBeInTheDocument();
     expect(within(team).getByText(/no later supplier commission on that entry/)).toBeInTheDocument();
     expect(within(team).getByRole("link", { name: /Apply for early access/ })).toHaveAttribute("href", "/contact/robot-team");
   });
@@ -28,6 +28,7 @@ describe("Pricing", () => {
     expect(within(pilot).getByText(/5% of the introduced provider's physical pilot price/)).toBeInTheDocument();
     expect(within(pilot).getByText(/\$5,000/)).toBeInTheDocument();
     expect(within(pilot).getByText(/No pilot purchase, no Blueprint fee/)).toBeInTheDocument();
+    expect(within(pilot).getByText(/The site may propose the provider price and conditions/)).toBeInTheDocument();
     expect(within(pilot).getByRole("link", { name: /Fee details in our Terms/ })).toHaveAttribute("href", "/terms");
   });
 

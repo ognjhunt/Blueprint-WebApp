@@ -11,8 +11,13 @@ export const taskListingSchema = z.object({
   cycleTarget: z.string().trim().max(80),
   pilotTiming: z.string().trim().max(80),
   pilotBudget: z.string().trim().max(80),
+  pilotPriceStatus: z.enum(["site_offer", "target_budget"]).optional(),
+  pilotConditions: z.string().trim().max(320).optional(),
+  ongoingTarget: z.string().trim().max(80).optional(),
   opportunity: z.enum(["open", "past", "not_seeking"]),
-}).strict();
+}).strict().refine(details => details.pilotPriceStatus !== "site_offer" || Boolean(details.pilotBudget), {
+  message: "A proposed site price needs an amount.", path: ["pilotBudget"],
+});
 
 export function approvedTaskDetails(record: unknown): TaskListingDetails | null {
   const grant = (record as { public_task_listing?: Record<string, unknown> })?.public_task_listing;

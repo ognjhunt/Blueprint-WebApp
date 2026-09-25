@@ -14,7 +14,7 @@ test("pricing shows current costs and separates physical pilot work", async ({ p
   await expect(team.getByText("$0", { exact: true })).toBeVisible();
   await expect(team.getByText(/Matched evaluations are free/)).toBeVisible();
   await expect(team.getByText(/Optional self-directed runs cost \$99 per entry/)).toBeVisible();
-  await expect(team.getByText(/site decides whether to buy it/)).toBeVisible();
+  await expect(team.getByText(/accept the site's proposed pilot terms, suggest changes, or decline/)).toBeVisible();
   await expect(team.getByRole("link", { name: /Apply for early access/ })).toHaveAttribute("href", "/contact/robot-team");
 
   const pilot = page.locator("section", { has: page.getByRole("heading", { name: "If you buy a pilot" }) });

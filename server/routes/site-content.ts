@@ -11,7 +11,7 @@ const definitions = [
   {
     term: "Managed robot pilot preparation",
     definition:
-      "Blueprint helps a business describe one recurring task, review anonymized evaluation results, then consider a provider-backed pilot offer. A promising team and site may approve a private introduction. The provider confirms its scope and price; Blueprint adds its separately scoped fee to one itemized proposal. The site approves the total before paid work. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
+      "Blueprint helps a business describe one recurring task, propose a pilot price and conditions or state a target budget, review anonymized evaluation results, then consider a provider-backed pilot offer. A promising provider may accept the proposed terms, suggest changes, or decline. Both sides approve a private introduction and final pilot terms. Blueprint's separate fee is disclosed before invited evaluation and shown before a purchase. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
   },
   {
     term: "Paying-site admission bar",
@@ -152,7 +152,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Sites submit a task and receive initial screening for free. Before invited free evaluation, an authorized site buyer separately agrees to a task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at $5,000. The fee applies even if the parties contract directly; no pilot purchase means no Blueprint fee. Providers set their own prices. Optional self-directed robot-team runs cost $99 per policy entry and keep their no-later-supplier-commission promise.",
+      "Sites submit a task and receive initial screening for free. A site may propose a pilot price and conditions or state a target budget; a provider can accept, suggest changes, or decline. Before invited free evaluation, an authorized site buyer separately agrees to a task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at $5,000. The fee applies even if the parties contract directly; no pilot purchase means no Blueprint fee. Optional self-directed robot-team runs cost $99 per policy entry and keep their no-later-supplier-commission promise.",
   },
   {
     path: "/contact",

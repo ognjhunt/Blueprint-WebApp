@@ -8,6 +8,10 @@ export interface TaskListingDetails {
   cycleTarget: string;
   pilotTiming: string;
   pilotBudget: string;
+  /** A site proposal is still subject to the provider's acceptance and a final agreement. */
+  pilotPriceStatus?: "site_offer" | "target_budget";
+  pilotConditions?: string;
+  ongoingTarget?: string;
   opportunity: "open" | "past" | "not_seeking";
 }
 export interface TaskBrowseCard extends TaskListingDetails {
