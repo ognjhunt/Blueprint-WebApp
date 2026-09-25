@@ -45,14 +45,14 @@ export const capturePrivacyAnnex = [
   ["People in task footage", "People may appear in task footage, derived frames, or a reconstructed scene. The site must have authority to submit the footage and provide any required notice or permissions to people shown. People are not automatically removed before approved processing providers receive the footage or frames."],
   ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before buyer-facing use."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
-  ["Buyer sharing", "Robot teams see the task card you approve and their own results. A team may first see an anonymous task summary. Your business identity and specified task or scene information are shared for a matched opportunity only after you approve and the team accepts. Direct contacts and exact site details are shared when needed for a proposed physical pilot with the parties' approval. The scene, what a policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
+  ["Buyer sharing", "Robot teams see the task card you approve and their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
   ["Physical pilot records", "If the site and provider agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
 ];
 
 export const rolePrivacyAnnex = [
   {
     title: "Robot teams",
-    body: "Your account holds your team's details, the robots and policies you register, the runs you buy, their results, your balance and your API keys. For optional self-directed runs, sites see an alias and results, not your name or policy. With your permission, a site considering a matched opportunity may see your team's name and configuration before approving an introduction. Your policy is not disclosed.",
+    body: "Your account holds your team's details, the robots and policies you register, the runs you buy, their results, your balance and your API keys. Sites see an alias for your team and its results, not your name or your policy.",
   },
   {
     title: "Sites",
@@ -213,8 +213,7 @@ export default function Privacy() {
         <h2>Who we share it with</h2>
         <p>
           We share personal information with the providers below, only for the function listed and under contract. A
-          site sees an alias and results for optional self-directed runs. With a team&rsquo;s permission, a site may see its
-          name and configuration for a potential match; a robot team sees the task card and additional information the site approves.
+          site sees an alias for each robot team and its results; a robot team sees the task card a site approves.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
           as part of a merger or sale of the business, in which case this policy continues to apply to it.
         </p>
