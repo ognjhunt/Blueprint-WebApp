@@ -1422,10 +1422,16 @@ This matrix is for the fresh GPT-6 Sol website capture only. Earlier scenes' row
 | 7. Reconstruction views | **Done** — 14 provider-bound views selected, with reviewed clean plates and wide context retained. |
 | 8. Marble and MapAnything | **Done as estimated provider outputs** — Marble room/collider and 13 original-frame camera/depth estimates retained; MapAnything rental torn down and provider-zero passed. |
 | 9. Captured-room registration | **Blocked** — Marble anchor frame 26 is absent from the MapAnything camera sample; captured room is not qualified. |
-| 10. Articulated CAD/Blender/USD | **Open** — owner-reported dimensions and a no-spend stage-three successor are ready; no Sol CAD call, complete assembly or static qualification receipt yet. |
+| 10. Articulated CAD/Blender/USD | **Partial, blocked before geometry** — the owner-dimension successor passed preflight; one Sol managed Agents API request failed with HTTP 400 on its first image attachment before any CAD tool call. Stages 1 and 2 are retained. No complete assembly or static qualification receipt. |
 | 11. Room integration or development fixture | **Partial** — the separately identified fixture intake and scene intent were admitted. No completed integrated fixture or captured-room claim. |
 | 12. Native import and physics | **Open** — no articulated import, reset, joint/contact or stability qualification. |
 | 13. GPU policy episodes | **Open** — no learned-policy actions or native numeric score. |
 | 14. Website result and teardown | **Open** — no terminal policy result visible on the task page. |
 
-Captured-room readiness: **unqualified**. Development fixture execution: **pending CPU authoring**.
+Captured-room readiness: **unqualified**. Development fixture execution: **stage 3 correction pending release and controller retry**.
+
+### 2026-09-25 01:08 UTC — Same scene, stage 3 input correction deploying
+
+Pipeline `cd7dc09f6814878151dfab1096bb6fc8386ad867` deployed with an exact live-version proof. Its release-bound controller attempt used the **same website capture, scene sponsorship and guarded ledger**; it did not create another $25 scene. The no-spend provider bundle passed the cabinet-depth check with the owner's reported 20 in depth. The website accepted the activation launch with HTTP 202, the allocator admitted it, and CPU stages 1 and 2 completed with retained checkpoints. Stage 3 started the Sol managed Agents API carcass authoring request, but the provider returned HTTP 400 `invalid_request_error` at `input[0].content[2].image_url`. Its journal records no tool calls and cleanup `deleted`; no cabinet or drawer model was produced. The source attachments were valid 1920x1080 PNG/base64, about 12 MB total. Official cost remains pending; the global provider guard verified zero live instances after teardown.
+
+Pipeline PR #2219 merged as `c67dd3c01d2b5c2b0e5e404c01d87d235103f2e8`. It changes only managed Agents API delivery to bounded full-resolution JPEG copies with source and delivery digests; the exact five frames measured about 1.5 MB total as copies. Original frames, the SDK path and independent review remain intact. 53 focused tests, Ruff, source governance and the hosted impacted/sentinel gate passed. The exact commit is in a canonical deployment that is **running**, not yet proven live. Since the API documentation allows data URLs, the specific provider image rejection rule remains unconfirmed until a fresh controller-owned request succeeds. Captured-room registration, complete articulated authoring, native import, policy episodes and website terminal results remain unproven.
