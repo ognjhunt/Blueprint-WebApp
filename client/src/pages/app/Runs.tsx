@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "@/lib/helmet";
 
 import { AppShell } from "@/components/blueprint/app/AppShell";
@@ -10,6 +11,7 @@ import {
 import { EntitlementAccessButton } from "@/components/blueprint/app/EntitlementAccessTable";
 import { ActionLink, Tag } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   entitlementDisplayName,
   entitlementStateLabel,
@@ -92,10 +94,25 @@ function RunRows({ runs }: { runs: BuyerRunRecord[] }) {
 }
 
 export default function Runs() {
-  const { userData } = useAuth();
+  const { userData, currentUser } = useAuth();
   const { runs, isLoading: runsLoading, error: runsError } = useBuyerAppRuns();
   const { results, isLoading: resultsLoading, error: resultsError } = useTaskEvaluationResults();
   const { entitlements, isLoading: entitlementsLoading } = useBuyerAppEntitlements();
+  const g1Reviews = useQuery({
+    queryKey: ["native-g1-private-reviews", currentUser?.uid],
+    enabled: Boolean(currentUser),
+    queryFn: async ({ signal }) => {
+      const headers = await withFirebaseAuthHeaders(currentUser);
+      const response = await fetch("/api/native-g1-reviews", { headers, credentials: "include", signal, redirect: "error" });
+      if (!response.ok) throw new Error(`Private G1 reviews unavailable (${response.status})`);
+      const body = await response.json() as { schema_version: string; reviews: Array<{
+        run_id: string; task_id: string; scene_id: string; created_at_iso: string;
+      }> };
+      if (body.schema_version !== "native_g1_private_review_list.v1") throw new Error("G1 review list is invalid");
+      return body.reviews;
+    },
+    retry: 1,
+  });
 
   const isLoading = runsLoading || entitlementsLoading || resultsLoading;
   const loadError = runsError || resultsError;
@@ -123,6 +140,18 @@ export default function Runs() {
             </section>
           ) : null}
 
+          {g1Reviews.data?.length ? (
+            <section className="ws-section" aria-label="Private G1 reviews">
+              <h2 className="mb-4">Private G1 reviews</h2>
+              {g1Reviews.data.map((review) => <Row key={review.run_id}
+                title={`Unitree G1 · ${review.task_id}`}
+                meta={`${review.scene_id} · simulation development review · ${formatEntitlementDate(review.created_at_iso)}`}
+                action={<ActionLink href={`/app/g1-reviews/${encodeURIComponent(review.run_id)}`}>View review</ActionLink>}
+              />)}
+            </section>
+          ) : null}
+          {g1Reviews.error ? <p role="alert" className="text-sm text-ink-600">Private G1 reviews are temporarily unavailable.</p> : null}
+
           {runs.length ? (
             <section className="ws-section" aria-label="Run requests">
               <h2 className="mb-4">Requests</h2>
@@ -130,7 +159,7 @@ export default function Runs() {
             </section>
           ) : null}
 
-          {!results.length && !runs.length ? (
+          {!results.length && !runs.length && !g1Reviews.data?.length ? (
             <BuyerAppEmptyState
               title="No runs yet"
               body={siteOperator

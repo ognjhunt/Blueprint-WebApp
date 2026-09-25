@@ -13,6 +13,7 @@ import captureUploadsRouter from "./routes/capture-uploads";
 import taskEvaluationSceneIntakesRouter from "./routes/task-evaluation-scene-intakes";
 import taskEvaluationResultsRouter from "./routes/task-evaluation-results";
 import taskEvaluationResultDownloadsRouter from "./routes/task-evaluation-result-downloads";
+import nativeG1PrivateReviewsRouter, { nativeG1PrivateReviewDownloadsRouter, nativeG1PrivateReviewIngestRouter } from "./routes/native-g1-private-reviews";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import helpRouter from "./routes/help";
 import geminiRouter from "./routes/gemini";
@@ -123,6 +124,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/pipeline", internalCaptureTaskControlPlaneRouter);
   app.use("/api/internal/pipeline", internalCaptureTestbedsRouter);
   app.use("/api/internal/pipeline", internalCaptureTaskEvaluationRunsRouter);
+  app.use("/api/internal/pipeline", nativeG1PrivateReviewIngestRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationDeliveryReadbackRouter);
   app.use("/api/internal/pipeline", internalAgentExecutionRouter);
   app.use("/api/internal/paperclip", paperclipAdpExecutionRouter);
@@ -162,6 +164,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/task-evaluation-runs", evaluationReadyRunsRouter);
   app.use("/api/task-evaluation-runs", robotEvalJobRequestsRouter);
   app.use("/api/task-evaluation-result-downloads", taskEvaluationResultDownloadsRouter);
+  app.use("/api/native-g1-review-downloads", nativeG1PrivateReviewDownloadsRouter);
   app.use("/api/robot-eval/job-requests", robotEvalJobRequestsRouter);
 
   // API routes for Express
@@ -317,6 +320,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     optionallyVerifyFirebaseToken,
     taskEvaluationResultsRouter,
+  );
+  app.use(
+    "/api/native-g1-reviews",
+    csrfProtection,
+    optionallyVerifyFirebaseToken,
+    nativeG1PrivateReviewsRouter,
   );
   app.use(
     "/api/capture-uploads",
