@@ -1,8 +1,8 @@
 export const captureGroundedPublicCopy = {
   productSummary:
-    "Blueprint helps a business turn one recurring task into a scoped, funded, measurable robot pilot and decide what happens afterward. Initial task assessment is free. Where there is a credible fit, Blueprint can separately agree to prepare, coordinate, and measure a physical trial. The site approves costs and commitments; the provider or integrator handles installation and operation while the site and responsible delivery parties approve the safety plan. A Task Evaluation Run returns a bounded decision or explicit abstention; it is not physical proof.",
+    "Blueprint helps a business turn one recurring task into a provider-backed, measurable robot-pilot offer and decide what happens afterward. A site can start while exploring; rough affordability and funding status are labeled, not treated as a purchase order. Capture and evaluation support the offer when useful. The provider confirms its scope and price; Blueprint states its separate coordination and measurement fee in one itemized proposal. The site approves the total before paid work. The provider or integrator handles installation and operation while the site and responsible delivery parties approve the safety plan. A Task Evaluation Run returns a bounded decision or explicit abstention; it is not physical proof.",
   seoDescription:
-    "Blueprint helps businesses scope recurring tasks, assess robot providers, coordinate measured physical pilots, and make the next purchasing decision.",
+    "Blueprint helps businesses show one recurring task, review a provider-backed robot-pilot offer, and make the next purchasing decision from measured results.",
   groundTruthDefinition:
     "Ground truth means immutable raw capture evidence, native timestamps, poses, device metadata, rights and privacy records, and provenance. Derived geometry, simulation, generated media, provider output, and runtime artifacts remain separately labeled evidence and do not automatically upgrade the claim.",
   supportSignalBoundary:

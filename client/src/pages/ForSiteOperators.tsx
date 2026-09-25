@@ -93,7 +93,7 @@ export default function ForSiteOperators() {
       <PageHero
         eyebrow={siteOperatorHero.eyebrow}
         title={siteOperatorHero.title}
-        body="Tell us one real job. We record it once and run every qualified team against the same test, so you compare measured results instead of demo reels — before anyone visits your floor."
+        body="Show us one recurring job. We check fit and use evaluation where helpful. A suitable provider confirms a pilot scope and price; you see its offer and Blueprint's fee together before deciding whether to buy."
         chips={siteOperatorHero.chips}
         ctaHref={submitHref}
         ctaLabel="Submit a job"

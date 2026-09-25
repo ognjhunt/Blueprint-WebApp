@@ -18,6 +18,7 @@ export interface EarlyAccessApplication {
   robot: string;
   workWanted: string;
   region?: string;
+  pilotPackage?: string;
   testSite?: string;
   acceptedTerms: true;
 }

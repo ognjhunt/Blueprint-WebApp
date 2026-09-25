@@ -8,9 +8,10 @@ test("homepage leads with the site decision and separates supplier participation
   await expect(nav.getByRole("link", { name: "Robot teams" })).toHaveAttribute("href", "/contact/robot-team");
   await expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
   await expect(page.getByRole("link", { name: "Apply for early access" })).toBeVisible();
-  await page.getByText("Decide what follows", { exact: true }).click();
-  await expect(page.getByText(/physical results settle physical claims/)).toBeVisible();
-  await expect(page.getByText(/stop, change, extend, or deploy regularly/)).toBeVisible();
+  await page.getByText("Review results and an offer", { exact: true }).click();
+  await expect(page.getByText(/You see anonymized results first/)).toBeVisible();
+  await page.getByText("Approve and measure", { exact: true }).click();
+  await expect(page.getByText(/records the results so you can decide what follows/)).toBeVisible();
   await expect(page.getByText("Illustrative scenes", { exact: true })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
 });

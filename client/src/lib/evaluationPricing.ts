@@ -1,14 +1,15 @@
 /**
- * Published prices for initial assessment and optional self-directed
- * robot-team evaluation. Invited evaluation within a separately agreed,
- * site-funded pilot project does not use this team-paid entry price.
+ * Published prices for site assessment, invited evaluation, and optional
+ * self-directed robot-team evaluation. An invited run is free within its
+ * stated scope before any physical-pilot purchase decision.
  *
  *   $0    a site pays nothing to find out.
  *   $99   a robot team pays per entry.
  *
- * Pilot preparation, coordination, and measurement are a separate site-paid
- * service. The published starting fee is a planning floor; the actual fixed
- * fee and provider costs are quoted for a specific physical trial.
+ * The provider quotes and contracts for its physical pilot. If the site buys
+ * it, the site separately pays Blueprint's agreed coordination and measurement
+ * fee. Invited evaluation remains free, and existing self-directed paid entries
+ * retain their no-later-supplier-commission promise.
  *
  * WHAT AN ENTRY IS. One policy, running on one embodiment, against one task at
  * one site. Both halves are part of the unit: the same policy on a second
@@ -41,11 +42,10 @@
  * rooms running real repeated tasks with permission to be captured — not funded
  * robot teams starved of deployment data.
  *
- * WHAT A SITE IS AND IS NOT GIVEN. Free covers finding out: task scoping,
- * capture and evaluation when useful, and an answer about provider fit. It
- * does not cover acting on it. A physical pilot is a real
- * commitment with real cost, and that is where a site's money belongs — at the
- * point there is something to buy rather than something to learn.
+ * WHAT A SITE IS AND IS NOT GIVEN. Free covers a task brief, fit checks,
+ * evaluation where useful, and a provider-backed offer if a provider commits.
+ * A physical pilot is a real commitment with real cost. The site sees the
+ * provider's price, Blueprint's fee, and the total before approving paid work.
  *
  * WHY BLUEPRINT STILL SETS THE RUN LENGTH. If a team could buy a longer run
  * than a rival, the team with the deepest pockets would buy more statistical
@@ -74,7 +74,7 @@ export const entryBoundaries = [
 /** A robot team's price, per entry. The only number a team has to read. */
 export const entryPrice = 99;
 
-/** Published starting Blueprint fee for one site's scoped physical pilot. */
+/** Starting Blueprint fee if the site accepts a scoped physical pilot. */
 export const pilotServiceStartingFeeUsd = 5000;
 
 /** The smallest top-up Stripe will charge. Mirrors `MIN_TOPUP_USD` on the server. */
@@ -86,10 +86,10 @@ export const siteAssessment = {
   unit: "to find out",
   summary: "An assessment of one task at one site.",
   covers: [
-    "The task defined: objects, cycle, exceptions, budget range, timing, and the pass mark for a trial.",
-    "A check of which providers can credibly support the job, with capture and controlled evaluation when useful.",
-    "A clear answer: ready for a trial, specific changes needed, or no credible fit yet.",
-    "For a credible fit, proposed success measures and a physical test plan to approve before spending.",
+    "The task defined: objects, cycle, exceptions, rough economics, timing, and the pass mark for a trial.",
+    "A check of which providers can credibly support the job, with capture and free invited evaluation when useful.",
+    "A clear answer: a provider-backed pilot offer, specific changes needed, or no credible fit yet.",
+    "For a credible fit, the provider's scope, price, and success measures to approve before spending.",
   ],
   allIn:
     "No fee, no card, and nothing per run for the assessment above. You can start with a description and share phone footage when it helps.",
@@ -105,9 +105,9 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Robot teams pay for optional self-directed evaluation runs. Invited teams pay no entry fee for evaluation included in a site-funded pilot project. A site may separately pay Blueprint for pilot coordination after approving a quote. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Robot teams pay for optional self-directed evaluation runs. Invited teams evaluate a qualified task for free, even if no pilot is purchased. If you accept a physical pilot, you approve the provider's price and Blueprint's separate coordination and measurement fee in one itemized proposal. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
-    "A physical pilot and any Blueprint pilot preparation, coordination, or measurement service. We quote that work separately for the site to approve; the provider or integrator quotes installation and operation.",
+    "The physical pilot. The provider quotes installation and operation; Blueprint states its separate coordination and measurement fee. The site approves the total before paid work begins.",
 } as const;
 
 /** How a robot team pays. No plan, no seat, no listing fee, no meter. */

@@ -11,8 +11,8 @@
  * Bump these versions whenever the published Terms or Privacy documents change
  * so new signups record consent against the current revision.
  */
-export const TERMS_VERSION = "2026-09-25-r2";
-export const PRIVACY_VERSION = "2026-09-25";
+export const TERMS_VERSION = "2026-09-25-r3";
+export const PRIVACY_VERSION = "2026-09-25-r2";
 
 /**
  * The date printed from a version. The pages print their effective date

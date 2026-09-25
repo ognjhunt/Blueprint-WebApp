@@ -11,12 +11,12 @@ const definitions = [
   {
     term: "Managed robot pilot preparation",
     definition:
-      "Blueprint helps a business define one recurring task, assess credible providers, agree on a funded and measurable physical pilot, and decide what follows. A separately agreed Blueprint service may prepare, coordinate, and measure the trial. The provider or integrator installs and operates the robot; the site and responsible delivery parties approve the safety plan.",
+      "Blueprint helps a business describe one recurring task, review anonymized evaluation results, then consider a provider-backed pilot offer. A promising team and site may approve a private introduction. The provider confirms its scope and price; Blueprint adds its separately scoped fee to one itemized proposal. The site approves the total before paid work. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
   },
   {
     term: "Paying-site admission bar",
     definition:
-      "Blueprint checks a site's task, budget range, decision owner, timing, and procurement path before presenting an opportunity to robot teams. Those stated facts are an admission bar, not verified funding, a signed order, or a guaranteed purchase. The site separately approves any paid physical pilot.",
+      "A site can start while exploring. Blueprint records its task, rough affordability, funding status, timing, and purchasing path as they become known. Exploratory interest is not verified funding, a signed order, or a guaranteed purchase. The site separately approves any paid physical pilot.",
   },
   {
     term: "Exact-site world model",
@@ -134,7 +134,7 @@ const pages = [
     path: "/how-it-works",
     title: "How It Works",
     description:
-      "Four steps: scope one recurring task, check provider fit, agree on a paid physical pilot, and decide what to do after measured results.",
+      "Three steps: show one recurring task, review a provider-backed pilot offer, and approve and measure the physical trial.",
   },
   {
     path: "/faq",
@@ -152,7 +152,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Initial site assessment is free. Robot teams pay $99 per policy entry. Blueprint pilot preparation, coordination, and measurement may be separately quoted to the site; provider charges are separate.",
+      "Sites can submit a task and review a provider-backed pilot offer for free. Invited evaluations are free. If a site buys a pilot, it approves the provider's price plus Blueprint's separately scoped coordination and measurement fee in one itemized proposal. Optional self-directed robot-team runs cost $99 per policy entry and keep their no-later-supplier-commission promise.",
   },
   {
     path: "/contact",
