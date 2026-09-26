@@ -5,6 +5,7 @@ import { Link, useLocation, useParams } from "wouter";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint/app/BuyerAppStates";
 import { TaskSuccessContractPanel } from "@/components/blueprint/app/TaskSuccessContractPanel";
+import { TeamPolicyDeliveryConfig } from "@/components/blueprint/app/TeamPolicyDeliveryConfig";
 import { Field } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchG1TeamCampaignSetups, submitG1TeamCampaign } from "@/lib/nativeG1TeamCampaigns";
@@ -454,6 +455,9 @@ export default function PolicyCanarySetup() {
           </button>
           {g1IntentId ? <p role="status" className="ws-note mt-3">Request accepted as {g1IntentId}. GPU execution has not started yet; the controller will verify admission before launch.</p> : null}
         </div> : null}
+        {managedPacket && g1Packet && packetSetup && currentUser
+          ? <TeamPolicyDeliveryConfig currentUser={currentUser} setup={packetSetup} robotPresetId={robot.robot_preset_id} />
+          : null}
       </section> : null}
 
       {setup && preset && !packetSetup && robot.readiness.status === "verified_runnable" ? <>
