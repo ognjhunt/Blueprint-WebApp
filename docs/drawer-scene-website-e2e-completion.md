@@ -65,6 +65,14 @@ attempt does not advance steps 13 or 14. The policy dispatcher trigger is
 paused until the corrected release is live and a fresh, distinct same-scene
 attempt passes no-spend preflight.
 
+The existing scene's append-only cumulative simulation ceiling was increased
+from $36 to $40 using the authenticated intake budget API, with the eight
+attempt limit and $4 per-policy-run quote unchanged. The verified ledger before
+the grant retained $32.32 of maximum exposure across five policy attempts;
+this is a conservative reservation total, not a provider charge. The $25
+website development-test price remains unchanged. No historical hold was
+released and the grant made no provider mutation.
+
 ### 2026-09-25 execution evidence
 
 Controller-owned scene-configuration launch
