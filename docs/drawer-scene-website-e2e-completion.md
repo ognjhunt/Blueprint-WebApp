@@ -1,5 +1,457 @@
 # Drawer scene: website-origin articulated evaluation, end to end
 
+## Current scene: 2026-09-24 Sol website capture
+
+The new website request is `capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d`,
+capture `walkthrough-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d`, scene
+`site-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d`. It requests the middle
+drawer and opts into GPT-6 Sol managed Agents API authoring. The original
+`IMG_4170.MOV` was uploaded by the website browser path and its temporary copy
+matched SHA-256 `d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130`.
+The website recorded capture Terms acceptance (`2026-09-24`) and video rights
+consent. The owner claimed the site and confirmed the brief from the signed
+website link. The exploratory development-test answer was then saved through
+the owner brief form, with site stability and access window explicitly unknown;
+the resulting triage is `not_now`, not commercial site qualification. The exact
+confirmed task digest is
+`sha256:aa9aaf64b6fe08ffe2bd2ee2b7b8292490f294f6158850c092b3b28487676aa7`.
+The website issued this scene's distinct development-test sponsorship at
+21:09:51 UTC: $5 preparation and $20 simulation, with the one-shot preparation
+request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
+older scene's stage evidence or budget.
+
+| Step | Current evidence at 2026-09-26 05:43 UTC |
+| --- | --- |
+| 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
+| 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
+| 3. Capture review and original-frame references | **done for preparation** — source decodes and Gemini analysis retained; task-critical registration remains a later gate |
+| 4. Cabinet/middle-drawer plan and observed obstacles | **done** — Gemini identified the articulated mobile cabinet and middle drawer, with desk and teal backpack to keep |
+| 5. Hosted SAM 3.1 masks and track | **done for preparation** — API tracks and independently corroborated task views retained; no local SAM model |
+| 6. Background edits and independent review | **done for preparation** — five paid edits retained; independent review excluded bad generated frames 138 and 519, then unedited frame 0 with visible cabinet; the third review passed on frames 26, 35 and 173 |
+| 7. Provider-capacity view selection | **done for preparation** — 14 source views considered, three safe prepared views retained; downstream provider acceptance unproven |
+| 8. Marble and MapAnything | **provider outputs complete** — World Labs returned a room splat and collider (settled $1.28); MapAnything returned 13 original-frame camera/depth estimates through a guarded Vast job (execution estimate $0.16747), with output retrieval and provider-zero teardown. These are estimated geometry, not measured dimensions or qualified room physics. |
+| 9. Camera/task registration | **blocked for the captured room** — Marble declares original frame 26 as its first-view camera anchor, but MapAnything's 13-frame input batch omitted frame 26. The controller refused `website_registration_anchor_frame_missing`; no surrogate camera was used. |
+| 10. CPU CAD/Blender/USD articulation and static qualification | **done for the development fixture** — the controller reused the sealed CPU authoring result with separate carcass and middle-drawer parts; the source launch's six-stage chain completed and its published revision binds an articulated asset (`sha256:b6a11534…3ff12342`) and static qualification (`sha256:3009f730…d007b690a17`). This does not qualify captured-room geometry. |
+| 11. Captured-room integration or named development fixture | **done for the named fixture; captured room unqualified** — `site-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d-development` was separately identified, executed and published through the website/controller path. The original-room registration blockers remain; no claim of Marble-room integration is made. |
+| 12. Native import/physics/robot-interface qualification | **done for the development fixture** — native stage 5 completed; the published revision binds native import qualification (`sha256:4c7dfe4b…586db5d`) and robot mount/workspace/camera references. The source launch completed, synced to the website and retained provider-zero after teardown. |
+| 13. Frozen policy/setup and GPU policy episode | **partial; two invalid first-cell attempts** — `…967af9378a61` made real policy queries but collided with the desk. The later exact-release run `…b7e6f7c071cb` reached Vast GPU and Pi05 made 56 real policy queries and 464 native samples in cell 1. Its first action collided with the cabinet carcass and top drawer, displacing the cabinet root 0.2725 m; its drawer motion is invalid. GR00T failed reset parity before its first observation. The remaining nine cells were stopped by the frozen diagnostic continuation guard. Neither run is a completed ten-cell evaluation or drawer success. |
+| 14. Numeric scoring, teardown and website result | **partial; blocked results delivered** — native joint/root/contact scoring rejected the first-cell policy motion. The `…b7e6f7c071cb` run tore down Vast, reconciled an official $0.703 charge, and passed provider-zero; WebApp sync succeeded and owner delivery readback is `verified`. This proves website publication of a blocked result, but an invalid setup and incomplete matrix cannot close an end-to-end drawer evaluation. |
+
+Fixture completion state: **CPU and static native qualification retained; GPU
+first-cell execution exposed desk and cabinet collisions on two attempts, so
+policy evaluation remains incomplete**.
+Captured-room integration state: **unqualified**. A fixture result, if later
+produced, cannot close the captured-room registration claim.
+
+### 2026-09-26 GPU recovery in progress
+
+The first-cell trace from `…967af9378a61` showed Franka link contact with the
+retained desk at the first physics step and a policy instruction that said to
+move the cabinet onto the drawer. Pipeline PR #2288 merged as `0be42221`: it
+adds a no-spend desk-clearance screen to camera-start selection and tells the
+candidate policies to **pull open the middle drawer**. Focused lifecycle/import
+closure (25) and exact-worktree impacted/sentinel tests (247) passed; a saved
+packet CPU replay clears the conservative 13 cm desk proxy, but native
+collision clearance remains unproven. The canonical deployment receipt reports
+`deployed`, and the live version endpoint proved exact commit `0be42221` with
+no blockers at 00:42 UTC. A later release-link change left the worker on
+descendant `30fea70e` while the live endpoint still reported `0be42221`;
+that split caused a no-spend launch-preparation refusal. A canonical
+deployment of descendant `d763a651` later restored exact live release
+identity with `commit_proven: true` and blockers `[]`.
+
+Before that deployment, the controller automatically started a different
+old-source attempt, `…8a1001b2da16`, under release `3dc45a1`. Its sealed
+policy packet still had the wrong instruction. The allocator was stopped and
+its blocked terminal result records no policy evidence and a typed gap before
+the first observation. The result records one provider allocation; official
+billing is pending. Its post-teardown receipt verified provider-zero. This
+attempt does not advance steps 13 or 14. The policy dispatcher trigger remains
+paused until the fresh, distinct same-scene attempt passes paid preflight.
+
+The existing scene's append-only cumulative simulation ceiling was increased
+from $36 to $40, then to $44, using the authenticated intake budget API, with
+the eight-attempt limit and $4 per-policy-run quote unchanged. The ledger
+before the latest grant retained $37.22 of active maximum exposure; a new $4
+reservation would have exceeded $40 by $1.22. These are conservative holds,
+not provider charges. The $25
+website development-test price remains unchanged. No historical hold was
+released and the grant made no provider mutation.
+
+Under the brief aligned `0be42221` release window, the controller generated
+new run `…6f7a3cfea8be` with the corrected camera-start clearance binding and
+unchanged $4/one-allocation/no-retry selection. Its launch preparation refused
+`launch_preparation_worker_source_commit_mismatch` after the release link moved
+to `30fea70e`. This was a no-spend failure before GPU. The controller issued
+a new release-bound run; neither the prior selection nor the failed
+preparation was replayed. The new `d763a651`-bound run is recorded below.
+
+The new run `…b7e6f7c071cb` passed website handoff, no-spend preparation,
+ten-cell episode compilation and activation under exact live `d763a651`.
+The sealed execution plan binds a digest-backed desk-clearance screen: minimum
+link centerline distance 0.13357 m versus a conservative 0.13 m link radius.
+This is only a CPU screen; native collision remains unqualified. A separate G1
+rental started at 01:34 UTC and holds the shared Vast launch lock. The drawer
+policy dispatcher remains paused until that run tears down and a fresh
+provider-zero check passes. The scene authority expires at 05:46 UTC. No GPU
+allocation or policy query occurred for `…b7e6f7c071cb` at this observation.
+
+### 2026-09-26 03:15 UTC — Second GPU cell and task-clearance repair
+
+The later `…b7e6f7c071cb` run did rent a GPU and passed native startup. Pi05
+made 56 genuine policy queries with actions reaching the robot and 464 numeric
+native samples in the first frozen cell. At the first action, the gripper
+contacted the cabinet carcass and fixed top drawer (measured contact forces
+340.6 N and 1754.5 N); the cabinet root drifted 0.2725 m. Although the
+middle-drawer joint reached about 0.381 m, the motion violates the frozen
+cabinet-stability and collision criteria and is not task success. The GR00T
+candidate then failed scientific reset parity before observation or query;
+the diagnostic guard stopped the remaining nine cells. The terminal result is
+`blocked`, with the partial score and media retained. Vast teardown and
+provider-zero are verified, official billing reconciled at $0.703, WebApp
+sync succeeded, and owner delivery readback is `verified`.
+
+The retained pre-spend screen had checked link-centerline clearance against
+the desk but omitted the task cabinet. Against the exact signed cabinet USD,
+its selected reset had 0.1336 m desk clearance and only 0.0396 m cabinet
+clearance. Pipeline PR #2292 merged as `08399f4f7c59ec1cb6400d0f69a5e492dd2ad732`:
+it requires a digest-bound full-task-asset clearance receipt and checks finite
+alternative reset poses against the retained desk, cabinet, joint limits and
+camera framing. The retained input check blocks the old pose; two alternatives
+pass the CPU broad-phase with task clearances 0.2054 m and 0.1745 m. Focused
+camera and required policy lifecycle/import-closure tests passed (54), as did
+hosted impacted checks. These are CPU checks; native collision and policy
+outcomes remain open. The repair is merged, not yet deployed. The host's
+03:12 live identity was still `15ee3762`, and the deployment preflight reported
+low disk headroom. The reference-aware release-retention planner failed closed
+on an unrelated old profile; no release was removed. Instead, inactive
+temporary runtime copies and archived system journals were cleared after
+checking active process use, restoring deploy/dispatch headroom without
+touching scene evidence. The scene authority expires at 05:46 UTC.
+
+The next read-only scene-status check exposed a separate fixed-count defect:
+retained trajectory provenance validation rejected the seventeenth legitimate
+plan in a scene whose earlier retries had accumulated sixteen. Pipeline PR
+#2293 merged as `db97857aa0f517c7454c3f33bf4efffda4e19f07` and streams
+every retained plan while preserving digest and duplicate-equality checks.
+Exact-host read-only replay now returns the scene status cleanly. It reports
+seven of eight source attempts used and $41.22 retained maximum exposure. Under
+the owner's earlier higher-cap authorization, the authenticated append-only
+budget grant raised cumulative internal simulation exposure from $44 to $46,
+just enough for a further $4-capped attempt; the eight-attempt ceiling, $5
+preparation guard and fixed $25 website test price are unchanged. The separate
+G1 paid run ended with watchdog-confirmed provider absence and a fresh global
+provider-zero pass. Canonical deployment of `db97857a` started at about
+03:38 UTC; at 03:45 its release link had switched but the live service still
+reported `15ee3762`, so deployment and any new drawer GPU work remained open.
+
+### 2026-09-26 04:27 UTC — No-spend disk refusal and bounded recovery
+
+The canonical `db97857a` deploy completed, and the live endpoint proved that
+exact commit with `commit_proven: true` and no blockers. The controller
+regenerated this scene's policy plan and compiled its ten-cell packet without
+provider mutation. A $46 cumulative ceiling missed the next $4 policy
+reservation by $0.12 because two newly retained CPU handoff rows added $0.90;
+an owner-authorized append-only grant raised it to $47 without changing the
+per-run bound. The first signed website handoff got HTTP 503 before submission;
+the controller retried the same immutable ID and WebApp accepted run
+`…85635f8c3eb1` with HTTP 202.
+
+That run's launch dispatcher passed the global provider-zero guard, but
+no-spend preparation refused its disk reservation at 04:13 UTC. It sampled
+6.335 GB free, below the 8 GiB floor plus a 537 MB reservation. Free space
+returned to about 12 GB shortly afterward without deleting scene evidence.
+The preparation is terminal blocked; **no GPU was rented and no policy query
+occurred**. Its $4 scene-authority hold and eighth attempt remain in the
+append-only ledger. The owner-authorized cumulative/attempt ceilings were
+therefore extended to $53 and nine attempts for one further bounded same-scene
+run, preserving the $4 per-run limit, $5 preparation cap, and fixed $25
+website development-test price. No historical hold was reset or settled by
+hand.
+
+Pipeline PR #2295 merged as `b7b07c9dffba77c9c94cf56275252c443a86f14c`
+(exact tested head `3173c1814e8b42118f324f7f0c3349f873cbd6bb`). It adds
+at most six 15-second rechecks only for transient launch-preparation capacity
+refusals; persistent low capacity still fails before fetching bytes or renting
+a provider. A canary deployment of the pushed head began at 04:24 UTC and is
+not yet verified live at this observation. The next release-bound selection
+must use a fresh run identity; the blocked preparation and signed records
+remain intact. Steps 13 and 14 are still partial, and the captured Marble
+room remains unqualified.
+
+### 2026-09-26 05:43 UTC — Compilation capacity refusal before GPU
+
+The `3173c181…` release deployed canonically with exact live-version proof.
+The source-bound preparation stopped before GPU on the work volume's actual
+capacity gate: `/var/lib/blueprint/task-evaluation-inputs/prepared-references`
+is backed by `/dev/sda`, not the root filesystem. Six bounded rechecks did not
+clear a persistent shortage. The immutable blocked receipt remains intact.
+
+Canonical evidence offload streamed 16 sealed launch-run directories to the
+configured artifact store with full byte readback and digest-bound local
+pointers, reclaiming about 2.0 GB without deleting evidence. Inactive old
+engineering scratch and one older blocked policy artifact were checksum
+verified and temporarily relocated to the root volume. The next merged
+release, `b7b07c9d…`, then deployed and passed exact live-version proof. Its
+new controller-owned no-spend preparation succeeded, but episode compilation
+refused a separate 2 GiB reservation above the 8 GiB floor: free space was
+10,364,354,560 bytes, short by about 373 MB. No GPU or policy query occurred
+on either release-bound attempt. The blocked compilation is immutable.
+
+Pipeline PR #2297 merged as `0a80e95b3ef4b49f57151165777efab1ec857d06`
+after eight focused compilation tests, 25 required policy lifecycle and import
+tests, lint and hosted impacted checks passed. It adds bounded rechecks only
+for capacity refusals in episode compilation; all disk floors and paid gates
+remain enforced. A guarded deployment of that merge commit is in progress at
+this observation. The existing scene authority expires at 05:46 UTC. Steps
+13 and 14 remain partial; the captured Marble room remains unqualified.
+
+### 2026-09-26 05:52 UTC — Fix deployed; scene authority expired
+
+The guarded deployment of PR #2297 completed with a canonical `deployed`
+receipt. The live Pipeline API reported the exact `0a80e95b…` commit,
+`commit_proven: true`, and no blockers. No new drawer GPU allocation or policy
+query followed the two capacity refusals. The signed same-scene simulation
+authority expired at 05:46 UTC. Provider inventory remained at zero live
+instances; the paid policy dispatcher was paused. A further paid attempt
+requires fresh authority, with a distinct scene identity if a new website
+development test is sponsored. The fixture policy evaluation and original
+captured-room qualification remain open.
+
+### 2026-09-25 execution evidence
+
+Controller-owned scene-configuration launch
+`website-337b48b985d51b8fc299e055-a5a17ba4-20260925t042541z-activation-auto-launch`
+completed six stages, including CPU authoring/static qualification and native
+import, with blockers `[]`. Its published revision digest is
+`sha256:47ea3f720b0a20b76e286da043f9d2bfb32b8d2ad4ae2d2fb757828e19b27530`.
+The website sync receipt succeeded and the post-teardown provider-zero receipt
+was retained. The separate robot evaluation is
+`team-eval-feb0900f-d9dd-4cfe-b4cf-6f43559e3764`. The `dc02f419…` plan
+materialized after the placement-binding repair; its autostart result says
+`placement_calls_reexecuted: false` and `provider_mutation_performed: false`.
+Episode preparation returned `queued_for_production_episode_compilation` and
+compilation returned `compiled_for_production_launch` with blockers `[]`.
+The controller then recorded
+`policy_canary_handoff_presubmission_failed:policy_canary_setup_invalid:task_success_contract.criteria`.
+PR #2267 admits the articulated success schema; its focused and hosted checks
+passed, and a service-user replay of this scene's saved parameters emitted an
+articulated setup in a temporary directory. The deployment and policy GPU
+execution remain pending while a separate paid Vast run holds the global lock.
+
+### Historical preparation snapshot (2026-09-24 23:04 UTC)
+
+WebApp Sol selection PR #710 is included in live descendant `91c90c86`.
+Both Render web and worker have live pinned deployments of that commit and the
+scene-scoped Sol policy and digest allowlists; public readiness passes. Pipeline
+PRs #2179, #2182, #2183, #2186, #2194, #2199 and #2201 are merged; canonical
+deployment `iteration_c4442e3f.json` and live intake prove release
+`c4442e3fd4268d969b004283bcf42897d19886a3` with no blockers. The dedicated
+OpenAI project has an observed $7 monthly hard limit and a private, scene-bound
+project guard; the host has Sol-only scoped project/key and cost attestation
+references. A read-only model lookup returned `gpt-6-sol`; CAD authoring and
+policy GPU execution have not started for this scene. The guarded MapAnything
+geometry rental in step 8 completed with output retrieval and provider-zero
+teardown. The shared listener obtained sponsorship
+on its fifth attempt; attempts 5 through 7 stopped at clean-plate review.
+Attempt 8 passed the reviewed clean-plate gate and produced the two provider
+outputs in step 8. It stopped before CPU authoring because the declared
+camera anchor was missing from the source-geometry batch. The Pipeline host's
+exact-task development-test allowlist initially omitted this new task digest;
+that scoped configuration was corrected at 22:49 UTC, preserving the four
+previous entries and the signed scene authority. The normal controller retry
+completed under controller attempt 9. The resulting development fixture is
+`intake_ready` with no fixture blockers; the captured-room preparation remains
+`needs_input` with `website_registration_anchor_frame_missing` and
+`support_surface_not_found_under_subject`. The website prepared-scene outbox
+and host intent share ID
+`scene-7ce24adf3ee1d5f00905bdbebee0c8dfca373f8e8417ff5494c3f90cdb940406`.
+CPU authoring has not started. Raw edited and original frames remain intact.
+Pipeline PR #2207 merged as `1e7ba9e0` to ensure future reviewed Marble image
+sets start with a frame that has a MapAnything camera; it has not been deployed
+and does not alter this scene's paid World Labs result.
+
+## Previous scene: 2026-09-24 Claude website capture
+
+This section preserves the prior separately sponsored Claude attempt. Its
+completed preparation and failed CPU evidence do not transfer to the Sol scene.
+
+| Identity | Value |
+| --- | --- |
+| Website request | `capture-bc15f409-09b7-438c-9891-519ba24d728f` |
+| Scene | `site-capture-bc15f409-09b7-438c-9891-519ba24d728f` |
+| Capture | `walkthrough-capture-bc15f409-09b7-438c-9891-519ba24d728f` |
+| Original video | `IMG_4170.MOV`, SHA-256 `d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130` |
+| Task | Pull the middle drawer of the wood-front three-drawer mobile pedestal under the desk |
+| Intake truth | Owner confirmed Austin, Texas, US, recording rights, and the website task/terms for this scene |
+| Sponsorship | Fixed $25 development test: $5 preparation, $20 simulation; no customer charge; preparation request cap amended once to 32. Owner separately authorized three bounded internal simulation exposure increases to a cumulative $46; the per-attempt $13 quote, $7 CPU model cap, and 16-attempt limit remain enforced. This does not change the website price. |
+| Last proven control-plane release | `72f825349a6f5d60fa6b32c272464e06df545dff`, canonical deploy and live exact `commit_proven: true` with no blockers at 17:22 UTC. |
+
+### Independent 14-step matrix for the previous scene
+
+This is a development test. Cabinet dimensions, drawer stroke, mass, inertia,
+friction, and the unseen rear/interior remain estimates or generated assumptions.
+The source video observes the desk and teal backpack; both remain obstacles.
+Only the middle drawer is the task joint. Captured-room and development-fixture
+completion are scored separately.
+
+| Step | Required evidence | State at 2026-09-24 18:36 UTC |
+| --- | --- | --- |
+| 1 | Website intake, rights, task confirmation consumed by Pipeline | **done** — same-scene `website_task_context.json` and `website_scene_sponsorship.json` retained; owner confirmed Austin and rights |
+| 2 | Original-byte website upload, capture binding | **done** — retained 520-frame video digest `sha256:d63aa286…d130` bound in the clean-plate manifest |
+| 3 | Video/privacy/task review with original-frame references | **done** — `gemini_capture_fidelity_review.json` and capture QA artifacts retained |
+| 4 | Cabinet assembly and middle-drawer plan; obstacles preserved | **done** — Gemini selected the mobile cabinet/middle prismatic drawer and retained the desk/backpack as observed context/obstacles |
+| 5 | Hosted SAM 3.1 task mask/track and view corroboration | **done for preparation** — clean-plate `task_masks` status `object_removal_ready`, digest `sha256:5ab1099e…26d0c85929e7`; independent view corroboration retained |
+| 6 | Background edits, original/edited pairs, independent review | **done** — one bounded review found an invented panel in edited original frame 138; the controller excluded that generated view; fresh review passed on frames 34, 35, 173, 519; `clean_plate_stage_manifest.json` is `objects_removed` / `prepared_images`, with originals retained and no blockers |
+| 7 | Digest-bound provider-capacity view selection | **done** — four prepared frames 34, 35, 173, 519, digest `sha256:1953ff6d…180c70e7b`, selected under the configured Marble 1.1 Plus maximum of eight; original frames remain separate |
+| 8 | Marble room and MapAnything geometry/camera estimates | **MapAnything complete; Marble failed** — World Labs operation `89768cb3-0f51-4e1c-9842-3f4b98f1ec9f` ended with provider error 500, no reported bill, and no collider/splat. The controller retained that failure and acquired 13 original-frame MapAnything camera/depth estimates in `estimated_meters` (not metric measurements). Vast execution completed at 10:30:15 UTC with teardown `PASS` and provider-zero `PASS`; its $0.175 reservation remains unsettled, despite the execution receipt's $0.1312 cost estimate |
+| 9 | Camera/task registration and provenance-tagged geometry | **partial for fixture only** — original-frame MapAnything estimates and source-registration binding retained; captured-room camera registration remains unqualified without a Marble room model |
+| 10 | CPU CAD/Blender/USD articulated assembly and static qualification | **partial; latest stage 3 hit its model-spend cap** — the 72f82534 launch reused completed stages 1 and 2. Carcass CAD, physical and independent visual reviews passed. Drawer CAD and physical review passed. The first two drawer appearances were rejected; the third perspective/side renders were retained and the owner accepted their appearance in chat. The `$7` Claude authoring cap stopped the stage before the third independent visual review or assembly/static qualification. Human appearance acceptance does not replace the missing review or validation receipt. |
+| 11 | Captured-room integration or separately named development fixture | **fixture execution entered, not qualified** — controller accepted distinct `development_drawer_fixture`; latest stage 3 stopped before native integration. Captured room stays `needs_input` and unqualified. |
+| 12 | Native import, joints/limits/reset, physics, interfaces, collision and camera checks | unproven |
+| 13 | Saved robot setup and GPU policy-action episodes with numeric scoring | unproven |
+| 14 | Results/replay/media on the website task page and provider-zero teardown | unproven |
+
+Current completion states: captured-room integration **unqualified**;
+development fixture execution **unproven**; policy result and website publication
+**unproven**. The terminal Marble operation and error are retained; no duplicate
+world was bought. Pipeline PR #2160 is merged and deployed, fixing the
+adapter's false-ready verdict. Pipeline PR #2161 is merged and deployed;
+it adds an owner-allowlisted development fixture path after a retained terminal
+Marble error. Neither fix turns the provider error into a successful room or a
+zero-cost bill. The fixture path has passed 61 focused tests but has not
+completed execution on this capture. Controller attempt 19 retained a completed
+three-target mask manifest with digest
+`sha256:00e420d6780f0bd16d45c0e0e84e7c78f85b2edc3193339862e96833b9d1a1e0`.
+The 10:31 preparation ledger read showed 29/32 requests and $4.99/$5 maximum
+quoted exposure, so subsequent admission must continue to honor both guards.
+The Marble bill is unreported and its full quote remains reserved. The new
+MapAnything quote is also still reserved; provider-zero does not settle its bill.
+
+At 10:06 UTC, Pipeline PR #2162 merged as `088a341a…`. It verifies and reuses
+this capture's already paid full-video SAM response for the desk and teal
+backpack before MapAnything. An isolated read-only selection on the retained
+tracks chose `meta-sam31-teal_backpack-0` and `meta-sam31-office_desk-1`; a
+service-user replay ran the new helper against exact retained inputs with its
+output redirected to scratch, producing a three-target completed mask manifest
+without a provider call or live-scene write. This is preparation evidence, not
+geometry or simulator qualification. The canonical deploy of `088a341a…`
+completed with an immutable $0.175 MapAnything quote, $1.10/h rate ceiling,
+570-second hard TTL, 80 GB minimum, and the unchanged $5 scene cap. At 10:22
+UTC the controller admitted and launched Vast instance `52396769` for
+MapAnything under its independent watchdog. Output retrieval, validation,
+teardown and provider-zero passed at 10:30; the final bill remains pending.
+Controller attempt 19 ended `failed_retryable` when the website refused the
+named fixture due to its scene-specific development allowlist. The fixture
+itself is `intake_ready`; captured-room support remains unqualified.
+
+Pipeline PR #2163 is merged and canonically deployed as `8d580a05…`, with
+live `commit_proven: true` and no blockers. It adds a bc15-specific,
+development-only cabinet depth prior bound to this scene's own fixture
+preparation/observation digests and original-frame hashes. The original source
+depth estimate of 0.16327 m remains intact; the authoring candidate is 0.55 m
+with an estimated 0.4125 m usable drawer stroke. A full no-spend preflight on
+the saved fixture packet passed, including the two-part carcass/drawer
+authoring requests, rights, images and source digest verification; it is not
+a completed CAD or simulator check. Render web deployment
+`dep-daqg21e7bikc738d19bg` and worker deployment
+`dep-daqg3j8jo6nc73earlfg` are live on exact `af16cd7…`; both now have the
+same four-entry task-digest allowlist, retaining the prior three and adding
+only this scene. Public version and readiness checks pass. The normal listener
+timer was restored for a same-scene retry after both services became live.
+
+The worker initially lacked the existing web service's Anthropic provider-terms
+entry, so the accepted fixture intake paused locally with
+`provider_terms_not_configured_or_changed` and zero Pipeline deliveries. A
+worker-only config deploy `dep-daqgb88u01pc7382qbu0` copied that exact entry;
+post-deploy terms match web and the scene's separately signed Anthropic
+reference. No consent or authority record changed. One subsequent transport
+attempt failed before a host POST, then the worker's automatic retry succeeded:
+Firestore intake `scene-53d1de9d9c6d71dd5d00ac7441a052e9fac3e235da02b9cc61520bd1f988f22a`
+is `accepted`, with Pipeline intent receipt and no blocker. Host progression is
+`running` on exact Pipeline `8d580a05…`; the whole-chain disk admission passed
+with about 20.16 GB free against 19.33 GB required. CPU authoring has not yet
+produced a provider receipt or asset.
+
+At 11:33 UTC, the controller-owned launch
+`website-c577df51a964aa540227c710-8d580a05-20260924t105122z-activation-auto-launch`
+passed paid admission, staged the sealed bundle and armed an independent
+watchdog. It stopped at 11:37 with
+`scene_configuration_provider_python_runtime_invalid`, before the first stage,
+any Claude query, or a GPU rental. The provider adapter was never invoked;
+teardown was `not_required_provider_adapter_never_invoked`, and the subsequent
+global guard verified provider-zero with zero live instances. The retained
+runtime log reports a generic import-preflight failure. A scratch replay of
+the exact sealed 216 MB wheelhouse and shipped modules as the service user
+passed; the isolated import took 34.79 seconds under lighter load. The launch
+timeline and generic error are consistent with its 90-second subprocess
+timeout under host contention, though the wrapper did not retain the exception
+type. Pipeline PR #2164 encodes a bounded 300-second check and a typed timeout
+error; three focused tests and changed-file Ruff passed. No spend ceiling,
+signed authority or scene receipt was edited.
+
+Pipeline PR #2164 merged as `6bec7f70…` and the canonical deploy receipt is
+`deployed`; live version reports that exact commit with `commit_proven: true`
+and no blockers. The first release-successor tick required a fresh global
+provider-zero check after its retained failure record. The guard at 12:07:37
+UTC reported zero live instances; the controller then created same-scene
+successor `source-7dc9b92c5c87fda55d4d4b20` on `6bec7f70…` and entered
+`running/source_preparation` with no blockers at 12:11 UTC. This is neither a
+new sponsorship nor CAD or GPU execution proof.
+
+At 12:13 UTC, the successor reached `scene_intake_spend_cap_exhausted` before
+authoring. The controller had sealed the prior scene-configuration row as
+`settled_after_terminal_attempt`, retaining its full $13 quote with basis
+`terminal_launch_unreconciled` under the unchanged $20 scene cap. The first
+launch's retained archive proves `first_stage_started: false`, no policy query,
+no Claude call, no GPU allocation, and Vast adapter never invoked, but the
+existing budget rule did not recognize this particular Python-runtime setup
+blocker. Pipeline PR #2165 adds a narrow proof rule requiring that exact
+archive, setup log, provider result and no-allocation teardown. A read-only
+service-user replay validated the signed settlement and computed a $0 budget
+hold for this already terminal row; the original receipt stays unedited. Eleven
+focused tests and Ruff passed. PR #2165 subsequently merged and deployed as
+`0be1f9a6…`; its precise zero-allocation rule let the same scene progress
+without changing the signed settlement or the $20 simulation cap.
+
+At 13:12 UTC, the controller admitted the next launch
+`website-c577df51a964aa540227c710-0be1f9a6-20260924t125418z-activation-auto-launch`.
+CPU stages 1 and 2 completed; stage 3 made three real Anthropic Claude Opus 5.5
+inference calls. The carcass CAD export succeeded, and its retained STEP has
+SHA-256 `d8c82e07e7622ab40ccd16527566deef944a00533fcf452f25112a8386e73f6c`.
+The carcass STL bounds are 550 × 587 × 782 mm. The Blender appearance script
+then raised `ValueError: not enough values to unpack (expected 4, got 3)`.
+The local Agents SDK stopped at the failed render tool, so the model did not
+receive its `repair_needed` feedback. The launch terminalized before an
+accepted assembly, native checks, GPU allocation or policy query. The CPU
+archive, failed tool output and provider-zero teardown remain retained.
+An exact-artifact preview is available at
+`/private/tmp/bc15-carcass-review-20260924/carcass-preview.png`; it is CAD
+candidate evidence, not a completed task asset. Pipeline PR #2169 is open to
+return failed render feedback to the agent for a bounded repair turn; 48
+focused tests and changed-file Ruff passed locally. Captured-room readiness
+and fixture steps 10–14 remain unproven.
+
+Pipeline PR #2169 passed hosted checks, merged as `b1da0c64…`, and its
+canonical deploy/live version are proven. A read-only replay of the exact
+retained Claude CPU archive against the earlier OpenAI-only settlement proof
+returned no bounded hold even though Anthropic calls used only the CPU stage:
+the signed request sets OpenAI authoring allowance to $0 and Anthropic to $7.
+Pipeline PR #2171 added a digest-checked Anthropic proof that retains the full
+$7 authoring allowance instead of the earlier $13 whole-attempt quote; it does
+not use the observed ~$0.45 model usage estimate as a final bill. The exact
+95.9 MB archived CPU output, request and scratch-rebound result replay now
+return a $7 upper bound, so one $13 successor would fit the existing $20
+simulation cap. All 66 focused settlement tests, changed-file Ruff and hosted
+impacted checks passed. PR #2171 merged as `09c0586d…`, but was **not yet
+deployed** at 14:02 UTC because another lane's operator-door deploy was active.
+The owner authorized a spend-cap increase if needed; no extension has been
+issued, and the fixed $25 website test price is unchanged. The scene currently
+awaits a fresh controller-owned successor after deployment and provider-zero
+recovery; steps 10–14 remain unproven.
+
+## Historical drawer attempts (2026-09-22 to 2026-09-23)
+
 Owner request (2026-09-22 UTC): take a NEW capture (`IMG_4170.MOV`) through the
 normal website upload path, prepare an articulated "open one drawer" task,
 let the durable controller author/qualify/dispatch it, execute the robot
@@ -1086,3 +1538,182 @@ simulation holds are $5 plus $13 against its fixed $20 limit, while another
 full articulated attempt is quoted at $13. No further paid attempt is implied
 by the code merge. Steps 10 and 12–14 remain unproven; step 11 remains a
 separately labeled development fixture handoff, not captured-room readiness.
+
+## 2026-09-24: same-scene Claude retry and bounded render repair
+
+The durable website launch `website-c577df51a964aa540227c710-09c0586d-20260924t142508z-activation-auto-launch` passed admission on the development fixture. CPU stages 1 and 2 reused their retained inputs. Stage 3 used Claude Opus 5.5 through the existing Agents SDK, exported a valid carcass STEP/STL at estimated bounds 550 × 586.67 × 781.53 mm, and Blender wrote perspective, top and side studio images. The render subprocess had a 600-second bound and had not exited after the final image; the trusted runner raised `TimeoutExpired`. The controller marked the launch blocked before independent visual review, drawer authoring completion, native qualification, GPU rental or policy query. Its launch receipt, archived CPU output, website sync and post-teardown provider-zero receipt are retained. This is a completed failed CPU attempt, not a completed step 10 or policy episode.
+
+Pipeline PR #2174 reduced denoised CPU studio renders from 32 to 16 Cycles samples at unchanged 960 × 960 resolution and raised both bounded authoring render timeouts to 900 seconds. An isolated no-provider replay of this exact carcass and its saved images completed all three new studio renders in 143 seconds, compared with the failed production render's 600-second limit. The replay only verifies the render path; it is not scene qualification or evaluation. PR #2174 passed 42 focused tests, changed-file Ruff and hosted impacted checks, then merged as `de30eba14f973376dc827750085b83518bfba9da`. Deployment was started but was not yet proven live at this entry.
+
+The owner authorized a bounded spend increase. The canonical append-only budget API wrote extension `sha256:f4f296e65e416457ebd21ddeb5fece9c1795f6eb6258c97d9e1c97d2b5c7b017`, raising cumulative simulation exposure from $20 to $27 while keeping 16 attempts and all per-attempt limits. It did not change the fixed $25 website development-test price, erase historical reservations or authorize an unbounded retry. The next production attempt remains pending exact live deployment and a fresh controller preflight.
+
+### 2026-09-24 15:55 UTC — Signed extension and controller retry
+
+The canonical de30 deploy completed with exact live commit proof and no blockers. The previous failed CPU launch kept its full $13 quote under `terminal_launch_unreconciled`; earlier holds totaled $20 of conservative exposure, not confirmed provider billing. On the owner’s request, the append-only budget API recorded sequence 2, digest `sha256:d180b4a4981ea1b87ed7e4aafcf72500b2fa8489dccf6e18ee8504cfea2dbf8f`, raising cumulative simulation exposure from $27 to $33. The 16-attempt count, $13 per-attempt quote and $7 CPU model cap remain enforced; the website price stays fixed at $25. No signed settlement or earlier receipt was edited. The controller created a same-scene de30 source attempt and reached event 36, `awaiting_execution/scene_configuration`, with no blockers. Launch activation is running; CPU qualification, GPU policy, and website terminal results remain unproven. The operator-door watcher was temporarily stopped before paid work to prevent a deployment from interrupting this attempt and must be restored after terminal provider-zero.
+
+At 16:02:46 UTC, durable launch `website-c577df51a964aa540227c710-de30eba1-20260924t153842z-activation-auto-launch` started on de30 after activation published a verified profile. Paid admission was still running at the last 16:04:49 UTC observation; no completed CPU authoring receipt, GPU episode or website result is yet proven.
+
+By 16:06 UTC, the new launch had a controller `admitted` receipt with no blockers and the CPU prestage entrypoint had emitted its first progress tick. This proves paid admission and CPU process start, not CAD/Blender completion or independent review.
+
+At 16:14 UTC, the active CPU prestage wrote completed-prefix checkpoint receipts for stages 1 and 2 and started stage 3, the articulated CAD/Blender authoring stage. The new stage 3 result and independent review are still pending.
+
+At 16:26 UTC, stage 3 generated a carcass STEP with passing readback (550 × 586.67 × 781.53 mm), watertight visual mesh, three finished studio renders and a `.blend` file. The separate Claude Opus 5.5 visual review returned all required booleans true and no blockers, while listing unseen interior and rear surfaces as generated. The carcass `result.json` says `candidate_authored_pending_native_qualification`; it is not final qualification. Drawer CAD authoring had started and was still running.
+
+### 2026-09-24 16:54 UTC — Drawer review failure and provider-zero
+
+The de30 launch completed its carcass candidate and generated a valid middle-drawer STEP at estimated 560 × 546.67 × 232.51 mm plus perspective, top and side renders and `.blend`. The carcass physical and visual reviews passed, with unseen surfaces labeled generated. The drawer physical-property review invocation returned `stop_reason=end_turn` but failed Pydantic validation (`invalid_structured_output`); the signed completion records $0.1764532 provider-reported list-price usage. Its raw response was not retained, so the exact field mismatch cannot be reconstructed. The controller marked stage 3 and the launch blocked before native qualification or GPU. Teardown returned `provider_zero_confirmed`, and the global GPU guard passed with live zero. The operator-door watcher was resumed and verified active at 16:40 UTC. Signed cumulative exposure is fully held at $33: prior effective holds $7, $0 and $13, plus this terminal launch at $13; these are conservative bounds, not confirmed bills.
+
+Pipeline PR #2176 sends Opus 5.5 reviews with Anthropic schema-constrained JSON while preserving full local Pydantic checks, signed call/spend admission, and an output-error diagnostic without raw model text. Fifty-six focused tests, changed-file Ruff and 60 impacted/sentinel tests passed; hosted impacted gate passed. It merged as `663a8a6ce1bd2b7dfe2fb7a9c80276fba5274560` and awaits a coordinated deploy. No paid retry is authorized by the current $33 cap.
+
+At 16:56 UTC, scene progression event 42 was `blocked/preparation` by the signed $33 spend cap, before another paid launch. With no active paid worker or deploy, a single canonical deploy of merged Pipeline commit `663a8a6c` started under `blueprint-drawer-claude-schema-deploy-663a8a6c.service`; receipt and live proof are pending. The operator-door watcher is temporarily stopped only for deploy coordination and must be restored after deploy termination.
+
+At 17:10 UTC, the canonical schema-fix deploy completed and the live endpoint proved exact `663a8a6c`. The append-only budget API recorded sequence 3, digest `sha256:9340feec843fcb85bbe80bc8b574d0e94854e7f35afd2ed671bc4ce6506d7706`, raising cumulative simulation exposure to $46; one more $13 quote fits the conservative $33 prior holds. The fixed website price and all per-attempt guards remain unchanged. Scene progression reached event 46, `running/source_preparation`, without blockers. A separate operator-door deploy of descendant commit `72f825349a6f5d60fa6b32c272464e06df545dff` then started; it contains the schema fix. No paid retry had started at this observation, and the operator-door watcher was paused again to avoid another deploy stacking behind it.
+
+At 17:22 UTC, the operator-door descendant's canonical receipt reported `deployed`, and the live endpoint proved exact `72f825349a6f5d60fa6b32c272464e06df545dff` with `commit_proven=true` and no blockers. The durable controller prepared the same scene under that release, published a new activation, and received HTTP 202 for website launch `website-c577df51a964aa540227c710-72f82534-20260924t172102z-activation-auto-launch`. By 17:48 UTC, its controller admission said `admitted` with no blockers, its CPU prestage worker was live, and the progress log had reached tick 7. No new stage-3 authoring result, native qualification, GPU policy episode, or website outcome was proven at that point. The operator-door runner watcher remains paused to avoid a deploy during this paid attempt.
+
+### 2026-09-24 18:36 UTC — Third drawer appearance accepted by owner; model cap stopped review
+
+The 72f82534 launch's retained CPU archive contains passing carcass CAD, physical-property and independent visual reviews, and a passing drawer CAD and physical-property review. The first drawer appearance had a ghost second handle; the second had smeared diagonal grain. The third appearance removed those defects with a procedural light-oak front and retained perspective and side renders. The perspective PNG SHA-256 is `1bc7f0163f73c4b4192ebde06a7d69dbe29a7c9148b907c4eb8c0bf71f4ac8fa`; the side PNG SHA-256 is `1fe62c0db1993c5608a2548017cacee3bec65cb5844f8f17b3aae30546483001`. Review copies are at `/Users/nijelhunt_1/.codex/visualizations/2026/09/24/drawer-third-appearance/`; the controller's archived originals remain in `cpu_prestage_output.zip` under this launch.
+
+The owner accepted the third render's **appearance** in chat. This is human feedback, not a controller-signed independent-review or native-qualification result. Before the third independent appearance review could run, `stages/stage-3/producer/astra_cad_blender_runtime/authoring/parts/drawer/failure.json` recorded `ClaudeAuthoringBlocked:claude_spend_cap_exhausted`. The controller's `launch_receipt.json` is `blocked`, and `webapp_sync_succeeded.json` is `succeeded`. No completed assembly/static qualification, native import, GPU rental, policy queries, or scored episode resulted from this launch. The Vast adapter was never invoked; the global spend guard then passed with required-provider inventory zero. The capped attempt remains retained as a failed CPU run. Do not turn the owner's visual acceptance into a fabricated stage receipt.
+
+Draft Pipeline PR #2179 is developing an opt-in GPT-6 Sol managed Agents API CPU authoring route for a future separately identified website scene. It is not merged, deployed, or evidence that this Claude scene passed. Any future run still needs its own signed website authority, bounded spend and attempts, local physical/assembly validation, policy-action scoring and website publication.
+
+The public website now quotes $0 to site operators and $99 per robot-team policy entry. The $25 figure above is this scene's private Blueprint-funded development-test sponsorship ($5 preparation, $20 simulation), not a charge to the operator and not a request to change public pricing. WebApp PR #710 merged a scoped, consented Sol managed-agent selection as `378336c1`; it still needs a verified deployment and a dedicated project spend-guard receipt before a fresh scene can use it. Pipeline PR #2179 remains separate integration work.
+
+At 18:37:52 UTC, after a fresh global provider-zero guard passed with zero live instances and the launch was terminal, `blueprint-operator-door-runner.path` was resumed and verified active. No deploy process was running at the preflight check.
+
+### 2026-09-24 19:12 UTC — Fresh Sol website scene, upload complete
+
+The website accepted a new, separately identified Austin, Texas self-capture request `capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d`, capture `walkthrough-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d`, scene `site-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d`, with the explicit GPT-6 Sol managed-agent disclosure selected. The browser uploader received the original `IMG_4170.MOV`; the temporary upload copy was independently checked against SHA-256 `d63aa286294795da39fd0d4c61744c359d6449bf2a80459ebe493db3c7de0130` and then removed. The page showed **Video received** and a draft one-task middle-drawer brief. The task brief is not yet saved to an account; therefore no sponsorship, preparation, CAD, GPU episode, or result is claimed for this new scene. The captured room remains unqualified, and any eventual development fixture has its own completion state.
+
+WebApp PR #710 is live on Render at exact merge commit `378336c1a5404a752b004d7423b5ea56406d92ef` with all hosted checks passing. Pipeline PR #2179 merged as `61d5910d298611dc9f83031690967d3482188282`; its production deployment and live paid admission remain unproven. Focused tests passed, while cross-cutting hosted shards were still running at merge. A dedicated OpenAI project was observed with a $7 monthly hard limit enabled. Its replacement service key was installed owner-only on the control-plane host; an initial key was revoked before use after accidental diagnostic exposure. No key value is in this document. The Sol stage still needs a project guard receipt, scoped execution environment, exact signed website task digest, and official cost admission before any paid attempt.
+
+### 2026-09-24 21:14 UTC — Fresh Sol scene authorized and preparing
+
+The owner signed in and confirmed the middle-drawer website brief. The confirmed task digest is `sha256:aa9aaf64b6fe08ffe2bd2ee2b7b8292490f294f6158850c092b3b28487676aa7`. The controller's fifth handoff attempt obtained the scene's separate website sponsorship at 21:09:51 UTC: authority digest `sha256:e90d7883b9b8f2702f3ed0001303564dfeb63cefd0d17723a709a881964606a4`, GPT-6 Sol through the OpenAI Agents API, $5 upstream preparation limit, $20 simulation limit, 16 simulation attempts, development-only. The owner-authorized one-shot preparation request amendment was previewed and applied at 32 requests; its digest is `sha256:234beb7ebfec0cfb44e6a5a8ecf56e6419e3d4d924f30e23a8ecd73236547612`. The $5 preparation spend cap did not change.
+
+Pipeline release `31eef7c64524e6876c99b86bd9dc3bc971884c9d` has a deployed canonical receipt and live exact-commit proof with no blockers. Both Render web and worker are live on WebApp descendant `91c90c86d6ad8474338e23d66e4299fb93db662d` with the scene-specific Sol guard and allowlists. The fifth host handoff is `processing`: it has written `website_task_context.json`, `website_scene_sponsorship.json`, Gemini video analysis, and local source-frame decodes. At this observation `run_e2e_stage_ledger.json` remains `running/capture_pipeline`. No completed masks, room registration, CAD, native qualification, GPU policy episode, or website result is claimed yet. Captured-room readiness remains unqualified; any later fixture must be separately labeled.
+
+### 2026-09-24 21:52 UTC — Cabinet masks passed; background review remains blocked
+
+The controller retained hosted Meta SAM 3.1 API tracks for the cabinet, desk and teal backpack, independently corroborated task masks, 14 selected views, and five completed GPT-image-2.5-sunburst background edits. The image batch settled approximately $0.50206. The independent Gemini review returned `consistent_background=true`, `task_objects_removed=false`, `unrelated_objects_preserved=false`: original frame 0 was selected without a cabinet edit, and the reviewer reported floor UPS/desk items missing. Attempt 6 reused the signed scene and retained edits and stopped at the same clean-plate gate; no CAD or GPU stage began.
+
+Visual inspection of original/edited frame pairs 26, 35, 138 and 173 found the raw generated views remove the drawer unit while the desk and backpack remain. Frame 519 is a genuine bad edit: its cabinet mask covers only 661 pixels, while the full-frame output erased the floor UPS, papers and cables. A diagnostic silhouette composite kept pixels outside SAM's cabinet-front mask but left a visible hard cabinet edge, so it was not merged or deployed. Pipeline PR #2199 merged as `7c946adbf70ea46b015ac9ab95ec3bab165b5797`: it asks the independent reviewer to compare each original/prepared pair at the same viewpoint, permits minor fill texture or lighting differences, and still rejects genuinely missing observed obstacles. Its 56 focused tests, changed-file Ruff and hosted impacted/sentinel gate passed. Pipeline PR #2194 queue fairness also merged as `43efcc4e4bbeaf0daae0b17a9635791b12689c12`. A canonical 7c946adb deploy is in progress. A follow-on candidate PR #2201 (`5f52d3b67`) asks the reviewer to identify exact bad edited views and permits one bounded exclusion plus fresh independent review, without erasing originals, signed receipts or hard safety gates; 58 focused tests and Ruff passed, hosted gate pending. No merge or deployment proves a clean-plate pass; controller retry and fresh review remain required.
+
+### 2026-09-24 22:26 UTC — Reviewed clean plate passed on the same scene
+
+Canonical deployment `iteration_c4442e3f.json` is `deployed`; the live Pipeline version endpoint reports exact `c4442e3fd4268d969b004283bcf42897d19886a3`, `commit_proven=true`, and no blockers. The durable listener started attempt 8. Its first new retained Gemini review named edited frames `decoded-000000138` and `decoded-000000519` as having unrelated-object loss, while also naming unedited frame `decoded-000000000` as still showing the cabinet. The controller excluded only the two generated views and reviewed again; that review confirmed unrelated objects preserved and identified only frame 0 as unremoved. The controller then excluded frame 0 and a third independent review passed with all hard booleans true and empty remaining/loss ID lists. The clean-plate stage manifest is `objects_removed` / `prepared_images` with no blockers and frames 26, 35, 173. All five raw edits and originals remain retained, including the two bad edits as failure evidence. The main capture pipeline was still running at this observation; Marble, MapAnything, registration, CAD, GPU and website result are not yet proven.
+
+### 2026-09-24 23:49 UTC — Fixture admitted; owner dimensions bound before CPU authoring
+
+The same capture has a settled World Labs Marble room/collider and a fully torn-down MapAnything rental that returned camera/depth estimates for 13 original frames. Neither is a metric measurement of the cabinet. Captured-room registration failed because Marble anchored on original frame 26, absent from that MapAnything sample; captured-room evaluation remains unqualified. Pipeline PR #2207 merged a future anchor-selection repair but does not change this already generated room. The controller independently prepared the named `development_drawer_fixture`; the website outbox and control plane admitted its scene intent. Its capacity gate required 19,327,352,832 free bytes. Exact inactive release cleanup restored 19,730,092,032 free bytes without touching current release or scene evidence, and progression reached `awaiting_execution/scene_configuration`.
+
+The first fixture launch activation stopped during no-spend provider-bundle preparation with `astra_articulated_cabinet_depth_implausible_hypothesis_required`. The source-derived cabinet envelope projected to roughly 0.093 m depth. No GPT-6 Sol managed Agents API CAD call or GPU rental began. The owner then reported tape measurements of 23 in tall, 16 in wide and 20 in deep (0.5842, 0.4064 and 0.508 m). Pipeline PR #2211 merged as `cd7dc09f6814878151dfab1096bb6fc8386ad867`, binding those values only to this fixture's own preparation, observation manifest, object identity and original-frame hashes. It retains the source-derived box separately, marks the owner dimensions as reported development inputs, and keeps stroke, interior geometry and mass estimates. The resulting stroke candidate is 0.381 m; the preregistered 60% opening threshold is 0.2286 m held one second, subject to native qualification before policy episodes. The exact saved inputs produced a stage-three successor in a read-only replay; 57 focused local tests, source governance, Ruff and the hosted impacted/sentinel gate passed. Canonical deployment of `cd7dc09f` started but is not yet proven live at this entry. Steps 10 and 12–14 remain open; the fixture intake portion of step 11 is complete, and it does not close captured-room readiness.
+
+#### Current capture `cc484026`: independent 14-step matrix
+
+This matrix is for the fresh GPT-6 Sol website capture only. Earlier scenes' rows elsewhere in this document do not confer authority on it.
+
+| Step | Evidence state for this capture |
+| --- | --- |
+| 1. Website task, rights, intent | **Done** — owner confirmed US office rights and the middle-drawer brief; signed sponsorship and Pipeline handoff carry this capture's identity. |
+| 2. Original video upload | **Done** — website uploader retained `IMG_4170.MOV` with source SHA-256 `d63aa286…d130`. |
+| 3. Capture review | **Done** — controller wrote review and source-frame records for this capture. |
+| 4. Task assembly selection | **Done** — Gemini identified the pedestal cabinet, middle prismatic drawer and observed obstacles. |
+| 5. Object masks | **Done** — hosted Meta SAM 3.1 track and independent selected-view corroboration retained. |
+| 6. Background recovery | **Done** — five GPT-image-2.5-sunburst edits retained; independent review passed only frames 26, 35 and 173 after excluding bad views. |
+| 7. Reconstruction views | **Done** — 14 provider-bound views selected, with reviewed clean plates and wide context retained. |
+| 8. Marble and MapAnything | **Done as estimated provider outputs** — Marble room/collider and 13 original-frame camera/depth estimates retained; MapAnything rental torn down and provider-zero passed. |
+| 9. Captured-room registration | **Blocked** — Marble anchor frame 26 is absent from the MapAnything camera sample; captured room is not qualified. |
+| 10. Articulated CAD/Blender/USD | **CPU authoring and static assembly qualification done** — under deployed `c67dd3c0`, Sol managed Agents API authored separate carcass and drawer parts with CAD/Blender renders and independent physical reviews. Stage 4 exported an articulated USD with a prismatic middle drawer, handle, closed reset, limits, link mass/inertia, collision geometry, and a passing static qualification receipt. Carcass readback is 0.508 × 0.4064 × 0.5842 m, matching the owner's reported depth/width/height. This does not prove native simulation behavior. |
+| 11. Room integration or development fixture | **Development fixture built and handed to native execution** — the separately identified fixture passed scene-configuration publication and native import qualification. Captured-room integration remains unqualified. The first policy attempt failed before any policy query; a new attempt is queued. |
+| 12. Native import and physics | **Done for the development fixture's qualification boundary** — the scene-configuration launch completed six stages and retained native import qualification `sha256:4c7dfe4b…` with provider-zero. This qualifies the fixture for a policy attempt; it does not show policy-driven drawer opening or captured-room validity. |
+| 13. GPU policy episodes | **Attempted, not scored** — the release-bound run `team-eval-85e6d1ff3e66a639b2e8acf4d8a7737f-policy-canary-aef8b8388481` rented Vast instance 52622798 and passed bootstrap. The native reset gate found desk occlusion and a near-black wrist image; the worker made zero policy queries. A fresh `d8715cb8`-bound run `...policy-canary-967af9378a61` has completed no-spend preparation and episode compilation and is queued for policy dispatch after the shared GPU lock clears. Neither is a scored episode yet. |
+| 14. Website result and teardown | **Partial** — Vast teardown, a global provider-zero receipt, and an official $0.346 charge are proven for the first failed activation. WebApp delivery of that blocked result succeeded with owner readback verified. No policy-scored result is visible on the task page. |
+
+Captured-room readiness: **unqualified**. Development fixture execution: **CPU stages 1–4 and native qualification complete; first GPU attempt failed before policy action; current-source retry queued for GPU**.
+
+### 2026-09-25 01:08 UTC — Same scene, stage 3 input correction deploying
+
+Pipeline `cd7dc09f6814878151dfab1096bb6fc8386ad867` deployed with an exact live-version proof. Its release-bound controller attempt used the **same website capture, scene sponsorship and guarded ledger**; it did not create another $25 scene. The no-spend provider bundle passed the cabinet-depth check with the owner's reported 20 in depth. The website accepted the activation launch with HTTP 202, the allocator admitted it, and CPU stages 1 and 2 completed with retained checkpoints. Stage 3 started the Sol managed Agents API carcass authoring request, but the provider returned HTTP 400 `invalid_request_error` at `input[0].content[2].image_url`. Its journal records no tool calls and cleanup `deleted`; no cabinet or drawer model was produced. The source attachments were valid 1920x1080 PNG/base64, about 12 MB total. Official cost remains pending; the global provider guard verified zero live instances after teardown.
+
+Pipeline PR #2219 merged as `c67dd3c01d2b5c2b0e5e404c01d87d235103f2e8`. It changes only managed Agents API delivery to bounded full-resolution JPEG copies with source and delivery digests; the exact five frames measured about 1.5 MB total as copies. Original frames, the SDK path and independent review remain intact. 53 focused tests, Ruff, source governance and the hosted impacted/sentinel gate passed. The exact commit is in a canonical deployment that is **running**, not yet proven live. Since the API documentation allows data URLs, the specific provider image rejection rule remains unconfirmed until a fresh controller-owned request succeeds. Captured-room registration, complete articulated authoring, native import, policy episodes and website terminal results remain unproven.
+
+### 2026-09-25 02:26 UTC — Same scene, Sol CAD stage completed
+
+The canonical `c67dd3c01d2b5c2b0e5e404c01d87d235103f2e8` deploy completed with an exact live-version proof and no blockers. The same owner scene received an append-only execution-budget extension after an unreconciled $13 retained hold prevented a second $13 reservation under the original $20 simulation cap. The owner-authorized cumulative ceiling is now $39; the 16-attempt count, per-attempt limits, $5 preparation guard and fixed $25 website price did not change. No prior settlement was edited or released to make room. The controller materialized a fresh release-bound attempt within the same scene, and website auto-launch `website-337b48b985d51b8fc299e055-c67dd3c0-20260925t012234z-activation-auto-launch` passed admission with watchdog and spend gates.
+
+CPU stages 1 and 2 were adopted and checkpointed. Stage 3's first Sol managed Agents API request succeeded with the bounded JPEG copies: the journal records completed `observe_object`, `build_cad` and `render_candidate` calls, clearing the previous pre-tool HTTP 400 failure. The carcass and separate middle drawer were exported and rendered through CAD/Blender. Carcass geometry readback is 0.508 × 0.4064 × 0.5842 m (depth × width × height), matching the owner's 20 × 16 × 23 in measurement. Drawer geometry readback is 0.518 × 0.3664 × 0.16673 m including its front overhang. Independent physical-property review returned no blockers for either part, with `development_only` claim ceiling. The controller checkpointed stage 3 and started stage 4. Articulated assembly validation, native simulation import, policy episodes, teardown and website results remain open. Captured-room registration remains unqualified.
+
+### 2026-09-25 02:47 UTC — Static assembly passed; GPU stopped before rental
+
+Stage 4 of the same `c67dd3c0` CPU prestage exported `replacement_asset.usdz` and a passing `authored_structure_statically_qualified` receipt with no findings. The USD parses in meters, Z-up, with one articulation root, a task prismatic joint limited to 0–0.381 m, closed reset at 0, fixed non-target links, collision geometry, positive finite link mass/inertia, and a tagged moving-drawer handle. These are authored or estimated properties, not measured dynamic performance. The native simulator has not yet checked joint motion, contacts, stability, robot interfaces or policy actions.
+
+The subsequent Vast admission stopped before provider creation with `provider_credit_insufficient`: the observed balance was $3.594 against a $6 maximum quote plus $1 reserve. The launch is terminal `blocked`; the independent teardown receipt confirms `provider_zero_confirmed`, no live GPU instance, and no continuing spend from the run. The owner then added $10 and a fresh provider API observation measured $13.594, sufficient for the unchanged $7 credit threshold. The `cpu_prestage_output.zip` retains the completed stages. The next controller attempt must authenticate and adopt that saved work; the current cross-attempt managed-agent path would otherwise rebuild it, so no new paid launch is claimed at this entry. The website has no native GPU episode or terminal drawer result yet.
+
+### 2026-09-25 18:19 UTC — First GPU canary stopped before policy action
+
+The controller-owned release-bound activation `team-eval-85e6d1ff3e66a639b2e8acf4d8a7737f-policy-canary-aef8b8388481` admitted one $4-capped Vast allocation and launched instance 52622798. CUDA/Isaac bootstrap and provider bundle verification passed. The first native reset images failed the pre-policy composition gate: the development fixture desktop occluded the cabinet in the overview view. The retained result records `candidate_policy_queried: false`, zero policy queries, and blocked cell placeholders. It is not a scored policy episode. The Vast instance was torn down and `post_teardown_global_provider_zero.json` confirmed zero live instances. This entry reflects the 18:19 observation; later closeout and code changes are recorded below. The captured Marble room remains unqualified.
+
+### 2026-09-25 19:01 UTC — Camera and wrist qualification fixes merged; deploy waits for another paid run
+
+The failed drawer activation settled an official Vast charge of $0.346. Its dispatcher stopped after provider-zero but retained website result delivery is pending with `policy_canary_website_notification_readback_missing`. The full native reset gate also found that the DROID wrist frame was 72.01% near-black, while native semantics identified 72.09% robot pixels and 22.26% task pixels; the target region itself rendered. The generic site-background check had classified robot pixels as a missing site. The preflight had calculated camera poses without ray-checking the cabinet against the fixture desk, so the overview obstruction was first observed in Isaac. Neither failure involved a policy action.
+
+Pipeline PR #2274 merged as `418a01e42effa922d5befaad32fa01881c34d129` and places articulated-world overview/external cameras below the desktop so the candidate front/side rays pass beneath the known slab; native rendered visibility still requires readback. It also bounds the historical billing lookup. Pipeline PR #2275 merged as `f52a26f2cd7ee1591b2a2e68dcbd5d06a5581228`; for the official DROID canary it retains the exact native robot mask with digest and allows a dark wrist frame only when the dark pixels are explained by the robot and a rendered target remains visible. It also retains a redacted website-sync reason for pending delivery. Local focused tests, lifecycle/import-closure rehearsal, source governance, Ruff and the hosted impacted/sentinel gate passed at the exact PR heads. Neither fix is deployed yet. Another lane's G1 Vast rental is active, so a control-plane deploy or new drawer GPU attempt has not started. The policy fixture's signed execution authority expires 2026-09-26 05:46 UTC; no time amendment is needed at this observation. Steps 13 and 14 remain open.
+
+Read-only scene-intent status then showed $22.52 in retained maximum exposure against the $24 cumulative simulation ceiling. A new $4 policy reservation would have exceeded it. The owner-authorized canonical append-only budget API recorded sequence 2 (`sha256:acba1ddb225d43135fe63c8f99794511e9555a88cecbefb7cd826373fd5a4005`), increasing only that cumulative ceiling to $28. The eight-attempt ceiling, per-run $4 quote, $5 preparation guard, and website's fixed $25 development-test price remain unchanged. No provider mutation or release of an earlier hold occurred. The merged release source is staged in a clean host clone, but remains undeployed until the other paid G1 rental closes.
+
+The live WebApp release already accepts an authenticated controls-omission publication for a normal website owner, but its final saved-contract binding used the rigid-only validator. This scene's saved Firestore contract is `articulated_task_success_contract.v1`, so the retained website sync is expected to fail that binding. WebApp PR #726 uses the existing confirmed rigid-or-articulated validator; 45 focused tests, TypeScript checking and a read-only binding check against this exact saved contract passed. It is open and undeployed at this observation. The precise transport response for the old pending publication is still unrecorded; the Pipeline redacted diagnostic will preserve it after deployment. No website terminal result or scored policy episode is claimed.
+
+### 2026-09-25 20:32 UTC — Website delivery recovered; policy retry awaits the shared GPU lock
+
+The first drawer policy activation `team-eval-85e6d1ff3e66a639b2e8acf4d8a7737f-policy-canary-aef8b8388481` remains a **blocked pre-query attempt**, not a scored episode: its sealed result records `candidate_policy_queried: false`, zero completed cells, one Vast allocation, and official cost $0.346. After WebApp PR #726 merged and deployed as exact web/worker commit `2e3cd9d70284ec4aa4a8f785700ec979a6836934`, its retained result delivery reports `policy_canary_webapp_sync: succeeded` and owner delivery readback `verified`. This proves publication of the blocked result, not completion of steps 13–14.
+
+Pipeline PRs #2274 and #2275 are included in deployed commit `59020bc88eb3be0d41ca0d3aeb0b3d01d8cd3279`. The canonical second deploy receipt is `status: deployed`; live `/api/live-pipeline/version` returned HTTP 200, the exact commit, `commit_proven: true`, and no blockers. The first deploy of this commit failed during terminal-controls adoption after its release-link switch; a rerun of that bounded, non-provider preflight prepared the drawer adoption, and the second full deploy qualified the release. No drawer policy retry has run on the new camera code yet.
+
+The scene's append-only cumulative simulation ceiling is $28 with eight attempts and the unchanged $4 per-policy-run quote. Read-only retained maximum exposure is $22.52, leaving $5.48 of headroom for one retry. The signed scene authority expires 2026-09-26 05:46 UTC. A separate G1 paid run started at 20:27 UTC and holds `vast_paid_launch.lock`; dispatching the drawer while it holds that lock would consume another one-shot attempt before any policy query. A fresh same-scene WebApp selection and controller-owned preparation/execution are next after that rental's teardown and fresh global provider-zero. Completed CAD, articulated USD and native qualification remain retained. Captured-room registration remains unqualified; steps 13 and 14 remain open.
+
+### 2026-09-25 21:47 UTC — Current-source drawer policy is queued after no-spend setup
+
+Pipeline PR #2282 merged as `d8715cb82da36dae6d29102d09ef55b8665fabc9` and passed canonical deployment (`iteration_d8715cb8.json`, `status: deployed`); live `/api/live-pipeline/version` reported the exact commit, `commit_proven: true`, and no blockers. It permits a retained placement's generated external/overview camera poses to change while keeping the wrist view, roles, intrinsics, and other camera fields fixed. The new camera still requires native rendered observability readback.
+
+The controller reused the retained CPU CAD, articulated USD, and native qualification. It materialized a new plan with `expected_production_commit: d8715cb8…` and compiled the ten-cell episode packet with `status: compiled_for_production_launch`, no blockers and no provider mutation. The first policy presubmission then refused a $4 reservation: retained signed exposure had reached $24.32 against the $28 cumulative cap. Using the owner's earlier authorization, the canonical append-only budget API raised only this scene's cumulative simulation exposure ceiling to $36 (grant `sha256:d9ce984f0f07184bc5ea7f1b91fed7db3e6589f5396cccfdac5bc1cf10768134`). The eight-attempt ceiling, $4 one-allocation policy quote, retry cap zero, 9000-second TTL, $5 preparation guard, and fixed $25 website test price are unchanged; no prior hold was erased.
+
+On the controller retry, WebApp accepted new run `team-eval-85e6d1ff3e66a639b2e8acf4d8a7737f-policy-canary-967af9378a61`. Its profile, execution plan and WebApp request binding all name `d8715cb8…`. The launch's no-spend preparation and policy episode compilation completed, and activation reported `policy_campaign_queue_materialized_no_execution` for ten cells with no provider mutation. A separately owned G1 run started at 21:26 UTC and still held the global Vast launch lock at this observation. The drawer dispatch item is retained in `task-evaluation-policy-canary-dispatches/pending`; the policy dispatcher path is temporarily stopped to preserve this one-shot run until G1 teardown and a fresh provider-zero check. The launch dispatcher path was restored after it had completed this run's no-spend work. No drawer GPU was rented on `d8715cb8…`, no candidate policy was queried, and steps 13 and 14 remain open. The original captured room remains unqualified.
+
+### 2026-09-26 00:16 UTC — First real policy cell exposed desk collision
+
+After the separate G1 rental ended and a fresh provider-zero guard passed, the
+controller dispatched the same scene's distinct `…967af9378a61` policy run on
+Pipeline `d8715cb8…`. Static startup and paid admission passed under the $4
+per-run hard cap. The Vast worker reached Isaac and completed the first of ten
+frozen scenario cells. Both `pi05_droid` and `groot_n17_droid` received exact
+policy-input frames, made 56 policy queries, and sent actions that moved the
+robot. Native numeric scoring returned `status: scored` and
+`task_succeeded: false` for each. No rendered image or policy self-grade was
+used as the scoring authority.
+
+The native trace explains why apparent drawer travel is invalid. At the first
+simulation step, Franka links 5 and 7 collided with the retained desk collider
+`scene_collision/mesh_0000_geometry_0`. The first contact exceeded 162 kN,
+the cabinet root displaced as much as 0.378 m, and the target drawer joint
+moved despite zero handle-contact samples. Both grasp-to-handle distances
+increased rather than showing the required approach. The first-cell diagnostic
+gate refused continuation; nine cells were not run. The terminal result is
+`blocked`, not a successful drawer policy result. Its official Vast charge was
+$0.766; teardown and global provider-zero completed, WebApp sync succeeded, and
+owner result readback was verified.
+
+The collider is the explicit development fixture desk slab, not a qualified
+Marble room. A read-only CPU reproduction on the retained packet measured zero
+link-centerline clearance for the old camera reset. Pipeline PR #2288 (head
+`0084f171…`, hosted checks pending at this observation) adds a digest-bound
+CPU clearance screen and a bounded lower-arm reset search while preserving
+the desk. The candidate it selects on this same saved packet keeps the handle
+in the wrist camera and has 0.134 m centerline clearance against a 0.13 m
+conservative proxy. That is a pre-spend screen, not proof of native collision
+clearance or policy success. Focused tests and the impacted/sentinel set passed
+locally. A separate G1 paid rental took the global Vast lock at 00:04 UTC; no
+drawer deploy or retry was started over it. The existing scene authority still
+expires at 05:46 UTC.
