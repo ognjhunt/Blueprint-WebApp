@@ -203,6 +203,9 @@ describe("PolicyCanarySetup", () => {
     const { default: PolicyCanarySetup } = await import("../../src/pages/app/PolicyCanarySetup");
     render(<PolicyCanarySetup />);
     await screen.findByText("interiorgs-841757 · scene-841757-book-to-marked-area");
+    expect(screen.getByRole("option", { name: "Unitree G1 + Dex3 / SONIC (development campaign)" })).toBeTruthy();
+    expect(screen.getByText(/This development campaign can still be submitted for a bounded simulation/)).toBeTruthy();
+    expect(screen.getByText(/Production policy ranking remains unavailable/)).toBeTruthy();
     const submit = screen.getByRole("button", { name: "Submit G1 development campaign" });
     expect(submit).toHaveProperty("disabled", true);
     for (const label of [/Book policy 1/, /Book policy 2/, /Movement policy 1/, /Movement policy 2/]) {

@@ -392,12 +392,12 @@ export default function PolicyCanarySetup() {
           <Field label="Robot" wide>
             <select value={`${activeSetup.setup_digest}:${robot.robot_preset_id}`} disabled={switching} onChange={(event) => { void changeRobot(event.target.value); }}>
               {availableSetups.map((item) => <option key={`${item.setup_digest}:${item.robot_preset_id}`} value={`${item.setup_digest}:${item.robot_preset_id}`}>
-                {item.display_name}{item.readiness.status === "verified_runnable" ? "" : " (unavailable)"}
+                {item.display_name}{item.readiness.status === "verified_runnable" ? "" : managedPacket && item.robot_preset_id === "unitree_g1_dex3_sonic_v1" ? " (development campaign)" : " (unavailable)"}
               </option>)}
             </select>
           </Field>
         </div>
-        {robot.readiness.status !== "verified_runnable" ? <p className="ws-note mt-4" role="status">{robot.readiness.reason}</p> : null}
+        {robot.readiness.status !== "verified_runnable" ? <p className="ws-note mt-4" role="status">{robot.readiness.reason}{managedPacket && g1Packet ? " This development campaign can still be submitted for a bounded simulation; production readiness remains unproven." : ""}</p> : null}
         <fieldset className="mt-6">
           <legend className="text-sm">{g1Packet ? "Choose two book policies" : "Choose two policies"}</legend>
           {robot.policy_candidates.filter((candidate) => !g1Packet || (candidate.evaluation_objective_id || "task_success") === "task_success").map((candidate) => {
@@ -415,7 +415,9 @@ export default function PolicyCanarySetup() {
             </label>;
           })}
           <p className="ws-note">{inspectOnly
-            ? "Choose policies for the same objective to plan a pair. This robot and scene still need a verified execution profile before a run can start."
+            ? managedPacket && g1Packet
+              ? "Choose both book and movement policies, then submit the bounded development campaign. Production policy ranking remains unavailable."
+              : "Choose policies for the same objective to plan a pair. This robot and scene still need a verified execution profile before a run can start."
             : "Both policies run the same scenarios with the same starting conditions and scoring."}</p>
         </fieldset>
         {g1Packet ? <fieldset className="mt-6">
