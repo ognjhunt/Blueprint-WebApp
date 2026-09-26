@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-26 01:47 UTC |
+| Step | Current evidence at 2026-09-26 03:15 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -34,12 +34,12 @@ older scene's stage evidence or budget.
 | 10. CPU CAD/Blender/USD articulation and static qualification | **done for the development fixture** — the controller reused the sealed CPU authoring result with separate carcass and middle-drawer parts; the source launch's six-stage chain completed and its published revision binds an articulated asset (`sha256:b6a11534…3ff12342`) and static qualification (`sha256:3009f730…d007b690a17`). This does not qualify captured-room geometry. |
 | 11. Captured-room integration or named development fixture | **done for the named fixture; captured room unqualified** — `site-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d-development` was separately identified, executed and published through the website/controller path. The original-room registration blockers remain; no claim of Marble-room integration is made. |
 | 12. Native import/physics/robot-interface qualification | **done for the development fixture** — native stage 5 completed; the published revision binds native import qualification (`sha256:4c7dfe4b…586db5d`) and robot mount/workspace/camera references. The source launch completed, synced to the website and retained provider-zero after teardown. |
-| 13. Frozen policy/setup and GPU policy episode | **partial, invalid first cell; corrected retry awaiting GPU** — run `…967af9378a61` completed two real 56-query policy episodes in the first of ten frozen cells, with actions reaching the robot and lossless inputs retained. At the first simulation step, the robot struck the retained fixture desk collider. The cabinet root shifted up to 0.378 m and the drawer moved without handle contact. The first-cell diagnostic stopped the remaining nine cells. Fresh exact-release run `…b7e6f7c071cb` completed no-spend ten-cell compilation and activation, but has no GPU allocation or policy query. |
-| 14. Numeric scoring, teardown and website result | **partial, blocked result delivered** — native joint/root/contact scoring marked both first-cell episodes as failures; neither is drawer success. The controller tore down Vast, verified provider-zero, reconciled an official $0.766 charge, and delivered the blocked terminal result to the website with verified owner readback. The result-publication path works, but an invalid setup and incomplete matrix cannot close this step as an end-to-end drawer evaluation. |
+| 13. Frozen policy/setup and GPU policy episode | **partial; two invalid first-cell attempts** — `…967af9378a61` made real policy queries but collided with the desk. The later exact-release run `…b7e6f7c071cb` reached Vast GPU and Pi05 made 56 real policy queries and 464 native samples in cell 1. Its first action collided with the cabinet carcass and top drawer, displacing the cabinet root 0.2725 m; its drawer motion is invalid. GR00T failed reset parity before its first observation. The remaining nine cells were stopped by the frozen diagnostic continuation guard. Neither run is a completed ten-cell evaluation or drawer success. |
+| 14. Numeric scoring, teardown and website result | **partial; blocked results delivered** — native joint/root/contact scoring rejected the first-cell policy motion. The `…b7e6f7c071cb` run tore down Vast, reconciled an official $0.703 charge, and passed provider-zero; WebApp sync succeeded and owner delivery readback is `verified`. This proves website publication of a blocked result, but an invalid setup and incomplete matrix cannot close an end-to-end drawer evaluation. |
 
-Fixture completion state: **CPU and static native qualification retained; GPU first-cell
-execution exposed a robot/desk startup collision, so policy evaluation remains
-incomplete**.
+Fixture completion state: **CPU and static native qualification retained; GPU
+first-cell execution exposed desk and cabinet collisions on two attempts, so
+policy evaluation remains incomplete**.
 Captured-room integration state: **unqualified**. A fixture result, if later
 produced, cannot close the captured-room registration claim.
 
@@ -95,6 +95,36 @@ rental started at 01:34 UTC and holds the shared Vast launch lock. The drawer
 policy dispatcher remains paused until that run tears down and a fresh
 provider-zero check passes. The scene authority expires at 05:46 UTC. No GPU
 allocation or policy query occurred for `…b7e6f7c071cb` at this observation.
+
+### 2026-09-26 03:15 UTC — Second GPU cell and task-clearance repair
+
+The later `…b7e6f7c071cb` run did rent a GPU and passed native startup. Pi05
+made 56 genuine policy queries with actions reaching the robot and 464 numeric
+native samples in the first frozen cell. At the first action, the gripper
+contacted the cabinet carcass and fixed top drawer (measured contact forces
+340.6 N and 1754.5 N); the cabinet root drifted 0.2725 m. Although the
+middle-drawer joint reached about 0.381 m, the motion violates the frozen
+cabinet-stability and collision criteria and is not task success. The GR00T
+candidate then failed scientific reset parity before observation or query;
+the diagnostic guard stopped the remaining nine cells. The terminal result is
+`blocked`, with the partial score and media retained. Vast teardown and
+provider-zero are verified, official billing reconciled at $0.703, WebApp
+sync succeeded, and owner delivery readback is `verified`.
+
+The retained pre-spend screen had checked link-centerline clearance against
+the desk but omitted the task cabinet. Against the exact signed cabinet USD,
+its selected reset had 0.1336 m desk clearance and only 0.0396 m cabinet
+clearance. Pipeline PR #2292 merged as `08399f4f7c59ec1cb6400d0f69a5e492dd2ad732`:
+it requires a digest-bound full-task-asset clearance receipt and checks finite
+alternative reset poses against the retained desk, cabinet, joint limits and
+camera framing. The retained input check blocks the old pose; two alternatives
+pass the CPU broad-phase with task clearances 0.2054 m and 0.1745 m. Focused
+camera and required policy lifecycle/import-closure tests passed (54), as did
+hosted impacted checks. These are CPU checks; native collision and policy
+outcomes remain open. The repair is merged, not yet deployed. The host's
+03:12 live identity was still `15ee3762`, and the deployment preflight reported
+low disk headroom. A reference-aware retention plan is being prepared before
+any new release or paid attempt. The scene authority expires at 05:46 UTC.
 
 ### 2026-09-25 execution evidence
 
