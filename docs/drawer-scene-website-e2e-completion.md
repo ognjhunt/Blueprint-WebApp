@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-26 03:15 UTC |
+| Step | Current evidence at 2026-09-26 04:27 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -144,6 +144,40 @@ G1 paid run ended with watchdog-confirmed provider absence and a fresh global
 provider-zero pass. Canonical deployment of `db97857a` started at about
 03:38 UTC; at 03:45 its release link had switched but the live service still
 reported `15ee3762`, so deployment and any new drawer GPU work remained open.
+
+### 2026-09-26 04:27 UTC — No-spend disk refusal and bounded recovery
+
+The canonical `db97857a` deploy completed, and the live endpoint proved that
+exact commit with `commit_proven: true` and no blockers. The controller
+regenerated this scene's policy plan and compiled its ten-cell packet without
+provider mutation. A $46 cumulative ceiling missed the next $4 policy
+reservation by $0.12 because two newly retained CPU handoff rows added $0.90;
+an owner-authorized append-only grant raised it to $47 without changing the
+per-run bound. The first signed website handoff got HTTP 503 before submission;
+the controller retried the same immutable ID and WebApp accepted run
+`…85635f8c3eb1` with HTTP 202.
+
+That run's launch dispatcher passed the global provider-zero guard, but
+no-spend preparation refused its disk reservation at 04:13 UTC. It sampled
+6.335 GB free, below the 8 GiB floor plus a 537 MB reservation. Free space
+returned to about 12 GB shortly afterward without deleting scene evidence.
+The preparation is terminal blocked; **no GPU was rented and no policy query
+occurred**. Its $4 scene-authority hold and eighth attempt remain in the
+append-only ledger. The owner-authorized cumulative/attempt ceilings were
+therefore extended to $53 and nine attempts for one further bounded same-scene
+run, preserving the $4 per-run limit, $5 preparation cap, and fixed $25
+website development-test price. No historical hold was reset or settled by
+hand.
+
+Pipeline PR #2295 merged as `b7b07c9dffba77c9c94cf56275252c443a86f14c`
+(exact tested head `3173c1814e8b42118f324f7f0c3349f873cbd6bb`). It adds
+at most six 15-second rechecks only for transient launch-preparation capacity
+refusals; persistent low capacity still fails before fetching bytes or renting
+a provider. A canary deployment of the pushed head began at 04:24 UTC and is
+not yet verified live at this observation. The next release-bound selection
+must use a fresh run identity; the blocked preparation and signed records
+remain intact. Steps 13 and 14 are still partial, and the captured Marble
+room remains unqualified.
 
 ### 2026-09-25 execution evidence
 
