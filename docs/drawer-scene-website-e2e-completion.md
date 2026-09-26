@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-26 00:28 UTC |
+| Step | Current evidence at 2026-09-26 01:04 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -52,8 +52,11 @@ adds a no-spend desk-clearance screen to camera-start selection and tells the
 candidate policies to **pull open the middle drawer**. Focused lifecycle/import
 closure (25) and exact-worktree impacted/sentinel tests (247) passed; a saved
 packet CPU replay clears the conservative 13 cm desk proxy, but native
-collision clearance remains unproven. The canonical deployment of that commit
-is in progress, not yet a live release.
+collision clearance remains unproven. The canonical deployment receipt reports
+`deployed`, and the live version endpoint proved exact commit `0be42221` with
+no blockers at 00:42 UTC. A later release-link change left the worker on
+descendant `30fea70e` while the live endpoint still reported `0be42221`;
+release alignment is pending before another policy run.
 
 Before that deployment, the controller automatically started a different
 old-source attempt, `…8a1001b2da16`, under release `3dc45a1`. Its sealed
@@ -72,6 +75,14 @@ the grant retained $32.32 of maximum exposure across five policy attempts;
 this is a conservative reservation total, not a provider charge. The $25
 website development-test price remains unchanged. No historical hold was
 released and the grant made no provider mutation.
+
+Under the brief aligned `0be42221` release window, the controller generated
+new run `…6f7a3cfea8be` with the corrected camera-start clearance binding and
+unchanged $4/one-allocation/no-retry selection. Its launch preparation refused
+`launch_preparation_worker_source_commit_mismatch` after the release link moved
+to `30fea70e`. This was a no-spend failure before GPU. The controller must
+issue a new release-bound run after a canonical `30fea70e` deployment; neither
+the prior selection nor the failed preparation is reusable.
 
 ### 2026-09-25 execution evidence
 
