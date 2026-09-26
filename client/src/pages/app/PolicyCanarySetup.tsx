@@ -7,6 +7,7 @@ import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint
 import { TaskSuccessContractPanel } from "@/components/blueprint/app/TaskSuccessContractPanel";
 import { Field } from "@/components/workspace/WorkspaceUI";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchG1TeamCampaignSetups, submitG1TeamCampaign } from "@/lib/nativeG1TeamCampaigns";
 import { downloadPolicyPairChoice, makePolicyPairChoice } from "@/lib/policyPairChoice";
 import {
   downloadPacketPolicyHandoff,
@@ -32,7 +33,7 @@ function stableRunId(sourceLaunchId: string) {
   const suffix = typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return `${sourceLaunchId.slice(0, 80)}-policy-canary-${suffix}`
+  return `${(sourceLaunchId || "g1").slice(0, 80)}-policy-canary-${suffix}`
     .replace(/[^A-Za-z0-9._:-]/g, "-");
 }
 
@@ -66,6 +67,11 @@ export default function PolicyCanarySetup() {
   const [, navigate] = useLocation();
   const [setup, setSetup] = useState<PolicyCanarySetupView | null>(null);
   const [packetSetup, setPacketSetup] = useState<PacketPlanningSetup | null>(null);
+  const [managedPacketSetups, setManagedPacketSetups] = useState<PacketPlanningSetup[]>([]);
+  const [managedPacket, setManagedPacket] = useState(false);
+  const [g1CatalogLoading, setG1CatalogLoading] = useState(true);
+  const [g1BudgetConfirmed, setG1BudgetConfirmed] = useState(false);
+  const [g1IntentId, setG1IntentId] = useState<string | null>(null);
   const [robotId, setRobotId] = useState("");
   const [policyIds, setPolicyIds] = useState<string[]>([]);
   const [movementPolicyIds, setMovementPolicyIds] = useState<string[]>([]);
@@ -78,7 +84,29 @@ export default function PolicyCanarySetup() {
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const setupRequest = useRef(0);
+  const g1AuthorizationExpiry = useRef<number | null>(null);
   const runId = useMemo(() => stableRunId(decodedLaunchId), [decodedLaunchId]);
+
+  useEffect(() => {
+    if (!currentUser || decodedLaunchId || packetSetup) return;
+    let cancelled = false;
+    void fetchG1TeamCampaignSetups(currentUser).then((setups) => {
+      if (cancelled) return;
+      setG1CatalogLoading(false);
+      setManagedPacketSetups(setups);
+      if (setups.length) {
+        setPacketSetup(setups[0]);
+        setRobotId(setups[0].robot_presets[0].robot_preset_id);
+        setManagedPacket(true);
+      }
+    }).catch((reason) => {
+      if (!cancelled) {
+        setG1CatalogLoading(false);
+        setError(reason instanceof Error ? reason.message : "G1 task setups are unavailable.");
+      }
+    });
+    return () => { cancelled = true; };
+  }, [currentUser, decodedLaunchId, packetSetup]);
 
   useEffect(() => {
     if (!currentUser || !decodedLaunchId || packetSetup) return;
@@ -149,9 +177,12 @@ export default function PolicyCanarySetup() {
       setupRequest.current++;
       setSetup(null);
       setPacketSetup(imported);
+      setManagedPacket(false);
       setRobotId(imported.robot_presets[0].robot_preset_id);
       setPolicyIds([]);
       setMovementPolicyIds([]);
+      setG1BudgetConfirmed(false);
+      setG1IntentId(null);
       setConfirmed(false);
       setInterpretationConfirmed(false);
     } catch (reason) {
@@ -275,6 +306,32 @@ export default function PolicyCanarySetup() {
     }
   }
 
+  async function submitManagedG1() {
+    if (!currentUser || !packetSetup || !robot || !g1Packet || !managedPacket
+      || policyIds.length !== 2 || movementPolicyIds.length !== 2 || !g1BudgetConfirmed) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const bookChoice = await makePacketPolicyPairChoice(packetSetup, robot.robot_preset_id, policyIds);
+      const movementChoice = await makePacketPolicyPairChoice(packetSetup, robot.robot_preset_id, movementPolicyIds);
+      if (bookChoice.objective_id !== "task_success" || movementChoice.objective_id !== "g1_navigation_goal") {
+        throw new Error("Choose one book pair and one movement pair.");
+      }
+      const bookHandoff = await makePacketPolicyHandoff(packetSetup, bookChoice);
+      const movementHandoff = await makePacketPolicyHandoff(packetSetup, movementChoice);
+      g1AuthorizationExpiry.current ??= Date.now() / 1000 + 3600;
+      const receipt = await submitG1TeamCampaign({
+        currentUser, runId, setup: packetSetup, bookHandoff, movementHandoff,
+        authorizationExpiresAtEpoch: g1AuthorizationExpiry.current,
+      });
+      setG1IntentId(receipt.intent_id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The G1 campaign could not be queued.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const emailAllowed = Boolean(setup?.notification_recipient_options.includes(email.toLowerCase()));
   const canSubmit = !packetSetup && !inspectOnly && canContinueSetup && confirmed && interpretationConfirmed && Boolean(confirmedSuccessContract) && emailAllowed && !submitting && !switching;
   const otherSizes = setup?.episode_presets.filter((item) => item.preset_id !== "quick_10" && item.availability !== "enabled") || [];
@@ -289,20 +346,39 @@ export default function PolicyCanarySetup() {
     </div></header>
     {developmentAccess ? <section aria-labelledby="packet-planning-import" className="mb-8">
       <h2 id="packet-planning-import">Retained task packet</h2>
-      <p className="ws-note mt-2">Import a planning setup exported from a verified Pipeline packet to choose policies for its exact task revision. The file stays in this browser; Pipeline verifies the packet and choice before staging a run.</p>
+      <p className="ws-note mt-2">Choose an assigned G1 task packet or import a verified Pipeline planning setup for an exact task revision.</p>
       <Field label="Packet planning setup" wide>
         <input type="file" accept=".json,application/json" onChange={(event) => { void importPacketSetup(event.target.files?.[0]); }} />
       </Field>
       {packetSetup && decodedLaunchId ? <button type="button" className="ws-secondary mt-3" onClick={() => {
         setPacketSetup(null);
+        setManagedPacket(false);
         setRobotId("");
         setPolicyIds([]);
         setMovementPolicyIds([]);
         setError(null);
       }}>Use published setup</button> : null}
     </section> : null}
-    {!decodedLaunchId && !developmentAccess ? <BuyerAppErrorState message="This planning page requires operator access." /> : null}
+    {managedPacketSetups.length > 1 && managedPacket ? <Field label="G1 task packet" wide>
+      <select value={packetSetup?.setup_digest || ""} onChange={(event) => {
+        const selected = managedPacketSetups.find((item) => item.setup_digest === event.target.value);
+        if (!selected) return;
+        setPacketSetup(selected);
+        setRobotId(selected.robot_presets[0].robot_preset_id);
+        setPolicyIds([]);
+        setMovementPolicyIds([]);
+        setG1BudgetConfirmed(false);
+        setG1IntentId(null);
+        g1AuthorizationExpiry.current = null;
+      }}>
+        {managedPacketSetups.map((item) => <option key={item.setup_digest} value={item.setup_digest}>
+          {item.scene_id} · {item.task_id}
+        </option>)}
+      </select>
+    </Field> : null}
     {!activeSetup && !error && decodedLaunchId ? <BuyerAppLoadingState /> : null}
+    {!activeSetup && !error && !decodedLaunchId && g1CatalogLoading ? <BuyerAppLoadingState /> : null}
+    {!activeSetup && !error && !decodedLaunchId && !g1CatalogLoading ? <p className="ws-note">No retained G1 task packet is assigned to this team.</p> : null}
     {error ? <BuyerAppErrorState message={error} /> : null}
     {activeSetup && robot && (packetSetup || preset) ? <form className="ws-form flex flex-col gap-12" onSubmit={(event) => { event.preventDefault(); if (canSubmit) void submit(); }}>
       {!inspectOnly ? <p className="max-w-3xl text-ink-700">
@@ -316,12 +392,12 @@ export default function PolicyCanarySetup() {
           <Field label="Robot" wide>
             <select value={`${activeSetup.setup_digest}:${robot.robot_preset_id}`} disabled={switching} onChange={(event) => { void changeRobot(event.target.value); }}>
               {availableSetups.map((item) => <option key={`${item.setup_digest}:${item.robot_preset_id}`} value={`${item.setup_digest}:${item.robot_preset_id}`}>
-                {item.display_name}{item.readiness.status === "verified_runnable" ? "" : " (unavailable)"}
+                {item.display_name}{item.readiness.status === "verified_runnable" ? "" : managedPacket && item.robot_preset_id === "unitree_g1_dex3_sonic_v1" ? " (development campaign)" : " (unavailable)"}
               </option>)}
             </select>
           </Field>
         </div>
-        {robot.readiness.status !== "verified_runnable" ? <p className="ws-note mt-4" role="status">{robot.readiness.reason}</p> : null}
+        {robot.readiness.status !== "verified_runnable" ? <p className="ws-note mt-4" role="status">{robot.readiness.reason}{managedPacket && g1Packet ? " This development campaign can still be submitted for a bounded simulation; production readiness remains unproven." : ""}</p> : null}
         <fieldset className="mt-6">
           <legend className="text-sm">{g1Packet ? "Choose two book policies" : "Choose two policies"}</legend>
           {robot.policy_candidates.filter((candidate) => !g1Packet || (candidate.evaluation_objective_id || "task_success") === "task_success").map((candidate) => {
@@ -339,7 +415,9 @@ export default function PolicyCanarySetup() {
             </label>;
           })}
           <p className="ws-note">{inspectOnly
-            ? "Choose policies for the same objective to plan a pair. This robot and scene still need a verified execution profile before a run can start."
+            ? managedPacket && g1Packet
+              ? "Choose both book and movement policies, then submit the bounded development campaign. Production policy ranking remains unavailable."
+              : "Choose policies for the same objective to plan a pair. This robot and scene still need a verified execution profile before a run can start."
             : "Both policies run the same scenarios with the same starting conditions and scoring."}</p>
         </fieldset>
         {g1Packet ? <fieldset className="mt-6">
@@ -363,9 +441,19 @@ export default function PolicyCanarySetup() {
         {g1Packet ? <p>Movement: {movementPolicyIds.length === 2
           ? robot.policy_candidates.filter((candidate) => movementPolicyIds.includes(candidate.candidate_id)).map((candidate) => candidate.display_name).join(" and ")
           : "Choose two movement policies above."}</p> : null}
-        <p className="ws-note">Download this selection for the operator to bind to a sealed scene packet and reviewed model rights. No simulator run or payment starts.</p>
+        <p className="ws-note">{managedPacket
+          ? "Submit this development choice to the controller. It checks the sealed packet, model rights, and spend admission before GPU work. Results remain private."
+          : "Download this selection for the operator to bind to a sealed scene packet and reviewed model rights. No simulator run or payment starts."}</p>
         {packetSetup ? <p className="ws-note">Packet receipt: <span className="break-all">{packetSetup.source_packet_receipt_digest}</span></p> : null}
         <button type="button" className="ws-secondary mt-4" disabled={policyIds.length !== 2 || (g1Packet && movementPolicyIds.length !== 2) || switching} onClick={() => { void downloadChoice(); }}>{g1Packet ? "Download book and movement handoffs" : packetSetup ? "Download task handoff" : "Download pair choice"}</button>
+        {managedPacket && g1Packet ? <div className="mt-5">
+          <label className="ws-check"><input type="checkbox" checked={g1BudgetConfirmed} onChange={(event) => setG1BudgetConfirmed(event.target.checked)} />
+            <span>I authorize one internal G1 simulation campaign with a maximum provider cost of $12, a four-hour hard limit, and no paid retry.</span></label>
+          <button type="button" className="ws-primary mt-4" disabled={!g1BudgetConfirmed || policyIds.length !== 2 || movementPolicyIds.length !== 2 || submitting || Boolean(g1IntentId)} onClick={() => { void submitManagedG1(); }}>
+            {submitting ? "Submitting…" : "Submit G1 development campaign"}
+          </button>
+          {g1IntentId ? <p role="status" className="ws-note mt-3">Request accepted as {g1IntentId}. GPU execution has not started yet; the controller will verify admission before launch.</p> : null}
+        </div> : null}
       </section> : null}
 
       {setup && preset && !packetSetup && robot.readiness.status === "verified_runnable" ? <>
