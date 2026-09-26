@@ -171,6 +171,12 @@ describe("PolicyCanarySetup", () => {
       },
       readiness: { status: "unavailable" as const, receipt: null, reason: "Live episode required." },
     }));
+    robot.policy_candidates.push(...robot.policy_candidates.map((candidate, index) => ({
+      ...candidate,
+      candidate_id: `g1_movement_${index}`,
+      display_name: `G1 movement ${index + 1}`,
+      evaluation_objective_id: "g1_navigation_goal" as const,
+    })));
     const packet = {
       schema_version: "task_evaluation_packet_planning_setup.v1",
       claim_ceiling: "planning_only",
@@ -195,11 +201,17 @@ describe("PolicyCanarySetup", () => {
     render(<PolicyCanarySetup />);
     fireEvent.change(screen.getByLabelText("Packet planning setup"), { target: { files: [file] } });
     await screen.findByText("interiorgs-841757 · scene-841757-book-to-marked-area");
-    expect(screen.getByRole("heading", { level: 1, name: "Plan a development policy pair" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "Plan a G1 development campaign" })).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: /G1 manipulation 1/ }));
     fireEvent.click(screen.getByRole("checkbox", { name: /G1 manipulation 2/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Download task handoff" }));
-    await waitFor(() => expect(vi.mocked(downloadPacketPolicyHandoff)).toHaveBeenCalledWith(expect.objectContaining({
+    const download = screen.getByRole("button", { name: "Download book and movement handoffs" });
+    expect(download).toHaveProperty("disabled", true);
+    fireEvent.click(screen.getByRole("checkbox", { name: /G1 movement 1/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /G1 movement 2/ }));
+    expect(download).toHaveProperty("disabled", false);
+    fireEvent.click(download);
+    await waitFor(() => expect(vi.mocked(downloadPacketPolicyHandoff)).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(downloadPacketPolicyHandoff)).toHaveBeenNthCalledWith(1, expect.objectContaining({
       schema_version: "task_evaluation_packet_policy_handoff.v1",
       claim_ceiling: "planning_only",
       setup: packet,
@@ -210,7 +222,19 @@ describe("PolicyCanarySetup", () => {
         objective_id: "task_success",
       }),
       handoff_digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
-    }), packet.task_id));
+    }), packet.task_id);
+    expect(vi.mocked(downloadPacketPolicyHandoff)).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      schema_version: "task_evaluation_packet_policy_handoff.v1",
+      claim_ceiling: "planning_only",
+      setup: packet,
+      choice: expect.objectContaining({
+        setup_digest: sha("e"),
+        robot_preset_id: robot.robot_preset_id,
+        policy_candidate_ids: ["g1_movement_0", "g1_movement_1"],
+        objective_id: "g1_navigation_goal",
+      }),
+      handoff_digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+    }), packet.task_id);
     expect(screen.queryByRole("button", { name: "Start policy test" })).toBeNull();
     expect(vi.mocked(createPolicyCanaryRun)).not.toHaveBeenCalled();
   });

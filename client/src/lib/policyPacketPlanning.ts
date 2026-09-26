@@ -147,7 +147,7 @@ export function downloadPacketPolicyHandoff(handoff: PacketPolicyHandoff, taskId
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${taskId.replace(/[^A-Za-z0-9._-]/g, "-")}-policy-handoff.json`;
+  anchor.download = `${taskId.replace(/[^A-Za-z0-9._-]/g, "-")}-${handoff.choice.objective_id}-policy-handoff.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
