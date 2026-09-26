@@ -72,6 +72,7 @@ export default function PolicyCanarySetup() {
   const [managedPacket, setManagedPacket] = useState(false);
   const [g1CatalogLoading, setG1CatalogLoading] = useState(true);
   const [g1BudgetConfirmed, setG1BudgetConfirmed] = useState(false);
+  const [g1MaximumCostInput, setG1MaximumCostInput] = useState("10.75");
   const [g1IntentId, setG1IntentId] = useState<string | null>(null);
   const [robotId, setRobotId] = useState("");
   const [policyIds, setPolicyIds] = useState<string[]>([]);
@@ -157,6 +158,10 @@ export default function PolicyCanarySetup() {
   const activeSetup = packetSetup || setup;
   const robot = activeSetup?.robot_presets.find((item) => item.robot_preset_id === robotId) || null;
   const g1Packet = Boolean(packetSetup && robot?.embodiment_id === "unitree_g1_dex3_v1");
+  const g1MaximumCostUsd = Number(g1MaximumCostInput);
+  const g1MaximumCostValid = g1MaximumCostInput.trim() !== ""
+    && Number.isFinite(g1MaximumCostUsd) && g1MaximumCostUsd >= 1 && g1MaximumCostUsd <= 12
+    && Number.isInteger(g1MaximumCostUsd * 100);
   const preset = setup?.episode_presets.find((item) => item.preset_id === "quick_10") || null;
   const availableSetups = packetSetup
     ? packetSetup.robot_presets.map((item) => ({
@@ -309,7 +314,8 @@ export default function PolicyCanarySetup() {
 
   async function submitManagedG1() {
     if (!currentUser || !packetSetup || !robot || !g1Packet || !managedPacket
-      || policyIds.length !== 2 || movementPolicyIds.length !== 2 || !g1BudgetConfirmed) return;
+      || policyIds.length !== 2 || movementPolicyIds.length !== 2 || !g1BudgetConfirmed
+      || !g1MaximumCostValid) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -324,6 +330,7 @@ export default function PolicyCanarySetup() {
       const receipt = await submitG1TeamCampaign({
         currentUser, runId, setup: packetSetup, bookHandoff, movementHandoff,
         authorizationExpiresAtEpoch: g1AuthorizationExpiry.current,
+        maximumCostUsd: g1MaximumCostUsd,
       });
       setG1IntentId(receipt.intent_id);
     } catch (reason) {
@@ -448,9 +455,13 @@ export default function PolicyCanarySetup() {
         {packetSetup ? <p className="ws-note">Packet receipt: <span className="break-all">{packetSetup.source_packet_receipt_digest}</span></p> : null}
         <button type="button" className="ws-secondary mt-4" disabled={policyIds.length !== 2 || (g1Packet && movementPolicyIds.length !== 2) || switching} onClick={() => { void downloadChoice(); }}>{g1Packet ? "Download book and movement handoffs" : packetSetup ? "Download task handoff" : "Download pair choice"}</button>
         {managedPacket && g1Packet ? <div className="mt-5">
-          <label className="ws-check"><input type="checkbox" checked={g1BudgetConfirmed} onChange={(event) => setG1BudgetConfirmed(event.target.checked)} />
-            <span>I authorize one internal G1 simulation campaign with a maximum provider cost of $12, a four-hour hard limit, and no paid retry.</span></label>
-          <button type="button" className="ws-primary mt-4" disabled={!g1BudgetConfirmed || policyIds.length !== 2 || movementPolicyIds.length !== 2 || submitting || Boolean(g1IntentId)} onClick={() => { void submitManagedG1(); }}>
+          <Field label="Maximum provider cost (USD, up to $12)" wide><input type="number" min="1" max="12" step="0.01" value={g1MaximumCostInput} onChange={(event) => {
+            setG1MaximumCostInput(event.target.value);
+            setG1BudgetConfirmed(false);
+          }} /></Field>
+          <label className="ws-check"><input type="checkbox" checked={g1BudgetConfirmed} disabled={!g1MaximumCostValid} onChange={(event) => setG1BudgetConfirmed(event.target.checked)} />
+            <span>I authorize one internal G1 simulation campaign with a maximum provider cost of ${g1MaximumCostValid ? g1MaximumCostUsd.toFixed(2) : "—"}, a four-hour hard limit, and no paid retry.</span></label>
+          <button type="button" className="ws-primary mt-4" disabled={!g1BudgetConfirmed || !g1MaximumCostValid || policyIds.length !== 2 || movementPolicyIds.length !== 2 || submitting || Boolean(g1IntentId)} onClick={() => { void submitManagedG1(); }}>
             {submitting ? "Submitting…" : "Submit G1 development campaign"}
           </button>
           {g1IntentId ? <p role="status" className="ws-note mt-3">Request accepted as {g1IntentId}. GPU execution has not started yet; the controller will verify admission before launch.</p> : null}

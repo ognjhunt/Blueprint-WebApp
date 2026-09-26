@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
-import { fetchG1TeamCatalog, submitG1TeamCampaign } from "../utils/nativeG1TeamCampaignForwarding";
+import { fetchG1TeamCatalog, g1SubmissionSchema, submitG1TeamCampaign } from "../utils/nativeG1TeamCampaignForwarding";
 
 const hash = (digit: string) => `sha256:${digit.repeat(64)}`;
 const owner = { user_id: "owner", organization_id: "user:owner" };
@@ -56,11 +56,21 @@ function fixture() {
     movement_handoff: handoff("g1_navigation_goal"),
     authorization_expires_at_epoch: Date.now() / 1000 + 1800,
     authorize_maximum_cost_usd_12: true as const,
+    maximum_cost_usd: 10.75,
   };
   return { catalog, input };
 }
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+
+it("accepts an exact lower spend cap and rejects overspend or fractional cents", () => {
+  const { input } = fixture();
+  expect(g1SubmissionSchema.parse(input).maximum_cost_usd).toBe(10.75);
+  expect(g1SubmissionSchema.safeParse({ ...input, maximum_cost_usd: 12.01 }).success).toBe(false);
+  expect(g1SubmissionSchema.safeParse({ ...input, maximum_cost_usd: 10.751 }).success).toBe(false);
+  const { maximum_cost_usd: _oldField, ...legacy } = input;
+  expect(g1SubmissionSchema.parse(legacy).maximum_cost_usd).toBe(12);
+});
 
 it("forwards one exact G1 team choice with signed owner and bounded spend", async () => {
   const { catalog, input } = fixture();
@@ -79,7 +89,7 @@ it("forwards one exact G1 team choice with signed owner and bounded spend", asyn
     expect(request).toMatchObject({
       owner, scene_id: "interiorgs-841757", claim_ceiling: "development_only",
       public_redistribution_authorized: false,
-      authorization: { maximum_cost_usd: 12, hard_ttl_seconds: 14_400,
+      authorization: { maximum_cost_usd: 10.75, hard_ttl_seconds: 14_400,
         expires_at_epoch: input.authorization_expires_at_epoch, retry_cap: 0 },
     });
     const baseReceipt = {

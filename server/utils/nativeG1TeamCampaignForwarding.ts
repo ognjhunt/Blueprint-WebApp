@@ -54,6 +54,9 @@ export const g1SubmissionSchema = z.object({
   movement_handoff: handoffSchema,
   authorization_expires_at_epoch: z.number().finite().positive(),
   authorize_maximum_cost_usd_12: z.literal(true),
+  maximum_cost_usd: z.number().finite().min(1).max(12)
+    .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-7)
+    .default(12),
 }).strict();
 const receiptSchema = z.object({
   schema_version: z.literal("native_g1_team_campaign_intake_receipt.v1"),
@@ -154,7 +157,7 @@ export async function submitG1TeamCampaign(raw: unknown, owner: Owner) {
     book_handoff: input.book_handoff,
     movement_handoff: input.movement_handoff,
     authorization: {
-      maximum_cost_usd: 12,
+      maximum_cost_usd: input.maximum_cost_usd,
       hard_ttl_seconds: 14_400,
       expires_at_epoch: input.authorization_expires_at_epoch,
       retry_cap: 0,
