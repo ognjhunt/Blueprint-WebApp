@@ -40,6 +40,61 @@ site-operator account created through the claim page. The bytes are the same,
 re-fetched from the first capture's storage object and checked against the
 digest.
 
+### Why a third request (2026-09-26)
+
+The second request's sponsorship expired at 2026-09-25T05:29:51Z, with 47 of
+its 48 amended preparation requests used ($4.79 reserved of the amended $10).
+A grant never renews its clock, so every paid step and the intake were refused
+as `consent_expired` (host listener, 12:38 UTC). Its spend went on defects
+since fixed: registration (#2189), whole-object coverage and the hinged
+appliance builder (#2204), and the Marble rebinding wedge (#2309).
+
+As the owner directed, the run restarted with the same video and task:
+
+| Identity | Value |
+| --- | --- |
+| Inbound request | `capture-e70b9764-671e-4bb6-aa94-bca00e4d78bb` (12:37 UTC) |
+| Capture / scene | `walkthrough-capture-e70b9764-…` / `site-capture-e70b9764-…` |
+| Upload | Capture page "Upload a video file" chooser, HTTP 201; stored `raw/walkthrough.mov` read back at 60,035,801 bytes, sha256 `c549b3b3…fedd` |
+| Brief | Same answers and success definition; HTTP 200, `qualified` |
+| Claim | Same site-operator account `rxKBT8Mff3MjsDadzShCvpoKskF2`, `/api/workspace/claim` HTTP 200 |
+
+The owner approved raising this grant's attempt and spend caps if needed.
+The grant (`sha256:97c8c790…712b`, expires 2026-09-27T12:56:22Z) was amended to
+a $15 upstream cap (amendment `sha256:7fe0ab1c…2568`) and 48 preparation
+requests (amendment `sha256:f46a1555…c624`).
+
+Third-request progress (UTC):
+
+- 12:56: host staged the handoff and the grant was issued; preflight and
+  materialization completed.
+- 13:17–13:24: plain-frame image edits (quality xhigh). The first review
+  blocked them because an unrelated pack of paper towels had been removed;
+  the second review passed (dishwasher and hands removed, surroundings intact).
+  Clean plate `objects_removed`.
+- 13:31: Marble world generated.
+- 13:34: the MapAnything registration worker (Vast instance `52754168`)
+  returned a validated output and was stopped, but teardown failed:
+  `scoped_live_resource_count: 0, global_live_resource_count: 1`. The live
+  instance was a native G1 team campaign in another of the three paid slots.
+  The attempt could be neither reused nor retried. Pipeline #2311 scopes
+  provider zero to the operation's lane and instance and re-verifies such an
+  attempt so its paid output is reused, not rented again. Its deploy first
+  waited on host disk (at the 8 GiB floor), then on the G1 paid launch.
+- 14:45: #2311 live. 14:54: another lane's deploy from a scratch source
+  checkout left GPU admission refusing every sponsored GPU step
+  (`gpu_canary_deployed_release_receipt_unverified`); a door deploy of a newer
+  main commit (16:09, `780e91ab`, which also carries Pipeline #2315: deploys
+  no longer wait out paid GPU runs in flight) restored it.
+- 16:00: the paid MapAnything output was reconciled and reused. Preparation
+  then stopped at `support_surface_not_found_under_subject`: the rebuilt body
+  box ended 0.21 m above the floor the footage observed (its kick band is
+  never visible), and the generated world's bay had no floor face (its floor
+  sits 0.24 m lower than the footage's, a Marble hallucination). Pipeline #2319
+  grounds a rebuilt floor-standing assembly on the observed floor by
+  extending its body (0.82 m, a standard dishwasher height), never moving it.
+  Deployed 16:55 (`1526bb83`).
+
 ## Defects found and fixed on the way (all merged; #2172 and #2173 not yet deployed)
 
 The upload privacy screen had never completed a review in production. The 7
