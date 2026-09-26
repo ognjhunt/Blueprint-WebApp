@@ -206,6 +206,18 @@ remain enforced. A guarded deployment of that merge commit is in progress at
 this observation. The existing scene authority expires at 05:46 UTC. Steps
 13 and 14 remain partial; the captured Marble room remains unqualified.
 
+### 2026-09-26 05:52 UTC — Fix deployed; scene authority expired
+
+The guarded deployment of PR #2297 completed with a canonical `deployed`
+receipt. The live Pipeline API reported the exact `0a80e95b…` commit,
+`commit_proven: true`, and no blockers. No new drawer GPU allocation or policy
+query followed the two capacity refusals. The signed same-scene simulation
+authority expired at 05:46 UTC. Provider inventory remained at zero live
+instances; the paid policy dispatcher was paused. A further paid attempt
+requires fresh authority, with a distinct scene identity if a new website
+development test is sponsored. The fixture policy evaluation and original
+captured-room qualification remain open.
+
 ### 2026-09-25 execution evidence
 
 Controller-owned scene-configuration launch
