@@ -10,7 +10,7 @@ const schemaId = z.string().trim().min(1).max(160);
 const endpoint = z.string().url().max(2048).superRefine((value, context) => {
   const url = new URL(value);
   if (url.protocol !== "https:" || url.username || url.password || url.hash || url.search
-    || (url.port && url.port !== "443") || isIP(url.hostname)
+    || (url.port && url.port !== "443") || isIP(url.hostname.replace(/^\[|\]$/g, ""))
     || url.hostname === "localhost" || url.hostname.endsWith(".localhost")
     || url.hostname.endsWith(".internal") || url.hostname.endsWith(".local")
     || !url.hostname.includes(".")) {

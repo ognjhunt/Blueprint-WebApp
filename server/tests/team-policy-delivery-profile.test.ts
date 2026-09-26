@@ -47,6 +47,7 @@ it("rejects changed setup, private or credential-bearing endpoint, unpinned imag
   expect(() => makeTeamPolicyDeliveryProfile({ ...base, setup_digest: `sha256:${"f".repeat(64)}`,
     delivery: endpoint }, setup, owner)).toThrow("team_policy_delivery_setup_mismatch");
   for (const endpoint_url of ["http://policy.example.com", "https://127.0.0.1/action",
+    "https://[::1]/action",
     "https://user:password@policy.example.com/action", "https://localhost/action"]) {
     expect(() => makeTeamPolicyDeliveryProfile({ ...base, delivery: { ...endpoint, endpoint_url } },
       setup, owner)).toThrow();
