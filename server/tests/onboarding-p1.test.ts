@@ -127,6 +127,23 @@ describe("owner authorization and durable demand", () => {
     expect((await post("owner", { enabled: false, details, consent: true })).status).toBe(200);
     expect(await listTaskBrowseCards()).toHaveLength(0);
   });
+  it("opens a card to pilot proposals only with the match fee agreed, and records the agreement", async () => {
+    const { TERMS_VERSION } = await import("../../client/src/lib/legalAcceptance");
+    const post = (body: unknown) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const listing = () => (state.docs.get("inboundRequests/req1") as { public_task_listing: { matchFee: { amountUsd: number; termsVersion: string; acceptedAtIso: string } | null } }).public_task_listing;
+    const open = { ...details, opportunity: "open" };
+    const refused = await post({ enabled: true, details: open, consent: true });
+    expect(refused.status).toBe(400);
+    expect((await refused.json()).error).toMatch(/\$2,500 match fee/);
+    expect((await post({ enabled: true, details: open, consent: true, matchFee: true })).status).toBe(200);
+    expect(listing().matchFee).toMatchObject({ amountUsd: 2500, termsVersion: TERMS_VERSION });
+    expect(Number.isFinite(Date.parse(listing().matchFee!.acceptedAtIso))).toBe(true);
+    // An evaluation-only card, or a hidden one, needs no fee agreement and carries none.
+    expect((await post({ enabled: true, details, consent: true })).status).toBe(200);
+    expect(listing().matchFee).toBeNull();
+    expect((await post({ enabled: false, details: open, consent: true })).status).toBe(200);
+    expect(listing().matchFee).toBeNull();
+  });
   it("emails the site once when its card goes live, and again only if it is switched off and on", async () => {
     const post = (enabled: boolean) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, details, consent: true }) });
     const live = () => [...state.docs.keys()].filter(key => key.startsWith("captureOutbox/req1:listing_live:"));

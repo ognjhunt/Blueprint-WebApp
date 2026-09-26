@@ -1,4 +1,5 @@
 import { embedTexts } from "./embeddings";
+import { entryPrice, formatPrice, matchFeeUsd } from "../../client/src/lib/evaluationPricing";
 
 // Grounded question answering for headless agents. Answers are curated,
 // citation-backed snippets over Blueprint's public canonical content — never
@@ -62,7 +63,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "capture backed evaluation",
     ],
     answer:
-      "Blueprint helps a business turn one recurring task into a provider-backed, measurable robot-pilot offer and decide what happens afterward. The site may propose a pilot price and conditions or state a target budget, with ongoing economics separate. Blueprint checks fit and uses bounded evaluation where useful. The site sees anonymized results; each team sees its own. A promising provider may accept proposed terms, suggest changes, or decline; evaluation alone does not commit either side. Both sides may approve a private introduction and final offer with Blueprint's separate fee. The provider or integrator installs and operates the robot. Blueprint coordinates the agreed plan and keeps the outcome record. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.",
+      `Blueprint helps a business turn one recurring task into a measured robot pilot. The site shows the task and may post a pilot price and conditions or a target budget, with ongoing economics separate. Robot teams evaluate the task for free where evaluation is useful. When a team passes, fits the budget, and wants the pilot, Blueprint introduces the site and the team by name; teams that do not match stay anonymous. No match, no fee: the site pays Blueprint ${formatPrice(matchFeeUsd)} per task only when it finds a match. The site and the team agree the pilot directly, and Blueprint takes no cut of it. The provider or integrator installs and operates the robot. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.`,
     citations: [`${CANONICAL_ORIGIN}/`, `${CANONICAL_ORIGIN}/proof`],
     actions: [
       { description: "Read the public discovery summary", method: "GET", endpoint: "/api/site-content" },
@@ -193,7 +194,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      "Submitting a site task and receiving initial fit screening are free. The site may propose a pilot price and conditions or state a target budget; the provider can accept or counter. Before invited free evaluation, an authorized site buyer separately agrees to Blueprint's task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at $5,000. It applies even if site and provider contract directly; no pilot purchase means no Blueprint fee. The provider performs physical installation and operation. Optional self-directed evaluations cost $99 per policy entry and retain their no-later-supplier-commission promise. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.",
+      `No match, no fee. Submitting a site task, screening and evaluation are free. When Blueprint finds a robot team that passed the evaluation for the task, fits the site's budget, and wants to run the pilot, it introduces the two sides and charges the site ${formatPrice(matchFeeUsd)} per task, however many teams match. Blueprint takes no percentage of the pilot or any deployment; the site and the team agree the pilot price directly, and the provider performs installation and operation. Robot teams evaluate matched tasks for free. Optional self-directed evaluations cost ${formatPrice(entryPrice)} per policy entry and retain their no-later-supplier-commission promise. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.`,
 
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [

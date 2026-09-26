@@ -24,8 +24,8 @@ export default function Home() {
       <section className="ms-method ms-container" id="how-it-works" aria-label="How it works">
         <ol className="ms-steps">
           <li><details><summary><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Show us the task</span></summary><p>Describe the work, share phone footage, and set a pilot price and conditions if you know them. Otherwise share a target budget. Keep the ongoing price target separate.</p></details></li>
-          <li><details><summary><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Review results and an offer</span></summary><p>Teams evaluate approved tasks for free. You see anonymized results first. A promising provider can accept your proposed pilot terms, suggest changes, or decline. Both sides approve any introduction and final offer.</p></details></li>
-          <li><details><summary><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Approve and measure</span></summary><p>You decide whether to buy the trial. The provider installs and operates the robot; Blueprint coordinates the agreed plan and records the results so you can decide what follows.</p></details></li>
+          <li><details><summary><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Meet your match</span></summary><p>Robot teams evaluate your task for free. When one passes, fits your budget, and wants your pilot, we introduce you right away. No match, no fee.</p></details></li>
+          <li><details><summary><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Run the pilot</span></summary><p>You and the team agree the pilot directly, and Blueprint takes no cut. The provider installs and operates the robot; the pass mark in your task brief shows whether it worked.</p></details></li>
         </ol>
         <a className="ms-method-link" href="/how-it-works#evaluation-example">See an evaluation example <ArrowRight size={16} aria-hidden="true" /></a>
       </section>

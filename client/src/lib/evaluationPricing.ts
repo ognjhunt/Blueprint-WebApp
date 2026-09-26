@@ -1,15 +1,15 @@
 /**
- * Published prices for site assessment, invited evaluation, and optional
+ * Published prices for a site's task, invited evaluation, and optional
  * self-directed robot-team evaluation. An invited run is free within its
- * stated scope before any physical-pilot purchase decision.
+ * stated scope.
  *
- *   $0    a site pays nothing to find out.
- *   $99   a robot team pays per entry.
+ *   $0      a site pays nothing to find out.
+ *   $2,500  a site pays once per task, only if Blueprint finds a match.
+ *   $99     a robot team pays per optional self-directed entry.
  *
- * The provider quotes and contracts for its physical pilot. Before an invited
- * free evaluation, an authorized site buyer separately agrees to Blueprint's
- * task-specific, purchase-triggered fee. Invited evaluation remains free, and
- * self-directed paid entries retain their no-later-supplier-commission promise.
+ * The robot team prices and contracts for its own physical pilot, and Blueprint
+ * takes no cut of it. Self-directed paid entries retain their
+ * no-later-supplier-commission promise.
  *
  * WHAT AN ENTRY IS. One policy, running on one embodiment, against one task at
  * one site. Both halves are part of the unit: the same policy on a second
@@ -31,20 +31,24 @@
  * stopped being a dial the buyer turns, which is the only thing that changed
  * commercially.
  *
- * WHY THE SITE PAYS NOTHING. Not generosity. A price on the site side and a
- * ten-minute onboarding are mutually exclusive. Any figure — $2,500 or $250 —
- * means a purchase order, a budget owner and legal, which is weeks. Capture
- * takes forty-five seconds and reconstruction costs us the price of one
- * world-model generation, so the payment was the slowest and most expensive
- * step in a process built to be fast and cheap.
+ * WHY THE SITE PAYS NOTHING TO START. Not generosity. A price in front of the
+ * first step and a ten-minute onboarding are mutually exclusive: any upfront
+ * figure means a purchase order, a budget owner and legal, which is weeks.
+ * Capture takes forty-five seconds and reconstruction costs us the price of one
+ * world-model generation, so a payment there would be the slowest and most
+ * expensive step in a process built to be fast and cheap.
  *
  * It also fixes who we are subsidising. The scarce side of this market is real
  * rooms running real repeated tasks with permission to be captured — not funded
  * robot teams starved of deployment data.
  *
- * WHAT A SITE IS AND IS NOT GIVEN. Task submission and initial fit screening
- * are free. An authorized buyer agrees to the contingent fee before Blueprint
- * invites teams to evaluate. No pilot purchase means no Blueprint fee.
+ * WHY THE SITE PAYS FOR A MATCH. No match, no fee. The fee is for the one
+ * outcome Blueprint produces and can see itself: a robot team that passed the
+ * evaluation for the task, fits the site's budget, and wants to run its pilot.
+ * The site agrees to it with one checkbox when it opens the task to pilot
+ * proposals, and the invoice goes out with the introduction. The match is never
+ * held back until payment, and the fee does not depend on the pilot that
+ * follows, which the two sides agree directly and Blueprint takes no cut of.
  *
  * WHY BLUEPRINT STILL SETS THE RUN LENGTH. If a team could buy a longer run
  * than a rival, the team with the deepest pockets would buy more statistical
@@ -73,33 +77,29 @@ export const entryBoundaries = [
 /** A robot team's price, per entry. The only number a team has to read. */
 export const entryPrice = 99;
 
-/** Site-paid fee on an introduced provider's purchased physical pilot. */
-export const pilotIntroductionFeeRate = 0.05;
-export const pilotIntroductionFeeCapUsd = 5000;
-
-export function pilotIntroductionFeeUsd(providerPilotPriceUsd: number): number {
-  if (!Number.isFinite(providerPilotPriceUsd) || providerPilotPriceUsd < 0) {
-    throw new RangeError("Provider pilot price must be a non-negative finite number");
-  }
-  return Math.min(providerPilotPriceUsd * pilotIntroductionFeeRate, pilotIntroductionFeeCapUsd);
-}
+/**
+ * A site's fee, once per task and only when Blueprint finds a match, however
+ * many teams match. The server records the site's agreement against this same
+ * number, so the page and the record cannot quote different fees.
+ */
+export const matchFeeUsd = 2500;
 
 /** The smallest top-up Stripe will charge. Mirrors `MIN_TOPUP_USD` on the server. */
 export const minTopupUsd = entryPrice;
 
-/** What a site pays for initial screening and evaluation: nothing. */
+/** What a site pays for screening and evaluation: nothing. A match is `matchFeeUsd`. */
 export const siteAssessment = {
   amount: 0,
   unit: "to find out",
   summary: "An assessment of one task at one site.",
   covers: [
     "The task defined: objects, cycle, exceptions, rough economics, timing, and the pass mark for a trial.",
-    "A check of which providers can credibly support the job, with capture and free invited evaluation when useful.",
-    "A clear answer: a provider-backed pilot offer, specific changes needed, or no credible fit yet.",
-    "For a credible fit, the provider's scope, price, and success measures to approve before spending.",
+    "A check of which robot teams can credibly support the job, with capture and free invited evaluation when useful.",
+    "A clear answer: the robot teams that match, specific changes needed, or no credible fit yet.",
+    "For a match, an introduction and a pilot brief both sides start from.",
   ],
   allIn:
-    "No fee or card to submit a task or receive initial fit screening. Before invited free evaluation, an authorized buyer agrees to the purchase-triggered fee for that task.",
+    "No match, no fee. Submitting a task, screening and evaluation are free. When we find a match, the fee is $2,500 per task, however many teams match.",
   bounded: "When a comparison is useful, it covers up to five candidates.",
   /**
    * Precise about what a robot team actually receives, because the loose
@@ -112,9 +112,9 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Robot teams pay for optional self-directed evaluation runs. Invited teams evaluate a qualified task for free, even if no pilot is purchased. Before invited evaluation, an authorized site buyer agrees to Blueprint's 5% pilot fee, capped at $5,000, payable only if the site buys a pilot from an introduced provider. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Robot teams pay for optional self-directed evaluation runs. Invited teams evaluate a qualified task for free. A site pays Blueprint $2,500 per task only when we find a robot team that matches it. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
-    "The physical pilot. The provider quotes installation and operation; Blueprint's agreed 5% fee, capped at $5,000, is shown separately. No pilot purchase means no Blueprint fee.",
+    "The physical pilot, which the robot team prices and runs. Blueprint takes no cut of the pilot; its only site fee is $2,500 per task when it finds a match.",
 } as const;
 
 /** How a robot team pays. No plan, no seat, no listing fee, no meter. */

@@ -1,11 +1,11 @@
 import { ArrowRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { entryPrice, formatPrice, pilotIntroductionFeeCapUsd, siteAssessment } from "@/lib/evaluationPricing";
+import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Submit a robot task for free. Agree to Blueprint's 5% pilot fee, capped at $5,000, before free evaluation; pay only if you buy an introduced provider's pilot.";
+  `No match, no fee. Tell Blueprint about one recurring task for free. When we find a robot team that can do it and wants your pilot, we introduce you. Our fee is ${formatPrice(matchFeeUsd)}.`;
 
 export default function Pricing() {
   return (
@@ -26,21 +26,26 @@ export default function Pricing() {
       <article className="ms-pricing ms-container">
         <header className="ms-pricing-intro">
           <p className="ms-eyebrow">Pricing</p>
-          <h1>One task. Clear costs.</h1>
-          <p>Show us the task. Review the offer. Buy the pilot only if it makes sense.</p>
+          <h1>No match, no fee.</h1>
+          <p>
+            Tell us about the task for free. When we find a robot team that can do it and wants your
+            pilot, we introduce you right away. Our fee is {formatPrice(matchFeeUsd)}. If we don't find
+            one, you pay nothing.
+          </p>
         </header>
 
         <div className="ms-price-split">
           <section aria-labelledby="site-price-title">
             <p className="ms-eyebrow">For sites</p>
             <p className="ms-price">
-              <span className="ms-price-figure">{formatPrice(siteAssessment.amount)}</span>
-              <span className="ms-price-unit">to submit a task and review an offer</span>
+              <span className="ms-price-figure">{formatPrice(matchFeeUsd)}</span>
+              <span className="ms-price-unit">per task, only if we find a match</span>
             </p>
-            <h2 id="site-price-title">Review an offer</h2>
+            <h2 id="site-price-title">Find a robot team</h2>
             <p className="ms-price-note">
-              Share one recurring task. Initial screening is free. Before we invite teams to evaluate,
-              an authorized buyer agrees to the fee below for this task. No card required to start.
+              A match is a robot team that passed the evaluation for your task, fits your budget, and
+              wants to run your pilot. You get every team that matches, their full results, and a pilot
+              brief you both start from. One fee per task, however many teams match.
             </p>
             <a className="ms-text-link" href="/contact/site-operator">
               Start a task assessment <ArrowRight size={20} aria-hidden="true" />
@@ -51,13 +56,12 @@ export default function Pricing() {
             <p className="ms-eyebrow">For robot teams</p>
             <p className="ms-price">
               <span className="ms-price-figure">{formatPrice(0)}</span>
-              <span className="ms-price-unit">to apply or evaluate an invited task</span>
+              <span className="ms-price-unit">to join and evaluate matched tasks</span>
             </p>
-            <h2 id="team-price-title">Evaluate a matched task</h2>
+            <h2 id="team-price-title">Evaluate real site tasks</h2>
             <p className="ms-price-note">
-              Matched evaluations are free. You can accept the site's proposed pilot terms, suggest
-              changes, or decline. Optional self-directed runs cost {formatPrice(entryPrice)} per entry,
-              with no later supplier commission on that entry.
+              Evaluate the site tasks we match you to for free. If you pass and want the pilot, we
+              introduce you to the site.
             </p>
             <a className="ms-text-link" href="/contact/robot-team">
               Apply for early access <ArrowRight size={20} aria-hidden="true" />
@@ -65,14 +69,11 @@ export default function Pricing() {
           </section>
         </div>
 
-        <section className="ms-price-block" aria-labelledby="pilot-service-title">
-          <h2 id="pilot-service-title">If you buy a pilot</h2>
+        <section className="ms-price-block" aria-labelledby="pilot-title">
+          <h2 id="pilot-title">The pilot itself</h2>
           <p>
-            Blueprint charges the site 5% of the introduced provider's physical pilot price, capped at
-            {" "}{formatPrice(pilotIntroductionFeeCapUsd)}. A {formatPrice(20000)} pilot means a {formatPrice(1000)}
-            {" "}Blueprint fee. The site may propose the provider price and conditions; the provider
-            may accept or counter. The provider handles installation. You can contract directly;
-            the agreed fee still applies. No pilot purchase, no Blueprint fee.
+            You and the robot team agree the pilot's price and terms directly. Blueprint takes no cut of
+            the pilot or any deployment that follows.
           </p>
           <a className="ms-text-link" href="/terms">Fee details in our Terms</a>
         </section>

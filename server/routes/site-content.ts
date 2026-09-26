@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { captureGroundedPublicCopy } from "../../client/src/lib/captureGroundedLanguage";
+import { entryPrice, formatPrice, matchFeeUsd } from "../../client/src/lib/evaluationPricing";
 
 const router = Router();
 
@@ -11,7 +12,7 @@ const definitions = [
   {
     term: "Managed robot pilot preparation",
     definition:
-      "Blueprint helps a business describe one recurring task, propose a pilot price and conditions or state a target budget, review anonymized evaluation results, then consider a provider-backed pilot offer. A promising provider may accept the proposed terms, suggest changes, or decline. Both sides approve a private introduction and final pilot terms. Blueprint's separate fee is disclosed before invited evaluation and shown before a purchase. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
+      `Blueprint helps a business describe one recurring task and post a pilot price and conditions or a target budget. Robot teams evaluate the task for free. When a team passes, fits the budget, and wants the pilot, Blueprint introduces the two sides by name and charges the site ${formatPrice(matchFeeUsd)} per task; no match, no fee. The site and the team agree the pilot directly, and Blueprint takes no cut of it. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.`,
   },
   {
     term: "Paying-site admission bar",
@@ -152,7 +153,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Sites submit a task and receive initial screening for free. A site may propose a pilot price and conditions or state a target budget; a provider can accept, suggest changes, or decline. Before invited free evaluation, an authorized site buyer separately agrees to a task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at $5,000. The fee applies even if the parties contract directly; no pilot purchase means no Blueprint fee. Optional self-directed robot-team runs cost $99 per policy entry and keep their no-later-supplier-commission promise.",
+      `No match, no fee. Sites submit a task and get it screened and evaluated for free, and pay Blueprint ${formatPrice(matchFeeUsd)} per task only when it finds a robot team that passed the evaluation, fits the site's budget, and wants to run the pilot. Blueprint takes no percentage of the pilot or any deployment. Robot teams evaluate matched tasks for free; optional self-directed runs cost ${formatPrice(entryPrice)} per policy entry and keep their no-later-supplier-commission promise.`,
   },
   {
     path: "/contact",

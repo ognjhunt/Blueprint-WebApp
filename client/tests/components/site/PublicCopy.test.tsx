@@ -36,10 +36,10 @@ describe("public managed-pilot copy", () => {
     expect(screen.getAllByRole("link", { name: /Start a task assessment/i }).length).toBeGreaterThan(0);
 
     expect(container).toHaveTextContent(/Show us the task/i);
-    expect(container).toHaveTextContent(/Review results and an offer/i);
-    expect(container).toHaveTextContent(/You see anonymized results first/i);
-    expect(container).toHaveTextContent(/Approve and measure/i);
-    expect(container).toHaveTextContent(/You decide whether to buy the trial/i);
+    expect(container).toHaveTextContent(/Meet your match/i);
+    expect(container).toHaveTextContent(/No match, no fee/i);
+    expect(container).toHaveTextContent(/Run the pilot/i);
+    expect(container).toHaveTextContent(/You and the team agree the pilot directly/i);
 
     // Withdrawn products, legacy package prices, and outcome guarantees stay absent.
     expect(container).not.toHaveTextContent(/Policy Shortlist/i);

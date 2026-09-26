@@ -250,8 +250,34 @@ describe("the same step decides the listing", () => {
     const listingCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/api/task-listings/owner/tok"));
     const body = JSON.parse((listingCall![1] as { body: string }).body);
     expect(body).toMatchObject({ enabled: true, consent: true, details: { title: "Move cartons onto a pallet", taskFamily: "Palletizing" } });
+    // An evaluation-only card carries no fee agreement.
+    expect(body.matchFee).toBeUndefined();
     // The brief is confirmed first; the card follows it.
     expect(String(fetchMock.mock.calls[0][0])).toContain("/confirm");
+  });
+
+  it("opens the card to pilot proposals only with the match fee agreed", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed()).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
+    render(<TaskBriefReview token="tok" brief={brief()} />);
+    fireEvent.click(screen.getByLabelText(/yes, list it/i));
+    fireEvent.change(screen.getByLabelText(/describe the task/i), { target: { value: "Move cartons onto a pallet" } });
+    fireEvent.change(screen.getByLabelText(/task family/i), { target: { value: "Palletizing" } });
+    fireEvent.change(screen.getByLabelText(/pilot availability/i), { target: { value: "open" } });
+    fireEvent.click(screen.getByLabelText(/authorized to make it public/i));
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    answerPilotIntent();
+
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/\$2,500 match fee/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText(/if blueprint finds a match/i));
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    await waitFor(() => expect(screen.getByText(/in the robot-team library/i)).toBeInTheDocument());
+    const listingCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/api/task-listings/owner/tok"));
+    expect(JSON.parse((listingCall![1] as { body: string }).body)).toMatchObject({
+      enabled: true, consent: true, matchFee: true, details: { opportunity: "open" },
+    });
   });
 });
 

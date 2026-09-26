@@ -208,7 +208,9 @@ describe("build output", () => {
     expect(llmsFull).toContain("Robot teams join by early access");
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/pricing");
-    expect(llms).toContain("The site pays the provider's quoted price and Blueprint's separately agreed 5% fee, capped at $5,000, if it buys the physical pilot");
+    expect(llms).toContain("No match, no fee.");
+    expect(llms).toContain("charges the site $2,500 per task");
+    expect(llms).not.toMatch(/5% fee|capped at \$5,000|authorized buyer/);
 
   });
 
@@ -219,7 +221,7 @@ describe("build output", () => {
     expect(homeHtml).toContain("One recurring task.");
     expect(homeHtml).toContain("A measured robot pilot.");
     expect(homeHtml).toContain("Illustrative scenes");
-    expect(homeHtml).toContain("You see anonymized results first.");
+    expect(homeHtml).toContain("No match, no fee.");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).not.toContain("The site pays nothing");

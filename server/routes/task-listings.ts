@@ -7,10 +7,12 @@ import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { listingConsentVersion, taskListingSchema } from "../utils/taskListingDetails";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { enqueueNewTaskAlerts } from "../utils/robotTeamAccessEmails";
+import { formatPrice, matchFeeUsd } from "../../client/src/lib/evaluationPricing";
+import { TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 
 const router = Router();
 router.use(rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }));
-const grantSchema = z.object({ enabled: z.boolean(), consent: z.literal(true), details: taskListingSchema, thumbnailPng: z.string().max(800_000).nullable().optional(), thumbnailConsent: z.literal(true).optional() }).strict().refine(value => !value.thumbnailPng || value.thumbnailConsent === true);
+const grantSchema = z.object({ enabled: z.boolean(), consent: z.literal(true), details: taskListingSchema, matchFee: z.literal(true).optional(), thumbnailPng: z.string().max(800_000).nullable().optional(), thumbnailConsent: z.literal(true).optional() }).strict().refine(value => !value.thumbnailPng || value.thumbnailConsent === true);
 
 router.route("/owner/:token")
   .all((req, res, next) => {
@@ -32,6 +34,12 @@ router.route("/owner/:token")
   .post(async (req, res) => {
     const parsed = grantSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Review the public card and approve its text." });
+    // Opening a card to pilot proposals is where a site agrees to the match
+    // fee: no match, no fee. An evaluation-only or hidden card carries none.
+    const opensToPilots = parsed.data.enabled && parsed.data.details.opportunity === "open";
+    if (opensToPilots && parsed.data.matchFee !== true) {
+      return res.status(400).json({ error: `Agree to the ${formatPrice(matchFeeUsd)} match fee to open this task to pilot proposals.` });
+    }
     if (!db) return res.status(503).json({ error: "Listing unavailable" });
     try {
       const ref = db.collection("inboundRequests").doc(res.locals.requestId);
@@ -52,6 +60,9 @@ router.route("/owner/:token")
           consentVersion: listingConsentVersion, approvedAtIso: new Date().toISOString(),
           approvedBy: "signed_owner_link",
           thumbnailDigest: parsed.data.thumbnailPng === null ? null : thumbnail?.digest ?? previousDigest,
+          matchFee: opensToPilots
+            ? { amountUsd: matchFeeUsd, termsVersion: TERMS_VERSION, acceptedAtIso: new Date().toISOString() }
+            : null,
         } });
         if (thumbnail) transaction.set(imageRef, { ...thumbnail, approvedAtIso: new Date().toISOString(), consentVersion: "public-task-thumbnail-v1" });
         else if (parsed.data.thumbnailPng === null) transaction.delete(imageRef);
