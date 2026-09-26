@@ -68,6 +68,7 @@ export default function PolicyCanarySetup() {
   const [packetSetup, setPacketSetup] = useState<PacketPlanningSetup | null>(null);
   const [robotId, setRobotId] = useState("");
   const [policyIds, setPolicyIds] = useState<string[]>([]);
+  const [movementPolicyIds, setMovementPolicyIds] = useState<string[]>([]);
   const [email, setEmail] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [interpretationConfirmed, setInterpretationConfirmed] = useState(false);
@@ -126,6 +127,7 @@ export default function PolicyCanarySetup() {
 
   const activeSetup = packetSetup || setup;
   const robot = activeSetup?.robot_presets.find((item) => item.robot_preset_id === robotId) || null;
+  const g1Packet = Boolean(packetSetup && robot?.embodiment_id === "unitree_g1_dex3_v1");
   const preset = setup?.episode_presets.find((item) => item.preset_id === "quick_10") || null;
   const availableSetups = packetSetup
     ? packetSetup.robot_presets.map((item) => ({
@@ -149,6 +151,7 @@ export default function PolicyCanarySetup() {
       setPacketSetup(imported);
       setRobotId(imported.robot_presets[0].robot_preset_id);
       setPolicyIds([]);
+      setMovementPolicyIds([]);
       setConfirmed(false);
       setInterpretationConfirmed(false);
     } catch (reason) {
@@ -163,6 +166,7 @@ export default function PolicyCanarySetup() {
       if (next) {
         setRobotId(next.robot_preset_id);
         setPolicyIds([]);
+        setMovementPolicyIds([]);
       }
       return;
     }
@@ -175,6 +179,7 @@ export default function PolicyCanarySetup() {
     setProposalConfirmed(false);
     setConfirmedSuccessContract(null);
     setPolicyIds([]);
+    setMovementPolicyIds([]);
     setError(null);
     const request = ++setupRequest.current;
     setSwitching(true);
@@ -247,7 +252,21 @@ export default function PolicyCanarySetup() {
     try {
       if (packetSetup) {
         const choice = await makePacketPolicyPairChoice(packetSetup, robot.robot_preset_id, policyIds);
-        downloadPacketPolicyHandoff(await makePacketPolicyHandoff(packetSetup, choice), packetSetup.task_id);
+        if (g1Packet && (choice.objective_id !== "task_success" || movementPolicyIds.length !== 2)) {
+          throw new Error("Choose a book pair and a movement pair for the G1 campaign.");
+        }
+        const bookHandoff = await makePacketPolicyHandoff(packetSetup, choice);
+        if (g1Packet) {
+          const movementChoice = await makePacketPolicyPairChoice(packetSetup, robot.robot_preset_id, movementPolicyIds);
+          if (movementChoice.objective_id !== "g1_navigation_goal") {
+            throw new Error("The G1 movement pair must use the movement goal.");
+          }
+          const movementHandoff = await makePacketPolicyHandoff(packetSetup, movementChoice);
+          downloadPacketPolicyHandoff(bookHandoff, packetSetup.task_id);
+          downloadPacketPolicyHandoff(movementHandoff, packetSetup.task_id);
+        } else {
+          downloadPacketPolicyHandoff(bookHandoff, packetSetup.task_id);
+        }
       } else if (setup) {
         downloadPolicyPairChoice(await makePolicyPairChoice(setup, robot, policyIds));
       }
@@ -264,7 +283,7 @@ export default function PolicyCanarySetup() {
     <Helmet><title>Configure a policy test · Blueprint</title><meta name="description" content="Choose compatible robot policies for one task." /></Helmet>
     <Link className="ws-back" href="/app/packs">← Tasks</Link>
     <header className="ws-heading"><div>
-      <h1>{packetSetup ? "Plan a development policy pair" : "Run a policy test"}</h1>
+      <h1>{g1Packet ? "Plan a G1 development campaign" : packetSetup ? "Plan a development policy pair" : "Run a policy test"}</h1>
       {packetSetup ? <p className="mt-2">{packetSetup.scene_id} · {packetSetup.task_id}</p>
         : setup ? <p className="mt-2">{setup.offering.scene_id} · {setup.offering.task_id}</p> : null}
     </div></header>
@@ -278,6 +297,7 @@ export default function PolicyCanarySetup() {
         setPacketSetup(null);
         setRobotId("");
         setPolicyIds([]);
+        setMovementPolicyIds([]);
         setError(null);
       }}>Use published setup</button> : null}
     </section> : null}
@@ -303,8 +323,8 @@ export default function PolicyCanarySetup() {
         </div>
         {robot.readiness.status !== "verified_runnable" ? <p className="ws-note mt-4" role="status">{robot.readiness.reason}</p> : null}
         <fieldset className="mt-6">
-          <legend className="text-sm">Choose two policies</legend>
-          {robot.policy_candidates.map((candidate) => {
+          <legend className="text-sm">{g1Packet ? "Choose two book policies" : "Choose two policies"}</legend>
+          {robot.policy_candidates.filter((candidate) => !g1Packet || (candidate.evaluation_objective_id || "task_success") === "task_success").map((candidate) => {
             const reason = optionReason(candidate, robot);
             const checked = policyIds.includes(candidate.candidate_id);
             const selectedPolicy = robot.policy_candidates.find((item) => policyIds.includes(item.candidate_id));
@@ -322,6 +342,17 @@ export default function PolicyCanarySetup() {
             ? "Choose policies for the same objective to plan a pair. This robot and scene still need a verified execution profile before a run can start."
             : "Both policies run the same scenarios with the same starting conditions and scoring."}</p>
         </fieldset>
+        {g1Packet ? <fieldset className="mt-6">
+          <legend className="text-sm">Choose two movement policies</legend>
+          {robot.policy_candidates.filter((candidate) => candidate.evaluation_objective_id === "g1_navigation_goal").map((candidate) => {
+            const checked = movementPolicyIds.includes(candidate.candidate_id);
+            return <label key={candidate.candidate_id} className="ws-check">
+              <input type="checkbox" checked={checked} disabled={!compatible(candidate, robot) || (!checked && movementPolicyIds.length >= 2)} onChange={(event) => setMovementPolicyIds(event.target.checked ? [...movementPolicyIds, candidate.candidate_id] : movementPolicyIds.filter((id) => id !== candidate.candidate_id))} />
+              <span>{candidate.display_name}<span className="block text-sm text-ink-500">Movement goal</span></span>
+            </label>;
+          })}
+          <p className="ws-note">Both pairs use this G1 setup and exact retained task packet. Book placement and movement have separate objectives and scores.</p>
+        </fieldset> : null}
       </section>
 
       {inspectOnly ? <section aria-labelledby="policy-test-inspection">
@@ -329,9 +360,12 @@ export default function PolicyCanarySetup() {
         <p>{policyIds.length === 2
           ? robot.policy_candidates.filter((candidate) => policyIds.includes(candidate.candidate_id)).map((candidate) => candidate.display_name).join(" and ")
           : "Choose two compatible policies above to inspect a pair."}</p>
+        {g1Packet ? <p>Movement: {movementPolicyIds.length === 2
+          ? robot.policy_candidates.filter((candidate) => movementPolicyIds.includes(candidate.candidate_id)).map((candidate) => candidate.display_name).join(" and ")
+          : "Choose two movement policies above."}</p> : null}
         <p className="ws-note">Download this selection for the operator to bind to a sealed scene packet and reviewed model rights. No simulator run or payment starts.</p>
         {packetSetup ? <p className="ws-note">Packet receipt: <span className="break-all">{packetSetup.source_packet_receipt_digest}</span></p> : null}
-        <button type="button" className="ws-secondary mt-4" disabled={policyIds.length !== 2 || switching} onClick={() => { void downloadChoice(); }}>{packetSetup ? "Download task handoff" : "Download pair choice"}</button>
+        <button type="button" className="ws-secondary mt-4" disabled={policyIds.length !== 2 || (g1Packet && movementPolicyIds.length !== 2) || switching} onClick={() => { void downloadChoice(); }}>{g1Packet ? "Download book and movement handoffs" : packetSetup ? "Download task handoff" : "Download pair choice"}</button>
       </section> : null}
 
       {setup && preset && !packetSetup && robot.readiness.status === "verified_runnable" ? <>
