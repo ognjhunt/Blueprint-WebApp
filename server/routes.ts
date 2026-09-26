@@ -14,6 +14,7 @@ import taskEvaluationSceneIntakesRouter from "./routes/task-evaluation-scene-int
 import taskEvaluationResultsRouter from "./routes/task-evaluation-results";
 import taskEvaluationResultDownloadsRouter from "./routes/task-evaluation-result-downloads";
 import nativeG1PrivateReviewsRouter, { nativeG1PrivateReviewDownloadsRouter, nativeG1PrivateReviewIngestRouter } from "./routes/native-g1-private-reviews";
+import nativeG1TeamCampaignsRouter from "./routes/native-g1-team-campaigns";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import helpRouter from "./routes/help";
 import geminiRouter from "./routes/gemini";
@@ -326,6 +327,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     optionallyVerifyFirebaseToken,
     nativeG1PrivateReviewsRouter,
+  );
+  app.use(
+    "/api/native-g1-team-campaigns",
+    csrfProtection,
+    verifyFirebaseToken,
+    nativeG1TeamCampaignsRouter,
   );
   app.use(
     "/api/capture-uploads",

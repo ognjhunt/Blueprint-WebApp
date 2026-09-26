@@ -6,11 +6,14 @@ import type { PacketPlanningSetup } from "@/lib/policyPacketPlanning";
 
 const navigate = vi.fn();
 const fetchPolicyCanarySetup = vi.fn();
+const g1Catalog = vi.fn();
+const g1Submit = vi.fn();
+const routeState = vi.hoisted(() => ({ sourceLaunchId: "scene-839873-launch" }));
 
 vi.mock("wouter", () => ({
   Link: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
   useLocation: () => ["/app/packs/scene-839873-launch/policy-canary", navigate],
-  useParams: () => ({ sourceLaunchId: "scene-839873-launch" }),
+  useParams: () => ({ sourceLaunchId: routeState.sourceLaunchId }),
 }));
 vi.mock("@/contexts/AuthContext", () => {
   const currentUser = { uid: "team-user-1", email: "team@tryblueprint.io" };
@@ -28,6 +31,10 @@ vi.mock("@/lib/policyPairChoice", async () => {
   const actual = await vi.importActual<typeof import("@/lib/policyPairChoice")>("@/lib/policyPairChoice");
   return { ...actual, downloadPolicyPairChoice: vi.fn() };
 });
+vi.mock("@/lib/nativeG1TeamCampaigns", () => ({
+  fetchG1TeamCampaignSetups: g1Catalog,
+  submitG1TeamCampaign: g1Submit,
+}));
 vi.mock("@/lib/policyPacketPlanning", async () => {
   const actual = await vi.importActual<typeof import("@/lib/policyPacketPlanning")>("@/lib/policyPacketPlanning");
   return { ...actual, parsePacketPlanningSetup: vi.fn(), downloadPacketPolicyHandoff: vi.fn() };
@@ -144,8 +151,73 @@ function setup(): PolicyCanarySetupView {
 
 describe("PolicyCanarySetup", () => {
   beforeEach(() => {
+    routeState.sourceLaunchId = "scene-839873-launch";
     navigate.mockReset();
     fetchPolicyCanarySetup.mockReset().mockResolvedValue(setup());
+    g1Catalog.mockReset().mockResolvedValue([]);
+    g1Submit.mockReset();
+  });
+
+  it("submits an assigned G1 packet only after the four choices and spend confirmation", async () => {
+    routeState.sourceLaunchId = "";
+    const published = setup();
+    const robot = published.robot_presets[0];
+    robot.robot_preset_id = "unitree_g1_dex3_sonic_v1";
+    robot.embodiment_id = "unitree_g1_dex3_v1";
+    robot.display_name = "Unitree G1 + Dex3 / SONIC";
+    robot.readiness = { status: "unavailable", receipt: null, reason: "Development run pending." };
+    robot.policy_candidates = [
+      ...published.robot_presets[0].policy_candidates.map((candidate, index) => ({
+        ...candidate, candidate_id: `g1_book_${index}`,
+        display_name: `Book policy ${index + 1}`,
+        evaluation_objective_id: "task_success" as const,
+        compatibility: { ...candidate.compatibility,
+          robot_preset_ids: [robot.robot_preset_id], embodiment_ids: [robot.embodiment_id] },
+        readiness: { status: "unavailable" as const, receipt: null, reason: "Development run pending." },
+      })),
+      ...published.robot_presets[0].policy_candidates.map((candidate, index) => ({
+        ...candidate, candidate_id: `g1_move_${index}`,
+        display_name: `Movement policy ${index + 1}`,
+        evaluation_objective_id: "g1_navigation_goal" as const,
+        compatibility: { ...candidate.compatibility,
+          robot_preset_ids: [robot.robot_preset_id], embodiment_ids: [robot.embodiment_id] },
+        readiness: { status: "unavailable" as const, receipt: null, reason: "Development run pending." },
+      })),
+    ];
+    const packet = {
+      schema_version: "task_evaluation_packet_planning_setup.v1",
+      claim_ceiling: "planning_only",
+      scene_id: "interiorgs-841757",
+      task_id: "scene-841757-book-to-marked-area",
+      source_packet_receipt_digest: sha("a"),
+      source_packet_request_digest: sha("b"),
+      source_scene_plan_digest: sha("c"),
+      source_declared_task_success_contract_digest: sha("d"),
+      task_success_contract: published.task_success_contract,
+      task_success_contract_digest: published.task_success_contract.contract_digest,
+      robot_presets: [robot],
+      setup_digest: sha("e"),
+    } as PacketPlanningSetup;
+    g1Catalog.mockResolvedValue([packet]);
+    g1Submit.mockResolvedValue({ intent_id: `g1-${"a".repeat(64)}`, status: "accepted_not_dispatched" });
+    const { default: PolicyCanarySetup } = await import("../../src/pages/app/PolicyCanarySetup");
+    render(<PolicyCanarySetup />);
+    await screen.findByText("interiorgs-841757 · scene-841757-book-to-marked-area");
+    const submit = screen.getByRole("button", { name: "Submit G1 development campaign" });
+    expect(submit).toHaveProperty("disabled", true);
+    for (const label of [/Book policy 1/, /Book policy 2/, /Movement policy 1/, /Movement policy 2/]) {
+      fireEvent.click(screen.getByRole("checkbox", { name: label }));
+    }
+    expect(submit).toHaveProperty("disabled", true);
+    fireEvent.click(screen.getByRole("checkbox", { name: /I authorize one internal G1 simulation campaign/ }));
+    fireEvent.click(submit);
+    await waitFor(() => expect(g1Submit).toHaveBeenCalledTimes(1));
+    expect(g1Submit.mock.calls[0][0]).toMatchObject({
+      setup: packet,
+      bookHandoff: { choice: { objective_id: "task_success", policy_candidate_ids: ["g1_book_0", "g1_book_1"] } },
+      movementHandoff: { choice: { objective_id: "g1_navigation_goal", policy_candidate_ids: ["g1_move_0", "g1_move_1"] } },
+    });
+    expect(screen.getByText(/GPU execution has not started yet/)).toBeTruthy();
   });
 
   it("imports a retained task packet and downloads a planning pair without starting a run", async () => {
