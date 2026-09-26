@@ -23,9 +23,12 @@ Read first:
 
 Key rules:
 
-- The public site is positioned as deployment infrastructure: deployment, not
-  robot capability, is the binding constraint, and Blueprint automates months
-  0–2. Keep public copy on that thesis.
+- The public site is positioned as task-to-pilot matching: a site shows one
+  recurring task, robot teams evaluate it for free, and Blueprint introduces
+  the teams that match. Pricing is "no match, no fee": a site pays $2,500 per
+  task only when Blueprint finds a match, robot teams evaluate matched tasks
+  free, and Blueprint takes no cut of the pilot. Keep public copy on that
+  model; the fee lives in `client/src/lib/evaluationPricing.ts` (`matchFeeUsd`).
 - Every public figure carries a primary source and an evidence grade
   (`published` or `illustrative`). There is no third grade. A figure with no
   source does not ship — add the source or drop the figure. See

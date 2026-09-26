@@ -2,7 +2,7 @@ import { SEO } from "@/components/SEO";
 import { EditorialFaq } from "@/components/site/editorial";
 import { Reveal } from "@/components/site/motion";
 import { Band, ClosingCta, Inner } from "@/components/site/publicSections";
-import { entryPrice, formatPrice, pilotIntroductionFeeCapUsd } from "@/lib/evaluationPricing";
+import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 import { faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 export const faqItems = [
@@ -19,7 +19,7 @@ export const faqItems = [
   {
     question: "How do you find a robot team for my task?",
     answer:
-      "We match your task to participating teams' configurations and run supported evaluations on tasks you approve for access. You see anonymized results first; each team sees its own results. A promising team can accept your proposed pilot terms, suggest changes, or decline. If both sides want to proceed, we make a private introduction. Evaluation alone does not commit either side to a pilot.",
+      "We match your task to participating teams' configurations and run supported evaluations on tasks you approve for access. When a team passes, fits your budget, and wants your pilot, we introduce you by name right away. Teams that don't match stay anonymous. Evaluation alone does not commit either side to a pilot.",
   },
   {
     question: "Do I need to book a call or host Blueprint onsite?",
@@ -44,17 +44,17 @@ export const faqItems = [
   {
     question: "What if a robot does not fit?",
     answer:
-      "We explain the specific mismatch or missing capability and what might need to change. If no provider can credibly support the task, we do not recommend spending on a physical pilot.",
+      "We explain the specific mismatch or missing capability and what might need to change. If no robot team can credibly support the task, you pay nothing, and we do not recommend spending on a physical pilot.",
   },
   {
     question: "Can we set the pilot price and conditions?",
     answer:
-      "Yes. For a defined task, propose what you would pay and what the pilot must include. A provider can accept, suggest changes, or decline. If costs are still uncertain, mark the number as a target budget instead. A posted price is not a purchase order. Blueprint shows its separate 5% fee, capped at $5,000, before you buy.",
+      "Yes. For a defined task, propose what you would pay and what the pilot must include. A provider can accept, suggest changes, or decline. If costs are still uncertain, mark the number as a target budget instead. A posted price is not a purchase order. Blueprint takes no cut of the pilot.",
   },
   {
     question: "How is Blueprint paid?",
     answer:
-      `Task submission and initial screening are free. Before teams are invited to evaluate, an authorized site buyer agrees to a task-specific fee: 5% of an introduced provider's purchased physical pilot, capped at ${formatPrice(pilotIntroductionFeeCapUsd)}. The fee applies even if you contract directly with that provider; no pilot purchase means no Blueprint fee. Invited robot-team evaluations are free. Optional self-directed runs cost ${formatPrice(entryPrice)} per entry, with no later supplier commission on that entry.`,
+      `No match, no fee. Submitting a task, screening and evaluation are free. When we find a robot team that passed the evaluation for your task, fits your budget, and wants your pilot, we introduce you and charge ${formatPrice(matchFeeUsd)} per task, however many teams match. Blueprint takes no cut of the pilot or any deployment. Robot teams pay nothing to join or to evaluate the tasks we match them to.`,
   },
 ];
 

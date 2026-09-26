@@ -11,16 +11,17 @@ describe("Site-led homepage", () => {
     expect(screen.getByRole("img")).toHaveAccessibleName(/Illustration/);
     expect(screen.queryByText(/months 0–2/i)).not.toBeInTheDocument();
   });
-  it("lets a reader inspect the task, comparison, and physical-pilot boundaries", () => {
+  it("lets a reader inspect the task, the match, and the pilot", () => {
     const { container } = render(<Home />);
     const steps = container.querySelectorAll("details");
     expect(steps).toHaveLength(3);
-    fireEvent.click(screen.getByText("Review results and an offer"));
+    fireEvent.click(screen.getByText("Meet your match"));
     expect(steps[1]).toHaveAttribute("open");
-    expect(steps[1]).toHaveTextContent(/anonymized results first/i);
-    fireEvent.click(screen.getByText("Approve and measure"));
+    expect(steps[1]).toHaveTextContent(/we introduce you right away/i);
+    expect(steps[1]).toHaveTextContent(/No match, no fee\./);
+    fireEvent.click(screen.getByText("Run the pilot"));
     expect(steps[2]).toHaveAttribute("open");
     expect(steps[2]).toHaveTextContent(/provider installs and operates the robot/i);
-    expect(steps[2]).toHaveTextContent(/records the results so you can decide what follows/i);
+    expect(steps[2]).toHaveTextContent(/Blueprint takes no cut/i);
   });
 });

@@ -25,6 +25,7 @@ import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { TaskBrowse } from "@/components/site/TaskBrowse";
+import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 
 const CONTACT_EMAIL = "hello@tryblueprint.io";
 
@@ -78,12 +79,11 @@ export default function Contact() {
           <details className="ms-task-interest">
             <summary>How this works</summary>
             <p className="ms-field-hint">
-              We turn your description and footage into a task brief for you to correct, then check
-              which providers can credibly support it. Before inviting teams to evaluate for free,
-              we ask an authorized buyer to agree to Blueprint's fee if you buy an introduced provider's pilot.
+              We turn your description and footage into a task brief for you to correct, then robot
+              teams evaluate it for free. When one passes, fits your budget, and wants your pilot, we
+              introduce you. No match, no fee; a match is {formatPrice(matchFeeUsd)} per task.
               You may post your proposed pilot price and conditions, or a target budget if costs are uncertain.
-              Providers can accept, suggest changes, or decline. Your task link
-              shows each step and the next update.
+              Your task link shows each step and the next update.
             </p>
             <p className="ms-field-hint">
               Geography, plainly: sending a person is an Austin-metro thing; anywhere in the US you

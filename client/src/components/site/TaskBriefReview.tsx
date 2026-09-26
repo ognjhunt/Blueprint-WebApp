@@ -57,6 +57,7 @@ import {
   signInWithGoogleAccount,
   watchAuth,
 } from "@/lib/accountAuth";
+import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 import { opportunityLabels, type TaskListingDetails } from "@/types/taskBrowse";
 
@@ -158,6 +159,8 @@ export function TaskBriefReview(props: {
   const [listChoice, setListChoice] = useState<"list" | "not_now" | null>(null);
   const [listing, setListing] = useState<TaskListingDetails>(blankListing);
   const [listingConsent, setListingConsent] = useState(false);
+  // Opening the card to pilot proposals is where the site agrees to the match fee.
+  const [matchFeeAccepted, setMatchFeeAccepted] = useState(false);
 
   // Saving the site to an account. Skipped when it is already claimed.
   const needsAccount = Boolean(props.account && !props.account.claimed && props.account.claimToken);
@@ -236,6 +239,9 @@ export function TaskBriefReview(props: {
       if (listing.taskFamily.trim().length < 2) return "Add a task family for the public card.";
       if (listing.pilotPriceStatus === "site_offer" && !listing.pilotBudget.trim()) return "Add a proposed pilot price or choose target budget.";
       if (!listingConsent) return "Confirm you reviewed the public card before listing it.";
+      if (listing.opportunity === "open" && !matchFeeAccepted) {
+        return `Agree to the ${formatPrice(matchFeeUsd)} match fee to open this task to pilot proposals, or choose Evaluation only.`;
+      }
     }
     return null;
   }
@@ -327,7 +333,10 @@ export function TaskBriefReview(props: {
         const response = await fetch(`/api/task-listings/owner/${encodeURIComponent(props.token)}`, {
           method: "POST",
           headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ enabled: true, details: listing, consent: true }),
+          body: JSON.stringify({
+            enabled: true, details: listing, consent: true,
+            ...(listing.opportunity === "open" ? { matchFee: true } : {}),
+          }),
         });
         listed = response.ok ? true : "failed";
       } catch {
@@ -558,7 +567,7 @@ export function TaskBriefReview(props: {
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
         <legend style={{ padding: "0 6px", fontWeight: 600 }}>What could follow this assessment?</legend>
-        <p className="ms-field-hint">These answers describe your plans; submitting them does not agree to a fee. Before we invite teams to evaluate for free, an authorized buyer for your site separately agrees to Blueprint's fee if you buy a pilot from an introduced provider.</p>
+        <p className="ms-field-hint">These answers describe your plans and commit you to nothing.</p>
         <label htmlFor="pilot-consideration"><span>If a provider appears to fit, would you consider a physical pilot here?</span>
           <select id="pilot-consideration" value={pilotConsideration} onChange={(event) => setPilotConsideration(event.target.value as SitePilotIntent["pilotConsideration"])}>
             <option value="">Choose…</option>
@@ -598,7 +607,7 @@ export function TaskBriefReview(props: {
                 <option value="target_budget">Target budget, open to proposals</option>
                 <option value="site_offer">Site's proposed price</option>
               </select></label>
-              {listingField("pilotBudget", listing.pilotPriceStatus === "site_offer" ? "Proposed provider pilot price (before Blueprint fee)" : "Target provider pilot budget (before Blueprint fee)", 80)}
+              {listingField("pilotBudget", listing.pilotPriceStatus === "site_offer" ? "Proposed pilot price" : "Target pilot budget", 80)}
               <label htmlFor="listing-pilot-conditions"><span>Pilot conditions</span><textarea id="listing-pilot-conditions" value={listing.pilotConditions ?? ""} maxLength={320} onChange={event => { setListing({ ...listing, pilotConditions: event.target.value }); setListingConsent(false); }} placeholder="For example: four weeks, including setup and provider support" /></label>
               {listingField("ongoingTarget", "Ongoing price target, if the pilot works (optional)", 80)}
               <p className="ms-field-hint">A posted price is a proposal, not a purchase approval. Teams can accept it, ask for changes, or decline after evaluation.</p>
@@ -618,6 +627,12 @@ export function TaskBriefReview(props: {
                 ))}
               </select>
             </label>
+            {listing.opportunity === "open" && (
+              <label className="ms-check-row">
+                <input type="checkbox" checked={matchFeeAccepted} onChange={(event) => setMatchFeeAccepted(event.target.checked)} />
+                If Blueprint finds a match for this task, I can approve a {formatPrice(matchFeeUsd)} fee. No match, no fee.
+              </label>
+            )}
             <label className="ms-check-row">
               <input type="checkbox" checked={listingConsent} onChange={(event) => setListingConsent(event.target.checked)} />
               I reviewed this text for identifying details and am authorized to make it public. I can hide the card at any time.

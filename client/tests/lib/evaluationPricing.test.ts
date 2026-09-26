@@ -9,7 +9,7 @@ import {
   finalistRoundRuns,
   formatPrice,
   included,
-  pilotIntroductionFeeUsd,
+  matchFeeUsd,
   quoteEntries,
   screeningRound,
   shortlistRule,
@@ -17,11 +17,13 @@ import {
 } from "@/lib/evaluationPricing";
 
 describe("evaluation pricing", () => {
-  it("caps the site fee on an introduced provider's purchased pilot", () => {
-    expect(pilotIntroductionFeeUsd(0)).toBe(0);
-    expect(pilotIntroductionFeeUsd(20_000)).toBe(1_000);
-    expect(pilotIntroductionFeeUsd(150_000)).toBe(5_000);
-    expect(() => pilotIntroductionFeeUsd(-1)).toThrow(RangeError);
+  it("charges a site one flat fee per task, only when Blueprint finds a match", () => {
+    // Free to start; the fee is for the outcome, not for access to it.
+    expect(siteAssessment.amount).toBe(0);
+    expect(matchFeeUsd).toBe(2_500);
+    expect(formatPrice(matchFeeUsd)).toBe("$2,500");
+    expect(siteAssessment.allIn).toMatch(/^No match, no fee\./);
+    expect(siteAssessment.whatIsNotFree).toMatch(/no cut of the pilot/i);
   });
   it("bills entries times tasks times the entry price", () => {
     // The three shapes stated on the page, which are the three a team asks

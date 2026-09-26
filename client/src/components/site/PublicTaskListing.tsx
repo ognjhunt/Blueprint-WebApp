@@ -2,6 +2,7 @@ import { TaskThumbnail } from "./TaskThumbnail";
 import { TaskThumbnailEditor } from "./TaskThumbnailEditor";
 import { useEffect, useState } from "react";
 import { type TaskListingDetails, opportunityLabels } from "@/types/taskBrowse";
+import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 import { TaskFacts } from "./TaskFacts";
 const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking" };
 
@@ -12,7 +13,10 @@ export function PublicTaskListing({ token }: { token: string }) {
   const [existingThumbnail, setExistingThumbnail] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [consent, setConsent] = useState(false);
+  const [matchFee, setMatchFee] = useState(false);
   const [state, setState] = useState("loading");
+  // Opening the card to pilot proposals is where the site agrees to the match fee.
+  const opensToPilots = enabled && details.opportunity === "open";
   useEffect(() => {
     let active = true;
     fetch(`/api/task-listings/owner/${encodeURIComponent(token)}`).then(async r => {
@@ -30,7 +34,7 @@ export function PublicTaskListing({ token }: { token: string }) {
     try {
       const r = await fetch(`/api/task-listings/owner/${encodeURIComponent(token)}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, details, consent, thumbnailPng, ...(thumbnailPng ? { thumbnailConsent: true } : {}) }),
+        body: JSON.stringify({ enabled, details, consent, thumbnailPng, ...(thumbnailPng ? { thumbnailConsent: true } : {}), ...(opensToPilots && matchFee ? { matchFee: true } : {}) }),
       });
       if (!r.ok) throw new Error();
       setState("saved");
@@ -55,7 +59,7 @@ export function PublicTaskListing({ token }: { token: string }) {
             <option value="target_budget">Target budget, open to proposals</option>
             <option value="site_offer">Site's proposed price</option>
           </select></label>
-          {field("pilotBudget", details.pilotPriceStatus === "site_offer" ? "Proposed provider pilot price (before Blueprint fee)" : "Target provider pilot budget (before Blueprint fee)", 80)}
+          {field("pilotBudget", details.pilotPriceStatus === "site_offer" ? "Proposed pilot price" : "Target pilot budget", 80)}
           <label>Pilot conditions (optional)<textarea value={details.pilotConditions ?? ""} maxLength={320} onChange={e => { setDetails({ ...details, pilotConditions: e.target.value }); setConsent(false); setState("idle"); }} placeholder="For example: four weeks, including setup and provider support" /></label>
           {field("ongoingTarget", "Ongoing price target, if the pilot works (optional)", 80)}
           <p className="ms-field-hint">A posted price is a proposal, not a purchase approval. Providers can accept it, ask for changes, or decline after evaluation.</p>
@@ -66,6 +70,7 @@ export function PublicTaskListing({ token }: { token: string }) {
         <TaskThumbnailEditor existing={existingThumbnail} onChange={png => { setThumbnailPng(png); setConsent(false); setState("idle"); }} />
         <div className="ms-task-preview" aria-label="Public card preview"><p className="ms-field-hint">Public preview · {opportunityLabels[details.opportunity]}</p><div className="ms-task-heading"><h3>{details.title || "Your task"}</h3><TaskThumbnail src={previewThumbnail ? `data:image/png;base64,${previewThumbnail}` : null} title={details.title || "Your task"} taskFamily={details.taskFamily} /></div><p>{details.taskFamily}</p><TaskFacts details={details} /></div>
         <label className="ms-check-row"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />Show this card in the task library</label>
+        {opensToPilots && <label className="ms-check-row"><input type="checkbox" checked={matchFee} onChange={e => setMatchFee(e.target.checked)} required />If Blueprint finds a match for this task, I can approve a {formatPrice(matchFeeUsd)} fee. No match, no fee.</label>}
         <label className="ms-check-row"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} required />I reviewed the text and thumbnail for identifying details and am authorized to make them public. I can remove this card here at any time.</label>
         <button className="ms-button" disabled={state === "saving"}>{state === "saving" ? "Saving…" : "Save public card"}</button>
         {state === "saved" && <p role="status">{enabled ? "Public card saved. Listing pauses and rights restrictions still apply." : "Your card is hidden."}</p>}
