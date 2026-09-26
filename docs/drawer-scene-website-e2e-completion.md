@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-25 14:10 UTC |
+| Step | Current evidence at 2026-09-26 00:16 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -34,10 +34,12 @@ older scene's stage evidence or budget.
 | 10. CPU CAD/Blender/USD articulation and static qualification | **done for the development fixture** — the controller reused the sealed CPU authoring result with separate carcass and middle-drawer parts; the source launch's six-stage chain completed and its published revision binds an articulated asset (`sha256:b6a11534…3ff12342`) and static qualification (`sha256:3009f730…d007b690a17`). This does not qualify captured-room geometry. |
 | 11. Captured-room integration or named development fixture | **done for the named fixture; captured room unqualified** — `site-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d-development` was separately identified, executed and published through the website/controller path. The original-room registration blockers remain; no claim of Marble-room integration is made. |
 | 12. Native import/physics/robot-interface qualification | **done for the development fixture** — native stage 5 completed; the published revision binds native import qualification (`sha256:4c7dfe4b…586db5d`) and robot mount/workspace/camera references. The source launch completed, synced to the website and retained provider-zero after teardown. |
-| 13. Frozen policy/setup and GPU policy episode | **partial, no policy episode** — robot placement was retained without another model call, episode preparation completed, and the production episode packet compiled with no blockers on Pipeline `dc02f419…`. Controls were omitted as directed. Policy presubmission then rejected the articulated success contract under a rigid-only setup schema, before any drawer GPU launch. PR #2267 fixes that boundary and is merged as `f705503d…`; its exact saved presubmission replay passes but the fix is not deployed while another paid GPU campaign owns the shared lock. |
-| 14. Numeric scoring, teardown and website result | **unproven** — no policy action, native joint trajectory, numeric episode score or terminal task-page result exists for this fixture yet. The earlier scene-configuration GPU teardown/provider-zero is evidence only for step 12. |
+| 13. Frozen policy/setup and GPU policy episode | **partial, invalid first cell** — run `…967af9378a61` completed two real 56-query policy episodes in the first of ten frozen cells, with actions reaching the robot and lossless inputs retained. At the first simulation step, the robot struck the retained fixture desk collider. The cabinet root shifted up to 0.378 m and the drawer moved without handle contact. The first-cell diagnostic stopped the remaining nine cells. This is policy execution evidence, not a valid drawer-opening episode or completed matrix. |
+| 14. Numeric scoring, teardown and website result | **partial, blocked result delivered** — native joint/root/contact scoring marked both first-cell episodes as failures; neither is drawer success. The controller tore down Vast, verified provider-zero, reconciled an official $0.766 charge, and delivered the blocked terminal result to the website with verified owner readback. The result-publication path works, but an invalid setup and incomplete matrix cannot close this step as an end-to-end drawer evaluation. |
 
-Fixture completion state: **CPU and native scene ready; policy evaluation pending**.
+Fixture completion state: **CPU and static native qualification retained; GPU first-cell
+execution exposed a robot/desk startup collision, so policy evaluation remains
+incomplete**.
 Captured-room integration state: **unqualified**. A fixture result, if later
 produced, cannot close the captured-room registration claim.
 
@@ -1504,3 +1506,39 @@ Pipeline PR #2282 merged as `d8715cb82da36dae6d29102d09ef55b8665fabc9` and passe
 The controller reused the retained CPU CAD, articulated USD, and native qualification. It materialized a new plan with `expected_production_commit: d8715cb8…` and compiled the ten-cell episode packet with `status: compiled_for_production_launch`, no blockers and no provider mutation. The first policy presubmission then refused a $4 reservation: retained signed exposure had reached $24.32 against the $28 cumulative cap. Using the owner's earlier authorization, the canonical append-only budget API raised only this scene's cumulative simulation exposure ceiling to $36 (grant `sha256:d9ce984f0f07184bc5ea7f1b91fed7db3e6589f5396cccfdac5bc1cf10768134`). The eight-attempt ceiling, $4 one-allocation policy quote, retry cap zero, 9000-second TTL, $5 preparation guard, and fixed $25 website test price are unchanged; no prior hold was erased.
 
 On the controller retry, WebApp accepted new run `team-eval-85e6d1ff3e66a639b2e8acf4d8a7737f-policy-canary-967af9378a61`. Its profile, execution plan and WebApp request binding all name `d8715cb8…`. The launch's no-spend preparation and policy episode compilation completed, and activation reported `policy_campaign_queue_materialized_no_execution` for ten cells with no provider mutation. A separately owned G1 run started at 21:26 UTC and still held the global Vast launch lock at this observation. The drawer dispatch item is retained in `task-evaluation-policy-canary-dispatches/pending`; the policy dispatcher path is temporarily stopped to preserve this one-shot run until G1 teardown and a fresh provider-zero check. The launch dispatcher path was restored after it had completed this run's no-spend work. No drawer GPU was rented on `d8715cb8…`, no candidate policy was queried, and steps 13 and 14 remain open. The original captured room remains unqualified.
+
+### 2026-09-26 00:16 UTC — First real policy cell exposed desk collision
+
+After the separate G1 rental ended and a fresh provider-zero guard passed, the
+controller dispatched the same scene's distinct `…967af9378a61` policy run on
+Pipeline `d8715cb8…`. Static startup and paid admission passed under the $4
+per-run hard cap. The Vast worker reached Isaac and completed the first of ten
+frozen scenario cells. Both `pi05_droid` and `groot_n17_droid` received exact
+policy-input frames, made 56 policy queries, and sent actions that moved the
+robot. Native numeric scoring returned `status: scored` and
+`task_succeeded: false` for each. No rendered image or policy self-grade was
+used as the scoring authority.
+
+The native trace explains why apparent drawer travel is invalid. At the first
+simulation step, Franka links 5 and 7 collided with the retained desk collider
+`scene_collision/mesh_0000_geometry_0`. The first contact exceeded 162 kN,
+the cabinet root displaced as much as 0.378 m, and the target drawer joint
+moved despite zero handle-contact samples. Both grasp-to-handle distances
+increased rather than showing the required approach. The first-cell diagnostic
+gate refused continuation; nine cells were not run. The terminal result is
+`blocked`, not a successful drawer policy result. Its official Vast charge was
+$0.766; teardown and global provider-zero completed, WebApp sync succeeded, and
+owner result readback was verified.
+
+The collider is the explicit development fixture desk slab, not a qualified
+Marble room. A read-only CPU reproduction on the retained packet measured zero
+link-centerline clearance for the old camera reset. Pipeline PR #2288 (head
+`0084f171…`, hosted checks pending at this observation) adds a digest-bound
+CPU clearance screen and a bounded lower-arm reset search while preserving
+the desk. The candidate it selects on this same saved packet keeps the handle
+in the wrist camera and has 0.134 m centerline clearance against a 0.13 m
+conservative proxy. That is a pre-spend screen, not proof of native collision
+clearance or policy success. Focused tests and the impacted/sentinel set passed
+locally. A separate G1 paid rental took the global Vast lock at 00:04 UTC; no
+drawer deploy or retry was started over it. The existing scene authority still
+expires at 05:46 UTC.
