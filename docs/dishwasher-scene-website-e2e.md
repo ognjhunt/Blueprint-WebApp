@@ -81,6 +81,19 @@ Third-request progress (UTC):
   provider zero to the operation's lane and instance and re-verifies such an
   attempt so its paid output is reused, not rented again. Its deploy first
   waited on host disk (at the 8 GiB floor), then on the G1 paid launch.
+- 14:45: #2311 live. 14:54: another lane's deploy from a scratch source
+  checkout left GPU admission refusing every sponsored GPU step
+  (`gpu_canary_deployed_release_receipt_unverified`); a door deploy of a newer
+  main commit (16:09, `780e91ab`, which also carries Pipeline #2315: deploys
+  no longer wait out paid GPU runs in flight) restored it.
+- 16:00: the paid MapAnything output was reconciled and reused. Preparation
+  then stopped at `support_surface_not_found_under_subject`: the rebuilt body
+  box ended 0.21 m above the floor the footage observed (its kick band is
+  never visible), and the generated world's bay had no floor face (its floor
+  sits 0.24 m lower than the footage's, a Marble hallucination). Pipeline #2319
+  grounds a rebuilt floor-standing assembly on the observed floor by
+  extending its body (0.82 m, a standard dishwasher height), never moving it.
+  Deployed 16:55 (`1526bb83`).
 
 ## Defects found and fixed on the way (all merged; #2172 and #2173 not yet deployed)
 
