@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-26 00:16 UTC |
+| Step | Current evidence at 2026-09-26 00:28 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -42,6 +42,28 @@ execution exposed a robot/desk startup collision, so policy evaluation remains
 incomplete**.
 Captured-room integration state: **unqualified**. A fixture result, if later
 produced, cannot close the captured-room registration claim.
+
+### 2026-09-26 GPU recovery in progress
+
+The first-cell trace from `…967af9378a61` showed Franka link contact with the
+retained desk at the first physics step and a policy instruction that said to
+move the cabinet onto the drawer. Pipeline PR #2288 merged as `0be42221`: it
+adds a no-spend desk-clearance screen to camera-start selection and tells the
+candidate policies to **pull open the middle drawer**. Focused lifecycle/import
+closure (25) and exact-worktree impacted/sentinel tests (247) passed; a saved
+packet CPU replay clears the conservative 13 cm desk proxy, but native
+collision clearance remains unproven. The canonical deployment of that commit
+is in progress, not yet a live release.
+
+Before that deployment, the controller automatically started a different
+old-source attempt, `…8a1001b2da16`, under release `3dc45a1`. Its sealed
+policy packet still had the wrong instruction. The allocator was stopped and
+its blocked terminal result records no policy evidence and a typed gap before
+the first observation. The result records one provider allocation; official
+billing is pending. Its post-teardown receipt verified provider-zero. This
+attempt does not advance steps 13 or 14. The policy dispatcher trigger is
+paused until the corrected release is live and a fresh, distinct same-scene
+attempt passes no-spend preflight.
 
 ### 2026-09-25 execution evidence
 
