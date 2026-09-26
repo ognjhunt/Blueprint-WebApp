@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-26 01:04 UTC |
+| Step | Current evidence at 2026-09-26 01:47 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -34,7 +34,7 @@ older scene's stage evidence or budget.
 | 10. CPU CAD/Blender/USD articulation and static qualification | **done for the development fixture** — the controller reused the sealed CPU authoring result with separate carcass and middle-drawer parts; the source launch's six-stage chain completed and its published revision binds an articulated asset (`sha256:b6a11534…3ff12342`) and static qualification (`sha256:3009f730…d007b690a17`). This does not qualify captured-room geometry. |
 | 11. Captured-room integration or named development fixture | **done for the named fixture; captured room unqualified** — `site-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d-development` was separately identified, executed and published through the website/controller path. The original-room registration blockers remain; no claim of Marble-room integration is made. |
 | 12. Native import/physics/robot-interface qualification | **done for the development fixture** — native stage 5 completed; the published revision binds native import qualification (`sha256:4c7dfe4b…586db5d`) and robot mount/workspace/camera references. The source launch completed, synced to the website and retained provider-zero after teardown. |
-| 13. Frozen policy/setup and GPU policy episode | **partial, invalid first cell** — run `…967af9378a61` completed two real 56-query policy episodes in the first of ten frozen cells, with actions reaching the robot and lossless inputs retained. At the first simulation step, the robot struck the retained fixture desk collider. The cabinet root shifted up to 0.378 m and the drawer moved without handle contact. The first-cell diagnostic stopped the remaining nine cells. This is policy execution evidence, not a valid drawer-opening episode or completed matrix. |
+| 13. Frozen policy/setup and GPU policy episode | **partial, invalid first cell; corrected retry awaiting GPU** — run `…967af9378a61` completed two real 56-query policy episodes in the first of ten frozen cells, with actions reaching the robot and lossless inputs retained. At the first simulation step, the robot struck the retained fixture desk collider. The cabinet root shifted up to 0.378 m and the drawer moved without handle contact. The first-cell diagnostic stopped the remaining nine cells. Fresh exact-release run `…b7e6f7c071cb` completed no-spend ten-cell compilation and activation, but has no GPU allocation or policy query. |
 | 14. Numeric scoring, teardown and website result | **partial, blocked result delivered** — native joint/root/contact scoring marked both first-cell episodes as failures; neither is drawer success. The controller tore down Vast, verified provider-zero, reconciled an official $0.766 charge, and delivered the blocked terminal result to the website with verified owner readback. The result-publication path works, but an invalid setup and incomplete matrix cannot close this step as an end-to-end drawer evaluation. |
 
 Fixture completion state: **CPU and static native qualification retained; GPU first-cell
@@ -56,7 +56,9 @@ collision clearance remains unproven. The canonical deployment receipt reports
 `deployed`, and the live version endpoint proved exact commit `0be42221` with
 no blockers at 00:42 UTC. A later release-link change left the worker on
 descendant `30fea70e` while the live endpoint still reported `0be42221`;
-release alignment is pending before another policy run.
+that split caused a no-spend launch-preparation refusal. A canonical
+deployment of descendant `d763a651` later restored exact live release
+identity with `commit_proven: true` and blockers `[]`.
 
 Before that deployment, the controller automatically started a different
 old-source attempt, `…8a1001b2da16`, under release `3dc45a1`. Its sealed
@@ -64,15 +66,15 @@ policy packet still had the wrong instruction. The allocator was stopped and
 its blocked terminal result records no policy evidence and a typed gap before
 the first observation. The result records one provider allocation; official
 billing is pending. Its post-teardown receipt verified provider-zero. This
-attempt does not advance steps 13 or 14. The policy dispatcher trigger is
-paused until the corrected release is live and a fresh, distinct same-scene
-attempt passes no-spend preflight.
+attempt does not advance steps 13 or 14. The policy dispatcher trigger remains
+paused until the fresh, distinct same-scene attempt passes paid preflight.
 
 The existing scene's append-only cumulative simulation ceiling was increased
-from $36 to $40 using the authenticated intake budget API, with the eight
-attempt limit and $4 per-policy-run quote unchanged. The verified ledger before
-the grant retained $32.32 of maximum exposure across five policy attempts;
-this is a conservative reservation total, not a provider charge. The $25
+from $36 to $40, then to $44, using the authenticated intake budget API, with
+the eight-attempt limit and $4 per-policy-run quote unchanged. The ledger
+before the latest grant retained $37.22 of active maximum exposure; a new $4
+reservation would have exceeded $40 by $1.22. These are conservative holds,
+not provider charges. The $25
 website development-test price remains unchanged. No historical hold was
 released and the grant made no provider mutation.
 
@@ -80,9 +82,19 @@ Under the brief aligned `0be42221` release window, the controller generated
 new run `…6f7a3cfea8be` with the corrected camera-start clearance binding and
 unchanged $4/one-allocation/no-retry selection. Its launch preparation refused
 `launch_preparation_worker_source_commit_mismatch` after the release link moved
-to `30fea70e`. This was a no-spend failure before GPU. The controller must
-issue a new release-bound run after a canonical `30fea70e` deployment; neither
-the prior selection nor the failed preparation is reusable.
+to `30fea70e`. This was a no-spend failure before GPU. The controller issued
+a new release-bound run; neither the prior selection nor the failed
+preparation was replayed. The new `d763a651`-bound run is recorded below.
+
+The new run `…b7e6f7c071cb` passed website handoff, no-spend preparation,
+ten-cell episode compilation and activation under exact live `d763a651`.
+The sealed execution plan binds a digest-backed desk-clearance screen: minimum
+link centerline distance 0.13357 m versus a conservative 0.13 m link radius.
+This is only a CPU screen; native collision remains unqualified. A separate G1
+rental started at 01:34 UTC and holds the shared Vast launch lock. The drawer
+policy dispatcher remains paused until that run tears down and a fresh
+provider-zero check passes. The scene authority expires at 05:46 UTC. No GPU
+allocation or policy query occurred for `…b7e6f7c071cb` at this observation.
 
 ### 2026-09-25 execution evidence
 
