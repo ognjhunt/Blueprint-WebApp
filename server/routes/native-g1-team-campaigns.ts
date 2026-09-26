@@ -96,7 +96,7 @@ router.get("/setups", async (_req, res) => {
 router.post("/", async (req, res) => {
   res.set("Cache-Control", "private, no-store");
   const parsed = g1SubmissionSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(422).json({ error: "Confirm the G1 setup, four policies, and $12 limit" });
+  if (!parsed.success) return res.status(422).json({ error: "Confirm the G1 setup, four policies, and provider cost limit" });
   try {
     const owner = sceneOwner(res.locals.firebaseUser || {});
     return res.status(202).json(await submitG1TeamCampaign(parsed.data, owner));

@@ -32,6 +32,7 @@ export async function submitG1TeamCampaign(params: {
   bookHandoff: PacketPolicyHandoff;
   movementHandoff: PacketPolicyHandoff;
   authorizationExpiresAtEpoch: number;
+  maximumCostUsd: number;
 }) {
   const response = await fetch("/api/native-g1-team-campaigns", {
     method: "POST",
@@ -46,6 +47,7 @@ export async function submitG1TeamCampaign(params: {
       movement_handoff: params.movementHandoff,
       authorization_expires_at_epoch: params.authorizationExpiresAtEpoch,
       authorize_maximum_cost_usd_12: true,
+      maximum_cost_usd: params.maximumCostUsd,
     }),
   });
   const value = await response.json().catch(() => ({})) as Record<string, unknown>;
