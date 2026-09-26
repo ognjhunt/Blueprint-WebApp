@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-26 04:27 UTC |
+| Step | Current evidence at 2026-09-26 05:43 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -178,6 +178,33 @@ not yet verified live at this observation. The next release-bound selection
 must use a fresh run identity; the blocked preparation and signed records
 remain intact. Steps 13 and 14 are still partial, and the captured Marble
 room remains unqualified.
+
+### 2026-09-26 05:43 UTC — Compilation capacity refusal before GPU
+
+The `3173c181…` release deployed canonically with exact live-version proof.
+The source-bound preparation stopped before GPU on the work volume's actual
+capacity gate: `/var/lib/blueprint/task-evaluation-inputs/prepared-references`
+is backed by `/dev/sda`, not the root filesystem. Six bounded rechecks did not
+clear a persistent shortage. The immutable blocked receipt remains intact.
+
+Canonical evidence offload streamed 16 sealed launch-run directories to the
+configured artifact store with full byte readback and digest-bound local
+pointers, reclaiming about 2.0 GB without deleting evidence. Inactive old
+engineering scratch and one older blocked policy artifact were checksum
+verified and temporarily relocated to the root volume. The next merged
+release, `b7b07c9d…`, then deployed and passed exact live-version proof. Its
+new controller-owned no-spend preparation succeeded, but episode compilation
+refused a separate 2 GiB reservation above the 8 GiB floor: free space was
+10,364,354,560 bytes, short by about 373 MB. No GPU or policy query occurred
+on either release-bound attempt. The blocked compilation is immutable.
+
+Pipeline PR #2297 merged as `0a80e95b3ef4b49f57151165777efab1ec857d06`
+after eight focused compilation tests, 25 required policy lifecycle and import
+tests, lint and hosted impacted checks passed. It adds bounded rechecks only
+for capacity refusals in episode compilation; all disk floors and paid gates
+remain enforced. A guarded deployment of that merge commit is in progress at
+this observation. The existing scene authority expires at 05:46 UTC. Steps
+13 and 14 remain partial; the captured Marble room remains unqualified.
 
 ### 2026-09-25 execution evidence
 
