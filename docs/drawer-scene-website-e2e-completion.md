@@ -123,8 +123,27 @@ camera and required policy lifecycle/import-closure tests passed (54), as did
 hosted impacted checks. These are CPU checks; native collision and policy
 outcomes remain open. The repair is merged, not yet deployed. The host's
 03:12 live identity was still `15ee3762`, and the deployment preflight reported
-low disk headroom. A reference-aware retention plan is being prepared before
-any new release or paid attempt. The scene authority expires at 05:46 UTC.
+low disk headroom. The reference-aware release-retention planner failed closed
+on an unrelated old profile; no release was removed. Instead, inactive
+temporary runtime copies and archived system journals were cleared after
+checking active process use, restoring deploy/dispatch headroom without
+touching scene evidence. The scene authority expires at 05:46 UTC.
+
+The next read-only scene-status check exposed a separate fixed-count defect:
+retained trajectory provenance validation rejected the seventeenth legitimate
+plan in a scene whose earlier retries had accumulated sixteen. Pipeline PR
+#2293 merged as `db97857aa0f517c7454c3f33bf4efffda4e19f07` and streams
+every retained plan while preserving digest and duplicate-equality checks.
+Exact-host read-only replay now returns the scene status cleanly. It reports
+seven of eight source attempts used and $41.22 retained maximum exposure. Under
+the owner's earlier higher-cap authorization, the authenticated append-only
+budget grant raised cumulative internal simulation exposure from $44 to $46,
+just enough for a further $4-capped attempt; the eight-attempt ceiling, $5
+preparation guard and fixed $25 website test price are unchanged. The separate
+G1 paid run ended with watchdog-confirmed provider absence and a fresh global
+provider-zero pass. Canonical deployment of `db97857a` started at about
+03:38 UTC; at 03:45 its release link had switched but the live service still
+reported `15ee3762`, so deployment and any new drawer GPU work remained open.
 
 ### 2026-09-25 execution evidence
 
