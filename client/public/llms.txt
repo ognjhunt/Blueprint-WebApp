@@ -16,7 +16,7 @@ The site explicitly authorizes the match fee when opening a task to pilot propos
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams join by early access. Approved teams see only task cards sites chose to share. Invited evaluations are free within a bounded scope and carry no supplier commission. When a team passes, fits the site's budget, and wants the pilot, Blueprint introduces it to the site, and the two sides agree the pilot directly. Optional self-directed runs cost $99 per policy entry from a prepaid balance and retain their no-later-supplier-commission promise. Blueprint sets the run size. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
+Robot teams join by early access. Approved teams see only task cards sites chose to share. Invited evaluations are free within a bounded scope, carry no supplier commission, and share results with the site for pilot consideration. When a team passes, fits the site's budget, and wants the pilot, Blueprint introduces it to the site, and the two sides agree the pilot directly. Private evaluations cost $99 for one robot policy on one reconstructed real site task, paid from a prepaid balance. Results stay with the team and Blueprint, are not shared with the site, and do not affect pilot matching. Pilot consideration requires a separate free invited evaluation. Blueprint sets the run size. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 

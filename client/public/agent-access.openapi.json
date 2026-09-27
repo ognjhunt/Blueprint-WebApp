@@ -364,8 +364,8 @@
           "Team"
         ],
         "operationId": "startRobotTeamRun",
-        "summary": "Buy and start evaluations from a plan. Dry run unless confirm is true.",
-        "description": "Requires the team's agent key (Bearer) and early access (403 early_access_required otherwise). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
+        "summary": "Buy and start private evaluations from a plan. Dry run unless confirm is true.",
+        "description": "Requires the team's agent key (Bearer) and early access (403 early_access_required otherwise). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. Paid runs cost $99 for one robot policy on one reconstructed site task. New paid runs are always private: the site cannot see results or progress, receives no notifications, and the results do not update pilot matching or shared capabilities. Pilot consideration requires a separate free invited evaluation. Result responses include evaluationPurpose; historical runs retain their original sharing scope. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
         "security": [
           {
             "BlueprintBearer": []

@@ -110,6 +110,9 @@ describe("build output", () => {
   it("makes robot-team intake inspectable without waiting for JavaScript or a task lookup", () => {
     const html = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(html).toContain('aria-label="Early access application"');
+    // Static markup is replaced on mount; accepting input beforehand loses it.
+    expect(html).toMatch(/<input[^>]*disabled=""[^>]*name="name"/);
+    expect(html).toMatch(/<textarea[^>]*disabled=""[^>]*name="robot"/);
     expect(html).toContain('name="robot"');
     expect(html).toContain('name="workWanted"');
     expect(html).toContain("mailto:hello@tryblueprint.io");
@@ -212,7 +215,8 @@ describe("build output", () => {
     expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
-    expect(llms).toContain("$99 per policy entry");
+    expect(llms).toContain("Private evaluations cost $99");
+    expect(llms).toContain("do not affect pilot matching");
     expect(llmsFull).toMatch(/simulation is not physical proof or a deployment guarantee/i);
     expect(llmsFull).toContain("Robot teams join by early access");
     expect(llmsFull).toContain("early_access_required");

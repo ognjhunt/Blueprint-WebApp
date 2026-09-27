@@ -1025,6 +1025,9 @@ describe("agent screening runs on the site's task", () => {
       },
     });
 
+    state.records.set("evaluationRuns/private-secret", {
+      ...state.records.get("evaluationRuns/run_r1"), runId: "private-secret", evaluationPurpose: "private",
+    });
     const body = await (await api("/", "site-1")).json();
     const siteTask = body.tasks.find((item: any) => item.id === "task-1");
     const row = siteTask.results.find((item: any) => item.id === "run_r1");
@@ -1038,6 +1041,16 @@ describe("agent screening runs on the site's task", () => {
     expect(JSON.stringify(body)).not.toContain("team-alpha");
     expect(JSON.stringify(body)).not.toContain("ckpt-secret");
     expect(siteTask.readiness?.decision).toBe("results");
+    expect(JSON.stringify(body)).not.toContain("private-secret");
+    state.records.delete("evaluationRuns/run_r1");
+    const privateOnly = await (await api("/", "site-1")).json();
+    const privateTask = privateOnly.tasks.find((item: any) => item.id === "task-1");
+    expect(privateTask.results).toEqual([]);
+    expect((await api("/tasks/task-1/pilot", "site-1", {
+      action: "invite", resultId: "private-secret", notes: "Attempt to consider private run", siteVisitAnswer: "yes",
+    })).status).toBe(409);
+    expect(privateTask.status).not.toBe("Review results");
+    expect(privateTask.readiness?.decision).not.toBe("results");
   });
 });
 

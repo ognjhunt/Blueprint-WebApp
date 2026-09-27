@@ -16,6 +16,7 @@ export interface AgentAccessKey {
 }
 
 export interface AgentAccessRun {
+  evaluationPurpose?: "private" | "pilot";
   runId: string;
   sceneId: string;
   taskFamily: string | null;

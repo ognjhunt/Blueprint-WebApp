@@ -60,18 +60,18 @@ export default function Pricing() {
             </p>
             <h2 id="team-price-title">Evaluate real site tasks</h2>
             <p className="ms-price-note">
-              Evaluate the site tasks we match you to for free. If you pass and want the pilot, we
-              introduce you to the site.
+              Evaluate for a pilot for free when invited. The site sees your results and can consider
+              you for the pilot.
             </p>
             <a className="ms-text-link" href="/contact/robot-team">
               Apply for early access <ArrowRight size={20} aria-hidden="true" />
             </a>
           <details className="ms-task-interest ms-visitor-detail">
-            <summary>Optional self-directed robot evaluations</summary>
+            <summary>Private evaluation · $99</summary>
             <p>
-              Invited evaluations are free within the invitation's scope. Approved teams can also
-              choose a listed task and buy a self-directed run for {formatPrice(entryPrice)}:
-              {" "}one robot running one policy on one task. You see the plan and price before authorizing a run.
+              Test one robot policy on a reconstructed real site task for {formatPrice(entryPrice)}.
+              Results stay with your team and Blueprint; the site does not see or consider them.
+              To pursue a pilot afterward, enter a separate free invited evaluation.
             </p>
           </details>
           </section>

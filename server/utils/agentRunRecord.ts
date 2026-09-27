@@ -19,6 +19,8 @@ export interface RunDispatch {
 }
 
 export interface EvalRunRecord {
+  /** Absent only on historical runs created before private evaluations. */
+  evaluationPurpose?: "private" | "pilot";
   runId: string;
   teamId: string;
   checkpointId: string;
@@ -59,6 +61,8 @@ export function runIdForReservation(reservationId: string): string {
 export function buildRequestedRunRecord(params: RequestedRunParams): EvalRunRecord {
   return {
     ...params,
+    // A paid run is always private; callers and callback payloads cannot opt out.
+    evaluationPurpose: "private",
     runId: runIdForReservation(params.reservationId),
     quotedUsd: Math.round(params.quotedUsd * 100) / 100,
     quotedEpisodes: Math.max(1, Math.round(params.quotedEpisodes)),
@@ -71,4 +75,9 @@ export function buildRequestedRunRecord(params: RequestedRunParams): EvalRunReco
     dispatchPending: true,
     ...(typeof (params.executionAdmission?.envelope.binding as Record<string, unknown> | undefined)?.capture_id === "string" ? { executionCaptureId: String((params.executionAdmission!.envelope.binding as Record<string, unknown>).capture_id) } : {}),
   };
+}
+
+/** Historical runs retain their original sharing agreement. Unknown modes fail closed. */
+export function isSiteEvaluation(run: Pick<EvalRunRecord, "evaluationPurpose">): boolean {
+  return run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot";
 }

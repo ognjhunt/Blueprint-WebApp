@@ -88,6 +88,7 @@ describe("signed one-time approval", () => {
       reservationId: "res_team-atomic_buy-1",
     });
     expect(sharedFakeFirestoreState.docs.get("evaluationRuns/run_res_team-atomic_buy-1")).toMatchObject({
+      evaluationPurpose: "private",
       teamId: TEAM,
       checkpointId: CHECKPOINT,
       sceneId: SCENE,
@@ -114,6 +115,18 @@ describe("signed one-time approval", () => {
     const first = await authorize();
     const retry = await authorize();
     expect(retry).toEqual(first);
+  });
+
+  it("does not reuse a historically shared run for a new private purchase", async () => {
+    seedCredit();
+    const first = await authorize();
+    expect(first.authorized).toBe(true);
+    const key = "evaluationRuns/run_res_team-atomic_buy-1";
+    const historical = { ...sharedFakeFirestoreState.docs.get(key) };
+    delete historical.evaluationPurpose;
+    sharedFakeFirestoreState.docs.set(key, historical);
+    expect(await authorize()).toMatchObject({ authorized: false, refusal: "idempotency_conflict" });
+    expect(sharedFakeFirestoreState.docs.get(key)).toEqual(historical);
   });
 
   it("refuses a different key after the last $25 is reserved", async () => {

@@ -45,6 +45,7 @@ import {
 } from "./robotTeamBalance";
 import {
   buildRequestedRunRecord,
+  isSiteEvaluation,
   reservationTtlMs,
   runIdForReservation,
   type EvalRunRecord,
@@ -89,7 +90,7 @@ export async function createRequestedRun(params: RequestedRunParams): Promise<Ev
     const snapshot = await transaction.get(ref);
     if (snapshot.exists) {
       const prior = snapshot.data() as EvalRunRecord;
-      if (["teamId", "checkpointId", "sceneId", "reservationId", "quotedUsd", "quotedEpisodes"].some(key => prior[key as keyof EvalRunRecord] !== record[key as keyof EvalRunRecord]) || prior.executionAdmission?.digestSha256 !== record.executionAdmission?.digestSha256) throw new Error("Run idempotency conflict");
+      if (["teamId", "checkpointId", "sceneId", "reservationId", "quotedUsd", "quotedEpisodes", "evaluationPurpose"].some(key => prior[key as keyof EvalRunRecord] !== record[key as keyof EvalRunRecord]) || prior.executionAdmission?.digestSha256 !== record.executionAdmission?.digestSha256) throw new Error("Run idempotency conflict");
       return prior;
     }
     transaction.set(ref, { ...record, settlementDueAtMs: Date.now() + reservationTtlMs() });
@@ -129,7 +130,7 @@ export async function reportRunOutcome(params: {
 
   const ref = db.collection(RUNS_COLLECTION).doc(params.runId);
   const episodesRun = Math.max(0, Math.round(params.episodesRun));
-  let endedWithoutResult: { sceneId: string; teamId: string } | null = null;
+  let endedWithoutResult: { sceneId: string; teamId: string; siteVisible: boolean } | null = null;
   const accepted = await db.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     // An outcome for a run we never reserved money for has nothing to settle.
@@ -164,15 +165,15 @@ export async function reportRunOutcome(params: {
       reportedAtIso: nowIso(),
       settlementDueAtMs: 0,
     }, { merge: true });
-    endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId } : null;
+    endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId, siteVisible: isSiteEvaluation(run) } : null;
     return true;
   });
   // The site hears about a run that ended with nothing to show, too. A run
   // with episodes gets its email when the result is recorded.
-  const ended = endedWithoutResult as { sceneId: string; teamId: string } | null;
+  const ended = endedWithoutResult as { sceneId: string; teamId: string; siteVisible: boolean } | null;
   if (ended) {
     try {
-      await enqueueTaskLifecycleNotification({ requestId: ended.sceneId, milestone: "run_no_result", eventId: params.runId });
+      if (ended.siteVisible) await enqueueTaskLifecycleNotification({ requestId: ended.sceneId, milestone: "run_no_result", eventId: params.runId });
     } catch (error) {
       logger.warn({ error, runId: params.runId }, "Could not enqueue a no-result notice");
     }
@@ -569,7 +570,7 @@ export async function markRunStarted(params: {
   // Only a successful CAS (or its same-owner idempotent retry) reaches here.
   // The retry repairs an enqueue lost after the run was durably claimed.
   try {
-    await enqueueTaskLifecycleNotification({
+    if (isSiteEvaluation(claimed)) await enqueueTaskLifecycleNotification({
       requestId: claimed.sceneId,
       milestone: "screening_started",
       // One email per run: each team picking the task up is its own event.
@@ -605,6 +606,7 @@ export async function loadSceneScreening(sceneId: string): Promise<SceneScreenin
     const run = doc.data() as EvalRunRecord & {
       result?: { observed?: { episodesRun?: number; episodesSucceeded?: number } } | null;
     };
+    if (!isSiteEvaluation(run)) continue;
     const observed = run.result?.observed;
     const episodes = Math.max(0, Math.round(observed?.episodesRun ?? 0));
 
@@ -666,6 +668,6 @@ export async function listRunsForScene(sceneId: string): Promise<
     .get();
   return snapshot.docs
     .map((doc) => doc.data() as EvalRunRecord & { result?: never })
-    .filter((run) => ["requested", "completed", "blocked"].includes(run.state))
+    .filter((run) => isSiteEvaluation(run) && ["requested", "completed", "blocked"].includes(run.state))
     .sort((a, b) => (a.requestedAtIso || "").localeCompare(b.requestedAtIso || ""));
 }

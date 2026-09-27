@@ -20,7 +20,7 @@ export const privacyPolicySections = [
   {
     title: "How we use it",
     body:
-      "To run the Service: to reply to you, set up your task or account, rebuild scenes and run evaluations, prepare provider-backed pilot offers, record physical-pilot outcomes only under the parties' agreed permissions, take payments owed to Blueprint, send the emails you need (such as a task update or a run result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information or share it for cross-context behavioral advertising, and we do not use your footage to train AI models without your written agreement.",
+      "To run the Service: to reply to you, set up your task or account, rebuild scenes and run evaluations, prepare provider-backed pilot offers, keep paid private evaluation results within your team and Blueprint and our processing providers (with no site updates or use in pilot matching), record physical-pilot outcomes only under the parties' agreed permissions, take payments owed to Blueprint, send the emails you need (such as a task update or a run result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information or share it for cross-context behavioral advertising, and we do not use your footage to train AI models without your written agreement.",
     icon: Shield,
   },
   {
@@ -52,7 +52,7 @@ export const capturePrivacyAnnex = [
 export const rolePrivacyAnnex = [
   {
     title: "Robot teams",
-    body: "Your account holds your team's details, the robots and policies you register, the runs you buy, their results, your balance and your API keys. Sites see an alias for your team and its results, not your name or your policy.",
+    body: "Your account holds your team's details, the robots and policies you register, the runs you buy, their results, your balance and your API keys. Paid private evaluation results stay with your team and Blueprint and our processing providers; sites do not see them or receive updates, and they do not affect pilot matching. Official invited evaluation results are shared with the site under your team alias; your policy stays private.",
   },
   {
     title: "Sites",

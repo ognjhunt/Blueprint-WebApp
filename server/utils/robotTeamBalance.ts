@@ -399,7 +399,7 @@ export async function authorizeAgentSpend(params: {
       if (params.requestedRun) {
         const priorRun = await transaction.get(db!.collection("evaluationRuns").doc(`run_${entry.reservationId}`));
         const run = priorRun.data() as EvalRunRecord | undefined;
-        if (!run || run.checkpointId !== params.requestedRun.checkpointId || run.sceneId !== params.requestedRun.sceneId || run.executionAdmission?.digestSha256 !== params.requestedRun.executionAdmission?.digestSha256) {
+        if (!run || run.evaluationPurpose !== "private" || run.checkpointId !== params.requestedRun.checkpointId || run.sceneId !== params.requestedRun.sceneId || run.executionAdmission?.digestSha256 !== params.requestedRun.executionAdmission?.digestSha256) {
           return { authorized: false, refusal: "idempotency_conflict", detail: "This preparation already belongs to a different execution." } as const;
         }
       }

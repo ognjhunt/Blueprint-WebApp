@@ -178,6 +178,7 @@ const BALANCE_POLL_INTERVAL_MS = 2500;
 
 type ResultReceipt = {
   runId: string;
+  evaluationPurpose?: "private" | "pilot";
   sceneId?: string;
   state?: string;
   dispatch?: { startedAtIso?: string } | null;
@@ -667,7 +668,7 @@ export function RobotTeamPlanPreview({
       <button className="ms-text-link" type="button" onClick={() => { const stash = readQueueStash(); if (stash) void loadResults(stash.agentKey); }}>Check results</button>
       {results.status === "failed" && <p role="alert">Results could not be loaded. Try again.</p>}
       {results.rows.length > 0 && <ul aria-label="Run results">{results.rows.map(result => <li key={result.runId}>
-        {result.result?.observed ? `${result.result.observed.episodesSucceeded || 0} of ${result.result.observed.episodesRun || 0} episodes` : result.dispatch?.startedAtIso ? "Running" : "Queued"}
+        {result.evaluationPurpose === "private" && "Private · "}{result.result?.observed ? `${result.result.observed.episodesSucceeded || 0} of ${result.result.observed.episodesRun || 0} episodes` : result.dispatch?.startedAtIso ? "Running" : "Queued"}
       </li>)}</ul>}
     </div>;
   }
@@ -732,7 +733,7 @@ export function RobotTeamPlanPreview({
           <ul aria-label="Run results">
             {results.rows.map((result) => (
               <li key={result.runId}>
-                <strong>{queue.started.find(run => run.runId === result.runId)?.siteLabel || "Evaluation run"}</strong>: {result.result ? "Result received" : result.state === "blocked" ? "Ended without a result" : result.state === "abandoned" ? "Hold released" : result.dispatch?.startedAtIso ? "Running" : "Queued"}
+                {result.evaluationPurpose === "private" && "Private · "}<strong>{queue.started.find(run => run.runId === result.runId)?.siteLabel || "Evaluation run"}</strong>: {result.result ? "Result received" : result.state === "blocked" ? "Ended without a result" : result.state === "abandoned" ? "Hold released" : result.dispatch?.startedAtIso ? "Running" : "Queued"}
                 {result.result?.observed?.episodesRun
                   ? ` — ${result.result.observed.episodesSucceeded || 0} of ${result.result.observed.episodesRun} episodes`
                   : ""}
@@ -776,6 +777,7 @@ export function RobotTeamPlanPreview({
               <strong>${plan.totalCostUsd} to run all of them.</strong> Nothing is charged until you
               confirm this signed plan.
             </p>
+            <p className="ms-field-hint">Private evaluation: results stay with your team and Blueprint. The site does not see them, receive updates, or consider them for a pilot. Pilot consideration requires a separate free invited evaluation.</p>
             {/* Paying needs a known customer: connect the team to a verified
                 account first. The plan above stays free to read either way. */}
             {!plan.accountBound && (
@@ -864,7 +866,7 @@ export function RobotTeamPlanPreview({
     <form className="ms-form" onSubmit={submit} aria-label="Tell us about your robot">
       <h2 style={{ marginTop: 0 }}>Connect your robot setup</h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
-        Add a setup to check compatibility and get a priced plan. Nothing runs or is charged here.
+        Add a setup for private testing on a reconstructed site task. Check compatibility and see the price before buying.
       </p>
 
       <label htmlFor="plan-email">
@@ -883,7 +885,7 @@ export function RobotTeamPlanPreview({
         </span>
         <span className="ms-field-hint">
           We read published figures into proposals a person checks. Nothing on a page becomes a
-          claim about your robot without a run or a reviewer.
+          claim about your robot without an official evaluation or a reviewer.
         </span>
         <input id="plan-website" name="planWebsite" type="url" maxLength={500} placeholder="https://" />
       </label>
@@ -902,7 +904,7 @@ export function RobotTeamPlanPreview({
       <label htmlFor="plan-task-family">
         <span>What does it do?</span>
         <span className="ms-field-hint">
-          The coarsest filter there is, and the first run replaces it with what we measure.
+          Used to find relevant tasks for your robot. Private results do not change your matching profile.
         </span>
         <select id="plan-task-family" name="planTaskFamily" defaultValue="pick_place">
           {TASK_FAMILIES.map((option) => (

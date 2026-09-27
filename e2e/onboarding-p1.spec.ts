@@ -50,11 +50,11 @@ for (const mobile of [false, true]) {
     await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toBeVisible();
     await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
     await page.getByLabel("Filter by availability").selectOption("open");
-    await page.getByRole("button", { name: "Self-directed evaluation · $25" }).click();
+    await page.getByRole("button", { name: "Private evaluation · $25" }).click();
     await expect(page.getByText("Site's proposed pilot price")).toBeVisible();
     await expect(page.getByText("Four weeks including setup and provider support")).toBeVisible();
     await expect(page.getByText("$5,000 per month")).toBeVisible();
-    await expect(page.getByText(/Evaluation does not commit you to a pilot/)).toBeVisible();
+    await expect(page.getByText(/Results stay with your team and Blueprint and do not enter pilot matching/)).toBeVisible();
     await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
     await page.locator("#plan-hardware").selectOption("prototype");
   await page.locator("#plan-geography").selectOption("yes");
@@ -74,7 +74,7 @@ test("an approved team's empty library says tasks are coming; an outage is not a
   await expect(page.getByRole("form", { name: "Task preferences" })).toHaveCount(0);
   await screenshot(page, "empty-approved");
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ status: 503, json: { error: "offline" } }));
-  await page.reload(); await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  await page.reload(); await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
   await expect(page.getByText("The first site tasks are being prepared.")).toHaveCount(0);
 });
 
@@ -189,7 +189,7 @@ test("a one-time paid plan keeps its receipt across reload and exposes results",
   });
   await page.route("**/api/agent-team/results", route => route.fulfill({ json: { runs: [{ runId: "local-run", state: "completed", result: { observed: { episodesRun: 50, episodesSucceeded: 41 } } }] } }));
   await page.goto("/contact/robot-team");
-  await page.getByRole("button", { name: "Self-directed evaluation · $25" }).first().click();
+  await page.getByRole("button", { name: "Private evaluation · $25" }).first().click();
   await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
   await page.locator("#plan-hardware").selectOption("prototype");
   await page.locator("#plan-geography").selectOption("yes");

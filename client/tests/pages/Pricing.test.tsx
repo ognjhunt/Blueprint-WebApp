@@ -27,9 +27,9 @@ describe("Pricing", () => {
     render(<Pricing />);
     const team = section("Evaluate real site tasks");
     expect(within(team).getByText("$0")).toBeInTheDocument();
-    expect(within(team).getByText(/If you pass and want the pilot, we introduce you to the site/)).toBeInTheDocument();
+    expect(within(team).getByText(/The site sees your results and can consider you for the pilot/)).toBeInTheDocument();
     expect(team.textContent).not.toMatch(/commission/i);
-    expect(within(team).getByText("Optional self-directed robot evaluations").closest("details")).not.toHaveAttribute("open");
+    expect(within(team).getByText("Private evaluation · $99").closest("details")).not.toHaveAttribute("open");
     expect(within(team).getByRole("link", { name: /Apply for early access/ })).toHaveAttribute("href", "/contact/robot-team");
   });
 
@@ -45,7 +45,7 @@ describe("Pricing", () => {
     render(<Pricing />);
     expect(screen.getByText(/explicitly authorize the fee/)).toHaveTextContent(/even if you choose not to buy the pilot/);
     expect(screen.getByText(/If a matched team withdraws/)).toHaveTextContent(/If none fits, we refund your match fee/);
-    expect(screen.getByText(/Invited evaluations are free within/)).toHaveTextContent(/\$99: one robot running one policy on one task/);
+    expect(screen.getByText(/Test one robot policy/)).toHaveTextContent(/the site does not see or consider them/);
     expect(screen.getByRole("link", { name: "See what a match includes" })).toHaveAttribute("href", "/how-it-works#match-package");
   });
 

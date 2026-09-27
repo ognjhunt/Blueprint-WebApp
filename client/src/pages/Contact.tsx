@@ -33,7 +33,7 @@ export default function Contact() {
             <summary>What happens after applying?</summary>
             <p>We review your robot's capabilities, the work you want and where you can support a pilot, then email the next step. Approved teams can see shared task details; applying does not commit you to an integration or a pilot.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. Executable submissions use a policy endpoint or container; compatibility must be checked for the specific task.</p>
-            <p>Invited runs are free within the invitation's scope. Optional self-directed runs cost {formatPrice(entryPrice)} for one robot running one policy on one task. You see the plan and price before authorizing a run.</p>
+            <p>Evaluate for a pilot for free when invited; the site sees those results. For internal testing, a private evaluation costs {formatPrice(entryPrice)} for one robot policy on one reconstructed site task. Private results are not shared with the site or used for matching.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about task fit or integration</a></p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>

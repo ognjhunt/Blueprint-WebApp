@@ -153,7 +153,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      `No match, no fee. Sites submit a task and get it screened and evaluated for free, and pay Blueprint ${formatPrice(matchFeeUsd)} per task only when it finds a robot team that passed the evaluation, fits the site's budget, and wants to run the pilot. Blueprint takes no percentage of the pilot or any deployment. The site explicitly authorizes the match fee when opening the task to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched tasks for free; optional self-directed runs cost ${formatPrice(entryPrice)} per policy entry and keep their no-later-supplier-commission promise.`,
+      `No match, no fee. Sites submit a task and get it screened and evaluated for free, and pay Blueprint ${formatPrice(matchFeeUsd)} per task only when it finds a robot team that passed the evaluation, fits the site's budget, and wants to run the pilot. Blueprint takes no percentage of the pilot or any deployment. The site explicitly authorizes the match fee when opening the task to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched tasks for free; private evaluations cost ${formatPrice(entryPrice)} for one robot policy on one reconstructed real site task. Private results are not shared with the site or used for pilot matching; pilot consideration requires a separate free invited evaluation.`,
   },
   {
     path: "/contact",

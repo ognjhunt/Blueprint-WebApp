@@ -12,7 +12,11 @@ test("pricing leads with no match, no fee and keeps robot teams free", async ({ 
 
   const team = page.locator("section", { has: page.getByRole("heading", { name: "Evaluate real site tasks" }) });
   await expect(team.getByText("$0", { exact: true })).toBeVisible();
-  await expect(team.getByText(/\$99|per entry|commission/i)).toHaveCount(0);
+  const privateOption = team.locator("details");
+  await expect(privateOption).not.toHaveAttribute("open");
+  await privateOption.locator("summary").click();
+  await expect(privateOption.getByText(/the site does not see or consider them/)).toBeVisible();
+  await expect(privateOption.getByText(/separate free invited evaluation/)).toBeVisible();
   await expect(team.getByRole("link", { name: /Apply for early access/ })).toHaveAttribute("href", "/contact/robot-team");
 
   const pilot = page.locator("section", { has: page.getByRole("heading", { name: "The pilot itself" }) });

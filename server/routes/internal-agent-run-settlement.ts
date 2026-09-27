@@ -373,6 +373,7 @@ router.get("/agent-runs", createPipelineSyncRateLimiter(), guard, async (req: Re
         ]);
         return {
           run_id: run.runId,
+          evaluation_purpose: run.evaluationPurpose ?? "pilot",
           reservation_id: run.reservationId,
           team_id: run.teamId,
           task_family: run.taskFamily,
@@ -445,7 +446,7 @@ router.post(
 router.get("/agent-runs/:runId", createPipelineSyncRateLimiter(), guard, async (req: Request, res: Response) => {
   const run = await getRun(String(req.params.runId));
   if (!run) return res.status(404).json({ code: "agent_run_not_found" });
-  return res.json({ run_id: run.runId, state: run.state, money_resolved: run.moneyResolved,
+  return res.json({ run_id: run.runId, evaluation_purpose: run.evaluationPurpose ?? "pilot", state: run.state, money_resolved: run.moneyResolved,
     execution_admission: run.executionAdmission?.envelope ?? null,
           execution_admission_canonical_json: run.executionAdmission?.canonicalJson ?? null,
     execution_admission_digest: run.executionAdmission?.digestSha256 ?? null,

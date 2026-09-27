@@ -1,62 +1,9 @@
 /**
- * Published prices for a site's task, invited evaluation, and optional
- * self-directed robot-team evaluation. An invited run is free within its
- * stated scope.
- *
- *   $0      a site pays nothing to find out.
- *   $2,500  a site pays once per task, only if Blueprint finds a match.
- *   $99     a robot team pays per optional self-directed entry.
- *
- * The robot team prices and contracts for its own physical pilot, and Blueprint
- * takes no cut of it. Self-directed paid entries retain their
- * no-later-supplier-commission promise.
- *
- * WHAT AN ENTRY IS. One policy, running on one embodiment, against one task at
- * one site. Both halves are part of the unit: the same policy on a second
- * embodiment is a second entry, and a second policy on the same embodiment is
- * a second entry. A different embodiment running a different policy is still
- * one entry, because it is still one pair. Entries times tasks times $99 is the
- * whole bill, and there is no other term.
- *
- * WHY A FLAT PRICE RATHER THAN A METER. The page this replaced sold episodes:
- * $0.50 each, 50 to screen a checkpoint, a 500-episode finalist round Blueprint
- * funded, and roughly a thousand words explaining which gaps each count could
- * resolve. Every one of those words was true and none of them belonged to the
- * buyer. Choosing an episode count is a statistics problem, the honest answer
- * does not vary by customer, and we were asking each customer to solve it in
- * order to read a price. A flat entry price answers it once: we size the run,
- * we run it, the buyer reads one number.
- *
- * The episode counts did not go away — see the operating constants below. They
- * stopped being a dial the buyer turns, which is the only thing that changed
- * commercially.
- *
- * WHY THE SITE PAYS NOTHING TO START. Not generosity. A price in front of the
- * first step and a ten-minute onboarding are mutually exclusive: any upfront
- * figure means a purchase order, a budget owner and legal, which is weeks.
- * Capture takes forty-five seconds and reconstruction costs us the price of one
- * world-model generation, so a payment there would be the slowest and most
- * expensive step in a process built to be fast and cheap.
- *
- * It also fixes who we are subsidising. The scarce side of this market is real
- * rooms running real repeated tasks with permission to be captured — not funded
- * robot teams starved of deployment data.
- *
- * WHY THE SITE PAYS FOR A MATCH. No match, no fee. The fee is for the one
- * outcome Blueprint produces and can see itself: a robot team that passed the
- * evaluation for the task, fits the site's budget, and wants to run its pilot.
- * The site agrees to it with one checkbox when it opens the task to pilot
- * proposals, and the invoice goes out with the introduction. The match is never
- * held back until payment, and the fee does not depend on the pilot that
- * follows, which the two sides agree directly and Blueprint takes no cut of.
- *
- * WHY BLUEPRINT STILL SETS THE RUN LENGTH. If a team could buy a longer run
- * than a rival, the team with the deepest pockets would buy more statistical
- * confidence than its rivals — which is not a comparison, it is an auction. So
- * funding and allocation stay separate: entry fees fill the pool, and Blueprint
- * decides how it is spent, giving every entry on a task the same run under the
- * same conditions. A flat price makes that easier to state, not harder: there
- * is nothing left to buy more of.
+ * Sites pay $2,500 per task at a qualifying introduction; invited pilot
+ * evaluations are free and shared with the site. Robot teams pay $99 for a
+ * private evaluation of one policy/configuration on one reconstructed site
+ * task. Private results are excluded from site updates and pilot matching.
+ * Blueprint sets the run length. Physical pilots are agreed separately.
  */
 
 /** The billable unit, and the whole of its definition. */
@@ -120,21 +67,21 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Robot teams pay for optional self-directed evaluation runs. Invited teams evaluate a qualified task for free. A site pays Blueprint $2,500 per task only when we find a robot team that matches it. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Robot teams pay for private internal evaluation runs. Invited teams evaluate a qualified task for free. A site pays Blueprint $2,500 per task only when we find a robot team that matches it. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
     "The physical pilot, which the robot team prices and runs. Blueprint takes no cut of the pilot; its only site fee is $2,500 per task when it finds a match.",
 } as const;
 
 /** How a robot team pays. No plan, no seat, no listing fee, no meter. */
 export const entryModel = {
-  summary: "One price for each policy you put on a task.",
+  summary: "One price for a private test on a reconstructed site task.",
   detail:
     `Add funds (from $${minTopupUsd}), enter the policies you want evaluated, and top up when the balance gets low. There is no other charge.`,
   notCharged: [
     "No subscription and no monthly minimum.",
     "No listing fee, seat fee, or fee to apply.",
     "No percentage of whatever you sign with the site.",
-    "Nothing more later, including if you are shortlisted.",
+    "Private results do not enter a shortlist.",
   ],
   /**
    * The thing a team should check before believing the comparison. Funding and
@@ -154,7 +101,7 @@ export const entryModel = {
 export const included = [
   "How much evaluation an entry gets, and under what conditions. We size it, and it is the same for every entry on the task.",
   "The screen against Blueprint's four conditions for a site a robot can work in, listed below.",
-  "The comparison against every other entry on the same task.",
+  "Private results for your team; no site visibility or pilot matching.",
   "The result: where the entry holds up, where it fails, and where the evidence stops short of a call.",
 ] as const;
 
@@ -164,7 +111,7 @@ export const included = [
  * between those two is the easiest thing for a buyer to misread.
  */
 export const includedLimit =
-  "A comparison can come back too close to separate. We report that rather than naming a winner, and a simulated ranking is still not a real-world ranking.";
+  "A private simulated evaluation does not establish physical performance or qualify you for a pilot.";
 
 /** The billing rules that decide who eats a failure, in plain terms. */
 export const billingRules = [
