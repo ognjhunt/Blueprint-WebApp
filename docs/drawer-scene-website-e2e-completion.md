@@ -20,7 +20,7 @@ The website issued this scene's distinct development-test sponsorship at
 request ceiling amended to 32 under the unchanged $5 cap. Do not transfer the
 older scene's stage evidence or budget.
 
-| Step | Current evidence at 2026-09-26 05:43 UTC |
+| Step | Current evidence at 2026-09-27 07:16 UTC |
 | --- | --- |
 | 1. Intake, rights, confirmed task | **done** — website claim/brief and distinct signed sponsorship consumed by the Pipeline |
 | 2. Original website upload and provider binding | **done** — original digest `sha256:d63aa286…d130` retained and bound to provider requests |
@@ -34,14 +34,45 @@ older scene's stage evidence or budget.
 | 10. CPU CAD/Blender/USD articulation and static qualification | **done for the development fixture** — the controller reused the sealed CPU authoring result with separate carcass and middle-drawer parts; the source launch's six-stage chain completed and its published revision binds an articulated asset (`sha256:b6a11534…3ff12342`) and static qualification (`sha256:3009f730…d007b690a17`). This does not qualify captured-room geometry. |
 | 11. Captured-room integration or named development fixture | **done for the named fixture; captured room unqualified** — `site-capture-cc484026-f6ba-4b9e-9a16-aca0a0163b8d-development` was separately identified, executed and published through the website/controller path. The original-room registration blockers remain; no claim of Marble-room integration is made. |
 | 12. Native import/physics/robot-interface qualification | **done for the development fixture** — native stage 5 completed; the published revision binds native import qualification (`sha256:4c7dfe4b…586db5d`) and robot mount/workspace/camera references. The source launch completed, synced to the website and retained provider-zero after teardown. |
-| 13. Frozen policy/setup and GPU policy episode | **partial; two invalid first-cell attempts** — `…967af9378a61` made real policy queries but collided with the desk. The later exact-release run `…b7e6f7c071cb` reached Vast GPU and Pi05 made 56 real policy queries and 464 native samples in cell 1. Its first action collided with the cabinet carcass and top drawer, displacing the cabinet root 0.2725 m; its drawer motion is invalid. GR00T failed reset parity before its first observation. The remaining nine cells were stopped by the frozen diagnostic continuation guard. Neither run is a completed ten-cell evaluation or drawer success. |
-| 14. Numeric scoring, teardown and website result | **partial; blocked results delivered** — native joint/root/contact scoring rejected the first-cell policy motion. The `…b7e6f7c071cb` run tore down Vast, reconciled an official $0.703 charge, and passed provider-zero; WebApp sync succeeded and owner delivery readback is `verified`. This proves website publication of a blocked result, but an invalid setup and incomplete matrix cannot close an end-to-end drawer evaluation. |
+| 13. Frozen policy/setup and GPU policy episode | **partial; two invalid first-cell attempts and one later no-query failure** — `…967af9378a61` made real policy queries but collided with the desk. The later exact-release run `…b7e6f7c071cb` reached Vast GPU and Pi05 made 56 real policy queries and 464 native samples in cell 1. Its first action collided with the cabinet carcass and top drawer, displacing the cabinet root 0.2725 m; its drawer motion is invalid. GR00T failed reset parity before its first observation. The remaining nine cells were stopped by the frozen diagnostic continuation guard. The 2026-09-27 run `…ab7127548f46` rented one GPU but produced no policy observation or query. None is a completed ten-cell evaluation or drawer success. |
+| 14. Numeric scoring, teardown and website result | **partial; blocked results delivered** — native joint/root/contact scoring rejected the earlier first-cell policy motion. The `…b7e6f7c071cb` run tore down Vast, reconciled an official $0.703 charge, and passed provider-zero. The latest `…ab7127548f46` run also tore down, reconciled an official $0.843 charge and passed provider-zero, but has only a typed before-first-observation media gap, not a numeric policy score. Its status sync succeeded and owner delivery readback is `verified`. Website publication of blocked results does not close an end-to-end drawer evaluation. |
 
 Fixture completion state: **CPU and static native qualification retained; GPU
-first-cell execution exposed desk and cabinet collisions on two attempts, so
-policy evaluation remains incomplete**.
+first-cell execution exposed desk and cabinet collisions on two attempts, and
+the latest rental stopped before observation, so policy evaluation remains
+incomplete**.
 Captured-room integration state: **unqualified**. A fixture result, if later
 produced, cannot close the captured-room registration claim.
+
+### 2026-09-27 07:16 UTC — Latest paid run stopped before policy observation
+
+The controller dispatched same-scene run
+`team-eval-85e6d1ff3e66a639b2e8acf4d8a7737f-policy-canary-ab7127548f46`
+on exact release `352d33906f5b328736fae3f858166f5cc98c14fe`. Its no-spend
+preparation, ten-cell compilation and activation passed; paid admission rented
+one Vast instance. The provider runtime did not return its output ZIP before
+the independent no-progress watchdog terminated the attempt. The terminal
+record is `blocked`, with `candidate_policy_queried: false`, 20 blocked
+candidate/cell placeholders, and an explicit `before_first_observation` media
+gap. This is an infrastructure failure, not evidence that either policy tried
+and failed to open the drawer. The official posted Vast charge is $0.843;
+teardown and global provider-zero passed. Status sync succeeded and the owner
+delivery readback is `verified`.
+
+Pipeline PRs #2363–#2366 are merged through `989acb8978035ee67742caa3bcd2aa952dd71b58`.
+They add fixed cell-stage progress evidence, an attempt-pinned remote probe
+for the no-progress watchdog, a scoped protected SSH identity lookup and the
+worker source-budget correction. Focused tests and hosted impacted checks
+passed; these fixes are **not yet deployed or GPU-proven**. The live release
+remains `cbcfd78976459e437ee7b1b49326a26757a44d7f` while a separate G1
+lane prepares its bound paid run. The drawer scene's signed execution window
+expired at 2026-09-27 06:55:37 UTC. Read-only signed-record accounting shows
+16 of 16 paid attempts counted and $81.72 retained exposure against the $84
+cumulative cap. No further paid drawer launch is authorized. A single future
+$4-capped same-scene attempt would require an explicit time extension and a
+new cumulative grant of at least $85.72 and 17 attempts; neither has been
+issued. The $5 preparation guard and fixed $25 website development-test
+sponsorship remain unchanged.
 
 ### 2026-09-26 GPU recovery in progress
 
