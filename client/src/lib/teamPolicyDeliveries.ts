@@ -12,6 +12,8 @@ export type TeamPolicyDelivery =
 export type TeamPolicyDeliveryProfile = {
   profile_digest: string;
   label: string;
+  source_setup_digest: string;
+  robot_preset_id: string;
   embodiment_id: string;
   observation_schema_id: string;
   action_schema_id: string;
@@ -65,4 +67,42 @@ export async function registerTeamPolicyDelivery(params: {
     throw new Error("Policy delivery receipt is invalid");
   }
   return value.profile_digest;
+}
+
+export async function submitG1TeamPolicyRun(params: {
+  currentUser: FirebaseUser;
+  runId: string;
+  setupDigest: string;
+  profileDigest: string;
+  objectiveId: "task_success" | "g1_navigation_goal";
+  maximumCostUsd: number;
+  authorizationExpiresAtEpoch: number;
+}): Promise<string> {
+  const response = await fetch("/api/native-g1-team-campaigns/policy-runs", {
+    method: "POST",
+    credentials: "include",
+    redirect: "error",
+    headers: await withFirebaseAuthHeaders(params.currentUser,
+      await withCsrfHeader({ "Content-Type": "application/json" })),
+    body: JSON.stringify({
+      run_id: params.runId,
+      setup_digest: params.setupDigest,
+      profile_digest: params.profileDigest,
+      objective_id: params.objectiveId,
+      authorization_expires_at_epoch: params.authorizationExpiresAtEpoch,
+      authorize_maximum_cost_usd_12: true,
+      site_observation_exchange_authorized: true,
+      maximum_cost_usd: params.maximumCostUsd,
+    }),
+  });
+  const value = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) throw new Error(String(value.error || `G1 policy run unavailable (${response.status})`));
+  if (value.schema_version !== "native_g1_team_policy_run_intake_receipt.v1"
+    || value.status !== "accepted_pending_operator_approval"
+    || value.provider_mutation_performed_inside_http_request !== false
+    || typeof value.intent_id !== "string"
+    || !value.intent_id.startsWith("g1-team-policy-")) {
+    throw new Error("G1 policy run intake receipt is invalid");
+  }
+  return value.intent_id;
 }
