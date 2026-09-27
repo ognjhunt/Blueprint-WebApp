@@ -54,7 +54,7 @@ test("mobile navigation and keyboard-accessible method disclosure work", async (
   await page.goto("/");
   await page.locator("summary").nth(2).focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByText(/the pass mark in your task brief shows whether it worked/)).toBeVisible();
+  await expect(page.getByText(/Measure the on-site trial against the success criteria you agreed/)).toBeVisible();
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {
@@ -84,4 +84,15 @@ test("the site page puts the capture form before the explanation, on a phone too
     await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Send inquiry" })).toHaveCount(0);
   }
+});
+
+test("pricing opens the match preview and explains the fee before a commitment", async ({ page }) => {
+  await page.goto("/pricing");
+  await expect(page.getByText(/We invoice at introduction, even if you choose not to buy/)).toBeVisible();
+  await page.getByText("What if the provider pulls out or changes the offer?", { exact: true }).click();
+  await expect(page.getByText(/If none fits, we refund your match fee/)).toBeVisible();
+  await page.getByRole("link", { name: "See what a match includes" }).click();
+  await expect(page).toHaveURL(/\/how-it-works#match-package$/);
+  await expect(page.getByRole("heading", { name: "Pilot brief · example format" })).toBeVisible();
+  await expect(page.getByText(/Illustrative format, not a customer result/)).toBeVisible();
 });

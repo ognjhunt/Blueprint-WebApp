@@ -271,7 +271,7 @@ describe("the same step decides the listing", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/\$2,500 match fee/i);
     expect(fetchMock).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByLabelText(/if blueprint finds a match/i));
+    fireEvent.click(screen.getByLabelText(/I agree to Blueprint/i));
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
     await waitFor(() => expect(screen.getByText(/in the robot-team library/i)).toBeInTheDocument());
     const listingCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/api/task-listings/owner/tok"));

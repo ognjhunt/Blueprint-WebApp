@@ -905,6 +905,7 @@ router.post("/runs", async (req: Request, res: Response) => {
 
   return res.status(202).json({
     dryRun: false,
+    evaluationPurpose: "private",
     teamId,
     spent: started.length > 0,
     started,
@@ -944,6 +945,7 @@ router.get("/runs", async (req: Request, res: Response) => {
     ttlMs,
     runs: runs.map((run) => ({
       runId: run.runId,
+      evaluationPurpose: run.evaluationPurpose ?? "pilot",
       sceneId: run.sceneId,
       checkpointId: run.checkpointId,
       reservationId: run.reservationId,
@@ -988,6 +990,7 @@ router.get("/results", async (req: Request, res: Response) => {
     teamId,
     runs: runs.map((run) => ({
       runId: run.runId,
+      evaluationPurpose: run.evaluationPurpose ?? "pilot",
       checkpointId: run.checkpointId,
       sceneId: run.sceneId,
       taskFamily: run.taskFamily,
@@ -1025,6 +1028,7 @@ router.get("/results/:runId", async (req: Request, res: Response) => {
   return res.json({
     teamId,
     runId: run.runId,
+    evaluationPurpose: run.evaluationPurpose ?? "pilot",
     checkpointId: run.checkpointId,
     sceneId: run.sceneId,
     state: run.state,

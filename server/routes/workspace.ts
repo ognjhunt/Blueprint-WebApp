@@ -849,6 +849,7 @@ router.get(
         ),
         runs: (await listRunsForTeam(team.id, 25).catch(() => [])).map((run) => ({
           runId: run.runId,
+          evaluationPurpose: run.evaluationPurpose ?? "pilot",
           sceneId: run.sceneId,
           taskFamily: run.taskFamily ?? null,
           state: run.state,

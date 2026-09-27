@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test';
+test.beforeEach(async ({ page }) => {
+  await page.addLocatorHandler(page.getByRole("button", { name: "Reject all", exact: true }), button => button.click());
+});
 for (const width of [1440, 390]) {
   test(`signup stays short and readable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });

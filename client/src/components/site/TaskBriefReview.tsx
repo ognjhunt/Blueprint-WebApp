@@ -57,7 +57,7 @@ import {
   signInWithGoogleAccount,
   watchAuth,
 } from "@/lib/accountAuth";
-import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
+import { formatPrice, matchFeeUsd, matchFeeAuthorization } from "@/lib/evaluationPricing";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 import { opportunityLabels, type TaskListingDetails } from "@/types/taskBrowse";
 
@@ -628,10 +628,13 @@ export function TaskBriefReview(props: {
               </select>
             </label>
             {listing.opportunity === "open" && (
+              <>
               <label className="ms-check-row">
                 <input type="checkbox" checked={matchFeeAccepted} onChange={(event) => setMatchFeeAccepted(event.target.checked)} />
-                If Blueprint finds a match for this task, I can approve a {formatPrice(matchFeeUsd)} fee. No match, no fee.
+                {matchFeeAuthorization}
               </label>
+              <p className="ms-field-hint"><a href="/pricing#match-fee" target="_blank" rel="noreferrer">Match criteria, fee and replacement policy</a></p>
+              </>
             )}
             <label className="ms-check-row">
               <input type="checkbox" checked={listingConsent} onChange={(event) => setListingConsent(event.target.checked)} />

@@ -9,8 +9,8 @@ describe("How it works", () => {
     expect(screen.getByRole("heading", { name: "Show us the task." })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Meet your match." })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Run the pilot." })).toBeInTheDocument();
-    expect(screen.getByText(/\$2,500 per task, only if we find a match\. No match, no fee\./)).toBeInTheDocument();
-    expect(screen.getByText(/we introduce you right away and send our invoice\. Teams that don't match stay anonymous\./)).toBeInTheDocument();
+    expect(screen.getByText(/authorize the \$2,500 match fee/)).toHaveTextContent(/even if you do not buy the pilot/);
+    expect(screen.getByText(/No match, no fee\. One fee per task/)).toBeInTheDocument();
     expect(screen.getByText(/Blueprint takes no cut of the pilot or any deployment/)).toBeInTheDocument();
     expect(screen.getByText(/provider or integrator installs and operates the robot/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Start a task assessment" })).toHaveAttribute("href", "/contact/site-operator");

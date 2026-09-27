@@ -420,8 +420,10 @@ describe("a reported run settles for what it ran", () => {
     expect(balance.availableUsd).toBe(1_000);
   });
 
-  it("tells the site when a run ends with nothing to show, once", async () => {
+  it("tells the site when a historical shared run ends with nothing to show, once", async () => {
     const { run } = await fundedTeamWithOneHold();
+    const runs = collectionStore("evaluationRuns");
+    runs.set(run.runId, { ...runs.get(run.runId), evaluationPurpose: "pilot" });
     lifecycleNotice.mockClear();
 
     await reportRunOutcome({ runId: run.runId, state: "blocked", episodesRun: 0, note: "scene would not load" });

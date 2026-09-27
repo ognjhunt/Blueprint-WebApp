@@ -30,19 +30,25 @@ export function TaskBrowse() {
   useEffect(() => {
     const controller = new AbortController();
     setState("loading");
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      setState("error");
+    }, 15_000);
     // Early access: the server returns tasks only to an approved team, so the
     // request carries the signed-in account when there is one.
     withFirebaseAuthHeaders(currentUser).catch(() => ({})).then(headers =>
       fetch("/api/site-worlds/tasks", { signal: controller.signal, headers })).then(async response => {
       if (!response.ok) throw new Error("unavailable");
       const data = await response.json();
+      if (controller.signal.aborted) return;
       if (!Array.isArray(data.items)) throw new Error("invalid library");
       setAccess(data.access ?? null);
       setItems(data.items); setState("ready");
       const sceneId = new URLSearchParams(window.location.search).get("sceneId");
       if (sceneId) setSelected(data.items.find((item: TaskBrowseCard) => item.id === sceneId && item.evaluationAvailable) || null);
-    }).catch(() => { if (!controller.signal.aborted) setState("error"); });
-    return () => controller.abort();
+    }).catch(() => { if (!controller.signal.aborted) setState("error"); })
+      .finally(() => window.clearTimeout(timeout));
+    return () => { window.clearTimeout(timeout); controller.abort(); };
   }, [retry, currentUser?.uid]);
   const filtered = items.filter(item => (!family || item.taskFamily === family)
     && (!region || item.region.toLowerCase().includes(region.toLowerCase()))
@@ -50,14 +56,21 @@ export function TaskBrowse() {
   if (selected) return <section aria-label="Evaluate selected task">
     <button className="ms-text-link" type="button" onClick={() => setSelected(null)}>← All tasks</button>
     <div className="ms-task-heading"><h2>{selected.title}</h2><TaskThumbnail src={selected.thumbnailUrl} title={selected.title} taskFamily={selected.taskFamily} /></div><TaskFacts details={selected} />
-    <p className="ms-field-hint">The site's price and conditions are proposals. Evaluation does not commit you to a pilot; you can accept, suggest changes, or decline afterward.</p>
+    <p className="ms-field-hint">Private testing on a reconstructed site task. Results stay with your team and Blueprint and do not enter pilot matching.</p>
     <RobotTeamPlanPreview key={selected.id} sceneId={selected.id} />
   </section>;
   // Nothing library-shaped renders until the server has said who may see it,
   // so a visitor outside early access never sees the library flash by.
+  // The public application is useful without that lookup. Render the same
+  // component on the server, while loading and on failure so typed fields
+  // survive the access response and a text reader can inspect the first step.
+  if ((state === "loading" || state === "error") && !currentUser) {
+    return <RobotTeamEarlyAccess access={null} email={null} />;
+  }
   if (state === "loading") return <section aria-label="Task library"><p role="status">Loading…</p></section>;
   if (state === "error") return <section aria-label="Task library"><div role="alert"><p>The task library could not be loaded.</p>
-    <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div></section>;
+    <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button>
+    <p><a href="mailto:hello@tryblueprint.io">Email us about a task or your application</a></p></div></section>;
   // Anything other than an explicit "allowed" is the early-access page.
   const gated = state === "ready" && access !== null && !access.allowed;
   if (gated) return <RobotTeamEarlyAccess access={access} email={currentUser?.email ?? null} />;
@@ -89,11 +102,11 @@ export function TaskBrowse() {
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
         <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
-        {item.evaluationAvailable ? <button className="ms-button" onClick={() => setSelected(item)}>Self-directed evaluation · ${item.costUsd}</button>
+        {item.evaluationAvailable ? <button className="ms-button" onClick={() => setSelected(item)}>Private evaluation · ${item.costUsd}</button>
           : <p className="ms-field-hint">{item.stage === "capture" ? "Footage is the next step." : "The scene is being prepared for evaluation."} No runs available yet.</p>}
       </li>)}</ul>
     </>}
-    <p className="ms-field-hint">Invited evaluations for matched site tasks are free within the invitation's stated scope. The prices above are for optional self-directed runs.</p>
+    <p className="ms-field-hint">Invited evaluations for pilot consideration are free and shared with the site. Paid evaluations are private: the site does not see or consider the results.</p>
     <details className="ms-task-interest" open={returning || undefined}
       ref={(element) => { if (element && returning) element.scrollIntoView({ block: "start" }); }}>
       <summary>Already have a robot policy to evaluate? Register it and see a plan</summary>

@@ -1,5 +1,5 @@
 import { embedTexts } from "./embeddings";
-import { entryPrice, formatPrice, matchFeeUsd } from "../../client/src/lib/evaluationPricing";
+import { entryPrice, formatPrice, matchFeeUsd, matchReplacementPolicy } from "../../client/src/lib/evaluationPricing";
 
 // Grounded question answering for headless agents. Answers are curated,
 // citation-backed snippets over Blueprint's public canonical content — never
@@ -194,7 +194,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      `No match, no fee. Submitting a site task, screening and evaluation are free. When Blueprint finds a robot team that passed the evaluation for the task, fits the site's budget, and wants to run the pilot, it introduces the two sides and charges the site ${formatPrice(matchFeeUsd)} per task, however many teams match. Blueprint takes no percentage of the pilot or any deployment; the site and the team agree the pilot price directly, and the provider performs installation and operation. Robot teams evaluate matched tasks for free. Optional self-directed evaluations cost ${formatPrice(entryPrice)} per policy entry and retain their no-later-supplier-commission promise. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.`,
+      `No match, no fee. Submitting a site task, screening and evaluation are free. When Blueprint finds a robot team that passed the evaluation for the task, fits the site's budget, and wants to run the pilot, it introduces the two sides and charges the site ${formatPrice(matchFeeUsd)} per task, however many teams match. Blueprint takes no percentage of the pilot or any deployment; the site and the team agree the pilot price directly, and the provider performs installation and operation. The site explicitly authorizes the match fee when opening the task to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched tasks for free. Private evaluations cost ${formatPrice(entryPrice)} for one robot policy on one reconstructed real site task. Results stay with the team and Blueprint, are not shared with the site, and do not affect pilot matching. Pilot consideration requires a separate free invited evaluation. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.`,
 
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [

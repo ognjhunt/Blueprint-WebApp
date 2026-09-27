@@ -1,11 +1,11 @@
 import { ArrowRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
+import { entryPrice, formatPrice, matchFeeUsd, matchReplacementPolicy } from "@/lib/evaluationPricing";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  `No match, no fee. Tell Blueprint about one recurring task for free. When we find a robot team that can do it and wants your pilot, we introduce you. Our fee is ${formatPrice(matchFeeUsd)}.`;
+  `Start a task assessment for free. Authorize matching when you are ready. Blueprint charges ${formatPrice(matchFeeUsd)} per task when a qualifying robot team is introduced.`;
 
 export default function Pricing() {
   return (
@@ -28,9 +28,8 @@ export default function Pricing() {
           <p className="ms-eyebrow">Pricing</p>
           <h1>No match, no fee.</h1>
           <p>
-            Tell us about the task for free. When we find a robot team that can do it and wants your
-            pilot, we introduce you right away. Our fee is {formatPrice(matchFeeUsd)}. If we don't find
-            one, you pay nothing.
+            Start with a free task assessment. Choose whether to open your task to pilot proposals.
+            Pay {formatPrice(matchFeeUsd)} when we introduce a qualifying match.
           </p>
         </header>
 
@@ -47,6 +46,7 @@ export default function Pricing() {
               wants to run your pilot. You get every team that matches, their full results, and a pilot
               brief you both start from. One fee per task, however many teams match.
             </p>
+            <p className="ms-price-note"><a className="ms-text-link" href="/how-it-works#match-package">See what a match includes <ArrowRight size={16} aria-hidden="true" /></a></p>
             <a className="ms-text-link" href="/contact/site-operator">
               Start a task assessment <ArrowRight size={20} aria-hidden="true" />
             </a>
@@ -60,14 +60,35 @@ export default function Pricing() {
             </p>
             <h2 id="team-price-title">Evaluate real site tasks</h2>
             <p className="ms-price-note">
-              Evaluate the site tasks we match you to for free. If you pass and want the pilot, we
-              introduce you to the site.
+              Evaluate for a pilot for free when invited. The site sees your results and can consider
+              you for the pilot.
             </p>
             <a className="ms-text-link" href="/contact/robot-team">
               Apply for early access <ArrowRight size={20} aria-hidden="true" />
             </a>
+          <details className="ms-task-interest ms-visitor-detail">
+            <summary>Private evaluation · $99</summary>
+            <p>
+              Test one robot policy on a reconstructed real site task for {formatPrice(entryPrice)}.
+              Results stay with your team and Blueprint; the site does not see or consider them.
+              To pursue a pilot afterward, enter a separate free invited evaluation.
+            </p>
+          </details>
           </section>
         </div>
+
+        <section className="ms-price-block" id="match-fee" aria-labelledby="match-fee-title">
+          <h2 id="match-fee-title">When you commit</h2>
+          <p>
+            Submitting a task is free. After reviewing your brief, you explicitly authorize the fee
+            when you open it to proposals. We invoice at introduction, even if you choose not to buy
+            the pilot. If no team matches, you owe nothing.
+          </p>
+          <details className="ms-task-interest ms-visitor-detail">
+            <summary>What if the provider pulls out or changes the offer?</summary>
+            <p>{matchReplacementPolicy} <a href="mailto:hello@tryblueprint.io">Contact us</a> with your task link.</p>
+          </details>
+        </section>
 
         <section className="ms-price-block" aria-labelledby="pilot-title">
           <h2 id="pilot-title">The pilot itself</h2>

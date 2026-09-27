@@ -39,7 +39,7 @@ const {
   claimRunCancellation,
 } = await import("../utils/agentEvalRuns");
 
-async function queue(params: { reservationId: string; teamId: string; sceneId: string }) {
+async function queue(params: { reservationId: string; teamId: string; sceneId: string }, shared = true) {
   const run = await createRequestedRun({
     teamId: params.teamId,
     checkpointId: "ckpt-1",
@@ -50,6 +50,7 @@ async function queue(params: { reservationId: string; teamId: string; sceneId: s
     quotedEpisodes: 50,
   });
   if (!run) throw new Error("run not written");
+  if (shared) sharedFakeFirestoreState.docs.set(`evaluationRuns/${run.runId}`, { ...sharedFakeFirestoreState.docs.get(`evaluationRuns/${run.runId}`), evaluationPurpose: "pilot" });
   return run;
 }
 
@@ -231,11 +232,11 @@ describe("exclusive, bounded execution ownership", () => {
 
   it("a retried confirm cannot erase dispatch or a completed result", async () => {
     const params = { reservationId: "retry", teamId: "team-a", sceneId: "req-1" };
-    const run = await queue(params);
+    const run = await queue(params, false);
     await markRunStarted({ runId: run.runId, pipelineRunId: "owner" });
     sharedFakeFirestoreState.docs.set(`evaluationRuns/${run.runId}`, { ...stored(run.runId), state: "completed", moneyResolved: true, episodesRun: 50, result: { observed: { episodesRun: 50 } } });
     const prior = stored(run.runId);
-    expect(await queue(params)).toMatchObject({ state: "completed", moneyResolved: true });
+    expect(await queue(params, false)).toMatchObject({ state: "completed", moneyResolved: true });
     expect(stored(run.runId)).toEqual(prior);
   });
 });

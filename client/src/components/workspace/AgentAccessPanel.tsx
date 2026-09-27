@@ -145,7 +145,7 @@ export function AgentAccessPanel({ user }: { user: User | null }) {
                       <tr key={run.runId}>
                         <td>{new Date(run.requestedAtIso).toLocaleDateString()}</td>
                         <td>{run.taskFamily ? taskFamilyLabel(run.taskFamily) : "Site task"}</td>
-                        <td>{runResultLabel(run)}</td>
+                        <td>{run.evaluationPurpose === "private" && <span>Private · </span>}{runResultLabel(run)}</td>
                         <td>{formatUsd(run.quotedUsd)}</td>
                       </tr>
                     ))}

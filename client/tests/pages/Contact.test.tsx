@@ -10,7 +10,7 @@
  * explanation closed, and each persona pointing at the other.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
 let mockLocation = "/contact/site-operator";
@@ -57,6 +57,30 @@ describe("the site page", () => {
 });
 
 describe("the robot page", () => {
+  it("keeps a visitor's application usable while access is loading, then preserves their input", async () => {
+    mockLocation = "/contact/robot-team";
+    let resolveAccess!: (value: unknown) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(resolve => { resolveAccess = resolve; })));
+    render(<Contact />);
+    const name = screen.getByLabelText("Your name");
+    fireEvent.change(name, { target: { value: "Ada" } });
+    await waitFor(() => expect(resolveAccess).toBeDefined());
+    await act(async () => resolveAccess({ ok: true, json: async () => ({ items: [], access: {
+      gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false,
+    } }) }));
+    expect(screen.getByLabelText("Your name")).toHaveValue("Ada");
+    expect(screen.getByRole("form", { name: "Early access application" })).toBeInTheDocument();
+  });
+
+  it("still offers the application when the task lookup fails", async () => {
+    mockLocation = "/contact/robot-team";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unavailable")));
+    render(<Contact />);
+    await act(async () => {});
+    expect(screen.getByRole("form", { name: "Early access application" })).toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).toBeNull();
+  });
+
   it("shows a visitor outside early access the application, and points back at sites", async () => {
     mockLocation = "/contact/robot-team";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({

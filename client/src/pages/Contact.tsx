@@ -1,23 +1,6 @@
 /**
- * The two front doors.
- *
- * ## What came down
- *
- * The site page carried a six-question screen behind a disclosure and three
- * paragraphs before the first field; the robot page carried a six-question
- * application. Both screens are gone from the public site. The brief now
- * reads the description and the footage, the plan form asks the two facts
- * matching needs, and budget, timing, and decision authority are confirmed
- * during task scoping before anyone agrees to a paid pilot.
- *
- * The API paths behind those screens stay for agents and legacy posters; what
- * left is the page asking a person to answer them before seeing anything.
- *
- * ## The order on a phone
- *
- * Heading, one line, the form. The explanation lives in a closed disclosure
- * under the form, so the first field is on the first screen rather than
- * fourteen hundred pixels down.
+ * Two public entry points. Keep the form before supporting details, and keep
+ * assessment, match-fee authorization and buying a pilot as distinct actions.
  */
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
@@ -25,7 +8,7 @@ import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { TaskBrowse } from "@/components/site/TaskBrowse";
-import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
+import { entryPrice, formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 
 const CONTACT_EMAIL = "hello@tryblueprint.io";
 
@@ -44,8 +27,15 @@ export default function Contact() {
         <section className="ms-container ms-task-page">
           <p className="ms-eyebrow">For robot teams</p>
           <h1>Find a task your robot can support.</h1>
-          <p>Tell us what your robot can do and what a standard pilot includes. We bring you suitable tasks and evaluation evidence. Confirm the configuration, price, timing, and site conditions before a customer sees your offer.</p>
+          <p>Find relevant site tasks and evaluate them for free when invited. You confirm the configuration, price, timing and site conditions before a customer sees your offer.</p>
           <TaskBrowse />
+          <details className="ms-task-interest ms-visitor-detail">
+            <summary>What happens after applying?</summary>
+            <p>We review your robot's capabilities, the work you want and where you can support a pilot, then email the next step. Approved teams can see shared task details; applying does not commit you to an integration or a pilot.</p>
+            <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. Executable submissions use a policy endpoint or container; compatibility must be checked for the specific task.</p>
+            <p>Evaluate for a pilot for free when invited; the site sees those results. For internal testing, a private evaluation costs {formatPrice(entryPrice)} for one robot policy on one reconstructed site task. Private results are not shared with the site or used for matching.</p>
+            <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about task fit or integration</a></p>
+          </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
             <a className="ms-text-link" href="/contact/site-operator">
               Operate a site? Start here <ArrowUpRight size={16} aria-hidden="true" />
@@ -71,25 +61,29 @@ export default function Contact() {
           <p className="ms-eyebrow">For site owners</p>
           <h1>Start with one recurring task.</h1>
           <p className="ms-inquiry-description">
-            Describe the work and share photos or phone video. Rough economics help, but you do not need an approved budget to start.
+            Describe the work. Add photos or phone video if you have them. Starting is free; you do not need an approved budget.
           </p>
         </div>
         <div className="ms-inquiry-forms">
           <SiteCaptureStart />
-          <details className="ms-task-interest">
+          <details className="ms-task-interest ms-visitor-detail">
             <summary>How this works</summary>
             <p className="ms-field-hint">
-              We turn your description and footage into a task brief for you to correct, then robot
-              teams evaluate it for free. When one passes, fits your budget, and wants your pilot, we
-              introduce you. No match, no fee; a match is {formatPrice(matchFeeUsd)} per task.
-              You may post your proposed pilot price and conditions, or a target budget if costs are uncertain.
-              Your task link shows each step and the next update.
+              We draft a task brief for you to correct. You separately authorize the {formatPrice(matchFeeUsd)}
+              {" "}fee if you open it to pilot proposals. It is due when we introduce a qualifying match,
+              even if you do not buy the pilot. No match, no fee. Your task link shows progress and follow-ups.
+              {" "}<a href="/pricing#match-fee">Fee and replacement policy</a>.
             </p>
             <p className="ms-field-hint">
               Geography, plainly: sending a person is an Austin-metro thing; anywhere in the US you
               can record the walkthrough yourself; outside the US we set up transfer terms before
               anything is recorded.
             </p>
+          </details>
+          <details className="ms-task-interest ms-visitor-detail">
+            <summary>What should I record?</summary>
+            <p className="ms-field-hint">Show one complete task cycle, the objects and where they start and finish, then the surrounding work area. Existing footage is welcome. Avoid screens, paperwork and restricted areas, and get permission to record.</p>
+            <p className="ms-field-hint">Start with a description if filming needs approval. Have someone who knows the task review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "20px" }}>
             <a className="ms-text-link" href="/contact/robot-team">

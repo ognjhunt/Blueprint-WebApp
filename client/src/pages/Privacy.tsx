@@ -14,13 +14,13 @@ export const privacyPolicySections = [
   {
     title: "Site footage",
     body:
-      "When a site films its task, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. We and our listed processing providers use them to review the task, rebuild the work area as a simulated scene, and run the evaluations the site allows. Task footage and derived scenes may show people, including hands or arms performing the task; people are not automatically removed. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
+      "When a site films its task, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. We and our listed processing providers use them to review the task, rebuild the work area as a simulated scene, and run the evaluations the site allows. We remove people from the frames used as input to reconstruction. The original recording may still show people, including hands or arms performing the task. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
     icon: Waypoints,
   },
   {
     title: "How we use it",
     body:
-      "To run the Service: to reply to you, set up your task or account, rebuild scenes and run evaluations, prepare provider-backed pilot offers, record physical-pilot outcomes only under the parties' agreed permissions, take payments owed to Blueprint, send the emails you need (such as a task update or a run result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information or share it for cross-context behavioral advertising, and we do not use your footage to train AI models without your written agreement.",
+      "To run the Service: to reply to you, set up your task or account, rebuild scenes and run evaluations, prepare provider-backed pilot offers, keep paid private evaluation results within your team and Blueprint and our processing providers (with no site updates or use in pilot matching), record physical-pilot outcomes only under the parties' agreed permissions, take payments owed to Blueprint, send the emails you need (such as a task update or a run result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information or share it for cross-context behavioral advertising, and we do not use your footage to train AI models without your written agreement.",
     icon: Shield,
   },
   {
@@ -42,7 +42,7 @@ export const capturePrivacyAnnex = [
   // sufficient: a policy served through an endpoint has to be sent something to
   // look at, and what it is sent is derived from the site.
   ["What a robot team's policy is sent", "Images rendered from the reconstructed scene, never the walkthrough. Those images can still show layout, equipment and stock, so they are kept and shared on the same terms as the scene, and they are not licensed for training unless a written agreement says so."],
-  ["People in task footage", "People may appear in task footage, derived frames, or a reconstructed scene. The site must have authority to submit the footage and provide any required notice or permissions to people shown. People are not automatically removed before approved processing providers receive the footage or frames."],
+  ["People in task footage", "We remove people from the frames used as input to reconstruction. This does not remove them from the original recording, which Blueprint and the listed processing providers may process for task review and frame preparation. You must have authority to submit the footage and provide any required notice or permissions to people shown."],
   ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before buyer-facing use."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
   ["Buyer sharing", "Robot teams see the task card you approve and their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
@@ -52,7 +52,7 @@ export const capturePrivacyAnnex = [
 export const rolePrivacyAnnex = [
   {
     title: "Robot teams",
-    body: "Your account holds your team's details, the robots and policies you register, the runs you buy, their results, your balance and your API keys. Sites see an alias for your team and its results, not your name or your policy.",
+    body: "Your account holds your team's details, the robots and policies you register, the runs you buy, their results, your balance and your API keys. Paid private evaluation results stay with your team and Blueprint and our processing providers; sites do not see them or receive updates, and they do not affect pilot matching. Official invited evaluation results are shared with the site under your team alias; your policy stays private.",
   },
   {
     title: "Sites",

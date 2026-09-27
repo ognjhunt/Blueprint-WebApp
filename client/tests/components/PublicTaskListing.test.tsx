@@ -23,10 +23,10 @@ describe("the task page's public card", () => {
     render(<PublicTaskListing token="tok" />);
 
     const availability = await screen.findByLabelText(/pilot availability/i);
-    expect(screen.queryByLabelText(/if blueprint finds a match/i)).toBeNull();
+    expect(screen.queryByLabelText(/I agree to Blueprint/i)).toBeNull();
 
     fireEvent.change(availability, { target: { value: "open" } });
-    const fee = screen.getByLabelText(/if blueprint finds a match/i);
+    const fee = screen.getByLabelText(/I agree to Blueprint/i);
     expect(fee).toBeRequired();
     fireEvent.click(fee);
     fireEvent.click(screen.getByLabelText(/authorized to make them public/i));

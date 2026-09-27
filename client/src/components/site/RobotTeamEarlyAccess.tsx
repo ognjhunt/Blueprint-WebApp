@@ -6,7 +6,7 @@
  * other visitor gets the one thing they can do next: apply, wait for a person
  * to read it, or verify the email that was approved.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { currentAuthUser, sendAccountVerification } from "@/lib/accountAuth";
@@ -21,6 +21,8 @@ const SIGN_UP_URL = "/signup/business?buyerType=robot_team";
 function ApplicationForm({ email }: { email: string | null }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "approved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => setInteractive(true), []);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,35 +69,36 @@ function ApplicationForm({ email }: { email: string | null }) {
   }
 
   return (
-    <form className="ms-form" onSubmit={submit} aria-label="Early access application">
-      <label>Your name<input name="name" autoComplete="name" maxLength={120} required /></label>
-      <label>Work email<input name="email" type="email" autoComplete="email" defaultValue={email ?? ""} maxLength={320} required /></label>
-      <label>Company<input name="company" autoComplete="organization" maxLength={160} required /></label>
-      <label>Website <span className="ms-field-hint">(optional)</span><input name="website" type="url" placeholder="https://" maxLength={300} /></label>
+    <form className="ms-form" method="post" onSubmit={submit} aria-label="Early access application">
+      <label>Your name<input disabled={!interactive} name="name" autoComplete="name" maxLength={120} required /></label>
+      <label>Work email<input disabled={!interactive} name="email" type="email" autoComplete="email" defaultValue={email ?? ""} maxLength={320} required /></label>
+      <label>Company<input disabled={!interactive} name="company" autoComplete="organization" maxLength={160} required /></label>
+      <label>Website <span className="ms-field-hint">(optional)</span><input disabled={!interactive} name="website" type="url" placeholder="https://" maxLength={300} /></label>
       <label>What does your robot do?
-        <textarea name="robot" rows={3} maxLength={1200} required
+        <textarea disabled={!interactive} name="robot" rows={3} maxLength={1200} required
           placeholder="Embodiment, gripper, the policy or policies you run, and how you would connect them" />
       </label>
       <label>What work do you want to test it on?
-        <textarea name="workWanted" rows={3} maxLength={1200} required placeholder="e.g. Tote picking in a warehouse, bin to conveyor" />
+        <textarea disabled={!interactive} name="workWanted" rows={3} maxLength={1200} required placeholder="e.g. Tote picking in a warehouse, bin to conveyor" />
       </label>
-      <label>Region <span className="ms-field-hint">(optional)</span><input name="region" placeholder="e.g. US, Midwest" maxLength={120} /></label>
+      <label>Region <span className="ms-field-hint">(optional)</span><input disabled={!interactive} name="region" placeholder="e.g. US, Midwest" maxLength={120} /></label>
       <details>
         <summary>Typical physical pilot (optional)</summary>
         <label>What would it include?
-          <textarea name="pilotPackage" rows={3} maxLength={1200}
+          <textarea disabled={!interactive} name="pilotPackage" rows={3} maxLength={1200}
             placeholder="Configuration, installation and support, typical duration, indicative price, and lead time" />
         </label>
         <p className="ms-field-hint">This stays private. You confirm any site-specific offer before a customer sees it.</p>
       </details>
       <label>A site or customer you would want to test at <span className="ms-field-hint">(optional)</span>
-        <input name="testSite" placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
+        <input disabled={!interactive} name="testSite" placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
       </label>
       <p className="ms-field-hint">
         By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.
       </p>
-      {error && <p role="alert">{error}</p>}
-      <button className="ms-button" disabled={state === "sending"}>{state === "sending" ? "Sending…" : "Apply for early access"}</button>
+      {error && <p role="alert">{error} You can also <a href="mailto:hello@tryblueprint.io">email us your company, robot and the work you want to pursue</a>.</p>}
+      <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Sending…" : "Apply for early access"}</button>
+      <noscript><p>Enable JavaScript to apply here, or email your company, robot and the work you want to pursue to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
     </form>
   );
 }
@@ -151,10 +154,9 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
   return (
     <section aria-label="Early access" className="ms-early-access">
       <div className="ms-task-empty">
-        <h2>Early access for robot teams.</h2>
+        <h2>Apply for early access.</h2>
         <p>
-          Blueprint is in early access. Approved teams choose a real site task to assess, confirm what
-          their hardware and support can deliver, and pursue a scoped physical pilot when there is a fit.
+          No policy upload or integration needed.
         </p>
       </div>
       <ApplicationForm email={email} />

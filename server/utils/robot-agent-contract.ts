@@ -137,7 +137,7 @@ export function buildRobotAgentAccessManifest() {
         noGates:
           "Registration asks no qualifying questions, and approval is about fit and capacity during early access, not a screen. The intake's four gates are deployment facts and are asked when a pilot is on the table, not to unlock an evaluation.",
         blankIsFine:
-          "A team that has answered nothing gets the most informative plan, not the worst one: an unknown hard constraint is ranked above every other kind of run, because one result closes it for every site that shares it.",
+          "A team that has answered nothing gets the most informative plan, not the worst one: an unknown hard constraint is ranked above every other kind of run, because a private result helps the team learn without changing its shared matching profile.",
       },
       spendModel: {
         summary:
@@ -151,9 +151,9 @@ export function buildRobotAgentAccessManifest() {
         ceiling:
           "The balance is the hard ceiling and only a real payment raises it. The policy is the team pacing itself, and the same key can change it.",
         holds:
-          "A run reserves its quote up front and settles for the episodes that executed, pro-rated. A hold nothing reports on is released when it expires; no team's money stays locked waiting on us.",
+          "A private run reserves its flat $99 quote up front and charges it once any policy episodes execute; zero if none execute. A hold nothing reports on is released when it expires; no team's money stays locked waiting on us.",
         results:
-          "A result carries what was observed and, separately, what that entitles us to claim. The claim is the lower bound of the observation, not the observation: fifty successes in fifty episodes establishes roughly 90%, not better than 99%, because nothing outranks a measured figure once it is written.",
+          "Paid evaluations are private internal tests on reconstructed site tasks. Results stay with the team and Blueprint: no site results, notifications, or pilot matching effects. Pilot consideration requires a separate free invited evaluation. A result carries what was observed and, separately, what the evidence supports. The claim is the lower bound of the observation, not the observation: fifty successes in fifty episodes establishes roughly 90%, not better than 99%, because nothing outranks a measured figure once it is written.",
       },
     },
     siteWorldSearch: {
@@ -480,9 +480,9 @@ export function buildRobotAgentOpenApiContract() {
         post: {
           tags: ["Team"],
           operationId: "startRobotTeamRun",
-          summary: "Buy and start evaluations from a plan. Dry run unless confirm is true.",
+          summary: "Buy and start private evaluations from a plan. Dry run unless confirm is true.",
           description:
-            "Requires the team's agent key (Bearer) and early access (403 early_access_required otherwise). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
+            "Requires the team's agent key (Bearer) and early access (403 early_access_required otherwise). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. Paid runs cost $99 for one robot policy on one reconstructed site task. New paid runs are always private: the site cannot see results or progress, receives no notifications, and the results do not update pilot matching or shared capabilities. Pilot consideration requires a separate free invited evaluation. Result responses include evaluationPurpose; historical runs retain their original sharing scope. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
           security: bearerSecurity,
           requestBody: {
             required: true,

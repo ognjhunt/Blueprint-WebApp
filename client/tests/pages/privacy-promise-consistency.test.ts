@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 
 import { capturePrivacyAnnex } from "@/pages/Privacy";
+import { termsSections } from "@/pages/Terms";
 import { siteAssessment } from "@/lib/evaluationPricing";
 
 function annexRow(label: string): string {
@@ -23,6 +24,15 @@ function annexRow(label: string): string {
 }
 
 describe("raw walkthrough media", () => {
+  it("distinguishes removal from reconstruction inputs from processing the original recording", () => {
+    const detail = annexRow("People in task footage");
+    expect(detail).toContain("remove people from the frames used as input to reconstruction");
+    expect(detail).toContain("does not remove them from the original recording");
+    const terms = JSON.stringify(termsSections);
+    expect(terms).toContain("remove people from the frames used as input to reconstruction");
+    expect(terms).not.toContain("People are not automatically removed");
+  });
+
   it("is never delivered to a buyer, with no rights carve-out", () => {
     const detail = annexRow("Raw walkthrough media");
 

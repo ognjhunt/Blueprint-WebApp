@@ -40,6 +40,7 @@
  * gain a claim the evidence does not support.
  */
 
+import { isSiteEvaluation } from "./agentRunRecord";
 import { isDeepStrictEqual } from "node:util";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -296,10 +297,10 @@ export async function recordRunResult(params: {
     transaction.set(ref, { result, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   });
 
-  // The site hears when a team's result lands, once per run.
+  // Official results notify the site; private results notify only their team.
   if (firstReport) {
     try {
-      await enqueueTaskLifecycleNotification({
+      if (isSiteEvaluation(run)) await enqueueTaskLifecycleNotification({
         requestId: run.sceneId,
         milestone: "results_ready",
         eventId: run.runId,
@@ -320,89 +321,82 @@ export async function recordRunResult(params: {
     }
   }
 
+  // Keep internal cost/revenue accounting for private runs without changing
+  // any site progress or matching evidence. This ledger has no customer route.
+  await recordCohortEpisodes({
+    sceneId: run.sceneId,
+    runId: run.runId,
+    round: "screening",
+    episodes: episodesRun,
+    newEntry: true,
+    revenueUsd: settlementAmountUsd({ quotedUsd: run.quotedUsd, quotedEpisodes: run.quotedEpisodes, episodesRun }),
+  });
+
   // The registry write. `recordEvaluationOutcome` is the one that also promotes
   // a self-registered team into the supply sites are shown, which is the only
   // path there is -- a team earns that place by being measured, never by
   // registering.
-  try {
-    await recordEvaluationOutcome({
-      robotTeamId: run.teamId,
-      runId: run.runId,
-      demonstratedSuccessRate: result.claimed.demonstratedSuccessRate,
-      cycleTime: result.claimed.cycleTime,
-      observedAt: result.reportedAtIso,
-    });
-
-    // Meter it. The run executed against a prepared site, so this is the
-    // moment the cost side of that site's economics becomes knowable -- and
-    // the published arithmetic says a thin field cannot bear much. Recorded
-    // rather than assumed, because the per-episode cost is the unknown the
-    // whole exercise exists to find out.
-    await recordCohortEpisodes({
-      sceneId: run.sceneId,
-      runId: run.runId,
-      round: "screening",
-      episodes: episodesRun,
-      // One entry per checkpoint's first run against this scene. A second run
-      // of the same checkpoint is more episodes, not another paid entry.
-      newEntry: true,
-      revenueUsd: settlementAmountUsd({
-        quotedUsd: run.quotedUsd,
-        quotedEpisodes: run.quotedEpisodes,
-        episodesRun,
-      }),
-    });
-
-    // Anything else the run established, attributed to the checkpoint that
-    // produced it rather than to the team in general.
-    const measured: Record<string, string> = {};
-    if (result.claimed.demonstratedSuccessRate) {
-      measured.demonstratedSuccessRate = result.claimed.demonstratedSuccessRate;
-    }
-    if (result.claimed.cycleTime) measured.cycleTime = result.claimed.cycleTime;
-    if (Object.keys(measured).length) {
-      await recordMeasuredCapability({
-        teamId: run.teamId,
-        checkpointId: run.checkpointId,
+  if (isSiteEvaluation(run)) {
+    try {
+      await recordEvaluationOutcome({
+        robotTeamId: run.teamId,
         runId: run.runId,
-        measured,
+        demonstratedSuccessRate: result.claimed.demonstratedSuccessRate,
+        cycleTime: result.claimed.cycleTime,
+        observedAt: result.reportedAtIso,
       });
-    }
 
-    // And the other half, which was missing: a field this run measured and
-    // could not support a claim for.
-    //
-    // `successRateBand` writing null is a finding, not a gap -- it means the
-    // attempts happened and did not reach the lowest band we are willing to
-    // state. Skipping the registry in that case left whatever was claimed
-    // before standing, so a self-reported rate survived the measurement that
-    // disproved it.
-    //
-    // Episodes having run is what makes it a measurement. Zero episodes is a
-    // run that never happened, and it must not erase anything.
-    // Cycle time has no case here: `cycleTimeBand` returns a band for every
-    // valid median and null only when none was reported, which is "not
-    // measured" rather than "measured and disproved". Nothing to withdraw.
-    if (episodesRun > 0) {
-      await invalidateMeasuredCapability({
-        teamId: run.teamId,
-        checkpointId: run.checkpointId,
-        runId: run.runId,
-        fields: ["demonstratedSuccessRate"],
-        contradicts: (_field, heldValue) =>
-          measurementContradictsBand(episodesSucceeded, episodesRun, heldValue),
-        note:
-          `${episodesSucceeded}/${episodesRun} attempts succeeded, which rules out the band ` +
-          "that was on file.",
-      });
+      // Anything else the run established, attributed to the checkpoint that
+      // produced it rather than to the team in general.
+      const measured: Record<string, string> = {};
+      if (result.claimed.demonstratedSuccessRate) {
+        measured.demonstratedSuccessRate = result.claimed.demonstratedSuccessRate;
+      }
+      if (result.claimed.cycleTime) measured.cycleTime = result.claimed.cycleTime;
+      if (Object.keys(measured).length) {
+        await recordMeasuredCapability({
+          teamId: run.teamId,
+          checkpointId: run.checkpointId,
+          runId: run.runId,
+          measured,
+        });
+      }
+
+      // And the other half, which was missing: a field this run measured and
+      // could not support a claim for.
+      //
+      // `successRateBand` writing null is a finding, not a gap -- it means the
+      // attempts happened and did not reach the lowest band we are willing to
+      // state. Skipping the registry in that case left whatever was claimed
+      // before standing, so a self-reported rate survived the measurement that
+      // disproved it.
+      //
+      // Episodes having run is what makes it a measurement. Zero episodes is a
+      // run that never happened, and it must not erase anything.
+      // Cycle time has no case here: `cycleTimeBand` returns a band for every
+      // valid median and null only when none was reported, which is "not
+      // measured" rather than "measured and disproved". Nothing to withdraw.
+      if (episodesRun > 0) {
+        await invalidateMeasuredCapability({
+          teamId: run.teamId,
+          checkpointId: run.checkpointId,
+          runId: run.runId,
+          fields: ["demonstratedSuccessRate"],
+          contradicts: (_field, heldValue) =>
+            measurementContradictsBand(episodesSucceeded, episodesRun, heldValue),
+          note:
+            `${episodesSucceeded}/${episodesRun} attempts succeeded, which rules out the band ` +
+            "that was on file.",
+        });
+      }
+    } catch (error) {
+      // The result is already stored. A registry write that failed is worth
+      // knowing about and is not worth losing the result over.
+      logger.warn(
+        { error, runId: run.runId, teamId: run.teamId },
+        "Stored a run result but could not update the registry from it",
+      );
     }
-  } catch (error) {
-    // The result is already stored. A registry write that failed is worth
-    // knowing about and is not worth losing the result over.
-    logger.warn(
-      { error, runId: run.runId, teamId: run.teamId },
-      "Stored a run result but could not update the registry from it",
-    );
   }
 
   logger.info(
