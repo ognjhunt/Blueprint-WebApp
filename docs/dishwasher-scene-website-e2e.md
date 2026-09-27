@@ -121,6 +121,29 @@ spam or trash). The account was verified through an Admin-SDK
 `generateEmailVerificationLink` link, which is the same Firebase verification
 without the mail hop. Queued as a separate task.
 
+### Third request, 2026-09-27: whole-appliance construction reached stage 3
+
+Three Pipeline defects held the third request after its capacity wait. All are
+merged with hermetic tests:
+
+| PR | Defect | Evidence |
+| --- | --- | --- |
+| Pipeline #2361 | Deploy-time release retirement retired 0 of 101 release trees. Twenty-two prefix-adoption bindings whose adoption records had been deleted, and one hand-written spend-guard binding, each blocked the whole plan, so `/` stayed at its floor and the intent waited on `scene_whole_chain_capacity_insufficient` | Deploy receipt `iteration_352d33906f5b_door.json`. Now an absence-only chain break keeps the prefix bindings protected, and an unrecognised binding keeps the commits it names |
+| Pipeline #2374 | Every scene-configuration activation since 06:40 UTC stopped at `provider_bundle:exit_1`: four attempts, commits `352d3390`…`3c017947`. The host-wide retained-candidate-selection default pointed at an engineering `selection.json` that had been removed | Step stderr `FileNotFoundError`. Now an absent ambient hint is recorded as `semantic_teacher_retained_selection_absent` and fresh candidates are selected; an explicit or corrupt selection still fails closed |
+| Pipeline #2376 | The whole-appliance build authored the body, then failed stage 3 on the door: `AssetAuthoringError: authoring_session_context_ceiling_exceeded` (`content_agents_rigid_replacement:1`). Text is charged byte-for-byte, so 12 reference frames, the authoring contract and one `observe_object` turn charged over 80,000, although the SDK measured about 26,000 real input tokens. A first live turn has nothing to compact | `stages/stage-3/producer/stage_producer.log`, `authoring/parts/door/failure.json`. The ceiling is now 120,000, the supervisor default, and one constant binds the session and the stage invoker |
+
+Run `website-b7d45d1b246d58cbe67aa6de-40a821c3-20260927t110003z`:
+
+- **Activation:** completed at 11:25 UTC: profile and standing authorization published, no blockers.
+- **Launch:** queued at 11:28 and dispatched at 11:29.
+- **Stages 1–2 of 6:** completed.
+- **Stage 3:** authored the body part (six gpt-6-astra requests including reviews, $2.13 settled), then stopped on the door as above.
+- **Provider-zero:** holds. The teardown manifest is `not_required_provider_adapter_never_invoked`, because stages 1–3 ran in the host CPU prestage and no Vast instance was rented.
+
+The grant expires at 12:56 UTC and never renews its clock, so a rerun with
+#2376 could not reach stage 3 under it. As at the last expiry, the run restarts
+with the same video and task.
+
 ## 14-step evidence matrix
 
 | Step | Required behaviour | Evidence required to close | State |
