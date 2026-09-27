@@ -6,7 +6,7 @@
  * other visitor gets the one thing they can do next: apply, wait for a person
  * to read it, or verify the email that was approved.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { currentAuthUser, sendAccountVerification } from "@/lib/accountAuth";
@@ -21,6 +21,8 @@ const SIGN_UP_URL = "/signup/business?buyerType=robot_team";
 function ApplicationForm({ email }: { email: string | null }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "approved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => setInteractive(true), []);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,7 +69,7 @@ function ApplicationForm({ email }: { email: string | null }) {
   }
 
   return (
-    <form className="ms-form" onSubmit={submit} aria-label="Early access application">
+    <form className="ms-form" method="post" onSubmit={submit} aria-label="Early access application">
       <label>Your name<input name="name" autoComplete="name" maxLength={120} required /></label>
       <label>Work email<input name="email" type="email" autoComplete="email" defaultValue={email ?? ""} maxLength={320} required /></label>
       <label>Company<input name="company" autoComplete="organization" maxLength={160} required /></label>
@@ -94,8 +96,9 @@ function ApplicationForm({ email }: { email: string | null }) {
       <p className="ms-field-hint">
         By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.
       </p>
-      {error && <p role="alert">{error}</p>}
-      <button className="ms-button" disabled={state === "sending"}>{state === "sending" ? "Sending…" : "Apply for early access"}</button>
+      {error && <p role="alert">{error} You can also <a href="mailto:hello@tryblueprint.io">email us your company, robot and the work you want to pursue</a>.</p>}
+      <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Sending…" : "Apply for early access"}</button>
+      <noscript><p>Enable JavaScript to apply here, or email your company, robot and the work you want to pursue to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
     </form>
   );
 }
@@ -151,10 +154,9 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
   return (
     <section aria-label="Early access" className="ms-early-access">
       <div className="ms-task-empty">
-        <h2>Early access for robot teams.</h2>
+        <h2>Apply for early access.</h2>
         <p>
-          Blueprint is in early access. Approved teams choose a real site task to assess, confirm what
-          their hardware and support can deliver, and pursue a scoped physical pilot when there is a fit.
+          No policy upload or integration needed.
         </p>
       </div>
       <ApplicationForm email={email} />

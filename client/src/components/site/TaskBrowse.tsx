@@ -30,19 +30,25 @@ export function TaskBrowse() {
   useEffect(() => {
     const controller = new AbortController();
     setState("loading");
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      setState("error");
+    }, 15_000);
     // Early access: the server returns tasks only to an approved team, so the
     // request carries the signed-in account when there is one.
     withFirebaseAuthHeaders(currentUser).catch(() => ({})).then(headers =>
       fetch("/api/site-worlds/tasks", { signal: controller.signal, headers })).then(async response => {
       if (!response.ok) throw new Error("unavailable");
       const data = await response.json();
+      if (controller.signal.aborted) return;
       if (!Array.isArray(data.items)) throw new Error("invalid library");
       setAccess(data.access ?? null);
       setItems(data.items); setState("ready");
       const sceneId = new URLSearchParams(window.location.search).get("sceneId");
       if (sceneId) setSelected(data.items.find((item: TaskBrowseCard) => item.id === sceneId && item.evaluationAvailable) || null);
-    }).catch(() => { if (!controller.signal.aborted) setState("error"); });
-    return () => controller.abort();
+    }).catch(() => { if (!controller.signal.aborted) setState("error"); })
+      .finally(() => window.clearTimeout(timeout));
+    return () => { window.clearTimeout(timeout); controller.abort(); };
   }, [retry, currentUser?.uid]);
   const filtered = items.filter(item => (!family || item.taskFamily === family)
     && (!region || item.region.toLowerCase().includes(region.toLowerCase()))
@@ -55,9 +61,16 @@ export function TaskBrowse() {
   </section>;
   // Nothing library-shaped renders until the server has said who may see it,
   // so a visitor outside early access never sees the library flash by.
+  // The public application is useful without that lookup. Render the same
+  // component on the server, while loading and on failure so typed fields
+  // survive the access response and a text reader can inspect the first step.
+  if ((state === "loading" || state === "error") && !currentUser) {
+    return <RobotTeamEarlyAccess access={null} email={null} />;
+  }
   if (state === "loading") return <section aria-label="Task library"><p role="status">Loading…</p></section>;
   if (state === "error") return <section aria-label="Task library"><div role="alert"><p>The task library could not be loaded.</p>
-    <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div></section>;
+    <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button>
+    <p><a href="mailto:hello@tryblueprint.io">Email us about a task or your application</a></p></div></section>;
   // Anything other than an explicit "allowed" is the early-access page.
   const gated = state === "ready" && access !== null && !access.allowed;
   if (gated) return <RobotTeamEarlyAccess access={access} email={currentUser?.email ?? null} />;

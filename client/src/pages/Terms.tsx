@@ -1,6 +1,6 @@
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
-import { entryPrice, formatPrice, matchFeeUsd, minTopupUsd } from "@/lib/evaluationPricing";
+import { entryPrice, formatPrice, matchFeeUsd, matchReplacementPolicy, minTopupUsd } from "@/lib/evaluationPricing";
 import { TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 type Section = { title: string; paragraphs?: readonly string[]; items?: readonly string[] };
@@ -26,12 +26,13 @@ export const termsSections: readonly Section[] = [
     title: "3. For sites: your authority and your footage",
     items: [
       "When you submit a task you confirm that you are authorized to record the site and to let Blueprint use the recording as these Terms describe.",
-      "Task footage may show people, including hands or arms performing the task. You confirm that you have authority to record and submit the footage and have given any required notice and obtained any required permissions from people shown. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to build and operate the scene and evaluation. People are not automatically removed from footage or derived scenes. Do not submit footage if you cannot authorize those uses.",
+      "Task footage may show people, including hands or arms performing the task. You confirm that you have authority to record and submit the footage and have given any required notice and obtained any required permissions from people shown. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to build and operate the scene and evaluation. We remove people from the frames used as input to reconstruction; the original recording may still contain them. Do not submit footage if you cannot authorize those uses.",
       "Avoid recording screens, documents and restricted areas where you can. We may blur or remove those details when practical.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and task details to provide the Service for your task: to review them, build a simulated scene, run the evaluations your listing allows, and show you the results. We never give your recording to a robot team, and we do not license it to anyone for training without your written agreement.",
       "Robot teams see only the task card you approve. You can hide it at any time; hiding it stops new runs. Results already produced remain in our records. When a robot team matches your task, we introduce you to each other by name: the team agrees to this when it says it wants your pilot, and you agree when you open the task to pilot proposals. Teams that don't match stay anonymous.",
-      `Submitting a task, screening and evaluation cost the site nothing. No match, no fee. When you open a task to pilot proposals, the person doing so confirms that they can approve Blueprint's match fee for the site. If Blueprint then finds a match for that task, we introduce you and invoice the site ${formatPrice(matchFeeUsd)} (plus any applicable tax), once per task however many teams match. A match is a robot team that passed Blueprint's evaluation for the task, can work within the budget or terms you posted, and wants to run your pilot. The fee is for finding the match, so it does not depend on whether you go on to buy a pilot. If we find no match, you owe nothing.`,
+      `Submitting a task, screening and evaluation cost the site nothing. No match, no fee. When you open a task to pilot proposals, the person doing so explicitly agrees to Blueprint's match fee and confirms their authority to do so for the site. If Blueprint then finds a match for that task, we introduce you and invoice the site ${formatPrice(matchFeeUsd)} (plus any applicable tax), once per task however many teams match. A match is a robot team that passed Blueprint's evaluation for the task, can work within the budget or terms you posted, and wants to run your pilot. The fee is for finding the match, so it does not depend on whether you go on to buy a pilot. If we find no match, you owe nothing.`,
       "Blueprint takes no percentage of any pilot or deployment. The site and the robot team agree pilot terms directly; a posted price or budget binds neither side. The robot team or its integrator contracts for the physical work and handles installation and operation.",
+      `${matchReplacementPolicy} To request a replacement or refund, contact ${COMPANY.emails.hello} with your task link.`,
     ],
   },
   {

@@ -2,7 +2,7 @@ import { TaskThumbnail } from "./TaskThumbnail";
 import { TaskThumbnailEditor } from "./TaskThumbnailEditor";
 import { useEffect, useState } from "react";
 import { type TaskListingDetails, opportunityLabels } from "@/types/taskBrowse";
-import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
+import { matchFeeAuthorization } from "@/lib/evaluationPricing";
 import { TaskFacts } from "./TaskFacts";
 const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking" };
 
@@ -70,7 +70,10 @@ export function PublicTaskListing({ token }: { token: string }) {
         <TaskThumbnailEditor existing={existingThumbnail} onChange={png => { setThumbnailPng(png); setConsent(false); setState("idle"); }} />
         <div className="ms-task-preview" aria-label="Public card preview"><p className="ms-field-hint">Public preview · {opportunityLabels[details.opportunity]}</p><div className="ms-task-heading"><h3>{details.title || "Your task"}</h3><TaskThumbnail src={previewThumbnail ? `data:image/png;base64,${previewThumbnail}` : null} title={details.title || "Your task"} taskFamily={details.taskFamily} /></div><p>{details.taskFamily}</p><TaskFacts details={details} /></div>
         <label className="ms-check-row"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />Show this card in the task library</label>
-        {opensToPilots && <label className="ms-check-row"><input type="checkbox" checked={matchFee} onChange={e => setMatchFee(e.target.checked)} required />If Blueprint finds a match for this task, I can approve a {formatPrice(matchFeeUsd)} fee. No match, no fee.</label>}
+        {opensToPilots && <>
+          <label className="ms-check-row"><input type="checkbox" checked={matchFee} onChange={e => setMatchFee(e.target.checked)} required />{matchFeeAuthorization}</label>
+          <p className="ms-field-hint"><a href="/pricing#match-fee" target="_blank" rel="noreferrer">Match criteria, fee and replacement policy</a></p>
+        </>}
         <label className="ms-check-row"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} required />I reviewed the text and thumbnail for identifying details and am authorized to make them public. I can remove this card here at any time.</label>
         <button className="ms-button" disabled={state === "saving"}>{state === "saving" ? "Saving…" : "Save public card"}</button>
         {state === "saved" && <p role="status">{enabled ? "Public card saved. Listing pauses and rights restrictions still apply." : "Your card is hidden."}</p>}

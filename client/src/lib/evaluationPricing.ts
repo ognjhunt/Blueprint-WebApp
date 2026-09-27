@@ -84,6 +84,14 @@ export const entryPrice = 99;
  */
 export const matchFeeUsd = 2500;
 
+/** Shown at both places a site can open a task to pilot proposals. */
+export const matchFeeAuthorization =
+  `I agree to Blueprint's ${formatPrice(matchFeeUsd)} fee for this task and am authorized to do so. It is due when a qualifying match is introduced, even if we do not buy a pilot.`;
+
+/** Owner-approved remedy for a provider changing its confirmed offer. */
+export const matchReplacementPolicy =
+  "If a matched team withdraws or materially changes its confirmed price or scope before the pilot starts, we seek a replacement that meets the same agreed requirements. If none fits, we refund your match fee.";
+
 /** The smallest top-up Stripe will charge. Mirrors `MIN_TOPUP_USD` on the server. */
 export const minTopupUsd = entryPrice;
 

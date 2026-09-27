@@ -502,9 +502,8 @@ export function SiteCaptureStart() {
       </label>
 
       <p className="ms-form-note">
-        Your recording may show people performing the task. We may use the video and frames to build
-        the scene with the providers described in our Privacy Policy; people are not automatically
-        removed. Please submit only footage you are authorized to share.
+        Share only footage you are authorized to use. Robot teams never receive your original recording.
+        {" "}<a href={PRIVACY_URL}>How we process your footage</a>.
       </p>
 
       {state.status === "failed" && (

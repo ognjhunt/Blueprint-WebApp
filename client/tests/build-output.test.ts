@@ -107,6 +107,15 @@ describe("build output", () => {
     expect(fs.readFileSync(distPath("signup/business/index.html"), "utf8")).toContain('id="email"');
   });
 
+  it("makes robot-team intake inspectable without waiting for JavaScript or a task lookup", () => {
+    const html = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
+    expect(html).toContain('aria-label="Early access application"');
+    expect(html).toContain('name="robot"');
+    expect(html).toContain('name="workWanted"');
+    expect(html).toContain("mailto:hello@tryblueprint.io");
+    expect(html).not.toContain('role="status">Loading…');
+  });
+
   it("does not prerender retired aliases or protected operations routes", () => {
     [
       "proof/index.html",
@@ -232,7 +241,7 @@ describe("build output", () => {
     // The published site form keeps the task and consent, without the retired
     // screening interview. These assertions inspect actual prerendered HTML.
     expect(siteHtml).toContain("What is the job?");
-    expect(siteHtml).toContain("Describe the work and share photos or phone video.");
+    expect(siteHtml).toContain("Describe the work. Add photos or phone video if you have them.");
     expect(siteHtml).toContain("How this works");
     expect(siteHtml).toContain('id="start-self-recording"');
     expect(siteHtml).toContain('id="start-region"');
@@ -240,9 +249,9 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Find a task your robot can support.");
-    expect(robotHtml).toContain("Tell us what your robot can do and what a standard pilot includes.");
-    // Early access: nothing library-shaped is prerendered. The page asks the
-    // server who is looking before it shows tasks or the setup form.
+    expect(robotHtml).toContain("Find relevant site tasks and evaluate them for free when invited.");
+    // The application is public; tasks and executable plans still wait for
+    // server access approval.
     expect(robotHtml).not.toContain("Already have a robot policy to evaluate?");
     expect(robotHtml).not.toContain("See what we would run");
     expect(robotHtml).not.toContain('id="capture-mode"');
@@ -281,7 +290,7 @@ describe("build output", () => {
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
     expect(browserJavaScript).toContain("A measured robot pilot.");
-    expect(browserJavaScript).toContain("We turn your description and footage into a task brief");
+    expect(browserJavaScript).toContain("We draft a task brief for you to correct.");
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {

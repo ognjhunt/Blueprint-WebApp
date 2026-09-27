@@ -354,6 +354,11 @@
 .ms-task-facts dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .ms-task-interest { border-top: 1px solid var(--ms-rule); padding-block: 18px; margin-top: 24px; }
 .ms-task-interest summary { cursor: pointer; min-height: 44px; padding-block: 10px; }
+.ms-visitor-detail { scroll-margin-top: 28px; }
+.ms-visitor-detail > p { max-width: 72ch; margin-top: 12px; color: var(--ms-muted); font-size: 14px; line-height: 1.7; }
+.ms-visitor-detail > h2 { margin-top: 24px; font-size: 22px; letter-spacing: -.025em; }
+.ms-visitor-detail > .ms-field-hint { font-size: 12px; }
+.ms-visitor-detail a { text-decoration: underline; text-underline-offset: 3px; }
 .ms-task-preview { border-block: 1px solid var(--ms-rule); padding-block: 16px; margin-block: 16px; }
 .ms-check-row { display: flex !important; flex-direction: row !important; align-items: start; gap: 12px; }
 .ms-check-row input { width: 20px !important; height: 20px; min-height: 20px !important; flex-shrink: 0; margin-top: 3px; }
