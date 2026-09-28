@@ -116,6 +116,9 @@ export async function ensureSelfServeAgentExecution(params: {
   const development = developmentOfferForTeam(scene, params.teamId);
 
   const blockers: string[] = [];
+  if (development && !development.allowed_checkpoint_runtimes.includes(checkpoint.runtime)) {
+    blockers.push("development_task_checkpoint_runtime_not_supported");
+  }
   if (!team) blockers.push("team_missing");
   if (!checkpointSnapshot.exists || checkpoint.teamId !== params.teamId) {
     blockers.push("agent_execution_checkpoint_team_mismatch");
@@ -201,7 +204,7 @@ export async function ensureSelfServeAgentExecution(params: {
     idempotency_key: requestId,
     decision_question: development ? "How does this policy execute on the private development task in simulation?" : "How does this checkpoint perform on the approved task in this site's simulated scene?",
     task_description: facts.taskId,
-    site_task_conditions: [development ? "Development capture; no qualification or physical success claim" : "Simulated scene reconstructed from the site's own capture"],
+    site_task_conditions: [development ? "Retained development scene geometry; no qualification or physical success claim" : "Simulated scene reconstructed from the site's own capture"],
     customer: { id: params.teamId, name: team!.name },
     site_package: {
       site_id: facts.siteId,
@@ -238,11 +241,11 @@ export async function ensureSelfServeAgentExecution(params: {
       budget: { amount: params.quotedUsd, currency: "USD", hard_cap: true },
       available_physical_evidence: [{
         artifact_id: facts.captureId,
-        kind: "capture",
+        kind: development ? "development_scene_geometry" : "capture",
         uri: offer.capture_root,
         version: facts.testbedVersion || "1",
         digest_sha256: facts.captureDigest,
-        evidence_class: "real_observation",
+        evidence_class: development ? "geometry" : "real_observation",
       }],
     },
     source: { ...(development ? { evidence_scope: "development_only", authorization_reference: development.authorization_reference } : {}), selection_state: { policy_id: params.checkpointId, task_id: facts.taskId } },

@@ -176,10 +176,11 @@ export async function buildTeamEvalCandidates(params: {
   const team = await getRobotTeam(params.teamId);
   if (!team) return [];
 
-  const [sites, history, development] = await Promise.all([
+  const [sites, history, development, checkpoint] = await Promise.all([
     loadRunnableSites(params.limit ?? 200),
     loadEvaluatedFamilies(params.teamId, params.checkpointId),
     db ? db.collection(DEVELOPMENT_OFFERS).where("allowed_team_ids", "array-contains", params.teamId).limit(100).get() : null,
+    db ? db.collection("robotCheckpoints").doc(params.checkpointId).get() : null,
   ]);
 
   const candidate = toMatchCandidate(team);
@@ -187,7 +188,8 @@ export async function buildTeamEvalCandidates(params: {
 
   const privateCandidates: EvalCandidate[] = (development?.docs ?? []).flatMap(doc => {
     const offer = developmentOfferForTeam(doc.data(), params.teamId);
-    if (!offer) return [];
+    if (!offer || checkpoint?.data()?.teamId !== params.teamId
+      || !offer.allowed_checkpoint_runtimes.includes(checkpoint?.data()?.runtime)) return [];
     return [{sceneId: offer.requestId, siteLabel: offer.details.title, details: offer.details,
       evidenceScope: "development_only" as const, quotedEpisodes: 1, policyInterface: offer.policy_interface,
       match: {outcome: "provisional" as const, score: 0, scored: 0, unknownHardConstraints: []},
