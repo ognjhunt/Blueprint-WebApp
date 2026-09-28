@@ -99,6 +99,7 @@ import {
 import { createEvalPlanToken, verifyEvalPlanToken } from "../utils/evalPlanToken";
 import { EARLY_ACCESS_REQUIRED, teamHasEarlyAccess } from "../utils/robotTeamEarlyAccess";
 import { getRunForTeam, listRunsForTeam } from "../utils/agentRunResults";
+import { receivePolicyModel, storePolicyModel } from "./policy-model-upload";
 
 const router = Router();
 
@@ -546,6 +547,17 @@ router.get("/me", async (req: Request, res: Response) => {
  * outputs of a run, and asking a team to predict its own benchmark results was
  * the worst requirement in the old intake.
  */
+router.post("/checkpoints/model-upload", async (req, res, next) => {
+  const teamId = await requireTeam(req, res);
+  if (!teamId || !await requireAccountBoundTeam(teamId, res)) return;
+  res.locals.policyModelTeamId = teamId;
+  next();
+}, rateLimit({
+  windowMs: 60_000, limit: 4, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (_req, res) => String(res.locals.policyModelTeamId),
+  store: createRateLimitRedisStore("rl:policy-model-upload:"),
+}), receivePolicyModel, storePolicyModel);
+
 router.post("/checkpoints", async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;

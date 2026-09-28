@@ -40,6 +40,7 @@
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import type { PolicyModelArtifact } from "./policyModelArtifact";
 import { mergeCapability } from "./robotTeamRegistry";
 import {
   ROBOT_TEAMS_COLLECTION,
@@ -69,6 +70,7 @@ export interface RobotCheckpoint {
   runtime: CheckpointRuntime;
   /** Endpoint URL, image reference, or artifact URI, by runtime. */
   reference: string;
+  modelArtifact?: PolicyModelArtifact;
   status: CheckpointStatus;
   /** Why it could not be run, when that is the status. */
   unrunnableReason: string | null;
@@ -101,6 +103,7 @@ export async function registerCheckpoint(params: {
   label: string;
   runtime: string;
   reference: string;
+  modelArtifact?: PolicyModelArtifact;
 }): Promise<RegisterCheckpointResult> {
   if (!db) {
     return {
@@ -135,6 +138,7 @@ export async function registerCheckpoint(params: {
     label: params.label.trim() || checkpointId,
     runtime,
     reference,
+    ...(params.modelArtifact ? { modelArtifact: params.modelArtifact } : {}),
     status: "registered",
     unrunnableReason: null,
     createdAtIso: nowIso(),

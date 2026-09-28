@@ -29,7 +29,24 @@ let kmsClient: KeyManagementServiceClient | null = null;
 
 function getKmsClient(): KeyManagementServiceClient {
   if (!kmsClient) {
-    kmsClient = new KeyManagementServiceClient();
+    // Render supplies the Firebase service account as JSON, while GCP-native
+    // workers use ADC. Use that same deployed principal when no ADC file is
+    // configured; the KMS key grants it only encrypt/decrypt on this key.
+    const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    if (rawCredentials && !process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) {
+      let credentials;
+      try { credentials = JSON.parse(rawCredentials); }
+      catch { throw new Error("KMS service-account credentials are invalid."); }
+      if (!credentials.client_email || !credentials.private_key || !credentials.project_id) {
+        throw new Error("KMS service-account credentials are incomplete.");
+      }
+      kmsClient = new KeyManagementServiceClient({
+        projectId: credentials.project_id,
+        credentials: { client_email: credentials.client_email, private_key: credentials.private_key },
+      });
+    } else {
+      kmsClient = new KeyManagementServiceClient();
+    }
   }
   return kmsClient;
 }

@@ -614,3 +614,24 @@ describe("paying needs a verified account", () => {
     window.history.replaceState({}, "", "/");
   });
 });
+
+
+it("uploads a model privately before requesting its task plan", async () => {
+  accountMocks.currentUser = { email: "eng@alpha.example", emailVerified: true };
+  jsonOnce(201, { teamId: "t", agentKey: "bpk_model" });
+  jsonOnce(201, { checkpoint: { checkpointId: "model_ckpt" } });
+  jsonOnce(200, { selected: [], totalCostUsd: 0, accountBound: true });
+  render(<RobotTeamPlanPreview />);
+  fireEvent.change(screen.getByLabelText(/how would we run it/i), { target: { value: "model_artifact" } });
+  fireEvent.change(screen.getByLabelText(/model file/i), { target: { files: [new File(["model"], "policy.onnx")] } });
+  fillAndSubmit(null);
+  await waitFor(() => expect(fetchMock.mock.calls.length).toBe(3));
+  const registered = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+  expect(registered.checkpoint).toBeUndefined();
+  expect(fetchMock.mock.calls[1][0]).toBe("/api/agent-team/checkpoints/model-upload");
+  const upload = fetchMock.mock.calls[1][1];
+  expect(upload.headers).toEqual({ Authorization: "Bearer bpk_model" });
+  expect(upload.body.get("model").name).toBe("policy.onnx");
+  expect(JSON.parse(upload.body.get("interface")).runner_profile).toBe("onnx_state_mlp_cpu_v1");
+  expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toEqual({ checkpointId: "model_ckpt" });
+});

@@ -887,3 +887,12 @@ describe("the robot's non-observable physical facts", () => {
     expect(status).toBe(400);
   });
 });
+
+
+it("refuses model upload before reading bytes without a valid team key", async () => {
+  await withRoutes(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/agent-team/checkpoints/model-upload`, { method: "POST" });
+    expect(response.status).toBe(401);
+    expect((await response.json()).code).toBe("agent_key_invalid");
+  });
+});
