@@ -1,0 +1,13 @@
+{
+  "schema_version": "blueprint.production_kms_firestore_replay.v1",
+  "observed_at": "2026-09-28T19:12:09.840Z",
+  "source_commit": "91dd3012426ec9daca3d861b9558adb8155c9141",
+  "execution_location": "operator checkout using actual production KMS and Firestore",
+  "encryption_algorithm": "kms",
+  "firestore_write": true,
+  "firestore_read": true,
+  "decryption_readback_matched": true,
+  "kms_inapplicable_fields_omitted": true,
+  "cleanup_complete": true,
+  "production_web_route_replay_pending": true
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "blueprint.production_candidate_and_skill_access_proof.v1",
+  "observed_at": "2026-09-28T19:41:30.424Z",
+  "run_id": "blueprint-owned-policy-admission-only-20260928",
+  "statuses": {
+    "/policy-candidates/policy-candidate-3df2055919b5b9c088e5d0a2c92b135d1a8f9baa": {
+      "owner": 200,
+      "other_owner": 403,
+      "anonymous": 401
+    },
+    "/skill-traces": {
+      "owner": 200,
+      "other_owner": 403,
+      "anonymous": 401
+    }
+  },
+  "scene_or_task_execution_proven": false
+}

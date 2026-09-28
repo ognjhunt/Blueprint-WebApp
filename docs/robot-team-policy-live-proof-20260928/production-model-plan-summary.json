@@ -1,0 +1,11 @@
+{
+  "schema_version": "blueprint.production_model_plan_blocker.v1",
+  "observed_at": "2026-09-28T19:15:15.253Z",
+  "http_status": 200,
+  "execution_ready": false,
+  "blocked_by": "execution_preparation_required",
+  "selected_count": 0,
+  "line_blockers": [],
+  "committed": false,
+  "new_policy_task_execution_proven": false
+}

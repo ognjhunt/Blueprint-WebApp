@@ -1,0 +1,10 @@
+{
+  "schema_version": "blueprint.abandoned_synthetic_registry_attempt_cleanup.v1",
+  "observed_at": "2026-09-28T19:35:40.521Z",
+  "submission_id": "policy-candidate-08151349191ea470fa262fa29b25f92c33db592d",
+  "lease_id": "policy-registry-lease-e863c46de052f96f8fa81edef2e85e9f1def00f68d45710",
+  "outbox_status": "terminal_blocked",
+  "ciphertext_deleted": true,
+  "no_fake_consumption_receipt": true,
+  "reason": "owner_authorized_synthetic_proof_retired_after_intake_restart_backoff"
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": "blueprint.synthetic_https_policy_teardown.v1",
+  "observed_at_unix": 1790623075.9073339,
+  "service_id": "srv-datbdfuk1f9s73fk503g",
+  "plan": "free",
+  "anonymous_policy_call_status": 403,
+  "delete_status": 204,
+  "provider_readback_status": 404,
+  "cleanup_complete": true,
+  "source_commit": "16d8551b413fe1a65fe70b3f77ad73ea0b42b287",
+  "scope": "synthetic-only HTTPS transport proof; no scene, simulator, model weights or scoring code"
+}

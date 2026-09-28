@@ -1,0 +1,23 @@
+{
+  "schema_version": "blueprint.production_container_outbox_dispatch_proof.v1",
+  "observed_at_unix": 1790624207.511884,
+  "candidate_status": "admitted_no_spend",
+  "outbox_status": "delivered",
+  "attempt_count": 1,
+  "pipeline_handoff": {
+    "admission_digest": "sha256:43c6199a119ddd831ecef4d8b51c0dc3f24e5ae5128fde0068b13e1f80d1baea",
+    "accepted": true,
+    "pipeline_status": 201,
+    "blockers": [],
+    "admission_id": "company-policy-admission-e8fe8eb12c1a3673e17a4f4c43a40a7c777a8d62",
+    "performed": true,
+    "required": true,
+    "status": "accepted"
+  },
+  "production_render_worker_source": "2c3dafd06a86d6fa705b6fab7534d25bfbaa090e",
+  "production_render_worker_deploy": "dep-datbs1gu01pc73e1ac5g",
+  "submission_id": "policy-candidate-3df2055919b5b9c088e5d0a2c92b135d1a8f9baa",
+  "registry_credential_lease_id": "policy-registry-lease-ff9a241fea491ab401761b01abc92a7e166c1b0f338727a",
+  "automatic_native_task_execution_proven": false,
+  "provider_mutation_authorized": false
+}

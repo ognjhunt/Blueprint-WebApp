@@ -1,0 +1,10 @@
+{
+  "schema_version": "blueprint.dedicated_policy_worker_teardown.v1",
+  "observed_at_unix": 1790624626.3883991,
+  "worker_name": "blueprint-live-policy-proof-20260928",
+  "worker_inventory_empty": true,
+  "worker_directory_absent": true,
+  "containers_removed_before_worker_teardown": true,
+  "bootstrap_and_broker_tokens_removed_with_worker": true,
+  "cleanup_complete": true
+}

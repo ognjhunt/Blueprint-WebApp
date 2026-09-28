@@ -1,0 +1,24 @@
+{
+  "schema_version": "blueprint.private_policy_web_release_verification.v1",
+  "observed_at_unix": 1790623663.291143,
+  "web_and_worker": [
+    {
+      "service_id": "srv-d4vnmk3e5dus73aiohk0",
+      "deploy_id": "dep-datbs1c9v7es73843tkg",
+      "status": "live",
+      "source_commit": "2c3dafd06a86d6fa705b6fab7534d25bfbaa090e"
+    },
+    {
+      "service_id": "srv-d9t8gg1t0dsc73am9q70",
+      "deploy_id": "dep-datbs1gu01pc73e1ac5g",
+      "status": "live",
+      "source_commit": "2c3dafd06a86d6fa705b6fab7534d25bfbaa090e"
+    }
+  ],
+  "web_version_commit": "2c3dafd06a86d6fa705b6fab7534d25bfbaa090e",
+  "capability_merge": "53e206ce51b0e32fc75003c21fbffabf8295216c",
+  "kms_fix_merge": "2c3dafd06a86d6fa705b6fab7534d25bfbaa090e",
+  "main_ci_run_id": 36470936224,
+  "deploy_run_id": 36471561618,
+  "native_task_execution_proven": false
+}

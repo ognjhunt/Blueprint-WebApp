@@ -1,0 +1,26 @@
+{
+  "schema_version": "blueprint.production_policy_runtime_registration.v1",
+  "observed_at": "2026-09-28T19:14:50.119Z",
+  "entries": [
+    {
+      "runtime": "customer_hosted",
+      "status": 201,
+      "checkpoint_id": "ckpt_team_blueprint-policy-integration-proof-20260928_65decb5645_mulmmvr7",
+      "execution_proven": false
+    },
+    {
+      "runtime": "controller_adapter",
+      "status": 201,
+      "checkpoint_id": "ckpt_team_blueprint-policy-integration-proof-20260928_65decb5645_mulmmw69",
+      "execution_proven": false
+    },
+    {
+      "runtime": "skill_trace",
+      "status": 201,
+      "checkpoint_id": "ckpt_team_blueprint-policy-integration-proof-20260928_65decb5645_mulmmwj3",
+      "execution_proven": false
+    }
+  ],
+  "scope": "production account-owned interface registration; no native controller or task execution",
+  "synthetic_policy_only": true
+}

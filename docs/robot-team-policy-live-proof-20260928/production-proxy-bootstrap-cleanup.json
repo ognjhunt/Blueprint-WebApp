@@ -1,0 +1,1 @@
+{"schema_version": "blueprint.proxy_bootstrap_credential_cleanup.v1", "bootstrap_credentials_removed_before_customer_lease_claim": true, "token_file_removed": true, "proxy_image": "us-central1-docker.pkg.dev/blueprint-8c1ca/pipeline-jobs/company-policy-proxy-proof@sha256:3cca1ee8ab0ad16d9f6c095eb5c41449320243fa49e80127a94f50c9181febf7"}

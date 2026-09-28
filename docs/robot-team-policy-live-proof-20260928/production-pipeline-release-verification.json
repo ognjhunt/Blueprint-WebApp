@@ -1,0 +1,10 @@
+{
+  "schema_version": "blueprint.private_policy_pipeline_release_verification.v1",
+  "observed_at_unix": 1790624626.746357,
+  "source_commit": "16c128b7e03cc8dfce43ed2cedcc415ee3975c4d",
+  "commit_proven": true,
+  "blockers": [],
+  "capability_merge": "16d8551b413fe1a65fe70b3f77ad73ea0b42b287",
+  "private_registry_allowlist_configured": true,
+  "native_task_execution_proven": false
+}
