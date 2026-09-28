@@ -17,10 +17,14 @@ export const modelInterfaceSchema = z.object({
   runner_profile: z.literal(MODEL_RUNNER_PROFILE),
   input_name: field,
   output_name: field,
-  state_fields: z.array(z.object({ name: field, width: z.number().int().min(1).max(1024) }).strict())
+  state_fields: z.array(z.object({
+    name: field, width: z.number().int().min(1).max(1024),
+    unit: z.string().trim().min(1).max(64),
+  }).strict())
     .min(1).max(32).refine((fields) => new Set(fields.map((f) => f.name)).size === fields.length)
     .refine((fields) => fields.reduce((n, f) => n + f.width, 0) <= 1024),
   action_schema: z.object({ chunk_rows: z.number().int().min(1).max(128), channels: z.array(channel).min(1).max(128) }).strict(),
+  preprocessing: z.literal("embedded_in_model_graph"),
 }).strict();
 export type PolicyModelInterface = z.infer<typeof modelInterfaceSchema>;
 

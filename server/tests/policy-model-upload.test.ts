@@ -20,7 +20,8 @@ vi.mock("../utils/robotCheckpoints", () => ({ registerCheckpoint: state.register
 
 const modelInterface = {
   schema_version: "blueprint.policy_model_interface.v1", runner_profile: "onnx_state_mlp_cpu_v1",
-  input_name: "state", output_name: "actions", state_fields: [{ name: "joint_position", width: 2 }],
+  input_name: "state", output_name: "actions", state_fields: [{ name: "joint_position", width: 2, unit: "radian" }],
+  preprocessing: "embedded_in_model_graph",
   action_schema: { chunk_rows: 1, channels: [
     { name: "joint", raw_accepted_bounds: [-1, 1], unit: "radian" },
     { name: "gripper", raw_accepted_bounds: [0, 1], unit: "fraction" },
@@ -74,6 +75,8 @@ it("refuses public-capable storage and unsupported runner/format", async () => {
   expect(state.save).not.toHaveBeenCalled();
   expect((await upload({ ...modelInterface, runner_profile: "caller_python" })).status).toBe(400);
   expect((await upload(modelInterface, "policy.pkl")).status).toBe(400);
+  expect((await upload({ ...modelInterface, state_fields: [{ name: "joint_position", width: 2 }] })).status).toBe(400);
+  expect((await upload({ ...modelInterface, preprocessing: "caller_python" })).status).toBe(400);
 });
 
 it("removes only this upload if checkpoint persistence fails", async () => {
