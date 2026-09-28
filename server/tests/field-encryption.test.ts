@@ -4,10 +4,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   decryptInboundRequestForAdmin,
+  decryptBoundFieldValue,
   decryptFieldValue,
+  encryptBoundFieldValue,
   encryptFieldValue,
   encryptInboundRequestForStorage,
   isEncryptedField,
+  isBoundEncryptedField,
 } from "../utils/field-encryption";
 import type { InboundRequest } from "../types/inbound-request";
 
@@ -26,6 +29,26 @@ describe("field encryption", () => {
 
     const decrypted = await decryptFieldValue(encrypted);
     expect(decrypted).toBe("sensitive@example.com");
+  });
+
+  it("cryptographically binds a credential to its tenant and immutable candidate", async () => {
+    const binding = [
+      "tenant-a",
+      "run-1",
+      "submission-1",
+      "registry.example/policy@sha256:" + "a".repeat(64),
+      "sha256:" + "b".repeat(64),
+    ].join("\u0000");
+    const encrypted = await encryptBoundFieldValue("short-lived-token", binding);
+
+    expect(isBoundEncryptedField(encrypted)).toBe(true);
+    expect(encrypted.ciphertext).not.toContain("short-lived-token");
+    await expect(decryptBoundFieldValue(encrypted, binding)).resolves.toBe(
+      "short-lived-token",
+    );
+    await expect(
+      decryptBoundFieldValue(encrypted, binding.replace("tenant-a", "tenant-b")),
+    ).rejects.toThrow("associated data mismatch");
   });
 
   it("stores inbound request contact fields as ciphertext", async () => {

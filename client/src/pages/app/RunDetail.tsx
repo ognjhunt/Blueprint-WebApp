@@ -175,6 +175,13 @@ export function RunRecord({ run }: { run: BuyerRunDetail }) {
   const projection = run.decision_projection;
   return (
     <div className="flex flex-col gap-8">
+      {run.status && new Set(["submitted", "ready"]).has(run.status) ? (
+        <section>
+          <h2 className="text-lg">Policy container</h2>
+          <p className="mt-2">Add your container and robot interface for this task evaluation.</p>
+          <Link className="ws-link mt-2 inline-block" href={`/app/runs/${encodeURIComponent(run.job_id)}/policy-candidate/new`}>Add policy container</Link>
+        </section>
+      ) : null}
       {projection?.supported ? <DecisionResult envelope={projection.envelope} /> : null}
       {projection && !projection.supported ? (
         <div className="ws-alert" role="status">

@@ -84,6 +84,8 @@ import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import cityLaunchRouter from "./routes/city-launch";
 import publicLaunchRouter from "./routes/public-launch";
 import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
+import companyPolicyCandidatesRouter from "./routes/company-policy-candidates";
+import internalCompanyPolicyRegistryCredentialsRouter from "./routes/internal-company-policy-registry-credentials";
 import clientRuntimeConfigAdminRouter, {
   clientRuntimeConfigPublicHandler,
 } from "./routes/client-runtime-config";
@@ -146,6 +148,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/site-claim", siteClaimRouter);
   app.use("/api/admin/outbound-prospects", adminOutboundProspectsRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
+  app.use("/api/internal/pipeline", internalCompanyPolicyRegistryCredentialsRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
   app.use("/api/internal/human-blockers", internalHumanBlockersRouter);
   app.use("/api/internal/human-replies", internalHumanRepliesRouter);
@@ -163,6 +166,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
   app.use("/api/task-evaluation-runs", evaluationReadyRunsRouter);
+  app.use("/api/task-evaluation-runs", companyPolicyCandidatesRouter);
   app.use("/api/task-evaluation-runs", robotEvalJobRequestsRouter);
   app.use("/api/task-evaluation-result-downloads", taskEvaluationResultDownloadsRouter);
   app.use("/api/native-g1-review-downloads", nativeG1PrivateReviewDownloadsRouter);

@@ -13,4 +13,9 @@ export interface EncryptedField {
   dekAlg: DekAlgorithm;
 }
 
+export interface BoundEncryptedField extends EncryptedField {
+  bindingVersion: "blueprint-bound-field.v1";
+  associatedDataSha256: string;
+}
+
 export type EncryptableString = string | EncryptedField;

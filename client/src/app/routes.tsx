@@ -93,6 +93,7 @@ const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
 const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
 const ConnectChatGPT = lazyRoute(() => import("../pages/app/ConnectChatGPT"));
 const AppRunIntake = lazyRoute(() => import("../pages/app/RunIntake"));
+const AppPolicyCandidateIntake = lazyRoute(() => import("../pages/app/PolicyCandidateIntake"));
 const AppRunDetail = lazyRoute(() => import("../pages/app/RunDetail"));
 const AppEvaluationRunSetup = lazyRoute(() => import("../pages/app/EvaluationRunSetup"));
 const AppPolicyCanarySetup = lazyRoute(() => import("../pages/app/PolicyCanarySetup"));
@@ -436,6 +437,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },
   { path: "/app/results/:recordId", layout: "public", shell: "bare", component: AppTaskEvaluationResultDetail },
   { path: "/app/g1-reviews/:runId", layout: "protected", shell: "bare", component: AppNativeG1PrivateReview },
+  { path: "/app/runs/:runId/policy-candidate/new", layout: "protected", shell: "bare", component: AppPolicyCandidateIntake },
   { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
   { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
   { path: "/app/packs/policy-packet", layout: "protected", shell: "bare", component: AppPolicyCanarySetup },
