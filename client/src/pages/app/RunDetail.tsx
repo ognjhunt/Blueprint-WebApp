@@ -175,7 +175,7 @@ export function RunRecord({ run }: { run: BuyerRunDetail }) {
   const projection = run.decision_projection;
   return (
     <div className="flex flex-col gap-8">
-      {run.status && new Set(["submitted", "ready"]).has(run.status) ? (
+      {run.status && new Set(["submitted", "ready", "prepared_agent_execution"]).has(run.status) ? (
         <section>
           <h2 className="text-lg">Policy container</h2>
           <p className="mt-2">Add your container and robot interface for this task evaluation.</p>
