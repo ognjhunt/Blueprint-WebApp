@@ -65,8 +65,8 @@ import {
 import { recordRunResult } from "../utils/agentRunResults";
 import { getRun, listRequestedRuns, markRunStarted } from "../utils/agentEvalRuns";
 import { getCheckpoint } from "../utils/robotCheckpoints";
-import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { controlledNativeResultSchema } from "../utils/controlledNativeResult";
+import { loadTaskForTeam, developmentOfferForTeam } from "../utils/controlledDevelopmentOffer";
 
 const router = Router();
 
@@ -336,11 +336,17 @@ export default router;
  * address and contact are not on this payload: an executor runs a policy
  * against a scene, and who owns the room is not its business.
  */
-async function sceneForExecutor(requestId: string) {
-  if (!db) return null;
-  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
-  if (!snapshot.exists) return null;
-  const data = (snapshot.data() ?? {}) as Record<string, unknown>;
+async function sceneForExecutor(requestId: string, teamId: string) {
+  const data = await loadTaskForTeam(requestId, teamId);
+  if (!data) return null;
+  const development = developmentOfferForTeam(data, teamId);
+  if (development) return {
+    request_id: requestId,
+    capture_id: development.execution_facts.captureId,
+    scene_id: development.execution_facts.siteId,
+    world_manifest_uri: null,
+    evaluation_readiness: null,
+  };
   const pipeline = (data.pipeline ?? {}) as Record<string, unknown>;
   const artifacts = (pipeline.artifacts ?? {}) as Record<string, unknown>;
   return {
@@ -376,7 +382,7 @@ router.get("/agent-runs", createPipelineSyncRateLimiter(), guard, async (req: Re
       runs.map(async (run) => {
         const [checkpoint, scene] = await Promise.all([
           getCheckpoint(run.checkpointId),
-          sceneForExecutor(run.sceneId),
+          sceneForExecutor(run.sceneId, run.teamId),
         ]);
         return {
           run_id: run.runId,
