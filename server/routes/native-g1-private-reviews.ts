@@ -29,6 +29,12 @@ type StoredReview = {
   created_at_iso: string;
 };
 
+function matchesSelectedOwner(review: StoredReview["review"], runId: string, ownerId: string, organizationId: string) {
+  return review.schema_version !== "native_g1_team_private_review.v1"
+    || (review.run_id === runId && review.owner_user_id === ownerId
+      && review.organization_id === organizationId);
+}
+
 async function readReview(runId: string): Promise<StoredReview | null> {
   if (!db || !identifier.safeParse(runId).success) return null;
   const snapshot = await db.collection(collection).doc(runId).get();
@@ -36,6 +42,7 @@ async function readReview(runId: string): Promise<StoredReview | null> {
   const value = snapshot.data() as StoredReview;
   const review = parseNativeG1PrivateReview(value.review);
   if (!review || value.run_id !== runId || value.access_visibility !== "owner_only") return null;
+  if (!matchesSelectedOwner(review, runId, value.owner_user_id, value.organization_id)) return null;
   return { ...value, review };
 }
 
@@ -61,6 +68,9 @@ nativeG1PrivateReviewIngestRouter.post("/native-g1-reviews", createPipelineSyncR
   if (!payload.success || !review) return res.status(400).json({ error: "Verified private G1 review required" });
   if (!db) return res.status(503).json({ error: "Private review store is unavailable" });
   const { run_id: runId, owner_user_id: ownerId, organization_id: organizationId } = payload.data;
+  if (!matchesSelectedOwner(review, runId, ownerId, organizationId)) {
+    return res.status(400).json({ error: "Selected G1 review owner or intent mismatch" });
+  }
   // The artifact registry is the authority for downloadable bytes. A result
   // cannot be published to a team account while any bound file is unavailable.
   const admissions = await Promise.all(nativeG1ReviewArtifacts(review).map((artifact) =>
@@ -108,6 +118,7 @@ router.get("/", async (_req, res) => {
       const record = doc.data() as StoredReview;
       const review = parseNativeG1PrivateReview(record.review);
       return review && record.run_id === doc.id && record.access_visibility === "owner_only"
+        && matchesSelectedOwner(review, doc.id, record.owner_user_id, record.organization_id)
         ? { run_id: doc.id, scene_id: review.scene_id, task_id: review.task_id,
           embodiment_id: review.embodiment_id, review_digest: review.review_digest,
           created_at_iso: record.created_at_iso } : null;

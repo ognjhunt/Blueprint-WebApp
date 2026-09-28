@@ -4,6 +4,7 @@ import { createServer, type Server } from "node:http";
 import { afterEach, expect, it, vi } from "vitest";
 
 const records = vi.hoisted(() => new Map<string, Record<string, any>>());
+const forwardTeamRun = vi.hoisted(() => vi.fn());
 const setup = vi.hoisted(() => ({
   setup_digest: `sha256:${"a".repeat(64)}`,
   scene_id: "interiorgs-841757",
@@ -36,6 +37,7 @@ vi.mock("../utils/nativeG1TeamCampaignForwarding", async (importOriginal) => ({
   fetchG1TeamCatalog: async (owner: { user_id: string; organization_id: string }) => ({
     owner, setups: [setup],
   }),
+  submitG1TeamPolicyRun: forwardTeamRun,
 }));
 
 import router from "../routes/native-g1-team-campaigns";
@@ -45,6 +47,53 @@ afterEach(async () => {
   await new Promise<void>((resolve) => server?.close(() => resolve()) || resolve());
   server = null;
   records.clear();
+  forwardTeamRun.mockReset();
+});
+
+it("submits only the authenticated owner's registered profile for runtime approval", async () => {
+  const url = await start();
+  const delivery = {
+    setup_digest: setup.setup_digest,
+    robot_preset_id: "unitree_g1_dex3_sonic_v1", label: "Team endpoint v1",
+    delivery: { mode: "authenticated_endpoint",
+      endpoint_url: "https://policy.example.com/action",
+      auth_secret_ref: "secretref:team/policy", timeout_ms: 5000 },
+  };
+  const registered = await fetch(url, {
+    method: "POST", headers: { "content-type": "application/json", "x-test-owner": "owner-a" },
+    body: JSON.stringify(delivery),
+  });
+  expect(registered.status).toBe(201);
+  const profile = await registered.json();
+  const runUrl = url.replace(/\/policy-deliveries$/, "/policy-runs");
+  const input = {
+    run_id: "team-g1-1", setup_digest: setup.setup_digest,
+    profile_digest: profile.profile_digest, objective_id: "task_success",
+    authorization_expires_at_epoch: Date.now() / 1000 + 1800,
+    authorize_maximum_cost_usd_12: true,
+    site_observation_exchange_authorized: true,
+    maximum_cost_usd: 10.75,
+  };
+  const post = (owner: string, value = input) => fetch(runUrl, {
+    method: "POST", headers: { "content-type": "application/json", "x-test-owner": owner },
+    body: JSON.stringify(value),
+  });
+  expect((await post("owner-b")).status).toBe(404);
+  expect(forwardTeamRun).not.toHaveBeenCalled();
+  forwardTeamRun.mockResolvedValue({
+    schema_version: "native_g1_team_policy_run_intake_receipt.v1",
+    status: "accepted_pending_operator_approval", intent_id: "g1-team-policy-1",
+    provider_mutation_performed_inside_http_request: false,
+  });
+  const accepted = await post("owner-a");
+  expect(accepted.status).toBe(202);
+  expect((await accepted.json()).status).toBe("accepted_pending_operator_approval");
+  expect(forwardTeamRun).toHaveBeenCalledWith(
+    input, { user_id: "owner-a", organization_id: "user:owner-a" },
+    expect.objectContaining({ profile_digest: profile.profile_digest }),
+  );
+  expect((await post("owner-a", { ...input, maximum_cost_usd: 12.01 })).status).toBe(422);
+  expect(forwardTeamRun).toHaveBeenCalledTimes(1);
 });
 
 async function start() {

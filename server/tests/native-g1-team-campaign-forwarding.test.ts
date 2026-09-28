@@ -3,7 +3,8 @@ import { createHmac } from "node:crypto";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
-import { fetchG1TeamCatalog, g1SubmissionSchema, submitG1TeamCampaign } from "../utils/nativeG1TeamCampaignForwarding";
+import { fetchG1TeamCatalog, g1SubmissionSchema, submitG1TeamCampaign, submitG1TeamPolicyRun } from "../utils/nativeG1TeamCampaignForwarding";
+import { makeTeamPolicyDeliveryProfile } from "../utils/teamPolicyDeliveryProfile";
 
 const hash = (digit: string) => `sha256:${digit.repeat(64)}`;
 const owner = { user_id: "owner", organization_id: "user:owner" };
@@ -21,7 +22,11 @@ function fixture() {
     scene_id: "interiorgs-841757",
     task_id: "scene-841757-book-to-marked-area",
     source_packet_receipt_digest: hash("1"),
-    robot_presets: [{ robot_preset_id: "unitree_g1_dex3_sonic_v1", policy_candidates: candidates }],
+    robot_presets: [{ robot_preset_id: "unitree_g1_dex3_sonic_v1",
+      embodiment_id: "unitree_g1_dex3_v1",
+      observation_schema: { schema_id: "humanoidarena_head_rgb_state64_v1" },
+      action_schema: { schema_id: "humanoidarena_semantic_v3" },
+      policy_candidates: candidates }],
   };
   const setup = { ...baseSetup, setup_digest: crossRuntimeArtifactDigest(baseSetup, "setup_digest") };
   const baseCatalog = {
@@ -84,7 +89,7 @@ it("forwards one exact G1 team choice with signed owner and bounded spend", asyn
       .update(`${headers["x-blueprint-pipeline-timestamp"]}.blueprint-webapp.${headers["x-blueprint-pipeline-nonce"]}.${options.body}`)
       .digest("hex");
     expect(headers["x-blueprint-pipeline-signature"]).toBe(`sha256=${expected}`);
-    if (paths.length === 1) return new Response(JSON.stringify(catalog));
+    if (String(url).endsWith("native-g1-team-campaign-setups")) return new Response(JSON.stringify(catalog));
     const request = JSON.parse(options.body);
     expect(request).toMatchObject({
       owner, scene_id: "interiorgs-841757", claim_ceiling: "development_only",
@@ -124,4 +129,68 @@ it("rejects a changed owner catalog and a swapped objective before intake", asyn
   input.book_handoff = input.movement_handoff as typeof input.book_handoff;
   await expect(submitG1TeamCampaign(input, owner)).rejects.toThrow("g1_handoff_binding_invalid");
   expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+it("forwards one owner-bound team policy profile as a signed no-spend intent", async () => {
+  const { catalog } = fixture();
+  const setup = catalog.setups[0];
+  const profile = makeTeamPolicyDeliveryProfile({
+    setup_digest: setup.setup_digest,
+    robot_preset_id: setup.robot_presets[0].robot_preset_id,
+    label: "Team endpoint v1",
+    delivery: { mode: "authenticated_endpoint",
+      endpoint_url: "https://policy.example.org/v1/action",
+      auth_secret_ref: "secretref:team/policy", timeout_ms: 5000 },
+  }, setup, owner);
+  const input = {
+    run_id: "team-g1-run-1",
+    setup_digest: setup.setup_digest,
+    profile_digest: profile.profile_digest,
+    objective_id: "task_success",
+    authorization_expires_at_epoch: Date.now() / 1000 + 1800,
+    authorize_maximum_cost_usd_12: true,
+    site_observation_exchange_authorized: true,
+    maximum_cost_usd: 10.75,
+  };
+  vi.stubEnv("TASK_EVALUATION_LAUNCH_URL", "https://pipeline.test/old-path");
+  vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN", "test-secret");
+  const paths: string[] = [];
+  vi.stubGlobal("fetch", vi.fn(async (url: unknown, options: any) => {
+    paths.push(String(url));
+    const headers = options.headers;
+    const expected = createHmac("sha256", "test-secret")
+      .update(`${headers["x-blueprint-pipeline-timestamp"]}.blueprint-webapp.${headers["x-blueprint-pipeline-nonce"]}.${options.body}`)
+      .digest("hex");
+    expect(headers["x-blueprint-pipeline-signature"]).toBe(`sha256=${expected}`);
+    if (String(url).endsWith("native-g1-team-campaign-setups")) return new Response(JSON.stringify(catalog));
+    const request = JSON.parse(options.body);
+    expect(request).toMatchObject({
+      schema_version: "native_g1_team_policy_run_request.v1", owner,
+      scene_id: setup.scene_id, task_id: setup.task_id,
+      policy_profile: profile, objective_id: "task_success",
+      site_observation_exchange_authorized: true,
+      public_redistribution_authorized: false,
+      authorization: { maximum_cost_usd: 10.75, hard_ttl_seconds: 14_400, retry_cap: 0 },
+    });
+    const baseReceipt = {
+      schema_version: "native_g1_team_policy_run_intake_receipt.v1",
+      status: "accepted_pending_operator_approval",
+      intent_id: "g1-team-policy-" + "a".repeat(64), intent_digest: hash("2"),
+      request_digest: request.request_digest,
+      provider_mutation_performed_inside_http_request: false,
+    };
+    return new Response(JSON.stringify({
+      ...baseReceipt, receipt_digest: crossRuntimeArtifactDigest(baseReceipt, "receipt_digest"),
+    }));
+  }));
+  await expect(submitG1TeamPolicyRun(input, owner, profile)).resolves.toMatchObject({
+    status: "accepted_pending_operator_approval",
+  });
+  expect(paths).toEqual([
+    "https://pipeline.test/api/live-pipeline/native-g1-team-campaign-setups",
+    "https://pipeline.test/api/live-pipeline/native-g1-team-policy-runs",
+  ]);
+  await expect(submitG1TeamPolicyRun(
+    { ...input, profile_digest: hash("f") }, owner, profile,
+  )).rejects.toThrow("g1_team_policy_profile_binding_invalid");
 });

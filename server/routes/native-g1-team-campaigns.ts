@@ -7,7 +7,9 @@ import { makeTeamPolicyDeliveryProfile, teamPolicyDeliverySubmissionSchema } fro
 import {
   fetchG1TeamCatalog,
   g1SubmissionSchema,
+  g1TeamPolicyRunSubmissionSchema,
   submitG1TeamCampaign,
+  submitG1TeamPolicyRun,
 } from "../utils/nativeG1TeamCampaignForwarding";
 
 const router = Router();
@@ -80,6 +82,31 @@ router.post("/policy-deliveries", async (req, res) => {
       }
     } catch { /* The store failure is reported below. */ }
     return res.status(503).json({ error: "Policy delivery store unavailable" });
+  }
+});
+
+router.post("/policy-runs", async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  if (!db) return res.status(503).json({ error: "Policy delivery store unavailable" });
+  const parsed = g1TeamPolicyRunSubmissionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(422).json({ error: "G1 policy run selection invalid" });
+  try {
+    const owner = sceneOwner(res.locals.firebaseUser || {});
+    const document = await db.collection(deliveryCollection)
+      .doc(parsed.data.profile_digest.slice(7)).get();
+    const profile = verifiedDelivery(document.data());
+    if (!profile || profile.profile_digest !== parsed.data.profile_digest
+      || profile.owner?.user_id !== owner.user_id
+      || profile.owner?.organization_id !== owner.organization_id) {
+      return res.status(404).json({ error: "Policy delivery unavailable for this team" });
+    }
+    return res.status(202).json(await submitG1TeamPolicyRun(
+      parsed.data, owner, profile as ReturnType<typeof makeTeamPolicyDeliveryProfile>,
+    ));
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "g1_team_policy_submission_unavailable";
+    return res.status(code.includes("unavailable") || code.startsWith("g1_pipeline_5") ? 503 : 409)
+      .json({ error: code });
   }
 });
 

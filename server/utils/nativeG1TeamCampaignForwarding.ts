@@ -3,6 +3,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
+import type { makeTeamPolicyDeliveryProfile } from "./teamPolicyDeliveryProfile";
 import type { sceneOwner } from "./taskEvaluationSceneIntake";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
@@ -58,9 +59,29 @@ export const g1SubmissionSchema = z.object({
     .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-7)
     .default(12),
 }).strict();
+export const g1TeamPolicyRunSubmissionSchema = z.object({
+  run_id: identifier,
+  setup_digest: digest,
+  profile_digest: digest,
+  objective_id: z.enum(["task_success", "g1_navigation_goal"]),
+  authorization_expires_at_epoch: z.number().finite().positive(),
+  authorize_maximum_cost_usd_12: z.literal(true),
+  site_observation_exchange_authorized: z.literal(true),
+  maximum_cost_usd: z.number().finite().min(1).max(12)
+    .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-7),
+}).strict();
 const receiptSchema = z.object({
   schema_version: z.literal("native_g1_team_campaign_intake_receipt.v1"),
   status: z.literal("accepted_not_dispatched"),
+  intent_id: identifier,
+  intent_digest: digest,
+  request_digest: digest,
+  provider_mutation_performed_inside_http_request: z.literal(false),
+  receipt_digest: digest,
+}).strict();
+const teamPolicyRunReceiptSchema = z.object({
+  schema_version: z.literal("native_g1_team_policy_run_intake_receipt.v1"),
+  status: z.literal("accepted_pending_operator_approval"),
   intent_id: identifier,
   intent_digest: digest,
   request_digest: digest,
@@ -169,5 +190,73 @@ export async function submitG1TeamCampaign(raw: unknown, owner: Owner) {
   const receipt = receiptSchema.parse(await signedPipelinePost("native-g1-team-campaigns", sealed));
   if (crossRuntimeArtifactDigest(receipt, "receipt_digest") !== receipt.receipt_digest
     || receipt.request_digest !== sealed.request_digest) throw new Error("g1_intake_receipt_invalid");
+  return receipt;
+}
+
+export async function submitG1TeamPolicyRun(
+  raw: unknown,
+  owner: Owner,
+  profile: ReturnType<typeof makeTeamPolicyDeliveryProfile>,
+) {
+  const input = g1TeamPolicyRunSubmissionSchema.parse(raw);
+  const catalog = await fetchG1TeamCatalog(owner);
+  const matches = catalog.setups.filter((setup) => setup.setup_digest === input.setup_digest);
+  if (matches.length !== 1) throw new Error("g1_setup_unavailable");
+  const setup = matches[0];
+  const robot = setup.robot_presets[0] as typeof setup.robot_presets[number] & {
+    embodiment_id?: string;
+    observation_schema?: { schema_id?: string };
+    action_schema?: { schema_id?: string };
+  };
+  if (profile.profile_digest !== input.profile_digest
+    || profile.profile_digest !== crossRuntimeArtifactDigest(profile, "profile_digest")
+    || crossRuntimeDigest(profile.owner) !== crossRuntimeDigest(owner)
+    || profile.source_setup_digest !== setup.setup_digest
+    || profile.source_scene_id !== setup.scene_id
+    || profile.source_task_id !== setup.task_id
+    || profile.robot_preset_id !== robot.robot_preset_id
+    || profile.embodiment_id !== robot.embodiment_id
+    || profile.observation_schema_id !== robot.observation_schema?.schema_id
+    || profile.action_schema_id !== robot.action_schema?.schema_id
+    || profile.status !== "registered_for_runtime_review"
+    || profile.claim_ceiling !== "planning_only"
+    || profile.provider_mutation_performed !== false
+    || profile.public_redistribution_authorized !== false) {
+    throw new Error("g1_team_policy_profile_binding_invalid");
+  }
+  const now = Date.now() / 1000;
+  if (input.authorization_expires_at_epoch <= now
+    || input.authorization_expires_at_epoch > now + 3600) {
+    throw new Error("g1_authorization_expiry_invalid");
+  }
+  const request = {
+    schema_version: "native_g1_team_policy_run_request.v1",
+    run_id: input.run_id,
+    owner,
+    scene_id: setup.scene_id,
+    task_id: setup.task_id,
+    source_packet_receipt_digest: setup.source_packet_receipt_digest,
+    source_setup_digest: setup.setup_digest,
+    robot_preset_id: robot.robot_preset_id,
+    objective_id: input.objective_id,
+    policy_profile: profile,
+    authorization: {
+      maximum_cost_usd: input.maximum_cost_usd,
+      hard_ttl_seconds: 14_400,
+      expires_at_epoch: input.authorization_expires_at_epoch,
+      retry_cap: 0,
+    },
+    site_observation_exchange_authorized: true,
+    claim_ceiling: "development_only",
+    public_redistribution_authorized: false,
+  };
+  const sealed = { ...request, request_digest: crossRuntimeDigest(request) };
+  const receipt = teamPolicyRunReceiptSchema.parse(await signedPipelinePost(
+    "native-g1-team-policy-runs", sealed,
+  ));
+  if (crossRuntimeArtifactDigest(receipt, "receipt_digest") !== receipt.receipt_digest
+    || receipt.request_digest !== sealed.request_digest) {
+    throw new Error("g1_team_policy_intake_receipt_invalid");
+  }
   return receipt;
 }

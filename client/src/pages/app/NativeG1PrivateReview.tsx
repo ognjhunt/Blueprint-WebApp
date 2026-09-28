@@ -16,8 +16,10 @@ type Episode = { candidate_id: string; objective_id: string; policy_query_count:
   score: { outcome: string; [key: string]: unknown }; frame_manifest: Artifact;
   review_videos: { head: Artifact; overview: Artifact } };
 type SiteReview = { schema_version: "native_g1_private_review_site_record.v1"; run_id: string;
-  review: { scene_id: string; task_id: string; embodiment_id: string; claim_ceiling: "development_only";
-    runtime_delivery_mode: string; review_digest: string; episodes: Episode[] };
+  review: { schema_version: "native_g1_private_review.v1" | "native_g1_team_private_review.v1";
+    scene_id: string; task_id: string; embodiment_id: string; claim_ceiling: "development_only";
+    runtime_delivery_mode: string; policy_delivery_mode?: "authenticated_endpoint" | "container" | "noncontainer_artifact";
+    review_digest: string; episodes: Episode[] };
   artifacts: Artifact[] };
 
 async function loadReview(user: FirebaseUser, runId: string, signal?: AbortSignal): Promise<SiteReview> {
@@ -29,7 +31,9 @@ async function loadReview(user: FirebaseUser, runId: string, signal?: AbortSigna
     : `Couldn't load the G1 review (${response.status}).`);
   const value = await response.json() as SiteReview;
   if (value.schema_version !== "native_g1_private_review_site_record.v1"
-    || value.run_id !== runId || value.review?.episodes?.length !== 4) {
+    || value.run_id !== runId || value.review?.claim_ceiling !== "development_only"
+    || !["native_g1_private_review.v1", "native_g1_team_private_review.v1"].includes(value.review?.schema_version)
+    || value.review?.episodes?.length !== (value.review?.schema_version === "native_g1_team_private_review.v1" ? 1 : 4)) {
     throw new Error("The G1 review response is incomplete.");
   }
   return value;
@@ -78,7 +82,7 @@ function ReviewMedia({ user, runId, artifact, label }: {
       <div className="flex items-center justify-between gap-4 text-sm">
         <span>{label}</span>
         <button type="button" className="ws-link" onClick={() => void load()} disabled={loading}>
-          {loading ? "Loading…" : artifact.role === "g1_frame_manifest" ? "Download frames" : "Load video"}
+          {loading ? "Loading…" : artifact.role === "g1_frame_manifest" ? "Download manifest" : "Load video"}
         </button>
       </div>
       {url && artifact.role !== "g1_frame_manifest"
@@ -98,6 +102,10 @@ export default function NativeG1PrivateReview() {
     retry: 1,
   });
   const result = query.data;
+  const policyDelivery = result?.review.schema_version === "native_g1_team_private_review.v1"
+    ? { authenticated_endpoint: "HTTPS policy endpoint", container: "policy container",
+      noncontainer_artifact: "isolated policy archive" }[result.review.policy_delivery_mode!]
+    : "container runtime";
   const artifact = (role: Artifact["role"], path: string) =>
     result?.artifacts.find((row) => row.role === role && row.relative_path === path);
   return (
@@ -116,7 +124,8 @@ export default function NativeG1PrivateReview() {
             <div>
               <h1>Unitree G1 evaluation</h1>
               <p>{result.review.task_id} · {result.review.scene_id}</p>
-              <p>Simulation development review · 4 policy episodes · container runtime</p>
+              <p>Simulation development review · {result.review.episodes.length} policy
+                {result.review.episodes.length === 1 ? " episode" : " episodes"} · {policyDelivery}</p>
             </div>
           </header>
           <p className="text-sm text-ink-600">These are simulated outcomes for development review. They are not physical task proof or cleared public video.</p>

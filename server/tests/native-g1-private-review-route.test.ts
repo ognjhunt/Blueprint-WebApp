@@ -4,6 +4,7 @@ import { createServer, type Server } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import pythonReview from "./fixtures/native-g1-private-review.v1.json";
+import selectedReview from "./fixtures/native-g1-team-private-review.v1.json";
 
 const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, unknown>>(),
@@ -77,6 +78,60 @@ async function start() {
 }
 
 describe("native G1 private review route", () => {
+  it.each(["owner", "organization", "intent"])("refuses selected %s reassignment before artifact reads", async (change) => {
+    const base = await start();
+    const payload = { schema_version: "native_g1_private_review_ingest.v1", run_id: selectedReview.run_id,
+      owner_user_id: selectedReview.owner_user_id, organization_id: selectedReview.organization_id,
+      review: selectedReview };
+    if (change === "owner") payload.owner_user_id = "other-owner";
+    if (change === "organization") payload.organization_id = "other-team";
+    if (change === "intent") payload.run_id = "another-run";
+    const body = JSON.stringify(payload);
+    const timestamp = new Date().toISOString();
+    const response = await fetch(`${base}/api/internal/pipeline/native-g1-reviews`, {
+      method: "POST", body, headers: { "content-type": "application/json",
+        "x-blueprint-pipeline-timestamp": timestamp,
+        "x-blueprint-pipeline-signature": buildPipelineSyncSignature({ secret: "test-pipeline-secret", timestamp, body }),
+      },
+    });
+    expect(response.status).toBe(400);
+    expect(state.probe).not.toHaveBeenCalled();
+    expect(state.records.size).toBe(0);
+  });
+
+  it("ingests one selected episode and preserves owner-only media access on the existing route", async () => {
+    const base = await start();
+    const runId = selectedReview.run_id;
+    const body = JSON.stringify({ schema_version: "native_g1_private_review_ingest.v1", run_id: runId,
+      owner_user_id: selectedReview.owner_user_id, organization_id: selectedReview.organization_id,
+      review: selectedReview });
+    const timestamp = new Date().toISOString();
+    const response = await fetch(`${base}/api/internal/pipeline/native-g1-reviews`, {
+      method: "POST", body, headers: { "content-type": "application/json",
+        "x-blueprint-pipeline-timestamp": timestamp,
+        "x-blueprint-pipeline-signature": buildPipelineSyncSignature({ secret: "test-pipeline-secret", timestamp, body }),
+      },
+    });
+    expect(response.status).toBe(201);
+    expect(state.probe).toHaveBeenCalledTimes(3);
+    expect((await response.json()).review_url).toBe(`/app/g1-reviews/${runId}`);
+    expect((await fetch(`${base}/api/native-g1-reviews/${runId}`, { headers: { "x-test-actor": "another-user" } })).status).toBe(404);
+    const ownerResponse = await fetch(`${base}/api/native-g1-reviews/${runId}`, { headers: { "x-test-actor": selectedReview.owner_user_id } });
+    expect(ownerResponse.status).toBe(200);
+    const record = await ownerResponse.json();
+    expect(record.review.episodes).toHaveLength(1);
+    expect(record.artifacts).toHaveLength(3);
+    const ticketResponse = await fetch(`${base}/api/native-g1-reviews/${runId}/artifacts/${record.artifacts[1].artifact_id}/ticket`, {
+      method: "POST", headers: { "x-test-actor": selectedReview.owner_user_id },
+    });
+    expect(ticketResponse.status).toBe(201);
+    const ticket = await ticketResponse.json();
+    expect((await fetch(base + ticket.download_url)).status).toBe(200);
+    expect(state.stream).toHaveBeenCalledTimes(1);
+    // Even a changed store envelope cannot reassign the packet-bound owner.
+    state.records.get(runId)!.owner_user_id = "another-user";
+    expect((await fetch(`${base}/api/native-g1-reviews/${runId}`, { headers: { "x-test-actor": "another-user" } })).status).toBe(404);
+  });
   it("requires signed ingestion, binds an owner, and issues only allowlisted media tickets", async () => {
     const base = await start();
     const runId = "g1-841757-dev";
