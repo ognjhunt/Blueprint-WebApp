@@ -35,8 +35,8 @@ export function Footer() {
             >
               Blueprint
             </a>
-            <p className="mt-7 font-display uppercase text-[clamp(1.35rem,2vw,1.9rem)] font-semibold leading-[1.22] tracking-[0.005em] text-runway-text">
-              From one recurring task to a measured robot pilot.
+            <p className="mt-7 text-sm leading-7 text-runway-mute">
+              Blueprint connects businesses that need work done with robot teams that can do it.
             </p>
             {/*
               Service area sits in the footer so it is on every page rather than
