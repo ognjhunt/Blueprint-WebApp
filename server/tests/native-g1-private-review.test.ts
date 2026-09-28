@@ -7,8 +7,31 @@ import {
 } from "../utils/nativeG1PrivateReview";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import pythonReview from "./fixtures/native-g1-private-review.v1.json";
+import selectedReview from "./fixtures/native-g1-team-private-review.v1.json";
 
 describe("private Unitree G1 review handoff", () => {
+  it("accepts the Python-sealed selected episode without claiming four-policy proof", () => {
+    const parsed = parseNativeG1PrivateReview(selectedReview);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.schema_version).toBe("native_g1_team_private_review.v1");
+    expect(parsed?.episodes).toHaveLength(1);
+    expect(parsed?.episodes[0].score.outcome).toBe("failure");
+    expect(nativeG1ReviewArtifacts(parsed!)).toHaveLength(3);
+  });
+
+  it.each(["count", "candidate", "prefix", "delivery", "physical", "score"])(
+    "rejects a resealed selected record with invalid %s", (change) => {
+      const value = structuredClone(selectedReview);
+      if (change === "count") value.episodes.push(structuredClone(value.episodes[0]));
+      if (change === "candidate") value.episodes[0].candidate_id = "team_policy_" + "0".repeat(64);
+      if (change === "prefix") value.episodes[0].frame_manifest.relative_path = "movement_pair/frames.json";
+      if (change === "delivery") value.policy_delivery_mode = "unknown";
+      if (change === "physical") value.physical_outcome_claimed = true;
+      if (change === "score") value.episodes[0].score.outcome = "success";
+      value.review_digest = crossRuntimeArtifactDigest(value, "review_digest");
+      expect(parseNativeG1PrivateReview(value)).toBeNull();
+    },
+  );
   it("verifies the Python-sealed four-policy manifest after JSON number parsing", () => {
     const parsed = parseNativeG1PrivateReview(pythonReview);
     expect(parsed).not.toBeNull();

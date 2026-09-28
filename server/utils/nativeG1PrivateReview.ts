@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
-import { matchesCrossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
+import { crossRuntimeDigest, matchesCrossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const label = z.string().trim().min(1).max(256);
@@ -22,7 +22,7 @@ const candidateIds = [
   "humanoidarena_pi05_g1_dex3_sonic_vision_navi",
 ] as const;
 
-export const nativeG1PrivateReviewSchema = z.object({
+const builtinG1PrivateReviewSchema = z.object({
   schema_version: z.literal("native_g1_private_review.v1"),
   status: z.literal("verified_private_development_review"),
   claim_ceiling: z.literal("development_only"),
@@ -52,6 +52,43 @@ export const nativeG1PrivateReviewSchema = z.object({
   review_digest: digest,
 }).strict();
 
+const selectedG1PrivateReviewSchema = z.object({
+  schema_version: z.literal("native_g1_team_private_review.v1"),
+  status: z.literal("verified_private_development_review"),
+  claim_ceiling: z.literal("development_only"),
+  intent_id: z.string().regex(/^g1-team-policy-[0-9a-f]{64}$/),
+  run_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+  owner_user_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+  organization_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+  scene_id: label,
+  task_id: label,
+  embodiment_id: z.literal("unitree_g1_dex3_v1"),
+  runtime_delivery_mode: z.literal("container"),
+  container_image: label,
+  policy_delivery_mode: z.enum(["authenticated_endpoint", "container", "noncontainer_artifact"]),
+  execution_packet_digest: digest,
+  policy_profile_digest: digest,
+  provider_bundle_sha256: digest,
+  worker_result_digest: digest,
+  episodes: z.array(z.object({
+    candidate_id: z.string().regex(/^team_policy_[0-9a-f]{64}$/),
+    objective_id: z.enum(["task_success", "g1_navigation_goal"]),
+    policy_query_count: z.number().int().positive().safe(),
+    score: z.object({ status: z.literal("scored"), score_digest: digest,
+      episode_result_digest: digest, outcome: z.string().min(1) }).passthrough(),
+    frame_manifest: artifact,
+    review_videos: z.object({ head: artifact, overview: artifact }).strict(),
+  }).strict()).length(1),
+  public_redistribution_authorized: z.literal(false),
+  physical_outcome_claimed: z.literal(false),
+  simulator_result_is_physical_proof: z.literal(false),
+  review_digest: digest,
+}).strict();
+
+export const nativeG1PrivateReviewSchema = z.discriminatedUnion("schema_version", [
+  builtinG1PrivateReviewSchema, selectedG1PrivateReviewSchema,
+]);
+
 export type NativeG1PrivateReview = z.infer<typeof nativeG1PrivateReviewSchema>;
 export type NativeG1ReviewArtifact = z.infer<typeof artifact> & {
   artifact_id: string;
@@ -63,7 +100,18 @@ export function parseNativeG1PrivateReview(value: unknown): NativeG1PrivateRevie
   if (!parsed.success) return null;
   const review = parsed.data;
   if (!matchesCrossRuntimeArtifactDigest(review, "review_digest")) return null;
-  if (review.episodes.some((episode, index) =>
+  if (review.schema_version === "native_g1_team_private_review.v1") {
+    const expectedIntent = `g1-team-policy-${crossRuntimeDigest({
+      owner: { user_id: review.owner_user_id, organization_id: review.organization_id }, run_id: review.run_id,
+    }).slice(7)}`;
+    if (review.intent_id !== expectedIntent) return null;
+    const episode = review.episodes[0];
+    if (episode.candidate_id !== `team_policy_${review.policy_profile_digest.slice(7)}`
+      || !matchesCrossRuntimeArtifactDigest(episode.score, "score_digest")
+      || [episode.frame_manifest, ...Object.values(episode.review_videos)].some((row) =>
+        !row.relative_path.startsWith("selected-worker/worker/"),
+      )) return null;
+  } else if (review.episodes.some((episode, index) =>
     episode.candidate_id !== candidateIds[index]
       || episode.objective_id !== (index < 2 ? "task_success" : "g1_navigation_goal")
       || !episode.frame_manifest.relative_path.startsWith(index < 2 ? "manipulation_pair/" : "movement_pair/")
@@ -73,6 +121,7 @@ export function parseNativeG1PrivateReview(value: unknown): NativeG1PrivateRevie
   )) return null;
   const artifacts = nativeG1ReviewArtifacts(review);
   if (new Set(artifacts.map((row) => row.artifact_id)).size !== artifacts.length) return null;
+  if (new Set(artifacts.map((row) => row.relative_path)).size !== artifacts.length) return null;
   return review;
 }
 
