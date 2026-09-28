@@ -42,6 +42,13 @@ export function toSiteRequirement(request: InboundRequest): SiteRequirement {
   return {
     spec: (request.request.siteTaskSpec || {}) as Record<string, string>,
     serviceArea: gateAnswersOnFile(request).serviceArea ?? null,
+    location: {
+      label: request.request.siteLocation || null,
+      city: request.request.siteLocationMetadata?.city ?? null,
+      state: request.request.siteLocationMetadata?.state ?? null,
+      country: request.request.siteLocationMetadata?.country
+        || (request.request.capture_region === "us" ? "US" : null),
+    },
     // The site intake has no task-family dropdown, only prose, so this stays
     // null rather than being inferred. `compareTaskFamily` treats it as unknown
     // and ranks on it only when both sides have actually answered.

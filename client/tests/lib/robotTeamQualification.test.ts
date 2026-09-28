@@ -25,7 +25,8 @@ describe("robot-team gates", () => {
     const questions = robotGateFields.map((field) => field.question.toLowerCase()).join(" ");
     expect(questions).not.toMatch(/how good|how capable|accuracy|state of the art|best/i);
     expect(questions).toMatch(/hardware today/);
-    expect(questions).toMatch(/austin metro/);
+    expect(questions).toMatch(/deploy and support robots/);
+    expect(questions).not.toMatch(/austin metro/);
     expect(questions).toMatch(/deployment engineering/);
     expect(questions).toMatch(/running on a site/);
   });

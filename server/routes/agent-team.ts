@@ -46,6 +46,7 @@ import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { robotGateFields } from "../../client/src/data/robotTeamQualification";
+import { legacyDeploymentGeographies } from "../../client/src/lib/deploymentCoverage";
 import { sendEmail } from "../utils/email";
 import { createRateLimitRedisStore } from "../utils/rate-limit-redis";
 import {
@@ -160,11 +161,20 @@ const registerSchema = z
     embodiment: z.string().trim().min(1).max(80).optional(),
     /** Human-supplied physical facts that a past-task evaluation cannot establish. */
     hardwareMaturity: z.enum(gateValues("hardwareMaturity")).optional(),
-    deploymentGeography: z.enum(gateValues("deploymentGeography")).optional(),
+    deploymentGeography: z.enum([...gateValues("deploymentGeography"), ...legacyDeploymentGeographies]).optional(),
+    deploymentRegions: z.string().trim().min(1).max(500).optional(),
     /** Optional, so one call can get a team from nothing to a plan. */
     checkpoint: checkpointSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.deploymentGeography === "specific_regions" && !value.deploymentRegions) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["deploymentRegions"], message: "Specify deployment and support regions." });
+    }
+    if (value.deploymentRegions && value.deploymentGeography !== "specific_regions") {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["deploymentRegions"], message: "Regions require specific_regions coverage." });
+    }
+  });
 
 /**
  * Register a robot team and get a key in one call.
@@ -199,7 +209,8 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
         website: "url (optional)",
         embodiment: "string (optional)",
         hardwareMaturity: gateValues("hardwareMaturity").join(" | "),
-        deploymentGeography: gateValues("deploymentGeography").join(" | "),
+        deploymentGeography: [...gateValues("deploymentGeography"), ...legacyDeploymentGeographies].join(" | "),
+        deploymentRegions: "semicolon-separated countries, states or cities (required for specific_regions)",
         checkpoint: "{ label, runtime, reference } (optional)",
       },
     });
@@ -214,6 +225,7 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
     embodiment: parsed.data.embodiment ?? null,
     hardwareMaturity: parsed.data.hardwareMaturity ?? null,
     deploymentGeography: parsed.data.deploymentGeography ?? null,
+    deploymentRegions: parsed.data.deploymentRegions ?? null,
   });
   if (!team) {
     return res.status(503).json({

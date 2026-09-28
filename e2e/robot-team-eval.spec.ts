@@ -36,7 +36,12 @@ test("persona aliases separate site buyers from participating robot teams", asyn
   await page.reload();
   await page.getByText("Already have a robot policy to evaluate? Register it and see a plan", { exact: true }).click();
   await expect(page.getByLabel("Where is the hardware today?")).toBeVisible();
-  await expect(page.getByLabel("Would you deploy in the Austin metro?")).toBeVisible();
+  await expect(page.getByLabel("Where can your team deploy and support robots?")).toBeVisible();
+  await page.locator("#plan-geography").selectOption("specific_regions");
+  await expect(page.locator("#plan-regions")).toBeVisible();
+  await page.locator("#plan-regions").fill("Ohio; Michigan");
+  await page.locator("#plan-geography").selectOption("us_national");
+  await expect(page.locator("#plan-regions")).toHaveCount(0);
   await expect(page.getByText(/Who commits the deployment engineering/)).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Operate a site? Start here" })).toBeVisible();
 

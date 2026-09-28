@@ -136,6 +136,7 @@ export function toMatchCandidate(
     id: record.id,
     capability: capability as Record<string, string | number | null | undefined>,
     deploymentGeography: capability.deploymentGeography ?? null,
+    deploymentRegions: capability.deploymentRegions ?? null,
     hardwareMaturity: capability.hardwareMaturity ?? null,
     taskFamily: capability.taskFamily ?? null,
   };
@@ -234,6 +235,7 @@ export async function registerSelfServeTeam(params: {
   hardwareMaturity?: string | null;
   /** The one hard constraint no run measures: where the team would deploy. */
   deploymentGeography?: string | null;
+  deploymentRegions?: string | null;
 }): Promise<RobotTeamRecord | null> {
   if (!db) return null;
 
@@ -267,11 +269,12 @@ export async function registerSelfServeTeam(params: {
   // nothing measured and nothing claimed on their behalf -- but a `taskFamily`
   // they chose in one click is the difference between a ranked plan and a
   // generic one, and a run overwrites it the moment there is something better.
-  const selfReported: Partial<Record<"taskFamily" | "embodiment" | "hardwareMaturity" | "deploymentGeography", string>> = {};
+  const selfReported: Partial<Record<"taskFamily" | "embodiment" | "hardwareMaturity" | "deploymentGeography" | "deploymentRegions", string>> = {};
   if (params.taskFamily?.trim()) selfReported.taskFamily = params.taskFamily.trim();
   if (params.embodiment?.trim()) selfReported.embodiment = params.embodiment.trim();
   if (params.hardwareMaturity?.trim()) selfReported.hardwareMaturity = params.hardwareMaturity.trim();
   if (params.deploymentGeography?.trim()) selfReported.deploymentGeography = params.deploymentGeography.trim();
+  if (params.deploymentRegions?.trim()) selfReported.deploymentRegions = params.deploymentRegions.trim();
   if (Object.keys(selfReported).length) {
     const merged = mergeCapability(
       record,

@@ -18,7 +18,7 @@
  * something: **would you deploy?** `/for-robot-teams` argues that the scarce
  * resource is engineer-weeks, not robots. That cuts both ways. A task matched to
  * a team with no hardware, no allocated engineers, no timeline, or no
- * willingness to travel to the metro is a match on paper that burns a real
+ * willingness to travel to the job is a match on paper that burns a real
  * capture visit and a real site's access window. So the gates here are
  * deployment readiness, and capability lives in the spec tier where it belongs.
  *
@@ -73,25 +73,12 @@ export const robotGateFields: readonly QualifyingField[] = [
   },
   {
     id: "deploymentGeography",
-    question: "Would you deploy in the Austin metro?",
-    hint: "Every site we prepare is there today.",
+    question: "Where can your team deploy and support robots?",
+    hint: "We match your coverage to each site's location.",
     options: [
-      { value: "yes", label: "Yes", verdict: "clear" },
-      { value: "right_opportunity", label: "For the right site, yes", verdict: "clear" },
-      {
-        value: "size_dependent",
-        label: "Only above a certain contract size",
-        verdict: "marginal",
-        ambiguity:
-          "Worth ten minutes to find out where that threshold sits, because it decides which tasks we would ever send you.",
-      },
-      {
-        value: "no",
-        label: "No — we deploy only in specific regions, and Austin is not one",
-        verdict: "blocking",
-        unblocks:
-          "Blueprint opening a metro you serve. Tell us which ones — where robot-side demand clusters is how we decide what opens next.",
-      },
+      { value: "us_national", label: "Across the United States", verdict: "clear" },
+      { value: "specific_regions", label: "Specific countries, states or cities", verdict: "clear" },
+      { value: "not_deploying", label: "Not deploying yet", verdict: "blocking", unblocks: "Deployment and support coverage for a real site." },
     ],
   },
   {
@@ -145,6 +132,19 @@ export const robotGateFields: readonly QualifyingField[] = [
 ];
 
 /* ------------------------------------------------------- capability envelope */
+
+/** Old agent submissions still describe Austin intent, not nationwide coverage. */
+export const robotGateFieldsWithLegacyCoverage: readonly QualifyingField[] = robotGateFields.map((field) =>
+  field.id !== "deploymentGeography" ? field : {
+    ...field,
+    options: [...field.options,
+      { value: "yes", label: "Yes, Austin", verdict: "clear" },
+      { value: "right_opportunity", label: "Austin for the right site", verdict: "clear" },
+      { value: "size_dependent", label: "Austin above a contract threshold", verdict: "marginal" },
+      { value: "no", label: "No Austin deployment", verdict: "blocking" },
+    ],
+  },
+);
 
 /**
  * A spec field that pairs with one on the site side.
@@ -336,5 +336,5 @@ export const robotProseFields: readonly { id: string; question: string; hint: st
 export const robotIntakeNote = {
   claim: "We are not screening your robot.",
   detail:
-    "These four questions are about whether a deployment could actually happen — hardware that exists, engineers who are free, a timeline, and willingness to work in the metro we prepare sites in. What your system can do belongs in the envelope below, where it gets matched rather than judged.",
+    "These four questions are about whether a deployment could actually happen — hardware that exists, engineers who are free, a timeline, and deployment and support coverage. What your system can do belongs in the envelope below, where it gets matched rather than judged.",
 } as const;

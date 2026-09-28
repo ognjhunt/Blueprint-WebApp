@@ -51,7 +51,7 @@ import {
   isCaptureMode,
 } from "../../client/src/data/siteTaskQualification";
 import { upsertRobotTeamFromIntake } from "../utils/robotTeamRegistry";
-import { robotGateFields } from "../../client/src/data/robotTeamQualification";
+import { robotGateFieldsWithLegacyCoverage as robotGateFields } from "../../client/src/data/robotTeamQualification";
 
 /**
  * Keep only string answers, trimmed, dropping blanks.
