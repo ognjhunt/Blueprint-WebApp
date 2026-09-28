@@ -1,0 +1,21 @@
+{
+  "schema_version": "blueprint.production_retained_completed_delivery_proof.v1",
+  "observed_at": "2026-09-28T19:01:26.415Z",
+  "record_id": "capture-run-c257ae6e11a18e883637739477e5ded8",
+  "run_id": "scene839873-artifixer-corrective-68d36be3-r13-web-20260901T031158Z-policy-canary-abe19c87-5997-4c7c-aedf-6d10fb6abd27",
+  "result_status": "completed_unqualified",
+  "owner_read_status": 200,
+  "owner_ticket_status": 201,
+  "download_status": 200,
+  "download_bytes": 1044,
+  "download_sha256": "sha256:c718cad2bebd34b32acc26a4ff9eea82ae3b77367b7328bedd1a060259a61ee5",
+  "cache_control": "private, no-store",
+  "other_owner_read_status": 200,
+  "other_owner_ticket_status": 201,
+  "anonymous_read_status": 200,
+  "access_visibility": "unlisted_public",
+  "public_read_expected": true,
+  "source": "retained completed development-only execution",
+  "new_policy_execution_proven": false,
+  "model_checkpoint_execution_proven": false
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": "blueprint.production_https_policy_transport_proof.v1",
+  "observed_at_unix": 1790621523.6335413,
+  "source_commit": "16d8551b413fe1a65fe70b3f77ad73ea0b42b287",
+  "origin": "https://blueprint-owned-https-policy-proof.onrender.com",
+  "production_control_plane_host_used": true,
+  "transport": "approved_https",
+  "observed_wire_keys": [
+    "cameras",
+    "prompt",
+    "request_id",
+    "schema_version",
+    "state",
+    "synthetic"
+  ],
+  "policy_calls": 1,
+  "returned_action_rows": 15,
+  "returned_action_channels": 2,
+  "policy_call_evidence": {
+    "request_id": "3c118d8f0d0e7b1ec5d52b48b18c49f575ca363eea86a31d",
+    "transport": "approved_https",
+    "observation_sha256": "sha256:0c767d7a2ca1ae9438575ad05cfbe91b31bade6aaf917bef6d8f6f70313bac25",
+    "scene_files_exported": false,
+    "scoring_harness_exported": false,
+    "action_payload_returned": true,
+    "action_sha256": "sha256:e91d0d1f8444dd4a0a9c406fd8f78e812ea6fba40811cd3fa52c10882b5ca39f"
+  },
+  "synthetic_inputs_only": true,
+  "scene_files_sent": false,
+  "simulator_or_scoring_code_sent": false,
+  "worker_dispatch_proven": false,
+  "task_execution_proven": false,
+  "task_success": null,
+  "executed_motor_steps": 0,
+  "status": "production_https_inference_completed"
+}

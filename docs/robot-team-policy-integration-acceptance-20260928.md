@@ -3,11 +3,11 @@
 Owner: Nijel Hunt. Program: Arm Decision Proof v1.
 Backlog: ADP-011 / day 7 admission; ADP-050 / day 28 execution and delivery.
 
-Owner scope update, 2026-09-28: build the integration capabilities and commit
-and merge the relevant changes. Separate proof runs, new tests, and unrelated
-debugging are deferred at the owner's request. The table below records the
-execution evidence needed for later operational claims; it is not an instruction
-to perform those runs during the capability build.
+Owner scope update, 2026-09-28: build, commit, merge and deploy the integration
+capabilities, including live proof runs. New test development and unrelated
+debugging remain deferred. Fix failures that directly prevent the authorized
+live proof or merge. The table below defines the operational evidence boundary;
+source integration alone does not complete it.
 
 | Required path | Completion evidence |
 | --- | --- |

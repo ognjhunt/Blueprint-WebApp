@@ -1,0 +1,30 @@
+{
+  "schema_version": "blueprint.isolated_uploaded_model_inference_proof.v1",
+  "image_ref": "us-central1-docker.pkg.dev/blueprint-8c1ca/pipeline-jobs/company-policy-model-proof@sha256:af6b31155c3cc4456d66e9971f730e451714abfe7d0d68c1331fc71016da02de",
+  "model_sha256": "sha256:d98c1001a3df7d9461a968d36616f6ed11a973876b442af538cf9923064c1f10",
+  "production_upload_used": true,
+  "production_worker_dispatch_proven": false,
+  "scene_or_task_execution_proven": false,
+  "physical_success_proven": false,
+  "synthetic_inputs_only": true,
+  "security_profile_scope": "Blueprint-owned synthetic CPU inference proof",
+  "observation_sha256": "sha256:668db24657d53e68ee0d54244fbe20c39782b7e9d8c96fde6a34f2db978a5c05",
+  "action_sha256": "sha256:be29575dba070c9d3d7e5278391b0ca4ede0f0ae126dcf9185139fd6ad5b5595",
+  "action_rows": 15,
+  "action_channels": 8,
+  "runtime": "runsc",
+  "network_mode": "none",
+  "read_only_rootfs": true,
+  "host_mounts": [],
+  "capabilities_dropped": [
+    "ALL"
+  ],
+  "security_options": [
+    "no-new-privileges",
+    "apparmor=blueprint-policy-apparmor-v2",
+    "seccomp_sha256:12fc1befabba6f13208edd5191d3eda18b44aafe4aa4be02aa0028089d2f9955"
+  ],
+  "status": "isolated_inference_completed",
+  "container_cleanup_complete": true,
+  "observed_at_unix": 1790620772.5726888
+}

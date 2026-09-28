@@ -1,0 +1,13 @@
+{
+  "schema_version": "blueprint.production_skill_intent_proof.v1",
+  "observed_at": "2026-09-28T19:03:58.699Z",
+  "write_status": 201,
+  "read_status": 200,
+  "outcome_injection_status": 400,
+  "task_digest": "sha256:f16a490c2513f53eab5900c95e856a48bbcd27ccc6c37cca7c2114a06043bdb5",
+  "trace_id": "skill-trace-80dc16090a832685a06b9bbf850d6f8a3ba94310",
+  "evidence_scope": "submitted_skill_intent_only",
+  "task_success": null,
+  "motor_action_count": 0,
+  "synthetic_only": true
+}
