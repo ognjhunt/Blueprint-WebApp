@@ -223,7 +223,7 @@ const TASK_FAMILIES = [
 const RUNTIMES = [
   { value: "policy_endpoint", label: "An endpoint we can call" },
   { value: "container_image", label: "A container image" },
-  { value: "model_artifact", label: "A model artifact (plan only; paid runs need one of the above)" },
+  { value: "model_artifact", label: "Upload a model with a compatible runner" },
 ] as const;
 
 function familyLabel(value: string) {
@@ -252,6 +252,8 @@ export function RobotTeamPlanPreview({
 } = {}) {
   const [state, setState] = useState<State>({ status: "idle" });
   const [hasCheckpoint, setHasCheckpoint] = useState(true);
+  const [checkpointRuntime, setCheckpointRuntime] = useState("policy_endpoint");
+  const [modelUploadFile, setModelUploadFile] = useState<File | null>(null);
   const [queue, setQueue] = useState<QueueState>({ status: "idle" });
   const [results, setResults] = useState<{ status: "idle" | "loading" | "failed"; rows: ResultReceipt[] }>({
     status: "idle",
@@ -461,6 +463,17 @@ export function RobotTeamPlanPreview({
     const teamName = read("planTeamName");
     const taskFamily = read("planTaskFamily");
     const reference = read("planReference");
+    const modelFile = modelUploadFile;
+    const uploadingModel = hasCheckpoint && checkpointRuntime === "model_artifact";
+    let modelInterface: unknown;
+    if (uploadingModel) {
+      if (!(modelFile instanceof File) || !modelFile.size || modelFile.size > 16 * 1024 * 1024) {
+        setState({ status: "failed", message: "Choose an ONNX model of at most 16 MiB." });
+        return;
+      }
+      try { modelInterface = JSON.parse(read("planModelInterface")); }
+      catch { setState({ status: "failed", message: "Provide the compatible runner's model interface JSON." }); return; }
+    }
     const hardwareMaturity = read("planHardware");
     const deploymentGeography = read("planGeography");
 
@@ -475,7 +488,7 @@ export function RobotTeamPlanPreview({
       });
       return;
     }
-    if (hasCheckpoint && !reference) {
+    if (hasCheckpoint && !uploadingModel && !reference) {
       setState({
         status: "failed",
         message: "Point us at something we can run, or tell us you do not have one yet.",
@@ -499,7 +512,7 @@ export function RobotTeamPlanPreview({
           hardwareMaturity,
           deploymentGeography,
           website: read("planWebsite") || undefined,
-          ...(hasCheckpoint
+          ...(hasCheckpoint && !uploadingModel
             ? {
                 checkpoint: {
                   label: read("planLabel") || "v1",
@@ -549,7 +562,22 @@ export function RobotTeamPlanPreview({
       let planUnavailable = false;
       let accountBound = false;
       let lineBlockers: Array<{ sceneId: string; blockers: string[] }> = [];
-      const checkpointId = account.checkpoint?.checkpointId ?? null;
+      let checkpointId = account.checkpoint?.checkpointId ?? null;
+      if (uploadingModel && modelFile instanceof File) {
+        const modelUpload = new FormData();
+        modelUpload.append("model", modelFile);
+        modelUpload.append("interface", JSON.stringify(modelInterface));
+        modelUpload.append("label", read("planLabel") || modelFile.name);
+        const uploaded = await fetch("/api/agent-team/checkpoints/model-upload", {
+          method: "POST", headers: { Authorization: `Bearer ${account.agentKey}` }, body: modelUpload,
+        });
+        const body = await uploaded.json().catch(() => ({}));
+        if (!uploaded.ok || !body.checkpoint?.checkpointId) {
+          setState({ status: "failed", message: body.error || "The model upload could not be completed. Your team is registered; no run has started." });
+          return;
+        }
+        checkpointId = body.checkpoint.checkpointId;
+      }
 
       if (checkpointId) {
         const planned = await fetch("/api/agent-team/plan", {
@@ -960,7 +988,7 @@ export function RobotTeamPlanPreview({
         <>
           <label htmlFor="plan-runtime">
             <span>How would we run it?</span>
-            <select id="plan-runtime" name="planRuntime" defaultValue="policy_endpoint">
+            <select id="plan-runtime" name="planRuntime" value={checkpointRuntime} onChange={(event) => setCheckpointRuntime(event.target.value)}>
               {RUNTIMES.map((runtime) => (
                 <option key={runtime.value} value={runtime.value}>
                   {runtime.label}
@@ -969,14 +997,32 @@ export function RobotTeamPlanPreview({
             </select>
           </label>
 
-          <label htmlFor="plan-reference">
+          {checkpointRuntime === "model_artifact" ? <>
+            <label htmlFor="plan-model-file">
+              <span>Model file</span>
+              <input id="plan-model-file" name="planModelFile" type="file" accept=".onnx" onChange={(event) => setModelUploadFile(event.target.files?.[0] ?? null)} />
+              <span className="ms-field-hint">ONNX, up to 16 MiB. The CPU runner accepts a float32 robot-state vector and returns a fixed action chunk. Runner validation comes before a task run.</span>
+            </label>
+            <label htmlFor="plan-model-interface">
+              <span>Model interface JSON</span>
+              <span className="ms-field-hint">Declare input order, action dimensions, units, and limits. Native LeRobot, OpenPI, and GR00T models need their own compatible runner.</span>
+              <textarea id="plan-model-interface" name="planModelInterface" rows={6} maxLength={32768} defaultValue={JSON.stringify({
+                schema_version: "blueprint.policy_model_interface.v1", runner_profile: "onnx_state_mlp_cpu_v1",
+                input_name: "state", output_name: "actions", state_fields: [{ name: "joint_position", width: 2 }],
+                action_schema: { chunk_rows: 1, channels: [
+                  { name: "joint_1", raw_accepted_bounds: [-1, 1], unit: "radian" },
+                  { name: "gripper", raw_accepted_bounds: [0, 1], unit: "normalized_fraction" },
+                ] },
+              }, null, 2)} />
+            </label>
+          </> : <label htmlFor="plan-reference">
             <span>Where is it?</span>
             <span className="ms-field-hint">
               A URL, an image reference, or an artifact location. We do not run it now — this only
               decides what to rank.
             </span>
             <input id="plan-reference" name="planReference" type="text" maxLength={2000} />
-          </label>
+          </label>}
 
 
         </>

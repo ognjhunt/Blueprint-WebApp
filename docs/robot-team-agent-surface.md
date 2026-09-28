@@ -283,3 +283,21 @@ There is no result email in this change; the panel and authenticated results API
 provide the receipt. Autonomous agents still use their own schedule and explicitly
 enabled recurring policy. The public task library is browse-first and only shows
 owner-approved listings and thumbnails.
+
+## Model upload compatibility
+
+`POST /api/agent-team/checkpoints/model-upload` accepts a multipart `model`
+file, `interface` JSON, and optional `label`. It requires a valid per-team
+bearer key and a verified account bound to that team. The current approved
+profile is `onnx_state_mlp_cpu_v1`: a float32 state vector to a fixed action
+chunk, with named state fields, action units, and numeric limits. The file
+limit is 16 MiB. Uploads remain private and are SHA-256 and storage-generation
+bound; the WebApp does not deserialize the graph.
+
+An upload returns a registered checkpoint with
+`compatibility_status=uploaded_pending_runner_validation`. It is not execution
+admission. Native LeRobot/safetensors, OpenPI, and GR00T require dedicated
+compatible profiles; arbitrary pickled models and customer Python are not
+loaded by this route. See
+`docs/robot-team-policy-integration-acceptance-20260928.md` for the complete
+production execution and result-delivery gates.
