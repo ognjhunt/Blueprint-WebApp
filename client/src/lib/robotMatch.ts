@@ -37,6 +37,8 @@ import {
   type BandScale,
 } from "./capabilityBands";
 
+import { compareDeploymentCoverage, type DeploymentLocation } from "./deploymentCoverage";
+
 /** Which registry field answers which scale, on each side. */
 const SCALE_FIELDS: readonly {
   scaleId: string;
@@ -96,6 +98,7 @@ export interface SiteRequirement {
   spec: Readonly<Record<string, string>>;
   /** The metro the site sits in, from the service-area gate. */
   serviceArea?: string | null;
+  location?: DeploymentLocation;
   taskFamily?: string | null;
 }
 
@@ -108,6 +111,7 @@ export interface RobotCandidate {
    */
   capability: Readonly<Record<string, string | number | null | undefined>>;
   deploymentGeography?: string | null;
+  deploymentRegions?: string | null;
   /** Self-reported physical maturity. Carried for truthful inspection; a past-task evaluation does not verify it. */
   hardwareMaturity?: string | null;
   taskFamily?: string | null;
@@ -117,57 +121,23 @@ function valueOrNull(value: unknown): string | null {
   return typeof value === "string" && value ? value : null;
 }
 
-/**
- * The two sides ask about geography in different shapes, on purpose.
- *
- * A site is asked *where it is* — `austin_metro`, `texas_other`,
- * `outside_texas`. A robot team is asked *whether they would come here*:
- * "Would you deploy in the Austin metro?", answered `yes`,
- * `right_opportunity`, `size_dependent` or `no`. Those vocabularies do not
- * overlap, and comparing them with `===` ruled out every team that said yes —
- * precisely the population that can produce a confirmed match.
- *
- * The asymmetry is not a modelling mistake, it is the right question on each
- * side, so the comparison translates rather than the intake being bent to fit.
- *
- * Note that matching only ever runs for a site whose gates cleared, and
- * `serviceArea` is one of those gates: `texas_other` is marginal and
- * `outside_texas` is blocking, so a site that reaches here is always in the
- * metro. The site's own answer is therefore checked rather than assumed, but it
- * has exactly one passing value.
- */
-const ROBOT_WILL_DEPLOY_HERE = new Set(["yes", "right_opportunity", "size_dependent"]);
-const ROBOT_WILL_NOT_DEPLOY_HERE = new Set(["no"]);
-
+/** Capture-visit coverage and a robot team's deployment coverage are independent. */
 function compareGeography(site: SiteRequirement, candidate: RobotCandidate): MatchFinding {
-  const required = valueOrNull(site.serviceArea);
+  const required = site.location?.label || valueOrNull(site.serviceArea);
   const capability = valueOrNull(candidate.deploymentGeography);
-
-  let comparison: BandComparison = "unknown";
-  if (required && capability) {
-    if (required !== "austin_metro") {
-      // A site outside the served metro cannot be matched to anyone, whatever
-      // the team says. It should not have reached here, so this fails closed
-      // rather than quietly clearing.
-      comparison = "short";
-    } else if (ROBOT_WILL_DEPLOY_HERE.has(capability)) {
-      // "Only above a certain contract size" still means they would come. What
-      // that threshold is belongs to the budget comparison, not to this one.
-      comparison = "clears";
-    } else if (ROBOT_WILL_NOT_DEPLOY_HERE.has(capability)) {
-      comparison = "short";
-    }
-    // Any other value is a vocabulary we do not recognise, and stays unknown
-    // rather than being read as either answer.
-  }
-
+  const location = site.location ?? {};
+  const country = location.country || (["austin_metro", "texas_other"].includes(site.serviceArea ?? "") ? "US" : null);
   return {
     scaleId: "geography",
     label: "deployment geography",
     weight: "hard",
-    comparison,
+    comparison: compareDeploymentCoverage(site.serviceArea ?? null, {
+      ...location,
+      country,
+      state: location.state || (["austin_metro", "texas_other"].includes(site.serviceArea ?? "") ? "TX" : null),
+    }, capability, candidate.deploymentRegions ?? null),
     required,
-    capability,
+    capability: candidate.deploymentRegions ? `${capability}: ${candidate.deploymentRegions}` : capability,
   };
 }
 

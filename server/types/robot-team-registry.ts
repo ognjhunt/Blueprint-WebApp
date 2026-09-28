@@ -83,8 +83,9 @@ export interface RobotCapability {
   /** Physical envelope. Not asked at intake; sourced from specs or a run. */
   reachM?: number | null;
   pathWidthM?: number | null;
-  /** Where the team will actually deploy, matched against the site's metro. */
+  /** Declared deployment and support scope, compared with the site's location. */
   deploymentGeography?: string | null;
+  deploymentRegions?: string | null;
 }
 
 export type RobotCapabilityField = keyof RobotCapability;

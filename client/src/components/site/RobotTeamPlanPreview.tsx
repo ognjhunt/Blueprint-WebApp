@@ -255,6 +255,7 @@ export function RobotTeamPlanPreview({
 } = {}) {
   const [state, setState] = useState<State>({ status: "idle" });
   const [hasCheckpoint, setHasCheckpoint] = useState(true);
+  const [deploymentGeography, setDeploymentGeography] = useState("");
   const [checkpointRuntime, setCheckpointRuntime] = useState("policy_endpoint");
   const [modelUploadFile, setModelUploadFile] = useState<File | null>(null);
   const [queue, setQueue] = useState<QueueState>({ status: "idle" });
@@ -479,6 +480,7 @@ export function RobotTeamPlanPreview({
     }
     const hardwareMaturity = read("planHardware");
     const deploymentGeography = read("planGeography");
+    const deploymentRegions = read("planRegions");
 
     if (!email || !teamName) {
       setState({ status: "failed", message: "We need a work email and a team name." });
@@ -487,8 +489,12 @@ export function RobotTeamPlanPreview({
     if (!hardwareMaturity || !deploymentGeography) {
       setState({
         status: "failed",
-        message: "Tell us where the hardware is today and whether you would deploy in Austin.",
+        message: "Tell us where the hardware is today and where your team can deploy and support robots.",
       });
+      return;
+    }
+    if (deploymentGeography === "specific_regions" && !deploymentRegions) {
+      setState({ status: "failed", message: "Tell us which countries, states or cities you serve." });
       return;
     }
     if (hasCheckpoint && !uploadingModel && !reference) {
@@ -514,6 +520,7 @@ export function RobotTeamPlanPreview({
           embodiment: read("planEmbodiment") || undefined,
           hardwareMaturity,
           deploymentGeography,
+          ...(deploymentGeography === "specific_regions" ? { deploymentRegions } : {}),
           website: read("planWebsite") || undefined,
           ...(hasCheckpoint && !uploadingModel
             ? {
@@ -971,7 +978,7 @@ export function RobotTeamPlanPreview({
         <label htmlFor="plan-geography">
           <span>{GEOGRAPHY_FIELD.question}</span>
           <span className="ms-field-hint">{GEOGRAPHY_FIELD.hint}</span>
-          <select id="plan-geography" name="planGeography" defaultValue="" required>
+          <select id="plan-geography" name="planGeography" value={deploymentGeography} onChange={(event) => setDeploymentGeography(event.target.value)} required>
             <option value="">Select…</option>
             {GEOGRAPHY_FIELD.options.map((option) => (
               <option key={option.value} value={option.value}>
@@ -981,6 +988,14 @@ export function RobotTeamPlanPreview({
           </select>
         </label>
       )}
+      {deploymentGeography === "specific_regions" && (
+        <label htmlFor="plan-regions">
+          <span>Which countries, states or cities?</span>
+          <span className="ms-field-hint">Use full region names, separated by semicolons. Include the state for a city.</span>
+          <input id="plan-regions" name="planRegions" required maxLength={500} placeholder="Texas; Ohio; Austin, TX; Canada" />
+        </label>
+      )}
+
 
       <label htmlFor="plan-has-checkpoint" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
         <input

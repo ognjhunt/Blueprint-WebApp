@@ -60,7 +60,7 @@ The admin equivalents still exist (`/api/admin/robot-teams/...`) for support, fo
 Registration asks for a team name. That is all that is required. Two facts
 are accepted alongside it because no run can measure them and matching treats
 one of them as hard: `hardwareMaturity` (does the hardware exist today) and
-`deploymentGeography` (would the team deploy in the Austin metro), both in the
+`deploymentGeography` (deployment and support coverage), both in the
 intake gates' vocabulary and stored at `self_reported` grade. `embodiment` and
 `website` are accepted the same way; the website feeds the capability-refresh
 lane, which proposes figures a person promotes. The human plan form requires the two short answers, including a truthful negative answer;
@@ -301,3 +301,10 @@ compatible profiles; arbitrary pickled models and customer Python are not
 loaded by this route. See
 `docs/robot-team-policy-integration-acceptance-20260928.md` for the complete
 production execution and result-delivery gates.
+
+Deployment coverage is `us_national`, `specific_regions`, or `not_deploying`.
+For `specific_regions`, include `deploymentRegions` with full country/state names or
+city and state, separated by semicolons (for example `Texas; Ohio; Austin, TX; Canada`).
+Coverage is compared with the site's stated location, independently of capture-visit coverage.
+Missing or ambiguous location/coverage stays provisional. Legacy Austin answers remain
+accepted by the agent API and retain their original Austin-only meaning.

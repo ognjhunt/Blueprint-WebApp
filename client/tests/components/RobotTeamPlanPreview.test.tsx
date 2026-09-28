@@ -73,8 +73,8 @@ function fillAndSubmit(reference = "https://policies.example/v3") {
   fireEvent.change(screen.getByLabelText(/where is the hardware today/i), {
     target: { value: "pilots" },
   });
-  fireEvent.change(screen.getByLabelText(/would you deploy in the austin metro/i), {
-    target: { value: "right_opportunity" },
+  fireEvent.change(screen.getByLabelText(/where can your team deploy and support robots/i), {
+    target: { value: "us_national" },
   });
   if (reference !== null) {
     fireEvent.change(screen.getByLabelText(/where is it/i), { target: { value: reference } });
@@ -94,7 +94,7 @@ describe("RobotTeamPlanPreview", () => {
     // The two deployment facts matching treats as hard and no run can measure
     // are asked here, in two taps. The rest of the old interview is not.
     expect(screen.getByLabelText(/where is the hardware today/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/would you deploy in the austin metro/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/where can your team deploy and support robots/i)).toBeInTheDocument();
     expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
     expect(screen.queryByText(/when would you want to be running/i)).toBeNull();
     expect(screen.queryByText(/what would prove the system works/i)).toBeNull();
@@ -107,8 +107,8 @@ describe("RobotTeamPlanPreview", () => {
     render(<RobotTeamPlanPreview />);
     fireEvent.change(screen.getByLabelText(/what is it/i), { target: { value: "Mobile manipulator" } });
     fireEvent.change(screen.getByLabelText(/where is the hardware today/i), { target: { value: "pilots" } });
-    fireEvent.change(screen.getByLabelText(/would you deploy in the austin metro/i), {
-      target: { value: "right_opportunity" },
+    fireEvent.change(screen.getByLabelText(/where can your team deploy and support robots/i), {
+      target: { value: "us_national" },
     });
     fireEvent.change(screen.getByLabelText(/website or spec sheet/i), {
       target: { value: "https://alpha.example/specs" },
@@ -120,9 +120,26 @@ describe("RobotTeamPlanPreview", () => {
     expect(JSON.parse(String(registerInit.body))).toMatchObject({
       embodiment: "Mobile manipulator",
       hardwareMaturity: "pilots",
-      deploymentGeography: "right_opportunity",
+      deploymentGeography: "us_national",
       website: "https://alpha.example/specs",
     });
+  });
+
+  it("asks for specific coverage only when needed and transmits the regions", async () => {
+    jsonOnce(201, { teamId: "t", agentKey: "bpk_x", checkpoint: { checkpointId: "ckpt_1" } });
+    jsonOnce(200, { selected: [], totalCostUsd: 0 });
+    render(<RobotTeamPlanPreview />);
+    expect(screen.queryByLabelText(/which countries, states or cities/i)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/where can your team deploy and support robots/i), { target: { value: "specific_regions" } });
+    fireEvent.change(screen.getByLabelText(/which countries, states or cities/i), { target: { value: "Ohio; Michigan" } });
+    // Fill the remaining facts without changing the chosen coverage.
+    fireEvent.change(screen.getByLabelText(/work email/i), { target: { value: "eng@alpha.example" } });
+    fireEvent.change(screen.getByLabelText(/team or company/i), { target: { value: "Alpha Robotics" } });
+    fireEvent.change(screen.getByLabelText(/where is the hardware today/i), { target: { value: "pilots" } });
+    fireEvent.change(screen.getByLabelText(/where is it/i), { target: { value: "https://policies.example/v3" } });
+    fireEvent.click(screen.getByRole("button", { name: /see what we would run/i }));
+    await screen.findByText(/you are in/i);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toMatchObject({ deploymentGeography: "specific_regions", deploymentRegions: "Ohio; Michigan" });
   });
 
   it("does not register until both non-observable physical facts are answered", async () => {

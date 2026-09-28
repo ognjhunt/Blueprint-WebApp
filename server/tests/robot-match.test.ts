@@ -121,11 +121,10 @@ describe("hard constraints eliminate", () => {
     expect(result.outcome).toBe("provisional");
   });
 
-  it("fails closed for a site outside the served metro", () => {
-    // Such a site should never reach matching -- its service-area gate blocks
-    // first -- so this must not quietly clear if it ever does.
+  it("does not widen a legacy Austin answer to another location", () => {
+    // Historical Austin intent says nothing about another region.
     const outside = { ...site, serviceArea: "outside_texas" };
-    expect(matchRobotTeam(outside, team()).outcome).toBe("ruled_out");
+    expect(matchRobotTeam(outside, team()).outcome).toBe("provisional");
   });
 
   it("names the requirement and the capability so a person can check it", () => {

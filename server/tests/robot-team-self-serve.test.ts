@@ -857,6 +857,30 @@ describe("the robot's non-observable physical facts", () => {
     expect(team.website).toBe("https://alpha.example/specs");
   });
 
+  it("retains selected deployment regions at self-reported grade", async () => {
+    const body = await withRoutes(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/agent-team/register`, {
+        method: "POST", headers: json(),
+        body: JSON.stringify({ teamName: "Ohio Robotics", deploymentGeography: "specific_regions", deploymentRegions: "Ohio; Michigan" }),
+      });
+      expect(response.status).toBe(201);
+      return await response.json() as { teamId: string };
+    });
+    const team = sharedFakeFirestoreState.docs.get(`robotTeams/${body.teamId}`) as Record<string, any>;
+    expect(team.capability.deploymentRegions).toBe("Ohio; Michigan");
+    expect(team.fieldProvenance.deploymentRegions.grade).toBe("self_reported");
+  });
+
+  it("requires regions for regional coverage and refuses contradictory coverage", async () => {
+    const statuses = await withRoutes(async (baseUrl) => Promise.all([
+      { deploymentGeography: "specific_regions" },
+      { deploymentGeography: "us_national", deploymentRegions: "Texas only" },
+    ].map(async (facts) => (await fetch(`${baseUrl}/api/agent-team/register`, {
+      method: "POST", headers: json(), body: JSON.stringify({ teamName: "Coverage Robotics", ...facts }),
+    })).status)));
+    expect(statuses).toEqual([400, 400]);
+  });
+
   it("keeps agent registration backward compatible when a deployment fact is unknown", async () => {
     const statuses = await withRoutes(async (baseUrl) => {
       const requests = [

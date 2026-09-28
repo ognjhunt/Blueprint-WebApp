@@ -355,7 +355,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "registerRobotTeam",
           summary: "Register a robot team and receive an agent key, with no credential.",
           description:
-            "Open self-serve registration. Accepts self-reported hardware maturity and Austin deployment intent as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates the team (status self_registered, zero balance, agent spend off) and returns a key exactly once — only a SHA-256 is stored. That key can plan and dry-run; paying and running need the team connected to a verified Blueprint account, which issues and revokes its team's agent keys under Settings → Agent access. Rate limited per address. A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
+            "Open self-serve registration. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates the team (status self_registered, zero balance, agent spend off) and returns a key exactly once — only a SHA-256 is stored. That key can plan and dry-run; paying and running need the team connected to a verified Blueprint account, which issues and revokes its team's agent keys under Settings → Agent access. Rate limited per address. A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
           security: [{}],
           requestBody: {
             required: true,
@@ -372,7 +372,8 @@ export function buildRobotAgentOpenApiContract() {
                     capabilityDescription: { type: "string", maxLength: 2000 },
                     embodiment: {"type": "string", "maxLength": 80, "description": "What the robot is, e.g. 'Mobile manipulator'. Ranked and shown, never a gate."},
                     hardwareMaturity: {"type": "string", "enum": ["deployed", "pilots", "prototype", "development"], "description": "Whether the hardware exists today. A fact about the business; no run measures it."},
-                    deploymentGeography: {"type": "string", "enum": ["yes", "right_opportunity", "size_dependent", "no"], "description": "Whether the team would deploy in the Austin metro. Stored as self-reported context; a past-task evaluation does not establish deployment intent."},
+                    deploymentGeography: { type: "string", enum: ["us_national", "specific_regions", "not_deploying", "yes", "right_opportunity", "size_dependent", "no"], description: "Deployment and support coverage. Legacy yes/right_opportunity/size_dependent/no answers apply only to Austin. Stored as self-reported context." },
+                    deploymentRegions: { type: "string", minLength: 1, maxLength: 500, description: "Required when deploymentGeography is specific_regions. Full country/state names or city, state; separate regions with semicolons. Example: Texas; Ohio; Austin, TX; Canada. Unclear coverage remains provisional." },
                     checkpoint: {
                       type: "object",
                       properties: {
