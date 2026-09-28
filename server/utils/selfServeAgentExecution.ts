@@ -37,6 +37,7 @@ import { teamAccountUid } from "./robotTeamAccounts";
 import { isRunnableTask } from "./teamEvalCandidates";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { InboundRequest } from "../types/inbound-request";
+import { loadTaskForTeam, developmentOfferForTeam } from "./controlledDevelopmentOffer";
 import { checkpointPolicyPackage } from "./policyIntegration";
 
 export const SELF_SERVE_ENTITLEMENT_SKU = "self-serve-agent-execution";
@@ -104,27 +105,31 @@ export async function ensureSelfServeAgentExecution(params: {
   const accountUid = await teamAccountUid(params.teamId);
   if (!accountUid) return { prepared: false, blockers: ["team_account_required"] };
 
-  const [teamSnapshot, checkpointSnapshot, sceneSnapshot] = await Promise.all([
+  const [teamSnapshot, checkpointSnapshot, taskRecord] = await Promise.all([
     db.collection(ROBOT_TEAMS_COLLECTION).doc(params.teamId).get(),
     db.collection("robotCheckpoints").doc(params.checkpointId).get(),
-    db.collection("inboundRequests").doc(params.sceneId).get(),
+    loadTaskForTeam(params.sceneId, params.teamId),
   ]);
   const team = teamSnapshot.data() as RobotTeamRecord | undefined;
   const checkpoint = object(checkpointSnapshot.data());
-  const scene = object(sceneSnapshot.data());
+  const scene = object(taskRecord);
+  const development = developmentOfferForTeam(scene, params.teamId);
 
   const blockers: string[] = [];
+  if (development && !development.allowed_checkpoint_runtimes.includes(checkpoint.runtime)) {
+    blockers.push("development_task_checkpoint_runtime_not_supported");
+  }
   if (!team) blockers.push("team_missing");
   if (!checkpointSnapshot.exists || checkpoint.teamId !== params.teamId) {
     blockers.push("agent_execution_checkpoint_team_mismatch");
   }
   const policyPackage = policyPackageFor(checkpoint);
   if (!policyPackage) blockers.push("agent_execution_checkpoint_runtime_not_admissible");
-  if (!sceneSnapshot.exists || !isRunnableTask(scene as InboundRequest)) {
+  if (!taskRecord || (!development && !isRunnableTask(scene as InboundRequest))) {
     blockers.push("scene_not_runnable");
   }
   const rights = projectWebsiteCaptureRights(scene);
-  if (!rights.consent_scope.includes("robot_evaluation")) blockers.push("site_rights_not_cleared");
+  if (!development && !rights.consent_scope.includes("robot_evaluation")) blockers.push("site_rights_not_cleared");
   if (text(object(scene.pipeline).rights_review_status) === "blocked") blockers.push("site_rights_not_cleared");
   if (blockers.length) return { prepared: false, blockers: [...new Set(blockers)] };
 
@@ -197,9 +202,9 @@ export async function ensureSelfServeAgentExecution(params: {
     job_id: requestId,
     buyer_request_id: decisionId,
     idempotency_key: requestId,
-    decision_question: "How does this checkpoint perform on the approved task in this site's simulated scene?",
+    decision_question: development ? "How does this policy execute on the private development task in simulation?" : "How does this checkpoint perform on the approved task in this site's simulated scene?",
     task_description: facts.taskId,
-    site_task_conditions: ["Simulated scene reconstructed from the site's own capture"],
+    site_task_conditions: [development ? "Retained development scene geometry; no qualification or physical success claim" : "Simulated scene reconstructed from the site's own capture"],
     customer: { id: params.teamId, name: team!.name },
     site_package: {
       site_id: facts.siteId,
@@ -236,14 +241,14 @@ export async function ensureSelfServeAgentExecution(params: {
       budget: { amount: params.quotedUsd, currency: "USD", hard_cap: true },
       available_physical_evidence: [{
         artifact_id: facts.captureId,
-        kind: "capture",
+        kind: development ? "development_scene_geometry" : "capture",
         uri: offer.capture_root,
         version: facts.testbedVersion || "1",
         digest_sha256: facts.captureDigest,
-        evidence_class: "real_observation",
+        evidence_class: development ? "geometry" : "real_observation",
       }],
     },
-    source: { selection_state: { policy_id: params.checkpointId, task_id: facts.taskId } },
+    source: { ...(development ? { evidence_scope: "development_only", authorization_reference: development.authorization_reference } : {}), selection_state: { policy_id: params.checkpointId, task_id: facts.taskId } },
   };
 
   const result = await submitTaskEvaluationRunRequest({

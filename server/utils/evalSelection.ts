@@ -54,6 +54,9 @@ import type { MatchResult } from "../../client/src/lib/robotMatch";
 export interface EvalCandidate {
   /** The scene this run would execute against. */
   sceneId: string;
+  evidenceScope?: "development_only";
+  policyInterface?: Record<string, unknown>;
+  quotedEpisodes?: number;
   siteLabel: string;
   thumbnailUrl?: string | null;
   details?: import("../../client/src/types/taskBrowse").TaskListingDetails | null;

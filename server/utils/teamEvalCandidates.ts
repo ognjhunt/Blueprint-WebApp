@@ -34,6 +34,7 @@ import { entryPrice, screeningRound } from "../../client/src/lib/evaluationPrici
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { coverageEvidenceFrom } from "./captureCoverageReview";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
+import { DEVELOPMENT_OFFERS, developmentOfferForTeam } from "./controlledDevelopmentOffer";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 
 /**
@@ -175,15 +176,27 @@ export async function buildTeamEvalCandidates(params: {
   const team = await getRobotTeam(params.teamId);
   if (!team) return [];
 
-  const [sites, history] = await Promise.all([
+  const [sites, history, development, checkpoint] = await Promise.all([
     loadRunnableSites(params.limit ?? 200),
     loadEvaluatedFamilies(params.teamId, params.checkpointId),
+    db ? db.collection(DEVELOPMENT_OFFERS).where("allowed_team_ids", "array-contains", params.teamId).limit(100).get() : null,
+    db ? db.collection("robotCheckpoints").doc(params.checkpointId).get() : null,
   ]);
 
   const candidate = toMatchCandidate(team);
   const costUsd = screeningRunCostUsd();
 
-  return sites.map((request) => {
+  const privateCandidates: EvalCandidate[] = (development?.docs ?? []).flatMap(doc => {
+    const offer = developmentOfferForTeam(doc.data(), params.teamId);
+    if (!offer || checkpoint?.data()?.teamId !== params.teamId
+      || !offer.allowed_checkpoint_runtimes.includes(checkpoint?.data()?.runtime)) return [];
+    return [{sceneId: offer.requestId, siteLabel: offer.details.title, details: offer.details,
+      evidenceScope: "development_only" as const, quotedEpisodes: 1, policyInterface: offer.policy_interface,
+      match: {outcome: "provisional" as const, score: 0, scored: 0, unknownHardConstraints: []},
+      costUsd, taskFamily: offer.execution_facts.taskFamily, alreadyEvaluatedFamilies: history.families,
+      alreadyRunForCheckpoint: history.scenesRun.has(offer.requestId)}];
+  });
+  return [...privateCandidates, ...sites.map((request) => {
     const match = matchRobotTeam(toSiteRequirement(request), candidate);
     const sceneId = request.requestId;
     const taskFamily =
@@ -210,7 +223,7 @@ export async function buildTeamEvalCandidates(params: {
       alreadyEvaluatedFamilies: history.families,
       alreadyRunForCheckpoint: history.scenesRun.has(sceneId),
     };
-  });
+  })];
 }
 
 /** The same admission predicate serves discovery and paid evaluation selection. */

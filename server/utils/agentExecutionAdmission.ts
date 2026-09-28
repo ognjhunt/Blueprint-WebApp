@@ -8,6 +8,8 @@ import {
   type DecisionEvidenceRequest,
 } from "./decisionEvidenceContract";
 
+import { loadTaskForTeam, developmentOfferSchema, developmentOfferForTeam } from "./controlledDevelopmentOffer";
+
 export const AGENT_EXECUTION_ADMISSION_SCHEMA_VERSION =
   "blueprint.agent_execution_admission.v1" as const;
 
@@ -26,6 +28,7 @@ export interface AgentExecutionAdmissionSelection {
     siteId: string;
     captureId: string;
     captureDigestSha256: string;
+    evidenceClass?: "geometry" | "real_observation";
     testbedDigestSha256: string;
   };
   taskId: string;
@@ -72,7 +75,7 @@ function captureMatches(
       artifact.artifact_id === selection.scene.captureId &&
       artifact.digest_sha256.toLowerCase() ===
         selection.scene.captureDigestSha256.toLowerCase() &&
-      artifact.evidence_class === "real_observation",
+      artifact.evidence_class === (selection.scene.evidenceClass ?? "real_observation"),
   );
 }
 
@@ -134,6 +137,13 @@ export async function prepareAgentExecutionAdmission(
   const blockers: string[] = [];
   if (!db)
     return { admitted: false, blockers: ["agent_execution_store_unavailable"] };
+  if (selection.scene.evidenceClass === "geometry") {
+    const development = developmentOfferForTeam(await loadTaskForTeam(selection.scene.requestId, selection.teamId), selection.teamId);
+    if (!development || development.execution_facts.captureDigest !== selection.scene.captureDigestSha256
+        || development.execution_facts.taskId !== selection.taskId) {
+      blockers.push("agent_execution_development_evidence_not_authorized");
+    }
+  }
   if (selection.checkpoint.teamId !== selection.teamId) {
     blockers.push("agent_execution_checkpoint_team_mismatch");
   }
@@ -337,6 +347,7 @@ export async function discoverAgentExecutionAdmissionsForSelection(
 
 export interface SceneExecutionFacts {
   ok: true;
+  captureEvidenceClass?: "geometry";
   taskId: string;
   taskFamily: string;
   captureDigest: string;
@@ -356,6 +367,8 @@ export async function sceneExecutionFacts(
   scene: Record<string, unknown>,
 ): Promise<SceneExecutionFacts | { ok: false; blockers: string[] }> {
   if (!db) return { ok: false, blockers: ["agent_execution_store_unavailable"] };
+  const development = developmentOfferSchema.safeParse(scene);
+  if (development.success) return {ok: true, ...development.data.execution_facts};
   const pipeline = objectValue(scene.pipeline);
   const captureJobId = String(pipeline.capture_job_id || "").trim();
   if (!captureJobId) return { ok: false, blockers: ["agent_execution_capture_session_missing"] };
@@ -405,18 +418,18 @@ export async function discoverAgentExecutionAdmission(params: {
   | { admitted: false; blockers: string[] }
 > {
   if (!db) return { admitted: false, blockers: ["agent_execution_store_unavailable"] };
-  const [checkpointSnapshot, sceneSnapshot] = await Promise.all([
+  const [checkpointSnapshot, scene] = await Promise.all([
     db.collection("robotCheckpoints").doc(params.checkpointId).get(),
-    db.collection("inboundRequests").doc(params.sceneId).get(),
+    loadTaskForTeam(params.sceneId, params.teamId),
   ]);
   if (!checkpointSnapshot.exists) {
     return { admitted: false, blockers: ["agent_execution_checkpoint_missing"] };
   }
-  if (!sceneSnapshot.exists) {
+  if (!scene) {
     return { admitted: false, blockers: ["agent_execution_scene_missing"] };
   }
   const checkpoint = objectValue(checkpointSnapshot.data());
-  const facts = await sceneExecutionFacts(objectValue(sceneSnapshot.data()));
+  const facts = await sceneExecutionFacts(objectValue(scene));
   if (!facts.ok) return { admitted: false, blockers: facts.blockers };
   const { taskId, taskFamily, captureDigest, testbedDigest, siteId, captureId } = facts;
   const blockers: string[] = [];
@@ -443,6 +456,7 @@ export async function discoverAgentExecutionAdmission(params: {
       siteId,
       captureId,
       captureDigestSha256: captureDigest,
+      ...(facts.captureEvidenceClass ? {evidenceClass: facts.captureEvidenceClass} : {}),
       testbedDigestSha256: testbedDigest,
     },
     taskId,
