@@ -54,7 +54,7 @@ describe("platform context preamble", () => {
   it("names the cross-repo reconciliation path", () => {
     expect(contents).toMatch(/BlueprintCapturePipeline\/doctrine\//);
     expect(contents).toMatch(/shared-doctrine\.lock\.json.*all three repos/is);
-    expect(contents).toMatch(/blueprint-cto/);
+    expect(contents).toMatch(/Reconciliation is a founder decision/);
   });
 });
 

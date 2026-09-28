@@ -135,7 +135,7 @@ Condition:
 
 No skill or AI recommendation may introduce a new primary service into `Blueprint-WebApp` unless all are true:
 
-1. `blueprint-cto` explicitly approves it
+1. the founder explicitly approves it
 2. the change is documented as an architecture decision
 3. the current implementation plan is updated
 4. the change does not silently fork existing source-of-truth systems

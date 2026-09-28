@@ -1,5 +1,10 @@
 # Blueprint Autonomous Organization Guide
 
+> **Retired as an approval authority (founder decision, 2026-09-28).** Blueprint no longer runs the Paperclip
+> agent org as described below. Its roles, including `blueprint-cto`, no longer approve anything: the founder
+> approves primary-service, stack and architecture changes directly. The rest of this file is kept as a historical
+> record of the old role design.
+
 > **Source of truth:** [Blueprint Knowledge](https://www.notion.so/16d80154161d80db869bcfba4fe70be3) — Autonomous Organization Guide
 > This file is the repo-authoritative mirror of Blueprint Knowledge for org structure and agent roles.
 > All Blueprint agent roles and developers consuming this file should treat Notion as the canonical
