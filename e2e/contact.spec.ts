@@ -19,7 +19,7 @@ test("phone: the first task field is on the first screen and the explanation sta
   await page.screenshot({ path: "/tmp/onboarding-p2-site-phone.png", fullPage: true });
 });
 
-test("capture keeps country and consent explicit without a duplicate screening interview", async ({ page }) => {
+test("capture takes the country from the address, asks only when it cannot, and keeps consent explicit", async ({ page }) => {
   const submissions: any[] = [];
   await page.route("**/api/inbound-request", route => {
     submissions.push(route.request().postDataJSON());
@@ -29,9 +29,17 @@ test("capture keeps country and consent explicit without a duplicate screening i
   await page.locator("#start-task").fill("Move cartons onto a pallet");
   await page.locator("#start-location").fill("Berlin");
   await page.locator("#start-email").fill("owner@example.test");
-  await expect(page.locator("#start-region")).toHaveValue("");
-  await page.locator("#start-region").selectOption("non_us");
+  await page.locator("#start-name").fill("Pat Lee");
+  await page.locator("#start-company").fill("Acme Foods");
+  // The country is not a question up front: the address answers it.
+  await expect(page.locator("#start-region")).toHaveCount(0);
   await page.locator("#start-rights").check();
+  // A typed address never resolved to a country, so Start asks for it once.
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(page.locator("#start-region")).toBeFocused();
+  await expect(page.locator("#start-region")).toHaveValue("");
+  expect(submissions).toHaveLength(0);
+  await page.locator("#start-region").selectOption("non_us");
   await page.getByRole("button", { name: "Start", exact: true }).click();
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ buyerType: "site_operator", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" } });

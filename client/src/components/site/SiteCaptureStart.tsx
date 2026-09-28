@@ -16,6 +16,12 @@ import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import {
+  CAPTURE_VIDEO_ACCEPT,
+  captureTokenFromUrl,
+  isCaptureVideoFile,
+  uploadSelfCaptureVideo,
+} from "@/lib/selfCaptureVideo";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -40,8 +46,18 @@ type State =
       email: string;
       regionApproved: boolean;
       hasFootage: boolean;
+      // What became of the video attached to the form. "none" is no video, not
+      // a failure; "failed" means the job is saved and only the video is not.
+      uploaded: "none" | "done" | "held" | "failed";
+      uploadMessage: string | null;
     }
   | { status: "failed"; message: string };
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
 
 function splitName(value: string) {
   const parts = value.trim().split(/\s+/);
@@ -86,10 +102,26 @@ export function SiteCaptureStart() {
   const [selfRecording, setSelfRecording] = useState(true);
   const [region, setRegion] = useState<CaptureRegion | "">("");
   const [regionManuallySet, setRegionManuallySet] = useState(false);
+  // The address answers the country, so the country is not a question on the
+  // page. It opens when the operator asks to correct it, or when a typed
+  // address never resolved to a country and we cannot go on without one.
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [countryPrompted, setCountryPrompted] = useState(false);
+  const regionSelect = useRef<HTMLSelectElement>(null);
+  useEffect(() => {
+    if (countryPrompted) regionSelect.current?.focus();
+  }, [countryPrompted]);
   // Asked because it changes what we say next, not to route them into a
   // different funnel. Existing footage gets assessed for both purposes -- does
   // it explain the job, does it cover the scene -- and reused wherever it can be.
+  // When it is ticked the video is attached right here, so the form is the
+  // whole submission rather than a step before another upload page.
   const [hasFootage, setHasFootage] = useState(false);
+  const [footage, setFootage] = useState<File | null>(null);
+  const [footageError, setFootageError] = useState<string | null>(null);
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  // The video is only taken from a site we are cleared to receive it from.
+  const footageWanted = hasFootage && region !== "non_us";
   // When the submitter is not the one who will film — common when outreach
   // reaches an ops lead at a desk — we send the record-only link straight to
   // whoever is on the floor. Blank means the submitter is filming.
@@ -107,9 +139,17 @@ export function SiteCaptureStart() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (state.status === "working" || loading || !region || !consent
+    if (state.status === "working" || loading || !consent
       || (claudeAuthoringRequested && !claudeConsent)
       || (solAgentsRequested && !solAgentsConsent)) return;
+    // A typed address that never resolved to a country: ask now, once, rather
+    // than guess. The country decides whether we may collect footage at all.
+    if (!region) {
+      setCountryOpen(true);
+      setCountryPrompted(true);
+      return;
+    }
+    if (footageWanted && !footage) return;
 
     const data = new FormData(event.currentTarget);
     const read = (key: string) => String(data.get(key) ?? "").trim();
@@ -144,10 +184,11 @@ export function SiteCaptureStart() {
           // with the footage rather than in front of it.
           siteTaskGates: {},
           siteTaskSpec: {},
-          captureMode: selfRecording ? "self_capture" : "site_visit",
+          // Someone who already has the video is not asking for a visit.
+          captureMode: hasFootage || selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
           hasExistingFootage: hasFootage,
-          filmerContact: filmerContact.trim() || undefined,
+          filmerContact: !hasFootage && selfRecording ? filmerContact.trim() || undefined : undefined,
           // The grant, not just the ticked box: recorded server-side with the
           // sentence version, or the submission is refused.
           consentAttestation: {
@@ -212,23 +253,44 @@ export function SiteCaptureStart() {
         // Storage can be full or blocked; the forms still work untied.
       }
 
+      const captureUrl = typeof result.captureUrl === "string" ? result.captureUrl : null;
+      const regionApproved = isApprovedCaptureRegion(region);
+
+      // The job is saved; now the video, through the same token route the
+      // capture page uses. A failure here never loses the submission: the
+      // success screen offers the link to send it again.
+      let uploaded: "none" | "done" | "held" | "failed" = "none";
+      let uploadMessage: string | null = null;
+      const captureToken = captureUrl ? captureTokenFromUrl(captureUrl) : null;
+      if (footageWanted && footage && regionApproved && captureToken) {
+        setUploadPercent(0);
+        const outcome = await uploadSelfCaptureVideo(captureToken, footage, setUploadPercent);
+        uploaded = outcome.status;
+        uploadMessage = outcome.status === "done" ? null : outcome.message;
+        if (outcome.status !== "failed") setCaptureReceived(true);
+      }
+
       setState({
         status: "done",
         workspaceUrl: savedToWorkspace ? `/app/tasks/${requestId.current}` : null,
         linkOnlyNote: currentUser && !savedToWorkspace
           ? `This account is not a site workspace, so this site is saved to the link we email ${email}. You can claim it from that link later.`
           : null,
-        captureUrl: typeof result.captureUrl === "string" ? result.captureUrl : null,
-        selfRecording,
+        captureUrl,
+        selfRecording: selfRecording || hasFootage,
         email,
-        regionApproved: isApprovedCaptureRegion(region),
+        regionApproved,
         hasFootage,
+        uploaded,
+        uploadMessage,
       });
     } catch {
       setState({
         status: "failed",
         message: "We could not reach Blueprint. Please try again shortly.",
       });
+    } finally {
+      setUploadPercent(null);
     }
   }
 
@@ -249,6 +311,9 @@ export function SiteCaptureStart() {
         ) : state.selfRecording && state.captureUrl && captureReceived ? (
           <>
             <h2 style={{ marginTop: 0 }}>Your recording is in.</h2>
+            {state.uploaded === "held" && state.uploadMessage && (
+              <p className="ms-field-hint">{state.uploadMessage}</p>
+            )}
             <p className="ms-field-hint">
               Next, check the task brief we drafted from it. You can do that here or on the phone;
               it is the same page.
@@ -261,7 +326,9 @@ export function SiteCaptureStart() {
         ) : state.selfRecording && state.captureUrl ? (
           <>
             <h2 style={{ marginTop: 0 }}>
-              {state.hasFootage ? "Send us what you have." : "Film the work area."}
+              {state.uploaded === "failed"
+                ? "Your job is saved. The video did not send."
+                : state.hasFootage ? "Send us what you have." : "Film the work area."}
             </h2>
             {/* Two purposes, one recording. Footage they already hold may
                 explain the job and cover the scene; if it does we reuse it, and
@@ -269,9 +336,12 @@ export function SiteCaptureStart() {
                 missing rather than for "a better video". What we never do is
                 make them film something they have already filmed. */}
             <p className="ms-field-hint">
-              {state.hasFootage
-                ? "Upload the video or photos you already have through this link. We will tell you "
-                  + "whether they cover the work area well enough to build the scene, or which extra "
+              {state.uploaded === "failed"
+                ? `${state.uploadMessage ?? "The upload did not finish."} Nothing was lost — open the `
+                  + "uploader to send the video again."
+                : state.hasFootage
+                ? "Upload the video you already have through this link. We will tell you "
+                  + "whether it covers the work area well enough to build the scene, or which extra "
                   + "views would finish the job — you will not be asked to film it all again."
                 : "One video of one work area, on any phone. Thirty seconds of the actual cycle is "
                   + "enough. On an iPhone the link opens a small Blueprint camera when that is "
@@ -352,92 +422,154 @@ export function SiteCaptureStart() {
           name="startExistingFootage"
           type="checkbox"
           checked={hasFootage}
-          onChange={(event) => setHasFootage(event.target.checked)}
+          onChange={(event) => {
+            setHasFootage(event.target.checked);
+            if (!event.target.checked) { setFootage(null); setFootageError(null); }
+          }}
           style={{ width: "auto", minHeight: 0, marginTop: "4px" }}
         />
         {/* Reuse before re-record. A recording that already shows the job may
             also have the coverage a scene needs -- and if it does, asking them
             to film again would be us making them pay for our workflow having
-            stages. */}
+            stages. Video only: what we build a scene from is a walkthrough of
+            the work, not stills. */}
         <span style={{ fontWeight: 400 }}>
-          I already have a video or photos of this job
+          I already have a video of this job
         </span>
       </label>
 
-      <label htmlFor="start-self-recording" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
-        <input
-          id="start-self-recording"
-          name="startSelfRecording"
-          type="checkbox"
-          checked={selfRecording}
-          onChange={(event) => setSelfRecording(event.target.checked)}
-          style={{ width: "auto", minHeight: 0 }}
-        />
-        <span>We will film it ourselves</span>
-      </label>
+      {hasFootage ? (
+        // Someone with the video has nothing to schedule and nobody to hand a
+        // camera to, so the filming options step aside for the upload itself.
+        region === "non_us" ? (
+          <p className="ms-field-hint">
+            Hold on to the video for now. Outside the US we set up the data-transfer terms before
+            anything is uploaded, and we will tell you when to send it.
+          </p>
+        ) : (
+          <label htmlFor="start-footage">
+            <span>Upload the video</span>
+            <span className="ms-field-hint">
+              A .mov or .mp4 file, straight from the phone or camera that recorded it. One complete
+              cycle of the job is enough. We check whether it covers the work area and ask only for
+              the views that are missing.
+            </span>
+            <input
+              id="start-footage"
+              name="startFootage"
+              type="file"
+              accept={CAPTURE_VIDEO_ACCEPT}
+              required
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                if (file && !isCaptureVideoFile(file)) {
+                  event.target.value = "";
+                  setFootage(null);
+                  setFootageError("That file is not a .mov or .mp4 video. Pick the video straight from your phone's library.");
+                  return;
+                }
+                setFootage(file);
+                setFootageError(null);
+              }}
+            />
+            {footageError && <span role="alert" className="ms-field-hint" style={{ color: "var(--ms-alert, #b00)" }}>{footageError}</span>}
+            {footage && <span className="ms-field-hint">{formatBytes(footage.size)}. It uploads when you press Start.</span>}
+          </label>
+        )
+      ) : (
+        <>
+          <label htmlFor="start-self-recording" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
+            <input
+              id="start-self-recording"
+              name="startSelfRecording"
+              type="checkbox"
+              checked={selfRecording}
+              onChange={(event) => setSelfRecording(event.target.checked)}
+              style={{ width: "auto", minHeight: 0 }}
+            />
+            <span>We will film it ourselves</span>
+          </label>
 
-      {selfRecording && (
-        <label htmlFor="start-filmer">
-          <span>
-            Who is doing the filming? <span className="ms-optional">(optional)</span>
-          </span>
-          <span className="ms-field-hint">
-            Filming it yourself? Leave this blank. If someone else on-site will do it, put their
-            email here and we will send them a record-only link — they can film and upload,
-            and only you can confirm the task brief.
-          </span>
-          <input
-            id="start-filmer"
-            name="startFilmer"
-            type="email"
-            inputMode="email"
-            maxLength={320}
-            placeholder="Their email — optional"
-            value={filmerContact}
-            onChange={(event) => setFilmerContact(event.target.value)}
-          />
-        </label>
+          {selfRecording && (
+            <label htmlFor="start-filmer">
+              <span>
+                Who is doing the filming? <span className="ms-optional">(optional)</span>
+              </span>
+              <span className="ms-field-hint">
+                Filming it yourself? Leave this blank. If someone else on-site will do it, put their
+                email here and we will send them a record-only link — they can film and upload,
+                and only you can confirm the task brief.
+              </span>
+              <input
+                id="start-filmer"
+                name="startFilmer"
+                type="email"
+                inputMode="email"
+                maxLength={320}
+                placeholder="Their email — optional"
+                value={filmerContact}
+                onChange={(event) => setFilmerContact(event.target.value)}
+              />
+            </label>
+          )}
+        </>
       )}
 
-      <label htmlFor="start-location">
-        <span>{selfRecording ? "Where is it?" : "Site address"}</span>
-        <span className="ms-field-hint">
-          {selfRecording
-            ? "A city is plenty. We only need a street address if we are sending someone."
-            : "A capture operator needs a street address, not a site nickname."}
-        </span>
-        <LocationAutocomplete
-          id="start-location"
-          name="startLocation"
-          required
-          maxLength={300}
-          placeholder={selfRecording ? "City, or a full address" : "Street address"}
-          onSelectionChange={(place) => {
-            if (!regionManuallySet) setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
-          }}
-        />
-      </label>
+      {/* The address and the country it implies, grouped: the country is a
+          consequence of the address, so it sits under it as a line to confirm
+          rather than a second question. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
+        <label htmlFor="start-location">
+          <span>{selfRecording || hasFootage ? "Where is it?" : "Site address"}</span>
+          <span className="ms-field-hint">
+            {selfRecording || hasFootage
+              ? "A city is plenty. We only need a street address if we are sending someone."
+              : "A capture operator needs a street address, not a site nickname."}
+          </span>
+          <LocationAutocomplete
+            id="start-location"
+            name="startLocation"
+            required
+            maxLength={300}
+            placeholder={selfRecording || hasFootage ? "City, or a full address" : "Street address"}
+            onSelectionChange={(place) => {
+              if (!regionManuallySet) setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+            }}
+          />
+        </label>
 
-      <label htmlFor="start-region">
-        <span>Which country is the site in?</span>
-        <span className="ms-field-hint">
-          Set from the address you pick; change it if that is wrong. {captureRegionNotice}
-        </span>
-        <select
-          id="start-region"
-          name="startRegion"
-          value={region}
-          required
-          onChange={(event) => { setRegion(event.target.value as CaptureRegion); setRegionManuallySet(!!event.target.value); }}
-        >
-          <option value="">Choose country</option>
-          {captureRegionOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+        {countryOpen ? (
+          <label htmlFor="start-region">
+            <span>Which country is the site in?</span>
+            <select
+              id="start-region"
+              name="startRegion"
+              ref={regionSelect}
+              value={region}
+              required
+              onChange={(event) => { setRegion(event.target.value as CaptureRegion); setRegionManuallySet(!!event.target.value); }}
+            >
+              <option value="">Choose country</option>
+              {captureRegionOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : region ? (
+          <p className="ms-field-hint" style={{ margin: 0 }}>
+            Country: {captureRegionOptions.find((option) => option.value === region)?.label}.{" "}
+            <button type="button" className="ms-text-link" style={{ font: "inherit" }} onClick={() => setCountryOpen(true)}>
+              Change
+            </button>
+          </p>
+        ) : null}
+
+        {(countryOpen || region === "non_us") && (
+          <p className="ms-field-hint" style={{ margin: 0 }}>{captureRegionNotice}</p>
+        )}
+      </div>
 
       {!currentUser && <>
       <label htmlFor="start-email">
@@ -451,16 +583,12 @@ export function SiteCaptureStart() {
 
       <div className="ms-form-row">
         <label htmlFor="start-name">
-          <span>
-            Your name <span className="ms-optional">(optional)</span>
-          </span>
-          <input id="start-name" name="startName" type="text" maxLength={120} />
+          <span>Your name</span>
+          <input id="start-name" name="startName" type="text" required autoComplete="name" maxLength={120} />
         </label>
         <label htmlFor="start-company">
-          <span>
-            Site or company <span className="ms-optional">(optional)</span>
-          </span>
-          <input id="start-company" name="startCompany" type="text" maxLength={200} />
+          <span>Site or company</span>
+          <input id="start-company" name="startCompany" type="text" required autoComplete="organization" maxLength={200} />
         </label>
       </div>
 
@@ -519,8 +647,27 @@ export function SiteCaptureStart() {
       </p>
 
       <button className="ms-button ms-button-large" type="submit" disabled={state.status === "working" || loading}>
-        {state.status === "working" ? "Working…" : "Start"}
+        {state.status !== "working" ? "Start"
+          : uploadPercent !== null ? `Uploading video… ${uploadPercent}%` : "Working…"}
       </button>
+
+      {uploadPercent !== null && (
+        <div>
+          <div
+            role="progressbar"
+            aria-valuenow={uploadPercent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Video upload progress"
+            style={{ height: "4px", background: "var(--ms-rule)" }}
+          >
+            <div style={{ width: `${uploadPercent}%`, height: "100%", background: "var(--ms-green)", transition: "width 200ms ease" }} />
+          </div>
+          <p className="ms-field-hint" style={{ marginTop: "10px" }}>
+            Keep this page open until the video has finished uploading.
+          </p>
+        </div>
+      )}
     </form>
   );
 }

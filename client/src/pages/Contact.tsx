@@ -61,7 +61,7 @@ export default function Contact() {
           <p className="ms-eyebrow">For site owners</p>
           <h1>Start with one recurring task.</h1>
           <p className="ms-inquiry-description">
-            Describe the work. Add photos or phone video if you have them. Starting is free; you do not need an approved budget.
+            Describe the work. Add a phone video if you have one. Starting is free; you do not need an approved budget.
           </p>
         </div>
         <div className="ms-inquiry-forms">
