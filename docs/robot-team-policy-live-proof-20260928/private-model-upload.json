@@ -1,0 +1,18 @@
+{
+  "schema_version": "blueprint.production_model_upload_proof.v1",
+  "webapp_commit": "53e206ce51b0e32fc75003c21fbffabf8295216c",
+  "team_id": "team_blueprint-policy-integration-proof-20260928_65decb5645",
+  "checkpoint_id": "ckpt_team_blueprint-policy-integration-proof-20260928_65decb5645_mulkm039",
+  "upload_status": 201,
+  "sha256": "sha256:d98c1001a3df7d9461a968d36616f6ed11a973876b442af538cf9923064c1f10",
+  "readback_sha256": "sha256:d98c1001a3df7d9461a968d36616f6ed11a973876b442af538cf9923064c1f10",
+  "storage_generation": "1790619488672859",
+  "size_bytes": 4088,
+  "uniform_bucket_access": true,
+  "public_access_prevention": "enforced",
+  "anonymous_read_status": 403,
+  "compatibility_status": "uploaded_pending_runner_validation",
+  "graph_loaded_on_webapp": false,
+  "inference_execution_proven": false,
+  "task_execution_proven": false
+}
