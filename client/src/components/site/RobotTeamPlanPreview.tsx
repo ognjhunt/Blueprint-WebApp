@@ -1008,7 +1008,8 @@ export function RobotTeamPlanPreview({
               <span className="ms-field-hint">Declare input order, action dimensions, units, and limits. Native LeRobot, OpenPI, and GR00T models need their own compatible runner.</span>
               <textarea id="plan-model-interface" name="planModelInterface" rows={6} maxLength={32768} defaultValue={JSON.stringify({
                 schema_version: "blueprint.policy_model_interface.v1", runner_profile: "onnx_state_mlp_cpu_v1",
-                input_name: "state", output_name: "actions", state_fields: [{ name: "joint_position", width: 2 }],
+                input_name: "state", output_name: "actions", state_fields: [{ name: "joint_position", width: 2, unit: "radian" }],
+                preprocessing: "embedded_in_model_graph",
                 action_schema: { chunk_rows: 1, channels: [
                   { name: "joint_1", raw_accepted_bounds: [-1, 1], unit: "radian" },
                   { name: "gripper", raw_accepted_bounds: [0, 1], unit: "normalized_fraction" },
