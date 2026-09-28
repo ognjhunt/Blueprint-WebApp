@@ -55,11 +55,13 @@ import { recordEvaluationOutcome } from "./robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
 import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
 import type { EvalRunRecord } from "./agentEvalRuns";
+import type { ControlledNativePrivateResult } from "./controlledNativeResult";
 
 const RUNS_COLLECTION = "evaluationRuns";
 
 /** What the Pipeline observed. Numbers, not claims. */
 export interface RunOutcomeReport {
+  privateExecutionResult?: ControlledNativePrivateResult;
   episodesRun: number;
   episodesSucceeded: number;
   medianCycleSeconds?: number | null;
@@ -74,6 +76,7 @@ export interface RunOutcomeReport {
 
 /** What we store and hand back, observation and claim kept apart. */
 export interface EvalRunResult {
+  privateExecutionResult?: ControlledNativePrivateResult;
   runId: string;
   teamId: string;
   checkpointId: string;
@@ -279,6 +282,7 @@ export async function recordRunResult(params: {
     },
     note: params.report.note ?? null,
     artifactUri: params.report.artifactUri ?? null,
+    ...(params.report.privateExecutionResult ? { privateExecutionResult: params.report.privateExecutionResult } : {}),
     reportedAtIso: new Date().toISOString(),
   };
 

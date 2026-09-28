@@ -494,7 +494,7 @@ async function admissionsFor(params: {
   const lines = await Promise.all(params.lines.map(async (candidate) => {
     const quote = {
       teamId: params.teamId, checkpointId: params.checkpointId, sceneId: candidate.sceneId,
-      quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd,
+      quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(), quotedUsd: candidate.costUsd,
     };
     const preparation = bound ? await ensureSelfServeAgentExecution(quote).catch((error) => {
       logger.warn({ error, teamId: params.teamId, sceneId: candidate.sceneId }, "Self-serve preparation failed");
@@ -897,11 +897,11 @@ router.post("/runs", async (req: Request, res: Response) => {
     // Idempotent: a planned line's record already exists and is reused.
     if (!parsed.data.planToken) {
       await ensureSelfServeAgentExecution({ teamId, checkpointId: parsed.data.checkpointId,
-        sceneId: candidate.sceneId, quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd })
+        sceneId: candidate.sceneId, quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(), quotedUsd: candidate.costUsd })
         .catch((error) => logger.warn({ error, teamId, sceneId: candidate.sceneId }, "Self-serve preparation failed"));
     }
     const admission = await discoverAgentExecutionAdmission({ teamId, checkpointId: parsed.data.checkpointId,
-      sceneId: candidate.sceneId, quotedEpisodes: screeningRunEpisodes(), quotedUsd: candidate.costUsd });
+      sceneId: candidate.sceneId, quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(), quotedUsd: candidate.costUsd });
     if (!admission.admitted || (parsed.data.planToken && plannedDigests.get(candidate.sceneId) !== admission.digestSha256)) {
       refused.push({ sceneId: candidate.sceneId, siteLabel: candidate.siteLabel, costUsd: candidate.costUsd,
         refusal: "execution_preparation_required", detail: "The execution setup is missing or changed. Review a fresh plan before paying." });
@@ -914,7 +914,7 @@ router.post("/runs", async (req: Request, res: Response) => {
       reason: `Evaluation ${parsed.data.checkpointId} on ${candidate.sceneId}`, idempotencyKey: `execution:${requestKey}`,
       ...(parsed.data.spendMode === "one_time" ? { confirmedPlan: { token: parsed.data.planToken!, checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId } } : {}),
       requestedRun: { checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId,
-        taskFamily: candidate.taskFamily ?? null, quotedEpisodes: screeningRunEpisodes(),
+        taskFamily: candidate.taskFamily ?? null, quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(),
         executionAdmission: { envelope: admission.envelope, canonicalJson: admission.canonicalJson, digestSha256: admission.digestSha256 } },
     });
     if (!authorization.authorized) {

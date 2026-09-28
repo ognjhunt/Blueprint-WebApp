@@ -39,6 +39,8 @@ import {
   reconstructionIsViewable,
 } from "../utils/taskLifecycleNotifications";
 
+import { DEVELOPMENT_OFFERS, developmentOfferSchema } from "../utils/controlledDevelopmentOffer";
+
 const router = Router();
 
 const reconstructBody = z
@@ -288,6 +290,21 @@ router.post(
     }
   },
 );
+
+// Signed Pipeline publication, kept separate from public/qualified site supply.
+router.post("/controlled-development-offers", createPipelineSyncRateLimiter(), guard,
+  async (req: Request, res: Response) => {
+    const parsed = developmentOfferSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({code: "controlled_development_offer_invalid"});
+    if (!db) return res.status(503).json({code: "controlled_development_offer_store_unavailable"});
+    const ref = db.collection(DEVELOPMENT_OFFERS).doc(parsed.data.requestId);
+    // Never shadow an actual site or make development evidence into site proof.
+    if ((await db.collection("inboundRequests").doc(parsed.data.requestId).get()).exists) {
+      return res.status(409).json({code: "controlled_development_offer_site_collision"});
+    }
+    await ref.set(parsed.data);
+    return res.json({ok: true, evidence_scope: "development_only"});
+  });
 
 // Read at preparation time: the owner may have confirmed after uploading.
 // The raw upload manifest remains immutable historical capture evidence.

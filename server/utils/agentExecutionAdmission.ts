@@ -8,6 +8,8 @@ import {
   type DecisionEvidenceRequest,
 } from "./decisionEvidenceContract";
 
+import { loadTaskForTeam, developmentOfferSchema } from "./controlledDevelopmentOffer";
+
 export const AGENT_EXECUTION_ADMISSION_SCHEMA_VERSION =
   "blueprint.agent_execution_admission.v1" as const;
 
@@ -356,6 +358,8 @@ export async function sceneExecutionFacts(
   scene: Record<string, unknown>,
 ): Promise<SceneExecutionFacts | { ok: false; blockers: string[] }> {
   if (!db) return { ok: false, blockers: ["agent_execution_store_unavailable"] };
+  const development = developmentOfferSchema.safeParse(scene);
+  if (development.success) return {ok: true, ...development.data.execution_facts};
   const pipeline = objectValue(scene.pipeline);
   const captureJobId = String(pipeline.capture_job_id || "").trim();
   if (!captureJobId) return { ok: false, blockers: ["agent_execution_capture_session_missing"] };
@@ -405,18 +409,18 @@ export async function discoverAgentExecutionAdmission(params: {
   | { admitted: false; blockers: string[] }
 > {
   if (!db) return { admitted: false, blockers: ["agent_execution_store_unavailable"] };
-  const [checkpointSnapshot, sceneSnapshot] = await Promise.all([
+  const [checkpointSnapshot, scene] = await Promise.all([
     db.collection("robotCheckpoints").doc(params.checkpointId).get(),
-    db.collection("inboundRequests").doc(params.sceneId).get(),
+    loadTaskForTeam(params.sceneId, params.teamId),
   ]);
   if (!checkpointSnapshot.exists) {
     return { admitted: false, blockers: ["agent_execution_checkpoint_missing"] };
   }
-  if (!sceneSnapshot.exists) {
+  if (!scene) {
     return { admitted: false, blockers: ["agent_execution_scene_missing"] };
   }
   const checkpoint = objectValue(checkpointSnapshot.data());
-  const facts = await sceneExecutionFacts(objectValue(sceneSnapshot.data()));
+  const facts = await sceneExecutionFacts(objectValue(scene));
   if (!facts.ok) return { admitted: false, blockers: facts.blockers };
   const { taskId, taskFamily, captureDigest, testbedDigest, siteId, captureId } = facts;
   const blockers: string[] = [];

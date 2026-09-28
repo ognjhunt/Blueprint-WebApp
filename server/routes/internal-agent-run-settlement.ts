@@ -66,6 +66,7 @@ import { recordRunResult } from "../utils/agentRunResults";
 import { getRun, listRequestedRuns, markRunStarted } from "../utils/agentEvalRuns";
 import { getCheckpoint } from "../utils/robotCheckpoints";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { controlledNativeResultSchema } from "../utils/controlledNativeResult";
 
 const router = Router();
 
@@ -112,6 +113,7 @@ const resultSchema = z
     cycle_seconds_p90: z.number().finite().nonnegative().max(86_400).nullish(),
     note: z.string().trim().max(2000).nullish(),
     artifact_uri: z.string().trim().max(1600).nullish(),
+    private_execution_result: controlledNativeResultSchema.optional(),
   })
   .strict();
 
@@ -153,6 +155,10 @@ router.post(
         code: "agent_run_result_impossible",
       });
     }
+    if (parsed.data.private_execution_result && (parsed.data.episodes_run !== 1
+      || parsed.data.episodes_succeeded !== Number(parsed.data.private_execution_result.task_success))) {
+      return res.status(400).json({ error: "Native outcome does not match episode counts", code: "native_outcome_mismatch" });
+    }
 
     try {
       const run = await getRunForReservation(parsed.data.reservation_id);
@@ -169,6 +175,7 @@ router.post(
           cycleSecondsP90: parsed.data.cycle_seconds_p90 ?? null,
           note: parsed.data.note ?? null,
           artifactUri: parsed.data.artifact_uri ?? null,
+          ...(parsed.data.private_execution_result ? { privateExecutionResult: parsed.data.private_execution_result } : {}),
         },
       });
 
