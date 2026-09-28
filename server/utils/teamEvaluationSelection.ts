@@ -109,7 +109,7 @@ export function teamEvaluationTaskDetails(context:TeamEvaluationContext) {
   const partLabel=label(articulation.part_label);
   const title=label(task.description) || label(task.title)
     || (task.strategy === "pick_and_place" ? "Pick and place"
-      : articulated ? `Open the ${partLabel || "moving part"}` : "Task evaluation");
+      : articulated ? `Open the ${partLabel || "moving part"}` : "Evaluation");
   const requirements:Array<{label:string;value:string}>=[];
   if (objectLabel) requirements.push({label:articulated ? "Assembly" : "Object",value:objectLabel});
   if (articulated && partLabel) requirements.push({label:"Part to open",value:partLabel});

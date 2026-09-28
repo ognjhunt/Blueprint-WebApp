@@ -222,7 +222,7 @@ describe("build output", () => {
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/pricing");
     expect(llms).toContain("No match, no fee.");
-    expect(llms).toContain("charges the site $2,500 per task");
+    expect(llms).toContain("charges the site $2,500 per job");
     expect(llms).not.toMatch(/5% fee|capped at \$5,000|authorized buyer/);
 
   });
@@ -256,7 +256,7 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Find a job your robot can support.");
-    expect(robotHtml).toContain("Find relevant site tasks and evaluate them for free when invited.");
+    expect(robotHtml).toContain("Find relevant site jobs and evaluate them for free when invited.");
     // The application is public; tasks and executable plans still wait for
     // server access approval.
     expect(robotHtml).not.toContain("Already have a robot policy to evaluate?");
@@ -297,7 +297,7 @@ describe("build output", () => {
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
     expect(browserJavaScript).toContain("A measured robot pilot.");
-    expect(browserJavaScript).toContain("We draft a task brief for you to correct.");
+    expect(browserJavaScript).toContain("We draft a job brief for you to correct.");
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {

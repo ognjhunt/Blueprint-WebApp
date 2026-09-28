@@ -76,9 +76,13 @@ test("the site page puts the capture form before the explanation, on a phone too
     const how = page.getByText("How this works", { exact: true });
     await expect(how).toBeVisible();
     // Form above the disclosure, and the disclosure closed.
-    const formBox = await form.boundingBox();
-    const howBox = await how.boundingBox();
-    expect(formBox!.y).toBeLessThan(howBox!.y);
+    // Prerendered markup is replaced during hydration; wait for both boxes
+    // in the same poll instead of reading across that replacement.
+    await expect.poll(async () => {
+      const formBox = await form.boundingBox();
+      const howBox = await how.boundingBox();
+      return formBox !== null && howBox !== null && formBox.y < howBox.y;
+    }).toBe(true);
     expect(await how.evaluate((node) => (node.closest("details") as HTMLDetailsElement).open)).toBe(false);
     // Nothing from the old screen.
     await expect(page.locator("#gate-sceneStability")).toHaveCount(0);

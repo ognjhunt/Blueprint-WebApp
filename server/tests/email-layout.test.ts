@@ -12,7 +12,7 @@ describe("the branded email layout", () => {
     const html = textToEmailHtml("Hi <b>Dana</b>,\n\nOpen your job:\nhttps://tryblueprint.io/capture-upload/abc");
     expect(html).toContain("Hi &lt;b&gt;Dana&lt;/b&gt;,");
     expect(html).toContain('href="https://tryblueprint.io/capture-upload/abc"');
-    expect(html).toContain(">Open your task</a>");
+    expect(html).toContain(">Open your job</a>");
     expect(html).not.toContain("Open your job:");
   });
 
