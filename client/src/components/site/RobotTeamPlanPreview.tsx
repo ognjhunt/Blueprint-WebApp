@@ -224,6 +224,9 @@ const RUNTIMES = [
   { value: "policy_endpoint", label: "An endpoint we can call" },
   { value: "container_image", label: "A container image" },
   { value: "model_artifact", label: "Upload a model with a compatible runner" },
+  { value: "customer_hosted", label: "Keep the policy on our infrastructure" },
+  { value: "controller_adapter", label: "Connect our existing controller" },
+  { value: "skill_trace", label: "Submit an ordered skill trace" },
 ] as const;
 
 function familyLabel(value: string) {
@@ -579,7 +582,7 @@ export function RobotTeamPlanPreview({
         checkpointId = body.checkpoint.checkpointId;
       }
 
-      if (checkpointId) {
+      if (checkpointId && checkpointRuntime !== "skill_trace") {
         const planned = await fetch("/api/agent-team/plan", {
           method: "POST",
           headers: {
@@ -775,6 +778,13 @@ export function RobotTeamPlanPreview({
 
   if (state.status === "done") {
     const { plan } = state;
+    if (checkpointRuntime === "skill_trace" && plan.checkpointId) {
+      return <div className="ms-form" aria-live="polite">
+        <h2>Skill trace saved</h2>
+        <p>Your ordered steps are saved with your team. Attach them to a Task Evaluation Run to bind them to its task. Actions and outcomes require separate execution evidence.</p>
+        <p><a className="ms-text-link" href="/sites">Browse tasks →</a></p>
+      </div>;
+    }
     return (
       <div className="ms-form" aria-live="polite">
         {plan.rows.length > 0 ? (
@@ -1016,11 +1026,21 @@ export function RobotTeamPlanPreview({
                 ] },
               }, null, 2)} />
             </label>
-          </> : <label htmlFor="plan-reference">
+          </> : checkpointRuntime === "skill_trace" ? <label htmlFor="plan-reference">
+            <span>Ordered skills JSON</span>
+            <textarea id="plan-reference" name="planReference" rows={5} maxLength={32768}
+              defaultValue={JSON.stringify({ schema_version: "blueprint.skill_trace.v1", steps: [
+                { skill: "find", target: "cup" }, { skill: "pick", target: "cup" }, { skill: "place", target: "shelf" },
+              ] }, null, 2)} />
+            <span className="ms-field-hint">This records what your robot intends to attempt and in what order. Actions and outcomes need separate execution evidence.</span>
+          </label> : <label htmlFor="plan-reference">
             <span>Where is it?</span>
             <span className="ms-field-hint">
-              A URL, an image reference, or an artifact location. We do not run it now — this only
-              decides what to rank.
+              {checkpointRuntime === "customer_hosted"
+                ? "Your HTTPS inference endpoint. Blueprint keeps the scene, simulator, and scoring; your policy receives approved camera frames and robot state. Visible frames still reveal scene information."
+                : checkpointRuntime === "controller_adapter"
+                  ? "A digest-pinned adapter container for your control stack. It receives virtual robot state and returns movement or gripper commands through the approved interface."
+                  : "A URL or container image reference. Registration does not start a run."}
             </span>
             <input id="plan-reference" name="planReference" type="text" maxLength={2000} />
           </label>}

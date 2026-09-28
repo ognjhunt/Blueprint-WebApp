@@ -41,6 +41,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import type { PolicyModelArtifact } from "./policyModelArtifact";
+import { checkpointRuntimes, validateIntegrationReference } from "./policyIntegration";
 import { mergeCapability } from "./robotTeamRegistry";
 import {
   ROBOT_TEAMS_COLLECTION,
@@ -50,7 +51,7 @@ import {
 
 const CHECKPOINT_COLLECTION = "robotCheckpoints";
 
-export type CheckpointRuntime = "policy_endpoint" | "container_image" | "model_artifact";
+export type CheckpointRuntime = typeof checkpointRuntimes[number];
 
 export type CheckpointStatus =
   /** Registered, not yet proven runnable. */
@@ -85,6 +86,7 @@ function nowIso() {
 export type CheckpointRefusal =
   | "reference_missing"
   | "runtime_unsupported"
+  | "reference_invalid"
   | "store_unavailable";
 
 export type RegisterCheckpointResult =
@@ -114,7 +116,7 @@ export async function registerCheckpoint(params: {
   }
 
   const runtime = params.runtime as CheckpointRuntime;
-  if (!["policy_endpoint", "container_image", "model_artifact"].includes(runtime)) {
+  if (!checkpointRuntimes.includes(runtime)) {
     return {
       registered: false,
       refusal: "runtime_unsupported",
@@ -129,6 +131,10 @@ export async function registerCheckpoint(params: {
       refusal: "reference_missing",
       detail: "A checkpoint needs something we can actually run: an endpoint, an image, or an artifact.",
     };
+  }
+  if (!validateIntegrationReference(runtime, reference)) {
+    return { registered: false, refusal: "reference_invalid",
+      detail: "Provide an HTTPS endpoint, a digest-pinned controller image, or valid ordered skill JSON for the selected integration." };
   }
 
   const checkpointId = `ckpt_${params.teamId}_${Date.now().toString(36)}`;

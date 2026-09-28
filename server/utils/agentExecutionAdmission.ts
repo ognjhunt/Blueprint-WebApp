@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import type { CheckpointRuntime } from "./robotCheckpoints";
+import type { PolicyModelArtifact } from "./policyModelArtifact";
 import {
   validateDecisionEvidenceRequest,
   type DecisionEvidenceRequest,
@@ -15,8 +17,9 @@ export interface AgentExecutionAdmissionSelection {
   checkpoint: {
     checkpointId: string;
     teamId: string;
-    runtime: "policy_endpoint" | "container_image" | "model_artifact";
+    runtime: CheckpointRuntime;
     reference: string;
+    modelArtifact?: PolicyModelArtifact;
   };
   scene: {
     requestId: string;
@@ -84,6 +87,25 @@ function canonicalCheckpointMatches(
   selection: AgentExecutionAdmissionSelection,
 ): boolean {
   const policy = objectValue(canonical.policy_package);
+  if (selection.checkpoint.runtime === "model_artifact") {
+    const container = objectValue(policy.docker_container);
+    const artifact = selection.checkpoint.modelArtifact;
+    return Boolean(artifact && artifact.uri === selection.checkpoint.reference
+      && container.execution_profile === "controlled_observation_v1"
+      && container.runner_profile === "onnx_state_mlp_cpu_v1"
+      && canonicalJson(container.model_artifact) === canonicalJson(artifact));
+  }
+  if (selection.checkpoint.runtime === "customer_hosted") {
+    const endpoint = objectValue(policy.policy_api_endpoint);
+    return endpoint.endpoint_url === selection.checkpoint.reference
+      && endpoint.execution_profile === "controlled_observation_v1";
+  }
+  if (selection.checkpoint.runtime === "controller_adapter") {
+    const adapter = objectValue(policy.sim_controller_plugin);
+    return adapter.image_ref === selection.checkpoint.reference
+      && adapter.execution_profile === "controlled_observation_v1"
+      && adapter.transport === "isolated_container_http_json_v1";
+  }
   if (selection.checkpoint.runtime === "policy_endpoint") {
     return (
       objectValue(policy.policy_api_endpoint).endpoint_url ===
@@ -414,6 +436,7 @@ export async function discoverAgentExecutionAdmission(params: {
       teamId: String(checkpoint.teamId),
       runtime: checkpoint.runtime as AgentExecutionAdmissionSelection["checkpoint"]["runtime"],
       reference: String(checkpoint.reference || ""),
+      ...(checkpoint.modelArtifact ? { modelArtifact: checkpoint.modelArtifact as PolicyModelArtifact } : {}),
     },
     scene: {
       requestId: params.sceneId,
