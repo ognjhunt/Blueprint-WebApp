@@ -57,7 +57,7 @@ for (const mobile of [false, true]) {
     await expect(page.getByText(/Results stay with your team and Blueprint and do not enter pilot matching/)).toBeVisible();
     await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
     await page.locator("#plan-hardware").selectOption("prototype");
-  await page.locator("#plan-geography").selectOption("yes");
+  await page.locator("#plan-geography").selectOption("us_national");
   await page.getByLabel("Team or company").fill("Local robot team");
     await page.getByLabel("Where is it?").fill("https://example.test/policy");
     await page.getByRole("button", { name: "See what we would run" }).click();
@@ -192,7 +192,7 @@ test("a one-time paid plan keeps its receipt across reload and exposes results",
   await page.getByRole("button", { name: "Private evaluation · $25" }).first().click();
   await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
   await page.locator("#plan-hardware").selectOption("prototype");
-  await page.locator("#plan-geography").selectOption("yes");
+  await page.locator("#plan-geography").selectOption("us_national");
   await page.getByLabel("Team or company").fill("Local robot team");
   await page.getByLabel("Where is it?").fill("https://example.test/policy");
   await page.getByRole("button", { name: "See what we would run" }).click();
