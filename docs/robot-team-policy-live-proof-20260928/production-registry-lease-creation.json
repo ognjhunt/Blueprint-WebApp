@@ -1,0 +1,16 @@
+{
+  "schema_version": "blueprint.production_registry_lease_creation_proof.v1",
+  "observed_at": "2026-09-28T19:23:54.414Z",
+  "http_status": 201,
+  "lease_id": "policy-registry-lease-e863c46de052f96f8fa81edef2e85e9f1def00f68d45710",
+  "submission_id": "policy-candidate-08151349191ea470fa262fa29b25f92c33db592d",
+  "status": "active",
+  "single_use": true,
+  "encryption_algorithm": "kms",
+  "ciphertext_present": true,
+  "plaintext_field_present": false,
+  "expires_at_iso": "2026-09-28T19:38:51.807Z",
+  "outbox_pending": true,
+  "launch_authority_granted": false,
+  "provider_mutation_authorized": false
+}

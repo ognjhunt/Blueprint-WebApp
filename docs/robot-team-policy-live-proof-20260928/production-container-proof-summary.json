@@ -1,0 +1,124 @@
+{
+  "schema_version": "blueprint.production_admission_and_isolated_private_container_proof.v1",
+  "observed_at_unix": 1790624560.759579,
+  "status": "qualified_dry_run_no_real_observation",
+  "production_authenticated_submission_used": true,
+  "production_kms_and_credential_broker_used": true,
+  "production_render_outbox_dispatch_proven": true,
+  "dedicated_worker_invocation": "operator-invoked dedicated Lima VM using deployed Pipeline execution modules",
+  "worker_boot_authority": "owner-authorized development-only proof key",
+  "pipeline_release_sha": "16c128b7e03cc8dfce43ed2cedcc415ee3975c4d",
+  "admission_digest": "sha256:43c6199a119ddd831ecef4d8b51c0dc3f24e5ae5128fde0068b13e1f80d1baea",
+  "plan_digest": "sha256:328da6703607fb40a430d0ac30764b292bb51344ee85fd220be60417a77e6b22",
+  "qualification_digest": "sha256:71c1d24685aacd4d08846b355e90a5a92cfbb3374399061e4acf66fa6f136b68",
+  "executor_receipt_digest": "sha256:af28ef1585982f920c313499e6d24502f42167ff348b133c618a2c2f87959198",
+  "runtime_class": "runsc",
+  "runsc_smoke_verified": true,
+  "network_denial_probe_count": 9,
+  "required_path_probe_count": 2,
+  "network_probes": {
+    "blueprint_proxy_unix_socket": {
+      "redirect_followed": false,
+      "status": "reachable"
+    },
+    "cloud_metadata": {
+      "kind": "tcp",
+      "redirect_followed": false,
+      "status": "denied",
+      "target": "169.254.169.254:80"
+    },
+    "dns_resolution": {
+      "kind": "dns",
+      "redirect_followed": false,
+      "status": "denied",
+      "target": "example.com:443"
+    },
+    "host_gateway": {
+      "kind": "tcp",
+      "redirect_followed": false,
+      "status": "denied",
+      "target": "172.17.0.1:2375"
+    },
+    "link_local": {
+      "kind": "tcp",
+      "redirect_followed": false,
+      "status": "denied",
+      "target": "169.254.1.1:80"
+    },
+    "policy_action_route_through_proxy": {
+      "redirect_followed": false,
+      "status": "reachable"
+    },
+    "public_ipv4": {
+      "kind": "tcp",
+      "redirect_followed": false,
+      "status": "denied",
+      "target": "1.1.1.1:443"
+    },
+    "public_ipv6": {
+      "kind": "tcp",
+      "redirect_followed": false,
+      "status": "denied",
+      "target": "2606:4700:4700::1111:443"
+    },
+    "redirect_target": {
+      "kind": "tcp",
+      "redirect_followed": false,
+      "status": "denied",
+      "target": "93.184.216.34:80"
+    },
+    "registry_after_pull": {
+      "kind": "tcp",
+      "redirect_followed": false,
+      "status": "denied",
+      "target": "192.178.128.82:443"
+    },
+    "rfc1918": {
+      "kind": "tcp",
+      "redirect_followed": false,
+      "status": "denied",
+      "target": "10.255.255.1:443"
+    }
+  },
+  "synthetic_conformance": {
+    "contract_digest": "sha256:5ab4466c590006f2c6aa7112a7097031fd16debe4f683097750c2fe60dcf6171",
+    "real_observation_used": false,
+    "request_digest": "sha256:f93bbf785f546e9293edba1c64377b182838948b428b6eb3492cdbe8a537cdfd",
+    "status": "conformant"
+  },
+  "credential_deleted_before_policy_start": true,
+  "docker_config_deleted_before_policy_start": true,
+  "policy_image_digest_verified": true,
+  "scene_bytes_present_during_pull": false,
+  "observation_bytes_present_during_pull": false,
+  "completed_phase_order": [
+    "credential_redeemed_for_exact_pull",
+    "policy_image_pulled_and_digest_verified",
+    "registry_credential_and_docker_config_deleted",
+    "network_namespace_created",
+    "blueprint_proxy_started",
+    "policy_container_started",
+    "no_egress_measured",
+    "synthetic_conformance_completed"
+  ],
+  "terminal_cleanup_complete": true,
+  "credential_ciphertext_deleted": true,
+  "customer_policy_image_removed": true,
+  "repeat_credential_claim": {
+    "repeat_claim_http_status": 409,
+    "repeat_claim_denied": true
+  },
+  "bootstrap_credential_cleanup": {
+    "schema_version": "blueprint.proxy_bootstrap_credential_cleanup.v1",
+    "bootstrap_credentials_removed_before_customer_lease_claim": true,
+    "token_file_removed": true,
+    "proxy_image": "us-central1-docker.pkg.dev/blueprint-8c1ca/pipeline-jobs/company-policy-proxy-proof@sha256:3cca1ee8ab0ad16d9f6c095eb5c41449320243fa49e80127a94f50c9181febf7"
+  },
+  "real_observation_sent": false,
+  "automatic_native_task_execution_proven": false,
+  "native_simulator_motor_steps": 0,
+  "task_success": null,
+  "physical_success_proven": false,
+  "launch_authority_granted": false,
+  "provider_mutation_performed": false
+}

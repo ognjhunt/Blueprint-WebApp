@@ -1,0 +1,11 @@
+{
+  "observed_at": "2026-09-28T19:36:05.715Z",
+  "status": 201,
+  "run_id": "blueprint-owned-policy-admission-only-20260928",
+  "submission_id": "policy-candidate-3df2055919b5b9c088e5d0a2c92b135d1a8f9baa",
+  "status_label": "contract_admitted_awaiting_registry_credential",
+  "contract_digest": "sha256:5ab4466c590006f2c6aa7112a7097031fd16debe4f683097750c2fe60dcf6171",
+  "launch_authority_granted": false,
+  "provider_mutation_authorized": false,
+  "synthetic_fixture": true
+}

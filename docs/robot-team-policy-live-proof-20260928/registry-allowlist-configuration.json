@@ -1,0 +1,10 @@
+{
+  "schema_version": "blueprint.production_company_policy_registry_configuration.v1",
+  "configured_key": "BLUEPRINT_COMPANY_POLICY_ALLOWED_REGISTRIES",
+  "allowed_registry_hosts": [
+    "us-central1-docker.pkg.dev"
+  ],
+  "existing_keys_preserved": true,
+  "provider_allocation_authorized": false,
+  "scope": "owner-authorized private policy admission and live proof"
+}
