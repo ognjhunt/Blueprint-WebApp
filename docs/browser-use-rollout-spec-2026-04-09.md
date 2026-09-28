@@ -326,6 +326,6 @@ If a future change asks, "Should this Hermes agent get Browser Use access?", the
 2. no stable API, MCP, or repo-native path gives equivalent evidence
 3. the lane has an explicit allowlist and isolated runtime
 4. the lane has a written evaluation plan and success metrics
-5. `blueprint-cto` approves the rollout in repo-visible form
+5. the founder approves the rollout in repo-visible form
 
 Absent those conditions, Browser Use should not be enabled for that lane.

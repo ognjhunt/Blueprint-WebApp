@@ -2,7 +2,7 @@
 
 Status: Active beta runbook for WebApp/Pipeline/Capture operational incidents. Counsel/security review is still required for regulated notification decisions.
 
-Primary owner: `blueprint-cto` until a named incident commander is assigned for the beta cohort.
+Primary owner: the founder until a named incident commander is assigned for the beta cohort.
 Ops owner: `ops-lead`.
 Finance owner: the monitored finance-review owner recorded in the payout/finance queue before live money movement is enabled.
 Escalation owner: Founder/CEO for customer-visible, legal, finance, or public-claim decisions.

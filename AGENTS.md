@@ -87,7 +87,7 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
 - Avoid inventing fake supply, fake providers, or fake readiness states in production paths.
 - Keep changes aligned with the other Blueprint repos when contracts cross repo boundaries.
 - Treat the current Firebase, Firestore, Stripe, Render, Redis, Notion, and Paperclip stack as the default operating stack for this repo.
-- Do not use external boilerplates, skill packs, or AI-generated migration suggestions to introduce new primary services unless `blueprint-cto` explicitly approves the change.
+- Do not use external boilerplates, skill packs, or AI-generated migration suggestions to introduce new primary services unless the founder explicitly approves the change.
 - Anything that applies to Claude guidance in this repo also applies to Codex and Hermes-backed agents unless a narrower runtime rule explicitly overrides it.
 - For autonomous-loop closeouts, use `docs/autonomous-loop-evidence-checklist-2026-05-03.md` before claiming `done`, `blocked`, or `awaiting_human_decision`.
 - For onboarding or policy work, keep repo docs as canonical drafts, mirror into Notion only for human review/visibility, and mark legal/HR/payroll/benefits material as requiring counsel/PEO review when applicable.

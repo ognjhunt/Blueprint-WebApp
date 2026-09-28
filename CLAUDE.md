@@ -49,7 +49,7 @@ Key rules:
   affected `e2e/` specs, and `e2e/brand-polish.spec.ts`. The vitest suite alone
   does not cover the Playwright copy contracts or the brand-polish route table.
 - Do not use external boilerplates, skill packs, or AI recommendations to implicitly introduce new primary services into this repo.
-- Treat the current Firebase, Firestore, Stripe, Render, Redis, Notion, and Paperclip stack as primary unless `blueprint-cto` explicitly approves a change.
+- Treat the current Firebase, Firestore, Stripe, Render, Redis, Notion, and Paperclip stack as primary unless the founder explicitly approves a change.
 - Before claiming autonomous-loop `done`, `blocked`, or `awaiting_human_decision`, apply `docs/autonomous-loop-evidence-checklist-2026-05-03.md`.
 
 Key commands:

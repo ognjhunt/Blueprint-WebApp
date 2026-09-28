@@ -323,7 +323,7 @@ Done when:
 ## Mitigations
 
 - keep repo doctrine at the top of every adoption decision
-- require `blueprint-cto` approval for any change that touches auth, ops state, payments, pipeline sync, hosted-session runtime, or cross-repo contracts
+- require founder approval for any change that touches auth, ops state, payments, pipeline sync, hosted-session runtime, or cross-repo contracts
 - treat Paperclip and repo files as system-of-record surfaces
 - keep external skills and helper tools behind explicit allowlists and review
 

@@ -58,7 +58,7 @@ How to treat that, until the shared block is reconciled:
   fragment in `BlueprintCapturePipeline/doctrine/`, re-measure the block, and
   update `contracts/shared-doctrine.lock.json` in all three repos together.
 
-Reconciliation is a `blueprint-cto` decision, not a lane-local edit.
+Reconciliation is a founder decision, not a lane-local edit.
 
 <!-- SHARED_PLATFORM_CONTEXT_START -->
 ## Shared Platform Doctrine

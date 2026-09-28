@@ -12,7 +12,7 @@ Blueprint should adopt tools that strengthen capture supply, Task Evaluation Run
 ## Procurement Principles
 
 - Use the existing stack by default: Vite/Express/TypeScript, Firebase/Firestore, Stripe, Render, Redis, Notion, Paperclip, approved AI provider paths.
-- Do not introduce a new primary service without `blueprint-cto` approval and an architecture decision.
+- Do not introduce a new primary service without founder approval and an architecture decision.
 - Treat vendors as support layers, not product authority.
 - Record purpose, owner, data class, cost, risk tier, and renewal date.
 - Security and legal review scale with data sensitivity and operational impact.
@@ -59,7 +59,7 @@ Rules:
 - generated outputs are support artifacts, not proof;
 - public claims require human review and source evidence;
 - AI tools must not bypass Paperclip, Notion access rules, or human gates;
-- model/backend choices must remain swappable unless `blueprint-cto` approves otherwise.
+- model/backend choices must remain swappable unless the founder approves otherwise.
 
 ## Contract Requirements
 
