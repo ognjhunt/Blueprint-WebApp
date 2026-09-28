@@ -1,0 +1,11 @@
+# Synthetic company-policy admission proof
+
+ADP-011, Day 7 partner admission, no-spend precursor to ADP-050 Day 28 policy execution. A Blueprint-owned CPU policy was admitted through the actual WebApp route and durable outbox, forwarded over signed HTTP to the actual Pipeline intake, pulled from Blueprint's private Artifact Registry, exercised under runsc, and torn down. The retained Pipeline terminal receipt is `qualified_dry_run_no_real_observation` with no blockers and `cleanup_complete=true`.
+
+The local bridge uses the existing development route-proof authentication and a real Firestore emulator; it does not establish production Firebase authentication, production Firestore or KMS behavior. Candidate metadata and the encrypted credential are stored separately; the actual broker acknowledges the bound pull and deletes the credential ciphertext. The sandbox executor invokes real Docker commands, digest inspection, security profiles, network probes, Unix-socket HTTP requests, schema validation and cleanup readbacks.
+
+The ordinary-account identity correction is merged in PR #742 after all five CI jobs passed. The prior secure admission feature is merged in PR #471, also with all five jobs green. Live WebApp `/version.json` was observed at `268ef2d0d1c93708097b6b8534512239d8dc447e` on 2026-09-28 after #742.
+
+Reproduce with `scripts/proof-company-policy-synthetic.ts <owner-only-config> synthetic-local-emulator-only` and the companion Pipeline fixture under `deploy/docker/company_policy_synthetic`. See the Pipeline retained proof directory for the exact plan, source identity, image, profiles, denial probes and terminal readback. Config secrets, registry tokens and worker signing keys must never enter this evidence directory.
+
+This proof ends at synthetic pre-observation qualification. It does not prove production container fulfillment on a real task, a GPU customer's image, HTTPS policy-endpoint execution, customer-visible episode results, payment settlement, physical outcomes or site matching. The live Pipeline host observed during this task did not have runsc or the company-policy security profiles. Admission is deliberately no-spend and does not dispatch a sandbox or grant launch authority.
