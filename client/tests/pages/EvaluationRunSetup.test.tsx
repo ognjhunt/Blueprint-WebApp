@@ -67,7 +67,7 @@ describe("EvaluationRunSetup", () => {
     render(<EvaluationRunSetup />);
     await screen.findByText("Franka Panda + Robotiq 2F-85");
     expect(screen.getByRole("heading", { level: 1, name: "Set up an evaluation" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "← Tasks" })).toHaveAttribute("href", "/app/packs");
+    expect(screen.getByRole("link", { name: "← Jobs" })).toHaveAttribute("href", "/app/packs");
 
     fireEvent.click(screen.getByRole("button", { name: "Start evaluation" }));
 

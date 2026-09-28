@@ -60,14 +60,14 @@ export const robotGateFields: readonly QualifyingField[] = [
         label: "Working prototype, no customer deployments yet",
         verdict: "marginal",
         ambiguity:
-          "A prototype can be ready for a bounded task or a year away from one, and the difference is not visible from a form.",
+          "A prototype can be ready for a bounded job or a year away from one, and the difference is not visible from a form.",
       },
       {
         value: "development",
         label: "Still in development",
         verdict: "blocking",
         unblocks:
-          "A system that runs a task end to end. There is nothing for a site to evaluate until then, and we would rather say so than take the meeting.",
+          "A system that runs a job end to end. There is nothing for a site to evaluate until then, and we would rather say so than take the meeting.",
       },
     ],
   },
@@ -118,7 +118,7 @@ export const robotGateFields: readonly QualifyingField[] = [
         label: "Six to twelve months out",
         verdict: "marginal",
         ambiguity:
-          "Far enough out that the task we would match you to may not be the one you want by then.",
+          "Far enough out that the job we would match you to may not be the one you want by then.",
       },
       {
         value: "exploratory",
@@ -178,7 +178,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
     id: "payloadCapacity",
     supersededByMeasurement: true,
     question: "What is the heaviest payload the system handles?",
-    whyAsked: "Matched directly against what a site's task actually lifts.",
+    whyAsked: "Matched directly against what a site's job actually lifts.",
     siteSpecCounterpart: "payloadWeight",
     options: [
       { value: "under_2kg", label: "Under 2 kg" },
@@ -202,7 +202,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
   {
     id: "cycleTime",
     supersededByMeasurement: true,
-    question: "What cycle time can it hold on a task like this?",
+    question: "What cycle time can it hold on a job like this?",
     hint: "Sustained, not best case.",
     whyAsked: "Compared against how long the same job takes a person at the site today.",
     siteSpecCounterpart: "cycleTime",
@@ -239,7 +239,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
       { value: "ninetyfive", label: "95%" },
       { value: "ninetynine", label: "99%" },
       { value: "ninetynine_plus", label: "Better than 99%" },
-      { value: "unsure", label: "Not measured on a task like this" },
+      { value: "unsure", label: "Not measured on a job like this" },
     ],
   },
   {
@@ -284,7 +284,7 @@ export const robotSpecFields: readonly RobotSpecField[] = [
   },
   {
     id: "taskFamily",
-    question: "Which task family is the best fit?",
+    question: "Which job type is the best fit?",
     whyAsked: "The coarsest filter, applied before any of the bands above.",
     options: [
       { value: "pick_place", label: "Pick and place" },
@@ -324,7 +324,7 @@ export const robotProseFields: readonly { id: string; question: string; hint: st
   {
     id: "capabilityDescription",
     question: "What does your system do, in the words you would use with a customer?",
-    hint: "The task it does well, and where it stops being the right tool.",
+    hint: "The job it does well, and where it stops being the right tool.",
   },
   {
     id: "evidenceBar",

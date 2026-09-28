@@ -5,8 +5,8 @@ import Home from "@/pages/Home";
 describe("Site-led homepage", () => {
   it("offers a site inquiry first and a separate robot-team application", () => {
     render(<Home />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("One recurring task.A measured robot pilot.");
-    expect(screen.getByRole("link", { name: "Start a task assessment" })).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("One recurring job.A measured robot pilot.");
+    expect(screen.getByRole("link", { name: "Start a job assessment" })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByRole("link", { name: "Apply for early access" })).toHaveAttribute("href", "/contact/robot-team");
     expect(screen.getByRole("img")).toHaveAccessibleName(/Illustration/);
     expect(screen.queryByText(/months 0–2/i)).not.toBeInTheDocument();

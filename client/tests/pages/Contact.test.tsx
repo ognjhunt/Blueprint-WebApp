@@ -89,7 +89,7 @@ describe("the robot page", () => {
     }));
     render(<Contact />);
     expect(await screen.findByRole("form", { name: "Early access application" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Task library" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Job library" })).toBeNull();
     expect(screen.getByRole("link", { name: /operate a site\? start here/i })).toHaveAttribute(
       "href",
       "/contact/site-operator",
@@ -97,14 +97,14 @@ describe("the robot page", () => {
     expect(screen.queryByText(/who commits the deployment engineering/i)).toBeNull();
   });
 
-  it("shows an approved team the task library", async () => {
+  it("shows an approved team the job library", async () => {
     mockLocation = "/contact/robot-team";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ items: [], access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false } }),
     }));
     render(<Contact />);
-    expect(await screen.findByRole("heading", { name: "The first site tasks are being prepared." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "The first site jobs are being prepared." })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Early access application" })).toBeNull();
   });
 

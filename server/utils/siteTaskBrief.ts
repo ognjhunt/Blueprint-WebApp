@@ -568,7 +568,7 @@ export async function recordSiteTaskCallOutcome(params: {
       milestone: disposition === "qualified" ? "screening_cleared" : "screening_not_now",
       eventId: String(Date.now()),
       detail: disposition === "qualified" && !record.account_owner_uid
-        ? "once the site is saved to your account (claim it from your task page)"
+        ? "once the site is saved to your account (claim it from your job page)"
         : undefined,
     }).catch((error) => logger.warn({ error, requestId: params.requestId }, "Could not queue the call-outcome email"));
   }

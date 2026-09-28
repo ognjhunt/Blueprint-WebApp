@@ -33,7 +33,7 @@ export const matchFeeUsd = 2500;
 
 /** Shown at both places a site can open a task to pilot proposals. */
 export const matchFeeAuthorization =
-  `I agree to Blueprint's ${formatPrice(matchFeeUsd)} fee for this task and am authorized to do so. It is due when a qualifying match is introduced, even if we do not buy a pilot.`;
+  `I agree to Blueprint's ${formatPrice(matchFeeUsd)} fee for this job and am authorized to do so. It is due when a qualifying match is introduced, even if we do not buy a pilot.`;
 
 /** Owner-approved remedy for a provider changing its confirmed offer. */
 export const matchReplacementPolicy =
@@ -46,15 +46,15 @@ export const minTopupUsd = entryPrice;
 export const siteAssessment = {
   amount: 0,
   unit: "to find out",
-  summary: "An assessment of one task at one site.",
+  summary: "An assessment of one job at one site.",
   covers: [
-    "The task defined: objects, cycle, exceptions, rough economics, timing, and the pass mark for a trial.",
+    "The job defined: objects, cycle, exceptions, rough economics, timing, and the pass mark for a trial.",
     "A check of which robot teams can credibly support the job, with capture and free invited evaluation when useful.",
     "A clear answer: the robot teams that match, specific changes needed, or no credible fit yet.",
     "For a match, an introduction and a pilot brief both sides start from.",
   ],
   allIn:
-    "No match, no fee. Submitting a task, screening and evaluation are free. When we find a match, the fee is $2,500 per task, however many teams match.",
+    "No match, no fee. Submitting a job, screening and evaluation are free. When we find a match, the fee is $2,500 per job, however many teams match.",
   bounded: "When a comparison is useful, it covers up to five candidates.",
   /**
    * Precise about what a robot team actually receives, because the loose
@@ -67,14 +67,14 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Robot teams pay for private internal evaluation runs. Invited teams evaluate a qualified task for free. A site pays Blueprint $2,500 per task only when we find a robot team that matches it. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Robot teams pay for private internal evaluation runs. Invited teams evaluate a qualified job for free. A site pays Blueprint $2,500 per job only when we find a robot team that matches it. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
-    "The physical pilot, which the robot team prices and runs. Blueprint takes no cut of the pilot; its only site fee is $2,500 per task when it finds a match.",
+    "The physical pilot, which the robot team prices and runs. Blueprint takes no cut of the pilot; its only site fee is $2,500 per job when it finds a match.",
 } as const;
 
 /** How a robot team pays. No plan, no seat, no listing fee, no meter. */
 export const entryModel = {
-  summary: "One price for a private test on a reconstructed site task.",
+  summary: "One price for a private test on a reconstructed site job.",
   detail:
     `Add funds (from $${minTopupUsd}), enter the policies you want evaluated, and top up when the balance gets low. There is no other charge.`,
   notCharged: [
@@ -134,9 +134,9 @@ export const billingRules = [
 
 /** What a team actually pays, for the shapes teams actually enter. */
 export const quoteExamples = [
-  { label: "Three policies on one task", entries: 3, tasks: 1 },
-  { label: "Three policies on two tasks", entries: 3, tasks: 2 },
-  { label: "One policy on three tasks", entries: 1, tasks: 3 },
+  { label: "Three policies on one job", entries: 3, tasks: 1 },
+  { label: "Three policies on two jobs", entries: 3, tasks: 2 },
+  { label: "One policy on three jobs", entries: 1, tasks: 3 },
 ] as const;
 
 export type EvaluationQuote = {

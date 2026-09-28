@@ -7,8 +7,8 @@ export function TaskThumbnail({ src, title, taskFamily }: { src?: string | null;
   const pallet = /pallet|stack/i.test(`${title} ${taskFamily}`);
   const inspect = /inspect|scan/i.test(`${title} ${taskFamily}`);
   return <figure className="ms-task-thumbnail">
-    {src && !failed ? <img src={src} alt={`Owner-approved task view: ${title}`} width={480} height={300} loading="lazy" onError={() => setFailed(true)} /> :
-      <svg viewBox="0 0 240 150" role="img" aria-label={`Illustration of ${taskFamily || "a task"}, not a site photo`}>
+    {src && !failed ? <img src={src} alt={`Owner-approved job view: ${title}`} width={480} height={300} loading="lazy" onError={() => setFailed(true)} /> :
+      <svg viewBox="0 0 240 150" role="img" aria-label={`Illustration of ${taskFamily || "a job"}, not a site photo`}>
         <rect width="240" height="150" fill="#e9eade" />
         <g fill="none" stroke="#526255" strokeWidth="2" strokeLinejoin="round">
           <path d="M18 115H222M35 95V115M96 95V115M32 95H100" />
@@ -20,6 +20,6 @@ export function TaskThumbnail({ src, title, taskFamily }: { src?: string | null;
           <><path d="M159 75L196 62L221 77L185 93ZM159 75V103L185 117L221 101V77M185 93V117" fill="#cbd1c3" /><path d="M174 68V52L192 45L207 54V69M174 52L190 61L207 54M190 61V77" fill="#d6dbc9" /></>}
         </g>
       </svg>}
-    <figcaption>{src && !failed ? "Owner-approved task photo" : "Task illustration · not a site photo"}</figcaption>
+    <figcaption>{src && !failed ? "Owner-approved job photo" : "Job illustration · not a site photo"}</figcaption>
   </figure>;
 }

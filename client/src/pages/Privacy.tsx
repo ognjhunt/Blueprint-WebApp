@@ -8,19 +8,19 @@ export const privacyPolicySections = [
   {
     title: "What we collect",
     body:
-      "What you give us: your name, work email, company, role and phone number; the site and task you describe; your answers to the task brief; account details; and messages you send us. If you approve a provider pilot and agree to share its outcomes with Blueprint, we may also receive its scope, price, milestones, and operating measurements under those permissions. Robot teams also give us details of their robots, policies, and indicative pilot offerings, and the endpoints or container images we run. Payment card details go straight to Stripe; we receive only a record of any payment to Blueprint. What we collect automatically: your IP address, browser and device type, pages you visit, and errors the site runs into.",
+      "What you give us: your name, work email, company, role and phone number; the site and job you describe; your answers to the job brief; account details; and messages you send us. If you approve a provider pilot and agree to share its outcomes with Blueprint, we may also receive its scope, price, milestones, and operating measurements under those permissions. Robot teams also give us details of their robots, policies, and indicative pilot offerings, and the endpoints or container images we run. Payment card details go straight to Stripe; we receive only a record of any payment to Blueprint. What we collect automatically: your IP address, browser and device type, pages you visit, and errors the site runs into.",
     icon: SquareStack,
   },
   {
     title: "Site footage",
     body:
-      "When a site films its task, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. We and our listed processing providers use them to review the task, rebuild the work area as a simulated scene, and run the evaluations the site allows. We remove people from the frames used as input to reconstruction. The original recording may still show people, including hands or arms performing the task. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
+      "When a site films its job, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. We and our listed processing providers use them to review the job, rebuild the work area as a simulated scene, and run the evaluations the site allows. We remove people from the frames used as input to reconstruction. The original recording may still show people, including hands or arms performing the job. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
     icon: Waypoints,
   },
   {
     title: "How we use it",
     body:
-      "To run the Service: to reply to you, set up your task or account, rebuild scenes and run evaluations, prepare provider-backed pilot offers, keep paid private evaluation results within your team and Blueprint and our processing providers (with no site updates or use in pilot matching), record physical-pilot outcomes only under the parties' agreed permissions, take payments owed to Blueprint, send the emails you need (such as a task update or a run result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information or share it for cross-context behavioral advertising, and we do not use your footage to train AI models without your written agreement.",
+      "To run the Service: to reply to you, set up your job or account, rebuild scenes and run evaluations, prepare provider-backed pilot offers, keep paid private evaluation results within your team and Blueprint and our processing providers (with no site updates or use in pilot matching), record physical-pilot outcomes only under the parties' agreed permissions, take payments owed to Blueprint, send the emails you need (such as a job update or a run result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information or share it for cross-context behavioral advertising, and we do not use your footage to train AI models without your written agreement.",
     icon: Shield,
   },
   {
@@ -37,15 +37,15 @@ export const capturePrivacyAnnex = [
   // depends on listing rights and privacy state"), which meant the document a
   // site reads before consenting disagreed with the document it reads before
   // buying. The absolute is the true one, so the conditional goes.
-  ["Raw walkthrough media", "Your recording is used inside Blueprint to review the task and rebuild the work area. It is never delivered to a robot team or anyone else who pays us. No listing right, order form or other agreement gives access to the recording itself."],
+  ["Raw walkthrough media", "Your recording is used inside Blueprint to review the job and rebuild the work area. It is never delivered to a robot team or anyone else who pays us. No listing right, order form or other agreement gives access to the recording itself."],
   // Stated because "they never get the recording" is necessary and not
   // sufficient: a policy served through an endpoint has to be sent something to
   // look at, and what it is sent is derived from the site.
   ["What a robot team's policy is sent", "Images rendered from the reconstructed scene, never the walkthrough. Those images can still show layout, equipment and stock, so they are kept and shared on the same terms as the scene, and they are not licensed for training unless a written agreement says so."],
-  ["People in task footage", "We remove people from the frames used as input to reconstruction. This does not remove them from the original recording, which Blueprint and the listed processing providers may process for task review and frame preparation. You must have authority to submit the footage and provide any required notice or permissions to people shown."],
+  ["People in job footage", "We remove people from the frames used as input to reconstruction. This does not remove them from the original recording, which Blueprint and the listed processing providers may process for job review and frame preparation. You must have authority to submit the footage and provide any required notice or permissions to people shown."],
   ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before buyer-facing use."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
-  ["Buyer sharing", "Robot teams see the task card you approve and their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
+  ["Buyer sharing", "Robot teams see the job card you approve and their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
   ["Physical pilot records", "If the site and provider agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
 ];
 
@@ -56,7 +56,7 @@ export const rolePrivacyAnnex = [
   },
   {
     title: "Sites",
-    body: "Your task holds your contact details, the site's address, the task brief, your footage, the areas you mark as restricted, and whether robot teams can see a card for the task.",
+    body: "Your job holds your contact details, the site's address, the job brief, your footage, the areas you mark as restricted, and whether robot teams can see a card for the job.",
   },
 ];
 
@@ -67,7 +67,7 @@ export const rolePrivacyAnnex = [
 export const betaRetentionSchedule = [
   {
     record: "Site footage and capture data",
-    defaultWindow: "180 days after the task closes",
+    defaultWindow: "180 days after the job closes",
     notes: "The video, photos, timestamps, motion and depth data, and the record of the site's authority and privacy review.",
   },
   {
@@ -77,13 +77,13 @@ export const betaRetentionSchedule = [
   },
   {
     record: "Scenes, evaluation results, pilot records and reports",
-    defaultWindow: "365 days after the task closes or the contract ends",
+    defaultWindow: "365 days after the job closes or the contract ends",
     notes: "The rebuilt scene, the images robot policies were sent, run results, and reports. Physical pilot measurements are included only under a separate agreement, which may set a different retention period and permitted use.",
   },
   {
     record: "Account and contact details",
-    defaultWindow: "While your account or task is open",
-    notes: "Deleted or anonymized after you close your account, your task closes, or we complete a verified deletion request, unless a record below still needs them.",
+    defaultWindow: "While your account or job is open",
+    notes: "Deleted or anonymized after you close your account, your job closes, or we complete a verified deletion request, unless a record below still needs them.",
   },
   {
     record: "Support and privacy requests",
@@ -123,7 +123,7 @@ export const privacySubprocessorCategories = [
     providers: [
       ["Resend", "Sending the emails the Service sends you"],
       ["Google Workspace", "Our email and documents"],
-      ["Slack", "Internal alerts to our team, which can include your name, email and task"],
+      ["Slack", "Internal alerts to our team, which can include your name, email and job"],
       ["Notion", "Internal operations and support records"],
     ],
   },
@@ -146,8 +146,8 @@ export const privacySubprocessorCategories = [
   {
     category: "AI and 3D processing",
     providers: [
-      ["OpenAI", "Reading a task description to draft the task brief, drafting replies, and sorting incoming requests"],
-      ["Google Gemini", "Watching site footage to check what it shows against the task brief"],
+      ["OpenAI", "Reading a job description to draft the job brief, drafting replies, and sorting incoming requests"],
+      ["Google Gemini", "Watching site footage to check what it shows against the job brief"],
       ["World Labs", "Rebuilding a work area as a 3D scene from site footage"],
       ["DeepSeek and Anthropic", "Drafting and sorting internal work, where we configure them"],
     ],
@@ -180,7 +180,7 @@ export default function Privacy() {
       <p>Effective {legalEffectiveDate(PRIVACY_VERSION)}</p>
       <p>
         This policy explains how {COMPANY.legalName} (&ldquo;Blueprint&rdquo;, &ldquo;we&rdquo;), {COMPANY.mailingAddress},
-        handles personal information on tryblueprint.io, in the private task links we send, in Blueprint accounts
+        handles personal information on tryblueprint.io, in the private job links we send, in Blueprint accounts
         and through our API. Blueprint is responsible for that information.
       </p>
       {privacyPolicySections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.body}</p></section>)}
@@ -213,7 +213,7 @@ export default function Privacy() {
         <h2>Who we share it with</h2>
         <p>
           We share personal information with the providers below, only for the function listed and under contract. A
-          site sees an alias for each robot team and its results; a robot team sees the task card a site approves.
+          site sees an alias for each robot team and its results; a robot team sees the job card a site approves.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
           as part of a merger or sale of the business, in which case this policy continues to apply to it.
         </p>
@@ -228,7 +228,7 @@ export default function Privacy() {
       <section>
         <h2>AI in the Service</h2>
         <p>
-          We use AI models from the providers listed above to draft task briefs, read site footage, rebuild scenes and
+          We use AI models from the providers listed above to draft job briefs, read site footage, rebuild scenes and
           sort incoming requests. We send each provider only what the step needs, and we do not give any of them your
           footage as training data.
         </p>

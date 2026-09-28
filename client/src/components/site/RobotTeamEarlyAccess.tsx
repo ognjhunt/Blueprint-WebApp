@@ -54,7 +54,7 @@ function ApplicationForm({ email }: { email: string | null }) {
     return (
       <div className="ms-task-empty" role="status">
         <h2>You are approved.</h2>
-        <p>We emailed you how to create your account. Sign up with that email address, verify it, and the site tasks will show here.</p>
+        <p>We emailed you how to create your account. Sign up with that email address, verify it, and the site jobs will show here.</p>
       </div>
     );
   }
@@ -122,7 +122,7 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
   if (status === "approved" && access && !access.emailVerified) {
     return (
       <div className="ms-task-empty">
-        <h2>You are approved. Verify your email to see tasks.</h2>
+        <h2>You are approved. Verify your email to see jobs.</h2>
         <p>Open the verification email we sent{email ? ` to ${email}` : ""}, then come back to this page.</p>
         <button className="ms-button" type="button" disabled={verification === "sending"} onClick={() => void resendVerification()}>
           {verification === "sending" ? "Sending…" : "Resend verification email"}

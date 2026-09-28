@@ -58,7 +58,7 @@ router.get("/tasks", async (req, res) => {
     const access = await libraryAccessForRequest(req);
     if (!access.allowed) return res.json({ items: [], access });
     return res.json({ items: await listTaskBrowseCards(), access });
-  } catch { return res.status(503).json({ error: "The task library could not be loaded." }); }
+  } catch { return res.status(503).json({ error: "The job library could not be loaded." }); }
 });
 
 /**
@@ -92,7 +92,7 @@ router.get("/search", async (req: Request, res: Response) => {
   if (!access.staff) {
     res.set("Vary", "Authorization");
     return res.json({ query: queryString(req.query.q), results: [], count: 0, access,
-      note: "Site search is not open to robot teams. Approved teams see the task cards sites share in the task library." });
+      note: "Site search is not open to robot teams. Approved teams see the job cards sites share in the job library." });
   }
   const payload = await searchPublicSiteWorlds({
     query: queryString(req.query.q),

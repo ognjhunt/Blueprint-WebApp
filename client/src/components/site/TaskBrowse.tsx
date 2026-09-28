@@ -53,10 +53,10 @@ export function TaskBrowse() {
   const filtered = items.filter(item => (!family || item.taskFamily === family)
     && (!region || item.region.toLowerCase().includes(region.toLowerCase()))
     && (!availability || (availability === "ready" ? item.evaluationAvailable : item.opportunity === availability)));
-  if (selected) return <section aria-label="Evaluate selected task">
-    <button className="ms-text-link" type="button" onClick={() => setSelected(null)}>← All tasks</button>
+  if (selected) return <section aria-label="Evaluate selected job">
+    <button className="ms-text-link" type="button" onClick={() => setSelected(null)}>← All jobs</button>
     <div className="ms-task-heading"><h2>{selected.title}</h2><TaskThumbnail src={selected.thumbnailUrl} title={selected.title} taskFamily={selected.taskFamily} /></div><TaskFacts details={selected} />
-    <p className="ms-field-hint">Private testing on a reconstructed site task. Results stay with your team and Blueprint and do not enter pilot matching.</p>
+    <p className="ms-field-hint">Private testing on a reconstructed site job. Results stay with your team and Blueprint and do not enter pilot matching.</p>
     <RobotTeamPlanPreview key={selected.id} sceneId={selected.id} />
   </section>;
   // Nothing library-shaped renders until the server has said who may see it,
@@ -67,19 +67,19 @@ export function TaskBrowse() {
   if ((state === "loading" || state === "error") && !currentUser) {
     return <RobotTeamEarlyAccess access={null} email={null} />;
   }
-  if (state === "loading") return <section aria-label="Task library"><p role="status">Loading…</p></section>;
-  if (state === "error") return <section aria-label="Task library"><div role="alert"><p>The task library could not be loaded.</p>
+  if (state === "loading") return <section aria-label="Job library"><p role="status">Loading…</p></section>;
+  if (state === "error") return <section aria-label="Job library"><div role="alert"><p>The job library could not be loaded.</p>
     <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button>
-    <p><a href="mailto:hello@tryblueprint.io">Email us about a task or your application</a></p></div></section>;
+    <p><a href="mailto:hello@tryblueprint.io">Email us about a job or your application</a></p></div></section>;
   // Anything other than an explicit "allowed" is the early-access page.
   const gated = state === "ready" && access !== null && !access.allowed;
   if (gated) return <RobotTeamEarlyAccess access={access} email={currentUser?.email ?? null} />;
   const libraryEmpty = state === "ready" && items.length === 0;
-  return <section aria-label="Task library">
-    {!libraryEmpty && <details className="ms-browse-filters" open={!isLikelyPhone()}><summary>Filter tasks</summary>
+  return <section aria-label="Job library">
+    {!libraryEmpty && <details className="ms-browse-filters" open={!isLikelyPhone()}><summary>Filter jobs</summary>
     <div className="ms-task-filters">
-      <label>Task<select aria-label="Filter by task" value={family} onChange={e => setFamily(e.target.value)}>
-        <option value="">All tasks</option>{[...new Set(items.map(item => item.taskFamily))].sort().map(value => <option key={value}>{value}</option>)}
+      <label>Job<select aria-label="Filter by job" value={family} onChange={e => setFamily(e.target.value)}>
+        <option value="">All jobs</option>{[...new Set(items.map(item => item.taskFamily))].sort().map(value => <option key={value}>{value}</option>)}
       </select></label>
       <label>Region<input aria-label="Filter by region" placeholder="Any region" value={region} maxLength={80} onChange={e => setRegion(e.target.value)} /></label>
       <label>Availability<select aria-label="Filter by availability" value={availability} onChange={e => setAvailability(e.target.value)}>
@@ -89,14 +89,14 @@ export function TaskBrowse() {
     </div>
     </details>}
     {libraryEmpty && <div className="ms-task-empty">
-      <h2>The first site tasks are being prepared.</h2>
-      <p>Sites film their own tasks and choose whether to share them with robot teams. We email you as soon as a site lists a new task.</p>
+      <h2>The first site jobs are being prepared.</h2>
+      <p>Sites film their own jobs and choose whether to share them with robot teams. We email you as soon as a site lists a new job.</p>
     </div>}
     {state === "ready" && items.length > 0 && <>
-      <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "task" : "tasks"} · Details shared by site owners. A past task can remain available for evaluation.</p>
+      <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Details shared by site owners. A past job can remain available for evaluation.</p>
       {filtered.length === 0 && <div className="ms-task-empty">
-        <h2>No tasks match these filters.</h2>
-        <p>Try a different task or region, or <a href="mailto:hello@tryblueprint.io">tell us what you need</a>.</p>
+        <h2>No jobs match these filters.</h2>
+        <p>Try a different job or region, or <a href="mailto:hello@tryblueprint.io">tell us what you need</a>.</p>
         <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); }}>Clear filters</button>
       </div>}
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>

@@ -44,15 +44,15 @@ export function PublicTaskListing({ token }: { token: string }) {
   const field = (key: keyof TaskListingDetails, label: string, maxLength: number, required = false) =>
     <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required || (key === "pilotBudget" && details.pilotPriceStatus === "site_offer")}
       onChange={e => { setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
-  return <details className="ms-task-interest"><summary>Share a task card with robot teams</summary>
+  return <details className="ms-task-interest"><summary>Share a job card with robot teams</summary>
     <p className="ms-field-hint">Optional. Share only the text and thumbnail you approve below. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
     {state === "loading" ? <p role="status">Loading your card…</p> : state === "load_error" ? <p role="alert">Your card could not be loaded. Reopen this page to try again.</p> :
-      <form className="ms-form" onSubmit={save} aria-label="Public task card">
-        {field("title", "Describe the task without naming your site", 160, true)}
-        {field("taskFamily", "Task family", 60, true)}
+      <form className="ms-form" onSubmit={save} aria-label="Public job card">
+        {field("title", "Describe the job without naming your site", 160, true)}
+        {field("taskFamily", "Job type", 60, true)}
         {field("objects", "Objects (optional)", 160)}
         {field("region", "Region (optional)", 80)}
-        <details><summary>More task details (optional)</summary>
+        <details><summary>More job details (optional)</summary>
           {field("siteType", "Site type", 80)}{field("cycleTarget", "Cycle target", 80)}
           {field("pilotTiming", "Pilot timing", 80)}
           <label>Pilot price status<select value={details.pilotPriceStatus ?? "target_budget"} onChange={e => { setDetails({ ...details, pilotPriceStatus: e.target.value as TaskListingDetails["pilotPriceStatus"] }); setConsent(false); setState("idle"); }}>
@@ -68,8 +68,8 @@ export function PublicTaskListing({ token }: { token: string }) {
           {Object.entries(opportunityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select></label>
         <TaskThumbnailEditor existing={existingThumbnail} onChange={png => { setThumbnailPng(png); setConsent(false); setState("idle"); }} />
-        <div className="ms-task-preview" aria-label="Public card preview"><p className="ms-field-hint">Public preview · {opportunityLabels[details.opportunity]}</p><div className="ms-task-heading"><h3>{details.title || "Your task"}</h3><TaskThumbnail src={previewThumbnail ? `data:image/png;base64,${previewThumbnail}` : null} title={details.title || "Your task"} taskFamily={details.taskFamily} /></div><p>{details.taskFamily}</p><TaskFacts details={details} /></div>
-        <label className="ms-check-row"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />Show this card in the task library</label>
+        <div className="ms-task-preview" aria-label="Public card preview"><p className="ms-field-hint">Public preview · {opportunityLabels[details.opportunity]}</p><div className="ms-task-heading"><h3>{details.title || "Your job"}</h3><TaskThumbnail src={previewThumbnail ? `data:image/png;base64,${previewThumbnail}` : null} title={details.title || "Your job"} taskFamily={details.taskFamily} /></div><p>{details.taskFamily}</p><TaskFacts details={details} /></div>
+        <label className="ms-check-row"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />Show this card in the job library</label>
         {opensToPilots && <>
           <label className="ms-check-row"><input type="checkbox" checked={matchFee} onChange={e => setMatchFee(e.target.checked)} required />{matchFeeAuthorization}</label>
           <p className="ms-field-hint"><a href="/pricing#match-fee" target="_blank" rel="noreferrer">Match criteria, fee and replacement policy</a></p>

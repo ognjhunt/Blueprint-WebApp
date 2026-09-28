@@ -51,7 +51,7 @@ describe("deployment offer", () => {
   it("asks every team the same standard fields", () => {
     render(<OpportunityOffer />);
     for (const label of [
-      /Can you perform this task today\?/i,
+      /Can you perform this job today\?/i,
       /Evaluation score/i,
       /Who pays whom during the pilot/i,
       /Main remaining technical risk/i,

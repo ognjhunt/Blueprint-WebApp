@@ -147,7 +147,7 @@ describe("one recording, two purposes", () => {
       }),
     );
 
-    expect(verdict.nextAction).toMatch(/shows the task clearly/i);
+    expect(verdict.nextAction).toMatch(/shows the job clearly/i);
     expect(verdict.nextAction).toMatch(/views of the pallet area/);
     expect(verdict.nextAction).not.toMatch(/again|better/i);
   });

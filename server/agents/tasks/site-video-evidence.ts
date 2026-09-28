@@ -244,7 +244,8 @@ export const siteVideoEvidenceTask: StructuredTaskDefinition<
   },
   build_prompt(input) {
     return buildCacheFriendlyPrompt({
-      instructions: `You are reading footage of a work task at a site that has asked Blueprint whether a robot could do it.
+      instructions: `You are reading footage of a job at a site that has asked Blueprint whether a robot could do it.
+Use "job" in operator-facing explanations for the work the site wants automated. Retain "task" for precise robot actions and technical conditions; never rename schema keys or alter quotations from the operator.
 
 Report only what the footage shows. Output JSON only. No markdown.
 

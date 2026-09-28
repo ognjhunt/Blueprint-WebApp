@@ -16,16 +16,16 @@ describe("Pricing", () => {
     render(<Pricing />);
     const site = section("Find a robot team");
     expect(within(site).getByText("$2,500")).toBeInTheDocument();
-    expect(within(site).getByText("per task, only if we find a match")).toBeInTheDocument();
-    expect(within(site).getByText(/passed the evaluation for your task, fits your budget, and wants to run your pilot/)).toBeInTheDocument();
+    expect(within(site).getByText("per job, only if we find a match")).toBeInTheDocument();
+    expect(within(site).getByText(/passed the evaluation for your job, fits your budget, and wants to run your pilot/)).toBeInTheDocument();
     expect(within(site).getByText(/every team that matches, their full results, and a pilot brief you both start from/)).toBeInTheDocument();
-    expect(within(site).getByText(/One fee per task, however many teams match/)).toBeInTheDocument();
-    expect(within(site).getByRole("link", { name: /Start a task assessment/ })).toHaveAttribute("href", "/contact/site-operator");
+    expect(within(site).getByText(/One fee per job, however many teams match/)).toBeInTheDocument();
+    expect(within(site).getByRole("link", { name: /Start a job assessment/ })).toHaveAttribute("href", "/contact/site-operator");
   });
 
   it("keeps invited robot-team evaluation free", () => {
     render(<Pricing />);
-    const team = section("Evaluate real site tasks");
+    const team = section("Evaluate real site jobs");
     expect(within(team).getByText("$0")).toBeInTheDocument();
     expect(within(team).getByText(/The site sees your results and can consider you for the pilot/)).toBeInTheDocument();
     expect(team.textContent).not.toMatch(/commission/i);

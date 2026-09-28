@@ -280,7 +280,7 @@ export const oemDeploymentPhases: readonly DeploymentPhase[] = [
     name: "Proof of technology",
     owner: "Blueprint automates this",
     detail:
-      "Define the task and the win condition, recreate the site, run the robot against it, refine the workflow.",
+      "Define the job and the win condition, recreate the site, run the robot against it, refine the workflow.",
     blueprint: true,
   },
   {
@@ -447,7 +447,7 @@ export const deploymentCostSplit = {
   known:
     "Agility publishes the total and describes what happens in each phase. It does not publish how the cost divides between the months 0–2 preparation and the onsite work.",
   frontHalf:
-    "Task definition, site modelling, simulation, physical mock-up, robot runs, workflow tuning",
+    "Job definition, site modelling, simulation, physical mock-up, robot runs, workflow tuning",
   backHalf:
     "Crating and freight, uncrate, network and security, area mapping, commissioning, operator training",
   source: marketSources.agilityDeck,
@@ -461,7 +461,7 @@ export const deploymentCostSplit = {
 export const monthsZeroToTwo = [
   {
     step: "01",
-    title: "Decide whether the task fits at all",
+    title: "Decide whether the job fits at all",
     detail: "Is a robot the right answer for this workflow, and what counts as success?",
   },
   {
@@ -563,7 +563,7 @@ export const flywheelStages = [
 export const deploymentBoundary = [
   {
     title: "We prepare the deployment",
-    body: "Capture the task, build the testbed, screen robot fit, run bounded evaluations, package the handoff.",
+    body: "Capture the job, build the testbed, screen robot fit, run bounded evaluations, package the handoff.",
     kind: "does" as const,
   },
   {
@@ -723,7 +723,7 @@ export const bottleneckChain = [
     id: "deployment",
     label: "Deployment",
     state: "binding" as const,
-    note: "Every site needs its own task definition, model, evaluation, and integration. This is where the queue forms.",
+    note: "Every site needs its own job definition, model, evaluation, and integration. This is where the queue forms.",
   },
   {
     id: "service",
@@ -735,7 +735,7 @@ export const bottleneckChain = [
 
 export const bottleneckThesis = {
   claim:
-    "A robot that has not been matched to a site and a task is not capacity. It is inventory.",
+    "A robot that has not been matched to a site and a job is not capacity. It is inventory.",
   consequence:
     "The scarce unit is not a robot. It is a validated robot–task–site configuration, and today each one is built by hand, once per vendor, per site.",
 } as const;
@@ -751,7 +751,7 @@ export const bottleneckThesis = {
 export const allocationFactors = [
   {
     factor: "Probability the deployment succeeds",
-    signal: "Has anyone tested this task against this robot's envelope?",
+    signal: "Has anyone tested this job against this robot's envelope?",
   },
   {
     factor: "Integration burden",
@@ -780,7 +780,7 @@ export const allocationThesis = {
 export const deploymentCompiler = {
   inputs: [
     "Site capture",
-    "Task definition",
+    "Job definition",
     "Objects, weights, cycle times",
     "Exceptions and edge cases",
     "Systems, security, access rules",
@@ -848,9 +848,9 @@ export const todayWithoutBlueprint = {
   robotTeam: {
     label: "What the robot company does today",
     steps: [
-      "Visit the site, record the task, measure the space, list the objects",
+      "Visit the site, record the job, measure the space, list the objects",
       "Turn vague business goals into exact pass/fail criteria",
-      "Recreate the task in its own lab or simulator, and configure the robot",
+      "Recreate the job in its own lab or simulator, and configure the robot",
       "Run internal tests, review the failures by hand, adjust",
       "Ship the robot and send engineers on site",
       "Run a physical pilot, then decide: continue, redesign, or stop",
@@ -864,7 +864,7 @@ export const todayWithoutBlueprint = {
     label: "What the site does today",
     steps: [
       "Decide which workflow is even worth automating",
-      "Find vendors and explain the same task to each of them",
+      "Find vendors and explain the same job to each of them",
       "Host separate calls, demos, security reviews and site visits",
       "Compare proposals built on different assumptions and metrics",
       "Prepare power, networking, safety, floor space and staff",
@@ -982,7 +982,7 @@ export const repeatEconomics = {
   repeatRun: {
     label: "Every later software build",
     detail:
-      "No new site survey, task definition, reconstruction or physical setup. If the robot interface stays compatible, a repeat comparison can move from weeks of scheduling and manual prep to days.",
+      "No new site survey, job definition, reconstruction or physical setup. If the robot interface stays compatible, a repeat comparison can move from weeks of scheduling and manual prep to days.",
     modelled: true,
   },
   externalEvidence: {
@@ -1020,7 +1020,7 @@ export const avoidWrongPilot = {
     "another integration effort",
     "weeks or months of floor disruption",
     "a pilot costing tens of thousands of dollars",
-    "or, worst case, committing to a six-figure system that cannot do the task",
+    "or, worst case, committing to a six-figure system that cannot do the job",
   ],
   externalEvidence: {
     claim: "Operators already invest in a testing layer for exactly this reason.",
@@ -1056,7 +1056,7 @@ export const whatWeMeasure = {
   lede:
     "Blueprint's savings are a hypothesis until enough paid projects prove them. So for the first projects we measure five things against the customer's normal process, and we report those rather than borrow anyone else's.",
   metrics: [
-    "Calendar days from a qualified task to a go/no-go decision",
+    "Calendar days from a qualified job to a go/no-go decision",
     "Robot-team engineering hours spent",
     "Site staff hours spent",
     "Site visits and physical robot-hours avoided",

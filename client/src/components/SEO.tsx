@@ -16,7 +16,7 @@ const BASE_URL = "https://tryblueprint.io";
 // The one share image: current brand, 1200x630 PNG, which LinkedIn, Slack,
 // Outlook and X all render. Pages use it unless they have a better one.
 const DEFAULT_IMAGE = `${BASE_URL}/brand/og-default.png`;
-const DEFAULT_IMAGE_ALT = "Blueprint — From one recurring task to a measured robot pilot.";
+const DEFAULT_IMAGE_ALT = "Blueprint — From one recurring job to a measured robot pilot.";
 const SITE_NAME = "Blueprint";
 
 export function SEO({

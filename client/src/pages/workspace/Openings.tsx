@@ -25,13 +25,13 @@ export default function Openings() {
   return (
     <Frame query={query} active="opportunities" title="Openings">
       {query.data?.role !== "robot_team" ? (
-        <Empty title="Your site tasks" href="/app/tasks" action="Your tasks">
-          Manage openings and review robot-team results from your task pages.
+        <Empty title="Your site jobs" href="/app/tasks" action="Your jobs">
+          Manage openings and review robot-team results from your job pages.
         </Empty>
       ) : (
         <>
           <p className="ws-muted" style={{ marginBottom: 26 }}>
-            Find a task for your robot.
+            Find a job for your robot.
           </p>
           <input
             className="ws-search"
@@ -39,7 +39,7 @@ export default function Openings() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             aria-label="Search openings"
-            placeholder="Search tasks or site types"
+            placeholder="Search jobs or site types"
           />
           <div
             className="ws-tabs"
@@ -81,7 +81,7 @@ export default function Openings() {
                     <figcaption>Illustration</figcaption>
                   </figure>
                   <h2>{item.workflow}</h2>
-                  <p>{item.site_type || "Site task"}</p>
+                  <p>{item.site_type || "Site job"}</p>
                   {item.anonymized_summary !== item.workflow && (
                     <p>{item.anonymized_summary}</p>
                   )}
@@ -115,8 +115,8 @@ export default function Openings() {
               }
             >
               {search || filter !== "all"
-                ? "Try another task or site type."
-                : "Openings appear here when the site has approved access and the task is ready for evaluation."}
+                ? "Try another job or site type."
+                : "Openings appear here when the site has approved access and the job is ready for evaluation."}
             </Empty>
           )}
         </>

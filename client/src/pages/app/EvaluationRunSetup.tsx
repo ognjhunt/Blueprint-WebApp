@@ -74,12 +74,12 @@ function PreparedEvaluationRunSetup() {
   }
 
   return (
-    <AppShell active="packs" breadcrumb="tasks / set up">
+    <AppShell active="packs" breadcrumb="jobs / set up">
       <Helmet>
         <title>Set up an evaluation · Blueprint</title>
         <meta name="description" content="Choose how many scenarios to run and start an evaluation." />
       </Helmet>
-      <Link className="ws-back" href="/app/packs">← Tasks</Link>
+      <Link className="ws-back" href="/app/packs">← Jobs</Link>
       <header className="ws-heading">
         <div>
           <h1>Set up an evaluation</h1>

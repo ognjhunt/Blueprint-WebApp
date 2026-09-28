@@ -30,7 +30,7 @@ const signupLinks = [
   {
     href: "/signup/business?buyerType=robot_team&source=header-signup",
     label: "Robot team",
-    description: "Review scoped site tasks, confirm what your team can support, and focus on credible physical pilots.",
+    description: "Review scoped site jobs, confirm what your team can support, and focus on credible physical pilots.",
     Icon: Bot,
   },
   {

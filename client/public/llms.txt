@@ -1,10 +1,10 @@
 # Blueprint
 
-> Blueprint helps a business turn one recurring task into a scoped, funded, measurable robot pilot and decide what happens afterward.
+> Blueprint helps a business turn one recurring job into a scoped, funded, measurable robot pilot and decide what happens afterward.
 
-Show Blueprint one recurring task, including phone footage and a proposed pilot price and conditions or a target budget. Keep ongoing economics separate. An approved budget is not required to start. Robot teams evaluate the task for free. No match, no fee. When a robot team passes the evaluation, fits the site's budget, and wants to run the pilot, Blueprint introduces the two sides by name and charges the site $2,500 per task, however many teams match; teams that do not match stay anonymous. The site and the team agree the pilot directly, and Blueprint takes no percentage of the pilot or any deployment. The provider or integrator installs and operates the robot. Simulation is not physical proof or a deployment guarantee.
+Show Blueprint one recurring job, including phone footage and a proposed pilot price and conditions or a target budget. Keep ongoing economics separate. An approved budget is not required to start. Robot teams evaluate the job for free. No match, no fee. When a robot team passes the evaluation, fits the site's budget, and wants to run the pilot, Blueprint introduces the two sides by name and charges the site $2,500 per job, however many teams match; teams that do not match stay anonymous. The site and the team agree the pilot directly, and Blueprint takes no percentage of the pilot or any deployment. The provider or integrator installs and operates the robot. Simulation is not physical proof or a deployment guarantee.
 
-The site explicitly authorizes the match fee when opening a task to pilot proposals. It is invoiced at introduction even if no pilot is purchased. If a matched team withdraws or materially changes its confirmed price or scope before the pilot starts, Blueprint seeks a replacement that meets the same agreed requirements. If none fits, Blueprint refunds the match fee. Contact hello@tryblueprint.io with the task link.
+The site explicitly authorizes the match fee when opening a job to pilot proposals. It is invoiced at introduction even if no pilot is purchased. If a matched team withdraws or materially changes its confirmed price or scope before the pilot starts, Blueprint seeks a replacement that meets the same agreed requirements. If none fits, Blueprint refunds the match fee. Contact hello@tryblueprint.io with the job link.
 
 ## Public pages
 
@@ -16,9 +16,11 @@ The site explicitly authorizes the match fee when opening a task to pilot propos
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams join by early access. Approved teams see only task cards sites chose to share. Invited evaluations are free within a bounded scope, carry no supplier commission, and share results with the site for pilot consideration. When a team passes, fits the site's budget, and wants the pilot, Blueprint introduces it to the site, and the two sides agree the pilot directly. Private evaluations cost $99 for one robot policy on one reconstructed real site task, paid from a prepaid balance. Results stay with the team and Blueprint, are not shared with the site, and do not affect pilot matching. Pilot consideration requires a separate free invited evaluation. Blueprint sets the run size. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
+Robot teams join by early access. Approved teams see only job cards sites chose to share. Invited evaluations are free within a bounded scope, carry no supplier commission, and share results with the site for pilot consideration. When a team passes, fits the site's budget, and wants the pilot, Blueprint introduces it to the site, and the two sides agree the pilot directly. Private evaluations cost $99 for one robot policy on one reconstructed real site job, paid from a prepaid balance. Results stay with the team and Blueprint, are not shared with the site, and do not affect pilot matching. Pilot consideration requires a separate free invited evaluation. Blueprint sets the run size. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
+
+Customer wording uses “job” for the work a site wants automated and “task” for the specific robot action and its technical conditions. API fields and identifiers retain their existing names.
 
 A Task Evaluation Run returns a decision or abstention. Pipeline owns method qualification and routing; physical outcomes remain distinct from simulation and generated evidence.
 

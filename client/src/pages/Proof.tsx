@@ -19,7 +19,7 @@ import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 const evidenceLayers = [
   {
     title: "Captured fact",
-    body: "The site, task, objects, and timing recorded from the real workflow.",
+    body: "The site, job, objects, and timing recorded from the real workflow.",
   },
   {
     title: "Derived test",

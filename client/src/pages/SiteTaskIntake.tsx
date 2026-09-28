@@ -233,7 +233,7 @@ export default function SiteTaskIntake() {
                   totalGates={gateFields.length}
                   headline={copy.headline}
                   qualifiedNote={copy.nextStep}
-                  footnote="You can still send this. We keep tasks on file and come back when the constraint changes on our side or yours — that is how we decide which metro opens next."
+                  footnote="You can still send this. We keep jobs on file and come back when the constraint changes on our side or yours — that is how we decide which metro opens next."
                 />
               </div>
 
@@ -245,7 +245,7 @@ export default function SiteTaskIntake() {
                       Now the part a robot team actually reads.
                     </h2>
                     <p className="mt-4 max-w-[62ch] text-[14px] leading-[1.75] text-runway-mute">
-                      These do not screen anything. They make the task specific enough that a robot
+                      These do not screen anything. They make the job specific enough that a robot
                       team can answer without a discovery call of its own.
                     </p>
 
@@ -389,7 +389,7 @@ export default function SiteTaskIntake() {
                         </>
                       ) : (
                         <>
-                          Send the task
+                          Send the job
                           <ArrowRight className="h-4 w-4" aria-hidden="true" />
                         </>
                       )}

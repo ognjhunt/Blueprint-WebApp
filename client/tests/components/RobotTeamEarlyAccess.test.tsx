@@ -13,7 +13,7 @@ vi.mock("@/lib/accountAuth", () => ({
 
 import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
 
-describe("robot-team verification from the task library", () => {
+describe("robot-team verification from the job library", () => {
   it("resends the account verification link to the approved signed-in address", async () => {
     auth.send.mockClear();
     render(<RobotTeamEarlyAccess access={{ gated: true, status: "approved", signedIn: true,

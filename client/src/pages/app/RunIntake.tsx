@@ -271,7 +271,7 @@ export default function RunIntake() {
 
         <Card pad="lg">
         <div className="flex flex-col gap-6">
-        <Section divided={false} title="1. Site, task, and account" description="Identify the maintained testbed and the real task this decision concerns.">
+        <Section divided={false} title="1. Site, job, and account" description="Identify the maintained testbed and the real job this decision concerns.">
           <Field label="I am submitting for">
             <select className={fieldClass} value={form.persona} onChange={(e) => set("persona", e.target.value as IntakeState["persona"])}>
               <option value="robot_team">Robot team</option>
@@ -285,7 +285,7 @@ export default function RunIntake() {
           <Field label="Site ID"><input required className={fieldClass} value={form.siteId} onChange={(e) => set("siteId", e.target.value)} /></Field>
           <Field label="Site name"><input className={fieldClass} value={form.siteName} onChange={(e) => set("siteName", e.target.value)} /></Field>
           <Field label="Task ID"><input required className={fieldClass} value={form.taskId} onChange={(e) => set("taskId", e.target.value)} /></Field>
-          <Field label="Task description"><textarea required className={fieldClass} value={form.taskDescription} onChange={(e) => set("taskDescription", e.target.value)} /></Field>
+          <Field label="Job description"><textarea required className={fieldClass} value={form.taskDescription} onChange={(e) => set("taskDescription", e.target.value)} /></Field>
           <Field label="Site and task conditions (one per line)" wide><textarea required className={fieldClass} value={form.conditions} onChange={(e) => set("conditions", e.target.value)} /></Field>
         </Section>
 

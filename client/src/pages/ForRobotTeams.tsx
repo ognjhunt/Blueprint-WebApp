@@ -28,7 +28,7 @@ const joinHref = "/signup/business?buyerType=robot_team&source=for-robot-teams";
 const teamReceives = [
   {
     step: "01",
-    title: "A task dossier",
+    title: "A job dossier",
     detail: "The workflow, objects, weights, cycle times, exceptions and the pass mark — in one standard shape.",
   },
   {
@@ -53,14 +53,14 @@ export default function ForRobotTeams() {
     <>
       <SEO
         title="Real jobs at sites with budget | Blueprint for robot teams"
-        description="Blueprint prepares site tasks and evaluation evidence. Providers can accept a site's proposed pilot terms, suggest changes, or decline."
+        description="Blueprint prepares site jobs and evaluation evidence. Providers can accept a site's proposed pilot terms, suggest changes, or decline."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({
             path: "/for-robot-teams",
             name: "Blueprint for robot teams",
             description:
-              "Captured site tasks and standard pre-deployment evaluations for robot providers.",
+              "Captured site jobs and standard pre-deployment evaluations for robot providers.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -72,7 +72,7 @@ export default function ForRobotTeams() {
       <PageHero
         eyebrow={robotTeamHero.eyebrow}
         title={robotTeamHero.title}
-        body="Tell us what your robot can do and what your standard pilot includes. For each matched task, evaluate the evidence and decide whether you can meet the site's proposed price and conditions. You may suggest changes or decline."
+        body="Tell us what your robot can do and what your standard pilot includes. For each matched job, evaluate the evidence and decide whether you can meet the site's proposed price and conditions. You may suggest changes or decline."
         chips={robotTeamHero.chips}
         ctaHref={joinHref}
         ctaLabel="Join the robot network"
@@ -80,7 +80,7 @@ export default function ForRobotTeams() {
         secondaryLabel="See the method"
         imageSrc="/generated/humanoid-readiness-2026-06-03/humanoid-warehouse-readiness-hero.png"
         imageAlt="Illustrative humanoid material-handling workflow"
-        imageCaption="Illustrative task context · physical proof still required"
+        imageCaption="Illustrative job context · physical proof still required"
         routeTrace
       />
 

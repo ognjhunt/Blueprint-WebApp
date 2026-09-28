@@ -153,7 +153,7 @@ const STRUCTURED_FIELD_LABELS: Record<string, string> = {
   site_location: "Site location",
   site_name: "Site name",
   target_site_type_or_site: "Target site class or site",
-  task_or_workflow_question: "Task or workflow question",
+  task_or_workflow_question: "Job or workflow question",
 };
 
 function fieldLabels(fields: string[]): string[] {

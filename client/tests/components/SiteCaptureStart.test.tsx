@@ -196,14 +196,14 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
   fireEvent.change(region()!, { target: { value: "us" } });
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByText("Film the work area.", { selector: "h2" });
-  expect(screen.getByRole("link", { name: "Open your task page" })).toHaveAttribute("href", captureUrl);
+  expect(screen.getByRole("link", { name: "Open your job page" })).toHaveAttribute("href", captureUrl);
   expect(screen.getByText(/On an iPhone the link opens a small Blueprint camera when that is available/)).toBeInTheDocument();
   expect(screen.queryByText(/No app and nothing to install/)).toBeNull();
 
   received = true;
   await screen.findByText("Your recording is in.", { selector: "h2" }, { timeout: 10_000 });
-  expect(screen.getByRole("link", { name: "Review your task brief" })).toHaveAttribute("href", captureUrl);
-  expect(screen.queryByRole("link", { name: "Open your task page" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Review your job brief" })).toHaveAttribute("href", captureUrl);
+  expect(screen.queryByRole("link", { name: "Open your job page" })).toBeNull();
   expect(screen.queryByRole("img", { name: "Point your phone at this to film" })).toBeNull();
 }, 15_000);
 
@@ -286,7 +286,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(JSON.parse(init.body)).toMatchObject({ captureMode: "self_capture", hasExistingFootage: true, captureRegion: "us", firstName: "Pat", company: "Acme Foods" });
     expect(JSON.parse(init.body).filmerContact).toBeUndefined();
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
-    expect(screen.getByRole("link", { name: "Review your task brief" })).toHaveAttribute("href", captureUrl);
+    expect(screen.getByRole("link", { name: "Review your job brief" })).toHaveAttribute("href", captureUrl);
   });
 
   it("keeps the job when the video does not send, and links to the uploader", async () => {

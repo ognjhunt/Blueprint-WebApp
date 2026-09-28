@@ -19,12 +19,12 @@ const MESSAGES: Array<{ match: (code: string) => boolean; text: string; rank: nu
   },
   {
     match: (code) => code === "pipeline_controlled_policy_executor_required" || code === "pipeline_model_runner_profile_required",
-    text: "This task needs a compatible private-policy runner before execution. Your integration is saved, and nothing is charged.",
+    text: "This job needs a compatible private-policy runner before execution. Your integration is saved, and nothing is charged.",
     rank: 1,
   },
   {
     match: (code) => code === "site_rights_not_cleared",
-    text: "The site owner hasn't cleared this task for robot evaluation yet. Nothing is charged.",
+    text: "The site owner hasn't cleared this job for robot evaluation yet. Nothing is charged.",
     rank: 2,
   },
   {

@@ -153,7 +153,7 @@ export function buildRobotAgentAccessManifest() {
         holds:
           "A private run reserves its flat $99 quote up front and charges it once any policy episodes execute; zero if none execute. A hold nothing reports on is released when it expires; no team's money stays locked waiting on us.",
         results:
-          "Paid evaluations are private internal tests on reconstructed site tasks. Results stay with the team and Blueprint: no site results, notifications, or pilot matching effects. Pilot consideration requires a separate free invited evaluation. A result carries what was observed and, separately, what the evidence supports. The claim is the lower bound of the observation, not the observation: fifty successes in fifty episodes establishes roughly 90%, not better than 99%, because nothing outranks a measured figure once it is written.",
+          "Paid evaluations are private internal tests on reconstructed site jobs. Results stay with the team and Blueprint: no site results, notifications, or pilot matching effects. Pilot consideration requires a separate free invited evaluation. A result carries what was observed and, separately, what the evidence supports. The claim is the lower bound of the observation, not the observation: fifty successes in fifty episodes establishes roughly 90%, not better than 99%, because nothing outranks a measured figure once it is written.",
       },
     },
     siteWorldSearch: {
@@ -313,9 +313,9 @@ export function buildRobotAgentOpenApiContract() {
     info: {
       title: "Blueprint Robot-Team Agent API",
       version: ROBOT_AGENT_CONTRACT_VERSION,
-      summary: "Headless discovery of scoped site tasks and bounded evaluation tools for robot teams.",
+      summary: "Headless discovery of scoped site jobs and bounded evaluation tools for robot teams.",
       description:
-        "Blueprint helps businesses scope recurring tasks, assess suitable robot providers, coordinate measured physical pilots by separate agreement, and decide what follows. This API exposes capture-backed task discovery and Task Evaluation Run intake for robot teams; it does not authorize a physical pilot. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls, but new standalone commerce is retired.",
+        "Blueprint helps businesses scope recurring jobs, assess suitable robot providers, coordinate measured physical pilots by separate agreement, and decide what follows. This API exposes capture-backed job discovery and Task Evaluation Run intake for robot teams; it does not authorize a physical pilot. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls, but new standalone commerce is retired.",
     },
     servers: [
       {
@@ -446,7 +446,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "planRobotTeamEvals",
           summary: "Rank which sites a checkpoint should be evaluated against, for a budget. Free.",
           description:
-            "Requires the team's agent key (Bearer), connected to a verified Blueprint account approved for early access (403 early_access_required otherwise). Builds evaluation candidates from the site tasks sites have shared with robot teams and ranks them by expected information gain per dollar. Commits nothing: no reservation, no ledger entry, no charge. The response reports spendable balance and any funding still needed.",
+            "Requires the team's agent key (Bearer), connected to a verified Blueprint account approved for early access (403 early_access_required otherwise). Builds evaluation candidates from the site jobs sites have shared with robot teams and ranks them by expected information gain per dollar. Commits nothing: no reservation, no ledger entry, no charge. The response reports spendable balance and any funding still needed.",
           security: bearerSecurity,
           requestBody: {
             required: true,
@@ -483,7 +483,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "startRobotTeamRun",
           summary: "Buy and start private evaluations from a plan. Dry run unless confirm is true.",
           description:
-            "Requires the team's agent key (Bearer) and early access (403 early_access_required otherwise). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. Paid runs cost $99 for one robot policy on one reconstructed site task. New paid runs are always private: the site cannot see results or progress, receives no notifications, and the results do not update pilot matching or shared capabilities. Pilot consideration requires a separate free invited evaluation. Result responses include evaluationPurpose; historical runs retain their original sharing scope. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
+            "Requires the team's agent key (Bearer) and early access (403 early_access_required otherwise). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. Paid runs cost $99 for one robot policy on one reconstructed site job. New paid runs are always private: the site cannot see results or progress, receives no notifications, and the results do not update pilot matching or shared capabilities. Pilot consideration requires a separate free invited evaluation. Result responses include evaluationPurpose; historical runs retain their original sharing scope. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
           security: bearerSecurity,
           requestBody: {
             required: true,

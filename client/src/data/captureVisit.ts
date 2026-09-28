@@ -86,7 +86,7 @@ export const visitGate: readonly VisitGateStep[] = [
     id: "contact",
     stage: "Contact",
     what:
-      "Either direction. A site describes a workflow, a robot team describes what it needs to deploy against, or we reach out because a task looks like a fit. A short intake names the task, the site, the timeline, and the budget the work has to live inside.",
+      "Either direction. A site describes a workflow, a robot team describes what it needs to deploy against, or we reach out because a job looks like a fit. A short intake names the job, the site, the timeline, and the budget the work has to live inside.",
     outcome: "Obvious non-fits end here, cheaply and honestly.",
   },
   {
@@ -94,13 +94,13 @@ export const visitGate: readonly VisitGateStep[] = [
     stage: "Scoping call",
     what:
       "About thirty minutes, and a real gate rather than a courtesy. The four conditions get tested against your actual room, the no-capture list gets started, and whoever owns what success means is identified by name.",
-    outcome: "A task specified precisely enough to put in front of a robot team.",
+    outcome: "A job specified precisely enough to put in front of a robot team.",
   },
   {
     id: "match",
     stage: "Match",
     what:
-      "Our work, not yours. The task is screened against the robot teams we are actually in conversation with — not a catalogue of vendors who might exist somewhere.",
+      "Our work, not yours. The job is screened against the robot teams we are actually in conversation with — not a catalogue of vendors who might exist somewhere.",
     outcome: "A match, a not-yet with the reason, or an honest no.",
   },
   {
@@ -166,9 +166,9 @@ export const visitConfirmation: readonly ConfirmationLine[] = [
   },
   {
     id: "task",
-    field: "The workcell and the task",
+    field: "The workcell and the job",
     detail:
-      "One station, one task, and the person who can say what counts as success and what must never happen. A photo of the cell if you have one.",
+      "One station, one job, and the person who can say what counts as success and what must never happen. A photo of the cell if you have one.",
   },
   {
     id: "boundary",
@@ -254,7 +254,7 @@ export const visitSchedule: readonly VisitStep[] = [
   {
     step: "03",
     what: "Stage task objects, confirm normal-day placement",
-    involvement: "Task owner",
+    involvement: "Job owner",
     partnerPresent: true,
   },
   {

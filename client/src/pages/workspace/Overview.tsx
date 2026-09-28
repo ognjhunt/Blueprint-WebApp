@@ -48,7 +48,7 @@ export function TaskRows({ tasks }: { tasks: WorkspaceTask[] }) {
             </p>
           </div>
           <ActionLink href={`/app/tasks/${encodeURIComponent(task.id)}`}>
-            {task.status === "Review results" ? "Review results" : "View task"}
+            {task.status === "Review results" ? "Review results" : "View job"}
           </ActionLink>
         </article>
       ))}
@@ -104,7 +104,7 @@ export default function Overview() {
           href={site ? "/app/tasks/new" : "/app/opportunities"}
           primary
         >
-          {site ? "Request a task" : "Browse openings"}
+          {site ? "Describe a job" : "Browse openings"}
         </ActionLink>
       }
     >
@@ -131,7 +131,7 @@ export default function Overview() {
                 <p className="ws-kicker">Up next</p>
                 <h2>Review team results</h2>
                 <p className="ws-muted">
-                  Compare each team's evidence with your task targets.
+                  Compare each team's evidence with your job targets.
                 </p>
               </div>
               <ActionLink
@@ -143,7 +143,7 @@ export default function Overview() {
           ) : null}
           <section>
             <div className="ws-section-title">
-              <h2>Your tasks</h2>
+              <h2>Your jobs</h2>
               {tasks.length > 0 && (
                 <Link href="/app/tasks" className="ws-link">
                   View all
@@ -154,9 +154,9 @@ export default function Overview() {
               <TaskRows tasks={tasks.slice(0, 4)} />
             ) : (
               <Empty
-                title="Start with one task"
+                title="Start with one job"
                 href="/app/tasks/new"
-                action="Request a task"
+                action="Describe a job"
               >
                 Tell us about the work, the site, and what success looks like.
                 Your capture and evaluations will stay together here.
@@ -202,7 +202,7 @@ export default function Overview() {
                 href="/app/opportunities"
                 action="Browse openings"
               >
-                Explore site tasks, save your robot and policy, and request an
+                Explore site jobs, save your robot and policy, and request an
                 evaluation.
               </Empty>
             )}
@@ -210,7 +210,7 @@ export default function Overview() {
           {evaluations.length > 0 && (
             <section className="ws-next ws-section">
               <div>
-                <h2>Ready for another task?</h2>
+                <h2>Ready for another job?</h2>
                 <p className="ws-muted">
                   Browse openings and evaluate a saved robot and policy.
                 </p>

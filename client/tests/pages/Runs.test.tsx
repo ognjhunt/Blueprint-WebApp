@@ -107,7 +107,7 @@ describe("app/Runs", () => {
     renderWithQueryClient(<Runs />);
 
     expect(await screen.findByText("No runs yet")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /find a task/i })).toHaveAttribute("href", "/app/opportunities");
+    expect(screen.getByRole("link", { name: /find a job/i })).toHaveAttribute("href", "/app/opportunities");
     // The old button pointed at /app/runs/new, which only redirects away.
     expect(screen.queryByRole("link", { name: /request a task evaluation run/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /view run/i })).not.toBeInTheDocument();

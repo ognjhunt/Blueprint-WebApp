@@ -49,7 +49,7 @@ test("capture takes the country from the address, asks only when it cannot, and 
 
 test("robot teams reach the library without an application", async ({ page }) => {
   await page.goto("/contact/robot-team");
-  await expect(page.getByRole("region", { name: "Task library" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Job library" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send application" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Operate a site/ })).toBeVisible();
 });

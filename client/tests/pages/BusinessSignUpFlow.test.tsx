@@ -17,7 +17,7 @@ function accountStep() {
 function workspaceStep(role: "site_operator" | "robot_team" = "robot_team") {
   fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Test User" } });
   fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Test Team" } });
-  fireEvent.click(screen.getByLabelText(role === "robot_team" ? "Assess site tasks for my robots" : "Plan a robot pilot for my site"));
+  fireEvent.click(screen.getByLabelText(role === "robot_team" ? "Assess site jobs for my robots" : "Plan a robot pilot for my site"));
   fireEvent.click(screen.getByRole("checkbox"));
 }
 beforeEach(() => {

@@ -226,7 +226,7 @@ describe("the same step decides the listing", () => {
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
     answerPilotIntent();
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/show this task to robot teams/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/show this job to robot teams/i);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -234,8 +234,8 @@ describe("the same step decides the listing", () => {
     fetchMock.mockResolvedValueOnce(confirmed()).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
     render(<TaskBriefReview token="tok" brief={brief()} />);
     fireEvent.click(screen.getByLabelText(/yes, list it/i));
-    fireEvent.change(screen.getByLabelText(/describe the task/i), { target: { value: "Move cartons onto a pallet" } });
-    fireEvent.change(screen.getByLabelText(/task family/i), { target: { value: "Palletizing" } });
+    fireEvent.change(screen.getByLabelText(/describe the job/i), { target: { value: "Move cartons onto a pallet" } });
+    fireEvent.change(screen.getByLabelText(/job type/i), { target: { value: "Palletizing" } });
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
     answerPilotIntent();
 
@@ -260,8 +260,8 @@ describe("the same step decides the listing", () => {
     fetchMock.mockResolvedValueOnce(confirmed()).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
     render(<TaskBriefReview token="tok" brief={brief()} />);
     fireEvent.click(screen.getByLabelText(/yes, list it/i));
-    fireEvent.change(screen.getByLabelText(/describe the task/i), { target: { value: "Move cartons onto a pallet" } });
-    fireEvent.change(screen.getByLabelText(/task family/i), { target: { value: "Palletizing" } });
+    fireEvent.change(screen.getByLabelText(/describe the job/i), { target: { value: "Move cartons onto a pallet" } });
+    fireEvent.change(screen.getByLabelText(/job type/i), { target: { value: "Palletizing" } });
     fireEvent.change(screen.getByLabelText(/pilot availability/i), { target: { value: "open" } });
     fireEvent.click(screen.getByLabelText(/authorized to make it public/i));
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });

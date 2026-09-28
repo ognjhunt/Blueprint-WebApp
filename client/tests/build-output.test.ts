@@ -231,7 +231,7 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("One recurring task.");
+    expect(homeHtml).toContain("One recurring job.");
     expect(homeHtml).toContain("A measured robot pilot.");
     expect(homeHtml).toContain("Illustrative scenes");
     expect(homeHtml).toContain("No match, no fee.");
@@ -241,7 +241,7 @@ describe("build output", () => {
     for (const file of ["index.html", "how-it-works/index.html", "contact/robot-team/index.html", "contact/site-operator/index.html"]) {
       expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
     }
-    expect(siteHtml).toContain("Start with one recurring task.");
+    expect(siteHtml).toContain("Start with one recurring job.");
     // The published site form keeps the task and consent, without the retired
     // screening interview. These assertions inspect actual prerendered HTML.
     expect(siteHtml).toContain("What is the job?");
@@ -255,7 +255,7 @@ describe("build output", () => {
     expect(siteHtml).toContain('id="start-rights"');
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
-    expect(robotHtml).toContain("Find a task your robot can support.");
+    expect(robotHtml).toContain("Find a job your robot can support.");
     expect(robotHtml).toContain("Find relevant site tasks and evaluate them for free when invited.");
     // The application is public; tasks and executable plans still wait for
     // server access approval.

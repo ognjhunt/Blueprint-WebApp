@@ -58,7 +58,7 @@ const DEMAND_CITY_MESSAGING: Record<DemandCityKey, DemandCityMessaging> = {
     requestHeroBody:
       "Use this form to anchor the request in one real site, the current stack, and the exact review question. San Francisco buyers will move faster when the proof path is technical, specific, and honest about what still needs human approval.",
     requestResponseBody:
-      "Blueprint reviews the site-task, requested decision, thresholds, evidence, and constraints first so the reply can scope one Task Evaluation Run or ask for the next missing input.",
+      "Blueprint reviews the site job, requested decision, thresholds, evidence, and constraints first so the reply can scope one Task Evaluation Run or ask for the next missing input.",
     requestCardTitle: "San Francisco request lens",
     requestCardBody:
       "This city has denser buyer and partner channels, but the proof needs to hold up under sharper technical scrutiny.",

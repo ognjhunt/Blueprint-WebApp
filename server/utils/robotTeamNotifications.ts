@@ -31,7 +31,7 @@ export async function notifyTeamOfRunOutcome(params: {
   const body = result
     ? [
         "Hi,",
-        `Your evaluation run finished: ${result.episodesSucceeded} of ${result.episodesRun} simulated episodes succeeded. This is a simulation result against one site's task, not a physical test.`,
+        `Your evaluation run finished: ${result.episodesSucceeded} of ${result.episodesRun} simulated episodes succeeded. This is a simulation result against one site's job, not a physical test.`,
         `See this run, every other run, and your balance:\n${RUNS_URL}`,
         EMAIL_SIGN_OFF,
       ].join("\n\n")

@@ -129,14 +129,14 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     <>
       <SEO
         title={`${siteName} | Sites | Blueprint`}
-        description="A recorded site task for robot fit assessment and a possible scoped physical pilot, subject to site approval."
+        description="A recorded site job for robot fit assessment and a possible scoped physical pilot, subject to site approval."
         canonical={`/sites/${params.slug}`}
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={[
           webPageJsonLd({
             path: `/sites/${params.slug}`,
             name: `${siteName} capture record`,
-            description: "The recorded task at a real site, for robot evaluation.",
+            description: "The recorded job at a real site, for robot evaluation.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -193,8 +193,8 @@ export default function SiteDetail({ params }: SiteDetailProps) {
 
               <section className="grid gap-8 py-12 md:grid-cols-[0.34fr_0.66fr]">
                 <div>
-                  <h2 className="font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">Recorded task scope</h2>
-                  <p className="mt-4 text-sm leading-[1.6] text-runway-mute">The tasks below come from the site. Results appear only after a robot team runs an evaluation.</p>
+                  <h2 className="font-display uppercase text-4xl font-semibold tracking-[0.005em] text-runway-text">Recorded job scope</h2>
+                  <p className="mt-4 text-sm leading-[1.6] text-runway-mute">The jobs below come from the site. Results appear only after a robot team runs an evaluation.</p>
                 </div>
                 <div className="grid gap-3">
                   {site.taskCatalog.length ? site.taskCatalog.map((task) => (
@@ -203,7 +203,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                       {task.taskCategory ? <p className="mt-2 text-sm text-runway-mute">{task.taskCategory}</p> : null}
                     </article>
                   )) : (
-                    <div className="runway-panel p-5 text-sm text-runway-mute">Task details are agreed when a robot team asks to evaluate here.</div>
+                    <div className="runway-panel p-5 text-sm text-runway-mute">Job details are agreed when a robot team asks to evaluate here.</div>
                   )}
                 </div>
               </section>
@@ -211,7 +211,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
               <section className="flex gap-4 border-t border-runway-line pt-8">
                 <ShieldCheck className="h-7 w-7 shrink-0 text-runway-signal" aria-hidden="true" />
                 <p className="max-w-4xl text-sm font-semibold leading-[1.6] text-runway-mute">
-                  This page shows only that the site has recorded its task. It is not a result: it says nothing about how any robot performed, how candidates rank, or whether a deployment would be safe.
+                  This page shows only that the site has recorded its job. It is not a result: it says nothing about how any robot performed, how candidates rank, or whether a deployment would be safe.
                 </p>
               </section>
             </>

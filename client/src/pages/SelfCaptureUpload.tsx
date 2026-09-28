@@ -409,7 +409,7 @@ export default function SelfCaptureUpload() {
               ? "Claim your site to see the results"
               : status.sceneViewUrl
                 ? "Save your scene and follow progress"
-                : "Claim your site to follow this task"}
+                : "Claim your site to follow this job"}
           </a>
           {status.decision !== "results" && status.decision !== "screening" && (
             <span className="ms-field-hint" style={{ display: "block", marginTop: "4px" }}>
@@ -441,7 +441,7 @@ export default function SelfCaptureUpload() {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" ? "Your task assessment" : saved || upload.status === "held" ? "A few details about the task" : onAPhone ? "Film the work area" : "Your task assessment"}
+        {link.status === "held" ? "Your job assessment" : saved || upload.status === "held" ? "A few details about the job" : onAPhone ? "Film the work area" : "Your job assessment"}
       </h1>
 
       {/* Where the task stands. Above the fold only when there is no camera on
@@ -525,7 +525,7 @@ export default function SelfCaptureUpload() {
           {freshLink === "sent" && (
             <p role="status">
               If this link was one of ours, a fresh one is on its way to the email address your
-              task was sent from.
+              job was sent from.
             </p>
           )}
           {freshLink === "failed" && (
@@ -569,7 +569,7 @@ export default function SelfCaptureUpload() {
                   {status?.footageReviewAutomated === false
                     ? "Our team is reviewing whether it covers the work area."
                     : "We are checking whether it covers the work area."}{" "}
-                  A few answers can help define the task while review continues.
+                  A few answers can help define the job while review continues.
                 </p>
               </div>
               {scope === "owner" && <TaskFollowUp token={token} onAnswered={onFollowUpAnswered} />}
@@ -582,7 +582,7 @@ export default function SelfCaptureUpload() {
 
               {scope === "owner" && brief && briefConfirmed && !editingBrief && (
                 <p className="ms-field-hint" style={{ marginBottom: "8px" }}>
-                  Your task brief is confirmed.{" "}
+                  Your job brief is confirmed.{" "}
                   <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
                     Edit your answers
                   </button>
@@ -593,11 +593,11 @@ export default function SelfCaptureUpload() {
                    disclosure under a "you can close this page" card read as
                    optional. */
                 <details open style={{ marginBottom: "8px" }}>
-                  <summary>{editingBrief ? "Edit your task brief" : "Next: check your task brief"}</summary>
+                  <summary>{editingBrief ? "Edit your job brief" : "Next: check your job brief"}</summary>
                   <p className="ms-field-hint">
                     {brief.proposed.some((answer) => answer.basis !== "assumption")
                       ? "We drafted this from what you sent. Correct anything wrong, then confirm."
-                      : "Answer a few questions about the task, then confirm."}{" "}
+                      : "Answer a few questions about the job, then confirm."}{" "}
                     That is what lets a robot team be matched to your site.
                   </p>
                   <TaskBriefReview
@@ -610,7 +610,7 @@ export default function SelfCaptureUpload() {
                 </details>
               )}
 
-              {scope === "film" && <details className="ms-task-interest"><summary>Add photos of the task items</summary><TaskItemsPanel token={token} scope={scope} /></details>}
+              {scope === "film" && <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>}
 
               <p className="ms-field-hint" style={{ marginBlock: "16px" }}>
                 Filmed another angle? We will use whichever views cover the work area best.{" "}
@@ -748,7 +748,7 @@ export default function SelfCaptureUpload() {
                   sees it: attestation is not theirs to make. */}
               {scope === "owner" && brief && briefConfirmed && !editingBrief && (
                 <p className="ms-field-hint" style={{ marginTop: "28px", marginBottom: "8px" }}>
-                  Your task brief is confirmed.{" "}
+                  Your job brief is confirmed.{" "}
                   <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
                     Edit your answers
                   </button>
@@ -759,12 +759,12 @@ export default function SelfCaptureUpload() {
                   <summary>
                     {briefBlocksCapture
                       ? "A couple of answers refine what to film"
-                      : "Review your task brief"}
+                      : "Review your job brief"}
                   </summary>
                   <p className="ms-field-hint">
                     {brief.proposed.some((answer) => answer.basis !== "assumption")
                       ? "We drafted this from what you sent."
-                      : "A few questions about the task."}{" "}
+                      : "A few questions about the job."}{" "}
                     Film whenever you like — confirming the brief
                     is what lets a robot team be matched to your site, before or after you film.
                   </p>
@@ -782,7 +782,7 @@ export default function SelfCaptureUpload() {
                   the cartons, and those are often filmed clear -- so we list the
                   items and take a few photos of each to build sim-ready versions.
                   A film-only link can add the photos; only an owner edits the list. */}
-              <details className="ms-task-interest"><summary>Add photos of the task items</summary><TaskItemsPanel token={token} scope={scope} /></details>
+              <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
 
               {/* Least privilege for the person who actually films. An owner who
                   is handing this to a colleague sends a link that can record and
@@ -797,7 +797,7 @@ export default function SelfCaptureUpload() {
       )}
       {link.status === "valid" && scope === "owner" && !saved && upload.status !== "held" && <PublicTaskListing token={token} />}
       {!saved && upload.status !== "held" && (
-        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage and ask you to confirm the task. We then assess provider fit and use a scene evaluation where it helps. Keep this link to follow progress.</p>
+        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage and ask you to confirm the job brief. We then assess provider fit and use a scene evaluation where it helps. Keep this link to follow progress.</p>
       )}
       </div>
     </div>

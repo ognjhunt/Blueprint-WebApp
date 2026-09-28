@@ -24,7 +24,7 @@ export const disclosurePolicy = {
       id: "teams-public",
       subject: "Robot teams",
       state: "Publicly discoverable",
-      detail: "Profile, embodiments, task history and references are open. Credibility is the point.",
+      detail: "Profile, embodiments, job history and references are open. Credibility is the point.",
     },
     {
       id: "participation-private",
@@ -36,7 +36,7 @@ export const disclosurePolicy = {
       id: "sites-private",
       subject: "Sites",
       state: "De-identified until award",
-      detail: "Industry, region, task and economics are visible. Name, address, contacts, logos and file metadata are not.",
+      detail: "Industry, region, job and economics are visible. Name, address, contacts, logos and file metadata are not.",
     },
     {
       id: "unlock-on-payment",
@@ -55,7 +55,7 @@ export const flowSteps = [
     label: "View opportunity",
     actor: "Robot team",
     detail:
-      "Industry, broad geography, the task, the economics, constraints, expected scale and timing. No name, address, contact or logo.",
+      "Industry, broad geography, the job, the economics, constraints, expected scale and timing. No name, address, contact or logo.",
     cost: "Free",
   },
   {
@@ -196,7 +196,7 @@ export const deploymentPackage = [
   },
   {
     id: "media",
-    label: "Task media",
+    label: "Job media",
     detail: "42 minutes of cycle footage and 62 human demonstrations — logos, faces and labels blurred.",
   },
   {
@@ -242,7 +242,7 @@ export interface OfferField {
 }
 
 export const offerFields: readonly OfferField[] = [
-  { id: "can-do", label: "Can you perform this task today?", group: "capability", hint: "Yes / No / Not yet" },
+  { id: "can-do", label: "Can you perform this job today?", group: "capability", hint: "Yes / No / Not yet" },
   { id: "score", label: "Evaluation score", group: "capability", hint: "Out of 100, on the listing rubric" },
   { id: "cycle", label: "Expected cycle time", group: "capability", hint: "Sustained, seconds" },
   { id: "uptime", label: "Expected uptime", group: "capability" },
@@ -302,7 +302,7 @@ export const submittedOffers: readonly SubmittedOffer[] = [
     term: "RaaS, 3 years",
     integration: "WMS lane feed + conveyor PLC handshake",
     risk: "Deformable poly bags outside the stated SKU set",
-    dataRights: "Task video and episode logs for model improvement; site holds a veto",
+    dataRights: "Job video and episode logs for model improvement; site holds a veto",
     support: "4-hour remote response, next-business-day on site, spares held in Austin",
     insurance: "$5M general liability, ISO 10218 assessment complete",
     references: "Two 3PL deployments, both contactable",

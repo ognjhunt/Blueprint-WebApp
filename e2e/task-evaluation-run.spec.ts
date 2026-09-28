@@ -19,7 +19,7 @@ async function fillIntake(page: Page, decisionQuestion: string) {
   await page.getByLabel("Testbed manifest digest").fill(digest);
   await page.getByLabel("Site ID").fill("site-001");
   await page.getByLabel("Task ID").fill("task-001");
-  await page.getByLabel("Task description").fill("Move a tote to the target fixture.");
+  await page.getByLabel("Job description").fill("Move a tote to the target fixture.");
   await page.getByLabel("Site and task conditions (one per line)").fill("dry floor\nday shift");
   await page.getByLabel("What decision do you need to make?").fill(decisionQuestion);
   await page.getByLabel("Candidates or policies, if applicable (one per line)").fill("Candidate A\nCandidate B");

@@ -129,7 +129,7 @@ describe("the switch", () => {
   });
 });
 
-describe("who sees the task library", () => {
+describe("who sees the job library", () => {
   beforeEach(() => listedSite("site-1"));
 
   async function tasks(token?: string) {

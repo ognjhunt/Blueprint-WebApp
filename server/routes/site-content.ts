@@ -12,12 +12,12 @@ const definitions = [
   {
     term: "Managed robot pilot preparation",
     definition:
-      `Blueprint helps a business describe one recurring task and post a pilot price and conditions or a target budget. Robot teams evaluate the task for free. When a team passes, fits the budget, and wants the pilot, Blueprint introduces the two sides by name and charges the site ${formatPrice(matchFeeUsd)} per task; no match, no fee. The site and the team agree the pilot directly, and Blueprint takes no cut of it. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.`,
+      `Blueprint helps a business describe one recurring job and post a pilot price and conditions or a target budget. Robot teams evaluate the job for free. When a team passes, fits the budget, and wants the pilot, Blueprint introduces the two sides by name and charges the site ${formatPrice(matchFeeUsd)} per job; no match, no fee. The site and the team agree the pilot directly, and Blueprint takes no cut of it. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.`,
   },
   {
     term: "Paying-site admission bar",
     definition:
-      "A site can start while exploring. Blueprint records its task, rough affordability, funding status, timing, and purchasing path as they become known. Exploratory interest is not verified funding, a signed order, or a guaranteed purchase. The site separately approves any paid physical pilot.",
+      "A site can start while exploring. Blueprint records its job, rough affordability, funding status, timing, and purchasing path as they become known. Exploratory interest is not verified funding, a signed order, or a guaranteed purchase. The site separately approves any paid physical pilot.",
   },
   {
     term: "Exact-site world model",
@@ -111,13 +111,13 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "Blueprint helps a business turn one recurring task into a scoped, funded, measurable robot pilot and stays involved in the decision afterward.",
+      "Blueprint helps a business turn one recurring job into a scoped, funded, measurable robot pilot and stays involved in the decision afterward.",
   },
   {
     path: "/for-robot-teams",
     title: "Captured workflows for robot teams",
     description:
-      "Robot teams assess scoped site tasks against confirmed capabilities, support requirements, and a possible physical pilot instead of spending weeks on unsuitable opportunities.",
+      "Robot teams assess scoped site jobs against confirmed capabilities, support requirements, and a possible physical pilot instead of spending weeks on unsuitable opportunities.",
   },
   {
     path: "/sites",
@@ -135,13 +135,13 @@ const pages = [
     path: "/how-it-works",
     title: "How It Works",
     description:
-      "Three steps: show one recurring task, review a provider-backed pilot offer, and approve and measure the physical trial.",
+      "Three steps: show one recurring job, review a provider-backed pilot offer, and approve and measure the physical trial.",
   },
   {
     path: "/faq",
     title: "FAQ",
     description:
-      "Plain-language answers about task scoping, controlled evaluation, pilot coordination, onsite responsibilities, measured results, and pricing.",
+      "Plain-language answers about job scoping, controlled evaluation, pilot coordination, onsite responsibilities, measured results, and pricing.",
   },
   {
     path: "/capture",
@@ -153,7 +153,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      `No match, no fee. Sites submit a task and get it screened and evaluated for free, and pay Blueprint ${formatPrice(matchFeeUsd)} per task only when it finds a robot team that passed the evaluation, fits the site's budget, and wants to run the pilot. Blueprint takes no percentage of the pilot or any deployment. The site explicitly authorizes the match fee when opening the task to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched tasks for free; private evaluations cost ${formatPrice(entryPrice)} for one robot policy on one reconstructed real site task. Private results are not shared with the site or used for pilot matching; pilot consideration requires a separate free invited evaluation.`,
+      `No match, no fee. Sites submit a job and get it screened and evaluated for free, and pay Blueprint ${formatPrice(matchFeeUsd)} per job only when it finds a robot team that passed the evaluation, fits the site's budget, and wants to run the pilot. Blueprint takes no percentage of the pilot or any deployment. The site explicitly authorizes the match fee when opening the job to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched jobs for free; private evaluations cost ${formatPrice(entryPrice)} for one robot policy on one reconstructed real site job. Private results are not shared with the site or used for pilot matching; pilot consideration requires a separate free invited evaluation.`,
   },
   {
     path: "/contact",
@@ -182,7 +182,7 @@ const queryThemes = [
   "automate robot site discovery",
   "pre-deployment robot opportunity",
   "controlled digital twin evaluation",
-  "real site task robot evaluation decision",
+  "real site job robot evaluation decision",
   "maintained Site-Task Testbed",
   "compare robot policies on a real task",
   "test robot checkpoint compatibility before field time",
@@ -192,8 +192,8 @@ const queryThemes = [
   "claim ceiling robot evaluation",
   "next cheapest robot experiment",
   "physical evidence required for robot claims",
-  "site operator task evaluation request",
-  "robot team task evaluation request",
+  "site operator job evaluation request",
+  "robot team job evaluation request",
   "simulation and world model evidence boundaries",
   "post-training eligible evidence",
   "capture provenance for robot evaluation",

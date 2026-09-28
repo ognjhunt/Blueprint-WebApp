@@ -71,7 +71,7 @@ function sidecar() {
     status: "completed" as const,
     abstention_reason: null,
     episode_outcome: "appears_complete" as const,
-    summary: "The task appears complete; deterministic scoring remains authoritative.",
+    summary: "The job appears complete; deterministic scoring remains authoritative.",
     events: [],
     possible_missed_events: [],
     contract_considerations: ["No-drop requirements remain contract-specific."],

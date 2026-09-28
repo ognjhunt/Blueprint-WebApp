@@ -250,7 +250,7 @@ describe("GET /api/site-worlds/search", () => {
       expect(response.status).toBe(200);
       const payload = (await response.json()) as any;
       expect(payload.results).toEqual([]);
-      expect(payload.note).toMatch(/task library/);
+      expect(payload.note).toMatch(/job library/);
       expect((await fetch(`${baseUrl}/api/site-worlds/fixture-retail`)).status).toBe(404);
     } finally {
       viewer.staff = true;

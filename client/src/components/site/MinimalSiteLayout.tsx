@@ -15,7 +15,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
           <a href="/how-it-works">How it works</a>
           <a href="/pricing">Pricing</a>
           <a href="/contact/robot-team">Robot teams</a>
-          <a className="ms-button" href="/contact/site-operator">Start a task assessment</a>
+          <a className="ms-button" href="/contact/site-operator">Start a job assessment</a>
         </nav>
         <button ref={menuButton} className="ms-menu-toggle" type="button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="ms-mobile-nav" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
@@ -25,7 +25,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
             <a href="/how-it-works">How it works</a>
             <a href="/pricing">Pricing</a>
             <a href="/contact/robot-team">Robot teams</a>
-            <a className="ms-button" href="/contact/site-operator">Start a task assessment</a>
+            <a className="ms-button" href="/contact/site-operator">Start a job assessment</a>
           </nav>
         )}
       </header>

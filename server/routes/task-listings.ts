@@ -25,7 +25,7 @@ router.route("/owner/:token")
     if (!db) return res.status(503).json({ error: "Listing unavailable" });
     try {
       const snap = await db.collection("inboundRequests").doc(res.locals.requestId).get();
-      if (!snap.exists) return res.status(404).json({ error: "Task not found" });
+      if (!snap.exists) return res.status(404).json({ error: "Job not found" });
       res.set("Cache-Control", "no-store");
       const image = await db.collection("taskThumbnails").doc(res.locals.requestId).get();
       return res.json({ listing: snap.data()?.public_task_listing ?? null, thumbnailPng: image.data()?.pngBase64 ?? null });
@@ -38,16 +38,16 @@ router.route("/owner/:token")
     // fee: no match, no fee. An evaluation-only or hidden card carries none.
     const opensToPilots = parsed.data.enabled && parsed.data.details.opportunity === "open";
     if (opensToPilots && parsed.data.matchFee !== true) {
-      return res.status(400).json({ error: `Agree to the ${formatPrice(matchFeeUsd)} match fee to open this task to pilot proposals.` });
+      return res.status(400).json({ error: `Agree to the ${formatPrice(matchFeeUsd)} match fee to open this job to pilot proposals.` });
     }
     if (!db) return res.status(503).json({ error: "Listing unavailable" });
     try {
       const ref = db.collection("inboundRequests").doc(res.locals.requestId);
       const snap = await ref.get();
-      if (!snap.exists || snap.data()?.request?.buyerType !== "site_operator") return res.status(404).json({ error: "Site task not found" });
+      if (!snap.exists || snap.data()?.request?.buyerType !== "site_operator") return res.status(404).json({ error: "Site job not found" });
       let thumbnail: ReturnType<typeof sanitizeTaskThumbnail> | null = null;
       try { if (parsed.data.thumbnailPng) thumbnail = sanitizeTaskThumbnail(parsed.data.thumbnailPng); }
-      catch { return res.status(400).json({ error: "Choose a valid task image and review its crop." }); }
+      catch { return res.status(400).json({ error: "Choose a valid job image and review its crop." }); }
       const imageRef = db.collection("taskThumbnails").doc(res.locals.requestId);
       let wentLive: string | null = null;
       await db.runTransaction(async transaction => {

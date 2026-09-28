@@ -51,44 +51,44 @@ export function reconstructionIsViewable(record: {
 
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string) => string }> = {
   task_received: {
-    subject: "We have your Blueprint task — here is your link",
-    body: (url) => `Thanks for sending us your task. This private link is where you film the work area on your phone, review the task brief, and follow everything that happens next. It opens your site's task without a password, so please don't forward it.\n\nOpen your task:\n${url}\n\nWe will email you each time something happens on your task.`,
+    subject: "We have your Blueprint job — here is your link",
+    body: (url) => `Thanks for sending us your job. This private link is where you film the work area on your phone, review the job brief, and follow everything that happens next. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nWe will email you each time something happens on your job.`,
   },
   video_received: {
     subject: "We received your Blueprint walkthrough",
-    body: (url) => `Your walkthrough arrived safely. Next we check that it covers the work area and that nothing private is in view, then we build the scene. We will email you when that is done.\n\nOpen your task:\n${url}`,
+    body: (url) => `Your walkthrough arrived safely. Next we check that it covers the work area and that nothing private is in view, then we build the scene. We will email you when that is done.\n\nOpen your job:\n${url}`,
   },
   scene_ready: {
     subject: "Your Blueprint scene is ready to view",
-    body: (url) => `Your scene is ready: a 3D reconstruction of the work area you filmed. You can look around it on your task page.\n\nOpen your task:\n${url}`,
+    body: (url) => `Your scene is ready: a 3D reconstruction of the work area you filmed. You can look around it on your job page.\n\nOpen your job:\n${url}`,
   },
   listing_live: {
-    subject: "Your task card is in the robot-team library",
-    body: (url) => `Robot teams on Blueprint can now see the task card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time from your Blueprint account: https://tryblueprint.io/app/tasks\n\nOpen your task:\n${url}`,
+    subject: "Your job card is in the robot-team library",
+    body: (url) => `Robot teams on Blueprint can now see the job card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time from your Blueprint account: https://tryblueprint.io/app/tasks\n\nOpen your job:\n${url}`,
   },
   screening_cleared: {
-    subject: "Your task cleared our screen",
-    body: (url, detail) => `Thanks for the call. Your task now clears our screen, so we will build your scene from your recording${detail ? ` ${detail}` : ""}.\n\nOpen your task:\n${url}`,
+    subject: "Your job cleared our screen",
+    body: (url, detail) => `Thanks for the call. Your job now clears our screen, so we will build your scene from your recording${detail ? ` ${detail}` : ""}.\n\nOpen your job:\n${url}`,
   },
   screening_not_now: {
-    subject: "An update on your Blueprint task",
-    body: (url) => `Thanks for the call. One answer still means a robot evaluation would not hold up at your site today, so we are not building a scene yet. Your task page shows what is in the way. When it changes, edit your answers there and we will screen the task again.\n\nOpen your task:\n${url}`,
+    subject: "An update on your Blueprint job",
+    body: (url) => `Thanks for the call. One answer still means a robot evaluation would not hold up at your site today, so we are not building a scene yet. Your job page shows what is in the way. When it changes, edit your answers there and we will screen the job again.\n\nOpen your job:\n${url}`,
   },
   screening_started: {
-    subject: "A robot team picked up your task",
-    body: (url) => `A robot team has started an evaluation run against your scene. We will email you again when it reports a result.\n\nOpen your task:\n${url}`,
+    subject: "A robot team picked up your job",
+    body: (url) => `A robot team has started an evaluation run against your scene. We will email you again when it reports a result.\n\nOpen your job:\n${url}`,
   },
   results_ready: {
     subject: "Results are in from a robot team",
-    body: (url, detail) => `A robot team's evaluation run against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one team's robot, not a physical test or a recommendation.\n\nSee it on your task page:\n${url}`,
+    body: (url, detail) => `A robot team's evaluation run against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one team's robot, not a physical test or a recommendation.\n\nSee it on your job page:\n${url}`,
   },
   run_no_result: {
     subject: "A robot team's run ended without a result",
-    body: (url) => `A robot team's run against your scene ended before any episode was observed, so there is no result to show from it. Nothing is needed from you.\n\nOpen your task:\n${url}`,
+    body: (url) => `A robot team's run against your scene ended before any episode was observed, so there is no result to show from it. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
-    body: (url) => `A robot team asked to evaluate your site for a pilot. Your details stay private. If you would like to talk to them, reply to this email and we will introduce you; if not, there is nothing to do.\n\nOpen your task:\n${url}`,
+    body: (url) => `A robot team asked to evaluate your site for a pilot. Your details stay private. If you would like to talk to them, reply to this email and we will introduce you; if not, there is nothing to do.\n\nOpen your job:\n${url}`,
   },
 };
 

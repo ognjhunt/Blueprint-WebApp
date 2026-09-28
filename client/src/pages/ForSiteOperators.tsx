@@ -50,7 +50,7 @@ const accessLevels = [
   {
     step: "01",
     title: "Anonymous summary",
-    detail: "Task type, region, operating window, rough volume. No site identity.",
+    detail: "Job type, region, operating window, rough volume. No site identity.",
   },
   {
     step: "02",

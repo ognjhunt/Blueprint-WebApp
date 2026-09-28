@@ -54,9 +54,9 @@ for (const width of [390, 1440]) {
     await page.goto("/app/packs/source-one/evaluate?select=team");
     await page.getByRole("button",{name:"Reject all",exact:true}).click();
     await expect(page.getByRole("heading",{name:"Move the blue container"})).toBeVisible();
-    await expect(page.getByRole("img",{name:"Task preview"})).toBeVisible();
+    await expect(page.getByRole("img",{name:"Job preview"})).toBeVisible();
     await expect(page.getByText("30 seconds")).toBeVisible();
-    await page.getByText("Task data",{exact:true}).click();
+    await page.getByText("Job data",{exact:true}).click();
     await expect(page.getByText(/Configured scene and task assets/)).toBeVisible();
     await page.getByRole("button",{name:"Add a setup",exact:true}).click();
     for(const [label,value] of [["Setup name","Private mobile setup"],["Robot / embodiment","Mobile robot"],["Policy name","Private policy"],["Version or checkpoint","v1"],["Reference URL","https://example.test/inference"]])

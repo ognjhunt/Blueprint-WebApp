@@ -446,7 +446,7 @@ router.get("/:launchId/policy-canary-setup", async (req, res) => {
   // an equivalent balance reservation and outcome settlement.
   if (!resolved.access.isOps) return res.status(402).json(policyCanaryError(
     "POLICY_CANARY_PAYMENT_REQUIRED",
-    "Start a $99 policy entry from the task library.",
+    "Start a $99 policy entry from the job library.",
   ));
   if (resolved.offering.status !== "configured_controls_pending") {
     return res.status(409).json(policyCanaryError(
@@ -513,7 +513,7 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
   ));
   if (!resolved.access.isOps) return res.status(402).json(policyCanaryError(
     "POLICY_CANARY_PAYMENT_REQUIRED",
-    "Start a $99 policy entry from the task library.",
+    "Start a $99 policy entry from the job library.",
   ));
   if (resolved.offering.status !== "configured_controls_pending") {
     return res.status(409).json(policyCanaryError(
@@ -574,7 +574,7 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
     code: "configured_scene_offering_not_found",
   });
   if (!resolved.access.isOps) return res.status(402).json({
-    error: "Start a $99 policy entry from the task library.",
+    error: "Start a $99 policy entry from the job library.",
     code: "task_evaluation_payment_required",
     paid_execution_requested: false,
   });

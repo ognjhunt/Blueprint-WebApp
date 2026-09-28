@@ -81,7 +81,7 @@ describe("ClaimSite", () => {
     render(<ClaimSite />);
 
     expect(await screen.findByRole("heading", { name: /already in a workspace/i })).toBeInTheDocument();
-    expect(screen.getByText(/task, progress, and available results/i)).toBeInTheDocument();
+    expect(screen.getByText(/job, progress, and available results/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open your workspace/i })).toHaveAttribute("href", "/app");
     expect(screen.queryByText(/robot teams can now evaluate/i)).not.toBeInTheDocument();
   });

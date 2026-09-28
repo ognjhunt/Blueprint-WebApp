@@ -97,7 +97,7 @@ export function decideReconstructionFromReview(
       reconstruct: false,
       blocker: "capture_review_unavailable",
       detail:
-        "The footage review did not complete, so nothing has confirmed this video shows the task. Reconstructing anyway would risk a scene that looks like a result and is not one.",
+        "The footage review did not complete, so nothing has confirmed this video shows the job. Reconstructing anyway would risk a scene that looks like a result and is not one.",
       refilm: false,
     };
   }

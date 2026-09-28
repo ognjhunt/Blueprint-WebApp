@@ -89,7 +89,7 @@ describe("SiteTaskIntake", () => {
     expect(screen.getAllByText(/Not yet/i).length).toBeGreaterThan(0);
     expect(screen.getByText(new RegExp(blocking.unblocks!.slice(0, 40), "i"))).toBeInTheDocument();
     // A rejection is still worth sending — that is how the next metro gets picked.
-    expect(screen.getByText(/We keep tasks on file/i)).toBeInTheDocument();
+    expect(screen.getByText(/We keep jobs on file/i)).toBeInTheDocument();
   });
 
   it("routes a marginal answer to a call rather than to a yes or a no", () => {
@@ -133,7 +133,7 @@ describe("SiteTaskIntake", () => {
     render(<SiteTaskIntake />);
     answerGatesClear();
 
-    const submit = screen.getByRole("button", { name: /Send the task/i });
+    const submit = screen.getByRole("button", { name: /Send the job/i });
     expect(submit).toBeDisabled();
 
     fill("Your name", "Sam Rivera");
@@ -145,7 +145,7 @@ describe("SiteTaskIntake", () => {
     fill("Site address", "500 E 5th St, Austin, TX");
     expect(submit).toBeDisabled();
 
-    fill(/Describe the task as if explaining it/i, "Move totes from the conveyor to a pallet.");
+    fill(/Describe the job as if explaining it/i, "Move totes from the conveyor to a pallet.");
     expect(submit).toBeEnabled();
   });
 });

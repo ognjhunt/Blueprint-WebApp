@@ -168,7 +168,7 @@ describe("the confirmation says what our screen decided", () => {
     expect(body.screening.headline).toMatch(/not building a scene/);
     expect(body.screening.bookingUrl).toBeNull();
     expect(enqueueOutbox).toHaveBeenCalledWith(expect.objectContaining({
-      to: "ops@acme.example", subject: "Your task, and what would have to change",
+      to: "ops@acme.example", subject: "Your job, and what would have to change",
     }));
   });
 });

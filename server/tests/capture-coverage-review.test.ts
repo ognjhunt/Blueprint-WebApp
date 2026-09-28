@@ -88,7 +88,7 @@ describe("what the operator is told from a measured shortfall", () => {
       reconstructed: false,
     });
 
-    expect(verdict.nextAction).toMatch(/shows the task clearly/i);
+    expect(verdict.nextAction).toMatch(/shows the job clearly/i);
     expect(verdict.nextAction).toMatch(/a view of the pallet position/);
     expect(verdict.nextAction).not.toMatch(/better|again/i);
   });

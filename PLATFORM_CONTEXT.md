@@ -32,6 +32,17 @@ What `Blueprint-WebApp` currently ships on its public routes:
 - Public copy is governed by `npm run claims:guard` and the brand-polish route
   table in `scripts/qa/brand-polish.ts`.
 
+### Customer vocabulary
+
+Use **job** for the work a site wants automated: intake, job briefs, shared
+cards, browsing, workspace navigation, progress, pricing descriptions, and
+customer messages. Use **task** for the precise robot action and its technical
+contract: task objects, success criteria, distributions, resets, IDs, and
+scenario or policy interfaces. Keep the formal **Task Evaluation Run** and
+**Site-Task Testbed** names. Customer wording does not rename API routes,
+Firestore fields, artifact schemas, or signed evaluation identities, and does
+not expand a bounded evaluation into proof of an entire workflow.
+
 ### The live tension, stated plainly
 
 The shared block names Arm Decision Proof v1 as the sole active program and

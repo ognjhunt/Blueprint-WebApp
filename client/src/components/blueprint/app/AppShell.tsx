@@ -89,7 +89,7 @@ export function AppShell({
     : isSite
       ? [
           ["overview", "Overview", "/app"],
-          ["tasks", "Tasks", "/app/tasks"],
+          ["tasks", "Jobs", "/app/tasks"],
           ["history", "History", "/app/history"],
           ["settings", "Settings", "/settings"],
         ]
@@ -98,7 +98,7 @@ export function AppShell({
           ...(hasOwnedSites ? [["tasks", "Owned sites", "/app/tasks"]] : []),
           // The $99 task library, not the pilot-openings list the capture-first
           // intake never fills; and the runs and balance a team paid for.
-          ["opportunities", "Task library", "/sites"],
+          ["opportunities", "Job library", "/sites"],
           ["runs", "Runs & balance", "/settings?tab=agent"],
           ["history", "History", "/app/history"],
           ["settings", "Settings", "/settings"],

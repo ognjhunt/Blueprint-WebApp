@@ -140,7 +140,7 @@ export const closingNote =
  * process behaviour.
  */
 export const evaluationPermissions: readonly { permission: string; question: string }[] = [
-  { permission: "Evaluate only", question: "Can this existing robot or policy perform the task?" },
+  { permission: "Evaluate only", question: "Can this existing robot or policy perform the job?" },
   { permission: "Adapt for this site", question: "May the provider tune the system for this deployment?" },
   { permission: "Retain improvements", question: "May the provider keep the site-specific learning?" },
   { permission: "General model training", question: "May site data improve a model used for other customers?" },
@@ -181,7 +181,7 @@ export const accessLadder: readonly { tier: string; title: string; detail: strin
   {
     tier: "01",
     title: "Anonymous",
-    detail: "Task type, broad region, operating window, and expected volume.",
+    detail: "Job type, broad region, operating window, and expected volume.",
   },
   {
     tier: "02",

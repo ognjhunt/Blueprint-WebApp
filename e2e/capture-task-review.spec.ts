@@ -268,7 +268,7 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
     page.getByRole("heading", { name: "Proposed tasks" }),
   ).toBeVisible();
   await expect(
-    page.getByText(/doesn't show the\s+task will succeed/i),
+    page.getByText(/doesn't show the\s+job will succeed/i),
   ).toBeVisible();
   // What the capture showed sits one click away, under the proposed tasks.
   await page.getByText("What Blueprint saw in the capture", { exact: true }).click();
@@ -277,10 +277,10 @@ test("customer reviews Pipeline-authored task intent without a false approval", 
     page.getByText("Inferred objects and affordances"),
   ).toBeVisible();
 
-  const approve = page.getByRole("button", { name: "Approve this task" });
+  const approve = page.getByRole("button", { name: "Approve this job" });
   await expect(approve).toBeDisabled();
   await page
-    .getByPlaceholder(/Why this task is correct/i)
+    .getByPlaceholder(/Why this job is correct/i)
     .fill("This is the exact task we want evaluated.");
   await approve.click();
   await expect(
@@ -421,7 +421,7 @@ test("owner submits bounded scene intent and sees source verification without a 
   await page
     .getByLabel("Destination surface or container", { exact: true })
     .fill("tray");
-  await page.getByLabel(/I confirm this task/).check();
+  await page.getByLabel(/I confirm this job/).check();
   await page
     .getByRole("button", { name: "Confirm task and submit run", exact: true })
     .click();

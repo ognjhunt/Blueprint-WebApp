@@ -72,7 +72,7 @@ beforeEach(() => {
 describe("Sites", () => {
   it("browses owner-approved tasks before requiring a robot setup", async () => {
     render(<Sites />);
-    expect(screen.getByRole("heading", { name: "Task library" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Job library" })).toBeInTheDocument();
     expect(await screen.findByText("Move totes between two stations")).toBeInTheDocument();
     expect(screen.getByText("Past opportunity")).toBeInTheDocument();
     expect(screen.queryByText("Owner-backed warehouse")).not.toBeInTheDocument();
@@ -84,7 +84,7 @@ describe("Sites", () => {
     await screen.findByText("Move totes between two stations");
     fireEvent.change(screen.getByLabelText("Filter by region"), { target: { value: "Europe" } });
     expect(screen.queryByText("Move totes between two stations")).not.toBeInTheDocument();
-    expect(screen.getByText("No tasks match these filters.")).toBeInTheDocument();
+    expect(screen.getByText("No jobs match these filters.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(screen.getByText("Move totes between two stations")).toBeInTheDocument();
   });
@@ -92,7 +92,7 @@ describe("Sites", () => {
   it("says the first tasks are being prepared, without inventing supply, when the library is empty", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }));
     render(<Sites />);
-    expect(await screen.findByRole("heading", { name: "The first site tasks are being prepared." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "The first site jobs are being prepared." })).toBeInTheDocument();
     expect(screen.queryByText("Move totes between two stations")).not.toBeInTheDocument();
   });
 
@@ -141,7 +141,7 @@ describe("Sites", () => {
     render(<SiteDetail params={{ slug: "site-live-1" }} />);
     expect(await screen.findByRole("heading", { name: "Owner-backed warehouse" })).toBeInTheDocument();
     expect(screen.getByText("Move a tote")).toBeInTheDocument();
-    expect(screen.getByText(/shows only that the site has recorded its task/i)).toBeInTheDocument();
+    expect(screen.getByText(/shows only that the site has recorded its job/i)).toBeInTheDocument();
     expect(screen.getByText(/Illustrative workflow image/i)).toBeInTheDocument();
   });
 

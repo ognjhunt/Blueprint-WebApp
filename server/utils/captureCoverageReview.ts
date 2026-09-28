@@ -187,7 +187,7 @@ export async function reviewCaptureCoverage(params: {
           body:
             `${emailGreeting(contact.firstName)}\n\n`
             + (finding.supplementWouldFinish
-              ? "Your footage shows the task clearly. To finish the scene we just need a little more:\n\n"
+              ? "Your footage shows the job clearly. To finish the scene we just need a little more:\n\n"
               : "Your footage needs more coverage before we can build the scene:\n\n")
             + finding.missingCoverage.map((view) => `- ${view}`).join("\n")
             + "\n\nYou can add these from the same capture link — no need to film it all again.\n\n"

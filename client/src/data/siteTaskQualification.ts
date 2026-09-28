@@ -264,7 +264,7 @@ export const gateFields: readonly QualifyingField[] = [
     question: "Is this one repeated job, or a category of jobs?",
     condition: "bounded-task",
     options: [
-      { value: "single", label: "One task, done the same way each time", verdict: "clear" },
+      { value: "single", label: "One job, done the same way each time", verdict: "clear" },
       {
         value: "few_variants",
         label: "A handful of related variations",
@@ -284,7 +284,7 @@ export const gateFields: readonly QualifyingField[] = [
     blocks: "capture",
     id: "objectVariety",
     settledByFootage: true,
-    question: "How many distinct items does this task handle?",
+    question: "How many distinct items does this job handle?",
     hint: "Counting item types, not item counts.",
     condition: "known-objects",
     options: [
@@ -352,7 +352,7 @@ export const gateFields: readonly QualifyingField[] = [
         value: "continuous",
         label: "It runs continuously with people around",
         verdict: "blocking",
-        unblocks: "A maintenance window, a changeover slot, or a shift boundary the task could be moved to.",
+        unblocks: "A maintenance window, a changeover slot, or a shift boundary the job could be moved to.",
       },
     ],
   },
@@ -424,7 +424,7 @@ export const specFields: readonly SpecField[] = [
   },
   {
     id: "payloadWeight",
-    question: "What is the heaviest thing this task handles?",
+    question: "What is the heaviest thing this job handles?",
     whyAsked: "Payload eliminates more candidate robots than any other single answer.",
     options: [
       { value: "under_2kg", label: "Under 2 kg" },
@@ -512,12 +512,12 @@ export const specFields: readonly SpecField[] = [
 export const proseFields: readonly { id: string; question: string; hint: string }[] = [
   {
     id: "taskDescription",
-    question: "Describe the task as if explaining it to someone doing it tomorrow.",
+    question: "Describe the job as if explaining it to someone doing it tomorrow.",
     hint: "Where things start, what happens to them, where they end up, and what a good outcome looks like.",
   },
   {
     id: "whatGoesWrong",
-    question: "What goes wrong with this task today?",
+    question: "What goes wrong with this job today?",
     hint: "Jams, misreads, awkward items, the thing everyone works around. Edge cases are the most useful part of this form.",
   },
 ];
@@ -556,7 +556,7 @@ export const proseFields: readonly { id: string; question: string; hint: string 
  */
 export const taskVideoField = {
   id: "taskVideoUrl",
-  question: "Have a short video of the task being done?",
+  question: "Have a short video of the job being done?",
   optional: "Optional, and the single most useful thing you can send.",
   hint: "Paste up to five links, one per line — every one is kept. Drive, Dropbox, an unlisted upload, anything you can share and unshare. Thirty seconds of the actual cycle beats any description.",
   privacy:

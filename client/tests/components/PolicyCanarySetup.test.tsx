@@ -320,7 +320,7 @@ describe("PolicyCanarySetup", () => {
 
     await waitFor(() => expect(screen.getByText("scene-839873 · simple-relocation")).toBeTruthy());
     expect(screen.getByRole("heading", { level: 1, name: "Run a policy test" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "← Tasks" }).getAttribute("href")).toBe("/app/packs");
+    expect(screen.getByRole("link", { name: "← Jobs" }).getAttribute("href")).toBe("/app/packs");
     expect(screen.queryByText(/internal policy canary|internal recipient|policy canary/i)).toBeNull();
     // The unqualified boundary is stated once, in plain words.
     expect(screen.getAllByText(/results are unqualified/i)).toHaveLength(1);

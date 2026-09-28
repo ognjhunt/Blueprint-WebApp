@@ -207,7 +207,7 @@ export function EvaluationTable({
       <table className="ws-table">
         <thead>
           <tr>
-            <th>Task</th>
+            <th>Job</th>
             <th>Your setup</th>
             <th>Status</th>
             <th>Your result</th>
@@ -221,7 +221,7 @@ export function EvaluationTable({
             <tr key={item.id}>
               <td>
                 <strong>{item.title}</strong>
-                <small>{item.siteType || "Task evaluation"}</small>
+                <small>{item.siteType || "Evaluation"}</small>
               </td>
               <td>{item.setupName || "See run details"}</td>
               <td>

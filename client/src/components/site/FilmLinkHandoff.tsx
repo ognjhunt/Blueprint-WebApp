@@ -80,7 +80,7 @@ export function FilmLinkHandoff({ token }: { token: string }) {
     <div style={{ marginTop: "20px" }}>
       <p className="ms-field-hint" style={{ marginBottom: "8px" }}>
         Someone else doing the filming? Send them a record-only link — they can film and upload, but
-        only you can confirm the task brief.
+        only you can confirm the job brief.
       </p>
 
       <form onSubmit={sendLink} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>

@@ -233,14 +233,14 @@ export function TaskBriefReview(props: {
     if (!name.trim()) return "Please add your name so we know who confirmed this.";
     if (!successUnknown && !successDefinition.trim()) return "Describe a successful cycle, or select I don't know yet.";
     if (!pilotConsideration || !deploymentPath) return "Answer the two pilot and deployment questions, even if you are undecided.";
-    if (!listChoice) return "Choose whether to show this task to robot teams.";
+    if (!listChoice) return "Choose whether to show this job to robot teams.";
     if (listChoice === "list") {
-      if (listing.title.trim().length < 8) return "Describe the task for the public card in a few words.";
-      if (listing.taskFamily.trim().length < 2) return "Add a task family for the public card.";
+      if (listing.title.trim().length < 8) return "Describe the job for the public card in a few words.";
+      if (listing.taskFamily.trim().length < 2) return "Add a job type for the public card.";
       if (listing.pilotPriceStatus === "site_offer" && !listing.pilotBudget.trim()) return "Add a proposed pilot price or choose target budget.";
       if (!listingConsent) return "Confirm you reviewed the public card before listing it.";
       if (listing.opportunity === "open" && !matchFeeAccepted) {
-        return `Agree to the ${formatPrice(matchFeeUsd)} match fee to open this task to pilot proposals, or choose Evaluation only.`;
+        return `Agree to the ${formatPrice(matchFeeUsd)} match fee to open this job to pilot proposals, or choose Evaluation only.`;
       }
     }
     return null;
@@ -262,7 +262,7 @@ export function TaskBriefReview(props: {
         : await signInPasswordAccount(ownerEmail!, password);
     }
     if (user.email?.toLowerCase() !== ownerEmail) {
-      throw new Error(`Use the account for ${ownerEmail}, the email this task was submitted with.`);
+      throw new Error(`Use the account for ${ownerEmail}, the email this job was submitted with.`);
     }
     return user;
   }
@@ -417,10 +417,10 @@ export function TaskBriefReview(props: {
           </p>
         )}
         {state.listed === true && (
-          <p className="ms-field-hint">Your task card is in the robot-team library. You can edit or hide it below.</p>
+          <p className="ms-field-hint">Your job card is in the robot-team library. You can edit or hide it below.</p>
         )}
         {state.listed === "failed" && (
-          <p role="alert" className="ms-field-hint">Your task card was not saved. Add it from “Share a task card” below.</p>
+          <p role="alert" className="ms-field-hint">Your job card was not saved. Add it from “Share a job card” below.</p>
         )}
         {accountOutcome.status === "saved" && (
           <p className="ms-field-hint">
@@ -476,7 +476,7 @@ export function TaskBriefReview(props: {
   return (
     <div className="ms-form">
       <h2 style={{ marginTop: 0 }}>
-        {drafted ? "Here is what we understood. Fix anything we got wrong." : "A few questions about the task"}
+        {drafted ? "Here is what we understood. Fix anything we got wrong." : "A few questions about the job"}
       </h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
         {drafted
@@ -552,7 +552,7 @@ export function TaskBriefReview(props: {
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
         <legend style={{ padding: "0 6px", fontWeight: 600 }}>What counts as success?</legend>
-        <p className="ms-field-hint">Confirm the outcome a robot should achieve. These are your targets for the task, not a claim that any robot meets them.</p>
+        <p className="ms-field-hint">Confirm the outcome a robot should achieve. These are your targets for the job, not a claim that any robot meets them.</p>
         <label htmlFor="success-definition"><span>Successful cycle</span>
           <input id="success-definition" value={successDefinition} onChange={(event) => setSuccessDefinition(event.target.value)} disabled={successUnknown} maxLength={1000} placeholder="For example, the carton reaches the pallet without damage" />
         </label>
@@ -583,23 +583,23 @@ export function TaskBriefReview(props: {
       </fieldset>
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0 10px" }}>
-        <legend style={{ padding: "0 6px", fontWeight: 600 }}>Show this task to robot teams?</legend>
+        <legend style={{ padding: "0 6px", fontWeight: 600 }}>Show this job to robot teams?</legend>
         <p className="ms-field-hint" style={{ marginTop: 0 }}>
-          A card in the task library is how robot teams find your site. It shows only the text you
+          A card in the job library is how robot teams find your site. It shows only the text you
           write here. Your name, contact details, footage and scene stay private.
         </p>
         <label className="ms-check-row">
           <input type="radio" name="list-choice" checked={listChoice === "list"} onChange={() => setListChoice("list")} />
-          Yes, list it in the task library
+          Yes, list it in the job library
         </label>
         <label className="ms-check-row">
           <input type="radio" name="list-choice" checked={listChoice === "not_now"} onChange={() => setListChoice("not_now")} />
           Not now
         </label>
         {listChoice === "list" && (
-          <div aria-label="Public task card">
-            {listingField("title", "Describe the task without naming your site", 160, "Move sealed cartons from a conveyor onto a pallet")}
-            {listingField("taskFamily", "Task family", 60, "Palletizing")}
+          <div aria-label="Public job card">
+            {listingField("title", "Describe the job without naming your site", 160, "Move sealed cartons from a conveyor onto a pallet")}
+            {listingField("taskFamily", "Job type", 60, "Palletizing")}
             {listingField("objects", "Objects (optional)", 160)}
             {listingField("region", "Region (optional)", 80, "US Midwest")}
             <details><summary>Pilot price and conditions (optional)</summary>
@@ -653,8 +653,8 @@ export function TaskBriefReview(props: {
             <>
               <p className="ms-field-hint" style={{ marginTop: 0 }}>
                 We build your scene once the site is saved to an account. Your account is where you
-                follow the task, see results, and hide it from robot teams at any time. Use{" "}
-                {ownerEmail}, the email you sent this task from.
+                follow the job, see results, and hide it from robot teams at any time. Use{" "}
+                {ownerEmail}, the email you sent this job from.
               </p>
               <label htmlFor="account-password">
                 <span>{accountMode === "create" ? "Choose a password" : "Your password"}</span>

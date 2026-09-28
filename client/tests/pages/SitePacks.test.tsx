@@ -60,8 +60,8 @@ describe("Tasks page (/app/packs)", () => {
   it("is titled Tasks and gives each task one status and one next step", async () => {
     render(<SitePacks />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Tasks" })).toBeInTheDocument();
-    const paidLinks = await screen.findAllByRole("link", { name: /evaluate a task · \$99 per policy/i });
+    expect(screen.getByRole("heading", { level: 1, name: "Jobs" })).toBeInTheDocument();
+    const paidLinks = await screen.findAllByRole("link", { name: /evaluate a job · \$99 per policy/i });
     expect(paidLinks).toHaveLength(2);
     paidLinks.forEach((link) => expect(link).toHaveAttribute("href", "/sites"));
     expect(screen.getByText("Ready")).toBeInTheDocument();
@@ -81,13 +81,13 @@ describe("Tasks page (/app/packs)", () => {
     }), { status: 200 }));
     render(<SitePacks />);
     expect(await screen.findByText("Being prepared")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /set up an evaluation|run a policy test|view task/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /set up an evaluation|run a policy test|view job/i })).not.toBeInTheDocument();
   });
 
   it("shows a plain empty state when the team has no tasks", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ offerings: [] }), { status: 200 }));
     render(<SitePacks />);
-    expect(await screen.findByText("No tasks yet")).toBeInTheDocument();
+    expect(await screen.findByText("No jobs yet")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See openings" })).toHaveAttribute("href", "/app/opportunities");
   });
 });
@@ -114,6 +114,6 @@ it("sends a generated-object preview to the team task page without implying revi
   vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ offerings: [value] }), { status: 200 }));
   render(<SitePacks />);
   expect(await screen.findByText("Scene appearance not reviewed yet.")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /evaluate a task · \$99 per policy/i })).toHaveAttribute("href", "/sites");
+  expect(screen.getByRole("link", { name: /evaluate a job · \$99 per policy/i })).toHaveAttribute("href", "/sites");
   expect(screen.queryByRole("link", { name: /run a policy test/i })).not.toBeInTheDocument();
 });

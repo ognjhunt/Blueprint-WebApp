@@ -81,7 +81,7 @@ describe("the public surface carries one pricing model", () => {
     // One site price, charged for the outcome Blueprint delivers. The optional
     // self-directed API price lives in the Terms and the API, not in the FAQ.
     expect(paymentAnswer?.answer).toMatch(/^No match, no fee\./);
-    expect(paymentAnswer?.answer).toContain(`${formatPrice(matchFeeUsd)} per task`);
+    expect(paymentAnswer?.answer).toContain(`${formatPrice(matchFeeUsd)} per job`);
     expect(paymentAnswer?.answer).toContain("no cut of the pilot");
     expect(paymentAnswer?.answer).toContain("Robot teams pay nothing");
     expect(paymentAnswer?.answer).not.toMatch(/5%|capped|introduced provider|\$99/);

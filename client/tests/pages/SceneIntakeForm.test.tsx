@@ -88,7 +88,7 @@ function fill() {
       target: { value: `sha256:${(i ? "b" : "a").repeat(64)}` },
     }),
   );
-  fireEvent.click(screen.getByLabelText(/I confirm this task/));
+  fireEvent.click(screen.getByLabelText(/I confirm this job/));
 }
 describe("scene task intake UI", () => {
   it("submits app source and explicit bounded consent without client actor authority", async () => {
@@ -269,7 +269,7 @@ it("submits a registered public task and both required providers without an uplo
   expect(screen.getByLabelText("Object to move")).toHaveValue("small dark object");
   expect(screen.getByLabelText("Target X (m)")).toBeDisabled();
   fireEvent.change(screen.getByLabelText("Total spending ceiling (USD)"), { target: { value: "50" } });
-  fireEvent.click(screen.getByLabelText(/I confirm this task/));
+  fireEvent.click(screen.getByLabelText(/I confirm this job/));
   fireEvent.click(screen.getByRole("button", { name: "Confirm task and submit run" }));
   await waitFor(() => expect(state.api.mock.calls.some((call) => call[2]?.method === "POST")).toBe(true));
   const submitted = JSON.parse(state.api.mock.calls.find((call) => call[2]?.method === "POST")![2].body);

@@ -37,7 +37,7 @@ export function TaskThumbnailEditor({ existing, onChange }: { existing: string |
     finally { URL.revokeObjectURL(url); }
   }
   return <div className="ms-thumbnail-editor">
-    <label>Task thumbnail (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => void choose(event.target.files?.[0])} /></label>
+    <label>Job thumbnail (optional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => void choose(event.target.files?.[0])} /></label>
     <p className="ms-field-hint">Show the objects and work surface. Crop out faces, logos, signs, shipping labels and distinctive surroundings. Only this preview is uploaded; image metadata is removed.</p>
     {preview && <img src={`data:image/png;base64,${preview}`} width={480} height={300} alt="Thumbnail crop to approve for public display" />}
     {source && <details><summary>Adjust crop</summary>
@@ -45,7 +45,7 @@ export function TaskThumbnailEditor({ existing, onChange }: { existing: string |
       <label>Horizontal position<input type="range" min="0" max="100" value={x} onChange={e => setX(Number(e.target.value))} /></label>
       <label>Vertical position<input type="range" min="0" max="100" value={y} onChange={e => setY(Number(e.target.value))} /></label>
     </details>}
-    {preview && <button type="button" className="ms-text-link" onClick={() => { request.current++; setSource(null); setPreview(null); onChange(null); }}>Use a task illustration instead</button>}
+    {preview && <button type="button" className="ms-text-link" onClick={() => { request.current++; setSource(null); setPreview(null); onChange(null); }}>Use a job illustration instead</button>}
     {error && <p role="alert">{error}</p>}
   </div>;
 }
