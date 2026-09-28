@@ -55,8 +55,8 @@ export default function History() {
         tasks.length ? (
           <TaskRows tasks={tasks} />
         ) : (
-          <Empty title="No past tasks yet">
-            Closed tasks, pilot records, and deployment outcomes will be kept
+          <Empty title="No past jobs yet">
+            Closed jobs, pilot records, and deployment outcomes will be kept
             here.
           </Empty>
         )

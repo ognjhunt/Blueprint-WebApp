@@ -277,7 +277,7 @@ describe("the match reply", () => {
     expect(email.variant).toBe("no_match_yet");
     expect(email.body).toContain("payload — 2 teams ruled out on this");
     // A no about today's list, not a judgement about the site.
-    expect(email.body).toMatch(/statement about today's list, not about your task/i);
+    expect(email.body).toMatch(/statement about today's list, not about your job/i);
     expect(email.body).not.toContain(CALENDLY_URL);
   });
 

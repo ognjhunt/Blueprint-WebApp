@@ -171,7 +171,7 @@ export function TaskItemsPanel({ token, scope }: { token: string; scope: "owner"
 
   return (
     <section style={{ marginTop: "28px", borderTop: "1px solid var(--ms-border, #e5e7eb)", paddingTop: "24px" }}>
-      <h3 style={{ margin: "0 0 6px" }}>Items in this task</h3>
+      <h3 style={{ margin: "0 0 6px" }}>Items in this job</h3>
       <p className="ms-field-hint" style={{ marginBottom: "16px" }}>
         The video shows the work area; a robot also needs the things it handles. If the area was
         clear when you filmed — "there's normally a tote here and boxes there" — add each item and a
@@ -191,7 +191,7 @@ export function TaskItemsPanel({ token, scope }: { token: string; scope: "owner"
         <p className="ms-field-hint">
           {scope === "owner"
             ? "No items yet. Add the objects the robot would pick up, move, or handle."
-            : "No items have been listed for this task yet."}
+            : "No items have been listed for this job yet."}
         </p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "14px" }}>

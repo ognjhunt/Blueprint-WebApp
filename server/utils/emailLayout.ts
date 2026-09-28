@@ -98,7 +98,7 @@ export function textToEmailHtml(text: string): string {
       continue;
     }
     if (isBareUrl(paragraph)) {
-      blocks.push(buttonHtml("Open your task page", paragraph.trim()));
+      blocks.push(buttonHtml("Open your job page", paragraph.trim()));
       continue;
     }
     blocks.push(paragraphHtml(paragraph));

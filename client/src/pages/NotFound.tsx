@@ -4,7 +4,7 @@ import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 
 export default function NotFound() {
   return <MinimalSiteLayout>
-    <SEO title="Page not found | Blueprint" description="This page could not be found. Return to Blueprint to start a task assessment or apply for robot-team early access." noIndex />
+    <SEO title="Page not found | Blueprint" description="This page could not be found. Return to Blueprint to start a job assessment or apply for robot-team early access." noIndex />
     <section className="ms-not-found ms-container">
       <p className="ms-eyebrow">404</p>
       <h1>That page isn’t here.</h1>

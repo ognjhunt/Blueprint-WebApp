@@ -75,7 +75,7 @@ describe("RobotTeamIntake", () => {
     render(<RobotTeamIntake />);
     answerGatesClear();
     expect(screen.getAllByText(/Clears the screen/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/match your envelope against captured site tasks/i)).toBeInTheDocument();
+    expect(screen.getByText(/match your envelope against captured site jobs/i)).toBeInTheDocument();
   });
 
   it("promises no data crosses between the two sides on submission", () => {

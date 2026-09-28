@@ -60,8 +60,8 @@ export default function TaskDetail() {
     <Frame
       query={query}
       active="tasks"
-      title={task?.title || "Task"}
-      back={{ href: "/app/tasks", label: "Your tasks" }}
+      title={task?.title || "Job"}
+      back={{ href: "/app/tasks", label: "Your jobs" }}
       action={
         task && !task.archived ? (
           <button className="ws-link" onClick={() => setEditing(true)}>
@@ -71,8 +71,8 @@ export default function TaskDetail() {
       }
     >
       {!task ? (
-        <Empty title="Task not found" href="/app/tasks" action="Your tasks">
-          This task is unavailable in your account.
+        <Empty title="Job not found" href="/app/tasks" action="Your jobs">
+          This job is unavailable in your account.
         </Empty>
       ) : (
         <>
@@ -106,9 +106,9 @@ export default function TaskDetail() {
           )}
 
           {!task.archived && (
-            <div className="ws-section" aria-label="Your task page">
+            <div className="ws-section" aria-label="Your job page">
               <p>
-                <strong>Your task page.</strong>{" "}
+                <strong>Your job page.</strong>{" "}
                 Review or edit your answers, add footage
                 {task.sceneReady ? ", and open your scene" : ""}.
               </p>
@@ -118,16 +118,16 @@ export default function TaskDetail() {
                 onClick={() => void openTaskPage()}
                 disabled={linkState === "working"}
               >
-                {linkState === "working" ? "Opening…" : "Open your task page"}
+                {linkState === "working" ? "Opening…" : "Open your job page"}
               </button>
               {linkState === "failed" && (
-                <p role="alert">The task page could not be opened. Try again.</p>
+                <p role="alert">The job page could not be opened. Try again.</p>
               )}
             </div>
           )}
 
           <Feedback error={action.error} notice={action.notice} />
-          <div className="ws-tabs" role="tablist" aria-label="Task sections">
+          <div className="ws-tabs" role="tablist" aria-label="Job sections">
             {["overview", "results", "capture"].map((value) => (
               <button
                 key={value}
@@ -143,7 +143,7 @@ export default function TaskDetail() {
           {tab === "overview" && (
             <div className="ws-detail-grid">
               <section>
-                <h2>The task</h2>
+                <h2>The job</h2>
                 <p className="ws-section">
                   {task.terms.successDefinition || task.title}
                 </p>
@@ -201,20 +201,20 @@ export default function TaskDetail() {
                 )}
                 <p className="ws-note">
                   {task.nextStep ||
-                    "Blueprint will review the task and confirm the next step."}
+                    "Blueprint will review the job and confirm the next step."}
                 </p>
               </section>
               <section aria-label="Robot-team library">
                 <h2>Robot-team library</h2>
                 {task.archived ? (
-                  <p className="ws-muted">Closed. The task is off the library and no new runs can start.</p>
+                  <p className="ws-muted">Closed. The job is off the library and no new runs can start.</p>
                 ) : !task.listing?.approved ? (
                   <p className="ws-muted">
-                    Not listed. You choose on your task page whether robot teams can see a card for this task.
+                    Not listed. You choose on your job page whether robot teams can see a card for this job.
                   </p>
                 ) : task.listing.live ? (
                   <>
-                    <p>Listed. Robot teams on Blueprint can see the card you approved and start evaluation runs. Your task page shows the card as they see it.</p>
+                    <p>Listed. Robot teams on Blueprint can see the card you approved and start evaluation runs. Your job page shows the card as they see it.</p>
                     <div className="ws-form-actions">
                       <button
                         className="ws-link"
@@ -401,7 +401,7 @@ export default function TaskDetail() {
                   className="ws-link"
                   onClick={() => setPilotAction("close")}
                 >
-                  Close task
+                  Close job
                 </button>
               )}
             </>
@@ -410,7 +410,7 @@ export default function TaskDetail() {
             <section className="ws-section" aria-label="Your recording">
               <h2>Your recording</h2>
               <p>
-                You film this task yourself on your phone. Your task page shows what has been
+                You film this job yourself on your phone. Your job page shows what has been
                 received, what is still needed, and lets you add more footage.
               </p>
               {task.readiness?.missingViews?.length ? (
@@ -467,7 +467,7 @@ export default function TaskDetail() {
               ) : (
                 <Empty title="Plan your capture">
                   Capture coordination will confirm the date, time, and capturer
-                  for this task.
+                  for this job.
                 </Empty>
               )}
               {!task.capture && !task.archived && (
@@ -601,7 +601,7 @@ export default function TaskDetail() {
                 pilotAction === "invite"
                   ? `Invite ${selection?.teamAlias} to pilot`
                   : pilotAction === "close"
-                    ? "Close this task"
+                    ? "Close this job"
                     : "Record pilot / deployment outcome"
               }
               onClose={() => setPilotAction(null)}
@@ -674,7 +674,7 @@ export default function TaskDetail() {
           )}
           {editing && (
             <Modal
-              title="Request a task edit"
+              title="Request a job edit"
               onClose={() => setEditing(false)}
             >
               <p>

@@ -177,7 +177,7 @@ function SetupForm({
             </select>
             <small id={`${id}-type-note`}>
               {workspaceType === "site_operator"
-                ? "Set up site tasks, captures, and pilot decisions."
+                ? "Set up site jobs, captures, and pilot decisions."
                 : workspaceType === "robot_team"
                   ? "Set up embodiments, policies, checkpoints, containers, or endpoints."
                   : "You can change this in Settings. Saved records are kept."}

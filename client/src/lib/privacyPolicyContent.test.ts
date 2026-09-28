@@ -18,7 +18,7 @@ describe("privacy policy content", () => {
       expect.arrayContaining([
         expect.objectContaining({
           record: "Site footage and capture data",
-          defaultWindow: "180 days after the task closes",
+          defaultWindow: "180 days after the job closes",
         }),
         expect.objectContaining({
           record: "Temporary processing files",
@@ -26,7 +26,7 @@ describe("privacy policy content", () => {
         }),
         expect.objectContaining({
           record: "Scenes, evaluation results, pilot records and reports",
-          defaultWindow: "365 days after the task closes or the contract ends",
+          defaultWindow: "365 days after the job closes or the contract ends",
         }),
         expect.objectContaining({
           record: "Support and privacy requests",

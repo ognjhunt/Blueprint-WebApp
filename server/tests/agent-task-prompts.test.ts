@@ -105,7 +105,7 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     gates: [
       {
         id: "objectVariety",
-        question: "How many distinct items does this task handle?",
+        question: "How many distinct items does this job handle?",
         options: [{ value: "under_10", label: "Fewer than ten" }],
       },
     ],

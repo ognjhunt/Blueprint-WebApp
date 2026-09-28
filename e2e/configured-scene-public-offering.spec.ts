@@ -82,7 +82,7 @@ test("shows an authorized controls-pending configuration and keeps evaluation lo
   await expect(page.getByRole("heading", { name: "Scene 839873 simple relocation" })).toBeVisible();
   await expect(page.getByText("Scene in preparation", { exact: true })).toBeVisible();
   await expect(page.getByText(/No runs available yet/)).toBeVisible();
-  await expect(page.getByAltText("Owner-approved task view: Scene 839873 simple relocation")).toBeVisible();
+  await expect(page.getByAltText("Owner-approved job view: Scene 839873 simple relocation")).toBeVisible();
 });
 
 test("shows the public proof boundary on the offering detail page", async ({ page }) => {

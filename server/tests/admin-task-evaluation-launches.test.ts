@@ -3876,7 +3876,7 @@ describe("saved team evaluation admission", () => {
       const context=await realFetch(`${url}/source-one/team-evaluation-context`);
       expect(context.status).toBe(200);
       expect(await context.json()).toMatchObject({sourceLaunchId:"source-one",setups:[{id:"saved-one"}],
-        taskDetails:{title:"Task evaluation"},checkout:{priceCents:9900,developmentNoCharge:true,paymentsEnabled:false}});
+        taskDetails:{title:"Evaluation"},checkout:{priceCents:9900,developmentNoCharge:true,paymentsEnabled:false}});
       expect(stored.purchase).toEqual({price_cents:9900,currency:"USD",status:"development_no_charge"});
       expect((await post({...body,id:"new-price",execution:{...body.execution,max_total_spend_usd:30}})).status).toBe(400);
       state.isOps=false;

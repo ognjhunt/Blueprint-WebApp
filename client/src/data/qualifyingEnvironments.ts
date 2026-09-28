@@ -63,7 +63,7 @@ export const qualifyingConditions: readonly QualifyingCondition[] = [
   },
   {
     id: "bounded-task",
-    name: "Bounded task",
+    name: "Bounded job",
     test: "Is this one repeated job rather than a category of jobs?",
     failure:
       "When the exceptions become most of the cycles, the acceptance test stops describing the work.",

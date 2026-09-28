@@ -38,7 +38,7 @@ export const freeTier = [
   {
     id: "anonymous-listings",
     label: "Anonymous opportunity listings",
-    detail: "Task, vertical, area, measured baseline and acceptance bar — no operator identity.",
+    detail: "Job, vertical, area, measured baseline and acceptance bar — no operator identity.",
     rationale: "Near-zero marginal cost, and the listing is what makes the board worth reading.",
   },
   {
@@ -52,21 +52,21 @@ export const freeTier = [
     label: "Everything, for the site",
     detail: "Intake, qualification, capture, listing, and the whole evaluation process.",
     rationale:
-      "The site contributes the floor, the access and the task data. Charging the scarce side would suppress the supply this market runs on.",
+      "The site contributes the floor, the access and the job data. Charging the scarce side would suppress the supply this market runs on.",
   },
 ] as const;
 
 /** Charge one. Paid by every team that runs a real evaluation. */
 export const evaluationFee = {
   amount: 1_000,
-  unit: "per site-task, per team",
+  unit: "per site job, per team",
   basis: "under-test" as PricingBasis,
   includes: [
     "Up to 500 episodes against the captured twin",
     "Analysis and the scored result on the listing rubric",
     "The full capture package: object library, demonstrations, site conditions",
   ],
-  note: "Not a compute markup. It buys a captured task, a standardised test and a scored result.",
+  note: "Not a compute markup. It buys a captured job, a standardised test and a scored result.",
 } as const;
 
 /**
@@ -78,7 +78,7 @@ export const evaluationFee = {
 export const awardFee = {
   /** What a won site-task costs in total, evaluation fee included. */
   total: 10_000,
-  unit: "total, per site-task won",
+  unit: "total, per site job won",
   basis: "under-test" as PricingBasis,
   rule: "A team that loses pays $1,000. A team that wins pays $10,000 — the same $1,000 plus $9,000 on award.",
   whoPays:
@@ -96,7 +96,7 @@ export const deploymentFee = awardFee;
 /** Everything a robot team can owe, in one place. */
 export const chargeSummary = [
   { id: "lose", label: "You evaluate and do not win", amount: 1_000 },
-  { id: "win", label: "You evaluate and win the task", amount: 10_000 },
+  { id: "win", label: "You evaluate and win the job", amount: 10_000 },
   { id: "site", label: "The site, in every case", amount: 0 },
 ] as const;
 

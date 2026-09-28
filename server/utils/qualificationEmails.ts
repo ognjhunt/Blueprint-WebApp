@@ -89,14 +89,14 @@ export function buildNotYetEmail(params: {
   const blockers = triage.blockers.filter(Boolean);
   const site = siteName?.trim();
 
-  const subject = "Your task, and what would have to change";
+  const subject = "Your job, and what would have to change";
 
   const body = [
     emailGreeting(firstNameOf(firstName)),
     "",
     site
-      ? `Thanks for describing the task at ${site}. We screen every site against four conditions before anyone commits engineering time, and this one does not clear all four today.`
-      : "Thanks for describing the task. We screen every site against four conditions before anyone commits engineering time, and this one does not clear all four today.",
+      ? `Thanks for describing the job at ${site}. We screen every site against four conditions before anyone commits engineering time, and this one does not clear all four today.`
+      : "Thanks for describing the job. We screen every site against four conditions before anyone commits engineering time, and this one does not clear all four today.",
     "",
     blockers.length
       ? "Specifically:"
@@ -104,9 +104,9 @@ export function buildNotYetEmail(params: {
     blockers.length ? "" : "",
     blockers.length ? bulletList(blockers) : "",
     "",
-    "That is a not-yet rather than a no, and the distinction is real. Each of those is a condition that can be engineered into place — it is work someone can decide to fund, and sites do. If any of it changes, reply to this email and we will pick the task back up from where it is now rather than starting over.",
+    "That is a not-yet rather than a no, and the distinction is real. Each of those is a condition that can be engineered into place — it is work someone can decide to fund, and sites do. If any of it changes, reply to this email and we will pick the job back up from where it is now rather than starting over.",
     "",
-    "We are keeping the task on file either way. No call needed for this answer — there is nothing a conversation would settle that the list above has not.",
+    "We are keeping the job on file either way. No call needed for this answer — there is nothing a conversation would settle that the list above has not.",
     "",
     "Thanks for the detail you sent. It was more than most.",
     "",
@@ -161,8 +161,8 @@ export function buildLetsTalkEmail(params: {
     emailGreeting(firstNameOf(firstName)),
     "",
     site
-      ? `Thanks for describing the task at ${site}. It clears the conditions that can end a submission outright, and there ${openQuestions.length === 1 ? "is one thing" : `are ${openQuestions.length || "a few"} things`} a form genuinely cannot settle.`
-      : `Thanks for describing the task. It clears the conditions that can end a submission outright, and there ${openQuestions.length === 1 ? "is one thing" : `are ${openQuestions.length || "a few"} things`} a form genuinely cannot settle.`,
+      ? `Thanks for describing the job at ${site}. It clears the conditions that can end a submission outright, and there ${openQuestions.length === 1 ? "is one thing" : `are ${openQuestions.length || "a few"} things`} a form genuinely cannot settle.`
+      : `Thanks for describing the job. It clears the conditions that can end a submission outright, and there ${openQuestions.length === 1 ? "is one thing" : `are ${openQuestions.length || "a few"} things`} a form genuinely cannot settle.`,
     "",
     openQuestions.length
       ? footageAnswers
@@ -277,8 +277,8 @@ export function buildMatchEmail(params: {
       emailGreeting(firstNameOf(firstName)),
       "",
       site
-        ? `${site} clears the screen, and ${matched === 1 ? "one robot team on our list clears" : `${matched} robot teams on our list clear`} the constraints your task sets.`
-        : `Your task clears the screen, and ${matched === 1 ? "one robot team on our list clears" : `${matched} robot teams on our list clear`} the constraints it sets.`,
+        ? `${site} clears the screen, and ${matched === 1 ? "one robot team on our list clears" : `${matched} robot teams on our list clear`} the constraints your job sets.`
+        : `Your job clears the screen, and ${matched === 1 ? "one robot team on our list clears" : `${matched} robot teams on our list clear`} the constraints it sets.`,
       "",
       "That is a mechanical check against what each team has told us or demonstrated — payload, the safety envelope your access window implies, and the budget band you gave us. It is not a recommendation yet, and it is not an introduction: we confirm interest on their side before putting anyone in front of you.",
       provisional > 0
@@ -301,8 +301,8 @@ export function buildMatchEmail(params: {
     emailGreeting(firstNameOf(firstName)),
     "",
     site
-      ? `${site} clears our screening conditions — the site is workable. What it does not yet have is a robot team on our list that clears the constraints your task sets.`
-      : "Your task clears our screening conditions. What it does not yet have is a robot team on our list that clears the constraints it sets.",
+      ? `${site} clears our screening conditions — the site is workable. What it does not yet have is a robot team on our list that clears the constraints your job sets.`
+      : "Your job clears our screening conditions. What it does not yet have is a robot team on our list that clears the constraints it sets.",
     "",
     blockers.length ? "Where it comes apart:" : "",
     blockers.length ? "" : "",
@@ -316,9 +316,9 @@ export function buildMatchEmail(params: {
         )
       : "",
     "",
-    "That is a statement about today's list, not about your task. The list grows, and a change on your side — a slower acceptable cycle, a different acceptance threshold — can also change the answer. Tell us if either moves and we will re-run it.",
+    "That is a statement about today's list, not about your job. The list grows, and a change on your side — a slower acceptable cycle, a different acceptance threshold — can also change the answer. Tell us if either moves and we will re-run it.",
     "",
-    "We keep the task on file either way.",
+    "We keep the job on file either way.",
     "",
     EMAIL_SIGN_OFF,
   ]

@@ -1,7 +1,7 @@
 // @vitest-environment node
 /**
  * A top-up returns the payer to the task they were buying and leaves them a
- * receipt. Before, checkout came back to the bare task library, where the
+ * receipt. Before, checkout came back to the bare job library, where the
  * confirmation rendered inside a closed section nobody opens.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";

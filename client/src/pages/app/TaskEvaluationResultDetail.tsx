@@ -186,8 +186,8 @@ export function ResultContent({ result, user }: { result: TaskEvaluationResultSi
     <>
       <header className="ws-heading">
         <div>
-          <p>Task evaluation result</p>
-          <h1>{envelope?.decision_question || "Task evaluation result"}</h1>
+          <p>Evaluation result</p>
+          <h1>{envelope?.decision_question || "Evaluation result"}</h1>
         </div>
       </header>
       {developmentSurface ? <p className="text-sm text-ink-600">Development test on an authored surface; captured scene integration pending.</p> : null}
@@ -252,7 +252,7 @@ export default function TaskEvaluationResultDetail() {
   const { result, pending, currentUser, notFound, isLoading, error } = useTaskEvaluationResult(recordId);
   return (
     <AppShell active="runs" breadcrumb={`results / ${recordId || "unknown"}`} publicView={!currentUser}>
-      <Helmet><title>Task evaluation result · Blueprint</title><meta name="description" content="A task evaluation result, its episodes, and evidence downloads." /><meta name="robots" content="noindex,nofollow,noarchive" /></Helmet>
+      <Helmet><title>Evaluation result · Blueprint</title><meta name="description" content="An evaluation result, its episodes, and evidence downloads." /><meta name="robots" content="noindex,nofollow,noarchive" /></Helmet>
       <div className="mx-auto flex max-w-[76rem] flex-col gap-6 px-4 py-8 lg:px-8">
         <Link href={currentUser ? "/app/runs" : "/"} className="ws-back">← {currentUser ? "All runs" : "Blueprint"}</Link>
         {isLoading ? <BuyerAppLoadingState /> : null}

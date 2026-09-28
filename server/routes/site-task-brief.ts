@@ -138,7 +138,7 @@ function screeningOutcome(disposition: string): {
     return {
       headline: "Not yet: we are not building a scene for this site today.",
       detail:
-        "One of your answers means a robot evaluation would not hold up here. Your task page shows "
+        "One of your answers means a robot evaluation would not hold up here. Your job page shows "
         + "what is in the way. When it changes, update the brief and we will screen it again.",
       bookingUrl: null,
     };
@@ -241,7 +241,7 @@ function shotListFor(brief: SiteTaskBriefRecord): { id: string; label: string }[
 const SHOT_LABELS: Record<string, string> = {
   sceneStability: "The equipment and layout, so we can see what is fixed in place",
   taskShape: "Where the job starts and where it ends — the spots, with nothing moving through them",
-  objectVariety: "The different items this task handles, if they vary",
+  objectVariety: "The different items this job handles, if they vary",
   accessWindow: "The space around the station, and how someone gets to it",
   humanProximity: "Where people usually stand or pass — the spots, with no one in frame",
   cycleTime: "The whole stretch the job runs across, end to end, with it stopped",
@@ -593,7 +593,7 @@ router.post("/:token/fresh-link", async (req: Request, res: Response) => {
   const requestId = requestIdFromExpiredCaptureUploadToken(String(req.params.token || ""));
   const reply = () => res.status(202).json({
     ok: true,
-    message: "If this link was one of ours, a fresh one is on its way to the email address the task was sent from.",
+    message: "If this link was one of ours, a fresh one is on its way to the email address the job was sent from.",
   });
   if (!requestId || !db) return reply();
   try {
@@ -605,11 +605,11 @@ router.post("/:token/fresh-link", async (req: Request, res: Response) => {
       requestId,
       kind: "fresh_link",
       to: request.contactEmail,
-      subject: "Your new Blueprint task link",
+      subject: "Your new Blueprint job link",
       body: [
         emailGreeting(request.contactFirstName),
-        "Here is a fresh private link to your task. It opens your task without a password, so please don't forward it.",
-        `Open your task:\n${captureUploadUrlFor(requestId, "owner")}`,
+        "Here is a fresh private link to your job. It opens your job without a password, so please don't forward it.",
+        `Open your job:\n${captureUploadUrlFor(requestId, "owner")}`,
         EMAIL_SIGN_OFF,
       ].join("\n\n"),
       replyTo: "ops@tryblueprint.io",
@@ -636,7 +636,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
   if (payload.scope !== "owner") {
     return res.status(403).json({
       error:
-        "This link is for recording only. Confirming the task brief has to be done from the "
+        "This link is for recording only. Confirming the job brief has to be done from the "
         + "original link we sent the site's operator.",
       code: "capture_token_film_only",
     });
@@ -710,9 +710,9 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
             : `Film the work area with your phone: ${captureUploadUrlFor(payload.requestId)}.`
           : null;
         const accountStep = result.disposition === "qualified" && !request.account_owner_uid
-          ? "Create and verify your site account from your task page before we build the scene."
+          ? "Create and verify your site account from your job page before we build the scene."
           : null;
-        const message = email?.body ?? `${emailGreeting(firstName)}\n\nYour task brief is confirmed. ${result.readiness.nextAction}\n\n${EMAIL_SIGN_OFF}`;
+        const message = email?.body ?? `${emailGreeting(firstName)}\n\nYour job brief is confirmed. ${result.readiness.nextAction}\n\n${EMAIL_SIGN_OFF}`;
         const additions = [nextStep, accountStep].filter(Boolean).join("\n\n");
         const body = additions ? message.replace(EMAIL_SIGN_OFF, `${additions}\n\n${EMAIL_SIGN_OFF}`) : message;
         await enqueueOutbox({
@@ -720,7 +720,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
           requestId: payload.requestId,
           to: request.contactEmail,
           kind: result.disposition === "qualified" ? "brief_confirmed" : "input_needed",
-          subject: email?.subject ?? (result.brief.captureMode === "site_visit" ? "Plan your Austin capture visit" : "Blueprint — your task brief is confirmed"),
+          subject: email?.subject ?? (result.brief.captureMode === "site_visit" ? "Plan your Austin capture visit" : "Blueprint — your job brief is confirmed"),
           body,
         });
         void deliverOutbox({ limit: 5 }).catch((error) =>

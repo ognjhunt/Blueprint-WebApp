@@ -16,10 +16,10 @@ export default function Tasks() {
     <Frame
       query={query}
       active="tasks"
-      title="Your tasks"
+      title="Your jobs"
       action={
         <ActionLink href="/contact/site-operator" primary>
-          Request a task
+          Describe a job
         </ActionLink>
       }
     >
@@ -36,8 +36,8 @@ export default function Tasks() {
           <input
             className="ws-search"
             type="search"
-            aria-label="Search your tasks"
-            placeholder="Search tasks or sites"
+            aria-label="Search your jobs"
+            placeholder="Search jobs or sites"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -45,12 +45,12 @@ export default function Tasks() {
             <TaskRows tasks={tasks} />
           ) : (
             <Empty
-              title={search ? "No matching tasks" : "Start with one task"}
+              title={search ? "No matching jobs" : "Start with one job"}
               href={search ? undefined : "/contact/site-operator"}
-              action="Request a task"
+              action="Describe a job"
             >
               {search
-                ? "Try another task name or site."
+                ? "Try another job name or site."
                 : "Request a capture and evaluation for the work you want to automate."}
             </Empty>
           )}

@@ -9,7 +9,7 @@ export const faqItems = [
   {
     question: "What does Blueprint do?",
     answer:
-      "We turn one recurring task into a provider-backed pilot offer when a credible fit exists. We use evaluation where it improves that offer, record the trial's physical results, and help the site decide what follows. The provider or integrator installs and operates the robot.",
+      "We turn one recurring job into a provider-backed pilot offer when a credible fit exists. We use evaluation where it improves that offer, record the trial's physical results, and help the site decide what follows. The provider or integrator installs and operates the robot.",
   },
   {
     question: "Why is that useful?",
@@ -17,14 +17,14 @@ export const faqItems = [
       "Without Blueprint, every robot company redoes site discovery, modelling and early testing from scratch — and basic mismatches often surface only after engineers and hardware are already onsite. That is slow and expensive on both sides.",
   },
   {
-    question: "How do you find a robot team for my task?",
+    question: "How do you find a robot team for my job?",
     answer:
-      "We match your task to participating teams' configurations and run supported evaluations on tasks you approve for access. When a team passes, fits your budget, and wants your pilot, we introduce you by name right away. Teams that don't match stay anonymous. Evaluation alone does not commit either side to a pilot.",
+      "We match your job to participating teams' configurations and run supported evaluations on jobs you approve for access. When a team passes, fits your budget, and wants your pilot, we introduce you by name right away. Teams that don't match stay anonymous. Evaluation alone does not commit either side to a pilot.",
   },
   {
     question: "Do I need to book a call or host Blueprint onsite?",
     answer:
-      "No. Start with a task description and phone footage. We collect missing details and approvals in writing. A call may help with an unusual scope, while the robot provider or integrator handles the physical work onsite.",
+      "No. Start with a job description and phone footage. We collect missing details and approvals in writing. A call may help with an unusual scope, while the robot provider or integrator handles the physical work onsite.",
   },
   {
     question: "Does Blueprint replace onsite integration?",
@@ -44,17 +44,17 @@ export const faqItems = [
   {
     question: "What if a robot does not fit?",
     answer:
-      "We explain the specific mismatch or missing capability and what might need to change. If no robot team can credibly support the task, you pay nothing, and we do not recommend spending on a physical pilot.",
+      "We explain the specific mismatch or missing capability and what might need to change. If no robot team can credibly support the job, you pay nothing, and we do not recommend spending on a physical pilot.",
   },
   {
     question: "Can we set the pilot price and conditions?",
     answer:
-      "Yes. For a defined task, propose what you would pay and what the pilot must include. A provider can accept, suggest changes, or decline. If costs are still uncertain, mark the number as a target budget instead. A posted price is not a purchase order. Blueprint takes no cut of the pilot.",
+      "Yes. For a defined job, propose what you would pay and what the pilot must include. A provider can accept, suggest changes, or decline. If costs are still uncertain, mark the number as a target budget instead. A posted price is not a purchase order. Blueprint takes no cut of the pilot.",
   },
   {
     question: "How is Blueprint paid?",
     answer:
-      `No match, no fee. Submitting a task, screening and evaluation are free. When we find a robot team that passed the evaluation for your task, fits your budget, and wants your pilot, we introduce you and charge ${formatPrice(matchFeeUsd)} per task, however many teams match. Blueprint takes no cut of the pilot or any deployment. Robot teams pay nothing to join or to evaluate the tasks we match them to.`,
+      `No match, no fee. Submitting a job, screening and evaluation are free. When we find a robot team that passed the evaluation for your job, fits your budget, and wants your pilot, we introduce you and charge ${formatPrice(matchFeeUsd)} per job, however many teams match. Blueprint takes no cut of the pilot or any deployment. Robot teams pay nothing to join or to evaluate the jobs we match them to.`,
   },
 ];
 
@@ -63,7 +63,7 @@ export default function FAQ() {
     <>
       <SEO
         title="FAQ | Robot evaluation and deployment | Blueprint"
-        description="Plain answers about scoping a task, arranging a measured robot pilot, physical responsibilities, and pricing."
+        description="Plain answers about scoping a job, arranging a measured robot pilot, physical responsibilities, and pricing."
         canonical="/faq"
         jsonLd={[
           webPageJsonLd({
@@ -83,7 +83,7 @@ export default function FAQ() {
               Plain English
             </p>
             <h1 className="mt-6 max-w-[17ch] font-display uppercase text-[clamp(2.8rem,5.5vw,5.4rem)] font-semibold leading-[0.96] tracking-[0.005em] text-runway-text">
-              We help turn one task into a measured pilot.
+              We help turn one job into a measured pilot.
             </h1>
             <p className="mt-7 max-w-[44rem] text-body-l leading-8 text-runway-mute">
               Short answers. No jargon.

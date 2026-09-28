@@ -315,11 +315,11 @@ export function SiteCaptureStart() {
               <p className="ms-field-hint">{state.uploadMessage}</p>
             )}
             <p className="ms-field-hint">
-              Next, check the task brief we drafted from it. You can do that here or on the phone;
+              Next, check the job brief we drafted from it. You can do that here or on the phone;
               it is the same page.
             </p>
             <p style={{ marginTop: "20px" }}>
-              <a className="ms-button ms-button-large" href={state.captureUrl}>Review your task brief</a>
+              <a className="ms-button ms-button-large" href={state.captureUrl}>Review your job brief</a>
             </p>
             <CaptureLiveStatus captureUrl={state.captureUrl} />
           </>
@@ -350,11 +350,11 @@ export function SiteCaptureStart() {
             {!onAPhone && <CaptureHandoffQr url={state.captureUrl} label="Point your phone at this to film" />}
             <p style={{ marginTop: "20px" }}>
               <a className={onAPhone || state.hasFootage ? "ms-button ms-button-large" : "ms-text-link"} href={state.captureUrl}>
-                {state.hasFootage ? "Open the uploader" : onAPhone ? "Open the camera" : "Open your task page"}
+                {state.hasFootage ? "Open the uploader" : onAPhone ? "Open the camera" : "Open your job page"}
               </a>
             </p>
             <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-              Keep this link — it is how you come back to this submission, and it is where the task
+              Keep this link — it is how you come back to this submission, and it is where the job
               brief we draft from your job description will appear for you to correct. Film the
               work, not the worker: hands and objects are what a robot team needs to see.
             </p>
@@ -498,7 +498,7 @@ export function SiteCaptureStart() {
               <span className="ms-field-hint">
                 Filming it yourself? Leave this blank. If someone else on-site will do it, put their
                 email here and we will send them a record-only link — they can film and upload,
-                and only you can confirm the task brief.
+                and only you can confirm the job brief.
               </span>
               <input
                 id="start-filmer"

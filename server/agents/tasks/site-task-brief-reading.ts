@@ -86,7 +86,8 @@ export const siteTaskBriefReadingTask: StructuredTaskDefinition<
   },
   build_prompt(input) {
     return buildCacheFriendlyPrompt({
-      instructions: `You are reading what a site operator wrote about one repetitive job, so Blueprint can draft the task brief they will confirm.
+      instructions: `You are reading what a site operator wrote about one repetitive job, so Blueprint can draft the job brief they will confirm.
+Use "job" in operator-facing explanations for the work the site wants automated. Retain "task" for precise robot actions and technical conditions; never rename schema keys or alter quotations from the operator.
 
 Output JSON only. No markdown.
 

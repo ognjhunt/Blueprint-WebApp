@@ -138,7 +138,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "add_views",
       headline: input.supplementWouldFinish
-        ? "Your footage shows the task. One or two more views would finish the scene."
+        ? "Your footage shows the job. One or two more views would finish the scene."
         : "Your footage needs more coverage before we can build the scene.",
       operatorAction: `Add: ${input.missingViews.join(", ")}.`,
     };
@@ -148,7 +148,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "received",
-      headline: "We have your task and are reading what you sent.",
+      headline: "We have your job and are reading what you sent.",
       operatorAction: null,
     };
   }
@@ -157,7 +157,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "confirm_brief",
-      headline: "We drafted your task brief. Check it and correct anything we got wrong.",
+      headline: "We drafted your job brief. Check it and correct anything we got wrong.",
       operatorAction: "Review and confirm the brief.",
     };
   }
@@ -202,7 +202,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       decision: "not_now",
       headline:
         "Not yet. One of your answers means a robot evaluation would not hold up at this site today, so we are not building a scene.",
-      operatorAction: "Open your task brief to see what is in the way. When it changes, update the brief.",
+      operatorAction: "Open your job brief to see what is in the way. When it changes, update the brief.",
     };
   }
   if (input.disposition === "needs_conversation") {
@@ -223,7 +223,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "save_account",
-      headline: "Your task clears our screen. Save it to your account and we start building your scene.",
+      headline: "Your job clears our screen. Save it to your account and we start building your scene.",
       operatorAction: "Save this site to your account and verify your email.",
     };
   }
@@ -232,7 +232,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "assessing",
-      headline: "Your scene preview is ready. We are preparing the task for simulation.",
+      headline: "Your scene preview is ready. We are preparing the job for simulation.",
       operatorAction: null,
     };
   }
@@ -243,7 +243,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "assessing",
-      headline: "We can assess this task. Your capture covers the work area and we are preparing it.",
+      headline: "We can assess this job. Your capture covers the work area and we are preparing it.",
       operatorAction: null,
     };
   }
@@ -268,7 +268,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   return {
     ...base,
     decision: "record",
-    headline: "We can assess this task. A recording of the work area is the next step.",
+    headline: "We can assess this job. A recording of the work area is the next step.",
     operatorAction: "Film the work area from your capture link.",
   };
 }

@@ -131,18 +131,18 @@ export default function TeamEvaluationSelection() {
   };
   const [statusTitle,statusDescription]=statusCopy[status || ""] || ["Evaluation queued", "Your request is saved. This page will update as the evaluation progresses."];
   const canStart=context?.checkout.developmentNoCharge || context?.checkout.paymentsEnabled;
-  return <AppShell active="runs" breadcrumb="task">
+  return <AppShell active="runs" breadcrumb="job">
     <div className="mx-auto max-w-3xl px-5 py-10">
-      <Link href="/app/packs" className="ws-link text-sm">Back to tasks</Link>
-      <h1 className="mt-6 text-3xl font-medium">{context?.taskDetails.title || "Task evaluation"}</h1>
+      <Link href="/app/packs" className="ws-link text-sm">Back to jobs</Link>
+      <h1 className="mt-6 text-3xl font-medium">{context?.taskDetails.title || "Evaluation"}</h1>
       {error && <p role="alert" className="mt-5 text-sm text-red-700">{error}</p>}
-      {!context && !error && <p className="mt-6">Loading task…</p>}
+      {!context && !error && <p className="mt-6">Loading job…</p>}
       {context && <>
         <div className="mt-6 overflow-hidden rounded">
-          <OfferingThumbnail thumbnailUrl={context.thumbnailUrl} label="Task preview" currentUser={currentUser} />
+          <OfferingThumbnail thumbnailUrl={context.thumbnailUrl} label="Job preview" currentUser={currentUser} />
         </div>
         <p className="mt-5 text-ink-700">{context.taskDetails.description}</p>
-        <section aria-label="Task requirements" className="mt-6">
+        <section aria-label="Job requirements" className="mt-6">
           <h2 className="text-lg font-medium">Requirements</h2>
           {context.taskDetails.requirements.length ? <dl className="mt-3 grid gap-x-8 gap-y-3 sm:grid-cols-2">
             {context.taskDetails.requirements.map(row=><div key={row.label}>
@@ -151,7 +151,7 @@ export default function TeamEvaluationSelection() {
           </dl> : <p className="mt-2 text-sm text-ink-500">Requirements have not been provided.</p>}
         </section>
         <details className="mt-6 border-y border-line py-4">
-          <summary className="cursor-pointer">Task data</summary>
+          <summary className="cursor-pointer">Job data</summary>
           <p className="mt-3 text-sm">Configured scene and task assets · {(context.dataSummary.bundleSizeBytes/1024/1024).toFixed(1)} MB</p>
           <p className="mt-2 text-sm">{context.testEnvironment?.label || "Development simulation. Results describe this test setup."}</p>
           <p className="mt-2 text-sm text-ink-500">Generated geometry and estimated physics are not measured real-world performance.</p>
@@ -167,7 +167,7 @@ export default function TeamEvaluationSelection() {
         {receipt.pipeline_status?.result_run_id && <TeamEvaluationResults
           key={`${currentUser?.uid}:${currentUser?.tenantId}:${sourceLaunchId}:${receipt.pipeline_status.result_run_id}`}
           runId={receipt.pipeline_status.result_run_id} sourceLaunchId={sourceLaunchId} />}
-      </div> : context && <section aria-label="Run this task" className="mt-7">
+      </div> : context && <section aria-label="Run this job" className="mt-7">
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="text-xl font-medium">Test your robot</h2>
           <p className="text-xl font-medium">$99 <span className="text-sm font-normal text-ink-500">per policy entry</span></p>
@@ -195,7 +195,7 @@ export default function TeamEvaluationSelection() {
             </select>
           </label>
           {!addingSetup && <button type="button" onClick={()=>setAddingSetup(true)} className="text-sm underline">Add a setup</button>}
-          {setup?.robotDescription?.source==="model" && <p className="text-sm">This robot model needs simulation validation before this task can run. Your setup is saved.</p>}
+          {setup?.robotDescription?.source==="model" && <p className="text-sm">This robot model needs simulation validation before this job can run. Your setup is saved.</p>}
           {robotVersionChanged && <p className="text-sm">This robot configuration has changed. Update your saved setup before starting.</p>}
           {setup && !setup.executionBindingId && !setup.robotDescription && <label className="block">Simulation configuration
             <select required value={configurationId} onChange={e=>setConfigurationId(e.target.value)}
@@ -207,7 +207,7 @@ export default function TeamEvaluationSelection() {
           </label>}
           {configuration && <p className="text-sm">Policies: {configuration.policy_candidates.map(p=>p.id.replaceAll("_"," ")).join(" and ")}</p>}
           {context.checkout.developmentNoCharge && <p className="text-sm">Development test — you won’t be charged.</p>}
-          {!canStart && <p className="text-sm">Payment is not enabled for this task yet.</p>}
+          {!canStart && <p className="text-sm">Payment is not enabled for this job yet.</p>}
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" required className="mt-1" />
             <span>I confirm the task and authorize evaluation with this setup.</span>
           </label>

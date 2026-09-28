@@ -158,7 +158,7 @@ function WorkspaceSettings() {
             <p className="ws-muted">
               {robot
                 ? "Find openings, evaluate your robot, and track pilot decisions."
-                : "Manage captures, task evaluations, and pilot decisions."}
+                : "Manage captures, job evaluations, and pilot decisions."}
             </p>
             <div className="ws-form-actions">
               <Link className="ws-link" href="/app">

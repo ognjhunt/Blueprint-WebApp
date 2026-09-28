@@ -41,7 +41,7 @@ export const capturerBetaGuide: BetaCohortGuide = {
       body:
         "The beta is a bounded cohort, not an open gig marketplace. Capture work stays limited by launch scope, device readiness, site permission, privacy posture, and cohort capacity.",
       items: [
-        "Best-fit sites are industrial, logistics, warehouse, retail backroom, lab, and facility-task spaces where lawful access is clear.",
+        "Best-fit sites are industrial, logistics, warehouse, retail backroom, lab, and facility-job spaces where lawful access is clear.",
         "Open capture can be submitted for review, but operator-approved or assigned capture has stronger downstream value.",
         "Do not record private homes, employee-only areas, payment terminals, restricted rooms, private records, or people whenever avoidable.",
       ],
@@ -52,7 +52,7 @@ export const capturerBetaGuide: BetaCohortGuide = {
         "The first capture should prove that the route, device, permissions, and upload path work before anyone treats the account as ready for higher-value assignments.",
       items: [
         "Confirm site permission and restricted zones before pressing record.",
-        "Walk slowly, pause at transitions, keep the route stable, and capture floor/task context instead of cinematic footage.",
+        "Walk slowly, pause at transitions, keep the route stable, and capture floor/job context instead of cinematic footage.",
         "Upload from a strong network and keep the app open until the bundle shows upload progress or background handoff.",
       ],
     },
@@ -100,9 +100,9 @@ export const buyerBetaGuide: BetaCohortGuide = {
   path: "/beta/buyer-guide",
   eyebrow: "Robot Team Beta Cohort",
   summary:
-    "What robot teams should expect when reviewing a scoped site task, testing fit where useful, and discussing a measured physical pilot.",
+    "What robot teams should expect when reviewing a scoped site job, testing fit where useful, and discussing a measured physical pilot.",
   heroImage: "/redesign/pov/machine-tending.jpg",
-  heroAlt: "Industrial machine-tending task area",
+  heroAlt: "Industrial machine-tending job area",
   primaryAction: {
     label: "Request robot-team access",
     href: "/contact/robot-team",
@@ -111,7 +111,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
     {
       title: "Cohort scope",
       body:
-        "The robot-team beta starts with site-approved tasks and request-scoped evaluation. A credible fit may lead to a separately agreed physical pilot.",
+        "The robot-team beta starts with site-approved jobs and request-scoped evaluation. A credible fit may lead to a separately agreed physical pilot.",
       items: [
         "Best-fit requests name the robot family, workflow, site type, interfaces, success criteria, and what the onsite proof of concept must settle.",
         "Blueprint may use captured real sites, generated support assets, and sim-backed comparison artifacts, but proof boundaries stay attached.",
@@ -153,7 +153,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
       body:
         "Use one support path for delivery, entitlement, privacy, and runtime questions so the request id and artifact state remain tied together.",
       items: [
-        `Email ${betaSupportEmail} with the request id, company, target task, expected delivery, and the status text you see.`,
+        `Email ${betaSupportEmail} with the request id, company, target job, expected delivery, and the status text you see.`,
         "Escalate immediately for access revocation, private content exposure, missing paid deliverables, or an incorrect entitlement.",
         "Do not rely on downloaded artifacts beyond the stated rights sheet, order form, or hosted-session scope.",
       ],

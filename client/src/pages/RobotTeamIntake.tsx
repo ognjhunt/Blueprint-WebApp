@@ -82,7 +82,7 @@ function describeRobotDisposition(disposition: string, openCount: number) {
   return {
     headline: "You are a deployable counterparty.",
     body: "Hardware that exists, engineers who are free, and a timeline.",
-    next: "We match your envelope against captured site tasks and come to you with specifics, not a newsletter.",
+    next: "We match your envelope against captured site jobs and come to you with specifics, not a newsletter.",
   };
 }
 
@@ -165,7 +165,7 @@ export default function RobotTeamIntake() {
     <>
       <SEO
         title="Tell us what you can deploy | Blueprint"
-        description="Four questions about whether a deployment could actually happen, then your capability envelope. We match it against captured site tasks — we are not screening your robot."
+        description="Four questions about whether a deployment could actually happen, then your capability envelope. We match it against captured site jobs — we are not screening your robot."
         canonical="/robot-intake"
         jsonLd={[
           webPageJsonLd({
@@ -184,7 +184,7 @@ export default function RobotTeamIntake() {
       <PageHero
         eyebrow="Robot-team intake"
         title="Tell us what you can deploy."
-        body="Not what you are building toward. Four questions decide whether a deployment could actually happen, and then we take your capability envelope and match it against site tasks that are already captured, scoped, and screened."
+        body="Not what you are building toward. Four questions decide whether a deployment could actually happen, and then we take your capability envelope and match it against site jobs that are already captured, scoped, and screened."
         chips={["~3 minutes", "No account", "Opportunities arrive scoped"]}
         ctaHref="#intake"
         ctaLabel="Start"
@@ -264,7 +264,7 @@ export default function RobotTeamIntake() {
                       Now the envelope we match against.
                     </h2>
                     <p className="mt-4 max-w-[62ch] text-[14px] leading-[1.75] text-runway-mute">
-                      These use the same bands a site answers about its task, so a match is a
+                      These use the same bands a site answers about its job, so a match is a
                       comparison rather than a reading. Nothing here screens you out.
                     </p>
 

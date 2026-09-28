@@ -131,10 +131,10 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     }));
     render(<SelfCaptureUpload />);
 
-    await screen.findByRole("heading", { name: "A few details about the task" });
+    await screen.findByRole("heading", { name: "A few details about the job" });
     expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "What would a good result look like?" })).toBeInTheDocument();
-    const details = screen.getByText("Next: check your task brief").closest("details")!;
+    const details = screen.getByText("Next: check your job brief").closest("details")!;
     expect(details.open).toBe(true);
     expect(screen.getByRole("button", { name: "Add another video" })).toBeInTheDocument();
   });
@@ -211,7 +211,7 @@ describe("SelfCaptureUpload once robot teams have run", () => {
     vi.stubGlobal("fetch", mockFetchWithStatus(waiting, "http://localhost/claim/tok-claim"));
     render(<SelfCaptureUpload />);
 
-    const link = await screen.findByRole("link", { name: /claim your site to follow this task/i });
+    const link = await screen.findByRole("link", { name: /claim your site to follow this job/i });
     expect(link).toHaveAttribute("href", "http://localhost/claim/tok-claim");
     expect(screen.getByText(/Create and verify your site account before Blueprint builds the scene/)).toBeInTheDocument();
   });

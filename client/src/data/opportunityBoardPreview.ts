@@ -230,7 +230,7 @@ export const statusMeta: Record<
 
 export const gateMeta: Record<GateId, { label: string; test: string }> = {
   "fixed-scene": { label: "Fixed scene", test: "Does the work area stay put between shifts?" },
-  "bounded-task": { label: "Bounded task", test: "One repeated job, not a category of jobs?" },
+  "bounded-task": { label: "Bounded job", test: "One repeated job, not a category of jobs?" },
   "known-objects": { label: "Known objects", test: "Can everything handled be enumerated in advance?" },
   "clear-window": { label: "Clear window", test: "Is there a period with no untrained people in the space?" },
 };

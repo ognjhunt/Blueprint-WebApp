@@ -16,10 +16,10 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       errors.push(error.message);
     });
     for (const [name, path, heading] of [
-      ["home", "/", "One recurring task."],
-      ["how", "/how-it-works", "From one task to a measured pilot."],
-      ["site", "/contact/site-operator", "Start with one recurring task."],
-      ["robot", "/contact/robot-team", "Find a task your robot can support."],
+      ["home", "/", "One recurring job."],
+      ["how", "/how-it-works", "From one job to a measured pilot."],
+      ["site", "/contact/site-operator", "Start with one recurring job."],
+      ["robot", "/contact/robot-team", "Find a job your robot can support."],
       ["privacy", "/privacy", "Privacy Policy"],
       ["terms", "/terms", "Terms of Service"],
       ["not-found", "/this-page-does-not-exist", "That page isn’t here."],
@@ -50,7 +50,7 @@ test("mobile navigation and keyboard-accessible method disclosure work", async (
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
   await expect(page).toHaveURL(/\/how-it-works$/);
-  await expect(page.locator("h1")).toContainText("From one task to a measured pilot.");
+  await expect(page.locator("h1")).toContainText("From one job to a measured pilot.");
   await page.goto("/");
   await page.locator("summary").nth(2).focus();
   await page.keyboard.press("Enter");
@@ -76,9 +76,13 @@ test("the site page puts the capture form before the explanation, on a phone too
     const how = page.getByText("How this works", { exact: true });
     await expect(how).toBeVisible();
     // Form above the disclosure, and the disclosure closed.
-    const formBox = await form.boundingBox();
-    const howBox = await how.boundingBox();
-    expect(formBox!.y).toBeLessThan(howBox!.y);
+    // Prerendered markup is replaced during hydration; wait for both boxes
+    // in the same poll instead of reading across that replacement.
+    await expect.poll(async () => {
+      const formBox = await form.boundingBox();
+      const howBox = await how.boundingBox();
+      return formBox !== null && howBox !== null && formBox.y < howBox.y;
+    }).toBe(true);
     expect(await how.evaluate((node) => (node.closest("details") as HTMLDetailsElement).open)).toBe(false);
     // Nothing from the old screen.
     await expect(page.locator("#gate-sceneStability")).toHaveCount(0);

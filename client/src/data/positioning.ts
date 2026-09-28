@@ -38,7 +38,7 @@ export const identity = {
   headline: "Real jobs, fully specified.",
   subhead: "Robot teams prove who can do them.",
   body:
-    "Real demand — a budget, an owner, a bounded task — captured once and evaluated by every robot team against the same test.",
+    "Real demand — a budget, an owner, a bounded job — captured once and evaluated by every robot team against the same test.",
   /** The long form, for places with room for a full sentence. */
   full:
     "Blueprint finds and qualifies real automation demand, turns each job into a fully specified digital opportunity, and lets the robotics market prove who can solve it.",
@@ -68,7 +68,7 @@ export const preShipmentWork = [
     label: "Is this worth doing at all?",
     items: [
       "Is this a real customer with budget and an owner",
-      "Is this a bounded, repeated task",
+      "Is this a bounded, repeated job",
       "Do the economics justify automation",
       "Is there authority to buy and a date to deploy",
     ],
@@ -147,11 +147,11 @@ export const qualifiedDeployableWorkcell = {
     "The metric is not how many sites signed up. A workcell counts only when every one of these is true.",
   criteria: [
     "A real operator, named and reachable",
-    "An actual repeated task, not a category of work",
+    "An actual repeated job, not a category of work",
     "Economics that justify automation",
     "Someone with authority and budget",
     "Intent to deploy inside a defined period",
-    "Enough physical and task information captured",
+    "Enough physical and job information captured",
     "At least one current robot category plausibly fits",
     "Agreement to deploy if the acceptance criteria are met",
   ],
@@ -190,7 +190,7 @@ export const sourcingLoop = [
   {
     step: "01",
     label: "Capability envelopes in",
-    detail: "Task archetypes, payload, cycle-time floor, shifts, minimum fleet size.",
+    detail: "Job archetypes, payload, cycle-time floor, shifts, minimum fleet size.",
   },
   {
     step: "02",

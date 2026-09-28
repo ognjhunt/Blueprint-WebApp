@@ -387,7 +387,7 @@ export function describeDisposition(result: TriageResult): {
 
   return {
     headline: "This clears the screen.",
-    body: "Every condition holds and the task is specific enough to put in front of the robot teams we are talking to.",
+    body: "Every condition holds and the job is specific enough to put in front of the robot teams we are talking to.",
     // Was "a capture only follows a match -- we do not capture speculatively".
     // That was true when a capturer had to travel and we were paying for the
     // trip. Recording is the site's own phone and costs us nothing to receive,

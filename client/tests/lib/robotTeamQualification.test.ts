@@ -54,7 +54,7 @@ describe("robot-team gates", () => {
       robotGateFields,
     );
     expect(noHardware.disposition).toBe("not_now");
-    expect(noHardware.blockers[0].detail).toMatch(/runs a task end to end/i);
+    expect(noHardware.blockers[0].detail).toMatch(/runs a job end to end/i);
 
     // A partial submission never qualifies, same guarantee as the site side.
     const partial = triageGateAnswers({ hardwareMaturity: "deployed" }, robotGateFields);

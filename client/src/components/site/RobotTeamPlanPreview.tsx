@@ -693,7 +693,7 @@ export function RobotTeamPlanPreview({
         checkpointId: stash.checkpointId, rows: Array.isArray(body.selected) ? body.selected : [],
         totalCostUsd: Number(body.totalCostUsd || 0), planToken: body.planToken || null,
         availableBalanceUsd: Number(body.availableBalanceUsd || 0), fundingNeededUsd: Number(body.fundingNeededUsd || 0),
-        email: stash.email || "", taskFamilyLabel: stash.plan?.taskFamilyLabel || "this task", planUnavailable: false,
+        email: stash.email || "", taskFamilyLabel: stash.plan?.taskFamilyLabel || "this job", planUnavailable: false,
         lineBlockers: Array.isArray(body.lineBlockers) ? body.lineBlockers : [] };
       setState({ status: "done", plan }); setQueue({ status: "idle" });
     } catch { setQueue({ status: "failed", message: "The updated plan could not be loaded. Your saved result access remains available." }); }
@@ -789,7 +789,7 @@ export function RobotTeamPlanPreview({
       return <div className="ms-form" aria-live="polite">
         <h2>Skill trace saved</h2>
         <p>Your ordered steps are saved with your team. Attach them to a Task Evaluation Run to bind them to its task. Actions and outcomes require separate execution evidence.</p>
-        <p><a className="ms-text-link" href="/sites">Browse tasks →</a></p>
+        <p><a className="ms-text-link" href="/sites">Browse jobs →</a></p>
       </div>;
     }
     return (
@@ -891,7 +891,7 @@ export function RobotTeamPlanPreview({
                 : `You are registered without a checkpoint, so there is nothing to rank yet. Send
                    us an endpoint, a container image or a model artifact whenever you have one.`}
             </p>
-            <p><a className="ms-text-link" href="/sites">Browse live and past tasks →</a></p>
+            <p><a className="ms-text-link" href="/sites">Browse live and past jobs →</a></p>
             <p style={{ color: "var(--ms-muted)" }}>
               We have your details at {plan.email} and will come back to you when a site lands
               that fits — with the price and the reason, the same as you would have seen here.
@@ -911,7 +911,7 @@ export function RobotTeamPlanPreview({
     <form className="ms-form" onSubmit={submit} aria-label="Tell us about your robot">
       <h2 style={{ marginTop: 0 }}>Connect your robot setup</h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
-        Add a setup for private testing on a reconstructed site task. Check compatibility and see the price before buying.
+        Add a setup for private testing on a reconstructed site job. Check compatibility and see the price before buying.
       </p>
 
       <label htmlFor="plan-email">
@@ -949,7 +949,7 @@ export function RobotTeamPlanPreview({
       <label htmlFor="plan-task-family">
         <span>What does it do?</span>
         <span className="ms-field-hint">
-          Used to find relevant tasks for your robot. Private results do not change your matching profile.
+          Used to find relevant jobs for your robot. Private results do not change your matching profile.
         </span>
         <select id="plan-task-family" name="planTaskFamily" defaultValue="pick_place">
           {TASK_FAMILIES.map((option) => (

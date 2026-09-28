@@ -9,7 +9,7 @@
 export function NextTaskUpdate(_props: { nextUpdateIso?: string | null }) {
   return (
     <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
-      We email you each time something happens on this task. You do not need to check back.
+      We email you each time something happens on this job. You do not need to check back.
     </p>
   );
 }

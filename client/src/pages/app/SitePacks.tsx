@@ -19,10 +19,10 @@ function taskState(offering: ConfiguredSceneOfferingCard, developmentAccess = fa
   const base = `/app/packs/${encodeURIComponent(offering.source_launch_id)}`;
   if (!developmentAccess) {
     return { tag: offering.status === "evaluation_ready" ? "Ready" : offering.status === "configured_controls_pending" ? "Scene checks pending" : "Being prepared",
-      action: { label: "Evaluate a task · $99 per policy", href: "/sites" } };
+      action: { label: "Evaluate a job · $99 per policy", href: "/sites" } };
   }
   if (offering.presentation.appearance_review_status === "prepared_scene_ungraded") {
-    return { action: { label: "View task", href: `${base}/evaluate?select=team` } };
+    return { action: { label: "View job", href: `${base}/evaluate?select=team` } };
   }
   if (offering.status === "configured_controls_pending") {
     return {
@@ -62,34 +62,34 @@ export default function SitePacks() {
       .then((headers) => fetch("/api/configured-scene-offerings", { headers, credentials: "include" }))
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload.error || "Tasks couldn't be loaded.");
+        if (!response.ok) throw new Error(payload.error || "Jobs couldn't be loaded.");
         setOfferings(payload.offerings || []);
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
   }, [currentUser]);
 
   return (
-    <AppShell active="packs" breadcrumb="tasks">
+    <AppShell active="packs" breadcrumb="jobs">
       <Helmet>
-        <title>Tasks · Blueprint</title>
-        <meta name="description" content="Tasks your team can test a robot on." />
+        <title>Jobs · Blueprint</title>
+        <meta name="description" content="Jobs your team can test a robot on." />
       </Helmet>
-      <header className="ws-heading"><div><h1>Tasks</h1></div></header>
-      <p className="mb-6"><Link className="ws-link" href="/app/packs/policy-packet">Choose a G1 development task and policies</Link></p>
+      <header className="ws-heading"><div><h1>Jobs</h1></div></header>
+      <p className="mb-6"><Link className="ws-link" href="/app/packs/policy-packet">Choose a G1 development job and policies</Link></p>
       {error ? <BuyerAppErrorState message={error} /> : null}
       {!error && !offerings ? <BuyerAppLoadingState /> : null}
       {offerings && !offerings.length ? (
         <BuyerAppEmptyState
-          title="No tasks yet"
-          body="Tasks prepared for your team show up here."
+          title="No jobs yet"
+          body="Jobs prepared for your team show up here."
           action={siteOperator
-            ? <Link className="ws-link" href="/app/tasks">Your tasks</Link>
+            ? <Link className="ws-link" href="/app/tasks">Your jobs</Link>
             : <Link className="ws-link" href="/app/opportunities">See openings</Link>}
         />
       ) : null}
       {offerings?.length ? (
         <>
-          <div className="ws-openings" role="list" aria-label="Tasks">
+          <div className="ws-openings" role="list" aria-label="Jobs">
             {offerings.map((offering) => {
               const state = taskState(offering, developmentAccess);
               const appearance = appearanceNote(offering);

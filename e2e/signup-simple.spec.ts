@@ -14,7 +14,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('heading', { name: 'Set up your workspace', exact: true })).toBeFocused();
     await expect(page.getByRole('radio')).toHaveCount(2);
     await expect(page.getByRole('textbox')).toHaveCount(2);
-    await expect(page.getByLabel('Assess site tasks for my robots')).toBeChecked();
+    await expect(page.getByLabel('Assess site jobs for my robots')).toBeChecked();
     await expect(page.getByText(/Requested lane|Proof path|Standardized benchmark|Company size|Progressive access/)).toHaveCount(0);
     await page.getByLabel('Your name', { exact: true }).fill('Alex Morgan');
     await page.getByLabel('Organization', { exact: true }).fill('Example Robotics');

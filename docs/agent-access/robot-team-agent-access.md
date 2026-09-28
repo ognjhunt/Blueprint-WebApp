@@ -2,7 +2,9 @@
 
 ## Current product boundary
 
-Blueprint helps businesses scope one recurring task, assess suitable robot providers, coordinate a measured physical pilot under a separate agreement, and decide what follows. This agent API covers task discovery and bounded Task Evaluation Runs for robot teams. An agent run does not authorize a physical pilot. The evaluation retains its request contract, lifecycle, and decision or abstention result model.
+Blueprint helps businesses scope one recurring job, assess suitable robot providers, coordinate a measured physical pilot under a separate agreement, and decide what follows. This agent API covers job discovery and bounded Task Evaluation Runs for robot teams. An agent run does not authorize a physical pilot. The evaluation retains its request contract, lifecycle, and decision or abstention result model.
+
+Customer wording uses **job** for the work a site wants automated and **task** for a precise robot action or technical contract. The formal **Task Evaluation Run** name, API routes, field names, task IDs, and artifact schemas stay unchanged. A job label does not widen the evaluation scope.
 
 The active request path asks for the site-task, decision question, candidates when applicable, claims, thresholds, false-safe consequence, acceptable risk, budget, deadline, available evidence, restrictions, audience, owner, idempotency, and provenance. It does not ask the customer or agent to choose a simulator, world model, or provider. Pipeline owns evidence-method qualification, routing, and scientific verdicts.
 

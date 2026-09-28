@@ -25,7 +25,7 @@ function annexRow(label: string): string {
 
 describe("raw walkthrough media", () => {
   it("distinguishes removal from reconstruction inputs from processing the original recording", () => {
-    const detail = annexRow("People in task footage");
+    const detail = annexRow("People in job footage");
     expect(detail).toContain("remove people from the frames used as input to reconstruction");
     expect(detail).toContain("does not remove them from the original recording");
     const terms = JSON.stringify(termsSections);

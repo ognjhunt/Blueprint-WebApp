@@ -306,7 +306,7 @@ for (const role of ["site_operator", "robot_team"] as const) {
           ? [
               ["/app", "Overview"],
               ["/onboarding", "Finish setup"],
-              ["/app/tasks", "Your tasks"],
+              ["/app/tasks", "Your jobs"],
               ["/app/tasks/task-1", "Pack cartons into totes"],
               ["/app/tasks/task-1?tab=capture", "Pack cartons into totes"],
               ["/app/history", "History"],
@@ -370,7 +370,7 @@ for (const role of ["site_operator", "robot_team"] as const) {
       if (width === 390) {
         await page.getByRole("button", { name: "Open navigation" }).click();
         await expect(page.getByRole("navigation")).toBeVisible();
-        // Robot teams also get the task library and their runs and balance.
+        // Robot teams also get the job library and their runs and balance.
         await expect(
           page.getByRole("navigation").getByRole("link"),
         ).toHaveCount(role === "robot_team" ? 5 : 4);
@@ -447,7 +447,7 @@ test("empty workspaces and API errors are clear and do not invent records", asyn
   await seed(page, "site_operator", true);
   await page.goto("/app");
   await expect(
-    page.getByRole("heading", { name: "Start with one task" }),
+    page.getByRole("heading", { name: "Start with one job" }),
   ).toBeVisible();
   await page.route("**/api/workspace/", (route) =>
     route.fulfill({

@@ -122,7 +122,7 @@ export function projectWorkspaceTask(
     workspace.archived !== true;
   return {
     id,
-    title: text(request.taskStatement) || "Untitled task",
+    title: text(request.taskStatement) || "Untitled job",
     siteName: text(request.siteName) || "Your site",
     location: text(request.siteLocation),
     siteType: text(request.targetSiteType),

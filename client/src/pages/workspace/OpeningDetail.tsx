@@ -55,7 +55,7 @@ export default function OpeningDetail() {
           <Feedback error={action.error} notice={action.notice} />
           <div className="ws-detail-grid ws-section">
             <div>
-              <h2>The task</h2>
+              <h2>The job</h2>
               <p className="ws-section">
                 {item.anonymized_summary || item.workflow}
               </p>
@@ -102,7 +102,7 @@ export default function OpeningDetail() {
                 </div>
               </dl>
               <details className="ws-section">
-                <summary>Task details</summary>
+                <summary>Job details</summary>
                 <p>{item.benchmark_profile}</p>
                 {[
                   item.object_profile,

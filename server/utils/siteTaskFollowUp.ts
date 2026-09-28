@@ -18,7 +18,7 @@ export const FOLLOW_UP_QUESTIONS: Record<FollowUpId, { question: string; hint: s
   },
   item_make_model: {
     question: "Is there a brand or model we should know?",
-    hint: "Only if a specific item or piece of equipment matters to this task.",
+    hint: "Only if a specific item or piece of equipment matters to this job.",
   },
 };
 

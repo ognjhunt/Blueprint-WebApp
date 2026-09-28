@@ -30,12 +30,12 @@ describe("public managed-pilot copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /One recurring task/i,
+        name: /One recurring job/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Start a task assessment/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Start a job assessment/i }).length).toBeGreaterThan(0);
 
-    expect(container).toHaveTextContent(/Show us the task/i);
+    expect(container).toHaveTextContent(/Show us the job/i);
     expect(container).toHaveTextContent(/Meet your match/i);
     expect(container).toHaveTextContent(/No match, no fee/i);
     expect(container).toHaveTextContent(/Run the pilot/i);

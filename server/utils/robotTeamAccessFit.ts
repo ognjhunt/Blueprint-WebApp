@@ -91,13 +91,13 @@ export function assessAccessFit(
     },
     {
       id: "open_tasks_in_region",
-      label: "Open site tasks in their region",
+      label: "Open site jobs in their region",
       passed: inRegion.length > 0,
       detail: !region.size
         ? "No region given"
         : inRegion.length
           ? `${inRegion.length} listed: ${inRegion.slice(0, 3).map((task) => task.title).join("; ")}`
-          : `None of ${listed.length} listed task${listed.length === 1 ? "" : "s"} mention ${application.region}`,
+          : `None of ${listed.length} listed job${listed.length === 1 ? "" : "s"} mention ${application.region}`,
     },
   ];
   return {

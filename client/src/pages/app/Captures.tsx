@@ -49,7 +49,7 @@ const MAX_CAPTURE_BYTES = 50 * 1024 * 1024 * 1024;
 const profileCopy: Record<WebCaptureAuthorityProfile, { label: string; hint: string; accept: string }> = {
   camera_360_equirectangular: {
     label: "360° video",
-    hint: "A stitched MP4 or MOV from a 360° camera. Used to review the space and find tasks until its scale is checked.",
+    hint: "A stitched MP4 or MOV from a 360° camera. Used to review the space and find jobs until its scale is checked.",
     accept: ".mp4,.mov,video/mp4,video/quicktime",
   },
   camera_360_native: {
@@ -59,7 +59,7 @@ const profileCopy: Record<WebCaptureAuthorityProfile, { label: string; hint: str
   },
   monocular_video: {
     label: "Phone or ordinary video",
-    hint: "Good for reviewing the space and finding tasks. It has no built-in scale or depth.",
+    hint: "Good for reviewing the space and finding jobs. It has no built-in scale or depth.",
     accept: ".mp4,.mov,video/mp4,video/quicktime",
   },
   provided_scene_splat: {
@@ -105,7 +105,7 @@ const uploadLabels: Record<string, string> = {
 };
 
 const reviewLabels: Record<string, string> = {
-  task_approval_required: "Review the proposed tasks",
+  task_approval_required: "Review the proposed jobs",
   decision_pending_pipeline_validation: "Task decision recorded",
   task_approved: "Task approved",
   task_rejected: "Task rejected",
@@ -721,7 +721,7 @@ export default function Captures() {
           <header className="ws-heading">
             <div>
               <h1>Captures</h1>
-              <p className="mt-2">Upload capture files for your tasks, then follow each one through review.</p>
+              <p className="mt-2">Upload capture files for your jobs, then follow each one through review.</p>
             </div>
             {!formVisible && !loading ? (
               <button type="button" className="ws-primary" onClick={() => setShowUpload(true)}>Upload a capture</button>
@@ -796,7 +796,7 @@ export default function Captures() {
                           <Field label="Camera model"><input value={deviceModel} onChange={(event) => setDeviceModel(event.target.value)} placeholder="X5, iPhone 17 Pro, other" /></Field>
                         </>
                       ) : null}
-                      <Field label="The task, if you know it" hint="Leave blank and we'll propose tasks for you to approve." wide>
+                      <Field label="The job, if you know it" hint="Leave blank and we'll propose jobs for you to approve." wide>
                         <textarea rows={3} value={knownTask} onChange={(event) => setKnownTask(event.target.value)} />
                       </Field>
                       <Field label="Notes" wide>

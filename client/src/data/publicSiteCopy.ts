@@ -101,7 +101,7 @@ export const homeHero = {
    */
   titleLines: ["Evaluate robots.", "Deploy the one that works."],
   body:
-    "Show us one recurring task. We check fit and use evaluation where it helps, then bring you a provider-backed pilot offer with a price you can accept or decline.",
+    "Show us one recurring job. We check fit and use evaluation where it helps, then bring you a provider-backed pilot offer with a price you can accept or decline.",
   chips: [
     "Start while exploring",
     "Evidence behind the offer",
@@ -132,7 +132,7 @@ export const homeStats: readonly StatTile[] = [
   {
     label: "Services to choose from",
     value: "One",
-    detail: "One path from a recurring task to a provider-backed pilot offer.",
+    detail: "One path from a recurring job to a provider-backed pilot offer.",
   },
   {
     label: "Ruled out by measurement",
@@ -272,7 +272,7 @@ export const homeRankingOodAxes = [
 
 export const homeLifecycle: readonly LifecycleStage[] = [
   {
-    label: "Bring one real task",
+    label: "Bring one real job",
     detail:
       "A specific job at a specific site: the conditions, who can be there, what counts as success, and what must never happen.",
   },
@@ -434,7 +434,7 @@ export const homeLimits = [
   {
     title: "Where we are strongest today",
     body:
-      "Navigation, mobile-base movement, and rigid pick-and-place in warehouse and logistics spaces. We will tell you when your task is outside that.",
+      "Navigation, mobile-base movement, and rigid pick-and-place in warehouse and logistics spaces. We will tell you when your job is outside that.",
   },
 ] as const;
 
@@ -444,7 +444,7 @@ export const robotTeamHero = {
   eyebrow: "For robot teams",
   title: "Arrive with the robot. Not before it.",
   body:
-    "Tell us what your robot can do and what a standard pilot includes. We bring suitable tasks and evidence; you confirm the site-specific offer before a buyer sees it.",
+    "Tell us what your robot can do and what a standard pilot includes. We bring suitable jobs and evidence; you confirm the site-specific offer before a buyer sees it.",
   chips: [
     "Less repeated site discovery",
     "Free to browse and screen",
@@ -456,12 +456,12 @@ export const robotTeamValue = [
   {
     title: "A real site with clear funding status",
     body:
-      "An invited task comes from a real site. We label rough affordability and whether funding is exploratory, available, or authorized; the site still must approve your confirmed offer.",
+      "An invited job comes from a real site. We label rough affordability and whether funding is exploratory, available, or authorized; the site still must approve your confirmed offer.",
   },
   {
     title: "Skip repeated site discovery",
     body:
-      "Read one standard dossier instead of rebuilding the task from calls, phone videos, floor plans, and scattered notes.",
+      "Read one standard dossier instead of rebuilding the job from calls, phone videos, floor plans, and scattered notes.",
   },
   {
     title: "Arrive with the gaps named",
@@ -597,7 +597,7 @@ export const aboutHero = {
   eyebrow: "About Blueprint",
   title: "We help sites buy a credible robot pilot.",
   body:
-    "Blueprint turns one recurring task into a provider-backed pilot offer when a credible fit exists. Capture and evaluation support the offer where useful; the provider handles physical delivery.",
+    "Blueprint turns one recurring job into a provider-backed pilot offer when a credible fit exists. Capture and evaluation support the offer where useful; the provider handles physical delivery.",
   chips: ["Record the job once", "Review a provider offer", "Measure the trial"],
 } as const;
 
@@ -667,7 +667,7 @@ export const governanceHero = {
   eyebrow: "Governance",
   title: "Rights, privacy, and provenance — kept visible.",
   body:
-    "One service runs against a captured real site-task, so the questions that matter are who allowed the capture, what may be done with it, and how anyone checks. Those answers are product surfaces here, not promises.",
+    "One service runs against a captured real site job, so the questions that matter are who allowed the capture, what may be done with it, and how anyone checks. Those answers are product surfaces here, not promises.",
   chips: ["Rights stay explicit", "Hosted access stays bounded", "No claims beyond the record"],
 } as const;
 
@@ -735,7 +735,7 @@ export const closingCta = {
   eyebrow: "Start with the decision",
   title: "Tell us what you need to decide.",
   body:
-    "The site-task, the call you are about to make, the threshold it turns on, and anything we may not do. We will come back with the evidence plan and the quote.",
+    "The site job, the call you are about to make, the threshold it turns on, and anything we may not do. We will come back with the evidence plan and the quote.",
 } as const;
 
 /* ------------------------------------------------------------- run film */
@@ -777,7 +777,7 @@ export interface RunFilmAct {
 export const runFilmActs: readonly RunFilmAct[] = [
   {
     id: "capture",
-    label: "One real site-task",
+    label: "One real site job",
     // 17 words.
     caption:
       "You bring one real job at one real site. We capture the place exactly as it is.",

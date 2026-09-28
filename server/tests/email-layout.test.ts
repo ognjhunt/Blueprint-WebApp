@@ -9,11 +9,11 @@ import { brandedEmail, emailGreeting, textToEmailHtml, withTextFooter } from "..
 
 describe("the branded email layout", () => {
   it("turns a labelled link into a button and escapes template text", () => {
-    const html = textToEmailHtml("Hi <b>Dana</b>,\n\nOpen your task:\nhttps://tryblueprint.io/capture-upload/abc");
+    const html = textToEmailHtml("Hi <b>Dana</b>,\n\nOpen your job:\nhttps://tryblueprint.io/capture-upload/abc");
     expect(html).toContain("Hi &lt;b&gt;Dana&lt;/b&gt;,");
     expect(html).toContain('href="https://tryblueprint.io/capture-upload/abc"');
-    expect(html).toContain(">Open your task</a>");
-    expect(html).not.toContain("Open your task:");
+    expect(html).toContain(">Open your job</a>");
+    expect(html).not.toContain("Open your job:");
   });
 
   it("renders dash lines as a list and links inline URLs", () => {

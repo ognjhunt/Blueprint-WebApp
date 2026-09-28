@@ -414,7 +414,7 @@ export default function CaptureAppPlaceholder() {
                 <div className="border border-runway-line bg-runway-deep p-5">
                   <SurfaceMiniLabel className="text-runway-faint">Need The Buyer Side Instead?</SurfaceMiniLabel>
                   <p className="mt-4 text-base leading-7 text-runway-body">
-	                    Robot teams use these records for the task discovery, site recreation, and fit testing that happens before onsite deployment. Capturers use this path only for approved assignments and review-gated payout eligibility.
+	                    Robot teams use these records for the job discovery, site recreation, and fit testing that happens before onsite deployment. Capturers use this path only for approved assignments and review-gated payout eligibility.
                   </p>
                   <a
                     href="/sites"

@@ -8,12 +8,12 @@ describe("FAQ", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /We help turn one task into a measured pilot/i,
+        name: /We help turn one job into a measured pilot/i,
       }),
     ).toBeInTheDocument();
     for (const question of [
       "What does Blueprint do?",
-      "How do you find a robot team for my task?",
+      "How do you find a robot team for my job?",
       "Does Blueprint replace onsite integration?",
       "Do robot teams download the site twin?",
       "How is Blueprint paid?",

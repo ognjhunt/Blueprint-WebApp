@@ -42,10 +42,10 @@ for (const mobile of [false, true]) {
     await page.goto("/contact/robot-team");
     await expect(page.getByRole("heading", { name: card.title })).toBeVisible();
     await expect(page.getByLabel("Work email", { exact: true }).first()).not.toBeVisible();
-    await expect(page.getByText("Task illustration · not a site photo", { exact: true })).toHaveCount(3);
+    await expect(page.getByText("Job illustration · not a site photo", { exact: true })).toHaveCount(3);
     expect(mutations).toEqual([]);
     await screenshot(page, `${mobile ? "phone" : "desktop"}-browse`);
-    if (mobile) await page.getByText("Filter tasks", { exact: true }).click();
+    if (mobile) await page.getByText("Filter jobs", { exact: true }).click();
     await page.getByLabel("Filter by availability").selectOption("past");
     await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toBeVisible();
     await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
@@ -70,12 +70,12 @@ for (const mobile of [false, true]) {
 
 test("an approved team's empty library says tasks are coming; an outage is not an empty library", async ({ page }) => {
   await fixtures(page, []); await page.goto("/sites");
-  await expect(page.getByText("The first site tasks are being prepared.")).toBeVisible();
+  await expect(page.getByText("The first site jobs are being prepared.")).toBeVisible();
   await expect(page.getByRole("form", { name: "Task preferences" })).toHaveCount(0);
   await screenshot(page, "empty-approved");
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ status: 503, json: { error: "offline" } }));
   await page.reload(); await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
-  await expect(page.getByText("The first site tasks are being prepared.")).toHaveCount(0);
+  await expect(page.getByText("The first site jobs are being prepared.")).toHaveCount(0);
 });
 
 test("a robot team outside early access applies instead of browsing", async ({ page }) => {
@@ -100,26 +100,26 @@ test("desktop capture has one status, adjacent upload, brand and owner-reviewed 
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toBeVisible();
   await expect(page.getByText("We have your task and are checking your footage.")).toHaveCount(1);
   // Updates follow events by email; the page promises that, not a deadline.
-  await expect(page.getByText("We email you each time something happens on this task. You do not need to check back.")).toHaveCount(1);
+  await expect(page.getByText("We email you each time something happens on this job. You do not need to check back.")).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Blueprint home" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open the camera" })).toHaveCount(0);
   const upload = await page.getByRole("button", { name: "Upload a video file" }).boundingBox();
   const instruction = await page.getByText("Already have the recording on this computer? Upload a .mov or .mp4 file.").boundingBox();
   expect(upload!.y - instruction!.y).toBeLessThan(110);
   await screenshot(page, "desktop-capture");
-  await page.getByText("Share a task card with robot teams", { exact: true }).click();
-  const form = page.getByRole("form", { name: "Public task card" });
-  await form.getByLabel("Describe the task without naming your site").fill(card.title);
-  await form.getByLabel("Task family", { exact: true }).fill("Palletizing");
-  await form.getByLabel("Task thumbnail (optional)").setInputFiles({ name: "task.png", mimeType: "image/png", buffer: taskPhoto });
+  await page.getByText("Share a job card with robot teams", { exact: true }).click();
+  const form = page.getByRole("form", { name: "Public job card" });
+  await form.getByLabel("Describe the job without naming your site").fill(card.title);
+  await form.getByLabel("Job type", { exact: true }).fill("Palletizing");
+  await form.getByLabel("Job thumbnail (optional)").setInputFiles({ name: "task.png", mimeType: "image/png", buffer: taskPhoto });
   await expect(form.getByRole("img", { name: "Thumbnail crop to approve for public display" })).toBeVisible();
-  await form.getByLabel("Show this card in the task library").check();
+  await form.getByLabel("Show this card in the job library").check();
   await form.getByLabel(/I reviewed the text and thumbnail/).check();
   await form.getByRole("button", { name: "Save public card" }).click();
   await expect(page.getByText(/Public card saved/)).toBeVisible();
   expect(mutations.at(-1)?.body).toMatchObject({ consent: true, enabled: true, thumbnailConsent: true, details: { title: card.title } });
   expect(mutations.at(-1)?.body.thumbnailPng).toBeTruthy();
-  await form.getByRole("button", { name: "Use a task illustration instead" }).click();
+  await form.getByRole("button", { name: "Use a job illustration instead" }).click();
   await expect(form.getByRole("img", { name: "Thumbnail crop to approve for public display" })).toHaveCount(0);
   await form.getByLabel(/I reviewed the text and thumbnail/).check();
   await form.getByRole("button", { name: "Save public card" }).click();
@@ -160,7 +160,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: intak
   } else {
     await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Open your task page" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open your job page" })).toBeVisible();
   }
   await screenshot(page, `${mobile ? "phone" : "desktop"}-intake-handoff`); await context.close();
 });
@@ -169,11 +169,11 @@ test("public photos fall back to illustrations when removed", async ({ page }) =
   await fixtures(page, [{ ...card, thumbnailUrl: "/api/site-worlds/tasks/task-1/thumbnail" }]);
   await page.route("**/api/site-worlds/tasks/task-1/thumbnail", route => route.fulfill({ contentType: "image/png", body: taskPhoto }));
   await page.goto("/sites");
-  await expect(page.getByRole("img", { name: `Owner-approved task view: ${card.title}` })).toBeVisible();
-  await expect(page.getByText("Owner-approved task photo", { exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: `Owner-approved job view: ${card.title}` })).toBeVisible();
+  await expect(page.getByText("Owner-approved job photo", { exact: true })).toBeVisible();
   await page.route("**/api/site-worlds/tasks/task-1/thumbnail", route => route.fulfill({ status: 404, body: "" }));
   await page.reload();
-  await expect(page.getByText("Task illustration · not a site photo", { exact: true })).toBeVisible();
+  await expect(page.getByText("Job illustration · not a site photo", { exact: true })).toBeVisible();
 });
 
 

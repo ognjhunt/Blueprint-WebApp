@@ -19,16 +19,16 @@ export const headerUtilityLinks: Array<{ href: string; label: string }> = [];
 // Primary header CTA.
 export const headerRequestEvaluation = {
   href: "/contact/site-operator",
-  label: "Start a task assessment",
+  label: "Start a job assessment",
 };
 
 // Footer columns for the legacy layout. Every link resolves to a live page.
 export const footerProductLinks = [
   { href: "/how-it-works", label: "How it works" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/contact/site-operator", label: "Start a task assessment" },
+  { href: "/contact/site-operator", label: "Start a job assessment" },
   { href: "/contact/robot-team", label: "Robot teams" },
-  { href: "/sites", label: "Task library" },
+  { href: "/sites", label: "Job library" },
 ];
 
 export const footerEvidenceLinks = [

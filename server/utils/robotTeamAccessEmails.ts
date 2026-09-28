@@ -45,7 +45,7 @@ export function accessReceivedEmail(
     : [
       "Thanks for applying. Blueprint is opening to a small group of robot teams first, and a person reads every application.",
       "",
-      "If there is a fit, we will email you here with how to create your account. From then on you will see the site tasks open to your team, and we email you whenever a site lists a new one.",
+      "If there is a fit, we will email you here with how to create your account. From then on you will see the site jobs open to your team, and we email you whenever a site lists a new one.",
       "",
       "Nothing else is needed from you now. Reply to this email if you want to add anything.",
     ];
@@ -71,7 +71,7 @@ export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" |
       `Create your account with this email address (${record.email}), or sign in if you already have one:`,
       `${base}/signup/business?buyerType=robot_team`,
       "",
-      "Once your email is verified, the task library shows the site tasks open to your team:",
+      "Once your email is verified, the job library shows the site jobs open to your team:",
       `${base}/contact/robot-team`,
       "",
       ...(invited ? [] : [
@@ -81,7 +81,7 @@ export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" |
           : "If a call would help, say so in your reply and we will find a time.",
         "",
       ]),
-      "We email you whenever a site lists a new task.",
+      "We email you whenever a site lists a new job.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
@@ -137,16 +137,16 @@ type ListedCard = { title: string; taskFamily?: string; siteType?: string; regio
 export function newTaskEmail(record: Pick<RobotTeamAccessRecord, "name">, card: ListedCard) {
   const facts = [card.taskFamily, card.siteType, card.region].map((value) => String(value || "").trim()).filter(Boolean);
   return {
-    subject: `New site task on Blueprint: ${card.title}`,
+    subject: `New site job on Blueprint: ${card.title}`,
     body: [
       emailGreeting(firstName(record.name)),
       "",
-      `A site just shared a new task: ${card.title}${facts.length ? ` (${facts.join(", ")})` : ""}.`,
+      `A site just shared a new job: ${card.title}${facts.length ? ` (${facts.join(", ")})` : ""}.`,
       "",
-      "See the card and start an evaluation run from the task library:",
+      "See the card and start an evaluation run from the job library:",
       `${APP_URL()}/contact/robot-team`,
       "",
-      "You get one of these each time a site lists a task. Reply to stop them.",
+      "You get one of these each time a site lists a job. Reply to stop them.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),

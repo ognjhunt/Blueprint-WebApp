@@ -317,7 +317,7 @@ async function decodeWorkspaceRequest(value: InboundRequestStored) {
 async function readRequest(requestId: string) {
   id.parse(requestId);
   const snap = await db!.collection("inboundRequests").doc(requestId).get();
-  if (!snap.exists) refuse(404, "Task not found.");
+  if (!snap.exists) refuse(404, "Job not found.");
   return {
     ref: snap.ref,
     revision: snap.updateTime
@@ -341,7 +341,7 @@ async function ownedTask(requestId: string, res: Response) {
     object(item.record.request).buyerType !== "site_operator" ||
     (owner !== caller.uid && !legacy)
   )
-    refuse(404, "Task not found.");
+    refuse(404, "Job not found.");
   return item;
 }
 async function listOwnedRequests(res: Response) {
@@ -672,7 +672,7 @@ router.get(
         title:
           text(request.decision_question) ||
           text(object(request.site_task).task_description) ||
-          "Task evaluation",
+          "Evaluation",
         siteType: "",
         location: null,
         setupName: null,
@@ -1017,7 +1017,7 @@ router.post(
     const input = taskSchema.parse(req.body),
       caller = identity(res);
     if (!caller.verified)
-      refuse(403, "Verify your email before requesting a task.");
+      refuse(403, "Verify your email before describing a job.");
     res.locals.workspaceIntake = {
       account_owner_uid: caller.uid,
       workspace_task: {
@@ -1192,7 +1192,7 @@ router.post(
     )
       refuse(400, "Choose a future date and time.");
     const task = await hydrateTask(req.params.taskId, item.record);
-    if (task.archived) refuse(409, "This task is closed.");
+    if (task.archived) refuse(409, "This job is closed.");
     if (input.action === "message") {
       if (!task.capture?.canMessage)
         refuse(409, "A capturer has not been assigned yet.");
@@ -1221,7 +1221,7 @@ router.post(
     )
       refuse(409, "This visit has ended. Request another capture instead.");
     if (input.action !== "request" && !task.capture)
-      refuse(409, "No capture visit is linked to this task.");
+      refuse(409, "No capture visit is linked to this job.");
     await item.ref.update({
       "workspace_task.captureChange": {
         action: input.action,
@@ -1279,7 +1279,7 @@ router.post(
     )
       refuse(
         409,
-        "Choose a team whose recorded evaluation meets the current task targets before inviting a pilot.",
+        "Choose a team whose recorded evaluation meets the current job targets before inviting a pilot.",
       );
     const transitions: Record<string, string> = {
       invite: "selected",
@@ -1320,7 +1320,7 @@ router.post(
           ? `${snapshot.updateTime.seconds}:${snapshot.updateTime.nanoseconds}`
           : null) !== item.revision
       )
-        refuse(409, "This task changed. Refresh before making a decision.");
+        refuse(409, "This job changed. Refresh before making a decision.");
       const pilot = {
         state: transitions[input.action],
         selectedResultId:
@@ -1370,9 +1370,9 @@ router.post(
       .strict()
       .parse(req.body);
     if (object(item.record.workspace_task).archived)
-      refuse(409, "This task is closed.");
+      refuse(409, "This job is closed.");
     await item.ref.collection("notes").add({
-      content: await encryptFieldValue(`Task edit requested: ${input.message}`),
+      content: await encryptFieldValue(`Job edit requested: ${input.message}`),
       authorUid: identity(res).uid,
       authorEmail: identity(res).email,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

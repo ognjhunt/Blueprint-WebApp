@@ -344,9 +344,9 @@ export default function PolicyCanarySetup() {
   const canSubmit = !packetSetup && !inspectOnly && canContinueSetup && confirmed && interpretationConfirmed && Boolean(confirmedSuccessContract) && emailAllowed && !submitting && !switching;
   const otherSizes = setup?.episode_presets.filter((item) => item.preset_id !== "quick_10" && item.availability !== "enabled") || [];
 
-  return <AppShell active="packs" breadcrumb="tasks / policy test">
-    <Helmet><title>Configure a policy test · Blueprint</title><meta name="description" content="Choose compatible robot policies for one task." /></Helmet>
-    <Link className="ws-back" href="/app/packs">← Tasks</Link>
+  return <AppShell active="packs" breadcrumb="jobs / policy test">
+    <Helmet><title>Configure a policy test · Blueprint</title><meta name="description" content="Choose compatible robot policies for one job." /></Helmet>
+    <Link className="ws-back" href="/app/packs">← Jobs</Link>
     <header className="ws-heading"><div>
       <h1>{g1Packet ? "Plan a G1 development campaign" : packetSetup ? "Plan a development policy pair" : "Run a policy test"}</h1>
       {packetSetup ? <p className="mt-2">{packetSetup.scene_id} · {packetSetup.task_id}</p>

@@ -64,7 +64,7 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
     value: "hosted-review",
     label: "Task Evaluation Run",
     description:
-      "Scope a decision for a real site-task, with candidates when applicable.",
+      "Scope a decision for a real site job, with candidates when applicable.",
     cta: "Request a Task Evaluation Run",
     buyerType: "robot_team",
     commercialRequestPath: "hosted_evaluation",
@@ -80,7 +80,7 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   {
     value: "new-capture",
     label: "New site capture",
-    description: "Name a new place or task.",
+    description: "Name a new place or job.",
     cta: "Request this location",
     buyerType: "robot_team",
     commercialRequestPath: "capture_access",
@@ -89,7 +89,7 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
     value: "site-question",
     label: "Task Evaluation Run (site-operator intake)",
     description:
-      "Turn a site-task and its missing evidence into the same scoped decision request.",
+      "Turn a site job and its missing evidence into the same scoped decision request.",
     cta: "Request a Task Evaluation Run",
     buyerType: "site_operator",
     commercialRequestPath: "site_claim",

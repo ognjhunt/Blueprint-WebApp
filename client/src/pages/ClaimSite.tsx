@@ -309,7 +309,7 @@ export function ClaimSite() {
       <Shell>
         <Check size={30} aria-hidden="true" />
         <h1>This site is already in a workspace.</h1>
-        <p className="ms-field-hint">Open your workspace to review the task, progress, and available results.</p>
+        <p className="ms-field-hint">Open your workspace to review the job, progress, and available results.</p>
         <a className="ms-button ms-button-large" href="/app">
           Open your workspace <ArrowRight size={18} aria-hidden="true" />
         </a>
@@ -331,7 +331,7 @@ export function ClaimSite() {
       <p className="ms-field-hint">
         {site.taskStatement
           ? `Claim the workspace for “${site.taskStatement}” to follow its progress and review results when they are available.`
-          : "Claim the workspace to follow task progress and review results when they are available."}
+          : "Claim the workspace to follow job progress and review results when they are available."}
       </p>
       <p className="ms-field-hint">
         Claiming attaches the site to your account — it is how you see results, control whether the

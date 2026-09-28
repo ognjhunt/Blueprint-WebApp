@@ -135,7 +135,7 @@ export function AgentAccessPanel({ user }: { user: User | null }) {
                   <thead>
                     <tr>
                       <th>Requested</th>
-                      <th>Task</th>
+                      <th>Job</th>
                       <th>Result</th>
                       <th>Price</th>
                     </tr>
@@ -144,7 +144,7 @@ export function AgentAccessPanel({ user }: { user: User | null }) {
                     {team.runs.map((run) => (
                       <tr key={run.runId}>
                         <td>{new Date(run.requestedAtIso).toLocaleDateString()}</td>
-                        <td>{run.taskFamily ? taskFamilyLabel(run.taskFamily) : "Site task"}</td>
+                        <td>{run.taskFamily ? taskFamilyLabel(run.taskFamily) : "Site job"}</td>
                         <td>{run.evaluationPurpose === "private" && <span>Private · </span>}{runResultLabel(run)}</td>
                         <td>{formatUsd(run.quotedUsd)}</td>
                       </tr>
@@ -153,7 +153,7 @@ export function AgentAccessPanel({ user }: { user: User | null }) {
                 </table>
               ) : (
                 <p className="ws-muted">
-                  No runs yet. Choose a task in the <a href="/contact/robot-team">task library</a> to see a plan.
+                  No runs yet. Choose a job in the <a href="/contact/robot-team">job library</a> to see a plan.
                 </p>
               )}
               <h3 className="ws-kicker">Keys</h3>

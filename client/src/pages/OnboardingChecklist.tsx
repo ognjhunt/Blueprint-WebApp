@@ -536,7 +536,7 @@ export default function OnboardingChecklist() {
     { label: "Calendar", value: calendarDisposition.replaceAll("_", " ") },
     { label: "Site", value: userData?.siteName || "Not set yet" },
     { label: "Location", value: userData?.siteLocation || "Not set yet" },
-    { label: "Task", value: userData?.taskStatement || "Not set yet" },
+    { label: "Job", value: userData?.taskStatement || "Not set yet" },
   ];
 
   return (
@@ -602,7 +602,7 @@ export default function OnboardingChecklist() {
           )}
           <div className="ws-task-row">
             <div className="ws-task-copy">
-              <h3>{isRobotTeam ? "Robot & policy" : "Site & task"}</h3>
+              <h3>{isRobotTeam ? "Robot & policy" : "Site & job"}</h3>
               <p className="ws-muted">
                 {isRobotTeam
                   ? "Set up the robot and policy you want to evaluate."
@@ -671,7 +671,7 @@ export default function OnboardingChecklist() {
           </button>
         </div>
         <p className="ws-note">
-          You can return to your task and settings at any time.
+          You can return to your job and settings at any time.
         </p>
       </div>
     </AppShell>

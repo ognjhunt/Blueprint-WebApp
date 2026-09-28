@@ -45,7 +45,7 @@ describe("the decision ladder", () => {
   it("asks for a recording once the brief is confirmed and coverage is unknown", () => {
     const status = projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true }));
     expect(status.decision).toBe("record");
-    expect(status.headline).toMatch(/we can assess this task/i);
+    expect(status.headline).toMatch(/we can assess this job/i);
   });
 
   it("reaches assessing when coverage is measured as sufficient", () => {
@@ -273,7 +273,7 @@ describe("screening and results rungs", () => {
 it("shows a completed visual preview while keeping simulation readiness separate", () => {
   const input = base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, scenePreviewReady: true });
   expect(projectTaskStatus(input)).toMatchObject({decision: "assessing", operatorAction: null,
-    headline: "Your scene preview is ready. We are preparing the task for simulation."});
+    headline: "Your scene preview is ready. We are preparing the job for simulation."});
   expect(projectTaskStatus({...input, screening: {teams: 1, queued: 0, running: 0, reported: 1, noResult: 0}}).decision).toBe("results");
 });
 

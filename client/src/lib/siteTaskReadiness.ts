@@ -219,7 +219,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessVerdict {
       blockingCapture,
       blockingEvaluation,
       isSupply: false,
-      nextAction: "We are reading what you sent and drafting the task brief.",
+      nextAction: "We are reading what you sent and drafting the job brief.",
     };
   }
 
@@ -233,7 +233,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessVerdict {
       blockingEvaluation,
       isSupply: false,
       nextAction:
-        "Check the task brief we drafted and correct anything we read wrong. Confirming it is "
+        "Check the job brief we drafted and correct anything we read wrong. Confirming it is "
         + "what lets us act on it.",
     };
   }
@@ -259,9 +259,9 @@ export function assessReadiness(input: ReadinessInput): ReadinessVerdict {
     // to keep -- or "we need more views" to someone who has not filmed at all.
     const nextAction = input.evidence.hasVisual && input.evidence.explainsTask
       ? input.evidence.missingCoverage?.length
-        ? "Your footage shows the task clearly. To prepare the scene we also need "
+        ? "Your footage shows the job clearly. To prepare the scene we also need "
           + `${input.evidence.missingCoverage.join(", ")}.`
-        : "Your footage shows the task clearly. To prepare the scene we need a few more views of "
+        : "Your footage shows the job clearly. To prepare the scene we need a few more views of "
           + "the work area — we will tell you which."
       : blockingEvaluation.length
         ? "We have enough to guide the recording. Some answers are still needed before a robot "
@@ -308,7 +308,7 @@ export function shouldSpendOnReconstruction(input: ReadinessInput): {
     return {
       spend: false,
       reason:
-        "The task brief has not been confirmed, so the gates are still our reading rather than "
+        "The job brief has not been confirmed, so the gates are still our reading rather than "
         + "the operator's answers. A scene built on that cannot be offered to anyone.",
     };
   }

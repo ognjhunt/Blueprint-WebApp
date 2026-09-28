@@ -7,7 +7,7 @@ vi.mock("wouter",()=>({useParams:()=>({sourceLaunchId:"source-one"}),Link:({chil
 vi.mock("@/contexts/AuthContext",()=>({useAuth:()=>({currentUser:user})}));
 vi.mock("@/components/blueprint/app/AppShell",()=>({AppShell:({children}:any)=><main>{children}</main>}));
 vi.mock("@/lib/firebaseAuthHeaders",()=>({withFirebaseAuthHeaders:async(_u:any,h:any)=>h}));
-vi.mock("@/components/blueprint/app/OfferingThumbnail",()=>({OfferingThumbnail:()=> <img alt="Task preview"/>}));
+vi.mock("@/components/blueprint/app/OfferingThumbnail",()=>({OfferingThumbnail:()=> <img alt="Job preview"/>}));
 vi.mock("@/lib/csrf",()=>({withCsrfHeader:async(h:any)=>h}));
 vi.mock("@/lib/workspace",()=>({workspaceRequest:vi.fn(async()=>({}))}));
 const context={taskDetails:{title:"Move the blue container",description:"Pick up the container and place it on the target.",requirements:[{label:"Time limit",value:"30 seconds"}]},
@@ -71,8 +71,8 @@ it("keeps task information, setup and fixed pricing on the same page",async()=>{
   render(<TeamEvaluationSelection/>);await select();
   expect(screen.getByRole("heading",{name:"Move the blue container"})).toBeInTheDocument();
   expect(screen.getByText("30 seconds")).toBeInTheDocument();
-  expect(screen.getByText("Task data").closest("details")).toBeInTheDocument();
-  expect(screen.getByRole("img",{name:"Task preview"})).toBeInTheDocument();
+  expect(screen.getByText("Job data").closest("details")).toBeInTheDocument();
+  expect(screen.getByRole("img",{name:"Job preview"})).toBeInTheDocument();
   expect(screen.getByText(/you won’t be charged/)).toBeInTheDocument();
   expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
   expect(screen.queryByRole("link",{name:/setup/i})).not.toBeInTheDocument();

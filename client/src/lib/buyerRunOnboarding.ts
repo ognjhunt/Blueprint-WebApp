@@ -17,7 +17,7 @@ export const buyerRunOnboardingTimeline: BuyerRunOnboardingStep[] = [
   {
     phase: "1",
     title: "Request",
-    target: "Submit site, task, policy, and confidentiality context",
+    target: "Submit site, job, policy, and confidentiality context",
     owner: "Robot team",
     body:
       "Start with the target site or package, robot family, policies/checkpoints, success criteria, and any privacy, export, or IP limits.",

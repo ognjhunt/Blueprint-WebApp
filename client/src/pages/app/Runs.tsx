@@ -62,7 +62,7 @@ function ResultRows({ results }: { results: TaskEvaluationResultSiteRecord[] }) 
             key={result.record_id}
             title={resultTitle(result)}
             meta={[
-              result.publication.run_kind === "internal_policy_canary" ? "Head-to-head policy test · simulation" : "Task evaluation",
+              result.publication.run_kind === "internal_policy_canary" ? "Head-to-head policy test · simulation" : "Evaluation",
               formatEntitlementDate(result.publication.completed_at_iso || result.updated_at_iso || result.created_at_iso),
               delivery?.status === "blocked" ? "some files unavailable" : null,
             ].filter(Boolean).join(" · ")}
@@ -163,11 +163,11 @@ export default function Runs() {
             <BuyerAppEmptyState
               title="No runs yet"
               body={siteOperator
-                ? "Evaluations of your tasks appear on each task's page."
-                : "When you evaluate a robot on a task, the run and its results appear here."}
+                ? "Evaluations of your jobs appear on each job's page."
+                : "When you evaluate a robot on a job, the run and its results appear here."}
               action={siteOperator
-                ? <ActionLink href="/app/tasks" primary>Your tasks</ActionLink>
-                : <ActionLink href="/app/opportunities" primary>Find a task</ActionLink>}
+                ? <ActionLink href="/app/tasks" primary>Your jobs</ActionLink>
+                : <ActionLink href="/app/opportunities" primary>Find a job</ActionLink>}
             />
           ) : null}
 

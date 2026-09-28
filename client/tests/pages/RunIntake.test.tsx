@@ -63,7 +63,7 @@ describe("Task Evaluation Run intake", () => {
     fill("Testbed manifest digest", `sha256:${"a".repeat(64)}`);
     fill("Site ID", "site-001");
     fill("Task ID", "task-001");
-    fill("Task description", "Move a tote to the fixture.");
+    fill("Job description", "Move a tote to the fixture.");
     fill("Site and task conditions (one per line)", "dry floor\nday shift");
     fill("What decision do you need to make?", "Should candidate A receive field time?");
     fill("Candidates or policies, if applicable (one per line)", "Candidate A");
