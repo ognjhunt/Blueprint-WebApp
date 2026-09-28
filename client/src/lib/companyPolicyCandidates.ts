@@ -196,3 +196,15 @@ export async function submitCompanyPolicyCandidate(args: {
   }
   return {...candidatePayload, credential: credentialPayload};
 }
+
+/** Identity comes from the authenticated run owner, never the uploaded contract. */
+export async function companyPolicyCandidateContext(user: User, runId: string): Promise<{company_id: string}> {
+  const response = await fetch(`/api/task-evaluation-runs/${encodeURIComponent(runId)}/policy-candidate-context`, {
+    credentials: "include", headers: await withFirebaseAuthHeaders(user),
+  });
+  const payload = await responsePayload(response);
+  if (!response.ok || typeof payload.company_id !== "string") {
+    throw new Error(String(payload.code || "Policy candidate identity is unavailable."));
+  }
+  return {company_id: payload.company_id};
+}

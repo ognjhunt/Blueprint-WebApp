@@ -8,6 +8,7 @@ import {AppShell} from "@/components/blueprint/app/AppShell";
 import {useAuth} from "@/contexts/AuthContext";
 import {
   COMPANY_POLICY_CONTRACT_TEMPLATE,
+  companyPolicyCandidateContext,
   buildCompanyPolicyContractSubmission,
   submitCompanyPolicyCandidate,
 } from "@/lib/companyPolicyCandidates";
@@ -61,8 +62,8 @@ export default function PolicyCandidateIntake() {
     setError(null);
     setReceipt(null);
     try {
-      const token = await currentUser.getIdTokenResult();
-      const companyId = String(token.claims.companyId || token.claims.company_id || "").trim();
+      const context = await companyPolicyCandidateContext(currentUser, runId);
+      const companyId = context.company_id;
       const contract = buildCompanyPolicyContractSubmission({
         contractText,
         companyId,

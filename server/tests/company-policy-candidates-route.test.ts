@@ -75,8 +75,8 @@ vi.mock("../middleware/verifyFirebaseToken", () => ({
     if (!uid) return res.status(401).json({error: "Unauthorized"});
     res.locals.firebaseUser = {
       uid,
-      tenantId: String(req.header("X-Test-Tenant-Id") || `tenant-${uid}`),
-      companyId: String(req.header("X-Test-Company-Id") || "acme_robotics"),
+      tenantId: req.header("X-Test-No-Claims") ? "" : String(req.header("X-Test-Tenant-Id") || `tenant-${uid}`),
+      companyId: req.header("X-Test-No-Claims") ? "" : String(req.header("X-Test-Company-Id") || "acme_robotics"),
     };
     next();
   },
@@ -99,7 +99,7 @@ vi.mock("../utils/companyPolicyContainerContract", () => ({
   companyPolicyRegistryHost: () => "registry.acme.example",
   normalizeCompanyPolicyContainerContract: (value: unknown) =>
     (value as {valid?: boolean})?.valid
-      ? {ok: true, contract: structuredClone(normalizedContract)}
+      ? {ok: true, contract: {...structuredClone(normalizedContract), company_id: (value as any).company_id || normalizedContract.company_id}}
       : {ok: false, code: "company_policy_container_v2_invalid", errors: ["invalid"]},
 }));
 
@@ -242,6 +242,40 @@ afterEach(() => {
 });
 
 describe("company policy candidate routes", () => {
+  it("admits an ordinary account into only its own tenantless prepared run", async () => {
+    state.collections.get("robotEvalJobRequests")!.set("run-personal", {
+      buyer_user_id: "buyer-1", status: "prepared_agent_execution",
+      decision_request: {owner: {user_id: "buyer-1"}},
+    });
+    const {server, baseUrl} = await startServer();
+    const headers = {Authorization: "Bearer buyer-1", "X-Test-No-Claims": "true"};
+    try {
+      const contextResponse = await fetch(`${baseUrl}/api/task-evaluation-runs/run-personal/policy-candidate-context`, {headers});
+      expect(contextResponse.status).toBe(200);
+      const context = await contextResponse.json() as any;
+      expect(context.company_id).toMatch(/^account_[a-f0-9]{40}$/);
+      const submit = await fetch(`${baseUrl}/api/task-evaluation-runs/run-personal/policy-candidates`, {
+        method: "POST", headers: {...headers, "Content-Type": "application/json"},
+        body: JSON.stringify({contract: {valid: true, company_id: context.company_id}, idempotency_key: "personal-candidate-12345678"}),
+      });
+      expect(submit.status).toBe(201);
+      const {candidate} = await submit.json() as any;
+      expect(candidate.tenant_id).toBe(context.company_id);
+      expect(candidate.launch_authority_granted).toBe(false);
+      const other = await fetch(`${baseUrl}/api/task-evaluation-runs/run-personal/policy-candidate-context`, {
+        headers: {...headers, Authorization: "Bearer buyer-2"},
+      });
+      expect(other.status).toBe(403);
+      const tenanted = await fetch(`${baseUrl}/api/task-evaluation-runs/run-12345678/policy-candidate-context`, {headers});
+      expect(tenanted.status).toBe(403);
+      const forged = await fetch(`${baseUrl}/api/task-evaluation-runs/run-personal/policy-candidates`, {
+        method: "POST", headers: {...headers, "Content-Type": "application/json"},
+        body: JSON.stringify({contract: {valid: true, company_id: "other_company"}, idempotency_key: "forged-candidate-12345678"}),
+      });
+      expect(forged.status).toBe(403);
+    } finally { await stopServer(server); }
+  });
+
   it("stores an owner-scoped immutable contract, then a separate secret-clean lease", async () => {
     const {server, baseUrl} = await startServer();
     try {

@@ -53,23 +53,39 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-async function ownedRun(runId: string, ownerUid: string, tenantId: string) {
+// Un-tenanted Firebase accounts receive a stable account namespace. Explicit
+// tenant claims must still match the authoritative owner on the stored run.
+async function runIdentity(runId: string, res: {locals: Record<string, unknown>}, requireOpen = true) {
+  const auth = identity(res);
+  if (!auth.uid) return {ok: false as const, status: 401, code: "policy_candidate_identity_missing"};
   if (!db) return {ok: false as const, status: 503, code: "policy_candidate_store_not_configured"};
   const snapshot = await db.collection("robotEvalJobRequests").doc(runId).get();
   if (!snapshot.exists) return {ok: false as const, status: 404, code: "task_evaluation_run_not_found"};
   const data = (snapshot.data() || {}) as Record<string, unknown>;
-  if (String(data.buyer_user_id || "") !== ownerUid) {
+  if (String(data.buyer_user_id || "") !== auth.uid) {
     return {ok: false as const, status: 403, code: "task_evaluation_run_owner_mismatch"};
   }
   const owner = asRecord(asRecord(data.decision_request || data.jobRequest).owner);
-  if (!tenantId || String(owner.tenant_id || "") !== tenantId) {
+  const storedTenant = String(owner.tenant_id || "").trim();
+  if (storedTenant !== auth.tenantId) {
     return {ok: false as const, status: 403, code: "task_evaluation_run_tenant_mismatch"};
   }
-  if (!new Set(["submitted", "ready"]).has(String(data.status || ""))) {
+  if (requireOpen && !new Set(["submitted", "ready", "prepared_agent_execution"]).has(String(data.status || ""))) {
     return {ok: false as const, status: 409, code: "task_evaluation_run_not_open_for_candidates"};
   }
-  return {ok: true as const, data};
+  const accountNamespace = `account_${sha256(auth.uid).slice(0, 40)}`;
+  return {ok: true as const, data, auth: {
+    uid: auth.uid, tenantId: auth.tenantId || accountNamespace,
+    companyId: auth.companyId || accountNamespace,
+  }};
 }
+
+router.get("/:runId/policy-candidate-context", verifyFirebaseToken, async (req, res) => {
+  const run = await runIdentity(String(req.params.runId || "").trim(), res);
+  if (!run.ok) return res.status(run.status).json({ok: false, code: run.code});
+  return res.json({ok: true, company_id: run.auth.companyId,
+    claim_ceiling: "development_only", launch_authority_granted: false});
+});
 
 function handoffFor(record: Record<string, unknown>): CompanyPolicyCandidateHandoff {
   return {
@@ -90,13 +106,10 @@ function handoffFor(record: Record<string, unknown>): CompanyPolicyCandidateHand
 }
 
 router.post("/:runId/policy-candidates", csrfProtection, verifyFirebaseToken, async (req, res) => {
-  const auth = identity(res);
-  if (!auth.uid || !auth.tenantId || !auth.companyId) {
-    return res.status(401).json({ok: false, code: "policy_candidate_identity_missing"});
-  }
   const runId = String(req.params.runId || "").trim();
-  const run = await ownedRun(runId, auth.uid, auth.tenantId);
+  const run = await runIdentity(runId, res);
   if (!run.ok) return res.status(run.status).json({ok: false, code: run.code});
+  const auth = run.auth;
 
   const request = candidateRequestSchema.safeParse(req.body);
   if (!request.success) {
@@ -217,14 +230,11 @@ router.put(
   csrfProtection,
   verifyFirebaseToken,
   async (req, res) => {
-    const auth = identity(res);
     const runId = String(req.params.runId || "").trim();
     const submissionId = String(req.params.submissionId || "").trim();
-    if (!auth.uid || !auth.tenantId || !auth.companyId) {
-      return res.status(401).json({ok: false, code: "policy_candidate_identity_missing"});
-    }
-    const run = await ownedRun(runId, auth.uid, auth.tenantId);
+    const run = await runIdentity(runId, res);
     if (!run.ok) return res.status(run.status).json({ok: false, code: run.code});
+    const auth = run.auth;
     const candidateRef = db!.collection("companyPolicyCandidateSubmissions").doc(submissionId);
     const candidateSnapshot = await candidateRef.get();
     if (!candidateSnapshot.exists) {
@@ -350,14 +360,13 @@ router.get(
   "/:runId/policy-candidates/:submissionId",
   verifyFirebaseToken,
   async (req, res) => {
-    const auth = identity(res);
     const runId = String(req.params.runId || "").trim();
     const submissionId = String(req.params.submissionId || "").trim();
-    if (!db) return res.status(503).json({ok: false, code: "policy_candidate_store_not_configured"});
-    if (!auth.uid || !auth.tenantId || !auth.companyId) {
-      return res.status(401).json({ok: false, code: "policy_candidate_identity_missing"});
-    }
-    const snapshot = await db.collection("companyPolicyCandidateSubmissions").doc(submissionId).get();
+    const run = await runIdentity(runId, res, false);
+    if (!run.ok) return res.status(run.status).json({ok: false,
+      code: run.status === 403 ? "policy_candidate_owner_mismatch" : run.code});
+    const auth = run.auth;
+    const snapshot = await db!.collection("companyPolicyCandidateSubmissions").doc(submissionId).get();
     if (!snapshot.exists) return res.status(404).json({ok: false, code: "policy_candidate_not_found"});
     const candidate = (snapshot.data() || {}) as Record<string, unknown>;
     if (
