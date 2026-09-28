@@ -146,9 +146,13 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: intak
   const form = page.getByRole("form", { name: "Start a site capture" });
   await form.locator("#start-task").fill("Move sealed cartons from conveyor to pallet");
   await form.locator("#start-location").fill("Chicago, Illinois");
-  await form.locator("#start-region").selectOption("us");
   await form.locator("#start-email").fill("owner@example.test");
+  await form.locator("#start-name").fill("Pat Lee");
+  await form.locator("#start-company").fill("Acme Foods");
   await form.locator("#start-rights").check();
+  // A typed address has no country yet: the first Start asks for it.
+  await form.getByRole("button", { name: "Start", exact: true }).click();
+  await form.locator("#start-region").selectOption("us");
   await form.getByRole("button", { name: "Start", exact: true }).click();
   if (mobile) {
     await expect(page.getByRole("link", { name: "Open the camera" })).toBeVisible();
