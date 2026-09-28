@@ -31,7 +31,11 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
       </header>
       <main id="main-content">{children}</main>
       <footer className="ms-footer ms-container">
-        <p>© {new Date().getFullYear()} {COMPANY.legalName}</p>
+        <div className="ms-footer-brand">
+          <a className="ms-brand" href="/" aria-label="Return to homepage"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
+          <p className="ms-footer-description">Blueprint connects businesses that need work done with robot teams that can do it.</p>
+          <p>© {new Date().getFullYear()} {COMPANY.legalName}</p>
+        </div>
         <nav aria-label="Footer navigation">
           <a href={`mailto:${COMPANY.emails.hello}`}>Get in touch <ArrowUpRight size={14} aria-hidden="true" /></a>
           <a href="/about">About</a><a href="/sign-in">Sign in</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a>

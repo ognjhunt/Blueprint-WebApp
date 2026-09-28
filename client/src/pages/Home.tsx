@@ -12,11 +12,7 @@ export default function Home() {
       <EmbodimentHero>
           <div className="ms-hero-copy">
             <h1 id="hero-title">One recurring task.<br />A measured robot pilot.</h1>
-            {/* Input-neutral on purpose. The recording is how most assessments end
-                up being done, not the price of starting one -- a description is
-                enough to get a task brief back, and footage they already hold
-                gets reused rather than re-shot. */}
-            <p className="ms-hero-description">Find a robot team for one recurring task. Get a pilot proposal with a clear price, scope and evaluation results. Start with a description, photos or video.</p>
+            <p className="ms-hero-description">Blueprint connects businesses that need work done with robot teams that can do it. Start with a description, photos or video.</p>
             <a className="ms-button ms-button-large" href="/contact/site-operator">Start a task assessment <ArrowRight size={25} strokeWidth={1.5} aria-hidden="true" /></a>
           </div>
       </EmbodimentHero>
