@@ -59,6 +59,20 @@ owner (`user_id`, `organization_id`), `max_total_spend_usd`, disjoint
 This is server configuration, never an upload form field. Missing configuration
 holds automatic preparation; it does not request payment from the site owner.
 
+`native_max_spend_usd` becomes the scene intent's execution ceiling, and the
+Pipeline refuses a construction request whose `hard_cap_usd` exceeds it. Since
+2026-09-28 the whole CAD/Blender stage (stage 3) is one shared $25 pool for
+every object and articulated part it authors, and a website articulated scene
+quotes it in full: $6 provider compute plus $25 authoring, a $31 hard cap with
+no ArtiFixer stages. An articulated website scene therefore needs
+`native_max_spend_usd` of at least 31, and with the $5 upstream allowance a
+`max_total_spend_usd` of at least 36. A lower native allowance keeps rigid
+website scenes ($11 quote) working and holds articulated ones at
+`website_native_construction_budget_exceeds_authority`. The figure is derived
+in `server/tests/task-evaluation-scene-budget-parity.test.ts` from the shared
+budget profile. Changing the configuration changes the policy digest, so
+existing grants refuse with `website_scene_sponsorship_changed`.
+
 For a scoped Claude Opus 5.5 development capture, the operator opens the site
 start page with `?authoring=claude-opus-5-5` and explicitly authorizes selected
 frames and task evidence to go to Anthropic. The request retains that grant.
