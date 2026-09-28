@@ -100,6 +100,7 @@ import { createEvalPlanToken, verifyEvalPlanToken } from "../utils/evalPlanToken
 import { EARLY_ACCESS_REQUIRED, teamHasEarlyAccess } from "../utils/robotTeamEarlyAccess";
 import { getRunForTeam, listRunsForTeam } from "../utils/agentRunResults";
 import { receivePolicyModel, storePolicyModel } from "./policy-model-upload";
+import { checkpointRuntimes } from "../utils/policyIntegration";
 
 const router = Router();
 
@@ -110,8 +111,8 @@ const router = Router();
 const checkpointSchema = z
   .object({
     label: z.string().trim().min(1).max(120),
-    runtime: z.enum(["policy_endpoint", "container_image", "model_artifact"]),
-    reference: z.string().trim().min(1).max(2000),
+    runtime: z.enum(checkpointRuntimes),
+    reference: z.string().trim().min(1).max(32768),
   })
   .strict();
 
@@ -567,7 +568,7 @@ router.post("/checkpoints", async (req: Request, res: Response) => {
     return res.status(400).json({
       error: "Checkpoint registration is invalid",
       code: "checkpoint_invalid",
-      required: { label: "string", runtime: "policy_endpoint | container_image | model_artifact", reference: "string" },
+      required: { label: "string", runtime: checkpointRuntimes.join(" | "), reference: "string" },
     });
   }
 

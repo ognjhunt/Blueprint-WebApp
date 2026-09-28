@@ -255,6 +255,7 @@ const agentExecutionOfferBody = z.object({
     scenario_id: z.string().trim().min(1).max(200),
     episode_count: z.number().int().min(1).max(100_000),
     episode_specs_sha256: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+    policy_execution_profiles: z.array(z.enum(["controlled_observation_v1", "onnx_state_mlp_cpu_v1"])).max(2).optional(),
   }).strict(),
 }).strict();
 

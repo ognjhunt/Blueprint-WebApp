@@ -14,7 +14,12 @@ const MESSAGES: Array<{ match: (code: string) => boolean; text: string; rank: nu
   },
   {
     match: (code) => code === "agent_execution_checkpoint_runtime_not_admissible",
-    text: "Paid runs need your policy as an endpoint we can call or a container image. A model artifact can't be run yet; register one of the others to continue.",
+    text: "This checkpoint needs a compatible execution interface. A skill trace records intent; paid action runs require an executable policy or controller.",
+    rank: 1,
+  },
+  {
+    match: (code) => code === "pipeline_controlled_policy_executor_required" || code === "pipeline_model_runner_profile_required",
+    text: "This task needs a compatible private-policy runner before execution. Your integration is saved, and nothing is charged.",
     rank: 1,
   },
   {

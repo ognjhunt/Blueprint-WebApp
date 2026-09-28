@@ -17,6 +17,7 @@ import {
   publicRegistryCredentialLease,
 } from "../utils/companyPolicyRegistryCredentialLease";
 import {canonicalArtifactDigest} from "../utils/taskCandidateContract";
+import {skillTraceSchema} from "../utils/policyIntegration";
 
 const router = Router();
 const candidateRequestSchema = z
@@ -85,6 +86,50 @@ router.get("/:runId/policy-candidate-context", verifyFirebaseToken, async (req, 
   if (!run.ok) return res.status(run.status).json({ok: false, code: run.code});
   return res.json({ok: true, company_id: run.auth.companyId,
     claim_ceiling: "development_only", launch_authority_granted: false});
+});
+
+// ADP-011/day 7: attach intent to the owner's frozen task without inventing
+// motor actions or allowing a submitted trace to supply its own outcome.
+router.post("/:runId/skill-traces", verifyFirebaseToken, csrfProtection, async (req, res) => {
+  const runId = String(req.params.runId || "").trim();
+  const run = await runIdentity(runId, res);
+  if (!run.ok) return res.status(run.status).json({ok: false, code: run.code});
+  const parsed = z.object({trace: skillTraceSchema,
+    idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+  }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ok: false, code: "skill_trace_invalid"});
+  const decision = asRecord(run.data.decision_request || run.data.jobRequest);
+  const siteTask = asRecord(decision.site_task);
+  const testbed = asRecord(decision.testbed);
+  if (!siteTask.task_id || !testbed.digest_sha256) {
+    return res.status(409).json({ok: false, code: "skill_trace_frozen_task_required"});
+  }
+  const traceId = `skill-trace-${sha256(`${run.auth.uid}\0${runId}\0${parsed.data.idempotency_key}`).slice(0, 40)}`;
+  const record = {schema_version: "blueprint.task_skill_trace.v1", trace_id: traceId,
+    run_id: runId, owner_uid: run.auth.uid, task_id: siteTask.task_id,
+    testbed_digest: testbed.digest_sha256, trace: parsed.data.trace,
+    evidence_scope: "submitted_skill_intent_only", motor_actions: [], task_success: null,
+    execution_evidence_required: true};
+  const ref = db!.collection("taskSkillTraces").doc(traceId);
+  const stored = await db!.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    if (existing.exists) return canonicalArtifactDigest(asRecord(existing.data()), "trace_digest")
+      === canonicalArtifactDigest(record, "trace_digest");
+    transaction.set(ref, record);
+    return true;
+  });
+  if (!stored) return res.status(409).json({ok: false, code: "skill_trace_idempotency_conflict"});
+  res.setHeader("Cache-Control", "private, no-store");
+  return res.status(201).json({ok: true, trace: record});
+});
+
+router.get("/:runId/skill-traces", verifyFirebaseToken, async (req, res) => {
+  const runId = String(req.params.runId || "").trim();
+  const run = await runIdentity(runId, res, false);
+  if (!run.ok) return res.status(run.status).json({ok: false, code: run.code});
+  const records = await db!.collection("taskSkillTraces").where("run_id", "==", runId).limit(128).get();
+  res.setHeader("Cache-Control", "private, no-store");
+  return res.json({ok: true, traces: records.docs.map((doc) => doc.data()).filter((row) => row.owner_uid === run.auth.uid)});
 });
 
 function handoffFor(record: Record<string, unknown>): CompanyPolicyCandidateHandoff {

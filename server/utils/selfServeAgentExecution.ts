@@ -9,8 +9,8 @@
  *
  * - **Who pays:** the verified Blueprint account bound to the team
  *   (`robotTeamAccounts`). No account, no record.
- * - **What runs:** the team's checkpoint, as registered. A model artifact is
- *   never admitted, so it is never prepared.
+ * - **What runs:** the team's owned checkpoint through a compatible executor.
+ *   Model bytes are packaged and validated inside the isolated runner.
  * - **Where it runs:** a runnable site whose owner consented to robot
  *   evaluation, the Pipeline's published testbed for its scene, and the
  *   Pipeline's own execution offer (capture root, the one scenario it runs,
@@ -37,6 +37,7 @@ import { teamAccountUid } from "./robotTeamAccounts";
 import { isRunnableTask } from "./teamEvalCandidates";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { InboundRequest } from "../types/inbound-request";
+import { checkpointPolicyPackage } from "./policyIntegration";
 
 export const SELF_SERVE_ENTITLEMENT_SKU = "self-serve-agent-execution";
 
@@ -49,6 +50,7 @@ export interface AgentExecutionOffer {
   scenario_id: string;
   episode_count: number;
   episode_specs_sha256: string;
+  policy_execution_profiles?: string[];
 }
 
 export type SelfServePreparation =
@@ -82,12 +84,7 @@ export function agentExecutionOfferFrom(record: unknown, captureId: string): Age
 }
 
 function policyPackageFor(checkpoint: Record<string, any>): Record<string, unknown> | null {
-  const reference = text(checkpoint.reference);
-  if (!reference) return null;
-  if (checkpoint.runtime === "policy_endpoint") return { policy_api_endpoint: { endpoint_url: reference } };
-  if (checkpoint.runtime === "container_image") return { docker_container: { image_ref: reference } };
-  // A model artifact is never admitted for agent execution, so it is never prepared.
-  return null;
+  return checkpointPolicyPackage(checkpoint);
 }
 
 /**
@@ -135,6 +132,14 @@ export async function ensureSelfServeAgentExecution(params: {
   if (!facts.ok) return { prepared: false, blockers: facts.blockers };
   const offer = agentExecutionOfferFrom(scene, facts.captureId);
   if (!offer) return { prepared: false, blockers: ["pipeline_execution_offer_missing"] };
+  if (["customer_hosted", "controller_adapter", "model_artifact"].includes(checkpoint.runtime)
+    && !offer.policy_execution_profiles?.includes("controlled_observation_v1")) {
+    return { prepared: false, blockers: ["pipeline_controlled_policy_executor_required"] };
+  }
+  if (checkpoint.runtime === "model_artifact"
+    && !offer.policy_execution_profiles?.includes("onnx_state_mlp_cpu_v1")) {
+    return { prepared: false, blockers: ["pipeline_model_runner_profile_required"] };
+  }
   if (offer.episode_count !== params.quotedEpisodes) {
     return { prepared: false, blockers: ["pipeline_execution_offer_episode_mismatch"] };
   }
@@ -145,6 +150,7 @@ export async function ensureSelfServeAgentExecution(params: {
     checkpointId: params.checkpointId,
     runtime: checkpoint.runtime,
     reference: text(checkpoint.reference),
+    ...(checkpoint.modelArtifact ? { modelArtifact: checkpoint.modelArtifact } : {}),
     sceneId: params.sceneId,
     siteId: facts.siteId,
     captureId: facts.captureId,

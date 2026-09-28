@@ -3,8 +3,11 @@
 Owner: Nijel Hunt. Program: Arm Decision Proof v1.
 Backlog: ADP-011 / day 7 admission; ADP-050 / day 28 execution and delivery.
 
-This extends the active production proof goal at the owner's request. All of
-the following remain required; passing one row does not complete the goal.
+Owner scope update, 2026-09-28: build the integration capabilities and commit
+and merge the relevant changes. Separate proof runs, new tests, and unrelated
+debugging are deferred at the owner's request. The table below records the
+execution evidence needed for later operational claims; it is not an instruction
+to perform those runs during the capability build.
 
 | Required path | Completion evidence |
 | --- | --- |
@@ -70,3 +73,32 @@ A skill trace is an ordered record such as `find cup → pick cup → place cup 
 shelf`. It records intent and order. Joint commands, interventions, and whether
 the cup actually reached the shelf need separate, task-bound execution and
 outcome evidence. A trace can remain useful even when those are unavailable.
+
+## Capability interfaces
+
+The team form and `/api/agent-team/checkpoints` accept `customer_hosted`,
+`controller_adapter`, and `skill_trace` alongside the existing runtimes.
+Customer-hosted references use HTTPS. Controller references use an immutable
+OCI image with an adapter implementing the approved observation/action wire
+interface; uploaded Python plugins never run inside the scene process.
+Skill references use `blueprint.skill_trace.v1` JSON with ordered `steps`
+containing `skill` and optional `target`. Registration preserves intent only.
+
+Authenticated run owners can POST `{trace, idempotency_key}` to
+`/api/task-evaluation-runs/:runId/skill-traces`, then GET the same route to
+review traces bound to the frozen task and testbed. A submitted trace carries
+no motor actions or inferred success and does not authorize a paid action run.
+
+Model uploads bind private object generation, content digest and an explicit
+runner interface. The canonical request carries that server-owned manifest to
+the Pipeline builder. The builder checks the frozen task's units and channels,
+copies only model bytes and interface metadata into its image, and returns a
+digest-pinned image. Graph loading happens inside the isolated worker.
+
+Customer-hosted, controller and model planning require the Pipeline's signed
+offer to advertise `controlled_observation_v1`; models additionally require
+`onnx_state_mlp_cpu_v1`. Publication is opt-in by the configured executor.
+The controlled executor is injected into the existing job orchestrator and
+never falls through to legacy manifest export, host Docker, or reference replay.
+Production activation still requires a configured trusted simulator adapter
+and qualified dedicated sandbox; merging code does not establish those facts.
