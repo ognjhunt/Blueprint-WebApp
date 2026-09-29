@@ -141,11 +141,25 @@ type PartUploadRequest = Request & {
  * Same object, same metadata, same result as the buffered `.save` it
  * replaces — the bytes just never sit whole in process memory.
  */
+type StreamedFileOptions = {
+  contentType?: string;
+  metadata?: Record<string, string>;
+  ifGenerationMatch?: number | string;
+};
+
+function saveStreamedFile(
+  file: { path: string; mimetype?: string }, objectPath: string,
+  options: StreamedFileOptions & { captureIdentity: true },
+): Promise<WrittenObject>;
+function saveStreamedFile(
+  file: { path: string; mimetype?: string }, objectPath: string,
+  options: StreamedFileOptions & { captureIdentity?: false },
+): Promise<void>;
 function saveStreamedFile(
   file: { path: string; mimetype?: string },
   objectPath: string,
-  options: { contentType?: string; metadata?: Record<string, string>; ifGenerationMatch?: number | string },
-): Promise<WrittenObject> {
+  options: StreamedFileOptions & { captureIdentity?: boolean },
+): Promise<WrittenObject | void> {
   const fileRef = storageAdmin!.bucket(storageBucketName()).file(objectPath);
   const stream = fileRef.createWriteStream({
       contentType: options.contentType,
@@ -155,7 +169,7 @@ function saveStreamedFile(
         ? undefined : { ifGenerationMatch: options.ifGenerationMatch },
     });
   return pipeline(createReadStream(file.path), stream).then(() =>
-    capturedWriteIdentity(objectPath, fileRef.metadata));
+    options.captureIdentity ? capturedWriteIdentity(objectPath, fileRef.metadata) : undefined);
 }
 
 async function discardUploadedFile(file: { path: string } | undefined): Promise<void> {
@@ -908,6 +922,7 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
 
   try {
     const writtenVideo = await saveStreamedFile(file, objectPath, {
+      captureIdentity: true,
       contentType: storedVideoContentType(extension, file.mimetype),
       ifGenerationMatch: write.ifGenerationMatch,
       metadata: {
