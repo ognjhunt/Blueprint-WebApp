@@ -17,7 +17,8 @@ export function isCaptureOwnerPath(path: string): boolean { return pathPattern.t
 /** Decode flat JSON lexically so escaped duplicate keys cannot collapse in JSON.parse. */
 export function decodeCaptureOwnerFlatJson(text: string): CaptureOwnerBody {
   let at = 0;
-  const white = () => { while (/\s/.test(text[at] ?? "") && at < text.length) at++; };
+  const white = () => { while (at < text.length && (text[at] === " " || text[at] === "\t"
+    || text[at] === "\n" || text[at] === "\r")) at++; };
   const token = (wanted: string) => {
     white(); if (text[at] !== wanted) throw new Error("capture_owner_json_invalid"); at++;
   };
