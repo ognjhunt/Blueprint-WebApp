@@ -436,9 +436,58 @@ describe("the privacy question is asked before anything is derived", () => {
       expect(written.has(markerName)).toBe(false);
       const token = tokenFrom(captureUploadUrlFor("req-marker-retry"));
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
-      expect(session.browser_pending_delivery.state).toBe("published");
+      expect((sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-marker-retry") as
+        Record<string, any>).browser_pending_delivery.state).toBe("published");
       const marker = JSON.parse(written.get(markerName) ?? "null");
       expect(marker.producer_delivery.raw_video_generation).toBe(pendingVideoGeneration);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("never treats a changed pending identity or incomplete stored privacy as clearance", async () => {
+    seedRequest("req-marker-guard", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+      outcome: "not_reviewed", detail: null, evidence: null });
+    writeFault.markerOnce = true;
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-marker-guard", "V1")).status).toBe(502);
+      const token = tokenFrom(captureUploadUrlFor("req-marker-guard"));
+      const markerName = "scenes/site-req-marker-guard/captures/walkthrough-req-marker-guard/raw/capture_upload_complete.json";
+      const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-marker-guard") as Record<string, any>;
+      request.capture_privacy_screen.proceeded = false;
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect(written.has(markerName)).toBe(false);
+      request.capture_privacy_screen.proceeded = true;
+      request.capture_privacy_screen.capture_id = "walkthrough-other";
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect(written.has(markerName)).toBe(false);
+      request.capture_privacy_screen.capture_id = "walkthrough-req-marker-guard";
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-marker-guard") as Record<string, any>;
+      session.browser_pending_delivery.scene_id = "site-other";
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect(written.has(markerName)).toBe(false);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("replays an already-created exact marker when pending publication was interrupted", async () => {
+    seedRequest("req-pending-retry", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+      outcome: "not_reviewed", detail: null, evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-pending-retry", "V1")).status).toBe(201);
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-pending-retry") as Record<string, any>;
+      expect(session.browser_pending_delivery.state).toBe("published");
+      session.browser_pending_delivery.state = "held";
+      const markerName = "scenes/site-req-pending-retry/captures/walkthrough-req-pending-retry/raw/capture_upload_complete.json";
+      const markerBefore = written.get(markerName);
+      const markerVersionsBefore = [...storedVersions.keys()].filter((name) => name.startsWith(`${markerName}@`));
+      const token = tokenFrom(captureUploadUrlFor("req-pending-retry"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect((sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-pending-retry") as
+        Record<string, any>).browser_pending_delivery.state).toBe("published");
+      expect(written.get(markerName)).toBe(markerBefore);
+      expect([...storedVersions.keys()].filter((name) => name.startsWith(`${markerName}@`))).toEqual(markerVersionsBefore);
       expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
     });
   });

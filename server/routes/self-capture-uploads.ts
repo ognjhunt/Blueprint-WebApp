@@ -68,7 +68,7 @@ import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { notifySlackFootageNeedsReview } from "../utils/slack";
 import { buildBrowserDelivery, capturedWriteIdentity, publishBrowserDelivery,
   type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
-import { legacyBrowserPrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
+import { storedBrowserPrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
   publishBrowserPending, recordBrowserPending,
   releaseBrowserUpload, reserveBrowserUpload, type BrowserPending,
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
@@ -681,8 +681,8 @@ router.get("/:token", async (req: Request, res: Response) => {
     }
 
     if ((resumed?.action === "cleared" && resumed.result.proceed)
-        || (finishMode === "legacy"
-          && await legacyBrowserPrivacyCleared(payload.requestId, payload.captureId))) {
+        || (finishMode !== "blocked"
+          && await storedBrowserPrivacyCleared(payload.requestId, payload.captureId))) {
       // It cleared on retry, so the thing that was missing is the marker. An
       // app bundle finishes from its completion record, byte for byte; a
       // browser upload writes its marker as before.

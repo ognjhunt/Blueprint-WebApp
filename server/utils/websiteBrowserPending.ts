@@ -137,13 +137,13 @@ export async function prepareLegacyBrowserFinish(input: { request_id: string; sc
   });
 }
 
-/** A crash after privacy clears may finish only from the durable old claim. */
-export async function legacyBrowserPrivacyCleared(requestId: string, captureId: string): Promise<boolean> {
+/** A crash after clearance may replay only this capture's recorded decision. */
+export async function storedBrowserPrivacyCleared(requestId: string, captureId: string): Promise<boolean> {
   if (!db) throw new Error("browser_pending_unavailable");
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
   const privacy = snapshot.data()?.capture_privacy_screen;
   return privacy?.capture_id === captureId && privacy.proceeded === true
-    && privacy.eligibility !== "pending" && privacy.eligibility !== "rejected";
+    && (privacy.eligibility === "approved" || privacy.eligibility === "unscreened");
 }
 
 /** Only the original reservation may turn its actual write responses into a held delivery. */
