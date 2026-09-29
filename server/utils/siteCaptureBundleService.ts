@@ -491,8 +491,9 @@ async function finishBundle(
   completion: BundleCompletionRecord,
   storage: BundleStorage,
 ): Promise<"finished" | "conflict"> {
-  if (!/^[1-9][0-9]{0,19}$/.test(completion.device_objects?.[BUNDLE_VIDEO_PATH]?.generation ?? ""))
-    return "conflict";
+  // Older held completions predate device generation recording. Preserve their
+  // original byte-exact finish path; the owner-read endpoint cannot qualify
+  // them for retirement without that independent historical source proof.
   const hashes = await writeCreateOnlyExact(storage, rawObjectName(target, HASHES_PATH), completion.hashes_json);
   if (hashes === "conflict") return "conflict";
   const marker = await writeCreateOnlyExact(
