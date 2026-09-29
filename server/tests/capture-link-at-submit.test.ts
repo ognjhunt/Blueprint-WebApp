@@ -38,6 +38,7 @@ const written = vi.hoisted(() => new Map<string, string>());
 const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
 const generations = vi.hoisted(() => ({ next: 1 }));
 const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
+const writeFault = vi.hoisted(() => ({ manifestOnce: false }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -69,6 +70,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
           return {
           get metadata() { return responseMetadata; },
           save: async (body: unknown, config?: { preconditionOpts?: { ifGenerationMatch?: string | number } }) => {
+            if (path.endsWith("/manifest.json") && writeFault.manifestOnce) {
+              writeFault.manifestOnce = false;
+              throw new Error("injected_manifest_write_failure");
+            }
             const match = config?.preconditionOpts?.ifGenerationMatch;
             if (match !== undefined && String(match) !== String(current()?.metadata.generation ?? 0)) {
               throw Object.assign(new Error("precondition failed"), { code: 412 });
@@ -181,6 +186,7 @@ beforeEach(() => {
   storedVersions.clear();
   generations.next = 1;
   writeGate.current = null;
+  writeFault.manifestOnce = false;
   screenCaptureForPrivacy.mockClear();
   screenCaptureForPrivacy.mockResolvedValue({
     proceed: true,
@@ -345,6 +351,7 @@ describe("the privacy question is asked before anything is derived", () => {
       expect((await uploadFor(baseUrl, "req-legacy-held", "V1")).body.state).toBe("held");
       const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-held") as Record<string, unknown>;
       delete session.browser_pending_delivery;
+      delete session.browser_modern_attempt;
       screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
         outcome: "not_reviewed", detail: null, evidence: null });
       const token = tokenFrom(captureUploadUrlFor("req-legacy-held"));
@@ -356,6 +363,48 @@ describe("the privacy question is asked before anything is derived", () => {
     });
   });
 
+  it("does not clear a legacy hold while a modern writer has reserved its canonical source", async () => {
+    seedRequest("req-legacy-writing", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-legacy-writing", "V1")).body.state).toBe("held");
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-writing") as Record<string, unknown>;
+      delete session.browser_pending_delivery;
+      delete session.browser_modern_attempt;
+      const reservation = await reserveBrowserUpload({ request_id: "req-legacy-writing",
+        scene_id: "site-req-legacy-writing", capture_id: "walkthrough-req-legacy-writing" });
+      const token = tokenFrom(captureUploadUrlFor("req-legacy-writing"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      const markerName = "scenes/site-req-legacy-writing/captures/walkthrough-req-legacy-writing/raw/capture_upload_complete.json";
+      expect(written.has(markerName)).toBe(false);
+      expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-legacy-writing") as Record<string, any>)
+        .capture_privacy_screen.eligibility).toBe("pending");
+      await releaseBrowserUpload(reservation);
+    });
+  });
+
+  it("does not publish a legacy marker after a failed modern write replaced the old video", async () => {
+    seedRequest("req-legacy-failed", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-legacy-failed", "V1")).body.state).toBe("held");
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-failed") as Record<string, unknown>;
+      delete session.browser_pending_delivery;
+      delete session.browser_modern_attempt;
+      writeFault.manifestOnce = true;
+      expect((await uploadFor(baseUrl, "req-legacy-failed", "V2")).status).toBe(502);
+      expect(session.browser_upload_reservation).toBeNull();
+      const token = tokenFrom(captureUploadUrlFor("req-legacy-failed"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      const markerName = "scenes/site-req-legacy-failed/captures/walkthrough-req-legacy-failed/raw/capture_upload_complete.json";
+      expect(written.has(markerName)).toBe(false);
+      expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-legacy-failed") as Record<string, any>)
+        .capture_privacy_screen.eligibility).toBe("pending");
+    });
+  });
+
   it("never overwrites a newer typed marker during a legacy held browser resume", async () => {
     seedRequest("req-legacy-race", { disposition: "qualified" });
     screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
@@ -364,6 +413,7 @@ describe("the privacy question is asked before anything is derived", () => {
       expect((await uploadFor(baseUrl, "req-legacy-race", "V1")).body.state).toBe("held");
       const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-race") as Record<string, unknown>;
       delete session.browser_pending_delivery;
+      delete session.browser_modern_attempt;
       const markerName = "scenes/site-req-legacy-race/captures/walkthrough-req-legacy-race/raw/capture_upload_complete.json";
       const newer = Buffer.from('{"producer_delivery":{"kind":"website_browser_capture_delivery"}}');
       storedVersions.set(`${markerName}@999`, { body: newer, metadata: { name: markerName,
