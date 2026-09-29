@@ -5,6 +5,7 @@ import {
   buildBrowserDelivery,
   capturedWriteIdentity,
   writeBrowserDelivery,
+  publishBrowserDelivery,
 } from "../utils/websiteCaptureDelivery";
 
 const video = {
@@ -83,5 +84,20 @@ describe("original browser capture delivery", () => {
     expect(await writeBrowserDelivery(bucket, result)).toBe("matched");
     stored.set(result.objectName, Buffer.from("forged"));
     await expect(writeBrowserDelivery(bucket, result)).rejects.toThrow();
+  });
+
+  it("refuses a V1 marker when V2 has replaced the canonical video before privacy resume", async () => {
+    const result = buildBrowserDelivery({
+      requestId: "r1", sceneId: "site-r1", captureId: "walkthrough-r1",
+      rawPrefix: "scenes/site-r1/captures/walkthrough-r1/raw", video, manifest,
+      completedAtIso: "2026-09-29T00:00:00.000Z",
+    });
+    const bucket = { file(name: string) {
+      return { async getMetadata() { return [{ name, generation: name === video.object_name
+        ? "90071992547409999" : manifest.generation, size: name === video.object_name
+          ? "7" : "4", crc32c: "AAAAAA==" }]; },
+      async save() { throw new Error("marker_must_not_publish"); } };
+    } };
+    await expect(publishBrowserDelivery(bucket as never, result)).rejects.toThrow("browser_delivery_source_changed");
   });
 });
