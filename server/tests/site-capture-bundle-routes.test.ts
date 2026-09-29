@@ -23,6 +23,7 @@ const state = vi.hoisted(() => ({
   bucket: null as unknown as import("./helpers/fake-gcs-bucket").FakeGcsBucket,
   authorization: { allowed: true, holdReason: null, detail: null, blockers: [], openQuestions: [] } as Record<string, unknown>,
   privacy: [] as Record<string, unknown>[],
+  privacyGate: null as null | { entered(): void; wait: Promise<void>; result: Record<string, unknown> },
   brief: null as null | { summary: string; confirmedAtIso: string | null },
   notices: [] as string[],
   coverage: [] as string[],
@@ -57,6 +58,13 @@ vi.mock("../utils/taskLifecycleNotifications", () => ({
 
 vi.mock("../utils/capturePrivacyScreen", () => ({
   screenCaptureForPrivacy: vi.fn(async () => {
+    if (state.privacyGate) {
+      const gate = state.privacyGate;
+      gate.entered();
+      await gate.wait;
+      state.privacyGate = null;
+      return gate.result;
+    }
     const next = state.privacy.shift();
     if (!next) throw new Error("test did not script a privacy result");
     return next;
@@ -126,6 +134,7 @@ beforeEach(() => {
   state.bucket = new FakeGcsBucket("blueprint-8c1ca.appspot.com");
   state.authorization = { allowed: true, holdReason: null, detail: null, blockers: [], openQuestions: [] };
   state.privacy = [];
+  state.privacyGate = null;
   state.brief = { summary: "Move totes from the conveyor to the rack", confirmedAtIso: "2026-09-20T10:00:00.000Z" };
   state.notices = [];
   state.coverage = [];
@@ -416,6 +425,27 @@ describe("uploads are create-only and verified before completion", () => {
 });
 
 describe("completion keeps the web path's order and authority", () => {
+  it("does not use an older browser clearance to finish a new app bundle before its own screen", async () => {
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
+      proceeded: true, browser_delivery_key: null };
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    state.privacyGate = { entered, wait: continueScreen, result: PENDING };
+    const completing = api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    await screening;
+    try {
+      expect(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)).not.toBeNull();
+      await linkCheck();
+      expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    } finally { resume(); }
+    expect((await completing).body.state).toBe("held");
+  });
+
   it("writes server files, notifies, screens, then hashes.json and the marker last", async () => {
     const { device, bindingDigest } = await bundleFor({ lidar: true });
     const planDigest = await uploadEverything(device, bindingDigest);
