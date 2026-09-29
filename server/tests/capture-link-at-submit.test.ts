@@ -37,6 +37,7 @@ vi.mock("../utils/capturePrivacyScreen", () => ({ screenCaptureForPrivacy }));
 const written = vi.hoisted(() => new Map<string, string>());
 const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
 const generations = vi.hoisted(() => ({ next: 1 }));
+const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -53,6 +54,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
     dbAdmin: sharedFakeFirestore,
     storageAdmin: {
       bucket: () => ({
+        combine: async () => { throw new Error("unexpected_compose"); },
         file: (path: string, options?: { generation?: string }) => {
           let responseMetadata: Record<string, string> | undefined;
           const current = () => options?.generation
@@ -78,6 +80,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
             if (!value) throw Object.assign(new Error("missing"), { code: 404 });
             return [value.metadata];
           },
+          exists: async () => [Boolean(current())],
           download: async () => {
             const value = current();
             if (!value) throw Object.assign(new Error("missing"), { code: 404 });
@@ -86,7 +89,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
           // The route now streams uploads to disk-backed temp files and into
           // storage through a write stream, so the fake has to speak that
           // surface too. The bytes are recorded, not kept.
-          createWriteStream: () => {
+          createWriteStream: (config?: { preconditionOpts?: { ifGenerationMatch?: number | string } }) => {
             const chunks: Buffer[] = [];
             return new Writable({
               write(chunk, _encoding, callback) {
@@ -94,8 +97,20 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
                 callback();
               },
               final(callback) {
-                write(Buffer.concat(chunks));
-                callback();
+                const match = config?.preconditionOpts?.ifGenerationMatch;
+                const perform = () => {
+                  if ((/\/walkthrough\.(mov|mp4)$/.test(path) && match === undefined)
+                      || match !== undefined && String(match) !== String(current()?.metadata.generation ?? 0)) {
+                    callback(Object.assign(new Error("write precondition failed"), { code: 412 }));
+                    return;
+                  }
+                  write(Buffer.concat(chunks)); callback();
+                };
+                const gate = writeGate.current;
+                if (!gate) { perform(); return; }
+                writeGate.current = null;
+                gate.entered();
+                gate.wait.then(perform, callback);
               },
             });
           },
@@ -109,6 +124,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 
 const { captureUploadUrlFor } = await import("../utils/captureUploadToken");
 const { authorizeCaptureUpload } = await import("../utils/captureUploadAuthorization");
+const { reserveBrowserUpload, releaseBrowserUpload, recordBrowserPending } = await import("../utils/websiteBrowserPending");
 
 async function startRoutes(): Promise<{ server: Server; baseUrl: string }> {
   const { default: uploads } = await import("../routes/self-capture-uploads");
@@ -164,6 +180,7 @@ beforeEach(() => {
   written.clear();
   storedVersions.clear();
   generations.next = 1;
+  writeGate.current = null;
   screenCaptureForPrivacy.mockClear();
   screenCaptureForPrivacy.mockResolvedValue({
     proceed: true,
@@ -198,6 +215,23 @@ async function uploadFor(baseUrl: string, requestId: string, bytes = "x") {
 /* -------------------------------------------- looking before we copy */
 
 describe("the privacy question is asked before anything is derived", () => {
+  it("reclaims a stale write token without allowing it to finish or release the new claim", async () => {
+    const identity = { request_id: "r1", scene_id: "site-r1", capture_id: "walkthrough-r1" };
+    const stale = await reserveBrowserUpload(identity, 1_000_000);
+    const current = await reserveBrowserUpload(identity, stale.expires_at_ms + 1);
+    const pending = { schema_version: "website_browser_pending.v1" as const, ...identity,
+      state: "held" as const, completed_at_iso: "2026-09-29T00:00:00.000Z",
+      video: { object_name: "scenes/site-r1/captures/walkthrough-r1/raw/walkthrough.mov",
+        generation: "100", size_bytes: 2, crc32c: "AAAAAA==" },
+      manifest: { object_name: "scenes/site-r1/captures/walkthrough-r1/raw/manifest.json",
+        generation: "101", size_bytes: 2, crc32c: "AAAAAA==",
+        sha256: `sha256:${"a".repeat(64)}` } };
+    await expect(recordBrowserPending(pending, stale)).rejects.toThrow("browser_pending_changed");
+    await releaseBrowserUpload(stale);
+    await expect(reserveBrowserUpload(identity, stale.expires_at_ms + 2)).rejects.toThrow("browser_pending_conflict");
+    await recordBrowserPending(pending, current);
+    await expect(reserveBrowserUpload(identity, current.expires_at_ms + 1)).rejects.toThrow("browser_pending_conflict");
+  });
   it("does not overwrite a held V1 video or manifest when V2 is offered", async () => {
     seedRequest("req-held-v1", { disposition: "qualified" });
     screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
@@ -212,6 +246,94 @@ describe("the privacy question is asked before anything is derived", () => {
       expect(next.status).toBe(409);
       expect([...storedVersions].filter(([key]) => key.startsWith(`${videoName}@`)
         || key.startsWith(`${manifestName}@`))).toEqual(before);
+    });
+  });
+
+  it("excludes V2 while V1 is between reservation and its video write", async () => {
+    seedRequest("req-writing-v1", { disposition: "qualified" });
+    let entered!: () => void;
+    let resume!: () => void;
+    const firstWriting = new Promise<void>((resolve) => { entered = resolve; });
+    const continueWrite = new Promise<void>((resolve) => { resume = resolve; });
+    writeGate.current = { entered, wait: continueWrite };
+    await withRoutes(async (baseUrl) => {
+      const first = uploadFor(baseUrl, "req-writing-v1", "V1");
+      await firstWriting;
+      const second = await uploadFor(baseUrl, "req-writing-v1", "V2");
+      expect(second.status).toBe(409);
+      expect(second.body.code).toBe("capture_delivery_held");
+      resume();
+      expect((await first).status).toBe(201);
+    });
+  });
+
+  it("an expired writer cannot overwrite a newer completed write or marker", async () => {
+    seedRequest("req-expired-write", { disposition: "qualified" });
+    let entered!: () => void;
+    let resume!: () => void;
+    const firstWriting = new Promise<void>((resolve) => { entered = resolve; });
+    const continueWrite = new Promise<void>((resolve) => { resume = resolve; });
+    writeGate.current = { entered, wait: continueWrite };
+    await withRoutes(async (baseUrl) => {
+      const stale = uploadFor(baseUrl, "req-expired-write", "V1");
+      await firstWriting;
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-expired-write") as
+        Record<string, any>;
+      session.browser_upload_reservation.expires_at_ms = Date.now() - 1;
+      const newer = await uploadFor(baseUrl, "req-expired-write", "V2");
+      expect(newer.status).toBe(201);
+      const prefix = "scenes/site-req-expired-write/captures/walkthrough-req-expired-write/raw";
+      const markerName = `${prefix}/capture_upload_complete.json`;
+      const markerBefore = written.get(markerName);
+      resume();
+      expect((await stale).status).toBe(502);
+      expect(written.get(markerName)).toBe(markerBefore);
+      const latestVideo = [...storedVersions].reverse().find(([key]) => key.startsWith(`${prefix}/walkthrough.mov@`));
+      expect(latestVideo?.[1].body.toString()).toBe("V2");
+      expect(JSON.parse(markerBefore ?? "null").producer_delivery.raw_video_generation)
+        .toBe(latestVideo?.[1].metadata.generation);
+    });
+  });
+
+  it("a parts completion cannot cross an in-flight stream writer", async () => {
+    seedRequest("req-cross-write", { disposition: "qualified" });
+    let entered!: () => void;
+    let resume!: () => void;
+    const firstWriting = new Promise<void>((resolve) => { entered = resolve; });
+    const continueWrite = new Promise<void>((resolve) => { resume = resolve; });
+    writeGate.current = { entered, wait: continueWrite };
+    await withRoutes(async (baseUrl) => {
+      const streaming = uploadFor(baseUrl, "req-cross-write", "V1");
+      await firstWriting;
+      const token = tokenFrom(captureUploadUrlFor("req-cross-write"));
+      const result = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/complete`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ parts: 1, extension: "mov", sizeBytes: 2,
+          metadata: { widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30,
+            recordedAtEpochMs: 1_758_000_000_000 } }),
+      });
+      expect(result.status).toBe(409);
+      expect((await result.json()).code).toBe("capture_delivery_held");
+      resume();
+      expect((await streaming).status).toBe(201);
+    });
+  });
+
+  it("refuses a parts completion before compose when a V1 delivery is held", async () => {
+    seedRequest("req-parts-held", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-parts-held", "V1")).body.state).toBe("held");
+      const token = tokenFrom(captureUploadUrlFor("req-parts-held"));
+      const body = { parts: 1, extension: "mov", sizeBytes: 2,
+        metadata: { widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30,
+          recordedAtEpochMs: 1_758_000_000_000 } };
+      const result = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/complete`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+      });
+      expect(result.status).toBe(409);
+      expect((await result.json()).code).toBe("capture_delivery_held");
     });
   });
 

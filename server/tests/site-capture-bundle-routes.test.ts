@@ -311,6 +311,18 @@ describe("the plan is checked against the Raw V3.2 layout before any bytes move"
 });
 
 describe("uploads are create-only and verified before completion", () => {
+  it("cannot claim the same raw prefix during an in-flight browser write", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    sharedFakeFirestoreState.docs.set(`captureUploadSessions/${CAPTURE_ID}`, {
+      browser_upload_reservation: { schema_version: "website_browser_write_reservation.v1",
+        request_id: REQUEST_ID, scene_id: SCENE_ID, capture_id: CAPTURE_ID,
+        id: "test-write", expires_at_ms: Date.now() + 60_000 },
+    });
+    const attempt = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
+    expect(attempt.status).toBe(409);
+    expect(attempt.body.code).toBe("bundle_plan_conflict");
+    expect(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_plan.json`)).toBeNull();
+  });
   it("hands out create-only, MD5-bound targets and a resumable session for the video", async () => {
     const { device, bindingDigest } = await bundleFor();
     const plan = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
