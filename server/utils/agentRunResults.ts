@@ -46,6 +46,7 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
   invalidateMeasuredCapability,
+  markCheckpointStatus,
   recordMeasuredCapability,
 } from "./robotCheckpoints";
 import type { RobotCapabilityField } from "../types/robot-team-registry";
@@ -300,6 +301,17 @@ export async function recordRunResult(params: {
     }
     transaction.set(ref, { result, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   });
+
+  // Only a signed Pipeline result with an executed native episode proves that
+  // the submitted policy can run. A failed task score still proves execution.
+  if (params.report.privateExecutionResult && episodesRun > 0) {
+    try {
+      await markCheckpointStatus({ checkpointId: run.checkpointId, status: "runnable" });
+    } catch (error) {
+      logger.warn({ error, runId: run.runId, checkpointId: run.checkpointId },
+        "Stored native result but could not mark checkpoint runnable");
+    }
+  }
 
   // Official results notify the site; private results notify only their team.
   if (firstReport) {

@@ -13,6 +13,7 @@ export const skillTraceSchema = z.object({
   schema_version: z.literal("blueprint.skill_trace.v1"),
   steps: z.array(step).min(1).max(128),
 }).strict();
+const pinnedImage = /^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$/;
 
 export function validateIntegrationReference(runtime: string, reference: string): boolean {
   if (runtime === "customer_hosted") {
@@ -21,8 +22,8 @@ export function validateIntegrationReference(runtime: string, reference: string)
       return url.protocol === "https:" && !url.username && !url.password && !url.hash;
     } catch { return false; }
   }
-  if (runtime === "controller_adapter") {
-    return /^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$/.test(reference);
+  if (runtime === "controller_adapter" || runtime === "container_image") {
+    return pinnedImage.test(reference);
   }
   if (runtime === "skill_trace") {
     try { return skillTraceSchema.safeParse(JSON.parse(reference)).success; }
@@ -35,7 +36,9 @@ export function checkpointPolicyPackage(checkpoint: Record<string, any>): Record
   const reference = String(checkpoint.reference || "").trim();
   if (!reference) return null;
   if (checkpoint.runtime === "policy_endpoint") return { policy_api_endpoint: { endpoint_url: reference } };
-  if (checkpoint.runtime === "container_image") return { docker_container: { image_ref: reference } };
+  if (checkpoint.runtime === "container_image" && pinnedImage.test(reference)) return {
+    docker_container: { image_ref: reference, execution_profile: "controlled_observation_v1" },
+  };
   if (checkpoint.runtime === "customer_hosted") return { policy_api_endpoint: {
     endpoint_url: reference, execution_profile: "controlled_observation_v1",
     observation_access: "approved_camera_frames_robot_state_and_instruction",

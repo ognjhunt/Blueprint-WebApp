@@ -12,7 +12,7 @@ export const developmentOfferSchema = z.object({
   qualification_eligible: z.literal(false),
   enabled: z.boolean(),
   requestId: identity,
-  allowed_checkpoint_runtimes: z.array(z.enum(["customer_hosted", "controller_adapter", "model_artifact"])).min(1).max(3),
+  allowed_checkpoint_runtimes: z.array(z.enum(["customer_hosted", "container_image", "controller_adapter", "model_artifact"])).min(1).max(4),
   allowed_team_ids: z.array(identity).min(1).max(100),
   expires_at_iso: z.string().datetime(),
   authorization_reference: z.string().trim().min(8).max(500),
