@@ -105,17 +105,28 @@ async function observeBundleDelivery(input: {
     throw new Error("owner_bundle_manifest_invalid");
   const declaredVideo = Array.isArray(plan.files)
     ? plan.files.find((file) => file.path === "walkthrough.mov") : null;
+  const deviceObjects = completion.device_objects;
+  if (!deviceObjects || typeof deviceObjects !== "object" || Array.isArray(deviceObjects)
+      || Object.keys(deviceObjects).length !== plan.files.length)
+    throw new Error("owner_bundle_device_generations_invalid");
+  for (const file of plan.files) {
+    const original = deviceObjects[file.path];
+    if (!original || !generation(original.generation)
+        || original.size_bytes !== file.bytes || original.md5 !== file.md5
+        || !/^[A-Za-z0-9+/]{6}==$/.test(original.crc32c))
+      throw new Error("owner_bundle_device_generations_invalid");
+  }
   if (!declaredVideo || !Number.isSafeInteger(declaredVideo.bytes) || declaredVideo.bytes <= 0
       || !/^[a-f0-9]{64}$/.test(declaredVideo.sha256)
       || artifacts["walkthrough.mov"] !== declaredVideo.sha256)
     throw new Error("owner_bundle_video_invalid");
   const videoName = `${prefix}/walkthrough.mov`;
-  const videoMetadata = await deps.readMetadata(videoName, null);
+  const originalVideo = deviceObjects["walkthrough.mov"];
+  const videoMetadata = await deps.readMetadata(videoName, originalVideo.generation);
   const video = capturedWriteIdentity(videoName, videoMetadata);
-  const selectedVideo = capturedWriteIdentity(videoName,
-    await deps.readMetadata(videoName, video.generation));
-  if (!sameObject(video, selectedVideo) || video.size_bytes !== declaredVideo.bytes
-      || videoMetadata.md5Hash !== declaredVideo.md5) throw new Error("owner_bundle_video_invalid");
+  if (video.generation !== originalVideo.generation || video.size_bytes !== originalVideo.size_bytes
+      || video.crc32c !== originalVideo.crc32c || videoMetadata.md5Hash !== declaredVideo.md5)
+    throw new Error("owner_bundle_video_invalid");
   const serverRecord = { object_name: completionName, generation: completionCurrent.generation,
     size_bytes: completionCurrent.size_bytes, sha256: sha(completionRead.bytes) };
   return { kind: "website_capture_link_bundle",

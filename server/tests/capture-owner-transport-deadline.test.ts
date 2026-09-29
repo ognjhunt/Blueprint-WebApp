@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { createServer, type Server } from "node:http";
 import { generateKeyPairSync } from "node:crypto";
+import { EventEmitter } from "node:events";
+import type { Response } from "express";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 
@@ -11,9 +13,10 @@ const serviceAccount = { type: "service_account", project_id: "test-project",
   client_email: "test@test-project.iam.gserviceaccount.com", private_key: key };
 let server: Server;
 let origin: string;
-let mode: "token" | "firestore" | "media" = "token";
+let mode: "token" | "firestore" | "media" | "oversize" = "token";
 const counts = { token: 0, firestore: 0, media: 0 };
 const closed: string[] = [];
+let disconnectOnMedia: EventEmitter | null = null;
 
 beforeAll(async () => {
   server = createServer((req, res) => {
@@ -40,7 +43,9 @@ beforeAll(async () => {
     } else if (path.startsWith("/download/storage/v1")) {
       counts.media++;
       res.setHeader("content-type", "application/json");
+      if (mode === "oversize") { res.setHeader("content-length", "100"); res.end("x".repeat(100)); return; }
       res.write("{");
+      if (disconnectOnMedia) setTimeout(() => disconnectOnMedia?.emit("close"), 10);
       if (mode !== "media") res.end("}");
     } else if (path.startsWith("/storage/v1")) {
       res.setHeader("content-type", "application/json");
@@ -59,6 +64,13 @@ const options = () => ({ serviceAccount, bucket: "test-bucket", projectId: "test
   tokenUrl: `${origin}/token`, firestoreOrigin: origin, storageOrigin: origin });
 
 describe("one terminal owner-read network deadline", () => {
+  it("reads only masked Firestore fields and preserves nanosecond updateTime", async () => {
+    mode = "media";
+    const result = await withWebsiteOwnerDeps(2000, deps => deps.readRequest("r1"), options());
+    expect(result?.updateTime).toEqual({ seconds: 1790640000, nanoseconds: 123456789 });
+    expect(result?.data.account_owner_uid).toBe("uid-owner");
+    expect(JSON.stringify(result)).not.toMatch(/email|contact/);
+  });
   it("aborts a stalled token exchange once, closing its socket", async () => {
     mode = "token"; counts.token = 0; closed.length = 0;
     await expect(withWebsiteOwnerDeps(100, async () => null, options())).rejects.toThrow();
@@ -75,10 +87,28 @@ describe("one terminal owner-read network deadline", () => {
   });
   it("aborts a stalled media body without replaying the read", async () => {
     mode = "media"; counts.media = 0; closed.length = 0;
-    await expect(withWebsiteOwnerDeps(120, deps => deps.readPinned(
-      "scenes/site-r1/captures/walkthrough-r1/raw/capture_upload_complete.json", "123", 64), options())).rejects.toThrow();
-    expect(counts.media).toBe(1);
+    const reason = await withWebsiteOwnerDeps(120, deps => deps.readPinned(
+      "scenes/site-r1/captures/walkthrough-r1/raw/capture_upload_complete.json", "123", 64), options())
+      .then(() => "unexpected_success", (error: Error) => error.message);
+    expect(counts.media, reason).toBe(1);
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(closed.some((path) => path.startsWith("/download/storage/v1"))).toBe(true);
+  });
+  it("aborts a stalled media body on caller disconnect and caps announced size", async () => {
+    mode = "media"; closed.length = 0;
+    const disconnected = Object.assign(new EventEmitter(), { writableEnded: false }) as unknown as Response;
+    disconnectOnMedia = disconnected;
+    try {
+      await expect(withWebsiteOwnerDeps(2000, deps => deps.readPinned(
+        "scenes/site-r1/captures/walkthrough-r1/raw/capture_upload_complete.json", "123", 64),
+      { ...options(), disconnect: disconnected })).rejects.toThrow();
+    } finally { disconnectOnMedia = null; }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(closed.some((path) => path.startsWith("/download/storage/v1"))).toBe(true);
+    mode = "oversize";
+    const reason = await withWebsiteOwnerDeps(2000, deps => deps.readPinned(
+      "scenes/site-r1/captures/walkthrough-r1/raw/capture_upload_complete.json", "123", 64), options())
+      .then(() => "unexpected_success", (error: Error) => error.message);
+    expect(reason).toMatch(/size|oversize/i);
   });
 });

@@ -152,12 +152,14 @@ router.post("/creator-captures/:captureId/capture-owner", createPipelineSyncRate
     }
     try {
       const result = await withWebsiteOwnerDeps(body.remaining_timeout_ms, deps =>
-        observeWebsiteCaptureOwner({ ...body, capture_id: req.params.captureId }, deps));
+        observeWebsiteCaptureOwner({ ...body, capture_id: req.params.captureId }, deps),
+      { disconnect: res });
       res.setHeader("Cache-Control", "no-store");
       return res.json(result);
     } catch (error) {
-      logger.warn({ code: (error as Error).message, captureId: req.params.captureId },
+      logger.warn({ captureId: req.params.captureId },
         "Website original capture owner observation unavailable");
+      if (res.destroyed) return;
       return res.status(503).json({ code: "website_capture_owner_unavailable" });
     }
   });

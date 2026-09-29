@@ -491,6 +491,8 @@ async function finishBundle(
   completion: BundleCompletionRecord,
   storage: BundleStorage,
 ): Promise<"finished" | "conflict"> {
+  if (!/^[1-9][0-9]{0,19}$/.test(completion.device_objects?.[BUNDLE_VIDEO_PATH]?.generation ?? ""))
+    return "conflict";
   const hashes = await writeCreateOnlyExact(storage, rawObjectName(target, HASHES_PATH), completion.hashes_json);
   if (hashes === "conflict") return "conflict";
   const marker = await writeCreateOnlyExact(
@@ -594,6 +596,19 @@ export async function completeBundle(
   let completion = await readJson<BundleCompletionRecord>(deps.storage, completionObjectName(target));
   const repeat = completion !== null;
   if (!completion) {
+    const byName = new Map(objects.map((object) => [object.name, object]));
+    const deviceObjects: Record<string, { generation: string; size_bytes: number; crc32c: string; md5: string }> = {};
+    for (const file of plan.files) {
+      const object = byName.get(rawObjectName(target, file.path));
+      if (!object || !/^[1-9][0-9]{0,19}$/.test(object.generation ?? "")
+          || !/^[A-Za-z0-9+/]{6}==$/.test(object.crc32c ?? "")
+          || object.size !== file.bytes || object.md5Hash !== file.md5) {
+        return { status: 503, body: { error: "We could not verify this upload. Please retry.",
+          code: "bundle_source_generation_unavailable" } };
+      }
+      deviceObjects[file.path] = { generation: object.generation!, size_bytes: object.size,
+        crc32c: object.crc32c!, md5: file.md5 };
+    }
     const completedAtIso = deps.now().toISOString();
     const composition = composeServerFiles({
       plan,
@@ -602,7 +617,7 @@ export async function completeBundle(
       completedAtIso,
     });
     const fresh = {
-      ...buildCompletionRecord(plan, composition, completedAtIso),
+      ...buildCompletionRecord(plan, composition, completedAtIso, deviceObjects),
       server_files: composition.serverFiles,
     };
     const outcome = await deps.storage.createOnly(

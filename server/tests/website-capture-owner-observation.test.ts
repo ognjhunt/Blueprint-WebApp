@@ -110,6 +110,8 @@ describe("authoritative original website capture owner read", () => {
       bundle_sha256: digest, hashes_json: JSON.stringify({ schema_version: "v1", bundle_sha256: digest, artifacts }),
       server_file_sha256: { "manifest.json": sha(manifest).slice(7) },
       server_files: { "manifest.json": manifest.toString("utf8") },
+      device_objects: { "walkthrough.mov": { generation: "104", size_bytes: 7,
+        crc32c: "AAAAAA==", md5: "test-md5" } },
       identity: { raw_bundle_digest: `sha256:${digest}`,
         raw_manifest_uri: `gs://test-bucket/${prefix}/manifest.json`, upload_completion_digest: sha(marker) } };
     objects.set(`${upload}/bundle_plan.json@102`, object(`${upload}/bundle_plan.json`, "102", Buffer.from(JSON.stringify(plan))));
@@ -117,12 +119,20 @@ describe("authoritative original website capture owner read", () => {
     objects.set(`${prefix}/manifest.json@103`, object(`${prefix}/manifest.json`, "103", manifest));
     const prior = deps.readMetadata;
     deps.readMetadata = async (name, generation) => name === `${prefix}/walkthrough.mov`
-      ? { name, generation: "104", size: "7", crc32c: "AAAAAA==", md5Hash: "test-md5" }
+      ? { name, generation: generation ?? "999", size: "7", crc32c: "AAAAAA==", md5Hash: "test-md5" }
       : prior(name, generation);
     const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
       capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
     expect(observed.producer_delivery).toMatchObject({ kind: "website_capture_link_bundle",
       raw_video: { object_name: `${prefix}/walkthrough.mov`, generation: "104" } });
+    const pinnedRead = deps.readMetadata;
+    deps.readMetadata = async (name, generation) => {
+      if (name === `${prefix}/walkthrough.mov` && generation === "104") throw new Error("old_generation_missing");
+      return pinnedRead(name, generation);
+    };
+    await expect(observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps)).rejects.toThrow();
+    deps.readMetadata = pinnedRead;
     const duplicated = JSON.stringify(completion).replace('"request_id":"r1",',
       '"request_id":"r1","request\\u005fid":"r1",');
     objects.set(`${upload}/bundle_completion.json@101`, object(`${upload}/bundle_completion.json`, "101", Buffer.from(duplicated)));

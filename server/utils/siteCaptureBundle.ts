@@ -962,7 +962,8 @@ export function bundleDigest(artifacts: Record<string, string>): string {
  * The record kept beside raw/ so a held capture can finish later with exactly
  * the bytes it would have finished with now.
  */
-export function buildCompletionRecord(plan: BundlePlanRecord, composition: ServerComposition, completedAtIso: string) {
+export function buildCompletionRecord(plan: BundlePlanRecord, composition: ServerComposition, completedAtIso: string,
+  deviceObjects: Record<string, { generation: string; size_bytes: number; crc32c: string; md5: string }> = {}) {
   return {
     schema_version: SITE_CAPTURE_COMPLETION_SCHEMA,
     request_id: plan.request_id,
@@ -970,6 +971,7 @@ export function buildCompletionRecord(plan: BundlePlanRecord, composition: Serve
     capture_id: plan.capture_id,
     raw_prefix: plan.raw_prefix,
     plan_digest: plan.plan_digest,
+    device_objects: deviceObjects,
     completed_at_iso: completedAtIso,
     server_file_sha256: Object.fromEntries(
       Object.entries(composition.serverFiles).map(([path, content]) => [path, sha256Hex(content)]),

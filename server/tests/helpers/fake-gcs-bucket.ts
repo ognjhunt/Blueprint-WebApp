@@ -91,6 +91,7 @@ export class FakeGcsBucket {
       md5Hash: md5(object.data),
       contentType: object.contentType,
       generation: String(object.generation),
+      crc32c: "AAAAAA==",
     };
   }
 
