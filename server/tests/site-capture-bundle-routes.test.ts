@@ -706,9 +706,40 @@ describe("completion keeps the web path's order and authority", () => {
         for (const [path, bytes] of Object.entries(completion.server_files)) {
           expect(state.bucket.text(`${RAW}/${path}`)).toBe(bytes);
         }
+        const session = sharedFakeFirestoreState.docs.get(`captureUploadSessions/${CAPTURE_ID}`) as Record<string, any>;
+        expect(session.immutable_upload_identity).toEqual({
+          ...completion.identity, verification_status: "pending_pipeline_storage_readback",
+        });
       }
     } finally { resume(); }
     await completing;
+  });
+
+  it("holds a marker if a failed app manifest write left conflicting server bytes", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    const originalFile = state.bucket.file.bind(state.bucket);
+    let failManifest = true;
+    state.bucket.file = ((name: string) => {
+      const file = originalFile(name);
+      if (name === `${RAW}/manifest.json` && failManifest) {
+        const save = file.save.bind(file);
+        file.save = async (...args: Parameters<typeof save>) => {
+          failManifest = false;
+          throw new Error("injected_manifest_failure");
+        };
+      }
+      return file;
+    }) as typeof state.bucket.file;
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).status).toBe(503);
+    expect(state.bucket.text(`${RAW}/manifest.json`)).toBeNull();
+    const completion = JSON.parse(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)!);
+    state.bucket.seed(`${RAW}/manifest.json`, "different bytes", "application/json");
+    state.privacy.push(APPROVED);
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect(state.bucket.text(`${RAW}/manifest.json`)).toBe("different bytes");
+    expect(completion.server_files["manifest.json"]).not.toBe("different bytes");
   });
 
   it("does not finish an app source changed during screening or from its old stored decision", async () => {
