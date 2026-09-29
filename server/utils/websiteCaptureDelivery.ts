@@ -22,6 +22,15 @@ function validGeneration(value: unknown): value is string {
   return typeof value === "string" && generationPattern.test(value);
 }
 
+function validWrittenObject(value: WrittenObject): boolean {
+  return typeof value.object_name === "string"
+    && Buffer.byteLength(value.object_name, "utf8") <= 4096
+    && validGeneration(value.generation)
+    && Number.isSafeInteger(value.size_bytes) && value.size_bytes > 0
+    && typeof value.crc32c === "string"
+    && /^[A-Za-z0-9+/]{6}==$/.test(value.crc32c);
+}
+
 /** `metadata` is the response attached to this File by its completed write. */
 export function capturedWriteIdentity(objectName: string, metadata: unknown): WrittenObject {
   const value = metadata && typeof metadata === "object"
@@ -72,10 +81,12 @@ export function buildBrowserDelivery(input: {
       || !input.video.object_name.startsWith(`${input.rawPrefix}/walkthrough.`)
       || !/\.(mov|mp4)$/.test(input.video.object_name)
       || input.manifest.object_name !== `${input.rawPrefix}/manifest.json`
-      || !validGeneration(input.video.generation)
-      || !validGeneration(input.manifest.generation)
+      || !validWrittenObject(input.video)
+      || !validWrittenObject(input.manifest)
       || !shaPattern.test(input.manifest.sha256)
-      || !Number.isFinite(Date.parse(input.completedAtIso))) {
+      || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(input.completedAtIso)
+      || !Number.isFinite(Date.parse(input.completedAtIso))
+      || new Date(input.completedAtIso).toISOString() !== input.completedAtIso) {
     throw new Error("browser_delivery_input_invalid");
   }
   const objectName = `${expected}/upload/producer_deliveries/browser-video-${input.video.generation}.json`;
