@@ -60,6 +60,19 @@ describe("original browser capture delivery", () => {
     expect(result.record.marker_sha256).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
+  it("refuses fabricated or unbounded source identities and non-UTC completion times", () => {
+    const build = (overrides: Record<string, unknown>) => buildBrowserDelivery({
+      requestId: "r1", sceneId: "site-r1", captureId: "walkthrough-r1",
+      rawPrefix: "scenes/site-r1/captures/walkthrough-r1/raw", video, manifest,
+      completedAtIso: "2026-09-29T00:00:00.000Z", ...overrides,
+    });
+    expect(() => build({ video: { ...video, size_bytes: 0 } })).toThrow();
+    expect(() => build({ video: { ...video, crc32c: "invalid" } })).toThrow();
+    expect(() => build({ manifest: { ...manifest, size_bytes: 0 } })).toThrow();
+    expect(() => build({ manifest: { ...manifest, object_name: "other" } })).toThrow();
+    expect(() => build({ completedAtIso: "2026-09-29T01:00:00+01:00" })).toThrow();
+  });
+
   it("creates only once and accepts only byte-identical retries", async () => {
     const result = buildBrowserDelivery({
       requestId: "r1", sceneId: "site-r1", captureId: "walkthrough-r1",
