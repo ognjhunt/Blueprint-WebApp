@@ -491,6 +491,21 @@ describe("completion keeps the web path's order and authority", () => {
       .capture_privacy_screen.producer_source.kind).toBe("app_bundle_completion");
   });
 
+  it("keeps a recent unbound old-app approval quarantined on repeat complete POST", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
+      proceeded: true, producer_source: null, screened_at_iso: new Date().toISOString() };
+    state.privacy.push(APPROVED);
+    const repeat = await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    expect(repeat.body.state).toBe("held");
+    expect(state.privacy).toHaveLength(1);
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+  });
+
   it("rejects a late app privacy decision after the exact screening claim is taken over", async () => {
     const { device, bindingDigest } = await bundleFor();
     const planDigest = await uploadEverything(device, bindingDigest);

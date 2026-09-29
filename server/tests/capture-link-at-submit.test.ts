@@ -24,7 +24,7 @@ import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
 // The privacy screen is exercised in its own file; here it only has to be
 // controllable, so the marker-writing path can be tested on both answers.
@@ -565,6 +565,60 @@ describe("the privacy question is asked before anything is derived", () => {
       expect(JSON.parse(written.get(markerName) ?? "null").producer_delivery.raw_video_generation).toMatch(/^\d+$/);
       expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-privacy-record-fault") as Record<string, any>)
         .capture_privacy_screen.producer_source.kind).toBe("browser_pending");
+    });
+  });
+
+  it("does not use old-worker merged privacy leaves to clear a modern pending write", async () => {
+    seedRequest("req-old-worker-merge", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-old-worker-merge", "V1")).body.state).toBe("held");
+      // The deployed old writer uses a nested merge into this same map and
+      // does not know about the new producer_source key.
+      await sharedFakeFirestore.collection("inboundRequests").doc("req-old-worker-merge").set({
+        capture_privacy_screen: { proceeded: true, eligibility: "unscreened",
+          screened_at_iso: new Date().toISOString() },
+      }, { merge: true });
+      screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+        outcome: "review_unavailable", detail: "Hold", evidence: null });
+      const token = tokenFrom(captureUploadUrlFor("req-old-worker-merge"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      const markerName = "scenes/site-req-old-worker-merge/captures/walkthrough-req-old-worker-merge/raw/capture_upload_complete.json";
+      expect(written.has(markerName)).toBe(false);
+    });
+  });
+
+  it("serializes concurrent legacy status screens before a plain marker can publish", async () => {
+    seedRequest("req-legacy-concurrent", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-legacy-concurrent", "V1")).body.state).toBe("held");
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-concurrent") as Record<string, unknown>;
+      delete session.browser_pending_delivery;
+      delete session.browser_modern_attempt;
+      let entered!: () => void;
+      let resume!: () => void;
+      const screening = new Promise<void>((resolve) => { entered = resolve; });
+      const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+      screenCaptureForPrivacy.mockImplementationOnce(async () => {
+        entered();
+        await continueScreen;
+        return { proceed: true, eligibility: "unscreened", outcome: "not_reviewed", detail: null, evidence: null };
+      });
+      const token = tokenFrom(captureUploadUrlFor("req-legacy-concurrent"));
+      const first = fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await screening;
+      const markerName = "scenes/site-req-legacy-concurrent/captures/walkthrough-req-legacy-concurrent/raw/capture_upload_complete.json";
+      try {
+        const second = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+        expect(second.status).toBe(200);
+        expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(2);
+        expect(written.has(markerName)).toBe(false);
+      } finally { resume(); }
+      await first;
+      expect(written.has(markerName)).toBe(true);
     });
   });
 
