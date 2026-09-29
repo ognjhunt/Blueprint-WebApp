@@ -6,6 +6,7 @@ import { buildBrowserDelivery, capturedWriteIdentity, type BrowserDeliveryRecord
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { bundleDigest, planDigestOf, SITE_CAPTURE_BUNDLE_PLAN_SCHEMA,
   SITE_CAPTURE_COMPLETION_SCHEMA, type BundlePlanRecord } from "./siteCaptureBundle";
+import { strictBoundedProofJson } from "./strictBoundedProofJson";
 
 type Metadata = Record<string, unknown>;
 type Snapshot = { data: Record<string, any>; updateTime: { seconds: number; nanoseconds: number } };
@@ -39,8 +40,7 @@ function sameObject(a: WrittenObject, b: WrittenObject): boolean {
 }
 
 function parseBoundedJson(bytes: Buffer, max = 65_536): Record<string, any> {
-  if (bytes.length < 2 || bytes.length > max) throw new Error("owner_source_invalid");
-  const value = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
+  const value = strictBoundedProofJson(bytes, max);
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("owner_source_invalid");
   return value;
 }
@@ -78,7 +78,8 @@ async function observeBundleDelivery(input: {
       || plan.capture_id !== captureId || plan.raw_prefix !== prefix
       || plan.plan_digest !== completion.plan_digest || planDigestOf(plan) !== plan.plan_digest)
     throw new Error("owner_bundle_plan_invalid");
-  const hashes = JSON.parse(String(completion.hashes_json ?? ""));
+  if (typeof completion.hashes_json !== "string") throw new Error("owner_bundle_hashes_invalid");
+  const hashes = parseBoundedJson(Buffer.from(completion.hashes_json), 1_048_576);
   const artifacts = hashes?.artifacts;
   if (!artifacts || typeof artifacts !== "object" || Array.isArray(artifacts)
       || hashes.schema_version !== "v1" || hashes.bundle_sha256 !== bundleDigest(artifacts)
