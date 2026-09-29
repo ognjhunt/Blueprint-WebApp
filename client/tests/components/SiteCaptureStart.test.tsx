@@ -47,6 +47,23 @@ function region() {
   return document.querySelector("#start-region") as HTMLSelectElement | null;
 }
 
+it.each(["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"])(
+  "keeps %s entry links on the upgraded Sol disclosure",
+  (authoring) => {
+    const previousUrl = window.location.href;
+    window.history.replaceState(null, "", `?authoring=${authoring}`);
+    try {
+      render(<SiteCaptureStart />);
+      const disclosure = screen.getByRole("checkbox", { name: /GPT-6\.1 Sol managed-agent 3D authoring/ });
+      expect(disclosure).not.toBeChecked();
+      fireEvent.click(disclosure);
+      expect(disclosure).toBeChecked();
+    } finally {
+      window.history.replaceState(null, "", previousUrl);
+    }
+  },
+);
+
 describe("SiteCaptureStart and the country", () => {
   it("does not ask for a country up front", () => {
     render(<SiteCaptureStart />);

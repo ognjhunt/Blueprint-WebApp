@@ -71,8 +71,12 @@ export function SiteCaptureStart() {
   // Ordinary site captures keep the existing simple form and OpenAI route.
   const claudeAuthoringRequested = typeof window !== "undefined"
     && new URLSearchParams(window.location.search).get("authoring") === "claude-opus-5-5";
+  // Retained development links select the upgraded Sol route too; the
+  // disclosure and newly issued sponsorship always name GPT-6.1 Sol.
   const solAgentsRequested = typeof window !== "undefined"
-    && new URLSearchParams(window.location.search).get("authoring") === "gpt-6.1-sol-agents-api";
+    && ["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"].includes(
+      new URLSearchParams(window.location.search).get("authoring") || "",
+    );
   // Which workspace the signed-in account holds. A robot-team account can
   // still start a site: it is saved to the emailed link rather than blocked.
   const [workspaceType, setWorkspaceType] = useState<string | null | undefined>(undefined);
