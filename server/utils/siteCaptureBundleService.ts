@@ -59,6 +59,7 @@ export interface StoredPrivacyState {
   detail?: string | null;
   retryable?: boolean | null;
   producer_source?: CapturePrivacyProducerSource | null;
+  screened_at_iso?: string | null;
 }
 
 export interface BundleServiceDeps {
@@ -722,6 +723,15 @@ export async function completeBundle(
       && (stored.eligibility === "approved" || stored.eligibility === "unscreened");
     eligibility = stored?.eligibility;
     if (!stored || !sameSource) {
+      // A pre-change writer may still be finishing the unbound decision. Its
+      // shared legacy map cannot authorize this app completion, and repeat
+      // POST obeys the same finite quarantine as status recovery.
+      if (stored?.proceeded === true
+          && (stored.eligibility === "approved" || stored.eligibility === "unscreened")) {
+        const when = Date.parse(stored.screened_at_iso ?? "");
+        if (!Number.isFinite(when) || Date.now() - when < 60 * 60 * 1000)
+          return { status: 200, body: { ok: true, state: "held", code: "capture_review_in_progress" } };
+      }
       const result = await screenForThisCompletion();
       if (!result) return { status: 200, body: { ok: true, state: "held", code: "capture_review_in_progress" } };
       proceed = result.proceed;

@@ -2,7 +2,7 @@
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { screenCaptureForPrivacy, type PrivacyScreenResult } from "./capturePrivacyScreen";
-import { claimCapturePrivacyScreen, recordCapturePrivacyScreen,
+import { claimCapturePrivacyScreen, legacyCapturePrivacyClaimSource, recordCapturePrivacyScreen,
   releaseCapturePrivacyScreenClaim } from "./capturePrivacyRecord";
 import type { CapturePrivacyProducerSource } from "./capturePrivacyRecord";
 
@@ -30,7 +30,10 @@ export async function resumeHeldPrivacyScreen(params: {
   if (!db) return { action: "nothing_held" };
   const snapshot = await db.collection("inboundRequests").doc(params.requestId).get();
   if (!snapshot.exists) return { action: "nothing_held" };
-  const stored = (snapshot.data()?.capture_privacy_screen ?? null) as StoredPrivacyScreen | null;
+  const data = snapshot.data();
+  const stored = (params.producerSource
+    ? data?.capture_privacy_source_bound_decision ?? data?.capture_privacy_screen
+    : data?.capture_privacy_screen ?? null) as StoredPrivacyScreen | null;
   if (stored?.capture_id && stored.capture_id !== params.captureId) {
     return { action: "nothing_held" };
   }
@@ -72,11 +75,20 @@ export async function resumeHeldPrivacyScreen(params: {
   if (!stored || (stored.eligibility !== "pending" && stored.eligibility !== "rejected")) {
     return { action: "nothing_held" };
   }
-  const result = await screenCaptureForPrivacy(params);
-  await recordCapturePrivacyScreen({ requestId: params.requestId, captureId: params.captureId,
-    result, attempts: Math.max(0, Number(stored.attempts) || 0),
-    producerSource: params.producerSource ?? null });
-  return { action: "cleared", result };
+  const claim = await claimCapturePrivacyScreen({ requestId: params.requestId,
+    captureId: params.captureId,
+    producerSource: legacyCapturePrivacyClaimSource(params.requestId, params.captureId, params.sceneId) });
+  if (!claim) return { action: "nothing_held" };
+  try {
+    const result = await screenCaptureForPrivacy(params);
+    await recordCapturePrivacyScreen({ requestId: params.requestId, captureId: params.captureId,
+      result, attempts: Math.max(0, Number(stored.attempts) || 0),
+      producerSource: null, claim });
+    return { action: "cleared", result };
+  } catch (error) {
+    await releaseCapturePrivacyScreenClaim(claim);
+    throw error;
+  }
 }
 
 /** How many fresh budgets one capture can be given before it stays with a person. */

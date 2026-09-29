@@ -635,7 +635,9 @@ export function bundleServiceDeps(storage: BundleStorage): BundleServiceDeps {
     async loadPrivacyState(requestId) {
       if (!dbAdmin) return null;
       const snapshot = await dbAdmin.collection("inboundRequests").doc(requestId).get();
-      return (snapshot.exists ? snapshot.data()?.capture_privacy_screen : null) ?? null;
+      return (snapshot.exists
+        ? snapshot.data()?.capture_privacy_source_bound_decision ?? snapshot.data()?.capture_privacy_screen
+        : null) ?? null;
     },
     recordUploadIdentity: (params) => recordSiteCaptureUploadIdentity(params),
     claimBundle: (params) => claimSiteCaptureBundle(params),

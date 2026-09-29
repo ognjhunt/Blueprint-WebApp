@@ -150,7 +150,9 @@ export async function storedCapturePrivacyCleared(requestId: string, captureId: 
   producerSource: CapturePrivacyProducerSource | null): Promise<boolean> {
   if (!db) throw new Error("browser_pending_unavailable");
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
-  const privacy = snapshot.data()?.capture_privacy_screen;
+  const privacy = producerSource === null
+    ? snapshot.data()?.capture_privacy_screen
+    : snapshot.data()?.capture_privacy_source_bound_decision;
   return privacy?.capture_id === captureId && privacy.proceeded === true
     && (privacy.eligibility === "approved" || privacy.eligibility === "unscreened")
     && (producerSource === null ? privacy.producer_source == null
