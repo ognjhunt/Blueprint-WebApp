@@ -1,11 +1,19 @@
 // @vitest-environment node
-import { createServer, type Server } from "node:http";
+import { createServer, request as httpRequest, type Server } from "node:http";
+import { readFileSync } from "node:fs";
 import express from "express";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureOwnerRawBody } from "../utils/captureOwnerRawBody";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
 
-const calls = vi.hoisted(() => ({ ownerReads: 0 }));
+const calls = vi.hoisted(() => ({ ownerReads: 0, hmacVerifies: 0, globalJson: 0 }));
+vi.mock("../utils/pipelineSyncSecurity", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../utils/pipelineSyncSecurity")>();
+  return { ...original, verifyPipelineSyncRequest: (...args: Parameters<typeof original.verifyPipelineSyncRequest>) => {
+    calls.hmacVerifies++;
+    return original.verifyPipelineSyncRequest(...args);
+  } };
+});
 vi.mock("../utils/websiteCaptureOwnerTransport", () => ({
   withWebsiteOwnerDeps: async (_ms: number, action: (deps: object) => Promise<unknown>) => action({}),
 }));
@@ -22,8 +30,11 @@ beforeAll(async () => {
   const app = express();
   app.use(captureOwnerRawBody);
   const json = express.json({ limit: "1mb" });
-  app.use((req, res, next) => (req as typeof req & { captureOwnerBodyAdmitted?: boolean }).captureOwnerBodyAdmitted
-    ? next() : json(req, res, next));
+  app.use((req, res, next) => {
+    if ((req as typeof req & { captureOwnerBodyAdmitted?: boolean }).captureOwnerBodyAdmitted) return next();
+    calls.globalJson++;
+    return json(req, res, next);
+  });
   app.use("/api/internal/pipeline", (await import("../routes/internal-capture-worlds")).default);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -32,10 +43,48 @@ beforeAll(async () => {
   url = `http://127.0.0.1:${addr.port}${path}`;
 });
 afterAll(async () => { await new Promise<void>((resolve) => server.close(() => resolve())); });
-beforeEach(() => { calls.ownerReads = 0; process.env.PIPELINE_SYNC_TOKEN = "test-secret";
+beforeEach(() => { calls.ownerReads = 0; calls.hmacVerifies = 0; calls.globalJson = 0;
+  process.env.PIPELINE_SYNC_TOKEN = "test-secret";
   process.env.PIPELINE_SYNC_ALLOW_LEGACY_BEARER = "true"; });
 
 describe("capture owner route requires exact raw HMAC", () => {
+  it("keeps the exact parser ahead of global JSON and route registration in production", () => {
+    const source = readFileSync(new URL("../index.ts", import.meta.url), "utf8");
+    const early = source.indexOf("app.use(captureOwnerRawBody);");
+    const global = source.indexOf("const defaultJsonBody = express.json(");
+    const routes = source.indexOf("registerRoutes(app);");
+    expect(early).toBeGreaterThan(0);
+    expect(global).toBeGreaterThan(early);
+    expect(routes).toBeGreaterThan(global);
+    expect(source.slice(early, routes)).toContain("captureOwnerBodyAdmitted");
+  });
+
+  it("rejects every early body error before HMAC, store, or global JSON", async () => {
+    const failures: Array<[string, RequestInit, number]> = [
+      ["length", { method: "POST", headers: { "content-type": "application/json" }, body: " ".repeat(4097) }, 413],
+      ["encoding", { method: "POST", headers: { "content-type": "application/json", "content-encoding": "gzip" }, body }, 415],
+      ["charset", { method: "POST", headers: { "content-type": "application/json; charset=iso-8859-1" }, body }, 415],
+      ["utf8", { method: "POST", headers: { "content-type": "application/json" }, body: Buffer.from([0x7b, 0xc3, 0x28, 0x7d]) }, 400],
+      ["duplicate", { method: "POST", headers: { "content-type": "application/json" }, body: body.replace('"scene_id":"site-r1",', '"scene_id":"site-r1", "scene\\u005fid":"site-r1",') }, 400],
+      ["empty", { method: "POST", headers: { "content-type": "application/json" }, body: "" }, 400],
+    ];
+    for (const [name, init, status] of failures) {
+      const response = await fetch(url, init);
+      expect(response.status, name).toBe(status);
+      expect(calls).toMatchObject({ ownerReads: 0, hmacVerifies: 0, globalJson: 0 });
+    }
+    const chunkedStatus = await new Promise<number>((resolve, reject) => {
+      const request = httpRequest(url, { method: "POST", headers: {
+        "content-type": "application/json", "transfer-encoding": "chunked",
+      } }, (response) => { response.resume(); response.on("end", () => resolve(response.statusCode ?? 0)); });
+      request.on("error", reject);
+      request.write(body.slice(0, 4));
+      request.write(" ".repeat(4096));
+      request.end(body.slice(4));
+    });
+    expect(chunkedStatus).toBe(413);
+    expect(calls).toMatchObject({ ownerReads: 0, hmacVerifies: 0, globalJson: 0 });
+  });
   it("accepts signed original whitespace and rejects a legacy bearer even when globally enabled", async () => {
     const timestamp = new Date().toISOString();
     const signature = buildPipelineSyncSignature({ secret: "test-secret", timestamp, body });

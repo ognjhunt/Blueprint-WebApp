@@ -25,6 +25,21 @@ export interface BrowserWriteReservation {
   expires_at_ms: number;
 }
 
+interface LegacyFinishClaim {
+  schema_version: "website_browser_legacy_finish_claim.v1";
+  request_id: string;
+  scene_id: string;
+  capture_id: string;
+}
+
+function validLegacyClaim(value: unknown): value is LegacyFinishClaim {
+  if (!value || typeof value !== "object") return false;
+  const claim = value as Partial<LegacyFinishClaim>;
+  return claim.schema_version === "website_browser_legacy_finish_claim.v1"
+    && typeof claim.request_id === "string" && claim.scene_id === `site-${claim.request_id}`
+    && claim.capture_id === `walkthrough-${claim.request_id}`;
+}
+
 const WRITE_RESERVATION_MS = 60 * 60 * 1000;
 
 function validReservation(value: unknown): value is BrowserWriteReservation {
@@ -74,15 +89,61 @@ export async function reserveBrowserUpload(input: { request_id: string; scene_id
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (snapshot.data()?.site_capture_bundle_claim) throw new Error("browser_pending_bundle_conflict");
+    // A legacy held status poll owns this prefix until it has published its
+    // plain marker. A modern upload must not replace its unversioned source.
+    if (snapshot.data()?.browser_legacy_finish_claim) throw new Error("browser_pending_conflict");
     const value = snapshot.data()?.browser_pending_delivery;
     if (value != null && !validPending(value)) throw new Error("browser_pending_invalid");
     if (value?.state === "held") throw new Error("browser_pending_conflict");
     const active = snapshot.data()?.browser_upload_reservation;
     if (active != null && !validReservation(active)) throw new Error("browser_pending_invalid");
     if (active && active.expires_at_ms > nowMs) throw new Error("browser_pending_conflict");
-    transaction.set(ref, { browser_upload_reservation: reservation }, { merge: true });
+    // Keep this evidence after release or a failed write: canonical video may
+    // already have changed even when no pending delivery was recorded.
+    transaction.set(ref, { browser_upload_reservation: reservation,
+      browser_modern_attempt: true }, { merge: true });
     return reservation;
   });
+}
+
+/** Claim a pre-receipt held capture before screening can clear its old source. */
+export async function prepareLegacyBrowserFinish(input: { request_id: string; scene_id: string; capture_id: string }):
+  Promise<"legacy" | "modern" | "blocked"> {
+  if (!db || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(input.request_id)
+      || input.scene_id !== `site-${input.request_id}`
+      || input.capture_id !== `walkthrough-${input.request_id}`) throw new Error("browser_pending_unavailable");
+  const sessionRef = db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(input.capture_id);
+  const requestRef = db.collection("inboundRequests").doc(input.request_id);
+  return db.runTransaction(async (transaction) => {
+    const session = await transaction.get(sessionRef);
+    const request = await transaction.get(requestRef);
+    const data = session.data();
+    // Typed browser and app deliveries use their own pinned completion paths.
+    if (data?.browser_pending_delivery || data?.site_capture_bundle_claim) return "modern";
+    if (data?.browser_modern_attempt != null || data?.browser_upload_reservation != null) return "blocked";
+    const existing = data?.browser_legacy_finish_claim;
+    if (existing != null) {
+      if (!validLegacyClaim(existing) || existing.request_id !== input.request_id
+          || existing.scene_id !== input.scene_id || existing.capture_id !== input.capture_id)
+        return "blocked";
+      return "legacy";
+    }
+    const privacy = request.data()?.capture_privacy_screen;
+    if (!privacy || (privacy.eligibility !== "pending" && privacy.eligibility !== "rejected")
+        || privacy.capture_id !== input.capture_id) return "modern";
+    const claim: LegacyFinishClaim = { schema_version: "website_browser_legacy_finish_claim.v1", ...input };
+    transaction.set(sessionRef, { browser_legacy_finish_claim: claim }, { merge: true });
+    return "legacy";
+  });
+}
+
+/** A crash after privacy clears may finish only from the durable old claim. */
+export async function legacyBrowserPrivacyCleared(requestId: string, captureId: string): Promise<boolean> {
+  if (!db) throw new Error("browser_pending_unavailable");
+  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
+  const privacy = snapshot.data()?.capture_privacy_screen;
+  return privacy?.capture_id === captureId && privacy.proceeded === true
+    && privacy.eligibility !== "pending" && privacy.eligibility !== "rejected";
 }
 
 /** Only the original reservation may turn its actual write responses into a held delivery. */

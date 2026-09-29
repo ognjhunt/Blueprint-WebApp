@@ -68,7 +68,8 @@ import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { notifySlackFootageNeedsReview } from "../utils/slack";
 import { buildBrowserDelivery, capturedWriteIdentity, publishBrowserDelivery,
   type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
-import { loadBrowserPending, publishBrowserPending, recordBrowserPending,
+import { legacyBrowserPrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
+  publishBrowserPending, recordBrowserPending,
   releaseBrowserUpload, reserveBrowserUpload, type BrowserPending,
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
 
@@ -376,8 +377,10 @@ async function writeCompletionMarker(pending: BrowserPending): Promise<void> {
 }
 
 /** Finish a pre-receipt held upload without granting it original-owner proof. */
-async function writeLegacyHeldMarker(sceneId: string, captureId: string): Promise<boolean> {
+async function writeLegacyHeldMarker(requestId: string, sceneId: string, captureId: string): Promise<boolean> {
   if (!storageAdmin) throw new Error("Storage is unavailable");
+  if (await prepareLegacyBrowserFinish({ request_id: requestId, scene_id: sceneId,
+    capture_id: captureId }) !== "legacy") return false;
   const stored = await resolveStoredObjectPath(sceneId, captureId);
   if (!stored) return false;
   const bucket = storageAdmin.bucket(storageBucketName());
@@ -667,13 +670,19 @@ router.get("/:token", async (req: Request, res: Response) => {
   // not wait on a scheduler being switched on in this deployment.
   let resumed: Awaited<ReturnType<typeof resumeHeldPrivacyScreen>> | null = null;
   try {
-    resumed = await resumeHeldPrivacyScreen({
-      requestId: payload.requestId,
-      captureId: payload.captureId,
-      sceneId: payload.sceneId,
-    });
+    const finishMode = await prepareLegacyBrowserFinish({ request_id: payload.requestId,
+      capture_id: payload.captureId, scene_id: payload.sceneId });
+    if (finishMode !== "blocked") {
+      resumed = await resumeHeldPrivacyScreen({
+        requestId: payload.requestId,
+        captureId: payload.captureId,
+        sceneId: payload.sceneId,
+      });
+    }
 
-    if (resumed.action === "cleared" && resumed.result.proceed) {
+    if ((resumed?.action === "cleared" && resumed.result.proceed)
+        || (finishMode === "legacy"
+          && await legacyBrowserPrivacyCleared(payload.requestId, payload.captureId))) {
       // It cleared on retry, so the thing that was missing is the marker. An
       // app bundle finishes from its completion record, byte for byte; a
       // browser upload writes its marker as before.
@@ -694,8 +703,8 @@ router.get("/:token", async (req: Request, res: Response) => {
             logger.error({ requestId: payload.requestId, captureId: payload.captureId },
               "Privacy screen cleared on retry but browser pending identity does not match");
           }
-        } else {
-          const finished = await writeLegacyHeldMarker(payload.sceneId, payload.captureId);
+        } else if (finishMode === "legacy") {
+          const finished = await writeLegacyHeldMarker(payload.requestId, payload.sceneId, payload.captureId);
           if (!finished) logger.error({ requestId: payload.requestId, captureId: payload.captureId },
             "Legacy held browser capture has no current video and manifest to finish");
         }
