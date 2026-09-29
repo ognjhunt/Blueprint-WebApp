@@ -505,6 +505,25 @@ async function writeCreateOnlyExact(
   return existing === content ? "matched" : "conflict";
 }
 
+/** A completion record is an intent; every server-owned input must exist before its marker. */
+async function materializeCompletionServerFiles(
+  target: BundleTarget,
+  completion: BundleCompletionRecord,
+  storage: BundleStorage,
+): Promise<"ready" | "conflict"> {
+  const files = (completion as BundleCompletionRecord & { server_files?: unknown }).server_files;
+  const expected = SERVER_OWNED_PATHS.filter((path) => path !== HASHES_PATH && path !== COMPLETION_MARKER_PATH);
+  if (!files || typeof files !== "object" || Array.isArray(files)) return "conflict";
+  const serverFiles = files as Record<string, unknown>;
+  if (Object.keys(serverFiles).sort().join("\0") !== [...expected].sort().join("\0")
+      || expected.some((path) => typeof serverFiles[path] !== "string")) return "conflict";
+  for (const path of ["manifest.json", ...expected.filter((name) => name !== "manifest.json").sort()]) {
+    if (await writeCreateOnlyExact(storage, rawObjectName(target, path), serverFiles[path] as string) === "conflict")
+      return "conflict";
+  }
+  return "ready";
+}
+
 /** hashes.json, then the marker, last. Both create-only and byte-exact. */
 async function finishBundle(
   target: BundleTarget,
@@ -661,20 +680,15 @@ export async function completeBundle(
       return { status: 503, body: { error: "We could not finish your upload. Please retry.", code: "bundle_completion_unavailable" } };
     }
   }
-  const serverFiles = (completion as BundleCompletionRecord & { server_files: Record<string, string> }).server_files;
   const producerSource: CapturePrivacyProducerSource = {
     kind: "app_bundle_completion", key: bundleCompletionDecisionKey(completion),
   };
 
   // Manifest first, as on the web path: the marker starts extraction and
   // extraction reads the manifest.
-  const orderedServerFiles = ["manifest.json", ...Object.keys(serverFiles).filter((path) => path !== "manifest.json").sort()];
-  for (const path of orderedServerFiles) {
-    const outcome = await writeCreateOnlyExact(deps.storage, rawObjectName(target, path), serverFiles[path]);
-    if (outcome === "conflict") {
-      logger.error({ captureId: target.captureId, path }, "A server-owned bundle file differs from its completion record");
-      return { status: 500, body: { error: "This upload cannot be finished. We have been alerted.", code: "bundle_server_file_conflict" } };
-    }
+  if (await materializeCompletionServerFiles(target, completion, deps.storage) === "conflict") {
+    logger.error({ captureId: target.captureId }, "A server-owned bundle file differs from its completion record");
+    return { status: 500, body: { error: "This upload cannot be finished. We have been alerted.", code: "bundle_server_file_conflict" } };
   }
 
   const identity = await deps.recordUploadIdentity({
@@ -766,13 +780,24 @@ export async function completeBundle(
  */
 export async function finishClearedBundle(
   payload: TokenPayload,
-  storage: BundleStorage,
+  deps: BundleServiceDeps,
   expectedSource: CapturePrivacyProducerSource,
 ): Promise<"finished" | "not_a_bundle" | "conflict"> {
   const target = targetFor(payload);
+  const storage = deps.storage;
   const completion = await readJson<BundleCompletionRecord>(storage, completionObjectName(target));
   if (!completion) return "not_a_bundle";
   if (expectedSource.kind !== "app_bundle_completion"
       || bundleCompletionDecisionKey(completion) !== expectedSource.key) return "conflict";
+  const plan = await readJson<BundlePlanRecord>(storage, planObjectName(target));
+  if (!plan || planDigestOf(plan) !== plan.plan_digest
+      || plan.plan_digest !== completion.plan_digest
+      || plan.request_id !== payload.requestId || plan.scene_id !== target.sceneId
+      || plan.capture_id !== target.captureId || plan.raw_prefix !== target.rawPrefix) return "conflict";
+  if (await materializeCompletionServerFiles(target, completion, storage) === "conflict") return "conflict";
+  if (await deps.recordUploadIdentity({ requestId: payload.requestId, target,
+    identity: completion.identity, planDigest: plan.plan_digest, client: plan.client }) === "conflict") return "conflict";
+  const currentSource = await appBundlePrivacySource(payload, storage);
+  if (currentSource?.kind !== expectedSource.kind || currentSource.key !== expectedSource.key) return "conflict";
   return finishBundle(target, completion, storage);
 }

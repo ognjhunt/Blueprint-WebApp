@@ -735,7 +735,7 @@ router.get("/:token", async (req: Request, res: Response) => {
         if (currentSource && ((freshlyCleared && screenedSource?.kind === currentSource.kind
             && screenedSource.key === currentSource.key)
             || await storedCapturePrivacyCleared(payload.requestId, payload.captureId, currentSource))) {
-          if (await finishClearedBundle(payload, bundleStorage, currentSource) === "conflict") {
+          if (await finishClearedBundle(payload, bundleServiceDeps(bundleStorage), currentSource) === "conflict") {
             logger.error({ requestId: payload.requestId, captureId: payload.captureId },
               "A cleared app bundle could not be finished: its completion source changed");
           }
