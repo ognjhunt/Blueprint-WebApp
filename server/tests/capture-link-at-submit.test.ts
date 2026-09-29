@@ -38,7 +38,7 @@ const written = vi.hoisted(() => new Map<string, string>());
 const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
 const generations = vi.hoisted(() => ({ next: 1 }));
 const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
-const writeFault = vi.hoisted(() => ({ manifestOnce: false }));
+const writeFault = vi.hoisted(() => ({ manifestOnce: false, markerOnce: false }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -73,6 +73,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
             if (path.endsWith("/manifest.json") && writeFault.manifestOnce) {
               writeFault.manifestOnce = false;
               throw new Error("injected_manifest_write_failure");
+            }
+            if (path.endsWith("/capture_upload_complete.json") && writeFault.markerOnce) {
+              writeFault.markerOnce = false;
+              throw new Error("injected_marker_write_failure");
             }
             const match = config?.preconditionOpts?.ifGenerationMatch;
             if (match !== undefined && String(match) !== String(current()?.metadata.generation ?? 0)) {
@@ -188,6 +192,7 @@ beforeEach(() => {
   generations.next = 1;
   writeGate.current = null;
   writeFault.manifestOnce = false;
+  writeFault.markerOnce = false;
   screenCaptureForPrivacy.mockClear();
   screenCaptureForPrivacy.mockResolvedValue({
     proceed: true,
@@ -411,6 +416,30 @@ describe("the privacy question is asked before anything is derived", () => {
       expect(written.has(markerName)).toBe(false);
       expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-legacy-failed") as Record<string, any>)
         .capture_privacy_screen.eligibility).toBe("pending");
+    });
+  });
+
+  it("replays the exact pending browser delivery after privacy was stored but marker creation failed", async () => {
+    seedRequest("req-marker-retry", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+      outcome: "not_reviewed", detail: null, evidence: null });
+    writeFault.markerOnce = true;
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-marker-retry", "V1")).status).toBe(502);
+      const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-marker-retry") as Record<string, any>;
+      expect(request.capture_privacy_screen).toMatchObject({ capture_id: "walkthrough-req-marker-retry",
+        eligibility: "unscreened", proceeded: true });
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-marker-retry") as Record<string, any>;
+      expect(session.browser_pending_delivery.state).toBe("held");
+      const pendingVideoGeneration = session.browser_pending_delivery.video.generation;
+      const markerName = "scenes/site-req-marker-retry/captures/walkthrough-req-marker-retry/raw/capture_upload_complete.json";
+      expect(written.has(markerName)).toBe(false);
+      const token = tokenFrom(captureUploadUrlFor("req-marker-retry"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect(session.browser_pending_delivery.state).toBe("published");
+      const marker = JSON.parse(written.get(markerName) ?? "null");
+      expect(marker.producer_delivery.raw_video_generation).toBe(pendingVideoGeneration);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
     });
   });
 
