@@ -45,7 +45,8 @@ import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
 import { reviewCaptureCoverage } from "../utils/captureCoverageReview";
-import { recordCapturePrivacyScreen } from "../utils/capturePrivacyRecord";
+import { claimCapturePrivacyScreen, recordCapturePrivacyScreen,
+  releaseCapturePrivacyScreenClaim } from "../utils/capturePrivacyRecord";
 import { getBrief, switchSiteToSelfCapture } from "../utils/siteTaskBrief";
 import { loadWebsiteCaptureRights, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -498,18 +499,28 @@ async function finishStoredCapture(params: {
     void notifySlackFootageNeedsReview({ requestId: payload.requestId }).catch(() => undefined);
   }
 
-  const privacy = await screenCaptureForPrivacy({
-    requestId: payload.requestId,
-    sceneId: payload.sceneId,
-    captureId: payload.captureId,
-  });
-
-  await recordCapturePrivacyScreen({
-    requestId: payload.requestId,
-    captureId: payload.captureId,
-    result: privacy,
-    producerSource: { kind: "browser_pending", key: browserPendingDecisionKey(pending) },
-  });
+  const producerSource = { kind: "browser_pending" as const, key: browserPendingDecisionKey(pending) };
+  const claim = await claimCapturePrivacyScreen({ requestId: payload.requestId,
+    captureId: payload.captureId, producerSource });
+  if (!claim) return { status: 503, body: { error: "This capture is still being reviewed. Try again shortly." } };
+  let privacy;
+  try {
+    privacy = await screenCaptureForPrivacy({
+      requestId: payload.requestId,
+      sceneId: payload.sceneId,
+      captureId: payload.captureId,
+    });
+    await recordCapturePrivacyScreen({
+      requestId: payload.requestId,
+      captureId: payload.captureId,
+      result: privacy,
+      producerSource,
+      claim,
+    });
+  } catch (error) {
+    await releaseCapturePrivacyScreenClaim(claim);
+    throw error;
+  }
 
   if (!privacy.proceed) {
     // 200 and `ok: true`, because the upload genuinely succeeded. Accepting
@@ -618,6 +629,8 @@ export function bundleServiceDeps(storage: BundleStorage): BundleServiceDeps {
       await enqueueTaskLifecycleNotification({ requestId, milestone: "video_received" });
     },
     screenForPrivacy: (params) => screenCaptureForPrivacy(params),
+    claimPrivacyScreen: (params) => claimCapturePrivacyScreen(params),
+    releasePrivacyClaim: (claim) => releaseCapturePrivacyScreenClaim(claim),
     recordPrivacy: (params) => recordCapturePrivacyScreen(params),
     async loadPrivacyState(requestId) {
       if (!dbAdmin) return null;

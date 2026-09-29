@@ -9,15 +9,15 @@
  * It is also not free. The narrow privacy decision is stored separately from
  * full site-video evidence so the two cannot masquerade as each other.
  *
- * Nothing here is allowed to fail an upload. The video is already stored and
- * the decision is already made by the time this is called; a Firestore hiccup
- * must not turn a held capture into an error or a cleared one into a retry.
+ * A source-bound decision must be durable before its completion marker can
+ * publish. Older unbound decisions retain their historical best-effort path.
  */
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { notifySlackCapturePrivacyEscalation } from "./slack";
 import type { PrivacyScreenResult } from "./capturePrivacyScreen";
+import { randomUUID } from "node:crypto";
 
 /** The exact producer/source screened; kinds cannot authorize each other. */
 export type CapturePrivacyProducerSource = {
@@ -25,11 +25,73 @@ export type CapturePrivacyProducerSource = {
   key: string;
 };
 
+export type CapturePrivacyScreenClaim = {
+  schema_version: "capture_privacy_screen_claim.v1";
+  request_id: string;
+  capture_id: string;
+  producer_source: CapturePrivacyProducerSource;
+  id: string;
+  expires_at_ms: number;
+};
+
+const SCREEN_CLAIM_MS = 60 * 60 * 1000;
+
+function validSource(source: CapturePrivacyProducerSource | null | undefined): source is CapturePrivacyProducerSource {
+  return (source?.kind === "browser_pending" || source?.kind === "app_bundle_completion")
+    && /^sha256:[a-f0-9]{64}$/.test(source.key);
+}
+
+function validClaim(value: unknown): value is CapturePrivacyScreenClaim {
+  if (!value || typeof value !== "object") return false;
+  const claim = value as Partial<CapturePrivacyScreenClaim>;
+  return claim.schema_version === "capture_privacy_screen_claim.v1"
+    && typeof claim.request_id === "string" && typeof claim.capture_id === "string"
+    && typeof claim.id === "string" && validSource(claim.producer_source)
+    && Number.isSafeInteger(claim.expires_at_ms) && (claim.expires_at_ms ?? 0) > 0;
+}
+
+/** One active screen per request; a stale claimant cannot save or publish later. */
+export async function claimCapturePrivacyScreen(input: { requestId: string; captureId: string;
+  producerSource: CapturePrivacyProducerSource }, nowMs = Date.now()): Promise<CapturePrivacyScreenClaim | null> {
+  if (!db || !validSource(input.producerSource) || !Number.isSafeInteger(nowMs) || nowMs < 1)
+    throw new Error("capture_privacy_claim_unavailable");
+  const claim: CapturePrivacyScreenClaim = { schema_version: "capture_privacy_screen_claim.v1",
+    request_id: input.requestId, capture_id: input.captureId, producer_source: input.producerSource,
+    id: randomUUID(), expires_at_ms: nowMs + SCREEN_CLAIM_MS };
+  const ref = db.collection("inboundRequests").doc(input.requestId);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new Error("capture_privacy_request_missing");
+    const active = snapshot.data()?.capture_privacy_screening_claim;
+    if (active != null && !validClaim(active)) throw new Error("capture_privacy_claim_invalid");
+    if (active && active.expires_at_ms > nowMs) return null;
+    transaction.set(ref, { capture_privacy_screening_claim: claim }, { merge: true });
+    return claim;
+  });
+}
+
+/** An ordinary failed call releases only its own claim; process death uses expiry. */
+export async function releaseCapturePrivacyScreenClaim(claim: CapturePrivacyScreenClaim): Promise<void> {
+  if (!db || !validClaim(claim)) return;
+  const ref = db.collection("inboundRequests").doc(claim.request_id);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const active = snapshot.data()?.capture_privacy_screening_claim;
+    if (validClaim(active) && active.id === claim.id
+        && active.request_id === claim.request_id && active.capture_id === claim.capture_id
+        && active.producer_source.kind === claim.producer_source.kind
+        && active.producer_source.key === claim.producer_source.key) {
+      transaction.set(ref, { capture_privacy_screening_claim: null }, { merge: true });
+    }
+  });
+}
+
 export async function recordCapturePrivacyScreen(params: {
   requestId: string;
   captureId: string;
   result: PrivacyScreenResult;
   producerSource?: CapturePrivacyProducerSource | null;
+  claim?: CapturePrivacyScreenClaim | null;
   /**
    * How many times we have asked, including this one.
    *
@@ -39,14 +101,13 @@ export async function recordCapturePrivacyScreen(params: {
    */
   attempts?: number;
 }): Promise<void> {
-  if (!db) return;
+  if (!db) {
+    if (params.producerSource) throw new Error("capture_privacy_record_unavailable");
+    return;
+  }
 
   try {
-    await db
-      .collection("inboundRequests")
-      .doc(params.requestId)
-      .set(
-        {
+    const update = {
           capture_privacy_screen: {
             capture_id: params.captureId,
             outcome: params.result.outcome,
@@ -73,9 +134,28 @@ export async function recordCapturePrivacyScreen(params: {
           ...(params.result.evidence
             ? { capture_privacy_evidence: params.result.evidence }
             : {}),
-        },
-        { merge: true },
-      );
+        };
+    const ref = db.collection("inboundRequests").doc(params.requestId);
+    if (params.producerSource) {
+      if (!validSource(params.producerSource) || !validClaim(params.claim)
+          || params.claim.request_id !== params.requestId || params.claim.capture_id !== params.captureId
+          || params.claim.producer_source.kind !== params.producerSource.kind
+          || params.claim.producer_source.key !== params.producerSource.key)
+        throw new Error("capture_privacy_claim_invalid");
+      await db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(ref);
+        const active = snapshot.data()?.capture_privacy_screening_claim;
+        if (!validClaim(active) || active.id !== params.claim!.id
+            || active.request_id !== params.requestId || active.capture_id !== params.captureId
+            || active.producer_source.kind !== params.producerSource!.kind
+            || active.producer_source.key !== params.producerSource!.key
+            || active.expires_at_ms <= Date.now())
+          throw new Error("capture_privacy_claim_changed");
+        transaction.set(ref, { ...update, capture_privacy_screening_claim: null }, { merge: true });
+      });
+    } else {
+      await ref.set(update, { merge: true });
+    }
 
     // A rejected reading never retries, so without a bell it waits for
     // nobody: the flag had zero consumers. Fire-and-forget with a logged
@@ -96,7 +176,8 @@ export async function recordCapturePrivacyScreen(params: {
   } catch (error) {
     logger.warn(
       { error, requestId: params.requestId, captureId: params.captureId },
-      "Could not record the capture privacy screen; the decision stands regardless",
+      "Could not record the capture privacy screen; source-bound completion stays held",
     );
+    if (params.producerSource) throw new Error("capture_privacy_record_unavailable");
   }
 }

@@ -15,7 +15,7 @@
 
 import { logger } from "../logger";
 import type { PrivacyScreenResult } from "./capturePrivacyScreen";
-import type { CapturePrivacyProducerSource } from "./capturePrivacyRecord";
+import type { CapturePrivacyProducerSource, CapturePrivacyScreenClaim } from "./capturePrivacyRecord";
 import type { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import {
   BUNDLE_VIDEO_PATH,
@@ -71,8 +71,11 @@ export interface BundleServiceDeps {
   loadBrief(requestId: string): Promise<SiteTaskBriefSnapshot | null>;
   notifyVideoReceived(requestId: string): Promise<void>;
   screenForPrivacy(params: { requestId: string; sceneId: string; captureId: string }): Promise<PrivacyScreenResult>;
+  claimPrivacyScreen(params: { requestId: string; captureId: string;
+    producerSource: CapturePrivacyProducerSource }): Promise<CapturePrivacyScreenClaim | null>;
+  releasePrivacyClaim(claim: CapturePrivacyScreenClaim): Promise<void>;
   recordPrivacy(params: { requestId: string; captureId: string; result: PrivacyScreenResult;
-    producerSource: CapturePrivacyProducerSource }): Promise<void>;
+    producerSource: CapturePrivacyProducerSource; claim: CapturePrivacyScreenClaim }): Promise<void>;
   loadPrivacyState(requestId: string): Promise<StoredPrivacyState | null>;
   recordUploadIdentity(params: {
     requestId: string;
@@ -692,6 +695,21 @@ export async function completeBundle(
     logger.warn({ error, requestId: payload.requestId }, "Could not enqueue video-received notice");
   }
 
+  const screenForThisCompletion = async () => {
+    const claim = await deps.claimPrivacyScreen({ requestId: payload.requestId,
+      captureId: target.captureId, producerSource });
+    if (!claim) return null;
+    try {
+      const result = await deps.screenForPrivacy({ requestId: payload.requestId,
+        sceneId: target.sceneId, captureId: target.captureId });
+      await deps.recordPrivacy({ requestId: payload.requestId, captureId: target.captureId,
+        result, producerSource, claim });
+      return result;
+    } catch (error) {
+      await deps.releasePrivacyClaim(claim);
+      throw error;
+    }
+  };
   let proceed: boolean;
   let eligibility: string | null | undefined;
   if (repeat) {
@@ -704,9 +722,8 @@ export async function completeBundle(
       && (stored.eligibility === "approved" || stored.eligibility === "unscreened");
     eligibility = stored?.eligibility;
     if (!stored || !sameSource) {
-      const result = await deps.screenForPrivacy({ requestId: payload.requestId, sceneId: target.sceneId, captureId: target.captureId });
-      await deps.recordPrivacy({ requestId: payload.requestId, captureId: target.captureId,
-        result, producerSource });
+      const result = await screenForThisCompletion();
+      if (!result) return { status: 200, body: { ok: true, state: "held", code: "capture_review_in_progress" } };
       proceed = result.proceed;
       eligibility = result.eligibility;
       if (!proceed) return heldResponse(target, result);
@@ -714,9 +731,8 @@ export async function completeBundle(
       return heldResponse(target, stored);
     }
   } else {
-    const result = await deps.screenForPrivacy({ requestId: payload.requestId, sceneId: target.sceneId, captureId: target.captureId });
-    await deps.recordPrivacy({ requestId: payload.requestId, captureId: target.captureId,
-      result, producerSource });
+    const result = await screenForThisCompletion();
+    if (!result) return { status: 200, body: { ok: true, state: "held", code: "capture_review_in_progress" } };
     proceed = result.proceed;
     eligibility = result.eligibility;
     if (!proceed) return heldResponse(target, result);
