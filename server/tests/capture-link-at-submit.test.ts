@@ -129,7 +129,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 
 const { captureUploadUrlFor } = await import("../utils/captureUploadToken");
 const { authorizeCaptureUpload } = await import("../utils/captureUploadAuthorization");
-const { reserveBrowserUpload, releaseBrowserUpload, recordBrowserPending } = await import("../utils/websiteBrowserPending");
+const { reserveBrowserUpload, releaseBrowserUpload, recordBrowserPending,
+  prepareLegacyBrowserFinish } = await import("../utils/websiteBrowserPending");
 
 async function startRoutes(): Promise<{ server: Server; baseUrl: string }> {
   const { default: uploads } = await import("../routes/self-capture-uploads");
@@ -402,6 +403,33 @@ describe("the privacy question is asked before anything is derived", () => {
       expect(written.has(markerName)).toBe(false);
       expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-legacy-failed") as Record<string, any>)
         .capture_privacy_screen.eligibility).toBe("pending");
+    });
+  });
+
+  it("keeps a legacy claim across a cleared-screen crash and excludes a newer browser write", async () => {
+    seedRequest("req-legacy-retry", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-legacy-retry", "V1")).body.state).toBe("held");
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-retry") as Record<string, unknown>;
+      delete session.browser_pending_delivery;
+      delete session.browser_modern_attempt;
+      const identity = { request_id: "req-legacy-retry", scene_id: "site-req-legacy-retry",
+        capture_id: "walkthrough-req-legacy-retry" };
+      expect(await prepareLegacyBrowserFinish(identity)).toBe("legacy");
+      expect((await uploadFor(baseUrl, "req-legacy-retry", "V2")).status).toBe(409);
+      // Model a process dying after the privacy result was durable but before
+      // it could create the marker. The next poll must finish the old claim.
+      const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-legacy-retry") as Record<string, any>;
+      request.capture_privacy_screen = { capture_id: identity.capture_id, proceeded: true,
+        eligibility: "unscreened" };
+      const token = tokenFrom(captureUploadUrlFor("req-legacy-retry"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      const markerName = "scenes/site-req-legacy-retry/captures/walkthrough-req-legacy-retry/raw/capture_upload_complete.json";
+      const marker = JSON.parse(written.get(markerName) ?? "null");
+      expect(marker).toMatchObject({ scene_id: identity.scene_id, capture_id: identity.capture_id });
+      expect(marker).not.toHaveProperty("producer_delivery");
     });
   });
 
