@@ -15,6 +15,7 @@
 
 import { logger } from "../logger";
 import type { PrivacyScreenResult } from "./capturePrivacyScreen";
+import type { CapturePrivacyProducerSource, CapturePrivacyScreenClaim } from "./capturePrivacyRecord";
 import type { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import {
   BUNDLE_VIDEO_PATH,
@@ -25,6 +26,7 @@ import {
   SERVER_OWNED_PATHS,
   SITE_CAPTURE_BUNDLE_PLAN_SCHEMA,
   buildCompletionRecord,
+  bundleCompletionDecisionKey,
   buildPlanRecord,
   composeServerFiles,
   downstreamCandidateBindingErrors,
@@ -56,6 +58,8 @@ export interface StoredPrivacyState {
   outcome?: string | null;
   detail?: string | null;
   retryable?: boolean | null;
+  producer_source?: CapturePrivacyProducerSource | null;
+  screened_at_iso?: string | null;
 }
 
 export interface BundleServiceDeps {
@@ -68,7 +72,11 @@ export interface BundleServiceDeps {
   loadBrief(requestId: string): Promise<SiteTaskBriefSnapshot | null>;
   notifyVideoReceived(requestId: string): Promise<void>;
   screenForPrivacy(params: { requestId: string; sceneId: string; captureId: string }): Promise<PrivacyScreenResult>;
-  recordPrivacy(params: { requestId: string; captureId: string; result: PrivacyScreenResult }): Promise<void>;
+  claimPrivacyScreen(params: { requestId: string; captureId: string;
+    producerSource: CapturePrivacyProducerSource }): Promise<CapturePrivacyScreenClaim | null>;
+  releasePrivacyClaim(claim: CapturePrivacyScreenClaim): Promise<void>;
+  recordPrivacy(params: { requestId: string; captureId: string; result: PrivacyScreenResult;
+    producerSource: CapturePrivacyProducerSource; claim: CapturePrivacyScreenClaim }): Promise<void>;
   loadPrivacyState(requestId: string): Promise<StoredPrivacyState | null>;
   recordUploadIdentity(params: {
     requestId: string;
@@ -114,6 +122,18 @@ function planObjectName(target: BundleTarget): string {
 
 function completionObjectName(target: BundleTarget): string {
   return `${uploadRecordPrefixFor(target.sceneId, target.captureId)}/bundle_completion.json`;
+}
+
+export async function appBundlePrivacySource(payload: TokenPayload, storage: BundleStorage):
+  Promise<CapturePrivacyProducerSource | null> {
+  const target = targetFor(payload);
+  const completion = await readJson<BundleCompletionRecord>(storage, completionObjectName(target));
+  if (!completion) return null;
+  if (completion.request_id !== payload.requestId || completion.scene_id !== target.sceneId
+      || completion.capture_id !== target.captureId || completion.raw_prefix !== target.rawPrefix) {
+    throw new Error("bundle_completion_privacy_source_invalid");
+  }
+  return { kind: "app_bundle_completion", key: bundleCompletionDecisionKey(completion) };
 }
 
 function rawObjectName(target: BundleTarget, path: string): string {
@@ -485,12 +505,34 @@ async function writeCreateOnlyExact(
   return existing === content ? "matched" : "conflict";
 }
 
+/** A completion record is an intent; every server-owned input must exist before its marker. */
+async function materializeCompletionServerFiles(
+  target: BundleTarget,
+  completion: BundleCompletionRecord,
+  storage: BundleStorage,
+): Promise<"ready" | "conflict"> {
+  const files = (completion as BundleCompletionRecord & { server_files?: unknown }).server_files;
+  const expected = SERVER_OWNED_PATHS.filter((path) => path !== HASHES_PATH && path !== COMPLETION_MARKER_PATH);
+  if (!files || typeof files !== "object" || Array.isArray(files)) return "conflict";
+  const serverFiles = files as Record<string, unknown>;
+  if (Object.keys(serverFiles).sort().join("\0") !== [...expected].sort().join("\0")
+      || expected.some((path) => typeof serverFiles[path] !== "string")) return "conflict";
+  for (const path of ["manifest.json", ...expected.filter((name) => name !== "manifest.json").sort()]) {
+    if (await writeCreateOnlyExact(storage, rawObjectName(target, path), serverFiles[path] as string) === "conflict")
+      return "conflict";
+  }
+  return "ready";
+}
+
 /** hashes.json, then the marker, last. Both create-only and byte-exact. */
 async function finishBundle(
   target: BundleTarget,
   completion: BundleCompletionRecord,
   storage: BundleStorage,
 ): Promise<"finished" | "conflict"> {
+  // Older held completions predate device generation recording. Preserve their
+  // original byte-exact finish path; the owner-read endpoint cannot qualify
+  // them for retirement without that independent historical source proof.
   const hashes = await writeCreateOnlyExact(storage, rawObjectName(target, HASHES_PATH), completion.hashes_json);
   if (hashes === "conflict") return "conflict";
   const marker = await writeCreateOnlyExact(
@@ -543,6 +585,14 @@ export async function completeBundle(
 
   // Already finished: answer the same thing again.
   if (await deps.storage.info(rawObjectName(target, COMPLETION_MARKER_PATH))) {
+    const prior = await readJson<BundleCompletionRecord>(deps.storage, completionObjectName(target));
+    const marker = await deps.storage.readText(rawObjectName(target, COMPLETION_MARKER_PATH));
+    if (!prior || prior.request_id !== payload.requestId || prior.scene_id !== target.sceneId
+        || prior.capture_id !== target.captureId || prior.raw_prefix !== target.rawPrefix
+        || prior.plan_digest !== plan.plan_digest || marker !== prior.completion_marker_json) {
+      return { status: 409, body: { error: "This capture has a different completion marker.",
+        code: "bundle_marker_conflict" } };
+    }
     const privacy = await deps.loadPrivacyState(payload.requestId);
     return completeResponse(target, privacy?.eligibility);
   }
@@ -594,6 +644,19 @@ export async function completeBundle(
   let completion = await readJson<BundleCompletionRecord>(deps.storage, completionObjectName(target));
   const repeat = completion !== null;
   if (!completion) {
+    const byName = new Map(objects.map((object) => [object.name, object]));
+    const deviceObjects: Record<string, { generation: string; size_bytes: number; crc32c: string; md5: string }> = {};
+    for (const file of plan.files) {
+      const object = byName.get(rawObjectName(target, file.path));
+      if (!object || !/^[1-9][0-9]{0,19}$/.test(object.generation ?? "")
+          || !/^[A-Za-z0-9+/]{6}==$/.test(object.crc32c ?? "")
+          || object.size !== file.bytes || object.md5Hash !== file.md5) {
+        return { status: 503, body: { error: "We could not verify this upload. Please retry.",
+          code: "bundle_source_generation_unavailable" } };
+      }
+      deviceObjects[file.path] = { generation: object.generation!, size_bytes: object.size,
+        crc32c: object.crc32c!, md5: file.md5 };
+    }
     const completedAtIso = deps.now().toISOString();
     const composition = composeServerFiles({
       plan,
@@ -602,7 +665,7 @@ export async function completeBundle(
       completedAtIso,
     });
     const fresh = {
-      ...buildCompletionRecord(plan, composition, completedAtIso),
+      ...buildCompletionRecord(plan, composition, completedAtIso, deviceObjects),
       server_files: composition.serverFiles,
     };
     const outcome = await deps.storage.createOnly(
@@ -617,17 +680,15 @@ export async function completeBundle(
       return { status: 503, body: { error: "We could not finish your upload. Please retry.", code: "bundle_completion_unavailable" } };
     }
   }
-  const serverFiles = (completion as BundleCompletionRecord & { server_files: Record<string, string> }).server_files;
+  const producerSource: CapturePrivacyProducerSource = {
+    kind: "app_bundle_completion", key: bundleCompletionDecisionKey(completion),
+  };
 
   // Manifest first, as on the web path: the marker starts extraction and
   // extraction reads the manifest.
-  const orderedServerFiles = ["manifest.json", ...Object.keys(serverFiles).filter((path) => path !== "manifest.json").sort()];
-  for (const path of orderedServerFiles) {
-    const outcome = await writeCreateOnlyExact(deps.storage, rawObjectName(target, path), serverFiles[path]);
-    if (outcome === "conflict") {
-      logger.error({ captureId: target.captureId, path }, "A server-owned bundle file differs from its completion record");
-      return { status: 500, body: { error: "This upload cannot be finished. We have been alerted.", code: "bundle_server_file_conflict" } };
-    }
+  if (await materializeCompletionServerFiles(target, completion, deps.storage) === "conflict") {
+    logger.error({ captureId: target.captureId }, "A server-owned bundle file differs from its completion record");
+    return { status: 500, body: { error: "This upload cannot be finished. We have been alerted.", code: "bundle_server_file_conflict" } };
   }
 
   const identity = await deps.recordUploadIdentity({
@@ -649,18 +710,44 @@ export async function completeBundle(
     logger.warn({ error, requestId: payload.requestId }, "Could not enqueue video-received notice");
   }
 
+  const screenForThisCompletion = async () => {
+    const claim = await deps.claimPrivacyScreen({ requestId: payload.requestId,
+      captureId: target.captureId, producerSource });
+    if (!claim) return null;
+    try {
+      const result = await deps.screenForPrivacy({ requestId: payload.requestId,
+        sceneId: target.sceneId, captureId: target.captureId });
+      await deps.recordPrivacy({ requestId: payload.requestId, captureId: target.captureId,
+        result, producerSource, claim });
+      return result;
+    } catch (error) {
+      await deps.releasePrivacyClaim(claim);
+      throw error;
+    }
+  };
   let proceed: boolean;
   let eligibility: string | null | undefined;
   if (repeat) {
     // The screen already ran for this capture. Read what it said instead of
     // asking the model again; a held screen is retried by the status poll.
     const stored = await deps.loadPrivacyState(payload.requestId);
-    proceed = stored?.proceeded === true
+    const sameSource = stored?.producer_source?.kind === producerSource.kind
+      && stored.producer_source.key === producerSource.key;
+    proceed = sameSource && stored?.proceeded === true
       && (stored.eligibility === "approved" || stored.eligibility === "unscreened");
     eligibility = stored?.eligibility;
-    if (!stored) {
-      const result = await deps.screenForPrivacy({ requestId: payload.requestId, sceneId: target.sceneId, captureId: target.captureId });
-      await deps.recordPrivacy({ requestId: payload.requestId, captureId: target.captureId, result });
+    if (!stored || !sameSource) {
+      // A pre-change writer may still be finishing the unbound decision. Its
+      // shared legacy map cannot authorize this app completion, and repeat
+      // POST obeys the same finite quarantine as status recovery.
+      if (stored?.proceeded === true
+          && (stored.eligibility === "approved" || stored.eligibility === "unscreened")) {
+        const when = Date.parse(stored.screened_at_iso ?? "");
+        if (!Number.isFinite(when) || Date.now() - when < 60 * 60 * 1000)
+          return { status: 200, body: { ok: true, state: "held", code: "capture_review_in_progress" } };
+      }
+      const result = await screenForThisCompletion();
+      if (!result) return { status: 200, body: { ok: true, state: "held", code: "capture_review_in_progress" } };
       proceed = result.proceed;
       eligibility = result.eligibility;
       if (!proceed) return heldResponse(target, result);
@@ -668,14 +755,16 @@ export async function completeBundle(
       return heldResponse(target, stored);
     }
   } else {
-    const result = await deps.screenForPrivacy({ requestId: payload.requestId, sceneId: target.sceneId, captureId: target.captureId });
-    await deps.recordPrivacy({ requestId: payload.requestId, captureId: target.captureId, result });
+    const result = await screenForThisCompletion();
+    if (!result) return { status: 200, body: { ok: true, state: "held", code: "capture_review_in_progress" } };
     proceed = result.proceed;
     eligibility = result.eligibility;
     if (!proceed) return heldResponse(target, result);
   }
 
-  if ((await finishBundle(target, completion, deps.storage)) === "conflict") {
+  const currentSource = await appBundlePrivacySource(payload, deps.storage);
+  if (currentSource?.kind !== producerSource.kind || currentSource.key !== producerSource.key
+      || (await finishBundle(target, completion, deps.storage)) === "conflict") {
     logger.error({ captureId: target.captureId }, "Bundle hash manifest or marker differs from its completion record");
     return { status: 500, body: { error: "This upload cannot be finished. We have been alerted.", code: "bundle_marker_conflict" } };
   }
@@ -691,10 +780,24 @@ export async function completeBundle(
  */
 export async function finishClearedBundle(
   payload: TokenPayload,
-  storage: BundleStorage,
+  deps: BundleServiceDeps,
+  expectedSource: CapturePrivacyProducerSource,
 ): Promise<"finished" | "not_a_bundle" | "conflict"> {
   const target = targetFor(payload);
+  const storage = deps.storage;
   const completion = await readJson<BundleCompletionRecord>(storage, completionObjectName(target));
   if (!completion) return "not_a_bundle";
+  if (expectedSource.kind !== "app_bundle_completion"
+      || bundleCompletionDecisionKey(completion) !== expectedSource.key) return "conflict";
+  const plan = await readJson<BundlePlanRecord>(storage, planObjectName(target));
+  if (!plan || planDigestOf(plan) !== plan.plan_digest
+      || plan.plan_digest !== completion.plan_digest
+      || plan.request_id !== payload.requestId || plan.scene_id !== target.sceneId
+      || plan.capture_id !== target.captureId || plan.raw_prefix !== target.rawPrefix) return "conflict";
+  if (await materializeCompletionServerFiles(target, completion, storage) === "conflict") return "conflict";
+  if (await deps.recordUploadIdentity({ requestId: payload.requestId, target,
+    identity: completion.identity, planDigest: plan.plan_digest, client: plan.client }) === "conflict") return "conflict";
+  const currentSource = await appBundlePrivacySource(payload, storage);
+  if (currentSource?.kind !== expectedSource.kind || currentSource.key !== expectedSource.key) return "conflict";
   return finishBundle(target, completion, storage);
 }

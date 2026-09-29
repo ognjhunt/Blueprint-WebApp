@@ -40,6 +40,14 @@ const firebaseConfigForAdmin = {
     process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com",
 };
 
+// Retain the exact service-account identity selected at Admin initialization
+// for bounded, request-local read transport. ADC has no cancellable token
+// refresh contract here and deliberately returns unavailable.
+let initializedServiceAccount: ServiceAccount | null = null;
+export function initializedFirebaseServiceAccountForRead(): ServiceAccount | null {
+  return initializedServiceAccount;
+}
+
 // The list of env keys that trigger credential loading / ADC lookups below
 // lives in the side-effect-free adcContextEnvKeys.ts module so test harnesses
 // can consume it without evaluating this module's admin initialization.
@@ -53,6 +61,7 @@ function initializeFirebaseAdmin() {
 
   if (!admin.apps?.length) {
     const serviceAccount = loadServiceAccount();
+    initializedServiceAccount = serviceAccount;
     const hasApplicationDefaultContext = Boolean(
       process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim() ||
       process.env.K_SERVICE?.trim() ||

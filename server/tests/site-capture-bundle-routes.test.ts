@@ -23,6 +23,7 @@ const state = vi.hoisted(() => ({
   bucket: null as unknown as import("./helpers/fake-gcs-bucket").FakeGcsBucket,
   authorization: { allowed: true, holdReason: null, detail: null, blockers: [], openQuestions: [] } as Record<string, unknown>,
   privacy: [] as Record<string, unknown>[],
+  privacyGate: null as null | { entered(): void; wait: Promise<void>; result: Record<string, unknown> },
   brief: null as null | { summary: string; confirmedAtIso: string | null },
   notices: [] as string[],
   coverage: [] as string[],
@@ -57,6 +58,13 @@ vi.mock("../utils/taskLifecycleNotifications", () => ({
 
 vi.mock("../utils/capturePrivacyScreen", () => ({
   screenCaptureForPrivacy: vi.fn(async () => {
+    if (state.privacyGate) {
+      const gate = state.privacyGate;
+      state.privacyGate = null;
+      gate.entered();
+      await gate.wait;
+      return gate.result;
+    }
     const next = state.privacy.shift();
     if (!next) throw new Error("test did not script a privacy result");
     return next;
@@ -126,6 +134,7 @@ beforeEach(() => {
   state.bucket = new FakeGcsBucket("blueprint-8c1ca.appspot.com");
   state.authorization = { allowed: true, holdReason: null, detail: null, blockers: [], openQuestions: [] };
   state.privacy = [];
+  state.privacyGate = null;
   state.brief = { summary: "Move totes from the conveyor to the rack", confirmedAtIso: "2026-09-20T10:00:00.000Z" };
   state.notices = [];
   state.coverage = [];
@@ -311,6 +320,18 @@ describe("the plan is checked against the Raw V3.2 layout before any bytes move"
 });
 
 describe("uploads are create-only and verified before completion", () => {
+  it("cannot claim the same raw prefix during an in-flight browser write", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    sharedFakeFirestoreState.docs.set(`captureUploadSessions/${CAPTURE_ID}`, {
+      browser_upload_reservation: { schema_version: "website_browser_write_reservation.v1",
+        request_id: REQUEST_ID, scene_id: SCENE_ID, capture_id: CAPTURE_ID,
+        id: "test-write", expires_at_ms: Date.now() + 60_000 },
+    });
+    const attempt = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
+    expect(attempt.status).toBe(409);
+    expect(attempt.body.code).toBe("bundle_plan_conflict");
+    expect(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_plan.json`)).toBeNull();
+  });
   it("hands out create-only, MD5-bound targets and a resumable session for the video", async () => {
     const { device, bindingDigest } = await bundleFor();
     const plan = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
@@ -404,6 +425,140 @@ describe("uploads are create-only and verified before completion", () => {
 });
 
 describe("completion keeps the web path's order and authority", () => {
+  it("refuses a pre-change browser marker instead of calling an app bundle complete", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    const markerName = `${RAW}/capture_upload_complete.json`;
+    const legacy = JSON.stringify({ schema_version: "v1", scene_id: SCENE_ID,
+      capture_id: CAPTURE_ID, raw_prefix: RAW, capture_source: "browser_self_capture",
+      video_uri: `${RAW}/walkthrough.mp4` });
+    state.bucket.seed(markerName, legacy, "application/json");
+    const response = await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    expect(response.status).toBe(409);
+    expect(state.bucket.text(markerName)).toBe(legacy);
+    expect(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)).toBeNull();
+  });
+
+  it("does not use an older browser clearance to finish a new app bundle before its own screen", async () => {
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
+      proceeded: true, producer_source: null };
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    state.privacyGate = { entered, wait: continueScreen, result: PENDING };
+    const completing = api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    await screening;
+    try {
+      expect(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)).not.toBeNull();
+      await linkCheck();
+      expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+      state.privacy.push(PENDING);
+      expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+      expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    } finally { resume(); }
+    expect((await completing).body.state).toBe("held");
+  });
+
+  it("recovers an old held app completion only after its in-flight screen claim expires", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    delete request.capture_privacy_source_bound_decision;
+    request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
+      proceeded: true, producer_source: null, screened_at_iso: new Date().toISOString() };
+    state.privacy.push(APPROVED);
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect(state.privacy).toHaveLength(1);
+    request.capture_privacy_screen.screened_at_iso = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    request.capture_privacy_screening_claim = { schema_version: "capture_privacy_screen_claim.v1",
+      request_id: REQUEST_ID, capture_id: CAPTURE_ID,
+      producer_source: { kind: "app_bundle_completion", key: `sha256:${"1".repeat(64)}` },
+      id: "prior-screen", expires_at_ms: Date.now() + 60_000 };
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect(state.privacy).toHaveLength(1);
+    request.capture_privacy_screening_claim.expires_at_ms = Date.now() - 1;
+    const recovered = await linkCheck();
+    expect(recovered.body.bundle.state).toBe("complete");
+    expect(state.privacy).toHaveLength(0);
+    expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>)
+      .capture_privacy_screen.producer_source.kind).toBe("app_bundle_completion");
+  });
+
+  it("keeps a recent unbound old-app approval quarantined on repeat complete POST", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    delete request.capture_privacy_source_bound_decision;
+    request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
+      proceeded: true, producer_source: null, screened_at_iso: new Date().toISOString() };
+    state.privacy.push(APPROVED);
+    const repeat = await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    expect(repeat.body.state).toBe("held");
+    expect(state.privacy).toHaveLength(1);
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+  });
+
+  it("rejects a late app privacy decision after the exact screening claim is taken over", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    state.privacyGate = { entered, wait: continueScreen, result: APPROVED };
+    const first = api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    await screening;
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    const oldClaimId = request.capture_privacy_screening_claim.id;
+    request.capture_privacy_screening_claim.expires_at_ms = Date.now() - 1;
+    state.privacy.push(PENDING);
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>)
+      .capture_privacy_screen).toMatchObject({ eligibility: "pending", proceeded: false });
+    resume();
+    expect((await first).status).not.toBe(201);
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>)
+      .capture_privacy_screening_claim).toBeNull();
+    expect(oldClaimId).toMatch(/^[a-f0-9-]{36}$/);
+    state.privacy.push(APPROVED);
+    expect((await linkCheck()).body.bundle.state).toBe("complete");
+  });
+
+  it("does not publish after a privacy-record CAS failure and retries only the pinned app source", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    state.privacyGate = { entered, wait: continueScreen, result: APPROVED };
+    const completing = api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    await screening;
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    request.capture_privacy_screening_claim.id = "replaced-claim";
+    resume();
+    expect((await completing).status).not.toBe(201);
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect(request.capture_privacy_screen).toBeUndefined();
+    request.capture_privacy_screening_claim.expires_at_ms = Date.now() - 1;
+    state.privacy.push(APPROVED);
+    expect((await linkCheck()).body.bundle.state).toBe("complete");
+    expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>)
+      .capture_privacy_screen.producer_source.kind).toBe("app_bundle_completion");
+  });
+
   it("writes server files, notifies, screens, then hashes.json and the marker last", async () => {
     const { device, bindingDigest } = await bundleFor({ lidar: true });
     const planDigest = await uploadEverything(device, bindingDigest);
@@ -508,9 +663,122 @@ describe("completion keeps the web path's order and authority", () => {
     const polled = await linkCheck();
     expect(polled.body.bundle.state).toBe("complete");
     const completion = JSON.parse(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)!);
+    expect(completion.device_objects["walkthrough.mov"]).toMatchObject({
+      generation: String(state.bucket.objects.get(`${RAW}/walkthrough.mov`)?.generation),
+      size_bytes: state.bucket.objects.get(`${RAW}/walkthrough.mov`)?.data.length,
+    });
     expect(state.bucket.text(`${RAW}/hashes.json`)).toBe(completion.hashes_json);
     expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBe(completion.completion_marker_json);
     expect(state.bucket.writeLog.slice(-1)[0]).toBe(`${RAW}/capture_upload_complete.json`);
+  });
+
+  it("status never publishes an app marker before all completion server files exist", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    const originalFile = state.bucket.file.bind(state.bucket);
+    let entered!: () => void;
+    let resume!: () => void;
+    const paused = new Promise<void>((resolve) => { entered = resolve; });
+    const continueWrite = new Promise<void>((resolve) => { resume = resolve; });
+    let pauseFirstManifest = true;
+    state.bucket.file = ((name: string) => {
+      const file = originalFile(name);
+      if (name === `${RAW}/manifest.json` && pauseFirstManifest) {
+        pauseFirstManifest = false;
+        const save = file.save.bind(file);
+        file.save = async (...args: Parameters<typeof save>) => {
+          entered();
+          await continueWrite;
+          return save(...args);
+        };
+      }
+      return file;
+    }) as typeof state.bucket.file;
+    const completing = api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    await paused;
+    try {
+      expect(state.bucket.text(`${RAW}/manifest.json`)).toBeNull();
+      state.privacy.push(APPROVED);
+      await linkCheck();
+      const marker = state.bucket.text(`${RAW}/capture_upload_complete.json`);
+      if (marker !== null) {
+        const completion = JSON.parse(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)!);
+        for (const [path, bytes] of Object.entries(completion.server_files)) {
+          expect(state.bucket.text(`${RAW}/${path}`)).toBe(bytes);
+        }
+        const session = sharedFakeFirestoreState.docs.get(`captureUploadSessions/${CAPTURE_ID}`) as Record<string, any>;
+        expect(session.immutable_upload_identity).toEqual({
+          ...completion.identity, verification_status: "pending_pipeline_storage_readback",
+        });
+      }
+    } finally { resume(); }
+    await completing;
+  });
+
+  it("holds a marker if a failed app manifest write left conflicting server bytes", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    const originalFile = state.bucket.file.bind(state.bucket);
+    let failManifest = true;
+    state.bucket.file = ((name: string) => {
+      const file = originalFile(name);
+      if (name === `${RAW}/manifest.json` && failManifest) {
+        const save = file.save.bind(file);
+        file.save = async (...args: Parameters<typeof save>) => {
+          failManifest = false;
+          throw new Error("injected_manifest_failure");
+        };
+      }
+      return file;
+    }) as typeof state.bucket.file;
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).status).toBe(503);
+    expect(state.bucket.text(`${RAW}/manifest.json`)).toBeNull();
+    const completion = JSON.parse(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)!);
+    state.bucket.seed(`${RAW}/manifest.json`, "different bytes", "application/json");
+    state.privacy.push(APPROVED);
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect(state.bucket.text(`${RAW}/manifest.json`)).toBe("different bytes");
+    expect(completion.server_files["manifest.json"]).not.toBe("different bytes");
+  });
+
+  it("does not finish an app source changed during screening or from its old stored decision", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const completionName = `scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`;
+    const original = JSON.parse(state.bucket.text(completionName)!);
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    state.privacyGate = { entered, wait: continueScreen, result: APPROVED };
+    const polling = linkCheck();
+    await screening;
+    state.bucket.seed(completionName, JSON.stringify({ ...original, completed_at_iso: "2026-09-29T00:00:00.000Z" }));
+    resume();
+    await polling;
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+  });
+
+  it("finishes an older held bundle without generation fields but never invents them", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const completionName = `scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`;
+    const stored = state.bucket.objects.get(completionName)!;
+    const oldCompletion = JSON.parse(stored.data.toString("utf8"));
+    delete oldCompletion.device_objects;
+    stored.data = Buffer.from(JSON.stringify(oldCompletion));
+    state.privacy.push(APPROVED);
+    const polled = await linkCheck();
+    expect(polled.body.bundle.state).toBe("complete");
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBe(oldCompletion.completion_marker_json);
+    expect(JSON.parse(state.bucket.text(completionName)!)).not.toHaveProperty("device_objects");
   });
 
   it("is idempotent: repeating complete changes nothing and notifies once", async () => {
@@ -595,6 +863,8 @@ describe("a realistic bundle stays far under the API rate limit", () => {
     const planDigest = await uploadEverything(device, bindingDigest);
     state.privacy.push(APPROVED);
     expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).status).toBe(201);
+    const completion = state.bucket.objects.get(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`);
+    expect(completion?.data.length).toBeLessThan(1_048_576);
     // Link check + plan + target batches + complete. The global /api limiter is
     // 300 requests per 15 minutes per IP.
     expect(apiRequests).toBeLessThanOrEqual(12);

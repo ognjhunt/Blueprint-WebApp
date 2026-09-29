@@ -14,6 +14,8 @@ import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 export interface BundleObjectInfo {
   name: string;
   size: number;
+  generation?: string;
+  crc32c?: string;
   /** Base64 MD5 as Cloud Storage reports it; absent for composite objects. */
   md5Hash: string | null;
 }
@@ -72,6 +74,8 @@ function objectInfo(name: string, metadata: Record<string, unknown> | undefined)
   return {
     name,
     size: Number.isFinite(size) ? size : 0,
+    generation: typeof metadata?.generation === "string" ? metadata.generation : undefined,
+    crc32c: typeof metadata?.crc32c === "string" ? metadata.crc32c : undefined,
     md5Hash: typeof md5 === "string" && md5 ? md5 : null,
   };
 }

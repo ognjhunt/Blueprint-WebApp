@@ -36,6 +36,7 @@
  */
 
 import { logger } from "../logger";
+import { capturedWriteIdentity, type WrittenObject } from "./websiteCaptureDelivery";
 
 /** Cloud Storage's own limit on sources per compose call. */
 const COMPOSE_FANOUT = 32;
@@ -48,7 +49,8 @@ export interface PartsBucket {
     getMetadata(): Promise<[{ size?: string | number }]>;
   };
   getFiles(options: { prefix: string }): Promise<[Array<{ name: string }>]>;
-  combine(sources: string[], destination: string): Promise<unknown>;
+  combine(sources: string[], destination: string,
+    options?: { ifGenerationMatch: number | string }): Promise<unknown>;
 }
 
 export function partsPrefix(rawPrefix: string): string {
@@ -108,7 +110,7 @@ export async function savePart(params: {
 }
 
 export type CompositionResult =
-  | { ok: true; parts: number }
+  | { ok: true; parts: number; video: WrittenObject }
   | { ok: false; reason: "no_parts" | "missing_parts"; missing: number[] };
 
 /**
@@ -123,6 +125,7 @@ export async function composeParts(params: {
   bucket: PartsBucket;
   rawPrefix: string;
   objectPath: string;
+  ifGenerationMatch: number | string;
   /** How many parts the client says it sent. */
   expectedParts: number;
 }): Promise<CompositionResult> {
@@ -164,9 +167,15 @@ export async function composeParts(params: {
   // caller to work out which intermediate won -- with a single source that is
   // a copy, which is the cost of one extra write on the last round and worth
   // it for a destination path nobody has to guess.
-  await params.bucket.combine([sources[0]!], params.objectPath);
+  const response = await params.bucket.combine([sources[0]!], params.objectPath,
+    { ifGenerationMatch: params.ifGenerationMatch });
+  // Bucket.combine returns [File, API response]. The latter identifies this
+  // exact compose write; reading the destination's latest metadata can race a
+  // newer upload of the same browser capture path.
+  const metadata = Array.isArray(response) ? response[1] : null;
+  const video = capturedWriteIdentity(params.objectPath, metadata);
 
-  return { ok: true, parts: params.expectedParts };
+  return { ok: true, parts: params.expectedParts, video };
 }
 
 /**

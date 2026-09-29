@@ -23,7 +23,8 @@ const RAW = "captures/scene-1/cap-1/raw";
 /** A bucket that records what was asked of it. */
 function fakeBucket() {
   const objects = new Map<string, Buffer>();
-  const combines: Array<{ sources: string[]; destination: string }> = [];
+  const combines: Array<{ sources: string[]; destination: string;
+    ifGenerationMatch?: number | string }> = [];
   let failNextCombine = false;
 
   const bucket = {
@@ -48,16 +49,22 @@ function fakeBucket() {
         [...objects.keys()].filter((name) => name.startsWith(prefix)).map((name) => ({ name })),
       ];
     },
-    async combine(sources: string[], destination: string) {
+    async combine(sources: string[], destination: string,
+      options?: { ifGenerationMatch: number | string }) {
       if (failNextCombine) {
         failNextCombine = false;
         throw new Error("compose failed");
       }
-      combines.push({ sources: [...sources], destination });
+      combines.push({ sources: [...sources], destination,
+        ifGenerationMatch: options?.ifGenerationMatch });
       objects.set(
         destination,
         Buffer.concat(sources.map((source) => objects.get(source) ?? Buffer.alloc(0))),
       );
+      return [bucket.file(destination), {
+        name: destination, generation: "90071992547409931",
+        size: String(objects.get(destination)!.length), crc32c: "AAAAAA==",
+      }];
     },
   };
 
@@ -114,6 +121,7 @@ describe("composition refuses a gap rather than composing around it", () => {
       rawPrefix: RAW,
       objectPath: `${RAW}/walkthrough.mp4`,
       expectedParts: 5,
+      ifGenerationMatch: 0,
     });
 
     expect(result).toEqual({ ok: false, reason: "missing_parts", missing: [2] });
@@ -127,6 +135,7 @@ describe("composition refuses a gap rather than composing around it", () => {
       rawPrefix: RAW,
       objectPath: `${RAW}/walkthrough.mp4`,
       expectedParts: 3,
+      ifGenerationMatch: 0,
     });
 
     expect(result).toMatchObject({ ok: false, reason: "no_parts" });
@@ -142,6 +151,7 @@ describe("composition refuses a gap rather than composing around it", () => {
       rawPrefix: RAW,
       objectPath: `${RAW}/walkthrough.mp4`,
       expectedParts: 4,
+      ifGenerationMatch: 0,
     });
 
     expect(result).toMatchObject({ ok: false, missing: [2, 3] });
@@ -149,6 +159,24 @@ describe("composition refuses a gap rather than composing around it", () => {
 });
 
 describe("and composes in order when everything is there", () => {
+  it("returns the final write response generation without rounding", async () => {
+    await seedParts(harness, 2);
+    const result = await composeParts({
+      bucket: harness.bucket, rawPrefix: RAW,
+      objectPath: `${RAW}/walkthrough.mp4`, expectedParts: 2, ifGenerationMatch: 0,
+    });
+    expect(result).toMatchObject({ ok: true, video: {
+      object_name: `${RAW}/walkthrough.mp4`, generation: "90071992547409931",
+      size_bytes: 14,
+    } });
+  });
+  it("forwards an exact 20-digit destination generation as a string CAS", async () => {
+    await seedParts(harness, 1);
+    await composeParts({ bucket: harness.bucket, rawPrefix: RAW,
+      objectPath: `${RAW}/walkthrough.mp4`, expectedParts: 1,
+      ifGenerationMatch: "90071992547409931" });
+    expect(harness.combines.at(-1)?.ifGenerationMatch).toBe("90071992547409931");
+  });
   it("produces the parts concatenated, in sequence", async () => {
     await seedParts(harness, 4);
 
@@ -157,9 +185,12 @@ describe("and composes in order when everything is there", () => {
       rawPrefix: RAW,
       objectPath: `${RAW}/walkthrough.mp4`,
       expectedParts: 4,
+      ifGenerationMatch: 0,
     });
 
-    expect(result).toEqual({ ok: true, parts: 4 });
+    expect(result).toMatchObject({ ok: true, parts: 4 });
+    expect(harness.combines.at(-1)).toMatchObject({ destination: `${RAW}/walkthrough.mp4`,
+      ifGenerationMatch: 0 });
     expect(harness.objects.get(`${RAW}/walkthrough.mp4`)?.toString()).toBe(
       "part-0-part-1-part-2-part-3-",
     );
@@ -173,9 +204,10 @@ describe("and composes in order when everything is there", () => {
       rawPrefix: RAW,
       objectPath: `${RAW}/walkthrough.mp4`,
       expectedParts: 1,
+      ifGenerationMatch: 0,
     });
 
-    expect(result).toEqual({ ok: true, parts: 1 });
+    expect(result).toMatchObject({ ok: true, parts: 1 });
     expect(harness.objects.get(`${RAW}/walkthrough.mp4`)?.toString()).toBe("part-0-");
   });
 
@@ -190,9 +222,10 @@ describe("and composes in order when everything is there", () => {
       rawPrefix: RAW,
       objectPath: `${RAW}/walkthrough.mp4`,
       expectedParts: 70,
+      ifGenerationMatch: 0,
     });
 
-    expect(result).toEqual({ ok: true, parts: 70 });
+    expect(result).toMatchObject({ ok: true, parts: 70 });
     // Every compose call stayed inside the limit.
     for (const call of harness.combines) {
       expect(call.sources.length).toBeLessThanOrEqual(32);
@@ -210,6 +243,7 @@ describe("parts are cleaned up, but only after the capture exists", () => {
       rawPrefix: RAW,
       objectPath: `${RAW}/walkthrough.mp4`,
       expectedParts: 40,
+      ifGenerationMatch: 0,
     });
 
     await discardParts(harness.bucket, RAW);
