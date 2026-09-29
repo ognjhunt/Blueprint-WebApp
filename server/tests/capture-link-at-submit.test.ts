@@ -174,10 +174,10 @@ beforeEach(() => {
 });
 
 /** A well-formed upload for a site that cleared the screen. */
-async function uploadFor(baseUrl: string, requestId: string) {
+async function uploadFor(baseUrl: string, requestId: string, bytes = "x") {
   const token = tokenFrom(captureUploadUrlFor(requestId));
   const form = new FormData();
-  form.append("video", new Blob(["x"], { type: "video/quicktime" }), "walk.mov");
+  form.append("video", new Blob([bytes], { type: "video/quicktime" }), "walk.mov");
   form.append(
     "metadata",
     JSON.stringify({
@@ -198,6 +198,62 @@ async function uploadFor(baseUrl: string, requestId: string) {
 /* -------------------------------------------- looking before we copy */
 
 describe("the privacy question is asked before anything is derived", () => {
+  it("does not overwrite a held V1 video or manifest when V2 is offered", async () => {
+    seedRequest("req-held-v1", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-held-v1", "V1")).body.state).toBe("held");
+      const prefix = "scenes/site-req-held-v1/captures/walkthrough-req-held-v1/raw";
+      const videoName = `${prefix}/walkthrough.mov`;
+      const manifestName = `${prefix}/manifest.json`;
+      const before = [...storedVersions].filter(([key]) => key.startsWith(`${videoName}@`) || key.startsWith(`${manifestName}@`));
+      const next = await uploadFor(baseUrl, "req-held-v1", "V2");
+      expect(next.status).toBe(409);
+      expect([...storedVersions].filter(([key]) => key.startsWith(`${videoName}@`)
+        || key.startsWith(`${manifestName}@`))).toEqual(before);
+    });
+  });
+
+  it("finishes a legacy held browser video without qualifying it as an original owner", async () => {
+    seedRequest("req-legacy-held", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-legacy-held", "V1")).body.state).toBe("held");
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-held") as Record<string, unknown>;
+      delete session.browser_pending_delivery;
+      screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+        outcome: "not_reviewed", detail: null, evidence: null });
+      const token = tokenFrom(captureUploadUrlFor("req-legacy-held"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      const markerName = "scenes/site-req-legacy-held/captures/walkthrough-req-legacy-held/raw/capture_upload_complete.json";
+      const marker = JSON.parse(written.get(markerName) ?? "null");
+      expect(marker).toMatchObject({ scene_id: "site-req-legacy-held", capture_id: "walkthrough-req-legacy-held" });
+      expect(marker).not.toHaveProperty("producer_delivery");
+    });
+  });
+
+  it("never overwrites a newer typed marker during a legacy held browser resume", async () => {
+    seedRequest("req-legacy-race", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-legacy-race", "V1")).body.state).toBe("held");
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-race") as Record<string, unknown>;
+      delete session.browser_pending_delivery;
+      const markerName = "scenes/site-req-legacy-race/captures/walkthrough-req-legacy-race/raw/capture_upload_complete.json";
+      const newer = Buffer.from('{"producer_delivery":{"kind":"website_browser_capture_delivery"}}');
+      storedVersions.set(`${markerName}@999`, { body: newer, metadata: { name: markerName,
+        generation: "999", size: String(newer.length), crc32c: "AAAAAA==" } });
+      screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+        outcome: "not_reviewed", detail: null, evidence: null });
+      const token = tokenFrom(captureUploadUrlFor("req-legacy-race"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect(storedVersions.get(`${markerName}@999`)?.body).toEqual(newer);
+      expect([...storedVersions.keys()].filter((key) => key.startsWith(`${markerName}@`))).toEqual([`${markerName}@999`]);
+    });
+  });
   it("writes no completion marker when the footage is held", async () => {
     // The marker is what starts extraction. Holding it is what keeps frames of
     // identifiable people from being written into our bucket at all -- which

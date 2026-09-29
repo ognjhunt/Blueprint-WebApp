@@ -517,6 +517,23 @@ describe("completion keeps the web path's order and authority", () => {
     expect(state.bucket.writeLog.slice(-1)[0]).toBe(`${RAW}/capture_upload_complete.json`);
   });
 
+  it("finishes an older held bundle without generation fields but never invents them", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const completionName = `scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`;
+    const stored = state.bucket.objects.get(completionName)!;
+    const oldCompletion = JSON.parse(stored.data.toString("utf8"));
+    delete oldCompletion.device_objects;
+    stored.data = Buffer.from(JSON.stringify(oldCompletion));
+    state.privacy.push(APPROVED);
+    const polled = await linkCheck();
+    expect(polled.body.bundle.state).toBe("complete");
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBe(oldCompletion.completion_marker_json);
+    expect(JSON.parse(state.bucket.text(completionName)!)).not.toHaveProperty("device_objects");
+  });
+
   it("is idempotent: repeating complete changes nothing and notifies once", async () => {
     const { device, bindingDigest } = await bundleFor();
     const planDigest = await uploadEverything(device, bindingDigest);
