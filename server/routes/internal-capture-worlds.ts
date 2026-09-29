@@ -40,6 +40,9 @@ import {
 } from "../utils/taskLifecycleNotifications";
 
 import { DEVELOPMENT_OFFERS, developmentOfferSchema } from "../utils/controlledDevelopmentOffer";
+import { isCaptureOwnerPath, type CaptureOwnerBody } from "../utils/captureOwnerRawBody";
+import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
+import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 
 const router = Router();
 
@@ -127,6 +130,37 @@ function guard(req: Request, res: Response, next: () => void) {
   }
   next();
 }
+
+// The early 4 KiB parser owns admission for this one read. The ordinary
+// Pipeline guard's optional legacy bearer setting is deliberately insufficient.
+router.post("/creator-captures/:captureId/capture-owner", createPipelineSyncRateLimiter(),
+  async (req: Request, res: Response) => {
+    const admitted = req as Request & { captureOwnerBodyAdmitted?: boolean; rawBody?: string };
+    if (!admitted.captureOwnerBodyAdmitted || typeof admitted.rawBody !== "string"
+        || !isCaptureOwnerPath(req.originalUrl.split("?")[0])) {
+      return res.status(400).json({ code: "website_capture_owner_body_invalid" });
+    }
+    if (!req.header("X-Blueprint-Pipeline-Timestamp") || !req.header("X-Blueprint-Pipeline-Signature")) {
+      return res.status(401).json({ code: "website_capture_owner_signature_required" });
+    }
+    const verified = verifyPipelineSyncRequest(req);
+    if (!verified.ok) return res.status(verified.status).json({ code: verified.code });
+    const body = req.body as CaptureOwnerBody;
+    if (req.params.captureId !== `walkthrough-${body.request_id}`
+        || body.scene_id !== `site-${body.request_id}`) {
+      return res.status(409).json({ code: "website_capture_owner_identity_mismatch" });
+    }
+    try {
+      const result = await withWebsiteOwnerDeps(body.remaining_timeout_ms, deps =>
+        observeWebsiteCaptureOwner({ ...body, capture_id: req.params.captureId }, deps));
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(result);
+    } catch (error) {
+      logger.warn({ code: (error as Error).message, captureId: req.params.captureId },
+        "Website original capture owner observation unavailable");
+      return res.status(503).json({ code: "website_capture_owner_unavailable" });
+    }
+  });
 
 const previewUrl = z.string().url().max(4000).refine(value => {
   const url = new URL(value);

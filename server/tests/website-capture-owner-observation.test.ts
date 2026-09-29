@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { buildBrowserDelivery } from "../utils/websiteCaptureDelivery";
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
+import { bundleDigest, planDigestOf } from "../utils/siteCaptureBundle";
 
 const sha = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const request = { account_owner_uid: "uid-owner", claimed_at_iso: null,
@@ -42,7 +43,7 @@ function fixture() {
       if (name === video.object_name && generation === video.generation)
         return { name, generation, size: "7", crc32c: video.crc32c };
       const value = generation ? objects.get(`${name}@${generation}`) :
-        [...objects.values()].find((item) => item.metadata.name === name);
+        [...objects.values()].reverse().find((item) => item.metadata.name === name);
       if (!value) throw new Error("missing_object");
       return value.metadata;
     },
@@ -74,5 +75,49 @@ describe("authoritative original website capture owner read", () => {
     };
     await expect(observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
       capture_id: "walkthrough-r1", completion_marker_generation: "100" }, intact.deps)).rejects.toThrow();
+  });
+
+  it("verifies the existing server-owned app completion, plan, hashes and selected video", async () => {
+    const { deps, objects } = fixture();
+    const prefix = "scenes/site-r1/captures/walkthrough-r1/raw";
+    const marker = Buffer.from(JSON.stringify({ schema_version: "v1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", raw_prefix: prefix, capture_source: "iphone",
+      upload_channel: "website_capture_link_bundle", video_uri: "walkthrough.mov" }));
+    objects.set(`${markerName}@100`, object(markerName, "100", marker));
+    const manifest = Buffer.from('{"source":"app"}');
+    const artifacts = { "walkthrough.mov": "a".repeat(64), "manifest.json": sha(manifest).slice(7),
+      "capture_upload_complete.json": sha(marker).slice(7) };
+    const digest = bundleDigest(artifacts);
+    const planBase = { schema_version: "site_capture_bundle_plan.v1", request_id: "r1",
+      scene_id: "site-r1", capture_id: "walkthrough-r1", raw_prefix: prefix,
+      files: [{ path: "walkthrough.mov", bytes: 7, sha256: artifacts["walkthrough.mov"], md5: "test-md5" }],
+      client: {}, device_manifest: {}, binding: {}, binding_digest: "sha256:" + "b".repeat(64),
+      link_scope: "film", authority_snapshot: {}, created_at_iso: "2026-09-29T00:00:00.000Z" };
+    const plan = { ...planBase, plan_digest: "" };
+    plan.plan_digest = planDigestOf(plan as never);
+    const upload = "scenes/site-r1/captures/walkthrough-r1/upload";
+    const completion = { schema_version: "site_capture_bundle_completion.v1",
+      request_id: "r1", scene_id: "site-r1", capture_id: "walkthrough-r1", raw_prefix: prefix,
+      plan_digest: plan.plan_digest, completion_marker_json: marker.toString("utf8"),
+      bundle_sha256: digest, hashes_json: JSON.stringify({ schema_version: "v1", bundle_sha256: digest, artifacts }),
+      server_file_sha256: { "manifest.json": sha(manifest).slice(7) },
+      server_files: { "manifest.json": manifest.toString("utf8") },
+      identity: { raw_bundle_digest: `sha256:${digest}`,
+        raw_manifest_uri: `gs://test-bucket/${prefix}/manifest.json`, upload_completion_digest: sha(marker) } };
+    objects.set(`${upload}/bundle_plan.json@102`, object(`${upload}/bundle_plan.json`, "102", Buffer.from(JSON.stringify(plan))));
+    objects.set(`${upload}/bundle_completion.json@101`, object(`${upload}/bundle_completion.json`, "101", Buffer.from(JSON.stringify(completion))));
+    objects.set(`${prefix}/manifest.json@103`, object(`${prefix}/manifest.json`, "103", manifest));
+    const prior = deps.readMetadata;
+    deps.readMetadata = async (name, generation) => name === `${prefix}/walkthrough.mov`
+      ? { name, generation: "104", size: "7", crc32c: "AAAAAA==", md5Hash: "test-md5" }
+      : prior(name, generation);
+    const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
+    expect(observed.producer_delivery).toMatchObject({ kind: "website_capture_link_bundle",
+      raw_video: { object_name: `${prefix}/walkthrough.mov`, generation: "104" } });
+    completion.server_file_sha256["manifest.json"] = "0".repeat(64);
+    objects.set(`${upload}/bundle_completion.json@101`, object(`${upload}/bundle_completion.json`, "101", Buffer.from(JSON.stringify(completion))));
+    await expect(observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps)).rejects.toThrow();
   });
 });
