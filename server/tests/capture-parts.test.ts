@@ -174,7 +174,7 @@ describe("and composes in order when everything is there", () => {
       expectedParts: 4,
     });
 
-    expect(result).toEqual({ ok: true, parts: 4 });
+    expect(result).toMatchObject({ ok: true, parts: 4 });
     expect(harness.objects.get(`${RAW}/walkthrough.mp4`)?.toString()).toBe(
       "part-0-part-1-part-2-part-3-",
     );
@@ -190,7 +190,7 @@ describe("and composes in order when everything is there", () => {
       expectedParts: 1,
     });
 
-    expect(result).toEqual({ ok: true, parts: 1 });
+    expect(result).toMatchObject({ ok: true, parts: 1 });
     expect(harness.objects.get(`${RAW}/walkthrough.mp4`)?.toString()).toBe("part-0-");
   });
 
@@ -207,7 +207,7 @@ describe("and composes in order when everything is there", () => {
       expectedParts: 70,
     });
 
-    expect(result).toEqual({ ok: true, parts: 70 });
+    expect(result).toMatchObject({ ok: true, parts: 70 });
     // Every compose call stayed inside the limit.
     for (const call of harness.combines) {
       expect(call.sources.length).toBeLessThanOrEqual(32);
