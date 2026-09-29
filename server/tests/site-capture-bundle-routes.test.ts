@@ -599,6 +599,8 @@ describe("a realistic bundle stays far under the API rate limit", () => {
     const planDigest = await uploadEverything(device, bindingDigest);
     state.privacy.push(APPROVED);
     expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).status).toBe(201);
+    const completion = state.bucket.objects.get(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`);
+    expect(completion?.data.length).toBeLessThan(1_048_576);
     // Link check + plan + target batches + complete. The global /api limiter is
     // 300 requests per 15 minutes per IP.
     expect(apiRequests).toBeLessThanOrEqual(12);

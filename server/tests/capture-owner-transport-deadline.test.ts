@@ -13,7 +13,7 @@ const serviceAccount = { type: "service_account", project_id: "test-project",
   client_email: "test@test-project.iam.gserviceaccount.com", private_key: key };
 let server: Server;
 let origin: string;
-let mode: "token" | "firestore" | "media" | "oversize" = "token";
+let mode: "token" | "firestore" | "firestore-extra" | "media" | "media-short" | "oversize" = "token";
 const counts = { token: 0, firestore: 0, media: 0 };
 const closed: string[] = [];
 let disconnectOnMedia: EventEmitter | null = null;
@@ -34,23 +34,26 @@ beforeAll(async () => {
       res.end(JSON.stringify({ name: "projects/test-project/databases/(default)/documents/inboundRequests/r1",
         updateTime: "2026-09-29T00:00:00.123456789Z", fields: {
           account_owner_uid: { stringValue: "uid-owner" },
+          claimed_at_iso: { nullValue: "NULL_VALUE" },
           request: { mapValue: { fields: { buyerType: { stringValue: "site_operator" },
             capture_mode: { stringValue: "self_capture" }, consent_attestation: { mapValue: { fields: {
               granted: { booleanValue: true }, statement_version: { stringValue: "2026-09-18.v1" },
               recorded_at_iso: { stringValue: "2026-09-29T00:00:00.000Z" },
+              ...(mode === "firestore-extra" ? { private_email: { stringValue: "must-not-enter" } } : {}),
             } } } } } },
         } }));
     } else if (path.startsWith("/download/storage/v1")) {
       counts.media++;
       res.setHeader("content-type", "application/json");
       if (mode === "oversize") { res.setHeader("content-length", "100"); res.end("x".repeat(100)); return; }
+      if (mode === "media-short") { res.end("{}"); return; }
       res.write("{");
       if (disconnectOnMedia) setTimeout(() => disconnectOnMedia?.emit("close"), 10);
       if (mode !== "media") res.end("}");
     } else if (path.startsWith("/storage/v1")) {
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ name: "scenes/site-r1/captures/walkthrough-r1/raw/capture_upload_complete.json",
-        generation: "123", size: "2", crc32c: "AAAAAA==", metageneration: "1" }));
+        generation: "123", size: mode === "media-short" ? "3" : "2", crc32c: "AAAAAA==", metageneration: "1" }));
     } else res.writeHead(404).end();
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -69,7 +72,12 @@ describe("one terminal owner-read network deadline", () => {
     const result = await withWebsiteOwnerDeps(2000, deps => deps.readRequest("r1"), options());
     expect(result?.updateTime).toEqual({ seconds: 1790640000, nanoseconds: 123456789 });
     expect(result?.data.account_owner_uid).toBe("uid-owner");
+    expect(result?.data.claimed_at_iso).toBeNull();
     expect(JSON.stringify(result)).not.toMatch(/email|contact/);
+  });
+  it("rejects an unexpected nested Firestore field even inside an allowed map", async () => {
+    mode = "firestore-extra";
+    await expect(withWebsiteOwnerDeps(2000, deps => deps.readRequest("r1"), options())).rejects.toThrow();
   });
   it("aborts a stalled token exchange once, closing its socket", async () => {
     mode = "token"; counts.token = 0; closed.length = 0;
@@ -110,5 +118,11 @@ describe("one terminal owner-read network deadline", () => {
       "scenes/site-r1/captures/walkthrough-r1/raw/capture_upload_complete.json", "123", 64), options())
       .then(() => "unexpected_success", (error: Error) => error.message);
     expect(reason).toMatch(/size|oversize/i);
+  });
+  it("rejects a completed pinned body shorter than its exact metadata size", async () => {
+    mode = "media-short";
+    await expect(withWebsiteOwnerDeps(2000, deps => deps.readPinned(
+      "scenes/site-r1/captures/walkthrough-r1/raw/capture_upload_complete.json", "123", 64),
+    options())).rejects.toThrow("capture_owner_pinned_size_invalid");
   });
 });

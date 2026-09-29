@@ -55,12 +55,22 @@ describe("authoritative original website capture owner read", () => {
   it("selects M1 and V1 even after a later canonical marker/video generation exists", async () => {
     const { deps, objects } = fixture();
     objects.set(`${markerName}@200`, object(markerName, "200", Buffer.from("later marker")));
+    objects.set(`${video.object_name}@90071992547409939`, object(video.object_name,
+      "90071992547409939", Buffer.from("V2-video")));
     const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
       capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
     expect(observed.capture_owner).toEqual({ user_id: "uid-owner", basis: "inboundRequests.account_owner_uid" });
     expect(observed.completion_marker.generation).toBe("100");
     expect(observed.producer_delivery.raw_video.generation).toBe(video.generation);
     expect(JSON.stringify(observed)).not.toMatch(/email|token|contact/);
+    const originalRead = deps.readMetadata;
+    deps.readMetadata = async (name, generation) => {
+      if (name === video.object_name && generation === video.generation)
+        return { name, generation, size: "8", crc32c: video.crc32c };
+      return originalRead(name, generation);
+    };
+    await expect(observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps)).rejects.toThrow();
   });
   it("refuses tampered receipt bytes and ownership changes during the read", async () => {
     const { deps, objects } = fixture();
@@ -125,6 +135,14 @@ describe("authoritative original website capture owner read", () => {
       capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
     expect(observed.producer_delivery).toMatchObject({ kind: "website_capture_link_bundle",
       raw_video: { object_name: `${prefix}/walkthrough.mov`, generation: "104" } });
+    const sameNameV2 = deps.readMetadata;
+    deps.readMetadata = async (name, generation) => name === `${prefix}/walkthrough.mov` && generation === null
+      ? { name, generation: "999", size: "7", crc32c: "AAAAAA==", md5Hash: "test-md5" }
+      : sameNameV2(name, generation);
+    expect((await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps))
+      .producer_delivery.raw_video.generation).toBe("104");
+    deps.readMetadata = sameNameV2;
     const pinnedRead = deps.readMetadata;
     deps.readMetadata = async (name, generation) => {
       if (name === `${prefix}/walkthrough.mov` && generation === "104") throw new Error("old_generation_missing");

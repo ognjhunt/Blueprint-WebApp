@@ -151,6 +151,9 @@ export async function withWebsiteOwnerDeps<T>(
         const url = `${storageOrigin}/download/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(name)}?${query}`;
         const bytes = await streamRequest(url, limit);
         const second = await metadata(name, generation);
+        if (!/^(0|[1-9][0-9]*)$/.test(String(first.size))
+            || Number(first.size) !== bytes.length || !Number.isSafeInteger(Number(first.size)))
+          throw new Error("capture_owner_pinned_size_invalid");
         for (const key of ["name", "generation", "size", "crc32c", "metageneration"]) {
           if (first[key] !== second[key]) throw new Error("capture_owner_pinned_metadata_changed");
         }
