@@ -66,7 +66,7 @@ export async function storePolicyModel(req: Request, res: Response) {
     });
     if (!registered.registered) throw new Error("model_checkpoint_registration_failed");
     return res.status(201).json({ ok: true, checkpoint: registered.checkpoint,
-      next: "Runner validation is required before this model can execute a task." });
+      next: "The compatible runner validates the model before any task observations are sent." });
   } catch {
     // Compensate only the unique object this request created, never other work.
     if (stored) {

@@ -134,7 +134,7 @@ export async function registerCheckpoint(params: {
   }
   if (!validateIntegrationReference(runtime, reference)) {
     return { registered: false, refusal: "reference_invalid",
-      detail: "Provide an HTTPS endpoint, a digest-pinned controller image, or valid ordered skill JSON for the selected integration." };
+      detail: "Provide an HTTPS endpoint, a digest-pinned container or controller image, or valid ordered skill JSON for the selected integration." };
   }
 
   const checkpointId = `ckpt_${params.teamId}_${Date.now().toString(36)}`;
@@ -176,14 +176,17 @@ export async function markCheckpointStatus(params: {
   unrunnableReason?: string | null;
 }): Promise<void> {
   if (!db) return;
-  await db.collection(CHECKPOINT_COLLECTION).doc(params.checkpointId).set(
-    {
+  const ref = db.collection(CHECKPOINT_COLLECTION).doc(params.checkpointId);
+  await db.runTransaction(async transaction => {
+    const current = await transaction.get(ref);
+    if (!current.exists) throw new Error("checkpoint_status_target_missing");
+    if (current.data()?.status === "retired" && params.status === "runnable") return;
+    transaction.set(ref, {
       status: params.status,
       unrunnableReason: params.unrunnableReason ?? null,
       updatedAtIso: nowIso(),
-    },
-    { merge: true },
-  );
+    }, { merge: true });
+  });
 }
 
 /**
