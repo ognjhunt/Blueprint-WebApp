@@ -1837,7 +1837,7 @@ it("signs a scoped Sol managed-agent policy only after owner disclosure and an o
   process.env.BLUEPRINT_WEBSITE_AGENTS_API_POLICY_JSON = JSON.stringify(policy);
   const grant = await loadWebsiteSceneSponsorship("req1", true);
   expect(grant).toMatchObject({ authoring_provider: "openai",
-    authoring_agent_runtime: "openai_agents_api", authoring_model: "gpt-6-sol",
+    authoring_agent_runtime: "openai_agents_api", authoring_model: "gpt-6.1-sol",
     agents_api_policy: { project_guard_receipt_digest: guard } });
   expect(await loadWebsiteSceneSponsorship("req1", true)).toEqual(grant);
   process.env.BLUEPRINT_WEBSITE_AGENTS_API_POLICY_JSON = JSON.stringify({ ...policy,
