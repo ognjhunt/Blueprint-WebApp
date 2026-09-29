@@ -90,6 +90,10 @@ export async function claimSiteCaptureBundle(params: {
   const ref = store.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(params.target.captureId);
   return store.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
+    // The browser and app use the same raw prefix. Exclude an in-flight
+    // browser write before either producer stores canonical bytes.
+    if (snapshot.data()?.browser_upload_reservation || snapshot.data()?.browser_pending_delivery)
+      return "conflict";
     const existing = snapshot.exists
       ? (snapshot.data()?.site_capture_bundle_claim as Record<string, unknown> | undefined)
       : undefined;

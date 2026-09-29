@@ -69,7 +69,8 @@ import { notifySlackFootageNeedsReview } from "../utils/slack";
 import { buildBrowserDelivery, capturedWriteIdentity, publishBrowserDelivery,
   type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
 import { loadBrowserPending, publishBrowserPending, recordBrowserPending,
-  type BrowserPending } from "../utils/websiteBrowserPending";
+  releaseBrowserUpload, reserveBrowserUpload, type BrowserPending,
+  type BrowserWriteReservation } from "../utils/websiteBrowserPending";
 
 const router = Router();
 
@@ -140,13 +141,15 @@ type PartUploadRequest = Request & {
 function saveStreamedFile(
   file: { path: string; mimetype?: string },
   objectPath: string,
-  options: { contentType?: string; metadata?: Record<string, string> },
+  options: { contentType?: string; metadata?: Record<string, string>; ifGenerationMatch?: number | string },
 ): Promise<WrittenObject> {
   const fileRef = storageAdmin!.bucket(storageBucketName()).file(objectPath);
   const stream = fileRef.createWriteStream({
       contentType: options.contentType,
       resumable: false,
       metadata: options.metadata ? { metadata: options.metadata } : undefined,
+      preconditionOpts: options.ifGenerationMatch === undefined
+        ? undefined : { ifGenerationMatch: options.ifGenerationMatch },
     });
   return pipeline(createReadStream(file.path), stream).then(() =>
     capturedWriteIdentity(objectPath, fileRef.metadata));
@@ -320,6 +323,32 @@ async function resolveStoredObjectPath(
   return null;
 }
 
+async function currentObjectGeneration(bucket: ReturnType<NonNullable<typeof storageAdmin>["bucket"]>,
+  objectPath: string): Promise<number | string> {
+  try {
+    const [metadata] = await bucket.file(objectPath).getMetadata();
+    return capturedWriteIdentity(objectPath, metadata).generation;
+  } catch (error) {
+    if ((error as { code?: unknown })?.code === 404) return 0;
+    throw error;
+  }
+}
+
+async function beginBrowserCanonicalWrite(
+  payload: { requestId: string; sceneId: string; captureId: string }, objectPath: string,
+): Promise<{ reservation: BrowserWriteReservation; ifGenerationMatch: number | string }> {
+  if (!storageAdmin) throw new Error("Storage is unavailable");
+  const reservation = await reserveBrowserUpload({ request_id: payload.requestId,
+    scene_id: payload.sceneId, capture_id: payload.captureId });
+  try {
+    const ifGenerationMatch = await currentObjectGeneration(storageAdmin.bucket(storageBucketName()), objectPath);
+    return { reservation, ifGenerationMatch };
+  } catch (error) {
+    await releaseBrowserUpload(reservation);
+    throw error;
+  }
+}
+
 /**
  * The marker that starts extraction.
  *
@@ -346,6 +375,26 @@ async function writeCompletionMarker(pending: BrowserPending): Promise<void> {
   await publishBrowserPending(pending);
 }
 
+/** Finish a pre-receipt held upload without granting it original-owner proof. */
+async function writeLegacyHeldMarker(sceneId: string, captureId: string): Promise<boolean> {
+  if (!storageAdmin) throw new Error("Storage is unavailable");
+  const stored = await resolveStoredObjectPath(sceneId, captureId);
+  if (!stored) return false;
+  const bucket = storageAdmin.bucket(storageBucketName());
+  const [manifestExists] = await bucket.file(`${stored.rawPrefix}/manifest.json`).exists();
+  if (!manifestExists) return false;
+  const marker = {
+    schema_version: "v1", scene_id: sceneId, capture_id: captureId,
+    raw_prefix: stored.rawPrefix, capture_source: "browser_self_capture",
+    video_uri: stored.objectPath, completed_at_iso: new Date().toISOString(),
+  };
+  await bucket.file(`${stored.rawPrefix}/capture_upload_complete.json`).save(
+    JSON.stringify(marker, null, 2), { contentType: "application/json", resumable: false,
+      preconditionOpts: { ifGenerationMatch: 0 } },
+  );
+  return true;
+}
+
 /**
  * Everything that happens once the bytes are in the bucket.
  *
@@ -368,6 +417,7 @@ async function finishStoredCapture(params: {
   videoMetadata: BrowserVideoMetadata;
   sizeBytes: number;
   video: WrittenObject;
+  reservation: BrowserWriteReservation;
 }): Promise<{ status: number; body: Record<string, unknown> }> {
   const { payload, objectPath, rawPrefix } = params;
 
@@ -403,7 +453,9 @@ async function finishStoredCapture(params: {
     const manifestName = `${rawPrefix}/manifest.json`;
     const manifestBytes = Buffer.from(JSON.stringify(manifest, null, 2));
     const manifestFile = bucket.file(manifestName);
-    await manifestFile.save(manifestBytes, { contentType: "application/json" });
+    const priorManifest = await currentObjectGeneration(bucket, manifestName);
+    await manifestFile.save(manifestBytes, { contentType: "application/json",
+      preconditionOpts: { ifGenerationMatch: priorManifest } });
     const written = capturedWriteIdentity(manifestName, manifestFile.metadata);
     if (written.size_bytes !== manifestBytes.length) throw new Error("browser_manifest_write_unverified");
     const manifestIdentity: WrittenManifest = { ...written,
@@ -412,7 +464,7 @@ async function finishStoredCapture(params: {
       schema_version: "website_browser_pending.v1", request_id: payload.requestId,
       scene_id: payload.sceneId, capture_id: payload.captureId, state: "held",
       completed_at_iso: new Date().toISOString(), video: params.video, manifest: manifestIdentity,
-    });
+    }, params.reservation);
   } catch (error) {
     logger.error(
       { error, captureId: payload.captureId },
@@ -634,14 +686,18 @@ router.get("/:token", async (req: Request, res: Response) => {
         );
       } else if (bundle === "not_a_bundle") {
         const pending = await loadBrowserPending(payload.captureId);
-        if (pending && pending.request_id === payload.requestId
-            && pending.scene_id === payload.sceneId && pending.state === "held") {
-          await writeCompletionMarker(pending);
+        if (pending) {
+          if (pending.request_id === payload.requestId
+              && pending.scene_id === payload.sceneId && pending.state === "held") {
+            await writeCompletionMarker(pending);
+          } else {
+            logger.error({ requestId: payload.requestId, captureId: payload.captureId },
+              "Privacy screen cleared on retry but browser pending identity does not match");
+          }
         } else {
-          logger.error(
-            { requestId: payload.requestId, captureId: payload.captureId },
-            "Privacy screen cleared on retry but no exact pending browser delivery exists",
-          );
+          const finished = await writeLegacyHeldMarker(payload.sceneId, payload.captureId);
+          if (!finished) logger.error({ requestId: payload.requestId, captureId: payload.captureId },
+            "Legacy held browser capture has no current video and manifest to finish");
         }
       }
     }
@@ -797,10 +853,22 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
   });
   const rawPrefix = objectPath.slice(0, objectPath.lastIndexOf("/"));
 
-  let writtenVideo: WrittenObject;
+  let write: Awaited<ReturnType<typeof beginBrowserCanonicalWrite>>;
   try {
-    writtenVideo = await saveStreamedFile(file, objectPath, {
+    write = await beginBrowserCanonicalWrite(payload, objectPath);
+  } catch (error) {
+    await discardUploadedFile(file);
+    const conflict = (error as Error).message === "browser_pending_conflict";
+    return res.status(conflict ? 409 : 503).json({
+      error: conflict ? "Another upload is still writing or awaiting review." : "Uploads are unavailable right now.",
+      code: conflict ? "capture_delivery_held" : "capture_delivery_unavailable",
+    });
+  }
+
+  try {
+    const writtenVideo = await saveStreamedFile(file, objectPath, {
       contentType: storedVideoContentType(extension, file.mimetype),
+      ifGenerationMatch: write.ifGenerationMatch,
       metadata: {
         capture_id: payload.captureId,
         scene_id: payload.sceneId,
@@ -808,44 +876,23 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
         capture_mode: "self_capture",
       },
     });
+    logger.info({ captureId: payload.captureId, sceneId: payload.sceneId, bytes: file.size },
+      "Self-capture walkthrough uploaded");
+
+    // The video alone triggers nothing; the completion marker starts extraction.
+    // The shared finish path writes the manifest before that marker and passes
+    // both streamed and composed uploads through the same privacy gate.
+    const outcome = await finishStoredCapture({ payload, objectPath, rawPrefix,
+      videoMetadata, sizeBytes: file.size, video: writtenVideo, reservation: write.reservation });
+    return res.status(outcome.status).json(outcome.body);
   } catch (error) {
-    logger.error(
-      { error, captureId: payload.captureId },
-      "Self-capture upload failed to write to storage",
-    );
+    logger.error({ error, captureId: payload.captureId }, "Self-capture canonical write failed");
     return res.status(502).json({ error: "The upload did not finish. Try again." });
   } finally {
     await discardUploadedFile(file);
+    await releaseBrowserUpload(write.reservation).catch((error) => logger.warn(
+      { error, captureId: payload.captureId }, "Could not release failed browser write reservation"));
   }
-
-  logger.info(
-    { captureId: payload.captureId, sceneId: payload.sceneId, bytes: file.size },
-    "Self-capture walkthrough uploaded",
-  );
-
-  // The video alone triggers nothing. `extractFrames` fires on the object, sees
-  // `objectKind === "walkthrough"` outside the legacy `targets/` layout, and
-  // returns immediately -- "Skipping walkthrough trigger until upload
-  // completion marker arrives". The iOS uploader writes a whole raw bundle and
-  // ends with that marker; a browser upload has to do the same two files or the
-  // capture sits in the bucket forever while the site is told we have it.
-  //
-  // Order is load-bearing. The manifest must exist before the marker, because
-  // the marker is what starts extraction and extraction reads the manifest.
-  // One path from here, shared with the resumable parts route. A composed
-  // capture must go through the same manifest, the same privacy screen and the
-  // same marker -- a second implementation of this sequence would be a second
-  // chance to skip the screen, which is exactly what Tier 3 exists to prevent.
-  const outcome = await finishStoredCapture({
-    payload,
-    objectPath,
-    rawPrefix,
-    videoMetadata,
-    sizeBytes: file.size,
-    video: writtenVideo,
-  });
-
-  return res.status(outcome.status).json(outcome.body);
 });
 
 
@@ -1032,51 +1079,49 @@ router.post("/:token/parts/complete", async (req: Request, res: Response) => {
   const { objectPath, rawPrefix } = partsDestination(payload, extension);
   const bucket = storageAdmin.bucket(storageBucketName()) as never;
 
-  let composition: Awaited<ReturnType<typeof composeParts>>;
+  let write: Awaited<ReturnType<typeof beginBrowserCanonicalWrite>>;
   try {
-    composition = await composeParts({
+    write = await beginBrowserCanonicalWrite(payload, objectPath);
+  } catch (error) {
+    const conflict = (error as Error).message === "browser_pending_conflict";
+    return res.status(conflict ? 409 : 503).json({
+      error: conflict ? "Another upload is still writing or awaiting review." : "Uploads are unavailable right now.",
+      code: conflict ? "capture_delivery_held" : "capture_delivery_unavailable",
+    });
+  }
+
+  try {
+    const composition = await composeParts({
       bucket,
       rawPrefix,
       objectPath,
       expectedParts: parsed.data.parts,
+      ifGenerationMatch: write.ifGenerationMatch,
     });
+    if (!composition.ok) {
+      // Name the missing parts so the client can resend them before composition.
+      return res.status(409).json({
+        error: composition.reason === "no_parts"
+          ? "We have none of your upload yet." : "Some of your upload is still missing.",
+        code: composition.reason, missing: composition.missing,
+      });
+    }
+
+    const outcome = await finishStoredCapture({ payload, objectPath, rawPrefix,
+      videoMetadata, sizeBytes: parsed.data.sizeBytes, video: composition.video,
+      reservation: write.reservation });
+
+    // Keep parts after a failed finish so a retry can recover without reupload.
+    if (outcome.status === 201 || outcome.body.state === "held") await discardParts(bucket, rawPrefix);
+    return res.status(outcome.status).json(outcome.body);
   } catch (error) {
-    logger.error(
-      { error, captureId: payload.captureId },
-      "Could not compose capture parts into the walkthrough",
-    );
+    logger.error({ error, captureId: payload.captureId },
+      "Could not compose capture parts into the walkthrough");
     return res.status(503).json({ error: "We could not assemble your upload. Please retry." });
+  } finally {
+    await releaseBrowserUpload(write.reservation).catch((error) => logger.warn(
+      { error, captureId: payload.captureId }, "Could not release failed browser write reservation"));
   }
-
-  if (!composition.ok) {
-    // Named rather than generic, because the client can act on it: send the
-    // missing parts and call complete again. Composing around a gap would
-    // produce a video that is shorter than it should be and still decodes,
-    // which is the worst failure available here.
-    return res.status(409).json({
-      error:
-        composition.reason === "no_parts"
-          ? "We have none of your upload yet."
-          : "Some of your upload is still missing.",
-      code: composition.reason,
-      missing: composition.missing,
-    });
-  }
-
-  const outcome = await finishStoredCapture({
-    payload,
-    objectPath,
-    rawPrefix,
-    videoMetadata,
-    sizeBytes: parsed.data.sizeBytes,
-    video: composition.video,
-  });
-
-  // After the capture exists, never before: a failure to tidy up costs storage,
-  // and a failure to tidy up early costs the recording.
-  await discardParts(bucket, rawPrefix);
-
-  return res.status(outcome.status).json(outcome.body);
 });
 
 /* ------------------------------------------------------------ app bundle routes */

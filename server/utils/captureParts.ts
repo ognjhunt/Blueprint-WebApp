@@ -49,7 +49,8 @@ export interface PartsBucket {
     getMetadata(): Promise<[{ size?: string | number }]>;
   };
   getFiles(options: { prefix: string }): Promise<[Array<{ name: string }>]>;
-  combine(sources: string[], destination: string): Promise<unknown>;
+  combine(sources: string[], destination: string,
+    options?: { ifGenerationMatch: number | string }): Promise<unknown>;
 }
 
 export function partsPrefix(rawPrefix: string): string {
@@ -124,6 +125,7 @@ export async function composeParts(params: {
   bucket: PartsBucket;
   rawPrefix: string;
   objectPath: string;
+  ifGenerationMatch: number | string;
   /** How many parts the client says it sent. */
   expectedParts: number;
 }): Promise<CompositionResult> {
@@ -165,7 +167,8 @@ export async function composeParts(params: {
   // caller to work out which intermediate won -- with a single source that is
   // a copy, which is the cost of one extra write on the last round and worth
   // it for a destination path nobody has to guess.
-  const response = await params.bucket.combine([sources[0]!], params.objectPath);
+  const response = await params.bucket.combine([sources[0]!], params.objectPath,
+    { ifGenerationMatch: params.ifGenerationMatch });
   // Bucket.combine returns [File, API response]. The latter identifies this
   // exact compose write; reading the destination's latest metadata can race a
   // newer upload of the same browser capture path.
