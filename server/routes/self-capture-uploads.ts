@@ -15,7 +15,7 @@
 
 import { Router, type Request, type Response } from "express";
 import { createReadStream } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import os from "node:os";
 import { unlink } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
@@ -66,6 +66,10 @@ import {
 } from "../utils/siteCaptureUploadIdentity";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { notifySlackFootageNeedsReview } from "../utils/slack";
+import { buildBrowserDelivery, capturedWriteIdentity, publishBrowserDelivery,
+  type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
+import { loadBrowserPending, publishBrowserPending, recordBrowserPending,
+  type BrowserPending } from "../utils/websiteBrowserPending";
 
 const router = Router();
 
@@ -137,16 +141,15 @@ function saveStreamedFile(
   file: { path: string; mimetype?: string },
   objectPath: string,
   options: { contentType?: string; metadata?: Record<string, string> },
-): Promise<void> {
-  const stream = storageAdmin!
-    .bucket(storageBucketName())
-    .file(objectPath)
-    .createWriteStream({
+): Promise<WrittenObject> {
+  const fileRef = storageAdmin!.bucket(storageBucketName()).file(objectPath);
+  const stream = fileRef.createWriteStream({
       contentType: options.contentType,
       resumable: false,
       metadata: options.metadata ? { metadata: options.metadata } : undefined,
     });
-  return pipeline(createReadStream(file.path), stream);
+  return pipeline(createReadStream(file.path), stream).then(() =>
+    capturedWriteIdentity(objectPath, fileRef.metadata));
 }
 
 async function discardUploadedFile(file: { path: string } | undefined): Promise<void> {
@@ -325,35 +328,22 @@ async function resolveStoredObjectPath(
  * the extractor checks `raw_prefix` against the object's own path and a second
  * copy of that contract would be a second chance to get it wrong.
  */
-async function writeCompletionMarker(params: {
-  sceneId: string;
-  captureId: string;
-  rawPrefix: string;
-  objectPath: string;
-}): Promise<void> {
+async function writeCompletionMarker(pending: BrowserPending): Promise<void> {
   if (!storageAdmin) throw new Error("Storage is unavailable");
-  await storageAdmin
-    .bucket(storageBucketName())
-    .file(`${params.rawPrefix}/capture_upload_complete.json`)
-    .save(
-      JSON.stringify(
-        {
-          schema_version: "v1",
-          scene_id: params.sceneId,
-          capture_id: params.captureId,
-          // Checked against the object's own path by the extractor. Stated
-          // here so a marker copied to the wrong prefix is caught rather than
-          // silently processed against another capture's video.
-          raw_prefix: params.rawPrefix,
-          capture_source: "browser_self_capture",
-          video_uri: params.objectPath,
-          completed_at_iso: new Date().toISOString(),
-        },
-        null,
-        2,
-      ),
-      { contentType: "application/json" },
-    );
+  const current = await loadBrowserPending(pending.capture_id);
+  if (!current || current.video.generation !== pending.video.generation
+      || current.manifest.generation !== pending.manifest.generation
+      || current.completed_at_iso !== pending.completed_at_iso) {
+    throw new Error("browser_pending_changed");
+  }
+  const rawPrefix = pending.video.object_name.slice(0, pending.video.object_name.lastIndexOf("/"));
+  const delivery = buildBrowserDelivery({
+    requestId: pending.request_id, sceneId: pending.scene_id,
+    captureId: pending.capture_id, rawPrefix, video: pending.video,
+    manifest: pending.manifest, completedAtIso: pending.completed_at_iso,
+  });
+  await publishBrowserDelivery(storageAdmin.bucket(storageBucketName()), delivery);
+  await publishBrowserPending(pending);
 }
 
 /**
@@ -377,6 +367,7 @@ async function finishStoredCapture(params: {
   rawPrefix: string;
   videoMetadata: BrowserVideoMetadata;
   sizeBytes: number;
+  video: WrittenObject;
 }): Promise<{ status: number; body: Record<string, unknown> }> {
   const { payload, objectPath, rawPrefix } = params;
 
@@ -387,6 +378,9 @@ async function finishStoredCapture(params: {
     };
   }
   const bucket = storageAdmin.bucket(storageBucketName());
+  if (params.video.object_name !== objectPath || params.video.size_bytes !== params.sizeBytes) {
+    return { status: 409, body: { error: "The stored video does not match this upload.", code: "video_identity_mismatch" } };
+  }
 
   // Preserve the owner's task alongside the original capture. Upload can finish
   // before confirmation; Pipeline must hold preparation until it is confirmed.
@@ -404,14 +398,25 @@ async function finishStoredCapture(params: {
     },
   });
 
+  let pending: BrowserPending;
   try {
-    await bucket
-      .file(`${rawPrefix}/manifest.json`)
-      .save(JSON.stringify(manifest, null, 2), { contentType: "application/json" });
+    const manifestName = `${rawPrefix}/manifest.json`;
+    const manifestBytes = Buffer.from(JSON.stringify(manifest, null, 2));
+    const manifestFile = bucket.file(manifestName);
+    await manifestFile.save(manifestBytes, { contentType: "application/json" });
+    const written = capturedWriteIdentity(manifestName, manifestFile.metadata);
+    if (written.size_bytes !== manifestBytes.length) throw new Error("browser_manifest_write_unverified");
+    const manifestIdentity: WrittenManifest = { ...written,
+      sha256: `sha256:${createHash("sha256").update(manifestBytes).digest("hex")}` };
+    pending = await recordBrowserPending({
+      schema_version: "website_browser_pending.v1", request_id: payload.requestId,
+      scene_id: payload.sceneId, capture_id: payload.captureId, state: "held",
+      completed_at_iso: new Date().toISOString(), video: params.video, manifest: manifestIdentity,
+    });
   } catch (error) {
     logger.error(
       { error, captureId: payload.captureId },
-      "Self-capture video stored but the manifest failed",
+      "Self-capture video stored but its exact manifest or pending identity failed",
     );
     return {
       status: 502,
@@ -476,12 +481,7 @@ async function finishStoredCapture(params: {
   }
 
   try {
-    await writeCompletionMarker({
-      sceneId: payload.sceneId,
-      captureId: payload.captureId,
-      rawPrefix,
-      objectPath,
-    });
+    await writeCompletionMarker(pending);
   } catch (error) {
     // The video is already stored, so this is recoverable by rewriting the
     // marker rather than re-uploading hundreds of megabytes. Say so plainly
@@ -621,7 +621,7 @@ router.get("/:token", async (req: Request, res: Response) => {
       sceneId: payload.sceneId,
     });
 
-    if (resumed.action === "cleared") {
+    if (resumed.action === "cleared" && resumed.result.proceed) {
       // It cleared on retry, so the thing that was missing is the marker. An
       // app bundle finishes from its completion record, byte for byte; a
       // browser upload writes its marker as before.
@@ -633,20 +633,14 @@ router.get("/:token", async (req: Request, res: Response) => {
           "A cleared app bundle could not be finished: its marker differs from the completion record",
         );
       } else if (bundle === "not_a_bundle") {
-        // The extension is not on the token, so it comes from the stored
-        // manifest path -- see `resolveStoredObjectPath`.
-        const stored = await resolveStoredObjectPath(payload.sceneId, payload.captureId);
-        if (stored) {
-          await writeCompletionMarker({
-            sceneId: payload.sceneId,
-            captureId: payload.captureId,
-            rawPrefix: stored.rawPrefix,
-            objectPath: stored.objectPath,
-          });
+        const pending = await loadBrowserPending(payload.captureId);
+        if (pending && pending.request_id === payload.requestId
+            && pending.scene_id === payload.sceneId && pending.state === "held") {
+          await writeCompletionMarker(pending);
         } else {
           logger.error(
             { requestId: payload.requestId, captureId: payload.captureId },
-            "Privacy screen cleared on retry but the stored video could not be located",
+            "Privacy screen cleared on retry but no exact pending browser delivery exists",
           );
         }
       }
@@ -803,8 +797,9 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
   });
   const rawPrefix = objectPath.slice(0, objectPath.lastIndexOf("/"));
 
+  let writtenVideo: WrittenObject;
   try {
-    await saveStreamedFile(file, objectPath, {
+    writtenVideo = await saveStreamedFile(file, objectPath, {
       contentType: storedVideoContentType(extension, file.mimetype),
       metadata: {
         capture_id: payload.captureId,
@@ -837,13 +832,6 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
   //
   // Order is load-bearing. The manifest must exist before the marker, because
   // the marker is what starts extraction and extraction reads the manifest.
-  const manifest = buildBrowserCaptureManifest({
-    payload,
-    objectPath,
-    video: videoMetadata,
-    sizeBytes: file.size,
-  });
-
   // One path from here, shared with the resumable parts route. A composed
   // capture must go through the same manifest, the same privacy screen and the
   // same marker -- a second implementation of this sequence would be a second
@@ -854,6 +842,7 @@ router.post("/:token", upload.single("video"), async (req: UploadRequest, res: R
     rawPrefix,
     videoMetadata,
     sizeBytes: file.size,
+    video: writtenVideo,
   });
 
   return res.status(outcome.status).json(outcome.body);
@@ -1080,6 +1069,7 @@ router.post("/:token/parts/complete", async (req: Request, res: Response) => {
     rawPrefix,
     videoMetadata,
     sizeBytes: parsed.data.sizeBytes,
+    video: composition.video,
   });
 
   // After the capture exists, never before: a failure to tidy up costs storage,

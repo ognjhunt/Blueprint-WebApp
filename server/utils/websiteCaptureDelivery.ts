@@ -150,3 +150,43 @@ export async function writeBrowserDelivery(
     return "matched";
   }
 }
+
+function sameObject(a: WrittenObject, b: WrittenObject): boolean {
+  return a.object_name === b.object_name && a.generation === b.generation
+    && a.size_bytes === b.size_bytes && a.crc32c === b.crc32c;
+}
+
+/** Check both canonical source names before publishing the independently stored receipt. */
+export async function publishBrowserDelivery(
+  bucket: DeliveryBucket, delivery: BrowserDelivery,
+): Promise<WrittenObject> {
+  for (const selected of [delivery.record.raw_video, delivery.record.manifest]) {
+    const [metadata] = await bucket.file(selected.object_name).getMetadata();
+    if (!sameObject(capturedWriteIdentity(selected.object_name, metadata), selected)) {
+      throw new Error("browser_delivery_source_changed");
+    }
+  }
+  await writeBrowserDelivery(bucket, delivery);
+  const markerName = `${delivery.record.raw_prefix}/capture_upload_complete.json`;
+  const file = bucket.file(markerName);
+  let current: WrittenObject | null = null;
+  try {
+    const [metadata] = await file.getMetadata();
+    current = capturedWriteIdentity(markerName, metadata);
+  } catch (error) {
+    if ((error as { code?: unknown })?.code !== 404) throw error;
+  }
+  if (current) {
+    const [existingBytes] = await bucket.file(markerName, { generation: current.generation }).download();
+    if (existingBytes.equals(delivery.markerBytes)) return current;
+  }
+  await file.save(delivery.markerBytes, {
+    contentType: "application/json", resumable: false,
+    // The Storage API accepts decimal generation strings; converting to a JS
+    // number would round the usual 20-digit generation and defeat this CAS.
+    preconditionOpts: { ifGenerationMatch: (current?.generation ?? 0) as number },
+  });
+  const written = capturedWriteIdentity(markerName, file.metadata);
+  if (written.size_bytes !== delivery.markerBytes.length) throw new Error("browser_marker_write_unverified");
+  return written;
+}
