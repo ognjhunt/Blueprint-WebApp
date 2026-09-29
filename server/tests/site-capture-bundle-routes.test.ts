@@ -463,6 +463,29 @@ describe("completion keeps the web path's order and authority", () => {
     expect((await completing).body.state).toBe("held");
   });
 
+  it("recovers an old held app completion only after its in-flight screen claim expires", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
+      proceeded: true, producer_source: null };
+    request.capture_privacy_screening_claim = { schema_version: "capture_privacy_screen_claim.v1",
+      request_id: REQUEST_ID, capture_id: CAPTURE_ID,
+      producer_source: { kind: "app_bundle_completion", key: `sha256:${"1".repeat(64)}` },
+      id: "prior-screen", expires_at_ms: Date.now() + 60_000 };
+    state.privacy.push(APPROVED);
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect(state.privacy).toHaveLength(1);
+    request.capture_privacy_screening_claim.expires_at_ms = Date.now() - 1;
+    const recovered = await linkCheck();
+    expect(recovered.body.bundle.state).toBe("complete");
+    expect(state.privacy).toHaveLength(0);
+    expect(request.capture_privacy_screen.producer_source.kind).toBe("app_bundle_completion");
+  });
+
   it("writes server files, notifies, screens, then hashes.json and the marker last", async () => {
     const { device, bindingDigest } = await bundleFor({ lidar: true });
     const planDigest = await uploadEverything(device, bindingDigest);
