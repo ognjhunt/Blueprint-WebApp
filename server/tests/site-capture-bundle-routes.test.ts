@@ -469,6 +469,7 @@ describe("completion keeps the web path's order and authority", () => {
     state.privacy.push(PENDING);
     expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
     const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    delete request.capture_privacy_source_bound_decision;
     request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
       proceeded: true, producer_source: null, screened_at_iso: new Date().toISOString() };
     state.privacy.push(APPROVED);
@@ -497,6 +498,7 @@ describe("completion keeps the web path's order and authority", () => {
     state.privacy.push(PENDING);
     expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
     const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    delete request.capture_privacy_source_bound_decision;
     request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
       proceeded: true, producer_source: null, screened_at_iso: new Date().toISOString() };
     state.privacy.push(APPROVED);

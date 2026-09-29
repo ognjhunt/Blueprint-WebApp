@@ -454,20 +454,21 @@ describe("the privacy question is asked before anything is derived", () => {
       const token = tokenFrom(captureUploadUrlFor("req-marker-guard"));
       const markerName = "scenes/site-req-marker-guard/captures/walkthrough-req-marker-guard/raw/capture_upload_complete.json";
       const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-marker-guard") as Record<string, any>;
-      const originalKey = request.capture_privacy_screen.producer_source.key;
+      const bound = request.capture_privacy_source_bound_decision;
+      const originalKey = bound.producer_source.key;
       expect(originalKey).toMatch(/^sha256:[a-f0-9]{64}$/);
-      request.capture_privacy_screen.producer_source.key = `sha256:${"0".repeat(64)}`;
+      bound.producer_source.key = `sha256:${"0".repeat(64)}`;
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
       expect(written.has(markerName)).toBe(false);
-      request.capture_privacy_screen.producer_source.key = originalKey;
-      request.capture_privacy_screen.proceeded = false;
+      bound.producer_source.key = originalKey;
+      bound.proceeded = false;
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
       expect(written.has(markerName)).toBe(false);
-      request.capture_privacy_screen.proceeded = true;
-      request.capture_privacy_screen.capture_id = "walkthrough-other";
+      bound.proceeded = true;
+      bound.capture_id = "walkthrough-other";
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
       expect(written.has(markerName)).toBe(false);
-      request.capture_privacy_screen.capture_id = "walkthrough-req-marker-guard";
+      bound.capture_id = "walkthrough-req-marker-guard";
       const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-marker-guard") as Record<string, any>;
       session.browser_pending_delivery.scene_id = "site-other";
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
@@ -630,9 +631,10 @@ describe("the privacy question is asked before anything is derived", () => {
       expect((await uploadFor(baseUrl, "req-app-to-browser", "V1")).body.state).toBe("held");
       const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-app-to-browser") as Record<string, any>;
       const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-app-to-browser") as Record<string, any>;
-      request.capture_privacy_screen = { capture_id: "walkthrough-req-app-to-browser", proceeded: true,
+      request.capture_privacy_source_bound_decision = { capture_id: "walkthrough-req-app-to-browser", proceeded: true,
         eligibility: "approved", producer_source: { kind: "app_bundle_completion",
-          key: browserPendingDecisionKey(session.browser_pending_delivery) } };
+          key: browserPendingDecisionKey(session.browser_pending_delivery) },
+        screened_at_iso: new Date().toISOString() };
       const token = tokenFrom(captureUploadUrlFor("req-app-to-browser"));
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
       const markerName = "scenes/site-req-app-to-browser/captures/walkthrough-req-app-to-browser/raw/capture_upload_complete.json";
