@@ -35,6 +35,8 @@ vi.mock("../utils/capturePrivacyScreen", () => ({ screenCaptureForPrivacy }));
 
 /** Every object written to the bucket, by path, so the marker can be asserted. */
 const written = vi.hoisted(() => new Map<string, string>());
+const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
+const generations = vi.hoisted(() => ({ next: 1 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -51,9 +53,35 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
     dbAdmin: sharedFakeFirestore,
     storageAdmin: {
       bucket: () => ({
-        file: (path: string) => ({
-          save: async (body: unknown) => {
-            written.set(path, typeof body === "string" ? body : "<binary>");
+        file: (path: string, options?: { generation?: string }) => {
+          let responseMetadata: Record<string, string> | undefined;
+          const current = () => options?.generation
+            ? storedVersions.get(`${path}@${options.generation}`)
+            : [...storedVersions.entries()].reverse().find(([key]) => key.startsWith(`${path}@`))?.[1];
+          const write = (body: Buffer) => {
+            responseMetadata = { name: path, generation: String(generations.next++),
+              size: String(body.length), crc32c: "AAAAAA==" };
+            storedVersions.set(`${path}@${responseMetadata.generation}`, { body, metadata: responseMetadata });
+            written.set(path, path.endsWith("walkthrough.mov") ? "<binary>" : body.toString("utf8"));
+          };
+          return {
+          get metadata() { return responseMetadata; },
+          save: async (body: unknown, config?: { preconditionOpts?: { ifGenerationMatch?: string | number } }) => {
+            const match = config?.preconditionOpts?.ifGenerationMatch;
+            if (match !== undefined && String(match) !== String(current()?.metadata.generation ?? 0)) {
+              throw Object.assign(new Error("precondition failed"), { code: 412 });
+            }
+            write(Buffer.isBuffer(body) ? body : Buffer.from(String(body)));
+          },
+          getMetadata: async () => {
+            const value = current();
+            if (!value) throw Object.assign(new Error("missing"), { code: 404 });
+            return [value.metadata];
+          },
+          download: async () => {
+            const value = current();
+            if (!value) throw Object.assign(new Error("missing"), { code: 404 });
+            return [value.body];
           },
           // The route now streams uploads to disk-backed temp files and into
           // storage through a write stream, so the fake has to speak that
@@ -66,12 +94,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
                 callback();
               },
               final(callback) {
-                written.set(path, "<binary>");
+                write(Buffer.concat(chunks));
                 callback();
               },
             });
           },
-        }),
+        };
+        },
       }),
     },
     authAdmin: { verifyIdToken: async () => ({ uid: "nobody" }) },
@@ -133,6 +162,8 @@ function seedRequest(
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
   written.clear();
+  storedVersions.clear();
+  generations.next = 1;
   screenCaptureForPrivacy.mockClear();
   screenCaptureForPrivacy.mockResolvedValue({
     proceed: true,
