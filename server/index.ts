@@ -33,6 +33,7 @@ import {
 } from "./utils/pipelineTaskEvaluationResultBodyParser";
 import { describeSiteVideoEvidenceConfig } from "./utils/siteVideoEvidenceConfig";
 import { firebaseAuthProxy } from "./utils/firebaseAuthProxy";
+import { captureOwnerRawBody } from "./utils/captureOwnerRawBody";
 
 const env = validateEnv();
 
@@ -210,7 +211,12 @@ app.use(
   /^\/api\/self-capture\/uploads\/[^/]+\/bundle$/,
   express.json({ limit: process.env.SELF_CAPTURE_BUNDLE_PLAN_BODY_LIMIT || "8mb", verify: captureRawBody }),
 );
-app.use(express.json({ limit: defaultBodyLimit, verify: captureRawBody }));
+app.use(captureOwnerRawBody);
+const defaultJsonBody = express.json({ limit: defaultBodyLimit, verify: captureRawBody });
+app.use((req, res, next) => {
+  if ((req as Request & { captureOwnerBodyAdmitted?: boolean }).captureOwnerBodyAdmitted) return next();
+  return defaultJsonBody(req, res, next);
+});
 app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 
 const cspDirectives = buildContentSecurityPolicy({
