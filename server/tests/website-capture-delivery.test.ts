@@ -66,12 +66,14 @@ describe("original browser capture delivery", () => {
       video, manifest, completedAtIso: "2026-09-29T00:00:00.000Z",
     });
     const stored = new Map<string, Buffer>();
+    const metadata = new Map<string, { name: string; generation: string; size: string; crc32c: string }>();
     const file = (name: string) => ({
-      metadata: { name, generation: "90071992547409933", size: "1", crc32c: "AAAAAA==" },
+      get metadata() { return metadata.get(name); },
       async save(body: Buffer, options: { preconditionOpts?: { ifGenerationMatch?: number } }) {
         expect(options.preconditionOpts?.ifGenerationMatch).toBe(0);
         if (stored.has(name)) throw Object.assign(new Error("exists"), { code: 412 });
         stored.set(name, Buffer.from(body));
+        metadata.set(name, { name, generation: "90071992547409933", size: String(body.length), crc32c: "AAAAAA==" });
       },
       async download() { return [stored.get(name)]; },
       async getMetadata() { return [this.metadata]; },
