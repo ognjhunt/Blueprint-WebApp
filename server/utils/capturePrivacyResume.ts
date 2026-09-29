@@ -23,6 +23,7 @@ export async function resumeHeldPrivacyScreen(params: {
   requestId: string;
   captureId: string;
   sceneId: string;
+  browserDeliveryKey?: string | null;
 }): Promise<ResumeOutcome> {
   if (!db) return { action: "nothing_held" };
   const snapshot = await db.collection("inboundRequests").doc(params.requestId).get();
@@ -34,7 +35,8 @@ export async function resumeHeldPrivacyScreen(params: {
   }
   const result = await screenCaptureForPrivacy(params);
   await recordCapturePrivacyScreen({ requestId: params.requestId, captureId: params.captureId,
-    result, attempts: Math.max(0, Number(stored.attempts) || 0) });
+    result, attempts: Math.max(0, Number(stored.attempts) || 0),
+    browserDeliveryKey: params.browserDeliveryKey ?? null });
   return { action: "cleared", result };
 }
 

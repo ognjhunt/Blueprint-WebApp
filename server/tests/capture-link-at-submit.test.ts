@@ -133,7 +133,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 
 const { captureUploadUrlFor } = await import("../utils/captureUploadToken");
 const { authorizeCaptureUpload } = await import("../utils/captureUploadAuthorization");
-const { reserveBrowserUpload, releaseBrowserUpload, recordBrowserPending,
+const { browserPendingDecisionKey, reserveBrowserUpload, releaseBrowserUpload, recordBrowserPending,
   prepareLegacyBrowserFinish } = await import("../utils/websiteBrowserPending");
 
 async function startRoutes(): Promise<{ server: Server; baseUrl: string }> {
@@ -454,6 +454,12 @@ describe("the privacy question is asked before anything is derived", () => {
       const token = tokenFrom(captureUploadUrlFor("req-marker-guard"));
       const markerName = "scenes/site-req-marker-guard/captures/walkthrough-req-marker-guard/raw/capture_upload_complete.json";
       const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-marker-guard") as Record<string, any>;
+      const originalKey = request.capture_privacy_screen.browser_delivery_key;
+      expect(originalKey).toMatch(/^sha256:[a-f0-9]{64}$/);
+      request.capture_privacy_screen.browser_delivery_key = `sha256:${"0".repeat(64)}`;
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect(written.has(markerName)).toBe(false);
+      request.capture_privacy_screen.browser_delivery_key = originalKey;
       request.capture_privacy_screen.proceeded = false;
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
       expect(written.has(markerName)).toBe(false);
@@ -514,6 +520,11 @@ describe("the privacy question is asked before anything is derived", () => {
       const second = uploadFor(baseUrl, "req-privacy-generation", "V2");
       await screening;
       try {
+        const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-privacy-generation") as Record<string, any>;
+        const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-privacy-generation") as
+          Record<string, any>;
+        expect(stored.capture_privacy_screen.browser_delivery_key).not.toBe(
+          browserPendingDecisionKey(session.browser_pending_delivery));
         const token = tokenFrom(captureUploadUrlFor("req-privacy-generation"));
         await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
         expect(written.get(markerName)).toBe(firstMarker);

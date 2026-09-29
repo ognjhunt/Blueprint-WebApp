@@ -23,6 +23,8 @@ export async function recordCapturePrivacyScreen(params: {
   requestId: string;
   captureId: string;
   result: PrivacyScreenResult;
+  /** Exact browser pending write approved by this decision, if any. */
+  browserDeliveryKey?: string | null;
   /**
    * How many times we have asked, including this one.
    *
@@ -49,6 +51,7 @@ export async function recordCapturePrivacyScreen(params: {
             eligibility: params.result.eligibility,
             retryable: params.result.retryable ?? false,
             proceeded: params.result.proceed,
+            browser_delivery_key: params.browserDeliveryKey ?? null,
             detail: params.result.detail,
             attempts: params.attempts ?? 1,
             // Set once and never overwritten, because the age of the hold is

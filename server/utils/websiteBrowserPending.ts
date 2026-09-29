@@ -56,6 +56,13 @@ function sameDelivery(a: BrowserPending, b: BrowserPending): boolean {
   return crossRuntimeDigest(withoutState(a)) === crossRuntimeDigest(withoutState(b));
 }
 
+/** Privacy clearance is scoped to the completed write, not the capture ID. */
+export function browserPendingDecisionKey(pending: BrowserPending): string {
+  if (!validPending(pending)) throw new Error("browser_pending_invalid");
+  const { state: _state, ...identity } = pending;
+  return crossRuntimeDigest(identity);
+}
+
 export function selectBrowserPending(
   existing: BrowserPending | null, incoming: BrowserPending,
 ): { action: "record" | "replay"; selected: BrowserPending } | { action: "conflict" } {
@@ -138,12 +145,15 @@ export async function prepareLegacyBrowserFinish(input: { request_id: string; sc
 }
 
 /** A crash after clearance may replay only this capture's recorded decision. */
-export async function storedBrowserPrivacyCleared(requestId: string, captureId: string): Promise<boolean> {
+export async function storedBrowserPrivacyCleared(requestId: string, captureId: string,
+  decisionKey: string | null): Promise<boolean> {
   if (!db) throw new Error("browser_pending_unavailable");
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
   const privacy = snapshot.data()?.capture_privacy_screen;
   return privacy?.capture_id === captureId && privacy.proceeded === true
-    && (privacy.eligibility === "approved" || privacy.eligibility === "unscreened");
+    && (privacy.eligibility === "approved" || privacy.eligibility === "unscreened")
+    && (decisionKey === null ? privacy.browser_delivery_key == null
+      : privacy.browser_delivery_key === decisionKey);
 }
 
 /** Only the original reservation may turn its actual write responses into a held delivery. */
