@@ -454,12 +454,12 @@ describe("the privacy question is asked before anything is derived", () => {
       const token = tokenFrom(captureUploadUrlFor("req-marker-guard"));
       const markerName = "scenes/site-req-marker-guard/captures/walkthrough-req-marker-guard/raw/capture_upload_complete.json";
       const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-marker-guard") as Record<string, any>;
-      const originalKey = request.capture_privacy_screen.browser_delivery_key;
+      const originalKey = request.capture_privacy_screen.producer_source.key;
       expect(originalKey).toMatch(/^sha256:[a-f0-9]{64}$/);
-      request.capture_privacy_screen.browser_delivery_key = `sha256:${"0".repeat(64)}`;
+      request.capture_privacy_screen.producer_source.key = `sha256:${"0".repeat(64)}`;
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
       expect(written.has(markerName)).toBe(false);
-      request.capture_privacy_screen.browser_delivery_key = originalKey;
+      request.capture_privacy_screen.producer_source.key = originalKey;
       request.capture_privacy_screen.proceeded = false;
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
       expect(written.has(markerName)).toBe(false);
@@ -523,7 +523,7 @@ describe("the privacy question is asked before anything is derived", () => {
         const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-privacy-generation") as Record<string, any>;
         const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-privacy-generation") as
           Record<string, any>;
-        expect(stored.capture_privacy_screen.browser_delivery_key).not.toBe(
+        expect(stored.capture_privacy_screen.producer_source.key).not.toBe(
           browserPendingDecisionKey(session.browser_pending_delivery));
         const token = tokenFrom(captureUploadUrlFor("req-privacy-generation"));
         await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
@@ -533,6 +533,25 @@ describe("the privacy question is asked before anything is derived", () => {
         resume();
       }
       expect((await second).body.state).toBe("held");
+    });
+  });
+
+  it("does not use an app-kind decision even when its digest equals a held browser write", async () => {
+    seedRequest("req-app-to-browser", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-app-to-browser", "V1")).body.state).toBe("held");
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-app-to-browser") as Record<string, any>;
+      const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-app-to-browser") as Record<string, any>;
+      request.capture_privacy_screen = { capture_id: "walkthrough-req-app-to-browser", proceeded: true,
+        eligibility: "approved", producer_source: { kind: "app_bundle_completion",
+          key: browserPendingDecisionKey(session.browser_pending_delivery) } };
+      const token = tokenFrom(captureUploadUrlFor("req-app-to-browser"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      const markerName = "scenes/site-req-app-to-browser/captures/walkthrough-req-app-to-browser/raw/capture_upload_complete.json";
+      expect(written.has(markerName)).toBe(false);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
     });
   });
 

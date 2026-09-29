@@ -52,6 +52,7 @@ import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { bundleLimitsFromEnv } from "../utils/siteCaptureBundle";
 import {
   acceptBundlePlan,
+  appBundlePrivacySource,
   completeBundle,
   describeBundleLink,
   finishClearedBundle,
@@ -68,7 +69,7 @@ import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { notifySlackFootageNeedsReview } from "../utils/slack";
 import { buildBrowserDelivery, capturedWriteIdentity, publishBrowserDelivery,
   type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
-import { browserPendingDecisionKey, storedBrowserPrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
+import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
   publishBrowserPending, recordBrowserPending,
   releaseBrowserUpload, reserveBrowserUpload, type BrowserPending,
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
@@ -507,7 +508,7 @@ async function finishStoredCapture(params: {
     requestId: payload.requestId,
     captureId: payload.captureId,
     result: privacy,
-    browserDeliveryKey: browserPendingDecisionKey(pending),
+    producerSource: { kind: "browser_pending", key: browserPendingDecisionKey(pending) },
   });
 
   if (!privacy.proceed) {
@@ -681,38 +682,48 @@ router.get("/:token", async (req: Request, res: Response) => {
           || before.scene_id !== payload.sceneId || before.capture_id !== payload.captureId)) {
         throw new Error("browser_pending_changed");
       }
-      const screenedKey = before ? browserPendingDecisionKey(before) : null;
-      resumed = await resumeHeldPrivacyScreen({
-        requestId: payload.requestId,
-        captureId: payload.captureId,
-        sceneId: payload.sceneId,
-        browserDeliveryKey: screenedKey,
-      });
-      const freshlyCleared = resumed.action === "cleared" && resumed.result.proceed;
+      const bundleStorage = before || finishMode === "legacy" ? null : resolveBundleStorage();
+      const screenedSource = before
+        ? { kind: "browser_pending" as const, key: browserPendingDecisionKey(before) }
+        : finishMode === "legacy" || !bundleStorage ? null
+          : await appBundlePrivacySource(payload, bundleStorage);
+      if (screenedSource || finishMode === "legacy") {
+        resumed = await resumeHeldPrivacyScreen({
+          requestId: payload.requestId,
+          captureId: payload.captureId,
+          sceneId: payload.sceneId,
+          producerSource: screenedSource,
+        });
+      }
+      const freshlyCleared = resumed?.action === "cleared" && resumed.result.proceed;
       const pending = await loadBrowserPending(payload.captureId);
       if (pending) {
         if (pending.request_id !== payload.requestId || pending.scene_id !== payload.sceneId
             || pending.capture_id !== payload.captureId) throw new Error("browser_pending_changed");
         if (pending.state === "held") {
-          const exactKey = browserPendingDecisionKey(pending);
-          if ((freshlyCleared && screenedKey === exactKey)
-              || await storedBrowserPrivacyCleared(payload.requestId, payload.captureId, exactKey)) {
+          const currentSource = { kind: "browser_pending" as const, key: browserPendingDecisionKey(pending) };
+          if ((freshlyCleared && screenedSource?.kind === currentSource.kind
+              && screenedSource.key === currentSource.key)
+              || await storedCapturePrivacyCleared(payload.requestId, payload.captureId, currentSource)) {
             await writeCompletionMarker(pending);
           }
         }
-      } else if ((freshlyCleared && screenedKey === null)
-          || await storedBrowserPrivacyCleared(payload.requestId, payload.captureId, null)) {
-        // App completion is byte-for-byte from its recorded bundle. A legacy
-        // browser source may publish only under its durable old-source claim.
-        const bundleStorage = resolveBundleStorage();
-        const bundle = bundleStorage ? await finishClearedBundle(payload, bundleStorage) : "not_a_bundle";
-        if (bundle === "conflict") {
-          logger.error({ requestId: payload.requestId, captureId: payload.captureId },
-            "A cleared app bundle could not be finished: its marker differs from the completion record");
-        } else if (bundle === "not_a_bundle" && finishMode === "legacy") {
+      } else if (finishMode === "legacy") {
+        if ((freshlyCleared && screenedSource === null)
+            || await storedCapturePrivacyCleared(payload.requestId, payload.captureId, null)) {
           const finished = await writeLegacyHeldMarker(payload.requestId, payload.sceneId, payload.captureId);
           if (!finished) logger.error({ requestId: payload.requestId, captureId: payload.captureId },
             "Legacy held browser capture has no current video and manifest to finish");
+        }
+      } else if (bundleStorage) {
+        const currentSource = await appBundlePrivacySource(payload, bundleStorage);
+        if (currentSource && ((freshlyCleared && screenedSource?.kind === currentSource.kind
+            && screenedSource.key === currentSource.key)
+            || await storedCapturePrivacyCleared(payload.requestId, payload.captureId, currentSource))) {
+          if (await finishClearedBundle(payload, bundleStorage, currentSource) === "conflict") {
+            logger.error({ requestId: payload.requestId, captureId: payload.captureId },
+              "A cleared app bundle could not be finished: its completion source changed");
+          }
         }
       }
     }

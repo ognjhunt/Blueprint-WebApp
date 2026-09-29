@@ -3,6 +3,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { screenCaptureForPrivacy, type PrivacyScreenResult } from "./capturePrivacyScreen";
 import { recordCapturePrivacyScreen } from "./capturePrivacyRecord";
+import type { CapturePrivacyProducerSource } from "./capturePrivacyRecord";
 
 export interface StoredPrivacyScreen {
   capture_id?: string | null;
@@ -23,7 +24,7 @@ export async function resumeHeldPrivacyScreen(params: {
   requestId: string;
   captureId: string;
   sceneId: string;
-  browserDeliveryKey?: string | null;
+  producerSource?: CapturePrivacyProducerSource | null;
 }): Promise<ResumeOutcome> {
   if (!db) return { action: "nothing_held" };
   const snapshot = await db.collection("inboundRequests").doc(params.requestId).get();
@@ -36,7 +37,7 @@ export async function resumeHeldPrivacyScreen(params: {
   const result = await screenCaptureForPrivacy(params);
   await recordCapturePrivacyScreen({ requestId: params.requestId, captureId: params.captureId,
     result, attempts: Math.max(0, Number(stored.attempts) || 0),
-    browserDeliveryKey: params.browserDeliveryKey ?? null });
+    producerSource: params.producerSource ?? null });
   return { action: "cleared", result };
 }
 

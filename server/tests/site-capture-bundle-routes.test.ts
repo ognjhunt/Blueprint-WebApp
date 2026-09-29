@@ -60,9 +60,9 @@ vi.mock("../utils/capturePrivacyScreen", () => ({
   screenCaptureForPrivacy: vi.fn(async () => {
     if (state.privacyGate) {
       const gate = state.privacyGate;
+      state.privacyGate = null;
       gate.entered();
       await gate.wait;
-      state.privacyGate = null;
       return gate.result;
     }
     const next = state.privacy.shift();
@@ -425,10 +425,24 @@ describe("uploads are create-only and verified before completion", () => {
 });
 
 describe("completion keeps the web path's order and authority", () => {
+  it("refuses a pre-change browser marker instead of calling an app bundle complete", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    const markerName = `${RAW}/capture_upload_complete.json`;
+    const legacy = JSON.stringify({ schema_version: "v1", scene_id: SCENE_ID,
+      capture_id: CAPTURE_ID, raw_prefix: RAW, capture_source: "browser_self_capture",
+      video_uri: `${RAW}/walkthrough.mp4` });
+    state.bucket.seed(markerName, legacy, "application/json");
+    const response = await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    expect(response.status).toBe(409);
+    expect(state.bucket.text(markerName)).toBe(legacy);
+    expect(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)).toBeNull();
+  });
+
   it("does not use an older browser clearance to finish a new app bundle before its own screen", async () => {
     const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
     request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
-      proceeded: true, browser_delivery_key: null };
+      proceeded: true, producer_source: null };
     const { device, bindingDigest } = await bundleFor();
     const planDigest = await uploadEverything(device, bindingDigest);
     let entered!: () => void;
@@ -441,6 +455,9 @@ describe("completion keeps the web path's order and authority", () => {
     try {
       expect(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)).not.toBeNull();
       await linkCheck();
+      expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+      state.privacy.push(PENDING);
+      expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
       expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
     } finally { resume(); }
     expect((await completing).body.state).toBe("held");
@@ -557,6 +574,28 @@ describe("completion keeps the web path's order and authority", () => {
     expect(state.bucket.text(`${RAW}/hashes.json`)).toBe(completion.hashes_json);
     expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBe(completion.completion_marker_json);
     expect(state.bucket.writeLog.slice(-1)[0]).toBe(`${RAW}/capture_upload_complete.json`);
+  });
+
+  it("does not finish an app source changed during screening or from its old stored decision", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const completionName = `scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`;
+    const original = JSON.parse(state.bucket.text(completionName)!);
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    state.privacyGate = { entered, wait: continueScreen, result: APPROVED };
+    const polling = linkCheck();
+    await screening;
+    state.bucket.seed(completionName, JSON.stringify({ ...original, completed_at_iso: "2026-09-29T00:00:00.000Z" }));
+    resume();
+    await polling;
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
   });
 
   it("finishes an older held bundle without generation fields but never invents them", async () => {

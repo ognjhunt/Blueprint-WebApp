@@ -984,3 +984,14 @@ export function buildCompletionRecord(plan: BundlePlanRecord, composition: Serve
 }
 
 export type BundleCompletionRecord = ReturnType<typeof buildCompletionRecord>;
+
+/** Exact immutable app completion screened for this capture, including sources. */
+export function bundleCompletionDecisionKey(completion: BundleCompletionRecord): string {
+  if (completion?.schema_version !== SITE_CAPTURE_COMPLETION_SCHEMA
+      || typeof completion.request_id !== "string" || typeof completion.scene_id !== "string"
+      || typeof completion.capture_id !== "string" || typeof completion.raw_prefix !== "string"
+      || !/^sha256:[a-f0-9]{64}$/.test(completion.plan_digest)) {
+    throw new Error("bundle_completion_privacy_source_invalid");
+  }
+  return crossRuntimeDigest({ kind: "app_bundle_completion", completion });
+}

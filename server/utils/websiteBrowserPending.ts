@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { SITE_CAPTURE_SESSIONS_COLLECTION } from "./siteCaptureUploadIdentity";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import type { WrittenManifest, WrittenObject } from "./websiteCaptureDelivery";
+import type { CapturePrivacyProducerSource } from "./capturePrivacyRecord";
 
 export interface BrowserPending {
   schema_version: "website_browser_pending.v1";
@@ -145,15 +146,16 @@ export async function prepareLegacyBrowserFinish(input: { request_id: string; sc
 }
 
 /** A crash after clearance may replay only this capture's recorded decision. */
-export async function storedBrowserPrivacyCleared(requestId: string, captureId: string,
-  decisionKey: string | null): Promise<boolean> {
+export async function storedCapturePrivacyCleared(requestId: string, captureId: string,
+  producerSource: CapturePrivacyProducerSource | null): Promise<boolean> {
   if (!db) throw new Error("browser_pending_unavailable");
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
   const privacy = snapshot.data()?.capture_privacy_screen;
   return privacy?.capture_id === captureId && privacy.proceeded === true
     && (privacy.eligibility === "approved" || privacy.eligibility === "unscreened")
-    && (decisionKey === null ? privacy.browser_delivery_key == null
-      : privacy.browser_delivery_key === decisionKey);
+    && (producerSource === null ? privacy.producer_source == null
+      : privacy.producer_source?.kind === producerSource.kind
+        && privacy.producer_source?.key === producerSource.key);
 }
 
 /** Only the original reservation may turn its actual write responses into a held delivery. */
