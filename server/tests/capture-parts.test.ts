@@ -58,6 +58,10 @@ function fakeBucket() {
         destination,
         Buffer.concat(sources.map((source) => objects.get(source) ?? Buffer.alloc(0))),
       );
+      return [bucket.file(destination), {
+        name: destination, generation: "90071992547409931",
+        size: String(objects.get(destination)!.length), crc32c: "AAAAAA==",
+      }];
     },
   };
 
@@ -149,6 +153,17 @@ describe("composition refuses a gap rather than composing around it", () => {
 });
 
 describe("and composes in order when everything is there", () => {
+  it("returns the final write response generation without rounding", async () => {
+    await seedParts(harness, 2);
+    const result = await composeParts({
+      bucket: harness.bucket, rawPrefix: RAW,
+      objectPath: `${RAW}/walkthrough.mp4`, expectedParts: 2,
+    });
+    expect(result).toMatchObject({ ok: true, video: {
+      object_name: `${RAW}/walkthrough.mp4`, generation: "90071992547409931",
+      size_bytes: 14,
+    } });
+  });
   it("produces the parts concatenated, in sequence", async () => {
     await seedParts(harness, 4);
 
