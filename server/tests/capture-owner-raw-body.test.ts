@@ -16,6 +16,7 @@ describe("capture owner exact early body", () => {
     expect(() => decodeCaptureOwnerFlatJson(valid.replace("3000", "true"))).toThrow();
     expect(() => decodeCaptureOwnerFlatJson(valid.replace("3000", "3e3"))).toThrow();
     expect(() => decodeCaptureOwnerFlatJson(valid.replace("3000", "[3000]"))).toThrow();
+    expect(() => decodeCaptureOwnerFlatJson(valid.replace('"scene_id"', '\u00a0"scene_id"'))).toThrow();
   });
   it("matches only the one exact operation", () => {
     expect(isCaptureOwnerPath(path)).toBe(true);
