@@ -508,6 +508,10 @@ describe("completion keeps the web path's order and authority", () => {
     const polled = await linkCheck();
     expect(polled.body.bundle.state).toBe("complete");
     const completion = JSON.parse(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)!);
+    expect(completion.device_objects["walkthrough.mov"]).toMatchObject({
+      generation: String(state.bucket.objects.get(`${RAW}/walkthrough.mov`)?.generation),
+      size_bytes: state.bucket.objects.get(`${RAW}/walkthrough.mov`)?.data.length,
+    });
     expect(state.bucket.text(`${RAW}/hashes.json`)).toBe(completion.hashes_json);
     expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBe(completion.completion_marker_json);
     expect(state.bucket.writeLog.slice(-1)[0]).toBe(`${RAW}/capture_upload_complete.json`);
