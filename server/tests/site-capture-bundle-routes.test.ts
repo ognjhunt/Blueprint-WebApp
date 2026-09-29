@@ -470,12 +470,16 @@ describe("completion keeps the web path's order and authority", () => {
     expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
     const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
     request.capture_privacy_screen = { capture_id: CAPTURE_ID, eligibility: "approved",
-      proceeded: true, producer_source: null };
+      proceeded: true, producer_source: null, screened_at_iso: new Date().toISOString() };
+    state.privacy.push(APPROVED);
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect(state.privacy).toHaveLength(1);
+    request.capture_privacy_screen.screened_at_iso = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     request.capture_privacy_screening_claim = { schema_version: "capture_privacy_screen_claim.v1",
       request_id: REQUEST_ID, capture_id: CAPTURE_ID,
       producer_source: { kind: "app_bundle_completion", key: `sha256:${"1".repeat(64)}` },
       id: "prior-screen", expires_at_ms: Date.now() + 60_000 };
-    state.privacy.push(APPROVED);
     await linkCheck();
     expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
     expect(state.privacy).toHaveLength(1);
@@ -483,7 +487,59 @@ describe("completion keeps the web path's order and authority", () => {
     const recovered = await linkCheck();
     expect(recovered.body.bundle.state).toBe("complete");
     expect(state.privacy).toHaveLength(0);
-    expect(request.capture_privacy_screen.producer_source.kind).toBe("app_bundle_completion");
+    expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>)
+      .capture_privacy_screen.producer_source.kind).toBe("app_bundle_completion");
+  });
+
+  it("rejects a late app privacy decision after the exact screening claim is taken over", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    state.privacyGate = { entered, wait: continueScreen, result: APPROVED };
+    const first = api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    await screening;
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    const oldClaimId = request.capture_privacy_screening_claim.id;
+    request.capture_privacy_screening_claim.expires_at_ms = Date.now() - 1;
+    state.privacy.push(PENDING);
+    await linkCheck();
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>)
+      .capture_privacy_screen).toMatchObject({ eligibility: "pending", proceeded: false });
+    resume();
+    expect((await first).status).not.toBe(201);
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>)
+      .capture_privacy_screening_claim).toBeNull();
+    expect(oldClaimId).toMatch(/^[a-f0-9-]{36}$/);
+    state.privacy.push(APPROVED);
+    expect((await linkCheck()).body.bundle.state).toBe("complete");
+  });
+
+  it("does not publish after a privacy-record CAS failure and retries only the pinned app source", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    state.privacyGate = { entered, wait: continueScreen, result: APPROVED };
+    const completing = api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    await screening;
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+    request.capture_privacy_screening_claim.id = "replaced-claim";
+    resume();
+    expect((await completing).status).not.toBe(201);
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect(request.capture_privacy_screen).toBeUndefined();
+    request.capture_privacy_screening_claim.expires_at_ms = Date.now() - 1;
+    state.privacy.push(APPROVED);
+    expect((await linkCheck()).body.bundle.state).toBe("complete");
+    expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>)
+      .capture_privacy_screen.producer_source.kind).toBe("app_bundle_completion");
   });
 
   it("writes server files, notifies, screens, then hashes.json and the marker last", async () => {

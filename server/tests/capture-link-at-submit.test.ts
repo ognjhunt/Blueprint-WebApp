@@ -536,6 +536,38 @@ describe("the privacy question is asked before anything is derived", () => {
     });
   });
 
+  it("holds browser completion when its privacy record loses the claim and retries the pinned write", async () => {
+    seedRequest("req-privacy-record-fault", { disposition: "qualified" });
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    screenCaptureForPrivacy.mockImplementationOnce(async () => {
+      entered();
+      await continueScreen;
+      return { proceed: true, eligibility: "approved", outcome: "cleared", detail: null, evidence: null };
+    });
+    await withRoutes(async (baseUrl) => {
+      const first = uploadFor(baseUrl, "req-privacy-record-fault", "V1");
+      await screening;
+      const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-privacy-record-fault") as Record<string, any>;
+      request.capture_privacy_screening_claim.id = "other-claim";
+      resume();
+      expect((await first).status).toBe(502);
+      const markerName = "scenes/site-req-privacy-record-fault/captures/walkthrough-req-privacy-record-fault/raw/capture_upload_complete.json";
+      expect(written.has(markerName)).toBe(false);
+      expect(request.capture_privacy_screen).toBeUndefined();
+      request.capture_privacy_screening_claim.expires_at_ms = Date.now() - 1;
+      screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "approved",
+        outcome: "cleared", detail: null, evidence: null });
+      const token = tokenFrom(captureUploadUrlFor("req-privacy-record-fault"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect(JSON.parse(written.get(markerName) ?? "null").producer_delivery.raw_video_generation).toMatch(/^\d+$/);
+      expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-privacy-record-fault") as Record<string, any>)
+        .capture_privacy_screen.producer_source.kind).toBe("browser_pending");
+    });
+  });
+
   it("does not use an app-kind decision even when its digest equals a held browser write", async () => {
     seedRequest("req-app-to-browser", { disposition: "qualified" });
     screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
