@@ -76,6 +76,14 @@ describe("authoritative original website capture owner read", () => {
     await expect(observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
       capture_id: "walkthrough-r1", completion_marker_generation: "100" }, intact.deps)).rejects.toThrow();
   });
+  it("refuses duplicate keys in a pinned marker before using a later alias", async () => {
+    const { deps, objects } = fixture();
+    const duplicate = Buffer.from(delivery.markerBytes.toString("utf8").replace(
+      '"scene_id": "site-r1",', '"scene_id": "site-r1", "scene\\u005fid": "site-r1",'));
+    objects.set(`${markerName}@100`, object(markerName, "100", duplicate));
+    await expect(observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps)).rejects.toThrow();
+  });
 
   it("verifies the existing server-owned app completion, plan, hashes and selected video", async () => {
     const { deps, objects } = fixture();
@@ -115,6 +123,11 @@ describe("authoritative original website capture owner read", () => {
       capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
     expect(observed.producer_delivery).toMatchObject({ kind: "website_capture_link_bundle",
       raw_video: { object_name: `${prefix}/walkthrough.mov`, generation: "104" } });
+    const duplicated = JSON.stringify(completion).replace('"request_id":"r1",',
+      '"request_id":"r1","request\\u005fid":"r1",');
+    objects.set(`${upload}/bundle_completion.json@101`, object(`${upload}/bundle_completion.json`, "101", Buffer.from(duplicated)));
+    await expect(observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps)).rejects.toThrow();
     completion.server_file_sha256["manifest.json"] = "0".repeat(64);
     objects.set(`${upload}/bundle_completion.json@101`, object(`${upload}/bundle_completion.json`, "101", Buffer.from(JSON.stringify(completion))));
     await expect(observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
