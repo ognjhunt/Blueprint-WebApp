@@ -361,6 +361,14 @@ describe("the privacy question is asked before anything is derived", () => {
       const marker = JSON.parse(written.get(markerName) ?? "null");
       expect(marker).toMatchObject({ scene_id: "site-req-legacy-held", capture_id: "walkthrough-req-legacy-held" });
       expect(marker).not.toHaveProperty("producer_delivery");
+      // A pre-receipt capture remains a whole-scene KEEP. Its unversioned
+      // marker cannot be replaced safely with a new typed delivery at this ID.
+      const markerBefore = written.get(markerName);
+      const videoName = "scenes/site-req-legacy-held/captures/walkthrough-req-legacy-held/raw/walkthrough.mov";
+      const videoBefore = [...storedVersions].filter(([name]) => name.startsWith(`${videoName}@`));
+      expect((await uploadFor(baseUrl, "req-legacy-held", "V2")).status).toBe(409);
+      expect(written.get(markerName)).toBe(markerBefore);
+      expect([...storedVersions].filter(([name]) => name.startsWith(`${videoName}@`))).toEqual(videoBefore);
     });
   });
 
