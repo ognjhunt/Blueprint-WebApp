@@ -492,6 +492,39 @@ describe("the privacy question is asked before anything is derived", () => {
     });
   });
 
+  it("never reuses V1's recorded privacy clearance for a newer V2 pending delivery", async () => {
+    seedRequest("req-privacy-generation", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+      outcome: "not_reviewed", detail: null, evidence: null });
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>((resolve) => { entered = resolve; });
+    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
+    screenCaptureForPrivacy.mockImplementationOnce(async () => {
+      entered();
+      await continueScreen;
+      return { proceed: false, eligibility: "pending", outcome: "review_unavailable",
+        detail: "Hold", evidence: null };
+    });
+    await withRoutes(async (baseUrl) => {
+      expect((await uploadFor(baseUrl, "req-privacy-generation", "V1")).status).toBe(201);
+      const markerName = "scenes/site-req-privacy-generation/captures/walkthrough-req-privacy-generation/raw/capture_upload_complete.json";
+      const firstMarker = written.get(markerName);
+      const firstVersions = [...storedVersions.keys()].filter((name) => name.startsWith(`${markerName}@`));
+      const second = uploadFor(baseUrl, "req-privacy-generation", "V2");
+      await screening;
+      try {
+        const token = tokenFrom(captureUploadUrlFor("req-privacy-generation"));
+        await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+        expect(written.get(markerName)).toBe(firstMarker);
+        expect([...storedVersions.keys()].filter((name) => name.startsWith(`${markerName}@`))).toEqual(firstVersions);
+      } finally {
+        resume();
+      }
+      expect((await second).body.state).toBe("held");
+    });
+  });
+
   it("keeps a legacy claim across a cleared-screen crash and excludes a newer browser write", async () => {
     seedRequest("req-legacy-retry", { disposition: "qualified" });
     screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
