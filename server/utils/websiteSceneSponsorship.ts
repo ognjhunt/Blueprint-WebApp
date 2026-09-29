@@ -161,7 +161,7 @@ export function websiteSceneSponsorship(input: {
     } } : {}),
     authoring_provider: authoringProvider,
     ...(managedPolicy ? { authoring_agent_runtime: "openai_agents_api",
-      authoring_model: "gpt-6-sol", agents_api_policy: managedPolicy } : {}),
+      authoring_model: "gpt-6.1-sol", agents_api_policy: managedPolicy } : {}),
     ...(anthropicTerms ? { anthropic_provider_terms_reference: anthropicTerms } : {}),
     owner: configured.owner,
     // These are disjoint caps, not two authorizations for the whole budget.

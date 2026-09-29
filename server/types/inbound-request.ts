@@ -1237,7 +1237,7 @@ export interface InboundRequestPayload {
   consentAttestation?: ConsentAttestationInput | null;
   /** Only sent by the scoped Claude development-test website form. */
   claudeAuthoringConsent?: ConsentAttestationInput | null;
-  /** Only sent by the scoped GPT-6 Sol managed-agent development-test website form. */
+  /** Only sent by the scoped GPT-6.1 Sol managed-agent development-test website form. */
   solAgentsApiConsent?: ConsentAttestationInput | null;
   targetSiteType?: string;
   proofPathPreference?: ProofPathPreference;

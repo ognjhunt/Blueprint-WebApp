@@ -72,7 +72,7 @@ export function SiteCaptureStart() {
   const claudeAuthoringRequested = typeof window !== "undefined"
     && new URLSearchParams(window.location.search).get("authoring") === "claude-opus-5-5";
   const solAgentsRequested = typeof window !== "undefined"
-    && new URLSearchParams(window.location.search).get("authoring") === "gpt-6-sol-agents-api";
+    && new URLSearchParams(window.location.search).get("authoring") === "gpt-6.1-sol-agents-api";
   // Which workspace the signed-in account holds. A robot-team account can
   // still start a site: it is saved to the emailed link rather than blocked.
   const [workspaceType, setWorkspaceType] = useState<string | null | undefined>(undefined);
@@ -410,7 +410,7 @@ export function SiteCaptureStart() {
             style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
           <span style={{ fontWeight: 400 }}>
             For this development test, I authorize Blueprint to send selected frames and task evidence
-            to OpenAI for GPT-6 Sol managed-agent 3D authoring. The agent session can retain that evidence
+            to OpenAI for GPT-6.1 Sol managed-agent 3D authoring. The agent session can retain that evidence
             until it is deleted under the configured provider policy. Blueprint pays the bounded provider cost.
           </span>
         </label>
