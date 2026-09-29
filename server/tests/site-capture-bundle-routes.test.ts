@@ -672,6 +672,45 @@ describe("completion keeps the web path's order and authority", () => {
     expect(state.bucket.writeLog.slice(-1)[0]).toBe(`${RAW}/capture_upload_complete.json`);
   });
 
+  it("status never publishes an app marker before all completion server files exist", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    const originalFile = state.bucket.file.bind(state.bucket);
+    let entered!: () => void;
+    let resume!: () => void;
+    const paused = new Promise<void>((resolve) => { entered = resolve; });
+    const continueWrite = new Promise<void>((resolve) => { resume = resolve; });
+    let pauseFirstManifest = true;
+    state.bucket.file = ((name: string) => {
+      const file = originalFile(name);
+      if (name === `${RAW}/manifest.json` && pauseFirstManifest) {
+        pauseFirstManifest = false;
+        const save = file.save.bind(file);
+        file.save = async (...args: Parameters<typeof save>) => {
+          entered();
+          await continueWrite;
+          return save(...args);
+        };
+      }
+      return file;
+    }) as typeof state.bucket.file;
+    const completing = api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+    await paused;
+    try {
+      expect(state.bucket.text(`${RAW}/manifest.json`)).toBeNull();
+      state.privacy.push(APPROVED);
+      await linkCheck();
+      const marker = state.bucket.text(`${RAW}/capture_upload_complete.json`);
+      if (marker !== null) {
+        const completion = JSON.parse(state.bucket.text(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)!);
+        for (const [path, bytes] of Object.entries(completion.server_files)) {
+          expect(state.bucket.text(`${RAW}/${path}`)).toBe(bytes);
+        }
+      }
+    } finally { resume(); }
+    await completing;
+  });
+
   it("does not finish an app source changed during screening or from its old stored decision", async () => {
     const { device, bindingDigest } = await bundleFor();
     const planDigest = await uploadEverything(device, bindingDigest);
