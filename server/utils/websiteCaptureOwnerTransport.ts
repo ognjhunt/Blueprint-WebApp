@@ -44,6 +44,10 @@ export async function withWebsiteOwnerDeps<T>(
     throw new Error("capture_owner_deadline_invalid");
   const fixture = Boolean(options.serviceAccount || options.tokenUrl || options.firestoreOrigin || options.storageOrigin);
   if (fixture && process.env.NODE_ENV !== "test") throw new Error("capture_owner_fixture_unavailable");
+  // Explicit fixture origins stay local when a cloud executor proxies loopback.
+  const fixtureOrigins = [options.tokenUrl, options.firestoreOrigin, options.storageOrigin]
+    .filter((origin): origin is string => Boolean(origin))
+    .map(origin => new URL(origin).origin);
   const rawIdentity = options.serviceAccount ?? initializedFirebaseServiceAccountForRead() as Record<string, unknown> | null;
   if (!rawIdentity) throw new Error("capture_owner_credential_mode_unavailable");
   const identity = normalizedServiceAccount(rawIdentity);
@@ -70,6 +74,7 @@ export async function withWebsiteOwnerDeps<T>(
   const bounded = <V>(request: GaxiosOptions, max: number) => client.request<V>({
     ...request, signal: controller.signal, timeout: remaining(), retry: false,
     maxRedirects: 0, size: max, maxContentLength: max,
+    ...(fixtureOrigins.length ? { noProxy: fixtureOrigins } : {}),
   });
   try {
     const transporter = { request<V>(request: GaxiosOptions) {

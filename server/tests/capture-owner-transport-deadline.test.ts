@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import { generateKeyPairSync } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { Response } from "express";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 
 const key = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({
@@ -19,6 +19,11 @@ const closed: string[] = [];
 let disconnectOnMedia: EventEmitter | null = null;
 
 beforeAll(async () => {
+  // Cloud executors can proxy localhost too; fixtures must stay local even then.
+  for (const key of ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"])
+    vi.stubEnv(key, "http://127.0.0.1:9");
+  vi.stubEnv("NO_PROXY", "");
+  vi.stubEnv("no_proxy", "");
   server = createServer((req, res) => {
     const path = req.url ?? "";
     req.socket.once("close", () => closed.push(path));
@@ -61,7 +66,11 @@ beforeAll(async () => {
   if (!address || typeof address === "string") throw new Error("no_port");
   origin = `http://127.0.0.1:${address.port}`;
 });
-afterAll(async () => { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); });
+afterAll(async () => {
+  vi.unstubAllEnvs();
+  server.closeAllConnections();
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+});
 
 const options = () => ({ serviceAccount, bucket: "test-bucket", projectId: "test-project",
   tokenUrl: `${origin}/token`, firestoreOrigin: origin, storageOrigin: origin });
