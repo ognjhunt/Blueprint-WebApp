@@ -34,6 +34,12 @@ import type {
 } from "../agents/tasks/outbound-outreach";
 import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
 import {
+  outreachConnectionEvidenceSchema,
+  outreachCapabilityEvidenceSchema,
+  outreachReviewContractSchema,
+  reviewOutreachDraft,
+} from "../agents/outreach-review";
+import {
   buildUnsubscribeUrl,
   normalizeSuppressionEmail,
   recordEmailSuppression,
@@ -65,6 +71,9 @@ const createSchema = z
     facilityAddress: z.string().trim().min(1).max(300),
     contactEmail: z.string().trim().email().max(254),
     observations: z.array(observationSchema).min(1).max(8),
+    connectionEvidence: outreachConnectionEvidenceSchema.nullable().optional(),
+    teamObservations: z.array(observationSchema).max(8).optional(),
+    verifiedCapabilities: z.array(outreachCapabilityEvidenceSchema).max(8).optional(),
     hypothesisedTask: z.string().trim().min(1).max(1200),
     inferredGates: z.record(z.string().trim().max(60)).default({}),
     reasonForContact: z.string().trim().min(1).max(400),
@@ -75,6 +84,7 @@ const draftSchema = z
   .object({
     subject: z.string().trim().min(1).max(120),
     body: z.string().trim().min(1).max(2200),
+    outreachContract: outreachReviewContractSchema,
   })
   .strict();
 
@@ -178,6 +188,9 @@ router.post("/:prospectId/draft", async (req: Request, res: Response) => {
         observations: prospect.observations,
         hypothesisedTask: prospect.hypothesisedTask,
         inferredGates: prospect.inferredGates,
+        connectionEvidence: prospect.connectionEvidence ?? null,
+        teamObservations: prospect.teamObservations ?? [],
+        verifiedCapabilities: prospect.verifiedCapabilities ?? [],
       },
       session_key: `outbound:${prospectId}`,
       metadata: { prospect_id: prospectId },
@@ -190,7 +203,17 @@ router.post("/:prospectId/draft", async (req: Request, res: Response) => {
     return res.json({
       ok: true,
       draft: result.output,
-      note: "Read this before sending. Every factual claim should trace to one of the observations.",
+      outreachReview: reviewOutreachDraft({
+        to: prospect.contactEmail,
+        subject: result.output.subject,
+        body: result.output.body,
+        contract: result.output.outreach_contract,
+        context: {
+          observations: prospect.observations, connectionEvidence: prospect.connectionEvidence ?? null,
+          teamObservations: prospect.teamObservations ?? [], verifiedCapabilities: prospect.verifiedCapabilities ?? [],
+        },
+      }),
+      note: "Review the five outreach rules and discovery workflow before sending. Send edited text with outreachContract; the action-queue approval requires a separate semantic review of that exact draft.",
     });
   } catch (error) {
     logger.error({ error, prospectId }, "Outbound outreach draft failed");
@@ -230,6 +253,18 @@ router.post("/:prospectId/send", async (req: Request, res: Response) => {
     return res.status(409).json({ ok: false, blocker: guard.blocker, detail: guard.detail });
   }
 
+  const outreachContext = {
+    observations: prospect.observations, connectionEvidence: prospect.connectionEvidence ?? null,
+    teamObservations: prospect.teamObservations ?? [], verifiedCapabilities: prospect.verifiedCapabilities ?? [],
+  };
+  const outreachReview = reviewOutreachDraft({
+    to: guard.email, subject: parsed.data.subject, body: parsed.data.body,
+    contract: parsed.data.outreachContract, context: outreachContext,
+  });
+  if (!outreachReview.hardChecksPassed) {
+    return res.status(409).json({ ok: false, blocker: "outreach_quality_failed", outreachReview });
+  }
+
   const unsubscribeUrl = buildUnsubscribeUrl({
     email: guard.email,
     scope: "growth_campaign",
@@ -246,6 +281,8 @@ router.post("/:prospectId/send", async (req: Request, res: Response) => {
         to: guard.email,
         subject: parsed.data.subject,
         body: parsed.data.body,
+        outreachContract: parsed.data.outreachContract,
+        outreachContext,
         commercialEmail: true,
         emailSuppressionScope: "growth_campaign",
         unsubscribeUrl,
@@ -281,6 +318,7 @@ router.post("/:prospectId/send", async (req: Request, res: Response) => {
     return res.status(202).json({
       ok: true,
       action,
+      outreachReview,
       sent: !pending,
       ...(pending
         ? {

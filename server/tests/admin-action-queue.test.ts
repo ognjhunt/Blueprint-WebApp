@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer } from "http";
 import type { Server } from "node:http";
+import { outreachDraft, passingOutreachChecks } from "./fixtures/outreach-review";
+import { reviewOutreachDraft } from "../agents/outreach-review";
 
 const approveActionMock = vi.hoisted(() => vi.fn());
 const rejectActionMock = vi.hoisted(() => vi.fn());
@@ -237,6 +239,20 @@ afterEach(() => {
 });
 
 describe("admin action queue", () => {
+  it("forwards the separate semantic attestation using the authenticated operator identity", async () => {
+    const review = { digest: reviewOutreachDraft(outreachDraft).digest, checks: passingOutreachChecks };
+    approveActionMock.mockResolvedValue({ state: "pending_approval", tier: 3, ledgerDocId: "outreach-1" });
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/action-queue/outreach-1/approve`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outreachSemanticReview: review, operatorEmail: "invented@sender.co" }),
+      });
+      expect(response.status).toBe(200);
+      expect(approveActionMock).toHaveBeenCalledWith("outreach-1", "ops@tryblueprint.io", review);
+    } finally { await stopServer(server); }
+  });
+
   it("lists pending and failed ledger items", async () => {
     const { server, baseUrl } = await startServer();
     try {
@@ -272,7 +288,7 @@ describe("admin action queue", () => {
         method: "POST",
       });
       expect(approveResponse.status).toBe(200);
-      expect(approveActionMock).toHaveBeenCalledWith("ledger-1", "ops@tryblueprint.io");
+      expect(approveActionMock).toHaveBeenCalledWith("ledger-1", "ops@tryblueprint.io", undefined);
 
       const rejectResponse = await fetch(`${baseUrl}/action-queue/ledger-1/reject`, {
         method: "POST",

@@ -1,0 +1,189 @@
+# Blueprint first-contact outreach rules
+
+Owner direction: 2026-09-30. Canonical repo policy for outreach drafts and their
+pre-send review. This change authorizes no messages, invitations, or activation.
+Existing approval, suppression, sender, recipient, rights, and commercial controls
+continue to apply. A passing quality check is never permission to send.
+
+## Five rules
+
+1. Start with a verified connection, introduction, or shared community where
+   possible. Record the source and who verified it. Never invent a relationship.
+   Shared community membership does not imply familiarity, referral, or endorsement.
+2. For a cold approach, reference one specific public detail and explain why it
+   is relevant. Retain the source, confirm it concerns the recipient, and separate
+   observed facts from hypotheses. A plausible URL alone does not verify a claim.
+3. Offer a small useful observation or task-specific research brief with clear
+   limits. Describe what it can establish and what it cannot. Do not promise
+   private research access, robot fit, reconstruction, deployment success, or
+   other unsupported capabilities or outcomes.
+4. Ask one easy, non-confidential question first. Do not default to a questionnaire,
+   meeting, calendar link, upload, video, private operational data, or multi-part
+   request. A later capture/intake step requires the recipient's choice to continue.
+5. Let the recipient decide whether a deeper conversation is worthwhile. Reject
+   pressure, invented urgency, implied obligations, or assumed future engagement.
+
+## Agreed discovery-to-outcome approach
+
+Use this approach together with the five first-contact rules:
+
+1. Research the **site, job/task, and robot team jointly**. Lead discovery from a
+   site's recurring job while assessing team feasibility in parallel. Record
+   public source evidence and the gaps on both sides. Team feasibility can remain
+   pending; do not substitute a team marketing claim for a confirmed fit.
+2. **Disclose Blueprint identity from first contact.** Do not approach as an
+   independent researcher or imply a third party endorses Blueprint. Keep the
+   actual sender identity and existing sender policy intact.
+3. Keep **interest in talking**, **agreement to evaluation participation**, and
+   **confirmed deployment capacity** distinct. A reply, useful public research,
+   willingness to learn, or consent to evaluate does not establish the others.
+4. Offer a bounded **readiness/learning brief** where useful. This is a learning
+   artifact, distinct from a qualified match and the qualified-match fee. It
+   does not certify readiness, promise deployment, or trigger a match fee merely
+   because someone replies, provides information, or participates in evaluation.
+5. Build a **progressive job brief**: ask one easy job question first, then gather
+   the smallest relevant detail after the recipient chooses to continue. Request
+   footage and detailed operating information later, with purpose and limits
+   explained. Do not turn first contact into intake or a questionnaire.
+6. Obtain **site permission before sharing** a job brief, site identity, footage,
+   or operational information with robot teams. Scope consent to the material,
+   recipients, and use. Interest in talking or evaluating is not sharing consent.
+7. Before promising a qualified match, the **team confirms the actual
+   configuration, support, and timing**, alongside the site's requirements and
+   permissions. Neither public research nor an advisory brief establishes this.
+8. Base evaluation claims on inspectable evidence; make introductions with the
+   parties' consent. Gather physical-outcome feedback with consent and provenance
+   so later learning reflects what happened. Advisory or simulated results never
+   certify a physical outcome. Reject unverified Atlas/pipeline capability claims.
+
+These are research, drafting, and review instructions. This change creates no
+matching platform, evaluation runner, CRM, consent datastore, fee collection,
+introduction sender, or physical-outcome ingestion feature. Later permissions,
+participation, capacity, evaluation, and outcome gates require their existing
+owner-system evidence; the first-contact contract cannot grant them.
+
+## Current integration and limits
+
+The existing facility prospect path is:
+
+- [Agent draft](../server/agents/tasks/outbound-outreach.ts): `outbound_outreach`.
+- [Ops routes](../server/routes/admin-outbound-prospects.ts):
+  `POST /api/admin/outbound-prospects/:prospectId/draft` drafts only;
+  `POST /api/admin/outbound-prospects/:prospectId/send` validates and queues edited text.
+- [Action executor](../server/agents/action-executor.ts): queue admission,
+  `approveAction`, and `retryFailedAction` validate prospect outreach. The existing
+  admin-only `POST /api/admin/leads/action-queue/:ledgerId/approve` still releases it.
+- [Typed contract and pure validator](../server/agents/outreach-review.ts).
+
+Prospect outreach always requires human approval. The writer's
+`requires_human_review` or confidence cannot waive it. Invalid drafts fail before
+the prospect route queues them; direct executor callers stay pending. Approval
+also requires the separate five-rule and workflow semantic attestation below. Legacy queued
+prospect drafts lacking the contract cannot be released. Failed sends require a
+stored review that still matches their recipient, text, contract, and evidence.
+
+The separate [GTM first-touch review](../server/utils/exactSiteHostedReviewFirstTouch.ts),
+[GTM send executor](../server/utils/gtmSendExecutor.ts), and
+[city-launch send executor](../server/utils/cityLaunchSendExecutor.ts) do not call
+this validator. The policy and agent instructions govern review there; these new
+machine checks do **not** enforce those separate lanes. Transactional, support,
+intake, permission requests, and recipient-requested follow-up emails are outside
+this first-contact integration. No LinkedIn automation is added.
+
+This is a repo implementation with hermetic tests, not proof of deployed/live
+enforcement. No runtime, provider configuration, keys, schedules, or send enablement
+changes are part of it.
+
+## Draft contract
+
+`outreachReviewContractSchema` defines `blueprint.outreach.v1`:
+
+- `senderIdentity`: body text disclosing the Blueprint affiliation before the offer.
+- `opening`: cold detail (`claim`, public `source` URL), `relevance`, and
+  `noVerifiedConnectionReason`; or a connection/introduction/community `kind`
+  and `claim` matching operator-recorded `connectionEvidence`.
+- `value`: an `observation` or `research_brief`, its `offer`, and its `limits`.
+- `question`: the single initial question, ending in `?`.
+- `recipientChoice`: the explicit choice to continue or leave it there.
+- `workflow`: `site_led_discovery`, a `readiness_learning` brief, and a
+  `job_brief_question`; parallel team feasibility is `pending` or `public_research`
+  with sources matching recorded `teamObservations`.
+- `capabilityClaims`: normally empty. Any Atlas/pipeline mention requires the
+  exact claim/source in operator-recorded `verifiedCapabilities` with a verification
+  source, excerpt, verifier, and timestamp. Metadata cannot verify additional prose.
+
+The sender identity, opening claim, relevance for cold contact, offer, limits, question, and
+recipient choice must appear verbatim in the body. The opening precedes the
+offer/question. Metadata cannot stand in for language the recipient actually sees.
+Warm evidence includes `kind`, `claim`, `source`, `supportingExcerpt`, `verifiedBy`,
+and `verifiedAt` (ISO timestamp); operators record this when creating the prospect.
+The model cannot add verification to the authoritative prospect record.
+
+`POST .../:prospectId/send` accepts `{subject, body, outreachContract}`. Copy the
+agent's `outreach_contract` to `outreachContract` and update its anchors for any
+text edits. The route takes evidence from the stored prospect, never the send
+request. Both draft and queue responses expose `outreachReview`: blockers,
+`hardChecksPassed`, a digest, and the five-rule plus workflow review prompts. Use the **queue
+response digest** for approval, since it covers the edited text and normalized
+recipient. A hard-check pass only means the draft is structurally reviewable.
+The existing action-queue GET response also exposes `outreach_review` for prospect
+rows, so an approver can recover the current digest and checklist from the ledger.
+
+## Pre-send review
+
+An authorized admin reviews the exact queued subject/body and source records, then
+supplies this body to the existing action-queue approval route:
+
+```json
+{
+  "outreachSemanticReview": {
+    "digest": "<64-character digest from the queue response>",
+    "checks": {
+      "connection": "pass",
+      "evidence": "pass",
+      "boundedValue": "pass",
+      "easyQuestion": "pass",
+      "recipientChoice": "pass",
+      "workflow": "pass"
+    }
+  }
+}
+```
+
+Each decision is `pass`, `revise`, or `block`; only all six `pass` decisions permit
+the existing approval flow to proceed. Missing, rejected, or stale attestations
+leave the item pending without calling the mailer. The authenticated approver and
+review time are recorded separately in the ledger; model output cannot supply
+these approval fields. The digest changes if the recipient, subject, body,
+contract, or recorded evidence changes. Retry checks the stored attestation.
+
+| Code enforces | Authenticated reviewer must establish |
+| --- | --- |
+| Required typed contract and recorded evidence | Source authenticity, currency, recipient identity, and every factual claim's support |
+| Blueprint identity anchor before the offer | Affiliation is clear from first contact and actual sender identity is truthful |
+| Cold detail matches a stored observation and has an HTTP(S) URL | Detail is actually public, meaningful, and relevant; hypotheses remain qualified |
+| Warm kind/claim matches recorded verification fields | Source proves the connection/introduction/membership and wording implies no endorsement |
+| Offer, limits, and recipient-choice text appear in the body | Value is small, useful, task-specific, deliverable, and bounded; choice is unpressured |
+| One `?`, an anchored question, and explicit prohibited-pattern checks | One genuinely easy question, no compound ask, confidential request, questionnaire, or default meeting |
+| Site-led learning/job-question contract, recorded team research, and exact Atlas/pipeline claim references | Separate talking/evaluation/capacity signals; learning vs qualified-match fee; later site-sharing consent, team configuration/support/timing, evidence-backed evaluation and consensual introduction/outcome feedback |
+| All five rule decisions plus workflow review pass, and digest matches | Honest review of the exact message before the existing separate send approval |
+
+Pattern checks reject explicit meeting/questionnaire, video/confidential requests,
+pressure/guarantees, unverified connection wording, and shared-community endorsement
+wording, plus explicit discovery-stage match/capacity and prior-sharing claims.
+They are limited lexical checks: they cannot understand every paraphrase,
+prove sources, or detect every unsupported assertion. The mandatory semantic review
+is what rejects those failures when the structural checks pass. No paid model/API
+grader is used.
+
+## Synthetic example
+
+The following is a test fixture, not a verified prospect or send-ready message:
+
+> Your public careers page describes a packing station. That relates to our
+> question about a bounded packing job. I'm reaching out from Blueprint. I can share a short packing-job research
+> brief. It uses public sources only and cannot establish robot fit. Is packing
+> a relevant job to discuss? You can decide whether any deeper conversation is useful.
+
+Keep source evidence internal to the review packet; never include private
+verification records in the recipient's message.

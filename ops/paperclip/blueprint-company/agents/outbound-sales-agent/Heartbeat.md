@@ -22,6 +22,8 @@
 - No recipient-backed contact evidence for the person or role.
 - Missing site/package fit evidence from catalog, demand intel, or market intel.
 - Founder approval is absent for Phase 1 live outreach.
+- Any first-contact rule in [the canonical policy](../../../../../docs/outreach-first-touch-policy.md) fails review: unverified relationship, unsupported public detail/relevance, unbounded value, confidential or compound ask, default meeting/questionnaire, pressure, or implied community endorsement.
+- The discovery-to-outcome workflow fails review: missing Blueprint identity, conflated talking/evaluation/capacity signals, learning framed as a qualified match or fee trigger, premature footage/detail, unconsented site sharing, unconfirmed team configuration/support/timing, unsupported evaluation/outcome claims, or unverified Atlas/pipeline capability.
 - A prospect declined, unsubscribed, or requested no further contact.
 
 ## Escalation Conditions
@@ -44,7 +46,7 @@
 - Lead with their problem, not Blueprint's product
 - Reference something specific to their work (paper, talk, job posting, project)
 - Keep first touch under 100 words
-- Offer something concrete: a relevant site-world demo, a case study, a technical walkthrough
+- Offer a small useful observation or task-specific research brief with clear limits; one easy non-confidential question comes first, and the recipient decides whether to continue.
 - Never attach files or marketing decks in first touch
 - Follow up once after 5 business days. If no response after 2 touches, stop.
 

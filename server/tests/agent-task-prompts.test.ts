@@ -113,6 +113,26 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
 };
 
 describe("agent task prompts", () => {
+  it("replaces default capture outreach with the five rules and a review contract", () => {
+    const prompt = taskDefinitions.outbound_outreach.build_prompt(sampleInputs.outbound_outreach as never);
+    expect(prompt).toContain("CANONICAL FIRST-CONTACT RULES");
+    expect(prompt).toContain("exactly one easy, non-confidential question");
+    expect(prompt).toContain("never invent a relationship or imply community endorsement");
+    expect(prompt).toContain("small useful observation or task-specific research brief");
+    expect(prompt).toContain("Leave the decision about a deeper conversation with the recipient");
+    expect(prompt).toContain("Always set requires_human_review=true");
+    expect(prompt).toContain("outreach_contract");
+    expect(prompt).toContain("Research the site, job, and team jointly");
+    expect(prompt).toContain("Disclose Blueprint identity from the first contact");
+    expect(prompt).toContain("confirmed deployment capacity separate");
+    expect(prompt).toContain("Site permission is required before sharing");
+    expect(prompt).toContain("configuration, support, and timing");
+    expect(prompt).toContain("physical-outcome feedback require the parties' consent");
+    expect(prompt).toContain("Never claim Atlas or pipeline capabilities without");
+    expect(prompt).not.toContain("Ask them to film");
+    expect(prompt).not.toContain("a comparison of which robots can do the job");
+  });
+
   it("keeps stable policy and return schema before dynamic JSON payloads", () => {
     for (const [kind, definition] of Object.entries(taskDefinitions) as Array<
       [AgentTaskKind, (typeof taskDefinitions)[AgentTaskKind]]

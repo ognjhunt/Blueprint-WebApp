@@ -33,6 +33,7 @@ import {
   normalizeSuppressionEmail,
 } from "./email-suppression";
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
+import type { OutreachConnectionEvidence, OutreachCapabilityEvidence } from "../agents/outreach-review";
 
 /**
  * One observable fact about a facility, and where it came from.
@@ -70,6 +71,11 @@ export interface OutboundProspect {
   contactEmail: string;
   /** Observations behind the hypothesis. Empty is not allowed at send time. */
   observations: ProspectObservation[];
+  /** Verified by an operator before the writer may use a warm opening. */
+  connectionEvidence?: OutreachConnectionEvidence | null;
+  /** Public team research is feasibility evidence, never confirmed participation/capacity. */
+  teamObservations?: ProspectObservation[];
+  verifiedCapabilities?: OutreachCapabilityEvidence[];
   /** The task we think they run, in our words, for them to correct. */
   hypothesisedTask: string;
   /** Gate answers we guessed. Always paired with inferred provenance. */

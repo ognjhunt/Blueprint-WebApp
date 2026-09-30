@@ -44,6 +44,10 @@ Apply all five lenses every time:
 
 ## Workflow
 
+For first-contact outreach, also apply [Blueprint's five outreach rules](../../../../../docs/outreach-first-touch-policy.md). Verify the opening source and any relationship claim, the public detail/relevance for cold contact, bounded usefulness, one easy non-confidential question, and recipient control of deeper conversation. Reject invented connections, unsupported claims, implied community endorsement, pressure, questionnaires, and default meeting/capture requests. Code checks are structural; this semantic review still requires the existing authorized approver.
+
+Also review the agreed discovery-to-outcome approach: Blueprint affiliation from first contact; joint site/job/team research with parallel team feasibility; separate talking/evaluation/capacity signals; learning briefs distinct from qualified-match fees; progressive job details before footage; site permission before team sharing; team-confirmed configuration/support/timing before a match promise; evidence-backed evaluation and consent for introductions and physical-outcome feedback. Treat any unsupported Atlas/pipeline capability claim as a blocker. A first-contact review does not grant later permissions or establish team capacity.
+
 1. Identify the artifact type and intended audience.
 2. Identify what evidence should back the draft:
    - capture/package artifacts
