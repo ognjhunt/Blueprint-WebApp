@@ -124,6 +124,53 @@ replacement/reset is unproven; re-provision through an approved secret flow if
 the protected file is absent. This local setup does not create a durable worker
 or grant GitHub CLI access.
 
+### Add approved GitHub, Firebase, and Pipeline access
+
+Use `scripts/cloud/configure-dot-blueprint.mjs` for an owner-approved transfer
+to the same live VM. Generate an X25519 transfer key inside the VM, store its
+private PEM as `.blueprint-secrets/dot-transfer-private.pem` with mode 0600,
+and share only its public SPKI DER value encoded as base64. Running
+`node scripts/cloud/configure-dot-blueprint.mjs prepare` in the VM creates or
+reuses the private transfer key and prints only that public value. The owner's Mac
+packs exactly three approved credentials with the VM's public key:
+
+```bash
+node scripts/cloud/configure-dot-blueprint.mjs pack "$DOT_PUBLIC_KEY" \
+  /path/to/private/firebase-service-account.json \
+  "$HOME/.blueprint-secrets/dot-access-transfer.json"
+```
+
+Packing reads the dedicated `github_dot_token` and `operator_door_token`
+from the private Mac directory. Use a GitHub token limited to the intended
+repositories. Actions write is needed to dispatch/retry release workflows;
+Workflows write remains a separate permission for editing workflow files.
+The transfer uses authenticated encryption and requires the VM's recipient
+key. Send only that encrypted envelope to the approved VM; never publish the
+envelope in a repository or send plaintext credentials in chat.
+
+Run the reviewed, pinned installer on dot's VM with the encrypted envelope on
+standard input. It preserves existing files, rejects unsafe permissions and
+the previously exposed Firebase key, installs `google-auth-library` for the
+Firebase read check, and configures Git's supported `gh` credential helper.
+Credentials are saved with mode 0600. Subsequent commands use:
+
+```bash
+/home/agent/.blueprint-secrets/with-blueprint gh pr list --repo ognjhunt/Blueprint-WebApp
+node /home/agent/.blueprint-secrets/configure-dot-blueprint.mjs doctor
+```
+
+The launcher supplies GitHub and operator credentials, a Firebase credential
+file pointer, and the existing OpenAI credential when present. The doctor
+checks authenticated repository access, the deployment workflow, operator-door
+identity/status, and a bounded Firestore read without printing documents or
+secret values. It does not perform merges, deployments, Firestore writes,
+or privileged Pipeline operations. Verify push/creation and provider writes
+when the corresponding task is authorized.
+
+Dot's normal command runner and live computer have previously shown different
+filesystem views despite the same hostname. Install and verify in the live
+terminal dot actually uses. A private file saved elsewhere is insufficient.
+
 For delegated repository coding, dot can also use a published Blueprint WebApp
 environment. Access granted to Claude or the local Mac does not automatically
 propagate to dot's cloud task.
