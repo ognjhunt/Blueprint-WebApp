@@ -37,7 +37,7 @@
  * reading a JSON body, not a bill.
  */
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { discoverAgentExecutionAdmission } from "../utils/agentExecutionAdmission";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
@@ -497,12 +497,15 @@ async function admissionsFor(params: {
     const quote = {
       teamId: params.teamId, checkpointId: params.checkpointId, sceneId: candidate.sceneId,
       quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(), quotedUsd: candidate.costUsd,
+      submissionKey: randomUUID(),
     };
     const preparation = bound ? await ensureSelfServeAgentExecution(quote).catch((error) => {
       logger.warn({ error, teamId: params.teamId, sceneId: candidate.sceneId }, "Self-serve preparation failed");
       return { prepared: false as const, blockers: ["agent_execution_preparation_unavailable"] };
     }) : { prepared: false as const, blockers: ["team_account_required"] };
-    const admission = await discoverAgentExecutionAdmission(quote);
+    const admission = preparation.prepared
+      ? await discoverAgentExecutionAdmission({ ...quote, executionRequestId: preparation.requestId })
+      : { admitted: false as const, blockers: preparation.blockers };
     return {
       admission,
       blockers: admission.admitted ? [] : preparation.prepared ? admission.blockers : preparation.blockers,
@@ -733,7 +736,8 @@ router.post("/plan", async (req: Request, res: Response) => {
   const executable = bound && selection.selected.length > 0 && admissions.every(admission => admission.admitted);
   const planToken = executable ? createEvalPlanToken({ teamId, checkpointId: parsed.data.checkpointId,
     lines: selection.selected.map((candidate, index) => ({ sceneId: candidate.sceneId, costUsd: candidate.costUsd,
-      executionDigest: admissions[index].admitted ? admissions[index].digestSha256 : undefined })) }) : null;
+      executionDigest: admissions[index].admitted ? admissions[index].digestSha256 : undefined,
+      executionRequestId: admissions[index].admitted ? String(admissions[index].envelope.source_request_id) : undefined })) }) : null;
   const fundingNeededUsd = Math.round(Math.max(0, selection.totalCostUsd - balance.availableUsd) * 100) / 100;
   const accountRequired = !bound;
   return res.json({
@@ -840,7 +844,8 @@ router.post("/runs", async (req: Request, res: Response) => {
     const planToken = admissions.every(admission => admission.admitted) ? createEvalPlanToken({
       teamId, checkpointId: parsed.data.checkpointId,
       lines: selection.selected.map((candidate, index) => ({ sceneId: candidate.sceneId, costUsd: candidate.costUsd,
-        executionDigest: admissions[index].admitted ? admissions[index].digestSha256 : undefined })),
+        executionDigest: admissions[index].admitted ? admissions[index].digestSha256 : undefined,
+        executionRequestId: admissions[index].admitted ? String(admissions[index].envelope.source_request_id) : undefined })),
     }) : null;
     return res.status(200).json({
       dryRun: true,
@@ -883,6 +888,7 @@ router.post("/runs", async (req: Request, res: Response) => {
   // another. Without a token, the freshly computed selection, as before.
   let toReserve = selection.selected;
   const plannedDigests = new Map<string, string | undefined>();
+  const plannedRequests = new Map<string, string | undefined>();
   if (parsed.data.planToken) {
     const plannedLines = verifyEvalPlanToken(parsed.data.planToken, {
       teamId,
@@ -922,6 +928,7 @@ router.post("/runs", async (req: Request, res: Response) => {
         continue;
       }
       plannedDigests.set(line.sceneId, line.executionDigest);
+      plannedRequests.set(line.sceneId, line.executionRequestId);
       pinned.push(candidate);
     }
     toReserve = pinned;
@@ -930,13 +937,25 @@ router.post("/runs", async (req: Request, res: Response) => {
   for (const candidate of toReserve) {
     // An autonomous confirm has no dry run behind it, so prepare here too.
     // Idempotent: a planned line's record already exists and is reused.
+    let executionRequestId = plannedRequests.get(candidate.sceneId);
     if (!parsed.data.planToken) {
-      await ensureSelfServeAgentExecution({ teamId, checkpointId: parsed.data.checkpointId,
-        sceneId: candidate.sceneId, quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(), quotedUsd: candidate.costUsd })
-        .catch((error) => logger.warn({ error, teamId, sceneId: candidate.sceneId }, "Self-serve preparation failed"));
+      const preparation = await ensureSelfServeAgentExecution({ teamId, checkpointId: parsed.data.checkpointId,
+        sceneId: candidate.sceneId, quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(), quotedUsd: candidate.costUsd,
+        submissionKey: createHash("sha256").update(parsed.data.idempotencyKey).digest("hex") })
+        .catch((error) => {
+          logger.warn({ error, teamId, sceneId: candidate.sceneId }, "Self-serve preparation failed");
+          return { prepared: false as const, blockers: ["agent_execution_preparation_unavailable"] };
+        });
+      if (!preparation.prepared) {
+        refused.push({ sceneId: candidate.sceneId, siteLabel: candidate.siteLabel, costUsd: candidate.costUsd,
+          refusal: "execution_preparation_required", detail: "The execution setup is unavailable. Nothing was charged for it." });
+        continue;
+      }
+      executionRequestId = preparation.requestId;
     }
     const admission = await discoverAgentExecutionAdmission({ teamId, checkpointId: parsed.data.checkpointId,
-      sceneId: candidate.sceneId, quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(), quotedUsd: candidate.costUsd });
+      sceneId: candidate.sceneId, quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(), quotedUsd: candidate.costUsd,
+      ...(executionRequestId ? { executionRequestId } : {}) });
     if (!admission.admitted || (parsed.data.planToken && plannedDigests.get(candidate.sceneId) !== admission.digestSha256)) {
       refused.push({ sceneId: candidate.sceneId, siteLabel: candidate.siteLabel, costUsd: candidate.costUsd,
         refusal: "execution_preparation_required", detail: "The execution setup is missing or changed. Review a fresh plan before paying." });

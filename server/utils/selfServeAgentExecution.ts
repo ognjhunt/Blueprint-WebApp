@@ -90,8 +90,8 @@ function policyPackageFor(checkpoint: Record<string, any>): Record<string, unkno
 
 /**
  * Make sure the prepared record for this exact team, checkpoint, scene and
- * quote exists. Idempotent: the ids are derived from every bound fact, so a
- * repeated plan reuses the record and a changed fact makes a new one.
+ * quote and submission exists. A new plan starts a new submission; retries
+ * within that submission reuse its prepared record.
  */
 export async function ensureSelfServeAgentExecution(params: {
   teamId: string;
@@ -99,6 +99,7 @@ export async function ensureSelfServeAgentExecution(params: {
   sceneId: string;
   quotedEpisodes: number;
   quotedUsd: number;
+  submissionKey?: string;
 }): Promise<SelfServePreparation> {
   if (!db) return { prepared: false, blockers: ["agent_execution_store_unavailable"] };
 
@@ -154,6 +155,7 @@ export async function ensureSelfServeAgentExecution(params: {
   }
 
   const bound = {
+    ...(params.submissionKey ? { submissionKey: params.submissionKey } : {}),
     teamId: params.teamId,
     accountUid,
     checkpointId: params.checkpointId,
