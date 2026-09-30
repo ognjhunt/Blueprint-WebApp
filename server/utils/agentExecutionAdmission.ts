@@ -434,6 +434,12 @@ export async function discoverAgentExecutionAdmission(params: {
     return { admitted: false, blockers: ["agent_execution_scene_missing"] };
   }
   const checkpoint = objectValue(checkpointSnapshot.data());
+  if (checkpoint.policyCredential) {
+    const expiresAt = Date.parse(String(objectValue(checkpoint.policyCredential).expiresAtIso || ""));
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      return { admitted: false, blockers: ["policy_credential_expired"] };
+    }
+  }
   const facts = await sceneExecutionFacts(objectValue(scene));
   if (!facts.ok) return { admitted: false, blockers: facts.blockers };
   const { taskId, taskFamily, captureDigest, testbedDigest, siteId, captureId } = facts;

@@ -128,6 +128,20 @@ describe("agent execution admission", () => {
   }
 
   const selection = { teamId: "team-1", checkpointId: "checkpoint-1", sceneId: "scene-1", quotedEpisodes: 5, quotedUsd: 25 };
+  it.each(["expired", "invalid"])("refuses %s private credentials at admission after a plan was prepared", async (state) => {
+    const { agentExecutionAdmissionDigest, discoverAgentExecutionAdmission } = await seedPrepared();
+    const now = Date.now();
+    const credential = { ref: "policy-credential-synthetic", kind: "bearer", expiresAtIso: new Date(now + 60_000).toISOString() };
+    records.get("robotCheckpoints")!.get("checkpoint-1")!.policyCredential = credential;
+    const prepared = records.get("robotEvalJobRequests")!.get("request-1")!;
+    const canonical = prepared.canonical_execution_request as Record<string, any>;
+    Object.assign(canonical.policy_package.policy_api_endpoint, { credential_ref: credential.ref, credential_kind: credential.kind });
+    prepared.canonical_execution_request_sha256 = agentExecutionAdmissionDigest(canonical);
+    expect((await discoverAgentExecutionAdmission(selection)).admitted).toBe(true);
+    credential.expiresAtIso = state === "expired" ? new Date(now - 1).toISOString() : "invalid-date";
+    const confirmed = await discoverAgentExecutionAdmission(selection);
+    expect(confirmed).toEqual({ admitted: false, blockers: ["policy_credential_expired"] });
+  });
   it("discovers the real legacy normalization output and freezes identical UTF-8 bytes", async () => {
     const { agentExecutionAdmissionDigest, discoverAgentExecutionAdmission } = await seedPrepared();
     const result = await discoverAgentExecutionAdmission({
