@@ -83,6 +83,25 @@ describe("Task Evaluation Result canary header", () => {
   });
 });
 
+it("keeps recorded canary details visible when evidence packaging is blocked", () => {
+  const value = result();
+  value.publication.result_delivery!.status = "blocked";
+  value.publication.result_delivery!.blockers = ["provider_output_not_ingested"];
+  show(value);
+
+  expect(screen.getByRole("alert")).toHaveTextContent("Some evidence couldn't be packaged");
+  expect(screen.getByText("Policy episode evidence")).toBeInTheDocument();
+});
+
+it("does not invent canary episode evidence when no delivery was recorded", () => {
+  const value = result();
+  value.publication.result_delivery = null;
+  show(value);
+
+  expect(screen.getByText("This older result has no packaged videos or files.")).toBeInTheDocument();
+  expect(screen.queryByText("Policy episode evidence")).not.toBeInTheDocument();
+});
+
 it("shows pending recorded progress without result evidence and links to the private run", () => {
   useResult.mockReturnValue({ result: null, pending: { run: { run_id: "operator-run", state: "running", phase: "awaiting_operator_results", terminal: false, progress: { completed_episodes: 4, total_episodes: 20 }, href: "/app/evaluation-runs/operator-run" } }, currentUser: { uid: "owner" }, notFound: false, isLoading: false, error: null });
   render(<TaskEvaluationResultDetail />);
