@@ -98,14 +98,39 @@ the doctor specifically verifies CLI release access.
 
 ## Dot setup and acceptance
 
-Use the same published Blueprint WebApp environment when dot delegates coding
-or Agents API setup. Dot's connected live computer is separate from the
-authorized repository execution environment. Access granted to Claude or the
-local Mac does not automatically propagate to dot's cloud task.
+Dot can use its own existing VM for Agents API calls. The owner verified
+`HOME=/home/agent` and working Python, curl, git, Node, and gh there. After
+explicit approval to reuse the key at
+`/home/agent/.blueprint-secrets/openai_api_key`, run the interactive installer
+in that VM's terminal:
+
+```bash
+python3 scripts/cloud/configure-dot-openai.py
+```
+
+The owner enters the key at a hidden terminal prompt, never in a dot message.
+The installer refuses unsafe file permissions and preserves existing files.
+It stores the key with mode 0600, installs a command launcher, and performs the
+read-only Agents API check. Run future SDK/API commands through:
+
+```bash
+/home/agent/.blueprint-secrets/with-openai python3 your-agent.py
+```
+
+Tell dot the launcher path, without credential values, so its noninteractive
+commands receive `OPENAI_API_KEY`. A new shell does not need a manual export.
+Verify the launcher and doctor from dot's own task. Its VM's retention across
+replacement/reset is unproven; re-provision through an approved secret flow if
+the protected file is absent. This local setup does not create a durable worker
+or grant GitHub CLI access.
+
+For delegated repository coding, dot can also use a published Blueprint WebApp
+environment. Access granted to Claude or the local Mac does not automatically
+propagate to dot's cloud task.
 
 The current web entry point is
 [Create a cloud environment](https://chatgpt.com/cloud-environments/new).
-Select `ognjhunt/Blueprint-WebApp`, configure the installation and required
+If environment creation is available, select `ognjhunt/Blueprint-WebApp`, configure the installation and required
 vault keys described above, and publish the environment. During review of this
 PR, the new scripts are on `codex/agent-environment`; use merged `main` for the
 final reusable environment.
