@@ -46,6 +46,7 @@
  */
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { createHash } from "node:crypto";
 import { logger } from "../logger";
 import { verifyEvalPlanToken } from "./evalPlanToken";
 import { buildRequestedRunRecord, reservationTtlMs, type EvalRunRecord } from "./agentRunRecord";
@@ -369,6 +370,7 @@ export async function authorizeAgentSpend(params: {
   reason: string;
   idempotencyKey: string;
   confirmedPlan?: { token: string; checkpointId: string; sceneId: string };
+  confirmation?: { clientKey: string; scopeDigest: string };
   requestedRun?: Pick<EvalRunRecord, "checkpointId" | "sceneId" | "taskFamily" | "quotedEpisodes" | "executionAdmission">;
 }): Promise<SpendAuthorization> {
   if (!db) return { authorized: false, refusal: "ledger_unavailable", detail: "The ledger could not be read." };
@@ -386,11 +388,18 @@ export async function authorizeAgentSpend(params: {
   const lockRef = db.collection("robotTeamLedgerLocks").doc(params.teamId);
   const policyRef = db.collection(POLICY_COLLECTION).doc(params.teamId);
   const ledgerQuery = db.collection(LEDGER_COLLECTION).where("teamId", "==", params.teamId);
+  const confirmationRef = params.confirmation
+    ? db.collection("robotTeamSpendConfirmationKeys").doc(createHash("sha256")
+      .update(JSON.stringify([params.teamId, params.confirmation.clientKey])).digest("hex")) : null;
   return db.runTransaction(async transaction => {
     // Every ledger writer takes this lock, including credits and resolutions.
     // Firestore retries this transaction if another writer changes the balance.
     const lock = await transaction.get(lockRef);
     const existing = await transaction.get(ledgerRef);
+    const confirmation = confirmationRef ? await transaction.get(confirmationRef) : null;
+    if (confirmation?.exists && confirmation.data()?.scopeDigest !== params.confirmation!.scopeDigest) {
+      return { authorized: false, refusal: "idempotency_conflict", detail: "That request key already belongs to a different plan. Confirm a new plan with a new request key." } as const;
+    }
     if (existing.exists) {
       const entry = existing.data() as LedgerEntry;
       if (entry.kind !== "reserve" || entry.amountUsd !== amountUsd || entry.reason !== params.reason) {
@@ -403,6 +412,9 @@ export async function authorizeAgentSpend(params: {
           return { authorized: false, refusal: "idempotency_conflict", detail: "This preparation already belongs to a different execution." } as const;
         }
       }
+      if (confirmationRef && !confirmation?.exists) transaction.set(confirmationRef, {
+        teamId: params.teamId, scopeDigest: params.confirmation!.scopeDigest, createdAtIso: entry.createdAtIso,
+      });
       return { authorized: true, reservationId: entry.reservationId! } as const;
     }
     const policyDoc = await transaction.get(policyRef);
@@ -421,6 +433,9 @@ export async function authorizeAgentSpend(params: {
     const record: LedgerEntry = { entryId, teamId: params.teamId, kind: "reserve", amountUsd, reservationId, reason: params.reason, idempotencyKey: params.idempotencyKey, createdAtIso };
     transaction.set(lockRef, { lastEntryAtIso: createdAtIso });
     transaction.set(ledgerRef, record);
+    if (confirmationRef && !confirmation?.exists) transaction.set(confirmationRef, {
+      teamId: params.teamId, scopeDigest: params.confirmation!.scopeDigest, createdAtIso,
+    });
     if (params.requestedRun) {
       const run = buildRequestedRunRecord({ ...params.requestedRun, teamId: params.teamId, reservationId, quotedUsd: amountUsd });
       transaction.set(db!.collection("evaluationRuns").doc(run.runId), { ...run, settlementDueAtMs: Date.now() + reservationTtlMs() });

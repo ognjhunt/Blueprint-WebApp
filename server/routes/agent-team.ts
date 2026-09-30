@@ -934,6 +934,10 @@ router.post("/runs", async (req: Request, res: Response) => {
     toReserve = pinned;
   }
 
+  const confirmationScopeDigest = createHash("sha256").update(JSON.stringify([
+    teamId, parsed.data.checkpointId, parsed.data.spendMode,
+    parsed.data.planToken ?? toReserve.map(candidate => [candidate.sceneId, candidate.costUsd]),
+  ])).digest("hex");
   for (const candidate of toReserve) {
     // An autonomous confirm has no dry run behind it, so prepare here too.
     // Idempotent: a planned line's record already exists and is reused.
@@ -966,6 +970,7 @@ router.post("/runs", async (req: Request, res: Response) => {
     const requestKey = createHash("sha256").update(JSON.stringify([teamId, parsed.data.checkpointId, candidate.sceneId, admission.envelope.source_request_id])).digest("hex");
     const authorization = await authorizeAgentSpend({ teamId, amountUsd: candidate.costUsd,
       reason: `Evaluation ${parsed.data.checkpointId} on ${candidate.sceneId}`, idempotencyKey: `execution:${requestKey}`,
+      confirmation: { clientKey: parsed.data.idempotencyKey, scopeDigest: confirmationScopeDigest },
       ...(parsed.data.spendMode === "one_time" ? { confirmedPlan: { token: parsed.data.planToken!, checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId } } : {}),
       requestedRun: { checkpointId: parsed.data.checkpointId, sceneId: candidate.sceneId,
         taskFamily: candidate.taskFamily ?? null, quotedEpisodes: candidate.quotedEpisodes ?? screeningRunEpisodes(),
