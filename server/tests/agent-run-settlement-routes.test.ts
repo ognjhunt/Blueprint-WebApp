@@ -76,14 +76,15 @@ vi.mock("../utils/pipelineSyncSecurity", () => ({
 
 const admissionFixture = vi.hoisted(() => ({
   digestSha256: `sha256:${"a".repeat(64)}`,
+  distinctRequests: false,
 }));
 
 // Admission construction has dedicated contract tests. These route tests need
 // a stable, already-prepared execution so they can exercise the purchase and
 // settlement seam without weakening the route's new pre-charge gate.
 vi.mock("../utils/selfServeAgentExecution", () => ({
-  ensureSelfServeAgentExecution: async () => ({
-    prepared: true as const, requestId: `selfserve-${"a".repeat(32)}`, created: false,
+  ensureSelfServeAgentExecution: async ({ submissionKey }: { submissionKey: string }) => ({
+    prepared: true as const, requestId: `selfserve-${admissionFixture.distinctRequests ? submissionKey.replace(/-/g, "").slice(0, 32) : "a".repeat(32)}`, created: false,
   }),
 }));
 vi.mock("../utils/agentExecutionAdmission", () => ({
@@ -257,12 +258,68 @@ async function seedSpendableTeam() {
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
   admissionFixture.digestSha256 = `sha256:${"a".repeat(64)}`;
+  admissionFixture.distinctRequests = false;
   vi.unstubAllEnvs();
 });
 
 /* -------------------------------------------------- the reservation wiring */
 
 describe("confirming a spend leaves something that can settle it", () => {
+  it.each(["queued", "running"])("does not reserve another evaluation through repeatCompleted while the prior run is %s", async phase => {
+    await seedSpendableTeam();
+    admissionFixture.distinctRequests = true;
+    await withRoutes(async baseUrl => {
+      const initial = await startOneTimeRun(baseUrl, `initial-${phase}-evaluation`);
+      expect(initial.status).toBe(202);
+      const [prior] = (await initial.json()).started;
+      const stored = sharedFakeFirestoreState.docs.get(`evaluationRuns/${prior.runId}`)!;
+      if (phase === "queued") delete stored.dispatch;
+      else stored.dispatch = { pipelineRunId: "synthetic-running-worker", startedAtIso: new Date().toISOString() };
+      const repeat = await fetch(`${baseUrl}/api/agent-team/plan`, {
+        method: "POST", headers: AUTH,
+        body: JSON.stringify({ checkpointId: "ckpt-1", sceneId: "site-1", repeatCompleted: true, maxRuns: 1 }),
+      });
+      const plan = await repeat.json();
+      // Exercise the offered purchase on the vulnerable baseline; the fix
+      // must offer no second signed execution while this run remains active.
+      if (plan.planToken) {
+        const purchase = await fetch(`${baseUrl}/api/agent-team/runs`, {
+          method: "POST", headers: AUTH,
+          body: JSON.stringify({ checkpointId: "ckpt-1", confirm: true, spendMode: "one_time", planToken: plan.planToken,
+            idempotencyKey: `repeat-${phase}-evaluation`, maxRuns: 1 }),
+        });
+        expect(purchase.status).toBe(202);
+      }
+      const reserves = [...sharedFakeFirestoreState.docs.entries()].filter(([key, entry]) => key.startsWith("robotTeamLedger/") && entry.kind === "reserve");
+      expect(reserves).toHaveLength(1);
+      expect(reserves[0][1].amountUsd).toBe(stored.quotedUsd);
+      expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("evaluationRuns/"))).toHaveLength(1);
+      expect(repeat.status).toBe(409);
+      expect(plan.code).toBe("repeat_completed_result_required");
+    });
+  });
+
+  it.each(["no_history", "completed_without_result", "completed_result", "completed_plus_active", "history_cap"])("checks completed result history before repeating: %s", async history => {
+    await seedSpendableTeam();
+    if (history !== "no_history") sharedFakeFirestoreState.docs.set("evaluationRuns/prior", { teamId: TEAM, checkpointId: "ckpt-1", sceneId: "site-1", state: "completed",
+      ...(history !== "completed_without_result" ? { result: { observed: { episodesRun: 5 } } } : {}) });
+    if (history === "completed_plus_active") sharedFakeFirestoreState.docs.set("evaluationRuns/active", { teamId: TEAM, checkpointId: "ckpt-1", sceneId: "site-1", state: "requested" });
+    if (history === "history_cap") for (let i=0;i<499;i++) sharedFakeFirestoreState.docs.set(`evaluationRuns/older-${i}`, { teamId: TEAM, checkpointId: "other-checkpoint", sceneId: "other-site", state: "completed" });
+    await withRoutes(async baseUrl => {
+      const response = await fetch(`${baseUrl}/api/agent-team/plan`, { method: "POST", headers: AUTH,
+        body: JSON.stringify({ checkpointId: "ckpt-1", sceneId: "site-1", repeatCompleted: true, maxRuns: 1 }) });
+      const plan = await response.json();
+      if (history === "completed_result") {
+        expect(response.status).toBe(200);
+        expect(plan.selected).toHaveLength(1);
+        expect(plan.planToken).toEqual(expect.any(String));
+      } else {
+        expect(response.status).toBe(409);
+        expect(plan.code).toBe("repeat_completed_result_required");
+      }
+    });
+  });
+
   it("refuses a signed plan when the prepared execution changed", async () => {
     await seedSpendableTeam();
 

@@ -15,6 +15,7 @@ const router = Router();
 const schema = z.object({
   action: z.enum(["access", "registry_lease", "bind_admission"]),
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+  pipeline_run_id: z.string().trim().min(1).max(200),
   canonical_request_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
   tenant_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/).optional(),
   contract: z.record(z.unknown()).optional(),
@@ -40,10 +41,13 @@ router.post("/checkpoint-policy-credentials/:credentialRef", createPipelineSyncR
     const checkpoint = (await db.collection("robotCheckpoints").doc(record.checkpoint_id).get()).data();
     const runs = await db.collection("evaluationRuns")
       .where("executionAdmission.envelope.canonical_execution_request.job_id", "==", data.job_id).get();
-    const active = runs.docs.map((doc) => doc.data() as EvalRunRecord).filter((run) =>
+    const active = runs.docs.map((doc) => doc.data() as EvalRunRecord & { settlementDueAtMs?: number }).filter((run) => {
+      const due = run.settlementDueAtMs ?? Date.parse(run.requestedAtIso) + reservationTtlMs();
+      return (
       run.state === "requested" && !run.moneyResolved && !run.cancellationRequested
-      && Boolean(run.dispatch?.pipelineRunId)
-      && Date.parse(run.requestedAtIso) + reservationTtlMs() > Date.now());
+      && run.dispatch?.pipelineRunId === data.pipeline_run_id
+      && Number.isFinite(due) && due > Date.now());
+    });
     if (active.length !== 1) return res.status(409).json({ code: "policy_credential_claimed_run_required" });
     const run = active[0];
     const canonical = object(run.executionAdmission?.envelope.canonical_execution_request);
@@ -62,7 +66,7 @@ router.post("/checkpoint-policy-credentials/:credentialRef", createPipelineSyncR
     }
     const credential = await decryptCheckpointPolicyCredential(record);
     if (data.action === "access") {
-      return res.json({ ok: true, job_id: data.job_id, canonical_request_digest: data.canonical_request_digest,
+      return res.json({ ok: true, job_id: data.job_id, pipeline_run_id: data.pipeline_run_id, canonical_request_digest: data.canonical_request_digest,
         credential_ref: credentialRef, kind: credential.kind,
         ...(credential.kind === "bearer" ? { credential: { job_id: data.job_id,
           endpoint_url: record.reference, bearer_token: credential.token } } : {}) });
@@ -98,7 +102,7 @@ router.post("/checkpoint-policy-credentials/:credentialRef", createPipelineSyncR
         transaction.create(leaseRef, issued.lease);
         return issued.lease;
       });
-      return res.json({ ok: true, job_id: data.job_id, canonical_request_digest: data.canonical_request_digest,
+      return res.json({ ok: true, job_id: data.job_id, pipeline_run_id: data.pipeline_run_id, canonical_request_digest: data.canonical_request_digest,
         lease: publicRegistryCredentialLease(lease) });
     }
     const receipt = object(data.admission_receipt);

@@ -722,15 +722,19 @@ router.post("/plan", async (req: Request, res: Response) => {
     candidates = await buildTeamEvalCandidates({
       teamId,
       checkpointId: parsed.data.checkpointId,
+      repeatCompleted: parsed.data.repeatCompleted,
     });
   } catch (error) {
     logger.error({ error, teamId }, "Could not build evaluation candidates");
     return res.status(503).json({ error: "Site catalogue is unavailable", code: "catalogue_unavailable" });
   }
 
+  if (parsed.data.repeatCompleted && !candidates.some(candidate => candidate.sceneId === parsed.data.sceneId && !candidate.alreadyRunForCheckpoint)) {
+    return res.status(409).json({ error: "A repeat requires a completed result and no unfinished evaluation for this checkpoint and task.", code: "repeat_completed_result_required" });
+  }
+
   const selection = selectEvalsForBudget({
-    candidates: (parsed.data.sceneId ? candidates.filter(candidate => candidate.sceneId === parsed.data.sceneId) : candidates)
-      .map(candidate => parsed.data.repeatCompleted ? { ...candidate, alreadyRunForCheckpoint: false } : candidate),
+    candidates: parsed.data.sceneId ? candidates.filter(candidate => candidate.sceneId === parsed.data.sceneId) : candidates,
     budgetUsd,
     maxRuns: parsed.data.maxRuns,
   });
