@@ -64,7 +64,10 @@ function unscoredSentence(episode: TaskEvaluationResultEpisode) {
   const reason = canaryUnscoredReason(episode);
   const code = episode.failure?.code;
   const summary = episode.failure?.summary?.trim();
-  const extra = summary && code && summary.replace(/[.\s]+$/, "") !== code && !summary.startsWith(code)
+  const bare = summary?.replace(/[.\s]+$/, "").toLowerCase();
+  // A summary that only restates the code, as written or as words, adds nothing.
+  const extra = summary && code && bare !== code.toLowerCase()
+    && bare !== code.replaceAll("_", " ").toLowerCase() && !summary.startsWith(code)
     ? ` ${summary}` : "";
   const codeNote = code && !extra && !reason.includes(code.replaceAll("_", " ")) ? ` (${code})` : "";
   return `Not scored — ${reason}${codeNote}.${extra}`;

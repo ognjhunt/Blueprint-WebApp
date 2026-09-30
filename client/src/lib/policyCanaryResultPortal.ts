@@ -746,7 +746,14 @@ export function pairedCanaryComparison(
     headline = "No episodes were delivered.";
   } else if (candidateA.interpretable_count + candidateB.interpretable_count === 0) {
     headline = "No episodes could be scored.";
-    verdict = "Every episode stopped before it could be scored, so the policies can't be compared.";
+    // The provider finished and returned output, so nothing is known to have stopped.
+    const onlyNotIngested = [candidateA, candidateB].every((candidate) => (
+      canaryUnscoredReasons(result, candidate.candidate_id)
+        .every((row) => row.reason === unscoredProblemReasons.not_ingested)
+    ));
+    verdict = onlyNotIngested
+      ? "The provider's output wasn't ingested, so no episode could be scored and the policies can't be compared."
+      : "Every episode stopped before it could be scored, so the policies can't be compared.";
   } else if (candidateA.success_count + candidateB.success_count === 0) {
     headline = "Neither policy completed the task.";
   } else if (!comparablePairs) {

@@ -81,7 +81,11 @@ function executionClaim(value: boolean | null | undefined) {
   return value === null ? "not ingested" : value ? "yes" : "no";
 }
 
-/** One episode per closed drawer: outcome in the summary, videos and files inside. */
+/**
+ * One episode per closed drawer: outcome in the summary, videos and files inside.
+ * Canary records never reach this drawer; ResultContent renders them through
+ * PolicyCanaryResultPortal.
+ */
 function EpisodeRow({
   episode,
   user,
@@ -96,12 +100,12 @@ function EpisodeRow({
     || {};
   const receipt = episode.artifacts?.receipt || episode.action_delivery?.delivery_readback || null;
   const frameManifest = episode.artifacts?.frame_manifest || episode.evidence?.frame_manifest || null;
-  // A delivery that records the query answers from its claim; an older one without it falls back to the candidate.
+  // Answers only from the delivered claim; a candidate id alone doesn't show the policy was queried.
   const policyQueried = !episode.policy_candidate_id
     ? "no (control)"
     : episode.policy_query
       ? executionClaim(episode.policy_query.candidate_policy_queried)
-      : "yes";
+      : "not reported";
   const [outcome, tone] = episode.score.task_succeeded === true
     ? ["Completed", "green" as const]
     : episode.score.task_succeeded === false

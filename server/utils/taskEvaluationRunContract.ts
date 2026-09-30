@@ -201,6 +201,11 @@ export const taskEvaluationResultDeliverySchema = z.object({
 // unknown, and reading it as false would say the policy never ran.
 const executionClaim = z.boolean().nullable();
 
+// policyCanaryEpisodeSchema and policyCanaryResultDeliverySchema document the
+// shape of the Pipeline's v2 policy-canary delivery. They are not enforced on
+// v4 publications: parseVerifiedTaskEvaluationRunPublication sends those to
+// parsePipelinePolicyCanaryPublication, whose result_delivery is passthrough,
+// and a real delivery does not satisfy this strict shape on unrelated fields.
 const policyCanaryEpisodeSchema = z.object({
   episode_id: identifier,
   episode_kind: z.enum(["control", "learned_candidate"]),
@@ -306,6 +311,7 @@ const policyCanaryEpisodeSchema = z.object({
   }
 });
 
+// Documents the delivered shape; not enforced on v4 publications (see above).
 export const policyCanaryResultDeliverySchema = z.object({
   ...policyCanaryControlFields,
   scene_controls_status: controlsStatusSchema.optional(),

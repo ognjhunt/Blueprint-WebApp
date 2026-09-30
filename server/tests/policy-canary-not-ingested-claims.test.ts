@@ -133,7 +133,7 @@ function delivery(episode: Record<string, unknown>) {
   };
 }
 
-describe("not-ingested policy canary execution claims", () => {
+describe("projected episodes: enforced by parsePipelinePolicyCanaryPublication", () => {
   it("admits a projected episode whose three execution claims were never ingested", () => {
     expect(parsePipelinePolicyCanaryPublication(publicationWithProjectedEpisode(projectedEpisode())))
       .toMatchObject({ ok: true });
@@ -154,12 +154,19 @@ describe("not-ingested policy canary execution claims", () => {
     expect(parsePipelinePolicyCanaryPublication(publicationWithProjectedEpisode(episode)))
       .toMatchObject({ ok: false });
   });
+});
 
-  it("admits a delivered episode whose three execution claims are null", () => {
+// policyCanaryResultDeliverySchema documents the delivered shape. Production
+// does not enforce it on v4 publications: their result_delivery passes through
+// parsePipelinePolicyCanaryPublication (see the last test), and a real Pipeline
+// delivery fails this strict schema on unrelated fields. These cases keep the
+// documented shape honest; they are not a production guarantee.
+describe("delivered episodes: documented shape only, not enforced on v4 publications", () => {
+  it("documents a delivered episode whose three execution claims are null", () => {
     expect(policyCanaryResultDeliverySchema.safeParse(delivery(deliveredEpisode())).success).toBe(true);
   });
 
-  it("keeps the delivered booleans admissible", () => {
+  it("documents the delivered booleans", () => {
     const episode = deliveredEpisode({
       policy_query: { candidate_policy_queried: false },
       action_delivery: { actions_reached_robot: false, arm_moved: false },
@@ -171,11 +178,13 @@ describe("not-ingested policy canary execution claims", () => {
     { claim: "candidate_policy_queried", value, episode: deliveredEpisode({ policy_query: { candidate_policy_queried: value } }) },
     { claim: "actions_reached_robot", value, episode: deliveredEpisode({ action_delivery: { actions_reached_robot: value } }) },
     { claim: "arm_moved", value, episode: deliveredEpisode({ action_delivery: { arm_moved: value } }) },
-  ]))("still refuses a delivered $claim of $value", ({ episode }) => {
+  ]))("documents that a delivered $claim of $value is not the shape", ({ episode }) => {
     expect(policyCanaryResultDeliverySchema.safeParse(delivery(episode)).success).toBe(false);
   });
+});
 
-  it("stores a verified publication whose delivered episodes carry null claims", () => {
+describe("the production parse of a v4 publication", () => {
+  it("stores delivered episodes with null claims as they arrive (result_delivery passes through)", () => {
     const publication = structuredClone(fixture) as Record<string, any>;
     publication.result_delivery.episodes = [deliveredEpisode()];
     const verified = parseVerifiedTaskEvaluationRunPublication(reseal(publication));

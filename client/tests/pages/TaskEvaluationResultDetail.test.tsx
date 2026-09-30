@@ -157,7 +157,9 @@ it("lays out a task evaluation result plainly: one boundary line, a comparison, 
   expect(within(details).getByText("Episode packaging: complete")).toBeInTheDocument();
 });
 
-it("says an execution claim wasn't ingested instead of answering yes or no", () => {
+// The episode drawer serves non-canary deliveries; canary records render
+// through PolicyCanaryResultPortal instead (mocked above).
+it("episode drawer says an execution claim wasn't ingested or wasn't reported instead of answering yes or no", () => {
   const score = { status: "not_scored", task_succeeded: null, grader_authority: "deterministic_simulator_state", policy_outcome_interpretable: false };
   const value = {
     schema_version: "task_evaluation_result_site_record.v1",
@@ -192,7 +194,7 @@ it("says an execution claim wasn't ingested instead of answering yes or no", () 
             action_delivery: { actions_reached_robot: false, arm_moved: false },
           },
           {
-            episode_id: "ep-older", episode_kind: "learned_candidate", subject_id: "groot_n17_droid", policy_candidate_id: "groot_n17_droid",
+            episode_id: "ep-no-query-claim", episode_kind: "learned_candidate", subject_id: "groot_n17_droid", policy_candidate_id: "groot_n17_droid",
             score: { ...score, status: "scored", policy_outcome_interpretable: true },
             action_delivery: { actions_reached_robot: true, arm_moved: true },
           },
@@ -215,7 +217,7 @@ it("says an execution claim wasn't ingested instead of answering yes or no", () 
     "Policy queried: not ingested · actions reached the robot: not ingested · arm moved: not ingested · outcome can't be scored",
     "Policy queried: yes · actions reached the robot: yes · arm moved: no",
     "Policy queried: no · actions reached the robot: no · arm moved: no · outcome can't be scored",
-    "Policy queried: yes · actions reached the robot: yes · arm moved: yes",
+    "Policy queried: not reported · actions reached the robot: yes · arm moved: yes",
     "Policy queried: no (control) · actions reached the robot: no · arm moved: no",
   ]);
 });

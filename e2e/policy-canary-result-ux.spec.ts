@@ -155,8 +155,8 @@ test("episodes whose provider output wasn't ingested say so instead of claiming 
   await expect(page.getByText("π0.5 DROID: 4 of 10 episodes weren't scored — the provider's output wasn't ingested.")).toBeVisible();
   await page.getByRole('button', { name: 'Held-out composition' }).click();
   await expect(page.getByRole('heading', { name: 'Held-out composition', level: 3 })).toBeVisible();
-  await expect(page.getByText(/^Not scored — the provider's output wasn't ingested\./)).toHaveCount(2);
-  await expect(page.getByText(/actions couldn't be executed|robot didn't move/)).toHaveCount(0);
+  await expect(page.getByText("Not scored — the provider's output wasn't ingested (provider_output_not_ingested).", { exact: true })).toHaveCount(2);
+  await expect(page.getByText(/actions couldn't be executed|robot didn't move|provider output not ingested/)).toHaveCount(0);
 });
 
 test("full evidence inventory recovers after a failed read without claiming every frame is available", async ({ page }) => {
