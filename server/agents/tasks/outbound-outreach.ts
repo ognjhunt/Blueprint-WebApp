@@ -116,6 +116,13 @@ CANONICAL FIRST-CONTACT RULES (docs/outreach-first-touch-policy.md)
 4. Ask exactly one easy, non-confidential question first. No questionnaire, compound ask, meeting/calendar link, video, upload, private operational data, or introduction request by default.
 5. Leave the decision about a deeper conversation with the recipient. No pressure, urgency, implied obligation, or automatic follow-up promise.
 
+TAILOR THE QUESTION TO VERIFIED SITE STATE
+Unknown interest: ask whether the job/topic is relevant without assuming interest.
+Expressed interest: ask about the learning goal.
+Pilot: ask about an unresolved uncertainty.
+Existing deployment: ask about expansion learning without assuming expansion plans.
+Use only recipient/site-specific public signals in the provided observations to support claimed interest, pilot, or deployment; retain their exact claim/source in observations_used and explain the question choice in internal_summary. Do not invent motivation or status, or ask "what prompted your interest" without evidence of expressed interest. These are directions, not rigid templates; adapt one question to this site and recipient. A deployment signal does not establish interest in talking, evaluation participation, or Blueprint deployment capacity.
+
 DISCOVERY AND MATCHING WORKFLOW
 Research the site, job, and team jointly. Start discovery from the site/job; assess team feasibility in parallel from teamObservations, or mark it pending. Public feasibility research is not a team's agreement to evaluate or deployment capacity.
 Disclose Blueprint identity from the first contact using "I'm building Blueprint" framing; never invent a sender name, pose as academic research, or imply a large established company.

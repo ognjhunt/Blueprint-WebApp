@@ -117,6 +117,14 @@ describe("agent task prompts", () => {
     const prompt = taskDefinitions.outbound_outreach.build_prompt(sampleInputs.outbound_outreach as never);
     expect(prompt).toContain("CANONICAL FIRST-CONTACT RULES");
     expect(prompt).toContain("exactly one easy, non-confidential question");
+    expect(prompt).toContain("TAILOR THE QUESTION TO VERIFIED SITE STATE");
+    expect(prompt).toContain("Unknown interest: ask whether the job/topic is relevant without assuming interest");
+    expect(prompt).toContain("Expressed interest: ask about the learning goal");
+    expect(prompt).toContain("Pilot: ask about an unresolved uncertainty");
+    expect(prompt).toContain("Existing deployment: ask about expansion learning without assuming expansion plans");
+    expect(prompt).toContain("retain their exact claim/source in observations_used");
+    expect(prompt).toContain('or ask "what prompted your interest" without evidence of expressed interest');
+    expect(prompt).toContain("directions, not rigid templates");
     expect(prompt).toContain("never invent a relationship or imply community endorsement");
     expect(prompt).toContain("small useful observation or task-specific research brief");
     expect(prompt).toContain("Leave the decision about a deeper conversation with the recipient");

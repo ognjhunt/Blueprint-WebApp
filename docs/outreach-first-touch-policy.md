@@ -21,6 +21,14 @@ continue to apply. A passing quality check is never permission to send.
 4. Ask one easy, non-confidential question first. Do not default to a questionnaire,
    meeting, calendar link, upload, video, private operational data, or multi-part
    request. A later capture/intake step requires the recipient's choice to continue.
+   Tailor that question to the verified site state: unknown interest → ask whether
+   the job/topic is relevant without assuming interest; expressed interest → ask
+   about the learning goal; pilot → ask about an unresolved uncertainty; existing
+   deployment → ask about expansion learning without assuming expansion plans.
+   Retain the recipient/site-specific public signal and its source for any claimed
+   interest, pilot, or deployment state. Do not invent motivation or status, or ask
+   “what prompted your interest” without evidence of expressed interest. These are
+   directions, not rigid templates; adapt the question to the site and recipient.
 5. Let the recipient decide whether a deeper conversation is worthwhile. Reject
    pressure, invented urgency, implied obligations, or assumed future engagement.
 
@@ -180,7 +188,7 @@ contract, or recorded evidence changes. Retry checks the stored attestation.
 | Cold detail matches a stored observation and has an HTTP(S) URL | Detail is actually public, meaningful, and relevant; hypotheses remain qualified |
 | Warm kind/claim matches recorded verification fields | Source proves the connection/introduction/membership and wording implies no endorsement |
 | Offer, limits, and recipient-choice text appear in the body | Value is small, useful, task-specific, deliverable, and bounded; choice is unpressured |
-| One `?`, an anchored question, and explicit prohibited-pattern checks | One genuinely easy question, no compound ask, confidential request, questionnaire, or default meeting |
+| One `?`, an anchored question, and explicit prohibited-pattern checks | One genuinely easy question tailored to verified site state, with public-signal provenance for claimed interest/pilot/deployment; no invented motivation/status, compound ask, confidential request, questionnaire, or default meeting |
 | Site-led learning/job-question contract, recorded team research, and exact Atlas/pipeline claim references | Separate talking/evaluation/capacity signals; learning vs qualified-match fee; later site-sharing consent, team configuration/support/timing, evidence-backed evaluation and consensual introduction/outcome feedback |
 | All five rule decisions plus workflow review pass, and digest matches | Honest review of the exact message before the existing separate send approval |
 

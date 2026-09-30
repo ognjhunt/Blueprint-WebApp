@@ -48,6 +48,7 @@
 - Reference something specific to their work (paper, talk, job posting, project)
 - Keep first touch under 100 words
 - Offer a small useful observation or task-specific research brief with clear limits; one easy non-confidential question comes first, and the recipient decides whether to continue.
+- Tailor that question to verified site state: unknown interest → relevance without assumptions; expressed interest → learning goal; pilot → unresolved uncertainty; existing deployment → expansion learning without assumed plans. Verify recipient/site-specific public-signal provenance; block invented motivation/status or a question about what prompted interest without evidence of expressed interest. Adapt these directions rather than treating them as templates.
 - Never attach files or marketing decks in first touch
 - Follow up once after 5 business days. If no response after 2 touches, stop.
 

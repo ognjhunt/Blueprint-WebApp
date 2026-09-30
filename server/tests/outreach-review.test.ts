@@ -97,6 +97,23 @@ describe("first-contact outreach review", () => {
       .toBe("outreach_semantic_review_not_passed");
   });
 
+  it("requires semantic rejection of assumed interest despite valid question anchors", () => {
+    const question = "What prompted your interest in a packing robot?";
+    const contract = { ...outreachContract, question };
+    const body = outreachDraft.body.replace(outreachContract.question, question);
+    // The fixture's public packing-station detail does not express interest in robotics.
+    const result = reviewOutreachDraft({ ...outreachDraft, contract, body });
+    expect(result.hardChecksPassed).toBe(true);
+    expect(result.semanticReviewRequired.easyQuestion).toContain("unknown interest means ask relevance without assuming interest");
+    expect(result.semanticReviewRequired.easyQuestion).toContain("expressed interest means ask the learning goal");
+    expect(result.semanticReviewRequired.easyQuestion).toContain("pilot means ask an unresolved uncertainty");
+    expect(result.semanticReviewRequired.easyQuestion).toContain("existing deployment means ask about expansion learning");
+    expect(result.semanticReviewRequired.easyQuestion).toContain("public-signal provenance");
+    expect(validateOutreachSemanticReview(result, undefined)).toBe("outreach_semantic_review_required");
+    expect(validateOutreachSemanticReview(result, { digest: result.digest, checks: { ...passingOutreachChecks, easyQuestion: "block" } }))
+      .toBe("outreach_semantic_review_not_passed");
+  });
+
   it("binds review to recipient, text, contract, and evidence", () => {
     const result = reviewOutreachDraft(outreachDraft);
     const attestation = { digest: result.digest, checks: passingOutreachChecks };
