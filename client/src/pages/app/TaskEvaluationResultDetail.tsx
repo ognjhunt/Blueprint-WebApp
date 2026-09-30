@@ -187,7 +187,7 @@ export function ResultContent({ result, user }: { result: TaskEvaluationResultSi
           {developmentSurface ? <p className="mt-1 text-sm text-ink-500">Development test on an authored surface; captured scene integration pending.</p> : null}
         </header>
         {deliveryNotice}
-        {delivery?.status === "ready" ? <PolicyCanaryResultPortal result={result} user={user} /> : null}
+        {delivery ? <PolicyCanaryResultPortal result={result} user={user} /> : null}
       </>
     );
   }

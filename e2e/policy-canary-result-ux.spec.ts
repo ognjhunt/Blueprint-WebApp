@@ -159,6 +159,50 @@ test("episodes whose provider output wasn't ingested say so instead of claiming 
   await expect(page.getByText(/actions couldn't be executed|robot didn't move|provider output not ingested/)).toHaveCount(0);
 });
 
+for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+  test(`blocked deliveries explain not-ingested outcomes at ${viewport.width}px`, async ({ page }, testInfo) => {
+    test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== "1", "local fixture identity required");
+    const fixture: any = resultFixture();
+    fixture.publication.result_delivery.status = "blocked";
+    fixture.publication.result_delivery.blockers = ["provider_output_not_ingested"];
+    fixture.publication.result_delivery.artifacts = [];
+    for (const episode of fixture.publication.result_delivery.episodes) {
+      Object.assign(episode, {
+        score: { ...episode.score, status: "not_scored", task_succeeded: null, policy_outcome_interpretable: false },
+        failure: { code: "provider_output_not_ingested", phase: null, summary: "provider output not ingested" },
+        policy_query: { candidate_policy_queried: null, receipt: null },
+        action_delivery: { actions_reached_robot: null, arm_moved: null, harness_failure_code: "provider_output_not_ingested" },
+        evidence: { complete: false, missing_artifacts: ["provider_output_not_ingested"] },
+      });
+    }
+    const unexpectedApiRequests: string[] = [];
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.hostname !== "127.0.0.1") return route.fulfill({ status: 204, body: "" });
+      if (!url.pathname.startsWith("/api/")) return route.continue();
+      if (request.method() === "GET" && url.pathname === "/api/task-evaluation-results/result-ux-fixture") return route.fulfill({ json: fixture });
+      if (request.method() === "GET" && url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
+      if (request.method() === "POST" && url.pathname === "/api/analytics/ingest") return route.fulfill({ status: 204, body: "" });
+      // Every other API call remains local/mocked and fails the regression.
+      unexpectedApiRequests.push(`${request.method()} ${url.pathname}`);
+      return route.fulfill({ status: 503, json: { error: "unexpected fixture request" } });
+    });
+    await page.setViewportSize(viewport);
+    await page.goto("/app/results/result-ux-fixture");
+    await page.getByRole("button", { name: "Reject all" }).click().catch(() => undefined);
+    await expect(page.getByRole("alert")).toContainText("Some evidence couldn't be packaged");
+    await page.screenshot({ path: testInfo.outputPath("blocked-delivery.png"), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath("blocked-delivery-viewport.png") });
+    await expect(page.getByText("The provider's output wasn't ingested, so no episode could be scored and the policies can't be compared.")).toBeVisible();
+    await expect(page.getByText("π0.5 DROID: 10 of 10 episodes weren't scored — the provider's output wasn't ingested.")).toBeVisible();
+    await expect(page.getByText("Not scored — the provider's output wasn't ingested (provider_output_not_ingested).", { exact: true })).toHaveCount(2);
+    await expect(page.getByText(/actions couldn't be executed|robot didn't move/)).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(unexpectedApiRequests).toEqual([]);
+  });
+}
+
 test("full evidence inventory recovers after a failed read without claiming every frame is available", async ({ page }) => {
   test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== '1', 'local fixture identity required');
   const fixture: any = resultFixture();
