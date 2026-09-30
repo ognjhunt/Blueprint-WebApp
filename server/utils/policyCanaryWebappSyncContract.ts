@@ -158,9 +158,10 @@ export const pipelinePolicyCanaryResultProjectionSchema = z.object({
     cell_id: identifier,
     seed: z.number().int().min(0).max(2_147_483_647),
     terminal_state: z.enum(["completed", "failed", "blocked", "cancelled"]),
-    candidate_policy_queried: z.boolean(),
-    actions_reached_robot: z.boolean(),
-    arm_moved: z.boolean(),
+    // Null when the episode's provider output was never ingested: unknown, not false.
+    candidate_policy_queried: z.boolean().nullable(),
+    actions_reached_robot: z.boolean().nullable(),
+    arm_moved: z.boolean().nullable(),
     policy_outcome_interpretable: z.boolean(),
     failure_taxonomy: z.string().trim().max(128).nullable(),
     runtime_coverage_gaps: z.array(z.string().min(1).max(256)).max(64).optional(),

@@ -130,6 +130,35 @@ test("real progress page recovers a transient status failure and stops after ter
 });
 
 
+test("episodes whose provider output wasn't ingested say so instead of claiming the actions failed", async ({ page }) => {
+  test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== '1', 'local fixture identity required');
+  const fixture: any = resultFixture();
+  for (const episode of fixture.publication.result_delivery.episodes) {
+    if (episode.failure?.code !== 'camera_render_blocked') continue;
+    // What a streamed run delivers when its output arrived but was never ingested.
+    Object.assign(episode, {
+      failure: { code: 'provider_output_not_ingested', phase: null, summary: 'provider output not ingested' },
+      policy_query: { candidate_policy_queried: null, receipt: null },
+      action_delivery: { actions_reached_robot: null, arm_moved: null, returned_action_sequence: null, delivery_readback: null, harness_failure_code: 'provider_output_not_ingested' },
+    });
+  }
+  await page.route('**/*', async route => {
+    const url = new URL(route.request().url());
+    if (url.hostname !== '127.0.0.1') return route.fulfill({status:204,body:''});
+    if (!url.pathname.startsWith('/api/')) return route.continue();
+    if (url.pathname === '/api/task-evaluation-results/result-ux-fixture') return route.fulfill({json:fixture});
+    if (url.pathname === '/api/csrf') return route.fulfill({json:{csrfToken:'fixture'}});
+    return route.fulfill({json:{}});
+  });
+  await page.goto('/app/results/result-ux-fixture');
+  await page.getByRole('button',{name:'Reject all'}).click().catch(()=>undefined);
+  await expect(page.getByText("π0.5 DROID: 4 of 10 episodes weren't scored — the provider's output wasn't ingested.")).toBeVisible();
+  await page.getByRole('button', { name: 'Held-out composition' }).click();
+  await expect(page.getByRole('heading', { name: 'Held-out composition', level: 3 })).toBeVisible();
+  await expect(page.getByText(/^Not scored — the provider's output wasn't ingested\./)).toHaveCount(2);
+  await expect(page.getByText(/actions couldn't be executed|robot didn't move/)).toHaveCount(0);
+});
+
 test("full evidence inventory recovers after a failed read without claiming every frame is available", async ({ page }) => {
   test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== '1', 'local fixture identity required');
   const fixture: any = resultFixture();

@@ -197,6 +197,10 @@ export const taskEvaluationResultDeliverySchema = z.object({
   delivery_digest: digest,
 }).strict();
 
+// Null when the episode's provider output was never ingested: the claim is
+// unknown, and reading it as false would say the policy never ran.
+const executionClaim = z.boolean().nullable();
+
 const policyCanaryEpisodeSchema = z.object({
   episode_id: identifier,
   episode_kind: z.enum(["control", "learned_candidate"]),
@@ -213,12 +217,12 @@ const policyCanaryEpisodeSchema = z.object({
   }).strict(),
   reset_state_digest: digest,
   policy_query: z.object({
-    candidate_policy_queried: z.boolean(),
+    candidate_policy_queried: executionClaim,
     receipt: resultArtifactSchema.nullable(),
   }).strict(),
   action_delivery: z.object({
-    actions_reached_robot: z.boolean(),
-    arm_moved: z.boolean(),
+    actions_reached_robot: executionClaim,
+    arm_moved: executionClaim,
     returned_action_sequence: resultArtifactSchema.nullable(),
     delivery_readback: resultArtifactSchema.nullable(),
     harness_failure_code: identifier.nullable(),

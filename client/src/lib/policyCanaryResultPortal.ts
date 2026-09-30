@@ -290,6 +290,7 @@ export const canaryFailureCohorts = [
   "camera_sensor",
   "runtime_provider",
   "evidence_gap",
+  "not_ingested",
 ] as const;
 
 export function resolvedCanaryCandidates(result: TaskEvaluationResultSiteRecord) {
@@ -385,6 +386,16 @@ export function buildAlignedCanaryCells(
 
 export type CanaryEpisodeProblem = typeof canaryFailureCohorts[number];
 
+/**
+ * A null execution claim means the episode's provider output was never
+ * ingested. It is unknown: never an action delivery failure, and never a success.
+ */
+export function canaryExecutionNotIngested(episode: TaskEvaluationResultEpisode) {
+  return episode.policy_query?.candidate_policy_queried === null
+    || episode.action_delivery?.actions_reached_robot === null
+    || episode.action_delivery?.arm_moved === null;
+}
+
 export function canaryEpisodeProblem(episode: TaskEvaluationResultEpisode): CanaryEpisodeProblem | null {
   const material = [
     episode.failure?.code,
@@ -393,6 +404,8 @@ export function canaryEpisodeProblem(episode: TaskEvaluationResultEpisode): Cana
     episode.action_delivery?.harness_failure_code,
     episode.evidence?.typed_media_gap?.code,
   ].filter(Boolean).join(" ").toLowerCase();
+  // Nothing else about an episode whose output wasn't ingested is known.
+  if (canaryExecutionNotIngested(episode) || material.includes("provider_output_not_ingested")) return "not_ingested";
   if (episode.score?.collision === true || material.includes("collision")) return "collision";
   if (material.includes("droidactionexecutionerror")) return "action_delivery";
   if (material.includes("no_motion") || material.includes("no motion") || (
@@ -418,6 +431,7 @@ const unscoredProblemReasons: Partial<Record<CanaryEpisodeProblem, string>> = {
   camera_sensor: "a camera or sensor problem",
   runtime_provider: "a simulator or provider error",
   evidence_gap: "evidence is missing",
+  not_ingested: "the provider's output wasn't ingested",
 };
 
 /** Why an episode has no usable score, as a short phrase. A task miss is a scored outcome, never a reason. */
@@ -589,10 +603,12 @@ export type CanaryCandidateSummary = {
   wilson: { lower: number; upper: number } | null;
 };
 
-// Unknown interpretability and missing boolean outcomes are not scored failures.
+// Unknown interpretability and missing boolean outcomes are not scored failures,
+// and an episode whose execution wasn't ingested is never scored at all.
 export function isScorableCanaryEpisode(episode: TaskEvaluationResultEpisode) {
   return episode.score?.policy_outcome_interpretable === true
-    && typeof episode.score?.task_succeeded === "boolean";
+    && typeof episode.score?.task_succeeded === "boolean"
+    && !canaryExecutionNotIngested(episode);
 }
 
 function boundCellKey(episode: TaskEvaluationResultEpisode) {

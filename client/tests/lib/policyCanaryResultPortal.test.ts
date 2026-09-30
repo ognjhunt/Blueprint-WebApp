@@ -124,6 +124,47 @@ describe("policy canary result portal data", () => {
     expect(canaryUnscoredReason(still)).toBe("the robot didn't move");
   });
 
+  it("names an episode whose provider output wasn't ingested, never an action delivery failure", () => {
+    const notIngested = episode("policy-a", "cell-1", 101, {
+      score: { status: "not_scored", task_succeeded: null, grader_authority: "deterministic_simulator_state", policy_outcome_interpretable: false },
+      policy_query: { candidate_policy_queried: null, receipt: null },
+      action_delivery: { actions_reached_robot: null, arm_moved: null, harness_failure_code: "provider_output_not_ingested" },
+      failure: { code: "provider_output_not_ingested", summary: "provider output not ingested" },
+    });
+    expect(canaryEpisodeProblem(notIngested)).toBe("not_ingested");
+    expect(canaryUnscoredReason(notIngested)).toBe("the provider's output wasn't ingested");
+    expect(canaryEpisodeOutcome(notIngested)).toEqual({ label: "Not scored", tone: "neutral" });
+
+    // The claims alone are enough: null is unknown, never a delivery failure or no motion.
+    const claimsOnly = episode("policy-b", "cell-1", 101, {
+      score: { status: "not_scored", task_succeeded: null, grader_authority: "deterministic_simulator_state", policy_outcome_interpretable: false },
+      action_delivery: { actions_reached_robot: null, arm_moved: null },
+    });
+    expect(canaryEpisodeProblem(claimsOnly)).toBe("not_ingested");
+    const reachedUnknownMotion = episode("policy-b", "cell-2", 202, {
+      score: { status: "not_scored", task_succeeded: null, grader_authority: "deterministic_simulator_state", policy_outcome_interpretable: false },
+      action_delivery: { actions_reached_robot: true, arm_moved: null },
+    });
+    expect(canaryEpisodeProblem(reachedUnknownMotion)).toBe("not_ingested");
+  });
+
+  it("never scores an episode whose execution claims weren't ingested", () => {
+    const contradictory = episode("policy-a", "cell-1", 101, {
+      policy_query: { candidate_policy_queried: null, receipt: null },
+      action_delivery: { actions_reached_robot: null, arm_moved: null },
+    });
+    expect(contradictory.score.task_succeeded).toBe(true);
+    expect(canaryEpisodeOutcome(contradictory)).toEqual({ label: "Not scored", tone: "neutral" });
+    const record = {
+      publication: {
+        result_delivery: { episodes: [contradictory, episode("policy-b", "cell-1", 101)] },
+      },
+    } as unknown as TaskEvaluationResultSiteRecord;
+    expect(canaryUnscoredReasons(record, "policy-a")).toEqual([
+      { reason: "the provider's output wasn't ingested", count: 1 },
+    ]);
+  });
+
   it("never gives a scored-outcome phrase as the reason an episode is unscored", () => {
     const unknownFailure = episode("policy-a", "cell-1", 101, {
       score: { status: "blocked", task_succeeded: null, grader_authority: "deterministic_simulator_state", policy_outcome_interpretable: false },
@@ -300,5 +341,25 @@ describe("policy canary result portal data", () => {
       { reason: "the policy's actions couldn't be executed", count: 2 },
     ]);
     expect(canaryUnscoredReasons(record, "policy-b")).toEqual([]);
+  });
+
+  it("groups not-ingested records apart from action delivery failures", () => {
+    const notIngested = (cell: number) => episode("policy-a", `cell-${cell}`, cell, {
+      score: { status: "not_scored", task_succeeded: null, grader_authority: "deterministic_simulator_state", policy_outcome_interpretable: false },
+      policy_query: { candidate_policy_queried: null, receipt: null },
+      action_delivery: { actions_reached_robot: null, arm_moved: null, harness_failure_code: "provider_output_not_ingested" },
+      failure: { code: "provider_output_not_ingested", summary: "provider output not ingested" },
+    });
+    const undelivered = episode("policy-a", "cell-3", 3, {
+      score: { status: "not_scored", task_succeeded: null, grader_authority: "deterministic_simulator_state", policy_outcome_interpretable: false },
+      action_delivery: { actions_reached_robot: false, arm_moved: false },
+    });
+    const record = {
+      publication: { result_delivery: { episodes: [notIngested(1), notIngested(2), undelivered] } },
+    } as unknown as TaskEvaluationResultSiteRecord;
+    expect(canaryUnscoredReasons(record, "policy-a")).toEqual([
+      { reason: "the provider's output wasn't ingested", count: 2 },
+      { reason: "the policy's actions couldn't be executed", count: 1 },
+    ]);
   });
 });

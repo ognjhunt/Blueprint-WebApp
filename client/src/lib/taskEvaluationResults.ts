@@ -73,9 +73,15 @@ export type TaskEvaluationResultEpisode = {
     episode_json?: TaskEvaluationResultArtifact | null;
     indexed_mcap_rosbag?: TaskEvaluationResultArtifact | null;
   };
+  // The execution claims are null when the episode's provider output was never
+  // ingested: unknown, and never to be read as false.
+  policy_query?: {
+    candidate_policy_queried: boolean | null;
+    receipt?: TaskEvaluationResultArtifact | null;
+  };
   action_delivery?: {
-    actions_reached_robot: boolean;
-    arm_moved: boolean;
+    actions_reached_robot: boolean | null;
+    arm_moved: boolean | null;
     returned_action_sequence?: TaskEvaluationResultArtifact | null;
     delivery_readback?: TaskEvaluationResultArtifact | null;
     harness_failure_code?: string | null;
