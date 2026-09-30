@@ -134,8 +134,9 @@ async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
 async function loadEvaluatedFamilies(teamId: string, checkpointId: string): Promise<{
   families: string[];
   scenesRun: Set<string>;
+  repeatableScenes: Set<string>;
 }> {
-  if (!db) return { families: [], scenesRun: new Set() };
+  if (!db) return { families: [], scenesRun: new Set(), repeatableScenes: new Set() };
 
   const snapshot = await db
     .collection("evaluationRuns")
@@ -145,20 +146,40 @@ async function loadEvaluatedFamilies(teamId: string, checkpointId: string): Prom
 
   const families = new Set<string>();
   const scenesRun = new Set<string>();
+  const completedScenes = new Set<string>();
+  const unfinishedScenes = new Set<string>();
+  const repeatableScenes = new Set<string>();
 
   for (const doc of snapshot.docs) {
     const run = doc.data() as {
       taskFamily?: string | null;
       sceneId?: string | null;
       checkpointId?: string | null;
+      state?: string;
+      result?: { observed?: { episodesRun?: number } };
     };
     if (run.taskFamily) families.add(run.taskFamily);
     // Only this checkpoint's runs make a scene "already answered". A new
     // checkpoint against the same scene is a different question.
-    if (run.sceneId && run.checkpointId === checkpointId) scenesRun.add(run.sceneId);
+    if (run.sceneId && run.checkpointId === checkpointId) {
+      scenesRun.add(run.sceneId);
+      if (run.state === "completed" && (run.result?.observed?.episodesRun ?? 0) > 0) {
+        completedScenes.add(run.sceneId);
+      } else if (run.state !== "blocked" && run.state !== "abandoned") {
+        unfinishedScenes.add(run.sceneId);
+      }
+    }
   }
 
-  return { families: [...families], scenesRun };
+  // An explicit repeat applies only to a recorded result, never to an
+  // outstanding reservation. A capped history cannot prove none is pending.
+  if (snapshot.docs.length < 500) {
+    for (const scene of completedScenes) {
+      if (!unfinishedScenes.has(scene)) repeatableScenes.add(scene);
+    }
+  }
+
+  return { families: [...families], scenesRun, repeatableScenes };
 }
 
 /**
@@ -172,6 +193,7 @@ export async function buildTeamEvalCandidates(params: {
   teamId: string;
   checkpointId: string;
   limit?: number;
+  repeatCompleted?: boolean;
 }): Promise<EvalCandidate[]> {
   const team = await getRobotTeam(params.teamId);
   if (!team) return [];
@@ -194,7 +216,7 @@ export async function buildTeamEvalCandidates(params: {
       evidenceScope: "development_only" as const, quotedEpisodes: 1, policyInterface: offer.policy_interface,
       match: {outcome: "provisional" as const, score: 0, scored: 0, unknownHardConstraints: []},
       costUsd, taskFamily: offer.execution_facts.taskFamily, alreadyEvaluatedFamilies: history.families,
-      alreadyRunForCheckpoint: history.scenesRun.has(offer.requestId)}];
+      alreadyRunForCheckpoint: params.repeatCompleted ? !history.repeatableScenes.has(offer.requestId) : history.scenesRun.has(offer.requestId)}];
   });
   return [...privateCandidates, ...sites.map((request) => {
     const match = matchRobotTeam(toSiteRequirement(request), candidate);
@@ -221,7 +243,7 @@ export async function buildTeamEvalCandidates(params: {
       costUsd,
       taskFamily,
       alreadyEvaluatedFamilies: history.families,
-      alreadyRunForCheckpoint: history.scenesRun.has(sceneId),
+      alreadyRunForCheckpoint: params.repeatCompleted ? !history.repeatableScenes.has(sceneId) : history.scenesRun.has(sceneId),
     };
   })];
 }
