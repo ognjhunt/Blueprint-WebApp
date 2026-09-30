@@ -96,6 +96,35 @@ The same commands can be used in a legacy Codex setup/maintenance script. For
 platform-managed PR creation, use the supported PR control when available;
 the doctor specifically verifies CLI release access.
 
+## Dot setup and acceptance
+
+Use the same published Blueprint WebApp environment when dot delegates coding
+or Agents API setup. Dot's connected live computer is separate from the
+authorized repository execution environment. Access granted to Claude or the
+local Mac does not automatically propagate to dot's cloud task.
+
+The current web entry point is
+[Create a cloud environment](https://chatgpt.com/cloud-environments/new).
+Select `ognjhunt/Blueprint-WebApp`, configure the installation and required
+vault keys described above, and publish the environment. During review of this
+PR, the new scripts are on `codex/agent-environment`; use merged `main` for the
+final reusable environment.
+
+Have dot launch a fresh coding task in that environment and retain the outputs
+of `npm run cloud:doctor:release` and `npm run cloud:doctor:openai`. Neither a
+connected-computer badge nor a local success proves that dot received the
+credentials. Verify the actual authorized branch push and Agents API creation
+separately when those actions are requested. Do not send credential values in
+dot messages, copy all Mac secrets, or treat a ChatGPT scheduled task as an
+Agents API agent.
+
+For Pipeline access, configure the existing `operator-door` credential for
+`paperclip.tryblueprint.io` using the supported secret flow and verify `whoami`
+and `status` in dot's own task. A token with `read` scope suffices for diagnostics;
+keep broader operations within the scope the owner approved. If dot's selected
+computer cannot make authenticated HTTPS calls, connect an approved execution
+environment or a bounded server tool before claiming server access.
+
 ## Claude setup
 
 Create a WebApp-only environment or reuse the WebApp setup above. Set
