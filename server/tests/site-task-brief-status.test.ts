@@ -120,7 +120,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { body } = await status();
 
     expect(body.status.decision).toBe("screening");
-    expect(body.status.headline).toContain("1 robot team is");
+    expect(body.status.headline).toContain("queued for 1 robot team");
+    expect(body.status.headline).toContain("Execution has not started");
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
   });
 

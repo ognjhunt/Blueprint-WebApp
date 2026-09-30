@@ -1,4 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
+import { mockExternalFonts } from "./helpers/static-assets";
+test.beforeEach(mockExternalFonts);
 const terms = {
   successRate: 95,
   cycleTimeSeconds: 30,

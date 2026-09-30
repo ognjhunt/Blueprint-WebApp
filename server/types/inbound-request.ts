@@ -965,6 +965,8 @@ export interface SiteVideoEvidenceSummary {
 
 export interface InboundRequest {
   requestId: string;
+  /** Hash of the public form's private retry token; never store the token itself. */
+  intake_retry_token_hash?: string | null;
   site_submission_id: string;
   buyer_request_id?: string | null;
   queue_key?: RequestQueueKey | null;
@@ -1171,6 +1173,8 @@ export interface InboundRequestStored
 // Request payload from frontend form submission
 export interface InboundRequestPayload {
   requestId: string;
+  /** Optional capability for recovering this anonymous submission after a lost response. */
+  retryToken?: string;
   firstName: string;
   lastName: string;
   company: string;

@@ -200,6 +200,17 @@ describe("pulling inputs off a stored request", () => {
 describe("screening and results rungs", () => {
   const assessed = { briefDrafted: true, briefConfirmed: true, coversScene: true as const };
 
+  it("reports accepted work as waiting when no screening run has started", () => {
+    const status = projectTaskStatus(base({ ...assessed,
+      screening: { teams: 2, queued: 2, running: 0, reported: 0, noResult: 0 },
+    }));
+    expect(status.decision).toBe("screening");
+    expect(status.headline).toMatch(/queued.*2 robot teams/i);
+    expect(status.headline).toMatch(/execution has not started/i);
+    expect(status.headline).not.toMatch(/being screened|is running/i);
+    expect(status.operatorAction).toBeNull();
+  });
+
   it("reports screening once runs are queued or running against the scene", () => {
     const status = projectTaskStatus(
       base({
@@ -228,7 +239,7 @@ describe("screening and results rungs", () => {
     const status = projectTaskStatus(
       base({ ...assessed, screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }),
     );
-    expect(status.headline).toContain("1 robot team is");
+    expect(status.headline).toContain("queued for 1 robot team.");
   });
 
   it("stays at assessing when no run exists", () => {

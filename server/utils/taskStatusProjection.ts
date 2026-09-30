@@ -189,7 +189,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "screening",
-      headline: `${countLabel(screening.teams, "robot team")} ${screening.teams === 1 ? "is" : "are"} being screened against your scene.`,
+      headline: screening.running === 0
+        ? `Screening is queued for ${countLabel(screening.teams, "robot team")}. Execution has not started.`
+        : `${countLabel(screening.teams, "robot team")} ${screening.teams === 1 ? "is" : "are"} being screened against your scene.${screening.queued > 0 ? ` ${countLabel(screening.queued, "run")} still waiting to start.` : ""}`,
       operatorAction: null,
     };
   }

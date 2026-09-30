@@ -1,19 +1,37 @@
 import { test, expect } from "@playwright/test";
+import { seedCookieConsent } from "./helpers/cookie-consent";
+import { mockExternalFonts } from "./helpers/static-assets";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("blueprint-consent", JSON.stringify({ necessary: true, analytics: false, marketing: false, timestamp: Date.now() })));
+  await seedCookieConsent({ page });
+  await mockExternalFonts({ page });
   await page.route("**/api/csrf", route => route.fulfill({ json: { csrfToken: "e2e-safe-token" } }));
   await page.route("https://photon.komoot.io/**", route => route.fulfill({ json: { features: [] } }));
-  await page.route("**/api/site-worlds/tasks", route => route.fulfill({ json: { items: [] } }));
+  await page.route("**/api/site-worlds/tasks", route => route.fulfill({ json: { items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } } }));
+});
+
+test("prerendered intake stays inactive while its scripts are unavailable", async ({ page }) => {
+  test.skip(process.env.BLUEPRINT_E2E_STATIC !== "1", "Requires the production prerendered HTML.");
+  await page.route("**/*", route => route.request().resourceType() === "script"
+    ? route.abort()
+    : route.continue());
+  await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("form", { name: "Start a site capture" })).toHaveAttribute("method", "post");
+  await expect(page.locator("#start-email")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Start", exact: true })).toBeDisabled();
+  await expect(page).toHaveURL(/\/contact\/site-operator$/);
 });
 
 test("phone: the first task field is on the first screen and the explanation stays closed", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/contact/site-operator");
+  await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
   const field = page.locator("#start-task");
   await expect(field).toBeVisible();
-  const box = await field.boundingBox();
-  expect(box!.y + box!.height).toBeLessThan(844);
+  await expect(field).toBeEnabled();
+  await expect.poll(async () => {
+    const box = await field.boundingBox();
+    return box ? box.y + box.height : Infinity;
+  }).toBeLessThan(844);
   await expect(page.locator("details").filter({ hasText: "How this works" })).not.toHaveAttribute("open");
   await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
   await page.screenshot({ path: "/tmp/onboarding-p2-site-phone.png", fullPage: true });
@@ -25,7 +43,7 @@ test("capture takes the country from the address, asks only when it cannot, and 
     submissions.push(route.request().postDataJSON());
     return route.fulfill({ status: 202, json: { ok: true, requestId: "captured", captureUrl: null } });
   });
-  await page.goto("/contact/site-operator");
+  await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
   await page.locator("#start-task").fill("Move cartons onto a pallet");
   await page.locator("#start-location").fill("Berlin");
   await page.locator("#start-email").fill("owner@example.test");
@@ -47,10 +65,11 @@ test("capture takes the country from the address, asks only when it cannot, and 
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });
 
-test("robot teams reach the library without an application", async ({ page }) => {
+test("robot teams can apply before approval without seeing private jobs", async ({ page }) => {
   await page.goto("/contact/robot-team");
-  await expect(page.getByRole("region", { name: "Job library" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Send application" })).toHaveCount(0);
+  await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Apply for early access", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Job library" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Operate a site/ })).toBeVisible();
 });
 

@@ -227,6 +227,36 @@ function siteCaptureUrl(
   }
 }
 
+function intakeRetryTokenHash(value: unknown): string | null {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]{32,128}$/.test(value)) return null;
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function mayRecoverSubmission(
+  existing: InboundRequest,
+  requestedOwner: string | undefined,
+  retryToken: unknown,
+): boolean {
+  const storedOwner = (existing as unknown as Record<string, unknown>).account_owner_uid;
+  if (storedOwner || requestedOwner) return Boolean(requestedOwner && storedOwner === requestedOwner);
+  const suppliedHash = intakeRetryTokenHash(retryToken);
+  const storedHash = existing.intake_retry_token_hash;
+  if (!suppliedHash || typeof storedHash !== "string" || !/^[a-f0-9]{64}$/.test(storedHash)) return false;
+  return crypto.timingSafeEqual(Buffer.from(suppliedHash, "hex"), Buffer.from(storedHash, "hex"));
+}
+
+function recoveredSubmission(existing: InboundRequest): SubmitInboundRequestResponse {
+  return {
+    ok: true,
+    requestId: existing.requestId,
+    siteSubmissionId: existing.site_submission_id || existing.requestId,
+    status: existing.status,
+    // A retry reads the saved decision. Changed answers must never lift a
+    // region hold or convert another buyer type into a capture invitation.
+    captureUrl: siteCaptureUrl(existing.request?.buyerType || "", existing.requestId, existing.request?.capture_region ?? null),
+  };
+}
+
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_IP = 10; // Max 10 submissions per IP per window
 // Per sender address, never per domain. A domain key throttled everyone on
@@ -1200,10 +1230,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
       if (existingRequestDoc.exists) {
         const existingData = existingRequestDoc.data() as InboundRequest;
         const requestedOwner = res.locals.workspaceIntake?.account_owner_uid;
-        if (
-          !requestedOwner
-          || (existingData as unknown as Record<string, unknown>).account_owner_uid !== requestedOwner
-        ) {
+        if (!mayRecoverSubmission(existingData, requestedOwner, payload.retryToken)) {
           return res.status(409).json({
             ok: false,
             message: "This request identifier is already in use.",
@@ -1211,13 +1238,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         }
 
         logger.info({ requestId: payload.requestId }, "Duplicate request - returning existing");
-        return res.status(HTTP_STATUS.OK).json({
-          ok: true,
-          requestId: payload.requestId,
-          siteSubmissionId: payload.requestId,
-          status: existingData.status,
-          captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
-        } satisfies SubmitInboundRequestResponse);
+        return res.status(HTTP_STATUS.OK).json(recoveredSubmission(existingData));
       }
     }
 
@@ -1579,6 +1600,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     } = {
       requestId: payload.requestId,
       ...(res.locals.workspaceIntake || {}),
+      intake_retry_token_hash: intakeRetryTokenHash(payload.retryToken),
       site_submission_id: payload.requestId,
       queue_key: routing.queueKey,
       growth_wedge: routing.growthWedge,
@@ -1764,10 +1786,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
       if (!existingDoc.exists) throw error;
       const existingData = existingDoc.data() as InboundRequest;
       const requestedOwner = res.locals.workspaceIntake?.account_owner_uid;
-      if (
-        !requestedOwner
-        || (existingData as unknown as Record<string, unknown>).account_owner_uid !== requestedOwner
-      ) {
+      if (!mayRecoverSubmission(existingData, requestedOwner, payload.retryToken)) {
         return res.status(409).json({
           ok: false,
           message: "This request identifier is already in use.",
@@ -1775,13 +1794,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
       }
 
       logger.info({ requestId: payload.requestId }, "Duplicate request - returning existing");
-      return res.status(HTTP_STATUS.OK).json({
-        ok: true,
-        requestId: payload.requestId,
-        siteSubmissionId: payload.requestId,
-        status: existingData.status,
-        captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
-      } satisfies SubmitInboundRequestResponse);
+      return res.status(HTTP_STATUS.OK).json(recoveredSubmission(existingData));
     }
 
     // The first event email: the site's private link, so it is in their inbox
@@ -1873,6 +1886,10 @@ export async function submitInboundRequest(req: Request, res: Response) {
       [`byQueue.${routing.queueKey}`]: 1,
       [`byRequestPath.${commercialRequestPath}`]: 1,
       ...(routing.growthWedge ? { [`byWedge.${routing.growthWedge}`]: 1 } : {}),
+    }).catch((error) => {
+      // The job is already saved. Aggregate counters must not turn a durable
+      // submission into a failure or prevent its operations handoff.
+      logger.warn({ error, requestId: payload.requestId }, "Could not update inbound request statistics");
     });
 
     if (buyerType === "robot_team") {

@@ -1,4 +1,7 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { expect, test, type Page } from "@playwright/test";
+
+test.beforeEach(mockExternalFonts);
 
 import { validDecisionEnvelope } from "../server/tests/helpers/decision-evidence-fixtures";
 import { seedCookieConsent } from "./helpers/cookie-consent";

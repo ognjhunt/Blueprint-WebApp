@@ -1,4 +1,7 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { test, expect } from "@playwright/test";
+
+test.beforeEach(mockExternalFonts);
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("blueprint_cookie_consent", JSON.stringify({ necessary: true, analytics: false, marketing: false })));

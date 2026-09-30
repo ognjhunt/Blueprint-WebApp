@@ -1,4 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
+import { mockExternalFonts } from "./helpers/static-assets";
+test.beforeEach(mockExternalFonts);
 async function account(page: Page, configured = false) {
   const state = {
     workspaceType: configured ? "site_operator" : (null as string | null),
