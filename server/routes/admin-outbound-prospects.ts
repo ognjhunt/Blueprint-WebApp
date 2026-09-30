@@ -33,6 +33,8 @@ import type {
   OutboundOutreachOutput,
 } from "../agents/tasks/outbound-outreach";
 import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
+import { CommunicationsStore } from "../agents/communications-store";
+import { communicationsDigest } from "../agents/communications-contract";
 import {
   outreachConnectionEvidenceSchema,
   outreachCapabilityEvidenceSchema,
@@ -153,6 +155,37 @@ router.get("/", async (_req: Request, res: Response) => {
   const snapshot = await db.collection(COLLECTION).limit(200).get();
   const prospects = snapshot.docs.map((doc) => ({ prospectId: doc.id, ...doc.data() }));
   return res.json({ ok: true, prospects });
+});
+
+/** Enqueue references only; the communications worker loads authoritative data. */
+router.post("/:prospectId/communications", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const parsed = z.object({
+    briefId: z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/),
+    intent: z.enum(["outreach", "reply"]),
+    inboundMessageId: z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/).nullable(),
+  }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "communications_job_invalid" });
+  const prospectId = String(req.params.prospectId || "");
+  try {
+    const store = new CommunicationsStore(db);
+    const brief = await store.brief(parsed.data.briefId);
+    if (brief.prospectId !== prospectId || !(await readProspect(prospectId))) return res.status(409).json({ error: "canonical_prospect_mismatch" });
+    const job = await store.enqueue({ ...parsed.data, prospectId, briefDigest: communicationsDigest(brief) });
+    return res.status(202).json({ ok: true, job, sent: false, gmailDraftCreated: false });
+  } catch { return res.status(409).json({ error: "communications_context_missing_or_invalid" }); }
+});
+
+router.get("/:prospectId/communications", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const ref = db.collection(COLLECTION).doc(String(req.params.prospectId));
+  const prospect = await ref.get();
+  if (!prospect.exists) return res.status(404).json({ error: "not_found" });
+  const events = await ref.collection("communicationsEvents").limit(30).get();
+  return res.json({ ok: true, communications: prospect.data()?.communications ?? null,
+    events: events.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
 });
 
 /**

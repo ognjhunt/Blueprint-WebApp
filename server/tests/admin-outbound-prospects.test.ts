@@ -52,8 +52,20 @@ describe("outbound prospect review routes (no provider, Firestore, or transport 
     mocks.hasAnyRole.mockResolvedValue(false);
     expect((await invoke("/:prospectId/draft")).status).toBe(403);
     expect((await invoke("/:prospectId/send")).status).toBe(403);
+    expect((await invoke("/:prospectId/communications")).status).toBe(403);
     expect(mocks.runAgentTask).not.toHaveBeenCalled();
     expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+  it("accepts communications references only and refuses invented approval or recipient", async () => {
+    const response = await invoke("/:prospectId/communications", { briefId: "brief-1", intent: "outreach", inboundMessageId: null,
+      to: "invented@example.com", qualityReview: { state: "approved" } });
+    expect(response.status).toBe(400);
+    expect(mocks.set).not.toHaveBeenCalled(); expect(mocks.runAgentTask).not.toHaveBeenCalled();
+  });
+  it("fails closed when the communications handoff is not available", async () => {
+    const response = await invoke("/:prospectId/communications", { briefId: "brief-missing", intent: "outreach", inboundMessageId: null });
+    expect(response.status).toBe(409);
+    expect(mocks.set).not.toHaveBeenCalled(); expect(mocks.runAgentTask).not.toHaveBeenCalled();
   });
 
   it("rejects legacy text-only submissions before queueing", async () => {

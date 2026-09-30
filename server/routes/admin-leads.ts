@@ -26,6 +26,8 @@ import {
   retryFailedAction,
 } from "../agents/action-executor";
 import { reviewOutreachDraft, type OutreachReviewResult } from "../agents/outreach-review";
+import { isCommunicationsPayload, reviewCommunicationsPayload } from "../agents/communications-review";
+import { communicationsSendingEnabled } from "../agents/communications-send";
 import type {
   DerivedAssetsAttachment,
   EvaluationReadinessSummary,
@@ -423,8 +425,9 @@ function normalizeActionLedgerItem(
       data.draft_output && typeof data.draft_output === "object"
         ? data.draft_output
         : {},
-    ...(data.lane === "outbound_prospect" || data.source_collection === "outboundProspects" ? {
-      outreach_review: reviewOutreachDraft({
+    ...(data.lane === "outbound_prospect" || data.source_collection === "outboundProspects" || isCommunicationsPayload(data.action_payload ?? {}) ? {
+      outreach_review: isCommunicationsPayload(data.action_payload ?? {})
+        ? reviewCommunicationsPayload(data.action_payload ?? {}) : reviewOutreachDraft({
         to: typeof data.action_payload?.to === "string" ? data.action_payload.to : "",
         subject: typeof data.action_payload?.subject === "string" ? data.action_payload.subject : "",
         body: typeof data.action_payload?.body === "string" ? data.action_payload.body : "",
@@ -432,6 +435,7 @@ function normalizeActionLedgerItem(
         context: data.action_payload?.outreachContext,
       }),
     } : {}),
+    ...(isCommunicationsPayload(data.action_payload ?? {}) ? { sending_enabled: communicationsSendingEnabled() } : {}),
   };
 }
 

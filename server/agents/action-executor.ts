@@ -24,6 +24,9 @@ import {
 import { sendSlackMessage } from "../utils/slack";
 import { logger } from "../logger";
 import { reviewOutreachDraft, validateOutreachSemanticReview, outreachSemanticReviewSchema } from "./outreach-review";
+import { isCommunicationsPayload, reviewCommunicationsPayload } from "./communications-review";
+import { communicationsSendBlocker, executeCommunicationsSend, reconcileCommunicationsSend } from "./communications-send";
+import { communicationsDigest } from "./communications-contract";
 
 function getDb() {
   if (!dbAdmin) throw new Error("Firestore is not initialized");
@@ -229,14 +232,14 @@ function validateActionPayloadBeforeExecution(
   payload: ActionPayload,
   scope?: { lane?: string; source_collection?: string },
 ): { valid: boolean; reason?: string } {
-  if (isProspectOutreach(scope) && actionType !== "send_email") {
-    return { valid: false, reason: "prospect_outreach_requires_single_email" };
+  if (isProspectOutreach(scope) || isCommunicationsPayload(payload)) {
+    if (actionType !== "send_email") return { valid: false, reason: "prospect_outreach_requires_single_email" };
   }
   if (actionType === "send_campaign_emails") {
     return validateCampaignEmailPayload(payload);
   }
   if (actionType === "send_email") {
-    if (isProspectOutreach(scope)) {
+    if (isProspectOutreach(scope) || isCommunicationsPayload(payload)) {
       const review = prospectOutreachReview(payload);
       if (!review.hardChecksPassed) return { valid: false, reason: review.blockers.join(", ") };
     }
@@ -245,11 +248,13 @@ function validateActionPayloadBeforeExecution(
   return { valid: true };
 }
 
-function isProspectOutreach(scope?: { lane?: string; source_collection?: string }): boolean {
-  return scope?.lane === "outbound_prospect" || scope?.source_collection === "outboundProspects";
+function isProspectOutreach(scope?: { lane?: string; source_collection?: string; action_payload?: ActionPayload }): boolean {
+  return scope?.lane === "outbound_prospect" || scope?.source_collection === "outboundProspects"
+    || isCommunicationsPayload(scope?.action_payload ?? {});
 }
 
 function prospectOutreachReview(payload: ActionPayload) {
+  if (isCommunicationsPayload(payload)) return reviewCommunicationsPayload(payload);
   return reviewOutreachDraft({
     to: typeof payload.to === "string" ? payload.to : "",
     subject: typeof payload.subject === "string" ? payload.subject : "",
@@ -332,13 +337,14 @@ export async function executeAction(
     draftOutput,
     idempotencyKey,
   } = params;
+  const prospectScope = { lane: safetyPolicy.lane, source_collection: sourceCollection, action_payload: actionPayload };
 
   // 1. Idempotency check — look up existing ledger doc
   const existingLedger = await findLedgerByIdempotencyKey(idempotencyKey);
   const contentValidation =
-    isProspectOutreach({ lane: safetyPolicy.lane, source_collection: sourceCollection }) ||
+    isProspectOutreach(prospectScope) ||
     (safetyPolicy.contentChecks && (actionType === "send_email" || actionType === "send_campaign_emails"))
-      ? validateActionPayloadBeforeExecution(actionType, actionPayload, { lane: safetyPolicy.lane, source_collection: sourceCollection })
+      ? validateActionPayloadBeforeExecution(actionType, actionPayload, prospectScope)
       : { valid: true };
   if (!contentValidation.valid) {
     return routeContentValidationFailure({
@@ -377,7 +383,7 @@ export async function executeAction(
   }
 
   // 2. Evaluate tier
-  const tier = isProspectOutreach({ lane: safetyPolicy.lane, source_collection: sourceCollection })
+  const tier = isProspectOutreach(prospectScope)
     ? 3 : evaluateActionTier(draftOutput, safetyPolicy);
 
   // 3. Content validation for email actions
@@ -603,6 +609,10 @@ export async function approveAction(
       const reason = validateOutreachSemanticReview(prospectOutreachReview(data.action_payload), outreachSemanticReview);
       if (reason) { validation.valid = false; validation.reason = reason; }
     }
+    if (validation.valid && isCommunicationsPayload(data.action_payload)) {
+      const blocker = await communicationsSendBlocker(data.action_payload, ledgerDocId);
+      if (blocker) { validation.valid = false; validation.reason = blocker; }
+    }
     if (!validation.valid) {
       const approvalReason = `content_validation_failed: ${validation.reason}`;
       await ledgerRef.update({
@@ -627,7 +637,7 @@ export async function approveAction(
     }
   }
 
-  await ledgerRef.update({
+  const approvalUpdate = {
     status: "operator_approved",
     approved_by: operatorEmail,
     approved_at: new Date(),
@@ -637,7 +647,16 @@ export async function approveAction(
       outreach_reviewed_at: new Date(),
     } : {}),
     updated_at: new Date(),
-  });
+  };
+  if (isCommunicationsPayload(data.action_payload)) {
+    const acquired = await getDb().runTransaction(async (tx) => {
+      const current = (await tx.get(ledgerRef)).data();
+      if (current?.status !== "pending_approval" || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
+      tx.update(ledgerRef, approvalUpdate);
+      return true;
+    });
+    if (!acquired) throw new Error("communications_approval_state_or_payload_changed");
+  } else await ledgerRef.update(approvalUpdate);
   await syncSourceDocumentState({
     sourceCollection: data.source_collection,
     sourceDocId: data.source_doc_id,
@@ -649,8 +668,18 @@ export async function approveAction(
   });
 
   // Now execute
+  if (isCommunicationsPayload(data.action_payload)) {
+    const acquired = await getDb().runTransaction(async (tx) => {
+      const current = (await tx.get(ledgerRef)).data();
+      if (current?.status !== "operator_approved" || current.approved_by !== operatorEmail
+        || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
+      tx.update(ledgerRef, { status: "executing", updated_at: new Date() });
+      return true;
+    });
+    if (!acquired) throw new Error("communications_execution_state_or_payload_changed");
+  }
   try {
-    await ledgerRef.update({ status: "executing", updated_at: new Date() });
+    if (!isCommunicationsPayload(data.action_payload)) await ledgerRef.update({ status: "executing", updated_at: new Date() });
     await syncSourceDocumentState({
       sourceCollection: data.source_collection,
       sourceDocId: data.source_doc_id,
@@ -732,12 +761,21 @@ export async function rejectAction(
     throw new Error(`Cannot reject action in state: ${data.status}`);
   }
 
-  await ledgerRef.update({
+  const rejectionUpdate = {
     status: "rejected",
     rejected_by: operatorEmail,
     rejected_reason: reason,
     updated_at: new Date(),
-  });
+  };
+  if (isCommunicationsPayload(data.action_payload)) {
+    const acquired = await getDb().runTransaction(async (tx) => {
+      const current = (await tx.get(ledgerRef)).data();
+      if (current?.status !== "pending_approval" || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
+      tx.update(ledgerRef, rejectionUpdate);
+      return true;
+    });
+    if (!acquired) throw new Error("communications_rejection_state_or_payload_changed");
+  } else await ledgerRef.update(rejectionUpdate);
   await syncSourceDocumentState({
     sourceCollection: data.source_collection,
     sourceDocId: data.source_doc_id,
@@ -771,6 +809,15 @@ export async function retryFailedAction(
   const data = ledgerDoc.data()!;
   if (data.status !== "failed")
     throw new Error(`Cannot retry action in state: ${data.status}`);
+  if (isCommunicationsPayload(data.action_payload)) {
+    // Observe an actual prior send before freshness/new-send checks. This may
+    // recover a lost acknowledgement after the sent message changed the thread.
+    const recovered = await reconcileCommunicationsSend(data.action_payload);
+    if (recovered) {
+      await ledgerRef.update({ status: "sent", sent_at: new Date(), last_execution_error: null, updated_at: new Date() });
+      return { state: "sent", tier: data.action_tier, ledgerDocId };
+    }
+  }
   if (data.execution_attempts >= 3) throw new Error("Max retries exceeded");
 
   const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
@@ -780,13 +827,26 @@ export async function retryFailedAction(
       : validateOutreachSemanticReview(prospectOutreachReview(data.action_payload), data.outreach_semantic_review);
     if (reason) { validation.valid = false; validation.reason = reason; }
   }
+  if (validation.valid && isCommunicationsPayload(data.action_payload)) {
+    const blocker = await communicationsSendBlocker(data.action_payload, ledgerDocId);
+    if (blocker) { validation.valid = false; validation.reason = blocker; }
+  }
   if (!validation.valid) {
     const approvalReason = `content_validation_failed: ${validation.reason}`;
-    await ledgerRef.update({
+    const invalidationUpdate = {
       status: "pending_approval",
       approval_reason: approvalReason,
       updated_at: new Date(),
-    });
+    };
+    if (isCommunicationsPayload(data.action_payload)) {
+      const invalidated = await getDb().runTransaction(async (tx) => {
+        const current = (await tx.get(ledgerRef)).data();
+        if (current?.status !== "failed" || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
+        tx.update(ledgerRef, invalidationUpdate);
+        return true;
+      });
+      if (!invalidated) throw new Error("communications_retry_state_or_payload_changed");
+    } else await ledgerRef.update(invalidationUpdate);
     await syncSourceDocumentState({
       sourceCollection: data.source_collection,
       sourceDocId: data.source_doc_id,
@@ -804,8 +864,17 @@ export async function retryFailedAction(
     };
   }
 
+  if (isCommunicationsPayload(data.action_payload)) {
+      const acquired = await getDb().runTransaction(async (tx) => {
+        const current = (await tx.get(ledgerRef)).data();
+        if (current?.status !== "failed" || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
+        tx.update(ledgerRef, { status: "executing", updated_at: new Date() });
+        return true;
+      });
+      if (!acquired) throw new Error("communications_retry_state_or_payload_changed");
+  }
   try {
-    await ledgerRef.update({ status: "executing", updated_at: new Date() });
+    if (!isCommunicationsPayload(data.action_payload)) await ledgerRef.update({ status: "executing", updated_at: new Date() });
     await syncSourceDocumentState({
       sourceCollection: data.source_collection,
       sourceDocId: data.source_doc_id,
@@ -1067,6 +1136,10 @@ async function performAction(
 ): Promise<void> {
   switch (actionType) {
     case "send_email": {
+      if (isCommunicationsPayload(payload)) {
+        await executeCommunicationsSend(payload);
+        break;
+      }
       const validation = validateEmailContent(payload);
       if (!validation.valid) {
         throw new Error(`Email content validation failed: ${validation.reason}`);

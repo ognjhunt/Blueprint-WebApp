@@ -232,6 +232,7 @@ interface ActionQueueItem {
   action_payload: Record<string, unknown>;
   draft_output: Record<string, unknown>;
   outreach_review?: OutreachReviewSummary;
+  sending_enabled?: boolean;
 }
 
 interface ActionQueueResponse {
@@ -1819,8 +1820,9 @@ export default function AdminLeads() {
                     <div className="mt-4 flex flex-wrap gap-2">
                       {item.status === "pending_approval" ? (
                         <>
-                          {item.lane === "outbound_prospect" || item.source_collection === "outboundProspects" ? (
+                          {item.lane === "outbound_prospect" || item.source_collection === "outboundProspects" || item.action_payload.communications ? (
                             <OutreachApprovalReview review={item.outreach_review} payload={item.action_payload}
+                              sendingEnabled={item.sending_enabled}
                               pending={approveActionMutation.isPending}
                               onApprove={(outreachSemanticReview) => approveActionMutation.mutate({ ledgerId: item.id, outreachSemanticReview })} />
                           ) : (
