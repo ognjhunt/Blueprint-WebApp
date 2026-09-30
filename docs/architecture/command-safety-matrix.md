@@ -6,6 +6,14 @@ Purpose: make local checks and side-effect boundaries explicit before engineers 
 
 ## Safe Local Checks
 
+`npm run cloud:doctor:release -- --offline` checks local toolchain state only.
+Without `--offline`, it makes bounded read-only GitHub API and git queries.
+`--audit-deploy-config` reads Actions secret/variable metadata and omits values.
+It never pushes, merges, deploys, or calls providers. `npm run cloud:setup:webapp`
+installs local dependencies/tools and Chromium; run it during authorized
+environment setup. Credential-helper configuration in the cloud runbook changes
+the isolated session's Git settings and must not be applied to a shared checkout.
+
 | Command | Side-effect class | Notes |
 |---|---:|---|
 | `npm run test:result-consumer:browser` | local browser + mocked APIs | Starts only loopback Vite with dev-only fake auth, no production dotenv files or backend. One worker; all result/media/email calls are fixtures. Set `RESULT_CONSUMER_QA_PORT` and `RESULT_CONSUMER_QA_OUTPUT` for isolated lanes. |

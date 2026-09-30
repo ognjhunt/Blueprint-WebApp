@@ -2,6 +2,7 @@
 # Readiness report for a Blueprint cloud session (claude.ai/code).
 #
 #   bash scripts/cloud/doctor.sh [--offline]
+#   bash scripts/cloud/doctor.sh --release [--offline] [--audit-deploy-config]
 #
 # Prints one PASS/WARN/FAIL line per check, a fix under every line that is
 # not PASS, then a summary; exits 1 when any check FAILs. Checks run in
@@ -15,6 +16,12 @@
 set -uo pipefail
 
 DOCTOR_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+# Release checks apply to WebApp-only Codex and Claude environments and do
+# not source scene credentials or require a Pipeline checkout.
+if [ "${1:-}" = --release ]; then
+  shift
+  exec node "$DOCTOR_DIR/release-doctor.mjs" "$@"
+fi
 # shellcheck source=scripts/cloud/lib.sh
 . "$DOCTOR_DIR/lib.sh"
 

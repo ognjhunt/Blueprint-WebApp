@@ -1,5 +1,9 @@
 # Running a website scene from a Claude Code cloud session
 
+For WebApp-only coding and release work, use
+[the Codex/Claude WebApp environment](cloud-webapp-environment.md). Its release
+doctor does not require Pipeline/Firebase scene access or local Render keys.
+
 A cloud session (claude.ai/code, Anthropic-hosted VM) can drive a website
 scene end to end: both repositories with working toolchains, the source video,
 the website in headless Chromium (account-free upload and the signed-in robot

@@ -16,8 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ \"$CLAUDE_CODE_REMOTE\" = \"true\" ] && bash \"$CLAUDE_PROJECT_DIR/scripts/cloud/bootstrap.sh\" --background --quiet; exit 0",
-            "timeout": 30
+            "command": "if [ \"$CLAUDE_CODE_REMOTE\" = \"true\" ]; then if [ \"${BLUEPRINT_CLOUD_PROFILE:-scene}\" = \"webapp\" ]; then node \"$CLAUDE_PROJECT_DIR/scripts/cloud/release-doctor.mjs\"; else bash \"$CLAUDE_PROJECT_DIR/scripts/cloud/bootstrap.sh\" --background --quiet; fi; fi; exit 0",
+            "timeout": 120
           }
         ]
       }

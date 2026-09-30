@@ -92,6 +92,7 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
 - For autonomous-loop closeouts, use `docs/autonomous-loop-evidence-checklist-2026-05-03.md` before claiming `done`, `blocked`, or `awaiting_human_decision`.
 - For onboarding or policy work, keep repo docs as canonical drafts, mirror into Notion only for human review/visibility, and mark legal/HR/payroll/benefits material as requiring counsel/PEO review when applicable.
 - For repo work, start with `git status --short`; inspect dirty and untracked files before editing and preserve unrelated work.
+- For cloud CLI release work, follow `docs/runbooks/cloud-webapp-environment.md` and run `npm run cloud:doctor:release` first. Production deployment credentials belong to GitHub Actions; missing local Render variables alone are not a release blocker.
 
 ## Human Gates
 
