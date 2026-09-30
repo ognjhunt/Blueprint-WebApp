@@ -645,12 +645,16 @@ router.delete("/checkpoints/:checkpointId/credentials", async (req: Request, res
 const planSchema = z
   .object({
     sceneId: z.string().trim().min(1).max(200).optional(),
+    repeatCompleted: z.boolean().default(false),
     checkpointId: z.string().trim().min(1).max(200),
     /** Defaults to whatever the team's daily limit still allows. */
     budgetUsd: z.number().finite().positive().max(100_000).optional(),
     maxRuns: z.number().int().positive().max(50).optional(),
   })
-  .strict();
+  .strict()
+  .refine(data => !data.repeatCompleted || Boolean(data.sceneId), {
+    message: "Choose a task explicitly when requesting another completed evaluation.",
+  });
 
 /**
  * How much of a plan to show a team that has not funded anything yet.
@@ -725,7 +729,8 @@ router.post("/plan", async (req: Request, res: Response) => {
   }
 
   const selection = selectEvalsForBudget({
-    candidates: parsed.data.sceneId ? candidates.filter(candidate => candidate.sceneId === parsed.data.sceneId) : candidates,
+    candidates: (parsed.data.sceneId ? candidates.filter(candidate => candidate.sceneId === parsed.data.sceneId) : candidates)
+      .map(candidate => parsed.data.repeatCompleted ? { ...candidate, alreadyRunForCheckpoint: false } : candidate),
     budgetUsd,
     maxRuns: parsed.data.maxRuns,
   });
