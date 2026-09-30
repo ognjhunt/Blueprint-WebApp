@@ -21,6 +21,7 @@ import { startStripeWebhookQueueProcessor } from "./utils/stripeWebhookQueue";
 import { startTaskEvaluationLaunchForwardWorker } from "./utils/taskEvaluationLaunchForwardWorker";
 import { startAdpManagedRunWorker } from "./agents/adp-managed-runs";
 import { startCompanyPolicyCandidateOutboxWorker } from "./utils/companyPolicyCandidateOutboxWorker";
+import { startDailyResearchWorker } from "./utils/dailyResearchWorker";
 
 const launchForwardOnly = () =>
   ["1", "true", "yes", "on"].includes(
@@ -56,17 +57,21 @@ export function startWorker(): WorkerHandle {
   const stopTaskEvaluationLaunchForwarder = startTaskEvaluationLaunchForwardWorker();
   const stopAdpManagedRuns = startAdpManagedRunWorker();
   const stopCompanyPolicyCandidateOutbox = startCompanyPolicyCandidateOutboxWorker();
+  const researchWorker = startDailyResearchWorker();
 
-  let stopped = false;
-  const stop = async () => {
-    if (stopped) return;
-    stopped = true;
+  let stopPromise: Promise<void> | undefined;
+  const stop = () => {
+    if (stopPromise) return stopPromise;
+    stopPromise = (async () => {
     stopQueueProcessor();
     stopTaskEvaluationLaunchForwarder();
     stopAdpManagedRuns();
     stopCompanyPolicyCandidateOutbox();
     stopScheduler();
+    await researchWorker.stop();
     logger.info(attachRequestMeta({ route: "worker" }), "Blueprint worker stopped");
+    })();
+    return stopPromise;
   };
 
   return { stop };

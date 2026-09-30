@@ -39,3 +39,7 @@ services:
         value: "true"
       - key: BLUEPRINT_COMPANY_POLICY_OUTBOX_WORKER_ENABLED
         value: "true"
+      - key: BLUEPRINT_DAILY_RESEARCH_PACKAGE_BUILD
+        value: "true"
+      - key: BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED
+        value: "false"

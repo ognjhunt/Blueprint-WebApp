@@ -18,6 +18,8 @@ const startStripeWebhookQueueProcessor = vi.hoisted(() => vi.fn());
 const startTaskEvaluationLaunchForwardWorker = vi.hoisted(() => vi.fn());
 const startAdpManagedRunWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
 const startCompanyPolicyCandidateOutboxWorker = vi.hoisted(() => vi.fn());
+const stopResearch = vi.hoisted(() => vi.fn(async () => {}));
+const startDailyResearchWorker = vi.hoisted(() => vi.fn(() => ({ stop: stopResearch })));
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
 
 vi.mock("../utils/opsAutomationScheduler", () => ({ startOpsAutomationScheduler }));
@@ -29,6 +31,7 @@ vi.mock("../agents/adp-managed-runs", () => ({ startAdpManagedRunWorker }));
 vi.mock("../utils/companyPolicyCandidateOutboxWorker", () => ({
   startCompanyPolicyCandidateOutboxWorker,
 }));
+vi.mock("../utils/dailyResearchWorker", () => ({ startDailyResearchWorker }));
 vi.mock("../config/env", () => ({ validateEnv }));
 vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -43,6 +46,21 @@ afterEach(() => {
 });
 
 describe("worker entrypoint", () => {
+  it("shares the same shutdown promise for concurrent signals", async () => {
+    startOpsAutomationScheduler.mockReturnValue(vi.fn());
+    startStripeWebhookQueueProcessor.mockReturnValue(vi.fn());
+    startTaskEvaluationLaunchForwardWorker.mockReturnValue(vi.fn());
+    startCompanyPolicyCandidateOutboxWorker.mockReturnValue(vi.fn());
+    let finish: () => void = () => {};
+    stopResearch.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const { startWorker } = await import("../worker");
+    const handle = startWorker();
+    const first = handle.stop();
+    expect(handle.stop()).toBe(first);
+    expect(stopResearch).toHaveBeenCalledTimes(1);
+    finish();
+    await first;
+  });
   it("boots the scheduler through validateEnv and stops it exactly once", async () => {
     const stopScheduler = vi.fn();
     const stopQueueProcessor = vi.fn();
@@ -61,6 +79,7 @@ describe("worker entrypoint", () => {
     expect(startStripeWebhookQueueProcessor).toHaveBeenCalledTimes(1);
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
     expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
+    expect(startDailyResearchWorker).toHaveBeenCalledTimes(1);
     expect(stopScheduler).not.toHaveBeenCalled();
 
     await handle.stop();
@@ -69,6 +88,7 @@ describe("worker entrypoint", () => {
     expect(stopQueueProcessor).toHaveBeenCalledTimes(1);
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
     expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
+    expect(stopResearch).toHaveBeenCalledTimes(1);
   });
 
   it("can run the Task Evaluation launch forwarder without unrelated workers", async () => {
@@ -83,6 +103,7 @@ describe("worker entrypoint", () => {
 
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
     expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
+    expect(startDailyResearchWorker).toHaveBeenCalledTimes(1);
     expect(startOpsAutomationScheduler).not.toHaveBeenCalled();
     expect(startStripeWebhookQueueProcessor).not.toHaveBeenCalled();
 
