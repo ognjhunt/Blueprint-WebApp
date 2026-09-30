@@ -102,6 +102,8 @@ import { EARLY_ACCESS_REQUIRED, teamHasEarlyAccess } from "../utils/robotTeamEar
 import { getRunForTeam, listRunsForTeam } from "../utils/agentRunResults";
 import { receivePolicyModel, storePolicyModel } from "./policy-model-upload";
 import { checkpointRuntimes } from "../utils/policyIntegration";
+import { policyCredentialSchema, storeCheckpointPolicyCredential, revokeCheckpointPolicyCredential } from "../utils/checkpointPolicyCredentials";
+import { getCheckpoint } from "../utils/robotCheckpoints";
 
 const router = Router();
 
@@ -600,6 +602,39 @@ router.get("/checkpoints", async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
   return res.json({ teamId, checkpoints: await listCheckpoints(teamId) });
+});
+
+router.post("/checkpoints/:checkpointId/credentials", rateLimit({
+  windowMs: 60_000, limit: 4, standardHeaders: true, legacyHeaders: false,
+  store: createRateLimitRedisStore("rl:checkpoint-policy-credentials:"),
+}), async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store, private, max-age=0");
+  const teamId = await requireTeam(req, res);
+  if (!teamId || !await requireAccountBoundTeam(teamId, res)) return;
+  const checkpoint = await getCheckpoint(String(req.params.checkpointId));
+  if (!checkpoint || checkpoint.teamId !== teamId) return res.status(404).json({ code: "checkpoint_not_found" });
+  const parsed = policyCredentialSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "policy_credential_invalid" });
+  const ownerUid = await teamAccountUid(teamId);
+  if (!ownerUid) return res.status(409).json({ code: "team_account_required" });
+  try {
+    const credential = await storeCheckpointPolicyCredential({ checkpoint, ownerUid, credential: parsed.data });
+    return res.status(201).json({ ok: true, credential });
+  } catch {
+    return res.status(409).json({ code: "policy_credential_not_saved",
+      error: "Private policy access could not be saved for this checkpoint. Check the integration type and retry." });
+  }
+});
+router.delete("/checkpoints/:checkpointId/credentials", async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store, private, max-age=0");
+  const teamId = await requireTeam(req, res);
+  if (!teamId || !await requireAccountBoundTeam(teamId, res)) return;
+  const checkpoint = await getCheckpoint(String(req.params.checkpointId));
+  if (!checkpoint || checkpoint.teamId !== teamId) return res.status(404).json({ code: "checkpoint_not_found" });
+  try {
+    await revokeCheckpointPolicyCredential(checkpoint);
+    return res.json({ ok: true, revoked: true });
+  } catch { return res.status(409).json({ code: "policy_credential_revoke_conflict" }); }
 });
 
 /* --------------------------------------------------------------- plan */

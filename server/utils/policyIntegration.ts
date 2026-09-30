@@ -35,17 +35,19 @@ export function validateIntegrationReference(runtime: string, reference: string)
 export function checkpointPolicyPackage(checkpoint: Record<string, any>): Record<string, unknown> | null {
   const reference = String(checkpoint.reference || "").trim();
   if (!reference) return null;
-  if (checkpoint.runtime === "policy_endpoint") return { policy_api_endpoint: { endpoint_url: reference } };
+  const access = checkpoint.policyCredential ? { credential_ref: checkpoint.policyCredential.ref,
+    credential_kind: checkpoint.policyCredential.kind } : {};
+  if (checkpoint.runtime === "policy_endpoint") return { policy_api_endpoint: { endpoint_url: reference, ...access } };
   if (checkpoint.runtime === "container_image" && pinnedImage.test(reference)) return {
-    docker_container: { image_ref: reference, execution_profile: "controlled_observation_v1" },
+    docker_container: { image_ref: reference, execution_profile: "controlled_observation_v1", ...access },
   };
   if (checkpoint.runtime === "customer_hosted") return { policy_api_endpoint: {
     endpoint_url: reference, execution_profile: "controlled_observation_v1",
-    observation_access: "approved_camera_frames_robot_state_and_instruction",
+    observation_access: "approved_camera_frames_robot_state_and_instruction", ...access,
   } };
   if (checkpoint.runtime === "controller_adapter") return { sim_controller_plugin: {
     image_ref: reference, execution_profile: "controlled_observation_v1",
-    transport: "isolated_container_http_json_v1",
+    transport: "isolated_container_http_json_v1", ...access,
   } };
   if (checkpoint.runtime === "model_artifact" && checkpoint.modelArtifact
     && checkpoint.modelArtifact.uri === reference

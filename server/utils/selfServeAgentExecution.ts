@@ -125,6 +125,9 @@ export async function ensureSelfServeAgentExecution(params: {
   }
   const policyPackage = policyPackageFor(checkpoint);
   if (!policyPackage) blockers.push("agent_execution_checkpoint_runtime_not_admissible");
+  if (checkpoint.policyCredential && Date.parse(checkpoint.policyCredential.expiresAtIso) <= Date.now()) {
+    blockers.push("policy_credential_expired");
+  }
   if (!taskRecord || (!development && !isRunnableTask(scene as InboundRequest))) {
     blockers.push("scene_not_runnable");
   }
@@ -156,6 +159,7 @@ export async function ensureSelfServeAgentExecution(params: {
     runtime: checkpoint.runtime,
     reference: text(checkpoint.reference),
     ...(checkpoint.modelArtifact ? { modelArtifact: checkpoint.modelArtifact } : {}),
+    ...(checkpoint.policyCredential ? { policyCredential: checkpoint.policyCredential } : {}),
     sceneId: params.sceneId,
     siteId: facts.siteId,
     captureId: facts.captureId,

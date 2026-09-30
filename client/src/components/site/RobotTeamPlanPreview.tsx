@@ -461,7 +461,8 @@ export function RobotTeamPlanPreview({
     event.preventDefault();
     if (state.status === "working") return;
 
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     const read = (key: string) => String(data.get(key) ?? "").trim();
     const email = read("planEmail");
     const teamName = read("planTeamName");
@@ -587,6 +588,27 @@ export function RobotTeamPlanPreview({
           return;
         }
         checkpointId = body.checkpoint.checkpointId;
+      }
+
+      const registrySecret = String(data.get("planRegistrySecret") ?? "");
+      const bearerToken = String(data.get("planBearerToken") ?? "");
+      if (checkpointId && (registrySecret || bearerToken)) {
+        const credential = registrySecret
+          ? { kind: "registry", username: read("planRegistryUsername"), secret: registrySecret }
+          : { kind: "bearer", token: bearerToken };
+        const saved = await fetch(`/api/agent-team/checkpoints/${encodeURIComponent(checkpointId)}/credentials`, {
+          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${account.agentKey}` },
+          body: JSON.stringify(credential),
+        });
+        const body = await saved.json().catch(() => ({}));
+        if (!saved.ok) {
+          setState({ status: "failed", message: body.error || "Private policy access could not be saved. No run has started." });
+          return;
+        }
+        for (const name of ["planRegistrySecret", "planBearerToken"]) {
+          const input = form.elements.namedItem(name);
+          if (input instanceof HTMLInputElement) input.value = "";
+        }
       }
 
       if (checkpointId && checkpointRuntime !== "skill_trace") {
@@ -1058,6 +1080,18 @@ export function RobotTeamPlanPreview({
                   : "A URL or container image reference. Registration does not start a run."}
             </span>
             <input id="plan-reference" name="planReference" type="text" maxLength={2000} />
+          </label>}
+
+          {["container_image", "controller_adapter"].includes(checkpointRuntime) && <details>
+            <summary>Private registry access</summary>
+            <p className="ms-field-hint">Optional for private images. Use a read-only pull credential. Access is encrypted, bound to this checkpoint, and expires after 30 days.</p>
+            <label htmlFor="plan-registry-username"><span>Registry username</span><input id="plan-registry-username" name="planRegistryUsername" maxLength={512} autoComplete="off" /></label>
+            <label htmlFor="plan-registry-secret"><span>Registry token</span><input id="plan-registry-secret" name="planRegistrySecret" type="password" maxLength={16384} autoComplete="new-password" /></label>
+          </details>}
+          {["customer_hosted", "policy_endpoint"].includes(checkpointRuntime) && <label htmlFor="plan-bearer-token">
+            <span>API bearer token (optional)</span>
+            <input id="plan-bearer-token" name="planBearerToken" type="password" maxLength={16384} autoComplete="new-password" />
+            <span className="ms-field-hint">Encrypted access for this endpoint and checkpoint, valid for 30 days. Blueprint retains the simulator and scene files.</span>
           </label>}
 
 
