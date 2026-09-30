@@ -35,10 +35,15 @@ vi.mock("../utils/robotTeamEarlyAccess", async (importOriginal) => ({
 
 // Runtime admission has its own contract suite. These exercise the authenticated
 // plan/payment wiring with an explicitly prepared execution fixture.
+vi.mock("../utils/selfServeAgentExecution", () => ({
+  ensureSelfServeAgentExecution: async () => ({
+    prepared: true as const, requestId: `selfserve-${"a".repeat(32)}`, created: false,
+  }),
+}));
 vi.mock("../utils/agentExecutionAdmission", () => ({
-  discoverAgentExecutionAdmission: async ({ sceneId }: { sceneId: string }) => ({
-    admitted: true, envelope: { source_request_id: `prepared-${sceneId}` },
-    canonicalJson: JSON.stringify({ source_request_id: `prepared-${sceneId}` }), digestSha256: `sha256:${"a".repeat(64)}`,
+  discoverAgentExecutionAdmission: async ({ executionRequestId }: { executionRequestId: string }) => ({
+    admitted: true, envelope: { source_request_id: executionRequestId },
+    canonicalJson: JSON.stringify({ source_request_id: executionRequestId }), digestSha256: `sha256:${"a".repeat(64)}`,
   }),
 }));
 

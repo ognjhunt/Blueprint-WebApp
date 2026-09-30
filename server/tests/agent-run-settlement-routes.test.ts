@@ -81,11 +81,16 @@ const admissionFixture = vi.hoisted(() => ({
 // Admission construction has dedicated contract tests. These route tests need
 // a stable, already-prepared execution so they can exercise the purchase and
 // settlement seam without weakening the route's new pre-charge gate.
+vi.mock("../utils/selfServeAgentExecution", () => ({
+  ensureSelfServeAgentExecution: async () => ({
+    prepared: true as const, requestId: `selfserve-${"a".repeat(32)}`, created: false,
+  }),
+}));
 vi.mock("../utils/agentExecutionAdmission", () => ({
-  discoverAgentExecutionAdmission: vi.fn(async ({ sceneId }: { sceneId: string }) => ({
+  discoverAgentExecutionAdmission: vi.fn(async ({ executionRequestId }: { executionRequestId: string }) => ({
     admitted: true as const,
     digestSha256: admissionFixture.digestSha256,
-    envelope: { source_request_id: `prepared:${sceneId}` },
+    envelope: { source_request_id: executionRequestId },
   })),
 }));
 
