@@ -113,6 +113,37 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
 };
 
 describe("agent task prompts", () => {
+  it("replaces default capture outreach with the five rules and a review contract", () => {
+    const prompt = taskDefinitions.outbound_outreach.build_prompt(sampleInputs.outbound_outreach as never);
+    expect(prompt).toContain("CANONICAL FIRST-CONTACT RULES");
+    expect(prompt).toContain("exactly one easy, non-confidential question");
+    expect(prompt).toContain("TAILOR THE QUESTION TO VERIFIED SITE STATE");
+    expect(prompt).toContain("Unknown interest: ask whether the job/topic is relevant without assuming interest");
+    expect(prompt).toContain("Expressed interest: ask about the learning goal");
+    expect(prompt).toContain("Pilot: ask about an unresolved uncertainty");
+    expect(prompt).toContain("Existing deployment: ask about expansion learning without assuming expansion plans");
+    expect(prompt).toContain("retain their exact claim/source in observations_used");
+    expect(prompt).toContain('or ask "what prompted your interest" without evidence of expressed interest');
+    expect(prompt).toContain("directions, not rigid templates");
+    expect(prompt).toContain("never invent a relationship or imply community endorsement");
+    expect(prompt).toContain("small useful observation or task-specific research brief");
+    expect(prompt).toContain("Leave the decision about a deeper conversation with the recipient");
+    expect(prompt).toContain("Always set requires_human_review=true");
+    expect(prompt).toContain("outreach_contract");
+    expect(prompt).toContain("Research the site, job, and team jointly");
+    expect(prompt).toContain("Disclose Blueprint identity from the first contact");
+    expect(prompt).toContain("confirmed deployment capacity separate");
+    expect(prompt).toContain("Site permission is required before sharing");
+    expect(prompt).toContain("configuration, support, and timing");
+    expect(prompt).toContain("physical-outcome feedback require the parties' consent");
+    expect(prompt).toContain("Never claim Atlas or pipeline capabilities without");
+    expect(prompt).toContain("Web research and verified business contact routes lead discovery");
+    expect(prompt).toContain("LinkedIn is optional role verification, never a required step");
+    expect(prompt).toContain("using \"I'm building Blueprint\" framing");
+    expect(prompt).not.toContain("Ask them to film");
+    expect(prompt).not.toContain("a comparison of which robots can do the job");
+  });
+
   it("keeps stable policy and return schema before dynamic JSON payloads", () => {
     for (const [kind, definition] of Object.entries(taskDefinitions) as Array<
       [AgentTaskKind, (typeof taskDefinitions)[AgentTaskKind]]

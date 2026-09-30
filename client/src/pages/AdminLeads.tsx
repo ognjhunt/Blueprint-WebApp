@@ -53,6 +53,7 @@ import {
 } from "@/types/inbound-request";
 import AdminAgentConsole from "@/components/admin/AdminAgentConsole";
 import { SiteScreeningCallPanel } from "@/components/admin/SiteScreeningCallPanel";
+import { OutreachApprovalReview, type OutreachApproval, type OutreachReviewSummary } from "@/components/admin/OutreachApprovalReview";
 
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -230,6 +231,7 @@ interface ActionQueueItem {
   last_execution_at: string | null;
   action_payload: Record<string, unknown>;
   draft_output: Record<string, unknown>;
+  outreach_review?: OutreachReviewSummary;
 }
 
 interface ActionQueueResponse {
@@ -921,10 +923,11 @@ export default function AdminLeads() {
   });
 
   const approveActionMutation = useMutation({
-    mutationFn: async (ledgerId: string) => {
+    mutationFn: async ({ ledgerId, outreachSemanticReview }: { ledgerId: string; outreachSemanticReview?: OutreachApproval }) => {
       const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/approve`, {
         method: "POST",
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        ...(outreachSemanticReview ? { body: JSON.stringify({ outreachSemanticReview }) } : {}),
       });
       if (!response.ok) throw new Error("Failed to approve action");
       return response.json();
@@ -1800,6 +1803,9 @@ export default function AdminLeads() {
                         {item.last_execution_error}
                       </p>
                     ) : null}
+                    {item.approval_reason?.startsWith("content_validation_failed:") ? (
+                      <p role="alert" className="mt-3 text-sm text-runway-red">Review blocked: {item.approval_reason}</p>
+                    ) : null}
 
                     {extractCreativeAssetUri(item) ? (
                       <div className="mt-3 border border-runway-green-dim px-3 py-3 text-sm text-runway-green">
@@ -1813,14 +1819,16 @@ export default function AdminLeads() {
                     <div className="mt-4 flex flex-wrap gap-2">
                       {item.status === "pending_approval" ? (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => approveActionMutation.mutate(item.id)}
-                            className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-                            disabled={approveActionMutation.isPending}
-                          >
-                            Approve
-                          </button>
+                          {item.lane === "outbound_prospect" || item.source_collection === "outboundProspects" ? (
+                            <OutreachApprovalReview review={item.outreach_review} payload={item.action_payload}
+                              pending={approveActionMutation.isPending}
+                              onApprove={(outreachSemanticReview) => approveActionMutation.mutate({ ledgerId: item.id, outreachSemanticReview })} />
+                          ) : (
+                            <button type="button" onClick={() => approveActionMutation.mutate({ ledgerId: item.id })}
+                              className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" disabled={approveActionMutation.isPending}>
+                              Approve
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => {

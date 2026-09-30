@@ -25,6 +25,7 @@ import {
   rejectAction,
   retryFailedAction,
 } from "../agents/action-executor";
+import { reviewOutreachDraft, type OutreachReviewResult } from "../agents/outreach-review";
 import type {
   DerivedAssetsAttachment,
   EvaluationReadinessSummary,
@@ -377,6 +378,7 @@ type ActionQueueItem = {
   last_execution_at: string | null;
   action_payload: Record<string, unknown>;
   draft_output: Record<string, unknown>;
+  outreach_review?: OutreachReviewResult;
 };
 
 function normalizeActionLedgerItem(
@@ -421,6 +423,15 @@ function normalizeActionLedgerItem(
       data.draft_output && typeof data.draft_output === "object"
         ? data.draft_output
         : {},
+    ...(data.lane === "outbound_prospect" || data.source_collection === "outboundProspects" ? {
+      outreach_review: reviewOutreachDraft({
+        to: typeof data.action_payload?.to === "string" ? data.action_payload.to : "",
+        subject: typeof data.action_payload?.subject === "string" ? data.action_payload.subject : "",
+        body: typeof data.action_payload?.body === "string" ? data.action_payload.body : "",
+        contract: data.action_payload?.outreachContract,
+        context: data.action_payload?.outreachContext,
+      }),
+    } : {}),
   };
 }
 
@@ -1177,7 +1188,7 @@ router.post(
         return res.status(400).json({ error: "Missing ledger id" });
       }
 
-      const result = await approveAction(ledgerId, getOperatorEmail(res));
+      const result = await approveAction(ledgerId, getOperatorEmail(res), req.body?.outreachSemanticReview);
       return res.json(result);
     } catch (error) {
       logger.error({ error }, "Error approving action queue item");

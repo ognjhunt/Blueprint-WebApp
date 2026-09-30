@@ -23,6 +23,7 @@ import {
 } from "../utils/human-blocker-autonomy";
 import { sendSlackMessage } from "../utils/slack";
 import { logger } from "../logger";
+import { reviewOutreachDraft, validateOutreachSemanticReview, outreachSemanticReviewSchema } from "./outreach-review";
 
 function getDb() {
   if (!dbAdmin) throw new Error("Firestore is not initialized");
@@ -226,14 +227,36 @@ function validateRequiredCampaignRecipientEvidence(
 function validateActionPayloadBeforeExecution(
   actionType: ActionType,
   payload: ActionPayload,
+  scope?: { lane?: string; source_collection?: string },
 ): { valid: boolean; reason?: string } {
+  if (isProspectOutreach(scope) && actionType !== "send_email") {
+    return { valid: false, reason: "prospect_outreach_requires_single_email" };
+  }
   if (actionType === "send_campaign_emails") {
     return validateCampaignEmailPayload(payload);
   }
   if (actionType === "send_email") {
+    if (isProspectOutreach(scope)) {
+      const review = prospectOutreachReview(payload);
+      if (!review.hardChecksPassed) return { valid: false, reason: review.blockers.join(", ") };
+    }
     return validateEmailContent(payload);
   }
   return { valid: true };
+}
+
+function isProspectOutreach(scope?: { lane?: string; source_collection?: string }): boolean {
+  return scope?.lane === "outbound_prospect" || scope?.source_collection === "outboundProspects";
+}
+
+function prospectOutreachReview(payload: ActionPayload) {
+  return reviewOutreachDraft({
+    to: typeof payload.to === "string" ? payload.to : "",
+    subject: typeof payload.subject === "string" ? payload.subject : "",
+    body: typeof payload.body === "string" ? payload.body : "",
+    contract: payload.outreachContract,
+    context: payload.outreachContext,
+  });
 }
 
 async function routeContentValidationFailure(params: {
@@ -313,9 +336,9 @@ export async function executeAction(
   // 1. Idempotency check — look up existing ledger doc
   const existingLedger = await findLedgerByIdempotencyKey(idempotencyKey);
   const contentValidation =
-    safetyPolicy.contentChecks &&
-    (actionType === "send_email" || actionType === "send_campaign_emails")
-      ? validateActionPayloadBeforeExecution(actionType, actionPayload)
+    isProspectOutreach({ lane: safetyPolicy.lane, source_collection: sourceCollection }) ||
+    (safetyPolicy.contentChecks && (actionType === "send_email" || actionType === "send_campaign_emails"))
+      ? validateActionPayloadBeforeExecution(actionType, actionPayload, { lane: safetyPolicy.lane, source_collection: sourceCollection })
       : { valid: true };
   if (!contentValidation.valid) {
     return routeContentValidationFailure({
@@ -354,7 +377,8 @@ export async function executeAction(
   }
 
   // 2. Evaluate tier
-  const tier = evaluateActionTier(draftOutput, safetyPolicy);
+  const tier = isProspectOutreach({ lane: safetyPolicy.lane, source_collection: sourceCollection })
+    ? 3 : evaluateActionTier(draftOutput, safetyPolicy);
 
   // 3. Content validation for email actions
   if (
@@ -562,6 +586,7 @@ export async function executeAction(
 export async function approveAction(
   ledgerDocId: string,
   operatorEmail: string,
+  outreachSemanticReview?: unknown,
 ): Promise<ActionResult> {
   const ledgerRef = getDb().collection("action_ledger").doc(ledgerDocId);
   const ledgerDoc = await ledgerRef.get();
@@ -572,8 +597,12 @@ export async function approveAction(
     throw new Error(`Cannot approve action in state: ${data.status}`);
   }
 
-  if (data.action_type === "send_email" || data.action_type === "send_campaign_emails") {
-    const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload);
+  if (isProspectOutreach(data) || data.action_type === "send_email" || data.action_type === "send_campaign_emails") {
+    const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
+    if (validation.valid && isProspectOutreach(data)) {
+      const reason = validateOutreachSemanticReview(prospectOutreachReview(data.action_payload), outreachSemanticReview);
+      if (reason) { validation.valid = false; validation.reason = reason; }
+    }
     if (!validation.valid) {
       const approvalReason = `content_validation_failed: ${validation.reason}`;
       await ledgerRef.update({
@@ -602,6 +631,11 @@ export async function approveAction(
     status: "operator_approved",
     approved_by: operatorEmail,
     approved_at: new Date(),
+    ...(isProspectOutreach(data) ? {
+      outreach_semantic_review: outreachSemanticReviewSchema.parse(outreachSemanticReview),
+      outreach_reviewed_by: operatorEmail,
+      outreach_reviewed_at: new Date(),
+    } : {}),
     updated_at: new Date(),
   });
   await syncSourceDocumentState({
@@ -739,7 +773,13 @@ export async function retryFailedAction(
     throw new Error(`Cannot retry action in state: ${data.status}`);
   if (data.execution_attempts >= 3) throw new Error("Max retries exceeded");
 
-  const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload);
+  const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
+  if (validation.valid && isProspectOutreach(data)) {
+    const reason = !data.outreach_reviewed_by || data.outreach_reviewed_by !== data.approved_by
+      ? "outreach_semantic_review_required"
+      : validateOutreachSemanticReview(prospectOutreachReview(data.action_payload), data.outreach_semantic_review);
+    if (reason) { validation.valid = false; validation.reason = reason; }
+  }
   if (!validation.valid) {
     const approvalReason = `content_validation_failed: ${validation.reason}`;
     await ledgerRef.update({

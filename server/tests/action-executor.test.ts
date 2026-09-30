@@ -97,6 +97,9 @@ import {
   retryFailedAction,
   type ExecuteActionParams,
 } from "../agents/action-executor";
+import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
+import { reviewOutreachDraft } from "../agents/outreach-review";
+import { outreachDraft, passingOutreachChecks } from "./fixtures/outreach-review";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -184,6 +187,129 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 // executeAction
 // ---------------------------------------------------------------------------
+
+describe("prospect outreach quality enforcement", () => {
+  const payload: ActionPayload = {
+    type: "send_email", to: outreachDraft.to, subject: outreachDraft.subject, body: outreachDraft.body,
+    outreachContract: outreachDraft.contract, outreachContext: outreachDraft.context,
+  };
+  const review = { digest: reviewOutreachDraft(outreachDraft).digest, checks: passingOutreachChecks };
+  const ledger = {
+    status: "pending_approval", lane: "outbound_prospect", source_collection: "outboundProspects", source_doc_id: "prospect-1",
+    action_type: "send_email", action_payload: payload, action_tier: 3, execution_attempts: 0,
+  };
+
+  it("rejects prospect-scoped campaign recipients at queue, approval, and retry", async () => {
+    const campaignPayload = { ...payload, recipients: ["unreviewed@other-facility.co"] };
+    mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] });
+    const queued = await executeAction(makeParams({
+      sourceCollection: "outboundProspects", actionType: "send_campaign_emails",
+      actionPayload: campaignPayload, safetyPolicy: ALWAYS_AUTO_POLICY,
+    }));
+    expect(queued.state).toBe("pending_approval");
+    expect(queued.error).toBe("prospect_outreach_requires_single_email");
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ ...ledger, action_type: "send_campaign_emails", action_payload: campaignPayload }) });
+    const approved = await approveAction("outreach-1", "admin@blueprint.test", review);
+    expect(approved.state).toBe("pending_approval");
+    expect(approved.error).toBe("prospect_outreach_requires_single_email");
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({
+      ...ledger, status: "failed", action_type: "send_campaign_emails", action_payload: campaignPayload,
+      approved_by: "admin@blueprint.test", outreach_reviewed_by: "admin@blueprint.test", outreach_semantic_review: review,
+    }) });
+    const retry = await retryFailedAction("outreach-1");
+    expect(retry.state).toBe("pending_approval");
+    expect(retry.error).toBe("prospect_outreach_requires_single_email");
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects other action types under prospect scope", async () => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ ...ledger, action_type: "send_slack", action_payload: { message: "Outreach" } }) });
+    const result = await approveAction("outreach-1", "admin@blueprint.test", review);
+    expect(result.error).toBe("prospect_outreach_requires_single_email");
+    expect(mockSendSlackMessage).not.toHaveBeenCalled();
+  });
+
+  it("keeps structurally valid prospect outreach pending even if a caller supplies an auto policy", async () => {
+    mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] });
+    const result = await executeAction(makeParams({
+      sourceCollection: "outboundProspects", actionPayload: payload,
+      safetyPolicy: ALWAYS_AUTO_POLICY,
+    }));
+    expect(result.state).toBe("pending_approval");
+    expect(result.tier).toBe(3);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("checks direct executor callers before queueing, even with contentChecks disabled", async () => {
+    mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] });
+    const result = await executeAction(makeParams({
+      sourceCollection: "outboundProspects", actionPayload: { ...payload, outreachContract: undefined },
+      safetyPolicy: ALWAYS_AUTO_POLICY,
+    }));
+    expect(result.state).toBe("pending_approval");
+    expect(result.error).toContain("outreach_contract_missing_or_invalid");
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it.each(["source", "lane"])("fails closed for legacy approvals identified by %s", async (identity) => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({
+      ...ledger, lane: identity === "lane" ? "outbound_prospect" : undefined,
+      source_collection: identity === "source" ? "outboundProspects" : undefined,
+      action_payload: validEmailPayload,
+    }) });
+    const result = await approveAction("outreach-1", "admin@blueprint.test", review);
+    expect(result.state).toBe("pending_approval");
+    expect(result.error).toContain("outreach_contract_missing_or_invalid");
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [undefined, "outreach_semantic_review_required"],
+    [{ ...review, digest: "0".repeat(64) }, "outreach_review_does_not_match_draft"],
+    [{ ...review, checks: { ...passingOutreachChecks, evidence: "block" } }, "outreach_semantic_review_not_passed"],
+  ])("does not release a draft with a missing, stale, or rejected review", async (attestation, expected) => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger });
+    const result = await approveAction("outreach-1", "admin@blueprint.test", attestation);
+    expect(result.state).toBe("pending_approval");
+    expect(result.error).toBe(expected);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "operator_approved" }));
+  });
+
+  it("allows existing manual approval only with all required checks bound to the draft", async () => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger });
+    const result = await approveAction("outreach-1", "admin@blueprint.test", review);
+    expect(result.state).toBe("sent");
+    expect(mockSendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: outreachDraft.to, text: outreachDraft.body }));
+    expect(mockDocUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      status: "operator_approved", outreach_semantic_review: review, outreach_reviewed_by: "admin@blueprint.test",
+    }));
+    expect(OUTBOUND_PROSPECT_POLICY.autoApproveCriteria({})).toBe(false);
+    expect(OUTBOUND_PROSPECT_POLICY.alwaysHumanReview({})).toBe(true);
+  });
+
+  it.each(["missing", "changed", "unattributed"])("blocks retry when the stored review is %s", async (scenario) => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({
+      ...ledger, status: "failed", approved_by: "admin@blueprint.test",
+      outreach_reviewed_by: scenario === "unattributed" ? null : "admin@blueprint.test",
+      outreach_semantic_review: scenario === "missing" ? undefined : review,
+      action_payload: scenario === "changed" ? { ...payload, body: payload.body + " Regards." } : payload,
+    }) });
+    const result = await retryFailedAction("outreach-1");
+    expect(result.state).toBe("pending_approval");
+    expect(result.error).toMatch(/outreach_(?:semantic_review_required|review_does_not_match_draft)/);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("retains approval on retry for an unchanged failed send", async () => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({
+      ...ledger, status: "failed", approved_by: "admin@blueprint.test", outreach_reviewed_by: "admin@blueprint.test", outreach_semantic_review: review,
+    }) });
+    const result = await retryFailedAction("outreach-1");
+    expect(result.state).toBe("sent");
+    expect(mockSendEmail).toHaveBeenCalledOnce();
+  });
+});
 
 describe("executeAction", () => {
   it("returns sent immediately for an already-sent idempotent ledger doc", async () => {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
 import { buildCacheFriendlyPrompt } from "./prompt-cache";
+import { outreachReviewContractSchema, type OutreachConnectionEvidence, type OutreachCapabilityEvidence } from "../outreach-review";
 
 /**
  * Writing the one email.
@@ -35,12 +36,9 @@ import { buildCacheFriendlyPrompt } from "./prompt-cache";
  * context for what to ask about; provenance keeps them from ever reaching
  * dispatch, and the agent is told not to imply we have decided anything.
  *
- * ## The ask
- *
- * Not a call. Self-capture made the smallest useful ask "film this one station
- * for forty-five seconds", which is a far lower bar than a meeting and returns
- * something real: a world and a robot comparison. A booked call is days of
- * calendar latency in front of a fifteen-minute pipeline.
+ * First contact asks one easy, non-confidential question. Capture and deeper
+ * conversation follow only if the recipient chooses to continue. The contract
+ * carries evidence and body anchors for review; it never approves a send.
  */
 
 const observationSchema = z.object({
@@ -71,6 +69,7 @@ export const outboundOutreachOutputSchema = z.object({
   confidence: z.number().min(0).max(1),
   rationale: z.string().min(1).max(1200),
   internal_summary: z.string().min(1).max(1200),
+  outreach_contract: outreachReviewContractSchema.nullable(),
 });
 
 export type OutboundOutreachOutput = z.infer<typeof outboundOutreachOutputSchema>;
@@ -85,6 +84,10 @@ export type OutboundOutreachInput = {
   hypothesisedTask: string;
   /** Guessed gate answers, as context for what to ask — never as findings. */
   inferredGates?: Record<string, string>;
+  /** Operator-recorded evidence only; a shared community implies no endorsement. */
+  connectionEvidence?: OutreachConnectionEvidence | null;
+  teamObservations?: { claim: string; source: string }[];
+  verifiedCapabilities?: OutreachCapabilityEvidence[];
   /** Where the capture upload link will point, when they say yes. */
   selfCaptureSeconds?: number;
 };
@@ -99,18 +102,40 @@ export const outboundOutreachTask: StructuredTaskDefinition<
   output_schema: outboundOutreachOutputSchema,
   build_prompt: (input) =>
     buildCacheFriendlyPrompt({
-      instructions: `You write one cold email to the operator of a specific facility.
+      instructions: `You write one first-contact email to the operator of a specific facility.
 
 Output JSON only. No markdown. No explanation outside JSON.
 
 WHAT THIS EMAIL IS FOR
-You are not pitching robotics. You are stating what we believe this facility's repeated task is, and asking the operator to correct it. Being specific and wrong is fine and useful. Being generic is the failure.
+Offer a useful, bounded observation or task-specific research brief. Label hypotheses as hypotheses. Never present an inference as a verified fact or promise reconstruction, robot fit, or a deployment outcome.
+
+CANONICAL FIRST-CONTACT RULES (docs/outreach-first-touch-policy.md)
+1. Start with a known verified connection, introduction, or shared community where possible. Use only connectionEvidence supplied by the operator, never invent a relationship or imply community endorsement. Without it, choose a cold opening and record why no verified connection is used. Web research and verified business contact routes lead discovery. Do not mine networks or require exhaustive network search before legitimate cold contact. LinkedIn is optional role verification, never a required step.
+2. For a cold approach, reference one specific public detail from the provided observations, echo its exact claim/source in outreach_contract, and explain the relevance in the body.
+3. Offer one small useful observation or task-specific research brief and state its limits in the body. Be explicit about public evidence, hypotheses, and what the offer cannot establish.
+4. Ask exactly one easy, non-confidential question first. No questionnaire, compound ask, meeting/calendar link, video, upload, private operational data, or introduction request by default.
+5. Leave the decision about a deeper conversation with the recipient. No pressure, urgency, implied obligation, or automatic follow-up promise.
+
+TAILOR THE QUESTION TO VERIFIED SITE STATE
+Unknown interest: ask whether the job/topic is relevant without assuming interest.
+Expressed interest: ask about the learning goal.
+Pilot: ask about an unresolved uncertainty.
+Existing deployment: ask about expansion learning without assuming expansion plans.
+Use only recipient/site-specific public signals in the provided observations to support claimed interest, pilot, or deployment; retain their exact claim/source in observations_used and explain the question choice in internal_summary. Do not invent motivation or status, or ask "what prompted your interest" without evidence of expressed interest. These are directions, not rigid templates; adapt one question to this site and recipient. A deployment signal does not establish interest in talking, evaluation participation, or Blueprint deployment capacity.
+
+DISCOVERY AND MATCHING WORKFLOW
+Research the site, job, and team jointly. Start discovery from the site/job; assess team feasibility in parallel from teamObservations, or mark it pending. Public feasibility research is not a team's agreement to evaluate or deployment capacity.
+Disclose Blueprint identity from the first contact using "I'm building Blueprint" framing; never invent a sender name, pose as academic research, or imply a large established company.
+Keep interest in talking, agreement to evaluation participation, and confirmed deployment capacity separate; do not infer any of them from a reply or public research.
+Offer a readiness/learning brief as a bounded learning artifact, separate from the qualified-match fee. Do not imply the brief, reply, or evaluation triggers a match fee or proves a qualified match.
+Ask one progressive job-brief question before seeking footage or detailed operational information. Site permission is required before sharing a brief or footage with robot teams. A team must confirm the configuration, support, and timing before Blueprint promises a match. Evaluation claims need evidence; introductions and physical-outcome feedback require the parties' consent. These are later gates, not requests to bundle into first contact.
+Never claim Atlas or pipeline capabilities without an exact operator-recorded verifiedCapabilities claim/source. Echo any such claim in capabilityClaims; do not infer functionality from a product name. Prefer to omit internal capability references from the first message.
 
 SOURCING - THE HARD RULE
 Use only the observations provided. Every factual claim about this facility must trace to one of them. Never invent a detail about their building, headcount, equipment, shifts or volumes, however plausible. If the observations do not support a specific opening, set requires_human_review=true and say so in the rationale rather than padding with invention.
 
-THE ASK
-Ask them to film the one work area on a phone for about the stated number of seconds. Do not ask for a call, a demo, or a meeting. Do not attach a calendar link. The point is that they get something real back — a 3D reconstruction of their own station and a comparison of which robots can do the job — without talking to anyone first.
+REVIEW CONTRACT
+Return outreach_contract with version="blueprint.outreach.v1" and senderIdentity containing Blueprint. opening is either {kind:"cold", noVerifiedConnectionReason, publicDetail:{claim,source}, relevance} or {kind:"connection"|"introduction"|"shared_community", claim}. For warm openings, kind and claim must exactly match operator connectionEvidence. value is {kind:"observation"|"research_brief", offer, limits}. question and recipientChoice are strings. All senderIdentity/claim/relevance/offer/limits/question/recipientChoice strings must occur verbatim in the body. primary_ask is the same single question. workflow is {phase:"site_led_discovery", briefKind:"readiness_learning", nextStep:"job_brief_question", teamFeasibility:"pending"|"public_research", teamFeasibilitySources:[{claim,source}]}; sources must match teamObservations. capabilityClaims is an array of {name:"Atlas"|"pipeline",claim,source}, normally empty. Keep site/job evidence, team feasibility or its gap, and later permission/participation/capacity gates in internal_summary. This is review metadata, not approval. Always set requires_human_review=true. If blocked, outreach_contract may be null.
 
 DO NOT IMPLY WE HAVE DECIDED ANYTHING
 The gate answers in the payload are our guesses, not findings. Never write as if the site is approved, qualified, accepted, or a fit. Ask; do not conclude.
@@ -131,10 +156,20 @@ Use automation_status="blocked" only when there is not enough here to write anyt
         body: "",
         observations_used: [{ claim: "", source: "" }],
         primary_ask: "",
-        requires_human_review: false,
+        requires_human_review: true,
         confidence: 0.0,
         rationale: "",
         internal_summary: "",
+        outreach_contract: {
+          version: "blueprint.outreach.v1",
+          senderIdentity: "I'm building Blueprint.",
+          opening: { kind: "cold", noVerifiedConnectionReason: "", publicDetail: { claim: "", source: "" }, relevance: "" },
+          value: { kind: "observation", offer: "", limits: "" },
+          question: "",
+          recipientChoice: "",
+          workflow: { phase: "site_led_discovery", briefKind: "readiness_learning", nextStep: "job_brief_question", teamFeasibility: "pending", teamFeasibilitySources: [] },
+          capabilityClaims: [],
+        },
       },
       payload: {
         ...input,

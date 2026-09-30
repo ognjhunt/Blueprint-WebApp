@@ -1,0 +1,172 @@
+// @vitest-environment node
+import { describe, expect, it } from "vitest";
+import {
+  reviewOutreachDraft, validateOutreachSemanticReview, type OutreachReviewContract,
+} from "../agents/outreach-review";
+import { outreachContext, outreachContract, outreachDraft, passingOutreachChecks } from "./fixtures/outreach-review";
+
+describe("first-contact outreach review", () => {
+  it("makes a sourced, bounded cold draft reviewable without granting send approval", () => {
+    const result = reviewOutreachDraft(outreachDraft);
+    expect(result.hardChecksPassed).toBe(true);
+    expect(result.digest).toMatch(/^[a-f0-9]{64}$/);
+    expect(Object.keys(result.semanticReviewRequired)).toHaveLength(6);
+    expect(validateOutreachSemanticReview(result, undefined)).toBe("outreach_semantic_review_required");
+    expect(validateOutreachSemanticReview(result, { digest: result.digest, checks: passingOutreachChecks })).toBeNull();
+  });
+
+  it.each([undefined, null, {}, { ...outreachContract, version: "old" }])("fails closed for invalid contracts: %j", (contract) => {
+    expect(reviewOutreachDraft({ ...outreachDraft, contract }).blockers).toContain("outreach_contract_missing_or_invalid");
+  });
+
+  it("rejects a fabricated public detail or source even when present in the body", () => {
+    const contract = structuredClone(outreachContract);
+    if (contract.opening.kind !== "cold") throw new Error("fixture must be cold");
+    contract.opening.publicDetail.source = "https://invented.example/news";
+    expect(reviewOutreachDraft({ ...outreachDraft, contract }).blockers).toContain("cold_detail_not_in_recorded_evidence");
+  });
+
+  it.each(["inferred", "file:///private/research", "https://user:secret@facility.example/news", "javascript:alert(1)"])("requires a public-source URL: %s", (source) => {
+    const contract = structuredClone(outreachContract);
+    if (contract.opening.kind !== "cold") throw new Error("fixture must be cold");
+    contract.opening.publicDetail.source = source;
+    const context = { ...outreachContext, observations: [contract.opening.publicDetail] };
+    expect(reviewOutreachDraft({ ...outreachDraft, contract, context }).blockers).toContain("cold_detail_requires_public_url");
+  });
+
+  it.each(["relevance", "offer", "limits", "question", "recipientChoice"])("rejects metadata that is missing from recipient text: %s", (field) => {
+    const anchor = field === "relevance" && outreachContract.opening.kind === "cold" ? outreachContract.opening.relevance
+      : field === "offer" || field === "limits" ? outreachContract.value[field]
+      : outreachContract[field as "question" | "recipientChoice"];
+    expect(reviewOutreachDraft({ ...outreachDraft, body: outreachDraft.body.replace(anchor, "") }).blockers).toContain("review_anchor_missing_from_body");
+  });
+
+  it("requires the evidence opening before the offer or question", () => {
+    expect(reviewOutreachDraft({ ...outreachDraft, body: outreachContract.question + " " + outreachDraft.body.replace(outreachContract.question, "") }).blockers)
+      .toContain("verified_or_public_opening_must_come_first");
+  });
+
+  it.each([outreachDraft.body.replace("?", "."), outreachDraft.body + " What is your budget?"])("rejects zero or multiple questions", (body) => {
+    expect(reviewOutreachDraft({ ...outreachDraft, body }).blockers).toContain("exactly_one_initial_question_required");
+  });
+
+  it.each([
+    ["Please schedule a call.", "default_meeting_or_questionnaire"],
+    ["Fill out this questionnaire.", "default_meeting_or_questionnaire"],
+    ["Please upload a video.", "confidential_or_capture_ask"],
+    ["Share your confidential internal documents.", "confidential_or_capture_ask"],
+    ["Act now, this is your last chance.", "pressure_or_guarantee"],
+    ["We guarantee robot fit.", "pressure_or_guarantee"],
+    ["Our mutual friend referred us.", "unverified_connection_claim"],
+  ])("rejects explicit violations in the subject as well as body: %s", (text, code) => {
+    expect(reviewOutreachDraft({ ...outreachDraft, subject: text }).blockers).toContain(code);
+    expect(reviewOutreachDraft({ ...outreachDraft, body: outreachDraft.body + " " + text }).blockers).toContain(code);
+  });
+
+  it.each(["connection", "introduction", "shared_community"] as const)("requires recorded verification for %s", (kind) => {
+    const claim = kind === "shared_community" ? "We are both members of the Packing Forum." : "We met at the Packing Forum.";
+    const contract: OutreachReviewContract = { ...outreachContract, opening: { kind, claim } };
+    const body = claim + " " + outreachDraft.body;
+    const draft = { ...outreachDraft, contract, body };
+    expect(reviewOutreachDraft(draft).blockers).toContain("connection_claim_not_verified_in_record");
+    const evidence = { kind, claim, source: "operator-record:forum", supportingExcerpt: "Membership confirmed for both parties.", verifiedBy: "reviewer", verifiedAt: "2026-09-30T19:00:00.000Z" };
+    expect(reviewOutreachDraft({ ...draft, context: { ...outreachContext, connectionEvidence: evidence } }).hardChecksPassed).toBe(true);
+    expect(reviewOutreachDraft({ ...draft, context: { ...outreachContext, connectionEvidence: { ...evidence, verifiedBy: "" } } }).hardChecksPassed).toBe(false);
+    if (kind === "shared_community") {
+      expect(reviewOutreachDraft({ ...draft, body: body + " The forum endorsed us.", context: { ...outreachContext, connectionEvidence: evidence } }).blockers)
+        .toContain("shared_community_implies_endorsement");
+    }
+  });
+
+  it.each(["connection", "evidence", "boundedValue", "easyQuestion", "recipientChoice", "workflow"] as const)("blocks semantic failures on %s even when hard checks pass", (check) => {
+    const result = reviewOutreachDraft(outreachDraft);
+    for (const decision of ["revise", "block"]) {
+      expect(validateOutreachSemanticReview(result, { digest: result.digest, checks: { ...passingOutreachChecks, [check]: decision } }))
+        .toBe("outreach_semantic_review_not_passed");
+    }
+  });
+
+  it("cannot certify a compound question or invented unlisted assertion with lexical checks", () => {
+    const question = "Is packing relevant and what is your internal throughput?";
+    const contract = { ...outreachContract, question };
+    const body = outreachDraft.body.replace(outreachContract.question, question) + " Your team uses twelve robot arms.";
+    const result = reviewOutreachDraft({ ...outreachDraft, contract, body });
+    expect(result.hardChecksPassed).toBe(true);
+    expect(validateOutreachSemanticReview(result, undefined)).toBe("outreach_semantic_review_required");
+    expect(validateOutreachSemanticReview(result, { digest: result.digest, checks: { ...passingOutreachChecks, evidence: "block", easyQuestion: "block" } }))
+      .toBe("outreach_semantic_review_not_passed");
+  });
+
+  it("requires semantic rejection of assumed interest despite valid question anchors", () => {
+    const question = "What prompted your interest in a packing robot?";
+    const contract = { ...outreachContract, question };
+    const body = outreachDraft.body.replace(outreachContract.question, question);
+    // The fixture's public packing-station detail does not express interest in robotics.
+    const result = reviewOutreachDraft({ ...outreachDraft, contract, body });
+    expect(result.hardChecksPassed).toBe(true);
+    expect(result.semanticReviewRequired.easyQuestion).toContain("unknown interest means ask relevance without assuming interest");
+    expect(result.semanticReviewRequired.easyQuestion).toContain("expressed interest means ask the learning goal");
+    expect(result.semanticReviewRequired.easyQuestion).toContain("pilot means ask an unresolved uncertainty");
+    expect(result.semanticReviewRequired.easyQuestion).toContain("existing deployment means ask about expansion learning");
+    expect(result.semanticReviewRequired.easyQuestion).toContain("public-signal provenance");
+    expect(validateOutreachSemanticReview(result, undefined)).toBe("outreach_semantic_review_required");
+    expect(validateOutreachSemanticReview(result, { digest: result.digest, checks: { ...passingOutreachChecks, easyQuestion: "block" } }))
+      .toBe("outreach_semantic_review_not_passed");
+  });
+
+  it("binds review to recipient, text, contract, and evidence", () => {
+    const result = reviewOutreachDraft(outreachDraft);
+    const attestation = { digest: result.digest, checks: passingOutreachChecks };
+    for (const changed of [
+      { ...outreachDraft, to: "another@facility.example" },
+      { ...outreachDraft, subject: "Changed subject" },
+      { ...outreachDraft, body: outreachDraft.body + " Regards." },
+      { ...outreachDraft, contract: { ...outreachContract, value: { ...outreachContract.value, kind: "observation" } } },
+      { ...outreachDraft, context: { ...outreachContext, observations: [...outreachContext.observations, { claim: "Other fact", source: "https://facility.example/other" }] } },
+    ]) {
+      expect(validateOutreachSemanticReview(reviewOutreachDraft(changed), attestation)).toBe("outreach_review_does_not_match_draft");
+    }
+  });
+
+  it("requires Blueprint identity in the first-contact body before the offer", () => {
+    expect(reviewOutreachDraft({ ...outreachDraft, contract: { ...outreachContract, senderIdentity: "I am an independent researcher." } }).blockers)
+      .toContain("blueprint_identity_required");
+    const body = outreachDraft.body.replace(outreachContract.senderIdentity, "") + " " + outreachContract.senderIdentity;
+    expect(reviewOutreachDraft({ ...outreachDraft, body }).blockers).toContain("blueprint_identity_required_before_offer");
+  });
+
+  it("separates site-led learning from promises of participation, capacity, or a fee-triggering match", () => {
+    for (const workflow of [
+      { ...outreachContract.workflow, briefKind: "qualified_match" },
+      { ...outreachContract.workflow, nextStep: "footage_upload" },
+    ]) expect(reviewOutreachDraft({ ...outreachDraft, contract: { ...outreachContract, workflow } }).hardChecksPassed).toBe(false);
+    for (const body of ["We found a match.", "Your team is ready to deploy.", "We already shared your job with robot teams."]) {
+      expect(reviewOutreachDraft({ ...outreachDraft, body: outreachDraft.body + " " + body }).hardChecksPassed).toBe(false);
+    }
+    // Nuanced distinctions still need review; there is no participation or capacity state mutation.
+    const result = reviewOutreachDraft({ ...outreachDraft, body: outreachDraft.body + " A reply means consent to evaluate and share your job." });
+    expect(validateOutreachSemanticReview(result, { digest: result.digest, checks: { ...passingOutreachChecks, workflow: "block" } }))
+      .toBe("outreach_semantic_review_not_passed");
+  });
+
+  it("keeps parallel team feasibility pending until evidence is recorded", () => {
+    const teamObservation = { claim: "The team's public report discusses packing.", source: "https://robot-team.example/research" };
+    const workflow = { ...outreachContract.workflow, teamFeasibility: "public_research", teamFeasibilitySources: [teamObservation] };
+    const contract = { ...outreachContract, workflow };
+    expect(reviewOutreachDraft({ ...outreachDraft, contract }).blockers).toContain("team_feasibility_not_in_recorded_evidence");
+    expect(reviewOutreachDraft({ ...outreachDraft, contract, context: { ...outreachContext, teamObservations: [teamObservation] } }).hardChecksPassed).toBe(true);
+    expect(reviewOutreachDraft({ ...outreachDraft, contract: { ...contract, workflow: { ...workflow, teamFeasibilitySources: [] } } }).blockers)
+      .toContain("team_feasibility_status_requires_matching_evidence");
+  });
+
+  it.each(["Atlas", "pipeline"] as const)("blocks %s claims without exact operator-recorded capability evidence", (name) => {
+    const claim = `${name} supports this bounded research check.`;
+    const body = outreachDraft.body + " " + claim;
+    expect(reviewOutreachDraft({ ...outreachDraft, body }).blockers).toContain("capability_claim_not_verified_in_record");
+    const reference = { name, claim, source: "verification-record:capability" };
+    const contract = { ...outreachContract, capabilityClaims: [reference] };
+    expect(reviewOutreachDraft({ ...outreachDraft, body, contract }).blockers).toContain("capability_claim_not_verified_in_record");
+    const evidence = { ...reference, supportingExcerpt: "Recorded scoped check passed.", verifiedBy: "operator", verifiedAt: "2026-09-30T19:00:00.000Z" };
+    expect(reviewOutreachDraft({ ...outreachDraft, body, contract, context: { ...outreachContext, verifiedCapabilities: [evidence] } }).hardChecksPassed).toBe(true);
+  });
+});

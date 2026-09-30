@@ -405,6 +405,43 @@ describe("AdminLeads scene readiness", () => {
     });
   });
 
+  it("submits the exact outreach digest and human checks from the existing approval card", async () => {
+    const checks = {
+      connection: "Check connection.", evidence: "Check sources.", boundedValue: "Check value limits.",
+      easyQuestion: "Check one question.", recipientChoice: "Check recipient choice.", workflow: "Check workflow.",
+    };
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith("/ledger-outreach/approve") && init?.method === "POST") {
+        return Promise.resolve(new Response(JSON.stringify({ state: "sent", ledgerDocId: "ledger-outreach" })));
+      }
+      if (url.startsWith("/api/admin/leads/action-queue?")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          items: [{ id: "ledger-outreach", status: "pending_approval", lane: "outbound_prospect", source_collection: "outboundProspects",
+            source_doc_id: "prospect-1", action_type: "send_email", action_tier: 3, draft_output: {},
+            action_payload: { to: "ops@packing-facility.co", subject: "A job question", body: "I'm building Blueprint. Is packing relevant?" },
+            outreach_review: { digest: "a".repeat(64), hardChecksPassed: true, blockers: [], semanticReviewRequired: checks },
+          }], summary: { total: 1, pending_approval: 1, failed: 0, sent: 0 },
+        })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ leads: [], total: 0, byStatus: {}, byPriority: {} })));
+    });
+    renderPage();
+    const tab = await screen.findByRole("tab", { name: /approvals/i });
+    fireEvent.mouseDown(tab);
+    fireEvent.click(tab);
+    const approve = await screen.findByRole("button", { name: "Approve outreach" });
+    expect(approve).toBeDisabled();
+    screen.getAllByRole("checkbox").forEach((box) => fireEvent.click(box));
+    fireEvent.click(approve);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "/api/admin/leads/action-queue/ledger-outreach/approve",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ outreachSemanticReview: {
+        digest: "a".repeat(64), checks: { connection: "pass", evidence: "pass", boundedValue: "pass", easyQuestion: "pass", recipientChoice: "pass", workflow: "pass" },
+      } }) }),
+    ));
+  });
+
   it("renders the approvals queue and triggers operator actions", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input) => {
       const url = String(input);
