@@ -10,12 +10,13 @@ Purpose: make local checks and side-effect boundaries explicit before engineers 
 Without `--offline`, it makes bounded read-only GitHub API queries and a Git
 dry-run push with local hooks disabled; no remote branch is created or updated.
 `--audit-deploy-config` reads Actions secret/variable metadata and omits values.
-It never updates refs, merges, deploys, or calls providers. `npm run cloud:setup:webapp`
-installs only the local WebApp toolchain. `npm run cloud:doctor:openai` makes
+It never updates refs, merges, deploys, or calls providers.
+
+`npm run cloud:doctor:openai` makes
 one read-only Agents API list request using the environment's existing
 credential. It suppresses credentials and response contents and never creates
 an agent, session, or inference turn.
-installs local dependencies/tools and Chromium; run it during authorized
+`npm run cloud:setup:webapp` installs local dependencies/tools and Chromium; run it during authorized
 environment setup. Credential-helper configuration in the cloud runbook changes
 the isolated session's Git settings and must not be applied to a shared checkout.
 
