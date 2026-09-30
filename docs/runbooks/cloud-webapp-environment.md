@@ -83,8 +83,9 @@ Use this as the environment's Start skill/instructions:
 > CI-gated deploy.yml workflow; unset local Render variables are expected.
 > Preserve unrelated changes. Merge only when authorized and checks pass;
 > verify the deployment artifact for the exact merged SHA and both Render
-> services before claiming deployment. A successful read-only git probe does
-> not prove a push or a branch-protection bypass.
+> services before claiming deployment. The doctor uses a dry-run push with
+> local hooks disabled to test Git authentication without updating a branch.
+> This does not prove a real push or a branch-protection bypass.
 
 Save and publish (or republish), then verify in a **new task**. Existing tasks
 retain their own environment snapshot. Confirm all live doctor checks, run
@@ -107,6 +108,43 @@ Do not reuse the screenshot's exposed Firebase service-account key for a new
 environment. Replace that key in the existing scene environment through the
 supported credential flow, verify a new session, then revoke the old key.
 WebApp coding and mocked tests need no production Firebase Admin key.
+
+## OpenAI and Agents API credentials
+
+Claude's scene environment has a saved `operator-door` bearer credential for
+`paperclip.tryblueprint.io`. Its proxy adds the real Authorization header after
+requests leave the VM. The existing door runs fixed Pipeline operations with
+provider credentials retained on the host; it does not expose OpenAI agent
+creation. A working door credential therefore does not grant direct Agents API
+access to a coding session.
+
+For direct Agents API setup, request `OPENAI_API_KEY` as a **Network secret** in
+the private Codex environment's vault, restricted to `api.openai.com`, and use
+the supported vault entry flow to supply the existing project key. Allow that
+host in the network policy. Send the value unchanged in `Authorization: Bearer`
+headers; do not encode it, inspect it, or copy it into tracked files. The key
+needs `api.agents.read`, `api.agents.write`, and `api.responses.write`; add vault
+permissions only if the approved application manages vaults.
+
+In a fresh cloud task, run:
+
+```bash
+npm run cloud:doctor:openai
+```
+
+This uses the HTTPS proxy and a read-only Agents API list request. It reports
+only status, never credentials or session contents. Success proves read
+access; agent creation and model execution require their own authorized
+verification. On a trusted local controller, `OPENAI_API_KEY_FILE` can refer
+to an existing mode-0600 credential file for this check without copying it.
+
+For a self-hosted Agents API executor, retain the application's OpenAI key in
+the controller. Create a separate restricted environment key and pass that
+as `CODEX_API_KEY` to the executor, as required by
+[OpenAI's authentication guide](https://developers.openai.com/api/docs/guides/agents-api/environments/self-hosted#authentication).
+Persistent schedules and checkpoints belong to an approved hosted service;
+publishing a coding environment alone does not create a continuously running
+research agent.
 
 ## Deployment and verification
 

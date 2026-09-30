@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Read-only checks. No dotenv, credential values, pushes, merges, or deploys.
+// Read-only checks. No dotenv, credential values, ref updates, merges, or deploys.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -57,9 +57,13 @@ export function inspectReleaseEnvironment({ execute = run, present = existsSync,
     canWrite ? 'Authenticated repository write permission' : 'Repository write access could not be verified',
     'Connect GitHub or supply a scoped GH_TOKEN personal environment value; allow api.github.com');
   if (remote.ok && (https || ssh)) {
-    const reachable = execute('git', ['ls-remote', url, 'refs/heads/main'], root);
-    add(reachable.ok && /^[0-9a-f]{40}\s+refs\/heads\/main\s*$/.test(reachable.stdout.trim()) ? 'PASS' : 'FAIL',
-      'git transport', 'Noninteractive access to origin/main (read access only)',
+    // Reading a public repository can succeed anonymously. Receive-pack
+    // authentication must also work. Dry-run sends no ref update; --no-verify
+    // prevents a local pre-push hook from doing unrelated work.
+    const reachable = execute('git', ['push', '--dry-run', '--no-verify', url,
+      'HEAD:refs/heads/codex/environment-access-check'], root);
+    add(reachable.ok ? 'PASS' : 'FAIL',
+      'git push authentication', 'Noninteractive dry-run push; no branch updated (main branch policy remains unproven)',
       'In an isolated cloud clone, use HTTPS and gh auth setup-git --hostname github.com; allow github.com');
   }
   const workflow = gh(`repos/${REPOSITORY}/actions/workflows/deploy.yml`);

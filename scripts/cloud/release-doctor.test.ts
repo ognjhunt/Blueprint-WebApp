@@ -32,9 +32,6 @@ function fixture(overrides: Record<string, unknown> = {}) {
     if (command === 'git' && args[0] === 'remote') {
       return { ok: true, stdout: `https://github.com/${REPOSITORY}.git` };
     }
-    if (command === 'git' && args[0] === 'ls-remote') {
-      return { ok: true, stdout: `${'a'.repeat(40)}\trefs/heads/main\n` };
-    }
     return { ok: true, stdout: '' };
   };
   return { execute, present: () => true, calls };
@@ -47,7 +44,11 @@ describe('cloud release access', () => {
     expect(report.ready).toBe(true);
     expect(JSON.stringify(report)).not.toContain('srv-private');
     expect(f.calls.filter((call) => call[1] === 'api').every((call) => call[2] === '--method' && call[3] === 'GET')).toBe(true);
-    expect(f.calls.some((call) => call.includes('push') || call.includes('merge'))).toBe(false);
+    const pushes = f.calls.filter((call) => call.includes('push'));
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]).toContain('--dry-run');
+    expect(pushes[0]).toContain('--no-verify');
+    expect(f.calls.some((call) => call.includes('merge'))).toBe(false);
   });
 
   it('fails before release work when authentication or write permission is missing', () => {
@@ -80,13 +81,13 @@ describe('cloud release access', () => {
     const f = fixture();
     const report = inspectReleaseEnvironment({ ...f, offline: true });
     expect(report.ready).toBe(false);
-    expect(f.calls.some((call) => call.includes('api') || call.includes('ls-remote'))).toBe(false);
+    expect(f.calls.some((call) => call.includes('api') || call.includes('push'))).toBe(false);
   });
 
   it('fails on git credential failures even when API authentication works', () => {
     const f = fixture();
     const report = inspectReleaseEnvironment({ ...f, execute: (command: string, args: string[]) =>
-      args[0] === 'ls-remote' ? { ok: false, stdout: 'secret-must-not-leak' } : f.execute(command, args) });
+      args[0] === 'push' ? { ok: false, stdout: 'secret-must-not-leak' } : f.execute(command, args) });
     expect(report.ready).toBe(false);
     expect(JSON.stringify(report)).not.toContain('secret-must-not-leak');
   });
@@ -98,6 +99,6 @@ describe('cloud release access', () => {
         : f.execute(command, args) });
     expect(report.ready).toBe(false);
     expect(JSON.stringify(report)).not.toContain('secret-must-not-leak');
-    expect(f.calls.some((call) => call.includes('ls-remote'))).toBe(false);
+    expect(f.calls.some((call) => call.includes('push'))).toBe(false);
   });
 });

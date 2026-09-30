@@ -6,6 +6,7 @@
   "scripts": {
     "cloud:setup:webapp": "bash scripts/cloud/setup-webapp.sh",
     "cloud:doctor:release": "node scripts/cloud/release-doctor.mjs",
+    "cloud:doctor:openai": "node scripts/cloud/openai-doctor.mjs",
     "dev": "tsx watch --clear-screen=false --exclude vite.config.ts.* server/index.ts",
     "build": "node scripts/verify-client-env.mjs && vite build && tsx --tsconfig tsconfig.prerender.json scripts/prerender.tsx && tsx scripts/generate-sitemap.ts && node scripts/generate-build-info.mjs && npx esbuild server/index.ts server/worker.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "render:proof-reel": "npm exec --package=@remotion/cli@4.0.438 remotion render proof-reel/index.ts BlueprintProofReel client/public/proof/blueprint-proof-reel.mp4 --public-dir client/public",
