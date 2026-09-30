@@ -331,6 +331,8 @@ const ACTION_LEDGER_QUERY_STATUSES = [
   "sent",
   "operator_rejected",
   "rejected",
+  "executing",
+  "operator_approved",
 ] as const;
 
 type ActionLedgerRecord = Record<string, unknown> & {
@@ -1145,7 +1147,7 @@ router.get("/action-queue", requireAdmin, async (req: Request, res: Response) =>
       status as (typeof ACTION_LEDGER_QUERY_STATUSES)[number],
     )
       ? [status]
-      : ["pending_approval", "failed"];
+      : ["pending_approval", "failed", "executing", "operator_approved"];
 
     const fetchLimit = Math.max(limitNum * 2, 50);
     const snapshots = await Promise.all(
@@ -1162,9 +1164,10 @@ router.get("/action-queue", requireAdmin, async (req: Request, res: Response) =>
       }),
     );
 
-    const items = sortActionQueueItems(snapshots.flat()).filter((item) =>
-      lane ? item.lane === lane : true,
-    );
+    const items = sortActionQueueItems(snapshots.flat()).filter((item) => {
+      if (["executing", "operator_approved"].includes(item.status) && !isCommunicationsPayload(item.action_payload)) return false;
+      return lane ? item.lane === lane : true;
+    });
     const limitedItems = items.slice(0, limitNum);
 
     return res.json({

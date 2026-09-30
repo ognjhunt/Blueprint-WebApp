@@ -70,6 +70,18 @@ describe("communications in existing Blueprint approval flow", () => {
     expect((await retryFailedAction("ledger-1")).state).toBe("sent");
     expect(communicationsSendBlocker).not.toHaveBeenCalled(); expect(executeCommunicationsSend).not.toHaveBeenCalled();
   });
+  it.each(["executing", "operator_approved"])("recovers a crash-shaped %s ledger through the authenticated retry flow", async (status) => {
+    const f = await setup("failed"); await f.db.doc("action_ledger/ledger-1").update({ status });
+    vi.mocked(reconcileCommunicationsSend).mockResolvedValueOnce({ messageId: "actual", threadId: "thread-1", rfcMessageId: "<actual@example.com>" });
+    expect((await retryFailedAction("ledger-1")).state).toBe("sent");
+    expect(executeCommunicationsSend).not.toHaveBeenCalled(); expect(communicationsSendBlocker).not.toHaveBeenCalled();
+  });
+  it("an interrupted active action cannot create a send when no receipt claim exists", async () => {
+    const f = await setup("failed"); await f.db.doc("action_ledger/ledger-1").update({ status: "executing" });
+    await expect(retryFailedAction("ledger-1")).rejects.toThrow("communications_interrupted_send_requires_reconciliation");
+    expect(executeCommunicationsSend).not.toHaveBeenCalled();
+    expect(f.db.records.get("action_ledger/ledger-1").status).toBe("executing");
+  });
   it("invalidates a prior decision after the sender/body changes", async () => {
     const f = await setup(); f.payload.from = "hello@tryblueprint.io";
     await f.db.doc("action_ledger/ledger-1").update({ action_payload: f.payload });

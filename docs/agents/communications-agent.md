@@ -112,7 +112,7 @@ Approval/rejection/retry transitions use transactions for this agent's ledger.
 Sending rechecks current source identity, reviewed handoff, suppression, actual
 thread and exact human approval. Gmail has no send idempotency key: one-use stable
 claim plus deterministic RFC Message-ID prevent duplicate replies across revisions.
-Lost ACK recovery searches and verifies the exact sent sender/recipient/body/
+Interrupted executing/approved ledgers remain visible in Blueprint with a receipt-only Check delivery action; it cannot create a send. Lost ACK recovery searches and verifies the exact sent sender/recipient/body/
 subject/thread; no result never licenses resend. Receipt recovery can record an
 actual earlier send after sending is disabled or its thread changed, and preserves
 closed/converted prospect state. No Gmail draft creation is implemented or claimed.

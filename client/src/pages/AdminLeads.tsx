@@ -1853,14 +1853,14 @@ export default function AdminLeads() {
                           </button>
                         </>
                       ) : null}
-                      {item.status === "failed" ? (
+                      {item.status === "failed" || (item.action_payload.communications && ["executing", "operator_approved"].includes(item.status)) ? (
                         <button
                           type="button"
                           onClick={() => retryActionMutation.mutate(item.id)}
                           className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
                           disabled={retryActionMutation.isPending}
                         >
-                          Retry
+                          {item.status === "failed" ? "Retry" : "Check delivery"}
                         </button>
                       ) : null}
                       {item.source_collection === "inboundRequests" ? (

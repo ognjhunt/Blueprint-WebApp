@@ -807,9 +807,7 @@ export async function retryFailedAction(
   if (!ledgerDoc.exists) throw new Error(`Ledger doc ${ledgerDocId} not found`);
 
   const data = ledgerDoc.data()!;
-  if (data.status !== "failed")
-    throw new Error(`Cannot retry action in state: ${data.status}`);
-  if (isCommunicationsPayload(data.action_payload)) {
+  if (isCommunicationsPayload(data.action_payload) && ["failed", "executing", "operator_approved"].includes(data.status)) {
     // Observe an actual prior send before freshness/new-send checks. This may
     // recover a lost acknowledgement after the sent message changed the thread.
     const recovered = await reconcileCommunicationsSend(data.action_payload);
@@ -817,7 +815,10 @@ export async function retryFailedAction(
       await ledgerRef.update({ status: "sent", sent_at: new Date(), last_execution_error: null, updated_at: new Date() });
       return { state: "sent", tier: data.action_tier, ledgerDocId };
     }
+    // Crash-shaped active states only permit receipt observation, never a POST.
+    if (data.status !== "failed") throw new Error("communications_interrupted_send_requires_reconciliation");
   }
+  if (data.status !== "failed") throw new Error(`Cannot retry action in state: ${data.status}`);
   if (data.execution_attempts >= 3) throw new Error("Max retries exceeded");
 
   const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
