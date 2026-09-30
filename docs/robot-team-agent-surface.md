@@ -50,6 +50,10 @@ The 15-minute plan binds team, checkpoint, tasks, prices and execution digests.
 Changed or expired plans require another review; unavailable execution preparation
 blocks payment. A reservation and its immutable run are written in one transaction.
 One prepared canonical request can be purchased once, even with a new client retry key.
+Each new plan creates a separate prepared execution, including another evaluation
+of the same checkpoint and task. The signed token names that exact execution;
+retries of the same token reuse its reservation. Autonomous confirmations use
+their idempotency key to identify the submission.
 
 **There is no line in this diagram.** Every step is an API call a team's own agent can make, and the only thing that is not an API call is somebody paying — which is a fact about money rather than a queue.
 
@@ -301,6 +305,29 @@ compatible profiles; arbitrary pickled models and customer Python are not
 loaded by this route. See
 `docs/robot-team-policy-integration-acceptance-20260928.md` for the complete
 production execution and result-delivery gates.
+
+## Private policy access
+
+Register a digest-pinned image as `container_image` or `controller_adapter`, or
+an HTTPS endpoint as `customer_hosted`. Attach access using
+`POST /api/agent-team/checkpoints/:checkpointId/credentials` with the owning
+team's bearer key and a verified account bound to that team:
+
+- Image registry: `{"kind":"registry","username":"<registry username>","secret":"<registry token>"}`.
+- Authenticated HTTPS policy: `{"kind":"bearer","token":"<policy token>"}`.
+
+Credentials are encrypted separately from checkpoint metadata. The response
+contains only a credential version reference and expiry. New plans bind that
+version; replacing or revoking it requires a fresh plan. Use `DELETE` on the
+same path to revoke it. Avoid credentials in image URLs, endpoint URLs, labels,
+or registration fields. The worker issues a job-bound, single-use image-pull
+lease or binds the bearer credential to the exact policy endpoint and job.
+
+The simulator, scene files, and scoring harness stay on Blueprint infrastructure.
+Policies receive only the permitted observations and return actions; observations
+can reveal what is visible in the scene. A configured task and compatible robot
+profile remain necessary. Controller adapters use the isolated HTTP/JSON action
+contract; `skill_trace` records intent and does not by itself execute motor actions.
 
 Deployment coverage is `us_national`, `specific_regions`, or `not_deploying`.
 For `specific_regions`, include `deploymentRegions` with full country/state names or
