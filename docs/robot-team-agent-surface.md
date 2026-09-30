@@ -54,6 +54,10 @@ Each new plan creates a separate prepared execution, including another evaluatio
 of the same checkpoint and task. The signed token names that exact execution;
 retries of the same token reuse its reservation. Autonomous confirmations use
 their idempotency key to identify the submission.
+Default ranking skips checkpoint/task pairs that already have a result. To
+explicitly request another evaluation, send `sceneId` and `repeatCompleted:true`
+to `POST /api/agent-team/plan`, then confirm that new signed token with a new
+request key. Reusing a confirmation key with a different plan refuses spend.
 
 **There is no line in this diagram.** Every step is an API call a team's own agent can make, and the only thing that is not an API call is somebody paying — which is a fact about money rather than a queue.
 

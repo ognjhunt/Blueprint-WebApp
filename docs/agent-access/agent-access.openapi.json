@@ -289,14 +289,31 @@
             "application/json": {
               "schema": {
                 "type": "object",
+                "required": [
+                  "checkpointId"
+                ],
                 "properties": {
+                  "checkpointId": {
+                    "type": "string",
+                    "description": "The team's registered policy checkpoint."
+                  },
+                  "sceneId": {
+                    "type": "string",
+                    "description": "Optional task offer to evaluate."
+                  },
+                  "repeatCompleted": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Explicitly request another completed checkpoint/task evaluation. Requires sceneId."
+                  },
                   "budgetUsd": {
                     "type": "number",
                     "description": "Optional planning budget in USD."
                   },
-                  "runLimit": {
+                  "maxRuns": {
                     "type": "integer",
-                    "minimum": 1
+                    "minimum": 1,
+                    "maximum": 50
                   }
                 }
               }

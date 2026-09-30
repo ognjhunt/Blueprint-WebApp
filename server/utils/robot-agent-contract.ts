@@ -118,7 +118,7 @@ export function buildRobotAgentAccessManifest() {
         runtimes: ["policy_endpoint", "customer_hosted", "container_image", "controller_adapter", "model_artifact", "skill_trace"],
         modelUpload: "Multipart model, interface JSON, and optional label. The approved ONNX runner is onnx_state_mlp_cpu_v1; upload requires a verified account bound to the team.",
         privateCredentials: "After registering a checkpoint, attach {kind:registry,username,secret} for a private container/controller image or {kind:bearer,token} for an HTTPS policy. Account-bound team ownership is required. Responses contain a version reference only. DELETE revokes that version.",
-        newEvaluation: "Each new plan prepares a separate execution of the checkpoint and task. Confirm its signed planToken; retry that same token to recover the same reservation without another charge.",
+        newEvaluation: "Default planning skips completed checkpoint/task pairs. To request another evaluation, POST /plan with sceneId and repeatCompleted:true. Its new signed plan prepares a separate execution. Confirm its planToken; retry that same token to recover the same reservation without another charge. Use a new request key for a different plan.",
         observationAccess: "Blueprint retains scene files and the scoring harness. Controlled policies receive the permitted observations and return actions. Compatible task, robot, and runner profiles are required; a skill trace alone is not execution evidence.",
       },
       /**
@@ -466,9 +466,13 @@ export function buildRobotAgentOpenApiContract() {
               "application/json": {
                 schema: {
                   type: "object",
+                  required: ["checkpointId"],
                   properties: {
+                    checkpointId: { type: "string", description: "The team's registered policy checkpoint." },
+                    sceneId: { type: "string", description: "Optional task offer to evaluate." },
+                    repeatCompleted: { type: "boolean", default: false, description: "Explicitly request another completed checkpoint/task evaluation. Requires sceneId." },
                     budgetUsd: { type: "number", description: "Optional planning budget in USD." },
-                    runLimit: { type: "integer", minimum: 1 },
+                    maxRuns: { type: "integer", minimum: 1, maximum: 50 },
                   },
                 },
               },
