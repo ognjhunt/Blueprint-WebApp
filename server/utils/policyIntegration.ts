@@ -37,7 +37,10 @@ export function checkpointPolicyPackage(checkpoint: Record<string, any>): Record
   if (!reference) return null;
   const access = checkpoint.policyCredential ? { credential_ref: checkpoint.policyCredential.ref,
     credential_kind: checkpoint.policyCredential.kind } : {};
-  if (checkpoint.runtime === "policy_endpoint") return { policy_api_endpoint: { endpoint_url: reference, ...access } };
+  if (checkpoint.runtime === "policy_endpoint") return { policy_api_endpoint: {
+    endpoint_url: reference, ...access,
+    ...(checkpoint.policyCredential ? { execution_profile: "controlled_observation_v1" } : {}),
+  } };
   if (checkpoint.runtime === "container_image" && pinnedImage.test(reference)) return {
     docker_container: { image_ref: reference, execution_profile: "controlled_observation_v1", ...access },
   };

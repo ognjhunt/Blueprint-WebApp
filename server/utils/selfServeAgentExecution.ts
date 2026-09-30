@@ -140,7 +140,8 @@ export async function ensureSelfServeAgentExecution(params: {
   if (!facts.ok) return { prepared: false, blockers: facts.blockers };
   const offer = agentExecutionOfferFrom(scene, facts.captureId);
   if (!offer) return { prepared: false, blockers: ["pipeline_execution_offer_missing"] };
-  if (["customer_hosted", "container_image", "controller_adapter", "model_artifact"].includes(checkpoint.runtime)
+  if ((["customer_hosted", "container_image", "controller_adapter", "model_artifact"].includes(checkpoint.runtime)
+      || (checkpoint.runtime === "policy_endpoint" && checkpoint.policyCredential))
     && !offer.policy_execution_profiles?.includes("controlled_observation_v1")) {
     return { prepared: false, blockers: ["pipeline_controlled_policy_executor_required"] };
   }
