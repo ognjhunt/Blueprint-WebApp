@@ -417,6 +417,7 @@ export async function discoverAgentExecutionAdmission(params: {
   sceneId: string;
   quotedEpisodes: number;
   quotedUsd: number;
+  executionRequestId?: string;
 }): Promise<
   | { admitted: true; envelope: Record<string, unknown>; canonicalJson: string; digestSha256: string }
   | { admitted: false; blockers: string[] }
@@ -446,7 +447,7 @@ export async function discoverAgentExecutionAdmission(params: {
   }
   if (blockers.length) return { admitted: false, blockers };
 
-  const admissions = await discoverAgentExecutionAdmissionsForSelection({
+  const selection = {
     teamId: params.teamId,
     checkpoint: {
       checkpointId: params.checkpointId,
@@ -466,7 +467,13 @@ export async function discoverAgentExecutionAdmission(params: {
     },
     taskId,
     taskFamily,
-  });
+  };
+  const admissions = params.executionRequestId
+    ? await (async () => {
+      const result = await prepareAgentExecutionAdmission({ ...selection, decisionRequestId: params.executionRequestId! });
+      return result.admitted ? [{ decisionRequestId: params.executionRequestId!, ...result }] : [];
+    })()
+    : await discoverAgentExecutionAdmissionsForSelection(selection);
   const exact = admissions.filter((item) => {
     const canonical = objectValue(item.envelope.canonical_execution_request);
     const authorization = objectValue(canonical.execution_authorization);

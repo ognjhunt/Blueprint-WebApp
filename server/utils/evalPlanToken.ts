@@ -32,6 +32,7 @@ export interface EvalPlanLine {
   sceneId: string;
   costUsd: number;
   executionDigest?: string;
+  executionRequestId?: string;
 }
 
 interface EvalPlanTokenPayload {
@@ -116,7 +117,9 @@ export function verifyEvalPlanToken(
   if (!Array.isArray(payload.lines) || payload.lines.length > 50) return null;
   if (payload.lines.some(line => !line || typeof line.sceneId !== "string" || !line.sceneId ||
     !Number.isFinite(line.costUsd) || line.costUsd <= 0 ||
-    (line.executionDigest !== undefined && !/^sha256:[a-f0-9]{64}$/.test(line.executionDigest)))) return null;
+    (line.executionDigest !== undefined && !/^sha256:[a-f0-9]{64}$/.test(line.executionDigest)) ||
+    (line.executionRequestId !== undefined && (typeof line.executionRequestId !== "string" ||
+      !/^selfserve-[a-f0-9]{32}$/.test(line.executionRequestId))))) return null;
   if (new Set(payload.lines.map(line => line.sceneId)).size !== payload.lines.length) return null;
   return payload.lines.map(line => ({ ...line }));
 }
