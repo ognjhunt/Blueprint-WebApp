@@ -86,6 +86,7 @@ import publicLaunchRouter from "./routes/public-launch";
 import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
 import companyPolicyCandidatesRouter from "./routes/company-policy-candidates";
 import internalCompanyPolicyRegistryCredentialsRouter from "./routes/internal-company-policy-registry-credentials";
+import internalCheckpointPolicyCredentialsRouter from "./routes/internal-checkpoint-policy-credentials";
 import clientRuntimeConfigAdminRouter, {
   clientRuntimeConfigPublicHandler,
 } from "./routes/client-runtime-config";
@@ -138,6 +139,7 @@ export function registerRoutes(app: Express) {
   // reachable with a team's own agent key: a team must not settle its own
   // reservation for zero and get the work free.
   app.use("/api/internal/pipeline", internalAgentRunSettlementRouter);
+  app.use("/api/internal/pipeline", internalCheckpointPolicyCredentialsRouter);
   // Public by design: the signed link in the path is the credential.
   app.use("/api/self-capture/uploads", selfCaptureUploadsRouter);
   // Same signed link as the camera, because it is the same person doing two

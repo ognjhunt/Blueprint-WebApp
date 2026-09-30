@@ -72,6 +72,7 @@ export interface RobotCheckpoint {
   /** Endpoint URL, image reference, or artifact URI, by runtime. */
   reference: string;
   modelArtifact?: PolicyModelArtifact;
+  policyCredential?: { ref: string; kind: "registry" | "bearer"; expiresAtIso: string };
   status: CheckpointStatus;
   /** Why it could not be run, when that is the status. */
   unrunnableReason: string | null;

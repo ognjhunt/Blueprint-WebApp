@@ -22,6 +22,7 @@ export interface AgentExecutionAdmissionSelection {
     runtime: CheckpointRuntime;
     reference: string;
     modelArtifact?: PolicyModelArtifact;
+    policyCredential?: { ref: string; kind: "registry" | "bearer"; expiresAtIso: string };
   };
   scene: {
     requestId: string;
@@ -90,6 +91,9 @@ function canonicalCheckpointMatches(
   selection: AgentExecutionAdmissionSelection,
 ): boolean {
   const policy = objectValue(canonical.policy_package);
+  const payload = objectValue(policy.policy_api_endpoint || policy.docker_container || policy.sim_controller_plugin);
+  if (payload.credential_ref !== selection.checkpoint.policyCredential?.ref
+      || payload.credential_kind !== selection.checkpoint.policyCredential?.kind) return false;
   if (selection.checkpoint.runtime === "model_artifact") {
     const container = objectValue(policy.docker_container);
     const artifact = selection.checkpoint.modelArtifact;
@@ -450,6 +454,7 @@ export async function discoverAgentExecutionAdmission(params: {
       runtime: checkpoint.runtime as AgentExecutionAdmissionSelection["checkpoint"]["runtime"],
       reference: String(checkpoint.reference || ""),
       ...(checkpoint.modelArtifact ? { modelArtifact: checkpoint.modelArtifact as PolicyModelArtifact } : {}),
+      ...(checkpoint.policyCredential ? { policyCredential: checkpoint.policyCredential as AgentExecutionAdmissionSelection["checkpoint"]["policyCredential"] } : {}),
     },
     scene: {
       requestId: params.sceneId,
