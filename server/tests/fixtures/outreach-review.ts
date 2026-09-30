@@ -8,7 +8,7 @@ export const outreachContext: OutreachContext = {
 };
 export const outreachContract: OutreachReviewContract = {
   version: "blueprint.outreach.v1",
-  senderIdentity: "I'm reaching out from Blueprint.",
+  senderIdentity: "I'm building Blueprint.",
   opening: {
     kind: "cold",
     noVerifiedConnectionReason: "No verified relationship or shared community is recorded.",

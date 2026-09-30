@@ -48,6 +48,8 @@ For first-contact outreach, also apply [Blueprint's five outreach rules](../../.
 
 Also review the agreed discovery-to-outcome approach: Blueprint affiliation from first contact; joint site/job/team research with parallel team feasibility; separate talking/evaluation/capacity signals; learning briefs distinct from qualified-match fees; progressive job details before footage; site permission before team sharing; team-confirmed configuration/support/timing before a match promise; evidence-backed evaluation and consent for introductions and physical-outcome feedback. Treat any unsupported Atlas/pipeline capability claim as a blocker. A first-contact review does not grant later permissions or establish team capacity.
 
+Use the founder's “I’m building Blueprint” framing, without academic-research or large-company implications. Web research and verified business contact routes lead discovery; network mining is stopped and LinkedIn role verification is optional. Do not fail legitimate cold outreach because no exhaustive network search was done; verify only relationships actually claimed.
+
 1. Identify the artifact type and intended audience.
 2. Identify what evidence should back the draft:
    - capture/package artifacts

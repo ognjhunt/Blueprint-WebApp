@@ -65,12 +65,12 @@ export const outreachReviewContractSchema = z.object({
 }).strict();
 
 export const OUTREACH_SEMANTIC_CHECKS = {
-  connection: "Use a verified connection/introduction/community where possible. Check the source and recipient identity; a shared community implies no endorsement.",
+  connection: "Use a known verified connection/introduction/community where possible; only claimed relationships require proof. Web research and verified business contact routes lead discovery; no network mining or exhaustive network search is required for legitimate cold contact. LinkedIn is optional role verification. Check the source and recipient identity; a shared community implies no endorsement.",
   evidence: "Verify every factual claim against its source. For cold contact verify the public detail and its relevance; reject invented connections and unsupported claims.",
   boundedValue: "Confirm the observation or task-specific research brief is useful, deliverable, and has clear limits; no capability or outcome guarantees.",
   easyQuestion: "Confirm there is exactly one easy, non-confidential question; no compound questionnaire, private operational data, video/upload, or meeting request by default.",
   recipientChoice: "Confirm the recipient decides whether deeper conversation is worthwhile; reject pressure, urgency, implied obligation, or automatic follow-up commitments.",
-  workflow: "Disclose Blueprint identity from first contact. Research site/job/team jointly with site-led discovery and parallel team feasibility. Separate interest in talking, evaluation participation, and deployment capacity. Keep readiness/learning distinct from the qualified-match fee. Use a progressive job brief before footage/details; obtain site permission before sharing with teams. Confirm team configuration/support/timing before any match promise; evaluations and physical-outcome feedback require evidence and consent. Verify every Atlas/pipeline capability claim.",
+  workflow: "Disclose Blueprint identity from first contact using the founder's 'I'm building Blueprint' framing; do not pose as academic research or imply a large established company. Research site/job/team jointly with site-led discovery and parallel team feasibility. Separate interest in talking, evaluation participation, and deployment capacity. Keep readiness/learning distinct from the qualified-match fee. Use a progressive job brief before footage/details; obtain site permission before sharing with teams. Confirm team configuration/support/timing before any match promise; evaluations and physical-outcome feedback require evidence and consent. Verify every Atlas/pipeline capability claim.",
 } as const;
 
 const decision = z.enum(["pass", "revise", "block"]);

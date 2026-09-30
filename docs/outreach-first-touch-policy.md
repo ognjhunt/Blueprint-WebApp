@@ -10,6 +10,7 @@ continue to apply. A passing quality check is never permission to send.
 1. Start with a verified connection, introduction, or shared community where
    possible. Record the source and who verified it. Never invent a relationship.
    Shared community membership does not imply familiarity, referral, or endorsement.
+   Use a known connection when available; no exhaustive network search is required.
 2. For a cold approach, reference one specific public detail and explain why it
    is relevant. Retain the source, confirm it concerns the recipient, and separate
    observed facts from hypotheses. A plausible URL alone does not verify a claim.
@@ -27,12 +28,20 @@ continue to apply. A passing quality check is never permission to send.
 
 Use this approach together with the five first-contact rules:
 
+**Discovery preference:** web research and verified business contact routes lead.
+Network mining is stopped. LinkedIn may help verify a role; it is optional and is
+never a prerequisite to legitimate cold contact. Only relationships actually
+claimed in a message require verified connection evidence. For a cold draft,
+`noVerifiedConnectionReason` can simply state that no known verified relationship
+is available; it is not evidence that a network search was performed or required.
+
 1. Research the **site, job/task, and robot team jointly**. Lead discovery from a
    site's recurring job while assessing team feasibility in parallel. Record
    public source evidence and the gaps on both sides. Team feasibility can remain
    pending; do not substitute a team marketing claim for a confirmed fit.
-2. **Disclose Blueprint identity from first contact.** Do not approach as an
-   independent researcher or imply a third party endorses Blueprint. Keep the
+2. **Disclose Blueprint identity from first contact:** “I’m building Blueprint.”
+   Do not pose as academic research, imply a large established company, approach as an
+   independent researcher, or imply a third party endorses Blueprint. Keep the
    actual sender identity and existing sender policy intact.
 3. Keep **interest in talking**, **agreement to evaluation participation**, and
    **confirmed deployment capacity** distinct. A reply, useful public research,
@@ -81,6 +90,8 @@ the prospect route queues them; direct executor callers stay pending. Approval
 also requires the separate five-rule and workflow semantic attestation below. Legacy queued
 prospect drafts lacking the contract cannot be released. Failed sends require a
 stored review that still matches their recipient, text, contract, and evidence.
+Prospect scope accepts single-email actions only; campaign or other action types
+cannot use one recipient's review to authorize another recipient or channel.
 
 The separate [GTM first-touch review](../server/utils/exactSiteHostedReviewFirstTouch.ts),
 [GTM send executor](../server/utils/gtmSendExecutor.ts), and
@@ -132,7 +143,12 @@ rows, so an approver can recover the current digest and checklist from the ledge
 ## Pre-send review
 
 An authorized admin reviews the exact queued subject/body and source records, then
-supplies this body to the existing action-queue approval route:
+checks the six items in the existing Admin Leads approval card and selects
+**Approve outreach**. The card displays the exact recipient/message and evidence,
+disables approval for invalid drafts, and resets checks when the draft digest
+changes. Other lanes retain their existing approval UI.
+
+For the API workflow, supply this body to the existing action-queue approval route:
 
 ```json
 {
@@ -181,7 +197,7 @@ grader is used.
 The following is a test fixture, not a verified prospect or send-ready message:
 
 > Your public careers page describes a packing station. That relates to our
-> question about a bounded packing job. I'm reaching out from Blueprint. I can share a short packing-job research
+> question about a bounded packing job. I'm building Blueprint. I can share a short packing-job research
 > brief. It uses public sources only and cannot establish robot fit. Is packing
 > a relevant job to discuss? You can decide whether any deeper conversation is useful.
 

@@ -229,6 +229,9 @@ function validateActionPayloadBeforeExecution(
   payload: ActionPayload,
   scope?: { lane?: string; source_collection?: string },
 ): { valid: boolean; reason?: string } {
+  if (isProspectOutreach(scope) && actionType !== "send_email") {
+    return { valid: false, reason: "prospect_outreach_requires_single_email" };
+  }
   if (actionType === "send_campaign_emails") {
     return validateCampaignEmailPayload(payload);
   }
@@ -333,8 +336,8 @@ export async function executeAction(
   // 1. Idempotency check — look up existing ledger doc
   const existingLedger = await findLedgerByIdempotencyKey(idempotencyKey);
   const contentValidation =
-    (safetyPolicy.contentChecks || isProspectOutreach({ lane: safetyPolicy.lane, source_collection: sourceCollection })) &&
-    (actionType === "send_email" || actionType === "send_campaign_emails")
+    isProspectOutreach({ lane: safetyPolicy.lane, source_collection: sourceCollection }) ||
+    (safetyPolicy.contentChecks && (actionType === "send_email" || actionType === "send_campaign_emails"))
       ? validateActionPayloadBeforeExecution(actionType, actionPayload, { lane: safetyPolicy.lane, source_collection: sourceCollection })
       : { valid: true };
   if (!contentValidation.valid) {
@@ -594,7 +597,7 @@ export async function approveAction(
     throw new Error(`Cannot approve action in state: ${data.status}`);
   }
 
-  if (data.action_type === "send_email" || data.action_type === "send_campaign_emails") {
+  if (isProspectOutreach(data) || data.action_type === "send_email" || data.action_type === "send_campaign_emails") {
     const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
     if (validation.valid && isProspectOutreach(data)) {
       const reason = validateOutreachSemanticReview(prospectOutreachReview(data.action_payload), outreachSemanticReview);

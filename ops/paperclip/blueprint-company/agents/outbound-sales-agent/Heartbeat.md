@@ -43,6 +43,7 @@
 8. **Declined** — Explicit "not interested." Respect and close.
 
 ## Outreach Principles
+- Web research and verified business contact routes lead; no network mining or exhaustive network-search prerequisite. LinkedIn role verification is optional. “I’m building Blueprint” is the honest first-contact frame.
 - Lead with their problem, not Blueprint's product
 - Reference something specific to their work (paper, talk, job posting, project)
 - Keep first touch under 100 words

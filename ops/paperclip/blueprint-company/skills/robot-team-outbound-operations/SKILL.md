@@ -20,6 +20,7 @@ Create disciplined outbound that turns real demand signals into specific, respec
 
 - Follow the canonical [first-contact outreach policy](../../../../../docs/outreach-first-touch-policy.md) and its five-rule plus workflow pre-send review.
 - Start with a source-verified connection, introduction, or shared community where possible; membership implies no endorsement.
+- Lead discovery with web research and verified business contact routes. Network mining is stopped; LinkedIn is optional role verification. Do not require exhaustive network search before legitimate cold outreach. Only claimed relationships need connection proof. First-contact identity framing is “I’m building Blueprint,” without academic-research or large-company implications.
 - For cold contact, cite one specific public detail and explain relevance, then offer a small observation or task-specific research brief with clear limits.
 - Ask exactly one easy, non-confidential question first. Do not default to a meeting, questionnaire, video, or upload.
 - Leave deeper conversation to the recipient's choice; reject invented relationships, unsupported claims, confidential asks, or pressure.

@@ -239,6 +239,21 @@ afterEach(() => {
 });
 
 describe("admin action queue", () => {
+  it("returns the current outreach review digest and checklist for a stored prospect draft", async () => {
+    const original = ledgerRows[0];
+    ledgerRows[0] = { ...original, data: { ...original.data, lane: "outbound_prospect", source_collection: "outboundProspects",
+      action_payload: { to: outreachDraft.to, subject: outreachDraft.subject, body: outreachDraft.body },
+    } };
+    Object.assign(ledgerRows[0].data.action_payload, { outreachContract: outreachDraft.contract, outreachContext: outreachDraft.context });
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/action-queue?limit=25`);
+      const data = await response.json();
+      const item = data.items.find((row: { id: string }) => row.id === "ledger-1");
+      expect(item.outreach_review).toEqual(reviewOutreachDraft(outreachDraft));
+    } finally { ledgerRows[0] = original; await stopServer(server); }
+  });
+
   it("forwards the separate semantic attestation using the authenticated operator identity", async () => {
     const review = { digest: reviewOutreachDraft(outreachDraft).digest, checks: passingOutreachChecks };
     approveActionMock.mockResolvedValue({ state: "pending_approval", tier: 3, ledgerDocId: "outreach-1" });

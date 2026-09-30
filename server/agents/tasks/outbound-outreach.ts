@@ -110,7 +110,7 @@ WHAT THIS EMAIL IS FOR
 Offer a useful, bounded observation or task-specific research brief. Label hypotheses as hypotheses. Never present an inference as a verified fact or promise reconstruction, robot fit, or a deployment outcome.
 
 CANONICAL FIRST-CONTACT RULES (docs/outreach-first-touch-policy.md)
-1. Start with a verified connection, introduction, or shared community where possible. Use only connectionEvidence supplied by the operator, never invent a relationship or imply community endorsement. Without it, choose a cold opening and record why no verified connection is used.
+1. Start with a known verified connection, introduction, or shared community where possible. Use only connectionEvidence supplied by the operator, never invent a relationship or imply community endorsement. Without it, choose a cold opening and record why no verified connection is used. Web research and verified business contact routes lead discovery. Do not mine networks or require exhaustive network search before legitimate cold contact. LinkedIn is optional role verification, never a required step.
 2. For a cold approach, reference one specific public detail from the provided observations, echo its exact claim/source in outreach_contract, and explain the relevance in the body.
 3. Offer one small useful observation or task-specific research brief and state its limits in the body. Be explicit about public evidence, hypotheses, and what the offer cannot establish.
 4. Ask exactly one easy, non-confidential question first. No questionnaire, compound ask, meeting/calendar link, video, upload, private operational data, or introduction request by default.
@@ -118,7 +118,7 @@ CANONICAL FIRST-CONTACT RULES (docs/outreach-first-touch-policy.md)
 
 DISCOVERY AND MATCHING WORKFLOW
 Research the site, job, and team jointly. Start discovery from the site/job; assess team feasibility in parallel from teamObservations, or mark it pending. Public feasibility research is not a team's agreement to evaluate or deployment capacity.
-Disclose Blueprint identity from the first contact; never invent a sender name. You can say "I'm reaching out from Blueprint."
+Disclose Blueprint identity from the first contact using "I'm building Blueprint" framing; never invent a sender name, pose as academic research, or imply a large established company.
 Keep interest in talking, agreement to evaluation participation, and confirmed deployment capacity separate; do not infer any of them from a reply or public research.
 Offer a readiness/learning brief as a bounded learning artifact, separate from the qualified-match fee. Do not imply the brief, reply, or evaluation triggers a match fee or proves a qualified match.
 Ask one progressive job-brief question before seeking footage or detailed operational information. Site permission is required before sharing a brief or footage with robot teams. A team must confirm the configuration, support, and timing before Blueprint promises a match. Evaluation claims need evidence; introductions and physical-outcome feedback require the parties' consent. These are later gates, not requests to bundle into first contact.
@@ -155,7 +155,7 @@ Use automation_status="blocked" only when there is not enough here to write anyt
         internal_summary: "",
         outreach_contract: {
           version: "blueprint.outreach.v1",
-          senderIdentity: "I'm reaching out from Blueprint.",
+          senderIdentity: "I'm building Blueprint.",
           opening: { kind: "cold", noVerifiedConnectionReason: "", publicDetail: { claim: "", source: "" }, relevance: "" },
           value: { kind: "observation", offer: "", limits: "" },
           question: "",

@@ -199,6 +199,36 @@ describe("prospect outreach quality enforcement", () => {
     action_type: "send_email", action_payload: payload, action_tier: 3, execution_attempts: 0,
   };
 
+  it("rejects prospect-scoped campaign recipients at queue, approval, and retry", async () => {
+    const campaignPayload = { ...payload, recipients: ["unreviewed@other-facility.co"] };
+    mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] });
+    const queued = await executeAction(makeParams({
+      sourceCollection: "outboundProspects", actionType: "send_campaign_emails",
+      actionPayload: campaignPayload, safetyPolicy: ALWAYS_AUTO_POLICY,
+    }));
+    expect(queued.state).toBe("pending_approval");
+    expect(queued.error).toBe("prospect_outreach_requires_single_email");
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ ...ledger, action_type: "send_campaign_emails", action_payload: campaignPayload }) });
+    const approved = await approveAction("outreach-1", "admin@blueprint.test", review);
+    expect(approved.state).toBe("pending_approval");
+    expect(approved.error).toBe("prospect_outreach_requires_single_email");
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({
+      ...ledger, status: "failed", action_type: "send_campaign_emails", action_payload: campaignPayload,
+      approved_by: "admin@blueprint.test", outreach_reviewed_by: "admin@blueprint.test", outreach_semantic_review: review,
+    }) });
+    const retry = await retryFailedAction("outreach-1");
+    expect(retry.state).toBe("pending_approval");
+    expect(retry.error).toBe("prospect_outreach_requires_single_email");
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects other action types under prospect scope", async () => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ ...ledger, action_type: "send_slack", action_payload: { message: "Outreach" } }) });
+    const result = await approveAction("outreach-1", "admin@blueprint.test", review);
+    expect(result.error).toBe("prospect_outreach_requires_single_email");
+    expect(mockSendSlackMessage).not.toHaveBeenCalled();
+  });
+
   it("keeps structurally valid prospect outreach pending even if a caller supplies an auto policy", async () => {
     mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] });
     const result = await executeAction(makeParams({

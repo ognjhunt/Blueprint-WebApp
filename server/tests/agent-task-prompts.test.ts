@@ -129,6 +129,9 @@ describe("agent task prompts", () => {
     expect(prompt).toContain("configuration, support, and timing");
     expect(prompt).toContain("physical-outcome feedback require the parties' consent");
     expect(prompt).toContain("Never claim Atlas or pipeline capabilities without");
+    expect(prompt).toContain("Web research and verified business contact routes lead discovery");
+    expect(prompt).toContain("LinkedIn is optional role verification, never a required step");
+    expect(prompt).toContain("using \"I'm building Blueprint\" framing");
     expect(prompt).not.toContain("Ask them to film");
     expect(prompt).not.toContain("a comparison of which robots can do the job");
   });
