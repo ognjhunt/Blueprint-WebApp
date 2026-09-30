@@ -5,6 +5,7 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { encryptBoundFieldValue, decryptBoundFieldValue } from "./field-encryption";
 import type { BoundEncryptedField } from "../types/field-encryption";
 import type { RobotCheckpoint } from "./robotCheckpoints";
+import { validateIntegrationReference } from "./policyIntegration";
 
 export const policyCredentialSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("registry"), username: z.string().min(1).max(512),
@@ -43,6 +44,9 @@ export async function storeCheckpointPolicyCredential(params: {
     ? ["container_image", "controller_adapter"].includes(checkpoint.runtime)
     : ["customer_hosted", "policy_endpoint"].includes(checkpoint.runtime);
   if (!compatible) throw new Error("policy_credential_runtime_mismatch");
+  if (credential.kind === "bearer" && !validateIntegrationReference("customer_hosted", checkpoint.reference)) {
+    throw new Error("policy_credential_https_endpoint_required");
+  }
   const metadata = { schema_version: "blueprint.checkpoint_policy_credential.v1" as const,
     credential_ref: `policy-credential-${randomUUID()}`, team_id: checkpoint.teamId,
     owner_uid: params.ownerUid, checkpoint_id: checkpoint.checkpointId,
