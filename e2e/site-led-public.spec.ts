@@ -1,4 +1,7 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { expect, test, type Page } from "@playwright/test";
+
+test.beforeEach(mockExternalFonts);
 
 // Every submission is intercepted. These tests never send an inquiry or email.
 test.beforeEach(async ({ page }) => {

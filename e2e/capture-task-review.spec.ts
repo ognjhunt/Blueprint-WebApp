@@ -1,4 +1,7 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { expect, test } from "@playwright/test";
+
+test.beforeEach(mockExternalFonts);
 
 import { seedCookieConsent } from "./helpers/cookie-consent";
 

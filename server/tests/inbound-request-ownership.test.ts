@@ -36,6 +36,7 @@ vi.mock("../agents", () => ({ runInboundQualificationForRequest: vi.fn(async () 
 vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => undefined) }));
 
 const { submitInboundRequest } = await import("../routes/inbound-request");
+const { incrementInboundRequestStats } = await import("../utils/inboundRequestStats");
 
 function payload(requestId: string, email: string) {
   return {
@@ -80,6 +81,77 @@ async function start(): Promise<{ server: Server; baseUrl: string }> {
 beforeEach(() => sharedFakeFirestoreState.docs.clear());
 
 describe("atomic inbound request ownership", () => {
+  it("confirms the saved job even when its aggregate statistics cannot be updated", async () => {
+    vi.mocked(incrementInboundRequestStats).mockRejectedValueOnce(new Error("statistics unavailable"));
+    const { server, baseUrl } = await start();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload("stats-failure", "stats@example.test")),
+      });
+      expect(response.status).toBe(201);
+      expect((await response.json()).captureUrl).toContain("/capture-upload/");
+      expect(sharedFakeFirestoreState.docs.has("inboundRequests/stats-failure")).toBe(true);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("recovers an anonymous submission after a lost response only with its private retry token", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = { ...payload("anonymous-retry", "retry@example.test"), retryToken: "a".repeat(64) };
+      const post = (overrides = {}) => fetch(`${baseUrl}/`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, ...overrides }),
+      });
+      expect((await post()).status).toBe(201);
+      const stored = sharedFakeFirestoreState.docs.get("inboundRequests/anonymous-retry")!;
+      expect(JSON.stringify(stored)).not.toContain(body.retryToken);
+      const retry = await post();
+      expect(retry.status).toBe(200);
+      expect((await retry.json()).captureUrl).toContain("/capture-upload/");
+      expect(sharedFakeFirestoreState.docs.get("inboundRequests/anonymous-retry")).toEqual(stored);
+      expect((await post({ retryToken: "b".repeat(64) })).status).toBe(409);
+      expect((await post({ retryToken: undefined })).status).toBe(409);
+      const { sendEmail } = await import("../utils/email");
+      const count = vi.mocked(sendEmail).mock.calls.length;
+      expect((await post()).status).toBe(200);
+      expect(vi.mocked(sendEmail).mock.calls).toHaveLength(count);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("handles two simultaneous copies of the same anonymous submission once", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = { ...payload("anonymous-race", "race@example.test"), retryToken: "c".repeat(64) };
+      const post = () => fetch(`${baseUrl}/`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const responses = await Promise.all([post(), post()]);
+      expect(responses.map(r => r.status).sort()).toEqual([200, 201]);
+      expect(sharedFakeFirestoreState.docs.has("inboundRequests/anonymous-race")).toBe(true);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("uses the saved region on a retry instead of issuing a link from changed answers", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = { ...payload("held-retry", "held@example.test"), captureRegion: "non_us", retryToken: "d".repeat(64) };
+      const post = (captureRegion: string) => fetch(`${baseUrl}/`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, captureRegion }) });
+      expect((await post("non_us")).status).toBe(201);
+      const retry = await post("us");
+      expect(retry.status).toBe(200);
+      expect((await retry.json()).captureUrl).toBeNull();
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("does not use an anonymous retry token to cross a workspace ownership boundary", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = { ...payload("owned-token", "owned@example.test"), retryToken: "e".repeat(64) };
+      const post = (owner?: string) => fetch(`${baseUrl}/`, { method: "POST", headers: { "content-type": "application/json", ...(owner ? { "x-test-owner": owner } : {}) }, body: JSON.stringify(body) });
+      expect((await post("owner-one")).status).toBe(201);
+      expect((await post()).status).toBe(409);
+      expect((await post("owner-two")).status).toBe(409);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
   it("lets exactly one concurrent owner create a request id and never overwrites it", async () => {
     const { server, baseUrl } = await start();
     try {

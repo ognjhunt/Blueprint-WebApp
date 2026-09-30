@@ -67,6 +67,8 @@ function splitName(value: string) {
 
 export function SiteCaptureStart() {
   const { currentUser, loading } = useAuth();
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => setInteractive(true), []);
   // A scoped development entry link exposes the optional Claude disclosure.
   // Ordinary site captures keep the existing simple form and OpenAI route.
   const claudeAuthoringRequested = typeof window !== "undefined"
@@ -102,6 +104,9 @@ export function SiteCaptureStart() {
   // being a handoff and becomes the place to do the next step.
   const [captureReceived, setCaptureReceived] = useState(false);
   const requestId = useRef(`capture-${crypto.randomUUID()}`);
+  // Separate from the public record identifier: only this form can recover
+  // the capture link if the server saved the job but its response was lost.
+  const retryToken = useRef(crypto.randomUUID());
   const [state, setState] = useState<State>({ status: "idle" });
   const [selfRecording, setSelfRecording] = useState(true);
   const [region, setRegion] = useState<CaptureRegion | "">("");
@@ -167,6 +172,7 @@ export function SiteCaptureStart() {
       const headers = await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" }));
       const body = JSON.stringify({
           requestId: requestId.current,
+          retryToken: retryToken.current,
           firstName,
           lastName,
           email: email.toLowerCase(),
@@ -382,7 +388,8 @@ export function SiteCaptureStart() {
   }
 
   return (
-    <form className="ms-form" onSubmit={submit} aria-label="Start a site capture">
+    <form className="ms-form" method="post" onSubmit={submit} aria-label="Start a site capture">
+      <fieldset disabled={!interactive} className="contents">
       <label htmlFor="start-task">
         <span>What is the job?</span>
         <span className="ms-field-hint">
@@ -650,7 +657,7 @@ export function SiteCaptureStart() {
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a>.
       </p>
 
-      <button className="ms-button ms-button-large" type="submit" disabled={state.status === "working" || loading}>
+      <button className="ms-button ms-button-large" type="submit" disabled={!interactive || state.status === "working" || loading}>
         {state.status !== "working" ? "Start"
           : uploadPercent !== null ? `Uploading video… ${uploadPercent}%` : "Working…"}
       </button>
@@ -672,6 +679,8 @@ export function SiteCaptureStart() {
           </p>
         </div>
       )}
+      </fieldset>
+      <noscript><p>Enable JavaScript to start a capture, or contact <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a> about your job.</p></noscript>
     </form>
   );
 }

@@ -13,6 +13,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
+import { renderToString } from "react-dom/server";
 
 vi.mock("@/lib/analytics", () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
 vi.mock("@/lib/csrf", () => ({
@@ -46,6 +47,14 @@ afterEach(() => {
 function region() {
   return document.querySelector("#start-region") as HTMLSelectElement | null;
 }
+
+it("keeps the prerendered form inactive until handlers attach and never defaults to a GET of contact details", () => {
+  const document = new DOMParser().parseFromString(renderToString(<SiteCaptureStart />), "text/html");
+  const form = document.querySelector("form")!;
+  expect(form.method).toBe("post");
+  expect(form.querySelector("fieldset")?.disabled).toBe(true);
+  expect(form.querySelector<HTMLButtonElement>("button[type=submit]")?.disabled).toBe(true);
+});
 
 it.each(["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"])(
   "keeps %s entry links on the upgraded Sol disclosure",
@@ -166,6 +175,8 @@ it("saves signed-in captures to the authenticated workspace and reuses the reque
   expect(calls).toHaveLength(2);
   expect(calls[0][1].headers.Authorization).toBe("Bearer owner-token");
   expect(JSON.parse(calls[0][1].body).requestId).toBe(JSON.parse(calls[1][1].body).requestId);
+  expect(JSON.parse(calls[0][1].body).retryToken).toMatch(/^[a-zA-Z0-9_-]{32,128}$/);
+  expect(JSON.parse(calls[0][1].body).retryToken).toBe(JSON.parse(calls[1][1].body).retryToken);
   expect(JSON.parse(calls[0][1].body).consentAttestation.granted).toBe(true);
   expect(postsTo("/api/inbound-request")).toHaveLength(0);
   expect(document.querySelector("#start-email")).toBeNull();

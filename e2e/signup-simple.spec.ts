@@ -1,4 +1,7 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { test, expect } from '@playwright/test';
+
+test.beforeEach(mockExternalFonts);
 test.beforeEach(async ({ page }) => {
   await page.addLocatorHandler(page.getByRole("button", { name: "Reject all", exact: true }), button => button.click());
 });
