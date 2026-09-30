@@ -156,3 +156,68 @@ it("lays out a task evaluation result plainly: one boundary line, a comparison, 
   expect(details.open).toBe(false);
   expect(within(details).getByText("Episode packaging: complete")).toBeInTheDocument();
 });
+
+// The episode drawer serves non-canary deliveries; canary records render
+// through PolicyCanaryResultPortal instead (mocked above).
+it("episode drawer says an execution claim wasn't ingested or wasn't reported instead of answering yes or no", () => {
+  const score = { status: "not_scored", task_succeeded: null, grader_authority: "deterministic_simulator_state", policy_outcome_interpretable: false };
+  const value = {
+    schema_version: "task_evaluation_result_site_record.v1",
+    record_id: "result-claims",
+    organization_id: "team-1",
+    access_visibility: "organization_members",
+    publication: {
+      run_id: "run-claims-001",
+      decision_envelope: { decision_question: "Can the arm move the tote to the tray?" },
+      result_delivery: {
+        status: "ready",
+        delivery_digest: `sha256:${"f".repeat(64)}`,
+        blockers: [],
+        stages: [],
+        summary: { episode_count: 5, learned_candidate_episode_count: 4, control_episode_count: 1, successful_episode_count: 0 },
+        artifacts: [],
+        episodes: [
+          {
+            episode_id: "ep-not-ingested", episode_kind: "learned_candidate", subject_id: "pi05_droid", policy_candidate_id: "pi05_droid", score,
+            policy_query: { candidate_policy_queried: null, receipt: null },
+            action_delivery: { actions_reached_robot: null, arm_moved: null, harness_failure_code: "provider_output_not_ingested" },
+          },
+          {
+            episode_id: "ep-observed", episode_kind: "learned_candidate", subject_id: "pi05_droid", policy_candidate_id: "pi05_droid",
+            score: { ...score, status: "scored", policy_outcome_interpretable: true },
+            policy_query: { candidate_policy_queried: true, receipt: null },
+            action_delivery: { actions_reached_robot: true, arm_moved: false },
+          },
+          {
+            episode_id: "ep-unqueried", episode_kind: "learned_candidate", subject_id: "groot_n17_droid", policy_candidate_id: "groot_n17_droid", score,
+            policy_query: { candidate_policy_queried: false, receipt: null },
+            action_delivery: { actions_reached_robot: false, arm_moved: false },
+          },
+          {
+            episode_id: "ep-no-query-claim", episode_kind: "learned_candidate", subject_id: "groot_n17_droid", policy_candidate_id: "groot_n17_droid",
+            score: { ...score, status: "scored", policy_outcome_interpretable: true },
+            action_delivery: { actions_reached_robot: true, arm_moved: true },
+          },
+          {
+            episode_id: "ep-control", episode_kind: "control", subject_id: "zero_action", score: { ...score, status: "scored", policy_outcome_interpretable: true },
+            action_delivery: { actions_reached_robot: false, arm_moved: false },
+          },
+        ],
+      },
+    },
+  } as unknown as TaskEvaluationResultSiteRecord;
+  useResult.mockReturnValue({ result: value, currentUser: { uid: "owner" }, notFound: false, isLoading: false, error: null });
+  render(<TaskEvaluationResultDetail />);
+
+  const episodes = screen.getByRole("heading", { name: "Episodes" }).closest("section")!;
+  const claims = Array.from(episodes.querySelectorAll("details")).map((drawer) => (
+    within(drawer).getByText(/^Policy queried:/, { ignore: "summary" }).textContent
+  ));
+  expect(claims).toEqual([
+    "Policy queried: not ingested · actions reached the robot: not ingested · arm moved: not ingested · outcome can't be scored",
+    "Policy queried: yes · actions reached the robot: yes · arm moved: no",
+    "Policy queried: no · actions reached the robot: no · arm moved: no · outcome can't be scored",
+    "Policy queried: not reported · actions reached the robot: yes · arm moved: yes",
+    "Policy queried: no (control) · actions reached the robot: no · arm moved: no",
+  ]);
+});

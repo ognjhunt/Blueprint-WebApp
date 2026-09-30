@@ -483,6 +483,31 @@ describe("PolicyCanaryResultPortal", () => {
     expect(screen.queryByText(/one captured scene|trail for every episode|files are hash-verified/)).toBeNull();
   });
 
+  it("says once, in plain words, that the provider's output wasn't ingested", () => {
+    const value = result();
+    for (const episode of value.publication.result_delivery!.episodes as any[]) {
+      Object.assign(episode, {
+        score: { status: "not_scored", task_succeeded: null, grader_authority: "deterministic_simulator_state", policy_outcome_interpretable: false },
+        failure: { code: "provider_output_not_ingested", phase: null, summary: "provider output not ingested" },
+        policy_query: { candidate_policy_queried: null, receipt: null },
+        action_delivery: {
+          actions_reached_robot: null, arm_moved: null, returned_action_sequence: null,
+          delivery_readback: null, harness_failure_code: "provider_output_not_ingested",
+        },
+      });
+    }
+    render(<PolicyCanaryResultPortal result={value} user={null} />);
+    expect(screen.getByRole("heading", { name: "No episodes could be scored." })).toBeTruthy();
+    expect(screen.getByText("The provider's output wasn't ingested, so no episode could be scored and the policies can't be compared.")).toBeTruthy();
+    expect(screen.queryByText(/stopped before it could be scored/)).toBeNull();
+    expect(screen.getByText("Policy A: 10 of 10 episodes weren't scored — the provider's output wasn't ingested.")).toBeTruthy();
+    // The producer's summary is only the code in prose, so it adds nothing.
+    expect(within(episodeCard("Policy A")).getByText(
+      "Not scored — the provider's output wasn't ingested (provider_output_not_ingested).",
+    )).toBeTruthy();
+    expect(screen.queryByText(/provider output not ingested/)).toBeNull();
+  });
+
   it("keeps an absent score and missing media visible as unknown evidence", () => {
     const value = result();
     const episode = value.publication.result_delivery!.episodes[0] as any;

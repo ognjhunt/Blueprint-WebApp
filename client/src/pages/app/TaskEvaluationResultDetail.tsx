@@ -76,7 +76,16 @@ function ProtectedVideo({
   );
 }
 
-/** One episode per closed drawer: outcome in the summary, videos and files inside. */
+/** Yes or no for a recorded execution claim. Null means the provider's output was never ingested. */
+function executionClaim(value: boolean | null | undefined) {
+  return value === null ? "not ingested" : value ? "yes" : "no";
+}
+
+/**
+ * One episode per closed drawer: outcome in the summary, videos and files inside.
+ * Canary records never reach this drawer; ResultContent renders them through
+ * PolicyCanaryResultPortal.
+ */
 function EpisodeRow({
   episode,
   user,
@@ -91,6 +100,12 @@ function EpisodeRow({
     || {};
   const receipt = episode.artifacts?.receipt || episode.action_delivery?.delivery_readback || null;
   const frameManifest = episode.artifacts?.frame_manifest || episode.evidence?.frame_manifest || null;
+  // Answers only from the delivered claim; a candidate id alone doesn't show the policy was queried.
+  const policyQueried = !episode.policy_candidate_id
+    ? "no (control)"
+    : episode.policy_query
+      ? executionClaim(episode.policy_query.candidate_policy_queried)
+      : "not reported";
   const [outcome, tone] = episode.score.task_succeeded === true
     ? ["Completed", "green" as const]
     : episode.score.task_succeeded === false
@@ -121,8 +136,8 @@ function EpisodeRow({
         ) : null}
         {episode.action_delivery ? (
           <p className="text-sm">
-            Policy queried: {episode.policy_candidate_id ? "yes" : "no (control)"} · actions reached the robot:{" "}
-            {episode.action_delivery.actions_reached_robot ? "yes" : "no"} · arm moved: {episode.action_delivery.arm_moved ? "yes" : "no"}
+            Policy queried: {policyQueried} · actions reached the robot:{" "}
+            {executionClaim(episode.action_delivery.actions_reached_robot)} · arm moved: {executionClaim(episode.action_delivery.arm_moved)}
             {episode.score.policy_outcome_interpretable === false ? " · outcome can't be scored" : ""}
           </p>
         ) : null}

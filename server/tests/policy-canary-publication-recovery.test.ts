@@ -96,4 +96,12 @@ describe("policy canary recovered publication", () => {
     unrelatedBlocker.policy_canary_result.blockers = ["policy_runtime_failed"];
     expect(policyCanaryRecoveredPublicationAllowed(unrelatedBlocker, recoveredPublication())).toBe(false);
   });
+
+  it("never counts a not-ingested execution claim as a recovered episode", () => {
+    for (const claim of ["actions_reached_robot", "arm_moved"] as const) {
+      const notIngested = recoveredPublication();
+      (notIngested.result_delivery.episodes[0].action_delivery as Record<string, boolean | null>)[claim] = null;
+      expect(policyCanaryRecoveredPublicationAllowed(priorPublication(), notIngested)).toBe(false);
+    }
+  });
 });
