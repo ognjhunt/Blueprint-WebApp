@@ -36,9 +36,30 @@ const decode = (value: string) => value.replace(/&(?:#(x[\da-f]+|\d+);?|(?:amp|l
     return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : " "; }
   return ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'", "&nbsp;": " ", "&tab;": "\t", "&newline;": "\n" } as Record<string, string>)[all.toLowerCase()] ?? " ";
 });
-function attribute(tag: string, name: string) {
-  const match = tag.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'=<>\x60]+))`, "i"));
-  return match ? decode(match[1] ?? match[2] ?? match[3]) : undefined;
+function htmlAttributes(value: string): Record<string, string> {
+  let rest = value.startsWith("<") ? value.replace(/^<\s*\/?\s*[a-z][a-z\d-]*/i, "").replace(/>$/, "") : value;
+  const result: Record<string, string> = Object.create(null);
+  while (rest.trim()) {
+    rest = rest.trimStart(); if (rest === "/") break;
+    const name = rest.match(/^[^\s=<>\/"'\x60]+/)?.[0];
+    if (!name || Object.hasOwn(result, name.toLowerCase())) throw new Error("contact_resolution_markup_unsupported");
+    rest = rest.slice(name.length).trimStart(); let raw = "";
+    if (rest.startsWith("=")) {
+      rest = rest.slice(1).trimStart();
+      if (rest[0] === '"' || rest[0] === "'") {
+        const end = rest.indexOf(rest[0], 1);
+        if (end < 0) throw new Error("contact_resolution_markup_unsupported");
+        raw = rest.slice(1, end); rest = rest.slice(end + 1);
+      } else {
+        const token = rest.match(/^[^\s"'=<>\x60]+/)?.[0];
+        if (!token) throw new Error("contact_resolution_markup_unsupported");
+        raw = token; rest = rest.slice(token.length);
+      }
+      if (rest && !/^[\s/]/.test(rest)) throw new Error("contact_resolution_markup_unsupported");
+    }
+    result[name.toLowerCase()] = decode(raw);
+  }
+  return result;
 }
 /** Conservative static text extraction; no script execution or hidden/raw markup
  * contact inference. Separate blocks never supply each other's business labels. */
@@ -48,14 +69,21 @@ export function contactPageText(page: ContactPage) {
     || !/^(?:text\/html|text\/plain)(?:;|$)/.test(page.contentType)) throw new Error("contact_resolution_body_invalid");
   const body = new TextDecoder("utf-8", { fatal: true }).decode(bytes), segments: string[] = [], links: string[] = [];
   if (/^text\/plain(?:;|$)/.test(page.contentType)) return { segments: body.split(/\n\s*\n/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean), links, restrictionText: body, visibilityUnverified: false };
-  const markup = body.replace(/<!--[\s\S]*?-->/g, "");
-  const tokens = markup.match(/<(?:[^"'<>]|"[^"]*"|'[^']*')*>|[^<]+/g) ?? [];
+  const markup = body;
+  const tokens = markup.match(/<!--[\s\S]*?-->|<(?:[^"'<>]|"[^"]*"|'[^']*')*>|[^<]+/g) ?? [];
   if (tokens.join("") !== markup) throw new Error("contact_resolution_markup_unsupported");
   // Static extraction cannot establish stylesheet visibility. Such pages may
   // supply links/restrictions, but never positive contact proof. No CSS/browser runtime.
+  const opening = tokens.filter(tag => /^<[a-z]/i.test(tag));
   const visibilityUnverified = /<style\b[^>]*>[\s\S]*?\S[\s\S]*?<\/style\s*>/i.test(markup)
-    || tokens.filter(tag => /^<link\b/i.test(tag)).some(tag => attribute(tag, "rel")?.toLowerCase().split(/\s+/).includes("stylesheet"));
-  const baseHref = tokens.filter(tag => /^<base\b/i.test(tag)).map(tag => attribute(tag, "href")).find(Boolean);
+    || opening.some(tag => {
+      const attrs = htmlAttributes(tag);
+      return /^<(?:script|iframe|object|embed|frameset)\b/i.test(tag) || Object.keys(attrs).some(key => key.startsWith("on"))
+        || Object.keys(attrs).some(key => ["text", "color", "bgcolor", "background"].includes(key))
+        || (/^<link\b/i.test(tag) && attrs.rel?.toLowerCase().split(/\s+/).includes("stylesheet"))
+        || (/^<meta\b/i.test(tag) && attrs["http-equiv"]?.toLowerCase() === "refresh");
+    });
+  const baseHref = tokens.filter(tag => /^<base\b/i.test(tag)).map(tag => htmlAttributes(tag).href).find(Boolean);
   const linkBase = baseHref ? new URL(baseHref, page.finalUrl).href : page.finalUrl;
   const stack: { tag: string; hidden: boolean; inlineStyle: boolean }[] = [];
   let text = "", restrictionText = "", blockVisibilityUnverified = false;
@@ -63,6 +91,7 @@ export function contactPageText(page: ContactPage) {
     text = ""; blockVisibilityUnverified = false; };
   const blocks = /^(?:p|div|section|article|li|address|h[1-6]|br|hr|footer|header|nav|table|tr|td)$/;
   for (const token of tokens) {
+    if (token.startsWith("<!--")) continue;
     if (!token.startsWith("<")) {
       if (stack.some(x => x.inlineStyle)) blockVisibilityUnverified = true;
       if (!stack.some(x => x.hidden)) restrictionText += ` ${decode(token)}`;
@@ -72,18 +101,24 @@ export function contactPageText(page: ContactPage) {
     if (!match) { if (!/^<!doctype/i.test(token)) throw new Error("contact_resolution_markup_unsupported"); continue; }
     const [, closing, rawTag, attributes] = match, tag = rawTag.toLowerCase();
     if (blocks.test(tag)) flush();
-    if (closing) { const index = stack.findLastIndex(x => x.tag === tag); if (index >= 0) stack.splice(index); continue; }
-    const hidden = stack.some(x => x.hidden) || /^(?:script|style|template|noscript|svg|head)$/.test(tag)
-      || /(?:^|\s)(?:hidden(?:\s|=|$)|aria-hidden\s*=\s*["']?true)/i.test(attributes)
-      || /(?:display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0\b)/i.test(attributes);
-    if (/\bstyle\s*=/i.test(attributes)) blockVisibilityUnverified = true;
+    if (closing) {
+      if (stack.at(-1)?.tag !== tag) throw new Error("contact_resolution_markup_unsupported");
+      stack.pop(); continue;
+    }
+    const attrs = htmlAttributes(attributes), voidTag = /^(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/.test(tag);
+    if (!voidTag && /\/\s*>$/.test(token)) throw new Error("contact_resolution_markup_unsupported");
+    const staticTag = /^(?:html|body|main|article|section|header|footer|nav|div|p|span|address|a|h[1-6]|strong|em|b|i|u|s|small|abbr|cite|q|blockquote|ul|ol|li|dl|dt|dd|table|thead|tbody|tfoot|tr|td|th|caption|figure|figcaption|time|br|hr)$/;
+    const hidden = stack.some(x => x.hidden) || !staticTag.test(tag)
+      || Object.hasOwn(attrs, "hidden") || Object.hasOwn(attrs, "popover") || Object.hasOwn(attrs, "inert") || attrs["aria-hidden"]?.toLowerCase() === "true";
+    if (Object.hasOwn(attrs, "style")) blockVisibilityUnverified = true;
     if (tag === "a" && !hidden) {
-      const href = attribute(attributes, "href");
+      const href = attrs.href;
       if (href) { try { const url = new URL(href, linkBase); if (/contact|inquir|enquir|partnership/i.test(url.pathname)) links.push(url.href); } catch { /* untrusted link */ } }
     }
-    if (!/^(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/.test(tag) && !/\/\s*$/.test(attributes)) stack.push({ tag, hidden, inlineStyle: /\bstyle\s*=/i.test(attributes) });
+    if (!voidTag) stack.push({ tag, hidden, inlineStyle: Object.hasOwn(attrs, "style") });
     if (stack.length > 128 || segments.length > 4000) throw new Error("contact_resolution_markup_limit");
   }
+  if (stack.length) throw new Error("contact_resolution_markup_unsupported");
   flush(); return { segments, links: [...new Set(links)], restrictionText: restrictionText.replace(/\s+/g, " ").trim(), visibilityUnverified };
 }
 

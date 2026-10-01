@@ -217,7 +217,8 @@ describe("contact-free pinned producer → communications contact fulfillment (o
   it.each(["<style>.secret {display:none}</style>", '<link rel="stylesheet" href="/site.css">',
     '<link rel=stylesheet href="/site.css">', '<link rel="style&#115;heet" href="/site.css">',
     '<link rel=style&#115;heet href="/site.css">', '<link rel="style&#115heet" href="/site.css">',
-    '<link href="/site>css" rel="stylesheet">', '<link rel="&Tab;stylesheet" href="/site.css">'])("refuses stylesheet-dependent contact visibility: %s", async stylesheet => {
+    '<link href="/site>css" rel="stylesheet">', '<link rel="&Tab;stylesheet" href="/site.css">',
+    '<link title=" rel=icon " rel=stylesheet href=/site.css>'])("refuses stylesheet-dependent contact visibility: %s", async stylesheet => {
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, stylesheet + `<h1>${f.candidate.organization}</h1><p class="secret">Business inquiries: hidden@facility.example</p>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
     expect(f.records("refreshRequests")[0]).toMatchObject({ state: "terminal", reason: "contact_resolution_visibility_unverified" });
@@ -235,5 +236,44 @@ describe("contact-free pinned producer → communications contact fulfillment (o
   it("never assembles a new address by removing unresolved styled inline text", async () => {
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><p>Business inquiries: business<span style="color:red">-support</span>@facility.example</p>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
+  it.each(["dialog", "details", "canvas", "object", "iframe", "select", "form", "title", "datalist", "audio", "video", "font", "code", "pre"])("refuses contact inference from unsupported %s containers", async tag => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><${tag}><p>Business inquiries: hidden@facility.example</p></${tag}>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
+  it.each(['<script>document.querySelector(".secret").hidden=true;</script>', '<body onload="hideContact()">',
+    '<meta http-equiv="refresh" content="0;url=/other">'])("refuses script/event/navigation-dependent positive evidence: %s", async active => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, active + f.business + (active.startsWith("<body") ? "</body>" : "")));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_visibility_unverified");
+  });
+  it("rejects unresolved legacy presentation without implementing browser rendering", async () => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<body text="white"><h1>${f.candidate.organization}</h1>${f.business}</body>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_visibility_unverified");
+  });
+  it("does not approve outside text on a page with an active embedded document", async () => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<iframe src="/active.html"></iframe>${f.business}`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_visibility_unverified");
+  });
+  it.each(['<div hidden></body>Business inquiries: hidden@facility.example</div>',
+    '<div hidden>Business inquiries: hidden@facility.example', '<div hidden></p>Business inquiries: hidden@facility.example</div>'])("refuses malformed or unfinished hidden nesting: %s", async markup => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1>${markup}`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_markup_unsupported");
+  });
+  it.each(["popover", "inert", 'aria-hidden="tru&#101;"'])("excludes hidden/ineligible contact attributes %s", async attr => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><div ${attr}>${f.business}</div>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
+  it("refuses malformed/self-closing non-void and duplicate attributes, and does not read hrefs from quoted values", async () => {
+    for (const body of ['<div hidden />Business inquiries: hidden@facility.example</div>', '<link rel=icon rel=stylesheet href=/site.css>']) {
+      const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1>${body}`));
+      await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+      expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_markup_unsupported");
+    }
+    const parsed = contactPageText(htmlPage("https://facility.example/", '<a title=" href=/contact " href="https://attacker.example/contact">Contact</a>'));
+    expect(parsed.links).toEqual(["https://attacker.example/contact"]);
   });
 });

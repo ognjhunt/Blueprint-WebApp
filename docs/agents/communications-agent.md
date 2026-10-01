@@ -156,7 +156,9 @@ repair changes no research package, schedule, instructions, model or budget.
 The contact reader supports UTF-8 plain text and unstyled static HTML. Pages with
 embedded/external stylesheets can supply discovery links and restrictions, but
 cannot supply positive contact proof; inline-styled contact ancestors are also
-ineligible. Unresolved rendering/visibility terminates explicitly rather than
+ineligible. Scripts, event handlers and HTML refresh navigation also leave
+positive evidence unverified; unsupported/interactive/hidden containers cannot
+supply a route. Unresolved rendering/visibility terminates explicitly rather than
 promoting a hidden address. Browser rendering/CSS retrieval is outside this
 bounded repair, so some real contact pages will remain unresolved.
 
