@@ -32,6 +32,8 @@ describe("published research → human reviewed communications producer (offline
     expect(preview.proposal).not.toHaveProperty("qualityReview");
     expect(preview.sessionCreated).toBe(false);
     expect(f.preview().previewDigest).toBe(preview.previewDigest);
+    // Previously persisted API-source digests must retain their original shape.
+    expect(preview.source).not.toHaveProperty("sourceRecordUrl");
   });
 
   it.each([

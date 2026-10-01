@@ -117,6 +117,10 @@ describe("truthful authenticated report admission (offline, no paid calls or sen
     const replaced: any = await admitPublishedResearch(revision, "suds-city-la", f.deps);
     expect(replaced.state).toBe("admitted"); expect(replaced.prospectId).toBe(f.outcome.prospectId);
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.outcome.jobId}`).state).toBe("superseded");
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${replaced.jobId}`).set({ state: "awaiting_research" }, { merge: true });
+    const before = structuredClone([...f.db.records.entries()].filter(([key]) => /\/(?:jobs|firstTouches)\//.test(key)));
+    expect((await admitPublishedResearch(f.snapshot, "suds-city-la", f.deps)).state).toBe("already_requested");
+    expect([...f.db.records.entries()].filter(([key]) => /\/(?:jobs|firstTouches)\//.test(key))).toEqual(before);
   });
   it("detects artifact, candidate, assessment and handoff record receipt tampering on readback", async () => {
     const f = await admit(), brief = f.brief!, handoff = await f.store.handoff(brief);

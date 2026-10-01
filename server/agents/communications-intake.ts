@@ -25,7 +25,11 @@ async function needsResearch(deps: IntakeDependencies, identity: ReturnType<type
   const root = deps.db.doc(COMMUNICATIONS_ROOT), intakeId = communicationsDigest(identity);
   return deps.db.runTransaction(async tx => {
     const ref = root.collection("intake").doc(intakeId), previous = await tx.get(ref);
-    if (previous.exists && previous.data()?.state === "admitted") return previous.data()!;
+    if (previous.exists && previous.data()?.state === "admitted") {
+      const saved = previous.data()!;
+      return reason === "communications_research_admission_superseded"
+        ? { ...saved, state: "already_requested", reasons: [reason] } : saved;
+    }
     const state = reason === "communications_first_touch_already_requested" ? "already_requested"
       : ["recipient_suppressed", "recipient_closed_or_already_contacted"].includes(reason) ? "blocked" : "needs_research";
     const outcome = { ...identity, intakeId, state, reasons: [reason],
@@ -159,6 +163,9 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
       const digest = communicationsDigest(brief);
       const queued = await prepareCommunicationsEnqueue(tx, deps.db, { prospectId, briefId: brief.briefId, briefDigest: digest,
         intent: "outreach", inboundMessageId: null }, deps.now());
+      // Historical source readback remains valid for receipts; cached admission
+      // must never move the first-touch claim back to an obsolete job.
+      if (queued.record.state === "superseded") throw new Error("communications_research_admission_superseded");
       const outcome = { ...identity, intakeId, sourceDigest: communicationsDigest(source), state: "admitted", prospectId,
         briefId: brief.briefId, briefDigest: digest, jobId: queued.record.jobId, owner: "blueprint-communications-agent",
         admittedAt: intake.data()?.admittedAt ?? deps.now(), humanContextApprovalRequired: false,

@@ -158,8 +158,8 @@ export function researchPublicationSource(snapshot: any, origin: CommunicationsB
     sheetsId: row.packet.destinations.sheet_id,
     sheetsProspectId: ids[selected.findIndex((item: any) => item.candidate_key === origin.candidateKey)],
     sheetsReceipt, notionReceipt, sheetsPlanDigest: researchDigest(plan),
-    sourceRecordUrl: notionReceipt ? `https://www.notion.so/${notionReceipt.slice(7).replaceAll("-", "")}`
-      : `https://docs.google.com/spreadsheets/d/${row.packet.destinations.sheet_id}/edit`,
+    // Preserve the byte/digest shape of previously admitted API publications.
+    ...(notionReceipt === null ? { sourceRecordUrl: `https://docs.google.com/spreadsheets/d/${row.packet.destinations.sheet_id}/edit` } : {}),
   };
 }
 
