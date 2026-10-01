@@ -18,7 +18,7 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
     if (options.http) return new Response("PRIVATE MUST NOT LEAK", { status: options.http });
     if (path.includes("/models/")) return Response.json({ id: options.model ?? COMMUNICATIONS_MODEL });
     if (path.endsWith("/agents/sessions") || path.endsWith("/events")) {
-      if (init.method === "POST") requestDigest = JSON.parse(String(init.body)).metadata.blueprint_communications_request_digest;
+      if (init.method === "POST" && path.endsWith("/agents/sessions")) requestDigest = JSON.parse(String(init.body)).metadata.blueprint_communications_request_digest;
       return new Response(stream.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
     }
     if (path.endsWith("/session-1")) return Response.json({ id: "session-1", status: "idle", agent: { id: "agent-1", model: options.model ?? COMMUNICATIONS_MODEL,
@@ -182,6 +182,10 @@ describe("portable communications Agents API", () => {
   it("requests cancel without deleting artifacts", async () => {
     const f = apiFixture();
     expect(await f.api.cancel({ sessionId: "session-1", turnId: "turn-1", createClaimedAt: "2026-09-30T23:00:00Z" })).toBe(true);
+    expect(f.calls).toHaveLength(1);
+    expect(f.calls[0].path).toBe("/v1/agents/sessions/session-1/events");
     expect(JSON.parse(String(f.calls[0].init.body))).toEqual({ events: [{ type: "agent.session.input.cancel" }] });
+    expect(f.reservePaidDraft).not.toHaveBeenCalled();
+    expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
   });
 });
