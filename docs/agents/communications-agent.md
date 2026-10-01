@@ -120,7 +120,13 @@ The same API prefix has authenticated `GET /status`, `POST /start`, and
 Start/complete require a current Firebase bearer identity matching the configured
 owner UID, a freshly re-read non-disabled/revoked operator role, existing CSRF
 protection and exact `https://tryblueprint.io` Origin. Tenant identities are
-refused. Start creates a ten-minute one-use state, a separate HttpOnly Secure
+refused. On `www.tryblueprint.io`, the preparation screen offers a fixed link to
+`https://tryblueprint.io/admin/leads?founder_gmail=prepare`, which opens Approvals
+and expands preparation without starting consent. The owner signs in on apex
+if needed, then explicitly starts there. Start, callback and complete require
+the apex request Host; forwarded-host headers cannot select a callback host.
+The browser binding remains host-only: no shared-domain cookie or second Google
+callback is needed. Start creates a ten-minute one-use state, a separate HttpOnly Secure
 SameSite=Lax browser binding and S256 PKCE. Transient code/verifier material is
 bound-encrypted with the existing field-encryption primitive in the private,
 default-denied `communicationsGmailOAuthFlows` collection. Its `expireAt` timestamp
