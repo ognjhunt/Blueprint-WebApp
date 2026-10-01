@@ -1,6 +1,6 @@
 # Research and outreach learning layer
 
-Status: offline implementation and staged read contract; live cutover disabled.
+Status: verified foundation deployed; prior-research reconciliation staged separately; live consumer cutover disabled.
 Owner: WebApp learning projection, coordinated by the parent engineering lane.
 Authorized objective: make site/job/team research reuse evidence from previous
 research, contact availability, outreach, replies and later outcomes. The owner
@@ -20,6 +20,8 @@ scientific verdict, rights, physical-outcome or send authority.
 | Robot-team/capability registry and public-source research snapshots | Existing registry/research owner | Preserve exact team/capability and fact refs/grades. No automatic capability promotion. Company joins remain null until owner-supplied. |
 | `blueprintResearchLearning/default/events/{eventId}` | Research adapter: research/contact; communications adapter: attempt/acceptance/delivery/reply; outcome adapter: confirmed operational outcomes; human: append-only corrections | New strict, content-addressed evidence records. Create only; never update/delete history or write source-owned fields. Actor and prospect scope come from the trusted server. |
 | `blueprintResearchLearning/default/snapshots/{snapshotId}` | WebApp learning materializer | Immutable versioned, principal/prospect/section-scoped read projection. Hash-checked readback; no live current-pointer change in this release. |
+| `blueprintResearchLearning/default/sourceSnapshots/{snapshotId}` | Authorized source reconciler | Separate immutable CRM/capability snapshot. Reconcile existing BP IDs and complete independently read Sheet rows before staging; preserve nullable native joins. No synthetic v1 prospect events. |
+| `blueprintResearchLearning/default/siteLearningEvents/{eventId}` | Authenticated human-source adapter | Human-attested motive, bounded question, decision-changing evidence, stated decision/evidence owner IDs, brief/later/no/unknown choice and usefulness feedback. Capture actor differs from stated site owner. Correct by append-only chain; source/brief bindings are host-issued inputs. No live writer route is exposed. |
 | Sheets `Research Learning` review/export view | Learning exporter | Firestore-owned derived rows with existing CRM ID, snapshot hash/cutoff/event refs/unknowns. Sheet edits do not write back CRM or learning facts. Corrections enter through a separately authenticated human append. |
 | Notion playbook/learning summary | Summary exporter | Aggregate counts, denominators, unconfirmed hypotheses, confounders, exploration allocation and snapshot refs. No raw threads or authoritative CRM state. |
 
@@ -74,6 +76,103 @@ No edits were made to PR786 send/OAuth/approval files, the pinned portable
 research release, or Pipeline PR2518. No BlueprintContracts expansion is needed
 for this staged local read contract; a later cross-repo contract promotion can
 pin the verified v1 artifact.
+
+## Prior research without invented outreach joins
+
+The deployed v1 event contract remains byte-for-byte unchanged. CRM inventory
+can exist before a native `outboundProspects` ID or outreach brief exists.
+`prior-research.ts` therefore defines the independent
+`blueprint.research-learning-source-snapshot.v1` contract rather than pretending
+that a `BP-*` CRM ID is a native prospect/site/task ID. Host-issued grants name
+explicit CRM and capability IDs, sections, principal and expiry. The reader
+filters CRM rows, companies, capabilities and their referenced source pages.
+Source hashes, original checked dates, confidence, vendor-claim grades, conflicts,
+unknowns and failed-run status survive loading. Raw contact names, emails,
+private notes and source quotes are not projected; malformed/private URLs and
+contaminated statements fail closed. Loading is not evidence revalidation.
+
+`shared-context.ts` supplies the scoped harness input, a derived Sheet review
+payload and a counted Notion summary payload. It cannot authorize sends or
+publish these payloads. Pipeline owns consumer wiring and package promotion in
+a separate release; no pinned package or send-path file changes here.
+
+The separate human `site-learning` contract keeps unknown motive/feedback
+unknown. `later` and `no` describe the brief choice; they do not mean a lost
+pilot or rejection of robotics. `helped`/`did_not_help` require a precise brief
+record/version/revision/hash and attributed feedback; `pending` requires an
+actual dated feedback request. The append adapter must supply verified human
+attestation and brief bindings from their owner records, never model input.
+Before enabling an adapter, it must verify that the exact brief and attributed
+feedback belong to this CRM/native subject, in addition to matching the stored
+brief version/hash; an unrelated valid brief is not enough.
+The stored prior-research row fences CRM/native/site/task joins. No synthetic
+human record was made from CRM inventory, and no live human writer endpoint is
+enabled in this release.
+
+The bounded CLI `scripts/research-learning/reconcile-sources.ts` extracts only
+the reviewed immutable `Store.fileGet` bridge from the installed archive, then
+reads the two Firestore source blobs. It uses the existing Admin environment
+binding without copying credentials. An independently captured formatted
+`Prospects!A1:Z1000` manifest contains header, CRM IDs and full-row hashes, not
+contact values. Duplicate/missing/changed rows, mixed source hashes, stale
+independent reads and changed archive pins stop staging. Dry run is default.
+An explicit staged run needs the reviewed snapshot hash and cutoff and rechecks
+both source hashes. The store accepts only an unchanged successful reconciliation
+report produced in the same process, so serialized or self-hashed snapshots
+cannot bypass the row comparison. It creates only that `sourceSnapshots`
+document and requires scoped hash-checked readback; it never updates a pointer,
+source, lease or run.
+
+The existing `Publisher.prepare/write/reconcile` route is reviewed-packet and
+lease gated, with its own fixed research destinations. It is not the learning
+publisher and must not be invoked to publish learning summaries. Future Sheets
+and Notion publishers need independent destination/schema/reconciliation
+review; Sheet edits never become competing authoritative Firestore writers.
+
+Real-source reconciliation on 2026-10-01 found 11 current CRM IDs
+`BP-000001`–`BP-000011`, four companies, four capability records and 32 facts
+(16 reviewed, one conflicted, 15 unknown), with no row mismatches or source-hash
+errors. Native prospects, communications jobs, briefs and normalized events
+were zero in bounded reads. All 11 native joins remain null. The original CRM
+checks are 2026-09-29; public-source checks are 2026-09-29/30. The failed
+2026-10-01 research run remains failed. These observations do not establish a
+completed research batch, verified contact, sent/delivered email or pilot proof.
+
+Read targets are `blueprintDailyResearch/sites-first/files/{crm,knowledge}.json`,
+that root's `runs`, selected native prospects and bounded communications/event
+metadata. The only staging target is
+`blueprintResearchLearning/default/sourceSnapshots/{reviewedHash}`. Later human
+observations have a separate `siteLearningEvents` target. `readyForCutover`
+remains false until the Pipeline consumer and relevant host-issued grants are
+reviewed and the staged readback/source reconciliation is verified. No security
+grant, OAuth scope, paid classifier or first-contact activation is implied.
+
+## Progressive retrieval and actual coverage
+
+The current staged reader takes explicit CRM/capability IDs from the cached
+knowledge snapshot. It does **not** query every Firestore `robotTeams` record
+on every run, and no live Pipeline consumer is enabled by this release.
+`retrieval.ts` defines the progressive consumer contract: a compact paged
+directory search, selective scoped detail/evidence fetch, query broadening and
+host-issued detail-scope expansion. A discovery grant permits only the exact
+index hash; it never expands a detail grant or provider/tool authority.
+
+The index carries IDs, public names, task/region tags, original source dates and
+unknown/conflict flags, without fact bodies, contacts or mailbox data. Search
+ranks relevant entries but leaves every authorized entry reachable by paging
+or an empty broader query. Missing tags stay unknown and nonmatching listed
+tags do not establish incompatibility. Ten prospects or one shortlist is not a
+stop condition. Cursor hashes bind the query and index for reproducibility.
+
+The same read contract supports an owner-built lightweight full authorized
+`robotTeams` directory index. That enumeration/provider is a separate reviewed
+consumer step. The current cache-derived index explicitly declares
+`cached_capabilities_only` and incomplete directory coverage; it does not claim
+the four cached companies are the whole team directory. Begin each run with
+compact scope, prior findings and open questions, then let the agent search,
+broaden and fetch relevant detail. Keep the scoped snapshot for provenance and
+reproducibility alongside these operations, rather than dumping full records
+into a prompt or fixing one permanently filtered bundle.
 
 ## Planner semantics
 
