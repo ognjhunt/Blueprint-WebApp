@@ -2,17 +2,65 @@ import { randomUUID } from "node:crypto";
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest,
   type CommunicationsBrief, type CommunicationsJob, type CommunicationsOutput,
-  verifyCommunicationsHandoff,
+  verifyCommunicationsHandoff, communicationsDeliveryKey,
 } from "./communications-contract";
 import type { CommunicationsCheckpoint } from "./communications-api";
 import type { ActionPayload } from "./action-policies";
 
 export const COMMUNICATIONS_ROOT = "blueprintCommunications/default";
 export type CommunicationsJobRecord = CommunicationsJob & {
-  state: "queued" | "running" | "retry" | "blocked" | "awaiting_research" | "pending_approval" | "no_reply" | "opted_out";
+  state: "queued" | "running" | "retry" | "blocked" | "awaiting_research" | "pending_approval" | "no_reply" | "opted_out" | "superseded";
   attempts: number; checkpoint: CommunicationsCheckpoint; output?: CommunicationsOutput;
   lease?: { owner: string; until: number }; nextAttemptAt?: number; reason?: string;
 };
+
+/** Read before the caller writes. The stable first-touch claim also covers
+ * legacy queue records and prevents duplicate model work across brief revisions. */
+export async function prepareCommunicationsEnqueue(tx: FirebaseFirestore.Transaction,
+  db: FirebaseFirestore.Firestore, input: Omit<CommunicationsJob, "jobId">, now: number) {
+  const job = communicationsJobSchema.parse({ ...input, jobId: communicationsDigest(input) });
+  const root = db.doc(COMMUNICATIONS_ROOT), ref = root.collection("jobs").doc(job.jobId);
+  const existing = await tx.get(ref);
+  const claimRef = root.collection("firstTouches").doc(communicationsDeliveryKey(job));
+  if (job.intent === "outreach") {
+    const claim = await tx.get(claimRef);
+    const legacy = await tx.get(root.collection("jobs").where("prospectId", "==", job.prospectId).limit(101));
+    const previous = legacy.docs.filter(doc => doc.data().intent === "outreach" && doc.id !== job.jobId && doc.data().state !== "superseded");
+    if (legacy.size > 100) throw new Error("communications_first_touch_already_requested");
+    const replaced: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+    for (const doc of previous) {
+      const data = doc.data() as CommunicationsJobRecord;
+      // Only proven pre-inference research/context failures can be replaced.
+      // Unknown session ACKs, drafts, active jobs, opt-outs and sends remain fenced.
+      const safeState = data.state === "awaiting_research" || (data.state === "blocked"
+        && /^(?:research_|brief_fact_|canonical_)/.test(data.reason ?? ""));
+      if (!safeState || data.checkpoint?.createClaimedAt || data.checkpoint?.sessionId || data.checkpoint?.turnId
+        || data.output || (data.lease?.until ?? 0) > now) throw new Error("communications_first_touch_already_requested");
+      const ledger = await tx.get(db.collection("action_ledger").doc(`communications_${doc.id}`));
+      if (ledger.exists) throw new Error("communications_first_touch_already_requested");
+      replaced.push(doc);
+    }
+    if (claim.exists && claim.data()?.jobId !== job.jobId && !replaced.some(doc => doc.id === claim.data()?.jobId)) {
+      throw new Error("communications_first_touch_already_requested");
+    }
+    const receipt = await tx.get(root.collection("sendReceipts").doc(communicationsDeliveryKey(job)));
+    if (!existing.exists && receipt.exists) throw new Error("communications_first_touch_already_requested");
+    const record = existing.exists ? existing.data() as CommunicationsJobRecord : { ...job, state: "queued" as const,
+      attempts: 0, checkpoint: { createClaimedAt: null, sessionId: null, turnId: null } };
+    return { record, commit: () => {
+      if (!claim.exists) tx.create(claimRef, { jobId: job.jobId, prospectId: job.prospectId, createdAt: now });
+      else if (claim.data()?.jobId !== job.jobId) tx.set(claimRef, { jobId: job.jobId, prospectId: job.prospectId, createdAt: now });
+      for (const doc of replaced) {
+        tx.update(doc.ref, { state: "superseded", reason: "verified_research_replaced_before_inference", replacedBy: job.jobId, updatedAt: now });
+        tx.set(root.collection("refreshRequests").doc(doc.id), { state: "resolved", resolvedBy: job.jobId, resolvedAt: now }, { merge: true });
+      }
+      if (!existing.exists) tx.create(ref, { ...record, createdAt: now, updatedAt: now });
+    } };
+  }
+  const record = existing.exists ? existing.data() as CommunicationsJobRecord : { ...job, state: "queued" as const,
+    attempts: 0, checkpoint: { createClaimedAt: null, sessionId: null, turnId: null } };
+  return { record, commit: () => { if (!existing.exists) tx.create(ref, { ...record, createdAt: now, updatedAt: now }); } };
+}
 
 /** Small private Firestore namespace; research/scheduler leases are never touched. */
 export class CommunicationsStore {
@@ -29,15 +77,10 @@ export class CommunicationsStore {
     return verifyCommunicationsHandoff(snapshot.data(), brief);
   }
   async enqueue(input: Omit<CommunicationsJob, "jobId">) {
-    const job = communicationsJobSchema.parse({ ...input, jobId: communicationsDigest(input) });
-    const ref = this.jobs().doc(job.jobId);
     return this.db.runTransaction(async (tx) => {
-      const existing = await tx.get(ref);
-      if (existing.exists) return existing.data() as CommunicationsJobRecord;
-      const record: CommunicationsJobRecord = { ...job, state: "queued", attempts: 0,
-        checkpoint: { createClaimedAt: null, sessionId: null, turnId: null } };
-      tx.create(ref, { ...record, createdAt: this.now(), updatedAt: this.now() });
-      return record;
+      const queued = await prepareCommunicationsEnqueue(tx, this.db, input, this.now());
+      queued.commit();
+      return queued.record;
     });
   }
   async claim(jobId: string): Promise<CommunicationsJobRecord | null> {

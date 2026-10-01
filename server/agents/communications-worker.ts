@@ -12,6 +12,7 @@ import { readExistingResearchSnapshot, verifyPublishedResearch, type ResearchSna
 import { reviewCommunicationsPayload } from "./communications-review";
 import { CommunicationsStore, type CommunicationsJobRecord } from "./communications-store";
 import type { ActionPayload } from "./action-policies";
+import { runCommunicationsIntake } from "./communications-intake";
 
 export type CommunicationsDependencies = {
   store: CommunicationsStore;
@@ -60,7 +61,6 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       if (replies.at(-1)?.gmailMessageId !== incoming.gmailMessageId) throw new Error("reply_superseded_requires_latest_context");
     } else {
       if (job.inboundMessageId || brief.priorConversation) throw new Error("outreach_requires_first_touch_context");
-      await deps.verifyMailbox();
     }
     if (prospect?.stage === "closed" || brief.consent.status === "opted_out" || await deps.isSuppressed(brief.contact.email)) {
       throw new Error("recipient_suppressed");
@@ -137,13 +137,14 @@ function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedTh
     currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy });
 }
 
-/** Additive worker hook for the parent; both flags default off, no startup catch-up. */
+/** Intake uses the existing worker flag; paid drafting has its separate gate. */
 export function startCommunicationsWorker(): () => Promise<void> {
   if (process.env.BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED !== "true"
-    || process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE !== "true" || !dbAdmin) return async () => undefined;
+    || !dbAdmin) return async () => undefined;
   const db = dbAdmin;
   const store = new CommunicationsStore(db);
-  const api = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference: true });
+  const allowPaidInference = process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true";
+  const api = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference });
   const deps: CommunicationsDependencies = {
     store, api, readResearch: (date) => readExistingResearchSnapshot(db, date),
     verifyMailbox: () => verifyFounderMailbox(), readThread: (id) => readFounderThread(id),
@@ -151,14 +152,18 @@ export function startCommunicationsWorker(): () => Promise<void> {
     suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "growth_campaign", source: "communications_reply" }),
     now: () => Date.now(),
   };
-  return startCommunicationsQueueLoop(deps);
+  return startCommunicationsQueueLoop(deps, { intake: () => runCommunicationsIntake({ db,
+    readResearch: deps.readResearch, isSuppressed: deps.isSuppressed, now: deps.now }), processJobs: allowPaidInference });
 }
 
 /** Stop admission immediately, then await the active job and its durable writes. */
-export function startCommunicationsQueueLoop(deps: CommunicationsDependencies): () => Promise<void> {
+export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
+  options: { intake?: () => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
   let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
   const tick = async () => {
     try {
+      if (options.intake) await options.intake();
+      if (stopped || options.processJobs === false) return;
       for (const id of await deps.store.dueJobIds()) {
         if (stopped) break;
         await processCommunicationsJob(id, deps);

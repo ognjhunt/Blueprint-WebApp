@@ -5,6 +5,7 @@ import {
 } from "./communications-contract";
 import { researchPublicationSource } from "./communications-research";
 import { COMMUNICATIONS_ROOT } from "./communications-store";
+import { PUBLIC_CONTACT_PREFIX } from "./communications-contact-evidence";
 
 const id = z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/);
 const text = z.string().trim().min(1).max(1200);
@@ -49,7 +50,7 @@ function canonicalContext(prospect: any, context: CommunicationsResearchInput["c
 
 /** Derive from durable publication; preview is read-only and never approval. */
 export function previewResearchCommunications(snapshot: any, prospectId: string, prospect: any,
-  inputValue: unknown, now: number) {
+  inputValue: unknown, now: number, agentContactEvidenceDigest?: string) {
   const input = communicationsResearchInputSchema.parse(inputValue);
   const origin = { date: input.date, candidateKey: input.candidateKey,
     packetDigest: snapshot?.row?.packet_digest, rawArtifactDigest: snapshot?.row?.raw_output_digest };
@@ -76,7 +77,8 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
     };
   });
   const observation = candidate.evidence.findIndex((entry: any) => entry.role === "task"
-    && entry.classification === "operator" && entry.claim_kind === "fact");
+    && entry.classification === "operator" && entry.claim_kind === "fact"
+    && !entry.claim.startsWith(PUBLIC_CONTACT_PREFIX));
   if (observation < 0) throw new Error("research_adapter_public_task_fact_missing");
   const sourceDigest = communicationsDigest(source);
   const proposal = {
@@ -91,7 +93,8 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
     consent: input.context.consent, priorConversation: null,
     outreachContext: { observations: [{ claim: facts[observation].claim, source: facts[observation].sourceUrl }],
       teamObservations: [], verifiedCapabilities: [], connectionEvidence: null },
-    researchOrigin: { ...origin, sourceDigest },
+    researchOrigin: { ...origin, sourceDigest,
+      ...(agentContactEvidenceDigest ? { contactEvidenceDigest: agentContactEvidenceDigest } : {}) },
   };
   // Parse before previewing: overflow refuses instead of truncating source text.
   const { qualityReview: _review, ...validated } = communicationsBriefSchema.parse({ ...proposal,
@@ -106,7 +109,7 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
   if (blockers.length) throw new Error(`research_adapter_review_required:${blockers.join(",")}`);
   const previewDigest = communicationsDigest({ proposal: validated, canonical, sourceDigest });
   return { proposal: { ...validated, briefId: `research-${previewDigest}` }, source, canonical, previewDigest,
-    sourceRecordUrl: _review.sourceRecordUrl, requiresHumanContextApproval: true as const,
+    sourceRecordUrl: _review.sourceRecordUrl, requiresHumanContextApproval: !agentContactEvidenceDigest,
     sent: false as const, gmailDraftCreated: false as const, sessionCreated: false as const };
 }
 

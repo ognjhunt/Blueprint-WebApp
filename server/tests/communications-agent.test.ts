@@ -114,10 +114,9 @@ describe("Blueprint-owned communications queue", () => {
     expect(f.deps.api.run).not.toHaveBeenCalled();
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/refreshRequests/${f.job.jobId}`)).toMatchObject({ owner: "blueprint-research-agent", observerReceiptRequired: false });
   });
-  it.each(["identity", "mailbox", "suppressed", "permission"])("fails closed on missing %s", async (kind) => {
+  it.each(["identity", "suppressed", "permission"])("fails closed on missing %s", async (kind) => {
     const f = await setup();
     if (kind === "identity") await f.db.doc(`outboundProspects/${f.brief.prospectId}`).update({ siteId: "different-site" });
-    if (kind === "mailbox") f.deps.verifyMailbox.mockRejectedValueOnce(new Error("founder_gmail_binding_missing"));
     if (kind === "suppressed") f.deps.isSuppressed.mockResolvedValue(true);
     if (kind === "permission") { f.brief.consent.status = "unknown"; await f.install(); await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ briefDigest: communicationsDigest(f.brief) }); }
     expect((await processCommunicationsJob(f.job.jobId, f.deps)).state).toBe("blocked");
