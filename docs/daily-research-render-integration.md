@@ -13,14 +13,17 @@ remain false through deployment/preflight/manual canary. Live actions belong to
 the authorized operator, after review and release gates.
 
 The prepared correction pins Pipeline source
-`4a9d57c33f0ea1809fa996c3eb66190a7a3cda8a` (PR 2505). It accepts the actual
+`20d0c9e8b784e451aa281f3adee85d34c8054b5a` (PR 2507), including the complete CRM
+identity guard and bounded full-parent Notion pagination repair. It accepts the actual
 file-based skill discovery setup and packages the original four reviewed text
 files. Exact hashes are checked before the create payload is persisted; inline
 session overrides bind those bytes without mutating the saved template. Package
-verification now covers 32 source files. Current live worker remains the verified
-disabled `614780173940f9a35cbdbca5f683b2b1f531f5e0`; this preparation is not a new
-deployment or proof of remote skill loading. Python 3.11/3.12/3.14 are covered by
-the isolated research CI; actual live Python is 3.14.3 with OpenAI 3.22.1.
+verification covers 32 source files. The initial disabled release
+`614780173940f9a35cbdbca5f683b2b1f531f5e0` verified Python 3.14.3 with OpenAI
+3.22.1. Python 3.11/3.12/3.14 are covered by isolated research CI. Each updated
+package release still requires fresh exact deployed-SHA, installed-byte and
+disabled-process/control verification; a source pin alone does not prove live
+installation or remote skill loading.
 
 The full current command/cutover contract ships in the pinned package at
 `dist/daily-research/release/tools/daily_research/RENDER.md`. It retains 07:00
@@ -46,11 +49,13 @@ It shares the original 180-second total runtime and $1 total soft target. Unknow
 QA inputs and publication attempts are never repeated after restart; readback
 conflicts block success. A complete hermetic run reaches both publication receipts.
 See the packaged RENDER.md for exact request, recovery and readback contracts. Canonical Sheet readonly
-access is verified through the existing service account after an approved
-Viewer-only grant (HTTP 200, 16 total rows/11 data, complete at 01:19:46 UTC).
-Firestore writes, publication permissions/bindings, live canary and first unattended
-wake still require owning-system verification. Sheets publishing remains blocked
-by unverified write authority; Notion has no verified worker binding. See
+access is verified through the existing service account (HTTP 200, 16 total
+rows/11 data, complete at 01:19:46 UTC). The owner subsequently approved an
+Editor grant on that exact canonical file, and the persisted permission was
+independently read back. The owner also saved a narrowly scoped Notion worker
+key; its runtime Knowledge-page read remains pending. Actual publication
+writes/readbacks, Firestore-writing preflight, live canary and the first unattended
+wake still require owning-system verification. See
 [the connection handoff](agents-mcp-connections.md) for supported standard API
 setup and separate MCP-preview preparation. No dot runtime bridge is required.
 
