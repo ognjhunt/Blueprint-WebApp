@@ -96,10 +96,12 @@ import internalTaskEvaluationLaunchSubmissionsRouter from "./routes/internal-tas
 import internalTaskEvaluationLaunchPreparationsRouter from "./routes/internal-task-evaluation-launch-preparations";
 import configuredSceneOfferingsRouter from "./routes/configured-scene-offerings";
 import { registerBlueprintWorkRoutes } from "./routes/blueprint-work";
+import { registerFounderGmailOAuthRoutes } from "./routes/communications-oauth";
 import evaluationReadyRunsRouter from "./routes/evaluation-ready-runs";
 
 export function registerRoutes(app: Express) {
   registerBlueprintWorkRoutes(app);
+  registerFounderGmailOAuthRoutes(app);
   app.use(appleAssociationRouter);
 
   // Health check routes (no /api prefix for standard probe paths)

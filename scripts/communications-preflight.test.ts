@@ -37,6 +37,13 @@ describe("in-place read-only communications preflight", () => {
     expect(f.fetchImpl).toHaveBeenCalledTimes(1); expect(f.fetchImpl.mock.calls[0][1].method).toBe("GET");
     for (const secret of Object.values(f.env)) expect(JSON.stringify(result)).not.toContain(secret);
   });
+  it("verifies an owner-installed private founder binding using the same compiled runtime reader", async () => {
+    const f = fixture(); const privateGmailLoader = vi.fn(async () => f.googleImpl.gmail({}));
+    const env = { ...f.env, BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN: "", BLUEPRINT_COMMUNICATIONS_GMAIL_BINDING_STORAGE: "bound-field-firestore-v1" };
+    const result = await communicationsPreflight({ ...f, env, privateGmailLoader });
+    expect(privateGmailLoader).toHaveBeenCalledTimes(1); expect(result.mailbox.state).toBe("verified");
+    expect(JSON.stringify(result)).not.toContain("MOCK_CLIENT_SECRET");
+  });
   it("rejects the personal mailbox before sender lookup", async () => {
     const f = fixture("ohstnhunt@gmail.com"); const result = await communicationsPreflight(f);
     expect(result.mailbox.reason).toBe("founder_gmail_wrong_mailbox"); expect(f.sendAs).not.toHaveBeenCalled();
