@@ -36,6 +36,10 @@ import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
 import { CommunicationsStore } from "../agents/communications-store";
 import { communicationsDigest } from "../agents/communications-contract";
 import { founderMailboxConnectionPlan } from "../agents/communications-connection";
+import { readExistingResearchSnapshot } from "../agents/communications-research";
+import {
+  communicationsResearchInputSchema, previewResearchCommunications, approveResearchCommunications,
+} from "../agents/communications-producer";
 import {
   outreachConnectionEvidenceSchema,
   outreachCapabilityEvidenceSchema,
@@ -172,6 +176,41 @@ router.get("/communications/blocked-jobs", async (_req: Request, res: Response) 
   try { return res.json({ ok: true, jobs: await new CommunicationsStore(db).blockedJobs() }); }
   catch { return res.status(503).json({ error: "communications_store_unavailable" }); }
 });
+
+/** Research publication plus human context, previewed before any approval write. */
+for (const approve of [false, true]) {
+  router.post(`/:prospectId/communications/research-${approve ? "approve" : "preview"}`, async (req: Request, res: Response) => {
+    if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+    const actor = res.locals.firebaseUser?.uid;
+    if (typeof actor !== "string" || !actor.trim()) return res.status(403).json({ error: "operator_identity_missing" });
+    if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+    const schema = approve ? communicationsResearchInputSchema.extend({
+      previewDigest: z.string().regex(/^[a-f0-9]{64}$/), contextReviewed: z.literal(true),
+    }).strict() : communicationsResearchInputSchema;
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "research_context_invalid" });
+    const prospectId = String(req.params.prospectId || "");
+    if (!/^[a-zA-Z0-9_.:-]{1,160}$/.test(prospectId)) return res.status(400).json({ error: "research_context_invalid" });
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const prospect = await readProspect(prospectId);
+      if (!prospect) return res.status(404).json({ error: "not_found" });
+      const input = { date: parsed.data.date, candidateKey: parsed.data.candidateKey, context: parsed.data.context };
+      const now = Date.now();
+      const preview = previewResearchCommunications(await readExistingResearchSnapshot(db, input.date), prospectId, prospect, input, now);
+      if (!approve) return res.json({ ok: true, preview });
+      const expectedDigest = "previewDigest" in parsed.data && typeof parsed.data.previewDigest === "string" ? parsed.data.previewDigest : "";
+      const approved = await approveResearchCommunications(db, preview, input,
+        expectedDigest, actor, now);
+      return res.status(approved.created ? 201 : 200).json({ ok: true, ...approved,
+        sent: false, gmailDraftCreated: false, sessionCreated: false, jobQueued: false });
+    } catch (error) {
+      const code = error instanceof Error && /^research_[a-z0-9_:,.-]+$/.test(error.message)
+        ? error.message : "research_context_missing_or_invalid";
+      return res.status(409).json({ error: code });
+    }
+  });
+}
 
 /** Enqueue references only; the communications worker loads authoritative data. */
 router.post("/:prospectId/communications", async (req: Request, res: Response) => {

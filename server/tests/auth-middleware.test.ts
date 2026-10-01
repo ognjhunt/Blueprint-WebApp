@@ -91,6 +91,8 @@ const protectedEndpoints = [
   { method: "GET", path: "/api/admin/outbound-prospects/test-prospect/communications" },
   { method: "POST", path: "/api/admin/outbound-prospects/test-prospect/communications" },
   { method: "POST", path: `/api/admin/outbound-prospects/test-prospect/communications/${"a".repeat(64)}/retry` },
+  { method: "POST", path: "/api/admin/outbound-prospects/test-prospect/communications/research-preview" },
+  { method: "POST", path: "/api/admin/outbound-prospects/test-prospect/communications/research-approve" },
 ];
 
 describe("verifyFirebaseToken middleware", () => {
@@ -117,6 +119,25 @@ describe("verifyFirebaseToken middleware", () => {
 describe("mounted communications authentication and CSRF", () => {
   const preparation = "/api/admin/outbound-prospects/communications/connection";
   const retry = `/api/admin/outbound-prospects/test-prospect/communications/${"a".repeat(64)}/retry`;
+  for (const action of ["preview", "approve"]) {
+    const path = `/api/admin/outbound-prospects/test-prospect/communications/research-${action}`;
+    it(`rejects research ${action} without CSRF before touching storage`, async () => {
+      const response = await fetch(`${baseUrl}${path}`, { method: "POST", headers: {
+        Authorization: "Bearer mock-valid-ops-token", "Content-Type": "application/json",
+      }, body: "{}" });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: "Invalid CSRF token" });
+    });
+    it(`passes verified ops and matching CSRF to research ${action}'s fail-closed store guard`, async () => {
+      verifyIdToken.mockResolvedValueOnce({ uid: "ops-user", roles: ["ops"] });
+      const response = await fetch(`${baseUrl}${path}`, { method: "POST", headers: {
+        Authorization: "Bearer mock-valid-ops-token", "Content-Type": "application/json",
+        Cookie: csrfCookie, "X-CSRF-Token": csrfToken,
+      }, body: "{}" });
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "communications_store_unavailable" });
+    });
+  }
   it("verifies an actual bearer before exposing preparation to ops", async () => {
     verifyIdToken.mockResolvedValueOnce({ uid: "ops-user", roles: ["ops"] });
     const response = await fetch(`${baseUrl}${preparation}`, { headers: { Authorization: "Bearer mock-valid-ops-token" } });

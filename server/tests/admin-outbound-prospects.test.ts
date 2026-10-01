@@ -2,10 +2,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { outreachContext, outreachContract, outreachDraft } from "./fixtures/outreach-review";
 import { CommunicationsStore } from "../agents/communications-store";
+import * as producer from "../agents/communications-producer";
+import { publishedResearchFixture } from "./fixtures/published-research";
+import { communicationsNow } from "./fixtures/communications";
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), set: vi.fn(), hasAnyRole: vi.fn(), runAgentTask: vi.fn(), executeAction: vi.fn(),
-  isEmailSuppressed: vi.fn(),
+  isEmailSuppressed: vi.fn(), readResearch: vi.fn(),
+}));
+vi.mock("../agents/communications-research", async (original) => ({
+  ...await original<typeof import("../agents/communications-research")>(), readExistingResearchSnapshot: mocks.readResearch,
 }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: { firestore: { FieldValue: { serverTimestamp: () => "timestamp" } } },
@@ -50,6 +56,41 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("outbound prospect review routes (no provider, Firestore, or transport I/O)", () => {
+  it("previews actual published research without writes and refuses caller-supplied facts, approval or credentials", async () => {
+    const f = publishedResearchFixture();
+    vi.spyOn(Date, "now").mockReturnValue(communicationsNow);
+    mocks.get.mockResolvedValue({ exists: true, data: () => f.prospect });
+    mocks.readResearch.mockResolvedValue(f.snapshot);
+    const result = await invoke("/:prospectId/communications/research-preview", f.input);
+    expect(result.status).toBe(200);
+    expect(result.body.preview.source.sheetsProspectId).toBe("BP-000042");
+    expect(result.body.preview.proposal).not.toHaveProperty("qualityReview");
+    expect(mocks.set).not.toHaveBeenCalled();
+    for (const extra of [{ facts: [] }, { qualityReview: { state: "approved" } }, { refreshToken: "UNACCEPTED_MOCK" }]) {
+      expect((await invoke("/:prospectId/communications/research-preview", { ...f.input, ...extra })).status).toBe(400);
+    }
+    mocks.hasAnyRole.mockResolvedValue(false);
+    expect((await invoke("/:prospectId/communications/research-preview", f.input)).status).toBe(403);
+    expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+
+  it("requires explicit review of the exact preview and derives the actor from authentication", async () => {
+    const f = publishedResearchFixture();
+    vi.spyOn(Date, "now").mockReturnValue(communicationsNow);
+    mocks.get.mockResolvedValue({ exists: true, data: () => f.prospect });
+    mocks.readResearch.mockResolvedValue(f.snapshot);
+    const preview = producer.previewResearchCommunications(f.snapshot, "prospect-1", f.prospect, f.input, communicationsNow);
+    const approval = vi.spyOn(producer, "approveResearchCommunications").mockResolvedValue({ created: true } as any);
+    expect((await invoke("/:prospectId/communications/research-approve", f.input)).status).toBe(400);
+    const result = await invoke("/:prospectId/communications/research-approve", { ...f.input,
+      previewDigest: preview.previewDigest, contextReviewed: true });
+    expect(result.status).toBe(201);
+    expect(approval).toHaveBeenCalledWith(expect.anything(), preview, f.input, preview.previewDigest,
+      "authenticated-operator", communicationsNow);
+    expect(result.body).toMatchObject({ sent: false, gmailDraftCreated: false, sessionCreated: false, jobQueued: false });
+    expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+
   it("provides preparation only behind ops access without accepting credentials or writing records", async () => {
     mocks.hasAnyRole.mockResolvedValue(false);
     expect((await invoke("/communications/connection", {}, "get")).status).toBe(403);
