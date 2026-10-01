@@ -21,7 +21,7 @@ export function openAiDailyEvidence(payload: unknown, collectedAt: string, respo
     const bucket = record(bucketValue);
     const start = typeof bucket.start_time === "number" && Number.isSafeInteger(bucket.start_time) && bucket.start_time >= 0 ? bucket.start_time : null;
     const end = typeof bucket.end_time === "number" && Number.isSafeInteger(bucket.end_time) && bucket.end_time >= 0 ? bucket.end_time : null;
-    const intervalValid = start !== null && end !== null && end > start;
+    const intervalValid = start !== null && end !== null && end > start && end - start <= 86400 && start % 86400 === 0;
     if (intervalValid) intervals.push([start, end]);
     if (!intervalValid) gaps.add("bucket_interval_invalid");
     if (!Array.isArray(bucket.results)) gaps.add("bucket_results_missing");
@@ -59,6 +59,7 @@ export function openAiDailyEvidence(payload: unknown, collectedAt: string, respo
   intervals.sort((a, b) => a[0] - b[0]);
   if (!requestedWindow || intervals.length === 0 || intervals[0][0] !== requestedWindow.start_unix
     || intervals.at(-1)![1] < requestedWindow.end_unix
+    || intervals.at(-1)![1] > Math.ceil(requestedWindow.end_unix / 86400) * 86400
     || intervals.some((interval, index) => index > 0 && interval[0] !== intervals[index - 1][1])) gaps.add("requested_window_coverage_unknown");
   const complete = gaps.size === 0;
   const subtotal = rows.some((row) => row.partial) ? null : rows.reduce((sum, row) => sum + Number(row.amount), 0);

@@ -66,6 +66,16 @@ describe("already received OpenAI daily cost evidence", () => {
     body.data[0].start_time += 3600;
     expect(project(body).coverage.gaps).toContain("requested_window_coverage_unknown");
   });
+  it("rejects non-daily and extra future buckets outside the received request scope", () => {
+    const body = payload();
+    body.data[0].end_time += 86400;
+    expect(project(body).amount_usd_current_period).toBeNull();
+    expect(project(body).coverage.gaps).toContain("bucket_interval_invalid");
+    const extra = payload();
+    extra.data.push({ ...extra.data[0], start_time: start + 86400, end_time: start + 172800 });
+    expect(project(extra).coverage.gaps).toContain("requested_window_coverage_unknown");
+    expect(project(extra).amount_usd_current_period).toBeNull();
+  });
   it("retains exactly the old single request scope, limit and query; hashes received bytes", async () => {
     const body = JSON.stringify(payload());
     const fetch = vi.fn().mockResolvedValue(new Response(body, { status: 200 }));
