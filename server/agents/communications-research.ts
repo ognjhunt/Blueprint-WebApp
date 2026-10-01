@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { communicationsDigest, verifyCommunicationsHandoff, type CommunicationsBrief } from "./communications-contract";
 import { publishedPublicContact } from "./communications-contact-evidence";
+import { verifyContactResolution } from "./communications-contact-resolution";
 
 export type ResearchSnapshotReader = (date: string) => Promise<unknown>;
 // The research owner owns the pinned Store, its blobs and scheduler. This reader
@@ -14,7 +15,7 @@ export async function readExistingResearchSnapshot(db: FirebaseFirestore.Firesto
 }
 
 /** A reviewed work item alone does not prove publication to either canonical hub. */
-export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrief, approval: unknown) {
+export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrief, approval: unknown, contactProof?: unknown) {
   const handoff = verifyCommunicationsHandoff(approval, brief);
   const verified = verifyResearchPublication(snapshot, brief.researchOrigin);
   const { row, candidate } = verified;
@@ -26,12 +27,19 @@ export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrie
     throw new Error("research_adapter_source_changed");
   }
   if (brief.researchOrigin.contactEvidenceDigest) {
-    const contact = publishedPublicContact(candidate);
+    const contact = brief.researchOrigin.contactEvidenceKind === "public_operator_resolution"
+      ? verifyContactResolution(contactProof, researchPublicationSource(snapshot, brief.researchOrigin), brief.prospectId)
+      : publishedPublicContact(candidate);
     if (contact.evidenceDigest !== brief.researchOrigin.contactEvidenceDigest
       || contact.email !== brief.contact.email.toLowerCase() || contact.sourceUrl !== brief.contact.sourceUrl
-      || contact.sourceCheckedAt !== brief.contact.sourceCheckedAt || brief.consent.status !== "public_business_contact") {
+      || contact.sourceCheckedAt !== brief.contact.sourceCheckedAt || brief.consent.status !== "public_business_contact"
+      || (brief.contact.scope && brief.contact.scope !== contact.scope)
+      || communicationsDigest(brief.contact.resolvedMissingContactGaps ?? []) !== communicationsDigest(contact.resolvedGaps)) {
       throw new Error("research_contact_evidence_changed");
     }
+  }
+  if (brief.researchOrigin.contactEvidenceKind === "public_operator_resolution" && !brief.researchOrigin.contactEvidenceDigest) {
+    throw new Error("research_contact_resolution_binding_missing");
   }
   for (const fact of brief.facts) {
     if (!candidate.evidence?.some((entry: any) => entry.claim === fact.claim && entry.url === fact.sourceUrl

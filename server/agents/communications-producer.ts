@@ -50,7 +50,8 @@ function canonicalContext(prospect: any, context: CommunicationsResearchInput["c
 
 /** Derive from durable publication; preview is read-only and never approval. */
 export function previewResearchCommunications(snapshot: any, prospectId: string, prospect: any,
-  inputValue: unknown, now: number, agentContactEvidenceDigest?: string) {
+  inputValue: unknown, now: number, agentContactEvidenceDigest?: string,
+  agentContact?: { kind: "published_evidence" | "public_operator_resolution"; scope: "site" | "organization_business_route"; resolvedGaps: string[] }) {
   const input = communicationsResearchInputSchema.parse(inputValue);
   const origin = { date: input.date, candidateKey: input.candidateKey,
     packetDigest: snapshot?.row?.packet_digest, rawArtifactDigest: snapshot?.row?.raw_output_digest };
@@ -89,12 +90,14 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
     facts, unknowns: candidate.unknowns, conflicts: input.context.conflicts,
     stage: { interest: "unknown" as const, evidenceIds: [] },
     contact: { email: canonical.contactEmail, purpose: input.context.purpose, learningQuestion: input.context.learningQuestion,
-      sourceUrl: input.context.contactSourceUrl, sourceCheckedAt: input.context.contactSourceCheckedAt },
+      sourceUrl: input.context.contactSourceUrl, sourceCheckedAt: input.context.contactSourceCheckedAt,
+      ...(agentContact ? { scope: agentContact.scope, resolvedMissingContactGaps: agentContact.resolvedGaps } : {}) },
     consent: input.context.consent, priorConversation: null,
     outreachContext: { observations: [{ claim: facts[observation].claim, source: facts[observation].sourceUrl }],
       teamObservations: [], verifiedCapabilities: [], connectionEvidence: null },
     researchOrigin: { ...origin, sourceDigest,
-      ...(agentContactEvidenceDigest ? { contactEvidenceDigest: agentContactEvidenceDigest } : {}) },
+      ...(agentContactEvidenceDigest ? { contactEvidenceDigest: agentContactEvidenceDigest } : {}),
+      ...(agentContact ? { contactEvidenceKind: agentContact.kind } : {}) },
   };
   // Parse before previewing: overflow refuses instead of truncating source text.
   const { qualityReview: _review, ...validated } = communicationsBriefSchema.parse({ ...proposal,

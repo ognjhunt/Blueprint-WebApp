@@ -28,7 +28,7 @@ export async function communicationsSendBlocker(payload: ActionPayload, ledgerId
       || source.data()?.siteId !== brief.siteId || source.data()?.taskId !== brief.taskId
       || source.data()?.communications?.ledgerId !== ledgerId
       || communicationsDigest(currentBrief) !== job.briefDigest) return "communications_approval_context_changed";
-    verifyPublishedResearch(await readExistingResearchSnapshot(dbAdmin, brief.researchOrigin.date), brief, await store.handoff(brief));
+    verifyPublishedResearch(await readExistingResearchSnapshot(dbAdmin, brief.researchOrigin.date), brief, await store.handoff(brief), await store.contactProof(brief));
     if (await isEmailSuppressed(brief.contact.email, "growth_campaign")) return "recipient_suppressed";
     await verifyFounderMailbox();
     if (job.intent === "reply") {

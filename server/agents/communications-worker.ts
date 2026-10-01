@@ -13,6 +13,7 @@ import { reviewCommunicationsPayload } from "./communications-review";
 import { CommunicationsStore, type CommunicationsJobRecord } from "./communications-store";
 import type { ActionPayload } from "./action-policies";
 import { runCommunicationsIntake } from "./communications-intake";
+import { readPublicContactPage } from "./communications-contact-fetch";
 
 export type CommunicationsDependencies = {
   store: CommunicationsStore;
@@ -72,7 +73,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       await deps.store.requestRefresh(job, refresh);
       return { state: "awaiting_research", reasons: refresh };
     }
-    verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date), brief, await deps.store.handoff(brief));
+    verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date), brief, await deps.store.handoff(brief), await deps.store.contactProof(brief));
     const approval = await deps.store.approvalState(job.prospectId);
     const input = buildCommunicationsInput(brief, thread, job.intent, approval);
     const expired = claimed.checkpoint.createClaimedAt
@@ -153,7 +154,8 @@ export function startCommunicationsWorker(): () => Promise<void> {
     now: () => Date.now(),
   };
   return startCommunicationsQueueLoop(deps, { intake: () => runCommunicationsIntake({ db,
-    readResearch: deps.readResearch, isSuppressed: deps.isSuppressed, now: deps.now }), processJobs: allowPaidInference });
+    readResearch: deps.readResearch, isSuppressed: deps.isSuppressed, now: deps.now,
+    readContactPage: readPublicContactPage }), processJobs: allowPaidInference });
 }
 
 /** Stop admission immediately, then await the active job and its durable writes. */

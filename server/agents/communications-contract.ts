@@ -38,6 +38,9 @@ export const communicationsBriefSchema = z.object({
   contact: z.object({
     email: z.string().email().max(254), purpose: text, learningQuestion: text,
     sourceUrl: publicUrl, sourceCheckedAt: sourceDate,
+    scope: z.enum(["site", "organization_business_route"]).optional(),
+    // Original unknowns remain in the brief; this overlays only a proved contact gap.
+    resolvedMissingContactGaps: z.array(text).max(16).optional(),
   }).strict(),
   consent: z.object({
     status: z.enum(["unknown", "public_business_contact", "reply_requested", "opted_out"]),
@@ -58,6 +61,7 @@ export const communicationsBriefSchema = z.object({
     // immutable source record, including quotes, unknowns and cached fact IDs.
     sourceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     contactEvidenceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    contactEvidenceKind: z.enum(["published_evidence", "public_operator_resolution"]).optional(),
   }).strict(),
 }).strict();
 export type CommunicationsBrief = z.infer<typeof communicationsBriefSchema>;

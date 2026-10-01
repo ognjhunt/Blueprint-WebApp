@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { communicationsBriefSchema, communicationsDigest, briefRefreshReasons,
   verifyCommunicationsHandoff, type CommunicationsBrief } from "./communications-contract";
-import { publishedPublicContact, PUBLIC_CONTACT_PREFIX } from "./communications-contact-evidence";
+import { publishedPublicContact, contactUnknowns, PUBLIC_CONTACT_PREFIX } from "./communications-contact-evidence";
+import { resolvePublicContact, verifyContactResolution, type ContactResolution } from "./communications-contact-resolution";
+import type { ContactPageReader } from "./communications-contact-fetch";
 import { previewResearchCommunications, type CommunicationsResearchInput } from "./communications-producer";
 import { researchPublicationSource, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
 import { COMMUNICATIONS_ROOT, CommunicationsStore, prepareCommunicationsEnqueue } from "./communications-store";
@@ -9,10 +11,10 @@ import { COMMUNICATIONS_ROOT, CommunicationsStore, prepareCommunicationsEnqueue 
 // Read-only discovery of the existing pinned research owner's completed work.
 export const RESEARCH_WORK_ITEMS = "blueprintDailyResearch/sites-first/workItems";
 type IntakeDependencies = { db: FirebaseFirestore.Firestore; readResearch: ResearchSnapshotReader;
-  isSuppressed: (email: string) => Promise<boolean>; now: () => number };
+  isSuppressed: (email: string) => Promise<boolean>; now: () => number; readContactPage?: ContactPageReader };
 const bindingKey = (source: any) => communicationsDigest({ sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
-const sourceIdentity = (row: any, candidateKey: string) => ({ date: row.date ?? null, runKey: row.run_key ?? null, candidateKey,
-  packetDigest: row.packet_digest ?? null, rawArtifactDigest: row.raw_output_digest ?? null });
+const sourceIdentity = (row: any, candidateKey: string) => ({ date: row.date ?? null, runKey: row.run_key ?? row.runKey ?? null, candidateKey,
+  packetDigest: row.packet_digest ?? row.packetDigest ?? null, rawArtifactDigest: row.raw_output_digest ?? row.rawArtifactDigest ?? null });
 
 /** Missing source facts remain an agent-owned research task, never an operator form. */
 async function needsResearch(deps: IntakeDependencies, identity: ReturnType<typeof sourceIdentity>, reason: string) {
@@ -25,11 +27,15 @@ async function needsResearch(deps: IntakeDependencies, identity: ReturnType<type
     const outcome = { ...identity, intakeId, state, reasons: [reason],
       owner: "blueprint-communications-agent", requestedAt: previous.data()?.requestedAt ?? deps.now(),
       humanContextApprovalRequired: false, sent: false, sessionCreated: false };
+    if (state === "needs_research") {
+      const request = root.collection("refreshRequests").doc(`intake_${intakeId}`), prior = (await tx.get(request)).data();
+      const contactGap = ["verified_public_business_contact_missing", "verified_contact_conflicting_unknowns"].includes(reason);
+      tx.set(request, { ...identity, owner: contactGap ? "blueprint-communications-agent" : "blueprint-research-agent",
+        kind: contactGap ? "public_contact_resolution" : "research_owner_refresh", state: prior?.state ?? "pending",
+        scope: "relevant_claims_only", reasons: [reason], observerReceiptRequired: false,
+        requestedAt: outcome.requestedAt }, { merge: true });
+    }
     tx.set(ref, outcome);
-    if (state === "needs_research") tx.set(root.collection("refreshRequests").doc(`intake_${intakeId}`), { ...identity,
-      owner: "blueprint-research-agent", state: "pending", scope: "relevant_claims_only", reasons: [reason],
-      requiredContactEvidence: PUBLIC_CONTACT_PREFIX, observerReceiptRequired: false,
-      requestedAt: outcome.requestedAt });
     return outcome;
   });
 }
@@ -54,14 +60,15 @@ async function existingVerifiedBrief(deps: IntakeDependencies, snapshot: any, so
     || brief.facilityName !== source.candidate.organization || brief.boundedJob !== source.candidate.task
     || brief.siteId !== prospect.siteId || brief.taskId !== prospect.taskId || brief.caseId !== prospect.caseId
     || brief.conflicts.length || brief.stage.interest !== "unknown") throw new Error("verified_contact_handoff_binding_invalid");
-  verifyPublishedResearch(snapshot, brief, await store.handoff(brief));
+  verifyPublishedResearch(snapshot, brief, await store.handoff(brief), await store.contactProof(brief));
   const stale = briefRefreshReasons(brief, deps.now());
   if (stale.length) throw new Error(`verified_contact_handoff_stale:${stale.join(",")}`);
   return brief;
 }
 
 /** Deterministic agent intake. This never calls a model, Gmail or an operator API. */
-export async function admitPublishedResearch(snapshot: any, candidateKey: string, deps: IntakeDependencies) {
+export async function admitPublishedResearch(snapshot: any, candidateKey: string, deps: IntakeDependencies,
+  resolution?: { proof: ContactResolution; requestId: string; leaseOwner: string }) {
   const row = snapshot?.row, identity = sourceIdentity(row ?? {}, candidateKey);
   try {
     const source = researchPublicationSource(snapshot, { date: identity.date, candidateKey,
@@ -74,11 +81,13 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
     const prospectRef = deps.db.collection("outboundProspects").doc(prospectId), canonical = await prospectRef.get();
     const original = canonical.data();
     if (canonical.exists && original?.stage !== "drafted") throw new Error("recipient_closed_or_already_contacted");
-    let contact: ReturnType<typeof publishedPublicContact> | null = null, reused: CommunicationsBrief | null = null;
-    try { contact = publishedPublicContact(source.candidate); }
+    let contact: ReturnType<typeof publishedPublicContact> | ReturnType<typeof verifyContactResolution> | null = null, reused: CommunicationsBrief | null = null;
+    try { contact = resolution ? verifyContactResolution(resolution.proof, source, prospectId) : publishedPublicContact(source.candidate); }
     catch (error) {
       // A conflicting assertion never falls back to an older handoff.
-      if (!(error instanceof Error) || error.message !== "verified_public_business_contact_missing" || !canonical.exists) throw error;
+      const unknowns = contactUnknowns(source.candidate);
+      if (resolution || !(error instanceof Error) || !(error.message === "verified_public_business_contact_missing"
+        || (error.message === "verified_contact_conflicting_unknowns" && unknowns.gaps.length && !unknowns.blocked.length)) || !canonical.exists) throw error;
       reused = await existingVerifiedBrief(deps, snapshot, source, prospectId, original);
     }
     const email = contact?.email ?? reused!.contact.email.toLowerCase();
@@ -86,7 +95,8 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
     const taskFact = source.candidate.evidence.find((entry: any) => entry.role === "task" && entry.classification === "operator"
       && entry.claim_kind === "fact" && !entry.claim.startsWith(PUBLIC_CONTACT_PREFIX));
     if (!taskFact) throw new Error("research_adapter_public_task_fact_missing");
-    const projection = original ?? { facilityName: source.candidate.organization, facilityAddress: source.candidate.location,
+    const projection: FirebaseFirestore.DocumentData = original ? { ...original,
+      ...(!original.contactEmail && !original.communicationsContextReview ? { contactEmail: email } : {}) } : { facilityName: source.candidate.organization, facilityAddress: source.candidate.location,
       locationSource: "published_research_location_not_verified_street_address",
       contactEmail: email, hypothesisedTask: source.candidate.task, stage: "drafted", inferredGates: {}, gateAnswerSources: {}, contactedAtIso: null,
       observations: [{ claim: taskFact.claim, source: taskFact.url }],
@@ -102,7 +112,7 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
         sourceRefs: [contact?.sourceUrl ?? reused!.contact.sourceUrl] }, conflicts: [],
     };
     const preview = reused ? null : previewResearchCommunications(snapshot, prospectId, projection,
-      { date: identity.date, candidateKey, context }, deps.now(), contact!.evidenceDigest);
+      { date: identity.date, candidateKey, context }, deps.now(), contact!.evidenceDigest, contact!);
     const proposed = reused ?? communicationsBriefSchema.parse({ ...preview!.proposal, qualityReview: {
       state: "approved", reviewedBy: "blueprint-communications-intake", reviewedAt: new Date(deps.now()).toISOString(),
       sourceRecordUrl: preview!.sourceRecordUrl } });
@@ -110,6 +120,14 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
     return await deps.db.runTransaction(async tx => {
       const [current, currentBinding, existing, intake] = await Promise.all([tx.get(prospectRef), tx.get(bindingRef),
         tx.get(root.collection("briefs").doc(proposed.briefId)), tx.get(intakeRef)]);
+      const proofRef = resolution ? root.collection("contactProofs").doc(contact!.evidenceDigest) : null;
+      const existingProof = proofRef ? await tx.get(proofRef) : null;
+      if (resolution) {
+        const request = (await tx.get(root.collection("refreshRequests").doc(resolution.requestId))).data();
+        if (request?.lease?.owner !== resolution.leaseOwner || request.lease.until <= deps.now()
+          || request.state !== "running" || communicationsDigest(sourceIdentity(request, candidateKey)) !== communicationsDigest(identity)) throw new Error("contact_refresh_lease_or_source_changed");
+        if (existingProof?.exists && communicationsDigest(existingProof.data()) !== contact!.evidenceDigest) throw new Error("contact_resolution_immutable_conflict");
+      }
       if (current.exists !== canonical.exists || communicationsDigest(current.data() ?? null) !== communicationsDigest(original ?? null)) {
         throw new Error("research_adapter_canonical_context_changed");
       }
@@ -144,21 +162,93 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
         tx.create(root.collection("researchSources").doc(digest), { briefDigest: digest, source,
           previewDigest: preview!.previewDigest, contactSourceIdentifiesRecipient: true });
       }
+      if (proofRef && !existingProof?.exists) tx.create(proofRef, resolution!.proof);
       if (!currentBinding.exists) tx.create(bindingRef, { prospectId, sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
       if (!current.exists) tx.create(prospectRef, { ...projection, siteId: brief.siteId, taskId: brief.taskId, caseId: brief.caseId,
         researchPublicationId: source.sheetsProspectId, entityAdmission: "research_provisional",
         communicationsContextReview: { briefId: brief.briefId, briefDigest: digest } });
       else tx.set(prospectRef, { siteId: brief.siteId, taskId: brief.taskId, caseId: brief.caseId, researchPublicationId: source.sheetsProspectId,
+        ...(!original?.contactEmail ? { contactEmail: brief.contact.email } : {}),
         communicationsContextReview: { briefId: brief.briefId, briefDigest: digest } }, { merge: true });
       queued.commit();
       tx.set(intakeRef, outcome);
-      tx.set(root.collection("refreshRequests").doc(`intake_${intakeId}`), { state: "resolved", owner: "blueprint-research-agent", resolvedAt: deps.now() }, { merge: true });
+      tx.set(root.collection("refreshRequests").doc(`intake_${intakeId}`), { state: "resolved", owner: "blueprint-communications-agent",
+        resolvedAt: deps.now(), jobId: queued.record.jobId, briefDigest: digest,
+        ...(resolution ? { contactProofDigest: contact!.evidenceDigest, lease: { owner: resolution.leaseOwner, until: 0 } } : {}) }, { merge: true });
       tx.set(prospectRef.collection("communicationsEvents").doc(`intake_${intakeId}`), outcome);
       return outcome;
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message.slice(0, 1200) : "communications_intake_invalid";
+    if (resolution) throw error;
     return needsResearch(deps, identity, reason);
+  }
+}
+
+/** Fulfill one communications-owned contact gap per tick. Retry survives restart;
+ * terminal gaps are visible and never masquerade as fulfilled research. */
+export async function runCommunicationsContactRefresh(deps: IntakeDependencies) {
+  if (!deps.readContactPage) return;
+  const root = deps.db.doc(COMMUNICATIONS_ROOT), stateRef = root.collection("intakeState").doc("contactRefresh"), owner = randomUUID();
+  const cursor = await deps.db.runTransaction(async tx => {
+    const state = (await tx.get(stateRef)).data();
+    if ((state?.lease?.until ?? 0) > deps.now()) return undefined;
+    tx.set(stateRef, { cursor: state?.cursor ?? null, lease: { owner, until: deps.now() + 180000 } });
+    return state?.cursor ?? null;
+  });
+  if (cursor === undefined) return;
+  let lastId: string | null = null;
+  try {
+    let query = root.collection("refreshRequests").orderBy("__name__").limit(10);
+    if (cursor) query = query.startAfter(cursor);
+    const page = await query.get();
+    for (const doc of page.docs) {
+      lastId = doc.id;
+      const claim = await deps.db.runTransaction(async tx => {
+        const request = (await tx.get(doc.ref)).data();
+        // Accept the old prefix-era pending contact requests without touching the research owner.
+        const contactGap = request?.kind === "public_contact_resolution" || (!request?.kind
+          && request?.reasons?.some((reason: string) => ["verified_public_business_contact_missing", "verified_contact_conflicting_unknowns"].includes(reason)));
+        if (!request || !contactGap || !["pending", "retry_wait", "running"].includes(request.state)
+          || (request.lease?.until ?? 0) > deps.now() || (request.nextAttemptAt ?? 0) > deps.now()) return null;
+        if ((request.attempts ?? 0) >= 2) { tx.set(doc.ref, { state: "terminal", reason: "contact_refresh_attempts_exhausted", lease: { owner, until: 0 } }, { merge: true }); return null; }
+        const claimed: FirebaseFirestore.DocumentData = { ...request, owner: "blueprint-communications-agent", kind: "public_contact_resolution", state: "running",
+          attempts: (request.attempts ?? 0) + 1, lease: { owner, until: deps.now() + 180000 }, startedAt: deps.now() };
+        tx.set(doc.ref, claimed); return claimed;
+      });
+      if (!claim) continue;
+      try {
+        const snapshot: any = await deps.readResearch(claim.date);
+        if (communicationsDigest(sourceIdentity(snapshot?.row ?? {}, claim.candidateKey)) !== communicationsDigest(sourceIdentity(claim, claim.candidateKey))) throw new Error("contact_refresh_source_changed");
+        const source = researchPublicationSource(snapshot, { date: claim.date, candidateKey: claim.candidateKey,
+          packetDigest: claim.packetDigest, rawArtifactDigest: claim.rawArtifactDigest });
+        const binding = (await root.collection("researchBindings").doc(bindingKey(source)).get()).data();
+        const matches = await deps.db.collection("outboundProspects").where("researchPublicationId", "==", source.sheetsProspectId).limit(3).get();
+        if (matches.size > 1 || (binding && matches.docs.some(doc => doc.id !== binding.prospectId))) throw new Error("research_adapter_source_already_bound");
+        const prospectId = binding?.prospectId ?? matches.docs[0]?.id ?? `research-${bindingKey(source)}`;
+        const canonical = (await deps.db.collection("outboundProspects").doc(prospectId).get()).data();
+        if (canonical && canonical.stage !== "drafted") throw new Error("recipient_closed_or_already_contacted");
+        const proof = await resolvePublicContact(source, prospectId, deps.readContactPage, deps.now);
+        // Re-read the immutable published snapshot after network work, before admission.
+        await admitPublishedResearch(await deps.readResearch(claim.date), claim.candidateKey, deps, { proof, requestId: doc.id, leaseOwner: owner });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message.slice(0, 1200) : "contact_refresh_failed";
+        const transient = /contact_fetch_(?:timeout|dns_timeout|incomplete|failed)|ECONN|ENOTFOUND|EAI_AGAIN/.test(reason) && claim.attempts < 2;
+        await deps.db.runTransaction(async tx => {
+          const current = (await tx.get(doc.ref)).data();
+          if (current?.lease?.owner !== owner || current.state !== "running") return;
+          tx.set(doc.ref, { state: transient ? "retry_wait" : "terminal", reason, completedAt: deps.now(),
+            nextAttemptAt: transient ? deps.now() + 300000 : 0, lease: { owner, until: 0 },
+            sent: false, sessionCreated: false }, { merge: true });
+        });
+      }
+      break;
+    }
+  } finally {
+    await deps.db.runTransaction(async tx => {
+      const state = (await tx.get(stateRef)).data();
+      if (state?.lease?.owner === owner) tx.set(stateRef, { cursor: lastId, lease: { owner, until: 0 } });
+    });
   }
 }
 
@@ -204,4 +294,5 @@ export async function runCommunicationsIntake(deps: IntakeDependencies) {
     });
     throw error;
   }
+  await runCommunicationsContactRefresh(deps);
 }

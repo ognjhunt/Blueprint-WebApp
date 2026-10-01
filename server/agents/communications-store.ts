@@ -76,6 +76,12 @@ export class CommunicationsStore {
     const snapshot = await this.db.doc(COMMUNICATIONS_ROOT).collection("handoffs").doc(communicationsDigest(brief)).get();
     return verifyCommunicationsHandoff(snapshot.data(), brief);
   }
+  async contactProof(brief: CommunicationsBrief) {
+    if (brief.researchOrigin.contactEvidenceKind !== "public_operator_resolution") return undefined;
+    const snapshot = await this.db.doc(COMMUNICATIONS_ROOT).collection("contactProofs").doc(brief.researchOrigin.contactEvidenceDigest!).get();
+    if (!snapshot.exists || communicationsDigest(snapshot.data()) !== brief.researchOrigin.contactEvidenceDigest) throw new Error("research_contact_proof_missing_or_changed");
+    return snapshot.data();
+  }
   async enqueue(input: Omit<CommunicationsJob, "jobId">) {
     return this.db.runTransaction(async (tx) => {
       const queued = await prepareCommunicationsEnqueue(tx, this.db, input, this.now());

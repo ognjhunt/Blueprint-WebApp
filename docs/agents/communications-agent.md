@@ -38,9 +38,11 @@ Private root `blueprintCommunications/default`:
 | `researchBindings/{sourceIdentityDigest}` | One immutable WebApp prospect binding per Sheets document/BP ID, preventing duplicate first touches through separate prospect IDs |
 | `intake/{sourceIdentityDigest}` | Agent-owned admitted, needs_research, blocked or already_requested outcome with exact date/candidate/source digests; no human pre-draft form |
 | `intakeState/publishedResearch` | Private bounded pagination cursor and lease; never the research runner lease |
+| `intakeState/contactRefresh` | Private bounded consumer cursor/lease; at most one contact request per tick |
+| `contactProofs/{proofDigest}` | Immutable `blueprint.contact-resolution.v1` with original publication/prospect binding, retrieved bytes, literal quote, scope and terminal deterministic contact QA |
 | `firstTouches/{deliveryKey}` | One first-touch queue claim across revisions; only proven pre-inference research failures can be replaced atomically |
 | `jobs/{jobId}` | Digest of prospect, brief ID/digest, intent and incoming message ID; fenced lease, maximum three recovery attempts, persisted API create/session/turn checkpoint |
-| `refreshRequests/{jobId}` | Pending request to the research agent for relevant claims; no observer receipt |
+| `refreshRequests/{jobId}` | Broader fact refresh remains research-owned; supported `intake_*` contact gaps are fulfilled by communications with resolved/terminal/retry_wait outcomes |
 | `sendReceipts/{deliveryKey}` | One-use claim bound to mailbox/prospect/intent/incoming message, independent of brief revisions; actual Gmail receipt or unresolved acknowledgement |
 
 An approved handoff record contains exactly `version`, `state: "approved"`,
@@ -74,22 +76,46 @@ An unavailable older snapshot becomes an agent-owned research request and the
 cursor advances, so it cannot block a newer publication. The 7am research package,
 scheduler, control records and leases are unchanged.
 
-For a candidate to supply a public business contact automatically, its already
-QA-approved evidence must contain this exact versioned assertion in `claim`:
+Published contacts use ordinary QA-approved prose: a live, current-operational
+operator fact whose quote ties exactly one literal address to business,
+commercial or partnership inquiries. The organization must be identified in the
+claim/quote and the source must belong to the cited operator. One leading `www.`
+is normalized on both hosts; remaining subdomains use exact/dot-boundary rules.
+The old `blueprint.public-business-contact.v1:` claim remains readable for prior
+handoffs but is not required or added to research. Bare CRM/vendor addresses,
+personal/support/jobs/media/privacy routes, competing recipients and explicit
+recipient restrictions cannot establish a contact.
 
-```text
-blueprint.public-business-contact.v1:{"organization":"Exact candidate organization","site":"Exact candidate site","email":"recipient@facility.example","purpose":"business_inquiries","status":"public_business_contact"}
-```
+The pinned producer intentionally leaves contact cells blank. A contact-free
+publication creates a communications-owned `public_contact_resolution` request.
+The same worker tick consumes one request, starts with the published organization
+URL, follows discovered operator contact links or already cited operator pages,
+and retrieves at most three successful pages within 24 seconds. It never guesses
+paths or addresses. HTTPS/443 only; every DNS answer must be public and one checked
+address is pinned to the TLS connection. Redirects are manual, same-operator and
+limited to two per page. Requests carry no cookies/auth and each body is streamed
+with a 128 KiB limit. No forms, scripts, new providers or model calls run.
 
-This uses the existing research evidence schema; it adds no upstream field or
-research tool. The evidence must be a live, current-operational operator fact.
-The citation host must equal the candidate's organization URL host or a
-dot-bounded subdomain. The quote must independently contain that exact email
-and identify a public business/commercial/partnership inquiries route. Competing
-addresses, personal/support-only routes, no-contact restrictions and any
-contact/recipient/email/permission-related unknown refuse admission. A bare
-email in a quote, old CRM row or vendor claim is insufficient. No address is
-guessed, and no robotics interest is inferred.
+A successful sidecar retains the exact bounded retrieved bytes and check dates,
+hashes, text extractor version, literal quote/locator, explicit organization or
+site contact scope, original candidate/publication/artifact/source/QA and
+Sheets/BP/prospect binding. Terminal deterministic contact QA checks provenance,
+scope, purpose, ambiguity and restrictions. The original research is unchanged;
+new contact evidence is not presented as a fact from its earlier QA. Draft and
+send gates independently rerun sidecar verification against the original source.
+Finding an organization business route asserts no site employment/control.
+
+Explicit missing-contact unknowns can be resolved by this new proof. Their text
+remains in the original source and brief with an explicit resolved-gap overlay.
+Site/capture/data-sharing permission unknowns remain permitted and unresolved;
+recipient permission uncertainty and actual opt-outs/prohibitions block. The
+consumer re-reads publication and canonical context after retrieval, then
+atomically stores the proof, handoff and job. A request is `resolved` only with
+the admitted job/digest. Network timeouts use persisted five-minute backoff and
+at most two attempts; absent, ambiguous, restricted or changed source evidence
+terminates with its exact reason instead of remaining a queue-only promise.
+Terminal gaps need a new publication/source or the existing optional verified
+handoff. Broader stale-fact refresh fulfillment remains with the research owner.
 
 An existing prospect may instead reuse its exact previously verified immutable
 handoff for this publication. Intake verifies the complete brief, separate
@@ -121,6 +147,12 @@ internal first-touch draft has no Gmail dependency; actual reply reads and every
 send retain the isolated founder mailbox verification. The draft enters the
 existing exact recipient/body/sender human approval queue. This build does not
 create Gmail drafts, send mail, enable flags or install grants.
+
+Contact retrieval/QA adds no paid inference or tool credential requirement. It
+uses the existing Firestore infrastructure and public HTTPS; normal hosting and
+network costs still apply. Live worker activation, paid Luna access/budget tests
+and any Gmail grant/sending remain separate parent-owned release gates. This
+repair changes no research package, schedule, instructions, model or budget.
 
 The authenticated, CSRF-protected `research-preview`/`research-approve` routes
 remain an optional operator-reviewed context path. They are not the automatic
