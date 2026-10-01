@@ -22,6 +22,7 @@ import { startTaskEvaluationLaunchForwardWorker } from "./utils/taskEvaluationLa
 import { startAdpManagedRunWorker } from "./agents/adp-managed-runs";
 import { startCompanyPolicyCandidateOutboxWorker } from "./utils/companyPolicyCandidateOutboxWorker";
 import { startDailyResearchWorker } from "./utils/dailyResearchWorker";
+import { startCommunicationsWorker } from "./agents/communications-worker";
 
 const launchForwardOnly = () =>
   ["1", "true", "yes", "on"].includes(
@@ -58,6 +59,7 @@ export function startWorker(): WorkerHandle {
   const stopAdpManagedRuns = startAdpManagedRunWorker();
   const stopCompanyPolicyCandidateOutbox = startCompanyPolicyCandidateOutboxWorker();
   const researchWorker = startDailyResearchWorker();
+  const stopCommunicationsWorker = startCommunicationsWorker();
 
   let stopPromise: Promise<void> | undefined;
   const stop = () => {
@@ -67,6 +69,7 @@ export function startWorker(): WorkerHandle {
     stopTaskEvaluationLaunchForwarder();
     stopAdpManagedRuns();
     stopCompanyPolicyCandidateOutbox();
+    stopCommunicationsWorker();
     stopScheduler();
     await researchWorker.stop();
     logger.info(attachRequestMeta({ route: "worker" }), "Blueprint worker stopped");

@@ -126,17 +126,19 @@ Flags default off; this change writes no environment values:
 - `BLUEPRINT_COMMUNICATIONS_SEND_ENABLED=true` separately permits approved sending.
 
 `startCommunicationsWorker()` is an additive exported hook with no startup catch-up.
-The existing shared worker's research startup belongs to owner
-`01a0f464-4d3b-73c7-b166-239e0bc960ee`; PR773's worker/package/Render files are
-untouched. Parent must integrate the communications hook into `startWorker` and
-its shutdown after reconciling the merged research branch. No deployment is part
-of this PR. The consumer's queue producer and upstream QA handoff must be bound on
+After PR773 merged at `614780173940f9a35cbdbca5f683b2b1f531f5e0`, the isolated
+branch reconciled that exact base and added a separate communications startup/stop
+call to `startWorker`. The merged research hook, package, Render flags and
+scheduler remain as released by owner `01a0f464-4d3b-73c7-b166-239e0bc960ee`.
+Communications has its own default-off flags and queue, with no 07:00 schedule or
+research lease mutation. Parent owns the communications release/enable window;
+this build performs no deployment. The consumer's queue producer and upstream QA handoff must be bound on
 Blueprint infrastructure before claiming unattended operation.
 
 1. On existing Render worker `srv-d9t8gg1t0dsc73am9q70`, run
-   `node_modules/.bin/tsx scripts/communications-preflight.ts` with existing
+   `node scripts/communications-preflight.mjs` with existing
    in-place bindings. This performs only model discovery and Gmail profile/sendAs
-   reads, prints sanitized status, and creates no session/draft/send. Do not copy
+   reads, prints sanitized status, and creates no session/draft/send. The script is self-contained and uses only the worker's existing `googleapis` dependency, so its reviewed source can run in place before the communications deployment. Do not copy
    credentials into the workspace. Missing scopes/binding is a release blocker,
    not authority to grant access.
 2. Verify a published research snapshot, canonical IDs/contact and immutable

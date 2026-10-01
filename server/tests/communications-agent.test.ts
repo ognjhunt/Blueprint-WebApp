@@ -5,7 +5,7 @@ import { communicationsFixture, communicationsNow, memoryFirestore } from "./fix
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
-import { processCommunicationsJob } from "../agents/communications-worker";
+import { processCommunicationsJob, startCommunicationsWorker } from "../agents/communications-worker";
 import { CommunicationsRuntimeError } from "../agents/communications-api";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 
@@ -76,6 +76,13 @@ describe("research handoff and publication integrity", () => {
 });
 
 describe("Blueprint-owned communications queue", () => {
+  it("does not start a timer or inference without separate worker and spending flags", () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED", "true");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE", "false");
+    const stop = startCommunicationsWorker(); stop();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.unstubAllEnvs();
+  });
   it("persists one draft in the existing human queue and canonical CRM; never claims Gmail drafts or sends", async () => {
     const f = await setup();
     const result = await processCommunicationsJob(f.job.jobId, f.deps);
