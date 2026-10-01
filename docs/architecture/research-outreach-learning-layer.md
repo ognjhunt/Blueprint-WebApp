@@ -45,6 +45,10 @@ and normalized objections. Curiosity, willingness to talk, evaluation interest
 and pilot discussion never assert pilot readiness. Pilot agreement, evaluation
 participation and deployment capacity require their own owner-confirmed event.
 Operational milestones do not establish authoritative physical robot performance.
+The worker can record multiple correlated incoming messages, including an
+earlier opt-out, under one reply job. Each history item keeps its own Gmail
+message identity and exact RFC/thread/sender/recipient correlation; it need not
+equal that job's trigger message. Legacy meaning stays unknown until corrected.
 
 `recordedAt` does not change semantic event identity. Exact replay keeps the first
 persisted record; a changed source hash appends a new event. Human corrections

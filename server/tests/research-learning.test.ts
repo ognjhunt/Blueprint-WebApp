@@ -210,6 +210,24 @@ function existingSourceFixture(): ExistingProspectSources {
     communicationsEvents: [{ id: "unrelated", record: { type: "other", body: "PRIVATE_SENTINEL" } }] };
 }
 
+function existingReplySourceFixture(): ExistingProspectSources {
+  const input = existingSourceFixture(), bundle = input.jobs[0], originalJob = structuredClone(bundle.record) as any;
+  const brief: any = { ...(bundle.brief as any), priorConversation: { gmailThreadId: "thread-1", gmailMessageIds: ["out-1"] } };
+  const briefDigest = communicationsDigest(brief);
+  bundle.brief = brief;
+  bundle.record = { ...originalJob, jobId: "reply-job", briefDigest, intent: "reply", inboundMessageId: "in-1" };
+  bundle.id = "reply-job";
+  bundle.handoff = { ...(bundle.handoff as any), briefDigest };
+  bundle.researchSource = { ...bundle.researchSource, briefDigest };
+  bundle.receipt = undefined; bundle.ledger = undefined;
+  input.communicationsEvents = [{ id: "sent_job-1", record: { type: "sent", job: originalJob,
+    receipt: { messageId: "out-1", threadId: "thread-1", rfcMessageId: "<out-1@tryblueprint.io>" } } },
+  { id: "reply_in-1", record: { type: "reply_received", jobId: "reply-job", untrusted: true, message: {
+    gmailMessageId: "in-1", gmailThreadId: "thread-1", from: brief.contact.email, to: ["nijel@tryblueprint.io"],
+    receivedAt: "2026-10-01T10:00:00Z", inReplyTo: "<out-1@tryblueprint.io>", references: [], body: "PRIVATE_REPLY_SENTINEL" } } }];
+  return input;
+}
+
 describe("read-only existing-source joins and staged migration", () => {
   it("groups identical canonical copy despite distinct recipient transport footers", () => {
     const first = existingSourceFixture(), second = structuredClone(first), later = second.jobs[0];
@@ -274,26 +292,40 @@ describe("read-only existing-source joins and staged migration", () => {
     expect(result.events).toHaveLength(3); expect(result.quarantine[0].reason).toBe("historical_contact_change_requires_reconciliation");
   });
   it("requires actual RFC/Gmail correlation and leaves legacy reply meaning unknown", () => {
-    const input = existingSourceFixture(), bundle = input.jobs[0], originalJob = structuredClone(bundle.record) as any;
-    const brief: any = { ...(bundle.brief as any), priorConversation: { gmailThreadId: "thread-1", gmailMessageIds: ["out-1"] } };
-    const briefDigest = communicationsDigest(brief);
-    bundle.brief = brief;
-    bundle.record = { ...originalJob, jobId: "reply-job", briefDigest, intent: "reply", inboundMessageId: "in-1" };
-    bundle.id = "reply-job";
-    bundle.handoff = { ...(bundle.handoff as any), briefDigest };
-    bundle.researchSource = { ...bundle.researchSource, briefDigest };
-    bundle.receipt = undefined; bundle.ledger = undefined;
-    input.communicationsEvents = [{ id: "sent_job-1", record: { type: "sent", job: originalJob,
-      receipt: { messageId: "out-1", threadId: "thread-1", rfcMessageId: "<out-1@tryblueprint.io>" } } },
-    { id: "reply_in-1", record: { type: "reply_received", jobId: "reply-job", untrusted: true, message: {
-      gmailMessageId: "in-1", gmailThreadId: "thread-1", from: brief.contact.email, to: ["nijel@tryblueprint.io"],
-      receivedAt: "2026-10-01T10:00:00Z", inReplyTo: "<out-1@tryblueprint.io>", references: [], body: "PRIVATE_REPLY_SENTINEL" } } }];
+    const input = existingReplySourceFixture();
     const result = normalizeExistingSources([input], learningNow);
     expect(result.quarantine).toEqual([]);
     expect(result.events.find(e => e.kind === "reply_observed")?.data).toMatchObject({ classification: { label: "unknown", uncertain: true, method: "legacy_unknown" } });
     expect(JSON.stringify(result.events)).not.toContain("PRIVATE_REPLY_SENTINEL");
     input.communicationsEvents[1].record.message.inReplyTo = "<unrelated@tryblueprint.io>";
     expect(normalizeExistingSources([input], learningNow).quarantine).toHaveLength(1);
+  });
+  it("retains the worker-recorded earlier correlated opt-out alongside a reply job's trigger", () => {
+    const input = existingReplySourceFixture(), earlier = structuredClone(input.communicationsEvents[1]);
+    earlier.id = "reply_in-0"; earlier.record.message.gmailMessageId = "in-0";
+    earlier.record.message.receivedAt = "2026-10-01T09:00:00Z";
+    earlier.record.message.body = "PRIVATE_EARLIER_OPT_OUT: stop emailing me";
+    input.communicationsEvents.push(earlier);
+    const result = normalizeExistingSources([input], learningNow);
+    expect(result.quarantine).toEqual([]); expect(result.events).toHaveLength(4);
+    expect(result.events.filter(e => e.kind === "reply_observed").map(e => e.data.messageId).sort()).toEqual(["in-0", "in-1"]);
+    expect(JSON.stringify(result.events)).not.toContain("PRIVATE_EARLIER_OPT_OUT");
+    expect((input.jobs[0].record as any).inboundMessageId).toBe("in-1");
+  });
+  it.each(["event_id", "thread", "sender", "recipient", "rfc", "job_intent", "missing_trigger"])("still quarantines historical reply identity mismatch: %s", change => {
+    const input = existingReplySourceFixture(), earlier = structuredClone(input.communicationsEvents[1]);
+    earlier.id = "reply_in-0"; earlier.record.message.gmailMessageId = "in-0";
+    earlier.record.message.receivedAt = "2026-10-01T09:00:00Z";
+    if (change === "event_id") earlier.id = "reply_wrong";
+    if (change === "thread") earlier.record.message.gmailThreadId = "unrelated-thread";
+    if (change === "sender") earlier.record.message.from = "unrelated@facility.example";
+    if (change === "recipient") earlier.record.message.to = ["unrelated@facility.example"];
+    if (change === "rfc") earlier.record.message.inReplyTo = "<unrelated@tryblueprint.io>";
+    if (change === "job_intent") (input.jobs[0].record as any).intent = "outreach";
+    if (change === "missing_trigger") (input.jobs[0].record as any).inboundMessageId = null;
+    input.communicationsEvents.push(earlier);
+    const result = normalizeExistingSources([input], learningNow);
+    expect(result.events).toEqual([]); expect(result.quarantine).toHaveLength(1);
   });
   it("authorizes before any existing-source read and never reads OAuth/mailboxes", async () => {
     const memory = learningMemoryFirestore(), { grant, request } = learningScope();

@@ -42,12 +42,12 @@ contract assertions**, not findings about Blueprint's current outreach.
 | Command/check | Observed result |
 | --- | --- |
 | `npm run check` | Passed after final code changes. |
-| `npx vitest run server/tests/research-learning.test.ts` | 57/57 passed after reproducing and fixing the PR787 copy-strata and later-thread reply findings and preserving unknown-ACK/null-ref/legacy replies separately from accepted-rate eligibility. |
+| `npx vitest run server/tests/research-learning.test.ts` | 65/65 passed after the PR786 rebase, including copy strata, later-thread/unknown-ACK/null-ref/legacy replies and the worker's earlier correlated opt-out history shape. |
 | `npm run test:coverage` | Exact `b976aea10` GitHub CI run `36908416691`: 633 files / 4,733 tests passed, including all 57 learning tests. Earlier local full coverage also passed. |
 | `npm run doctrine:verify` | All three locked shared blocks passed. |
 | `npm run claims:guard` | 780 files scanned, zero findings. |
 | `npm run audit:assets` | Passed. |
-| Independent Sol review | Exact `b976aea10` reviewed; separate 57/57 test run passed with no remaining correctness/privacy blocker. Corrections covered chain append, delivery/maturity denominators, historical cohort metadata, exact ledger joins, original fact check dates, copy controls, immutable correction fields and observed replies with unknown/null/legacy touch references. Final rebased-head review follows PR786 release. |
+| Independent Sol review | Exact `b976aea10` passed separate 57/57 tests. Final rebased review found the worker's earlier opt-out shape; it was independently reproduced and fixed, with 65 controls now passing. Final fix-head review/CI is tracked in PR787. Corrections also cover chain append, delivery/maturity denominators, historical cohorts, exact ledger joins, original fact check dates, copy controls, immutable correction fields and unknown/null/legacy reply references. |
 | Required GitHub CI | All five jobs (check, rules-emulator, test, e2e, build) passed on exact `b976aea10`; run `36908416691`. Release still requires rebase/review/testing after PR786 merge/deployment. |
 | Graphify AST refresh | Passed using `BLUEPRINT_GRAPHIFY_PYTHON=/tmp/blueprint-learning-graphify/bin/python bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz`: 83 code files, 1,330 nodes, 2,247 edges, 52 communities; canonical root outputs published. The initial missing-dependency failure was resolved with an isolated temporary `graphifyy==0.9.73` tooling environment. No global/runtime dependency, model call or credential change. |
 | Offline dry-run CLI | Exit 0, `readyForStagedAppend:true`, `readyForCutover:false`, errors empty, 26 events / eight prospects. |
@@ -86,6 +86,15 @@ false mature nonresponse, including actual null-ref unknown ACKs and missing
 legacy touch records. Invalid incoming RFC correlation still quarantines at
 the source adapter. Both original reproductions failed before the fixes
 and passed after.
+
+Final rebased-head review found another actual worker shape: an earlier
+correlated opt-out is recorded under the current reply job, alongside the
+triggering message. Requiring every historical message to equal the job trigger
+quarantined the whole valid bundle. The regression failed before the fix and
+now preserves both messages by their own `reply_{gmailMessageId}` identities,
+with exact thread/sender/recipient/RFC checks. Seven negative controls still
+quarantine invalid identities. Legacy reply meaning remains unknown and no raw
+reply text enters the snapshot.
 
 `discussion_r4158703082`: confirmed missing ADP/day linkage in the supplied
 delegation. Parent confirmation is requested; this record no longer claims

@@ -99,8 +99,10 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
           const sentRefs = input.communicationsEvents.filter(e => e.record.type === "sent"
             && e.record.job?.prospectId === input.prospectId && brief.priorConversation?.gmailMessageIds.includes(e.record.receipt?.messageId)
             && e.record.receipt?.threadId === reply?.gmailThreadId);
-          if (item.record.untrusted !== true || job.intent !== "reply" || job.inboundMessageId !== reply?.gmailMessageId
-            || item.id !== `reply_${job.inboundMessageId}` || !brief.priorConversation
+          // The worker also records an earlier correlated opt-out under this
+          // job. Its own immutable Gmail identity need not be the job trigger.
+          if (item.record.untrusted !== true || job.intent !== "reply" || !job.inboundMessageId || !reply
+            || item.id !== `reply_${reply.gmailMessageId}` || !brief.priorConversation
             || reply.gmailThreadId !== brief.priorConversation.gmailThreadId
             || reply.from?.toLowerCase() !== brief.contact.email.toLowerCase()
             || !sentRefs.some(e => e.record.receipt.rfcMessageId && (reply.inReplyTo === e.record.receipt.rfcMessageId || reply.references?.includes(e.record.receipt.rfcMessageId)))
