@@ -33,7 +33,8 @@ Private root `blueprintCommunications/default`:
 | Subcollection | Contract |
 | --- | --- |
 | `briefs/{briefId}` | Strict `blueprint.communications-brief.v1`; a new revision changes its full digest |
-| `handoffs/{briefDigest}` | Immutable `blueprint.communications-handoff.v1`, written only by the separate research QA/publication owner after actual checks/readbacks |
+| `handoffs/{briefDigest}` | Immutable `blueprint.communications-handoff.v1`, written by research QA/publication or the verified publication adapter after authenticated human context review |
+| `researchSources/{briefDigest}` | Immutable original candidate, QA reference/digest, exact publication plan digest and external Sheets ID; bound by the brief's optional `researchOrigin.sourceDigest` |
 | `jobs/{jobId}` | Digest of prospect, brief ID/digest, intent and incoming message ID; fenced lease, maximum three recovery attempts, persisted API create/session/turn checkpoint |
 | `refreshRequests/{jobId}` | Pending request to the research agent for relevant claims; no observer receipt |
 | `sendReceipts/{deliveryKey}` | One-use claim bound to mailbox/prospect/intent/incoming message, independent of brief revisions; actual Gmail receipt or unresolved acknowledgement |
@@ -58,11 +59,86 @@ exact selected candidates/targets/delivery keys and both readback receipts.
 Python canonical JSON digests preserve ASCII escaping; unexpected non-integer
 numeric packet fields fail closed rather than guess an incompatible encoding.
 
-**Integration gap:** the research packet currently lacks canonical site/task/CRM
-IDs, a verified contact/purpose/question, consent and this immutable full handoff.
-The separate QA/publication producer must supply them with actual evidence and
-receipts; this PR does not invent them or take over research QA or its scheduler.
-Missing handoffs/packaged reader/publication permissions block execution.
+### Publication adapter and human context review
+
+The pinned research package (source `20d0c9e8b784e451aa281f3adee85d34c8054b5a`)
+has no communications producer. Its completed publication plans retain assigned
+`BP-######` Sheets IDs, but deliberately publish blank contact fields marked
+`Needs recheck`. Research source QA does not approve contact permission or a
+learning question. The communications-side producer now closes that handoff gap
+through the existing authenticated, CSRF-protected ops API. It does not modify
+research artifacts, publication state, leases, or the 7am scheduler.
+
+First create/select an existing outbound prospect whose `facilityName` and
+`hypothesisedTask` exactly equal the accepted candidate's organization and task.
+Its existing `contactEmail` remains the recipient. Then call:
+
+1. `POST /api/admin/outbound-prospects/{prospectId}/communications/research-preview`
+   with `{date, candidateKey, context}`. This reads the durable snapshot and returns
+   the proposed brief, original candidate/QA/publication provenance and
+   `previewDigest`. It writes nothing and contains no approved quality review.
+2. Inspect the actual contact source and every displayed field. Call
+   `.../communications/research-approve` with the identical input plus
+   `{previewDigest, contextReviewed:true}` to approve that exact context.
+   The server reloads the snapshot, recomputes the preview, derives reviewer UID
+   from authentication and time from the server, rechecks the prospect in a
+   transaction, and atomically creates the immutable brief, separate handoff,
+   source record and prospect review event. Exact retries reuse the first approval.
+3. The existing references-only communications enqueue route can use the returned
+   brief ID/digest. Approval itself returns `jobQueued:false, sessionCreated:false,
+   gmailDraftCreated:false, sent:false`. Enqueue remains a separate explicit action.
+
+`context` is exactly:
+
+```json
+{
+  "siteId": "reviewed-site-reference", "taskId": "reviewed-task-reference",
+  "caseId": "reviewed-case-reference", "decision": "The bounded learning decision",
+  "decisionOwner": null, "purpose": "Why this recipient is relevant",
+  "learningQuestion": "One easy, non-confidential learning question?",
+  "contactSourceEmail": "recipient@facility.example",
+  "contactSourceUrl": "https://facility.example/contact",
+  "contactSourceCheckedAt": "2026-09-30T20:00:00Z",
+  "contactSourceIdentifiesRecipient": true,
+  "consent": {
+    "status": "public_business_contact",
+    "sharingBoundary": "Public sources only; site permission required before sharing with teams",
+    "sourceRefs": ["https://facility.example/contact"]
+  },
+  "conflicts": []
+}
+```
+
+These IDs are human-reviewed WebApp context bindings; assignment is not proof
+that a site, task or case has been admitted or qualified. Existing conflicting
+bindings refuse approval. The WebApp prospect ID is preserved; the external
+Sheets ID is stored separately as `researchPublicationId`. Neither an email in
+an old prospect nor research publication proves permission: the operator must
+verify that the public source identifies that exact recipient and business route.
+
+The adapter requires completed research with raw/review/evidence hashes, a
+validated QA artifact bound to the actual research session/QA turn, an accepted
+candidate, both acknowledged readback receipts, and exact selected-order Sheets
+plan rows/IDs. It preserves the full original candidate, including publisher,
+quotes, scope, cached snapshot/fact IDs and unknowns. Every fact receives a stable
+source-derived ID and its original check/published date. Operator facts remain
+operator-stated, independent facts primary, vendor claims vendor-reported, and
+hypotheses inference. All are conservatively consequential (seven-day freshness).
+The worker revalidates the source digest against the durable publication before
+inference; loading a cached source cannot refresh its date.
+
+This bounded producer supports first-touch public business contact only: stage
+stays unknown, no actual prior Gmail conversation is invented, and team/capability
+IDs remain empty. Existing verified connection/capability records require their
+own review rather than being silently discarded. Conflict, stale/future evidence,
+unknown permission, identity changes and source overflow refuse preview/approval.
+The current brief limits (16 unknowns, 1,200 characters per fact/unknown) may refuse
+otherwise valid larger research packets (20/2,000); no source text is truncated.
+
+Real mailbox access, model inference and email sending remain unproved and
+disabled under their existing controls. Incoming-message and relevant-refresh
+producers remain separate work; this adapter does not turn mocked worker tests
+into evidence of live Gmail or paid-model execution.
 
 Authenticated existing ops route:
 `POST /api/admin/outbound-prospects/{prospectId}/communications`, body

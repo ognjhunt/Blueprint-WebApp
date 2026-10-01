@@ -53,12 +53,16 @@ export const communicationsBriefSchema = z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), candidateKey: text,
     packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
     rawArtifactDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    // Communications adapter provenance; original candidate stays in an
+    // immutable source record, including quotes, unknowns and cached fact IDs.
+    sourceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   }).strict(),
 }).strict();
 export type CommunicationsBrief = z.infer<typeof communicationsBriefSchema>;
 
-/** Separate immutable record written by research QA/publication, never by the
- * communications model or a request body. The digest binds the entire handoff. */
+/** Separate immutable record written by research QA/publication or the verified
+ * publication adapter after authenticated human context review, never by the
+ * communications model or directly from a request body. */
 export const communicationsHandoffSchema = z.object({
   version: z.literal("blueprint.communications-handoff.v1"), state: z.literal("approved"),
   briefDigest: z.string().regex(/^[a-f0-9]{64}$/), reviewedBy: text, reviewedAt: date,
