@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import fs from "node:fs";
 import path from "node:path";
+import { verifiedOpenAiZero } from "./daily-spend-evidence.js";
 
 const DEFAULT_BACKLOG_PATH = "output/autonomous-org/budget/latest/live-proof-backlog.json";
 const DEFAULT_SPEND_SNAPSHOT_PATH = "output/autonomous-org/budget/spend-snapshots/latest.json";
@@ -79,6 +80,7 @@ type SpendSnapshotSource = {
   live_mutation_attempted: boolean;
   missing_to_verify?: string[];
   error: string | null;
+  summary?: Record<string, unknown>;
 };
 
 type SpendProofSnapshot = {
@@ -390,8 +392,7 @@ function reconcile() {
       latest_source_proof_level: openAiSource?.proof_level ?? null,
       verified_zero: backlog.openai_api_guardrail.target_usd === 0
         && backlog.openai_api_guardrail.current_usd === 0
-        && openAiSource?.status === "live_billing_verified"
-        && openAiSource?.amount_usd_current_period === 0,
+        && verifiedOpenAiZero(openAiSource),
       proof_boundary: backlog.openai_api_guardrail.proof_boundary,
     },
     items,
