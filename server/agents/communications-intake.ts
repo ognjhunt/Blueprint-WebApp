@@ -15,7 +15,8 @@ import { sameOperatorUrl } from "./communications-contact-evidence";
 export const RESEARCH_WORK_ITEMS = "blueprintDailyResearch/sites-first/workItems";
 type IntakeDependencies = { db: FirebaseFirestore.Firestore; readResearch: ResearchSnapshotReader;
   isSuppressed: (email: string) => Promise<boolean>; now: () => number; readContactPage?: ContactPageReader };
-const bindingKey = (source: any) => communicationsDigest({ sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
+const bindingKey = (source: any) => communicationsDigest(source.admissionId
+  ? { sourceRecordId: source.sheetsProspectId } : { sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
 const sourceIdentity = (row: any, candidateKey: string) => ({ date: row.date ?? null, runKey: row.run_key ?? row.runKey ?? null, candidateKey,
   packetDigest: row.packet_digest ?? row.packetDigest ?? null, rawArtifactDigest: row.raw_output_digest ?? row.rawArtifactDigest ?? null,
   ...(row.admission_id || row.admissionId ? { admissionId: row.admission_id ?? row.admissionId } : {}) });

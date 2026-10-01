@@ -47,6 +47,29 @@ Sheets/Notion receipts remain `null`. The canonical CRM read and dedup rationale
 are retained. Existing API publications still require real QA and Sheets
 readback; optional Notion projection availability no longer blocks them.
 
+New reviewed-source prospect IDs derive from Blueprint source identity,
+independently of the CRM projection provider. Replacement agents can export
+protected records as ordinary JSON from
+`GET /api/admin/communications/research-admissions/:admissionId`.
+Artifacts use SHA-256 as a stable Blueprint ID. Store exact source bytes and a
+JSON manifest privately in the existing company bucket at
+`research/artifacts/sha256/:artifactId/source` and `manifest.json`, accessible
+through authenticated `GET /api/admin/communications/research-artifacts/:artifactId`
+and `/:artifactId/manifest`. Library/session identifiers are import provenance,
+not canonical URLs or runtime dependencies. Keep portable record exports in
+authorized company storage; never publish private CRM or postal data.
+
+The configured company bucket is `blueprint-8c1ca.appspot.com`. Create immutable
+objects with generation-match-zero and private visibility, then verify download
+hashes; reuse identical existing copies instead of overwriting them. The standard
+manifest has `schema_version: blueprint.research-artifact.v1`, `artifactId`,
+`sha256`, `byteLength`, file name/media type, a Blueprint API URL and import
+provenance. The artifact ID and SHA must match the requested source. Portable
+JSON inputs/readbacks can use `research/exports/communications/sha256/:digest/`.
+Replacement agents use existing authorized Firebase Admin service authority or
+the authenticated Blueprint APIs; no Library session or custom credential token
+is required. Preserve previous Library copies as import history.
+
 Admission creates the ordinary protected source, handoff and queued job. It does
 not create a model session, Gmail draft or send. Worker/send readback selects the
 immutable record using `researchOrigin.admissionId` and rechecks hashes,
@@ -60,7 +83,7 @@ checks and private server postal configuration retain their separate authority.
 Offline regressions use four genuine official routes: Suds City LA, DeBourgh,
 P4Swiss/Lindel (different email domain), and Capacity Midwest. Their inboxes are
 routing options, not proven decision makers or interest. A release rehearsal can
-provide the unchanged Library report as `artifact.rawBase64` and its verified
+provide unchanged report bytes as `artifact.rawBase64` and their verified
 SHA-256 while keeping production publication and send activation with the owner.
 
 Validation: `npm run check`, focused communications/admission tests and the full
