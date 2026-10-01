@@ -130,14 +130,12 @@ describe("observed learning counts and comparison cohorts", () => {
     expect(plan.cohorts[0].counts).toMatchObject({ acceptedTouches: 2, matureAcceptedProspects: 1,
       repliedProspects: 1, matureNonresponseProspects: 0, matureReplyRate: { numerator: 1, denominator: 1 } });
   });
-  it.each(["unaccepted", "before_acceptance", "unrelated_thread", "automatic", "other_contract"])("does not count a later-thread reply with %s evidence", change => {
+  it.each(["before_acceptance", "unrelated_thread", "automatic", "other_contract"])("does not count a later-thread reply with %s evidence", change => {
     const first = learningEvent("outreach_observed"), originalReply = learningEvent("reply_observed");
     let later = remake(first, { occurredAt: "2026-09-20T10:00:00.000Z", data: { ...first.data,
       jobId: "follow-up", approvalLedgerId: "communications_follow-up", messageId: "later-message", threadId: "later-thread" } });
     let reply = remake(originalReply, { occurredAt: "2026-09-21T10:00:00.000Z", data: { ...originalReply.data,
       jobId: "reply-job", messageId: "later-answer", threadId: "later-thread" } });
-    if (change === "unaccepted") later = remake(later, { data: { ...later.data, status: "unknown" },
-      evidence: [{ ...later.evidence[0], basis: "send_attempt" }] });
     if (change === "before_acceptance") reply = remake(reply, { occurredAt: "2026-09-19T10:00:00.000Z" });
     if (change === "unrelated_thread") reply = remake(reply, { data: { ...reply.data, threadId: "unrelated" } });
     if (change === "other_contract") reply = remake(reply, { data: { ...reply.data, outreachVersion: "other.v1" } });
@@ -146,6 +144,21 @@ describe("observed learning counts and comparison cohorts", () => {
     const plan = planResearchLearning(snapshot([learningEvent("research_observed"), first, later, reply]), focus);
     expect(plan.cohorts[0].counts).toMatchObject({ matureAcceptedProspects: 1, repliedProspects: 0,
       matureNonresponseProspects: 1, matureReplyRate: { numerator: 0, denominator: 1 } });
+  });
+  it.each([true, false])("keeps genuine unknown-ACK replies visible with prior accepted touch=%s", priorAccepted => {
+    const first = learningEvent("outreach_observed"), originalReply = learningEvent("reply_observed");
+    const unknown = remake(first, { occurredAt: "2026-09-20T10:00:00.000Z", data: { ...first.data, status: "unknown",
+      jobId: "follow-up", approvalLedgerId: "communications_follow-up", messageId: "later-message", threadId: "later-thread" },
+      evidence: [{ ...first.evidence[0], basis: "send_attempt" }] });
+    const reply = remake(originalReply, { occurredAt: "2026-09-21T10:00:00.000Z", data: { ...originalReply.data,
+      jobId: "reply-job", messageId: "later-answer", threadId: "later-thread" } });
+    const view = snapshot([learningEvent("research_observed"), ...(priorAccepted ? [first] : []), unknown, reply]);
+    const plan = planResearchLearning(view, focus);
+    expect(plan.cohorts[0].counts).toMatchObject({ repliedProspects: 1, replyAcceptanceUnknownProspects: 1,
+      matureAcceptedProspects: priorAccepted ? 1 : 0, matureReplyAcceptanceUnknownProspects: priorAccepted ? 1 : 0,
+      matureNonresponseProspects: 0, matureReplyRate: { numerator: 0, denominator: priorAccepted ? 1 : 0 } });
+    const { grant } = learningScope(), exportView = sheetsLearningView(view, grant, learningNow);
+    expect(exportView.rows[0][exportView.columns.indexOf("reply_acceptance_unknown")]).toBe(true);
   });
   it("freezes cohort metadata and contact availability at the first touch", () => {
     const research = learningEvent("research_observed"), contact = learningEvent("contact_observed");

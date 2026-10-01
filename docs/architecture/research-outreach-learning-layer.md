@@ -89,9 +89,12 @@ Delivery rates use verified-delivered **accepted** jobs over accepted jobs;
 delivery evidence for an unknown-ACK job is separately counted. Reply maturity
 uses a configurable 1–90 day window (fixture: 14) from the first accepted touch.
 Correlated replies on any later accepted thread count within that original
-prospect observation window. Unaccepted touches, replies before their matching
-acceptance, other thread/contract references and classified automatic replies
-do not count. Copy strata hash the validated canonical envelope subject/body
+prospect observation window. Observed replies after unknown acknowledgement
+remain visible with `replyAcceptanceUnknownProspects`; they do not enter the
+accepted-thread rate numerator. A mature prospect with only such a response
+enters `matureReplyAcceptanceUnknownProspects`, never mature nonresponse.
+Replies before their matching touch, other thread/contract references and
+classified automatic replies do not count. Copy strata hash the validated canonical envelope subject/body
 before recipient-specific transport footers; full payload and receipt hashes
 retain transport evidence. Mismatched canonical payload copy is quarantined.
 Only a bounce on that touch excludes its prospect from that mature denominator.

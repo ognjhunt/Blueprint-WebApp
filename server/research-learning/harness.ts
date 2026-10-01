@@ -21,14 +21,16 @@ export function sheetsLearningView(value: LearningSnapshot, grant: LearningGrant
   if (!sectionSchema.options.every(section => snapshot.scope.sections.includes(section))) throw new Error("learning_export_sections_missing");
   return { snapshotId: snapshot.snapshotId, tab: "Research Learning", fieldOwner: "firestore_learning_projection",
     columns: ["prospect_id", "crm_id", "snapshot_hash", "as_of", "city", "industry", "contact_at_touch", "message_digest",
-      "attempted_touches", "accepted_touches", "verified_delivered_touches", "mature_nonresponse", "pending", "replied", "explicit_rejection", "interest_subtype", "latest_outcome", "current_event_ids", "unknowns"],
+      "attempted_touches", "accepted_touches", "verified_delivered_touches", "mature_nonresponse", "pending", "replied", "explicit_rejection", "interest_subtype", "latest_outcome", "current_event_ids", "unknowns",
+      "accepted_window_replied", "reply_acceptance_unknown", "mature_reply_acceptance_unknown"],
     rows: snapshot.rows.map(row => {
       const summary = describeRow(row, snapshot);
       return [row.prospectId, row.history.at(-1)?.entities.crmId ?? "", snapshot.contentHash, snapshot.asOf,
         summary.city, summary.industry, summary.contactAvailabilityAtTouch, summary.messageDigest ?? "",
         summary.attemptedTouches, summary.acceptedTouches, summary.verifiedDeliveredTouches, summary.matureNonresponse,
         summary.pending, summary.replied, summary.explicitRejection, summary.interestSubtype, summary.outcome,
-        row.currentEventIds.join(";"), row.unknowns.join(";")];
+        row.currentEventIds.join(";"), row.unknowns.join(";"), summary.acceptedWindowReplied, summary.replyAcceptanceUnknown,
+        summary.matureAcceptedProspect && summary.windowReplyAcceptanceUnknown];
     }) };
 }
 

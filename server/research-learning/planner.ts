@@ -17,16 +17,22 @@ export function describeRow(row: SnapshotRow, snapshot: LearningSnapshot) {
     && touches.some(t => t.data.jobId === job && (!t.data.messageId || (t.data.messageId === e.data.messageId && t.data.threadId === e.data.threadId))))), "delivery_observed");
   const delivered = jobs.filter(job => delivery(job)?.data.status === "verified_delivered");
   const bounced = jobs.filter(job => delivery(job)?.data.status === "bounced");
+  const matchesReply = (t: typeof touches[number], e: Extract<LearningEvent, { kind: "reply_observed" }>) =>
+    t.data.threadId !== null && t.data.threadId === e.data.threadId
+    && t.data.outreachVersion === e.data.outreachVersion && t.occurredAt <= e.occurredAt;
+  const acceptedReply = (e: Extract<LearningEvent, { kind: "reply_observed" }>) =>
+    touches.some(t => t.data.status === "accepted" && matchesReply(t, e));
+  // An evidence-backed observed reply survives missing send acknowledgement.
+  // Accepted-thread eligibility is separate from whether a response occurred.
   const replies = events.filter((e): e is Extract<LearningEvent, { kind: "reply_observed" }> => e.kind === "reply_observed"
-    && touches.some(t => t.data.status === "accepted" && t.data.threadId !== null && t.data.threadId === e.data.threadId
-      && t.data.outreachVersion === e.data.outreachVersion && t.occurredAt <= e.occurredAt));
+    && e.data.classification.label !== "automatic" && touches.some(t => matchesReply(t, e)));
   // The first accepted touch defines a prospect-level observation window;
   // attempts with unknown acknowledgement never enter the mature denominator.
   const firstAccepted = touches.find(e => e.data.status === "accepted");
   const mature = Boolean(firstAccepted && Date.parse(snapshot.asOf) - Date.parse(firstAccepted.occurredAt) >= snapshot.maturityDays * 86400000);
-  const substantive = replies.filter(e => e.data.classification.label !== "automatic"
-    && (!firstAccepted || e.occurredAt >= firstAccepted.occurredAt));
-  const reliable = substantive.filter(e => !e.data.classification.uncertain && e.data.classification.method === "human");
+  const windowReplies = replies.filter(e => !firstAccepted || e.occurredAt >= firstAccepted.occurredAt);
+  const acceptedWindowReplies = windowReplies.filter(acceptedReply);
+  const reliable = replies.filter(e => !e.data.classification.uncertain && e.data.classification.method === "human");
   const latest = reliable.at(-1);
   const outcome = last(events, "outcome_observed");
   return {
@@ -41,9 +47,12 @@ export function describeRow(row: SnapshotRow, snapshot: LearningSnapshot) {
     attemptedTouches: jobs.length, acceptedTouches: accepted.length, verifiedDeliveredTouches: delivered.length,
     verifiedDeliveredAcceptedTouches: delivered.filter(j => accepted.includes(j)).length,
     bouncedTouches: bounced.length, unknownAcknowledgementTouches: jobs.filter(j => !accepted.includes(j)).length,
-    matureAcceptedProspect: mature && Boolean(firstAccepted && !bounced.includes(firstAccepted.data.jobId)), replied: substantive.length > 0,
-    matureNonresponse: mature && substantive.length === 0 && Boolean(firstAccepted && !bounced.includes(firstAccepted.data.jobId)),
-    pending: Boolean(firstAccepted && !mature && substantive.length === 0),
+    matureAcceptedProspect: mature && Boolean(firstAccepted && !bounced.includes(firstAccepted.data.jobId)), replied: replies.length > 0,
+    acceptedWindowReplied: acceptedWindowReplies.length > 0,
+    replyAcceptanceUnknown: replies.some(e => !acceptedReply(e)),
+    windowReplyAcceptanceUnknown: windowReplies.length > 0 && acceptedWindowReplies.length === 0,
+    matureNonresponse: mature && windowReplies.length === 0 && Boolean(firstAccepted && !bounced.includes(firstAccepted.data.jobId)),
+    pending: Boolean(firstAccepted && !mature && windowReplies.length === 0),
     explicitRejection: latest?.data.classification.label === "rejection",
     curiosity: latest?.data.classification.label === "curiosity",
     interestSubtype: latest?.data.classification.interest ?? "unknown",
@@ -60,9 +69,11 @@ function counts(rows: Description[]) {
   return { scopedProspects: rows.length, researchedProspects: n(r => r.hasResearch), attemptedTouches: sum("attemptedTouches"), acceptedTouches: sum("acceptedTouches"),
     verifiedDeliveredTouches: sum("verifiedDeliveredTouches"), bouncedTouches: sum("bouncedTouches"), unknownAcknowledgementTouches: sum("unknownAcknowledgementTouches"),
     matureAcceptedProspects: mature.length, repliedProspects: n(r => r.replied),
-    matureRepliedProspects: mature.filter(r => r.replied).length, matureNonresponseProspects: n(r => r.matureNonresponse),
+    matureRepliedProspects: mature.filter(r => r.acceptedWindowReplied).length, matureNonresponseProspects: n(r => r.matureNonresponse),
+    replyAcceptanceUnknownProspects: n(r => r.replyAcceptanceUnknown),
+    matureReplyAcceptanceUnknownProspects: mature.filter(r => r.windowReplyAcceptanceUnknown).length,
     pendingProspects: n(r => r.pending), explicitRejections: n(r => r.explicitRejection), curiosityReplies: n(r => r.curiosity),
-    matureReplyRate: { numerator: mature.filter(r => r.replied).length, denominator: mature.length },
+    matureReplyRate: { numerator: mature.filter(r => r.acceptedWindowReplied).length, denominator: mature.length },
     // Delivery proof has its own denominator; never call accepted mail delivered.
     verifiedDeliveryRate: { numerator: rows.reduce((n, r) => n + r.verifiedDeliveredAcceptedTouches, 0), denominator: sum("acceptedTouches") },
     laterOutcomes: Object.fromEntries(["call_held", "evaluation_participation_agreed", "pilot_agreed", "deployment_capacity_confirmed", "pilot_started", "pilot_completed", "lost"]
