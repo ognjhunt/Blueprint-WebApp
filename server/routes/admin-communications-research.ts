@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { dbAdmin, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { resolveExecutionAccessContext } from "../utils/access-control";
 import { isEmailSuppressed } from "../utils/email-suppression";
-import { reviewedResearchInputSchema, stageReviewedResearch, REVIEWED_RESEARCH_ROOT } from "../agents/communications-reviewed-research";
+import { reviewedResearchInputSchema, reviewedResearchPublication, stageReviewedResearch, REVIEWED_RESEARCH_ROOT } from "../agents/communications-reviewed-research";
 import { admitPublishedResearch } from "../agents/communications-intake";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
 
@@ -42,8 +42,15 @@ router.get("/research-admissions/:admissionId", async (req, res) => {
   try {
     const snapshot = await dbAdmin.collection(REVIEWED_RESEARCH_ROOT).doc(req.params.admissionId).get();
     if (!snapshot.exists) return res.status(404).json({ error: "research_admission_missing" });
+    const data = snapshot.data(), row = data?.row;
+    try {
+      // Verify the complete historical record, anchored to the requested ID.
+      // Review-time freshness preserves valid archives without claiming current qualification.
+      reviewedResearchPublication(data, { admissionId: req.params.admissionId, date: row?.date,
+        candidateKey: row?.packet?.candidate?.candidate_key, packetDigest: row?.packet_digest, rawArtifactDigest: row?.raw_output_digest });
+    } catch { return res.status(409).json({ error: "reviewed_research_source_changed" }); }
     res.setHeader("Cache-Control", "private, no-store");
-    return res.json(snapshot.data());
+    return res.json(data);
   } catch { return res.status(503).json({ error: "reviewed_research_store_unavailable" }); }
 });
 /** Same authenticated admin authority as sensitive execution routes. A client
