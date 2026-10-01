@@ -57,6 +57,7 @@ export const communicationsBriefSchema = z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), candidateKey: text,
     packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
     rawArtifactDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    admissionId: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     // Communications adapter provenance; original candidate stays in an
     // immutable source record, including quotes, unknowns and cached fact IDs.
     sourceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
@@ -72,7 +73,8 @@ export type CommunicationsBrief = z.infer<typeof communicationsBriefSchema>;
 export const communicationsHandoffSchema = z.object({
   version: z.literal("blueprint.communications-handoff.v1"), state: z.literal("approved"),
   briefDigest: z.string().regex(/^[a-f0-9]{64}$/), reviewedBy: text, reviewedAt: date,
-  sourceRecordUrl: publicUrl, sheetsReceipt: text, notionReceipt: text,
+  sourceRecordUrl: publicUrl, sheetsReceipt: text.nullable(), notionReceipt: text.nullable(),
+  recordReceipt: text.optional(),
 }).strict();
 export type CommunicationsHandoff = z.infer<typeof communicationsHandoffSchema>;
 export function verifyCommunicationsHandoff(value: unknown, brief: CommunicationsBrief) {

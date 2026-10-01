@@ -32,10 +32,12 @@ describe("published research → human reviewed communications producer (offline
     expect(preview.proposal).not.toHaveProperty("qualityReview");
     expect(preview.sessionCreated).toBe(false);
     expect(f.preview().previewDigest).toBe(preview.previewDigest);
+    // Previously persisted API-source digests must retain their original shape.
+    expect(preview.source).not.toHaveProperty("sourceRecordUrl");
   });
 
   it.each([
-    ["unpublished", (f: any) => { f.snapshot.row.delivery.notion.state = "pending"; }],
+    ["unpublished Sheets", (f: any) => { f.snapshot.row.delivery.sheets.state = "pending"; }],
     ["unreviewed", (f: any) => { f.snapshot.row.review.accepted_keys = []; }],
     ["missing plan", (f: any) => { delete f.snapshot.row.delivery.sheets.plan; }],
     ["wrong external ID", (f: any) => { f.snapshot.row.delivery.sheets.receipt.reference = `sheets:${f.snapshot.row.packet.destinations.sheet_id}:Prospects:BP-000999`; }],
@@ -60,6 +62,13 @@ describe("published research → human reviewed communications producer (offline
     ["credentials", (f: any) => { f.input.refreshToken = "UNACCEPTED_MOCK"; }],
   ])("refuses %s without producing a handoff", (_name, change) => {
     const f = setup(); change(f); expect(f.preview).toThrow();
+  });
+
+  it("allows unavailable Notion projection with truthful null receipt and canonical source URL", () => {
+    const f = setup(); f.snapshot.row.delivery.notion.state = "pending";
+    const preview = f.preview();
+    expect(preview.source.notionReceipt).toBeNull();
+    expect(preview.sourceRecordUrl).toContain("docs.google.com/spreadsheets/");
   });
 
   it("refuses source overflow rather than truncating candidate unknowns", () => {

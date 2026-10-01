@@ -5,6 +5,7 @@ import { verifyContactResolution } from "./communications-contact-resolution";
 import { reviewCommunicationsPayload } from "./communications-review";
 import { validateRecipientEmailAddress, type ActionPayload } from "./action-policies";
 import { appendFirstContactFooter, firstContactPostalLine } from "./communications-first-contact-footer";
+import { assessedSiteGeography, qualifiedSourceContact } from "./communications-source-assessment";
 
 /** The founder authorized routine first contact only. This is not authority for
  * follow-ups, replies, private data, commitments, pricing or other send lanes. */
@@ -131,6 +132,15 @@ const payloadKeys = new Set(["type", "to", "from", "replyTo", "subject", "body",
  * qualifies; unknown/non-US locations remain in the review queue. */
 export function firstContactGeography(provenance: any, brief: CommunicationsBrief, now: number) {
   const source = provenance?.source;
+  if (source?.assessment) {
+    if (communicationsDigest(source) !== brief.researchOrigin.sourceDigest) return null;
+    try {
+      const country = assessedSiteGeography(source.candidate, source.assessment);
+      const entry = source.candidate.evidence[source.assessment.geography.evidenceIndex];
+      return fresh(country.sourceCheckedAt, now) && brief.facts.some(fact => fact.claim === entry.claim && fact.sourceUrl === entry.url
+        && fact.evidenceClass === "operator_stated" && fact.sourceCheckedAt === country.sourceCheckedAt) ? country : null;
+    } catch { return null; }
+  }
   const explicitUS = (value: string) => /(?:\bUnited States(?: of America)?\b|\bUSA\b|\bU\.S\.(?:A\.)?)/i.test(value)
     && !/\b(?:outside|not located|headquarters|HQ|corporate office|elsewhere|overseas|worldwide|international|global|other sites?|other facilities|multiple|locations|facilities|warehouses|plants|Canada|Canadian|Mexico|Mexican)\b/i.test(value);
   if (!source || communicationsDigest(source) !== brief.researchOrigin.sourceDigest
@@ -200,7 +210,7 @@ export function verifyFirstContactSource(provenance: any, brief: CommunicationsB
     || source?.researchReview?.source_support_verified !== true || source?.researchReview?.crm_rechecked !== true
     || !source?.researchReview?.accepted_keys?.includes(brief.researchOrigin.candidateKey)) throw new Error("first_contact_source_missing_or_changed");
   const contact = brief.researchOrigin.contactEvidenceKind === "public_operator_resolution"
-    ? verifyContactResolution(contactProof, source, brief.prospectId) : publishedPublicContact(source.candidate);
+    ? verifyContactResolution(contactProof, source, brief.prospectId) : qualifiedSourceContact(source);
   if (contact.email !== brief.contact.email.toLowerCase() || contact.sourceUrl !== brief.contact.sourceUrl
     || contact.sourceCheckedAt !== brief.contact.sourceCheckedAt || contact.evidenceDigest !== brief.researchOrigin.contactEvidenceDigest) {
     throw new Error("first_contact_source_missing_or_changed");
