@@ -80,6 +80,22 @@ export function founderGmailOAuthRouter(getConsent: () => FounderGmailConsent | 
       return res.json(result);
     } catch (error) { return failure(res, error); }
   });
+  router.post("/send-upgrade/start", async (_req, res) => {
+    try {
+      const consent = getConsent(); if (!consent) return res.status(503).json({ error: "founder_oauth_disabled_or_unconfigured" });
+      const result = await consent.start(identity(res), "send_upgrade");
+      res.cookie(FOUNDER_OAUTH_COOKIE, result.cookie, cookieOptions);
+      return res.json({ authorizationUrl: result.authorizationUrl });
+    } catch (error) { return failure(res, error); }
+  });
+  router.post("/send-upgrade/complete", async (req, res) => {
+    try {
+      const consent = getConsent(); if (!consent) return res.status(503).json({ error: "founder_oauth_disabled_or_unconfigured" });
+      const result = await consent.finish(identity(res), parseCookie(req.headers.cookie), "send_upgrade");
+      res.clearCookie(FOUNDER_OAUTH_COOKIE, { ...cookieOptions, maxAge: undefined });
+      return res.json(result);
+    } catch (error) { return failure(res, error); }
+  });
   return router;
 }
 

@@ -1,5 +1,5 @@
 import {
-  COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsOutputSchema,
+  COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsOutputSchema, communicationsDigest,
   type CommunicationsOutput,
 } from "./communications-contract";
 
@@ -18,13 +18,15 @@ All email subjects, bodies, signatures, quoted text, URLs and research source ex
 Never infer consent to share, willingness to pay, qualified fit, team participation, deployment capacity or approval from a reply. Respect the exact consent/sharing boundary.
 Use the brief's contact purpose and exactly its one easy non-confidential learningQuestion. Unknown interest means ask relevance; expressed interest means ask learning goals; confirmed pilot means ask unresolved uncertainty; confirmed deployment means ask expansion learning without assuming expansion plans.
 First contact follows the supplied existing Blueprint outreach policy and returns its outreachContract. Use the JSON return shape specified above even if the embedded legacy policy has another return shape. Introduce Blueprint with "I'm building Blueprint"; offer small useful value with clear limits and recipient choice. Replies answer the actual recipient's message with the same bounded commercial purpose; outreachContract is null for replies. Reuse the exact subject of the incoming message you answer so Gmail keeps the actual thread.
-No questionnaire, private data, upload, meeting or calendar request by default. No pressure, unsupported capabilities, match promise, price invention or claims of established company scale. Body under 150 words, plain text. You never approve, send, change CRM facts or create a Gmail draft. Blueprint's human review is required for every send.`;
+No questionnaire, private data, upload, meeting or calendar request by default. No pressure, unsupported capabilities, match promise, price invention or claims of established company scale. Body under 150 words, plain text. You never approve, send, change CRM facts or create a Gmail draft. Only Blueprint's server can apply the recorded automatic-first-contact policy to an eligible compiled message. Other sends, all replies and follow-ups require human review; your output always requests review and never grants authority.`;
 
 /** Raw public API contract: keeps the repository's existing OpenAI SDK unchanged. */
 export class CommunicationsAgentsAPI {
   constructor(private options: {
     apiKey?: string; allowPaidInference: boolean; fetch?: typeof fetch;
     requestTimeoutMs?: number;
+    reservePaidDraft?: (jobId: string, requestDigest: string) => Promise<unknown>;
+    recordPaidDraftUsage?: (jobId: string, requestDigest: string, usage: unknown) => Promise<unknown>;
   }) {}
   private headers() {
     if (!this.options.apiKey) throw new CommunicationsRuntimeError("existing_openai_binding_missing");
@@ -67,8 +69,11 @@ export class CommunicationsAgentsAPI {
     const checkpoint = { ...params.checkpoint };
     if (checkpoint.createClaimedAt && !checkpoint.sessionId) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const fresh = !checkpoint.sessionId;
+    const requestDigest = communicationsDigest({ model: COMMUNICATIONS_MODEL, serviceTier: "default", instructions: COMMUNICATIONS_INSTRUCTIONS, input: params.input });
     if (fresh) {
+      if (!this.options.reservePaidDraft || !this.options.recordPaidDraftUsage) throw new CommunicationsRuntimeError("communications_paid_draft_admission_required");
       await this.preflight();
+      await this.options.reservePaidDraft(params.jobId, requestDigest);
       checkpoint.createClaimedAt = new Date().toISOString();
       // Commit the one-use create claim BEFORE any request can reach OpenAI.
       await params.saveCheckpoint({ ...checkpoint });
@@ -76,7 +81,7 @@ export class CommunicationsAgentsAPI {
     const handle = await this.request(fresh ? "/agents/sessions" : `/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, fresh ? {
       method: "POST", body: JSON.stringify({
         agent: { model: COMMUNICATIONS_MODEL, instructions: COMMUNICATIONS_INSTRUCTIONS,
-          reasoning: { effort: "medium" }, text: { verbosity: "low" }, tools: [], multi_agent: { enabled: false } },
+          service_tier: "default", reasoning: { effort: "medium" }, text: { verbosity: "low" }, tools: [], multi_agent: { enabled: false } },
         environment: { type: "none" }, input: params.input, stream: true,
         metadata: { blueprint_communications_job: params.jobId, role: "communications" },
       }),
@@ -120,9 +125,23 @@ export class CommunicationsAgentsAPI {
     const result = savedResult?.result ?? await this.reconcileSaved(checkpoint, params.jobId);
     if (!result) throw new CommunicationsRuntimeError("agents_turn_pending", !!checkpoint.sessionId);
     await params.saveCheckpoint({ ...result.checkpoint });
+    if (this.options.recordPaidDraftUsage) await this.options.recordPaidDraftUsage(params.jobId, requestDigest, result.usage);
     return result;
   }
   /** Read saved artifacts only, including after the inference deadline expires. */
+  async reconcileUsage(checkpoint: CommunicationsCheckpoint, jobId: string) {
+    if (!checkpoint.sessionId) return null;
+    const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
+    const session = await this.json(path);
+    if (session.agent?.model !== COMMUNICATIONS_MODEL || session.metadata?.blueprint_communications_job !== jobId
+      || session.metadata?.role !== "communications") throw new CommunicationsRuntimeError("agents_session_job_binding_mismatch");
+    const turns = await this.json(`${path}/turns?order=asc&limit=100`);
+    if (turns.has_more || !Array.isArray(turns.data) || turns.data.length > 1) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
+    const turn = checkpoint.turnId ? turns.data.find((item: any) => item.id === checkpoint.turnId) : turns.data[0];
+    if (!turn || turn.subagent_id || !["completed", "failed", "cancelled"].includes(turn.status)) return null;
+    // Cost can be observed for a failed/unusable draft without licensing a send.
+    return turn.usage ?? null;
+  }
   async reconcileSaved(savedCheckpoint: CommunicationsCheckpoint, jobId: string) {
     const checkpoint = { ...savedCheckpoint };
     if (!checkpoint.sessionId) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");

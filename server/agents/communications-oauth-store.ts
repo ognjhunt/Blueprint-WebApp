@@ -5,10 +5,9 @@ import { checkWorkOperator } from "../utils/blueprintWorkStore";
 import { withTaskEvaluationLaunchStoreTimeout as bounded } from "../utils/taskEvaluationLaunchStore";
 import type { WorkStore } from "../utils/blueprintWorkOAuth";
 import { FounderGmailConsent, FOUNDER_CONNECTION_ID, FOUNDER_OAUTH_CALLBACK,
-  type FounderCredential, type FounderConsentConfig } from "./communications-oauth";
-import { FOUNDER_GMAIL_READ_SCOPE } from "./communications-connection";
+  founderScopesMatch, type FounderCredential, type FounderConsentConfig, type FounderBindingSnapshot } from "./communications-oauth";
 import { founderGoogleConsent } from "./communications-oauth-google";
-import { FOUNDER_MAILBOX } from "./communications-contract";
+import { FOUNDER_MAILBOX, communicationsDigest } from "./communications-contract";
 
 export const FOUNDER_OAUTH_FLOW_COLLECTION = "communicationsGmailOAuthFlows";
 export const FOUNDER_CREDENTIAL_COLLECTION = "communicationsGmailCredentials";
@@ -61,12 +60,21 @@ export function configuredFounderConsent(): FounderGmailConsent | null {
       return encryptedStorageConfigured() && !row.exists;
     },
     async save(credential, flowId) { await saveFounderCredential(credential, flowId); },
+    async currentBinding() {
+      const ref = db.collection(FOUNDER_CREDENTIAL_COLLECTION).doc(FOUNDER_CONNECTION_ID);
+      const row = await bounded(ref.get());
+      if (!row.exists) return null;
+      if (env.BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN?.trim()) throw new Error("founder_environment_binding_blocks_upgrade");
+      return (await readFounderBinding(row.data()!)).snapshot;
+    },
+    async saveUpgrade(credential, flowId, previous) { await saveFounderUpgrade(credential, flowId, previous); },
     ...founderGoogleConsent(config.clientId, env.BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_SECRET.trim()),
   });
 }
 
 export async function saveFounderCredential(credential: FounderCredential, flowId: string) {
   if (!dbAdmin || !encryptedStorageConfigured()) throw new Error("founder_secure_storage_unavailable");
+  if (credential.version !== "blueprint.founder-gmail-credential.v1" || !founderScopesMatch(credential.scopes)) throw new Error("founder_initial_binding_readonly_required");
   const encrypted = await encryptBoundFieldValue(JSON.stringify(credential), aad(credential.ownerUid, credential.clientId, flowId));
   const ref = dbAdmin.collection(FOUNDER_CREDENTIAL_COLLECTION).doc(FOUNDER_CONNECTION_ID);
   await bounded(dbAdmin.runTransaction(async tx => {
@@ -82,24 +90,70 @@ export async function saveFounderCredential(credential: FounderCredential, flowI
   }));
 }
 
+/** Only the explicit owner send-upgrade flow can replace an existing binding.
+ * Encrypt before the retryable transaction; commit binding and flow together. */
+export async function saveFounderUpgrade(credential: FounderCredential, flowId: string, previous: FounderBindingSnapshot) {
+  if (!dbAdmin || !encryptedStorageConfigured() || process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN?.trim()) throw new Error("founder_secure_storage_unavailable");
+  if (credential.version !== "blueprint.founder-gmail-credential.v2" || credential.consentPurpose !== "send_upgrade"
+    || !founderScopesMatch(credential.scopes, true) || previous.sendScopeGranted || credential.upgradedFromFlowId !== previous.flowId
+    || credential.clientId !== process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_ID?.trim()
+    || credential.ownerUid !== process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID
+    || credential.mailbox !== FOUNDER_MAILBOX || credential.binding !== FOUNDER_CONNECTION_ID) throw new Error("founder_send_upgrade_invalid");
+  const encrypted = await encryptBoundFieldValue(JSON.stringify(credential), aad(credential.ownerUid, credential.clientId, flowId));
+  const ref = dbAdmin.collection(FOUNDER_CREDENTIAL_COLLECTION).doc(FOUNDER_CONNECTION_ID);
+  const flowRef = dbAdmin.collection(FOUNDER_OAUTH_FLOW_COLLECTION).doc(flowId);
+  await bounded(dbAdmin.runTransaction(async tx => {
+    const [old, flow] = await Promise.all([tx.get(ref), tx.get(flowRef)]);
+    const current = old.data(), attempt = flow.data();
+    if (current?.flowId === flowId && current.version === credential.version && attempt?.phase === "connected_send_capable") return;
+    if (!old.exists || communicationsDigest(current) !== previous.revision || current?.flowId !== previous.flowId
+      || current.version !== "blueprint.founder-gmail-credential.v1" || !founderScopesMatch(current.scopes)
+      || attempt?.phase !== "exchanging" || attempt.purpose !== "send_upgrade"
+      || attempt.previousBinding?.revision !== previous.revision || attempt.previousBinding?.flowId !== previous.flowId
+      || attempt.ownerUid !== credential.ownerUid || attempt.clientId !== credential.clientId
+      || attempt.approvalReference !== credential.approvalReference || attempt.grantMode !== credential.grantMode
+      || attempt.expiresAt <= Math.floor(Date.now() / 1000)) throw new Error("founder_send_upgrade_binding_changed");
+    tx.set(ref, { version: credential.version, binding: FOUNDER_CONNECTION_ID, ownerUid: credential.ownerUid,
+      clientId: credential.clientId, flowId, encrypted, consentedAt: credential.consentedAt,
+      usableUntil: credential.usableUntil, scopes: credential.scopes, mailbox: credential.mailbox,
+      approvalReference: credential.approvalReference, grantMode: credential.grantMode,
+      consentPurpose: credential.consentPurpose, upgradedFromFlowId: credential.upgradedFromFlowId });
+    tx.set(flowRef, { ...attempt, phase: "connected_send_capable", secrets: null });
+  }));
+}
+
+async function readFounderBinding(data: Record<string, any>): Promise<{ credential: FounderCredential; snapshot: FounderBindingSnapshot }> {
+  if (!data.flowId || !data.ownerUid || data.ownerUid !== process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID
+    || data.clientId !== process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_ID?.trim()) throw new Error("founder_gmail_credential_binding_invalid");
+  const credential = JSON.parse(await decryptBoundFieldValue(data.encrypted, aad(data.ownerUid, data.clientId, data.flowId))) as FounderCredential;
+  const sendScopeGranted = credential.version === "blueprint.founder-gmail-credential.v2"
+    && credential.consentPurpose === "send_upgrade" && Boolean(credential.upgradedFromFlowId)
+    && data.version === credential.version && data.consentPurpose === credential.consentPurpose
+    && data.upgradedFromFlowId === credential.upgradedFromFlowId && founderScopesMatch(credential.scopes, true);
+  if ((credential.version !== "blueprint.founder-gmail-credential.v1" || !founderScopesMatch(credential.scopes)) && !sendScopeGranted
+    || credential.binding !== FOUNDER_CONNECTION_ID || credential.mailbox !== FOUNDER_MAILBOX
+    || credential.clientId !== data.clientId || credential.ownerUid !== data.ownerUid || !credential.refreshToken
+    || !["temporary_testing", "durable_reviewed"].includes(credential.grantMode)
+    || (credential.grantMode === "temporary_testing" && (!credential.usableUntil || credential.usableUntil <= Math.floor(Date.now() / 1000)))) {
+    throw new Error("founder_gmail_credential_invalid_or_expired");
+  }
+  return { credential, snapshot: { flowId: data.flowId, revision: communicationsDigest(data), sendScopeGranted } };
+}
+
+/** Capability check only; it never calls Gmail or returns credential material. */
+export async function requireFounderSendCapability(): Promise<void> {
+  if (process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN?.trim()) throw new Error("founder_send_scope_unverified");
+  const credential = await readFounderCredential();
+  if (credential.version !== "blueprint.founder-gmail-credential.v2") throw new Error("founder_send_scope_unverified");
+}
+
 /** Private runtime reader; no API response ever contains this credential. */
 export async function readFounderCredential(): Promise<FounderCredential> {
   try {
   if (!dbAdmin || !encryptedStorageConfigured()) throw new Error("founder_gmail_binding_missing");
   const row = await bounded(dbAdmin.collection(FOUNDER_CREDENTIAL_COLLECTION).doc(FOUNDER_CONNECTION_ID).get());
   if (!row.exists) throw new Error("founder_gmail_binding_missing");
-  const data = row.data()!;
-  if (!data.flowId || !data.ownerUid || data.ownerUid !== process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID
-    || data.clientId !== process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_ID?.trim()) throw new Error("founder_gmail_credential_binding_invalid");
-  const credential = JSON.parse(await decryptBoundFieldValue(data.encrypted, aad(data.ownerUid, data.clientId, data.flowId))) as FounderCredential;
-  if (credential.version !== "blueprint.founder-gmail-credential.v1" || credential.binding !== FOUNDER_CONNECTION_ID
-    || credential.mailbox !== FOUNDER_MAILBOX || credential.clientId !== data.clientId || credential.ownerUid !== data.ownerUid
-    || !credential.refreshToken || credential.scopes.length !== 1 || credential.scopes[0] !== FOUNDER_GMAIL_READ_SCOPE
-    || !["temporary_testing", "durable_reviewed"].includes(credential.grantMode)
-    || (credential.grantMode === "temporary_testing" && (!credential.usableUntil || credential.usableUntil <= Math.floor(Date.now() / 1000)))) {
-    throw new Error("founder_gmail_credential_invalid_or_expired");
-  }
-  return credential;
+  return (await readFounderBinding(row.data()!)).credential;
   } catch (error) {
     const safe = ["founder_gmail_binding_missing", "founder_gmail_credential_binding_invalid", "founder_gmail_credential_invalid_or_expired"];
     throw new Error(error instanceof Error && safe.includes(error.message) ? error.message : "founder_gmail_credential_unverified");

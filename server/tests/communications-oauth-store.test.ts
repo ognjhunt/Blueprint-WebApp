@@ -4,10 +4,10 @@ const bindings = vi.hoisted(() => ({ db: null as any }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return bindings.db; }, authAdmin: null }));
 vi.mock("../utils/blueprintWorkStore", () => ({ checkWorkOperator: vi.fn(async () => true) }));
 import { configuredFounderConsent, saveFounderCredential, readFounderCredential, FOUNDER_STORAGE,
-  FOUNDER_CREDENTIAL_COLLECTION } from "../agents/communications-oauth-store";
+  FOUNDER_CREDENTIAL_COLLECTION, FOUNDER_OAUTH_FLOW_COLLECTION, saveFounderUpgrade, requireFounderSendCapability } from "../agents/communications-oauth-store";
 import { encryptBoundFieldValue } from "../utils/field-encryption";
 import { FOUNDER_CONNECTION_ID, FOUNDER_OAUTH_CALLBACK, type FounderCredential } from "../agents/communications-oauth";
-import { FOUNDER_GMAIL_READ_SCOPE } from "../agents/communications-connection";
+import { FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE } from "../agents/communications-connection";
 import { memoryFirestore } from "./fixtures/communications";
 import { checkWorkOperator } from "../utils/blueprintWorkStore";
 const credential: FounderCredential = { version: "blueprint.founder-gmail-credential.v1", binding: FOUNDER_CONNECTION_ID,
@@ -83,5 +83,51 @@ describe("private founder binding uses existing bound encryption and Firestore",
     const encrypted = await encryptBoundFieldValue(JSON.stringify(row), `${FOUNDER_CONNECTION_ID}:mock-owner:mock-client:flow-1`);
     bindings.db.records.set(`${FOUNDER_CREDENTIAL_COLLECTION}/${FOUNDER_CONNECTION_ID}`, { flowId: "flow-1", ownerUid: "mock-owner", clientId: "mock-client", encrypted });
     await expect(readFounderCredential()).rejects.toThrow("founder_gmail_credential_invalid_or_expired");
+  });
+  it("atomically upgrades the verified binding and flow while retaining read access and independent send policy", async () => {
+    configured(); await saveFounderCredential(credential, "readonly-flow");
+    await expect(requireFounderSendCapability()).rejects.toThrow("founder_send_scope_unverified");
+    const previous = (await configuredFounderConsent()!.ports.currentBinding!())!;
+    const upgraded: FounderCredential = { ...credential, version: "blueprint.founder-gmail-credential.v2", scopes: [FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE],
+      consentPurpose: "send_upgrade", upgradedFromFlowId: previous.flowId, refreshToken: "MOCK_NEW_PRIVATE_REFRESH" };
+    const path = `${FOUNDER_OAUTH_FLOW_COLLECTION}/upgrade-flow`;
+    bindings.db.records.set(path, { phase: "exchanging", purpose: "send_upgrade", previousBinding: previous, ownerUid: credential.ownerUid,
+      clientId: credential.clientId, approvalReference: credential.approvalReference, grantMode: credential.grantMode, expiresAt: Math.floor(Date.now() / 1000) + 600, secrets: null });
+    await saveFounderUpgrade(upgraded, "upgrade-flow", previous);
+    expect(await readFounderCredential()).toEqual(upgraded);
+    await expect(requireFounderSendCapability()).resolves.toBeUndefined();
+    expect(bindings.db.records.get(path).phase).toBe("connected_send_capable");
+    expect((await configuredFounderConsent()!.ports.currentBinding!())?.sendScopeGranted).toBe(true);
+    expect(JSON.stringify([...bindings.db.records.values()])).not.toMatch(/MOCK_NEW_PRIVATE_REFRESH|MOCK_PRIVATE_REFRESH|MOCK_PRIVATE_CLIENT_SECRET/);
+    const committed = JSON.stringify([...bindings.db.records]);
+    await saveFounderUpgrade(upgraded, "upgrade-flow", previous);
+    expect(JSON.stringify([...bindings.db.records])).toBe(committed);
+    expect(process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED).not.toBe("true");
+  });
+  it.each(["revision", "owner", "phase", "expired", "transaction"])("preserves the old encrypted binding on an upgrade %s failure", async failure => {
+    configured(); await saveFounderCredential(credential, "readonly-flow");
+    const previous = (await configuredFounderConsent()!.ports.currentBinding!())!;
+    const upgraded: FounderCredential = { ...credential, version: "blueprint.founder-gmail-credential.v2", scopes: [FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE],
+      consentPurpose: "send_upgrade", upgradedFromFlowId: previous.flowId, refreshToken: "MOCK_NEW_PRIVATE_REFRESH" };
+    const path = `${FOUNDER_OAUTH_FLOW_COLLECTION}/upgrade-flow`;
+    bindings.db.records.set(path, { phase: failure === "phase" ? "awaiting_owner" : "exchanging", purpose: "send_upgrade", previousBinding: previous,
+      ownerUid: failure === "owner" ? "other" : credential.ownerUid, clientId: credential.clientId,
+      approvalReference: credential.approvalReference, grantMode: credential.grantMode,
+      expiresAt: Math.floor(Date.now() / 1000) + (failure === "expired" ? -1 : 600), secrets: null });
+    const old = JSON.stringify(bindings.db.records.get(`${FOUNDER_CREDENTIAL_COLLECTION}/${FOUNDER_CONNECTION_ID}`));
+    if (failure === "revision") previous.revision = "changed";
+    if (failure === "transaction") vi.spyOn(bindings.db, "runTransaction").mockRejectedValueOnce(new Error("mock unavailable"));
+    await expect(saveFounderUpgrade(upgraded, "upgrade-flow", previous)).rejects.toThrow();
+    expect(JSON.stringify(bindings.db.records.get(`${FOUNDER_CREDENTIAL_COLLECTION}/${FOUNDER_CONNECTION_ID}`))).toBe(old);
+    expect(await readFounderCredential()).toEqual(credential);
+    await expect(requireFounderSendCapability()).rejects.toThrow("founder_send_scope_unverified");
+  });
+  it("does not accept a v2 grant through the initial-save path or an environment-token send fallback", async () => {
+    configured();
+    const upgraded: FounderCredential = { ...credential, version: "blueprint.founder-gmail-credential.v2", scopes: [FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE], consentPurpose: "send_upgrade", upgradedFromFlowId: "readonly-flow" };
+    await expect(saveFounderCredential(upgraded, "upgrade-flow")).rejects.toThrow("founder_initial_binding_readonly_required");
+    expect(bindings.db.records.size).toBe(0);
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN", "MOCK_ENVIRONMENT_TOKEN");
+    await expect(requireFounderSendCapability()).rejects.toThrow("founder_send_scope_unverified");
   });
 });

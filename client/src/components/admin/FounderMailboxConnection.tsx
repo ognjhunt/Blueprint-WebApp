@@ -14,7 +14,9 @@ type ConnectionPreparation = {
   oauth: { ownerAction: string; initialScopes: string[]; sendScopeAfterSeparateApproval: string; dataAccess: string };
   secretDestination: { provider: string; services: string[]; keys: string[] };
 };
-type ConsentStatus = { enabled: boolean; state: string; sendsEnabled: false; failureStage?: string };
+type ConsentStatus = { enabled: boolean; state: string; sendsEnabled: false; failureStage?: string;
+  purpose?: "send_upgrade"; sendScopeGranted?: boolean; sendUpgradeAvailable?: boolean };
+type ConsentAction = "start" | "complete" | "send-upgrade/start" | "send-upgrade/complete";
 const FAILURE_STEP_LABELS: Record<string, string> = {
   secret_open: "opening the protected consent attempt", token_exchange: "Google token exchange",
   token_validation: "read-only grant validation", mailbox_verification: "founder mailbox and sender verification",
@@ -47,14 +49,14 @@ export function FounderMailboxConnection() {
     },
   });
   const decision = useMutation({
-    mutationFn: async (action: "start" | "complete") => {
+    mutationFn: async (action: ConsentAction) => {
       if (window.location.origin !== CALLBACK_ORIGIN) throw new Error("Continue on the founder callback host first.");
       const response = await fetch(`${OAUTH_PREFIX}/${action}`, { method: "POST", body: "{}",
         headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser, { "Content-Type": "application/json" })),
       });
       if (!response.ok) throw new Error("Founder connection needs owner review. No sending was enabled.");
       const result = await response.json();
-      if (action === "start") {
+      if (action.endsWith("start")) {
         const target = new URL(result.authorizationUrl);
         if (target.origin !== "https://accounts.google.com" || target.pathname !== "/o/oauth2/v2/auth") throw new Error("Founder consent destination is invalid.");
         setAuthorizationUrl(target.href);
@@ -63,7 +65,8 @@ export function FounderMailboxConnection() {
     },
     onError: async () => { setAuthorizationUrl(null); await status.refetch(); },
   });
-  const completeFailed = decision.isError && decision.variables === "complete";
+  const completed = decision.data?.action.endsWith("complete");
+  const completeFailed = decision.isError && decision.variables?.endsWith("complete");
   const failureStep = status.data?.failureStage && Object.hasOwn(FAILURE_STEP_LABELS, status.data.failureStage)
     ? FAILURE_STEP_LABELS[status.data.failureStage] : undefined;
   useEffect(() => { setAuthorizationUrl(null); decision.reset(); }, [currentUser?.uid]);
@@ -84,16 +87,21 @@ export function FounderMailboxConnection() {
         <p>The separate founder binding serves {connection.data.secretDestination.services.join(" and ")}. Existing ops credentials remain separate; no secrets belong in this screen.</p>
         {!status.data?.enabled && <p>OAuth initiation is blocked until the existing client, registered callback, owner identity and secure storage are approved and configured.</p>}
         {status.data?.enabled && <>
-          <p>Continue as nijel@tryblueprint.io. Google consent grants read access to mailbox messages/settings. Saving the verified connection stores an encrypted refresh credential privately for Blueprint; it grants no sending authority.</p>
+          <p>Continue as nijel@tryblueprint.io. Initial Google consent grants read access to mailbox messages/settings. A separate send upgrade adds Gmail send access only after explicit owner consent. Verified refresh credentials are stored encrypted and privately for Blueprint; message policy remains separate.</p>
           {!onCallbackHost && <a className="underline" href={PREPARE_URL} referrerPolicy="no-referrer">Continue on tryblueprint.io for founder consent</a>}
           {onCallbackHost && <>
-          {status.data.state === "idle" && !completeFailed && !status.isError && decision.data?.action !== "complete" && !authorizationUrl && <button type="button" disabled={decision.isPending}
+          {status.data.state === "idle" && !completeFailed && !status.isError && !completed && !authorizationUrl && <button type="button" disabled={decision.isPending}
             className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate("start")}>Prepare Google read-only consent</button>}
           {authorizationUrl && <a className="underline" href={authorizationUrl} referrerPolicy="no-referrer">Continue to Google as founder</a>}
-          {status.data.state === "awaiting_owner" && !completeFailed && !status.isError && decision.data?.action !== "complete" && <button type="button" disabled={decision.isPending}
-            className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate("complete")}>Verify and save founder read-only connection</button>}
+          {status.data.state === "awaiting_owner" && !completeFailed && !status.isError && !completed && <button type="button" disabled={decision.isPending}
+            className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate(status.data.purpose === "send_upgrade" ? "send-upgrade/complete" : "complete")}>{status.data.purpose === "send_upgrade"
+              ? "Verify and save founder send-capability upgrade" : "Verify and save founder read-only connection"}</button>}
           {decision.data?.action === "complete" && <p>Founder identity and accepted sender were verified at consent. The separate read-only connection is saved; sending remains disabled.</p>}
-          {!["idle", "awaiting_owner", "connected_readonly"].includes(status.data.state) && decision.data?.action !== "complete" && <p>Connection status: {status.data.state}. Owner review is required before another connection attempt.</p>}
+          {status.data.sendUpgradeAvailable && <p>The saved read-only binding remains in place until an explicitly consented send-capability upgrade is verified and saved. The upgrade requests only gmail.readonly and gmail.send. Outbound policy and runtime controls still apply.</p>}
+          {status.data.sendUpgradeAvailable && status.data.state === "connected_readonly" && !completeFailed && !status.isError && !authorizationUrl && <button type="button" disabled={decision.isPending}
+            className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate("send-upgrade/start")}>Prepare Google send-capability consent</button>}
+          {(status.data.sendScopeGranted || decision.data?.action === "send-upgrade/complete") && <p>The founder read-and-send scope grant is saved. This does not authorize a message by itself; outbound policy, suppression and duplicate-send controls remain enforced.</p>}
+          {!["idle", "awaiting_owner", "connected_readonly", "connected_send_capable"].includes(status.data.state) && !completed && <p>Connection status: {status.data.state}. Owner review is required before another connection attempt.</p>}
           </>}
         </>}
         {(completeFailed || status.data?.state === "failed_requires_new_owner_consent") && <p role="alert">This connection attempt failed and cannot be retried. Owner review and new Google consent are required. No sending was enabled.{failureStep ? ` Failed step: ${failureStep}.` : ""}</p>}

@@ -7,12 +7,12 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({ authAdmin: auth, dbAdmin:
 import { founderGmailOAuthRouter } from "../routes/communications-oauth";
 import { FOUNDER_OAUTH_PREFIX, FOUNDER_OAUTH_COOKIE, FOUNDER_OAUTH_CALLBACK } from "../agents/communications-oauth";
 import { createHash } from "node:crypto";
-import { consentFixture } from "./fixtures/communications-oauth";
+import { consentFixture, sendUpgradeFixture } from "./fixtures/communications-oauth";
 import { privateWorkLogPath } from "../utils/blueprintWorkLogPrivacy";
 let server: Server | undefined;
 afterEach(async () => { if (server) await new Promise<void>(resolve => server!.close(() => resolve())); server = undefined; vi.clearAllMocks(); });
-async function app(enabled = true) {
-  const f = consentFixture(); const app = express(); app.use(express.json());
+async function app(enabled = true, upgrade = false) {
+  const f = upgrade ? sendUpgradeFixture() : consentFixture(); const app = express(); app.use(express.json());
   app.use(FOUNDER_OAUTH_PREFIX, founderGmailOAuthRouter(() => enabled ? f.consent : null));
   server = createServer(app); await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as { port: number }).port;
@@ -57,7 +57,7 @@ describe("actual mounted founder Google consent routes", () => {
     const { f, request, headers } = await app();
     const wwwHeaders = { ...headers, Host: "www.tryblueprint.io", Origin: "https://www.tryblueprint.io" };
     expect(await (await request("/status", { headers: wwwHeaders })).json()).toMatchObject({ enabled: true, state: "idle", sendsEnabled: false });
-    for (const path of ["/start", "/complete"]) {
+    for (const path of ["/start", "/complete", "/send-upgrade/start", "/send-upgrade/complete"]) {
       for (const host of ["www.tryblueprint.io", "attacker.example"]) {
         const response = await request(path, { method: "POST", headers: { ...headers, Host: host, "X-Forwarded-Host": "tryblueprint.io" }, body: "{}" });
         expect(response.status).toBe(403);
@@ -119,5 +119,27 @@ describe("actual mounted founder Google consent routes", () => {
     expect(await (await request("/status", { headers: { ...headers, Cookie: cookie } })).json()).toMatchObject({ state: "failed_requires_new_owner_consent", failureStage: "token_exchange", sendsEnabled: false });
     expect((await request("/complete", { method: "POST", headers: { ...headers, Cookie: cookie }, body: "{}" })).status).toBe(400);
     expect(f.ports.exchange).toHaveBeenCalledTimes(1); expect(f.ports.save).not.toHaveBeenCalled();
+  });
+  it("requires explicit owner upgrade actions, exact origin/CSRF and a separate completion endpoint", async () => {
+    const { f, request, headers } = await app(true, true);
+    expect((await request("/send-upgrade/start", { method: "POST", headers: { ...headers, Origin: "https://attacker.example" }, body: "{}" })).status).toBe(403);
+    expect((await request("/send-upgrade/start", { method: "POST", headers: { ...headers, "X-CSRF-Token": "wrong" }, body: "{}" })).status).toBe(403);
+    expect((await request("/send-upgrade/start", { method: "POST", headers, body: JSON.stringify({ scopes: ["https://mail.google.com/"] }) })).status).toBe(400);
+    const start = await request("/send-upgrade/start", { method: "POST", headers, body: "{}" });
+    expect(start.status).toBe(200);
+    const authorization = new URL((await start.json()).authorizationUrl);
+    expect(authorization.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send");
+    const cookie = start.headers.get("set-cookie")!.split(";", 1)[0];
+    await request(`/callback?state=${authorization.searchParams.get("state")}&code=PRIVATE_CODE`, { headers: { Cookie: cookie } });
+    expect(f.ports.exchange).not.toHaveBeenCalled(); expect(f.ports.saveUpgrade).not.toHaveBeenCalled();
+    expect((await request("/send-upgrade/complete", { method: "POST", headers: { Cookie: cookie }, body: "{}" })).status).toBe(401);
+    const response = await request("/send-upgrade/complete", { method: "POST", headers: { ...headers, Cookie: headers.Cookie + ";" + cookie }, body: "{}" });
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result).toMatchObject({ state: "connected_send_capable", sendScopeGranted: true, sendsEnabled: false, messagePolicyRequired: true });
+    expect(JSON.stringify(result)).not.toMatch(/PRIVATE_/);
+    expect(f.ports.exchange).toHaveBeenCalledTimes(1); expect(f.ports.saveUpgrade).toHaveBeenCalledTimes(1); expect(f.ports.save).not.toHaveBeenCalled();
+    expect((await request("/send-upgrade/complete", { method: "POST", headers: { ...headers, Cookie: headers.Cookie + ";" + cookie }, body: "{}" })).status).toBe(400);
+    expect(f.ports.exchange).toHaveBeenCalledTimes(1);
   });
 });

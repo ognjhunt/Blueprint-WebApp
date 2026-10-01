@@ -6,10 +6,11 @@ import {
 } from "./communications-contract";
 import type { CommunicationsCheckpoint } from "./communications-api";
 import type { ActionPayload } from "./action-policies";
+import { automaticFirstContactEnabled, firstContactAuthority, verifyFirstContactSource } from "./communications-first-contact";
 
 export const COMMUNICATIONS_ROOT = "blueprintCommunications/default";
 export type CommunicationsJobRecord = CommunicationsJob & {
-  state: "queued" | "running" | "retry" | "blocked" | "awaiting_research" | "pending_approval" | "no_reply" | "opted_out" | "superseded";
+  state: "queued" | "running" | "retry" | "blocked" | "awaiting_research" | "pending_approval" | "auto_approved" | "sent" | "failed" | "no_reply" | "opted_out" | "superseded";
   attempts: number; checkpoint: CommunicationsCheckpoint; output?: CommunicationsOutput;
   lease?: { owner: string; until: number }; nextAttemptAt?: number; reason?: string;
 };
@@ -169,6 +170,17 @@ export class CommunicationsStore {
     return { state: data.status, ledgerId, approvedBy: data.approved_by ?? null,
       digest: data.outreach_semantic_review?.digest ?? null };
   }
+  /** Budget holds happen before a fresh session POST and do not consume the
+   * recovery-attempt budget or discard discovered prospects. */
+  async deferDraftForBudget(jobId: string, reason: string) {
+    const ref = this.jobs().doc(jobId);
+    await this.db.runTransaction(async tx => {
+      const row = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
+      if (!row || row.lease?.owner !== this.owner || row.checkpoint.createClaimedAt || row.checkpoint.sessionId) throw new Error("communications_budget_hold_context_changed");
+      tx.update(ref, { state: "queued", reason, attempts: Math.max(0, row.attempts - 1),
+        nextAttemptAt: this.now() + 15 * 60000, lease: { owner: this.owner, until: 0 }, updatedAt: this.now() });
+    });
+  }
   async recordReply(job: CommunicationsJob, message: unknown) {
     await this.db.collection("outboundProspects").doc(job.prospectId).collection("communicationsEvents").doc(`reply_${job.inboundMessageId}`).set({
       type: "reply_received", jobId: job.jobId, message, untrusted: true,
@@ -183,7 +195,42 @@ export class CommunicationsStore {
   async finish(job: CommunicationsJob, state: CommunicationsJobRecord["state"], reason: string) {
     await this.update(job.jobId, { state, reason });
     await this.db.collection("outboundProspects").doc(job.prospectId).collection("communicationsEvents").doc(job.jobId).set({
-      type: state, job, reason, recordedAt: this.now(), sent: false,
+      type: state, job, reason, recordedAt: this.now(), sent: state === "sent",
+    });
+  }
+  /** Project the authoritative automatic ledger/receipt after execution or a
+   * restart. The inference lease does not own send-result persistence: send
+   * reservation is separately atomic, and no send can be created here. */
+  async finishAutomatic(job: CommunicationsJob, outcome: { state: "sent" | "auto_approved" | "failed"; reason?: string }) {
+    const identity = communicationsJobSchema.parse({ jobId: job.jobId, prospectId: job.prospectId,
+      briefId: job.briefId, briefDigest: job.briefDigest, intent: job.intent, inboundMessageId: job.inboundMessageId });
+    const ref = this.jobs().doc(identity.jobId), ledgerId = `communications_${identity.jobId}`;
+    const root = this.db.doc(COMMUNICATIONS_ROOT), sourceRef = this.db.collection("outboundProspects").doc(identity.prospectId);
+    return this.db.runTransaction(async tx => {
+      const [saved, ledger, receipt] = await Promise.all([tx.get(ref), tx.get(this.db.collection("action_ledger").doc(ledgerId)),
+        tx.get(root.collection("sendReceipts").doc(communicationsDeliveryKey(identity)))]);
+      const row = saved.data(), action = ledger.data(), delivery = receipt.data();
+      const boundJob = action?.action_payload?.communications?.job;
+      if (!row || identity.intent !== "outreach" || !["auto_approved", "sent", "failed"].includes(row.state)
+        || row.prospectId !== identity.prospectId || row.briefDigest !== identity.briefDigest || row.ledgerId !== ledgerId
+        || !action?.first_contact_authority || action.lane !== "outbound_prospect" || action.source_collection !== "outboundProspects"
+        || action.source_doc_id !== identity.prospectId || action.action_type !== "send_email"
+        || communicationsDigest(boundJob ?? null) !== communicationsDigest(identity)) throw new Error("communications_automatic_result_context_changed");
+      const sent = action.status === "sent" && delivery?.state === "sent" && delivery.jobId === identity.jobId
+        && delivery.approvalLedgerId === ledgerId && delivery.payloadDigest === communicationsDigest(action.action_payload)
+        && !!delivery.receipt?.messageId && !!delivery.receipt?.threadId;
+      const state = sent ? "sent" as const : outcome.state;
+      if (!sent && (state === "sent" || row.state === "sent"
+        || (state === "failed" && action.status !== "failed")
+        || (state === "auto_approved" && !["auto_approved", "executing", "failed"].includes(action.status)))) {
+        throw new Error("communications_automatic_result_unverified");
+      }
+      const reason = sent ? "sent" : outcome.reason ?? state;
+      tx.update(ref, { state, reason, updatedAt: this.now() });
+      tx.set(sourceRef.collection("communicationsEvents").doc(identity.jobId), {
+        type: state, job: identity, reason, ledgerId, recordedAt: this.now(), sent,
+      });
+      return { state, reason };
     });
   }
   async commitDraft(job: CommunicationsJob, output: CommunicationsOutput, payload: ActionPayload, reviewDigest: string, usage: unknown) {
@@ -192,6 +239,7 @@ export class CommunicationsStore {
     const ledgerRef = this.db.collection("action_ledger").doc(ledgerId);
     const sourceRef = this.db.collection("outboundProspects").doc(job.prospectId);
     const briefRef = this.db.doc(COMMUNICATIONS_ROOT).collection("briefs").doc(job.briefId);
+    const proposedAuthority = automaticFirstContactEnabled() ? firstContactAuthority(payload, this.now()) : null;
     await this.db.runTransaction(async (tx) => {
       const [current, existing, source, brief] = await Promise.all([tx.get(jobRef), tx.get(ledgerRef), tx.get(sourceRef), tx.get(briefRef)]);
       const record = current.data() as CommunicationsJobRecord | undefined;
@@ -200,23 +248,61 @@ export class CommunicationsStore {
         || source.data()?.stage === "closed" || (job.intent === "outreach" && source.data()?.stage !== "drafted")
         || communicationsDigest(communicationsBriefSchema.parse(brief.data())) !== job.briefDigest) throw new Error("canonical_context_changed");
       if (existing.exists && communicationsDigest(existing.data()?.action_payload) !== communicationsDigest(payload)) throw new Error("draft_idempotency_conflict");
+      let authority = proposedAuthority;
+      if (authority) {
+        const approvedBrief = communicationsBriefSchema.parse(brief.data());
+        const root = this.db.doc(COMMUNICATIONS_ROOT);
+        const provenance = (await tx.get(root.collection("researchSources").doc(job.briefDigest))).data();
+        const handoff = (await tx.get(root.collection("handoffs").doc(job.briefDigest))).data();
+        const proof = approvedBrief.researchOrigin.contactEvidenceKind === "public_operator_resolution"
+          ? (await tx.get(root.collection("contactProofs").doc(approvedBrief.researchOrigin.contactEvidenceDigest!))).data() : undefined;
+        try {
+          verifyCommunicationsHandoff(handoff, approvedBrief);
+          verifyFirstContactSource(provenance, approvedBrief, proof, payload.recipientGeography, this.now());
+          if (source.data()?.researchPublicationId !== provenance?.source?.sheetsProspectId
+            || authority.reviewDigest !== reviewDigest) throw new Error("first_contact_source_missing_or_changed");
+        } catch { authority = null; }
+      }
+      const authorityDigest = authority ? communicationsDigest(authority) : null;
+      const authorityRef = authorityDigest ? this.db.doc(COMMUNICATIONS_ROOT).collection("firstContactAuthorities").doc(authorityDigest) : null;
+      const savedAuthority = authorityRef ? await tx.get(authorityRef) : null;
+      if (savedAuthority?.exists && communicationsDigest(savedAuthority.data()) !== authorityDigest) throw new Error("first_contact_authority_immutable_conflict");
+      // Existing approvals/rejections are never silently promoted or rewritten.
+      const automatic = !existing.exists ? !!authority : !!existing.data()?.first_contact_authority;
+      const state = automatic ? "auto_approved" : "pending_approval";
       const now = new Date(this.now());
       if (!existing.exists) tx.create(ledgerRef, {
-        idempotency_key: `communications:${job.jobId}`, lane: "outbound_prospect", action_type: "send_email", action_tier: 3,
+        idempotency_key: `communications:${job.jobId}`, lane: "outbound_prospect", action_type: "send_email", action_tier: automatic ? 1 : 3,
         source_collection: "outboundProspects", source_doc_id: job.prospectId,
         action_payload: payload, draft_output: { ...output, requires_human_review: true, category: "communications" },
-        status: "pending_approval", approval_reason: "communications_sending_disabled",
-        auto_approve_reason: null, approved_by: null, approved_at: null, rejected_by: null, rejected_reason: null,
+        status: state, approval_reason: automatic ? null : "requires_human_review",
+        auto_approve_reason: automatic ? "standing_first_contact_policy" : null,
+        ...(automatic ? { first_contact_authority: authority, first_contact_authority_digest: authorityDigest } : {}),
+        approved_by: null, approved_at: null, rejected_by: null, rejected_reason: null,
         execution_attempts: 0, last_execution_error: null, last_execution_at: null, sent_at: null, created_at: now, updated_at: now,
       });
-      tx.update(jobRef, { state: "pending_approval", output, usage, ledgerId, reviewDigest, updatedAt: this.now() });
+      if (authority && !existing.exists && authorityRef && !savedAuthority?.exists) tx.create(authorityRef, authority);
+      tx.update(jobRef, { state, output, usage, ledgerId, reviewDigest, updatedAt: this.now() });
       tx.set(sourceRef, { communications: { jobId: job.jobId, ledgerId, briefId: job.briefId, briefDigest: job.briefDigest,
-        state: "pending_approval", draft: output, reviewDigest, gmailDraftId: null, updatedAt: this.now() } }, { merge: true });
+        state, draft: output, reviewDigest, gmailDraftId: null, updatedAt: this.now() } }, { merge: true });
       tx.set(sourceRef.collection("communicationsEvents").doc(job.jobId), {
-        type: "draft_persisted", job, output, ledgerId, reviewDigest, sent: false, gmailDraftCreated: false, recordedAt: this.now(),
+        type: "draft_persisted", job, output, ledgerId, reviewDigest, state,
+        ...(automatic ? { firstContactAuthorityDigest: authorityDigest } : {}), sent: false, gmailDraftCreated: false, recordedAt: this.now(),
       });
     });
     return ledgerId;
+  }
+  async automaticDraft(ledgerId: string) {
+    const ledger = (await this.db.collection("action_ledger").doc(ledgerId).get()).data();
+    return !!ledger?.first_contact_authority && ledger.status === "auto_approved";
+  }
+  async automaticJobs(limit = 5, afterJobId?: string) {
+    const query = this.jobs().where("state", "==", "auto_approved").orderBy("__name__");
+    let snapshot = await (afterJobId ? query.startAfter(afterJobId) : query).limit(limit).get();
+    // Retained uncertain acknowledgements and long-lived holds cannot occupy
+    // every page. Wrap only at the end of a bounded ordered recovery pass.
+    if (snapshot.empty && afterJobId) snapshot = await query.limit(limit).get();
+    return snapshot.docs.map(doc => doc.data() as CommunicationsJobRecord);
   }
   async dueJobIds(limit = 5) {
     const snapshot = await this.jobs().where("state", "in", ["queued", "retry", "running"]).limit(100).get();
