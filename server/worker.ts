@@ -69,9 +69,9 @@ export function startWorker(): WorkerHandle {
     stopTaskEvaluationLaunchForwarder();
     stopAdpManagedRuns();
     stopCompanyPolicyCandidateOutbox();
-    stopCommunicationsWorker();
+    const communicationsStopped = stopCommunicationsWorker();
     stopScheduler();
-    await researchWorker.stop();
+    await Promise.all([researchWorker.stop(), communicationsStopped]);
     logger.info(attachRequestMeta({ route: "worker" }), "Blueprint worker stopped");
     })();
     return stopPromise;

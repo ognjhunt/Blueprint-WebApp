@@ -48,6 +48,13 @@ describe("portable communications Agents API", () => {
     expect(f.calls.some(call => call.init.method === "POST")).toBe(false);
     expect(f.calls.some(call => call.path.includes("after=item-0"))).toBe(true);
   });
+  it("reconciles expired saved turns with GETs even when new inference is disabled", async () => {
+    const f = apiFixture({ reconnect: true });
+    const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: false, fetch: f.fetchMock as any });
+    expect((await api.reconcileSaved(f.params.checkpoint, "job-1"))?.output).toEqual(f.output);
+    expect(f.calls.some(call => call.init.method === "POST" || call.path.endsWith("/events"))).toBe(false);
+    expect(f.calls[0].path).toBe("/v1/agents/sessions/session-1");
+  });
   it("never interprets idle or streamed deltas as completion", async () => {
     const f = apiFixture({ idle: true });
     await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_turn_pending", retryable: true });

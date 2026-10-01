@@ -15,7 +15,7 @@ import type { ActionPayload } from "./action-policies";
 
 export type CommunicationsDependencies = {
   store: CommunicationsStore;
-  api: Pick<CommunicationsAgentsAPI, "run" | "cancel">;
+  api: Pick<CommunicationsAgentsAPI, "run" | "cancel" | "reconcileSaved">;
   readResearch: ResearchSnapshotReader;
   verifyMailbox: () => Promise<unknown>;
   readThread: (threadId: string) => Promise<VerifiedThread>;
@@ -75,11 +75,16 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date), brief, await deps.store.handoff(brief));
     const approval = await deps.store.approvalState(job.prospectId);
     const input = buildCommunicationsInput(brief, thread, job.intent, approval);
-    if (claimed.checkpoint.createClaimedAt && deps.now() - Date.parse(claimed.checkpoint.createClaimedAt) > 180000) {
+    const expired = claimed.checkpoint.createClaimedAt
+      && deps.now() - Date.parse(claimed.checkpoint.createClaimedAt) >= 180000;
+    // A completed saved turn remains useful after the observer/lease expired.
+    // Reconciliation does only GETs; never extend the deadline or create a turn.
+    const saved = expired ? await deps.api.reconcileSaved(claimed.checkpoint, jobId) : null;
+    if (expired && !saved) {
       const cancelled = await deps.api.cancel(claimed.checkpoint);
       throw new CommunicationsRuntimeError(cancelled ? "communications_deadline_cancel_requested" : "session_create_requires_reconciliation");
     }
-    const result = await deps.api.run({
+    const result = saved ?? await deps.api.run({
       input, jobId, checkpoint: claimed.checkpoint,
       saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => deps.store.update(jobId, { checkpoint }),
     });
@@ -133,9 +138,9 @@ function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedTh
 }
 
 /** Additive worker hook for the parent; both flags default off, no startup catch-up. */
-export function startCommunicationsWorker(): () => void {
+export function startCommunicationsWorker(): () => Promise<void> {
   if (process.env.BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED !== "true"
-    || process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE !== "true" || !dbAdmin) return () => undefined;
+    || process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE !== "true" || !dbAdmin) return async () => undefined;
   const db = dbAdmin;
   const store = new CommunicationsStore(db);
   const api = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference: true });
@@ -146,19 +151,29 @@ export function startCommunicationsWorker(): () => void {
     suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "growth_campaign", source: "communications_reply" }),
     now: () => Date.now(),
   };
-  let busy = false, stopped = false;
+  return startCommunicationsQueueLoop(deps);
+}
+
+/** Stop admission immediately, then await the active job and its durable writes. */
+export function startCommunicationsQueueLoop(deps: CommunicationsDependencies): () => Promise<void> {
+  let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
   const tick = async () => {
-    if (busy || stopped) return;
-    busy = true;
     try {
-      for (const id of await store.dueJobIds()) {
+      for (const id of await deps.store.dueJobIds()) {
         if (stopped) break;
         await processCommunicationsJob(id, deps);
       }
     } catch { logger.warn({ code: "communications_worker_tick_failed" }, "Communications worker requires recovery"); }
-    finally { busy = false; }
   };
-  const timer = setInterval(() => { void tick(); }, 60000);
+  const timer = setInterval(() => {
+    if (!stopped && !activeTick) activeTick = tick().finally(() => { activeTick = null; });
+  }, 60000);
   timer.unref();
-  return () => { stopped = true; clearInterval(timer); };
+  return () => {
+    if (stopPromise) return stopPromise;
+    stopped = true;
+    clearInterval(timer);
+    stopPromise = (async () => { await activeTick; })();
+    return stopPromise;
+  };
 }

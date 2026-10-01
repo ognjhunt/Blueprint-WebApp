@@ -35,6 +35,7 @@ import type {
 import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
 import { CommunicationsStore } from "../agents/communications-store";
 import { communicationsDigest } from "../agents/communications-contract";
+import { founderMailboxConnectionPlan } from "../agents/communications-connection";
 import {
   outreachConnectionEvidenceSchema,
   outreachCapabilityEvidenceSchema,
@@ -157,6 +158,21 @@ router.get("/", async (_req: Request, res: Response) => {
   return res.json({ ok: true, prospects });
 });
 
+/** Owner preparation only: no OAuth redirect, token input, API call or write. */
+router.get("/communications/connection", async (_req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({ ok: true, connection: founderMailboxConnectionPlan() });
+});
+
+router.get("/communications/blocked-jobs", async (_req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  res.setHeader("Cache-Control", "no-store");
+  try { return res.json({ ok: true, jobs: await new CommunicationsStore(db).blockedJobs() }); }
+  catch { return res.status(503).json({ error: "communications_store_unavailable" }); }
+});
+
 /** Enqueue references only; the communications worker loads authoritative data. */
 router.post("/:prospectId/communications", async (req: Request, res: Response) => {
   if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
@@ -184,8 +200,27 @@ router.get("/:prospectId/communications", async (req: Request, res: Response) =>
   const prospect = await ref.get();
   if (!prospect.exists) return res.status(404).json({ error: "not_found" });
   const events = await ref.collection("communicationsEvents").limit(30).get();
-  return res.json({ ok: true, communications: prospect.data()?.communications ?? null,
+  const jobs = await new CommunicationsStore(db).jobsForProspect(String(req.params.prospectId));
+  return res.json({ ok: true, jobs, communications: prospect.data()?.communications ?? null,
     events: events.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
+});
+
+/** Requeue one blocked job after repair; retain its create claim and budget. */
+router.post("/:prospectId/communications/:jobId/retry", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const user = res.locals.firebaseUser;
+  const requestedBy = typeof user?.uid === "string" ? user.uid.trim() : "";
+  if (!requestedBy) return res.status(403).json({ error: "operator_identity_missing" });
+  const parsed = z.object({ briefDigest: z.string().regex(/^[a-f0-9]{64}$/) }).strict().safeParse(req.body);
+  const prospectId = String(req.params.prospectId || ""), jobId = String(req.params.jobId || "");
+  if (!parsed.success || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(prospectId) || !/^[a-f0-9]{64}$/.test(jobId)) {
+    return res.status(400).json({ error: "communications_retry_invalid" });
+  }
+  try {
+    const job = await new CommunicationsStore(db).retryBlocked({ prospectId, jobId, ...parsed.data, requestedBy });
+    return res.status(202).json({ ok: true, job, sent: false, sessionCreated: false });
+  } catch { return res.status(409).json({ error: "communications_retry_not_eligible" }); }
 });
 
 /**

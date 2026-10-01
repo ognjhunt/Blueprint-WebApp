@@ -85,7 +85,7 @@ export class CommunicationsAgentsAPI {
     if (!reader) { handle.close(); throw new CommunicationsRuntimeError("agents_stream_missing", !fresh); }
     // A reconnected observer is opened before saved state is reconciled. No new
     // message is sent, and a missed completion event cannot create a second turn.
-    const saved = !fresh ? this.reconcile(checkpoint, params.jobId).then((result) => {
+    const saved = !fresh ? this.reconcileSaved(checkpoint, params.jobId).then((result) => {
       if (result) handle.close(); return { result, error: null };
     }, (error) => { handle.close(); return { result: null, error }; }) : null;
     try {
@@ -116,12 +116,14 @@ export class CommunicationsAgentsAPI {
     if (terminal && terminal !== "agent.session.turn.completed") throw new CommunicationsRuntimeError("agents_turn_failed_or_cancelled");
     const savedResult = saved ? await saved : null;
     if (savedResult?.error) throw savedResult.error;
-    const result = savedResult?.result ?? await this.reconcile(checkpoint, params.jobId);
+    const result = savedResult?.result ?? await this.reconcileSaved(checkpoint, params.jobId);
     if (!result) throw new CommunicationsRuntimeError("agents_turn_pending", !!checkpoint.sessionId);
     await params.saveCheckpoint({ ...result.checkpoint });
     return result;
   }
-  private async reconcile(checkpoint: CommunicationsCheckpoint, jobId: string) {
+  /** Read saved artifacts only, including after the inference deadline expires. */
+  async reconcileSaved(savedCheckpoint: CommunicationsCheckpoint, jobId: string) {
+    const checkpoint = { ...savedCheckpoint };
     if (!checkpoint.sessionId) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const session = await this.json(path);

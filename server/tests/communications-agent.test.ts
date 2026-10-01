@@ -5,7 +5,7 @@ import { communicationsFixture, communicationsNow, memoryFirestore } from "./fix
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
-import { processCommunicationsJob, startCommunicationsWorker } from "../agents/communications-worker";
+import { processCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { CommunicationsRuntimeError } from "../agents/communications-api";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 
@@ -24,7 +24,8 @@ async function setup(intent: "outreach" | "reply" = "outreach") {
     siteId: fixture.brief.siteId, taskId: fixture.brief.taskId, stage: intent === "outreach" ? "drafted" : "contacted" });
   const { jobId: _, ...input } = fixture.job;
   const job = await store.enqueue(input);
-  const deps = { store, api: { run: vi.fn(async () => ({ output: fixture.output, checkpoint: job.checkpoint, usage: { input_tokens: 10 } })), cancel: vi.fn(async () => true) },
+  const deps = { store, api: { run: vi.fn(async () => ({ output: fixture.output, checkpoint: job.checkpoint, usage: { input_tokens: 10 } })), cancel: vi.fn(async () => true),
+    reconcileSaved: vi.fn(async () => null as any) },
     readResearch: vi.fn(async () => fixture.snapshot), verifyMailbox: vi.fn(async () => ({})), readThread: vi.fn(async () => fixture.thread!),
     isSuppressed: vi.fn(async () => false), suppress: vi.fn(async () => ({ persisted: true })), now: () => communicationsNow };
   return { ...fixture, job, db, store, deps, install };
@@ -171,6 +172,76 @@ describe("Blueprint-owned communications queue", () => {
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/exhausted-1`).state).toBe("blocked");
     f.deps.api.run.mockRejectedValueOnce(new CommunicationsRuntimeError("agents_api_http_503", true));
     expect((await processCommunicationsJob(f.job.jobId, f.deps)).state).toBe("retry");
+  });
+  it("persists a completed saved turn after lease/deadline expiry before considering cancellation", async () => {
+    const f = await setup();
+    const checkpoint = { createClaimedAt: new Date(communicationsNow - 181000).toISOString(), sessionId: "saved-session", turnId: "saved-turn" };
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ checkpoint, state: "retry", attempts: 1,
+      lease: { owner: "previous-worker", until: communicationsNow - 1 } });
+    f.deps.api.reconcileSaved.mockResolvedValueOnce({ output: f.output, checkpoint, usage: { input_tokens: 10 } });
+    expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "pending_approval", sent: false });
+    expect(f.deps.api.reconcileSaved).toHaveBeenCalledWith(checkpoint, f.job.jobId);
+    expect(f.deps.api.run).not.toHaveBeenCalled(); expect(f.deps.api.cancel).not.toHaveBeenCalled();
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).checkpoint).toEqual(checkpoint);
+  });
+  it("cancels an expired still-pending turn only after reading its saved state", async () => {
+    const f = await setup();
+    const checkpoint = { createClaimedAt: new Date(communicationsNow - 181000).toISOString(), sessionId: "saved-session", turnId: "saved-turn" };
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ checkpoint });
+    expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "blocked", reason: "communications_deadline_cancel_requested" });
+    expect(f.deps.api.reconcileSaved.mock.invocationCallOrder[0]).toBeLessThan(f.deps.api.cancel.mock.invocationCallOrder[0]);
+    expect(f.deps.api.run).not.toHaveBeenCalled();
+  });
+  it("does not cancel or repeat creation when saved-state lookup is temporarily unavailable", async () => {
+    const f = await setup();
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ checkpoint: {
+      createClaimedAt: new Date(communicationsNow - 181000).toISOString(), sessionId: "saved-session", turnId: "saved-turn",
+    } });
+    f.deps.api.reconcileSaved.mockRejectedValueOnce(new CommunicationsRuntimeError("agents_api_http_503", true));
+    expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "retry" });
+    expect(f.deps.api.cancel).not.toHaveBeenCalled(); expect(f.deps.api.run).not.toHaveBeenCalled();
+  });
+  it("drains an active inference and its persisted draft on shutdown without admitting another job", async () => {
+    const f = await setup();
+    let finish: (value: any) => void = () => {};
+    f.deps.api.run.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    vi.spyOn(f.store, "dueJobIds").mockResolvedValue([f.job.jobId, "must-not-start"]);
+    const stop = startCommunicationsQueueLoop(f.deps);
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(f.deps.api.run).toHaveBeenCalledTimes(1);
+    let stopped = false;
+    const promise = stop(); expect(stop()).toBe(promise);
+    void promise.then(() => { stopped = true; });
+    await Promise.resolve(); expect(stopped).toBe(false);
+    finish({ output: f.output, checkpoint: f.job.checkpoint, usage: null });
+    await promise;
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).state).toBe("pending_approval");
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(f.deps.api.run).toHaveBeenCalledTimes(1); expect(f.store.dueJobIds).toHaveBeenCalledTimes(1);
+  });
+  it("allows a bounded operator retry after dependency repair with the same durable session identity", async () => {
+    const f = await setup();
+    const checkpoint = { createClaimedAt: new Date(communicationsNow - 10000).toISOString(), sessionId: "same-session", turnId: "same-turn" };
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ state: "blocked", attempts: 1, checkpoint });
+    const input = { jobId: f.job.jobId, prospectId: f.job.prospectId, briefDigest: f.job.briefDigest, requestedBy: "authenticated-operator" };
+    const [first, second] = await Promise.allSettled([f.store.retryBlocked(input), f.store.retryBlocked(input)]);
+    expect(first.status).toBe("fulfilled"); expect(second.status).toBe("rejected");
+    const retried = f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`);
+    expect(retried).toMatchObject({ state: "queued", attempts: 1, checkpoint });
+    expect((await f.store.claim(f.job.jobId))?.attempts).toBe(2);
+    expect(f.deps.api.run).not.toHaveBeenCalled();
+  });
+  it.each(["active_lease", "exhausted", "unknown_create", "changed_brief", "closed", "pending_approval"])("refuses unsafe operator retry: %s", async kind => {
+    const f = await setup(); const patch: any = { state: "blocked", attempts: 1 };
+    if (kind === "active_lease") patch.lease = { owner: "active-owner", until: communicationsNow + 1000 };
+    if (kind === "exhausted") patch.attempts = 3;
+    if (kind === "unknown_create") patch.checkpoint = { createClaimedAt: new Date(communicationsNow).toISOString(), sessionId: null, turnId: null };
+    if (kind === "pending_approval") patch.state = "pending_approval";
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update(patch);
+    if (kind === "changed_brief") await f.db.doc(`${COMMUNICATIONS_ROOT}/briefs/${f.brief.briefId}`).update({ learningQuestion: "Changed approved question?" });
+    if (kind === "closed") await f.db.doc(`outboundProspects/${f.brief.prospectId}`).update({ stage: "closed" });
+    await expect(f.store.retryBlocked({ jobId: f.job.jobId, prospectId: f.job.prospectId, briefDigest: f.job.briefDigest, requestedBy: "authenticated-operator" })).rejects.toThrow();
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).state).toBe(patch.state);
   });
   it("invalidates exact recipient, body, footer and sender approval", async () => {
     const f = await setup(); const result = await processCommunicationsJob(f.job.jobId, f.deps);

@@ -64,7 +64,7 @@ function getGmailOAuthConfig() {
   };
 }
 
-export function getExistingGmailOAuthClient() {
+function getGmailOAuthClient() {
   const config = getGmailOAuthConfig();
   if (!config.clientId || !config.clientSecret || !config.refreshToken) {
     return null;
@@ -172,7 +172,7 @@ export async function getHumanReplyGmailStatus(): Promise<GmailReplyWatchStatus>
       reason: `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL cannot be set to ${DISALLOWED_HUMAN_REPLY_EMAIL}.`,
     };
   }
-  const client = getExistingGmailOAuthClient();
+  const client = getGmailOAuthClient();
   if (!client) {
     return {
       enabled: false,
@@ -280,7 +280,7 @@ export async function listHumanReplyGmailMessages(params?: {
     throw new Error(status.reason || "Gmail reply watcher is not configured.");
   }
 
-  const client = getExistingGmailOAuthClient();
+  const client = getGmailOAuthClient();
   if (!client) {
     throw new Error("Gmail reply watcher is not configured.");
   }

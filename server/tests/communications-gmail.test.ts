@@ -1,7 +1,13 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
-vi.mock("googleapis", () => ({ google: { auth: { OAuth2: vi.fn() }, gmail: vi.fn() } }));
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("googleapis", () => ({ google: { auth: { OAuth2: vi.fn(function () {
+  const client: any = { credentials: {}, setCredentials: vi.fn((value) => { client.credentials = value; }) };
+  return client;
+}) }, gmail: vi.fn() } }));
+import { google } from "googleapis";
 import { verifyFounderMailbox, readFounderThread, sendFounderMessage, findFounderSentMessage, existingFounderGmail } from "../agents/communications-gmail";
+import { FOUNDER_GMAIL_BINDING_KEYS } from "../agents/communications-connection";
+import { getHumanReplyGmailStatus } from "../utils/human-reply-gmail";
 const mailbox = "nijel@tryblueprint.io";
 function gmailFixture() {
   const headers = [{ name: "From", value: "Nijel <nijel@tryblueprint.io>" }, { name: "To", value: "ops@facility.example" },
@@ -13,10 +19,38 @@ function gmailFixture() {
   return { gmail, message };
 }
 afterEach(() => vi.unstubAllEnvs());
+beforeEach(() => {
+  vi.clearAllMocks();
+  for (const key of FOUNDER_GMAIL_BINDING_KEYS) vi.stubEnv(key, "");
+});
 describe("existing founder Gmail binding (mocked)", () => {
   it("requires existing OAuth and never accepts browser login as API binding", () => {
-    for (const name of ["BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN"]) vi.stubEnv(name, "");
     expect(() => existingFounderGmail()).toThrow("founder_gmail_binding_missing");
+  });
+  it("never substitutes a complete ops binding for an absent or partial founder binding", () => {
+    for (const key of ["CLIENT_ID", "CLIENT_SECRET", "REFRESH_TOKEN"]) vi.stubEnv(`BLUEPRINT_HUMAN_REPLY_GMAIL_${key}`, `MOCK_OPS_${key}`);
+    expect(() => existingFounderGmail()).toThrow("founder_gmail_binding_missing");
+    vi.stubEnv(FOUNDER_GMAIL_BINDING_KEYS[0], "MOCK_FOUNDER_CLIENT");
+    expect(() => existingFounderGmail()).toThrow("founder_gmail_binding_missing");
+    expect(google.auth.OAuth2).not.toHaveBeenCalled();
+  });
+  it("keeps founder and human-blocker OAuth credentials and mailbox checks independent", async () => {
+    vi.stubEnv(FOUNDER_GMAIL_BINDING_KEYS[0], "MOCK_FOUNDER_CLIENT");
+    vi.stubEnv(FOUNDER_GMAIL_BINDING_KEYS[1], "MOCK_FOUNDER_SECRET");
+    vi.stubEnv(FOUNDER_GMAIL_BINDING_KEYS[2], "MOCK_FOUNDER_TOKEN");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "MOCK_OPS_CLIENT");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "MOCK_OPS_SECRET");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN", "MOCK_OPS_TOKEN");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL", "ohstnhunt@gmail.com");
+    vi.mocked(google.gmail).mockImplementation(({ auth }: any) => ({ users: {
+      getProfile: vi.fn(async () => ({ data: { emailAddress: auth.credentials.refresh_token === "MOCK_OPS_TOKEN" ? "ohstnhunt@gmail.com" : mailbox } })),
+      settings: { sendAs: { list: vi.fn(async () => ({ data: { sendAs: [{ sendAsEmail: mailbox, verificationStatus: "accepted" }] } })) } },
+    } }) as any);
+    expect(await verifyFounderMailbox()).toEqual({ mailbox, sender: mailbox });
+    expect(await getHumanReplyGmailStatus()).toMatchObject({ configured: true, mailbox_email: "ohstnhunt@gmail.com" });
+    expect(google.auth.OAuth2).toHaveBeenNthCalledWith(1, "MOCK_FOUNDER_CLIENT", "MOCK_FOUNDER_SECRET");
+    expect(google.auth.OAuth2).toHaveBeenNthCalledWith(2, "MOCK_OPS_CLIENT", "MOCK_OPS_SECRET");
+    expect(process.env.BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN).toBe("MOCK_OPS_TOKEN");
   });
   it("verifies founder mailbox and accepted sender with read-only API calls", async () => {
     const { gmail } = gmailFixture(); expect(await verifyFounderMailbox(gmail)).toEqual({ mailbox, sender: mailbox });

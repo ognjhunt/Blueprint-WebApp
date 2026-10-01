@@ -58,6 +58,49 @@ export class CommunicationsStore {
       return claimed;
     });
   }
+  async jobsForProspect(prospectId: string) {
+    const snapshot = await this.jobs().where("prospectId", "==", prospectId).limit(20).get();
+    return snapshot.docs.map(doc => doc.data() as CommunicationsJobRecord);
+  }
+  async blockedJobs() {
+    const snapshot = await this.jobs().where("state", "==", "blocked").limit(20).get();
+    return snapshot.docs.map(doc => {
+      const record = doc.data() as CommunicationsJobRecord;
+      return { jobId: doc.id, prospectId: record.prospectId, briefDigest: record.briefDigest,
+        attempts: record.attempts, reason: record.reason ?? "communications_blocked", leaseUntil: record.lease?.until ?? 0 };
+    });
+  }
+  /** Explicit operator recovery; retain identity, create claim and attempt budget. */
+  async retryBlocked(input: { jobId: string; prospectId: string; briefDigest: string; requestedBy: string }) {
+    if (!input.requestedBy.trim()) throw new Error("operator_identity_missing");
+    const ref = this.jobs().doc(input.jobId);
+    return this.db.runTransaction(async tx => {
+      const existing = await tx.get(ref);
+      const record = existing.data() as CommunicationsJobRecord | undefined;
+      if (!record || record.prospectId !== input.prospectId || record.briefDigest !== input.briefDigest) throw new Error("communications_retry_identity_mismatch");
+      if (record.state !== "blocked" || (record.lease?.until ?? 0) > this.now()) throw new Error("communications_retry_state_or_lease_conflict");
+      if (record.attempts >= 3) throw new Error("communications_recovery_exhausted");
+      if (record.checkpoint.createClaimedAt && !record.checkpoint.sessionId) throw new Error("session_create_requires_reconciliation");
+      const sourceRef = this.db.collection("outboundProspects").doc(record.prospectId);
+      const source = await tx.get(sourceRef);
+      const brief = communicationsBriefSchema.parse((await tx.get(this.db.doc(COMMUNICATIONS_ROOT).collection("briefs").doc(record.briefId))).data());
+      if (brief.prospectId !== record.prospectId || communicationsDigest(brief) !== record.briefDigest
+        || !source.exists || source.data()?.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
+        || source.data()?.siteId !== brief.siteId || source.data()?.taskId !== brief.taskId
+        || source.data()?.stage === "closed" || source.data()?.stage === "converted"
+        || (record.intent === "outreach" && source.data()?.stage !== "drafted")
+        || ["unknown", "opted_out"].includes(brief.consent.status)) throw new Error("communications_retry_context_changed");
+      verifyCommunicationsHandoff((await tx.get(this.db.doc(COMMUNICATIONS_ROOT).collection("handoffs").doc(record.briefDigest))).data(), brief);
+      const update = { state: "queued" as const, reason: "operator_retry_requested", nextAttemptAt: this.now(),
+        lease: { owner: this.owner, until: 0 }, retryRequestedBy: input.requestedBy, retryRequestedAt: this.now(), updatedAt: this.now() };
+      tx.update(ref, update);
+      tx.set(sourceRef.collection("communicationsEvents").doc(`retry_${record.jobId}_${record.attempts}`), {
+        type: "operator_retry_requested", jobId: record.jobId, requestedBy: input.requestedBy,
+        recordedAt: this.now(), sent: false, sessionCreated: false,
+      });
+      return { ...record, ...update };
+    });
+  }
   async update(jobId: string, update: Partial<CommunicationsJobRecord>) {
     const ref = this.jobs().doc(jobId);
     await this.db.runTransaction(async (tx) => {

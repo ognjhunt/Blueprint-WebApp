@@ -1,17 +1,29 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
-import { communicationsPreflight } from "./communications-preflight.mjs";
+import { communicationsPreflight, FOUNDER_GMAIL_BINDING_KEYS as SCRIPT_BINDING_KEYS } from "./communications-preflight.mjs";
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, FOUNDER_MAILBOX } from "../server/agents/communications-contract";
+import { FOUNDER_GMAIL_BINDING_KEYS } from "../server/agents/communications-connection";
 function fixture(email = FOUNDER_MAILBOX) {
   const setCredentials = vi.fn();
   const getProfile = vi.fn(async () => ({ data: { emailAddress: email } }));
   const sendAs = vi.fn(async () => ({ data: { sendAs: [{ sendAsEmail: FOUNDER_MAILBOX, verificationStatus: "accepted" }] } }));
   const googleImpl = { auth: { OAuth2: vi.fn(function () { return { setCredentials }; }) }, gmail: vi.fn(() => ({ users: { getProfile, settings: { sendAs: { list: sendAs } } } })) };
   const fetchImpl = vi.fn(async () => Response.json({ id: COMMUNICATIONS_MODEL }));
-  const env = { OPENAI_API_KEY: "MOCK_SECRET_NOT_FOR_OUTPUT", BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID: "mock-client", BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET: "MOCK_CLIENT_SECRET", BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN: "MOCK_REFRESH_TOKEN" };
+  const env = { OPENAI_API_KEY: "MOCK_SECRET_NOT_FOR_OUTPUT", BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_ID: "mock-client", BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_SECRET: "MOCK_CLIENT_SECRET", BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN: "MOCK_REFRESH_TOKEN" };
   return { env, googleImpl, fetchImpl, getProfile, sendAs };
 }
 describe("in-place read-only communications preflight", () => {
+  it("uses the same independent founder keys as runtime and never falls back to ops", async () => {
+    expect(SCRIPT_BINDING_KEYS).toEqual(FOUNDER_GMAIL_BINDING_KEYS);
+    const f = fixture();
+    const ops = { BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID: "MOCK_OPS_CLIENT", BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET: "MOCK_OPS_SECRET", BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN: "MOCK_OPS_TOKEN" };
+    for (const env of [ops, { ...ops, BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_ID: "MOCK_FOUNDER_CLIENT" }]) {
+      const result = await communicationsPreflight({ ...f, env });
+      expect(result.mailbox.reason).toBe("founder_gmail_binding_missing");
+      expect(f.googleImpl.auth.OAuth2).not.toHaveBeenCalled();
+      for (const value of Object.values(env)) expect(JSON.stringify(result)).not.toContain(value);
+    }
+  });
   it("makes no calls when bindings are absent", async () => {
     const f = fixture(); const result = await communicationsPreflight({ ...f, env: {} });
     expect(result.modelDiscovery.reason).toBe("existing_openai_binding_missing"); expect(result.mailbox.reason).toBe("founder_gmail_binding_missing");

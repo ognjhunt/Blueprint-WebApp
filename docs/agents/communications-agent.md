@@ -78,15 +78,77 @@ Existing seven prospect drafts are Notion drafts, not Gmail drafts.
 ## Mailbox, recovery and review
 
 Founder sender/reply-to is **`nijel@tryblueprint.io`**. `hello@tryblueprint.io` is
-accepted only as a recipient alias on correlated incoming replies. The existing
-server `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID`, `_CLIENT_SECRET`, `_REFRESH_TOKEN`
-binding is reused only when Gmail `users.getProfile` proves the founder mailbox
-and `users.settings.sendAs.list` proves its accepted sender. The existing human
-blocker watcher normally approves `ohstnhunt@gmail.com`; that personal mailbox
-and dot's personal Gmail connector cannot substitute for founder outreach.
-No OAuth configuration, credential copy, new key, permission grant or browser
-session extraction is introduced. Missing/wrong mailbox or unavailable read/send
+accepted only as a recipient alias on correlated incoming replies. Communications
+uses only the distinct private server fields `BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_ID`,
+`BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_SECRET`, and
+`BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN`. There is no partial or complete
+fallback to `BLUEPRINT_HUMAN_REPLY_GMAIL_*`. The existing human-blocker watcher,
+approved `ohstnhunt@gmail.com` identity, query, scheduler and credentials remain
+independent. That personal mailbox and dot's Gmail connector cannot substitute
+for founder outreach. Gmail `users.getProfile` must prove the founder mailbox and
+`users.settings.sendAs.list` its accepted sender before any thread read or send.
+No OAuth configuration, credential copy, new client/key, grant or browser-session
+extraction occurs in this build. Missing/wrong mailbox or unavailable read/send
 permissions fail closed. API permissions require owning-system evidence.
+
+### Owner connection preparation
+
+In `/admin/leads` → Approvals → **Prepare founder mailbox**, authenticated ops
+can read `GET /api/admin/outbound-prospects/communications/connection`. It reports
+field presence only (`missing` or `configured_unverified`), never secret values or
+verified mailbox access. It makes no Google request or database write, accepts no
+credentials, and supplies no authorization URL or callback. No Gmail OAuth
+callback or reconnect screen was previously documented in this repository;
+Firebase sign-in and Blueprint Work OAuth are unrelated authorization paths.
+
+The exact initial scope is `https://www.googleapis.com/auth/gmail.readonly`, which
+permits whole-mailbox messages/settings access even though this runtime retrieves
+only relevant full threads and exact sent receipts. It covers profile, accepted
+sender lookup, full thread/message reads and receipt searches. If sending is later
+authorized, add only `https://www.googleapis.com/auth/gmail.send`. Settings-write,
+message-modify, draft-management and full-mail deletion scopes are unnecessary.
+See Google's [sender lookup](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.settings.sendAs/list),
+[full threads](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.threads/get)
+and [send API](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send).
+
+The smallest owner action is to inspect the **existing** Google OAuth client's
+registered redirect, audience and allowed scopes for `nijel@tryblueprint.io` in
+Google Auth Platform. Return non-secret registration evidence only. The existing
+client may be reused only after that compatibility is verified. No callback is
+invented or registered here. A missing compatible owner-controlled callback is a
+specific connection-preparation blocker; any callback implementation must be
+reviewed against the actual registered URI before owner consent. Offline access,
+state validation and server-side code exchange belong in that verified flow.
+
+The logical binding is `communications-founder-gmail`, serving **both** Render
+services `Blueprint-WebApp` (approval/send and receipt recovery) and
+`blueprint-webapp-worker` (draft/reply context). Its current private server adapter
+uses the three separate fields above. Final token storage/credential entry remains
+blocked pending the shared vault owner's verified contract; no credential-entry
+URL is invented. The separate research-integration owner owns that shared
+MCP/vault preparation, and local UI inspection checks existing Platform consent
+flows before custom OAuth plumbing. Tokens, authorization codes and client secrets
+must never be entered in chat, ordinary frontend forms, repo files or logs.
+No route in this release accepts them. Preserve all `BLUEPRINT_HUMAN_REPLY_*`
+ops fields; reconnecting that separate watcher is outside this operation.
+
+Google documents an official service-origin MCP server at
+`https://gmailmcp.googleapis.com/mcp/v1` in its
+[Gmail MCP guide](https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server).
+It is Developer Preview, requiring program membership and Gmail/MCP service
+enablement; actual project access and existing client/vault compatibility are
+unverified. Minimum relevant read tools are `get_thread` and `search_threads`.
+The listed draft tools are `create_draft` and `list_drafts`; the documented tool
+list has no send tool. Its general setup requests read/compose scopes; do not
+infer a narrower authenticated MCP grant has been established from REST scope
+documentation. No APIs are enabled or compose grant requested here.
+
+PR774 provides full bounded Gmail context through its deterministic server
+adapter; the model's tools remain empty until the shared MCP owner supplies an
+approved, mailbox-scoped read adapter and verified vault authorization. Any
+future MCP draft tool remains separately gated and may only report a Gmail draft
+after an actual verified receipt. No model-controlled MCP send may bypass the
+exact recipient/body/sender checks in the existing deterministic approval path.
 
 Only the relevant thread is fetched, with bounded messages/bytes. Reply correlation
 requires actual Gmail IDs, exact sender and founder/alias recipient, prior founder
@@ -117,6 +179,23 @@ subject/thread; no result never licenses resend. Receipt recovery can record an
 actual earlier send after sending is disabled or its thread changed, and preserves
 closed/converted prospect state. No Gmail draft creation is implemented or claimed.
 
+After the 180-second inference deadline, read the saved session/root turn/final
+answer before requesting cancellation. A completed turn can still produce its
+reviewable draft; unavailable saved state is bounded recovery, never a new POST
+or evidence of cancellation. Shutdown closes admission, clears the timer and
+awaits the current tick's checkpoint/draft writes before the entrypoint exits.
+
+In Approvals → **Review blocked communications jobs**, an authenticated operator
+can inspect up to 20 canonical blocked jobs and retry after repairing the
+dependency. `POST /api/admin/outbound-prospects/{prospectId}/communications/{jobId}/retry`
+accepts only `{briefDigest}` and derives the actor from authenticated Firebase
+identity. The transaction requires blocked state, expired lease, remaining
+three-attempt budget, matching prospect/full brief and a current approved handoff.
+It preserves the create claim/session and never resets attempts. Unknown create
+acknowledgements, exhausted budgets, closed/converted prospects and changed
+context fail closed. Requeue itself creates no session, approval or send; the
+worker rechecks real context, current suppression and permissions before work.
+
 ## Disabled release and shortest test path
 
 Flags default off; this change writes no environment values:
@@ -131,16 +210,17 @@ branch reconciled that exact base and added a separate communications startup/st
 call to `startWorker`. The merged research hook, package, Render flags and
 scheduler remain as released by owner `01a0f464-4d3b-73c7-b166-239e0bc960ee`.
 Communications has its own default-off flags and queue, with no 07:00 schedule or
-research lease mutation. Parent owns the communications release/enable window;
-this build performs no deployment. The consumer's queue producer and upstream QA handoff must be bound on
+research lease mutation. The owner approved a disabled merge/deployment after exact
+review and green CI; inference, sending and credential/grant installation remain
+unapproved. The consumer's queue producer and upstream QA handoff must be bound on
 Blueprint infrastructure before claiming unattended operation.
 
 1. On existing Render worker `srv-d9t8gg1t0dsc73am9q70`, run
    `node scripts/communications-preflight.mjs` with existing
-   in-place bindings. This performs only model discovery and Gmail profile/sendAs
+   in-place founder bindings. This performs only model discovery and Gmail profile/sendAs
    reads, prints sanitized status, and creates no session/draft/send. The script is self-contained and uses only the worker's existing `googleapis` dependency, so its reviewed source can run in place before the communications deployment. Do not copy
-   credentials into the workspace. Missing scopes/binding is a release blocker,
-   not authority to grant access.
+   credentials into the workspace. Missing scopes/binding blocks communications
+   enablement and does not authorize access grants or ops credential replacement.
 2. Verify a published research snapshot, canonical IDs/contact and immutable
    handoff using actual upstream QA/publication readbacks.
 3. Obtain explicit bounded paid-test authority and exact communications release
@@ -160,11 +240,14 @@ Blueprint infrastructure before claiming unattended operation.
    preserve receipts/checkpoints and reconcile, never repeat an ambiguous send.
 
 Read-only preflight in this workspace returned `existing_openai_binding_missing`
-and `founder_gmail_binding_missing`. Parent previously verified the Render
-Default-project saved-agent GET200 with its private OpenAI binding; that does not
-prove Luna inference or founder Gmail binding. Remote mailbox status remains
-unverified here. October 1 first outreach is conditional on these gates and is not
-send authorization or a delivery promise.
+and `founder_gmail_binding_missing`. On October 1 the parent ran the earlier
+reviewed preflight on Render: exact `gpt-6-luna` model discovery in Default was
+verified; the **previous shared** HUMAN_REPLY binding returned `invalid_grant`
+before mailbox/sender identity was verified. That error does not establish token
+ownership or its cause. This repaired preflight never reads that ops binding;
+actual separate founder binding/access remains unverified. Neither model listing
+nor the earlier Default saved-agent GET200 proves Agents API Luna inference.
+October 1 first outreach remains conditional, not send authorization or a promise.
 
 Mock validation covers research corruption/publication identity, handoff changes,
 stale refresh, queue races/bounded recovery, actual thread correlation/injection,

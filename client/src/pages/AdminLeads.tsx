@@ -54,6 +54,8 @@ import {
 import AdminAgentConsole from "@/components/admin/AdminAgentConsole";
 import { SiteScreeningCallPanel } from "@/components/admin/SiteScreeningCallPanel";
 import { OutreachApprovalReview, type OutreachApproval, type OutreachReviewSummary } from "@/components/admin/OutreachApprovalReview";
+import { FounderMailboxConnection } from "@/components/admin/FounderMailboxConnection";
+import { CommunicationsRecovery } from "@/components/admin/CommunicationsRecovery";
 
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -1744,6 +1746,8 @@ export default function AdminLeads() {
         ) : activeView === "approvals" ? (
           <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="space-y-3">
+              <FounderMailboxConnection />
+              <CommunicationsRecovery />
               {approvalQueueQuery.isLoading ? (
                 <div className="runway-panel p-6 text-runway-mute">
                   Loading action queue...

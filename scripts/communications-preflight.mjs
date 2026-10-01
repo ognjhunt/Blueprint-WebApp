@@ -6,6 +6,7 @@ import { google } from "googleapis";
 export const REQUESTED_MODEL = "gpt-6-luna";
 export const DEFAULT_PROJECT = "proj_F2tFJuxLaovJru8RrtXRaqNj";
 export const APPROVED_MAILBOX = "nijel@tryblueprint.io";
+export const FOUNDER_GMAIL_BINDING_KEYS = ["BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_ID", "BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_SECRET", "BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN"];
 
 export async function communicationsPreflight({ env = process.env, fetchImpl = fetch, googleImpl = google } = {}) {
   let modelDiscovery = { state: "blocked", reason: "existing_openai_binding_missing" };
@@ -21,12 +22,10 @@ export async function communicationsPreflight({ env = process.env, fetchImpl = f
     } catch { modelDiscovery = { state: "blocked", reason: "existing_openai_model_discovery_unverified" }; }
   }
   let mailbox = { state: "blocked", reason: "founder_gmail_binding_missing" };
-  const clientId = env.BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID?.trim();
-  const clientSecret = env.BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET?.trim();
-  const refreshToken = env.BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN?.trim();
+  const [clientId, clientSecret, refreshToken] = FOUNDER_GMAIL_BINDING_KEYS.map(key => env[key]?.trim());
   if (clientId && clientSecret && refreshToken) {
     try {
-      // Same existing in-process binding used by server/utils/human-reply-gmail.
+      // Independent founder binding only. Never fall back to HUMAN_REPLY ops.
       // Transient API authentication only; no OAuth flow or persistent writes.
       const auth = new googleImpl.auth.OAuth2(clientId, clientSecret);
       auth.setCredentials({ refresh_token: refreshToken });

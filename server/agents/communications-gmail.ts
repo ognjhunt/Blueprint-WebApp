@@ -1,12 +1,15 @@
 import { google, type gmail_v1 } from "googleapis";
-import { getExistingGmailOAuthClient, extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
+import { extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
 import { FOUNDER_MAILBOX, type VerifiedThread, type ThreadMessage } from "./communications-contract";
+import { FOUNDER_GMAIL_BINDING_KEYS } from "./communications-connection";
 
 export function existingFounderGmail(): gmail_v1.Gmail {
-  const auth = getExistingGmailOAuthClient();
-  if (!auth) throw new Error("founder_gmail_binding_missing");
-  // Reuse an existing in-process binding only. Never read browser credentials,
-  // install OAuth, rotate a token, or substitute dot's personal connector.
+  const [clientId, clientSecret, refreshToken] = FOUNDER_GMAIL_BINDING_KEYS.map(key => process.env[key]?.trim());
+  if (!clientId || !clientSecret || !refreshToken) throw new Error("founder_gmail_binding_missing");
+  // Only owner-installed founder credentials. No ops binding fallback, browser
+  // access, client creation, OAuth flow, credential copy or token persistence.
+  const auth = new google.auth.OAuth2(clientId, clientSecret);
+  auth.setCredentials({ refresh_token: refreshToken });
   return google.gmail({ version: "v1", auth });
 }
 

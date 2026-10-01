@@ -48,6 +48,22 @@ afterEach(() => {
 });
 
 describe("worker entrypoint", () => {
+  it("awaits communications drain together with the independent research stop", async () => {
+    let finish: () => void = () => {};
+    const stopCommunications = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+    startCommunicationsWorker.mockReturnValueOnce(stopCommunications);
+    startOpsAutomationScheduler.mockReturnValue(vi.fn());
+    startStripeWebhookQueueProcessor.mockReturnValue(vi.fn());
+    startTaskEvaluationLaunchForwardWorker.mockReturnValue(vi.fn());
+    startCompanyPolicyCandidateOutboxWorker.mockReturnValue(vi.fn());
+    const { startWorker } = await import("../worker");
+    const handle = startWorker();
+    let stopped = false;
+    const promise = handle.stop(); void promise.then(() => { stopped = true; });
+    await Promise.resolve(); expect(stopped).toBe(false);
+    expect(stopCommunications).toHaveBeenCalledTimes(1); expect(stopResearch).toHaveBeenCalledTimes(1);
+    finish(); await promise; expect(stopped).toBe(true);
+  });
   it("shares the same shutdown promise for concurrent signals", async () => {
     startOpsAutomationScheduler.mockReturnValue(vi.fn());
     startStripeWebhookQueueProcessor.mockReturnValue(vi.fn());
