@@ -57,6 +57,26 @@ describe("truthful authenticated report admission (offline, no paid calls or sen
     expect(f.snapshot.row.packet.candidate.evidence[1].retrieval).toBe("rendered");
     expect([...f.db.records.keys()].some(key => key.includes("/contactProofs/"))).toBe(false);
   });
+  it("persists nonempty CRM rows without forbidden nested Firestore arrays and verifies their original values", async () => {
+    const input = officialResearchInput();
+    input.crm.rows = [["Blueprint CRM"], [], ["BP-000099", "Unrelated operator"]];
+    const f = await admit(input);
+    expect(f.outcome.state).toBe("admitted");
+    const assertFirestoreArrays = (value: any): void => {
+      if (Array.isArray(value)) {
+        expect(value.some(Array.isArray)).toBe(false);
+        value.forEach(assertFirestoreArrays);
+      } else if (value && typeof value === "object") Object.values(value).forEach(assertFirestoreArrays);
+    };
+    assertFirestoreArrays(f.snapshot);
+    const legacy = structuredClone(f.snapshot);
+    legacy.row.packet.crm.rows = input.crm.rows as any;
+    const origin = f.brief!.researchOrigin;
+    expect(researchPublicationSource(legacy, origin)).toEqual(researchPublicationSource(f.snapshot, origin));
+    const altered = structuredClone(f.snapshot);
+    altered.row.packet.crm.rows[2].cells[1] = "Altered operator";
+    expect(() => researchPublicationSource(altered, origin)).toThrow("source_changed");
+  });
   it.each(["hidden", "private", "wrong_owner", "not_contact", "no_outreach", "support_only", "privacy_route", "stale", "future", "conflict", "unresolved_permission", "wrong_hq"])("refuses %s evidence before staging", async kind => {
     const input: any = officialResearchInput();
     const contact = input.candidate.evidence[1], geo = input.candidate.evidence[2];

@@ -38,6 +38,15 @@ export type ReviewedResearchInput = z.infer<typeof reviewedResearchInputSchema>;
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export const researchIdentityText = (x: string) => x.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const fresh = (x: string, now: number) => Number.isFinite(Date.parse(x)) && Date.parse(x) <= now && now - Date.parse(x) <= 7 * 86400000;
+const storedCrmRows = z.array(z.object({ cells: z.array(z.string().max(4000)).max(26) }).strict()).max(1000);
+function logicalPacket(packet: any) {
+  const rows = packet?.crm?.rows;
+  if (!Array.isArray(rows)) throw new Error("reviewed_research_source_changed");
+  // Firestore cannot store an array directly inside another array. Decode only
+  // this storage representation; hashes always cover the original CRM values.
+  return { ...packet, crm: { ...packet.crm,
+    rows: rows.every(Array.isArray) ? rows : storedCrmRows.parse(rows).map(row => row.cells) } };
+}
 
 export function validateReviewedResearch(inputValue: unknown, now: number) {
   const input = reviewedResearchInputSchema.parse(inputValue), bytes = Buffer.from(input.artifact.rawBase64, "base64");
@@ -79,7 +88,8 @@ export async function stageReviewedResearch(db: FirebaseFirestore.Firestore, inp
       packet_digest: packetDigest, accepted_keys: [input.candidate.candidate_key],
       source_support_verified: true, crm_rechecked: true, summary: input.assessment.rationale },
     admission_id: admissionId, source_record_id: sourceRecordId };
-  const snapshot = { schema_version: "blueprint.reviewed-research-snapshot.v1", row,
+  const snapshot = { schema_version: "blueprint.reviewed-research-snapshot.v1", row: { ...row,
+    packet: { ...packet, crm: { ...packet.crm, rows: packet.crm.rows.map(cells => ({ cells })) } } },
     files: { artifact: input.artifact.rawBase64 } };
   const ref = db.collection(REVIEWED_RESEARCH_ROOT).doc(admissionId);
   const identityRef = db.doc("blueprintCommunications/default").collection("reviewedResearchIdentities").doc(identityKey);
@@ -118,15 +128,15 @@ export async function stageReviewedResearch(db: FirebaseFirestore.Firestore, inp
  * Notion/Sheets projection receipts stay null until such writes really occur. */
 export function reviewedResearchPublication(snapshot: any, origin: CommunicationsBrief["researchOrigin"]): any {
   const row = snapshot?.row;
+  const packet = row?.packet ? logicalPacket(row.packet) : null;
   if (snapshot?.schema_version !== "blueprint.reviewed-research-snapshot.v1" || !origin.admissionId
     || row?.admission_id !== origin.admissionId || row.date !== origin.date || row.state !== "completed"
     || row.packet_digest !== origin.packetDigest || row.raw_output_digest !== origin.rawArtifactDigest
     || row.review?.packet_digest !== origin.packetDigest || !row.review.reviewer_reference?.startsWith("authenticated:")
     || !Number.isFinite(Date.parse(row.review.reviewed_at)) || row.review.source_support_verified !== true
     || row.review.crm_rechecked !== true || !row.review.accepted_keys?.includes(origin.candidateKey)
-    || communicationsDigest(row.packet) !== origin.packetDigest
+    || communicationsDigest(packet) !== origin.packetDigest
     || sha256(Buffer.from(snapshot.files?.artifact ?? "", "base64")) !== origin.rawArtifactDigest) throw new Error("reviewed_research_source_changed");
-  const packet = row.packet;
   const input = validateReviewedResearch({ date: row.date, artifact: { ...packet.artifact, rawBase64: snapshot.files.artifact, sha256: row.raw_output_digest },
     candidate: packet.candidate, assessment: packet.assessment, crm: packet.crm }, Date.parse(row.review.reviewed_at));
   const admissionId = communicationsDigest({ packetDigest: row.packet_digest, rawArtifactDigest: row.raw_output_digest });
