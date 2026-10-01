@@ -1,0 +1,1243 @@
+{
+  "version": "blueprint.research-learning-dry-run-input.v1",
+  "now": "2026-10-01T17:00:00.000Z",
+  "grant": {
+    "principalId": "research-agent",
+    "prospectIds": [
+      "curious",
+      "nonresponse",
+      "pending",
+      "bounced",
+      "unknown-ack",
+      "comparison",
+      "rejection",
+      "uncontacted"
+    ],
+    "sections": [
+      "research",
+      "contact",
+      "outreach",
+      "replies",
+      "outcomes"
+    ],
+    "expiresAt": "2026-11-01T00:00:00.000Z"
+  },
+  "request": {
+    "prospectIds": [
+      "curious",
+      "nonresponse",
+      "pending",
+      "bounced",
+      "unknown-ack",
+      "comparison",
+      "rejection",
+      "uncontacted"
+    ],
+    "sections": [
+      "research",
+      "contact",
+      "outreach",
+      "replies",
+      "outcomes"
+    ],
+    "asOf": "2026-10-01T17:00:00.000Z",
+    "maturityDays": 14
+  },
+  "events": [
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "d924b94a73e5a305003e1432b8cda1bb8ec2885aef05721190d92af3f8258478",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "curious",
+        "crmId": "BP-curious",
+        "companyId": null,
+        "siteId": "site-curious",
+        "taskId": "packing",
+        "caseId": "case-curious",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/curious/research_observed",
+          "sourceHash": "5e169ac2596842c33201dd9e6d0fd72f29d43b244f6ca82827c2fcb2d06ee4fa",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "public_research"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "research_observed",
+      "data": {
+        "city": "Sacramento",
+        "industry": "Laundromats",
+        "factIds": [
+          "fact-1"
+        ],
+        "factChecks": [
+          {
+            "factId": "fact-1",
+            "sourceHash": "ab1a23a016372531ce7bca546fe7945600a653485df05ed5b4bb06335cfb1de2",
+            "sourceCheckedAt": "2026-09-01T10:00:00.000Z",
+            "grade": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "0864d5cc6e836de3cf399a8f3c87e89e7c10daaf8ef78ea843909ad3ae6df65c",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "curious",
+        "crmId": "BP-curious",
+        "companyId": null,
+        "siteId": "site-curious",
+        "taskId": "packing",
+        "caseId": "case-curious",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/curious/contact_observed",
+          "sourceHash": "13414f19c2ddbf84a43e3acecc6f642c3661d2bd6da1ef4fa9cc01f02dbc08bf",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "contact_proof"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "contact_observed",
+      "data": {
+        "availability": "verified_business_route"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "d6a6b8325300d4964499168b7825159cab9de893f4a3612fd5e8e5b87be6b47e",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "curious",
+        "crmId": "BP-curious",
+        "companyId": null,
+        "siteId": "site-curious",
+        "taskId": "packing",
+        "caseId": "case-curious",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/curious/outreach_observed",
+          "sourceHash": "d8b0fcf707b44b6d6f03ffea3c3042ca827b8c634dd892a99e70d26573b6b7fe",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "provider_acceptance"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "outreach_observed",
+      "data": {
+        "messageId": "message-curious",
+        "threadId": "thread-curious",
+        "jobId": "job-curious",
+        "outreachVersion": "blueprint.outreach.v1",
+        "intent": "outreach",
+        "payloadDigest": "90178b43ae0627d97b58c0336a58ca87fb30a003bd4f0c5c1b0652fb4038cc2f",
+        "approvalLedgerId": "communications_job-curious",
+        "messageDigest": "14b46d9c3fb4968cb47370dd4c0c3f0c262a6b78eb97a66c5e93de7a3c28d2ac",
+        "messageVariant": "copy-1",
+        "status": "accepted",
+        "campaignId": "campaign-1",
+        "timingWindow": "September-AM"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "2adf9ad56782cdd3bc558c933d5d56a9e1914392775042fb0a436d951033ece8",
+      "occurredAt": "2026-09-02T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "curious",
+        "crmId": "BP-curious",
+        "companyId": null,
+        "siteId": "site-curious",
+        "taskId": "packing",
+        "caseId": "case-curious",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/curious/reply_observed",
+          "sourceHash": "b296662cfc636e6ca4fb4bbb8ff1997b4493768cf956323b4bfd363b780a0f7b",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "correlated_reply"
+        },
+        {
+          "sourceSystem": "human",
+          "recordRef": "synthetic/curious/classification",
+          "sourceHash": "9ab02e5a63b80972d74ab8c5dae30c2f035a15c94f292aff253b6450c6b322c4",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "human_attestation"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "reply_observed",
+      "data": {
+        "messageId": "reply-curious",
+        "threadId": "thread-curious",
+        "jobId": "job-curious",
+        "outreachVersion": "blueprint.outreach.v1",
+        "classification": {
+          "label": "curiosity",
+          "interest": "informational_curiosity",
+          "objections": [],
+          "confidence": 0.9,
+          "method": "human",
+          "uncertain": false
+        }
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "d67eff4da469a71725dd6dc27efe4f32172937cdf5cc3e98562e5ed95004d0d6",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "nonresponse",
+        "crmId": "BP-nonresponse",
+        "companyId": null,
+        "siteId": "site-nonresponse",
+        "taskId": "packing",
+        "caseId": "case-nonresponse",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/nonresponse/research_observed",
+          "sourceHash": "cd58c5626427a47d010bde5d8ffe62bebde786581949c765f3debf30cb0586dd",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "public_research"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "research_observed",
+      "data": {
+        "city": "Sacramento",
+        "industry": "Laundromats",
+        "factIds": [
+          "fact-1"
+        ],
+        "factChecks": [
+          {
+            "factId": "fact-1",
+            "sourceHash": "ab1a23a016372531ce7bca546fe7945600a653485df05ed5b4bb06335cfb1de2",
+            "sourceCheckedAt": "2026-09-01T10:00:00.000Z",
+            "grade": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "0d917f860122649752f3de1d8b5ece4fd881f6b376d012096d33596746228b83",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "nonresponse",
+        "crmId": "BP-nonresponse",
+        "companyId": null,
+        "siteId": "site-nonresponse",
+        "taskId": "packing",
+        "caseId": "case-nonresponse",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/nonresponse/contact_observed",
+          "sourceHash": "e936b32637f5e1ed00010d79bb7adacf8e847fcca4863fcfbc229f48488d991b",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "contact_proof"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "contact_observed",
+      "data": {
+        "availability": "verified_business_route"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "3c17856d9dbb48cefc2c134c086a6ee1d9ce2aad460c23ffb2a258d4413afff1",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "nonresponse",
+        "crmId": "BP-nonresponse",
+        "companyId": null,
+        "siteId": "site-nonresponse",
+        "taskId": "packing",
+        "caseId": "case-nonresponse",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/nonresponse/outreach_observed",
+          "sourceHash": "f269e54ccfd5f44205cbef75f7eb8380245fa35d59d94a78de2225399bd364ff",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "provider_acceptance"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "outreach_observed",
+      "data": {
+        "messageId": "message-nonresponse",
+        "threadId": "thread-nonresponse",
+        "jobId": "job-nonresponse",
+        "outreachVersion": "blueprint.outreach.v1",
+        "intent": "outreach",
+        "payloadDigest": "90178b43ae0627d97b58c0336a58ca87fb30a003bd4f0c5c1b0652fb4038cc2f",
+        "approvalLedgerId": "communications_job-nonresponse",
+        "messageDigest": "14b46d9c3fb4968cb47370dd4c0c3f0c262a6b78eb97a66c5e93de7a3c28d2ac",
+        "messageVariant": "copy-1",
+        "status": "accepted",
+        "campaignId": "campaign-1",
+        "timingWindow": "September-AM"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "dcc270259f5ad734ef1b737f0532f3c32b153f2396d7675f445d92e2b066a35e",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "pending",
+        "crmId": "BP-pending",
+        "companyId": null,
+        "siteId": "site-pending",
+        "taskId": "packing",
+        "caseId": "case-pending",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/pending/research_observed",
+          "sourceHash": "dd9ac78990cd7eb1084fe69bf014183c00b6e7586f02a665dd99b40faefdfd81",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "public_research"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "research_observed",
+      "data": {
+        "city": "Sacramento",
+        "industry": "Laundromats",
+        "factIds": [
+          "fact-1"
+        ],
+        "factChecks": [
+          {
+            "factId": "fact-1",
+            "sourceHash": "ab1a23a016372531ce7bca546fe7945600a653485df05ed5b4bb06335cfb1de2",
+            "sourceCheckedAt": "2026-09-01T10:00:00.000Z",
+            "grade": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "19a7967bc8b5bc16ae658c9e83eca78106edcde7ada7c49c21c67ac9d58c8539",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "pending",
+        "crmId": "BP-pending",
+        "companyId": null,
+        "siteId": "site-pending",
+        "taskId": "packing",
+        "caseId": "case-pending",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/pending/contact_observed",
+          "sourceHash": "80904868c393ef5cac39004cf821364f648d00ba8491c9dd0a31decdcab102d0",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "contact_proof"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "contact_observed",
+      "data": {
+        "availability": "verified_business_route"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "405bab5c31fcf077ca439f278c645cdcd6c892068fa2a9111ace86a343ef7517",
+      "occurredAt": "2026-09-29T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "pending",
+        "crmId": "BP-pending",
+        "companyId": null,
+        "siteId": "site-pending",
+        "taskId": "packing",
+        "caseId": "case-pending",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/pending/outreach_observed",
+          "sourceHash": "eb8c75b52d8d766e58862e4689d156e341f997c1db1610a2025d9b1baaa232b2",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "provider_acceptance"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "outreach_observed",
+      "data": {
+        "messageId": "message-pending",
+        "threadId": "thread-pending",
+        "jobId": "job-pending",
+        "outreachVersion": "blueprint.outreach.v1",
+        "intent": "outreach",
+        "payloadDigest": "90178b43ae0627d97b58c0336a58ca87fb30a003bd4f0c5c1b0652fb4038cc2f",
+        "approvalLedgerId": "communications_job-pending",
+        "messageDigest": "14b46d9c3fb4968cb47370dd4c0c3f0c262a6b78eb97a66c5e93de7a3c28d2ac",
+        "messageVariant": "copy-1",
+        "status": "accepted",
+        "campaignId": "campaign-1",
+        "timingWindow": "September-AM"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "93f7501ac711ab72f619c7428aa6e485a81203ed56a8b9eece3aebae06524adc",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "bounced",
+        "crmId": "BP-bounced",
+        "companyId": null,
+        "siteId": "site-bounced",
+        "taskId": "packing",
+        "caseId": "case-bounced",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/bounced/research_observed",
+          "sourceHash": "4c74b48185ee81d47a16b6c638125abcc004cdb1dbd27a1f2874676f404ee9c5",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "public_research"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "research_observed",
+      "data": {
+        "city": "Stockton",
+        "industry": "Laundromats",
+        "factIds": [
+          "fact-1"
+        ],
+        "factChecks": [
+          {
+            "factId": "fact-1",
+            "sourceHash": "ab1a23a016372531ce7bca546fe7945600a653485df05ed5b4bb06335cfb1de2",
+            "sourceCheckedAt": "2026-09-01T10:00:00.000Z",
+            "grade": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "f47d411deb50831dbc2a465f4a76412e0dc841e6ab79e53f10073fd5d7937b86",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "bounced",
+        "crmId": "BP-bounced",
+        "companyId": null,
+        "siteId": "site-bounced",
+        "taskId": "packing",
+        "caseId": "case-bounced",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/bounced/contact_observed",
+          "sourceHash": "57a2ae173648ebfb3e72ca6d4eaef925817bc42692c434fb06a2c66d919d80d6",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "contact_proof"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "contact_observed",
+      "data": {
+        "availability": "verified_business_route"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "b229b5d897a7d7b0e13bcf9b5be1ab0e562c43015d528bf799062122cb4aa0b7",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "bounced",
+        "crmId": "BP-bounced",
+        "companyId": null,
+        "siteId": "site-bounced",
+        "taskId": "packing",
+        "caseId": "case-bounced",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/bounced/outreach_observed",
+          "sourceHash": "6b9440b47b602490c7d86237a9522fb76e27a84f0dcf80923772ebe150b0e7c2",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "provider_acceptance"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "outreach_observed",
+      "data": {
+        "messageId": "message-bounced",
+        "threadId": "thread-bounced",
+        "jobId": "job-bounced",
+        "outreachVersion": "blueprint.outreach.v1",
+        "intent": "outreach",
+        "payloadDigest": "90178b43ae0627d97b58c0336a58ca87fb30a003bd4f0c5c1b0652fb4038cc2f",
+        "approvalLedgerId": "communications_job-bounced",
+        "messageDigest": "14b46d9c3fb4968cb47370dd4c0c3f0c262a6b78eb97a66c5e93de7a3c28d2ac",
+        "messageVariant": "copy-1",
+        "status": "accepted",
+        "campaignId": "campaign-1",
+        "timingWindow": "September-AM"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "a52101aefce700d84f78aedee6de8cee5d380c6afa2d1baad9557763e7712764",
+      "occurredAt": "2026-09-02T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "bounced",
+        "crmId": "BP-bounced",
+        "companyId": null,
+        "siteId": "site-bounced",
+        "taskId": "packing",
+        "caseId": "case-bounced",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/bounced/delivery_observed",
+          "sourceHash": "0d42326f00ff35f68aea5123988511301f3b2a2ea7597738fa77e403cec7350f",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "delivery_notification"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "delivery_observed",
+      "data": {
+        "messageId": "message-bounced",
+        "threadId": "thread-bounced",
+        "jobId": "job-bounced",
+        "outreachVersion": "blueprint.outreach.v1",
+        "status": "bounced"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "d9487e2b79ad4be2d88af9204b656e978cbfad62398d2a9419661df1e5e9d4d9",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "unknown-ack",
+        "crmId": "BP-unknown-ack",
+        "companyId": null,
+        "siteId": "site-unknown-ack",
+        "taskId": "packing",
+        "caseId": "case-unknown-ack",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/unknown-ack/research_observed",
+          "sourceHash": "01b6eb0a333f4dff145a84c580bac13d92fe2fc9dc8f5ba30f34f52d1c2886a6",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "public_research"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "research_observed",
+      "data": {
+        "city": "Sacramento",
+        "industry": "Retail",
+        "factIds": [
+          "fact-1"
+        ],
+        "factChecks": [
+          {
+            "factId": "fact-1",
+            "sourceHash": "ab1a23a016372531ce7bca546fe7945600a653485df05ed5b4bb06335cfb1de2",
+            "sourceCheckedAt": "2026-09-01T10:00:00.000Z",
+            "grade": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "d70c63f286829d52db31a7afc59021fc4e9f71d2070d41de536185764087b447",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "unknown-ack",
+        "crmId": "BP-unknown-ack",
+        "companyId": null,
+        "siteId": "site-unknown-ack",
+        "taskId": "packing",
+        "caseId": "case-unknown-ack",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/unknown-ack/contact_observed",
+          "sourceHash": "924d1b16689e21444e8682c1e60d005f881c84080ef9e57a93aabddcde82d7c9",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "contact_proof"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "contact_observed",
+      "data": {
+        "availability": "verified_business_route"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "2385e9ec6b78b68ece6c6bb010576e27ec5fd04f347ea4416413321cb97445ab",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "unknown-ack",
+        "crmId": "BP-unknown-ack",
+        "companyId": null,
+        "siteId": "site-unknown-ack",
+        "taskId": "packing",
+        "caseId": "case-unknown-ack",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/unknown-ack/outreach_observed",
+          "sourceHash": "4f83e21f685dde8c8659cd4b9ee110ffbc8befa102eae93c005869140e0d73b6",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "send_attempt"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "outreach_observed",
+      "data": {
+        "messageId": null,
+        "threadId": null,
+        "jobId": "job-unknown-ack",
+        "outreachVersion": "blueprint.outreach.v1",
+        "intent": "outreach",
+        "payloadDigest": "90178b43ae0627d97b58c0336a58ca87fb30a003bd4f0c5c1b0652fb4038cc2f",
+        "approvalLedgerId": "communications_job-unknown-ack",
+        "messageDigest": "14b46d9c3fb4968cb47370dd4c0c3f0c262a6b78eb97a66c5e93de7a3c28d2ac",
+        "messageVariant": "copy-1",
+        "status": "unknown",
+        "campaignId": "campaign-1",
+        "timingWindow": "September-AM"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "bace1587ba47601de23102c730080cf6ef02f02a28c964f83c3b60fcb2e8c51c",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "comparison",
+        "crmId": "BP-comparison",
+        "companyId": null,
+        "siteId": "site-comparison",
+        "taskId": "packing",
+        "caseId": "case-comparison",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/comparison/research_observed",
+          "sourceHash": "f2ff1a42a02a0c79cbf5e2df035b863f08754ca44aa775daa388abf11309b16c",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "public_research"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "research_observed",
+      "data": {
+        "city": "Oakland",
+        "industry": "Laundromats",
+        "factIds": [
+          "fact-1"
+        ],
+        "factChecks": [
+          {
+            "factId": "fact-1",
+            "sourceHash": "ab1a23a016372531ce7bca546fe7945600a653485df05ed5b4bb06335cfb1de2",
+            "sourceCheckedAt": "2026-09-01T10:00:00.000Z",
+            "grade": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "74de4f73c4bb3abf3b8941c084dae32872d43b4046de59cfe986aadceb14017a",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "comparison",
+        "crmId": "BP-comparison",
+        "companyId": null,
+        "siteId": "site-comparison",
+        "taskId": "packing",
+        "caseId": "case-comparison",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/comparison/contact_observed",
+          "sourceHash": "5fcb8a630ce39e8fce210c5ae3dcb3133723960fd52b9edf0f0d5c9ed5c5d93e",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "contact_proof"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "contact_observed",
+      "data": {
+        "availability": "verified_business_route"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "12c73c8f6f5fec1c4ddd8a4ad9388a3ce859bf8b229cecd21f5ec0fade3ea6bd",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "comparison",
+        "crmId": "BP-comparison",
+        "companyId": null,
+        "siteId": "site-comparison",
+        "taskId": "packing",
+        "caseId": "case-comparison",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/comparison/outreach_observed",
+          "sourceHash": "2f8ab64e9db3b367837dd491ad4d34a062300009be27bfa3f15526dc3fa5a1ab",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "provider_acceptance"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "outreach_observed",
+      "data": {
+        "messageId": "message-comparison",
+        "threadId": "thread-comparison",
+        "jobId": "job-comparison",
+        "outreachVersion": "blueprint.outreach.v1",
+        "intent": "outreach",
+        "payloadDigest": "90178b43ae0627d97b58c0336a58ca87fb30a003bd4f0c5c1b0652fb4038cc2f",
+        "approvalLedgerId": "communications_job-comparison",
+        "messageDigest": "14b46d9c3fb4968cb47370dd4c0c3f0c262a6b78eb97a66c5e93de7a3c28d2ac",
+        "messageVariant": "copy-1",
+        "status": "accepted",
+        "campaignId": "campaign-1",
+        "timingWindow": "September-AM"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "eb9d84c2caa7941d1d830038c6425a9403c316f0c95457a23c9d9771028abb1b",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "rejection",
+        "crmId": "BP-rejection",
+        "companyId": null,
+        "siteId": "site-rejection",
+        "taskId": "packing",
+        "caseId": "case-rejection",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/rejection/research_observed",
+          "sourceHash": "103d1b19a9284601ec8ca9feecb454e3fc7d875054425a72e28a9cd088e1580e",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "public_research"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "research_observed",
+      "data": {
+        "city": "Sacramento",
+        "industry": "Retail",
+        "factIds": [
+          "fact-1"
+        ],
+        "factChecks": [
+          {
+            "factId": "fact-1",
+            "sourceHash": "ab1a23a016372531ce7bca546fe7945600a653485df05ed5b4bb06335cfb1de2",
+            "sourceCheckedAt": "2026-09-01T10:00:00.000Z",
+            "grade": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "badd7989e6bd190362abf57b6b61db9bdfda3d588149e0179592a56ee775bcc7",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "rejection",
+        "crmId": "BP-rejection",
+        "companyId": null,
+        "siteId": "site-rejection",
+        "taskId": "packing",
+        "caseId": "case-rejection",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/rejection/contact_observed",
+          "sourceHash": "75e29e57ee29ba3afff92fd1c337e5ea4c5f3f43f2b0fc46a7189c86f747123f",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "contact_proof"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "contact_observed",
+      "data": {
+        "availability": "verified_business_route"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "9c5e69b911fb62097766299fa6cb95bb90c6d3f08eb7d95e7de8ad00c953bfbf",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "rejection",
+        "crmId": "BP-rejection",
+        "companyId": null,
+        "siteId": "site-rejection",
+        "taskId": "packing",
+        "caseId": "case-rejection",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/rejection/outreach_observed",
+          "sourceHash": "9061c578c5e0e9ad904724ec098b32445c1f2553784d3be00061493dbaa19e9c",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "provider_acceptance"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "outreach_observed",
+      "data": {
+        "messageId": "message-rejection",
+        "threadId": "thread-rejection",
+        "jobId": "job-rejection",
+        "outreachVersion": "blueprint.outreach.v1",
+        "intent": "outreach",
+        "payloadDigest": "90178b43ae0627d97b58c0336a58ca87fb30a003bd4f0c5c1b0652fb4038cc2f",
+        "approvalLedgerId": "communications_job-rejection",
+        "messageDigest": "14b46d9c3fb4968cb47370dd4c0c3f0c262a6b78eb97a66c5e93de7a3c28d2ac",
+        "messageVariant": "copy-1",
+        "status": "accepted",
+        "campaignId": "campaign-1",
+        "timingWindow": "September-AM"
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "249049de37f527359e085103d4a0f47f3709688a818dbcaf02c6500bb60de982",
+      "occurredAt": "2026-09-02T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "rejection",
+        "crmId": "BP-rejection",
+        "companyId": null,
+        "siteId": "site-rejection",
+        "taskId": "packing",
+        "caseId": "case-rejection",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/rejection/reply_observed",
+          "sourceHash": "fb9766a0e4083e3c92e2c6565b0e5ea85c1ebb77b55b264b713aa49127c8a77f",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "correlated_reply"
+        },
+        {
+          "sourceSystem": "human",
+          "recordRef": "synthetic/rejection/classification",
+          "sourceHash": "9ab02e5a63b80972d74ab8c5dae30c2f035a15c94f292aff253b6450c6b322c4",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "human_attestation"
+        }
+      ],
+      "writer": "communications_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "reply_observed",
+      "data": {
+        "messageId": "reply-rejection",
+        "threadId": "thread-rejection",
+        "jobId": "job-rejection",
+        "outreachVersion": "blueprint.outreach.v1",
+        "classification": {
+          "label": "rejection",
+          "interest": "unknown",
+          "objections": [],
+          "confidence": 0.9,
+          "method": "human",
+          "uncertain": false
+        }
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "3a13aae01ad2275ef824a6d27823baf92ffa7c9e591fc862e7e183b6969d300a",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "uncontacted",
+        "crmId": "BP-uncontacted",
+        "companyId": null,
+        "siteId": "site-uncontacted",
+        "taskId": "packing",
+        "caseId": "case-uncontacted",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/uncontacted/research_observed",
+          "sourceHash": "bd91b32c5a5355451f469f805f07f8c79c171d29017fee29790705194e107f2e",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "public_research"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "research_observed",
+      "data": {
+        "city": "Sacramento",
+        "industry": "Laundromats",
+        "factIds": [
+          "fact-1"
+        ],
+        "factChecks": [
+          {
+            "factId": "fact-1",
+            "sourceHash": "ab1a23a016372531ce7bca546fe7945600a653485df05ed5b4bb06335cfb1de2",
+            "sourceCheckedAt": "2026-09-01T10:00:00.000Z",
+            "grade": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "version": "blueprint.research-learning-event.v1",
+      "eventId": "b5f8dccb4f905a5b37fa0145cee79c929a5ad81cf487fccb676b6b3465c8bc8b",
+      "occurredAt": "2026-09-01T10:00:00.000Z",
+      "recordedAt": "2026-10-01T17:00:00.000Z",
+      "entities": {
+        "prospectId": "uncontacted",
+        "crmId": "BP-uncontacted",
+        "companyId": null,
+        "siteId": "site-uncontacted",
+        "taskId": "packing",
+        "caseId": "case-uncontacted",
+        "teamIds": [
+          "team-1"
+        ],
+        "capabilityIds": [
+          "cap-1"
+        ]
+      },
+      "evidence": [
+        {
+          "sourceSystem": "firestore",
+          "recordRef": "synthetic/uncontacted/contact_observed",
+          "sourceHash": "4436282f9b268df3729a86186068382863353a4fd057147510ed591d8f64e6c1",
+          "checkedAt": "2026-09-01T10:00:00.000Z",
+          "basis": "contact_proof"
+        }
+      ],
+      "writer": "research_adapter",
+      "actorId": "fixture-adapter",
+      "correctsEventId": null,
+      "kind": "contact_observed",
+      "data": {
+        "availability": "verified_business_route"
+      }
+    }
+  ],
+  "existingEvents": [],
+  "expectedProspectIds": [
+    "curious",
+    "nonresponse",
+    "pending",
+    "bounced",
+    "unknown-ack",
+    "comparison",
+    "rejection",
+    "uncontacted"
+  ],
+  "expectedEvidenceRefs": [
+    "synthetic/curious/research_observed",
+    "synthetic/curious/contact_observed",
+    "synthetic/curious/outreach_observed",
+    "synthetic/curious/reply_observed",
+    "synthetic/curious/classification",
+    "synthetic/nonresponse/research_observed",
+    "synthetic/nonresponse/contact_observed",
+    "synthetic/nonresponse/outreach_observed",
+    "synthetic/pending/research_observed",
+    "synthetic/pending/contact_observed",
+    "synthetic/pending/outreach_observed",
+    "synthetic/bounced/research_observed",
+    "synthetic/bounced/contact_observed",
+    "synthetic/bounced/outreach_observed",
+    "synthetic/bounced/delivery_observed",
+    "synthetic/unknown-ack/research_observed",
+    "synthetic/unknown-ack/contact_observed",
+    "synthetic/unknown-ack/outreach_observed",
+    "synthetic/comparison/research_observed",
+    "synthetic/comparison/contact_observed",
+    "synthetic/comparison/outreach_observed",
+    "synthetic/rejection/research_observed",
+    "synthetic/rejection/contact_observed",
+    "synthetic/rejection/outreach_observed",
+    "synthetic/rejection/reply_observed",
+    "synthetic/rejection/classification",
+    "synthetic/uncontacted/research_observed",
+    "synthetic/uncontacted/contact_observed"
+  ],
+  "quarantine": [],
+  "focus": {
+    "city": "Sacramento",
+    "industry": "Laundromats"
+  }
+}
