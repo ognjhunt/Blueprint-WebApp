@@ -142,6 +142,7 @@ export async function executeCommunicationsSend(payload: ActionPayload) {
     ]);
     if (previous.exists) return false;
     const approval = ledger.data();
+    if (!approval) throw new Error("communications_exact_human_approval_required");
     let authorityDigest: string | null = null;
     if (!exactHumanAuthority(approval, payload)) {
       if (!automaticFirstContactEnabled() || !approval?.first_contact_authority) throw new Error("communications_exact_human_approval_required");
