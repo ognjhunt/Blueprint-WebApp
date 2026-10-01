@@ -22,8 +22,13 @@ ChatGPT app OAuth does not establish an Agents API connection.
 | Drive (optional) | `https://drivemcp.googleapis.com/mcp/v1` | `get_file_metadata`, `read_file_content`, `search_files` | No Sheets range read/update tool. Drive connection alone cannot certify complete Prospects deduplication or update CRM cells. |
 
 Do not connect Drive just to fix Sheets. Canonical CRM uses the existing exact
-Prospects read with the worker's service account. Its diagnostic must establish
-the actual dependency/HTTP/schema failure first; preserve the existing identity.
+Prospects read with the worker's service account. On October 1 at 01:19:46 UTC,
+after the owner's explicit Viewer-only grant on the canonical Sheet, the existing
+Render identity returned HTTP 200, valid headers, 16 total rows and 11 data rows,
+with a complete read. The principal is
+`firebase-adminsdk-yu1gh@blueprint-8c1ca.iam.gserviceaccount.com`.
+The owner and Restricted sharing remain unchanged. No Editor grant exists;
+publication writes are still unverified. Preserve this working reader and identity.
 Sheets updates remain behind a Blueprint target/column and duplicate-check
 boundary. An authenticated Google grant may be reused only after its account,
 scope and target access are verified; broader privilege is not inferred.
@@ -67,6 +72,36 @@ redirect was verified. These observations are not permission to save a token.
    only project/vault/credential IDs, account hash, reviewed scope names, exact
    endpoint, consent receipt and authenticated tool inventory.
 
+### Verified Google prerequisites and supported API route
+
+The owner inspected existing project `blueprint-8c1ca` (display `blueprint-dev`,
+number `744608654760`). Standard Drive/Gmail APIs are enabled; their MCP APIs are
+disabled, and preview enrollment is unverified. The preview application rejects
+the signed-in personal Gmail account: use the founder's Workspace account and
+register the existing project only after approval. No API enablement or enrollment
+was performed. This blocks immediate Google MCP setup, not the standard APIs.
+
+The existing OAuth app is External/Testing with only `gmail.readonly`; the intended
+founder account is absent from test users. Two web clients have no redirects; a
+third has only OAuth Playground's redirect. None is a verified production callback
+for this workflow. Do not create another client or treat Playground as the runtime.
+
+External Testing refresh grants with Gmail scopes expire after seven days. For
+durable communications, the owner must approve either an appropriate production
+OAuth app (and required scope verification) or a valid Internal Workspace app in
+an organization-owned project. Internal eligibility for this project is unverified.
+The communications owner prepares the exact mailbox, callback, scopes and existing
+send-gate boundary before requesting secure consent. This document requests no
+additional scopes, clients, grants or API enablement.
+
+The supported first path is the already-enabled standard APIs: retain the now
+verified service-account Sheets reader; keep agent-owned QA and digest-bound
+publication behind Blueprint's existing delivery boundary; use the communications
+owner's standard Gmail adapter behind the live approval gates. Native MCP remains
+prepared for later enrollment. A Viewer reader cannot publish; separate scoped
+publication authority and a Notion worker binding still need owner approval and
+read-only verification before any write. No runtime step requires dot.
+
 ## Reusable configuration preparation
 
 `server/agents/mcp-connections.ts` exports `prepareMcpConnections`. Roles are
@@ -104,7 +139,7 @@ adapter and must consume this contract without overwriting research worker code.
 Research QA/publication consumes the existing durable snapshot/work-item and
 digest-bound delivery/receipt contract in `docs/daily-research-render-integration.md`.
 Agents own QA, duplicate checks and publication; dot only observes. Before canary,
-resolve the template mismatch, canonical CRM read, previous unclassified saved-agent
+resolve the file-discovery preflight correction, previous unclassified saved-agent
 session, guarded publication binding and exact cleanup history. Empty dated ledger
 does not prove that cleanup is clear. Writes, paid canary, old-trigger cutover and
 activation each require their existing authority; keep both research controls off.
@@ -117,3 +152,5 @@ Sources: [Agents MCP](https://developers.openai.com/api/docs/guides/agents-api/t
 [Drive setup](https://developers.google.com/workspace/drive/api/guides/configure-mcp-server),
 [Gmail tools](https://developers.google.com/workspace/gmail/api/reference/mcp),
 [Gmail setup/scopes](https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server).
+OAuth durability: [Testing expiry](https://developers.google.com/identity/protocols/oauth2),
+[Internal and production verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification).
