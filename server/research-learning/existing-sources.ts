@@ -77,13 +77,16 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
             || communicationsDigest(envelope.job) !== communicationsDigest(job)
             || communicationsDigest(envelope.brief) !== job.briefDigest
             || ledger.action_payload.to?.toLowerCase() !== brief.contact.email.toLowerCase()
-            || typeof ledger.action_payload.subject !== "string" || typeof ledger.action_payload.transportBody !== "string") throw new Error("receipt_join_invalid");
+            || ledger.action_payload.subject !== envelope.output.subject || ledger.action_payload.body !== envelope.output.body
+            || typeof ledger.action_payload.transportBody !== "string") throw new Error("receipt_join_invalid");
           const status = receipt.state === "sent" ? "accepted" : receipt.state === "attempting" ? "attempted" : "unknown";
           const at = status === "accepted" ? receipt.sentAt : receipt.attemptedAt;
           events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "outreach_observed", occurredAt: at,
             data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", intent: job.intent,
               payloadDigest: receipt.payloadDigest, approvalLedgerId: receipt.approvalLedgerId,
-              messageDigest: communicationsDigest({ subject: ledger.action_payload.subject, body: ledger.action_payload.transportBody }), messageVariant: null,
+              // Copy controls use the approved pre-footer copy. Full payload
+              // and receipt hashes still retain recipient-specific transport evidence.
+              messageDigest: communicationsDigest({ subject: envelope.output.subject, body: envelope.output.body }), messageVariant: null,
               messageId: receipt.receipt?.messageId ?? null, threadId: receipt.receipt?.threadId ?? null,
               status, campaignId: null, timingWindow: null },
             evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(receipt), checkedAt: at,

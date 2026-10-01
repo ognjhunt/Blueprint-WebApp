@@ -120,6 +120,33 @@ describe("observed learning counts and comparison cohorts", () => {
     const view = snapshot([learningEvent("research_observed"), first, first, later, bounce]);
     expect(planResearchLearning(view, focus).cohorts[0].counts).toMatchObject({ acceptedTouches: 2, matureAcceptedProspects: 1, matureNonresponseProspects: 1 });
   });
+  it("counts a correlated reply on a later accepted thread within the original observation window", () => {
+    const first = learningEvent("outreach_observed"), reply = learningEvent("reply_observed");
+    const later = remake(first, { occurredAt: "2026-09-20T10:00:00.000Z", data: { ...first.data,
+      jobId: "follow-up", approvalLedgerId: "communications_follow-up", messageId: "later-message", threadId: "later-thread" } });
+    const answer = remake(reply, { occurredAt: "2026-09-21T10:00:00.000Z", data: { ...reply.data,
+      jobId: "reply-job", messageId: "later-answer", threadId: "later-thread" } });
+    const plan = planResearchLearning(snapshot([learningEvent("research_observed"), first, later, answer]), focus);
+    expect(plan.cohorts[0].counts).toMatchObject({ acceptedTouches: 2, matureAcceptedProspects: 1,
+      repliedProspects: 1, matureNonresponseProspects: 0, matureReplyRate: { numerator: 1, denominator: 1 } });
+  });
+  it.each(["unaccepted", "before_acceptance", "unrelated_thread", "automatic", "other_contract"])("does not count a later-thread reply with %s evidence", change => {
+    const first = learningEvent("outreach_observed"), originalReply = learningEvent("reply_observed");
+    let later = remake(first, { occurredAt: "2026-09-20T10:00:00.000Z", data: { ...first.data,
+      jobId: "follow-up", approvalLedgerId: "communications_follow-up", messageId: "later-message", threadId: "later-thread" } });
+    let reply = remake(originalReply, { occurredAt: "2026-09-21T10:00:00.000Z", data: { ...originalReply.data,
+      jobId: "reply-job", messageId: "later-answer", threadId: "later-thread" } });
+    if (change === "unaccepted") later = remake(later, { data: { ...later.data, status: "unknown" },
+      evidence: [{ ...later.evidence[0], basis: "send_attempt" }] });
+    if (change === "before_acceptance") reply = remake(reply, { occurredAt: "2026-09-19T10:00:00.000Z" });
+    if (change === "unrelated_thread") reply = remake(reply, { data: { ...reply.data, threadId: "unrelated" } });
+    if (change === "other_contract") reply = remake(reply, { data: { ...reply.data, outreachVersion: "other.v1" } });
+    if (change === "automatic" && reply.kind === "reply_observed") reply = remake(reply, { data: { ...reply.data,
+      classification: { ...reply.data.classification, label: "automatic", interest: "unknown" } } });
+    const plan = planResearchLearning(snapshot([learningEvent("research_observed"), first, later, reply]), focus);
+    expect(plan.cohorts[0].counts).toMatchObject({ matureAcceptedProspects: 1, repliedProspects: 0,
+      matureNonresponseProspects: 1, matureReplyRate: { numerator: 0, denominator: 1 } });
+  });
   it("freezes cohort metadata and contact availability at the first touch", () => {
     const research = learningEvent("research_observed"), contact = learningEvent("contact_observed");
     const changed = remake(research, { occurredAt: "2026-09-15T10:00:00.000Z", data: { ...research.data, city: "Oakland", industry: "Retail" } });
@@ -149,7 +176,7 @@ function existingSourceFixture(): ExistingProspectSources {
   const briefDigest = communicationsDigest(brief);
   const job = { jobId: "job-1", prospectId: brief.prospectId, briefId: brief.briefId, briefDigest, intent: "outreach", inboundMessageId: null };
   const envelope = { version: "blueprint.communications.v1", job, brief, thread: null, output: f.output, approvalState: "pending_approval" };
-  const payload = { communications: envelope, to: brief.contact.email, subject: f.output.subject, transportBody: f.output.body };
+  const payload = { communications: envelope, to: brief.contact.email, subject: f.output.subject, body: f.output.body, transportBody: f.output.body };
   return { prospectId: brief.prospectId, prospect: { ...f.prospect, siteId: brief.siteId, taskId: brief.taskId, caseId: brief.caseId, researchPublicationId: preview.source.sheetsProspectId },
     jobs: [{ id: job.jobId, record: { ...job, state: "running", checkpoint: {} }, brief,
       handoff: { version: "blueprint.communications-handoff.v1", ...brief.qualityReview, briefDigest, sheetsReceipt: preview.source.sheetsReceipt, notionReceipt: preview.source.notionReceipt },
@@ -160,6 +187,37 @@ function existingSourceFixture(): ExistingProspectSources {
 }
 
 describe("read-only existing-source joins and staged migration", () => {
+  it("groups identical canonical copy despite distinct recipient transport footers", () => {
+    const first = existingSourceFixture(), second = structuredClone(first), later = second.jobs[0];
+    const identity = later.record as any;
+    later.id = "job-2"; later.record = { ...identity, jobId: later.id };
+    later.ledger.action_payload.communications.job = { ...later.ledger.action_payload.communications.job, jobId: later.id };
+    // Match the real worker shape: canonical output stays unchanged while
+    // recipient/job-specific unsubscribe content changes the transport body.
+    for (const [input, recipient] of [[first, "one"], [second, "two"]] as const) {
+      const bundle = input.jobs[0];
+      bundle.ledger.action_payload.transportBody += `\nUnsubscribe: https://example.test/unsubscribe/${recipient}/${bundle.id}`;
+      bundle.receipt = { ...bundle.receipt, jobId: bundle.id, approvalLedgerId: `communications_${bundle.id}`,
+        payloadDigest: communicationsDigest(bundle.ledger.action_payload) };
+    }
+    const outreach = (input: ExistingProspectSources) => {
+      const result = normalizeExistingSources([input], learningNow);
+      expect(result.quarantine).toEqual([]);
+      const event = result.events.find(e => e.kind === "outreach_observed")!;
+      if (event.kind !== "outreach_observed") throw new Error("outreach_missing");
+      return event;
+    };
+    const one = outreach(first), two = outreach(second);
+    expect(one.data.payloadDigest).not.toBe(two.data.payloadDigest);
+    expect(one.evidence[0].sourceHash).not.toBe(two.evidence[0].sourceHash);
+    expect(one.data.messageDigest).toBe(two.data.messageDigest);
+    const changed = structuredClone(second), bundle = changed.jobs[0], payload = bundle.ledger.action_payload;
+    payload.communications.output.body += "\nA different learning question.";
+    payload.body = payload.communications.output.body;
+    payload.transportBody = payload.body + "\nUnsubscribe: https://example.test/unsubscribe/two/job-2";
+    bundle.receipt.payloadDigest = communicationsDigest(payload);
+    expect(outreach(changed).data.messageDigest).not.toBe(one.data.messageDigest);
+  });
   it("maps actual source shapes, preserving IDs and source dates without exposing private content", () => {
     const input = existingSourceFixture(), normalized = normalizeExistingSources([input], learningNow);
     expect(normalized.quarantine).toEqual([]); expect(normalized.events).toHaveLength(3);
@@ -171,7 +229,7 @@ describe("read-only existing-source joins and staged migration", () => {
     expect(serialized).not.toContain(input.jobs[0].ledger.action_payload.transportBody);
     expect(normalized.events.some(e => e.kind === "delivery_observed")).toBe(false);
   });
-  it.each(["crm", "site", "case", "recipient", "ledger_job", "source_digest", "receipt_job"])("quarantines invalid %s joins without partial events", change => {
+  it.each(["crm", "site", "case", "recipient", "ledger_job", "source_digest", "receipt_job", "copy_subject", "copy_body"])("quarantines invalid %s joins without partial events", change => {
     const input = existingSourceFixture(), job = input.jobs[0];
     if (change === "crm") input.prospect.researchPublicationId = "different";
     if (change === "site") input.prospect.siteId = "different";
@@ -180,7 +238,9 @@ describe("read-only existing-source joins and staged migration", () => {
     if (change === "ledger_job") job.ledger.action_payload.communications.job.prospectId = "different";
     if (change === "source_digest") job.researchSource.source.candidate.city = "Changed";
     if (change === "receipt_job") job.receipt.jobId = "different";
-    if (["recipient", "ledger_job"].includes(change)) job.receipt.payloadDigest = communicationsDigest(job.ledger.action_payload);
+    if (change === "copy_subject") job.ledger.action_payload.subject = "Different copy";
+    if (change === "copy_body") job.ledger.action_payload.body = "Different copy";
+    if (["recipient", "ledger_job", "copy_subject", "copy_body"].includes(change)) job.receipt.payloadDigest = communicationsDigest(job.ledger.action_payload);
     const result = normalizeExistingSources([input], learningNow);
     expect(result.events).toEqual([]); expect(result.quarantine).toHaveLength(1);
   });

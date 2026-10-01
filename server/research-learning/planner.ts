@@ -18,13 +18,14 @@ export function describeRow(row: SnapshotRow, snapshot: LearningSnapshot) {
   const delivered = jobs.filter(job => delivery(job)?.data.status === "verified_delivered");
   const bounced = jobs.filter(job => delivery(job)?.data.status === "bounced");
   const replies = events.filter((e): e is Extract<LearningEvent, { kind: "reply_observed" }> => e.kind === "reply_observed"
-    && touches.some(t => t.data.threadId !== null && t.data.threadId === e.data.threadId && t.occurredAt <= e.occurredAt));
+    && touches.some(t => t.data.status === "accepted" && t.data.threadId !== null && t.data.threadId === e.data.threadId
+      && t.data.outreachVersion === e.data.outreachVersion && t.occurredAt <= e.occurredAt));
   // The first accepted touch defines a prospect-level observation window;
   // attempts with unknown acknowledgement never enter the mature denominator.
   const firstAccepted = touches.find(e => e.data.status === "accepted");
   const mature = Boolean(firstAccepted && Date.parse(snapshot.asOf) - Date.parse(firstAccepted.occurredAt) >= snapshot.maturityDays * 86400000);
   const substantive = replies.filter(e => e.data.classification.label !== "automatic"
-    && (!firstAccepted || (e.data.threadId === firstAccepted.data.threadId && e.occurredAt >= firstAccepted.occurredAt)));
+    && (!firstAccepted || e.occurredAt >= firstAccepted.occurredAt));
   const reliable = substantive.filter(e => !e.data.classification.uncertain && e.data.classification.method === "human");
   const latest = reliable.at(-1);
   const outcome = last(events, "outcome_observed");
