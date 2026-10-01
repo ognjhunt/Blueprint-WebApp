@@ -215,7 +215,9 @@ describe("contact-free pinned producer → communications contact fulfillment (o
     await g.request(); await g.refresh(); expect(g.records("jobs")).toHaveLength(0);
   });
   it.each(["<style>.secret {display:none}</style>", '<link rel="stylesheet" href="/site.css">',
-    '<link rel=stylesheet href="/site.css">'])("refuses stylesheet-dependent contact visibility: %s", async stylesheet => {
+    '<link rel=stylesheet href="/site.css">', '<link rel="style&#115;heet" href="/site.css">',
+    '<link rel=style&#115;heet href="/site.css">', '<link rel="style&#115heet" href="/site.css">',
+    '<link href="/site>css" rel="stylesheet">', '<link rel="&Tab;stylesheet" href="/site.css">'])("refuses stylesheet-dependent contact visibility: %s", async stylesheet => {
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, stylesheet + `<h1>${f.candidate.organization}</h1><p class="secret">Business inquiries: hidden@facility.example</p>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
     expect(f.records("refreshRequests")[0]).toMatchObject({ state: "terminal", reason: "contact_resolution_visibility_unverified" });
