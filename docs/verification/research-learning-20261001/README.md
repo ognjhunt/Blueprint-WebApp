@@ -43,11 +43,12 @@ contract assertions**, not findings about Blueprint's current outreach.
 | --- | --- |
 | `npm run check` | Passed after final code changes. |
 | `npx vitest run server/tests/research-learning.test.ts` | 57/57 passed after reproducing and fixing the PR787 copy-strata and later-thread reply findings and preserving unknown-ACK/null-ref/legacy replies separately from accepted-rate eligibility. |
-| `npm run test:coverage` | 633 files / 4,712 tests passed; lines 58.12%, branches 68.41%, functions 74.53%. This run included 36 learning tests; seven correction negative controls were subsequently added and passed in the final targeted run. |
+| `npm run test:coverage` | Exact `b976aea10` GitHub CI run `36908416691`: 633 files / 4,733 tests passed, including all 57 learning tests. Earlier local full coverage also passed. |
 | `npm run doctrine:verify` | All three locked shared blocks passed. |
 | `npm run claims:guard` | 780 files scanned, zero findings. |
 | `npm run audit:assets` | Passed. |
-| Independent Sol review | Initial read-only review and separate 43/43 test run passed. Corrections from review covered chain append, delivery/maturity denominators, historical cohort metadata, exact ledger joins, original fact check dates, copy controls and immutable correction fields. Final exact-head review follows the additional PR findings and rebase onto PR786. |
+| Independent Sol review | Exact `b976aea10` reviewed; separate 57/57 test run passed with no remaining correctness/privacy blocker. Corrections covered chain append, delivery/maturity denominators, historical cohort metadata, exact ledger joins, original fact check dates, copy controls, immutable correction fields and observed replies with unknown/null/legacy touch references. Final rebased-head review follows PR786 release. |
+| Required GitHub CI | All five jobs (check, rules-emulator, test, e2e, build) passed on exact `b976aea10`; run `36908416691`. Release still requires rebase/review/testing after PR786 merge/deployment. |
 | Graphify AST refresh | Passed using `BLUEPRINT_GRAPHIFY_PYTHON=/tmp/blueprint-learning-graphify/bin/python bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz`: 83 code files, 1,330 nodes, 2,247 edges, 52 communities; canonical root outputs published. The initial missing-dependency failure was resolved with an isolated temporary `graphifyy==0.9.73` tooling environment. No global/runtime dependency, model call or credential change. |
 | Offline dry-run CLI | Exit 0, `readyForStagedAppend:true`, `readyForCutover:false`, errors empty, 26 events / eight prospects. |
 

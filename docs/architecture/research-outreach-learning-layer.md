@@ -116,6 +116,31 @@ ten-prospect success ceiling. `gpt-6-luna` model classification is disabled and
 has no execution path; a separate activation budget and reviewed implementation
 are required.
 
+## First-batch site learning mapping
+
+The owner-approved first-batch objective is to learn which robotics uncertainty
+a real site wants help resolving and whether an Atlas-independent short
+Blueprint brief helps a concrete decision. The owner makes the walkthrough and
+handles replies personally. This objective does not authorize automatic reply
+interpretation, new outreach, or pilot-readiness inference.
+
+| Requested learning | Existing source/read mapping | Minimal remaining gap |
+| --- | --- | --- |
+| Bounded task/question and decision owner | Existing communications brief owns `boundedJob`, `contact.learningQuestion`, `decision`, nullable `decisionOwner`; snapshot retains exact site/task/case and brief evidence refs | A sanitized scoped projection of these already-owned fields when a consumer needs the actual question/decision. Reading them must not infer site interest. |
+| Stated trigger/motive, unknown allowed | Existing correlated reply evidence and human classification/attestation give provenance | A nullable owner-confirmed structured summary; no guessed motive and no raw mailbox excerpt in agent context. |
+| Evidence that would change the decision | Research fact IDs/check dates/grades and owner-confirmed evidence references already fit | An owner-stated relationship between the concrete decision and the requested evidence, kept separate from researcher hypotheses. |
+| Voluntary next step: brief/later/no | Human reply correction preserves stated interest and objections | A small explicit `unknown`/`brief`/`later`/`no` learning choice. Do not force it into pilot agreement or `lost`; declining a brief does not establish robotics rejection. |
+| Whether the short brief helped a decision | Existing case/task IDs and owner-confirmed outcome record references preserve joins | An explicit unknown/pending/helped/did-not-help assessment with brief version and human evidence refs. Existing operational outcome enums do not represent brief helpfulness. |
+
+The strict v1 event schema does not yet accept those learning-specific response
+fields. The smallest follow-up is one human-confirmed structured learning
+record and its bounded projection, reusing the current case/prospect ownership,
+attestation, corrections and hash/check-date contracts. It should preserve
+unknowns, separate observation from hypotheses and keep nonresponse maturation
+unchanged. No broad experiment platform, new model or automated writer is
+needed. This mapping records the gap without delaying the reviewed bug repairs
+or changing the separately owned Notion guidance.
+
 ## Migration dry run and staged reconciliation
 
 1. The parent confirms file/release ownership with PR786 and the Pipeline
