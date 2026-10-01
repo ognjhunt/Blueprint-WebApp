@@ -24,7 +24,7 @@ export const publicUrl = z.string().max(2000).url().refine(value => {
       && ![...decodedUrl.searchParams.keys()].some(key => /^(?:email|emailaddress|token|accesstoken|refreshtoken|apikey|key|secret|clientsecret|privatekey|authorization|password|passwd|pwd|credentials?|signature|sig)$/i.test(key.replace(/[^a-z0-9]/gi, "")));
   } catch { return false; }
 }, "learning_private_url");
-function dateMillis(value: string): number {
+export function dateMillis(value: string): number {
   const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value);
   const day = us ? `${us[3]}-${us[1].padStart(2, "0")}-${us[2].padStart(2, "0")}` : value.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return NaN;

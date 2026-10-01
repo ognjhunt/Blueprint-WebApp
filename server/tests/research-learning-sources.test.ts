@@ -212,6 +212,28 @@ describe("progressive agent-directed research retrieval", () => {
     expect(first.totalIndexed).toBe(2);
     expect(() => scopeSourceSnapshot(d.snapshot, { ...d.f.grant, capabilityIds: ["cap-1"] }, { ...d.f.request, capabilityIds: ["cap-2"] }, now)).toThrow("scope_denied");
   });
+  it("keeps exact capability ID identity while text tags may ignore case", () => {
+    const f = fixture(); f.input.knowledge.records[1].record_id = "CAP-1";
+    f.grant.capabilityIds = ["cap-1", "CAP-1"]; f.request.capabilityIds = [...f.grant.capabilityIds]; f.input.knowledge.content_hash = knowledgeContentHash(f.input.knowledge);
+    const index = cachedDiscoveryIndex(reconcile(f).snapshot, f.grant, f.request, now);
+    const result = searchDiscoveryIndex(index, { principalId: "research-agent", indexHash: index.indexHash, expiresAt: "2026-10-02T00:00:00Z" },
+      { ...query, taskTags: ["FOLDING"], capabilityIds: ["cap-1"], pageSize: 25 }, now);
+    expect(result.rows.find(row => row.entryId === "cap-1")!.score).toBe(2); expect(result.rows.find(row => row.entryId === "CAP-1")!.score).toBe(1);
+  });
+  it("compacts more than twenty valid original check dates without dropping details", () => {
+    const f = fixture(), fact = f.input.knowledge.records[0].facts[0];
+    fact.sources = Array.from({ length: 20 }, (_, index) => ({ ...fact.sources[0], source_checked_at: `2026-09-${String(index + 1).padStart(2, "0")}` }));
+    f.input.knowledge.records[0].facts.push({ ...fact, fact_id: "second-fact", sources: [{ ...fact.sources[0], source_checked_at: "2026-09-21" }] });
+    f.input.knowledge.content_hash = knowledgeContentHash(f.input.knowledge);
+    const snapshot = reconcile(f).snapshot, index = cachedDiscoveryIndex(snapshot, f.grant, f.request, now);
+    expect(index.entries[0].sourceCheckRange).toEqual({ earliest: "2026-09-01", latest: "2026-09-21", uniqueDateCount: 21 });
+    expect(snapshot.capabilities[0].facts[0].sources).toHaveLength(20);
+  });
+  it("marks empty evidence and unknown confidence as unknown", () => {
+    const f = fixture(); f.input.knowledge.records[0].facts = []; f.input.knowledge.content_hash = knowledgeContentHash(f.input.knowledge);
+    expect(cachedDiscoveryIndex(reconcile(f).snapshot, f.grant, f.request, now).entries[0].hasUnknowns).toBe(true);
+    expect(discovery().index.entries[0].hasUnknowns).toBe(true);
+  });
   it("rejects stale/forged indices, expired grants and cross-query cursor reuse", () => {
     const d = discovery(), first = searchDiscoveryIndex(d.index, d.grant, query, now);
     expect(() => searchDiscoveryIndex({ ...d.index, entries: [] }, d.grant, query, now)).toThrow("scope_or_hash_invalid");

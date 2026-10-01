@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { digest, hash, id, instant } from "./contract";
-import { originalDate, safeText, scopeSourceSnapshot, verifySourceSnapshot, type SourceGrant, type SourceRequest } from "./prior-research";
+import { dateMillis, originalDate, safeText, scopeSourceSnapshot, verifySourceSnapshot, type SourceGrant, type SourceRequest } from "./prior-research";
 
 export const PROGRESSIVE_RETRIEVAL_CONTRACT = {
   version: "blueprint.progressive-research-retrieval.v1", liveDirectoryReaderEnabled: false,
@@ -11,7 +11,8 @@ export const PROGRESSIVE_RETRIEVAL_CONTRACT = {
 const ids = z.array(id).max(100).refine(values => new Set(values).size === values.length);
 const entrySchema = z.object({ entryId: id, teamId: id.nullable(), companyId: id, capabilityIds: ids,
   name: safeText(200), taskTags: z.array(safeText(120)).max(20), regionTags: z.array(safeText(120)).max(20),
-  hasUnknowns: z.boolean(), hasConflicts: z.boolean(), sourceCheckedDates: z.array(originalDate).max(20),
+  hasUnknowns: z.boolean(), hasConflicts: z.boolean(),
+  sourceCheckRange: z.object({ earliest: originalDate.nullable(), latest: originalDate.nullable(), uniqueDateCount: z.number().int().min(0).max(400) }).strict(),
 }).strict();
 const indexSchema = z.object({ version: z.literal("blueprint.research-discovery-index.v1"), indexHash: hash,
   source: z.object({ recordRef: safeText(500), sourceHash: hash, projectionHash: hash.optional(), asOf: instant }).strict(),
@@ -35,11 +36,14 @@ export function cachedDiscoveryIndex(source: unknown, grant: SourceGrant, reques
     source: { recordRef: `blueprintResearchLearning/default/sourceSnapshots/${rootId}`,
       sourceHash: rootId, projectionHash: snapshot.contentHash, asOf: snapshot.asOf },
     coverage: "cached_capabilities_only" as const, completeForSource: false,
-    entries: snapshot.capabilities.map(record => ({ entryId: record.capabilityId, teamId: null, companyId: record.companyId, capabilityIds: [record.capabilityId],
+    entries: snapshot.capabilities.map(record => {
+      const dates = [...new Set(record.facts.flatMap(fact => fact.sources.map(source => source.sourceCheckedAt)))].sort((a, b) => dateMillis(a) - dateMillis(b) || a.localeCompare(b));
+      return { entryId: record.capabilityId, teamId: null, companyId: record.companyId, capabilityIds: [record.capabilityId],
       name: snapshot.companies.find(company => company.companyId === record.companyId)!.name,
       taskTags: record.taskTags, regionTags: record.geographyTags,
-      hasUnknowns: record.facts.some(fact => ["unknown", "unsupported"].includes(fact.status)), hasConflicts: record.facts.some(fact => fact.status === "conflicted"),
-      sourceCheckedDates: [...new Set(record.facts.flatMap(fact => fact.sources.map(source => source.sourceCheckedAt)))].sort() })) };
+      hasUnknowns: !record.facts.length || record.facts.some(fact => fact.status !== "reviewed" || fact.confidence === "unknown" || fact.evidenceLevel === "unknown" || !fact.sources.length),
+      hasConflicts: record.facts.some(fact => fact.status === "conflicted"),
+      sourceCheckRange: { earliest: dates[0] ?? null, latest: dates.at(-1) ?? null, uniqueDateCount: dates.length } }; }) };
   return indexSchema.parse({ ...content, indexHash: digest(content) });
 }
 
@@ -54,7 +58,7 @@ export function searchDiscoveryIndex(value: unknown, grantValue: DiscoveryGrant,
   const overlap = (asked: string[], actual: string[]) => asked.some(value => actual.some(item => item.toLowerCase() === value.toLowerCase()));
   const ranked = index.entries.map(entry => {
     const task = overlap(criteria.taskTags, entry.taskTags), region = overlap(criteria.regionTags, entry.regionTags),
-      company = criteria.companyIds.includes(entry.companyId), capability = overlap(criteria.capabilityIds, entry.capabilityIds);
+      company = criteria.companyIds.includes(entry.companyId), capability = criteria.capabilityIds.some(capabilityId => entry.capabilityIds.includes(capabilityId));
     return { ...entry, score: Number(task) + Number(region) + Number(company) + Number(capability),
       taskMatch: task ? "indexed_tag_match" : !criteria.taskTags.length ? "not_requested" : entry.taskTags.length ? "other_indexed_tasks" : "unknown",
       regionMatch: region ? "indexed_tag_match" : !criteria.regionTags.length ? "not_requested" : entry.regionTags.length ? "other_indexed_regions" : "unknown" };
