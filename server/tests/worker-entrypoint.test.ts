@@ -18,6 +18,7 @@ const startStripeWebhookQueueProcessor = vi.hoisted(() => vi.fn());
 const startTaskEvaluationLaunchForwardWorker = vi.hoisted(() => vi.fn());
 const startAdpManagedRunWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
 const startCompanyPolicyCandidateOutboxWorker = vi.hoisted(() => vi.fn());
+const startCommunicationsWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
 const stopResearch = vi.hoisted(() => vi.fn(async () => {}));
 const startDailyResearchWorker = vi.hoisted(() => vi.fn(() => ({ stop: stopResearch })));
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
@@ -28,6 +29,7 @@ vi.mock("../utils/taskEvaluationLaunchForwardWorker", () => ({
   startTaskEvaluationLaunchForwardWorker,
 }));
 vi.mock("../agents/adp-managed-runs", () => ({ startAdpManagedRunWorker }));
+vi.mock("../agents/communications-worker", () => ({ startCommunicationsWorker }));
 vi.mock("../utils/companyPolicyCandidateOutboxWorker", () => ({
   startCompanyPolicyCandidateOutboxWorker,
 }));
@@ -46,6 +48,22 @@ afterEach(() => {
 });
 
 describe("worker entrypoint", () => {
+  it("awaits communications drain together with the independent research stop", async () => {
+    let finish: () => void = () => {};
+    const stopCommunications = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+    startCommunicationsWorker.mockReturnValueOnce(stopCommunications);
+    startOpsAutomationScheduler.mockReturnValue(vi.fn());
+    startStripeWebhookQueueProcessor.mockReturnValue(vi.fn());
+    startTaskEvaluationLaunchForwardWorker.mockReturnValue(vi.fn());
+    startCompanyPolicyCandidateOutboxWorker.mockReturnValue(vi.fn());
+    const { startWorker } = await import("../worker");
+    const handle = startWorker();
+    let stopped = false;
+    const promise = handle.stop(); void promise.then(() => { stopped = true; });
+    await Promise.resolve(); expect(stopped).toBe(false);
+    expect(stopCommunications).toHaveBeenCalledTimes(1); expect(stopResearch).toHaveBeenCalledTimes(1);
+    finish(); await promise; expect(stopped).toBe(true);
+  });
   it("shares the same shutdown promise for concurrent signals", async () => {
     startOpsAutomationScheduler.mockReturnValue(vi.fn());
     startStripeWebhookQueueProcessor.mockReturnValue(vi.fn());
@@ -66,6 +84,8 @@ describe("worker entrypoint", () => {
     const stopQueueProcessor = vi.fn();
     const stopLaunchForwarder = vi.fn();
     const stopCompanyPolicyOutbox = vi.fn();
+    const stopCommunications = vi.fn();
+    startCommunicationsWorker.mockReturnValue(stopCommunications);
     startOpsAutomationScheduler.mockReturnValue(stopScheduler);
     startStripeWebhookQueueProcessor.mockReturnValue(stopQueueProcessor);
     startTaskEvaluationLaunchForwardWorker.mockReturnValue(stopLaunchForwarder);
@@ -79,6 +99,7 @@ describe("worker entrypoint", () => {
     expect(startStripeWebhookQueueProcessor).toHaveBeenCalledTimes(1);
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
     expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
+    expect(startCommunicationsWorker).toHaveBeenCalledTimes(1);
     expect(startDailyResearchWorker).toHaveBeenCalledTimes(1);
     expect(stopScheduler).not.toHaveBeenCalled();
 
@@ -88,6 +109,7 @@ describe("worker entrypoint", () => {
     expect(stopQueueProcessor).toHaveBeenCalledTimes(1);
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
     expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
+    expect(stopCommunications).toHaveBeenCalledTimes(1);
     expect(stopResearch).toHaveBeenCalledTimes(1);
   });
 

@@ -33,6 +33,9 @@ import type {
   OutboundOutreachOutput,
 } from "../agents/tasks/outbound-outreach";
 import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
+import { CommunicationsStore } from "../agents/communications-store";
+import { communicationsDigest } from "../agents/communications-contract";
+import { founderMailboxConnectionPlan } from "../agents/communications-connection";
 import {
   outreachConnectionEvidenceSchema,
   outreachCapabilityEvidenceSchema,
@@ -153,6 +156,71 @@ router.get("/", async (_req: Request, res: Response) => {
   const snapshot = await db.collection(COLLECTION).limit(200).get();
   const prospects = snapshot.docs.map((doc) => ({ prospectId: doc.id, ...doc.data() }));
   return res.json({ ok: true, prospects });
+});
+
+/** Owner preparation only: no OAuth redirect, token input, API call or write. */
+router.get("/communications/connection", async (_req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({ ok: true, connection: founderMailboxConnectionPlan() });
+});
+
+router.get("/communications/blocked-jobs", async (_req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  res.setHeader("Cache-Control", "no-store");
+  try { return res.json({ ok: true, jobs: await new CommunicationsStore(db).blockedJobs() }); }
+  catch { return res.status(503).json({ error: "communications_store_unavailable" }); }
+});
+
+/** Enqueue references only; the communications worker loads authoritative data. */
+router.post("/:prospectId/communications", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const parsed = z.object({
+    briefId: z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/),
+    intent: z.enum(["outreach", "reply"]),
+    inboundMessageId: z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/).nullable(),
+  }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "communications_job_invalid" });
+  const prospectId = String(req.params.prospectId || "");
+  try {
+    const store = new CommunicationsStore(db);
+    const brief = await store.brief(parsed.data.briefId);
+    if (brief.prospectId !== prospectId || !(await readProspect(prospectId))) return res.status(409).json({ error: "canonical_prospect_mismatch" });
+    const job = await store.enqueue({ ...parsed.data, prospectId, briefDigest: communicationsDigest(brief) });
+    return res.status(202).json({ ok: true, job, sent: false, gmailDraftCreated: false });
+  } catch { return res.status(409).json({ error: "communications_context_missing_or_invalid" }); }
+});
+
+router.get("/:prospectId/communications", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const ref = db.collection(COLLECTION).doc(String(req.params.prospectId));
+  const prospect = await ref.get();
+  if (!prospect.exists) return res.status(404).json({ error: "not_found" });
+  const events = await ref.collection("communicationsEvents").limit(30).get();
+  const jobs = await new CommunicationsStore(db).jobsForProspect(String(req.params.prospectId));
+  return res.json({ ok: true, jobs, communications: prospect.data()?.communications ?? null,
+    events: events.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
+});
+
+/** Requeue one blocked job after repair; retain its create claim and budget. */
+router.post("/:prospectId/communications/:jobId/retry", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const user = res.locals.firebaseUser;
+  const requestedBy = typeof user?.uid === "string" ? user.uid.trim() : "";
+  if (!requestedBy) return res.status(403).json({ error: "operator_identity_missing" });
+  const parsed = z.object({ briefDigest: z.string().regex(/^[a-f0-9]{64}$/) }).strict().safeParse(req.body);
+  const prospectId = String(req.params.prospectId || ""), jobId = String(req.params.jobId || "");
+  if (!parsed.success || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(prospectId) || !/^[a-f0-9]{64}$/.test(jobId)) {
+    return res.status(400).json({ error: "communications_retry_invalid" });
+  }
+  try {
+    const job = await new CommunicationsStore(db).retryBlocked({ prospectId, jobId, ...parsed.data, requestedBy });
+    return res.status(202).json({ ok: true, job, sent: false, sessionCreated: false });
+  } catch { return res.status(409).json({ error: "communications_retry_not_eligible" }); }
 });
 
 /**

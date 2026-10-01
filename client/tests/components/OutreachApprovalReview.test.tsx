@@ -13,6 +13,16 @@ const review: OutreachReviewSummary = {
 const payload = { to: "ops@packing-facility.co", subject: "A packing question", body: "I'm building Blueprint. Is packing relevant?", outreachContext: { observations: [] } };
 
 describe("existing queue outreach approval review", () => {
+  it("shows the exact founder sender and full transport message while sending is disabled", () => {
+    const onApprove = vi.fn();
+    render(<OutreachApprovalReview review={review} payload={{ ...payload, from: "nijel@tryblueprint.io", transportBody: payload.body + "\nPrivacy and opt-out footer" }} pending={false} onApprove={onApprove} sendingEnabled={false} />);
+    expect(screen.getByText("From: nijel@tryblueprint.io")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("Sending is disabled");
+    screen.getAllByRole("checkbox").forEach(box => fireEvent.click(box));
+    expect(screen.getByRole("button", { name: "Approve outreach" })).toBeDisabled();
+    expect(onApprove).not.toHaveBeenCalled();
+    expect(screen.getByText("Full message including footer")).toBeVisible();
+  });
   it("shows the exact message and requires every semantic check before approval", () => {
     const onApprove = vi.fn();
     render(<OutreachApprovalReview review={review} payload={payload} pending={false} onApprove={onApprove} />);

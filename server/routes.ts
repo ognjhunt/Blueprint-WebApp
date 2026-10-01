@@ -96,10 +96,12 @@ import internalTaskEvaluationLaunchSubmissionsRouter from "./routes/internal-tas
 import internalTaskEvaluationLaunchPreparationsRouter from "./routes/internal-task-evaluation-launch-preparations";
 import configuredSceneOfferingsRouter from "./routes/configured-scene-offerings";
 import { registerBlueprintWorkRoutes } from "./routes/blueprint-work";
+import { registerFounderGmailOAuthRoutes } from "./routes/communications-oauth";
 import evaluationReadyRunsRouter from "./routes/evaluation-ready-runs";
 
 export function registerRoutes(app: Express) {
   registerBlueprintWorkRoutes(app);
+  registerFounderGmailOAuthRoutes(app);
   app.use(appleAssociationRouter);
 
   // Health check routes (no /api prefix for standard probe paths)
@@ -148,7 +150,7 @@ export function registerRoutes(app: Express) {
   // The claim link's own read: what the operator would be claiming. The
   // attach is /api/workspace/claim, behind Firebase auth.
   app.use("/api/site-claim", siteClaimRouter);
-  app.use("/api/admin/outbound-prospects", adminOutboundProspectsRouter);
+  app.use("/api/admin/outbound-prospects", csrfProtection, verifyFirebaseToken, adminOutboundProspectsRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
   app.use("/api/internal/pipeline", internalCompanyPolicyRegistryCredentialsRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);

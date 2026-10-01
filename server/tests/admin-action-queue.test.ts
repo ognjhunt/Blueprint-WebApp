@@ -239,6 +239,20 @@ afterEach(() => {
 });
 
 describe("admin action queue", () => {
+  it("keeps interrupted communications sends visible for receipt-only recovery", async () => {
+    const original = ledgerRows[0];
+    ledgerRows[0] = { ...original, data: { ...original.data, status: "executing" } };
+    Object.assign(ledgerRows[0].data.action_payload, { communications: { version: "invalid_marker_fails_closed" } });
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/action-queue?limit=25`);
+      const data = await response.json();
+      expect(data.items.find((item: { id: string }) => item.id === original.id).status).toBe("executing");
+      delete (ledgerRows[0].data.action_payload as any).communications;
+      const generic = await (await fetch(`${baseUrl}/action-queue?limit=25`)).json();
+      expect(generic.items.some((item: { id: string }) => item.id === original.id)).toBe(false);
+    } finally { delete (original.data.action_payload as any).communications; ledgerRows[0] = original; await stopServer(server); }
+  });
   it("returns the current outreach review digest and checklist for a stored prospect draft", async () => {
     const original = ledgerRows[0];
     ledgerRows[0] = { ...original, data: { ...original.data, lane: "outbound_prospect", source_collection: "outboundProspects",
