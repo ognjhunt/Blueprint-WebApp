@@ -27,6 +27,7 @@ export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrie
   for (const fact of brief.facts) {
     if (!candidate.evidence?.some((entry: any) => entry.claim === fact.claim && entry.url === fact.sourceUrl
       && Date.parse(entry.source_checked_at ?? entry.checked_date) === Date.parse(fact.sourceCheckedAt)
+      && (fact.assertionScope === undefined || fact.assertionScope === (entry.assertion_scope ?? "as_of_background"))
       && (entry.claim_kind === "hypothesis" ? fact.evidenceClass === "inference"
         : entry.claim_kind === "vendor_claim" || entry.classification === "vendor" ? fact.evidenceClass === "vendor_reported"
         : entry.claim_kind === "fact" && ["operator", "independent"].includes(entry.classification)
@@ -126,6 +127,7 @@ export function researchPublicationSource(snapshot: any, origin: CommunicationsB
     runKey: row.run_key, date: origin.date, candidateKey: origin.candidateKey,
     packetDigest: origin.packetDigest, rawArtifactDigest: origin.rawArtifactDigest,
     candidate, researchReview: row.review, qaArtifactDigest: qa.artifact_digest,
+    sheetsId: row.packet.destinations.sheet_id,
     sheetsProspectId: ids[selected.findIndex((item: any) => item.candidate_key === origin.candidateKey)],
     sheetsReceipt, notionReceipt, sheetsPlanDigest: researchDigest(plan),
   };

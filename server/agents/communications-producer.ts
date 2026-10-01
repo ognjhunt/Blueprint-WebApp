@@ -71,6 +71,7 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
         : entry.claim_kind === "vendor_claim" || entry.classification === "vendor" ? "vendor_reported"
         : entry.classification === "operator" ? "operator_stated" : "primary",
       sourceCheckedAt: entry.source_checked_at ?? entry.checked_date,
+      assertionScope: entry.assertion_scope ?? "as_of_background",
       publishedAt: entry.source_date ?? null, eventAt: null, consequential: true,
     };
   });
@@ -123,11 +124,18 @@ export async function approveResearchCommunications(db: FirebaseFirestore.Firest
   const root = db.doc(COMMUNICATIONS_ROOT);
   const sourceRef = db.collection("outboundProspects").doc(brief.prospectId);
   const briefRef = root.collection("briefs").doc(brief.briefId);
+  const bindingRef = root.collection("researchBindings").doc(communicationsDigest({
+    sheetsId: preview.source.sheetsId, sheetsProspectId: preview.source.sheetsProspectId,
+  }));
   return db.runTransaction(async (tx) => {
-    const [prospect, existing] = await Promise.all([tx.get(sourceRef), tx.get(briefRef)]);
+    const [prospect, existing, binding] = await Promise.all([tx.get(sourceRef), tx.get(briefRef), tx.get(bindingRef)]);
+    if (binding.exists && (binding.data()?.prospectId !== brief.prospectId
+      || binding.data()?.sheetsId !== preview.source.sheetsId
+      || binding.data()?.sheetsProspectId !== preview.source.sheetsProspectId)) throw new Error("research_adapter_source_already_bound");
     if (!prospect.exists || communicationsDigest(canonicalContext(prospect.data(), input.context, preview.source.sheetsProspectId))
       !== communicationsDigest(preview.canonical)) throw new Error("research_adapter_canonical_context_changed");
     if (existing.exists) {
+      if (!binding.exists) throw new Error("research_adapter_immutable_conflict");
       const saved = communicationsBriefSchema.parse(existing.data());
       const { qualityReview: _quality, ...savedProposal } = saved;
       if (communicationsDigest(savedProposal) !== communicationsDigest(preview.proposal)) throw new Error("research_adapter_immutable_conflict");
@@ -140,6 +148,8 @@ export async function approveResearchCommunications(db: FirebaseFirestore.Firest
       return { brief: saved, handoff: savedHandoff, briefDigest: savedDigest, created: false };
     }
     tx.create(briefRef, brief);
+    if (!binding.exists) tx.create(bindingRef, { prospectId: brief.prospectId,
+      sheetsId: preview.source.sheetsId, sheetsProspectId: preview.source.sheetsProspectId });
     tx.create(root.collection("handoffs").doc(digest), handoff);
     tx.create(root.collection("researchSources").doc(digest), { briefDigest: digest, source: preview.source,
       previewDigest: preview.previewDigest, contactSourceIdentifiesRecipient: input.context.contactSourceIdentifiesRecipient });

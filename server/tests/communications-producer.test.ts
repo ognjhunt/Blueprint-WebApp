@@ -24,6 +24,7 @@ describe("published research → human reviewed communications producer (offline
     expect(preview.source.researchReview.reviewer_reference).toContain("qa-turn-1");
     expect(preview.proposal.facts.map(x => x.evidenceClass)).toEqual(["operator_stated", "vendor_reported", "operator_stated", "vendor_reported"]);
     expect(preview.proposal.facts[3].sourceCheckedAt).toBe("2026-09-29T20:00:00Z");
+    expect(preview.proposal.facts[3].assertionScope).toBe("as_of_background");
     expect(preview.source.candidate.evidence[3].snapshot_fact_id).toBe("snapshot-fact-9");
     expect(preview.proposal.unknowns).toEqual(f.candidate.unknowns);
     expect(preview.proposal.stage).toEqual({ interest: "unknown", evidenceIds: [] });
@@ -94,6 +95,19 @@ describe("published research → human reviewed communications producer (offline
     await db.collection("outboundProspects").doc("prospect-1").update({ contactEmail: "changed@facility.example" });
     await expect(approveResearchCommunications(db, preview, f.input, preview.previewDigest, "operator", communicationsNow)).rejects.toThrow("canonical_context_changed");
     expect([...db.records.keys()]).toEqual(["outboundProspects/prospect-1"]);
+  });
+
+  it("fences concurrent duplicate WebApp prospects against the same published Sheets identity", async () => {
+    const f = setup(), db = memoryFirestore();
+    for (const prospectId of ["prospect-1", "prospect-2"]) await db.collection("outboundProspects").doc(prospectId).set(f.prospect);
+    const results = await Promise.allSettled(["prospect-1", "prospect-2"].map(prospectId => {
+      const preview = previewResearchCommunications(f.snapshot, prospectId, f.prospect, f.input, communicationsNow);
+      return approveResearchCommunications(db, preview, f.input, preview.previewDigest, "operator", communicationsNow);
+    }));
+    expect(results.filter(x => x.status === "fulfilled")).toHaveLength(1);
+    expect((results.find(x => x.status === "rejected") as PromiseRejectedResult).reason.message).toBe("research_adapter_source_already_bound");
+    expect([...db.records.keys()].filter((key: string) => key.includes("/briefs/"))).toHaveLength(1);
+    expect([...db.records.keys()].filter((key: string) => key.includes("/researchBindings/"))).toHaveLength(1);
   });
 
   it("runs the existing worker on producer output with fake inference, retaining tier-3 human send approval", async () => {

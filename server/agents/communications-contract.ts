@@ -18,6 +18,7 @@ const evidence = z.object({
   id, claim: text, sourceUrl: publicUrl,
   evidenceClass: z.enum(["primary", "corroborated", "operator_stated", "vendor_reported", "inference"]),
   sourceCheckedAt: sourceDate, publishedAt: sourceDate.nullable(), eventAt: sourceDate.nullable(),
+  assertionScope: z.enum(["as_of_background", "current_operational", "deployment_critical"]).optional(),
   consequential: z.boolean(),
 }).strict();
 

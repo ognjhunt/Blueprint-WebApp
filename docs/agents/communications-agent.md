@@ -35,6 +35,7 @@ Private root `blueprintCommunications/default`:
 | `briefs/{briefId}` | Strict `blueprint.communications-brief.v1`; a new revision changes its full digest |
 | `handoffs/{briefDigest}` | Immutable `blueprint.communications-handoff.v1`, written by research QA/publication or the verified publication adapter after authenticated human context review |
 | `researchSources/{briefDigest}` | Immutable original candidate, QA reference/digest, exact publication plan digest and external Sheets ID; bound by the brief's optional `researchOrigin.sourceDigest` |
+| `researchBindings/{sourceIdentityDigest}` | One immutable WebApp prospect binding per Sheets document/BP ID, preventing duplicate first touches through separate prospect IDs |
 | `jobs/{jobId}` | Digest of prospect, brief ID/digest, intent and incoming message ID; fenced lease, maximum three recovery attempts, persisted API create/session/turn checkpoint |
 | `refreshRequests/{jobId}` | Pending request to the research agent for relevant claims; no observer receipt |
 | `sendReceipts/{deliveryKey}` | One-use claim bound to mailbox/prospect/intent/incoming message, independent of brief revisions; actual Gmail receipt or unresolved acknowledgement |
@@ -115,6 +116,8 @@ bindings refuse approval. The WebApp prospect ID is preserved; the external
 Sheets ID is stored separately as `researchPublicationId`. Neither an email in
 an old prospect nor research publication proves permission: the operator must
 verify that the public source identifies that exact recipient and business route.
+The approval transaction refuses another WebApp prospect already bound to that
+published Sheets identity; concurrent duplicate imports cannot create two handoffs.
 
 The adapter requires completed research with raw/review/evidence hashes, a
 validated QA artifact bound to the actual research session/QA turn, an accepted
@@ -124,6 +127,8 @@ quotes, scope, cached snapshot/fact IDs and unknowns. Every fact receives a stab
 source-derived ID and its original check/published date. Operator facts remain
 operator-stated, independent facts primary, vendor claims vendor-reported, and
 hypotheses inference. All are conservatively consequential (seven-day freshness).
+Original assertion scopes also travel in each fact to the writer; dated
+background cannot become current operational or deployment readiness evidence.
 The worker revalidates the source digest against the durable publication before
 inference; loading a cached source cannot refresh its date.
 
