@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { useAuth } from "@/contexts/AuthContext";
 
 type ConnectionPreparation = {
   account: string;
@@ -11,14 +13,15 @@ type ConnectionPreparation = {
 
 /** Shows the owner handoff. It cannot initiate OAuth or accept credentials. */
 export function FounderMailboxConnection() {
+  const { currentUser } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const connection = useQuery<ConnectionPreparation>({
-    queryKey: ["founder-mailbox-connection-preparation"],
-    enabled: expanded,
+    queryKey: ["founder-mailbox-connection-preparation", currentUser?.uid],
+    enabled: expanded && Boolean(currentUser),
     retry: false,
     queryFn: async () => {
       const response = await fetch("/api/admin/outbound-prospects/communications/connection", {
-        headers: await withCsrfHeader({}),
+        headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser)),
       });
       if (!response.ok) throw new Error("Founder connection preparation is unavailable.");
       return (await response.json()).connection;

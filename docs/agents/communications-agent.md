@@ -184,6 +184,11 @@ answer before requesting cancellation. A completed turn can still produce its
 reviewable draft; unavailable saved state is bounded recovery, never a new POST
 or evidence of cancellation. Shutdown closes admission, clears the timer and
 awaits the current tick's checkpoint/draft writes before the entrypoint exits.
+Both worker and paid-inference flags gate the queue loop, including recovery.
+When either flag is disabled, checkpoints remain durable but no automatic saved-turn
+reads run. The API's read-only reconciliation method can run without paid authority;
+there is no separate production recovery endpoint in this release. Do not enable
+paid inference solely to recover a saved turn.
 
 In Approvals → **Review blocked communications jobs**, an authenticated operator
 can inspect up to 20 canonical blocked jobs and retry after repairing the

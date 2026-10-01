@@ -1,8 +1,14 @@
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FounderMailboxConnection } from "@/components/admin/FounderMailboxConnection";
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: object) => headers }));
+const auth = vi.hoisted(() => ({ useAuth: vi.fn(), getIdToken: vi.fn() }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: auth.useAuth }));
+beforeEach(() => {
+  auth.getIdToken.mockResolvedValue("mock-firebase-token");
+  auth.useAuth.mockReturnValue({ currentUser: { uid: "ops-user", getIdToken: auth.getIdToken } });
+});
 afterEach(() => vi.restoreAllMocks());
 function page() {
   return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><FounderMailboxConnection /></QueryClientProvider>);
@@ -19,7 +25,9 @@ describe("founder connection preparation in Blueprint review", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
     expect(await screen.findByText(/separate founder binding is missing/)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith("/api/admin/outbound-prospects/communications/connection", { headers: {} });
+    expect(fetchMock).toHaveBeenCalledWith("/api/admin/outbound-prospects/communications/connection", {
+      headers: { Authorization: "Bearer mock-firebase-token" },
+    });
     expect(screen.getByText(/OAuth initiation is blocked/)).toBeInTheDocument();
     expect(view.container.querySelectorAll("input,textarea,form")).toHaveLength(0);
     expect(screen.getByRole("link")).toHaveAttribute("href", "https://console.cloud.google.com/auth/clients");
@@ -29,5 +37,11 @@ describe("founder connection preparation in Blueprint review", () => {
     page(); fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Founder connection preparation is unavailable.");
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+  it("does not request private preparation while signed out", () => {
+    auth.useAuth.mockReturnValue({ currentUser: null });
+    const fetchMock = vi.spyOn(global, "fetch");
+    page(); fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

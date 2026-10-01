@@ -148,7 +148,7 @@ export function registerRoutes(app: Express) {
   // The claim link's own read: what the operator would be claiming. The
   // attach is /api/workspace/claim, behind Firebase auth.
   app.use("/api/site-claim", siteClaimRouter);
-  app.use("/api/admin/outbound-prospects", adminOutboundProspectsRouter);
+  app.use("/api/admin/outbound-prospects", csrfProtection, verifyFirebaseToken, adminOutboundProspectsRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
   app.use("/api/internal/pipeline", internalCompanyPolicyRegistryCredentialsRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
