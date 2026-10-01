@@ -2,8 +2,11 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 
 import yaml from "js-yaml";
+import { openAiDailyEvidence } from "./daily-spend-evidence.js";
 
 const DEFAULT_REGISTRY_PATH = "config/autonomy/spend-sources.yaml";
 const DEFAULT_OUT_DIR = "output/autonomous-org/budget/spend-snapshots";
@@ -318,6 +321,7 @@ async function fetchJson(
   url: string,
   init: RequestInit,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  onReceived?: (body: string) => void,
 ): Promise<unknown> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -340,6 +344,7 @@ async function fetchJson(
       const detail = typeof json === "object" && json ? JSON.stringify(json).slice(0, 500) : text.slice(0, 500);
       throw new Error(`HTTP ${response.status} ${response.statusText}: ${detail}`);
     }
+    onReceived?.(text);
     return json;
   } finally {
     clearTimeout(timeout);
@@ -368,45 +373,34 @@ function sumNumbers(values: Array<number | null>) {
   return values.reduce((sum, value) => sum + (value ?? 0), 0);
 }
 
-function extractOpenAiCostUsd(payload: unknown) {
-  const buckets = asArray(asRecord(payload).data);
-  return sumNumbers(
-    buckets.flatMap((bucket) => {
-      const results = asArray(asRecord(bucket).results);
-      return results.map((result) => {
-        const amount = asRecord(asRecord(result).amount);
-        const currency = String(amount.currency ?? "usd").toLowerCase();
-        return currency === "usd" ? asNumber(amount.value) : null;
-      });
-    }),
-  );
-}
-
-async function collectOpenAiCosts(source: SourceConfig, window: SpendSnapshot["window"]): Promise<Partial<SourceSnapshot>> {
+export async function collectOpenAiCosts(source: SourceConfig, window: SpendSnapshot["window"]): Promise<Partial<SourceSnapshot>> {
   const url = new URL("https://api.openai.com/v1/organization/costs");
   const endUnix = Math.max(window.end_unix, window.start_unix + 86400);
   url.searchParams.set("start_time", String(window.start_unix));
   url.searchParams.set("end_time", String(endUnix));
   url.searchParams.set("bucket_width", "1d");
   url.searchParams.set("limit", "31");
+  let responseDigest: string | undefined;
   const payload = await fetchJson(url.toString(), {
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_ADMIN_KEY}`,
       "Content-Type": "application/json",
     },
-  });
-  const amountUsd = extractOpenAiCostUsd(payload);
+  }, DEFAULT_TIMEOUT_MS, (body) => { responseDigest = `sha256:${createHash("sha256").update(body).digest("hex")}`; });
+  const dailyEvidence = openAiDailyEvidence(payload, new Date().toISOString(), responseDigest, { start_unix: window.start_unix, end_unix: endUnix });
+  const amountUsd = dailyEvidence.amount_usd_current_period;
   return {
-    status: "live_billing_verified",
-    proof_level: "live-billing",
-    can_count_toward_budget_actuals: true,
+    status: amountUsd === null ? "live_usage_verified" : "live_billing_verified",
+    proof_level: amountUsd === null ? "live-usage" : "live-billing",
+    can_count_toward_budget_actuals: amountUsd !== null,
     amount_usd_current_period: amountUsd,
     endpoint_host: url.hostname,
     summary: {
       bucket_count: asArray(asRecord(payload).data).length,
       amount_usd_current_period: amountUsd,
+      daily_evidence: dailyEvidence,
     },
-    missing_to_verify: [],
+    missing_to_verify: dailyEvidence.coverage.gaps,
     notes: source.notes ?? [],
   };
 }
@@ -1014,7 +1008,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch((error) => {
   console.error(sanitizeMessage(error, []));
   process.exitCode = 1;
 });
