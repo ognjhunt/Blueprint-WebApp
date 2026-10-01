@@ -257,6 +257,24 @@ function recoveredSubmission(existing: InboundRequest): SubmitInboundRequestResp
   };
 }
 
+async function repairTaskReceivedNotification(existing: InboundRequest): Promise<void> {
+  // An authorized retry also recovers an interrupted first-email enqueue.
+  // Eligibility comes from the saved intake, never the retry's changed answers.
+  if (!siteCaptureUrl(
+    existing.request?.buyerType || "",
+    existing.requestId,
+    existing.request?.capture_region ?? null,
+  )) return;
+
+  try {
+    // The existing outbox create precondition deduplicates concurrent retries
+    // and preserves pending, sent and exhausted intents without resetting them.
+    await enqueueTaskLifecycleNotification({ requestId: existing.requestId, milestone: "task_received" });
+  } catch (error) {
+    logger.warn({ error, requestId: existing.requestId }, "Could not repair the task-received email intent");
+  }
+}
+
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_IP = 10; // Max 10 submissions per IP per window
 // Per sender address, never per domain. A domain key throttled everyone on
@@ -1238,6 +1256,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         }
 
         logger.info({ requestId: payload.requestId }, "Duplicate request - returning existing");
+        await repairTaskReceivedNotification(existingData);
         return res.status(HTTP_STATUS.OK).json(recoveredSubmission(existingData));
       }
     }
@@ -1794,6 +1813,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
       }
 
       logger.info({ requestId: payload.requestId }, "Duplicate request - returning existing");
+      await repairTaskReceivedNotification(existingData);
       return res.status(HTTP_STATUS.OK).json(recoveredSubmission(existingData));
     }
 

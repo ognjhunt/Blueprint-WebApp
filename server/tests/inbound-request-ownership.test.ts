@@ -2,7 +2,7 @@
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE, fakeArrayUnion } = await import("./helpers/fake-firestore");
@@ -65,6 +65,7 @@ function payload(requestId: string, email: string) {
 
 async function start(): Promise<{ server: Server; baseUrl: string }> {
   const app = express();
+  app.set("trust proxy", true);
   app.use(express.json());
   app.post("/", (req, res, next) => {
     const owner = req.header("x-test-owner");
@@ -79,6 +80,27 @@ async function start(): Promise<{ server: Server; baseUrl: string }> {
 }
 
 beforeEach(() => sharedFakeFirestoreState.docs.clear());
+
+let syntheticIpSuffix = 0;
+async function saveWithoutFirstEmail(baseUrl: string, requestId: string) {
+  const body = { ...payload(requestId, `${requestId}@example.test`), retryToken: "r".repeat(64) };
+  const originalCollection = sharedFakeFirestore.collection.bind(sharedFakeFirestore);
+  const collectionSpy = vi.spyOn(sharedFakeFirestore, "collection").mockImplementation((name: string) => {
+    if (name !== "captureOutbox") return originalCollection(name);
+    return { doc: () => ({ create: async () => {
+      throw Object.assign(new Error("synthetic outbox unavailable"), { code: 14 });
+    } }) } as ReturnType<typeof originalCollection>;
+  });
+  try {
+    const response = await fetch(baseUrl, {
+      method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": `192.0.2.${++syntheticIpSuffix}` }, body: JSON.stringify(body),
+    });
+    expect(response.status).toBe(201);
+    expect(sharedFakeFirestoreState.docs.has(`inboundRequests/${requestId}`)).toBe(true);
+    expect(sharedFakeFirestoreState.docs.has(`captureOutbox/${requestId}:task_received`)).toBe(false);
+  } finally { collectionSpy.mockRestore(); }
+  return body;
+}
 
 describe("atomic inbound request ownership", () => {
   it("confirms the saved job even when its aggregate statistics cannot be updated", async () => {
@@ -138,6 +160,7 @@ describe("atomic inbound request ownership", () => {
       const retry = await post("us");
       expect(retry.status).toBe(200);
       expect((await retry.json()).captureUrl).toBeNull();
+      expect(sharedFakeFirestoreState.docs.has("captureOutbox/held-retry:task_received")).toBe(false);
     } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
   });
 
@@ -212,4 +235,145 @@ describe("atomic inbound request ownership", () => {
     }
   });
 
+});
+
+describe("saved intake first-email recovery", () => {
+  it("repairs a failed enqueue from saved contact and region without rerunning direct sends", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = await saveWithoutFirstEmail(baseUrl, "recover-first-email");
+      const saved = structuredClone(sharedFakeFirestoreState.docs.get("inboundRequests/recover-first-email"));
+      const { sendEmail } = await import("../utils/email");
+      const sendsBeforeRetry = vi.mocked(sendEmail).mock.calls.length;
+      const response = await fetch(baseUrl, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...body, email: "changed@example.test", captureRegion: "non_us" }),
+      });
+      expect(response.status).toBe(200);
+      expect((await response.json()).captureUrl).toContain("/capture-upload/");
+      expect(sharedFakeFirestoreState.docs.get("captureOutbox/recover-first-email:task_received"))
+        .toMatchObject({ to: body.email, status: "pending", attempts: 0 });
+      expect(sharedFakeFirestoreState.docs.get("inboundRequests/recover-first-email")).toEqual(saved);
+      expect(vi.mocked(sendEmail).mock.calls).toHaveLength(sendsBeforeRetry);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("creates one missing intent when authorized retries arrive concurrently", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = await saveWithoutFirstEmail(baseUrl, "recover-concurrently");
+      const post = () => fetch(baseUrl, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+      });
+      const responses = await Promise.all([post(), post(), post()]);
+      expect(responses.map(response => response.status)).toEqual([200, 200, 200]);
+      const notices = [...sharedFakeFirestoreState.docs.keys()]
+        .filter(key => key === "captureOutbox/recover-concurrently:task_received");
+      expect(notices).toHaveLength(1);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("repairs a missing intent after the atomic create loses a race", async () => {
+    const { server, baseUrl } = await start();
+    const originalCollection = sharedFakeFirestore.collection.bind(sharedFakeFirestore);
+    let restoreCollection: (() => void) | undefined;
+    try {
+      const body = await saveWithoutFirstEmail(baseUrl, "recover-create-race");
+      let staleRead = true;
+      const collectionSpy = vi.spyOn(sharedFakeFirestore, "collection").mockImplementation((name: string) => {
+        const collection = originalCollection(name);
+        if (name !== "inboundRequests") return collection;
+        return { ...collection, doc: (id: string) => {
+          const reference = collection.doc(id);
+          return { ...reference, get: async () => {
+            if (id === body.requestId && staleRead) {
+              staleRead = false;
+              return { exists: false, data: () => undefined };
+            }
+            return reference.get();
+          } };
+        } } as ReturnType<typeof originalCollection>;
+      });
+      restoreCollection = () => collectionSpy.mockRestore();
+      const response = await fetch(baseUrl, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(200);
+      expect(sharedFakeFirestoreState.docs.get("captureOutbox/recover-create-race:task_received"))
+        .toMatchObject({ status: "pending", to: body.email });
+    } finally {
+      restoreCollection?.();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  it.each(["pending", "sent", "failed"])("never resets an existing %s intent on replay", async status => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = await saveWithoutFirstEmail(baseUrl, `recover-existing-${status}`);
+      const key = `captureOutbox/${body.requestId}:task_received`;
+      const notice = { status, attempts: 6, sentAtIso: "2026-09-30T00:00:00Z", durable_marker: "keep" };
+      sharedFakeFirestoreState.docs.set(key, notice);
+      const response = await fetch(baseUrl, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(200);
+      expect(sharedFakeFirestoreState.docs.get(key)).toEqual(notice);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("does not create an intent for a caller with the wrong private retry token", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = await saveWithoutFirstEmail(baseUrl, "recover-denied");
+      const response = await fetch(baseUrl, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...body, retryToken: "s".repeat(64) }),
+      });
+      expect(response.status).toBe(409);
+      expect(sharedFakeFirestoreState.docs.has("captureOutbox/recover-denied:task_received")).toBe(false);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("does not use the private token to repair another workspace owner's missing intent", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = await saveWithoutFirstEmail(baseUrl, "recover-owner-denied");
+      const requestKey = `inboundRequests/${body.requestId}`;
+      const saved = { ...sharedFakeFirestoreState.docs.get(requestKey), account_owner_uid: "owner-a" };
+      sharedFakeFirestoreState.docs.set(requestKey, saved);
+      const response = await fetch(baseUrl, {
+        method: "POST", headers: { "content-type": "application/json", "x-test-owner": "owner-b" },
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(409);
+      expect(sharedFakeFirestoreState.docs.has(`captureOutbox/${body.requestId}:task_received`)).toBe(false);
+      expect(sharedFakeFirestoreState.docs.get(requestKey)).toEqual(saved);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  it("preserves the saved receipt when the outbox is still unavailable during retry", async () => {
+    const { server, baseUrl } = await start();
+    let restoreCollection: (() => void) | undefined;
+    try {
+      const body = await saveWithoutFirstEmail(baseUrl, "recover-still-unavailable");
+      const saved = structuredClone(sharedFakeFirestoreState.docs.get(`inboundRequests/${body.requestId}`));
+      const originalCollection = sharedFakeFirestore.collection.bind(sharedFakeFirestore);
+      const collectionSpy = vi.spyOn(sharedFakeFirestore, "collection").mockImplementation((name: string) => {
+        if (name !== "captureOutbox") return originalCollection(name);
+        return { doc: () => ({ create: async () => { throw new Error("synthetic outbox still unavailable"); } }) } as ReturnType<typeof originalCollection>;
+      });
+      restoreCollection = () => collectionSpy.mockRestore();
+      const response = await fetch(baseUrl, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(200);
+      expect((await response.json()).captureUrl).toContain("/capture-upload/");
+      expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${body.requestId}`)).toEqual(saved);
+      expect(sharedFakeFirestoreState.docs.has(`captureOutbox/${body.requestId}:task_received`)).toBe(false);
+    } finally {
+      restoreCollection?.();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
 });
