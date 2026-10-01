@@ -1,0 +1,190 @@
+# Research and outreach learning layer
+
+Status: offline implementation and staged read contract; live cutover disabled.
+Owner: WebApp learning projection, coordinated by the parent engineering lane.
+Authorized objective: make site/job/team research reuse evidence from previous
+research, contact availability, outreach, replies and later outcomes. The owner
+explicitly approved this support layer on 2026-10-01 at 17:07. It does not change
+scientific verdict, rights, physical-outcome or send authority.
+
+## Field ownership and exact joins
+
+| Record/fields | Writer and authority | Learning behavior |
+| --- | --- | --- |
+| `outboundProspects/{prospectId}`: facility/job/contact, `siteId`, `taskId`, `caseId`, `researchPublicationId`, stage, contacted timestamps and communications pointers | Existing CRM/intake owner | Read exact IDs; preserve all existing records and `BP-*` CRM IDs. Do not deduplicate by company name, sender or subject. |
+| `blueprintCommunications/default/briefs`, `handoffs`, `researchSources`, `researchBindings` | Existing research QA/publication and verified intake adapter | Verify brief/source/handoff digests and publication receipts. Reuse fact IDs, original check dates, grades and capability/team IDs. Reading a snapshot or reviewing a brief does not refresh public sources. |
+| `action_ledger/communications_{jobId}`: payload/body, model draft/usage links, approval/status/timestamps | Existing communications/action policy owner | Verify complete job/brief/recipient and payload digest. Export message digest and references; never export email/body or approval authority. |
+| `blueprintCommunications/default/sendReceipts/{deliveryKey}`: attempting/unknown/sent, job/payload/ledger/RFC IDs, attempted/sent timestamps and Gmail receipt | Existing communications send owner (PR786) | Attempting is an attempt; unknown acknowledgement remains unknown; sent plus Gmail refs means provider acceptance. None proves delivery. |
+| `outboundProspects/{id}/communicationsEvents/reply_{messageId}`: correlated inbound message, `untrusted:true`; `sent_{jobId}`: sent receipt/job/payload/ledger refs | Existing communications store | Read only exact associated job/thread/message records. Preserve source hashes, not raw mailbox text. Legacy meaning is unknown; human correction provides classification. |
+| PR786 `firstContactAuthorities`, `recipientFirstTouches`, `firstContactDailyUsage` | PR786 first-contact owner | No edits, duplicate implementation, authority inference or new grants. Daily reserved attempts are not delivered messages. |
+| Robot-team/capability registry and public-source research snapshots | Existing registry/research owner | Preserve exact team/capability and fact refs/grades. No automatic capability promotion. Company joins remain null until owner-supplied. |
+| `blueprintResearchLearning/default/events/{eventId}` | Research adapter: research/contact; communications adapter: attempt/acceptance/delivery/reply; outcome adapter: confirmed operational outcomes; human: append-only corrections | New strict, content-addressed evidence records. Create only; never update/delete history or write source-owned fields. Actor and prospect scope come from the trusted server. |
+| `blueprintResearchLearning/default/snapshots/{snapshotId}` | WebApp learning materializer | Immutable versioned, principal/prospect/section-scoped read projection. Hash-checked readback; no live current-pointer change in this release. |
+| Sheets `Research Learning` review/export view | Learning exporter | Firestore-owned derived rows with existing CRM ID, snapshot hash/cutoff/event refs/unknowns. Sheet edits do not write back CRM or learning facts. Corrections enter through a separately authenticated human append. |
+| Notion playbook/learning summary | Summary exporter | Aggregate counts, denominators, unconfirmed hypotheses, confounders, exploration allocation and snapshot refs. No raw threads or authoritative CRM state. |
+
+Review destination: [existing CRM](https://docs.google.com/spreadsheets/d/1n95Ih0Swc-q-kZyUaDHoZh6SVzxvf_zt-CRR7i39bWY/edit).
+Learning/playbook workspace: [NotionNow](https://app.notion.com/p/3ea80154161d81c7810cc42e9e7df9c5).
+These are planned export destinations. This release performs no Sheets or Notion
+writes and does not claim either destination has changed.
+
+## v1 event and read contract
+
+`server/research-learning/contract.ts` defines strict discriminated event types:
+research, contact, outreach, delivery evidence, reply and confirmed operational
+outcome. Each carries occurrence/recording dates, exact prospect/CRM/company/
+site/task/case/team/capability refs (unknown joins stay null), writer/actor,
+source record hashes/check dates and an optional correction edge.
+
+Outreach includes exact job/payload/ledger/message/thread refs, message digest,
+contract version and a separately known-or-unknown message variant. Attempts
+without a Gmail acknowledgement have null message/thread refs. Research fact
+checks retain original source dates and grades separately from QA review time.
+Reply classification includes confidence, uncertainty, method, interest subtype
+and normalized objections. Curiosity, willingness to talk, evaluation interest
+and pilot discussion never assert pilot readiness. Pilot agreement, evaluation
+participation and deployment capacity require their own owner-confirmed event.
+Operational milestones do not establish authoritative physical robot performance.
+The worker can record multiple correlated incoming messages, including an
+earlier opt-out, under one reply job. Each history item keeps its own Gmail
+message identity and exact RFC/thread/sender/recipient correlation; it need not
+equal that job's trigger message. Legacy meaning stays unknown until corrected.
+
+`recordedAt` does not change semantic event identity. Exact replay keeps the first
+persisted record; a changed source hash appends a new event. Human corrections
+must reference an existing event, preserve exact joins, and carry attestation.
+Later corrections form a chain. Competing corrections to one parent fail closed.
+Originals remain available in history. Only evidence recorded/checked by the
+snapshot cutoff enters an as-of view.
+
+Grants are **trusted server/control-plane inputs**, never model metadata, prompt
+content or client-supplied authority. Each grant names a principal, explicit
+prospect list, authorized sections and expiry. Requests must be subsets. New
+collections inherit existing server-only Firestore restrictions; no security
+rule or access grant is changed. Agents receive only the relevant structured
+snapshot. Raw associated mail stays private to the existing communications
+owner. Nothing searches an unrelated mailbox, reads OAuth records or discloses
+credentials. The ingestion adapter uses existing Firestore records from the
+already authorized Nijel read-only mailbox path; it makes no new Gmail/OAuth call.
+
+`harness.ts` produces an untrusted-evidence-only context for shared research
+agents. Pipeline owns the follow-up optional `tools/daily_research/learning.py`
+loader and `learning_snapshot` configuration; coordinate through the parent.
+No edits were made to PR786 send/OAuth/approval files, the pinned portable
+research release, or Pipeline PR2518. No BlueprintContracts expansion is needed
+for this staged local read contract; a later cross-repo contract promotion can
+pin the verified v1 artifact.
+
+## Planner semantics
+
+The planner supplies observed counts for the focus cohort, same industry in
+other cities, and other industries in the same city. Cohort metadata, contact
+availability and message controls are taken at the first observed outreach
+touch; later research does not silently move old outcomes into new cohorts.
+Task/team, contact route, exact message digest/known variant, campaign and timing
+strata expose comparability gaps. Existing records lack some city/industry,
+campaign and timing fields: they stay unknown and need owner-reviewed mapping.
+Textual addresses and messages are not guessed into cohorts.
+
+An attempted touch is one distinct outreach job, including unknown ACKs.
+Accepted touches require Gmail acceptance refs. Verified delivery requires a
+separate delivery notification, which the current Gmail records do not have.
+Delivery rates use verified-delivered **accepted** jobs over accepted jobs;
+delivery evidence for an unknown-ACK job is separately counted. Reply maturity
+uses a configurable 1–90 day window (fixture: 14) from the first accepted touch.
+Correlated replies on any later accepted thread count within that original
+prospect observation window. Observed replies after unknown acknowledgement
+remain visible with `replyAcceptanceUnknownProspects`; they do not enter the
+accepted-thread rate numerator. A mature prospect with only such a response
+enters `matureReplyAcceptanceUnknownProspects`, never mature nonresponse.
+Null Gmail refs or a missing legacy touch never erase a validated correlated
+reply observation. Missing/mismatched touch thread/contract references and
+replies before a matching acceptance stay outside accepted-rate eligibility;
+their observation and acceptance uncertainty remain visible. Actual unrelated
+incoming mail fails correlation at the source adapter. Classified automatic
+replies do not count. Copy strata hash the validated canonical envelope subject/body
+before recipient-specific transport footers; full payload and receipt hashes
+retain transport evidence. Mismatched canonical payload copy is quarantined.
+Only a bounce on that touch excludes its prospect from that mature denominator.
+Later bounced follow-ups do not erase the original window. Reply counts include
+unclassified correlated replies and exclude classified automatic responses;
+classification uncertainty remains visible. Mature nonresponse is not rejection.
+Only certain human labels count as curiosity or explicit rejection. Cumulative
+operational milestone counts retain earlier observed outcomes.
+
+Hypotheses are descriptive and unconfirmed. Small samples, selection, delivery,
+timing, task/team, contact and copy differences remain confounders. Default
+planning allocation is 40% replication / 40% comparison / 20% new exploration,
+a proposed research allocation rather than spend or send authority. There is no
+ten-prospect success ceiling. `gpt-6-luna` model classification is disabled and
+has no execution path; a separate activation budget and reviewed implementation
+are required.
+
+## First-batch site learning mapping
+
+The owner-approved first-batch objective is to learn which robotics uncertainty
+a real site wants help resolving and whether an Atlas-independent short
+Blueprint brief helps a concrete decision. The owner makes the walkthrough and
+handles replies personally. This objective does not authorize automatic reply
+interpretation, new outreach, or pilot-readiness inference.
+
+| Requested learning | Existing source/read mapping | Minimal remaining gap |
+| --- | --- | --- |
+| Bounded task/question and decision owner | Existing communications brief owns `boundedJob`, `contact.learningQuestion`, `decision`, nullable `decisionOwner`; snapshot retains exact site/task/case and brief evidence refs | A sanitized scoped projection of these already-owned fields when a consumer needs the actual question/decision. Reading them must not infer site interest. |
+| Stated trigger/motive, unknown allowed | Existing correlated reply evidence and human classification/attestation give provenance | A nullable owner-confirmed structured summary; no guessed motive and no raw mailbox excerpt in agent context. |
+| Evidence that would change the decision | Research fact IDs/check dates/grades and owner-confirmed evidence references already fit | An owner-stated relationship between the concrete decision and the requested evidence, kept separate from researcher hypotheses. |
+| Voluntary next step: brief/later/no | Human reply correction preserves stated interest and objections | A small explicit `unknown`/`brief`/`later`/`no` learning choice. Do not force it into pilot agreement or `lost`; declining a brief does not establish robotics rejection. |
+| Whether the short brief helped a decision | Existing case/task IDs and owner-confirmed outcome record references preserve joins | An explicit unknown/pending/helped/did-not-help assessment with brief version and human evidence refs. Existing operational outcome enums do not represent brief helpfulness. |
+
+The strict v1 event schema does not yet accept those learning-specific response
+fields. The smallest follow-up is one human-confirmed structured learning
+record and its bounded projection, reusing the current case/prospect ownership,
+attestation, corrections and hash/check-date contracts. It should preserve
+unknowns, separate observation from hypotheses and keep nonresponse maturation
+unchanged. No broad experiment platform, new model or automated writer is
+needed. This mapping records the gap without delaying the reviewed bug repairs
+or changing the separately owned Notion guidance.
+
+## Migration dry run and staged reconciliation
+
+1. The parent confirms file/release ownership with PR786 and the Pipeline
+   Perplexity owner. Export only the explicit approved prospect scope through
+   `readExistingSources`, using the existing binding. No new credentials/grants.
+2. `normalizeExistingSources` validates immutable research handoffs and exact
+   CRM/site/task/case/ledger/recipient joins. Retain legacy unknown meanings.
+   Preserve valid historical sends if the current CRM contact has changed and
+   quarantine that mismatch for owner reconciliation. Missing joins are
+   quarantined rather than assigned replacement IDs.
+3. Assemble the normalized dry-run input with an **independently captured**
+   expected prospect/evidence manifest, source quarantine and existing learning
+   events. `migrationFixture` is synthetic test setup, never live manifest proof.
+4. Run `npx tsx scripts/research-learning/dry-run.ts input.json report.json`.
+   It is local-only, has no apply mode, creates a private output without
+   overwriting existing artifacts, checks exact scope/evidence coverage and
+   reports append/replay counts plus the hash-bound snapshot and planner.
+5. Reconcile CRM IDs, missing case/site/task joins, contact corrections, unknown
+   cohort metadata and source counts. Replay must propose zero additional events.
+   No unresolved quarantine or missing/unexpected evidence refs may pass.
+6. After parent release coordination, stage only append-only learning events
+   with authenticated writer contexts, materialize bounded private snapshots and
+   verify Firestore readback/hash/counts against the dry-run artifact. Rollback
+   means stop the new reader/exporter and keep history, never deleting old CRM.
+7. Cut over one explicitly scoped research consumer after reconciled owner
+   review and compare prior/new plans. Then activate derived Sheets/Notion
+   exports with readback receipts. Expansion follows observed verification.
+
+`readyForStagedAppend` is local preflight only. `readyForCutover` is always false
+in this release. No live data was migrated, no worker/flag was enabled, and no
+prospect was contacted.
+
+## Local validation and completion evidence
+
+Run `npx vitest run server/tests/research-learning.test.ts` and `npm run check`.
+Regression coverage includes scope/privacy denial, no source writes, exact
+joins, hash tampering, correction replay/chains/conflicts, date boundaries,
+delivery unknown/ACK rates, bounce maturity, historical cohorts, message controls,
+cumulative outcomes, source quarantine, and aggregate-only exports.
+Run the required graphify refresh after code changes. Record broader checks,
+independent Sol review, actual dry-run counts and any tooling blockers in the
+task closeout. Green synthetic tests prove the offline contract, not live ingest
+or export readiness.
