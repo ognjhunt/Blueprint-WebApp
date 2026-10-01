@@ -13,7 +13,7 @@ remain false through deployment/preflight/manual canary. Live actions belong to
 the authorized operator, after review and release gates.
 
 The prepared correction pins Pipeline source
-`fb4a858ab5898edba1f3f06106b2fdfa2f1abde7` (PR 2505). It accepts the actual
+`4a9d57c33f0ea1809fa996c3eb66190a7a3cda8a` (PR 2505). It accepts the actual
 file-based skill discovery setup and packages the original four reviewed text
 files. Exact hashes are checked before the create payload is persisted; inline
 session overrides bind those bytes without mutating the saved template. Package
