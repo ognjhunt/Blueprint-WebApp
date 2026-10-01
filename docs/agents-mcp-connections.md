@@ -139,8 +139,11 @@ adapter and must consume this contract without overwriting research worker code.
 Research QA/publication consumes the existing durable snapshot/work-item and
 digest-bound delivery/receipt contract in `docs/daily-research-render-integration.md`.
 Agents own QA, duplicate checks and publication; dot only observes. Before canary,
-resolve the file-discovery preflight correction, previous unclassified saved-agent
-session, guarded publication binding and exact cleanup history. Empty dated ledger
+resolve the file-discovery preflight correction, guarded publication bindings and exact cleanup history. The previously unclassified
+smoke session was verified idle with one completed root turn and no environment;
+retain its exact receipt rather than deleting it or treating other unknown sessions
+as clear. The matching portable package now executes automatic same-session QA
+and fixed-target standard-API publication; MCP enhancements are deferred. Empty dated ledger
 does not prove that cleanup is clear. Writes, paid canary, old-trigger cutover and
 activation each require their existing authority; keep both research controls off.
 
