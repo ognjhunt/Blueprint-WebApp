@@ -93,6 +93,32 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
 - For onboarding or policy work, keep repo docs as canonical drafts, mirror into Notion only for human review/visibility, and mark legal/HR/payroll/benefits material as requiring counsel/PEO review when applicable.
 - For repo work, start with `git status --short`; inspect dirty and untracked files before editing and preserve unrelated work.
 
+## Provider portability is a permanent engineering rule
+
+- Business code, instructions, prompts/configuration, structured data, evidence,
+  workflow state and required artifacts must have canonical company-controlled
+  storage and portable formats. Use user-owned GitHub for code/instructions,
+  Blueprint's existing database with documented portable exports for records,
+  and existing authorized company object storage for standard-format artifacts.
+- Replacement agents must be able to continue without dot, ChatGPT Library or
+  one model vendor. Library IDs and provider/session IDs are provenance or
+  optional delivery-copy references, never canonical business IDs or the only
+  retained artifact. Preserve stable Blueprint-owned IDs and API contracts.
+- Every handoff/release must identify accessible canonical artifact locations,
+  content hashes, schema/format, source/check provenance, and an export/recovery
+  route. Verify access with existing authorization; do not assume a provider
+  session or a tool result will remain available to a replacement agent.
+- Do not transfer private artifacts to an unapproved destination, introduce new
+  credentials/services/spend, or delete existing copies to satisfy portability.
+  Preserve local bytes and report the specific approval/access gap. Optional
+  user-requested Library delivery copies and documentation examples are allowed
+  when they do not become production dependencies or the sole retained copy.
+- For production canonical-storage changes, run
+  `npx tsx scripts/research-learning/check-portability.ts` and relevant tests.
+  Its static audit catches explicit Library-only canonical references and
+  required-Library flags; it does not prove that every existing artifact has
+  already been migrated or that remote locations are accessible.
+
 ## Human Gates
 
 - When a blocker is truly human-gated, use the standard packet in `ops/paperclip/programs/human-blocker-packet-standard.md`.

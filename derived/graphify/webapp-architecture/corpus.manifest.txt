@@ -106,3 +106,5 @@ server/research-learning/shared-context.ts
 server/research-learning/site-learning.ts
 server/research-learning/source-store.ts
 server/research-learning/retrieval.ts
+server/research-learning/consumer.ts
+server/research-learning/brief-projection.ts
