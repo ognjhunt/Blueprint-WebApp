@@ -37,7 +37,7 @@ async function unsubscribeHandler(req: Request, res: Response) {
   const scope = normalizeScope(getParam(req, "scope"));
   const campaignId = getParam(req, "campaignId") || null;
   const cadenceId = getParam(req, "cadenceId") || null;
-  await recordEmailSuppression({
+  const suppression = await recordEmailSuppression({
     email,
     scope,
     reason: "unsubscribe",
@@ -45,6 +45,7 @@ async function unsubscribeHandler(req: Request, res: Response) {
     campaignId,
     cadenceId,
   });
+  if (!suppression.persisted) return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Email preference storage is unavailable" });
 
   if (req.method === "POST" || req.accepts("json")) {
     return res.status(HTTP_STATUS.OK).json({ ok: true, email, scope });

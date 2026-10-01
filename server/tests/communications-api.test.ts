@@ -25,9 +25,10 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
     }
     throw new Error("unexpected mock path");
   });
-  const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true, fetch: fetchMock as any });
+  const reservePaidDraft = vi.fn(async () => undefined), recordPaidDraftUsage = vi.fn(async () => undefined);
+  const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true, fetch: fetchMock as any, reservePaidDraft, recordPaidDraftUsage });
   const params = { input: "synthetic context", jobId: "job-1", checkpoint: options.reconnect ? { createClaimedAt: "2026-09-30T23:00:00Z", sessionId: "session-1", turnId: "turn-1" } : { createClaimedAt: null, sessionId: null, turnId: null }, saveCheckpoint: async (value: any) => { checkpoints.push(value); } };
-  return { api, params, calls, fetchMock, checkpoints, output };
+  return { api, params, calls, fetchMock, checkpoints, output, reservePaidDraft, recordPaidDraftUsage };
 }
 
 describe("portable communications Agents API", () => {
@@ -40,6 +41,15 @@ describe("portable communications Agents API", () => {
     expect(create.init.headers).toMatchObject({ "OpenAI-Project": COMMUNICATIONS_PROJECT });
     expect(f.checkpoints[0]).toMatchObject({ createClaimedAt: expect.any(String), sessionId: null });
     expect(f.checkpoints.at(-1)).toMatchObject({ sessionId: "session-1", turnId: "turn-1" });
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(1); expect(f.recordPaidDraftUsage).toHaveBeenCalledTimes(1);
+    expect(body.agent.service_tier).toBe("default");
+  });
+  it("requires a durable admission and refuses a failed reservation before paid POST", async () => {
+    const f = apiFixture(); const unguarded = new CommunicationsAgentsAPI({ apiKey: "mock", allowPaidInference: true, fetch: f.fetchMock as any });
+    await expect(unguarded.run(f.params)).rejects.toMatchObject({ code: "communications_paid_draft_admission_required" });
+    expect(f.calls).toHaveLength(0);
+    f.reservePaidDraft.mockRejectedValueOnce(new Error("soft budget unavailable"));
+    await expect(f.api.run(f.params)).rejects.toThrow("soft budget unavailable"); expect(f.calls.some(call => call.init.method === "POST")).toBe(false);
   });
   it("observes saved sessions and paginated final items without repeating paid create", async () => {
     const f = apiFixture({ reconnect: true, itemsPage: true });
@@ -62,6 +72,11 @@ describe("portable communications Agents API", () => {
   it("fails on missing canonical final answer", async () => {
     const f = apiFixture({ noFinal: true });
     await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_final_answer_missing_or_ambiguous" });
+  });
+  it("reads bound terminal usage even when the draft has no usable final answer, without creating input", async () => {
+    const f = apiFixture({ reconnect: true, noFinal: true });
+    expect(await f.api.reconcileUsage(f.params.checkpoint, "job-1")).toEqual({ input_tokens: 3 });
+    expect(f.calls.some(call => call.init.method === "POST" || call.path.includes("/items"))).toBe(false);
   });
   it("fails closed on failed terminal event even if saved state claims completion", async () => {
     const f = apiFixture({ failed: true });

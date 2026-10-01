@@ -36,6 +36,25 @@ function addresses(value: string | null): string[] {
   return (value?.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []).map((address) => address.toLowerCase());
 }
 
+/** Bounded existence check only: no mailbox content or thread body is read. */
+export async function hasFounderPriorContact(email: string, gmail?: gmail_v1.Gmail): Promise<boolean> {
+  const address = email.trim().toLowerCase();
+  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(address)) throw new Error("founder_prior_contact_address_invalid");
+  gmail ??= await existingFounderGmail();
+  await verifyFounderMailbox(gmail);
+  const target = JSON.stringify(address);
+  const result = await gmail.users.messages.list({ userId: "me", q: `in:anywhere {from:${target} to:${target}}`, maxResults: 1, includeSpamTrash: true });
+  const messages = result.data.messages;
+  if (messages === undefined || (Array.isArray(messages) && messages.length === 0)) {
+    if (result.data.resultSizeEstimate === 0 && [undefined, null, ""].includes(result.data.nextPageToken)) return false;
+    throw new Error("founder_prior_contact_result_unverified");
+  }
+  if (!Array.isArray(messages) || messages.length > 1 || messages.some(message => typeof message.id !== "string" || !message.id.trim())) {
+    throw new Error("founder_prior_contact_result_unverified");
+  }
+  return true;
+}
+
 /** Our outbound subject is UTF-8 RFC2047 B; Gmail may return that raw header. */
 function subjectText(value: string | null) {
   return (value ?? "").replace(/=\?UTF-8\?B\?([A-Za-z0-9+/=]+)\?=/gi,

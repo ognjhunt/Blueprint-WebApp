@@ -14,6 +14,11 @@ import { CommunicationsStore, type CommunicationsJobRecord } from "./communicati
 import type { ActionPayload } from "./action-policies";
 import { runCommunicationsIntake } from "./communications-intake";
 import { readPublicContactPage } from "./communications-contact-fetch";
+import { automaticFirstContactEnabled, compileAutomaticFirstContact, firstContactGeography } from "./communications-first-contact";
+import { executeAutomaticFirstContact } from "./communications-send";
+import { appendFirstContactFooter } from "./communications-first-contact-footer";
+import { CommunicationsDraftBudgetError, reserveCommunicationsDraft, recordCommunicationsDraftUsage,
+  reconcileCommunicationsDraftCost } from "./communications-draft-budget";
 
 export type CommunicationsDependencies = {
   store: CommunicationsStore;
@@ -24,6 +29,7 @@ export type CommunicationsDependencies = {
   isSuppressed: (email: string) => Promise<boolean>;
   suppress: (email: string, reason: string) => Promise<{ persisted: boolean }>;
   now: () => number;
+  sendAutomatic?: (ledgerId: string) => Promise<{ state: "sent" | "auto_approved" | "failed"; reason?: string }>;
 };
 
 export async function processCommunicationsJob(jobId: string, deps: CommunicationsDependencies) {
@@ -100,24 +106,44 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       await deps.store.finish(job, "no_reply", result.output.reason);
       return { state: "no_reply" };
     }
+    // The model's prose never supplies automatic send authority. The compiler
+    // uses the immutable public evidence/state; all other drafts keep review.
+    const compiled = job.intent === "outreach" && automaticFirstContactEnabled()
+      ? compileAutomaticFirstContact(brief, deps.now()) : null;
+    const output = compiled ?? result.output;
+    const provenance = compiled ? (await deps.store.db.doc("blueprintCommunications/default").collection("researchSources").doc(job.briefDigest).get()).data() : null;
+    const recipientGeography = compiled ? firstContactGeography(provenance, brief, deps.now()) : null;
     const incoming = thread?.messages.find((message) => message.gmailMessageId === job.inboundMessageId);
     const payload: ActionPayload = {
       type: "send_email", to: brief.contact.email.toLowerCase(), from: FOUNDER_MAILBOX, replyTo: FOUNDER_MAILBOX,
-      subject: result.output.subject, body: result.output.body, emailTransport: "founder_gmail",
-      transportBody: appendCommercialEmailFooter({ text: result.output.body, email: brief.contact.email, scope: "growth_campaign" }),
+      subject: output.subject, body: output.body, emailTransport: "founder_gmail",
+      transportBody: compiled ? appendFirstContactFooter(output.body, brief.contact.email)
+        : appendCommercialEmailFooter({ text: output.body, email: brief.contact.email, scope: "growth_campaign" }),
       commercialEmail: true, emailSuppressionScope: "growth_campaign",
-      unsubscribeUrl: buildUnsubscribeUrl({ email: brief.contact.email, scope: "growth_campaign", campaignId: `communications_${jobId}` }),
-      outreachContext: brief.outreachContext, outreachContract: result.output.outreachContract,
+      unsubscribeUrl: buildUnsubscribeUrl({ email: brief.contact.email, scope: compiled ? "all" : "growth_campaign", campaignId: `communications_${jobId}` }),
+      outreachContext: brief.outreachContext, outreachContract: output.outreachContract,
+      ...(recipientGeography ? { recipientGeography } : {}),
       ...(thread && incoming ? { gmailThreadId: thread.threadId, inReplyTo: incoming.rfcMessageId } : {}),
-      communications: { version: "blueprint.communications.v1", job, brief, thread, output: result.output, approvalState: "pending_approval" },
+      communications: { version: "blueprint.communications.v1", job, brief, thread, output, approvalState: "pending_approval" },
     };
     const review = reviewCommunicationsPayload(payload, deps.now());
     if (!review.hardChecksPassed || !review.digest) throw new Error(`draft_quality_failed:${review.blockers.join(",")}`);
     // Check suppression again after inference. Queue admission is not sending.
     if (await deps.isSuppressed(brief.contact.email)) throw new Error("recipient_suppressed");
-    const ledgerId = await deps.store.commitDraft(job, result.output, payload, review.digest, result.usage);
+    const ledgerId = await deps.store.commitDraft(job, output, payload, review.digest, result.usage);
+    if (await deps.store.automaticDraft(ledgerId)) {
+      const outcome = deps.sendAutomatic ? await deps.sendAutomatic(ledgerId) : { state: "auto_approved" as const };
+      const persisted = await deps.store.finishAutomatic(job, outcome);
+      return { ...outcome, ...persisted, ledgerId, sent: persisted.state === "sent", gmailDraftCreated: false };
+    }
     return { state: "pending_approval", ledgerId, sent: false, gmailDraftCreated: false };
   } catch (error) {
+    if (error instanceof CommunicationsDraftBudgetError
+      && ["communications_draft_cost_unresolved", "communications_draft_daily_admission_limit", "communications_draft_soft_target_reached"].includes(error.code)
+      && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId) {
+      await deps.store.deferDraftForBudget(jobId, error.code);
+      return { state: "queued", reason: error.code, sent: false };
+    }
     const code = error instanceof CommunicationsRuntimeError ? error.code
       : error instanceof Error && /^[a-z_][a-z0-9_:,.-]*$/.test(error.message) ? error.message : "communications_context_or_permission_unavailable";
     const retry = error instanceof CommunicationsRuntimeError && error.retryable && claimed.attempts < 3;
@@ -145,13 +171,20 @@ export function startCommunicationsWorker(): () => Promise<void> {
   const db = dbAdmin;
   const store = new CommunicationsStore(db);
   const allowPaidInference = process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true";
-  const api = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference });
+  const api: CommunicationsAgentsAPI = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference,
+    reservePaidDraft: async (jobId, digest) => {
+      await reconcileCommunicationsDraftCost(db, api, Date.now());
+      return reserveCommunicationsDraft(db, jobId, digest, Date.now());
+    },
+    recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now()),
+  });
   const deps: CommunicationsDependencies = {
     store, api, readResearch: (date) => readExistingResearchSnapshot(db, date),
     verifyMailbox: () => verifyFounderMailbox(), readThread: (id) => readFounderThread(id),
     isSuppressed: (email) => isEmailSuppressed(email, "growth_campaign"),
-    suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "growth_campaign", source: "communications_reply" }),
+    suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "all", source: "communications_reply" }),
     now: () => Date.now(),
+    sendAutomatic: executeAutomaticFirstContact,
   };
   return startCommunicationsQueueLoop(deps, { intake: () => runCommunicationsIntake({ db,
     readResearch: deps.readResearch, isSuppressed: deps.isSuppressed, now: deps.now,
@@ -162,10 +195,21 @@ export function startCommunicationsWorker(): () => Promise<void> {
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
   options: { intake?: () => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
   let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
+  let automaticCursor: string | undefined;
   const tick = async () => {
     try {
       if (options.intake) await options.intake();
       if (stopped || options.processJobs === false) return;
+      if (deps.sendAutomatic && automaticFirstContactEnabled()) {
+        for (const job of await deps.store.automaticJobs(5, automaticCursor)) {
+          if (stopped) break;
+          // Advance before observing the send result so a corrupt/held row
+          // cannot monopolize the next tick even when recovery throws.
+          automaticCursor = job.jobId;
+          const outcome = await deps.sendAutomatic(`communications_${job.jobId}`);
+          await deps.store.finishAutomatic(job, outcome);
+        }
+      }
       for (const id of await deps.store.dueJobIds()) {
         if (stopped) break;
         await processCommunicationsJob(id, deps);

@@ -1,71 +1,79 @@
-# Blueprint-owned daily research
+# Blueprint-owned daily research package
 
-This WebApp change hosts the reviewed, research-only Pipeline package in existing
-Render worker `srv-d9t8gg1t0dsc73am9q70`. It adds a separately enabled hook to
-`startWorker()`; existing ops/outbound/launch flags and paid authority are preserved.
-No GPU/Pipeline application packages, new service, credential or grant are added.
+This WebApp package carries the reviewed research-only Pipeline source used by
+its existing daily-research worker hook. It supports source-backed site/task
+discovery for partner admission; packaging alone proves no live research,
+qualification, publication or deployment outcome.
 
-`vendor/daily-research/receipt.json` pins the exact Pipeline source SHA and archive
-SHA256. Build with `BLUEPRINT_DAILY_RESEARCH_PACKAGE_BUILD=true`; the build
-verifies all bytes and creates the isolated Python 3.11-compatible OpenAI SDK
-environment. `BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED` defaults false and must
-remain false through deployment/preflight/manual canary. Live actions belong to
-the authorized operator, after review and release gates.
+## Immutable package pin
 
-The prepared correction pins Pipeline source
-`20d0c9e8b784e451aa281f3adee85d34c8054b5a` (PR 2507), including the complete CRM
-identity guard and bounded full-parent Notion pagination repair. It accepts the actual
-file-based skill discovery setup and packages the original four reviewed text
-files. Exact hashes are checked before the create payload is persisted; inline
-session overrides bind those bytes without mutating the saved template. Package
-verification covers 32 source files. The initial disabled release
-`614780173940f9a35cbdbca5f683b2b1f531f5e0` verified Python 3.14.3 with OpenAI
-3.22.1. Python 3.11/3.12/3.14 are covered by isolated research CI. Each updated
-package release still requires fresh exact deployed-SHA, installed-byte and
-disabled-process/control verification; a source pin alone does not prove live
-installation or remote skill loading.
+- Pipeline source: `35f5c9ad43f84aa053aa7616a63a9aa4f6e32a61` (PR 2518)
+- Archive: `vendor/daily-research/blueprint-research.tar`
+- Archive SHA256: `1aa932767fe9ec73c06ece6b5ba1e573027a636a3249363d62df7bf6415a3651`
+- Archive bytes: `409600`
+- Manifested source files: `41`
+- Isolated CPU SDK requirement: `openai==3.22.1`
 
-The full current command/cutover contract ships in the pinned package at
-`dist/daily-research/release/tools/daily_research/RENDER.md`. It retains 07:00
-America/Chicago DST behavior, one create per date, durable intent before provider
-creation, uncertain-attempt reconciliation, immutable artifacts, the $1 total
-soft target, no outreach and exact action-time deletion approval.
+`vendor/daily-research/receipt.json` and the archive manifest bind the same
+source commit and file hashes. All manifested bytes must match the immutable
+source. The package includes the original four reviewed instruction-only skill
+files, complete CRM identity and Notion pagination repairs, the output-validator
+repair, adaptive scope coverage and Perplexity Fast application tools. It does
+not include the full Pipeline application, GPU packages or dynamic input files.
 
-The 2026-10-01 output-validator repair retains optional v3 `assertion_scope` in
-proposed knowledge-delta evidence, matching the generated research instructions.
-It preserves raw artifacts and the existing QA, deadline, cleanup and publication
-guards. Installing the repair does not recover the failed date or approve its
-findings; the saved terminal artifact needs independent replay and any runtime
-recovery remains an explicit operator action.
+## Build and import contract
 
-Communications integration consumes
-`blueprintDailyResearch/sites-first/workItems/YYYY-MM-DD`, using existing
-authorized Firestore access. Stages are `agent_qa_pending` and
-`publication_pending`; pointer fields are `row_blob` and `packet_digest`.
-`Store.snapshot(date)` returns `blueprint.research-snapshot.v1` with verified row,
-base64 exact files, and explicit missing-file list. The scheduler and run/reconcile entry points execute same-session QA and guarded
-publication automatically under the separate workflow control. They preserve
-digest/source-support/CRM/readback gates and save QA artifacts before publication. Agents own
-QA and Sheets/Notion publication; dot observes. No dot receipt is required.
+Build with `BLUEPRINT_DAILY_RESEARCH_PACKAGE_BUILD=true`. The existing
+`scripts/install-daily-research.py` verifies the archive, safe regular-file
+members, manifest and every source-file digest before extraction. Its default
+target is `dist/daily-research`; the release stays separate from the WebApp SDK.
 
-The communications branch must not overwrite `server/worker.ts` research startup;
-coordinate any shared-worker edits and integrate separate branches after review.
-The pinned consumer is executable; its live execution remains unverified. The
-workflow example defaults disabled and requires reviewed QA/publication authority.
-It shares the original 180-second total runtime and $1 total soft target. Unknown
-QA inputs and publication attempts are never repeated after restart; readback
-conflicts block success. A complete hermetic run reaches both publication receipts.
-See the packaged RENDER.md for exact request, recovery and readback contracts. Canonical Sheet readonly
-access is verified through the existing service account (HTTP 200, 16 total
-rows/11 data, complete at 01:19:46 UTC). The owner subsequently approved an
-Editor grant on that exact canonical file, and the persisted permission was
-independently read back. The owner also saved a narrowly scoped Notion worker
-key; its runtime Knowledge-page read remains pending. Actual publication
-writes/readbacks, Firestore-writing preflight, live canary and the first unattended
-wake still require owning-system verification. See
-[the connection handoff](agents-mcp-connections.md) for supported standard API
-setup and separate MCP-preview preparation. No dot runtime bridge is required.
+`BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED` defaults false. Replacing this package
+changes no existing flags or live controls. Installing source is separate from
+activating a profile. Preserve existing admitted rows and their original
+request, runtime, artifact, recovery and cleanup bindings during upgrades.
 
-The old automation `6abc4ffae84881919154bba45f749074` remains the operator's cutover
-responsibility. Do not activate both triggers, erase an old date ledger, or release
-hold `20260930T132640Z-hold-354d4ae6`.
+For local package verification:
+
+```bash
+python scripts/install-daily-research.py --verify-only --target output/research-package-proof
+```
+
+The installer tests also import the packaged Python modules without Pipeline,
+Torch or OpenAI imports, verify the four skill hashes, check Node bridge dependency imports, and reject altered archive bytes before
+extraction or installation.
+Run the existing package tests and required WebApp checks on the final combined
+commit before merge/deployment. A source pin does not prove installed runtime bytes.
+
+## Selected profile behavior
+
+The reasoning agent remains GPT6.1Sol. Perplexity Fast search and bounded primary
+source reads are application function tools; the agent chooses queries and
+follow-ups rather than consuming a fixed outer-runner shortlist. Source passages,
+URLs, dates and complete bounded static-page text are retained with digests.
+Unsupported formats, source failures and resource ceilings remain explicit gaps.
+There is no silent native-search fallback.
+
+Prospect count never establishes completion. Define task/industry/region
+hypotheses, retain all defensible findings within the resource envelope, and
+report actual source coverage, duplicate/rejection reasons, unresolved promising
+branches and evidence-based or interrupted stopping reasons. Ten findings are
+neither a cap nor a reason to stop; interrupted work is not completed coverage.
+The scope remains bounded and makes no exhaustive global-market claim.
+
+The new recurring example is disabled with `soft_target_usd=null` and pending
+recurring-budget authority. It requires an explicitly chosen approved target
+before activation. The example admits 30 minutes total, with 20 for research and
+10 reserved for QA; older rows keep their originally admitted runtime and
+budget/planning references. One-time test authority is separate from recurring
+authority. Package installation does not supply either.
+
+Research collection, same-session source/duplicate QA and publication retain
+durable exact-turn and digest bindings. Unknown paid search attempts are not
+replayed; saved function results can be returned idempotently. QA/publication
+remain separately gated, and research is not outreach or pilot readiness.
+
+The complete source contract is in the packaged `tools/daily_research/SEARCH.md`,
+`RENDER.md`, `SKILLS.md` and `ADAPTIVE.md`. Review those versioned contracts rather
+than inferring activation, source support or completion from this integration
+page.

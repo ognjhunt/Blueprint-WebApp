@@ -211,3 +211,17 @@ The following is a test fixture, not a verified prospect or send-ready message:
 
 Keep source evidence internal to the review packet; never include private
 verification records in the recipient's message.
+
+## Bounded automatic first-contact exception
+
+The founder authorized a separate routine first-contact category on 1 October
+2026. It applies only to the source-QA-approved, verified-US business-site
+communications workflow and its compiled public-evidence message. It records
+immutable policy/contact/source/payload authority rather than fabricating a
+human semantic attestation. Unknown interest is valid; pilot readiness and a
+buying signal are not prerequisites. Discovery volume does not establish permission to send.
+
+All other drafts, replies, follow-ups, sensitive/unusual communications,
+commitments and pricing retain their existing human review. Robotics-company
+contacts remain manual until a separate qualified source/recipient contract is
+supported. See [the bounded first-contact policy](agents/automatic-first-contact-policy.md).

@@ -5,7 +5,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return bi
 vi.mock("../utils/email-suppression", async (importOriginal) => ({ ...await importOriginal<any>(), isEmailSuppressed: vi.fn(async () => false) }));
 vi.mock("../agents/communications-research", async (importOriginal) => ({ ...await importOriginal<any>(), readExistingResearchSnapshot: vi.fn(async () => bindings.snapshot) }));
 vi.mock("../agents/communications-gmail", () => ({ verifyFounderMailbox: vi.fn(async () => ({})), readFounderThread: vi.fn(async () => bindings.thread),
+  hasFounderPriorContact: vi.fn(async () => false),
   findFounderSentMessage: vi.fn(async () => null), sendFounderMessage: vi.fn(async (params) => ({ messageId: "sent-message-1", threadId: params.threadId ?? "new-thread", rfcMessageId: params.messageId })) }));
+vi.mock("../agents/communications-oauth-store", () => ({ requireFounderSendCapability: vi.fn(async () => undefined) }));
 import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { appendCommercialEmailFooter, isEmailSuppressed } from "../utils/email-suppression";
 import { verifyFounderMailbox, readFounderThread, sendFounderMessage, findFounderSentMessage } from "../agents/communications-gmail";

@@ -7,6 +7,7 @@ import type { ContactPageReader } from "./communications-contact-fetch";
 import { previewResearchCommunications, type CommunicationsResearchInput } from "./communications-producer";
 import { researchPublicationSource, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
 import { COMMUNICATIONS_ROOT, CommunicationsStore, prepareCommunicationsEnqueue } from "./communications-store";
+import { firstContactLearningQuestion } from "./communications-first-contact";
 
 // Read-only discovery of the existing pinned research owner's completed work.
 export const RESEARCH_WORK_ITEMS = "blueprintDailyResearch/sites-first/workItems";
@@ -105,7 +106,7 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
       siteId: projection.siteId ?? `research-site:${key}`, taskId: projection.taskId ?? `research-task:${key}`,
       caseId: projection.caseId ?? `research-case:${key}`, decision: "Whether robotics learning for the published recurring task is relevant",
       decisionOwner: null, purpose: "Learn whether robotics for the published recurring task is relevant; no interest presumed",
-      learningQuestion: "Is exploring robotics for this recurring task relevant to your site?",
+      learningQuestion: firstContactLearningQuestion(source.candidate.task),
       contactSourceEmail: email, contactSourceUrl: contact?.sourceUrl ?? reused!.contact.sourceUrl,
       contactSourceCheckedAt: contact?.sourceCheckedAt ?? reused!.contact.sourceCheckedAt, contactSourceIdentifiesRecipient: true,
       consent: { status: "public_business_contact", sharingBoundary: "Public sources only; site permission required before any team disclosure",
