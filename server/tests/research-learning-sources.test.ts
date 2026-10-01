@@ -6,6 +6,7 @@ import { makeSiteLearning, siteLearningHistory, type SiteLearningInput } from ".
 import { ResearchSourceStore, type SiteLearningWriterContext } from "../research-learning/source-store";
 import { sharedResearchContext, sheetsPriorResearchView, notionPriorResearchSummary } from "../research-learning/shared-context";
 import { learningMemoryFirestore } from "./fixtures/research-learning";
+import { cachedDiscoveryIndex, searchDiscoveryIndex, type DiscoveryQuery } from "../research-learning/retrieval";
 
 const now = "2026-10-01T21:00:00.000Z";
 function fixture() {
@@ -95,6 +96,7 @@ describe("bounded prior-research reconciliation", () => {
     expect(result.crmRows.map(row => row.crmId)).toEqual(["BP-1"]); expect(result.capabilities.map(row => row.capabilityId)).toEqual(["cap-1"]);
     expect(result.companies.map(row => row.companyId)).toEqual(["company-1"]); expect(result.sourcePages.map(row => row.pageId)).toEqual(["page-1"]);
     expect(result.parentSnapshotId).toBe(value.snapshotId); expect(result.scope.principalId).toBe("agent-1");
+    expect(scopeSourceSnapshot(result, grant, request, now)).toEqual(result);
     expect(JSON.stringify(result)).not.toContain("Facility 2"); expect(verifySourceSnapshot(result)).toEqual(result);
     expect(() => scopeSourceSnapshot(value, grant, f.request, now)).toThrow("scope_denied");
     expect(() => authorizeSources({ ...grant, expiresAt: now }, request, now)).toThrow("scope_denied");
@@ -174,5 +176,47 @@ describe("additive source staging and human site learning", () => {
     expect(() => siteLearningHistory([original, human({ correctsEventId: original.eventId, siteId: "changed" })], f.grant, f.request, now)).toThrow("join_changed");
     const later = { ...original, recordedAt: "2026-10-01T21:01:00Z" };
     expect(siteLearningHistory([later, original], f.grant, { ...f.request, asOf: "2026-10-01T21:01:00Z" }, "2026-10-01T21:02:00Z").history).toEqual([original]);
+  });
+});
+
+describe("progressive agent-directed research retrieval", () => {
+  const query: DiscoveryQuery = { taskTags: ["unlisted-task"], regionTags: ["Sacramento"], companyIds: [], capabilityIds: [], pageSize: 1, cursor: null };
+  function discovery() {
+    const f = fixture(), snapshot = reconcile(f).snapshot, index = cachedDiscoveryIndex(snapshot, f.grant, f.request, now);
+    return { f, snapshot, index, grant: { principalId: "research-agent", indexHash: index.indexHash, expiresAt: "2026-10-02T00:00:00Z" } };
+  }
+  it("starts with a compact cached index and explicitly does not claim full Firestore directory coverage", () => {
+    const d = discovery(), first = searchDiscoveryIndex(d.index, d.grant, query, now);
+    expect(first).toMatchObject({ coverage: "cached_capabilities_only", completeForSource: false, totalIndexed: 2, capabilityAbsenceIsEvidenceOfIncompatibility: false });
+    expect(first.rows).toHaveLength(1); expect(first.rows[0].teamId).toBeNull();
+    for (const excluded of ["Vendor claim;", "private@example.com", "PRIVATE_CONTACT_NAME", '"facts"']) expect(JSON.stringify(first)).not.toContain(excluded);
+    expect(first.source.sourceHash).toBe(d.snapshot.snapshotId);
+    const scoped = scopeSourceSnapshot(d.snapshot, d.f.grant, { ...d.f.request, capabilityIds: ["cap-1"] }, now);
+    const narrowedIndex = cachedDiscoveryIndex(scoped, d.f.grant, { ...d.f.request, capabilityIds: ["cap-1"] }, now);
+    expect(narrowedIndex.source.recordRef).toContain(d.snapshot.snapshotId); expect(narrowedIndex.source.sourceHash).toBe(d.snapshot.snapshotId);
+    expect(sharedResearchContext(d.snapshot, [], d.f.grant, d.f.request, now).retrieval.liveDirectoryReaderEnabled).toBe(false);
+  });
+  it("keeps nonmatching and unknown entries reachable through paging and broadening", () => {
+    const d = discovery(), first = searchDiscoveryIndex(d.index, d.grant, query, now), second = searchDiscoveryIndex(d.index, d.grant, { ...query, cursor: first.nextCursor }, now);
+    expect([...first.rows, ...second.rows].map(row => row.entryId).sort()).toEqual(["cap-1", "cap-2"]);
+    expect(first.rows[0].taskMatch).toBe("other_indexed_tasks"); expect(first.rows[0].regionMatch).toBe("unknown"); expect(second.nextCursor).toBeNull();
+    expect(searchDiscoveryIndex(d.index, d.grant, { ...first.broaden, pageSize: 25 }, now).rows).toHaveLength(2);
+  });
+  it("lets agents rank by company or capability without permanently removing alternatives", () => {
+    const d = discovery(), focused = searchDiscoveryIndex(d.index, d.grant, { ...query, companyIds: ["company-2"], capabilityIds: ["cap-2"], pageSize: 25 }, now);
+    expect(focused.rows.map(row => row.entryId)).toEqual(["cap-2", "cap-1"]); expect(focused.rows[0].hasConflicts).toBe(true);
+    expect(focused.detailAuthority).toContain("separate_host");
+  });
+  it("does not let directory access broaden an existing detail grant", () => {
+    const d = discovery(), first = searchDiscoveryIndex(d.index, d.grant, query, now);
+    expect(first.totalIndexed).toBe(2);
+    expect(() => scopeSourceSnapshot(d.snapshot, { ...d.f.grant, capabilityIds: ["cap-1"] }, { ...d.f.request, capabilityIds: ["cap-2"] }, now)).toThrow("scope_denied");
+  });
+  it("rejects stale/forged indices, expired grants and cross-query cursor reuse", () => {
+    const d = discovery(), first = searchDiscoveryIndex(d.index, d.grant, query, now);
+    expect(() => searchDiscoveryIndex({ ...d.index, entries: [] }, d.grant, query, now)).toThrow("scope_or_hash_invalid");
+    expect(() => searchDiscoveryIndex(d.index, { ...d.grant, indexHash: digest("other") }, query, now)).toThrow("scope_or_hash_invalid");
+    expect(() => searchDiscoveryIndex(d.index, { ...d.grant, expiresAt: now }, query, now)).toThrow("scope_or_hash_invalid");
+    expect(() => searchDiscoveryIndex(d.index, d.grant, { ...query, taskTags: ["new-task"], cursor: first.nextCursor }, now)).toThrow("cursor_invalid");
   });
 });

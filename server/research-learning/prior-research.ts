@@ -195,7 +195,7 @@ export function scopeSourceSnapshot(value: unknown, grant: SourceGrant, request:
   const pageIds = new Set([...companies.flatMap(row => row.sourcePageIds), ...capabilities.flatMap(row => row.facts.flatMap(fact => fact.sourcePageIds))]);
   const { snapshotId: _id, contentHash: _hash, ...content } = source;
   return seal({ ...content, scope: { principalId: allowed.principalId, crmIds: [...selected.crmIds].sort(), capabilityIds: [...selected.capabilityIds].sort(), sections: [...selected.sections].sort() },
-    crmRows, capabilities, companies, sourcePages: source.sourcePages.filter(row => pageIds.has(row.pageId)), parentSnapshotId: source.snapshotId,
+    crmRows, capabilities, companies, sourcePages: source.sourcePages.filter(row => pageIds.has(row.pageId)), parentSnapshotId: source.parentSnapshotId ?? source.snapshotId,
     unknowns: ["source_checks_are_not_refreshed", ...(crmRows.some(row => row.canonical.prospectId === null) ? ["crm_only_canonical_joins_missing"] : []),
       ...(crmRows.some(row => row.verification === "Needs recheck") ? ["legacy_contact_needs_recheck"] : []), ...(source.researchRuns.some(row => row.state === "failed") ? ["failed_run_is_not_completed_research"] : [])],
   });

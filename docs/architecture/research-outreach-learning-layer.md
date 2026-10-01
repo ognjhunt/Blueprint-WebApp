@@ -147,6 +147,33 @@ remains false until the Pipeline consumer and relevant host-issued grants are
 reviewed and the staged readback/source reconciliation is verified. No security
 grant, OAuth scope, paid classifier or first-contact activation is implied.
 
+## Progressive retrieval and actual coverage
+
+The current staged reader takes explicit CRM/capability IDs from the cached
+knowledge snapshot. It does **not** query every Firestore `robotTeams` record
+on every run, and no live Pipeline consumer is enabled by this release.
+`retrieval.ts` defines the progressive consumer contract: a compact paged
+directory search, selective scoped detail/evidence fetch, query broadening and
+host-issued detail-scope expansion. A discovery grant permits only the exact
+index hash; it never expands a detail grant or provider/tool authority.
+
+The index carries IDs, public names, task/region tags, original source dates and
+unknown/conflict flags, without fact bodies, contacts or mailbox data. Search
+ranks relevant entries but leaves every authorized entry reachable by paging
+or an empty broader query. Missing tags stay unknown and nonmatching listed
+tags do not establish incompatibility. Ten prospects or one shortlist is not a
+stop condition. Cursor hashes bind the query and index for reproducibility.
+
+The same read contract supports an owner-built lightweight full authorized
+`robotTeams` directory index. That enumeration/provider is a separate reviewed
+consumer step. The current cache-derived index explicitly declares
+`cached_capabilities_only` and incomplete directory coverage; it does not claim
+the four cached companies are the whole team directory. Begin each run with
+compact scope, prior findings and open questions, then let the agent search,
+broaden and fetch relevant detail. Keep the scoped snapshot for provenance and
+reproducibility alongside these operations, rather than dumping full records
+into a prompt or fixing one permanently filtered bundle.
+
 ## Planner semantics
 
 The planner supplies observed counts for the focus cohort, same industry in

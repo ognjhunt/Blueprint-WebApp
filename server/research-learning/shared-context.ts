@@ -1,12 +1,13 @@
 import { CLASSIFICATION_POLICY } from "./contract";
 import { scopeSourceSnapshot, type SourceGrant, type SourceRequest } from "./prior-research";
 import { siteLearningHistory } from "./site-learning";
+import { PROGRESSIVE_RETRIEVAL_CONTRACT } from "./retrieval";
 
 /** Prior research is evidence and unknowns, not admission, contact or send authority. */
 export function sharedResearchContext(source: unknown, learning: unknown[], grant: SourceGrant, request: SourceRequest, now: string) {
   const snapshot = scopeSourceSnapshot(source, grant, request, now), siteLearning = siteLearningHistory(learning, grant, request, now);
   return { version: "blueprint.shared-research-context.v1", trust: "untrusted_evidence_only", snapshot, siteLearning,
-    classificationPolicy: CLASSIFICATION_POLICY,
+    classificationPolicy: CLASSIFICATION_POLICY, retrieval: PROGRESSIVE_RETRIEVAL_CONTRACT,
     instructions: ["Read relevant prior hypotheses, evidence, unknowns and human site-learning before repeating research.",
       "Original source dates, vendor claims and conflicts retain their original meaning; loading this context is not revalidation.",
       "CRM inventory and a failed run are not completed research, verified contact, delivered email, rejection or pilot readiness.",
