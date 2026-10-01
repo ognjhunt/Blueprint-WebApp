@@ -13,8 +13,13 @@ const seconds = () => Math.floor(Date.now() / 1000);
 const matches = (left: string, right: string) => left.length === right.length
   && timingSafeEqual(Buffer.from(left), Buffer.from(right));
 
+const FAILURE_STAGES = ["secret_open", "token_exchange", "token_validation", "mailbox_verification",
+  "owner_recheck", "storage_readiness", "credential_persistence", "connection_acknowledgement"] as const;
+type FounderConsentFailureStage = typeof FAILURE_STAGES[number];
+export const safeFounderConsentFailureStage = (value: unknown): FounderConsentFailureStage | undefined =>
+  FAILURE_STAGES.find(stage => stage === value);
 export class FounderConsentError extends Error {
-  constructor(readonly code: string, readonly status = 400) { super(code); }
+  constructor(readonly code: string, readonly status = 400, readonly failureStage?: FounderConsentFailureStage) { super(code); }
 }
 export type FounderConsentConfig = {
   ownerUid: string; clientId: string; callback: typeof FOUNDER_OAUTH_CALLBACK;
@@ -116,7 +121,8 @@ export class FounderGmailConsent {
     const browser = this.cookie(cookie);
     const row = this.binding(await this.ports.flows.get(browser.id), browser.browserHash);
     if (row.tenantId !== identity.tenantId || identity.authTime < row.authTime) throw new FounderConsentError("founder_oauth_owner_required", 403);
-    return { state: row.phase };
+    const failureStage = row.phase === "failed_requires_new_owner_consent" ? safeFounderConsentFailureStage(row.failureStage) : undefined;
+    return { state: row.phase, ...(failureStage ? { failureStage } : {}) };
   }
   async finish(identity: WorkIdentity, cookie: string) {
     await this.owner(identity);
@@ -130,34 +136,42 @@ export class FounderGmailConsent {
       tx.set(browser.id, { ...current, phase: "exchanging", secrets: null });
       return current;
     });
+    let failureStage: FounderConsentFailureStage = "secret_open";
     try {
       const data = JSON.parse(await this.ports.open(row.secrets, this.aad(browser.id)));
+      failureStage = "token_exchange";
       const token = await this.ports.exchange({ code: data.code, verifier: data.verifier,
         callback: this.config.callback, clientId: this.config.clientId });
+      failureStage = "token_validation";
       if (!token.refreshToken || !token.accessToken || token.scopes.length !== 1 || token.scopes[0] !== FOUNDER_GMAIL_READ_SCOPE) {
         throw new FounderConsentError("founder_oauth_scope_or_refresh_invalid");
       }
+      failureStage = "mailbox_verification";
       const account = await this.ports.verify({ accessToken: token.accessToken });
       if (account.mailbox !== FOUNDER_MAILBOX || account.sender !== FOUNDER_MAILBOX) {
         throw new FounderConsentError("founder_oauth_identity_unverified");
       }
+      failureStage = "owner_recheck";
       await this.owner(identity); // Recheck revoked/disabled owner before durable write.
+      failureStage = "storage_readiness";
       if (this.now() >= row.expiresAt || !await this.ports.storageReady()) {
         throw new FounderConsentError("founder_oauth_authorization_expired");
       }
       const consentedAt = this.now();
+      failureStage = "credential_persistence";
       await this.ports.save({ version: "blueprint.founder-gmail-credential.v1", binding: FOUNDER_CONNECTION_ID,
         mailbox: FOUNDER_MAILBOX, clientId: this.config.clientId, refreshToken: token.refreshToken,
         scopes: [FOUNDER_GMAIL_READ_SCOPE], ownerUid: identity.uid, approvalReference: this.config.approvalReference,
         consentedAt, grantMode: this.config.grantMode,
         usableUntil: this.config.grantMode === "temporary_testing" ? consentedAt + 7 * 86400 : null }, browser.id);
+      failureStage = "connection_acknowledgement";
       await this.ports.flows.set(browser.id, { ...row, phase: "connected_readonly", secrets: null });
       return { state: "connected_readonly", mailbox: FOUNDER_MAILBOX, sendsEnabled: false };
     } catch {
-      // Provider error bodies can contain codes/tokens. Report a constant only.
+      // Provider error bodies can contain codes/tokens. Report constants only.
       // No auto-revoke: that could invalidate a pre-existing ops/client grant.
-      await this.ports.flows.set(browser.id, { ...row, phase: "failed_requires_new_owner_consent", secrets: null });
-      throw new FounderConsentError("founder_oauth_exchange_failed_requires_new_owner_consent", 503);
+      await this.ports.flows.set(browser.id, { ...row, phase: "failed_requires_new_owner_consent", secrets: null, failureStage });
+      throw new FounderConsentError("founder_oauth_exchange_failed_requires_new_owner_consent", 503, failureStage);
     }
   }
 }

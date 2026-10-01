@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FounderMailboxConnection } from "@/components/admin/FounderMailboxConnection";
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: object) => headers }));
@@ -87,5 +87,48 @@ describe("founder connection preparation in Blueprint review", () => {
     const fetchMock = vi.spyOn(global, "fetch");
     page(); fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each(["failed", "stale", "unavailable"])("refetches status after failed completion and removes stale Verify and save when status is %s", async refreshed => {
+    let statusReads = 0;
+    let finishResponse!: (response: Response) => void;
+    const pendingCompletion = new Promise<Response>(resolve => { finishResponse = resolve; });
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async url => {
+      if (String(url).endsWith("/status")) {
+        statusReads++;
+        if (statusReads > 1 && refreshed === "unavailable") return new Response(null, { status: 503 });
+        return Response.json({ enabled: true, state: statusReads > 1 && refreshed === "failed" ? "failed_requires_new_owner_consent" : "awaiting_owner",
+          sendsEnabled: false, ...(statusReads > 1 ? { failureStage: "mailbox_verification" } : {}) });
+      }
+      if (String(url).endsWith("/complete")) return pendingCompletion;
+      return Response.json({ connection: { account: "nijel@tryblueprint.io", binding: { state: "private_storage_selected_unverified" }, oauth: {
+        ownerAction: "Owner-approved setup", initialScopes: ["gmail.readonly"], sendScopeAfterSeparateApproval: "gmail.send", dataAccess: "Mailbox messages/settings" }, secretDestination: { services: ["Blueprint web", "worker"] } } });
+    });
+    page(); fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
+    const save = await screen.findByRole("button", { name: "Verify and save founder read-only connection" });
+    fireEvent.click(save);
+    await waitFor(() => expect(save).toBeDisabled());
+    fireEvent.click(save);
+    finishResponse(Response.json({ error: "founder_oauth_exchange_failed_requires_new_owner_consent", failureStage: "mailbox_verification" }, { status: 503 }));
+    expect(await screen.findByText(/This connection attempt failed and cannot be retried/)).toBeInTheDocument();
+    await waitFor(() => expect(statusReads).toBe(2));
+    expect(screen.queryByRole("button", { name: "Verify and save founder read-only connection" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Prepare Google read-only consent" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/connection is saved; sending remains disabled/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
+    fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
+    expect(screen.queryByRole("button", { name: "Verify and save founder read-only connection" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/complete"))).toHaveLength(1);
+    if (refreshed === "failed") expect(screen.getByText(/Failed step: founder mailbox and sender verification/)).toBeInTheDocument();
+  });
+  it("shows a retained failure on reload without exposing unallowlisted metadata or retrying", async () => {
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async url => String(url).endsWith("/status")
+      ? Response.json({ enabled: true, state: "failed_requires_new_owner_consent", sendsEnabled: false, failureStage: "PRIVATE_REFRESH" })
+      : Response.json({ connection: { account: "nijel@tryblueprint.io", binding: { state: "missing" }, oauth: {
+        ownerAction: "Owner-approved setup", initialScopes: ["gmail.readonly"], sendScopeAfterSeparateApproval: "gmail.send", dataAccess: "Mailbox messages/settings" }, secretDestination: { services: ["Blueprint web", "worker"] } } }));
+    page(); fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
+    expect(await screen.findByText(/This connection attempt failed and cannot be retried/)).toBeInTheDocument();
+    expect(screen.queryByText(/PRIVATE_REFRESH/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Verify and save founder read-only connection" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
 });

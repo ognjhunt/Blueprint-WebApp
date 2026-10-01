@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { configuredFounderConsent } from "../agents/communications-oauth-store";
-import { FounderConsentError, FOUNDER_OAUTH_PREFIX, FOUNDER_OAUTH_COOKIE, FOUNDER_OAUTH_CALLBACK,
+import { FounderConsentError, safeFounderConsentFailureStage, FOUNDER_OAUTH_PREFIX, FOUNDER_OAUTH_COOKIE, FOUNDER_OAUTH_CALLBACK,
   type FounderGmailConsent } from "../agents/communications-oauth";
 
 const parseCookie = (header = "") => {
@@ -14,8 +14,11 @@ const parseCookie = (header = "") => {
 const identity = (res: Response) => ({ uid: res.locals.firebaseUser?.uid || "",
   tenantId: res.locals.firebaseUser?.firebase?.tenant || null, authTime: res.locals.firebaseUser?.auth_time || 0 });
 const cookieOptions = { httpOnly: true, secure: true, sameSite: "lax" as const, path: FOUNDER_OAUTH_PREFIX, maxAge: 600000 };
-const failure = (res: Response, error: unknown) => res.status(error instanceof FounderConsentError ? error.status : 503)
-  .json({ error: error instanceof FounderConsentError ? error.code : "founder_oauth_unavailable" });
+const failure = (res: Response, error: unknown) => {
+  const failureStage = error instanceof FounderConsentError ? safeFounderConsentFailureStage(error.failureStage) : undefined;
+  return res.status(error instanceof FounderConsentError ? error.status : 503)
+    .json({ error: error instanceof FounderConsentError ? error.code : "founder_oauth_unavailable", ...(failureStage ? { failureStage } : {}) });
+};
 
 export function founderGmailOAuthRouter(getConsent: () => FounderGmailConsent | null = configuredFounderConsent) {
   const router = Router();

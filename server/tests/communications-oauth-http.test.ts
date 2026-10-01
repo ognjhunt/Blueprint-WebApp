@@ -108,4 +108,16 @@ describe("actual mounted founder Google consent routes", () => {
     expect(response.status).toBe(400); expect(await response.text()).not.toContain("PRIVATE_CODE");
     expect(privateWorkLogPath(`${FOUNDER_OAUTH_PREFIX}/callback?state=PRIVATE_STATE&code=PRIVATE_CODE`)).toBe(`${FOUNDER_OAUTH_PREFIX}/callback`);
   });
+  it("returns a safe completion failure stage, keeps the failed status, and refuses a second exchange", async () => {
+    const { f, request, headers } = await app(), flow = await f.start();
+    await f.consent.callback({ state: flow.state, code: "PRIVATE_CODE" }, flow.cookie);
+    vi.mocked(f.ports.exchange).mockRejectedValueOnce(new Error("PRIVATE_CODE PRIVATE_ACCESS PRIVATE_REFRESH provider details"));
+    const cookie = headers.Cookie + `;${FOUNDER_OAUTH_COOKIE}=${flow.cookie}`;
+    const response = await request("/complete", { method: "POST", headers: { ...headers, Cookie: cookie }, body: "{}" });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "founder_oauth_exchange_failed_requires_new_owner_consent", failureStage: "token_exchange" });
+    expect(await (await request("/status", { headers: { ...headers, Cookie: cookie } })).json()).toMatchObject({ state: "failed_requires_new_owner_consent", failureStage: "token_exchange", sendsEnabled: false });
+    expect((await request("/complete", { method: "POST", headers: { ...headers, Cookie: cookie }, body: "{}" })).status).toBe(400);
+    expect(f.ports.exchange).toHaveBeenCalledTimes(1); expect(f.ports.save).not.toHaveBeenCalled();
+  });
 });

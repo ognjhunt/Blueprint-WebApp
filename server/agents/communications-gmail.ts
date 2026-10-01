@@ -23,7 +23,10 @@ export async function verifyFounderMailbox(gmail?: gmail_v1.Gmail) {
     throw new Error("founder_gmail_wrong_mailbox");
   }
   const sendAs = await gmail.users.settings.sendAs.list({ userId: "me" });
-  if (!sendAs.data.sendAs?.some((entry) => entry.sendAsEmail?.toLowerCase() === FOUNDER_MAILBOX && entry.verificationStatus === "accepted")) {
+  // Google reports verificationStatus for custom From aliases only. After the
+  // exact profile check, the matching primary address needs no alias status.
+  if (!sendAs.data.sendAs?.some((entry) => entry.sendAsEmail?.toLowerCase() === FOUNDER_MAILBOX
+    && (entry.isPrimary === true || entry.verificationStatus === "accepted"))) {
     throw new Error("founder_sender_unverified_or_permission_missing");
   }
   return { mailbox: FOUNDER_MAILBOX, sender: FOUNDER_MAILBOX };
