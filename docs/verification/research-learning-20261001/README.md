@@ -44,7 +44,7 @@ contract assertions**, not findings about Blueprint's current outreach.
 | `npm run claims:guard` | 780 files scanned, zero findings. |
 | `npm run audit:assets` | Passed. |
 | Independent Sol review | Read-only review and separate 43/43 test run passed. Corrections from review covered chain append, delivery/maturity denominators, historical cohort metadata, exact ledger joins, original fact check dates, copy controls and immutable correction fields. No unresolved offline correctness/privacy blocker. |
-| `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` | Corpus staged; refresh stopped because `graphifyy` is unavailable in the selected Python interpreter. No packages installed or credentials changed. |
+| Graphify AST refresh | Passed using `BLUEPRINT_GRAPHIFY_PYTHON=/tmp/blueprint-learning-graphify/bin/python bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz`: 83 code files, 1,330 nodes, 2,247 edges, 52 communities; canonical root outputs published. The initial missing-dependency failure was resolved with an isolated temporary `graphifyy==0.9.73` tooling environment. No global/runtime dependency, model call or credential change. |
 | Offline dry-run CLI | Exit 0, `readyForStagedAppend:true`, `readyForCutover:false`, errors empty, 26 events / eight prospects. |
 
 Reproduce without overwriting the committed artifact:
@@ -80,8 +80,13 @@ exact counts; verify staged append/readback before selecting a live consumer.
 Pipeline owns the optional `learning.py` loader/configuration follow-up. Sheets
 and Notion publishing require the coordinated export/readback stage.
 
-Retry/resume: the graphify owner supplies an already installed compatible
-interpreter; the parent supplies reconciled source scope/manifest and release
+The repo-approved runner uses deterministic code AST extraction; docs/media
+semantic extraction and model calls are not enabled. Package provenance:
+[official graphifyy metadata](https://pypi.org/project/graphifyy/0.9.73/).
+The existing pilot manifest now includes the seven learning modules as explicit
+file paths. Root graph outputs remain ignored, derived navigation artifacts.
+
+Retry/resume: the parent supplies reconciled source scope/manifest and release
 coordination before live activation. No source data was migrated or deleted.
 Residual risk: no live binding/export/cutover proof; Gmail has no delivery-proof
 field, so live delivery remains unknown. No paid classifier activation is
