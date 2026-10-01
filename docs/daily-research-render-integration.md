@@ -12,8 +12,9 @@ environment. `BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED` defaults false and must
 remain false through deployment/preflight/manual canary. Live actions belong to
 the authorized operator, after review and release gates.
 
-The prepared correction pins Pipeline source
-`20d0c9e8b784e451aa281f3adee85d34c8054b5a` (PR 2507), including the complete CRM
+The current receipt pins Pipeline source
+`b9aa5d0d129ecf02082a766e12657a94097e803a` (PR 2515), including the optional
+knowledge-delta assertion-scope validator repair and the earlier complete CRM
 identity guard and bounded full-parent Notion pagination repair. It accepts the actual
 file-based skill discovery setup and packages the original four reviewed text
 files. Exact hashes are checked before the create payload is persisted; inline
