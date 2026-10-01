@@ -153,6 +153,12 @@ uses the existing Firestore infrastructure and public HTTPS; normal hosting and
 network costs still apply. Live worker activation, paid Luna access/budget tests
 and any Gmail grant/sending remain separate parent-owned release gates. This
 repair changes no research package, schedule, instructions, model or budget.
+The contact reader supports UTF-8 plain text and unstyled static HTML. Pages with
+embedded/external stylesheets can supply discovery links and restrictions, but
+cannot supply positive contact proof; inline-styled contact ancestors are also
+ineligible. Unresolved rendering/visibility terminates explicitly rather than
+promoting a hidden address. Browser rendering/CSS retrieval is outside this
+bounded repair, so some real contact pages will remain unresolved.
 
 The authenticated, CSRF-protected `research-preview`/`research-approve` routes
 remain an optional operator-reviewed context path. They are not the automatic

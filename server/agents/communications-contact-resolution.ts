@@ -43,15 +43,24 @@ export function contactPageText(page: ContactPage) {
   if (!bytes.length || bytes.length > CONTACT_PAGE_LIMIT || bytes.toString("base64") !== page.bodyBase64
     || !/^(?:text\/html|text\/plain)(?:;|$)/.test(page.contentType)) throw new Error("contact_resolution_body_invalid");
   const body = new TextDecoder("utf-8", { fatal: true }).decode(bytes), segments: string[] = [], links: string[] = [];
-  if (/^text\/plain(?:;|$)/.test(page.contentType)) return { segments: body.split(/\n\s*\n/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean), links, restrictionText: body };
-  const stack: { tag: string; hidden: boolean }[] = [];
-  let text = "", restrictionText = "";
-  const flush = () => { const value = text.replace(/\s+/g, " ").trim(); if (value) segments.push(value); text = ""; };
+  if (/^text\/plain(?:;|$)/.test(page.contentType)) return { segments: body.split(/\n\s*\n/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean), links, restrictionText: body, visibilityUnverified: false };
+  const markup = body.replace(/<!--[\s\S]*?-->/g, "");
+  // Static extraction cannot establish stylesheet visibility. Such pages may
+  // supply links/restrictions, but never positive contact proof. No CSS/browser runtime.
+  const visibilityUnverified = /<style\b[^>]*>[\s\S]*?\S[\s\S]*?<\/style\s*>/i.test(markup)
+    || (markup.match(/<link\b[^>]*>/gi) ?? []).some(tag => /\brel\s*=\s*(?:"[^"]*\bstylesheet\b[^"]*"|'[^']*\bstylesheet\b[^']*'|stylesheet(?:\s|>))/i.test(tag));
+  const baseHref = markup.match(/<base\b[^>]*\bhref\s*=\s*(["'])(.*?)\1/i)?.[2];
+  const linkBase = baseHref ? new URL(decode(baseHref), page.finalUrl).href : page.finalUrl;
+  const stack: { tag: string; hidden: boolean; inlineStyle: boolean }[] = [];
+  let text = "", restrictionText = "", blockVisibilityUnverified = false;
+  const flush = () => { const value = text.replace(/\s+/g, " ").trim(); if (value && !blockVisibilityUnverified) segments.push(value);
+    text = ""; blockVisibilityUnverified = false; };
   const blocks = /^(?:p|div|section|article|li|address|h[1-6]|br|hr|footer|header|nav|table|tr|td)$/;
-  for (const token of body.replace(/<!--[\s\S]*?-->/g, "").match(/<[^>]*>|[^<]+/g) ?? []) {
+  for (const token of markup.match(/<[^>]*>|[^<]+/g) ?? []) {
     if (!token.startsWith("<")) {
+      if (stack.some(x => x.inlineStyle)) blockVisibilityUnverified = true;
       if (!stack.some(x => x.hidden)) restrictionText += ` ${decode(token)}`;
-      if (!stack.some(x => x.hidden || ["footer", "nav"].includes(x.tag))) text += decode(token); continue;
+      if (!stack.some(x => x.hidden || x.inlineStyle || ["footer", "nav"].includes(x.tag))) text += decode(token); continue;
     }
     const match = token.match(/^<\s*(\/?)\s*([a-z][a-z\d-]*)\b([^>]*)>$/i);
     if (!match) { if (!/^<!doctype/i.test(token)) throw new Error("contact_resolution_markup_unsupported"); continue; }
@@ -61,14 +70,15 @@ export function contactPageText(page: ContactPage) {
     const hidden = stack.some(x => x.hidden) || /^(?:script|style|template|noscript|svg|head)$/.test(tag)
       || /(?:^|\s)(?:hidden(?:\s|=|$)|aria-hidden\s*=\s*["']?true)/i.test(attributes)
       || /(?:display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0\b)/i.test(attributes);
+    if (/\bstyle\s*=/i.test(attributes)) blockVisibilityUnverified = true;
     if (tag === "a" && !hidden) {
       const href = attributes.match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2];
-      if (href) { try { const url = new URL(decode(href), page.finalUrl); if (/contact|inquir|enquir|partnership/i.test(url.pathname)) links.push(url.href); } catch { /* untrusted link */ } }
+      if (href) { try { const url = new URL(decode(href), linkBase); if (/contact|inquir|enquir|partnership/i.test(url.pathname)) links.push(url.href); } catch { /* untrusted link */ } }
     }
-    if (!/^(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/.test(tag) && !/\/\s*$/.test(attributes)) stack.push({ tag, hidden });
+    if (!/^(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/.test(tag) && !/\/\s*$/.test(attributes)) stack.push({ tag, hidden, inlineStyle: /\bstyle\s*=/i.test(attributes) });
     if (stack.length > 128 || segments.length > 4000) throw new Error("contact_resolution_markup_limit");
   }
-  flush(); return { segments, links: [...new Set(links)], restrictionText: restrictionText.replace(/\s+/g, " ").trim() };
+  flush(); return { segments, links: [...new Set(links)], restrictionText: restrictionText.replace(/\s+/g, " ").trim(), visibilityUnverified };
 }
 
 export function contactPublication(source: any, prospectId: string) {
@@ -91,10 +101,12 @@ function checkResolution(value: unknown, source: any, prospectId: string) {
     if (!reachable.has(requested) || page.byteCount !== bytes.length || page.bodyDigest !== hash(bytes)
       || page.finalUrl !== (page.redirects.at(-1) ?? page.requestedUrl)) throw new Error("contact_resolution_retrieval_changed");
     for (const url of [page.finalUrl, ...page.redirects]) contactFetchUrl(url, source.candidate.organization_url);
-    const parsed = contactPageText(page), visibleTextDigest = communicationsDigest({ segments: parsed.segments, restrictionText: parsed.restrictionText });
+    const parsed = contactPageText(page), visibleTextDigest = communicationsDigest({ segments: parsed.segments,
+      restrictionText: parsed.restrictionText, visibilityUnverified: parsed.visibilityUnverified });
     if (contactProhibition.test(parsed.restrictionText)) throw new Error("contact_resolution_recipient_restricted");
     const organizationIdentified = parsed.segments.some(segment => containsContactName(segment, source.candidate.organization));
     for (const link of parsed.links) { try { reachable.add(contactFetchUrl(link, source.candidate.organization_url).href); } catch { /* no scope widening */ } }
+    if (parsed.visibilityUnverified) continue;
     for (const [segmentIndex, quote] of parsed.segments.entries()) {
       if (quote.length > 1200) continue;
       try { found.push({ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex, segmentIndex, quote, visibleTextDigest }); }
@@ -145,11 +157,14 @@ export async function resolvePublicContact(source: any, prospectId: string, read
   }
   const candidates = pages.flatMap((page, pageIndex) => {
     const parsed = contactPageText(page);
+    if (parsed.visibilityUnverified) return [];
     const organizationIdentified = parsed.segments.some(segment => containsContactName(segment, source.candidate.organization));
     return parsed.segments.flatMap((quote, segmentIndex) => { try { return [{ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex,
-      segmentIndex, quote, visibleTextDigest: communicationsDigest({ segments: parsed.segments, restrictionText: parsed.restrictionText }) }]; } catch { return []; } });
+      segmentIndex, quote, visibleTextDigest: communicationsDigest({ segments: parsed.segments,
+        restrictionText: parsed.restrictionText, visibilityUnverified: parsed.visibilityUnverified }) }]; } catch { return []; } });
   });
-  if (!candidates.length) throw new Error("contact_resolution_missing_or_ambiguous");
+  if (!candidates.length) throw new Error(pages.some(page => contactPageText(page).visibilityUnverified)
+    ? "contact_resolution_visibility_unverified" : "contact_resolution_missing_or_ambiguous");
   const selected = candidates[0], page = pages[selected.pageIndex];
   const base = checkResolution({ version: "blueprint.contact-resolution.v1", publication: contactPublication(source, prospectId), pages,
     contact: { email: selected.email, scope: selected.scope, organization: source.candidate.organization,

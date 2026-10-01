@@ -214,4 +214,24 @@ describe("contact-free pinned producer → communications contact fulfillment (o
     g.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<p>NotAcme: business inquiries: ${g.prospect.contactEmail}</p>`));
     await g.request(); await g.refresh(); expect(g.records("jobs")).toHaveLength(0);
   });
+  it.each(["<style>.secret {display:none}</style>", '<link rel="stylesheet" href="/site.css">',
+    '<link rel=stylesheet href="/site.css">'])("refuses stylesheet-dependent contact visibility: %s", async stylesheet => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, stylesheet + `<h1>${f.candidate.organization}</h1><p class="secret">Business inquiries: hidden@facility.example</p>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("refreshRequests")[0]).toMatchObject({ state: "terminal", reason: "contact_resolution_visibility_unverified" });
+  });
+  it("allows a styled discovery page to lead to independently verifiable static/plain-text contact evidence", async () => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, new URL(url).pathname === "/contact" ? f.business
+      : '<link rel="stylesheet" href="/site.css"><nav><a href="/contact">Contact</a></nav>'));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(1);
+    expect(f.records("contactProofs")[0].pages[0].bodyBase64).toContain(Buffer.from('<link').toString('base64').slice(0, 4));
+  });
+  it("refuses inline-styled positive evidence whose visibility is unresolved", async () => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><div style="height:0;overflow:hidden"><p>Business inquiries: hidden@facility.example</p></div>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
+  it("never assembles a new address by removing unresolved styled inline text", async () => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><p>Business inquiries: business<span style="color:red">-support</span>@facility.example</p>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
 });
