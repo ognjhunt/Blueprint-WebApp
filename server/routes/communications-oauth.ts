@@ -45,7 +45,10 @@ export function founderGmailOAuthRouter(getConsent: () => FounderGmailConsent | 
     } catch (error) { return failure(res, error); }
   });
   router.use(csrfProtection, (req, res, next) => {
-    // Browser-only owner actions; no arbitrary return URLs or native exemption.
+    // The shared CSRF helper supports native bearer clients elsewhere; this
+    // browser-only owner route explicitly refuses that exemption.
+    if (req.header("x-blueprint-native-client") !== undefined) return res.status(403).json({ error: "founder_oauth_browser_client_required" });
+    // No arbitrary return URLs.
     if (req.header("origin") !== "https://tryblueprint.io") return res.status(403).json({ error: "founder_oauth_origin_invalid" });
     if (!req.body || Array.isArray(req.body) || Object.keys(req.body).length) return res.status(400).json({ error: "founder_oauth_body_invalid" });
     next();

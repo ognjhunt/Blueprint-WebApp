@@ -35,6 +35,7 @@ describe("actual mounted founder Google consent routes", () => {
     expect((await request("/start", { method: "POST", headers, body: JSON.stringify({ refresh_token: "never-accepted" }) })).status).toBe(400);
     auth.verifyIdToken.mockResolvedValueOnce({ uid: "other", auth_time: 900 });
     expect((await request("/start", { method: "POST", headers, body: "{}" })).status).toBe(403);
+    expect((await request("/start", { method: "POST", headers: { ...headers, "X-CSRF-Token": "", "x-blueprint-native-client": "ios" }, body: "{}" })).status).toBe(403);
     expect(f.records.size).toBe(0);
   });
   it("receives Google callback without exposing codes; requires explicit owner POST before exchange/save", async () => {
