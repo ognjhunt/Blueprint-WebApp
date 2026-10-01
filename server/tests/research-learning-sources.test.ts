@@ -80,7 +80,7 @@ describe("bounded prior-research reconciliation", () => {
     const future = fixture(); future.input.knowledge.records[0].facts[0].sources[0].source_checked_at = "2026-10-02"; future.input.knowledge.content_hash = knowledgeContentHash(future.input.knowledge);
     expect(() => reconcile(future)).toThrow("date_invalid");
   });
-  it.each(["authorization=private", "token=private", "credentials: private", "signature=private", "See https://example.org/?token=private", "See https://example.org/?%2574oken=private"])("rejects private free-text evidence %s", value => expect(safeText().safeParse(value).success).toBe(false));
+  it.each(["authorization=private", "token=private", "OPENAI_API_KEY=private", "APP_ACCESS_TOKEN=private", "AWS_ACCESS_KEY_ID=private", "AWS_SECRET_ACCESS_KEY=private", '{"access_token":"private"}', '{"api_key":"private"}', '{"authorization":"private"}', "-----BEGIN PRIVATE KEY-----", "credentials: private", "signature=private", "See https://example.org/?token=private", "See https://example.org/?%2574oken=private"])("rejects private free-text evidence %s", value => expect(safeText().safeParse(value).success).toBe(false));
   it.each(["company", "page"])("reports duplicated %s IDs even when a missing join offsets the count", kind => {
     const f = fixture();
     if (kind === "company") f.input.knowledge.companies = [f.input.knowledge.companies[0], f.input.knowledge.companies[0]];
