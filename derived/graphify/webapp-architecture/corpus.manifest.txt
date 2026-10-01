@@ -101,3 +101,7 @@ server/research-learning/migration.ts
 server/research-learning/planner.ts
 server/research-learning/snapshot.ts
 server/research-learning/store.ts
+server/research-learning/prior-research.ts
+server/research-learning/shared-context.ts
+server/research-learning/site-learning.ts
+server/research-learning/source-store.ts
