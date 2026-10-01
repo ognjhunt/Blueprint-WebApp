@@ -83,7 +83,8 @@ describe("agent-owned published research intake (offline)", () => {
     const outcome: any = await f.admit();
     expect(outcome.state).toBe("needs_research"); expect(outcome.humanContextApprovalRequired).toBe(false);
     expect(f.records("jobs")).toHaveLength(0); expect(f.records("briefs")).toHaveLength(0);
-    expect(f.records("refreshRequests")[0]).toMatchObject({ state: "pending", owner: "blueprint-research-agent", scope: "relevant_claims_only" });
+    expect(f.records("refreshRequests")[0]).toMatchObject({ state: "pending",
+      owner: ["missing", "unknown_contact"].includes(kind) ? "blueprint-communications-agent" : "blueprint-research-agent", scope: "relevant_claims_only" });
     expect([...f.db.records.keys()].some(x => x.startsWith("outboundProspects/"))).toBe(false);
     const first = f.records("intake")[0]; await f.admit(); expect(f.records("intake")[0]).toEqual(first);
   });

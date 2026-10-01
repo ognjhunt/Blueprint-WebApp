@@ -7,7 +7,7 @@ import { PUBLIC_CONTACT_PREFIX } from "../../agents/communications-contact-evide
 /** Synthetic records shaped like the pinned v3 runner/consumer/publisher output.
  * Unlike the original consumer fixture, this includes full QA and publication plans. */
 export function publishedResearchFixture(options: { unknowns?: string[]; taskClaim?: string;
-  publicContact?: boolean; date?: string; mutateCandidate?: (candidate: any) => void } = {}) {
+  publicContact?: boolean; naturalContact?: boolean; actualProducer?: boolean; date?: string; mutateCandidate?: (candidate: any) => void } = {}) {
   const { snapshot, brief, output } = communicationsFixture();
   const candidate = {
     candidate_key: "candidate-1", identity_keys: ["candidate-1"],
@@ -43,21 +43,50 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
     claim: PUBLIC_CONTACT_PREFIX + JSON.stringify({ organization: candidate.organization, site: candidate.site,
       email: brief.contact.email, purpose: "business_inquiries", status: "public_business_contact" }),
     url: brief.contact.sourceUrl, quote: `Public business contact for business inquiries: ${brief.contact.email}` });
+  if (options.naturalContact) candidate.evidence.push({ ...candidate.evidence[0],
+    claim: "The operator publishes a route for business inquiries", url: brief.contact.sourceUrl,
+    quote: `${candidate.organization}, ${candidate.site}: business inquiries: ${brief.contact.email}` });
   options.mutateCandidate?.(candidate);
   const row: any = snapshot.row;
   if (options.date) { row.date = options.date; row.run_key = `blueprint-researcher:${options.date}`; }
+  const producerContext: any = { content_hash: "a".repeat(64), snapshot_loaded_at: "2026-09-30T19:00:00Z", records: [] };
+  const producerPolicy: any = { schema_version: "blueprint.knowledge-refresh-policy.v1", snapshot_content_hash: producerContext.content_hash,
+    approval_reference: "OFFLINE_FIXTURE_NOT_LIVE_POLICY", classes: { stable_versioned_embodiment_or_specification: 90, vendor_capability_or_limit: 30,
+      dated_historical_report: 90, operational_status_or_requirements: 7, unresolved_conflict: null, explicit_unknown: null }, assignments: [] };
+  producerPolicy.policy_hash = researchDigest(producerPolicy);
+  producerContext.refresh_policy = Object.fromEntries(["schema_version", "policy_hash", "approval_reference", "classes"].map(key => [key, producerPolicy[key]]));
+  if (options.actualProducer) {
+    for (const entry of candidate.evidence) Object.assign(entry, { origin: "live", source_checked_at: "2026-09-30T20:00:00Z", checked_date: "2026-09-30",
+      snapshot_loaded_at: null, snapshot_record_id: null, snapshot_fact_id: null });
+    const normalized = (text: string) => (text.toLowerCase().match(/[a-z0-9_]+/g) ?? []).join(" ");
+    const suffix = [normalized(candidate.site), normalized(candidate.task)];
+    candidate.identity_keys = [researchDigest([new URL(candidate.organization_url).hostname.replace(/^www\./, ""), ...suffix]),
+      researchDigest([normalized(candidate.organization), ...suffix])].sort();
+    candidate.candidate_key = candidate.identity_keys[0];
+  }
   row.packet = { ...row.packet, candidates: [candidate],
-    run_key: row.run_key, session_id: row.session_id, turn_id: row.turn_id,
+    run_key: row.run_key, session_id: row.session_id, turn_id: row.turn_id, checked_date: row.date,
     schema_version: "blueprint.daily-research.v3", snapshot_content_hash: "a".repeat(64),
-    snapshot_loaded_at: "2026-09-30T19:00:00Z", refresh_policy_hash: "b".repeat(64),
+    snapshot_loaded_at: "2026-09-30T19:00:00Z", refresh_policy_hash: options.actualProducer ? producerPolicy.policy_hash : "b".repeat(64),
     proposed_knowledge_deltas: [], findings: ["Synthetic reviewed sources"], blockers: [], proposed_next_actions: [],
     duplicates: [], scope: "proposals_only_no_outreach", budget_is_hard_cap: false,
     destinations: { sheet_id: "1n95Ih0Swc-q-kZyUaDHoZh6SVzxvf_zt-CRR7i39bWY", sheet_tab: "Prospects",
       notion_parent: "3eb80154161d8116858ed5f376b4b7a9" } };
   row.packet_digest = researchDigest(row.packet);
+  // Representative actual runner output, before collect adds candidate/run identity.
+  // The producer deliberately has no contact field or magic contact claim.
+  const raw = { schema_version: row.packet.schema_version, checked_date: row.date,
+    snapshot_content_hash: row.packet.snapshot_content_hash, refresh_policy_hash: row.packet.refresh_policy_hash,
+    findings: row.packet.findings, blockers: row.packet.blockers, proposed_next_actions: row.packet.proposed_next_actions,
+    proposed_knowledge_deltas: [], candidates: row.packet.candidates.map((item: any) => {
+      const { candidate_key: _key, identity_keys: _identities, ...candidate } = item; return candidate;
+    }) };
+  const artifact = Buffer.from(JSON.stringify(raw));
+  row.raw_output_digest = createHash("sha256").update(artifact).digest("hex");
+  snapshot.files.artifact = artifact.toString("base64");
   const qaResult = { schema_version: "blueprint.research-qa.v1", packet_digest: row.packet_digest,
     crm_digest: researchDigest([]), source_support_verified: true, accepted_keys: [candidate.candidate_key],
-    summary: "Reviewed synthetic site/job/team evidence; contact requires separate human review",
+    summary: "Reviewed synthetic site/job/team evidence; contact requires separate verification",
     checks: [{ candidate_key: candidate.candidate_key, source_support_verified: true, duplicate: false, reason: "Synthetic reviewed sources" }] };
   const qaBytes = Buffer.from(JSON.stringify(qaResult));
   const artifact_digest = createHash("sha256").update(qaBytes).digest("hex");
@@ -102,5 +131,5 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
     contactSourceCheckedAt: brief.contact.sourceCheckedAt, contactSourceIdentifiesRecipient: true,
     consent: { ...brief.consent, status: "public_business_contact" }, conflicts: [],
   } };
-  return { snapshot, prospect, input, output, candidate };
+  return { snapshot, prospect, input, output, candidate, producerContext, producerPolicy };
 }
