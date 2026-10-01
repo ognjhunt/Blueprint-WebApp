@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { outreachContext, outreachContract, outreachDraft } from "./fixtures/outreach-review";
 import { CommunicationsStore } from "../agents/communications-store";
+import * as draftBudget from "../agents/communications-draft-budget";
 import * as producer from "../agents/communications-producer";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { communicationsNow } from "./fixtures/communications";
@@ -35,10 +36,10 @@ const prospect = {
   hypothesisedTask: "Packing might be a recurring job.", inferredGates: {}, gateAnswerSources: {},
   reasonForContact: "Public packing-job observation", stage: "drafted", createdAtIso: "2026-09-30T19:00:00Z",
 };
-async function invoke(path: string, body: unknown = {}, method = "post") {
+async function invoke(path: string, body: unknown = {}, method = "post", actor: string | null = "authenticated-operator") {
   const layer = router.stack.find((entry) => entry.route?.path === path && entry.route.methods[method]);
   if (!layer?.route) throw new Error("Missing route " + path);
-  const res = { locals: { firebaseUser: { uid: "authenticated-operator" } }, status: vi.fn(), json: vi.fn(), setHeader: vi.fn() };
+  const res = { locals: { firebaseUser: { uid: actor } }, status: vi.fn(), json: vi.fn(), setHeader: vi.fn() };
   res.status.mockReturnValue(res);
   res.json.mockReturnValue(res);
   await layer.route.stack[0].handle({ params: { prospectId: "prospect-1", jobId: "a".repeat(64) }, body }, res, vi.fn());
@@ -120,6 +121,43 @@ describe("outbound prospect review routes (no provider, Firestore, or transport 
       briefDigest: retried.briefDigest, requestedBy: "authenticated-operator" });
     expect(response.body).toMatchObject({ sent: false, sessionCreated: false });
     expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+  it("gates exact existing-session reconciliation and rejects supplied costs, credentials, authority and actors", async () => {
+    const recovery = vi.spyOn(draftBudget, "reconcileCommunicationsDraftSession");
+    const body = { briefDigest: "b".repeat(64), expectedCheckpointDigest: "c".repeat(64), sessionId: "synthetic-existing-session" };
+    mocks.hasAnyRole.mockResolvedValue(false);
+    expect((await invoke("/:prospectId/communications/:jobId/reconcile-draft", body)).status).toBe(403);
+    mocks.hasAnyRole.mockResolvedValue(true);
+    expect((await invoke("/:prospectId/communications/:jobId/reconcile-draft", body, "post", null)).status).toBe(403);
+    for (const extra of [{ usage: { total_tokens: 0 } }, { cost: 0 }, { apiKey: "synthetic-unaccepted" }, { approved: true },
+      { requestedBy: "forged-actor" }, { body: "invented" }, { sessionId: "https://invalid.example/session" }]) {
+      expect((await invoke("/:prospectId/communications/:jobId/reconcile-draft", { ...body, ...extra })).status).toBe(400);
+    }
+    expect(recovery).not.toHaveBeenCalled(); expect(mocks.set).not.toHaveBeenCalled();
+    expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+  it("derives reconciliation identity from auth and constructs a paid-disabled observer, without queue/approval/send", async () => {
+    const body = { briefDigest: "b".repeat(64), expectedCheckpointDigest: "c".repeat(64), sessionId: "synthetic-existing-session" };
+    const recovery = vi.spyOn(draftBudget, "reconcileCommunicationsDraftSession").mockResolvedValueOnce({
+      state: "usage_recorded", sessionRecovered: true, costResolved: true,
+    });
+    const result = await invoke("/:prospectId/communications/:jobId/reconcile-draft", body);
+    expect(result.status).toBe(200);
+    expect(recovery).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      jobId: "a".repeat(64), prospectId: "prospect-1", ...body, requestedBy: "authenticated-operator",
+    }, expect.any(Number));
+    const observer = recovery.mock.calls[0][1] as import("../agents/communications-api").CommunicationsAgentsAPI;
+    await expect(observer.run({} as any)).rejects.toMatchObject({ code: "communications_inference_disabled" });
+    expect(result.body).toEqual({ ok: true, state: "usage_recorded", sessionRecovered: true, costResolved: true,
+      sent: false, sessionCreated: false, jobQueued: false });
+    expect(mocks.set).not.toHaveBeenCalled(); expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+  it("reports unverifiable existing-session recovery without returning provider bodies or private configuration", async () => {
+    vi.spyOn(draftBudget, "reconcileCommunicationsDraftSession").mockRejectedValueOnce(new Error("PRIVATE SYNTHETIC PROVIDER BODY"));
+    const result = await invoke("/:prospectId/communications/:jobId/reconcile-draft", {
+      briefDigest: "b".repeat(64), expectedCheckpointDigest: "c".repeat(64), sessionId: "synthetic-existing-session",
+    });
+    expect(result).toEqual({ status: 409, body: { error: "communications_draft_recovery_not_verified" } });
   });
   it("does not draft or queue without the existing ops role", async () => {
     mocks.hasAnyRole.mockResolvedValue(false);

@@ -91,6 +91,7 @@ const protectedEndpoints = [
   { method: "GET", path: "/api/admin/outbound-prospects/test-prospect/communications" },
   { method: "POST", path: "/api/admin/outbound-prospects/test-prospect/communications" },
   { method: "POST", path: `/api/admin/outbound-prospects/test-prospect/communications/${"a".repeat(64)}/retry` },
+  { method: "POST", path: `/api/admin/outbound-prospects/test-prospect/communications/${"a".repeat(64)}/reconcile-draft` },
   { method: "POST", path: "/api/admin/outbound-prospects/test-prospect/communications/research-preview" },
   { method: "POST", path: "/api/admin/outbound-prospects/test-prospect/communications/research-approve" },
 ];

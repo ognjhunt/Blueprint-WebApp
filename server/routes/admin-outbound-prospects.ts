@@ -34,6 +34,8 @@ import type {
 } from "../agents/tasks/outbound-outreach";
 import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
 import { CommunicationsStore } from "../agents/communications-store";
+import { CommunicationsAgentsAPI } from "../agents/communications-api";
+import { reconcileCommunicationsDraftSession } from "../agents/communications-draft-budget";
 import { communicationsDigest } from "../agents/communications-contract";
 import { founderMailboxConnectionPlan } from "../agents/communications-connection";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
@@ -242,6 +244,27 @@ router.get("/:prospectId/communications", async (req: Request, res: Response) =>
   const jobs = await new CommunicationsStore(db).jobsForProspect(String(req.params.prospectId));
   return res.json({ ok: true, jobs, communications: prospect.data()?.communications ?? null,
     events: events.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
+});
+
+/** Recover an existing session and its usage without inference, queue or send. */
+router.post("/:prospectId/communications/:jobId/reconcile-draft", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const requestedBy = typeof res.locals.firebaseUser?.uid === "string" ? res.locals.firebaseUser.uid.trim() : "";
+  if (!requestedBy) return res.status(403).json({ error: "operator_identity_missing" });
+  const parsed = z.object({ briefDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedCheckpointDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    sessionId: z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/) }).strict().safeParse(req.body);
+  const prospectId = String(req.params.prospectId || ""), jobId = String(req.params.jobId || "");
+  if (!parsed.success || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(prospectId) || !/^[a-f0-9]{64}$/.test(jobId)) {
+    return res.status(400).json({ error: "communications_draft_recovery_invalid" });
+  }
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    const api = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference: false });
+    const recovery = await reconcileCommunicationsDraftSession(db, api, { prospectId, jobId, ...parsed.data, requestedBy }, Date.now());
+    return res.json({ ok: true, ...recovery, sent: false, sessionCreated: false, jobQueued: false });
+  } catch { return res.status(409).json({ error: "communications_draft_recovery_not_verified" }); }
 });
 
 /** Requeue one blocked job after repair; retain its create claim and budget. */

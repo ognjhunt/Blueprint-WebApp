@@ -7,12 +7,13 @@ import { researchDigest, verifyPublishedResearch } from "../agents/communication
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { processCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { CommunicationsRuntimeError } from "../agents/communications-api";
+import { reserveCommunicationsDraft, reconcileCommunicationsDraftSession } from "../agents/communications-draft-budget";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 
-async function setup(intent: "outreach" | "reply" = "outreach") {
+async function setup(intent: "outreach" | "reply" = "outreach", now = () => communicationsNow) {
   const fixture = communicationsFixture(intent);
   const db = memoryFirestore();
-  const store = new CommunicationsStore(db, () => communicationsNow, "test-owner");
+  const store = new CommunicationsStore(db, now, "test-owner");
   const install = async () => {
     fixture.job.briefDigest = communicationsDigest(fixture.brief);
     fixture.handoff.briefDigest = fixture.job.briefDigest;
@@ -27,11 +28,11 @@ async function setup(intent: "outreach" | "reply" = "outreach") {
   const deps = { store, api: { run: vi.fn(async () => ({ output: fixture.output, checkpoint: job.checkpoint, usage: { input_tokens: 10 } })), cancel: vi.fn(async () => true),
     reconcileSaved: vi.fn(async () => null as any) },
     readResearch: vi.fn(async () => fixture.snapshot), verifyMailbox: vi.fn(async () => ({})), readThread: vi.fn(async () => fixture.thread!),
-    isSuppressed: vi.fn(async () => false), suppress: vi.fn(async () => ({ persisted: true })), now: () => communicationsNow };
+    isSuppressed: vi.fn(async () => false), suppress: vi.fn(async () => ({ persisted: true })), now };
   return { ...fixture, job, db, store, deps, install };
 }
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("research handoff and publication integrity", () => {
   it("consumes the exact reviewed research snapshot and publication receipts", () => {
@@ -138,6 +139,40 @@ describe("Blueprint-owned communications queue", () => {
     expect((await processCommunicationsJob(f.job.jobId, f.deps)).state).toBe("opted_out");
     expect(f.deps.api.run).not.toHaveBeenCalled(); expect(f.deps.suppress).toHaveBeenCalledTimes(1);
     expect(f.db.records.get(`outboundProspects/${f.brief.prospectId}`).stage).toBe("closed");
+  });
+  it.each(["awaiting_research", "opted_out"])("accounts for an earlier unknown create after actual worker transition to %s without reopening its state", async expectedState => {
+    // Hermetic test targets below are invented fixtures, unrelated to any owner
+    // approval or production configuration. They are never used to enable spending.
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "2.5");
+    let now = communicationsNow;
+    const f = await setup(expectedState === "opted_out" ? "reply" : "outreach", () => now), requestDigest = "d".repeat(64);
+    await reserveCommunicationsDraft(f.db, f.job.jobId, requestDigest, now);
+    const checkpoint = { createClaimedAt: new Date(now).toISOString(), sessionId: null, turnId: null, requestDigest };
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ state: "running", attempts: 1,
+      checkpoint, lease: { owner: "crashed-worker", until: now + 180000 } });
+    now += expectedState === "awaiting_research" ? 31 * 86400000 : 181000;
+    if (f.thread) f.thread.messages[1].body = "Please unsubscribe me";
+    expect((await processCommunicationsJob(f.job.jobId, f.deps)).state).toBe(expectedState);
+    const before = structuredClone(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`));
+    const prospectBefore = structuredClone(f.db.records.get(`outboundProspects/${f.brief.prospectId}`));
+    const refreshBefore = structuredClone(f.db.records.get(`${COMMUNICATIONS_ROOT}/refreshRequests/${f.job.jobId}`));
+    expect(f.deps.api.run).not.toHaveBeenCalled(); expect(f.deps.api.cancel).not.toHaveBeenCalled(); expect(f.deps.api.reconcileSaved).not.toHaveBeenCalled();
+    now += 180001;
+    const input = { jobId: f.job.jobId, prospectId: f.job.prospectId, briefDigest: f.job.briefDigest,
+      expectedCheckpointDigest: communicationsDigest(checkpoint), sessionId: "synthetic-existing-session", requestedBy: "authenticated-operator" };
+    expect((await f.store.blockedJobs())[0]).toMatchObject({ jobId: f.job.jobId, state: expectedState, sessionReconciliationRequired: true });
+    const observer = { verifyExistingDraftSession: vi.fn(async () => ({ sessionId: input.sessionId, requestDigest,
+      turnId: "synthetic-root-turn", usage: { input_tokens: 1000, output_tokens: 200, total_tokens: 1200 } })) };
+    expect((await reconcileCommunicationsDraftSession(f.db, observer, input, now)).costResolved).toBe(true);
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`)).toMatchObject({ state: expectedState,
+      attempts: before.attempts, reason: before.reason, checkpoint: { ...checkpoint, sessionId: input.sessionId, turnId: "synthetic-root-turn" } });
+    expect(f.db.records.get(`outboundProspects/${f.brief.prospectId}`)).toEqual(prospectBefore);
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/refreshRequests/${f.job.jobId}`)).toEqual(refreshBefore);
+    expect([...f.db.records.keys()].filter(key => key.startsWith("action_ledger/"))).toHaveLength(0);
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/draftBudgetDays/2026-09-30`)).toMatchObject({ admissions: 1, estimatedModelMicros: 358 });
+    await expect(f.store.retryBlocked({ jobId: f.job.jobId, prospectId: f.job.prospectId, briefDigest: f.job.briefDigest,
+      requestedBy: "authenticated-operator" })).rejects.toThrow("retry_state_or_lease_conflict");
+    await expect(reserveCommunicationsDraft(f.db, "later-synthetic-job", requestDigest, now)).resolves.toBeTruthy();
   });
   it("does not answer superseded replies or treat quoted opt-out as consent", async () => {
     const f = await setup("reply");
