@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "node:path";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { auditProductionPortability, repositoryPortabilityAudit } from "../../scripts/research-learning/check-portability";
 
 describe("permanent provider-portability regression boundary", () => {
@@ -26,6 +28,19 @@ describe("permanent provider-portability regression boundary", () => {
       { file: "server/runtime.ts", line: 2, rule: "library_only_canonical_reference" },
       { file: "server/config.json", line: 2, rule: "library_only_canonical_reference" },
     ]);
+  });
+  it("walks production JSX and shell sources and rejects their canonical Library dependencies", () => {
+    const root = mkdtempSync(resolve(tmpdir(), "blueprint-portability-"));
+    try {
+      for (const directory of ["server", "client/src", "scripts", ".github/workflows"]) mkdirSync(resolve(root, directory), { recursive: true });
+      for (const file of ["package.json", "render.yaml", "firebase.json"]) writeFileSync(resolve(root, file), "{}");
+      writeFileSync(resolve(root, "client/src/runtime.jsx"), 'const manifest = { canonicalArtifactUri: "library://file_123" };');
+      writeFileSync(resolve(root, "scripts/release.sh"), '#!/bin/bash\ncanonicalStorageRef="sediment://file_123"');
+      expect(repositoryPortabilityAudit(root).findings).toEqual([
+        { file: "client/src/runtime.jsx", line: 1, rule: "library_only_canonical_reference" },
+        { file: "scripts/release.sh", line: 2, rule: "library_only_canonical_reference" },
+      ]);
+    } finally { rmSync(root, { recursive: true, force: true }); }
   });
   it("audits current production source/config without claiming remote migration or access", () => {
     const report = repositoryPortabilityAudit(resolve(".")); expect(report.findings).toEqual([]);

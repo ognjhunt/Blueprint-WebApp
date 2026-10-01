@@ -3,13 +3,15 @@ import { readdirSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+const productionSource = /\.(?:[cm]?[jt]sx?|jsonl?|ya?ml|py|sh|bash|css|html)$/;
+
 export type PortabilityFinding = { file: string; line: number; rule: string };
 /** Deliberately narrow: production canonical references and mandatory flags,
  * not optional delivery copies, model integrations, prose or Library examples. */
 export function auditProductionPortability(files: { file: string; text: string }[]): PortabilityFinding[] {
   const findings: PortabilityFinding[] = [];
   for (const { file, text } of files) {
-    if (!/\.(?:ts|tsx|js|mjs|json|ya?ml|py)$/.test(file) || /(?:^|\/)(?:docs|tests|fixtures|__fixtures__|__tests__)(?:\/|$)|\.(?:test|spec)\./.test(file)) continue;
+    if (!productionSource.test(file) || /(?:^|\/)(?:docs|tests|fixtures|__fixtures__|__tests__)(?:\/|$)|\.(?:test|spec)\./.test(file)) continue;
     const code = text.split(/\r?\n/).map(line => /^\s*(?:\/\/|#|\*)/.test(line) ? "" : line).join("\n");
     const patterns = [
       { rule: "library_only_canonical_reference", pattern: /(?:canonical(?:Artifact|Source|Storage|Data|Evidence|Provider)(?:Id|Uri|Url|Ref|Location|Provider)?|primaryArtifact(?:Id|Uri|Url|Ref)|sourceOfTruth(?:Uri|Url|Ref|Provider))\s*["']?\s*[:=]\s*["']?(?:library:\/\/|sediment:\/\/|chatgpt[_ -]?library|openai[_ -]?library|dot:\/\/)/gi },
@@ -28,7 +30,7 @@ export function repositoryPortabilityAudit(root: string) {
       if (/^(?:node_modules|dist|output|derived|graphify-out|\.git)$/.test(entry.name)) continue;
       const path = resolve(directory, entry.name);
       if (entry.isDirectory()) walk(path);
-      else if (entry.isFile() && /\.(?:ts|tsx|js|mjs|json|ya?ml|py)$/.test(entry.name)) files.push({ file: relative(root, path), text: readFileSync(path, "utf8") });
+      else if (entry.isFile() && productionSource.test(entry.name)) files.push({ file: relative(root, path), text: readFileSync(path, "utf8") });
     }
   };
   for (const path of ["server", "client/src", "scripts", ".github/workflows"]) walk(resolve(root, path));

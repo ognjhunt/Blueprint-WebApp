@@ -209,6 +209,19 @@ describe("runnable read-only research and communications consumer", () => {
     const first = session.history("prospect-1", { pageSize: 1, cursor: null });
     expect(() => session.history("prospect-2", { pageSize: 1, cursor: first.nextCursor })).toThrow("cursor_invalid");
   });
+  it.each(["invalid_job", "missing_brief", "invalid_brief"])("quarantines %s per job while retaining valid current research and accepted outreach", async failure => {
+    const f = fixture(); currentSent(f);
+    const root = "blueprintCommunications/default", badJob = { jobId: "stale-job", prospectId: "prospect-1", briefId: "stale-brief", briefDigest: digest("stale"), intent: "outreach", inboundMessageId: null };
+    f.records.set(`${root}/jobs/stale-job`, failure === "invalid_job" ? { prospectId: "prospect-1", body: "PRIVATE_BODY_SENTINEL" } : badJob);
+    if (failure === "invalid_brief") f.records.set(`${root}/briefs/stale-brief`, { body: "PRIVATE_BODY_SENTINEL" });
+    const session = await f.open({ prospectIds: ["prospect-1"] });
+    expect(session.history("prospect-1", { pageSize: 25, cursor: null }).events.map(event => event.kind).sort()).toEqual(["contact_observed", "outreach_observed", "research_observed"]);
+    expect(session.researchDetails("prospect-1", { pageSize: 5, cursor: null }).records).toHaveLength(1);
+    expect(session.handoff.priorContactAndOutcomes.coverage).toBe("partial_authorized_scope");
+    expect(session.handoff.unknowns).toContain("current_history_incomplete");
+    expect(session.handoff.provenance.quarantine).toContainEqual(expect.objectContaining({ recordRef: `${root}/jobs/stale-job` }));
+    expect(JSON.stringify(session.handoff)).not.toContain("PRIVATE_BODY_SENTINEL"); expect(f.writes).toEqual([]);
+  });
   it("preserves missing contact history as unknown and flags malformed current jobs without raw record content", async () => {
     const f = fixture(); native(f); f.records.set("blueprintCommunications/default/jobs/invalid", { prospectId: "prospect-1", body: "PRIVATE_BODY_SENTINEL" });
     const session = await f.open(); expect(session.handoff.priorContactAndOutcomes.coverage).toBe("partial_authorized_scope");

@@ -151,24 +151,30 @@ export async function readExistingSources(db: FirebaseFirestore.Firestore, grant
     if (jobs.size > 100 || (communications?.size ?? 0) > 500) throw new Error("learning_source_export_required");
     const bundles: ExistingJob[] = [];
     for (const job of jobs.docs) {
-      const record = job.data();
-      const identity = communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"].map(k => [k, record[k]])));
-      const brief = await db.doc(ROOT).collection("briefs").doc(identity.briefId).get();
-      const handoff = await db.doc(ROOT).collection("handoffs").doc(identity.briefDigest).get();
-      const source = await db.doc(ROOT).collection("researchSources").doc(identity.briefDigest).get();
-      const parsedBrief = communicationsBriefSchema.parse(brief.data());
-      const reviewedSnapshot = parsedBrief.researchOrigin.admissionId
-        ? await readExistingResearchSnapshot(db, parsedBrief.researchOrigin.date, parsedBrief.researchOrigin.admissionId) : undefined;
-      const contactProof = parsedBrief.researchOrigin.contactEvidenceKind === "public_operator_resolution" && parsedBrief.researchOrigin.contactEvidenceDigest
-        ? (await db.doc(ROOT).collection("contactProofs").doc(parsedBrief.researchOrigin.contactEvidenceDigest).get()).data() : undefined;
-      const receipt = authorized.sections.includes("outreach") ? await db.doc(ROOT).collection("sendReceipts").doc(communicationsDeliveryKey(identity)).get() : undefined;
-      if (receipt?.exists && !jobs.docs.some(job => job.id === receipt.data()?.jobId)) {
-        readQuarantine.push({ recordRef: `${ROOT}/sendReceipts/${communicationsDeliveryKey(identity)}`, reason: "orphan_or_legacy_receipt_requires_reconciliation" });
+      try {
+        const record = job.data();
+        const identity = communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"].map(k => [k, record[k]])));
+        const brief = await db.doc(ROOT).collection("briefs").doc(identity.briefId).get();
+        const handoff = await db.doc(ROOT).collection("handoffs").doc(identity.briefDigest).get();
+        const source = await db.doc(ROOT).collection("researchSources").doc(identity.briefDigest).get();
+        const parsedBrief = communicationsBriefSchema.parse(brief.data());
+        const reviewedSnapshot = parsedBrief.researchOrigin.admissionId
+          ? await readExistingResearchSnapshot(db, parsedBrief.researchOrigin.date, parsedBrief.researchOrigin.admissionId) : undefined;
+        const contactProof = parsedBrief.researchOrigin.contactEvidenceKind === "public_operator_resolution" && parsedBrief.researchOrigin.contactEvidenceDigest
+          ? (await db.doc(ROOT).collection("contactProofs").doc(parsedBrief.researchOrigin.contactEvidenceDigest).get()).data() : undefined;
+        const receipt = authorized.sections.includes("outreach") ? await db.doc(ROOT).collection("sendReceipts").doc(communicationsDeliveryKey(identity)).get() : undefined;
+        if (receipt?.exists && !jobs.docs.some(job => job.id === receipt.data()?.jobId)) {
+          readQuarantine.push({ recordRef: `${ROOT}/sendReceipts/${communicationsDeliveryKey(identity)}`, reason: "orphan_or_legacy_receipt_requires_reconciliation" });
+        }
+        const ledger = receipt?.exists && receipt.data()?.jobId === identity.jobId ? await db.collection("action_ledger").doc(`communications_${identity.jobId}`).get() : undefined;
+        bundles.push({ id: job.id, record: identity, brief: brief.data(), handoff: handoff.data(), researchSource: source.data(),
+          reviewedSnapshot, contactProof,
+          receipt: receipt?.data()?.jobId === identity.jobId ? receipt?.data() : undefined, ledger: ledger?.data() });
+      } catch {
+        // A stale or malformed job must not suppress valid sibling history.
+        // Retain only the exact record reference, never private parse errors.
+        readQuarantine.push({ recordRef: `${ROOT}/jobs/${job.id}`, reason: "source_contract_or_exact_join_invalid" });
       }
-      const ledger = receipt?.exists && receipt.data()?.jobId === identity.jobId ? await db.collection("action_ledger").doc(`communications_${identity.jobId}`).get() : undefined;
-      bundles.push({ id: job.id, record: identity, brief: brief.data(), handoff: handoff.data(), researchSource: source.data(),
-        reviewedSnapshot, contactProof,
-        receipt: receipt?.data()?.jobId === identity.jobId ? receipt?.data() : undefined, ledger: ledger?.data() });
     }
     inputs.push({ prospectId, prospect: prospect.data(), jobs: bundles, communicationsEvents: communications?.docs.map(doc => ({ id: doc.id, record: doc.data() })) ?? [] });
   }

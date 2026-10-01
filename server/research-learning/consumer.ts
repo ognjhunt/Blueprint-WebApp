@@ -127,6 +127,7 @@ export async function openResearchLearningSession(db: FirebaseFirestore.Firestor
       const live = await readExistingSources(db, localGrant, localRequest, asOf);
       events.push(...live.events); nativeResearch.push(...live.researchDetails);
       live.observedSourceRefs.forEach(ref => readRefs.add(ref)); quarantine.push(...live.quarantine);
+      if (live.quarantine.length) unknowns.add("current_history_incomplete");
     } catch {
       quarantine.push({ recordRef: `outboundProspects/${prospectId}`, reason: "current_history_unavailable_or_invalid" });
       unknowns.add("current_history_incomplete");
