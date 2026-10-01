@@ -33,9 +33,12 @@ Private root `blueprintCommunications/default`:
 | Subcollection | Contract |
 | --- | --- |
 | `briefs/{briefId}` | Strict `blueprint.communications-brief.v1`; a new revision changes its full digest |
-| `handoffs/{briefDigest}` | Immutable `blueprint.communications-handoff.v1`, written by research QA/publication or the verified publication adapter after authenticated human context review |
+| `handoffs/{briefDigest}` | Immutable `blueprint.communications-handoff.v1`, written by verified agent intake or optional authenticated operator context review |
 | `researchSources/{briefDigest}` | Immutable original candidate, QA reference/digest, exact publication plan digest and external Sheets ID; bound by the brief's optional `researchOrigin.sourceDigest` |
 | `researchBindings/{sourceIdentityDigest}` | One immutable WebApp prospect binding per Sheets document/BP ID, preventing duplicate first touches through separate prospect IDs |
+| `intake/{sourceIdentityDigest}` | Agent-owned admitted, needs_research, blocked or already_requested outcome with exact date/candidate/source digests; no human pre-draft form |
+| `intakeState/publishedResearch` | Private bounded pagination cursor and lease; never the research runner lease |
+| `firstTouches/{deliveryKey}` | One first-touch queue claim across revisions; only proven pre-inference research failures can be replaced atomically |
 | `jobs/{jobId}` | Digest of prospect, brief ID/digest, intent and incoming message ID; fenced lease, maximum three recovery attempts, persisted API create/session/turn checkpoint |
 | `refreshRequests/{jobId}` | Pending request to the research agent for relevant claims; no observer receipt |
 | `sendReceipts/{deliveryKey}` | One-use claim bound to mailbox/prospect/intent/incoming message, independent of brief revisions; actual Gmail receipt or unresolved acknowledgement |
@@ -60,64 +63,69 @@ exact selected candidates/targets/delivery keys and both readback receipts.
 Python canonical JSON digests preserve ASCII escaping; unexpected non-integer
 numeric packet fields fail closed rather than guess an incompatible encoding.
 
-### Publication adapter and human context review
+### Automatic publication intake
 
-The pinned research package (source `20d0c9e8b784e451aa281f3adee85d34c8054b5a`)
-has no communications producer. Its completed publication plans retain assigned
-`BP-######` Sheets IDs, but deliberately publish blank contact fields marked
-`Needs recheck`. Research source QA does not approve contact permission or a
-learning question. The communications-side producer now closes that handoff gap
-through the existing authenticated, CSRF-protected ops API. It does not modify
-research artifacts, publication state, leases, or the 7am scheduler.
+The existing communications worker runs deterministic intake on its one-minute
+tick when `BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED=true`. It reads completed
+`blueprintDailyResearch/sites-first/workItems` in pages of five using a durable
+communications-only cursor, then reloads the pinned `Store.snapshot(date)` and
+verifies source QA and both publication readbacks. There is no startup catch-up.
+An unavailable older snapshot becomes an agent-owned research request and the
+cursor advances, so it cannot block a newer publication. The 7am research package,
+scheduler, control records and leases are unchanged.
 
-First create/select an existing outbound prospect whose `facilityName` and
-`hypothesisedTask` exactly equal the accepted candidate's organization and task.
-Its existing `contactEmail` remains the recipient. Then call:
+For a candidate to supply a public business contact automatically, its already
+QA-approved evidence must contain this exact versioned assertion in `claim`:
 
-1. `POST /api/admin/outbound-prospects/{prospectId}/communications/research-preview`
-   with `{date, candidateKey, context}`. This reads the durable snapshot and returns
-   the proposed brief, original candidate/QA/publication provenance and
-   `previewDigest`. It writes nothing and contains no approved quality review.
-2. Inspect the actual contact source and every displayed field. Call
-   `.../communications/research-approve` with the identical input plus
-   `{previewDigest, contextReviewed:true}` to approve that exact context.
-   The server reloads the snapshot, recomputes the preview, derives reviewer UID
-   from authentication and time from the server, rechecks the prospect in a
-   transaction, and atomically creates the immutable brief, separate handoff,
-   source record and prospect review event. Exact retries reuse the first approval.
-3. The existing references-only communications enqueue route can use the returned
-   brief ID/digest. Approval itself returns `jobQueued:false, sessionCreated:false,
-   gmailDraftCreated:false, sent:false`. Enqueue remains a separate explicit action.
-
-`context` is exactly:
-
-```json
-{
-  "siteId": "reviewed-site-reference", "taskId": "reviewed-task-reference",
-  "caseId": "reviewed-case-reference", "decision": "The bounded learning decision",
-  "decisionOwner": null, "purpose": "Why this recipient is relevant",
-  "learningQuestion": "One easy, non-confidential learning question?",
-  "contactSourceEmail": "recipient@facility.example",
-  "contactSourceUrl": "https://facility.example/contact",
-  "contactSourceCheckedAt": "2026-09-30T20:00:00Z",
-  "contactSourceIdentifiesRecipient": true,
-  "consent": {
-    "status": "public_business_contact",
-    "sharingBoundary": "Public sources only; site permission required before sharing with teams",
-    "sourceRefs": ["https://facility.example/contact"]
-  },
-  "conflicts": []
-}
+```text
+blueprint.public-business-contact.v1:{"organization":"Exact candidate organization","site":"Exact candidate site","email":"recipient@facility.example","purpose":"business_inquiries","status":"public_business_contact"}
 ```
 
-These IDs are human-reviewed WebApp context bindings; assignment is not proof
-that a site, task or case has been admitted or qualified. Existing conflicting
-bindings refuse approval. The WebApp prospect ID is preserved; the external
-Sheets ID is stored separately as `researchPublicationId`. Neither an email in
-an old prospect nor research publication proves permission: the operator must
-verify that the public source identifies that exact recipient and business route.
-The approval transaction refuses another WebApp prospect already bound to that
-published Sheets identity; concurrent duplicate imports cannot create two handoffs.
+This uses the existing research evidence schema; it adds no upstream field or
+research tool. The evidence must be a live, current-operational operator fact.
+The citation host must equal the candidate's organization URL host or a
+dot-bounded subdomain. The quote must independently contain that exact email
+and identify a public business/commercial/partnership inquiries route. Competing
+addresses, personal/support-only routes, no-contact restrictions and any
+contact/recipient/email/permission-related unknown refuse admission. A bare
+email in a quote, old CRM row or vendor claim is insufficient. No address is
+guessed, and no robotics interest is inferred.
+
+An existing prospect may instead reuse its exact previously verified immutable
+handoff for this publication. Intake verifies the complete brief, separate
+handoff, immutable source provenance, global Sheets/BP binding, original contact
+check date and current canonical email/context. An explicit contradictory
+assertion never falls back to an old handoff.
+
+Verified source contact permits intake to derive a bounded purpose, one easy
+non-confidential relevance question, unknown interest and public-only sharing.
+In one transaction it binds the published Sheets identity to a WebApp prospect,
+creates the canonical projection if absent, immutable brief/handoff/provenance,
+intake outcome and internal first-touch queue record. Generated `research-*`
+site/task/case references are provisional; they do not admit or qualify an entity.
+A sourced location is stored with its explicit unverified-street-address
+provenance. Existing contacted/closed/converted states and recipient bindings
+are never overwritten. Suppression blocks admission.
+
+Missing, stale, ambiguous or unrepresentable facts produce `needs_research` and
+an agent-owned `refreshRequests/intake_*` record with the precise gap. They do
+not ask for a mandatory human form or create a paid session. Terminal
+pre-inference stale/context jobs may be replaced by a verified revision after
+lease expiry, only if no create/session ambiguity, output, approval ledger or
+send receipt exists. Prior jobs remain marked superseded. Active/drafted/sent
+first touches remain fenced across revisions.
+
+Paid drafting still requires `BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE=true`.
+With that flag off, intake can queue verified work but cannot call Luna. An
+internal first-touch draft has no Gmail dependency; actual reply reads and every
+send retain the isolated founder mailbox verification. The draft enters the
+existing exact recipient/body/sender human approval queue. This build does not
+create Gmail drafts, send mail, enable flags or install grants.
+
+The authenticated, CSRF-protected `research-preview`/`research-approve` routes
+remain an optional operator-reviewed context path. They are not the automatic
+trigger. They preserve exact preview-digest approval and server-derived actor/time;
+manual approval itself does not enqueue or create a session.
 
 The adapter requires completed research with raw/review/evidence hashes, a
 validated QA artifact bound to the actual research session/QA turn, an accepted
@@ -328,9 +336,9 @@ answer before requesting cancellation. A completed turn can still produce its
 reviewable draft; unavailable saved state is bounded recovery, never a new POST
 or evidence of cancellation. Shutdown closes admission, clears the timer and
 awaits the current tick's checkpoint/draft writes before the entrypoint exits.
-Both worker and paid-inference flags gate the queue loop, including recovery.
-When either flag is disabled, checkpoints remain durable but no automatic saved-turn
-reads run. The API's read-only reconciliation method can run without paid authority;
+The worker flag gates the timer and deterministic intake; the paid-inference
+flag separately gates job processing, including recovery. With paid inference
+disabled, checkpoints remain durable and no automatic saved-turn reads run. The API's read-only reconciliation method can run without paid authority;
 there is no separate production recovery endpoint in this release. Do not enable
 paid inference solely to recover a saved turn.
 
@@ -361,8 +369,9 @@ scheduler remain as released by owner `01a0f464-4d3b-73c7-b166-239e0bc960ee`.
 Communications has its own default-off flags and queue, with no 07:00 schedule or
 research lease mutation. The owner approved a disabled merge/deployment after exact
 review and green CI; inference, sending and credential/grant installation remain
-unapproved. The consumer's queue producer and upstream QA handoff must be bound on
-Blueprint infrastructure before claiming unattended operation.
+unapproved. The automatic producer is bound to the existing worker, but default-off runtime
+flags and actual verified contacts/QA publications must be present before claiming
+unattended operation.
 
 1. On existing Render worker `srv-d9t8gg1t0dsc73am9q70`, run
    `node scripts/communications-preflight.mjs` with existing

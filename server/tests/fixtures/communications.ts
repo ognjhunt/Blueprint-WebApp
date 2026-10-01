@@ -75,18 +75,23 @@ export function memoryFirestore() {
     return next;
   };
   const apply = (path: string, value: any, partial = false) => records.set(path, partial ? merge(records.get(path) ?? {}, value) : clone(value));
-  const snapshot = (path: string) => ({ id: path.split("/").at(-1), exists: records.has(path), data: () => clone(records.get(path)) });
+  const snapshot = (path: string): any => ({ id: path.split("/").at(-1), ref: doc(path), exists: records.has(path), data: () => clone(records.get(path)) });
   let counter = 0;
   const doc = (path: string): any => ({ id: path.split("/").at(-1), path, get: async () => snapshot(path),
     set: async (value: any, options?: any) => { apply(path, value, options?.merge); }, update: async (value: any) => { apply(path, value, true); },
     collection: (name: string) => collection(`${path}/${name}`) });
   const collection = (path: string): any => {
-    const query = (filters: any[] = [], limit = 1000): any => ({
-      where: (key: string, op: string, value: any) => query([...filters, [key, op, value]], limit),
-      limit: (count: number) => query(filters, count),
+    const query = (filters: any[] = [], limit = 1000, ordered = false, cursor: string | null = null): any => ({
+      where: (key: string, op: string, value: any) => query([...filters, [key, op, value]], limit, ordered, cursor),
+      limit: (count: number) => query(filters, count, ordered, cursor),
+      orderBy: (_key: string) => query(filters, limit, true, cursor),
+      startAfter: (value: string) => query(filters, limit, ordered, value),
       get: async () => {
-        const paths = [...records.keys()].filter((key) => key.startsWith(path + "/") && key.split("/").length === path.split("/").length + 1)
-          .filter((key) => filters.every(([field, op, value]) => op === "in" ? value.includes(records.get(key)[field]) : records.get(key)[field] === value)).slice(0, limit);
+        let paths = [...records.keys()].filter((key) => key.startsWith(path + "/") && key.split("/").length === path.split("/").length + 1)
+          .filter((key) => filters.every(([field, op, value]) => op === "in" ? value.includes(records.get(key)[field]) : records.get(key)[field] === value));
+        if (ordered) paths.sort();
+        if (cursor) paths = paths.filter(key => key.split("/").at(-1)! > cursor);
+        paths = paths.slice(0, limit);
         return { docs: paths.map(snapshot), empty: !paths.length, size: paths.length };
       },
     });

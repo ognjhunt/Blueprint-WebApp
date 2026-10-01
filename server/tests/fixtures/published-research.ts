@@ -2,10 +2,12 @@ import { createHash } from "node:crypto";
 import { researchDigest } from "../../agents/communications-research";
 import type { CommunicationsResearchInput } from "../../agents/communications-producer";
 import { communicationsFixture } from "./communications";
+import { PUBLIC_CONTACT_PREFIX } from "../../agents/communications-contact-evidence";
 
 /** Synthetic records shaped like the pinned v3 runner/consumer/publisher output.
  * Unlike the original consumer fixture, this includes full QA and publication plans. */
-export function publishedResearchFixture(options: { unknowns?: string[]; taskClaim?: string } = {}) {
+export function publishedResearchFixture(options: { unknowns?: string[]; taskClaim?: string;
+  publicContact?: boolean; date?: string; mutateCandidate?: (candidate: any) => void } = {}) {
   const { snapshot, brief, output } = communicationsFixture();
   const candidate = {
     candidate_key: "candidate-1", identity_keys: ["candidate-1"],
@@ -37,7 +39,13 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
         snapshot_record_id: "snapshot-record-7", snapshot_fact_id: "snapshot-fact-9", assertion_scope: "as_of_background" },
     ],
   };
+  if (options.publicContact) candidate.evidence.push({ ...candidate.evidence[0],
+    claim: PUBLIC_CONTACT_PREFIX + JSON.stringify({ organization: candidate.organization, site: candidate.site,
+      email: brief.contact.email, purpose: "business_inquiries", status: "public_business_contact" }),
+    url: brief.contact.sourceUrl, quote: `Public business contact for business inquiries: ${brief.contact.email}` });
+  options.mutateCandidate?.(candidate);
   const row: any = snapshot.row;
+  if (options.date) { row.date = options.date; row.run_key = `blueprint-researcher:${options.date}`; }
   row.packet = { ...row.packet, candidates: [candidate],
     run_key: row.run_key, session_id: row.session_id, turn_id: row.turn_id,
     schema_version: "blueprint.daily-research.v3", snapshot_content_hash: "a".repeat(64),
