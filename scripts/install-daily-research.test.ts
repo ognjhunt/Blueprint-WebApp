@@ -14,7 +14,7 @@ describe("pinned daily research package", () => {
       const receipt = JSON.parse(readFileSync("vendor/daily-research/receipt.json", "utf8"));
       expect(JSON.parse(result.stdout).source_commit).toBe(receipt.source_commit);
       const proof = spawnSync("python3", ["-I", "-S", "-c",
-        "import sys; sys.path.insert(0, sys.argv[1]); from tools.daily_research import runner, render, firestore; assert not any(m.startswith(('blueprint_pipeline', 'torch', 'openai')) for m in sys.modules)",
+        "import sys; sys.path.insert(0, sys.argv[1]); from tools.daily_research import runner, render, firestore, capabilities, consumer; assert len(capabilities.inline_files()) == 4; assert not any(m.startswith(('blueprint_pipeline', 'torch', 'openai')) for m in sys.modules)",
         join(target, "release")], { encoding: "utf8" });
       expect(proof.status, proof.stderr).toBe(0);
       const node = spawnSync("node", ["--input-type=module", "-e",
