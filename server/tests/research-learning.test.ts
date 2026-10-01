@@ -130,7 +130,7 @@ describe("observed learning counts and comparison cohorts", () => {
     expect(plan.cohorts[0].counts).toMatchObject({ acceptedTouches: 2, matureAcceptedProspects: 1,
       repliedProspects: 1, matureNonresponseProspects: 0, matureReplyRate: { numerator: 1, denominator: 1 } });
   });
-  it.each(["before_acceptance", "unrelated_thread", "automatic", "other_contract"])("does not count a later-thread reply with %s evidence", change => {
+  it.each(["before_acceptance", "unrelated_thread", "automatic", "other_contract"])("keeps accepted-rate eligibility separate for %s reply evidence", change => {
     const first = learningEvent("outreach_observed"), originalReply = learningEvent("reply_observed");
     let later = remake(first, { occurredAt: "2026-09-20T10:00:00.000Z", data: { ...first.data,
       jobId: "follow-up", approvalLedgerId: "communications_follow-up", messageId: "later-message", threadId: "later-thread" } });
@@ -142,13 +142,14 @@ describe("observed learning counts and comparison cohorts", () => {
     if (change === "automatic" && reply.kind === "reply_observed") reply = remake(reply, { data: { ...reply.data,
       classification: { ...reply.data.classification, label: "automatic", interest: "unknown" } } });
     const plan = planResearchLearning(snapshot([learningEvent("research_observed"), first, later, reply]), focus);
-    expect(plan.cohorts[0].counts).toMatchObject({ matureAcceptedProspects: 1, repliedProspects: 0,
-      matureNonresponseProspects: 1, matureReplyRate: { numerator: 0, denominator: 1 } });
+    expect(plan.cohorts[0].counts).toMatchObject({ matureAcceptedProspects: 1, repliedProspects: change === "automatic" ? 0 : 1,
+      replyAcceptanceUnknownProspects: change === "automatic" ? 0 : 1, matureNonresponseProspects: change === "automatic" ? 1 : 0,
+      matureReplyRate: { numerator: 0, denominator: 1 } });
   });
-  it.each([true, false])("keeps genuine unknown-ACK replies visible with prior accepted touch=%s", priorAccepted => {
+  it.each([[true, false], [false, false], [true, true], [false, true]])("keeps unknown-ACK replies visible with prior accepted=%s and null Gmail refs=%s", (priorAccepted, nullRefs) => {
     const first = learningEvent("outreach_observed"), originalReply = learningEvent("reply_observed");
     const unknown = remake(first, { occurredAt: "2026-09-20T10:00:00.000Z", data: { ...first.data, status: "unknown",
-      jobId: "follow-up", approvalLedgerId: "communications_follow-up", messageId: "later-message", threadId: "later-thread" },
+      jobId: "follow-up", approvalLedgerId: "communications_follow-up", messageId: nullRefs ? null : "later-message", threadId: nullRefs ? null : "later-thread" },
       evidence: [{ ...first.evidence[0], basis: "send_attempt" }] });
     const reply = remake(originalReply, { occurredAt: "2026-09-21T10:00:00.000Z", data: { ...originalReply.data,
       jobId: "reply-job", messageId: "later-answer", threadId: "later-thread" } });
@@ -159,6 +160,16 @@ describe("observed learning counts and comparison cohorts", () => {
       matureNonresponseProspects: 0, matureReplyRate: { numerator: 0, denominator: priorAccepted ? 1 : 0 } });
     const { grant } = learningScope(), exportView = sheetsLearningView(view, grant, learningNow);
     expect(exportView.rows[0][exportView.columns.indexOf("reply_acceptance_unknown")]).toBe(true);
+  });
+  it.each([true, false])("preserves legacy correlated reply observations when their touch is missing, prior accepted=%s", priorAccepted => {
+    const originalReply = learningEvent("reply_observed");
+    const reply = remake(originalReply, { occurredAt: "2026-09-21T10:00:00.000Z", data: { ...originalReply.data,
+      jobId: "legacy-reply-job", threadId: "legacy-thread" } });
+    const view = snapshot([learningEvent("research_observed"), ...(priorAccepted ? [learningEvent("outreach_observed")] : []), reply]);
+    const counts = planResearchLearning(view, focus).cohorts[0].counts;
+    expect(counts).toMatchObject({ repliedProspects: 1, replyAcceptanceUnknownProspects: 1,
+      acceptedTouches: priorAccepted ? 1 : 0, matureReplyAcceptanceUnknownProspects: priorAccepted ? 1 : 0,
+      matureNonresponseProspects: 0, matureReplyRate: { numerator: 0, denominator: priorAccepted ? 1 : 0 } });
   });
   it("freezes cohort metadata and contact availability at the first touch", () => {
     const research = learningEvent("research_observed"), contact = learningEvent("contact_observed");

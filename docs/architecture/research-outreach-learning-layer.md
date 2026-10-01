@@ -93,8 +93,12 @@ prospect observation window. Observed replies after unknown acknowledgement
 remain visible with `replyAcceptanceUnknownProspects`; they do not enter the
 accepted-thread rate numerator. A mature prospect with only such a response
 enters `matureReplyAcceptanceUnknownProspects`, never mature nonresponse.
-Replies before their matching touch, other thread/contract references and
-classified automatic replies do not count. Copy strata hash the validated canonical envelope subject/body
+Null Gmail refs or a missing legacy touch never erase a validated correlated
+reply observation. Missing/mismatched touch thread/contract references and
+replies before a matching acceptance stay outside accepted-rate eligibility;
+their observation and acceptance uncertainty remain visible. Actual unrelated
+incoming mail fails correlation at the source adapter. Classified automatic
+replies do not count. Copy strata hash the validated canonical envelope subject/body
 before recipient-specific transport footers; full payload and receipt hashes
 retain transport evidence. Mismatched canonical payload copy is quarantined.
 Only a bounce on that touch excludes its prospect from that mature denominator.

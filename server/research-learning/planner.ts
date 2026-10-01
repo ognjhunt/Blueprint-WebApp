@@ -22,10 +22,11 @@ export function describeRow(row: SnapshotRow, snapshot: LearningSnapshot) {
     && t.data.outreachVersion === e.data.outreachVersion && t.occurredAt <= e.occurredAt;
   const acceptedReply = (e: Extract<LearningEvent, { kind: "reply_observed" }>) =>
     touches.some(t => t.data.status === "accepted" && matchesReply(t, e));
-  // An evidence-backed observed reply survives missing send acknowledgement.
+  // Trusted ingestion already established correlated_reply evidence. Missing
+  // legacy touches or unknown-ACK Gmail refs cannot erase that observation.
   // Accepted-thread eligibility is separate from whether a response occurred.
   const replies = events.filter((e): e is Extract<LearningEvent, { kind: "reply_observed" }> => e.kind === "reply_observed"
-    && e.data.classification.label !== "automatic" && touches.some(t => matchesReply(t, e)));
+    && e.data.classification.label !== "automatic");
   // The first accepted touch defines a prospect-level observation window;
   // attempts with unknown acknowledgement never enter the mature denominator.
   const firstAccepted = touches.find(e => e.data.status === "accepted");

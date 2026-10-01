@@ -42,7 +42,7 @@ contract assertions**, not findings about Blueprint's current outreach.
 | Command/check | Observed result |
 | --- | --- |
 | `npm run check` | Passed after final code changes. |
-| `npx vitest run server/tests/research-learning.test.ts` | 53/53 passed after reproducing and fixing the PR787 copy-strata and later-thread reply findings and preserving unknown-ACK replies separately from accepted-rate eligibility. |
+| `npx vitest run server/tests/research-learning.test.ts` | 57/57 passed after reproducing and fixing the PR787 copy-strata and later-thread reply findings and preserving unknown-ACK/null-ref/legacy replies separately from accepted-rate eligibility. |
 | `npm run test:coverage` | 633 files / 4,712 tests passed; lines 58.12%, branches 68.41%, functions 74.53%. This run included 36 learning tests; seven correction negative controls were subsequently added and passed in the final targeted run. |
 | `npm run doctrine:verify` | All three locked shared blocks passed. |
 | `npm run claims:guard` | 780 files scanned, zero findings. |
@@ -77,11 +77,13 @@ gets a different hash; canonical/payload mismatches quarantine the source.
 accepted thread was excluded and counted as nonresponse before the fix. Replies
 to any accepted matching thread/contract now count, retaining the first accepted
 touch's maturity window and each matching touch's acceptance time boundary.
-Negative controls cover early, unrelated, other-contract and automatic replies.
+Accepted-rate controls cover early, unjoined, other-contract and automatic replies.
 Independent Sol review additionally caught that accepted-only filtering hid
 genuine unknown-ACK replies. Those replies remain observed and explicitly
 acceptance-unknown, outside the accepted-thread rate numerator; they suppress
-false mature nonresponse. Both original reproductions failed before the fixes
+false mature nonresponse, including actual null-ref unknown ACKs and missing
+legacy touch records. Invalid incoming RFC correlation still quarantines at
+the source adapter. Both original reproductions failed before the fixes
 and passed after.
 
 `discussion_r4158703082`: confirmed missing ADP/day linkage in the supplied
