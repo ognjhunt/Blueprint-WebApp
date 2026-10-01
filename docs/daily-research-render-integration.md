@@ -31,6 +31,13 @@ America/Chicago DST behavior, one create per date, durable intent before provide
 creation, uncertain-attempt reconciliation, immutable artifacts, the $1 total
 soft target, no outreach and exact action-time deletion approval.
 
+The 2026-10-01 output-validator repair retains optional v3 `assertion_scope` in
+proposed knowledge-delta evidence, matching the generated research instructions.
+It preserves raw artifacts and the existing QA, deadline, cleanup and publication
+guards. Installing the repair does not recover the failed date or approve its
+findings; the saved terminal artifact needs independent replay and any runtime
+recovery remains an explicit operator action.
+
 Communications integration consumes
 `blueprintDailyResearch/sites-first/workItems/YYYY-MM-DD`, using existing
 authorized Firestore access. Stages are `agent_qa_pending` and
