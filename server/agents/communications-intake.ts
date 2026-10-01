@@ -8,6 +8,8 @@ import { previewResearchCommunications, type CommunicationsResearchInput } from 
 import { researchPublicationSource, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
 import { COMMUNICATIONS_ROOT, CommunicationsStore, prepareCommunicationsEnqueue } from "./communications-store";
 import { firstContactLearningQuestion } from "./communications-first-contact";
+import { qualifiedSourceContact } from "./communications-source-assessment";
+import { sameOperatorUrl } from "./communications-contact-evidence";
 
 // Read-only discovery of the existing pinned research owner's completed work.
 export const RESEARCH_WORK_ITEMS = "blueprintDailyResearch/sites-first/workItems";
@@ -15,7 +17,8 @@ type IntakeDependencies = { db: FirebaseFirestore.Firestore; readResearch: Resea
   isSuppressed: (email: string) => Promise<boolean>; now: () => number; readContactPage?: ContactPageReader };
 const bindingKey = (source: any) => communicationsDigest({ sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
 const sourceIdentity = (row: any, candidateKey: string) => ({ date: row.date ?? null, runKey: row.run_key ?? row.runKey ?? null, candidateKey,
-  packetDigest: row.packet_digest ?? row.packetDigest ?? null, rawArtifactDigest: row.raw_output_digest ?? row.rawArtifactDigest ?? null });
+  packetDigest: row.packet_digest ?? row.packetDigest ?? null, rawArtifactDigest: row.raw_output_digest ?? row.rawArtifactDigest ?? null,
+  ...(row.admission_id || row.admissionId ? { admissionId: row.admission_id ?? row.admissionId } : {}) });
 
 /** Missing source facts remain an agent-owned research task, never an operator form. */
 async function needsResearch(deps: IntakeDependencies, identity: ReturnType<typeof sourceIdentity>, reason: string) {
@@ -73,7 +76,8 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
   const row = snapshot?.row, identity = sourceIdentity(row ?? {}, candidateKey);
   try {
     const source = researchPublicationSource(snapshot, { date: identity.date, candidateKey,
-      packetDigest: identity.packetDigest, rawArtifactDigest: identity.rawArtifactDigest });
+      packetDigest: identity.packetDigest, rawArtifactDigest: identity.rawArtifactDigest,
+      ...(identity.admissionId ? { admissionId: identity.admissionId } : {}) });
     const root = deps.db.doc(COMMUNICATIONS_ROOT), key = bindingKey(source), bindingRef = root.collection("researchBindings").doc(key);
     const binding = (await bindingRef.get()).data();
     const matches = await deps.db.collection("outboundProspects").where("researchPublicationId", "==", source.sheetsProspectId).limit(3).get();
@@ -83,7 +87,7 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
     const original = canonical.data();
     if (canonical.exists && original?.stage !== "drafted") throw new Error("recipient_closed_or_already_contacted");
     let contact: ReturnType<typeof publishedPublicContact> | ReturnType<typeof verifyContactResolution> | null = null, reused: CommunicationsBrief | null = null;
-    try { contact = resolution ? verifyContactResolution(resolution.proof, source, prospectId) : publishedPublicContact(source.candidate); }
+    try { contact = resolution ? verifyContactResolution(resolution.proof, source, prospectId) : qualifiedSourceContact(source); }
     catch (error) {
       // A conflicting assertion never falls back to an older handoff.
       const unknowns = contactUnknowns(source.candidate);
@@ -94,10 +98,13 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
     const email = contact?.email ?? reused!.contact.email.toLowerCase();
     if (await deps.isSuppressed(email)) throw new Error("recipient_suppressed");
     const taskFact = source.candidate.evidence.find((entry: any) => entry.role === "task" && entry.classification === "operator"
-      && entry.claim_kind === "fact" && !entry.claim.startsWith(PUBLIC_CONTACT_PREFIX));
+      && entry.claim_kind === "fact" && entry.origin === "live" && entry.assertion_scope === "current_operational"
+      && (!entry.visibility || entry.visibility === "public") && sameOperatorUrl(entry.url, source.candidate.organization_url)
+      && !entry.claim.startsWith(PUBLIC_CONTACT_PREFIX));
     if (!taskFact) throw new Error("research_adapter_public_task_fact_missing");
     const projection: FirebaseFirestore.DocumentData = original ? { ...original,
-      ...(!original.contactEmail && !original.communicationsContextReview ? { contactEmail: email } : {}) } : { facilityName: source.candidate.organization, facilityAddress: source.candidate.location,
+      ...((!original.contactEmail && !original.communicationsContextReview)
+        || (source.admissionId && original.entityAdmission === "research_provisional") ? { contactEmail: email } : {}) } : { facilityName: source.candidate.organization, facilityAddress: source.candidate.location,
       locationSource: "published_research_location_not_verified_street_address",
       contactEmail: email, hypothesisedTask: source.candidate.task, stage: "drafted", inferredGates: {}, gateAnswerSources: {}, contactedAtIso: null,
       observations: [{ claim: taskFact.claim, source: taskFact.url }],
@@ -159,7 +166,8 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
       if (!existing.exists) {
         tx.create(root.collection("briefs").doc(brief.briefId), brief);
         tx.create(root.collection("handoffs").doc(digest), { version: "blueprint.communications-handoff.v1", ...brief.qualityReview,
-          briefDigest: digest, sheetsReceipt: source.sheetsReceipt, notionReceipt: source.notionReceipt });
+          briefDigest: digest, sheetsReceipt: source.sheetsReceipt, notionReceipt: source.notionReceipt,
+          ...(source.recordReceipt ? { recordReceipt: source.recordReceipt } : {}) });
         tx.create(root.collection("researchSources").doc(digest), { briefDigest: digest, source,
           previewDigest: preview!.previewDigest, contactSourceIdentifiesRecipient: true });
       }
@@ -169,7 +177,7 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
         researchPublicationId: source.sheetsProspectId, entityAdmission: "research_provisional",
         communicationsContextReview: { briefId: brief.briefId, briefDigest: digest } });
       else tx.set(prospectRef, { siteId: brief.siteId, taskId: brief.taskId, caseId: brief.caseId, researchPublicationId: source.sheetsProspectId,
-        ...(!original?.contactEmail ? { contactEmail: brief.contact.email } : {}),
+        ...(!original?.contactEmail || (source.admissionId && original.entityAdmission === "research_provisional") ? { contactEmail: brief.contact.email } : {}),
         communicationsContextReview: { briefId: brief.briefId, briefDigest: digest } }, { merge: true });
       queued.commit();
       tx.set(intakeRef, outcome);

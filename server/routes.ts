@@ -65,6 +65,7 @@ import selfCaptureUploadsRouter from "./routes/self-capture-uploads";
 import siteTaskBriefRouter from "./routes/site-task-brief";
 import siteClaimRouter from "./routes/site-claim";
 import adminOutboundProspectsRouter from "./routes/admin-outbound-prospects";
+import adminCommunicationsResearchRouter from "./routes/admin-communications-research";
 import internalTaskEvaluationLaunchesRouter from "./routes/internal-task-evaluation-launches";
 import internalGapIntakeRouter from "./routes/internal-gap-intake";
 import internalHumanBlockersRouter from "./routes/internal-human-blockers";
@@ -151,6 +152,7 @@ export function registerRoutes(app: Express) {
   // attach is /api/workspace/claim, behind Firebase auth.
   app.use("/api/site-claim", siteClaimRouter);
   app.use("/api/admin/outbound-prospects", csrfProtection, verifyFirebaseToken, adminOutboundProspectsRouter);
+  app.use("/api/admin/communications", csrfProtection, verifyFirebaseToken, adminCommunicationsResearchRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
   app.use("/api/internal/pipeline", internalCompanyPolicyRegistryCredentialsRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);

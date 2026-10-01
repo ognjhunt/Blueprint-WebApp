@@ -45,7 +45,7 @@ export async function communicationsSendBlocker(payload: ActionPayload, ledgerId
       || source.data()?.siteId !== brief.siteId || source.data()?.taskId !== brief.taskId
       || source.data()?.communications?.ledgerId !== ledgerId
       || communicationsDigest(currentBrief) !== job.briefDigest) return "communications_approval_context_changed";
-    verifyPublishedResearch(await readExistingResearchSnapshot(dbAdmin, brief.researchOrigin.date), brief, await store.handoff(brief), await store.contactProof(brief));
+    verifyPublishedResearch(await readExistingResearchSnapshot(dbAdmin, brief.researchOrigin.date, brief.researchOrigin.admissionId), brief, await store.handoff(brief), await store.contactProof(brief));
     const ledger = (await dbAdmin.collection("action_ledger").doc(ledgerId).get()).data();
     if (ledger?.first_contact_authority && !exactHumanAuthority(ledger, payload)) {
       if (!automaticFirstContactEnabled()) return "automatic_first_contact_disabled";

@@ -79,7 +79,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       await deps.store.requestRefresh(job, refresh);
       return { state: "awaiting_research", reasons: refresh };
     }
-    verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date), brief, await deps.store.handoff(brief), await deps.store.contactProof(brief));
+    verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId), brief, await deps.store.handoff(brief), await deps.store.contactProof(brief));
     const approval = await deps.store.approvalState(job.prospectId);
     const input = buildCommunicationsInput(brief, thread, job.intent, approval);
     const expired = claimed.checkpoint.createClaimedAt
@@ -179,7 +179,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
     recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now()),
   });
   const deps: CommunicationsDependencies = {
-    store, api, readResearch: (date) => readExistingResearchSnapshot(db, date),
+    store, api, readResearch: (date, admissionId) => readExistingResearchSnapshot(db, date, admissionId),
     verifyMailbox: () => verifyFounderMailbox(), readThread: (id) => readFounderThread(id),
     isSuppressed: (email) => isEmailSuppressed(email, "growth_campaign"),
     suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "all", source: "communications_reply" }),

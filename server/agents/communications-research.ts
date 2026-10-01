@@ -4,11 +4,17 @@ import { pathToFileURL } from "node:url";
 import { communicationsDigest, verifyCommunicationsHandoff, type CommunicationsBrief } from "./communications-contract";
 import { publishedPublicContact } from "./communications-contact-evidence";
 import { verifyContactResolution } from "./communications-contact-resolution";
+import { qualifiedSourceContact } from "./communications-source-assessment";
+import { REVIEWED_RESEARCH_ROOT, reviewedResearchPublication } from "./communications-reviewed-research";
 
-export type ResearchSnapshotReader = (date: string) => Promise<unknown>;
+export type ResearchSnapshotReader = (date: string, admissionId?: string) => Promise<unknown>;
 // The research owner owns the pinned Store, its blobs and scheduler. This reader
 // has no control writes and never acquires/replaces the research runner's lease.
-export async function readExistingResearchSnapshot(db: FirebaseFirestore.Firestore, date: string) {
+export async function readExistingResearchSnapshot(db: FirebaseFirestore.Firestore, date: string, admissionId?: string) {
+  if (admissionId) {
+    if (!/^[a-f0-9]{64}$/.test(admissionId)) throw new Error("reviewed_research_identity_changed");
+    return (await db.collection(REVIEWED_RESEARCH_ROOT).doc(admissionId).get()).data();
+  }
   const modulePath = pathToFileURL(resolve("dist/daily-research/release/tools/daily_research/firestore_bridge.mjs"));
   const { Store } = await import(/* @vite-ignore */ modulePath.href);
   return new Store(db).snapshot(date);
@@ -22,6 +28,7 @@ export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrie
   if (handoff.sheetsReceipt !== verified.sheetsReceipt || handoff.notionReceipt !== verified.notionReceipt) {
     throw new Error("research_publication_receipt_changed");
   }
+  if (brief.researchOrigin.admissionId && handoff.recordReceipt !== (verified as any).recordReceipt) throw new Error("research_publication_receipt_changed");
   if (brief.researchOrigin.sourceDigest
     && communicationsDigest(researchPublicationSource(snapshot, brief.researchOrigin)) !== brief.researchOrigin.sourceDigest) {
     throw new Error("research_adapter_source_changed");
@@ -29,7 +36,7 @@ export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrie
   if (brief.researchOrigin.contactEvidenceDigest) {
     const contact = brief.researchOrigin.contactEvidenceKind === "public_operator_resolution"
       ? verifyContactResolution(contactProof, researchPublicationSource(snapshot, brief.researchOrigin), brief.prospectId)
-      : publishedPublicContact(candidate);
+      : qualifiedSourceContact(researchPublicationSource(snapshot, brief.researchOrigin));
     if (contact.evidenceDigest !== brief.researchOrigin.contactEvidenceDigest
       || contact.email !== brief.contact.email.toLowerCase() || contact.sourceUrl !== brief.contact.sourceUrl
       || contact.sourceCheckedAt !== brief.contact.sourceCheckedAt || brief.consent.status !== "public_business_contact"
@@ -59,6 +66,7 @@ export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrie
 
 /** Shared read-only publication checks, also used before a brief exists. */
 export function verifyResearchPublication(snapshot: any, origin: CommunicationsBrief["researchOrigin"]) {
+  if (origin.admissionId || snapshot?.schema_version === "blueprint.reviewed-research-snapshot.v1") return reviewedResearchPublication(snapshot, origin);
   const row = snapshot?.row;
   const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
   if (snapshot?.schema_version !== "blueprint.research-snapshot.v1" || !row
@@ -78,13 +86,14 @@ export function verifyResearchPublication(snapshot: any, origin: CommunicationsB
     || review.source_support_verified !== true || review.crm_rechecked !== true
     || !review.accepted_keys?.includes(origin.candidateKey)) throw new Error("research_quality_review_missing");
   const selected = row.packet.candidates.filter((item: any) => review.accepted_keys.includes(item.candidate_key));
-  if (!row.packet.destinations?.sheet_id || !row.packet.destinations?.notion_parent || typeof review.summary !== "string") throw new Error("research_publication_target_missing");
+  if (!row.packet.destinations?.sheet_id || typeof review.summary !== "string") throw new Error("research_publication_target_missing");
   const expected: Record<string, unknown> = {
     sheets: { sheet_id: row.packet.destinations.sheet_id, tab: "Prospects", candidates: selected },
     notion: { parent_id: row.packet.destinations.notion_parent, summary: review.summary, candidates: selected },
   };
   for (const destination of ["sheets", "notion"]) {
     const delivery = row.delivery?.[destination];
+    if (destination === "notion" && delivery?.state !== "acknowledged") continue;
     const receipt = delivery?.receipt;
     if (delivery?.state !== "acknowledged" || receipt?.readback_verified !== true || !receipt.reference
       || receipt.key !== delivery.key || receipt.payload_digest !== delivery.payload_digest
@@ -96,12 +105,14 @@ export function verifyResearchPublication(snapshot: any, origin: CommunicationsB
   const candidate = row.packet?.candidates?.find((item: any) => item.candidate_key === origin.candidateKey);
   if (!candidate) throw new Error("research_candidate_missing");
   return { row, candidate, selected,
-    sheetsReceipt: row.delivery.sheets.receipt.reference, notionReceipt: row.delivery.notion.receipt.reference,
+    sheetsReceipt: row.delivery.sheets.receipt.reference,
+    notionReceipt: row.delivery?.notion?.state === "acknowledged" ? row.delivery.notion.receipt.reference : null,
   };
 }
 
 /** Exact producer-owned candidate, QA and publication identity. No research writes. */
 export function researchPublicationSource(snapshot: any, origin: CommunicationsBrief["researchOrigin"]) {
+  if (origin.admissionId || snapshot?.schema_version === "blueprint.reviewed-research-snapshot.v1") return reviewedResearchPublication(snapshot, origin).source;
   const { row, candidate, selected, sheetsReceipt, notionReceipt } = verifyResearchPublication(snapshot, origin);
   const qa = row.qa;
   const qaBytes = Buffer.from(snapshot.files.qa ?? "", "base64");
@@ -138,7 +149,7 @@ export function researchPublicationSource(snapshot: any, origin: CommunicationsB
       capability.url, "Unverified", item.location, row.date];
     if (researchDigest(rows[index]) !== researchDigest(expected)) throw new Error("research_adapter_sheet_identity_missing");
   }
-  if (typeof notionReceipt !== "string" || !/^notion:[a-f0-9-]{32,36}$/.test(notionReceipt)) throw new Error("research_adapter_notion_identity_missing");
+  if (notionReceipt !== null && (typeof notionReceipt !== "string" || !/^notion:[a-f0-9-]{32,36}$/.test(notionReceipt))) throw new Error("research_adapter_notion_identity_missing");
   return {
     version: "blueprint.communications-research-source.v1" as const,
     runKey: row.run_key, date: origin.date, candidateKey: origin.candidateKey,
@@ -147,6 +158,8 @@ export function researchPublicationSource(snapshot: any, origin: CommunicationsB
     sheetsId: row.packet.destinations.sheet_id,
     sheetsProspectId: ids[selected.findIndex((item: any) => item.candidate_key === origin.candidateKey)],
     sheetsReceipt, notionReceipt, sheetsPlanDigest: researchDigest(plan),
+    sourceRecordUrl: notionReceipt ? `https://www.notion.so/${notionReceipt.slice(7).replaceAll("-", "")}`
+      : `https://docs.google.com/spreadsheets/d/${row.packet.destinations.sheet_id}/edit`,
   };
 }
 

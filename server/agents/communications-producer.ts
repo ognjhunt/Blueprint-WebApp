@@ -5,7 +5,7 @@ import {
 } from "./communications-contract";
 import { researchPublicationSource } from "./communications-research";
 import { COMMUNICATIONS_ROOT } from "./communications-store";
-import { PUBLIC_CONTACT_PREFIX } from "./communications-contact-evidence";
+import { PUBLIC_CONTACT_PREFIX, sameOperatorUrl } from "./communications-contact-evidence";
 
 const id = z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/);
 const text = z.string().trim().min(1).max(1200);
@@ -54,7 +54,8 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
   agentContact?: { kind: "published_evidence" | "public_operator_resolution"; scope: "site" | "organization_business_route"; resolvedGaps: string[] }) {
   const input = communicationsResearchInputSchema.parse(inputValue);
   const origin = { date: input.date, candidateKey: input.candidateKey,
-    packetDigest: snapshot?.row?.packet_digest, rawArtifactDigest: snapshot?.row?.raw_output_digest };
+    packetDigest: snapshot?.row?.packet_digest, rawArtifactDigest: snapshot?.row?.raw_output_digest,
+    ...(snapshot?.row?.admission_id ? { admissionId: snapshot.row.admission_id } : {}) };
   const source = researchPublicationSource(snapshot, origin);
   const candidate = source.candidate;
   const canonical = canonicalContext(prospect, input.context, source.sheetsProspectId);
@@ -62,7 +63,7 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
     throw new Error("research_adapter_candidate_prospect_mismatch");
   }
   if (!Array.isArray(candidate.evidence) || !candidate.evidence.length || !Array.isArray(candidate.unknowns)
-    || !candidate.unknowns.length) throw new Error("research_adapter_candidate_invalid");
+    ) throw new Error("research_adapter_candidate_invalid");
   const facts: CommunicationsBrief["facts"] = candidate.evidence.map((entry: any, index: number) => {
     if (!["fact", "vendor_claim", "hypothesis"].includes(entry.claim_kind)
       || !["operator", "independent", "vendor"].includes(entry.classification)) throw new Error("research_adapter_evidence_invalid");
@@ -79,6 +80,8 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
   });
   const observation = candidate.evidence.findIndex((entry: any) => entry.role === "task"
     && entry.classification === "operator" && entry.claim_kind === "fact"
+    && entry.origin === "live" && entry.assertion_scope === "current_operational"
+    && (!entry.visibility || entry.visibility === "public") && sameOperatorUrl(entry.url, candidate.organization_url)
     && !entry.claim.startsWith(PUBLIC_CONTACT_PREFIX));
   if (observation < 0) throw new Error("research_adapter_public_task_fact_missing");
   const sourceDigest = communicationsDigest(source);
@@ -102,7 +105,7 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
   // Parse before previewing: overflow refuses instead of truncating source text.
   const { qualityReview: _review, ...validated } = communicationsBriefSchema.parse({ ...proposal,
     qualityReview: { state: "approved", reviewedBy: "preview-only", reviewedAt: new Date(now).toISOString(),
-      sourceRecordUrl: `https://www.notion.so/${source.notionReceipt.slice(7).replaceAll("-", "")}` } });
+      sourceRecordUrl: source.sourceRecordUrl ?? `https://www.notion.so/${source.notionReceipt.slice(7).replaceAll("-", "")}` } });
   const blockers = briefRefreshReasons({ ...validated, qualityReview: _review }, now);
   if (communicationsDigest(validated.unknowns) !== communicationsDigest(candidate.unknowns)
     || validated.facts.some((fact, index) => fact.claim !== candidate.evidence[index].claim)) {
@@ -126,7 +129,8 @@ export async function approveResearchCommunications(db: FirebaseFirestore.Firest
   } });
   const digest = communicationsDigest(brief);
   const handoff: CommunicationsHandoff = { version: "blueprint.communications-handoff.v1", ...brief.qualityReview,
-    briefDigest: digest, sheetsReceipt: preview.source.sheetsReceipt, notionReceipt: preview.source.notionReceipt };
+    briefDigest: digest, sheetsReceipt: preview.source.sheetsReceipt, notionReceipt: preview.source.notionReceipt,
+    ...(preview.source.recordReceipt ? { recordReceipt: preview.source.recordReceipt } : {}) };
   const root = db.doc(COMMUNICATIONS_ROOT);
   const sourceRef = db.collection("outboundProspects").doc(brief.prospectId);
   const briefRef = root.collection("briefs").doc(brief.briefId);
