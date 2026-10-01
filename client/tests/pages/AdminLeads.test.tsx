@@ -920,8 +920,9 @@ describe("AdminLeads scene readiness", () => {
 
 describe("founder Gmail callback landing in the actual approvals page", () => {
   afterEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, "", "/"); });
-  it("mounts and expands the owner confirmation surface without clicking another tab or saving automatically", async () => {
-    window.history.replaceState(null, "", "/admin/leads?founder_gmail=returned");
+  it.each(["prepare", "returned"])("mounts and expands %s on the fixed host without starting or saving automatically", async mode => {
+    window.history.replaceState(null, "", `/admin/leads?founder_gmail=${mode}`);
+    vi.spyOn(window.location, "origin", "get").mockReturnValue("https://tryblueprint.io");
     useAuthMock.mockReturnValue({ currentUser: { uid: "mock-owner", getIdToken: vi.fn(async () => "mock-owner-token") },
       userData: { roles: ["admin"] }, tokenClaims: { roles: ["admin"] } });
     const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async input => {
@@ -930,11 +931,11 @@ describe("founder Gmail callback landing in the actual approvals page", () => {
         account: "nijel@tryblueprint.io", binding: { state: "private_storage_selected_unverified" }, oauth: {
           ownerAction: "Owner-controlled confirmation", initialScopes: ["gmail.readonly"], sendScopeAfterSeparateApproval: "gmail.send", dataAccess: "Mailbox messages/settings" },
           secretDestination: { services: ["Blueprint web", "worker"] } } });
-      if (url.endsWith("/gmail/oauth/status")) return Response.json({ enabled: true, state: "awaiting_owner", sendsEnabled: false });
+      if (url.endsWith("/gmail/oauth/status")) return Response.json({ enabled: true, state: mode === "prepare" ? "idle" : "awaiting_owner", sendsEnabled: false });
       return Response.json({ items: [], summary: { total: 0, pending_approval: 0, failed: 0 }, total: 0, byStatus: {}, byPriority: {} });
     });
     renderPage();
-    expect(await screen.findByRole("button", { name: "Verify and save founder read-only connection" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: mode === "prepare" ? "Prepare Google read-only consent" : "Verify and save founder read-only connection" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Prepare founder mailbox" })).toHaveAttribute("aria-expanded", "true");
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });

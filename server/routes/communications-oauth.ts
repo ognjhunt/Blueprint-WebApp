@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { configuredFounderConsent } from "../agents/communications-oauth-store";
-import { FounderConsentError, FOUNDER_OAUTH_PREFIX, FOUNDER_OAUTH_COOKIE,
+import { FounderConsentError, FOUNDER_OAUTH_PREFIX, FOUNDER_OAUTH_COOKIE, FOUNDER_OAUTH_CALLBACK,
   type FounderGmailConsent } from "../agents/communications-oauth";
 
 const parseCookie = (header = "") => {
@@ -21,6 +21,14 @@ export function founderGmailOAuthRouter(getConsent: () => FounderGmailConsent | 
   const router = Router();
   router.use((_req, res, next) => { res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); next(); });
   router.use(rateLimit({ windowMs: 60000, limit: 20, standardHeaders: true, legacyHeaders: false }));
+  router.use((req, res, next) => {
+    // Read-only preparation may be viewed on www, but the host-only browser
+    // binding must be created, received and completed on the fixed callback host.
+    if (req.path !== "/status" && req.get("host") !== new URL(FOUNDER_OAUTH_CALLBACK).host) {
+      return res.status(403).json({ error: "founder_oauth_callback_host_required" });
+    }
+    next();
+  });
   // Google cannot attach a Firebase bearer token. This reception only consumes
   // a browser-bound one-use state and encrypts the code; it cannot exchange/save.
   router.get("/callback", async (req, res) => {

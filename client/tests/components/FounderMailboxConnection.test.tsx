@@ -6,6 +6,7 @@ vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: object) => header
 const auth = vi.hoisted(() => ({ useAuth: vi.fn(), getIdToken: vi.fn() }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: auth.useAuth }));
 beforeEach(() => {
+  vi.spyOn(window.location, "origin", "get").mockReturnValue("https://tryblueprint.io");
   auth.getIdToken.mockResolvedValue("mock-firebase-token");
   auth.useAuth.mockReturnValue({ currentUser: { uid: "ops-user", getIdToken: auth.getIdToken } });
 });
@@ -52,6 +53,20 @@ describe("founder connection preparation in Blueprint review", () => {
     expect(await screen.findByRole("link", { name: "Continue to Google as founder" })).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(fetchMock).toHaveBeenCalledWith("/api/communications/gmail/oauth/start", expect.objectContaining({ method: "POST", body: "{}", headers: { Authorization: "Bearer mock-firebase-token", "Content-Type": "application/json" } }));
     expect(view.container.querySelectorAll("input,textarea,form")).toHaveLength(0);
+  });
+  it.each(["idle", "awaiting_owner"])("moves www to the fixed apex preparation page before %s consent actions", async state => {
+    vi.spyOn(window.location, "origin", "get").mockReturnValue("https://www.tryblueprint.io");
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async url => String(url).endsWith("/status")
+      ? Response.json({ enabled: true, state, sendsEnabled: false })
+      : Response.json({ connection: { account: "nijel@tryblueprint.io", binding: { state: "missing" }, oauth: {
+        ownerAction: "Owner-approved setup", initialScopes: ["gmail.readonly"], sendScopeAfterSeparateApproval: "gmail.send", dataAccess: "Mailbox messages/settings" }, secretDestination: { services: ["Blueprint web", "worker"] } } }));
+    page(); fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
+    const link = await screen.findByRole("link", { name: "Continue on tryblueprint.io for founder consent" });
+    expect(link).toHaveAttribute("href", "https://tryblueprint.io/admin/leads?founder_gmail=prepare");
+    expect(link).toHaveAttribute("referrerpolicy", "no-referrer");
+    expect(screen.queryByRole("button", { name: "Prepare Google read-only consent" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Verify and save founder read-only connection" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
   it("never saves a returned code automatically and confirms read-only persistence separately", async () => {
     const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async url => {
