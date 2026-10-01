@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { officialResearchInput } from "./fixtures/official-contact-research";
 import { memoryFirestore } from "./fixtures/communications";
 const bindings = vi.hoisted(() => ({ db: null as any, access: vi.fn(), suppressed: vi.fn() }));
@@ -18,10 +18,12 @@ async function invoke(body: unknown) {
   return { status: res.status.mock.calls[0][0], body: res.json.mock.calls[0][0] };
 }
 beforeEach(() => {
+  vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-01T21:05:00Z"));
   bindings.db = memoryFirestore(); bindings.access.mockReset(); bindings.suppressed.mockReset();
   bindings.access.mockResolvedValue({ isAdmin: true, uid: "server-verified-user" });
   bindings.suppressed.mockResolvedValue(false);
 });
+afterEach(() => vi.useRealTimers());
 describe("authenticated reviewed-research admission route", () => {
   it("ignores client role claims and blocks missing/revoked server authority without writes", async () => {
     bindings.access.mockResolvedValue({ isAdmin: false, uid: "request-user" });
