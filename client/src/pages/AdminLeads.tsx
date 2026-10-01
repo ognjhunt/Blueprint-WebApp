@@ -649,7 +649,7 @@ export default function AdminLeads() {
     | "capturers"
     | "field_ops"
     | "agent"
-  >("submissions");
+  >(() => new URLSearchParams(window.location.search).get("founder_gmail") === "returned" ? "approvals" : "submissions");
   const [qualificationFilter, setQualificationFilter] = useState<QualificationState | "">("");
   const [priorityFilter, setPriorityFilter] = useState<RequestPriority | "">("");
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);

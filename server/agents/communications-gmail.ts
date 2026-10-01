@@ -1,19 +1,23 @@
 import { google, type gmail_v1 } from "googleapis";
 import { extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
 import { FOUNDER_MAILBOX, type VerifiedThread, type ThreadMessage } from "./communications-contract";
+import { readFounderCredential } from "./communications-oauth-store";
 import { FOUNDER_GMAIL_BINDING_KEYS } from "./communications-connection";
 
-export function existingFounderGmail(): gmail_v1.Gmail {
-  const [clientId, clientSecret, refreshToken] = FOUNDER_GMAIL_BINDING_KEYS.map(key => process.env[key]?.trim());
-  if (!clientId || !clientSecret || !refreshToken) throw new Error("founder_gmail_binding_missing");
+export async function existingFounderGmail(): Promise<gmail_v1.Gmail> {
+  const [clientId, clientSecret, environmentToken] = FOUNDER_GMAIL_BINDING_KEYS.map(key => process.env[key]?.trim());
+  if (!clientId || !clientSecret) throw new Error("founder_gmail_binding_missing");
+  const refreshToken = environmentToken || (await readFounderCredential()).refreshToken;
   // Only owner-installed founder credentials. No ops binding fallback, browser
-  // access, client creation, OAuth flow, credential copy or token persistence.
+  // access, client creation or ops credential copying. The private reader only
+  // uses the separate binding after explicit owner consent; it never writes.
   const auth = new google.auth.OAuth2(clientId, clientSecret);
   auth.setCredentials({ refresh_token: refreshToken });
   return google.gmail({ version: "v1", auth });
 }
 
-export async function verifyFounderMailbox(gmail = existingFounderGmail()) {
+export async function verifyFounderMailbox(gmail?: gmail_v1.Gmail) {
+  gmail ??= await existingFounderGmail();
   const profile = await gmail.users.getProfile({ userId: "me" });
   if (profile.data.emailAddress?.trim().toLowerCase() !== FOUNDER_MAILBOX) {
     throw new Error("founder_gmail_wrong_mailbox");
@@ -35,7 +39,8 @@ function subjectText(value: string | null) {
     (_, encoded: string) => Buffer.from(encoded, "base64").toString("utf8"));
 }
 
-export async function readFounderThread(threadId: string, gmail = existingFounderGmail()): Promise<VerifiedThread> {
+export async function readFounderThread(threadId: string, gmail?: gmail_v1.Gmail): Promise<VerifiedThread> {
+  gmail ??= await existingFounderGmail();
   await verifyFounderMailbox(gmail);
   const response = await gmail.users.threads.get({ userId: "me", id: threadId, format: "full" });
   if (response.data.id !== threadId || !response.data.messages?.length || response.data.messages.length > 20) {
@@ -61,7 +66,8 @@ export async function readFounderThread(threadId: string, gmail = existingFounde
   return { mailbox: FOUNDER_MAILBOX, threadId, messages, fetchedAt: new Date().toISOString() };
 }
 
-export async function findFounderSentMessage(messageId: string, expected: { to: string; subject: string; body: string; threadId?: string; inReplyTo?: string }, gmail = existingFounderGmail()) {
+export async function findFounderSentMessage(messageId: string, expected: { to: string; subject: string; body: string; threadId?: string; inReplyTo?: string }, gmail?: gmail_v1.Gmail) {
+  gmail ??= await existingFounderGmail();
   await verifyFounderMailbox(gmail);
   const result = await gmail.users.messages.list({ userId: "me", q: `in:sent rfc822msgid:${messageId}`, maxResults: 2 });
   if ((result.data.messages?.length ?? 0) > 1) throw new Error("multiple_send_receipts_require_reconciliation");
@@ -83,7 +89,8 @@ export async function findFounderSentMessage(messageId: string, expected: { to: 
 
 export async function sendFounderMessage(params: {
   to: string; subject: string; body: string; messageId: string; threadId?: string; inReplyTo?: string;
-}, gmail = existingFounderGmail()) {
+}, gmail?: gmail_v1.Gmail) {
+  gmail ??= await existingFounderGmail();
   await verifyFounderMailbox(gmail);
   for (const header of [params.to, params.subject, params.messageId, params.inReplyTo ?? ""]) {
     if (/[\r\n]/.test(header)) throw new Error("email_header_injection");

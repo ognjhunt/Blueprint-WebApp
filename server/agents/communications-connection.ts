@@ -14,7 +14,7 @@ export function founderMailboxConnectionPlan(env: NodeJS.ProcessEnv = process.en
   const configured = FOUNDER_GMAIL_BINDING_KEYS.every(key => Boolean(env[key]?.trim()));
   return {
     account: FOUNDER_MAILBOX,
-    binding: { state: configured ? "configured_unverified" : "missing" },
+    binding: { state: configured ? "configured_unverified" : env.BLUEPRINT_COMMUNICATIONS_GMAIL_BINDING_STORAGE === "bound-field-firestore-v1" ? "private_storage_selected_unverified" : "missing" },
     oauth: {
       state: "blocked",
       blocker: "existing_oauth_client_and_registered_callback_unverified",

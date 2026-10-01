@@ -24,14 +24,14 @@ beforeEach(() => {
   for (const key of FOUNDER_GMAIL_BINDING_KEYS) vi.stubEnv(key, "");
 });
 describe("existing founder Gmail binding (mocked)", () => {
-  it("requires existing OAuth and never accepts browser login as API binding", () => {
-    expect(() => existingFounderGmail()).toThrow("founder_gmail_binding_missing");
+  it("requires existing OAuth and never accepts browser login as API binding", async () => {
+    await expect(existingFounderGmail()).rejects.toThrow("founder_gmail_binding_missing");
   });
-  it("never substitutes a complete ops binding for an absent or partial founder binding", () => {
+  it("never substitutes a complete ops binding for an absent or partial founder binding", async () => {
     for (const key of ["CLIENT_ID", "CLIENT_SECRET", "REFRESH_TOKEN"]) vi.stubEnv(`BLUEPRINT_HUMAN_REPLY_GMAIL_${key}`, `MOCK_OPS_${key}`);
-    expect(() => existingFounderGmail()).toThrow("founder_gmail_binding_missing");
+    await expect(existingFounderGmail()).rejects.toThrow("founder_gmail_binding_missing");
     vi.stubEnv(FOUNDER_GMAIL_BINDING_KEYS[0], "MOCK_FOUNDER_CLIENT");
-    expect(() => existingFounderGmail()).toThrow("founder_gmail_binding_missing");
+    await expect(existingFounderGmail()).rejects.toThrow("founder_gmail_binding_missing");
     expect(google.auth.OAuth2).not.toHaveBeenCalled();
   });
   it("keeps founder and human-blocker OAuth credentials and mailbox checks independent", async () => {

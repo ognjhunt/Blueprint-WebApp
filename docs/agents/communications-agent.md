@@ -91,46 +91,103 @@ No OAuth configuration, credential copy, new client/key, grant or browser-sessio
 extraction occurs in this build. Missing/wrong mailbox or unavailable read/send
 permissions fail closed. API permissions require owning-system evidence.
 
-### Owner connection preparation
+### Owner connection preparation and disabled consent adapter
 
-In `/admin/leads` → Approvals → **Prepare founder mailbox**, authenticated ops
-can read `GET /api/admin/outbound-prospects/communications/connection`. It reports
-field presence only (`missing` or `configured_unverified`), never secret values or
-verified mailbox access. It makes no Google request or database write, accepts no
-credentials, and supplies no authorization URL or callback. No Gmail OAuth
-callback or reconnect screen was previously documented in this repository;
-Firebase sign-in and Blueprint Work OAuth are unrelated authorization paths.
+`/admin/leads` → Approvals → **Prepare founder mailbox** remains the review
+surface. Its preparation GET reports presence/selected storage only and never
+claims live account access. The new Gmail-only consent routes are disabled unless
+all owner configuration gates are satisfied. No client registration, OAuth grant,
+credential entry/storage or permission change occurred during this build.
 
-The exact initial scope is `https://www.googleapis.com/auth/gmail.readonly`, which
-permits whole-mailbox messages/settings access even though this runtime retrieves
-only relevant full threads and exact sent receipts. It covers profile, accepted
-sender lookup, full thread/message reads and receipt searches. If sending is later
-authorized, add only `https://www.googleapis.com/auth/gmail.send`. Settings-write,
-message-modify, draft-management and full-mail deletion scopes are unnecessary.
-See Google's [sender lookup](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.settings.sendAs/list),
-[full threads](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.threads/get)
-and [send API](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send).
+The implemented fixed callback is
+`https://tryblueprint.io/api/communications/gmail/oauth/callback`.
+This is code, **not proof of Google registration or deployment**. Only this exact
+URI is admitted; no request can supply a redirect or another provider endpoint.
+The existing Blueprint Work OAuth authorizes Blueprint tools and is not a Google
+mailbox connection route.
 
-The smallest owner action is to inspect the **existing** Google OAuth client's
-registered redirect, audience and allowed scopes for `nijel@tryblueprint.io` in
-Google Auth Platform. Return non-secret registration evidence only. The existing
-client may be reused only after that compatibility is verified. No callback is
-invented or registered here. A missing compatible owner-controlled callback is a
-specific connection-preparation blocker; any callback implementation must be
-reviewed against the actual registered URI before owner consent. Offline access,
-state validation and server-side code exchange belong in that verified flow.
+The exact initial scope is `https://www.googleapis.com/auth/gmail.readonly`,
+which permits whole-mailbox messages/settings access even though runtime
+retrieval is limited to relevant full threads and exact sent receipts. This flow
+rejects any additional granted scope. It has no Gmail draft-write or send
+capability. Drafts remain in Blueprint. A later separately reviewed send authority
+needs `https://www.googleapis.com/auth/gmail.send`; this initial connection does
+not install or accept it. Existing exact recipient/body/sender approval and the
+communications send control remain independent gates.
 
-The logical binding is `communications-founder-gmail`, serving **both** Render
-services `Blueprint-WebApp` (approval/send and receipt recovery) and
-`blueprint-webapp-worker` (draft/reply context). Its current private server adapter
-uses the three separate fields above. Final token storage/credential entry remains
-blocked pending the shared vault owner's verified contract; no credential-entry
-URL is invented. The separate research-integration owner owns that shared
-MCP/vault preparation, and local UI inspection checks existing Platform consent
-flows before custom OAuth plumbing. Tokens, authorization codes and client secrets
-must never be entered in chat, ordinary frontend forms, repo files or logs.
-No route in this release accepts them. Preserve all `BLUEPRINT_HUMAN_REPLY_*`
-ops fields; reconnecting that separate watcher is outside this operation.
+The same API prefix has authenticated `GET /status`, `POST /start`, and
+`POST /complete`. Both POST bodies are exactly `{}`; they accept no secrets.
+Start/complete require a current Firebase bearer identity matching the configured
+owner UID, a freshly re-read non-disabled/revoked operator role, existing CSRF
+protection and exact `https://tryblueprint.io` Origin. Tenant identities are
+refused. Start creates a ten-minute one-use state, a separate HttpOnly Secure
+SameSite=Lax browser binding and S256 PKCE. Transient code/verifier material is
+bound-encrypted with the existing field-encryption primitive in the private,
+default-denied `communicationsGmailOAuthFlows` collection. Its `expireAt` timestamp
+supports an owner-configured TTL; logical expiry is enforced even without TTL.
+No TTL configuration was changed by this build.
+
+The Google callback consumes state and encrypts the code, then redirects to a
+fixed clean Blueprint URL. It performs no token exchange or credential write.
+After returning, the original owner explicitly clicks **Verify and save founder
+read-only connection**. Complete durably claims the exchange before one bounded
+Google token POST (no retry/redirect). It requires exactly the read scope and a
+refresh token, verifies primary `nijel@tryblueprint.io` plus its accepted sender,
+rechecks owner/control/approval drift and expiry, then persists the verified
+credential. Wrong accounts, replay, missing scope, revoked owners, ambiguous
+exchange or storage failures fail closed. No auto-revocation can disturb an
+existing operations grant. An uncertain persistence outcome must be checked
+against the private binding before requesting another grant.
+
+The isolated binding is `communications-founder-gmail` in the default-denied
+`communicationsGmailCredentials` collection. The existing bound field encryption
+protects the refresh credential and binds it to owner, Google client and flow.
+The shared integration owner must approve selecting this REST store contract;
+it is not an OpenAI MCP vault credential and is not readable through vault GET.
+Both Render services use their existing Firebase/encryption bindings to read it.
+The runtime and built read-only preflight reuse the same private reader. There is
+no HUMAN_REPLY fallback, secret export or ordinary frontend credential form.
+Initial connection never overwrites an existing environment/durable founder
+binding. Replacement or scope expansion requires a separate reviewed owner
+operation. All HUMAN_REPLY fields, identities and watchers remain untouched.
+
+Owner-only setup after exact-head review, green CI and an approved disabled
+release:
+
+1. In project `blueprint-8c1ca`, verify an **existing** compatible web client and
+   its shared operations usage; register the exact implemented callback after
+   approving that client change. No existing client currently has this callback.
+2. Establish founder eligibility and approve the audience/publishing design.
+   Current evidence is External/Testing, `nijel@` absent from test users, with
+   only read scope. Testing Gmail refresh grants expire after seven days. A
+   deliberately approved temporary test connection is explicitly marked and
+   stops being usable after seven days; `durable_reviewed` is an owner attestation
+   requiring verified production/appropriate Internal Workspace eligibility,
+   not a durability proof supplied by code.
+3. Through secure owner-controlled configuration only, bind the verified client
+   ID/secret to the separate existing founder fields. Do not copy ops values or
+   put credentials in chat. Confirm both services already have compatible
+   encryption access. No new key or security grant is part of this code.
+4. Record the approved owner UID, nonsecret approval reference and exact
+   registered callback; select the approved private storage contract and grant
+   mode. Only then enable this **consent flow**, leaving worker/inference/send
+   controls off. Use the Blueprint buttons and complete Google's founder consent
+   yourself. The callback token is handled only on the server.
+
+Required configuration names (all unset/default-disabled until owner action):
+`BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_ENABLED=true`,
+`BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID`,
+`BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_APPROVAL_REF`,
+`BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_REGISTERED_CALLBACK` (exact URI above),
+`BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_GRANT_MODE` (`temporary_testing` or
+`durable_reviewed`), and `BLUEPRINT_COMMUNICATIONS_GMAIL_BINDING_STORAGE=bound-field-firestore-v1`.
+The separate existing `BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_ID` and
+`BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_SECRET` remain private; the owner flow
+writes an encrypted refresh credential instead of writing environment values.
+None of these fields were configured in this build. See Google's
+[web-server OAuth](https://developers.google.com/identity/protocols/oauth2/web-server),
+[Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes), and
+[Testing expiry](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 Google documents an official service-origin MCP server at
 `https://gmailmcp.googleapis.com/mcp/v1` in its
@@ -223,7 +280,7 @@ Blueprint infrastructure before claiming unattended operation.
 1. On existing Render worker `srv-d9t8gg1t0dsc73am9q70`, run
    `node scripts/communications-preflight.mjs` with existing
    in-place founder bindings. This performs only model discovery and Gmail profile/sendAs
-   reads, prints sanitized status, and creates no session/draft/send. The script is self-contained and uses only the worker's existing `googleapis` dependency, so its reviewed source can run in place before the communications deployment. Do not copy
+   reads, prints sanitized status, and creates no session/draft/send. Environment-only preflight uses the existing `googleapis` dependency. The owner-installed encrypted binding requires the reviewed `dist/agents/communications-gmail.js` reader built by this release; it does not import worker startup or write credentials. Do not copy
    credentials into the workspace. Missing scopes/binding blocks communications
    enablement and does not authorize access grants or ops credential replacement.
 2. Verify a published research snapshot, canonical IDs/contact and immutable
