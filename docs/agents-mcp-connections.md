@@ -2,9 +2,11 @@
 
 Owner-directed preparation, 2026-10-01. Default project
 `proj_F2tFJuxLaovJru8RrtXRaqNj`; research stays on GPT-6.1 Sol and communications
-on GPT-6 Luna. The verified disabled worker release is
-`614780173940f9a35cbdbca5f683b2b1f531f5e0`. No grants, vault credentials, saved-agent
-changes, paid sessions, sends or activation are part of this preparation.
+on GPT-6 Luna. The initial disabled worker release
+`614780173940f9a35cbdbca5f683b2b1f531f5e0` is historical evidence; verify each
+updated release against its receipt and deployed SHA. This code preparation
+does not itself grant access, save vault credentials, change saved agents,
+create paid sessions, send messages or activate a workflow.
 
 Use official HTTP MCP from the Agents service with reusable vault OAuth. Service
 origin does not need to enable network in the research sandbox. Attach the actual
@@ -27,22 +29,23 @@ after the owner's explicit Viewer-only grant on the canonical Sheet, the existin
 Render identity returned HTTP 200, valid headers, 16 total rows and 11 data rows,
 with a complete read. The principal is
 `firebase-adminsdk-yu1gh@blueprint-8c1ca.iam.gserviceaccount.com`.
-The owner and Restricted sharing remain unchanged. No Editor grant exists;
-publication writes are still unverified. Preserve this working reader and identity.
+The owner subsequently approved and independently read back Editor on this exact
+file; owner and Restricted sharing remain unchanged. Publication writes/readbacks
+are still unverified. Preserve this working reader and identity.
 Sheets updates remain behind a Blueprint target/column and duplicate-check
 boundary. An authenticated Google grant may be reused only after its account,
 scope and target access are verified; broader privilege is not inferred.
 
 Notion's native write tools do not by themselves solve guarded publication.
 Agents vault GETs never return secrets, so a vault-only grant also does not make
-the worker's existing Notion API publisher authenticated. No worker Notion binding
-is currently verified. Reuse an existing Blueprint-authorized publication binding
-if found; otherwise obtain explicit approval for the smallest secure binding to
-the existing publication boundary. Do not copy chat OAuth or claim readiness.
+the worker's existing Notion API publisher authenticated. The owner saved a
+narrowly scoped internal Notion worker key; runtime Knowledge-page read and
+publication write/readback verification remain pending. Do not copy chat OAuth
+or infer runtime readiness from key presence.
 
 ## Observed UI and the smallest owner steps
 
-The authenticated Platform UI was inspected in Blueprint Default on 2026-10-01:
+The initial authenticated Platform UI inspection in Blueprint Default on 2026-10-01 found:
 research had only web search, vault said "No secrets yet", saved Notion/Drive
 selectors were empty. Setup > Hosted tools > View all exposes these official
 endpoints and token/saved-connection/advanced-OAuth fields. No automatic consent
@@ -98,9 +101,10 @@ The supported first path is the already-enabled standard APIs: retain the now
 verified service-account Sheets reader; keep agent-owned QA and digest-bound
 publication behind Blueprint's existing delivery boundary; use the communications
 owner's standard Gmail adapter behind the live approval gates. Native MCP remains
-prepared for later enrollment. A Viewer reader cannot publish; separate scoped
-publication authority and a Notion worker binding still need owner approval and
-read-only verification before any write. No runtime step requires dot.
+prepared for later enrollment. The scoped Editor grant and internal Notion key
+are owner-approved; require runtime connection proof and exact publication
+readback before claiming success. Gmail/OAuth/MCP setup is not a dependency of
+the first research canary. No runtime step requires dot.
 
 ## Reusable configuration preparation
 
