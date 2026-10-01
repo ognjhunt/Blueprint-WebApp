@@ -13,6 +13,12 @@ Local conventions:
 - Do not run commands that send email, mutate provider state, deploy, import env, wake live Paperclip routines, or write Notion/Firebase/Stripe state unless the task explicitly asks for it.
 - Use dry-run flags when available and keep output artifacts under existing report/output paths.
 - If code files changed, run `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` before closeout.
+- Migration, export, backup and release helpers follow root AGENTS.md's permanent
+  provider-portability rule: keep company-controlled canonical storage, stable
+  Blueprint IDs, standard formats, manifests/hashes/provenance and a documented
+  replacement-agent recovery route. An optional Library delivery copy must not
+  become the production source or sole retained artifact; private transfer to
+  an unapproved destination remains blocked while local bytes are preserved.
 
 Safe defaults:
 

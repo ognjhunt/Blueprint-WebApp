@@ -1,6 +1,6 @@
 # Research and outreach learning layer
 
-Status: verified foundation deployed; prior-research reconciliation staged separately; live consumer cutover disabled.
+Status: verified foundation deployed; prior-research reconciliation staged; runnable read-only consumer adapter/CLI available. Caller hooks remain separately owned integrations; see the consumer handoff contract below.
 Owner: WebApp learning projection, coordinated by the parent engineering lane.
 Authorized objective: make site/job/team research reuse evidence from previous
 research, contact availability, outreach, replies and later outcomes. The owner
@@ -24,6 +24,115 @@ scientific verdict, rights, physical-outcome or send authority.
 | `blueprintResearchLearning/default/siteLearningEvents/{eventId}` | Authenticated human-source adapter | Human-attested motive, bounded question, decision-changing evidence, stated decision/evidence owner IDs, brief/later/no/unknown choice and usefulness feedback. Capture actor differs from stated site owner. Correct by append-only chain; source/brief bindings are host-issued inputs. No live writer route is exposed. |
 | Sheets `Research Learning` review/export view | Learning exporter | Firestore-owned derived rows with existing CRM ID, snapshot hash/cutoff/event refs/unknowns. Sheet edits do not write back CRM or learning facts. Corrections enter through a separately authenticated human append. |
 | Notion playbook/learning summary | Summary exporter | Aggregate counts, denominators, unconfirmed hypotheses, confounders, exploration allocation and snapshot refs. No raw threads or authoritative CRM state. |
+
+## Runnable research and communications consumer handoff
+
+`server/research-learning/consumer.ts` exports
+`openResearchLearningSession(existingFirestoreAdmin, trustedHostBinding, selection)`.
+It runs immediately when called; it has no activation flag, model execution,
+source/pointer write or directory-migration prerequisite. The research owner
+owns its invocation before the daily research prompt; the communications owner
+owns invocation before drafting. Their package, scheduler, OAuth, approval and
+send files are outside this slice's ownership. Await one session, give its
+`handoff` to the agent as untrusted evidence, and wrap its `search`, `details`
+and `history` methods as scoped read-only retrieval tools. An unavailable read
+means unknown evidence; it cannot authorize or independently prevent a send.
+Existing communications consent, suppression, send and approval policy still
+owns that decision.
+
+The host constructs `blueprint.research-learning-consumer-binding.v1` after
+existing authorization. Its exact fields are `principalId`, `role`
+(`daily_research` or `communications`), `sourceSnapshotId`, `crmIds`,
+`prospectIds`, `discoveryCapabilityIds`, `detailCapabilityIds`, and `expiresAt`.
+Never accept this binding from a model, client body or model-selected file.
+Discovery access is separate from detail access; the host expands detail scope
+when authorized. This logical scope is not a new IAM/OAuth/security grant.
+Selection contains at most ten `crmIds`, ten explicit native `prospectIds`,
+five initial `capabilityIds`, `focus: {city, industry}` and optional
+`maturityDays` (default fourteen). Larger runs select successive relevant
+scopes; ten is a context bound, not a research-success ceiling.
+
+Opening captures prior sanitized research and queries canonical prospects by
+exact `researchPublicationId` for the selected CRM IDs. Missing or competing
+native joins remain unknown. New CRM admissions can read current exact native
+history even when their rows are absent from the older source snapshot. The
+reader combines normalized current communications-owned source records with
+append-only learning events and human corrections, preserving exact refs,
+hashes, event/fact IDs and original dates. Initial summaries expose counts and
+unknowns, not raw addresses, message bodies, approval authority or full fact
+bags. First email and the next research run need no complete directory migration.
+
+Progressive operations within the same captured, expiring session:
+
+- `search({taskTags, regionTags, companyIds, capabilityIds, pageSize, cursor})`
+  returns a compact ranked page. Empty/broader queries retain all authorized
+  alternatives; an absent capability means unknown. Coverage is explicitly
+  `cached_capabilities_only`, not the whole robot-team directory.
+- `details(capabilityIds)` returns only host-permitted fact/source details and
+  explicit unknown IDs. It preserves grades, conflicts, original check dates
+  and stable Blueprint fact IDs; loading is not revalidation.
+- `history(prospectId, {pageSize, cursor})` returns structured event pages with
+  citation/evidence IDs. Cursors bind context hash and exact prospect. Session
+  methods never query an unrelated mailbox or acquire a research lease.
+- `siteHistory(crmId, {pageSize, cursor})` retrieves human observations under
+  the same context and exact CRM scope. Initial context contains at most five
+  recent observations plus counts, preserving the rest for selective retrieval.
+
+Portable operator/host invocation, using the existing Admin environment:
+
+```bash
+npx tsx scripts/research-learning/read-consumer.ts \
+  --binding /authorized/host-scope.json \
+  --request /authorized/selection.json \
+  --output output/research-learning/new-consumer-export.json
+```
+
+Request JSON is `{ "selection": { "crmIds": ["BP-000001"],
+"prospectIds": [], "capabilityIds": [], "focus": { "city": "Sacramento",
+"industry": "Laundromats" } }, "queries": [], "details": [], "history": [] }`.
+`queries` uses the search arguments above; `details` is an array of selected
+capability-ID lists; `history` entries contain `prospectId` and `pageSize`;
+optional `siteHistory` entries contain `crmId` and `pageSize`.
+The export is create-only, mode 0600, standard JSON. The binding selects the
+reviewed Firestore snapshot; no provider session or Library ID is required.
+The replacement agent can clone this user-owned GitHub repo, use its already
+authorized Blueprint Admin binding, and rerun the same scoped export/read API.
+
+Real existing-binding validation on October 1 opened both roles against
+source snapshot `0e1ccd1e7dcb22cca5df09aea78f2cfbdf857d8fe4436105722234302ddf0527`.
+Each read one CRM row and searched four cached capability entries; detail
+scope exposed only BP-CAP-001. BP-000001 had no current exact native join, so
+contact/outcome history stayed unknown. Synthetic contract tests separately
+exercise actual communications-owned accepted receipts, unknown delivery,
+human reply corrections, later owner outcomes, scope expiry and paging.
+
+## Permanent portability and release requirements
+
+Root and nested `AGENTS.md` now require company-controlled canonical storage
+and portable formats for business code, prompts/configuration, records,
+evidence, workflow state and required artifacts. Stable Blueprint-owned IDs
+are business identity; provider/session/Library references are provenance or
+optional delivery copies. Replacement agents must work without dot, ChatGPT
+Library or one model vendor. This applies to reconciliation, migration and
+backup helpers as well as consumers.
+
+Every release/handoff identifies canonical locations, hashes, schema/format,
+source/check provenance and an export/recovery route. This layer's canonical
+locations are user-owned GitHub source contracts and Blueprint Firestore
+`blueprintResearchLearning/default/{sourceSnapshots,events,siteLearningEvents}`.
+Local JSON verification/export bytes are preserved. Blueprint's existing
+configured Firebase/GCS bucket `gs://blueprint-8c1ca.appspot.com` is the
+object-storage destination candidate (existing metadata read succeeded);
+private proof/backup transfer requires approval for the specific destination
+and verified existing access. No such transfer or Library-only handoff occurs
+in this release, and no claim is made that all historical artifacts migrated.
+
+`npx tsx scripts/research-learning/check-portability.ts` audits explicit
+production Library-only canonical references and mandatory-Library flags in
+server/client/scripts/workflow source and root deployment/package configs.
+Docs, fixtures, tests, optional delivery copies and model integrations are
+excluded. This practical regression check does not prove remote accessibility
+or complete artifact recovery; releases must provide that operational evidence.
 
 Review destination: [existing CRM](https://docs.google.com/spreadsheets/d/1n95Ih0Swc-q-kZyUaDHoZh6SVzxvf_zt-CRR7i39bWY/edit).
 Learning/playbook workspace: [NotionNow](https://app.notion.com/p/3ea80154161d81c7810cc42e9e7df9c5).

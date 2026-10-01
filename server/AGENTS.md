@@ -14,6 +14,11 @@ Local conventions:
 - Treat `server/routes/site-world-sessions.ts`, `server/agents/runtime.ts`, `server/utils/cityLaunchExecutionHarness.ts`, and `server/utils/gtmSendExecutor.ts` as high-risk files.
 - Preserve Firestore field names and API response shapes unless a task explicitly changes the contract.
 - Do not touch env files or secrets.
+- Follow root AGENTS.md's permanent provider-portability rule. Server business
+  IDs and canonical storage/read contracts must be Blueprint-owned; provider
+  sessions and Library references are provenance/optional copies only. Include
+  accessible canonical locations, hashes/schema/provenance and export/recovery
+  routes in server handoffs and releases.
 
 Verification:
 
