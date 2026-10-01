@@ -1,12 +1,51 @@
 import { Router } from "express";
-import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
+import { createHash } from "node:crypto";
+import { dbAdmin, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { resolveExecutionAccessContext } from "../utils/access-control";
 import { isEmailSuppressed } from "../utils/email-suppression";
-import { reviewedResearchInputSchema, stageReviewedResearch } from "../agents/communications-reviewed-research";
+import { reviewedResearchInputSchema, stageReviewedResearch, REVIEWED_RESEARCH_ROOT } from "../agents/communications-reviewed-research";
 import { admitPublishedResearch } from "../agents/communications-intake";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
 
 const router = Router();
+// Blueprint IDs and authenticated reads keep storage-provider paths transport
+// details. Source bytes, manifests and record exports remain portable files.
+router.get("/research-artifacts/:artifactId/:part?", async (req, res) => {
+  const access = await resolveExecutionAccessContext(res);
+  if (!access.isAdmin || !access.uid) return res.status(403).json({ error: "forbidden" });
+  const { artifactId, part = "source" } = req.params;
+  if (!/^[a-f0-9]{64}$/.test(artifactId) || !["source", "manifest"].includes(part)) return res.status(400).json({ error: "research_artifact_id_invalid" });
+  if (!storageAdmin) return res.status(503).json({ error: "research_artifact_store_unavailable" });
+  try {
+    const [bytes] = await storageAdmin.bucket().file(`research/artifacts/sha256/${artifactId}/${part === "source" ? "source" : "manifest.json"}`).download();
+    if (part === "source" && createHash("sha256").update(bytes).digest("hex") !== artifactId) return res.status(409).json({ error: "research_artifact_changed" });
+    if (part === "manifest") {
+      let manifest: any;
+      try { manifest = JSON.parse(bytes.toString("utf8")); } catch { return res.status(409).json({ error: "research_artifact_manifest_invalid" }); }
+      if (manifest?.schema_version !== "blueprint.research-artifact.v1" || manifest.artifactId !== artifactId
+        || manifest.sha256 !== artifactId || !Number.isSafeInteger(manifest.byteLength) || manifest.byteLength < 1) {
+        return res.status(409).json({ error: "research_artifact_manifest_invalid" });
+      }
+    }
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("Content-Disposition", `attachment; filename="blueprint-research-${artifactId}${part === "manifest" ? ".json" : ""}"`);
+    return res.type(part === "manifest" ? "application/json" : "application/octet-stream").send(bytes);
+  } catch (error: any) {
+    return res.status(error?.code === 404 ? 404 : 503).json({ error: "research_artifact_unavailable" });
+  }
+});
+router.get("/research-admissions/:admissionId", async (req, res) => {
+  const access = await resolveExecutionAccessContext(res);
+  if (!access.isAdmin || !access.uid) return res.status(403).json({ error: "forbidden" });
+  if (!/^[a-f0-9]{64}$/.test(req.params.admissionId)) return res.status(400).json({ error: "research_admission_id_invalid" });
+  if (!dbAdmin) return res.status(503).json({ error: "reviewed_research_store_unavailable" });
+  try {
+    const snapshot = await dbAdmin.collection(REVIEWED_RESEARCH_ROOT).doc(req.params.admissionId).get();
+    if (!snapshot.exists) return res.status(404).json({ error: "research_admission_missing" });
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.json(snapshot.data());
+  } catch { return res.status(503).json({ error: "reviewed_research_store_unavailable" }); }
+});
 /** Same authenticated admin authority as sensitive execution routes. A client
  * profile, approved=true or invented hosted session is never source authority. */
 router.post("/research-admissions", async (req, res) => {
