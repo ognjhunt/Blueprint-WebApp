@@ -17,8 +17,10 @@ export const publicUrl = z.string().max(2000).url().refine(value => {
       if (next === decoded) break;
       decoded = next;
     }
-    return url.protocol === "https:" && !url.username && !url.password && decodeURIComponent(decoded) === decoded
-      && ![...url.searchParams.keys()].some(key => /^(?:email|emailaddress|token|accesstoken|refreshtoken|apikey|key|secret|clientsecret|privatekey|authorization|password|passwd|pwd|credentials?|signature|sig)$/i.test(key.replace(/[^a-z0-9]/gi, "")));
+    const decodedUrl = new URL(decoded);
+    return [url, decodedUrl].every(parsed => parsed.protocol === "https:" && !parsed.username && !parsed.password)
+      && decodeURIComponent(decoded) === decoded
+      && ![...decodedUrl.searchParams.keys()].some(key => /^(?:email|emailaddress|token|accesstoken|refreshtoken|apikey|key|secret|clientsecret|privatekey|authorization|password|passwd|pwd|credentials?|signature|sig)$/i.test(key.replace(/[^a-z0-9]/gi, "")));
   } catch { return false; }
 }, "learning_private_url");
 function dateMillis(value: string): number {

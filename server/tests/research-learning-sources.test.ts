@@ -73,7 +73,7 @@ describe("bounded prior-research reconciliation", () => {
     expect(reconcile(f).errors).toContain("canonical_join_ambiguous");
   });
   it.each(["2026-02-30", "2026-13-01", "2/30/2026", "2026-01-01Tbad"])("rejects invalid original date %s", value => expect(originalDate.safeParse(value).success).toBe(false));
-  it.each(["https://example.org/?email=private%40example.com", "https://example.org/?contact=private%2540example.com", "https://example.org/?password=secret", "https://example.org/?apiKey=secret", "https://example.org/?client-secret=secret", "https://example.org/?token=secret", "https://user:password@example.org", "https://example.org/%ZZ", "http://example.org"])("rejects private or malformed URL %s", value => expect(publicUrl.safeParse(value).success).toBe(false));
+  it.each(["https://example.org/?email=private%40example.com", "https://example.org/?contact=private%2540example.com", "https://example.org/?password=secret", "https://example.org/?apiKey=secret", "https://example.org/?client-secret=secret", "https://example.org/?token=secret", "https://example.org/?sign%2561ture=secret", "https://example.org/?%2574oken=secret", "https://user:password@example.org", "https://example.org/%ZZ", "http://example.org"])("rejects private or malformed URL %s", value => expect(publicUrl.safeParse(value).success).toBe(false));
   it("rejects privacy contamination and future source checks", () => {
     const f = fixture(); f.input.knowledge.records[0].facts[0].statement = "Contact private@example.com"; f.input.knowledge.content_hash = knowledgeContentHash(f.input.knowledge);
     expect(() => reconcile(f)).toThrow("learning_private_text");
