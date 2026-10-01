@@ -1,6 +1,7 @@
 import { communicationsDigest, COMMUNICATIONS_MODEL } from "./communications-contract";
 import { firstContactCalendarDay, FIRST_CONTACT_POLICY } from "./communications-first-contact";
-import { COMMUNICATIONS_ROOT } from "./communications-store";
+import { COMMUNICATIONS_ROOT, COMMUNICATIONS_JOB_STATES } from "./communications-store";
+import type { CommunicationsAgentsAPI, CommunicationsCheckpoint } from "./communications-api";
 
 export const COMMUNICATIONS_DRAFT_BUDGET = Object.freeze({
   version: "blueprint.communications-draft-soft-budget.v1", model: COMMUNICATIONS_MODEL,
@@ -73,20 +74,100 @@ export async function reserveCommunicationsDraft(db: FirebaseFirestore.Firestore
  * accounting holds the admission; a visible draft does not prove its cost. */
 export async function recordCommunicationsDraftUsage(db: FirebaseFirestore.Firestore, jobId: string, requestDigest: string, usage: unknown, now: number) {
   const root = db.doc(COMMUNICATIONS_ROOT), id = communicationsDigest({ jobId }), ref = root.collection("draftBudgetAdmissions").doc(id);
-  const stateRef = root.collection("draftBudgetState").doc("current"), estimate = estimatedDraftMicros(usage);
+  const stateRef = root.collection("draftBudgetState").doc("current");
   return db.runTransaction(async tx => {
     const [saved, state] = await Promise.all([tx.get(ref), tx.get(stateRef)]), row = saved.data();
     if (!saved.exists || row?.jobId !== jobId || row.requestDigest !== requestDigest) throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
-    const dayRef = root.collection("draftBudgetDays").doc(row.day), daily = (await tx.get(dayRef)).data();
-    if (!daily || !Number.isSafeInteger(daily.estimatedModelMicros)) throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
-    if (estimate === null) { tx.update(ref, { state: "usage_unknown", usageState: "unresolved", checkedAt: new Date(now).toISOString() }); return false; }
-    const previous = row.estimatedModelMicros ?? 0, retained = Math.max(previous, estimate);
-    if (!Number.isSafeInteger(previous) || previous < 0) throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
-    tx.update(ref, { state: "usage_recorded", usage, estimatedModelMicros: retained,
-      usageState: "best_effort_not_invoice", checkedAt: new Date(now).toISOString() });
-    tx.set(dayRef, { estimatedModelMicros: daily.estimatedModelMicros + retained - previous, updatedAt: new Date(now).toISOString() }, { merge: true });
-    if (state.data()?.activeAdmissionId === id) tx.set(stateRef, { activeAdmissionId: null });
-    return true;
+    return writeDraftUsage(tx, root, ref, stateRef, id, row, state.data(), usage, now);
+  });
+}
+
+/** Shared accounting transaction: monotonic best-effort usage, never a refund
+ * or a zero-cost inference from a missing provider response. Reads precede writes. */
+async function writeDraftUsage(tx: FirebaseFirestore.Transaction, root: FirebaseFirestore.DocumentReference,
+  ref: FirebaseFirestore.DocumentReference, stateRef: FirebaseFirestore.DocumentReference,
+  id: string, row: any, state: any, usage: unknown, now: number) {
+  const dayRef = root.collection("draftBudgetDays").doc(row.day), daily = (await tx.get(dayRef)).data();
+  if (!daily || !Number.isSafeInteger(daily.estimatedModelMicros) || daily.estimatedModelMicros < 0) {
+    throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
+  }
+  const estimate = estimatedDraftMicros(usage);
+  if (estimate === null) { tx.update(ref, { state: "usage_unknown", usageState: "unresolved", checkedAt: new Date(now).toISOString() }); return false; }
+  const previous = row.estimatedModelMicros ?? 0, retained = Math.max(previous, estimate);
+  const total = daily.estimatedModelMicros + retained - previous;
+  if (!Number.isSafeInteger(previous) || previous < 0 || daily.estimatedModelMicros < previous || !Number.isSafeInteger(total) || total < 0) {
+    throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
+  }
+  tx.update(ref, { state: "usage_recorded", usage, estimatedModelMicros: retained,
+    usageState: "best_effort_not_invoice", checkedAt: new Date(now).toISOString() });
+  tx.set(dayRef, { estimatedModelMicros: total, updatedAt: new Date(now).toISOString() }, { merge: true });
+  if (state?.activeAdmissionId === id) tx.set(stateRef, { activeAdmissionId: null });
+  return true;
+}
+
+export type CommunicationsDraftSessionRecovery = {
+  jobId: string; prospectId: string; briefDigest: string; expectedCheckpointDigest: string;
+  sessionId: string; requestedBy: string;
+};
+
+/** Resolve a claimed unknown create by verifying an existing session, never
+ * by repeating POST or declaring a missing session absent. This action only
+ * binds the checkpoint and accounts for usage; retry/approval/send stay separate. */
+export async function reconcileCommunicationsDraftSession(db: FirebaseFirestore.Firestore,
+  api: Pick<CommunicationsAgentsAPI, "verifyExistingDraftSession">, input: CommunicationsDraftSessionRecovery, now: number) {
+  if (!input.requestedBy.trim() || !/^[a-f0-9]{64}$/.test(input.expectedCheckpointDigest)
+    || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(input.sessionId)) throw new CommunicationsDraftBudgetError("communications_draft_recovery_invalid");
+  const root = db.doc(COMMUNICATIONS_ROOT), id = communicationsDigest({ jobId: input.jobId });
+  const ref = root.collection("draftBudgetAdmissions").doc(id), jobRef = root.collection("jobs").doc(input.jobId);
+  const stateRef = root.collection("draftBudgetState").doc("current");
+  const validate = (row: any, job: any, state: any) => {
+    if (!row || row.jobId !== input.jobId || !/^[a-f0-9]{64}$/.test(row.requestDigest ?? "")
+      || !row.policy || communicationsDigest(row.policy) !== row.policyDigest || !job
+      || job.jobId !== input.jobId || job.prospectId !== input.prospectId || job.briefDigest !== input.briefDigest
+      || !COMMUNICATIONS_JOB_STATES.includes(job.state) || !Number.isSafeInteger(job.lease?.until ?? 0)
+      || (job.lease?.until ?? 0) < 0 || (job.lease?.until ?? 0) > now || !job.checkpoint?.createClaimedAt
+      || !Number.isFinite(Date.parse(job.checkpoint.createClaimedAt))
+      || (job.checkpoint.sessionId && job.checkpoint.sessionId !== input.sessionId)
+      || (job.checkpoint.requestDigest && job.checkpoint.requestDigest !== row.requestDigest)) {
+      throw new CommunicationsDraftBudgetError("communications_draft_recovery_binding_changed");
+    }
+    const checkpointDigest = communicationsDigest(job.checkpoint);
+    // An interrupted response or concurrent identical action cannot charge twice
+    // or clear a later active admission. Only the saved verified receipt is reused.
+    if (checkpointDigest !== input.expectedCheckpointDigest && row.sessionRecovery?.expectedCheckpointDigest === input.expectedCheckpointDigest
+      && row.sessionRecovery?.sessionId === input.sessionId && row.sessionRecovery?.requestDigest === row.requestDigest
+      && job.checkpoint.sessionId === input.sessionId && job.checkpoint.requestDigest === row.requestDigest
+      && ["usage_recorded", "usage_unknown"].includes(row.state)) return true;
+    if (checkpointDigest !== input.expectedCheckpointDigest || !["reserved", "usage_unknown"].includes(row.state)
+      || state?.activeAdmissionId !== id) throw new CommunicationsDraftBudgetError("communications_draft_recovery_binding_changed");
+    return false;
+  };
+  const [saved, savedJob, savedState] = await Promise.all([ref.get(), jobRef.get(), stateRef.get()]);
+  const row = saved.data(), job = savedJob.data();
+  const response = (state: string) => ({ state, sessionRecovered: true, costResolved: state === "usage_recorded" });
+  if (validate(row, job, savedState.data())) return response(row!.state);
+  const checkpoint: CommunicationsCheckpoint = { ...job!.checkpoint, sessionId: input.sessionId, requestDigest: row!.requestDigest };
+  const proof = await api.verifyExistingDraftSession(checkpoint, input.jobId, row!.requestDigest);
+  if (proof.sessionId !== input.sessionId || proof.requestDigest !== row!.requestDigest
+    || (job!.checkpoint.turnId && job!.checkpoint.turnId !== proof.turnId)) throw new CommunicationsDraftBudgetError("communications_draft_recovery_binding_changed");
+  return db.runTransaction(async tx => {
+    const [current, currentJob, currentState] = await Promise.all([tx.get(ref), tx.get(jobRef), tx.get(stateRef)]);
+    const currentRow = current.data(), currentJobRow = currentJob.data();
+    if (validate(currentRow, currentJobRow, currentState.data())) return response(currentRow!.state);
+    if (currentRow!.requestDigest !== row!.requestDigest || currentRow!.policyDigest !== row!.policyDigest
+      || currentRow!.day !== row!.day || currentRow!.admittedAt !== row!.admittedAt || currentJobRow!.state !== job!.state
+      || communicationsDigest(currentJobRow!.lease ?? null) !== communicationsDigest(job!.lease ?? null)) {
+      throw new CommunicationsDraftBudgetError("communications_draft_recovery_binding_changed");
+    }
+    const resolved = await writeDraftUsage(tx, root, ref, stateRef, id, currentRow, currentState.data(), proof.usage, now);
+    const sessionRecovery = { version: "blueprint.communications-draft-session-recovery.v1", sessionId: input.sessionId,
+      requestDigest: row!.requestDigest, expectedCheckpointDigest: input.expectedCheckpointDigest,
+      requestedBy: input.requestedBy, reconciledAt: new Date(now).toISOString() };
+    tx.update(ref, { sessionRecovery });
+    tx.update(jobRef, { checkpoint: { ...currentJobRow!.checkpoint, sessionId: input.sessionId,
+      requestDigest: row!.requestDigest, turnId: proof.turnId }, draftSessionRecovery: sessionRecovery,
+      ...(currentJobRow!.state === "running" ? { state: "blocked", reason: "communications_session_reconciled_requires_operator_retry" } : {}), updatedAt: now });
+    return response(resolved ? "usage_recorded" : "usage_unknown");
   });
 }
 
@@ -99,6 +180,9 @@ export async function reconcileCommunicationsDraftCost(db: FirebaseFirestore.Fir
   if (!row?.jobId || !row.requestDigest) throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
   const job = (await root.collection("jobs").doc(row.jobId).get()).data();
   if (!job?.checkpoint?.sessionId) return;
+  if (job.checkpoint.requestDigest && job.checkpoint.requestDigest !== row.requestDigest) {
+    throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
+  }
   const usage = await api.reconcileUsage(job.checkpoint, row.jobId);
   await recordCommunicationsDraftUsage(db, row.jobId, row.requestDigest, usage, now);
 }

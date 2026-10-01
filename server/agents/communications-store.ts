@@ -9,8 +9,10 @@ import type { ActionPayload } from "./action-policies";
 import { automaticFirstContactEnabled, firstContactAuthority, verifyFirstContactSource } from "./communications-first-contact";
 
 export const COMMUNICATIONS_ROOT = "blueprintCommunications/default";
+export const COMMUNICATIONS_JOB_STATES = Object.freeze(["queued", "running", "retry", "blocked", "awaiting_research",
+  "pending_approval", "auto_approved", "sent", "failed", "no_reply", "opted_out", "superseded"] as const);
 export type CommunicationsJobRecord = CommunicationsJob & {
-  state: "queued" | "running" | "retry" | "blocked" | "awaiting_research" | "pending_approval" | "auto_approved" | "sent" | "failed" | "no_reply" | "opted_out" | "superseded";
+  state: typeof COMMUNICATIONS_JOB_STATES[number];
   attempts: number; checkpoint: CommunicationsCheckpoint; output?: CommunicationsOutput;
   lease?: { owner: string; until: number }; nextAttemptAt?: number; reason?: string;
 };
@@ -113,11 +115,26 @@ export class CommunicationsStore {
     return snapshot.docs.map(doc => doc.data() as CommunicationsJobRecord);
   }
   async blockedJobs() {
-    const snapshot = await this.jobs().where("state", "==", "blocked").limit(20).get();
-    return snapshot.docs.map(doc => {
+    const root = this.db.doc(COMMUNICATIONS_ROOT);
+    const [blocked, budget] = await Promise.all([this.jobs().where("state", "==", "blocked").limit(20).get(),
+      root.collection("draftBudgetState").doc("current").get()]);
+    // Prioritize the one global accounting hold. An older bounded page of
+    // unrelated blocked jobs must not hide a crashed unknown-create owner.
+    const recovery: FirebaseFirestore.DocumentSnapshot[] = [];
+    const active = budget.data()?.activeAdmissionId;
+    if (typeof active === "string" && /^[a-f0-9]{64}$/.test(active)) {
+      const admission = (await root.collection("draftBudgetAdmissions").doc(active).get()).data();
+      if (admission?.jobId && communicationsDigest({ jobId: admission.jobId }) === active) {
+        const saved = await this.jobs().doc(admission.jobId).get(), row = saved.data() as CommunicationsJobRecord | undefined;
+        if (saved.exists && row && COMMUNICATIONS_JOB_STATES.includes(row.state) && (row.lease?.until ?? 0) <= this.now()) recovery.push(saved);
+      }
+    }
+    return [...recovery, ...blocked.docs.filter(doc => !recovery.some(saved => saved.id === doc.id))].slice(0, 20).map(doc => {
       const record = doc.data() as CommunicationsJobRecord;
-      return { jobId: doc.id, prospectId: record.prospectId, briefDigest: record.briefDigest,
-        attempts: record.attempts, reason: record.reason ?? "communications_blocked", leaseUntil: record.lease?.until ?? 0 };
+      return { jobId: doc.id, prospectId: record.prospectId, briefDigest: record.briefDigest, state: record.state,
+        attempts: record.attempts, reason: record.reason ?? "communications_blocked", leaseUntil: record.lease?.until ?? 0,
+        expectedCheckpointDigest: communicationsDigest(record.checkpoint), sessionId: record.checkpoint.sessionId,
+        sessionReconciliationRequired: Boolean(record.checkpoint.createClaimedAt && !record.checkpoint.sessionId) };
     });
   }
   /** Explicit operator recovery; retain identity, create claim and attempt budget. */

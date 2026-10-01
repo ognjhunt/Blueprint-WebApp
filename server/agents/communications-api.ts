@@ -5,6 +5,7 @@ import {
 
 export type CommunicationsCheckpoint = {
   createClaimedAt: string | null; sessionId: string | null; turnId: string | null;
+  requestDigest?: string;
 };
 export class CommunicationsRuntimeError extends Error {
   constructor(public code: string, public retryable = false) { super(code); }
@@ -51,9 +52,25 @@ export class CommunicationsAgentsAPI {
       throw new CommunicationsRuntimeError("agents_api_connection_unknown", init.method !== "POST");
     }
   }
-  private async json(path: string) {
+  private async json(path: string, maxBytes?: number) {
     const handle = await this.request(path);
-    try { return await handle.response.json(); } finally { handle.close(); }
+    try {
+      if (maxBytes === undefined) return await handle.response.json();
+      const reader = handle.response.body?.getReader();
+      if (!reader) throw new CommunicationsRuntimeError("agents_saved_response_invalid");
+      try {
+        const decoder = new TextDecoder();
+        let text = "", bytes = 0;
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          bytes += chunk.value.byteLength;
+          if (bytes > maxBytes) throw new CommunicationsRuntimeError("agents_saved_response_limit_exceeded");
+          text += decoder.decode(chunk.value, { stream: true });
+        }
+        return JSON.parse(text + decoder.decode());
+      } finally { await reader.cancel().catch(() => undefined); }
+    } finally { handle.close(); }
   }
   async preflight() {
     const model = await this.json(`/models/${COMMUNICATIONS_MODEL}`);
@@ -75,6 +92,7 @@ export class CommunicationsAgentsAPI {
       await this.preflight();
       await this.options.reservePaidDraft(params.jobId, requestDigest);
       checkpoint.createClaimedAt = new Date().toISOString();
+      checkpoint.requestDigest = requestDigest;
       // Commit the one-use create claim BEFORE any request can reach OpenAI.
       await params.saveCheckpoint({ ...checkpoint });
     }
@@ -83,7 +101,8 @@ export class CommunicationsAgentsAPI {
         agent: { model: COMMUNICATIONS_MODEL, instructions: COMMUNICATIONS_INSTRUCTIONS,
           service_tier: "default", reasoning: { effort: "medium" }, text: { verbosity: "low" }, tools: [], multi_agent: { enabled: false } },
         environment: { type: "none" }, input: params.input, stream: true,
-        metadata: { blueprint_communications_job: params.jobId, role: "communications" },
+        metadata: { blueprint_communications_job: params.jobId, role: "communications",
+          blueprint_communications_request_digest: requestDigest },
       }),
     } : { headers: { Accept: "text/event-stream" } });
     let terminal: string | null = null;
@@ -134,13 +153,43 @@ export class CommunicationsAgentsAPI {
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const session = await this.json(path);
     if (session.agent?.model !== COMMUNICATIONS_MODEL || session.metadata?.blueprint_communications_job !== jobId
-      || session.metadata?.role !== "communications") throw new CommunicationsRuntimeError("agents_session_job_binding_mismatch");
+      || session.metadata?.role !== "communications"
+      || (checkpoint.requestDigest && session.metadata?.blueprint_communications_request_digest !== checkpoint.requestDigest)) {
+      throw new CommunicationsRuntimeError("agents_session_job_binding_mismatch");
+    }
     const turns = await this.json(`${path}/turns?order=asc&limit=100`);
     if (turns.has_more || !Array.isArray(turns.data) || turns.data.length > 1) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
     const turn = checkpoint.turnId ? turns.data.find((item: any) => item.id === checkpoint.turnId) : turns.data[0];
     if (!turn || turn.subagent_id || !["completed", "failed", "cancelled"].includes(turn.status)) return null;
     // Cost can be observed for a failed/unusable draft without licensing a send.
     return turn.usage ?? null;
+  }
+  /** Explicit recovery observes an EXISTING session only. The caller cannot
+   * supply usage or replace a create claim. Missing legacy request metadata is
+   * not proof of a matching request, absence, cancellation or zero spend. */
+  async verifyExistingDraftSession(checkpoint: CommunicationsCheckpoint, jobId: string, requestDigest: string) {
+    if (!checkpoint.sessionId || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(checkpoint.sessionId)
+      || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
+    const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
+    const session = await this.json(path, 256000);
+    if (session.id !== checkpoint.sessionId || typeof session.agent?.id !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(session.agent.id)
+      || session.agent?.model !== COMMUNICATIONS_MODEL
+      || session.agent?.service_tier !== "default" || session.agent?.instructions !== COMMUNICATIONS_INSTRUCTIONS
+      || !Array.isArray(session.agent?.tools) || session.agent.tools.length !== 0
+      || session.agent?.multi_agent?.enabled !== false || session.environment?.type !== "none"
+      || !Array.isArray(session.vault_ids) || session.vault_ids.length !== 0
+      || session.metadata?.blueprint_communications_job !== jobId || session.metadata?.role !== "communications"
+      || session.metadata?.blueprint_communications_request_digest !== requestDigest) {
+      throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
+    }
+    const turns = await this.json(`${path}/turns?order=asc&limit=100`, 256000);
+    if (turns.has_more || !Array.isArray(turns.data) || turns.data.length > 1) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
+    const turn = turns.data[0];
+    if ((checkpoint.turnId && checkpoint.turnId !== turn?.id) || (turn && (turn.subagent_id
+      || typeof turn.id !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(turn.id)
+      || turn.agent_id !== session.agent.id))) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
+    return { sessionId: checkpoint.sessionId, requestDigest, turnId: turn?.id ?? null,
+      usage: turn && ["completed", "failed", "cancelled"].includes(turn.status) ? turn.usage ?? null : null };
   }
   async reconcileSaved(savedCheckpoint: CommunicationsCheckpoint, jobId: string) {
     const checkpoint = { ...savedCheckpoint };
@@ -149,7 +198,10 @@ export class CommunicationsAgentsAPI {
     const session = await this.json(path);
     if (session.status === "failed" || session.status === "requires_action") throw new CommunicationsRuntimeError("agents_session_failed_or_unexpected_action");
     if (session.agent?.model !== COMMUNICATIONS_MODEL) throw new CommunicationsRuntimeError("requested_luna_model_unavailable");
-    if (session.metadata?.blueprint_communications_job !== jobId || session.metadata?.role !== "communications") throw new CommunicationsRuntimeError("agents_session_job_binding_mismatch");
+    if (session.metadata?.blueprint_communications_job !== jobId || session.metadata?.role !== "communications"
+      || (checkpoint.requestDigest && session.metadata?.blueprint_communications_request_digest !== checkpoint.requestDigest)) {
+      throw new CommunicationsRuntimeError("agents_session_job_binding_mismatch");
+    }
     const turns = await this.json(`${path}/turns?order=asc&limit=100`);
     if (turns.has_more || !Array.isArray(turns.data) || turns.data.length > 1) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
     const turn = checkpoint.turnId ? turns.data.find((t: any) => t.id === checkpoint.turnId) : turns.data[0];
