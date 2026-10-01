@@ -1,7 +1,7 @@
 import { google, type gmail_v1 } from "googleapis";
 import { extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
 import { FOUNDER_MAILBOX, type VerifiedThread, type ThreadMessage } from "./communications-contract";
-import { readFounderCredential } from "./communications-oauth-store";
+import { readFounderCredential, requireFounderSendCapability } from "./communications-oauth-store";
 import { FOUNDER_GMAIL_BINDING_KEYS } from "./communications-connection";
 
 export async function existingFounderGmail(): Promise<gmail_v1.Gmail> {
@@ -93,6 +93,7 @@ export async function findFounderSentMessage(messageId: string, expected: { to: 
 export async function sendFounderMessage(params: {
   to: string; subject: string; body: string; messageId: string; threadId?: string; inReplyTo?: string;
 }, gmail?: gmail_v1.Gmail) {
+  if (!gmail) await requireFounderSendCapability();
   gmail ??= await existingFounderGmail();
   await verifyFounderMailbox(gmail);
   for (const header of [params.to, params.subject, params.messageId, params.inReplyTo ?? ""]) {

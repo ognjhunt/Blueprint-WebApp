@@ -132,4 +132,37 @@ describe("founder connection preparation in Blueprint review", () => {
     expect(screen.queryByRole("button", { name: "Verify and save founder read-only connection" })).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
+  it("prepares the separate send-upgrade consent only after an owner click and preserves the read-only connection", async () => {
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async url => {
+      if (String(url).endsWith("/status")) return Response.json({ enabled: true, state: "connected_readonly", sendScopeGranted: false, sendUpgradeAvailable: true, sendsEnabled: false });
+      if (String(url).endsWith("/send-upgrade/start")) return Response.json({ authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth?scope=readonly%20send&state=mock" });
+      return Response.json({ connection: { account: "nijel@tryblueprint.io", binding: { state: "private_storage_selected_unverified" }, oauth: {
+        ownerAction: "Owner-approved setup", initialScopes: ["gmail.readonly"], sendScopeAfterSeparateApproval: "gmail.send", dataAccess: "Mailbox messages/settings" }, secretDestination: { services: ["Blueprint web", "worker"] } } });
+    });
+    page(); fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
+    const upgrade = await screen.findByRole("button", { name: "Prepare Google send-capability consent" });
+    expect(screen.getByText(/saved read-only binding remains in place/)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+    fireEvent.click(upgrade);
+    expect(await screen.findByRole("link", { name: "Continue to Google as founder" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/communications/gmail/oauth/send-upgrade/start", expect.objectContaining({ method: "POST", body: "{}" }));
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/complete"))).toBe(false);
+  });
+  it("requires the owner send-upgrade save click and never automatically activates runtime sending", async () => {
+    let saved = false;
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async url => {
+      if (String(url).endsWith("/status")) return Response.json({ enabled: true, state: saved ? "connected_send_capable" : "awaiting_owner", purpose: "send_upgrade", sendScopeGranted: saved, sendUpgradeAvailable: !saved, sendsEnabled: false });
+      if (String(url).endsWith("/send-upgrade/complete")) { saved = true; return Response.json({ state: "connected_send_capable", sendScopeGranted: true, sendsEnabled: false }); }
+      return Response.json({ connection: { account: "nijel@tryblueprint.io", binding: { state: "private_storage_selected_unverified" }, oauth: {
+        ownerAction: "Owner-approved setup", initialScopes: ["gmail.readonly"], sendScopeAfterSeparateApproval: "gmail.send", dataAccess: "Mailbox messages/settings" }, secretDestination: { services: ["Blueprint web", "worker"] } } });
+    });
+    page(); fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
+    const save = await screen.findByRole("button", { name: "Verify and save founder send-capability upgrade" });
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+    expect(screen.queryByRole("button", { name: "Verify and save founder read-only connection" })).not.toBeInTheDocument();
+    fireEvent.click(save);
+    expect(await screen.findByText(/founder read-and-send scope grant is saved/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/communications/gmail/oauth/send-upgrade/complete", expect.objectContaining({ method: "POST", body: "{}" }));
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+  });
 });

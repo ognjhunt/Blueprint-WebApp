@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { FOUNDER_MAILBOX } from "./communications-contract";
-import { FOUNDER_GMAIL_READ_SCOPE } from "./communications-connection";
+import { FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE } from "./communications-connection";
 import type { WorkIdentity, WorkStore } from "../utils/blueprintWorkOAuth";
 
 export const FOUNDER_OAUTH_PREFIX = "/api/communications/gmail/oauth";
@@ -25,13 +25,21 @@ export type FounderConsentConfig = {
   ownerUid: string; clientId: string; callback: typeof FOUNDER_OAUTH_CALLBACK;
   approvalReference: string; grantMode: "temporary_testing" | "durable_reviewed";
 };
-export type FounderCredential = {
-  version: "blueprint.founder-gmail-credential.v1";
+type FounderCredentialBase = {
   binding: typeof FOUNDER_CONNECTION_ID; mailbox: typeof FOUNDER_MAILBOX;
-  clientId: string; refreshToken: string; scopes: [typeof FOUNDER_GMAIL_READ_SCOPE];
+  clientId: string; refreshToken: string;
   ownerUid: string; approvalReference: string; consentedAt: number;
   grantMode: FounderConsentConfig["grantMode"]; usableUntil: number | null;
 };
+export type FounderCredential = FounderCredentialBase & (
+  { version: "blueprint.founder-gmail-credential.v1"; scopes: [typeof FOUNDER_GMAIL_READ_SCOPE] }
+  | { version: "blueprint.founder-gmail-credential.v2"; scopes: [typeof FOUNDER_GMAIL_READ_SCOPE, typeof FOUNDER_GMAIL_SEND_SCOPE];
+    consentPurpose: "send_upgrade"; upgradedFromFlowId: string }
+);
+export type FounderBindingSnapshot = { flowId: string; revision: string; sendScopeGranted: boolean };
+export const founderScopesMatch = (scopes: unknown, sendUpgrade = false) => Array.isArray(scopes)
+  && scopes.length === (sendUpgrade ? 2 : 1) && scopes.includes(FOUNDER_GMAIL_READ_SCOPE)
+  && (!sendUpgrade || scopes.includes(FOUNDER_GMAIL_SEND_SCOPE));
 export interface FounderConsentPorts {
   flows: WorkStore;
   seal(plaintext: string, associatedData: string): Promise<unknown>;
@@ -40,6 +48,9 @@ export interface FounderConsentPorts {
   // Missing writer blocks admission BEFORE obtaining a Google grant.
   storageReady(): Promise<boolean>;
   save(credential: FounderCredential, flowId: string): Promise<void>;
+  currentBinding?(): Promise<FounderBindingSnapshot | null>;
+  // Replacement and successful flow acknowledgement must commit atomically.
+  saveUpgrade?(credential: FounderCredential, flowId: string, previous: FounderBindingSnapshot): Promise<void>;
   exchange(input: { code: string; verifier: string; callback: string; clientId: string }): Promise<{
     refreshToken: string; accessToken: string; scopes: string[];
   }>;
@@ -77,18 +88,24 @@ export class FounderGmailConsent {
       || !matches(String(row.browserHash), browserHash)) throw new FounderConsentError("founder_oauth_flow_invalid");
     return row;
   }
-  async start(identity: WorkIdentity) {
+  async start(identity: WorkIdentity, purpose: "read_only" | "send_upgrade" = "read_only") {
     await this.owner(identity);
-    if (!await this.ports.storageReady()) throw new FounderConsentError("founder_oauth_secure_storage_unavailable", 503);
+    if (!["read_only", "send_upgrade"].includes(purpose)) throw new FounderConsentError("founder_oauth_purpose_invalid");
+    const previous = purpose === "send_upgrade" ? await this.ports.currentBinding?.() : null;
+    if (purpose === "send_upgrade" ? !previous || previous.sendScopeGranted || !this.ports.saveUpgrade : !await this.ports.storageReady()) {
+      throw new FounderConsentError("founder_oauth_secure_storage_unavailable", 503);
+    }
     const state = opaque(), browser = opaque(), verifier = opaque(), id = hash(state);
     const secrets = await this.ports.seal(JSON.stringify({ verifier }), this.aad(id));
     await this.ports.flows.set(id, { phase: "awaiting_google", ownerUid: identity.uid,
       authTime: identity.authTime, tenantId: identity.tenantId, clientId: this.config.clientId,
       callback: this.config.callback, approvalReference: this.config.approvalReference,
-      grantMode: this.config.grantMode, browserHash: hash(browser), secrets, expiresAt: this.now() + 600, expireAt: new Date((this.now() + 600) * 1000) });
+      grantMode: this.config.grantMode, ...(purpose === "send_upgrade" ? { purpose, previousBinding: previous } : {}),
+      browserHash: hash(browser), secrets, expiresAt: this.now() + 600, expireAt: new Date((this.now() + 600) * 1000) });
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     url.search = new URLSearchParams({ client_id: this.config.clientId, redirect_uri: this.config.callback,
-      response_type: "code", scope: FOUNDER_GMAIL_READ_SCOPE, access_type: "offline", prompt: "consent",
+      response_type: "code", scope: purpose === "send_upgrade" ? `${FOUNDER_GMAIL_READ_SCOPE} ${FOUNDER_GMAIL_SEND_SCOPE}` : FOUNDER_GMAIL_READ_SCOPE,
+      access_type: "offline", prompt: "consent",
       include_granted_scopes: "false", login_hint: FOUNDER_MAILBOX, state,
       code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" }).toString();
     return { authorizationUrl: url.href, cookie: `${state}.${browser}` };
@@ -117,19 +134,26 @@ export class FounderGmailConsent {
   }
   async status(identity: WorkIdentity, cookie: string) {
     await this.owner(identity);
-    if (!cookie) return { state: await this.ports.storageReady() ? "idle" : "binding_exists_or_storage_unavailable" };
+    const binding = await this.ports.currentBinding?.();
+    const capability = binding ? { sendScopeGranted: binding.sendScopeGranted, sendUpgradeAvailable: !binding.sendScopeGranted } : {};
+    if (!cookie) return { state: binding ? binding.sendScopeGranted ? "connected_send_capable" : "connected_readonly"
+      : await this.ports.storageReady() ? "idle" : "binding_exists_or_storage_unavailable", ...capability };
     const browser = this.cookie(cookie);
     const row = this.binding(await this.ports.flows.get(browser.id), browser.browserHash);
     if (row.tenantId !== identity.tenantId || identity.authTime < row.authTime) throw new FounderConsentError("founder_oauth_owner_required", 403);
     const failureStage = row.phase === "failed_requires_new_owner_consent" ? safeFounderConsentFailureStage(row.failureStage) : undefined;
-    return { state: row.phase, ...(failureStage ? { failureStage } : {}) };
+    return { state: row.phase, ...capability, ...(row.purpose === "send_upgrade" ? { purpose: "send_upgrade" } : {}), ...(failureStage ? { failureStage } : {}) };
   }
-  async finish(identity: WorkIdentity, cookie: string) {
+  async finish(identity: WorkIdentity, cookie: string, purpose: "read_only" | "send_upgrade" = "read_only") {
     await this.owner(identity);
-    if (!await this.ports.storageReady()) throw new FounderConsentError("founder_oauth_secure_storage_unavailable", 503);
+    const sendUpgrade = purpose === "send_upgrade";
+    if (sendUpgrade ? !this.ports.currentBinding || !this.ports.saveUpgrade : !await this.ports.storageReady()) {
+      throw new FounderConsentError("founder_oauth_secure_storage_unavailable", 503);
+    }
     const browser = this.cookie(cookie);
     const row = await this.ports.flows.transaction(async tx => {
       const current = this.binding(await tx.get(browser.id), browser.browserHash);
+      if ((current.purpose || "read_only") !== purpose) throw new FounderConsentError("founder_oauth_purpose_mismatch");
       if (current.tenantId !== identity.tenantId || identity.authTime < current.authTime) throw new FounderConsentError("founder_oauth_owner_required", 403);
       if (current.phase !== "awaiting_owner") throw new FounderConsentError("founder_oauth_exchange_already_claimed");
       // Persist claim BEFORE token POST; never repeat an uncertain exchange.
@@ -143,7 +167,7 @@ export class FounderGmailConsent {
       const token = await this.ports.exchange({ code: data.code, verifier: data.verifier,
         callback: this.config.callback, clientId: this.config.clientId });
       failureStage = "token_validation";
-      if (!token.refreshToken || !token.accessToken || token.scopes.length !== 1 || token.scopes[0] !== FOUNDER_GMAIL_READ_SCOPE) {
+      if (!token.refreshToken || !token.accessToken || !founderScopesMatch(token.scopes, sendUpgrade)) {
         throw new FounderConsentError("founder_oauth_scope_or_refresh_invalid");
       }
       failureStage = "mailbox_verification";
@@ -154,23 +178,39 @@ export class FounderGmailConsent {
       failureStage = "owner_recheck";
       await this.owner(identity); // Recheck revoked/disabled owner before durable write.
       failureStage = "storage_readiness";
-      if (this.now() >= row.expiresAt || !await this.ports.storageReady()) {
+      const currentBinding = sendUpgrade ? await this.ports.currentBinding!() : null;
+      if (this.now() >= row.expiresAt || (sendUpgrade ? !currentBinding || currentBinding.sendScopeGranted
+        || currentBinding.revision !== row.previousBinding?.revision || currentBinding.flowId !== row.previousBinding?.flowId : !await this.ports.storageReady())) {
         throw new FounderConsentError("founder_oauth_authorization_expired");
       }
       const consentedAt = this.now();
       failureStage = "credential_persistence";
-      await this.ports.save({ version: "blueprint.founder-gmail-credential.v1", binding: FOUNDER_CONNECTION_ID,
+      const credential: FounderCredentialBase = { binding: FOUNDER_CONNECTION_ID,
         mailbox: FOUNDER_MAILBOX, clientId: this.config.clientId, refreshToken: token.refreshToken,
-        scopes: [FOUNDER_GMAIL_READ_SCOPE], ownerUid: identity.uid, approvalReference: this.config.approvalReference,
+        ownerUid: identity.uid, approvalReference: this.config.approvalReference,
         consentedAt, grantMode: this.config.grantMode,
-        usableUntil: this.config.grantMode === "temporary_testing" ? consentedAt + 7 * 86400 : null }, browser.id);
+        usableUntil: this.config.grantMode === "temporary_testing" ? consentedAt + 7 * 86400 : null };
+      if (sendUpgrade) {
+        await this.ports.saveUpgrade!({ ...credential, version: "blueprint.founder-gmail-credential.v2",
+          scopes: [FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE], consentPurpose: "send_upgrade", upgradedFromFlowId: row.previousBinding.flowId }, browser.id, row.previousBinding);
+        return { state: "connected_send_capable", mailbox: FOUNDER_MAILBOX, sendScopeGranted: true, messagePolicyRequired: true, sendsEnabled: false };
+      }
+      await this.ports.save({ ...credential, version: "blueprint.founder-gmail-credential.v1", scopes: [FOUNDER_GMAIL_READ_SCOPE] }, browser.id);
       failureStage = "connection_acknowledgement";
       await this.ports.flows.set(browser.id, { ...row, phase: "connected_readonly", secrets: null });
       return { state: "connected_readonly", mailbox: FOUNDER_MAILBOX, sendsEnabled: false };
     } catch {
       // Provider error bodies can contain codes/tokens. Report constants only.
       // No auto-revoke: that could invalidate a pre-existing ops/client grant.
-      await this.ports.flows.set(browser.id, { ...row, phase: "failed_requires_new_owner_consent", secrets: null, failureStage });
+      if (sendUpgrade) {
+        const committed = await this.ports.flows.transaction(async tx => {
+          const current = await tx.get(browser.id);
+          if (current?.phase === "connected_send_capable") return true;
+          if (current?.phase === "exchanging") tx.set(browser.id, { ...current, phase: "failed_requires_new_owner_consent", secrets: null, failureStage });
+          return false;
+        });
+        if (committed) return { state: "connected_send_capable", mailbox: FOUNDER_MAILBOX, sendScopeGranted: true, messagePolicyRequired: true, sendsEnabled: false };
+      } else await this.ports.flows.set(browser.id, { ...row, phase: "failed_requires_new_owner_consent", secrets: null, failureStage });
       throw new FounderConsentError("founder_oauth_exchange_failed_requires_new_owner_consent", 503, failureStage);
     }
   }

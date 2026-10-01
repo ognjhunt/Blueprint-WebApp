@@ -112,4 +112,9 @@ describe("existing founder Gmail binding (mocked)", () => {
     gmail.users.messages.send.mockResolvedValueOnce({ data: {} });
     await expect(sendFounderMessage({ to: "ops@facility.example", subject: "Packing", body: "Synthetic", messageId: "<x@tryblueprint.io>" }, gmail)).rejects.toThrow("gmail_send_receipt_missing");
   });
+  it("refuses an unverified environment-token sending fallback before constructing an API client", async () => {
+    for (const key of FOUNDER_GMAIL_BINDING_KEYS) vi.stubEnv(key, "MOCK_ENVIRONMENT_BINDING");
+    await expect(sendFounderMessage({ to: "ops@facility.example", subject: "Packing", body: "Synthetic", messageId: "<x@tryblueprint.io>" })).rejects.toThrow("founder_send_scope_unverified");
+    expect(google.auth.OAuth2).not.toHaveBeenCalled(); expect(google.gmail).not.toHaveBeenCalled();
+  });
 });
