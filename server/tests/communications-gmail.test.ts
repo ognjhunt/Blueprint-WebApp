@@ -56,6 +56,29 @@ describe("existing founder Gmail binding (mocked)", () => {
     const { gmail } = gmailFixture(); expect(await verifyFounderMailbox(gmail)).toEqual({ mailbox, sender: mailbox });
     expect(gmail.users.messages.send).not.toHaveBeenCalled();
   });
+  it.each([undefined, "pending"])("accepts the matching primary sender without custom alias status %s", async verificationStatus => {
+    const { gmail } = gmailFixture();
+    gmail.users.settings.sendAs.list.mockResolvedValueOnce({ data: { sendAs: [{ sendAsEmail: mailbox, isPrimary: true, verificationStatus }] } });
+    expect(await verifyFounderMailbox(gmail)).toEqual({ mailbox, sender: mailbox });
+    expect(gmail.users.getProfile).toHaveBeenCalledWith({ userId: "me" });
+    expect(gmail.users.settings.sendAs.list).toHaveBeenCalledWith({ userId: "me" });
+    expect(gmail.users.messages.send).not.toHaveBeenCalled();
+  });
+  it.each([undefined, "pending", "unrecognized"])("rejects a custom sender with status %s even when another primary exists", async verificationStatus => {
+    const { gmail } = gmailFixture();
+    gmail.users.settings.sendAs.list.mockResolvedValueOnce({ data: { sendAs: [
+      { sendAsEmail: "other@tryblueprint.io", isPrimary: true },
+      { sendAsEmail: mailbox, isPrimary: false, verificationStatus },
+    ] } });
+    await expect(verifyFounderMailbox(gmail)).rejects.toThrow("founder_sender_unverified_or_permission_missing");
+    expect(gmail.users.messages.send).not.toHaveBeenCalled();
+  });
+  it("still requires accepted verification for the matching custom sender", async () => {
+    const { gmail } = gmailFixture();
+    gmail.users.settings.sendAs.list.mockResolvedValueOnce({ data: { sendAs: [{ sendAsEmail: mailbox, isPrimary: false, verificationStatus: "accepted" }] } });
+    expect(await verifyFounderMailbox(gmail)).toEqual({ mailbox, sender: mailbox });
+    expect(gmail.users.messages.send).not.toHaveBeenCalled();
+  });
   it.each(["ohstnhunt@gmail.com", "hello@tryblueprint.io"])("rejects %s as the authenticated mailbox", async (email) => {
     const { gmail } = gmailFixture(); gmail.users.getProfile.mockResolvedValueOnce({ data: { emailAddress: email } });
     await expect(verifyFounderMailbox(gmail)).rejects.toThrow("founder_gmail_wrong_mailbox");

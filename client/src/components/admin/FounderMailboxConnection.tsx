@@ -14,7 +14,13 @@ type ConnectionPreparation = {
   oauth: { ownerAction: string; initialScopes: string[]; sendScopeAfterSeparateApproval: string; dataAccess: string };
   secretDestination: { provider: string; services: string[]; keys: string[] };
 };
-type ConsentStatus = { enabled: boolean; state: string; sendsEnabled: false };
+type ConsentStatus = { enabled: boolean; state: string; sendsEnabled: false; failureStage?: string };
+const FAILURE_STEP_LABELS: Record<string, string> = {
+  secret_open: "opening the protected consent attempt", token_exchange: "Google token exchange",
+  token_validation: "read-only grant validation", mailbox_verification: "founder mailbox and sender verification",
+  owner_recheck: "owner authorization recheck", storage_readiness: "private storage readiness",
+  credential_persistence: "saving the private read-only connection", connection_acknowledgement: "confirming the saved connection",
+};
 
 /** Explicit owner actions only. No token/secret input or automatic grant/save. */
 export function FounderMailboxConnection() {
@@ -55,7 +61,11 @@ export function FounderMailboxConnection() {
       } else { await status.refetch(); }
       return { ...result, action };
     },
+    onError: async () => { setAuthorizationUrl(null); await status.refetch(); },
   });
+  const completeFailed = decision.isError && decision.variables === "complete";
+  const failureStep = status.data?.failureStage && Object.hasOwn(FAILURE_STEP_LABELS, status.data.failureStage)
+    ? FAILURE_STEP_LABELS[status.data.failureStage] : undefined;
   useEffect(() => { setAuthorizationUrl(null); decision.reset(); }, [currentUser?.uid]);
   return <section className="runway-panel p-5">
     <button type="button" className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
@@ -63,6 +73,7 @@ export function FounderMailboxConnection() {
     {expanded && <div className="mt-3 space-y-3 text-sm text-runway-body">
       {connection.isLoading && <p>Loading connection preparation…</p>}
       {connection.isError && <p role="alert">Founder connection preparation is unavailable.</p>}
+      {status.isError && <p role="alert">Founder consent status is unavailable. Owner review is required before another connection attempt.</p>}
       {connection.data && <>
         <p><strong>{connection.data.account}</strong>: {connection.data.binding.state === "missing"
           ? "separate founder binding is missing" : "separate founder storage is selected; current mailbox access is unverified"}.</p>
@@ -76,16 +87,17 @@ export function FounderMailboxConnection() {
           <p>Continue as nijel@tryblueprint.io. Google consent grants read access to mailbox messages/settings. Saving the verified connection stores an encrypted refresh credential privately for Blueprint; it grants no sending authority.</p>
           {!onCallbackHost && <a className="underline" href={PREPARE_URL} referrerPolicy="no-referrer">Continue on tryblueprint.io for founder consent</a>}
           {onCallbackHost && <>
-          {status.data.state === "idle" && decision.data?.action !== "complete" && !authorizationUrl && <button type="button" disabled={decision.isPending}
+          {status.data.state === "idle" && !completeFailed && !status.isError && decision.data?.action !== "complete" && !authorizationUrl && <button type="button" disabled={decision.isPending}
             className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate("start")}>Prepare Google read-only consent</button>}
           {authorizationUrl && <a className="underline" href={authorizationUrl} referrerPolicy="no-referrer">Continue to Google as founder</a>}
-          {status.data.state === "awaiting_owner" && decision.data?.action !== "complete" && <button type="button" disabled={decision.isPending}
+          {status.data.state === "awaiting_owner" && !completeFailed && !status.isError && decision.data?.action !== "complete" && <button type="button" disabled={decision.isPending}
             className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate("complete")}>Verify and save founder read-only connection</button>}
           {decision.data?.action === "complete" && <p>Founder identity and accepted sender were verified at consent. The separate read-only connection is saved; sending remains disabled.</p>}
           {!["idle", "awaiting_owner", "connected_readonly"].includes(status.data.state) && decision.data?.action !== "complete" && <p>Connection status: {status.data.state}. Owner review is required before another connection attempt.</p>}
           </>}
         </>}
-        {decision.isError && <p role="alert">Founder connection needs owner review. No sending was enabled.</p>}
+        {(completeFailed || status.data?.state === "failed_requires_new_owner_consent") && <p role="alert">This connection attempt failed and cannot be retried. Owner review and new Google consent are required. No sending was enabled.{failureStep ? ` Failed step: ${failureStep}.` : ""}</p>}
+        {decision.isError && !completeFailed && <p role="alert">Founder connection needs owner review. No sending was enabled.</p>}
         <a className="underline" href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Inspect the existing Google OAuth client</a>
       </>}
     </div>}
