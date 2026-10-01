@@ -26,6 +26,8 @@ import {
   retryFailedAction,
 } from "../agents/action-executor";
 import { reviewOutreachDraft, type OutreachReviewResult } from "../agents/outreach-review";
+import { isCommunicationsPayload, reviewCommunicationsPayload } from "../agents/communications-review";
+import { communicationsSendingEnabled } from "../agents/communications-send";
 import type {
   DerivedAssetsAttachment,
   EvaluationReadinessSummary,
@@ -329,6 +331,8 @@ const ACTION_LEDGER_QUERY_STATUSES = [
   "sent",
   "operator_rejected",
   "rejected",
+  "executing",
+  "operator_approved",
 ] as const;
 
 type ActionLedgerRecord = Record<string, unknown> & {
@@ -423,8 +427,9 @@ function normalizeActionLedgerItem(
       data.draft_output && typeof data.draft_output === "object"
         ? data.draft_output
         : {},
-    ...(data.lane === "outbound_prospect" || data.source_collection === "outboundProspects" ? {
-      outreach_review: reviewOutreachDraft({
+    ...(data.lane === "outbound_prospect" || data.source_collection === "outboundProspects" || isCommunicationsPayload(data.action_payload ?? {}) ? {
+      outreach_review: isCommunicationsPayload(data.action_payload ?? {})
+        ? reviewCommunicationsPayload(data.action_payload ?? {}) : reviewOutreachDraft({
         to: typeof data.action_payload?.to === "string" ? data.action_payload.to : "",
         subject: typeof data.action_payload?.subject === "string" ? data.action_payload.subject : "",
         body: typeof data.action_payload?.body === "string" ? data.action_payload.body : "",
@@ -432,6 +437,7 @@ function normalizeActionLedgerItem(
         context: data.action_payload?.outreachContext,
       }),
     } : {}),
+    ...(isCommunicationsPayload(data.action_payload ?? {}) ? { sending_enabled: communicationsSendingEnabled() } : {}),
   };
 }
 
@@ -1141,7 +1147,7 @@ router.get("/action-queue", requireAdmin, async (req: Request, res: Response) =>
       status as (typeof ACTION_LEDGER_QUERY_STATUSES)[number],
     )
       ? [status]
-      : ["pending_approval", "failed"];
+      : ["pending_approval", "failed", "executing", "operator_approved"];
 
     const fetchLimit = Math.max(limitNum * 2, 50);
     const snapshots = await Promise.all(
@@ -1158,9 +1164,10 @@ router.get("/action-queue", requireAdmin, async (req: Request, res: Response) =>
       }),
     );
 
-    const items = sortActionQueueItems(snapshots.flat()).filter((item) =>
-      lane ? item.lane === lane : true,
-    );
+    const items = sortActionQueueItems(snapshots.flat()).filter((item) => {
+      if (["executing", "operator_approved"].includes(item.status) && !isCommunicationsPayload(item.action_payload)) return false;
+      return lane ? item.lane === lane : true;
+    });
     const limitedItems = items.slice(0, limitNum);
 
     return res.json({

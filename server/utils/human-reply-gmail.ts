@@ -113,7 +113,7 @@ function decodeBase64Url(value: string | null | undefined) {
   return Buffer.from(normalized, "base64").toString("utf8");
 }
 
-function extractHeader(
+export function extractHeader(
   headers: Array<{ name?: string | null; value?: string | null }> | null | undefined,
   name: string,
 ) {
@@ -124,7 +124,7 @@ function extractHeader(
   );
 }
 
-function extractPlainTextBody(
+export function extractPlainTextBody(
   payload: {
     mimeType?: string | null;
     body?: { data?: string | null } | null;

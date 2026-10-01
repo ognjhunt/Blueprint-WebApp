@@ -1,6 +1,7 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { outreachContext, outreachContract, outreachDraft } from "./fixtures/outreach-review";
+import { CommunicationsStore } from "../agents/communications-store";
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), set: vi.fn(), hasAnyRole: vi.fn(), runAgentTask: vi.fn(), executeAction: vi.fn(),
@@ -28,13 +29,13 @@ const prospect = {
   hypothesisedTask: "Packing might be a recurring job.", inferredGates: {}, gateAnswerSources: {},
   reasonForContact: "Public packing-job observation", stage: "drafted", createdAtIso: "2026-09-30T19:00:00Z",
 };
-async function invoke(path: string, body: unknown = {}) {
-  const layer = router.stack.find((entry) => entry.route?.path === path && entry.route.methods.post);
+async function invoke(path: string, body: unknown = {}, method = "post") {
+  const layer = router.stack.find((entry) => entry.route?.path === path && entry.route.methods[method]);
   if (!layer?.route) throw new Error("Missing route " + path);
-  const res = { locals: {}, status: vi.fn(), json: vi.fn() };
+  const res = { locals: { firebaseUser: { uid: "authenticated-operator" } }, status: vi.fn(), json: vi.fn(), setHeader: vi.fn() };
   res.status.mockReturnValue(res);
   res.json.mockReturnValue(res);
-  await layer.route.stack[0].handle({ params: { prospectId: "prospect-1" }, body }, res, vi.fn());
+  await layer.route.stack[0].handle({ params: { prospectId: "prospect-1", jobId: "a".repeat(64) }, body }, res, vi.fn());
   return { status: res.status.mock.calls[0]?.[0] ?? 200, body: res.json.mock.calls[0]?.[0] };
 }
 
@@ -46,14 +47,57 @@ beforeEach(() => {
   mocks.isEmailSuppressed.mockResolvedValue(false);
   mocks.executeAction.mockResolvedValue({ state: "pending_approval", tier: 3, ledgerDocId: "ledger-1" });
 });
+afterEach(() => vi.restoreAllMocks());
 
 describe("outbound prospect review routes (no provider, Firestore, or transport I/O)", () => {
+  it("provides preparation only behind ops access without accepting credentials or writing records", async () => {
+    mocks.hasAnyRole.mockResolvedValue(false);
+    expect((await invoke("/communications/connection", {}, "get")).status).toBe(403);
+    mocks.hasAnyRole.mockResolvedValue(true);
+    const response = await invoke("/communications/connection", {}, "get");
+    expect(response.body.connection).toMatchObject({ account: "nijel@tryblueprint.io", credentialsAccepted: false,
+      grantStarted: false, oauth: { authorizationUrl: null, callbackUrl: null } });
+    expect(mocks.get).not.toHaveBeenCalled(); expect(mocks.set).not.toHaveBeenCalled();
+    expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+  it("gates job retry behind ops and refuses caller-supplied credentials, body or approval", async () => {
+    mocks.hasAnyRole.mockResolvedValue(false);
+    expect((await invoke("/:prospectId/communications/:jobId/retry")).status).toBe(403);
+    mocks.hasAnyRole.mockResolvedValue(true);
+    const response = await invoke("/:prospectId/communications/:jobId/retry", {
+      briefDigest: "a".repeat(64), refreshToken: "MOCK_UNACCEPTED", body: "invented", approved: true,
+    });
+    expect(response.status).toBe(400); expect(mocks.set).not.toHaveBeenCalled();
+    expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+  it("derives the retry actor from authentication and queues only the bound job without inference/send", async () => {
+    const retried: any = { jobId: "a".repeat(64), prospectId: "prospect-1", briefDigest: "b".repeat(64), state: "queued" };
+    const retry = vi.spyOn(CommunicationsStore.prototype, "retryBlocked").mockResolvedValueOnce(retried);
+    const response = await invoke("/:prospectId/communications/:jobId/retry", { briefDigest: retried.briefDigest });
+    expect(response.status).toBe(202);
+    expect(retry).toHaveBeenCalledWith({ jobId: retried.jobId, prospectId: retried.prospectId,
+      briefDigest: retried.briefDigest, requestedBy: "authenticated-operator" });
+    expect(response.body).toMatchObject({ sent: false, sessionCreated: false });
+    expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
   it("does not draft or queue without the existing ops role", async () => {
     mocks.hasAnyRole.mockResolvedValue(false);
     expect((await invoke("/:prospectId/draft")).status).toBe(403);
     expect((await invoke("/:prospectId/send")).status).toBe(403);
+    expect((await invoke("/:prospectId/communications")).status).toBe(403);
     expect(mocks.runAgentTask).not.toHaveBeenCalled();
     expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+  it("accepts communications references only and refuses invented approval or recipient", async () => {
+    const response = await invoke("/:prospectId/communications", { briefId: "brief-1", intent: "outreach", inboundMessageId: null,
+      to: "invented@example.com", qualityReview: { state: "approved" } });
+    expect(response.status).toBe(400);
+    expect(mocks.set).not.toHaveBeenCalled(); expect(mocks.runAgentTask).not.toHaveBeenCalled();
+  });
+  it("fails closed when the communications handoff is not available", async () => {
+    const response = await invoke("/:prospectId/communications", { briefId: "brief-missing", intent: "outreach", inboundMessageId: null });
+    expect(response.status).toBe(409);
+    expect(mocks.set).not.toHaveBeenCalled(); expect(mocks.runAgentTask).not.toHaveBeenCalled();
   });
 
   it("rejects legacy text-only submissions before queueing", async () => {

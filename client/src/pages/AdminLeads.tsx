@@ -54,6 +54,8 @@ import {
 import AdminAgentConsole from "@/components/admin/AdminAgentConsole";
 import { SiteScreeningCallPanel } from "@/components/admin/SiteScreeningCallPanel";
 import { OutreachApprovalReview, type OutreachApproval, type OutreachReviewSummary } from "@/components/admin/OutreachApprovalReview";
+import { FounderMailboxConnection } from "@/components/admin/FounderMailboxConnection";
+import { CommunicationsRecovery } from "@/components/admin/CommunicationsRecovery";
 
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -232,6 +234,7 @@ interface ActionQueueItem {
   action_payload: Record<string, unknown>;
   draft_output: Record<string, unknown>;
   outreach_review?: OutreachReviewSummary;
+  sending_enabled?: boolean;
 }
 
 interface ActionQueueResponse {
@@ -1743,6 +1746,8 @@ export default function AdminLeads() {
         ) : activeView === "approvals" ? (
           <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="space-y-3">
+              <FounderMailboxConnection />
+              <CommunicationsRecovery />
               {approvalQueueQuery.isLoading ? (
                 <div className="runway-panel p-6 text-runway-mute">
                   Loading action queue...
@@ -1819,8 +1824,9 @@ export default function AdminLeads() {
                     <div className="mt-4 flex flex-wrap gap-2">
                       {item.status === "pending_approval" ? (
                         <>
-                          {item.lane === "outbound_prospect" || item.source_collection === "outboundProspects" ? (
+                          {item.lane === "outbound_prospect" || item.source_collection === "outboundProspects" || item.action_payload.communications ? (
                             <OutreachApprovalReview review={item.outreach_review} payload={item.action_payload}
+                              sendingEnabled={item.sending_enabled}
                               pending={approveActionMutation.isPending}
                               onApprove={(outreachSemanticReview) => approveActionMutation.mutate({ ledgerId: item.id, outreachSemanticReview })} />
                           ) : (
@@ -1851,14 +1857,14 @@ export default function AdminLeads() {
                           </button>
                         </>
                       ) : null}
-                      {item.status === "failed" ? (
+                      {item.status === "failed" || (item.action_payload.communications && ["executing", "operator_approved"].includes(item.status)) ? (
                         <button
                           type="button"
                           onClick={() => retryActionMutation.mutate(item.id)}
                           className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
                           disabled={retryActionMutation.isPending}
                         >
-                          Retry
+                          {item.status === "failed" ? "Retry" : "Check delivery"}
                         </button>
                       ) : null}
                       {item.source_collection === "inboundRequests" ? (
