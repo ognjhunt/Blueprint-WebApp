@@ -6,8 +6,9 @@ export const SOURCE_SNAPSHOT_VERSION = "blueprint.research-learning-source-snaps
 export const SOURCE_ROOT = "blueprintDailyResearch/sites-first";
 export const CRM_SHEET_ID = "1n95Ih0Swc-q-kZyUaDHoZh6SVzxvf_zt-CRR7i39bWY";
 const forbidden = (value: string) => /[\w.!#$%&'*+/=?^`{|}~-]+@[\w.-]+\.[A-Za-z]{2,}/i.test(value)
-  || /(?:bearer\s+\S+|(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|private[_-]?key|password|passwd|pwd)\s*[:=])/i.test(value);
-export const safeText = (max = 2000) => z.string().min(1).max(max).refine(value => !forbidden(value), "learning_private_text");
+  || /(?:bearer\s+\S+|\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|private[_-]?key|password|passwd|pwd|authorization|token|credentials?|secret|signature|sig)\s*[:=])/i.test(value);
+export const safeText = (max = 2000) => z.string().min(1).max(max).refine(value => !forbidden(value)
+  && (value.match(/https?:\/\/[^\s<>"]+/gi) ?? []).every(url => publicUrl.safeParse(url.replace(/[.,;!?)\]]+$/, "")).success), "learning_private_text");
 export const publicUrl = z.string().max(2000).url().refine(value => {
   try {
     const url = new URL(value); let decoded = value;

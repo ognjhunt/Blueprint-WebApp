@@ -102,6 +102,9 @@ pilot or rejection of robotics. `helped`/`did_not_help` require a precise brief
 record/version/revision/hash and attributed feedback; `pending` requires an
 actual dated feedback request. The append adapter must supply verified human
 attestation and brief bindings from their owner records, never model input.
+Before enabling an adapter, it must verify that the exact brief and attributed
+feedback belong to this CRM/native subject, in addition to matching the stored
+brief version/hash; an unrelated valid brief is not enough.
 The stored prior-research row fences CRM/native/site/task joins. No synthetic
 human record was made from CRM inventory, and no live human writer endpoint is
 enabled in this release.

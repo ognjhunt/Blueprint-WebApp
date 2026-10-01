@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { digest } from "../research-learning/contract";
 import { authorizeSources, cellRowHash, CRM_HEADERS, CRM_SHEET_ID, knowledgeContentHash, originalDate, publicUrl,
-  reconcilePriorResearch, scopeSourceSnapshot, verifySourceSnapshot, type SourceInputs, type SourceGrant, type SourceRequest } from "../research-learning/prior-research";
+  reconcilePriorResearch, scopeSourceSnapshot, verifySourceSnapshot, safeText, type SourceInputs, type SourceGrant, type SourceRequest } from "../research-learning/prior-research";
 import { makeSiteLearning, siteLearningHistory, type SiteLearningInput } from "../research-learning/site-learning";
 import { ResearchSourceStore, type SiteLearningWriterContext } from "../research-learning/source-store";
 import { sharedResearchContext, sheetsPriorResearchView, notionPriorResearchSummary } from "../research-learning/shared-context";
@@ -80,6 +80,7 @@ describe("bounded prior-research reconciliation", () => {
     const future = fixture(); future.input.knowledge.records[0].facts[0].sources[0].source_checked_at = "2026-10-02"; future.input.knowledge.content_hash = knowledgeContentHash(future.input.knowledge);
     expect(() => reconcile(future)).toThrow("date_invalid");
   });
+  it.each(["authorization=private", "token=private", "credentials: private", "signature=private", "See https://example.org/?token=private", "See https://example.org/?%2574oken=private"])("rejects private free-text evidence %s", value => expect(safeText().safeParse(value).success).toBe(false));
   it.each(["company", "page"])("reports duplicated %s IDs even when a missing join offsets the count", kind => {
     const f = fixture();
     if (kind === "company") f.input.knowledge.companies = [f.input.knowledge.companies[0], f.input.knowledge.companies[0]];
