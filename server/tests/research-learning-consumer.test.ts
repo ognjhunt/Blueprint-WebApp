@@ -7,6 +7,12 @@ import { learningMemoryFirestore, learningEvent, learningCorrection } from "./fi
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { previewResearchCommunications } from "../agents/communications-producer";
 import { communicationsBriefSchema, communicationsDigest, communicationsDeliveryKey } from "../agents/communications-contract";
+import { memoryFirestore } from "./fixtures/communications";
+import { officialResearchInput } from "./fixtures/official-contact-research";
+import { stageReviewedResearch } from "../agents/communications-reviewed-research";
+import { admitPublishedResearch } from "../agents/communications-intake";
+import { readExistingResearchSnapshot } from "../agents/communications-research";
+import { resolvePublicContact } from "../agents/communications-contact-resolution";
 
 const now = "2026-10-01T22:00:00.000Z";
 const query = { taskTags: ["folding"], regionTags: ["Sacramento"], companyIds: [], capabilityIds: [], pageSize: 1, cursor: null };
@@ -119,6 +125,61 @@ describe("runnable read-only research and communications consumer", () => {
     expect(history.events.some(event => event.kind === "outreach_observed" && event.data.threadId === "thread-1")).toBe(true);
     expect(history.events.flatMap(event => event.evidence).some(proof => proof.recordRef === data.receiptPath)).toBe(true);
     expect(JSON.stringify(session.handoff)).not.toContain(data.brief.contact.email); expect(f.writes).toEqual([]);
+    const research = session.researchDetails("prospect-1", { pageSize: 1, cursor: null });
+    expect(research.records[0].boundedQuestion).toBe(data.brief.contact.learningQuestion);
+    expect(research.records[0].facts[0]).toMatchObject({ factId: data.brief.facts[0].id, sourceCheckedAt: data.brief.facts[0].sourceCheckedAt });
+    expect(JSON.stringify(research)).not.toContain(data.brief.contact.email);
+    expect(() => session.researchDetails("unrelated", { pageSize: 1, cursor: null })).toThrow("scope_denied");
+    expect(() => session.researchDetails("prospect-1", { pageSize: 1, cursor: { contextHash: session.handoff.contextHash, prospectId: "unrelated", offset: 0 } })).toThrow("cursor_invalid");
+  });
+  it("reads the real reviewed-report admission contract without inventing a CRM row or provider session", async () => {
+    const f = fixture("communications"), ownerDb = memoryFirestore(), input = officialResearchInput();
+    const staged = await stageReviewedResearch(ownerDb, input, "authenticated-offline-owner", Date.parse(now));
+    const result: any = await admitPublishedResearch(staged, input.candidate.candidate_key, { db: ownerDb, now: () => Date.parse(now),
+      readResearch: (date, admissionId) => readExistingResearchSnapshot(ownerDb, date, admissionId), isSuppressed: async () => false });
+    expect(result.state).toBe("admitted");
+    for (const [path, value] of ownerDb.records) f.records.set(path, structuredClone(value));
+    f.binding.prospectIds = [result.prospectId];
+    const session = await f.open({ crmIds: [], prospectIds: [result.prospectId] });
+    expect(session.handoff.provenance.quarantine).toEqual([]);
+    expect(session.handoff.priorContactAndOutcomes.prospects[0]).toMatchObject({ hasResearch: true, acceptedTouches: 0, outcome: "unknown", interestSubtype: "unknown", contactAvailabilityAtTouch: "verified_business_route" });
+    const events = session.history(result.prospectId, { pageSize: 25, cursor: null }).events;
+    expect(events.every(event => event.entities.crmId === null)).toBe(true);
+    const details = session.researchDetails(result.prospectId, { pageSize: 1, cursor: null });
+    expect(details.records[0].facts.some(fact => fact.sourceUrl === input.candidate.evidence[0].url)).toBe(true);
+    expect(details.records[0].privacyOmissions).toBe("private_or_nonpublic_fields_omitted");
+    expect(JSON.stringify(details)).not.toContain(input.assessment.contact.email);
+    expect(f.reads).toContain(`blueprintCommunications/default/reviewedResearch/${staged.row.admission_id}`);
+    expect(f.writes).toEqual([]);
+    const provenancePath = `blueprintCommunications/default/researchSources/${result.briefDigest}`;
+    const changed = f.records.get(provenancePath); changed.source.recordReceipt = "firestore:wrong"; f.records.set(provenancePath, changed);
+    const invalid = await f.open({ crmIds: [], prospectIds: [result.prospectId] });
+    expect(invalid.handoff.provenance.quarantine.length).toBeGreaterThan(0);
+    expect(invalid.researchDetails(result.prospectId, { pageSize: 1, cursor: null }).records).toEqual([]);
+    changed.source.recordReceipt = (ownerDb.records.get(provenancePath) as any).source.recordReceipt;
+    const proof = await resolvePublicContact(changed.source, result.prospectId, async url => ({ requestedUrl: url, finalUrl: url, redirects: [],
+      checkedAt: now, status: 200, contentType: "text/html", bodyBase64: Buffer.from(`<p>${input.candidate.organization}. Business inquiries: ${input.assessment.contact.email}</p>`).toString("base64") }), () => Date.parse(now));
+    const originalBrief = f.records.get(`blueprintCommunications/default/briefs/${result.briefId}`);
+    const resolvedBrief = communicationsBriefSchema.parse({ ...originalBrief, briefId: `${originalBrief.briefId}-resolved`, revision: 2,
+      qualityReview: { ...originalBrief.qualityReview, reviewedAt: now }, contact: { ...originalBrief.contact,
+        sourceUrl: proof.contact.sourceUrl, sourceCheckedAt: proof.contact.sourceCheckedAt, scope: proof.contact.scope },
+      researchOrigin: { ...originalBrief.researchOrigin, contactEvidenceKind: "public_operator_resolution", contactEvidenceDigest: communicationsDigest(proof) } });
+    const resolvedDigest = communicationsDigest(resolvedBrief), root = "blueprintCommunications/default";
+    const resolvedJob = { ...f.records.get(`${root}/jobs/${result.jobId}`), jobId: "resolved-job", briefId: resolvedBrief.briefId, briefDigest: resolvedDigest };
+    f.records.set(`${root}/jobs/resolved-job`, resolvedJob); f.records.set(`${root}/briefs/${resolvedBrief.briefId}`, resolvedBrief);
+    f.records.set(`${root}/handoffs/${resolvedDigest}`, { ...f.records.get(`${root}/handoffs/${result.briefDigest}`), ...resolvedBrief.qualityReview, briefDigest: resolvedDigest });
+    f.records.set(`${root}/researchSources/${resolvedDigest}`, { ...changed, briefDigest: resolvedDigest });
+    const proofPath = `${root}/contactProofs/${communicationsDigest(proof)}`; f.records.set(proofPath, proof);
+    const resolved = await f.open({ crmIds: [], prospectIds: [result.prospectId] });
+    expect(resolved.handoff.provenance.quarantine).toEqual([]); expect(f.reads).toContain(proofPath);
+    expect(resolved.researchDetails(result.prospectId, { pageSize: 25, cursor: null }).records).toHaveLength(2);
+    expect(JSON.stringify(resolved.handoff)).not.toContain(input.assessment.contact.email);
+    for (const badProof of [undefined, { ...proof, contact: { ...proof.contact, email: "other@example.org" } }]) {
+      f.records.set(proofPath, badProof);
+      const rejected = await f.open({ crmIds: [], prospectIds: [result.prospectId] });
+      expect(rejected.handoff.provenance.quarantine).toContainEqual(expect.objectContaining({ recordRef: `${root}/jobs/resolved-job` }));
+      expect(rejected.researchDetails(result.prospectId, { pageSize: 25, cursor: null }).records).toHaveLength(1);
+    }
   });
   it("keeps nonresponse, curiosity, human correction and later owner outcomes distinct with paged evidence IDs", async () => {
     const f = fixture(); native(f); stored(f, "research_observed"); stored(f, "contact_observed"); stored(f, "outreach_observed");

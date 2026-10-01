@@ -21,6 +21,7 @@ async function main() {
   const input = z.object({ selection: consumerSelectionSchema, queries: z.array(z.unknown()).max(20).default([]),
     history: z.array(z.object({ prospectId: z.string(), pageSize: z.number().int().min(1).max(25) }).strict()).max(10).default([]),
     siteHistory: z.array(z.object({ crmId: z.string(), pageSize: z.number().int().min(1).max(25) }).strict()).max(10).default([]),
+    researchDetails: z.array(z.object({ prospectId: z.string(), pageSize: z.number().int().min(1).max(25) }).strict()).max(10).default([]),
     details: z.array(z.array(z.string()).max(5)).max(20).default([]) }).strict().parse(JSON.parse(readFileSync(flags.get("--request")!, "utf8")));
   const session = await openResearchLearningSession(dbAdmin, binding, input.selection);
   const artifact = { version: "blueprint.research-learning-consumer-export.v1", handoff: session.handoff,
@@ -28,6 +29,7 @@ async function main() {
     detailReads: input.details.map(values => session.details(values)),
     historyPages: input.history.map(value => session.history(value.prospectId, { pageSize: value.pageSize, cursor: null })),
     siteHistoryPages: input.siteHistory.map(value => session.siteHistory(value.crmId, { pageSize: value.pageSize, cursor: null })),
+    nativeResearchPages: input.researchDetails.map(value => session.researchDetails(value.prospectId, { pageSize: value.pageSize, cursor: null })),
     effects: { sourceWrites: 0, pointerWrites: 0, mailboxReads: 0, sends: 0, modelCalls: 0, storageTransfers: 0 },
     canonicalStorage: "Blueprint Firestore records and user-owned GitHub contracts; this portable JSON export has no Library or session dependency" };
   const output = resolve(flags.get("--output")!);

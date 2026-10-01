@@ -5,9 +5,11 @@ import {
 } from "../agents/communications-contract";
 import { authorize, entitiesSchema, makeEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
 import { eventSection } from "./snapshot";
+import { readExistingResearchSnapshot, verifyPublishedResearch } from "../agents/communications-research";
+import { projectBriefResearch } from "./brief-projection";
 
 const ROOT = "blueprintCommunications/default";
-export type ExistingJob = { id: string; record: unknown; brief?: unknown; handoff?: unknown; researchSource?: any; receipt?: any; ledger?: any };
+export type ExistingJob = { id: string; record: unknown; brief?: unknown; handoff?: unknown; researchSource?: any; reviewedSnapshot?: unknown; contactProof?: unknown; receipt?: any; ledger?: any };
 export type ExistingProspectSources = {
   prospectId: string; prospect: any; jobs: ExistingJob[];
   communicationsEvents: { id: string; record: any }[];
@@ -18,6 +20,7 @@ export type Quarantine = { recordRef: string; reason: string };
  * model classification or source writes. Legacy reply meaning stays unknown. */
 export function normalizeExistingSources(sources: ExistingProspectSources[], recordedAt: string) {
   const events: LearningEvent[] = [], quarantine: Quarantine[] = [], observedSourceRefs: string[] = [];
+  const researchDetails: ReturnType<typeof projectBriefResearch>[] = [];
   for (const input of sources) {
     const sourceRef = `outboundProspects/${input.prospectId}`;
     observedSourceRefs.push(sourceRef);
@@ -38,16 +41,25 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
           || input.prospect.siteId !== brief.siteId || input.prospect.taskId !== brief.taskId
           || input.prospect.caseId !== brief.caseId
           || !source || bundle.researchSource.briefDigest !== job.briefDigest
-          || source.version !== "blueprint.communications-research-source.v1" || source.date !== brief.researchOrigin.date
+          || !["blueprint.communications-research-source.v1", "blueprint.communications-reviewed-source.v1"].includes(source.version) || source.date !== brief.researchOrigin.date
           || source.candidateKey !== brief.researchOrigin.candidateKey || source.packetDigest !== brief.researchOrigin.packetDigest
           || source.rawArtifactDigest !== brief.researchOrigin.rawArtifactDigest
           || brief.researchOrigin.sourceDigest !== communicationsDigest(source)
           || source.sheetsProspectId !== input.prospect.researchPublicationId
           || source.sheetsReceipt !== handoff.sheetsReceipt || source.notionReceipt !== handoff.notionReceipt) throw new Error("join_invalid");
+        const reviewed = source.version === "blueprint.communications-reviewed-source.v1";
+        if (reviewed) {
+          if (!brief.researchOrigin.admissionId || source.admissionId !== brief.researchOrigin.admissionId
+            || source.recordReceipt !== handoff.recordReceipt) throw new Error("reviewed_join_invalid");
+          verifyPublishedResearch(bundle.reviewedSnapshot, brief, handoff, bundle.contactProof);
+        } else if (brief.researchOrigin.admissionId) throw new Error("reviewed_source_missing");
         if (input.prospect.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()) {
           quarantine.push({ recordRef: sourceRef, reason: "historical_contact_change_requires_reconciliation" });
         }
-        const entities = entitiesSchema.parse({ prospectId: input.prospectId, crmId: input.prospect.researchPublicationId ?? null,
+        const entities = entitiesSchema.parse({ prospectId: input.prospectId,
+          // Reviewed-report publication keys are Blueprint-owned admission IDs,
+          // not invented BP CRM rows. Preserve that distinction in event joins.
+          crmId: reviewed ? /^BP-\d{6}$/.test(input.prospect.crmId ?? "") ? input.prospect.crmId : null : input.prospect.researchPublicationId ?? null,
           companyId: input.prospect.companyId ?? null, siteId: brief.siteId, taskId: brief.taskId,
           caseId: brief.caseId,
           teamIds: brief.teamIds, capabilityIds: brief.capabilityIds });
@@ -113,6 +125,7 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
             evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(item.record),
               checkedAt: reply.receivedAt, basis: "correlated_reply" }] }));
         }
+        researchDetails.push(projectBriefResearch(brief));
       } catch {
         events.splice(start);
         quarantine.push({ recordRef: jobRef, reason: "source_contract_or_exact_join_invalid" });
@@ -120,7 +133,7 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
     }
   }
   // Repeated brief revisions/jobs can refer to the same research evidence.
-  return { events: [...new Map(events.map(e => [e.eventId, e])).values()], quarantine,
+  return { events: [...new Map(events.map(e => [e.eventId, e])).values()], researchDetails: [...new Map(researchDetails.map(record => [record.briefHash, record])).values()], quarantine,
     observedSourceRefs: [...new Set(observedSourceRefs)].sort() };
 }
 
@@ -143,17 +156,24 @@ export async function readExistingSources(db: FirebaseFirestore.Firestore, grant
       const brief = await db.doc(ROOT).collection("briefs").doc(identity.briefId).get();
       const handoff = await db.doc(ROOT).collection("handoffs").doc(identity.briefDigest).get();
       const source = await db.doc(ROOT).collection("researchSources").doc(identity.briefDigest).get();
+      const parsedBrief = communicationsBriefSchema.parse(brief.data());
+      const reviewedSnapshot = parsedBrief.researchOrigin.admissionId
+        ? await readExistingResearchSnapshot(db, parsedBrief.researchOrigin.date, parsedBrief.researchOrigin.admissionId) : undefined;
+      const contactProof = parsedBrief.researchOrigin.contactEvidenceKind === "public_operator_resolution" && parsedBrief.researchOrigin.contactEvidenceDigest
+        ? (await db.doc(ROOT).collection("contactProofs").doc(parsedBrief.researchOrigin.contactEvidenceDigest).get()).data() : undefined;
       const receipt = authorized.sections.includes("outreach") ? await db.doc(ROOT).collection("sendReceipts").doc(communicationsDeliveryKey(identity)).get() : undefined;
       if (receipt?.exists && !jobs.docs.some(job => job.id === receipt.data()?.jobId)) {
         readQuarantine.push({ recordRef: `${ROOT}/sendReceipts/${communicationsDeliveryKey(identity)}`, reason: "orphan_or_legacy_receipt_requires_reconciliation" });
       }
       const ledger = receipt?.exists && receipt.data()?.jobId === identity.jobId ? await db.collection("action_ledger").doc(`communications_${identity.jobId}`).get() : undefined;
       bundles.push({ id: job.id, record: identity, brief: brief.data(), handoff: handoff.data(), researchSource: source.data(),
+        reviewedSnapshot, contactProof,
         receipt: receipt?.data()?.jobId === identity.jobId ? receipt?.data() : undefined, ledger: ledger?.data() });
     }
     inputs.push({ prospectId, prospect: prospect.data(), jobs: bundles, communicationsEvents: communications?.docs.map(doc => ({ id: doc.id, record: doc.data() })) ?? [] });
   }
   const normalized = normalizeExistingSources(inputs, now);
   // The public reader boundary returns structured authorized events only.
-  return { ...normalized, quarantine: [...readQuarantine, ...normalized.quarantine], events: normalized.events.filter(e => authorized.sections.includes(eventSection(e))) };
+  return { ...normalized, researchDetails: authorized.sections.includes("research") ? normalized.researchDetails : [],
+    quarantine: [...readQuarantine, ...normalized.quarantine], events: normalized.events.filter(e => authorized.sections.includes(eventSection(e))) };
 }

@@ -77,6 +77,12 @@ Progressive operations within the same captured, expiring session:
 - `siteHistory(crmId, {pageSize, cursor})` retrieves human observations under
   the same context and exact CRM scope. Initial context contains at most five
   recent observations plus counts, preserving the rest for selective retrieval.
+- `researchDetails(prospectId, {pageSize, cursor})` retrieves verified prior
+  brief facts, bounded task/question/decision and unknowns under the captured
+  native scope. Private/contact statements and nonpublic URLs are omitted with
+  explicit privacy-omission metadata. It supports both daily-publication and
+  the communications owner's reviewed-report admission via that owner's source
+  verifier. A reviewed admission key is not exported as a fabricated BP CRM ID.
 
 Portable operator/host invocation, using the existing Admin environment:
 
@@ -92,7 +98,8 @@ Request JSON is `{ "selection": { "crmIds": ["BP-000001"],
 "industry": "Laundromats" } }, "queries": [], "details": [], "history": [] }`.
 `queries` uses the search arguments above; `details` is an array of selected
 capability-ID lists; `history` entries contain `prospectId` and `pageSize`;
-optional `siteHistory` entries contain `crmId` and `pageSize`.
+optional `siteHistory` entries contain `crmId` and `pageSize`; optional
+`researchDetails` entries contain `prospectId` and `pageSize`.
 The export is create-only, mode 0600, standard JSON. The binding selects the
 reviewed Firestore snapshot; no provider session or Library ID is required.
 The replacement agent can clone this user-owned GitHub repo, use its already
