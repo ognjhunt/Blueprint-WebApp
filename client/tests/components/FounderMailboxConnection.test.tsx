@@ -36,7 +36,8 @@ describe("founder connection preparation in Blueprint review", () => {
   it("shows a failed preparation request without offering an alternate connection", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 403 }));
     page(); fireEvent.click(screen.getByRole("button", { name: "Prepare founder mailbox" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Founder connection preparation is unavailable.");
+    expect(await screen.findByText("Founder connection preparation is unavailable.")).toHaveAttribute("role", "alert");
+    expect(await screen.findByText(/Founder consent status is unavailable/)).toHaveAttribute("role", "alert");
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
   it("requires an owner click to prepare the admitted Google consent link", async () => {
