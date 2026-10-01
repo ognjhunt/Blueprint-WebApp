@@ -130,7 +130,7 @@ describe("runnable read-only research and communications consumer", () => {
     expect(research.records[0].facts[0]).toMatchObject({ factId: data.brief.facts[0].id, sourceCheckedAt: data.brief.facts[0].sourceCheckedAt });
     expect(JSON.stringify(research)).not.toContain(data.brief.contact.email);
     expect(() => session.researchDetails("unrelated", { pageSize: 1, cursor: null })).toThrow("scope_denied");
-    expect(() => session.researchDetails("prospect-1", { pageSize: 1, cursor: { contextHash: session.handoff.contextHash, prospectId: "unrelated", offset: 0 } })).toThrow("cursor_invalid");
+    expect(() => session.researchDetails("prospect-1", { pageSize: 1, cursor: { contextHash: session.handoff.contextHash, prospectId: "unrelated", operation: "native_research", offset: 0 } })).toThrow("cursor_invalid");
   });
   it("reads the real reviewed-report admission contract without inventing a CRM row or provider session", async () => {
     const f = fixture("communications"), ownerDb = memoryFirestore(), input = officialResearchInput();
@@ -173,6 +173,10 @@ describe("runnable read-only research and communications consumer", () => {
     const resolved = await f.open({ crmIds: [], prospectIds: [result.prospectId] });
     expect(resolved.handoff.provenance.quarantine).toEqual([]); expect(f.reads).toContain(proofPath);
     expect(resolved.researchDetails(result.prospectId, { pageSize: 25, cursor: null }).records).toHaveLength(2);
+    const historyCursor = resolved.history(result.prospectId, { pageSize: 1, cursor: null }).nextCursor;
+    const researchCursor = resolved.researchDetails(result.prospectId, { pageSize: 1, cursor: null }).nextCursor;
+    expect(() => resolved.researchDetails(result.prospectId, { pageSize: 1, cursor: historyCursor })).toThrow("cursor_invalid");
+    expect(() => resolved.history(result.prospectId, { pageSize: 1, cursor: researchCursor })).toThrow("cursor_invalid");
     expect(JSON.stringify(resolved.handoff)).not.toContain(input.assessment.contact.email);
     for (const badProof of [undefined, { ...proof, contact: { ...proof.contact, email: "other@example.org" } }]) {
       f.records.set(proofPath, badProof);
@@ -193,7 +197,7 @@ describe("runnable read-only research and communications consumer", () => {
     expect(session.handoff.priorContactAndOutcomes.planner!.causalProof).toBe(false);
     expect(session.handoff.classificationPolicy.enabled).toBe(false);
     expect(() => session.history("unrelated", { pageSize: 1, cursor: null })).toThrow("scope_denied");
-    expect(() => session.history("prospect-1", { pageSize: 1, cursor: { contextHash: digest("other"), prospectId: "prospect-1", offset: 1 } })).toThrow("cursor_invalid");
+    expect(() => session.history("prospect-1", { pageSize: 1, cursor: { contextHash: digest("other"), prospectId: "prospect-1", operation: "prospect_history", offset: 1 } })).toThrow("cursor_invalid");
   });
   it("binds history cursors to the exact prospect as well as the captured context", async () => {
     const f = fixture(); native(f); stored(f, "research_observed"); stored(f, "contact_observed");

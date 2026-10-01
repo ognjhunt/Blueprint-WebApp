@@ -72,7 +72,7 @@ Progressive operations within the same captured, expiring session:
   explicit unknown IDs. It preserves grades, conflicts, original check dates
   and stable Blueprint fact IDs; loading is not revalidation.
 - `history(prospectId, {pageSize, cursor})` returns structured event pages with
-  citation/evidence IDs. Cursors bind context hash and exact prospect. Session
+  citation/evidence IDs. Cursors bind context hash, exact prospect and dataset. Session
   methods never query an unrelated mailbox or acquire a research lease.
 - `siteHistory(crmId, {pageSize, cursor})` retrieves human observations under
   the same context and exact CRM scope. Initial context contains at most five

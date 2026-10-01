@@ -23,7 +23,7 @@ export const consumerSelectionSchema = z.object({ crmIds: ids(10), prospectIds: 
   focus: z.object({ city: safeText(120), industry: safeText(120) }).strict(), maturityDays: z.number().int().min(1).max(90).default(14),
 }).strict();
 export type ConsumerSelection = z.input<typeof consumerSelectionSchema>;
-const cursorSchema = z.object({ contextHash: hash, prospectId: id, offset: z.number().int().min(0) }).strict();
+const cursorSchema = z.object({ contextHash: hash, prospectId: id, operation: z.enum(["prospect_history", "native_research"]), offset: z.number().int().min(0) }).strict();
 const pageSchema = z.object({ pageSize: z.number().int().min(1).max(25), cursor: cursorSchema.nullable() }).strict();
 export type HistoryPageRequest = z.infer<typeof pageSchema>;
 const sitePageSchema = z.object({ pageSize: z.number().int().min(1).max(25),
@@ -189,10 +189,10 @@ export async function openResearchLearningSession(db: FirebaseFirestore.Firestor
     check(); const prospectId = id.parse(prospectIdValue), page = pageSchema.parse(pageValue);
     if (!allProspects.includes(prospectId)) throw new Error("learning_consumer_history_scope_denied");
     const row = outcomeSnapshot!.rows.find(row => row.prospectId === prospectId)!, offset = page.cursor?.offset ?? 0;
-    if (page.cursor && (page.cursor.contextHash !== contextHash || page.cursor.prospectId !== prospectId || offset > row.history.length)) throw new Error("learning_consumer_history_cursor_invalid");
+    if (page.cursor && (page.cursor.contextHash !== contextHash || page.cursor.prospectId !== prospectId || page.cursor.operation !== "prospect_history" || offset > row.history.length)) throw new Error("learning_consumer_history_cursor_invalid");
     const end = offset + page.pageSize;
     return structuredClone({ contextHash, prospectId, asOf, total: row.history.length, currentEventIds: row.currentEventIds,
-      events: row.history.slice(offset, end), nextCursor: end < row.history.length ? { contextHash, prospectId, offset: end } : null });
+      events: row.history.slice(offset, end), nextCursor: end < row.history.length ? { contextHash, prospectId, operation: "prospect_history" as const, offset: end } : null });
   };
   const siteHistory = (crmIdValue: string, pageValue: SiteHistoryPageRequest) => {
     check(); const crmId = id.parse(crmIdValue), page = sitePageSchema.parse(pageValue), offset = page.cursor?.offset ?? 0;
@@ -208,10 +208,10 @@ export async function openResearchLearningSession(db: FirebaseFirestore.Firestor
     check(); const prospectId = id.parse(prospectIdValue), page = pageSchema.parse(pageValue), offset = page.cursor?.offset ?? 0;
     if (!allProspects.includes(prospectId)) throw new Error("learning_consumer_research_scope_denied");
     const rows = nativeResearch.filter(record => record.prospectId === prospectId);
-    if (page.cursor && (page.cursor.contextHash !== contextHash || page.cursor.prospectId !== prospectId || offset > rows.length)) throw new Error("learning_consumer_research_cursor_invalid");
+    if (page.cursor && (page.cursor.contextHash !== contextHash || page.cursor.prospectId !== prospectId || page.cursor.operation !== "native_research" || offset > rows.length)) throw new Error("learning_consumer_research_cursor_invalid");
     const end = offset + page.pageSize;
     return structuredClone({ contextHash, prospectId, asOf, total: rows.length, records: rows.slice(offset, end),
-      nextCursor: end < rows.length ? { contextHash, prospectId, offset: end } : null });
+      nextCursor: end < rows.length ? { contextHash, prospectId, operation: "native_research" as const, offset: end } : null });
   };
   check();
   return { handoff: structuredClone({ ...content, contextHash }),
