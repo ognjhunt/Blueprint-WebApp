@@ -7,8 +7,8 @@ import { parseCommunicationsOutput, outputTextDigest, CommunicationsOutputValida
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
   verifiedCommunicationsSavedAgent, verifiedCommunicationsHistoryAgent, COMMUNICATIONS_HISTORY_PROFILE,
   COMMUNICATIONS_HISTORY_DEFINITION, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST,
-  verifiedCommunicationsCurrentSavedAgent, verifiedCommunicationsGmailBinding, verifiedCommunicationsGmailAgent,
-  COMMUNICATIONS_GMAIL_READ_DEFINITION, COMMUNICATIONS_GMAIL_READ_TOOLS, type CommunicationsGmailSessionBinding } from "./communications-saved-agent";
+  verifiedCommunicationsCurrentSavedAgent, verifiedCommunicationsCurrentMcpBinding, verifiedCommunicationsCurrentMcpAgent,
+  communicationsMcpDefinition, communicationsMcpCallAllowed, communicationsMcpVaultIds, resolveCommunicationsMcpVaultBinding, type CommunicationsCurrentMcpBinding } from "./communications-saved-agent";
 
 import { getCompanyHistoryAccess, runOperatorTool } from "./operator-tools";
 import { toolFailure } from "./adapters/tool-recovery";
@@ -31,21 +31,47 @@ type FinalRepair = {
   requestDigest: string; idempotencyKey: string; deadlineMs: number;
   state: "input_unresolved" | "submitted" | "not_submitted"; turnId?: string;
 };
+type HttpFailureBinding = { jobId: string; inputDigest: string | null; requestDigest: string | null;
+  createClaimedAt: string | null; sessionId: string | null; turnId: string | null };
+type HttpFailure = { binding: HttpFailureBinding; status: number; method: string;
+  capture: "complete" | "truncated" | "read_failed" | "unavailable"; bytes: number; bodyDigest: string;
+  retention: "retained" | "private_evidence_unavailable" | "checkpoint_unpersisted" };
+type HttpResponseEvidence = Omit<HttpFailure, "binding" | "retention"> & { path: string; requestId: string | null; bodyBase64: string };
+export type CommunicationsRejectedCreateRecoveryIntent = { ownerDirectionRef: string; briefDigest: string; deliveryKey: string };
+export type CommunicationsRejectedCreateRecoveryProof = { httpStatus: 400; jobId: string; requestDigest: string;
+  createClaimedAt: string; inputDigest: string; evidenceDigest: string };
+export type CommunicationsRejectedCreateRecovery = {
+  version: "rejected-create-v1"; intent: CommunicationsRejectedCreateRecoveryIntent;
+  originalCheckpointDigest: string; originalRequestDigest: string; originalCreateClaimedAt: string;
+  rejectionProof: CommunicationsRejectedCreateRecoveryProof;
+  negativeCoverage: { project: string; observedAt: string; completedAt: string; count: number; digest: string;
+    rows: { id: string; createdAt: string; metadataDigest: string }[] };
+  correctedBody: string; correctedRequestDigest: string; deadlineMs: number; checkpoint: CommunicationsCheckpoint;
+};
 export type CommunicationsCheckpoint = {
   createClaimedAt: string | null; sessionId: string | null; turnId: string | null;
   requestDigest?: string;
   historyProfile?: typeof COMMUNICATIONS_HISTORY_PROFILE; historyConfigurationDigest?: string;
   historyToolReceipts?: CommunicationsHistoryReceipt[];
   historyEvidence?: Record<string, unknown>;
-  gmailMcp?: CommunicationsGmailSessionBinding;
+  gmailMcp?: CommunicationsCurrentMcpBinding;
   nativeMcpItems?: unknown[];
   finalRepairProfile?: typeof FINAL_REPAIR_PROFILE;
   initialTurnId?: string; finalRepairs?: FinalRepair[];
   finalOutputSources?: CommunicationsOutputSource[];
   usageReceipts?: { turnId: string; status: string; usage: unknown }[];
   finalRepairSettled?: boolean;
+  httpFailure?: HttpFailure; httpEvidence?: Record<string, unknown>;
+  rejectedCreateRecovery?: CommunicationsRejectedCreateRecovery;
 };
+/** Deadline/session view only. This helper supplies no create authority. */
+export function effectiveCommunicationsCheckpoint(checkpoint: CommunicationsCheckpoint): CommunicationsCheckpoint {
+  return checkpoint.rejectedCreateRecovery?.checkpoint ?? checkpoint;
+}
 export class CommunicationsRuntimeError extends Error {
+  declare readonly privateHttpResponse?: HttpResponseEvidence;
+  declare readonly privateHttpEvidence?: Record<string, unknown>;
+  declare readonly httpFailure?: HttpFailure;
   constructor(public code: string, public retryable = false, readonly outputSource?: CommunicationsOutputSource) { super(code); }
 }
 export { COMMUNICATIONS_INSTRUCTIONS } from "./communications-instructions";
@@ -60,6 +86,10 @@ export class CommunicationsAgentsAPI {
     // Existing authenticated operator/service code selects the exact saved
     // artifact. This is never a model/client approval flag or send authority.
     reviewedSavedOutputDigest?: string;
+    assertRejectedCreateRecovery?: (jobId: string, original: CommunicationsCheckpoint,
+      intent: CommunicationsRejectedCreateRecoveryIntent) => Promise<CommunicationsRejectedCreateRecoveryProof>;
+    claimRejectedCreateRecovery?: (jobId: string, original: CommunicationsCheckpoint,
+      recovery: CommunicationsRejectedCreateRecovery) => Promise<void>;
   }) {}
   private headers() {
     if (!this.options.apiKey) throw new CommunicationsRuntimeError("existing_openai_binding_missing");
@@ -75,8 +105,42 @@ export class CommunicationsAgentsAPI {
         ...init, headers: { ...this.headers(), ...init.headers }, signal: controller.signal,
       });
       if (!response.ok) {
-        // HTTP status and operation only: provider errors may contain private input.
-        throw new CommunicationsRuntimeError(`agents_api_http_${response.status}`, init.method !== "POST" && (response.status === 429 || response.status >= 500));
+        // Original bytes are private evidence, never an error message/log field.
+        const error = new CommunicationsRuntimeError(`agents_api_http_${response.status}`, init.method !== "POST" && (response.status === 429 || response.status >= 500));
+        const evidence: HttpResponseEvidence = { status: response.status, method: init.method ?? "GET", path,
+          requestId: response.headers.get("x-request-id") ?? response.headers.get("openai-request-id"),
+          capture: "unavailable", bytes: 0, bodyDigest: "", bodyBase64: "" };
+        const chunks: Buffer[] = [];
+        let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+        let abort: (() => void) | undefined;
+        try {
+          reader = response.body?.getReader();
+          if (reader) {
+            const aborted = new Promise<never>((_, reject) => {
+              abort = () => reject(new Error("http_evidence_read_aborted"));
+              controller.signal.addEventListener("abort", abort, { once: true });
+            });
+            evidence.capture = "complete";
+            while (true) {
+              if (controller.signal.aborted) throw new Error("http_evidence_read_aborted");
+              const chunk = await Promise.race([reader.read(), aborted]);
+              if (chunk.done) break;
+              const available = 1000000 - evidence.bytes;
+              chunks.push(Buffer.from(chunk.value.subarray(0, available)));
+              evidence.bytes += Math.min(available, chunk.value.byteLength);
+              if (chunk.value.byteLength > available) { evidence.capture = "truncated"; break; }
+            }
+          }
+        } catch { evidence.capture = "read_failed"; }
+        finally {
+          if (abort) controller.signal.removeEventListener("abort", abort);
+          void reader?.cancel().catch(() => undefined);
+        }
+        const body = Buffer.concat(chunks);
+        evidence.bodyBase64 = body.toString("base64");
+        evidence.bodyDigest = outputTextDigest(evidence.bodyBase64);
+        Object.defineProperty(error, "privateHttpResponse", { value: evidence });
+        throw error;
       }
       return { response, close: () => { clearTimeout(timeout); controller.abort(); } };
     } catch (error) {
@@ -85,8 +149,8 @@ export class CommunicationsAgentsAPI {
       throw new CommunicationsRuntimeError("agents_api_connection_unknown", init.method !== "POST");
     }
   }
-  private async json(path: string, maxBytes?: number) {
-    const handle = await this.request(path);
+  private async json(path: string, maxBytes?: number, remainingMs?: number) {
+    const handle = await this.request(path, {}, remainingMs);
     try {
       if (maxBytes === undefined) return await handle.response.json();
       const reader = handle.response.body?.getReader();
@@ -112,28 +176,197 @@ export class CommunicationsAgentsAPI {
     let checked;
     try { checked = verifiedCommunicationsCurrentSavedAgent(saved); }
     catch { throw new CommunicationsRuntimeError("communications_saved_agent_definition_changed"); }
-    return { model: model.id, project: COMMUNICATIONS_PROJECT, ...checked, runtime: "saved_agent" as const };
+    const gmailMcp = checked.gmailMcp
+      ? await resolveCommunicationsMcpVaultBinding(checked.gmailMcp, path => this.json(path, 256000)) : undefined;
+    return { model: model.id, project: COMMUNICATIONS_PROJECT, ...checked, gmailMcp, runtime: "saved_agent" as const };
   }
   async run(params: {
     input: string; jobId: string; checkpoint: CommunicationsCheckpoint;
     saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>;
+    validateOutput?: CommunicationsOutputValidator; assertRepairAllowed?: () => void | Promise<void>;
+  }): Promise<{ output: CommunicationsOutput; checkpoint: CommunicationsCheckpoint; usage: unknown; outputSource?: CommunicationsOutputSource }> {
+    if (params.checkpoint.rejectedCreateRecovery) {
+      const recovery = this.verifyRecoveryRecord(params.checkpoint, params.jobId, params.input);
+      return this.runRecoveryAttempt(params, recovery);
+    }
+    return this.runAttempt(params);
+  }
+  /** Called only by the existing trusted worker recovery lane. Provider-global
+   * absence and the retained owner/store/budget claim are independent evidence. */
+  async recoverRejectedCreate(params: {
+    input: string; jobId: string; checkpoint: CommunicationsCheckpoint;
+    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>;
+    validateOutput?: CommunicationsOutputValidator; assertRepairAllowed?: () => void | Promise<void>;
+    intent: CommunicationsRejectedCreateRecoveryIntent;
+  }) {
+    const original = params.checkpoint;
+    if (!this.options.allowPaidInference) throw new CommunicationsRuntimeError("communications_inference_disabled");
+    if (!this.options.assertRejectedCreateRecovery || !this.options.claimRejectedCreateRecovery
+      || !this.options.recordPaidDraftUsage || !params.assertRepairAllowed) throw new CommunicationsRuntimeError("communications_rejected_create_authority_required");
+    if (original.rejectedCreateRecovery || !original.createClaimedAt || original.sessionId || original.turnId
+      || !/^[a-f0-9]{64}$/.test(original.requestDigest ?? "") || !Number.isFinite(Date.parse(original.createClaimedAt))
+      || Buffer.byteLength(params.input) > 64000) throw new CommunicationsRuntimeError("communications_rejected_create_ineligible");
+    if (!params.intent.ownerDirectionRef || !/^[a-f0-9]{64}$/.test(params.intent.briefDigest)
+      || !params.intent.deliveryKey) throw new CommunicationsRuntimeError("communications_rejected_create_identity_invalid");
+    const proof = await this.options.assertRejectedCreateRecovery(params.jobId, original, params.intent);
+    this.verifyRejectionProof(proof, original, params.jobId, params.input);
+    // Native canonical response evidence, when retained, cannot be overridden
+    // by the owner callback. Historical body absence itself grants no retry.
+    if (original.httpFailure || original.httpEvidence) {
+      const checked = await this.hydrateHistoryCheckpoint(original, params.jobId);
+      const failure = checked.httpFailure;
+      if (!failure || failure.retention !== "retained" || failure.status !== 400 || failure.method !== "POST"
+        || failure.binding.jobId !== params.jobId || failure.binding.requestDigest !== original.requestDigest
+        || failure.binding.createClaimedAt !== original.createClaimedAt || failure.binding.sessionId !== null
+        || failure.binding.turnId !== null || failure.binding.inputDigest !== proof.inputDigest || !original.httpEvidence) {
+        throw new CommunicationsRuntimeError("communications_rejected_create_evidence_invalid");
+      }
+      const hydrated = await hydrateAgentEvidence(original.httpEvidence, this.httpScope(failure.binding));
+      if ((hydrated.snapshot as any)?.response?.path !== "/agents/sessions") throw new CommunicationsRuntimeError("communications_rejected_create_evidence_invalid");
+    }
+    const checked = await this.preflight();
+    const gmailMcp = checked.gmailMcp, definition = gmailMcp ? communicationsMcpDefinition(gmailMcp) : COMMUNICATIONS_HISTORY_DEFINITION;
+    const negativeCoverage = await this.readGlobalNegativeCoverage(params.jobId, original.requestDigest!, params.intent, original.createClaimedAt);
+    const child: CommunicationsCheckpoint = { createClaimedAt: new Date().toISOString(), sessionId: null, turnId: null,
+      historyProfile: COMMUNICATIONS_HISTORY_PROFILE, finalRepairProfile: FINAL_REPAIR_PROFILE,
+      historyConfigurationDigest: gmailMcp?.configurationDigest ?? COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST,
+      ...(gmailMcp ? { gmailMcp } : {}) };
+    const body: any = { agent_id: COMMUNICATIONS_SAVED_AGENT_ID, agent: gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION,
+      environment: { type: "none" }, input: params.input, stream: true,
+      ...(gmailMcp ? { vault_ids: communicationsMcpVaultIds(gmailMcp) } : {}), metadata: {
+        blueprint_communications_job: params.jobId, role: "communications",
+        blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
+        blueprint_communications_configuration_digest: gmailMcp?.savedConfigurationDigest ?? COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
+        blueprint_communications_history_profile: COMMUNICATIONS_HISTORY_PROFILE,
+        blueprint_communications_final_repair_profile: FINAL_REPAIR_PROFILE,
+        blueprint_communications_history_configuration_digest: child.historyConfigurationDigest,
+        blueprint_communications_original_request_digest: original.requestDigest,
+        blueprint_communications_brief_digest: params.intent.briefDigest,
+        blueprint_communications_delivery_key: params.intent.deliveryKey,
+        blueprint_communications_rejected_create_recovery: "rejected-create-v1",
+        blueprint_communications_original_checkpoint_digest: communicationsDigest(original),
+        blueprint_communications_recovery_owner_direction_digest: communicationsDigest(params.intent),
+        blueprint_communications_recovery_claimed_at: child.createClaimedAt,
+        blueprint_communications_recovery_deadline_ms: String(this.repairDeadline(child)),
+        ...(gmailMcp ? { blueprint_communications_mcp_profile: gmailMcp.profile,
+          ...(gmailMcp.profile === "mcp-vault-read-v1" ? { blueprint_communications_mcp_binding_digest: communicationsDigest(gmailMcp) } : {}) } : {}),
+        blueprint_communications_definition: definition.version, blueprint_communications_instructions_digest: definition.instructionsDigest } };
+    const correctedRequestDigest = communicationsDigest(body);
+    body.metadata.blueprint_communications_request_digest = correctedRequestDigest;
+    child.requestDigest = correctedRequestDigest;
+    const recovery: CommunicationsRejectedCreateRecovery = { version: "rejected-create-v1", intent: { ...params.intent },
+      originalCheckpointDigest: communicationsDigest(original), originalRequestDigest: original.requestDigest!,
+      originalCreateClaimedAt: original.createClaimedAt, rejectionProof: proof, negativeCoverage,
+      correctedBody: JSON.stringify(body), correctedRequestDigest, deadlineMs: this.repairDeadline(child), checkpoint: child };
+    await params.assertRepairAllowed();
+    await this.options.claimRejectedCreateRecovery(params.jobId, original, recovery);
+    // Claim is already durable if contextual controls change here. It is never
+    // reset and no replacement worker can issue this corrected POST again.
+    const after = await this.options.assertRejectedCreateRecovery(params.jobId, original, params.intent);
+    this.verifyRejectionProof(after, original, params.jobId, params.input);
+    if (communicationsDigest(after) !== communicationsDigest(proof)) throw new CommunicationsRuntimeError("communications_rejected_create_authority_changed");
+    await params.assertRepairAllowed();
+    if (Date.now() - Date.parse(negativeCoverage.completedAt) > 30000) throw new CommunicationsRuntimeError("communications_rejected_create_coverage_stale");
+    return this.runRecoveryAttempt(params, recovery, recovery.correctedBody);
+  }
+  private verifyRejectionProof(proof: CommunicationsRejectedCreateRecoveryProof, original: CommunicationsCheckpoint, jobId: string, input: string) {
+    if (!proof || proof.httpStatus !== 400 || proof.jobId !== jobId || proof.requestDigest !== original.requestDigest
+      || proof.createClaimedAt !== original.createClaimedAt || proof.inputDigest !== communicationsDigest({ input })
+      || !/^[a-f0-9]{64}$/.test(proof.evidenceDigest)) throw new CommunicationsRuntimeError("communications_rejected_create_evidence_invalid");
+  }
+  private verifyRecoveryRecord(original: CommunicationsCheckpoint, jobId: string, input?: string) {
+    const recovery = original.rejectedCreateRecovery!, prior = { ...original };
+    delete prior.rejectedCreateRecovery;
+    let body: any;
+    try { body = JSON.parse(recovery.correctedBody); } catch { throw new CommunicationsRuntimeError("communications_rejected_create_binding_invalid"); }
+    const digest = body?.metadata?.blueprint_communications_request_digest;
+    if (body?.metadata) delete body.metadata.blueprint_communications_request_digest;
+    if (recovery.version !== "rejected-create-v1" || recovery.originalCheckpointDigest !== communicationsDigest(prior)
+      || recovery.originalRequestDigest !== original.requestDigest || recovery.originalCreateClaimedAt !== original.createClaimedAt
+      || recovery.checkpoint.rejectedCreateRecovery || recovery.checkpoint.requestDigest !== recovery.correctedRequestDigest
+      || digest !== recovery.correctedRequestDigest || communicationsDigest(body) !== recovery.correctedRequestDigest
+      || typeof body.input !== "string" || Buffer.byteLength(body.input) > 64000 || (input !== undefined && body.input !== input)
+      || body.metadata?.blueprint_communications_job !== jobId
+      || body.metadata?.blueprint_communications_original_request_digest !== original.requestDigest
+      || body.metadata?.blueprint_communications_brief_digest !== recovery.intent.briefDigest
+      || body.metadata?.blueprint_communications_delivery_key !== recovery.intent.deliveryKey
+      || body.metadata?.blueprint_communications_original_checkpoint_digest !== recovery.originalCheckpointDigest
+      || body.metadata?.blueprint_communications_recovery_owner_direction_digest !== communicationsDigest(recovery.intent)
+      || body.metadata?.blueprint_communications_recovery_claimed_at !== recovery.checkpoint.createClaimedAt
+      || body.metadata?.blueprint_communications_recovery_deadline_ms !== String(recovery.deadlineMs)
+      || recovery.negativeCoverage.project !== COMMUNICATIONS_PROJECT
+      || !Array.isArray(recovery.negativeCoverage.rows) || recovery.negativeCoverage.count !== recovery.negativeCoverage.rows.length
+      || recovery.negativeCoverage.digest !== communicationsDigest(recovery.negativeCoverage.rows)
+      || !Number.isFinite(recovery.deadlineMs) || recovery.deadlineMs !== this.repairDeadline(recovery.checkpoint)) throw new CommunicationsRuntimeError("communications_rejected_create_binding_invalid");
+    this.verifyRejectionProof(recovery.rejectionProof, original, jobId, body.input);
+    return recovery;
+  }
+  private async runRecoveryAttempt(params: { input: string; jobId: string; checkpoint: CommunicationsCheckpoint;
+    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>;
+    validateOutput?: CommunicationsOutputValidator; assertRepairAllowed?: () => void | Promise<void> },
+    recovery: CommunicationsRejectedCreateRecovery, correctedBody?: string) {
+    const outer = { ...params.checkpoint, rejectedCreateRecovery: recovery };
+    const result = await this.runAttempt({ ...params, checkpoint: recovery.checkpoint,
+      saveCheckpoint: async checkpoint => { recovery.checkpoint = checkpoint; await params.saveCheckpoint({ ...outer, rejectedCreateRecovery: { ...recovery } }); } }, correctedBody);
+    return { ...result, checkpoint: { ...outer, rejectedCreateRecovery: { ...recovery, checkpoint: result.checkpoint } } };
+  }
+  private async readGlobalNegativeCoverage(jobId: string, requestDigest: string, intent: CommunicationsRejectedCreateRecoveryIntent, originalClaim: string) {
+    const observedAt = new Date().toISOString(), deadline = Date.now() + 180000;
+    const sessions: { id: string; createdAt: string; metadataDigest: string }[] = [], ids = new Set<string>(), cursors = new Set<string>();
+    let after = "", lastCreatedAt = -Infinity;
+    if (Date.parse(observedAt) < Date.parse(originalClaim)) throw new CommunicationsRuntimeError("communications_rejected_create_coverage_ambiguous");
+    while (true) {
+      if (Date.now() >= deadline) throw new CommunicationsRuntimeError("communications_rejected_create_coverage_incomplete");
+      // Project header supplies scope; never filter by agent/job/recipient.
+      const page = await this.json(`/agents/sessions?order=asc&limit=100${after ? `&after=${encodeURIComponent(after)}` : ""}`, 256000, deadline - Date.now());
+      if (!Array.isArray(page?.data) || typeof page.has_more !== "boolean") throw new CommunicationsRuntimeError("communications_rejected_create_coverage_incomplete");
+      for (const row of page.data) {
+        if (typeof row?.id !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(row.id) || ids.has(row.id)) throw new CommunicationsRuntimeError("communications_rejected_create_coverage_ambiguous");
+        ids.add(row.id);
+        const session = await this.json(`/agents/sessions/${encodeURIComponent(row.id)}`, 256000, deadline - Date.now());
+        const createdAt = typeof session?.created_at === "number" && Number.isSafeInteger(session.created_at)
+          ? session.created_at * 1000 : typeof session?.created_at === "string" ? Date.parse(session.created_at) : NaN;
+        if (!Number.isFinite(createdAt) || createdAt <= 0 || createdAt < lastCreatedAt || createdAt > Date.now()) {
+          throw new CommunicationsRuntimeError("communications_rejected_create_coverage_ambiguous");
+        }
+        lastCreatedAt = createdAt;
+        if (session?.id !== row.id || !session.metadata || typeof session.metadata !== "object" || Array.isArray(session.metadata)
+          || Object.values(session.metadata).some(value => typeof value !== "string")) throw new CommunicationsRuntimeError("communications_rejected_create_coverage_ambiguous");
+        if (session.metadata.blueprint_communications_job === jobId
+          || session.metadata.blueprint_communications_request_digest === requestDigest
+          || session.metadata.blueprint_communications_brief_digest === intent.briefDigest
+          || session.metadata.blueprint_communications_delivery_key === intent.deliveryKey) throw new CommunicationsRuntimeError("communications_rejected_create_session_exists");
+        sessions.push({ id: session.id, createdAt: new Date(createdAt).toISOString(), metadataDigest: communicationsDigest(session.metadata) });
+      }
+      if (!page.has_more) break;
+      if (!page.data.length || page.last_id !== page.data.at(-1).id || cursors.has(page.last_id)) throw new CommunicationsRuntimeError("communications_rejected_create_coverage_incomplete");
+      cursors.add(page.last_id); after = page.last_id;
+    }
+    if (Date.now() >= deadline) throw new CommunicationsRuntimeError("communications_rejected_create_coverage_incomplete");
+    return { project: COMMUNICATIONS_PROJECT, observedAt, completedAt: new Date().toISOString(), count: sessions.length, digest: communicationsDigest(sessions), rows: sessions };
+  }
+  private async runAttempt(params: {
+    input: string; jobId: string; checkpoint: CommunicationsCheckpoint;
+    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>;
     validateOutput?: CommunicationsOutputValidator;
     assertRepairAllowed?: () => void | Promise<void>;
-  }): Promise<{ output: CommunicationsOutput; checkpoint: CommunicationsCheckpoint; usage: unknown; outputSource?: CommunicationsOutputSource }> {
+  }, correctedBody?: string): Promise<{ output: CommunicationsOutput; checkpoint: CommunicationsCheckpoint; usage: unknown; outputSource?: CommunicationsOutputSource }> {
     if (!this.options.allowPaidInference) throw new CommunicationsRuntimeError("communications_inference_disabled");
     if (Buffer.byteLength(params.input) > 64000) throw new CommunicationsRuntimeError("communications_input_limit_exceeded");
     const checkpoint = await this.hydrateHistoryCheckpoint(params.checkpoint, params.jobId);
     const saveCheckpoint = async (value: CommunicationsCheckpoint) => params.saveCheckpoint(await this.projectHistoryCheckpoint(value, params.jobId));
-    if (checkpoint.createClaimedAt && !checkpoint.sessionId) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
+    try {
+    if (checkpoint.createClaimedAt && !checkpoint.sessionId && !correctedBody) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const fresh = !checkpoint.sessionId;
     let requestDigest = checkpoint.requestDigest;
-    if (fresh) {
+    if (fresh && !correctedBody) {
       if (!this.options.reservePaidDraft || !this.options.recordPaidDraftUsage) throw new CommunicationsRuntimeError("communications_paid_draft_admission_required");
       const checked = await this.preflight();
       const configurationDigest = checked.gmailMcp?.configurationDigest ?? COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST;
       requestDigest = communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
         configurationDigest, historyProfile: COMMUNICATIONS_HISTORY_PROFILE, finalRepairProfile: FINAL_REPAIR_PROFILE, input: params.input,
-        ...(checked.gmailMcp ? { mcpProfile: checked.gmailMcp.profile, savedConfigurationDigest: checked.gmailMcp.savedConfigurationDigest } : {}) });
+        ...(checked.gmailMcp ? { mcpProfile: checked.gmailMcp.profile, savedConfigurationDigest: checked.gmailMcp.savedConfigurationDigest,
+          mcpBindingDigest: communicationsDigest(checked.gmailMcp) } : {}) });
       await this.options.reservePaidDraft(params.jobId, requestDigest);
       checkpoint.createClaimedAt = new Date().toISOString();
       checkpoint.requestDigest = requestDigest;
@@ -153,16 +386,17 @@ export class CommunicationsAgentsAPI {
       return saved;
     }
     if (checkpoint.finalRepairProfile && checkpoint.finalRepairs?.length) {
-      return this.finishFinal(checkpoint, params.jobId, saveCheckpoint, params.validateOutput, params.assertRepairAllowed);
+      return await this.finishFinal(checkpoint, params.jobId, saveCheckpoint, params.validateOutput, params.assertRepairAllowed);
     }
     let gmailMcp;
-    try { gmailMcp = checkpoint.gmailMcp ? verifiedCommunicationsGmailBinding(checkpoint.gmailMcp) : undefined; }
+    try { gmailMcp = checkpoint.gmailMcp ? verifiedCommunicationsCurrentMcpBinding(checkpoint.gmailMcp) : undefined; }
     catch { throw new CommunicationsRuntimeError("agents_existing_session_mcp_binding_mismatch"); }
-    const definition = gmailMcp ? COMMUNICATIONS_GMAIL_READ_DEFINITION : COMMUNICATIONS_HISTORY_DEFINITION;
+    const definition = gmailMcp ? communicationsMcpDefinition(gmailMcp) : COMMUNICATIONS_HISTORY_DEFINITION;
     const handle = await this.request(fresh ? "/agents/sessions" : `/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, fresh ? {
-      method: "POST", body: JSON.stringify({
+      method: "POST", body: correctedBody ?? JSON.stringify({
         agent_id: COMMUNICATIONS_SAVED_AGENT_ID, agent: gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION,
         environment: { type: "none" }, input: params.input, stream: true,
+        ...(gmailMcp ? { vault_ids: communicationsMcpVaultIds(gmailMcp) } : {}),
         metadata: { blueprint_communications_job: params.jobId, role: "communications",
           blueprint_communications_request_digest: requestDigest,
           blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
@@ -170,7 +404,8 @@ export class CommunicationsAgentsAPI {
           blueprint_communications_history_profile: COMMUNICATIONS_HISTORY_PROFILE,
           blueprint_communications_final_repair_profile: FINAL_REPAIR_PROFILE,
           blueprint_communications_history_configuration_digest: checkpoint.historyConfigurationDigest,
-          ...(gmailMcp ? { blueprint_communications_mcp_profile: gmailMcp.profile } : {}),
+          ...(gmailMcp ? { blueprint_communications_mcp_profile: gmailMcp.profile,
+            ...(gmailMcp.profile === "mcp-vault-read-v1" ? { blueprint_communications_mcp_binding_digest: communicationsDigest(gmailMcp) } : {}) } : {}),
           blueprint_communications_definition: definition.version,
           blueprint_communications_instructions_digest: definition.instructionsDigest },
       }),
@@ -216,7 +451,7 @@ export class CommunicationsAgentsAPI {
     if (terminal && terminal !== "agent.session.turn.completed") throw new CommunicationsRuntimeError("agents_turn_failed_or_cancelled");
     const savedResult = saved ? await saved : null;
     if (savedResult?.error) throw savedResult.error;
-    if (checkpoint.finalRepairProfile) return this.finishFinal(checkpoint, params.jobId, saveCheckpoint, params.validateOutput, params.assertRepairAllowed);
+    if (checkpoint.finalRepairProfile) return await this.finishFinal(checkpoint, params.jobId, saveCheckpoint, params.validateOutput, params.assertRepairAllowed);
     let result = savedResult?.result ?? await this.reconcileSaved(checkpoint, params.jobId, saveCheckpoint);
     if (!result && checkpoint.historyProfile) {
       // Recover missed required-action events without a new user message/turn.
@@ -227,6 +462,31 @@ export class CommunicationsAgentsAPI {
     const projected = await this.projectHistoryCheckpoint(result.checkpoint, params.jobId);
     await params.saveCheckpoint(projected);
     return { ...result, checkpoint: projected };
+    } catch (error) {
+      await this.retainHttpFailure(error, checkpoint, params.jobId, saveCheckpoint, communicationsDigest({ input: params.input }));
+      throw error;
+    }
+  }
+  private httpScope(binding: HttpFailureBinding) {
+    return { collection: "agentCheckpoints" as const, id: `communications-http:${binding.jobId}:${communicationsDigest(binding)}` };
+  }
+  private async retainHttpFailure(error: unknown, checkpoint: CommunicationsCheckpoint, jobId: string,
+    persist: (checkpoint: CommunicationsCheckpoint) => Promise<void>, inputDigest: string | null = null) {
+    if (!(error instanceof CommunicationsRuntimeError) || !error.privateHttpResponse) return;
+    const evidence = error.privateHttpResponse;
+    const binding: HttpFailureBinding = { jobId, inputDigest, requestDigest: checkpoint.requestDigest ?? null,
+      createClaimedAt: checkpoint.createClaimedAt, sessionId: checkpoint.sessionId, turnId: checkpoint.turnId };
+    const failure: HttpFailure = { binding, status: evidence.status, method: evidence.method, capture: evidence.capture,
+      bytes: evidence.bytes, bodyDigest: evidence.bodyDigest, retention: "retained" };
+    delete checkpoint.httpEvidence;
+    try {
+      checkpoint.httpEvidence = await projectAgentEvidence({ snapshot: { version: 1, binding, response: evidence } }, this.httpScope(binding));
+      Object.defineProperty(error, "privateHttpEvidence", { value: checkpoint.httpEvidence, configurable: true });
+    } catch { failure.retention = "private_evidence_unavailable"; }
+    checkpoint.httpFailure = failure;
+    try { await persist({ ...checkpoint }); }
+    catch { failure.retention = "checkpoint_unpersisted"; }
+    Object.defineProperty(error, "httpFailure", { value: { ...failure }, configurable: true });
   }
   private async projectHistoryCheckpoint(checkpoint: CommunicationsCheckpoint, jobId: string) {
     if (!checkpoint.historyToolReceipts && !checkpoint.nativeMcpItems && !checkpoint.finalOutputSources && !checkpoint.finalRepairs) return { ...checkpoint };
@@ -253,6 +513,30 @@ export class CommunicationsAgentsAPI {
   }
   private async hydrateHistoryCheckpoint(value: CommunicationsCheckpoint, jobId: string) {
     const checkpoint = { ...value };
+    if (checkpoint.httpEvidence) {
+      // Diagnostics describe an earlier attempt. They never gate/renew the
+      // current session, whose authority is validated separately below.
+      try {
+        const failure = checkpoint.httpFailure, binding = failure?.binding;
+        if (!binding || binding.jobId !== jobId || !Number.isInteger(failure.status)
+          || failure.status < 300 || failure.status > 599 || !Number.isInteger(failure.bytes)
+          || failure.bytes < 0 || failure.bytes > 1000000) throw new Error("http_evidence_binding_invalid");
+        const hydrated = await hydrateAgentEvidence(checkpoint.httpEvidence, this.httpScope(binding));
+        const snapshot = hydrated.snapshot as any;
+        if (snapshot?.version !== 1 || communicationsDigest(snapshot.binding) !== communicationsDigest(binding)
+          || snapshot.response?.status !== failure.status || snapshot.response?.method !== failure.method
+          || snapshot.response?.capture !== failure.capture || snapshot.response?.bytes !== failure.bytes
+          || snapshot.response?.bodyDigest !== failure.bodyDigest
+          || typeof snapshot.response.bodyBase64 !== "string" || outputTextDigest(snapshot.response.bodyBase64) !== failure.bodyDigest
+          || Buffer.from(snapshot.response.bodyBase64, "base64").byteLength !== failure.bytes) {
+          throw new Error("http_evidence_bytes_invalid");
+        }
+      } catch {
+        // Preserve the known HTTP status and original scope without presenting
+        // unavailable private evidence as a current admission/accounting error.
+        if (checkpoint.httpFailure) checkpoint.httpFailure = { ...checkpoint.httpFailure, retention: "private_evidence_unavailable" };
+      }
+    }
     if (!checkpoint.historyEvidence) return checkpoint;
     if (!checkpoint.sessionId || checkpoint.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE || checkpoint.historyToolReceipts || checkpoint.nativeMcpItems
       || checkpoint.finalRepairs || checkpoint.finalOutputSources || checkpoint.usageReceipts) {
@@ -396,6 +680,7 @@ export class CommunicationsAgentsAPI {
         submitted.close(); receipt.delivery = "submitted";
       } catch (error) {
         receipt.delivery = "ack_unknown";
+        await this.retainHttpFailure(error, checkpoint, jobId, saveCheckpoint);
         await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
         throw new CommunicationsRuntimeError("agents_history_result_ack_unknown", true);
       }
@@ -403,7 +688,8 @@ export class CommunicationsAgentsAPI {
     }
   }
   /** Read saved artifacts only, including after the inference deadline expires. */
-  async reconcileUsage(checkpoint: CommunicationsCheckpoint, jobId: string) {
+  async reconcileUsage(checkpoint: CommunicationsCheckpoint, jobId: string): Promise<unknown> {
+    if (checkpoint.rejectedCreateRecovery) return this.reconcileUsage(this.verifyRecoveryRecord(checkpoint, jobId).checkpoint, jobId);
     if (!checkpoint.sessionId) return null;
     if (checkpoint.finalRepairProfile) {
       const hydrated = await this.hydrateHistoryCheckpoint(checkpoint, jobId);
@@ -428,7 +714,13 @@ export class CommunicationsAgentsAPI {
   /** Explicit recovery observes an EXISTING session only. The caller cannot
    * supply usage or replace a create claim. Missing legacy request metadata is
    * not proof of a matching request, absence, cancellation or zero spend. */
-  async verifyExistingDraftSession(checkpoint: CommunicationsCheckpoint, jobId: string, requestDigest: string) {
+  async verifyExistingDraftSession(checkpoint: CommunicationsCheckpoint, jobId: string, requestDigest: string): Promise<{
+    sessionId: string; requestDigest: string; turnId: string | null; usage: unknown }> {
+    if (checkpoint.rejectedCreateRecovery) {
+      const recovery = this.verifyRecoveryRecord(checkpoint, jobId);
+      if (![recovery.originalRequestDigest, recovery.correctedRequestDigest].includes(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
+      return this.verifyExistingDraftSession(recovery.checkpoint, jobId, recovery.correctedRequestDigest);
+    }
     const { turn } = await this.readBoundDraftSession(checkpoint, jobId, requestDigest);
     return { sessionId: checkpoint.sessionId!, requestDigest, turnId: turn?.id ?? null,
       usage: turn && ["completed", "failed", "cancelled"].includes(turn.status) ? turn.usage ?? null : null };
@@ -449,9 +741,11 @@ export class CommunicationsAgentsAPI {
     const hasGmail = checkpoint.gmailMcp !== undefined || session.metadata?.blueprint_communications_mcp_profile !== undefined;
     let gmailMcp;
     if (hasGmail) {
-      try { gmailMcp = verifiedCommunicationsGmailBinding(checkpoint.gmailMcp!); }
+      try { gmailMcp = verifiedCommunicationsCurrentMcpBinding(checkpoint.gmailMcp!); }
       catch { throw new CommunicationsRuntimeError("agents_existing_session_mcp_binding_mismatch"); }
-      if (!hasHistory || session.metadata?.blueprint_communications_mcp_profile !== gmailMcp.profile) {
+      if (!hasHistory || session.metadata?.blueprint_communications_mcp_profile !== gmailMcp.profile
+        || (gmailMcp.profile === "mcp-vault-read-v1"
+          && session.metadata?.blueprint_communications_mcp_binding_digest !== communicationsDigest(gmailMcp))) {
         throw new CommunicationsRuntimeError("agents_existing_session_mcp_binding_mismatch");
       }
     }
@@ -463,7 +757,7 @@ export class CommunicationsAgentsAPI {
         || session.metadata?.blueprint_communications_history_configuration_digest !== checkpoint.historyConfigurationDigest) {
         throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch");
       }
-      try { definition = gmailMcp ? verifiedCommunicationsGmailAgent(session.agent, gmailMcp) : verifiedCommunicationsHistoryAgent(session.agent); }
+      try { definition = gmailMcp ? verifiedCommunicationsCurrentMcpAgent(session.agent, gmailMcp) : verifiedCommunicationsHistoryAgent(session.agent); }
       catch { throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch"); }
     }
     const usesSavedAgent = session.metadata?.blueprint_communications_saved_agent !== undefined;
@@ -480,7 +774,9 @@ export class CommunicationsAgentsAPI {
       || session.agent?.service_tier !== (usesSavedAgent ? "auto" : "default") || !definition
       || !Array.isArray(session.agent?.tools) || (!hasHistory && session.agent.tools.length !== 0)
       || session.agent?.multi_agent?.enabled !== false || session.environment?.type !== "none"
-      || !Array.isArray(session.vault_ids) || session.vault_ids.length !== 0
+      || !Array.isArray(session.vault_ids) || session.vault_ids.some((value: unknown) => typeof value !== "string")
+      || new Set(session.vault_ids).size !== session.vault_ids.length
+      || communicationsDigest([...session.vault_ids].sort()) !== communicationsDigest(gmailMcp ? communicationsMcpVaultIds(gmailMcp) : [])
       || session.metadata?.blueprint_communications_job !== jobId || session.metadata?.role !== "communications"
       || session.metadata?.blueprint_communications_request_digest !== requestDigest
       || (session.metadata?.blueprint_communications_definition !== undefined
@@ -541,6 +837,13 @@ export class CommunicationsAgentsAPI {
   }
   async reconcileSaved(savedCheckpoint: CommunicationsCheckpoint, jobId: string,
     saveCheckpoint?: (checkpoint: CommunicationsCheckpoint) => Promise<void>) {
+    if (savedCheckpoint.rejectedCreateRecovery) {
+      const recovery = this.verifyRecoveryRecord(savedCheckpoint, jobId);
+      const result = await this.readFinal(recovery.checkpoint, jobId, saveCheckpoint ? async checkpoint => {
+        recovery.checkpoint = checkpoint; await saveCheckpoint({ ...savedCheckpoint, rejectedCreateRecovery: { ...recovery } });
+      } : undefined, false);
+      return result ? { ...result, checkpoint: { ...savedCheckpoint, rejectedCreateRecovery: { ...recovery, checkpoint: result.checkpoint } } } : null;
+    }
     return this.readFinal(savedCheckpoint, jobId, saveCheckpoint, false);
   }
   private async readFinal(savedCheckpoint: CommunicationsCheckpoint, jobId: string,
@@ -575,9 +878,8 @@ export class CommunicationsAgentsAPI {
       }
       checkpoint.nativeMcpItems = calls;
       if (saveCheckpoint) await saveCheckpoint({ ...checkpoint });
-      const allowed = checkpoint.gmailMcp.savedTool.allowed_tools ?? COMMUNICATIONS_GMAIL_READ_TOOLS;
       if (calls.some(item => !(checkpoint.finalRepairProfile ? turns.some((bound: any) => bound.id === item.turn_id) : item.turn_id === turn.id)
-        || item.server_label !== "gmail" || !allowed.includes(item.name))) {
+        || !communicationsMcpCallAllowed(checkpoint.gmailMcp!, item.server_label, item.name))) {
         throw new CommunicationsRuntimeError("agents_native_mcp_call_binding_mismatch");
       }
     }
@@ -777,7 +1079,8 @@ export class CommunicationsAgentsAPI {
         }, repair.deadlineMs - Date.now());
         handle.close(); accepted = true; repair.state = "submitted";
         await save({ ...checkpoint });
-      } catch {
+      } catch (error) {
+        await this.retainHttpFailure(error, checkpoint, jobId, save);
         // Saved input_unresolved is authoritative even if the ack or its
         // persistence was lost. The next iteration is GET reconciliation only.
       }
@@ -810,11 +1113,16 @@ export class CommunicationsAgentsAPI {
           if (event.type === "agent.session.requires_action") await this.handleHistoryActions(checkpoint, jobId, saveCheckpoint);
         }
       }
-    } catch {
+    } catch (error) {
+      await this.retainHttpFailure(error, checkpoint, jobId, saveCheckpoint);
       // Observer loss is only a reason to GET the exact saved attempt.
     } finally { handle?.close(); await reader?.cancel().catch(() => undefined); }
   }
-  async cancel(checkpoint: CommunicationsCheckpoint) {
+  async cancel(checkpoint: CommunicationsCheckpoint): Promise<boolean> {
+    if (checkpoint.rejectedCreateRecovery) {
+      const recovery = this.verifyRecoveryRecord(checkpoint, checkpoint.rejectedCreateRecovery.rejectionProof.jobId);
+      return this.cancel(recovery.checkpoint);
+    }
     if (!checkpoint.sessionId) return false;
     const handle = await this.request(`/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}/events`, {
       method: "POST", body: JSON.stringify({ events: [{ type: "agent.session.input.cancel" }] }),

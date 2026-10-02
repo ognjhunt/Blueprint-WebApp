@@ -7,7 +7,8 @@ import {
   communicationsSentReceiptIdentity,
   type ThreadMessage,
 } from "./communications-contract";
-import type { CommunicationsCheckpoint } from "./communications-api";
+import type { CommunicationsCheckpoint, CommunicationsRejectedCreateRecovery,
+  CommunicationsRejectedCreateRecoveryIntent } from "./communications-api";
 import type { ActionPayload } from "./action-policies";
 import { automaticFirstContactEnabled, firstContactAuthority, verifyFirstContactSource, ROUTINE_COMMUNICATIONS_POLICY,
   routineCommunicationsContentBlockers } from "./communications-first-contact";
@@ -191,6 +192,58 @@ export class CommunicationsStore {
       return { ...record, ...update };
     });
   }
+  /** Lease the same rejected job for an explicitly verified corrected-create
+   * action. The original claim and accounting are never cleared or replaced. */
+  async claimRejectedCreate(jobId: string, expectedCheckpointDigest: string) {
+    const ref = this.jobs().doc(jobId);
+    return this.db.runTransaction(async tx => {
+      const record = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
+      if (!record || record.state !== "blocked" || record.reason !== "agents_api_http_400"
+        || !record.checkpoint.createClaimedAt || !record.checkpoint.requestDigest
+        || record.checkpoint.sessionId || record.checkpoint.turnId || record.checkpoint.rejectedCreateRecovery
+        || communicationsDigest(record.checkpoint) !== expectedCheckpointDigest
+        || record.attempts >= 3 || (record.lease?.until ?? 0) > this.now()) {
+        throw new Error("communications_rejected_create_binding_changed");
+      }
+      const claimed = { ...record, state: "running" as const, attempts: record.attempts + 1,
+        lease: { owner: this.owner, until: this.now() + 180000 } };
+      tx.update(ref, { ...claimed, updatedAt: this.now() });
+      return claimed;
+    });
+  }
+  async assertRejectedCreateRecovery(jobId: string, original: CommunicationsCheckpoint,
+    intent: CommunicationsRejectedCreateRecoveryIntent) {
+    const record = (await this.jobs().doc(jobId).get()).data() as CommunicationsJobRecord | undefined;
+    const saved = record?.checkpoint && { ...record.checkpoint };
+    if (saved) delete saved.rejectedCreateRecovery;
+    if (!record || record.state !== "running" || record.reason !== "agents_api_http_400"
+      || record.lease?.owner !== this.owner || record.lease.until <= this.now()
+      || record.briefDigest !== intent.briefDigest || communicationsDeliveryKey(record) !== intent.deliveryKey
+      || communicationsDigest(saved) !== communicationsDigest(original)) {
+      throw new Error("communications_rejected_create_binding_changed");
+    }
+  }
+  /** The caller's trusted direction/proof verification runs before and after
+   * this transaction. The existing admission and child checkpoint claim commit
+   * together, before the one permitted provider POST. */
+  async commitRejectedCreateRecovery(jobId: string, original: CommunicationsCheckpoint,
+    recovery: CommunicationsRejectedCreateRecovery,
+    claimBudget: (tx: FirebaseFirestore.Transaction) => Promise<unknown>) {
+    const ref = this.jobs().doc(jobId);
+    await this.db.runTransaction(async tx => {
+      const record = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
+      if (!record || record.state !== "running" || record.reason !== "agents_api_http_400"
+        || record.lease?.owner !== this.owner || record.lease.until <= this.now()
+        || record.checkpoint.rejectedCreateRecovery || record.checkpoint.sessionId || record.checkpoint.turnId
+        || recovery.originalCheckpointDigest !== communicationsDigest(record.checkpoint)
+        || communicationsDigest(record.checkpoint) !== communicationsDigest(original)
+        || record.briefDigest !== recovery.intent.briefDigest || communicationsDeliveryKey(record) !== recovery.intent.deliveryKey) {
+        throw new Error("communications_rejected_create_binding_changed");
+      }
+      await claimBudget(tx);
+      tx.update(ref, { checkpoint: { ...original, rejectedCreateRecovery: recovery }, updatedAt: this.now() });
+    });
+  }
   async update(jobId: string, update: Partial<CommunicationsJobRecord>) {
     const ref = this.jobs().doc(jobId);
     await this.db.runTransaction(async (tx) => {
@@ -310,12 +363,15 @@ export class CommunicationsStore {
       let authority = proposedAuthority;
       if (record.automationPolicyVersion !== ROUTINE_COMMUNICATIONS_POLICY.version) authority = null;
       const prospective = record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
-      const quality = reviewCommunicationsPayload(payload, this.now());
-      let refusal = authority ? null : !automaticFirstContactEnabled() ? "automatic_first_contact_disabled"
-        : !firstContactPostalLine() ? "first_contact_postal_footer_unavailable"
-        : !quality.hardChecksPassed ? `draft_quality_failed:${quality.blockers.join(",")}`
-        : (payload.recipientGeography as any)?.countryCode !== "US" ? "routine_recipient_geography_not_authorized"
-        : routineCommunicationsContentBlockers(output, job.intent)[0] ?? "routine_source_scope_or_evidence_not_authorized";
+      let refusal: string | null = null;
+      if (prospective && !authority) {
+        const quality = reviewCommunicationsPayload(payload, this.now());
+        refusal = !automaticFirstContactEnabled() ? "automatic_first_contact_disabled"
+          : !firstContactPostalLine() ? "first_contact_postal_footer_unavailable"
+          : !quality.hardChecksPassed ? `draft_quality_failed:${quality.blockers.join(",")}`
+          : (payload.recipientGeography as any)?.countryCode !== "US" ? "routine_recipient_geography_not_authorized"
+          : routineCommunicationsContentBlockers(output, job.intent)[0] ?? "routine_source_scope_or_evidence_not_authorized";
+      }
       if (authority) {
         const approvedBrief = communicationsBriefSchema.parse(brief.data());
         const root = this.db.doc(COMMUNICATIONS_ROOT);

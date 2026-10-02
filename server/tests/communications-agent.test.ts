@@ -6,8 +6,8 @@ import { communicationsFixture, communicationsNow, memoryFirestore } from "./fix
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
-import { processCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
-import { CommunicationsRuntimeError } from "../agents/communications-api";
+import { processCommunicationsJob, recoverRejectedCommunicationsCreate, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
+import { CommunicationsRuntimeError, type CommunicationsAgentsAPI } from "../agents/communications-api";
 import { reserveCommunicationsDraft, reconcileCommunicationsDraftSession } from "../agents/communications-draft-budget";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 
@@ -33,6 +33,39 @@ async function setup(intent: "outreach" | "reply" = "outreach", now = () => comm
   return { ...fixture, job, db, store, deps, install };
 }
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); });
+
+describe("explicit rejected-create worker recovery", () => {
+  it("keeps an old rejected claim and normal draft review while invoking only the separately verified recovery", async () => {
+    const f = await setup(), original = { createClaimedAt: new Date(communicationsNow - 3600000).toISOString(),
+      requestDigest: "a".repeat(64), sessionId: null, turnId: null };
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ state: "blocked",
+      reason: "agents_api_http_400", attempts: 1, checkpoint: original });
+    const recoverRejectedCreate = vi.fn(async (_params: Parameters<CommunicationsAgentsAPI["recoverRejectedCreate"]>[0]) =>
+      ({ output: f.output, checkpoint: original, usage: null }));
+    const intent = { ownerDirectionRef: "private-retained-owner-direction", briefDigest: f.job.briefDigest,
+      deliveryKey: communicationsDeliveryKey(f.job) };
+    const result = await recoverRejectedCommunicationsCreate(f.job.jobId, communicationsDigest(original), intent,
+      { ...f.deps, api: { ...f.deps.api, recoverRejectedCreate } });
+    expect(result.state).toBe("pending_approval");
+    expect(recoverRejectedCreate).toHaveBeenCalledTimes(1);
+    expect(recoverRejectedCreate.mock.calls[0][0]).toMatchObject({ checkpoint: original, intent });
+    expect(f.deps.api.run).not.toHaveBeenCalled(); expect(f.deps.api.cancel).not.toHaveBeenCalled();
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`)).toMatchObject({ checkpoint: original, attempts: 2 });
+    expect(f.db.records.get(`outboundProspects/${f.job.prospectId}`).communications.gmailDraftId).toBeNull();
+  });
+  it.each(["agents_api_connection_unknown", "agents_api_http_500"])("does not lease an uncertain create tagged %s", async reason => {
+    const f = await setup(), checkpoint = { createClaimedAt: new Date(communicationsNow - 3600000).toISOString(),
+      requestDigest: "a".repeat(64), sessionId: null, turnId: null };
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ state: "blocked", reason, attempts: 1, checkpoint });
+    const recoverRejectedCreate = vi.fn();
+    await expect(recoverRejectedCommunicationsCreate(f.job.jobId, communicationsDigest(checkpoint), {
+      ownerDirectionRef: "private-retained-owner-direction", briefDigest: f.job.briefDigest,
+      deliveryKey: communicationsDeliveryKey(f.job),
+    }, { ...f.deps, api: { ...f.deps.api, recoverRejectedCreate } })).rejects.toThrow("rejected_create_binding_changed");
+    expect(recoverRejectedCreate).not.toHaveBeenCalled();
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).attempts).toBe(1);
+  });
+});
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("research handoff and publication integrity", () => {

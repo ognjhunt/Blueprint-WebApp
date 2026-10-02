@@ -70,6 +70,56 @@ export async function reserveCommunicationsDraft(db: FirebaseFirestore.Firestore
   });
 }
 
+export type CommunicationsRejectedCreateDraftBudgetClaim = {
+  jobId: string; originalRequestDigest: string; originalCheckpointDigest: string;
+  correctedRequestDigest: string; recoveryDigest: string; ownerDirectionRef: string;
+  negativeCoverageDigest: string; originalCreateClaimedAt: string; correctedCreateClaimedAt: string; deadlineMs: number;
+};
+
+/** Transaction participant for the trusted same-job rejected-create claim.
+ * The caller verifies owner direction, job/context and complete provider absence
+ * before entering this transaction. No model-supplied proof grants admission. */
+export async function claimCommunicationsRejectedCreateDraftBudget(db: FirebaseFirestore.Firestore,
+  tx: FirebaseFirestore.Transaction, input: CommunicationsRejectedCreateDraftBudgetClaim, now: number) {
+  const policy = configuredCommunicationsDraftBudget(), start = Date.parse(input.correctedCreateClaimedAt);
+  if (!input.jobId || !input.ownerDirectionRef.trim()
+    || [input.originalRequestDigest, input.originalCheckpointDigest, input.correctedRequestDigest,
+      input.recoveryDigest, input.negativeCoverageDigest].some(value => !/^[a-f0-9]{64}$/.test(value))
+    || !Number.isFinite(Date.parse(input.originalCreateClaimedAt)) || !Number.isFinite(start)
+    || !Number.isSafeInteger(input.deadlineMs) || input.deadlineMs !== start + 180000 || start > now || now >= input.deadlineMs) {
+    throw new CommunicationsDraftBudgetError("communications_rejected_create_budget_binding_invalid");
+  }
+  const root = db.doc(COMMUNICATIONS_ROOT), id = communicationsDigest({ jobId: input.jobId });
+  const ref = root.collection("draftBudgetAdmissions").doc(id), stateRef = root.collection("draftBudgetState").doc("current");
+  const day = firstContactCalendarDay(now), dayRef = root.collection("draftBudgetDays").doc(day);
+  const [saved, state, daily] = await Promise.all([tx.get(ref), tx.get(stateRef), tx.get(dayRef)]);
+  const row = saved.data(), claimDigest = communicationsDigest(input);
+  if (!row || row.jobId !== input.jobId || row.requestDigest !== input.originalRequestDigest
+    || !row.policy || communicationsDigest(row.policy) !== row.policyDigest || row.policyDigest !== communicationsDigest(policy)
+    || !["reserved", "usage_unknown"].includes(row.state) || state.data()?.activeAdmissionId !== id) {
+    throw new CommunicationsDraftBudgetError("communications_rejected_create_budget_binding_changed");
+  }
+  if (row.correctedCreate) {
+    if (row.correctedCreate.claimDigest !== claimDigest) throw new CommunicationsDraftBudgetError("communications_rejected_create_budget_already_claimed");
+    return { admissionId: id }; // Transaction replay only; it never authorizes another POST.
+  }
+  const unresolved = await tx.get(root.collection("draftBudgetAdmissions").where("state", "in", ["reserved", "usage_unknown"]).limit(2));
+  if (unresolved.docs.some(doc => doc.id !== id)) throw new CommunicationsDraftBudgetError("communications_draft_cost_unresolved");
+  const admissions = daily.data()?.admissions ?? 0, cost = daily.data()?.estimatedModelMicros ?? 0;
+  if (!Number.isSafeInteger(admissions) || admissions < 0 || !Number.isSafeInteger(cost) || cost < 0) {
+    throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
+  }
+  if (admissions >= COMMUNICATIONS_DRAFT_BUDGET.maxDailyAdmissions) throw new CommunicationsDraftBudgetError("communications_draft_daily_admission_limit");
+  if (cost >= policy.softTargetUsd * 1000000) throw new CommunicationsDraftBudgetError("communications_draft_soft_target_reached");
+  tx.update(ref, { state: "usage_unknown", usageState: "unresolved", originalUsageState: "unresolved",
+    correctedCreate: { version: "blueprint.communications-rejected-create-admission.v1", ...input,
+      requestDigest: input.correctedRequestDigest, claimDigest, day, policy, policyDigest: communicationsDigest(policy),
+      state: "reserved", usageState: "unresolved", admittedAt: new Date(now).toISOString() } });
+  tx.set(dayRef, { day, timezone: policy.timezone, admissions: admissions + 1,
+    estimatedModelMicros: cost, softTargetUsd: policy.softTargetUsd, updatedAt: new Date(now).toISOString() });
+  return { admissionId: id };
+}
+
 /** Only the verified saved root turn supplies usage. Missing or inconsistent
  * accounting holds the admission; a visible draft does not prove its cost. */
 export async function recordCommunicationsDraftUsage(db: FirebaseFirestore.Firestore, jobId: string, requestDigest: string, usage: unknown, now: number) {
@@ -77,7 +127,9 @@ export async function recordCommunicationsDraftUsage(db: FirebaseFirestore.Fires
   const stateRef = root.collection("draftBudgetState").doc("current");
   return db.runTransaction(async tx => {
     const [saved, state] = await Promise.all([tx.get(ref), tx.get(stateRef)]), row = saved.data();
-    if (!saved.exists || row?.jobId !== jobId || row.requestDigest !== requestDigest) throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
+    if (!saved.exists || row?.jobId !== jobId) throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
+    if (row.correctedCreate?.requestDigest === requestDigest) return writeCorrectedDraftUsage(tx, root, ref, stateRef, id, row, state.data(), usage, now);
+    if (row.requestDigest !== requestDigest) throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
     return writeDraftUsage(tx, root, ref, stateRef, id, row, state.data(), usage, now);
   });
 }
@@ -98,11 +150,46 @@ async function writeDraftUsage(tx: FirebaseFirestore.Transaction, root: Firebase
   if (!Number.isSafeInteger(previous) || previous < 0 || daily.estimatedModelMicros < previous || !Number.isSafeInteger(total) || total < 0) {
     throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
   }
-  tx.update(ref, { state: "usage_recorded", usage, estimatedModelMicros: retained,
-    usageState: "best_effort_not_invoice", checkedAt: new Date(now).toISOString() });
+  const correctionUnknown = row.correctedCreate && row.correctedCreate.state !== "usage_recorded";
+  tx.update(ref, { state: correctionUnknown ? "usage_unknown" : "usage_recorded", usage, estimatedModelMicros: retained,
+    usageState: correctionUnknown ? "unresolved" : "best_effort_not_invoice", checkedAt: new Date(now).toISOString(),
+    ...(row.correctedCreate ? { originalUsageState: "best_effort_not_invoice",
+      knownTotalModelMicros: retained + (row.correctedCreate.estimatedModelMicros ?? 0),
+      knownTotalIsComplete: !correctionUnknown } : {}) });
   tx.set(dayRef, { estimatedModelMicros: total, updatedAt: new Date(now).toISOString() }, { merge: true });
-  if (state?.activeAdmissionId === id) tx.set(stateRef, { activeAdmissionId: null });
-  return true;
+  if (!correctionUnknown && state?.activeAdmissionId === id) tx.set(stateRef, { activeAdmissionId: null });
+  return !correctionUnknown;
+}
+
+async function writeCorrectedDraftUsage(tx: FirebaseFirestore.Transaction, root: FirebaseFirestore.DocumentReference,
+  ref: FirebaseFirestore.DocumentReference, stateRef: FirebaseFirestore.DocumentReference, id: string,
+  row: any, state: any, usage: unknown, now: number) {
+  const correction = row.correctedCreate, dayRef = root.collection("draftBudgetDays").doc(correction.day);
+  const daily = (await tx.get(dayRef)).data();
+  if (!daily || !Number.isSafeInteger(daily.estimatedModelMicros) || daily.estimatedModelMicros < 0
+    || !correction.claimDigest || !correction.policy || communicationsDigest(correction.policy) !== correction.policyDigest) {
+    throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
+  }
+  const estimate = estimatedDraftMicros(usage);
+  if (estimate === null) {
+    tx.update(ref, { state: "usage_unknown", usageState: "unresolved", correctedCreate: { ...correction,
+      state: "usage_unknown", usageState: "unresolved", checkedAt: new Date(now).toISOString() } });
+    return false;
+  }
+  const previous = correction.estimatedModelMicros ?? 0, retained = Math.max(previous, estimate);
+  const total = daily.estimatedModelMicros + retained - previous, originalKnown = row.estimatedModelMicros ?? 0;
+  if (!Number.isSafeInteger(previous) || previous < 0 || daily.estimatedModelMicros < previous
+    || !Number.isSafeInteger(total) || total < 0 || !Number.isSafeInteger(originalKnown) || originalKnown < 0
+    || !Number.isSafeInteger(originalKnown + retained)) throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
+  // A corrected session's usage says nothing about the rejected original create.
+  const originalResolved = row.originalUsageState === "best_effort_not_invoice";
+  tx.update(ref, { state: originalResolved ? "usage_recorded" : "usage_unknown",
+    usageState: originalResolved ? "best_effort_not_invoice" : "unresolved", knownTotalModelMicros: originalKnown + retained,
+    knownTotalIsComplete: originalResolved, correctedCreate: { ...correction, state: "usage_recorded", usage,
+      estimatedModelMicros: retained, usageState: "best_effort_not_invoice", checkedAt: new Date(now).toISOString() } });
+  tx.set(dayRef, { estimatedModelMicros: total, updatedAt: new Date(now).toISOString() }, { merge: true });
+  if (originalResolved && state?.activeAdmissionId === id) tx.set(stateRef, { activeAdmissionId: null });
+  return originalResolved; // Without verified original usage the existing active hold remains.
 }
 
 export type CommunicationsDraftSessionRecovery = {
@@ -121,6 +208,11 @@ export async function reconcileCommunicationsDraftSession(db: FirebaseFirestore.
   const ref = root.collection("draftBudgetAdmissions").doc(id), jobRef = root.collection("jobs").doc(input.jobId);
   const stateRef = root.collection("draftBudgetState").doc("current");
   const validate = (row: any, job: any, state: any) => {
+    // This legacy route can bind only the original attempt. A corrected child
+    // must never be projected into its immutable original checkpoint/usage.
+    if (row?.correctedCreate || job?.checkpoint?.rejectedCreateRecovery) {
+      throw new CommunicationsDraftBudgetError("communications_corrected_create_session_recovery_requires_child");
+    }
     if (!row || row.jobId !== input.jobId || !/^[a-f0-9]{64}$/.test(row.requestDigest ?? "")
       || !row.policy || communicationsDigest(row.policy) !== row.policyDigest || !job
       || job.jobId !== input.jobId || job.prospectId !== input.prospectId || job.briefDigest !== input.briefDigest
@@ -179,6 +271,17 @@ export async function reconcileCommunicationsDraftCost(db: FirebaseFirestore.Fir
   const row = unresolved.docs[0].data();
   if (!row?.jobId || !row.requestDigest) throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
   const job = (await root.collection("jobs").doc(row.jobId).get()).data();
+  if (row.correctedCreate) {
+    const checkpoint = job?.checkpoint, recovery = checkpoint?.rejectedCreateRecovery, child = recovery?.checkpoint;
+    if (!checkpoint || !child?.sessionId) return;
+    if (checkpoint.requestDigest !== row.requestDigest || recovery.originalRequestDigest !== row.requestDigest
+      || recovery.correctedRequestDigest !== row.correctedCreate.requestDigest || child.requestDigest !== row.correctedCreate.requestDigest) {
+      throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
+    }
+    const usage = await api.reconcileUsage(checkpoint, row.jobId);
+    await recordCommunicationsDraftUsage(db, row.jobId, row.correctedCreate.requestDigest, usage, now);
+    return;
+  }
   if (!job?.checkpoint?.sessionId) return;
   if (job.checkpoint.requestDigest && job.checkpoint.requestDigest !== row.requestDigest) {
     throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");

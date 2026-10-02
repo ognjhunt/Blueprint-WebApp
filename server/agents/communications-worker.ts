@@ -8,7 +8,9 @@ import {
   type CommunicationsJob, type CommunicationsOutput,
 } from "./communications-contract";
 import { CommunicationsAgentsAPI, CommunicationsRuntimeError, type CommunicationsCheckpoint,
-  type CommunicationsOutputFeedback } from "./communications-api";
+  type CommunicationsOutputFeedback, type CommunicationsRejectedCreateRecoveryIntent,
+  type CommunicationsRejectedCreateRecoveryProof,
+  effectiveCommunicationsCheckpoint } from "./communications-api";
 import { verifyFounderMailbox, readFounderThread } from "./communications-gmail";
 import { readExistingResearchSnapshot, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
 import { reviewCommunicationsPayload } from "./communications-review";
@@ -22,7 +24,7 @@ import { automaticFirstContactEnabled, firstContactGeography, ROUTINE_COMMUNICAT
 import { executeAutomaticFirstContact } from "./communications-send";
 import { appendFirstContactFooter, firstContactPostalLine } from "./communications-first-contact-footer";
 import { CommunicationsDraftBudgetError, reserveCommunicationsDraft, recordCommunicationsDraftUsage,
-  reconcileCommunicationsDraftCost } from "./communications-draft-budget";
+  reconcileCommunicationsDraftCost, claimCommunicationsRejectedCreateDraftBudget } from "./communications-draft-budget";
 import { createNativeLearningHooks, REVIEWED_NATIVE_LEARNING_CONFIG } from "../research-learning/native-hooks";
 
 type CommunicationsLearningHooks = Pick<ReturnType<typeof createNativeLearningHooks>, "prepareNativeJob" | "afterNativeWork">;
@@ -30,7 +32,8 @@ type PreparedLearning = Awaited<ReturnType<CommunicationsLearningHooks["prepareN
 
 export type CommunicationsDependencies = {
   store: CommunicationsStore;
-  api: Pick<CommunicationsAgentsAPI, "run" | "cancel" | "reconcileSaved">;
+  api: Pick<CommunicationsAgentsAPI, "run" | "cancel" | "reconcileSaved">
+    & Partial<Pick<CommunicationsAgentsAPI, "recoverRejectedCreate">>;
   readResearch: ResearchSnapshotReader;
   verifyMailbox: () => Promise<unknown>;
   readThread: (threadId: string) => Promise<VerifiedThread>;
@@ -48,9 +51,49 @@ export function recoverSavedCommunicationsDraft(jobId: string, expectedOutputSha
   return processCommunicationsJob(jobId, deps, { expectedOutputSha256 });
 }
 
+/** Trusted operator action only. The API requires server-side verification of
+ * the retained owner direction, original rejection and fresh provider coverage.
+ * Normal context, output, approval and send checks still run unchanged. */
+export function recoverRejectedCommunicationsCreate(jobId: string, expectedCheckpointDigest: string,
+  intent: CommunicationsRejectedCreateRecoveryIntent, deps: CommunicationsDependencies) {
+  if (!/^[a-f0-9]{64}$/.test(expectedCheckpointDigest) || !deps.api.recoverRejectedCreate) {
+    throw new Error("communications_rejected_create_binding_changed");
+  }
+  return processCommunicationsJob(jobId, deps, undefined, { intent, expectedCheckpointDigest });
+}
+
+/** Existing trusted operator code must verify the retained human direction and
+ * hash-bound original HTTP400 receipt. These callbacks are deliberately absent
+ * from the recurring worker; neither model arguments nor a ref alone admits it. */
+export function communicationsRejectedCreateRecoveryOptions(store: CommunicationsStore,
+  verifyDirection: (jobId: string, original: CommunicationsCheckpoint,
+    intent: CommunicationsRejectedCreateRecoveryIntent) => Promise<CommunicationsRejectedCreateRecoveryProof>,
+  now = () => Date.now()): Pick<ConstructorParameters<typeof CommunicationsAgentsAPI>[0],
+    "assertRejectedCreateRecovery" | "claimRejectedCreateRecovery"> {
+  return {
+    assertRejectedCreateRecovery: async (jobId, original, intent) => {
+      await store.assertRejectedCreateRecovery(jobId, original, intent);
+      return verifyDirection(jobId, original, intent);
+    },
+    claimRejectedCreateRecovery: (jobId, original, recovery) => store.commitRejectedCreateRecovery(jobId, original, recovery,
+      tx => claimCommunicationsRejectedCreateDraftBudget(store.db, tx, {
+        jobId, originalRequestDigest: recovery.originalRequestDigest,
+        originalCheckpointDigest: recovery.originalCheckpointDigest,
+        correctedRequestDigest: recovery.correctedRequestDigest, recoveryDigest: communicationsDigest(recovery),
+        ownerDirectionRef: recovery.intent.ownerDirectionRef, negativeCoverageDigest: recovery.negativeCoverage.digest,
+        originalCreateClaimedAt: recovery.originalCreateClaimedAt,
+        correctedCreateClaimedAt: recovery.checkpoint.createClaimedAt!,
+        deadlineMs: recovery.deadlineMs,
+      }, now())),
+  };
+}
+
 export async function processCommunicationsJob(jobId: string, deps: CommunicationsDependencies,
-  recovery?: { expectedOutputSha256: string }) {
-  const claimed = await deps.store.claim(jobId);
+  recovery?: { expectedOutputSha256: string }, rejectedCreate?: {
+    intent: CommunicationsRejectedCreateRecoveryIntent; expectedCheckpointDigest: string }) {
+  const claimed = rejectedCreate
+    ? await deps.store.claimRejectedCreate(jobId, rejectedCreate.expectedCheckpointDigest)
+    : await deps.store.claim(jobId);
   if (!claimed) return { state: "no_op" };
   const job = communicationsJobSchema.parse(Object.fromEntries(Object.entries(claimed).filter(([key]) =>
     ["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"].includes(key))));
@@ -136,8 +179,9 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       }
       if (current.lease.until <= deps.now() || claimed.lease.until <= deps.now()) throw new Error("communications_lease_lost");
     };
-    const expired = claimed.checkpoint.createClaimedAt
-      && deps.now() - Date.parse(claimed.checkpoint.createClaimedAt) >= 180000;
+    const activeCheckpoint = effectiveCommunicationsCheckpoint(claimed.checkpoint);
+    const expired = !rejectedCreate && activeCheckpoint.createClaimedAt
+      && deps.now() - Date.parse(activeCheckpoint.createClaimedAt) >= 180000;
     // A completed saved turn remains useful after the observer/lease expired.
     // Reconciliation does only GETs; never extend the deadline or create a turn.
     const saved = recovery || expired ? await deps.api.reconcileSaved(claimed.checkpoint, jobId) : null;
@@ -146,7 +190,9 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       const cancelled = await deps.api.cancel(claimed.checkpoint);
       throw new CommunicationsRuntimeError(cancelled ? "communications_deadline_cancel_requested" : "session_create_requires_reconciliation");
     }
-    const result = saved ?? await deps.api.run({
+    const run = rejectedCreate ? (params: Parameters<CommunicationsAgentsAPI["run"]>[0]) =>
+      deps.api.recoverRejectedCreate!({ ...params, intent: rejectedCreate.intent }) : deps.api.run.bind(deps.api);
+    const result = saved ?? await run({
       input, jobId, checkpoint: claimed.checkpoint,
       saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => deps.store.update(jobId, { checkpoint }),
       assertRepairAllowed,
