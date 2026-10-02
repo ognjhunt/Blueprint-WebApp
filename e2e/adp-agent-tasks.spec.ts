@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { getOperatorQaFixtureForRequest } from "../scripts/qa/operator-surfaces";
+import { csrfProtection } from "../server/middleware/csrf";
 
 test("admitted agent cancellation and cleanup retain honest status and diagnosis", async ({ page }, testInfo) => {
   const admission = (taskId: string, title: string) => ({ task_id: taskId, run_id: `run-${taskId}`, title,
@@ -118,9 +119,11 @@ test("saved communications draft stays visible and draft-only after a queue read
   await page.screenshot({ path: testInfo.outputPath("communications-approvals-draft-only.png"), fullPage: true });
 });
 
-test("owner repairs a saved draft and revalidates it while sending remains disabled", async ({ page }, testInfo) => {
+test("owner repairs a saved draft after its CSRF cookie changes while sending remains disabled", async ({ page }, testInfo) => {
   const pageErrors: string[] = [];
   let failQueue = false;
+  let csrfReads = 0, csrfRefusals = 0;
+  const staleCsrf = "a".repeat(64), currentCsrf = "b".repeat(64);
   page.on("pageerror", error => { pageErrors.push(error.message); });
   const original = "I'm building Blueprint. We guarantee results. Is this useful?";
   const repaired = "I'm building Blueprint. Is this relevant?";
@@ -139,9 +142,26 @@ test("owner repairs a saved draft and revalidates it while sending remains disab
     const request = route.request(), url = new URL(request.url());
     if (["http:", "https:"].includes(url.protocol) && !["localhost", "127.0.0.1", "::1"].includes(url.hostname)) return route.fulfill({ status: 204, body: "" });
     if (!url.pathname.startsWith("/api/")) return route.continue();
+    if (url.pathname === "/api/csrf") {
+      csrfReads++;
+      const cookie = request.headers().cookie?.match(/(?:^|;\s*)csrf_token=([a-f0-9]{64})(?:;|$)/)?.[1];
+      const token = cookie ?? staleCsrf;
+      return route.fulfill({ json: { csrfToken: token }, headers: { "Set-Cookie": `csrf_token=${token}; Path=/; HttpOnly; SameSite=Lax` } });
+    }
     if (url.pathname.startsWith("/api/admin/leads/action-queue")) {
       expect(request.headers().authorization).toBe("Bearer operator-qa-local-token");
       if (request.method() === "POST") {
+        // Run the production middleware against the actual browser cookie and
+        // header before the fixture action can have any effect.
+        let allowed = false, refusal: { status: number; body: unknown } | null = null;
+        csrfProtection({ method: request.method(), headers: request.headers(),
+          header: (name: string) => request.headers()[name.toLowerCase()] } as any,
+          { status: (status: number) => ({ json: (body: unknown) => { refusal = { status, body }; } }) } as any,
+          () => { allowed = true; });
+        if (!allowed) {
+          csrfRefusals++;
+          return route.fulfill({ status: refusal!.status, json: refusal!.body });
+        }
         actions.push(url.pathname);
         expect(url.pathname).toBe("/api/admin/leads/action-queue/communications_saved-job/revise");
         const input = request.postDataJSON();
@@ -178,12 +198,18 @@ test("owner repairs a saved draft and revalidates it while sending remains disab
   await page.getByLabel(/fact-1: A verified/).check();
   await page.getByText("Review anchors", { exact: true }).click();
   await page.getByRole("textbox", { name: "One learning question", exact: true }).fill("Is this relevant?");
+  await expect.poll(() => csrfReads).toBeGreaterThan(0);
+  // Another session/cookie refresh leaves the page's module token cache old.
+  await page.context().addCookies([{ name: "csrf_token", value: currentCsrf,
+    url: new URL(page.url()).origin, httpOnly: true, sameSite: "Lax" }]);
   await page.getByRole("button", { name: "Save and revalidate" }).click();
   await expect(page.getByText(repaired, { exact: true })).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "Revision saved. It is ready for human review." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Approve outreach" })).toBeDisabled();
   await expect(page.getByText("Tier 3", { exact: true })).toBeVisible();
   expect(actions).toEqual(["/api/admin/leads/action-queue/communications_saved-job/revise"]);
+  expect(csrfReads).toBeGreaterThanOrEqual(2);
+  expect(csrfRefusals).toBe(0);
   expect(pageErrors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("communications-draft-revision-draft-only.png"), fullPage: true });
 });

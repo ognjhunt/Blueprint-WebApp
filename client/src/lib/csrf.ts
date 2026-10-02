@@ -1,9 +1,12 @@
 let cachedToken: string | null = null;
-let inflight: Promise<string> | null = null;
+type TokenRequest = { promise: Promise<string>; controller: AbortController; pending: boolean };
+let latestRequest: TokenRequest | null = null;
 
-const fetchCsrfToken = async (): Promise<string> => {
+const fetchCsrfToken = async (signal: AbortSignal): Promise<string> => {
   const response = await fetch("/api/csrf", {
     credentials: "include",
+    cache: "no-store",
+    signal,
   });
 
   if (!response.ok) {
@@ -15,7 +18,6 @@ const fetchCsrfToken = async (): Promise<string> => {
     throw new Error("CSRF token missing from response");
   }
 
-  cachedToken = data.csrfToken;
   return data.csrfToken;
 };
 
@@ -25,13 +27,27 @@ export const getCsrfToken = async (options: { refresh?: boolean } = {}): Promise
     return cachedToken;
   }
 
-  if (!inflight) {
-    inflight = fetchCsrfToken().finally(() => {
-      inflight = null;
-    });
+  if (options.refresh || !latestRequest?.pending) {
+    const previous = latestRequest, controller = new AbortController();
+    let request: TokenRequest;
+    const promise = fetchCsrfToken(controller.signal).then(token => {
+      // Only the newest GET can populate the cache. Older callers follow its
+      // result even if their transport finishes after it or ignores abort.
+      if (latestRequest !== request) return latestRequest!.promise;
+      cachedToken = token;
+      return token;
+    }).catch(error => {
+      if (latestRequest !== request) return latestRequest!.promise;
+      throw error;
+    }).finally(() => { request.pending = false; });
+    request = { promise, controller, pending: true };
+    latestRequest = request;
+    // Cancel only superseded token GETs, never a mutation. Already received
+    // cookie headers still rely on the server's unchanged CSRF check.
+    if (options.refresh && previous?.pending) previous.controller.abort();
   }
 
-  return inflight;
+  return latestRequest!.promise;
 };
 
 export const withCsrfHeader = async (
