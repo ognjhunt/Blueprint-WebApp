@@ -10,38 +10,47 @@ export type CommunicationsOutputSource = {
   definitionVersion: string; instructionsDigest: string;
   rawOutput: string; rawOutputSha256: string; rawOutputBytes: number;
   usageDigest: string; normalizedMetadataPaths: string[];
+  formatNormalizations?: string[];
+  validationIssues?: { path: string; code: string; message: string }[];
 };
 export function outputTextDigest(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-/** After an authenticated operator selects the exact reviewed artifact, the API
- * adapter recognizes extensions only in the two metadata objects affected by
- * the legacy prompt. Ordinary parsing remains strict. Unknown control fields,
- * other paths, missing/invalid core values, or a changed artifact still fail.
- * Every removed metadata path is named, and raw bytes remain in outputSource. */
-export function parseCommunicationsOutput(raw: string, expectedSavedOutputDigest?: string): { output: CommunicationsOutput; normalizedMetadataPaths: string[] } {
+const pointer = (path: (string | number)[]) => "/" + path.map(segment => String(segment).replace(/~/g, "~0").replace(/\//g, "~1")).join("/");
+export class CommunicationsOutputValidationError extends Error {
+  constructor(public validationIssues: NonNullable<CommunicationsOutputSource["validationIssues"]>,
+    public normalizedMetadataPaths: string[] = [], public formatNormalizations: string[] = []) {
+    super("communications_output_invalid");
+  }
+}
+
+/** Canonical fields keep their meanings. Extra metadata is inert evidence,
+ * never approval or source verification; raw text remains in outputSource.
+ * Harmless wrappers/metadata need no operator approval. An optional expected
+ * hash still binds explicit saved-output recovery to the selected artifact. */
+export function parseCommunicationsOutput(raw: string, expectedSavedOutputDigest?: string): {
+  output: CommunicationsOutput; normalizedMetadataPaths: string[]; formatNormalizations: string[];
+} {
   if (expectedSavedOutputDigest && outputTextDigest(raw) !== expectedSavedOutputDigest) throw Error("communications_saved_output_changed");
-  const value = JSON.parse(raw), parsed = communicationsOutputSchema.safeParse(value);
-  if (parsed.success) return { output: parsed.data, normalizedMetadataPaths: [] };
-  if (!expectedSavedOutputDigest) throw parsed.error;
-  const core = structuredClone(value), normalizedMetadataPaths: string[] = [];
-  const controlField = /^(?:proto|prototype|constructor|status|disposition|to|from|replyto|headers|(?:approved|approval|authority|permission|consent|send|transport|instructions|requireshumanreview|suppressed|optout|donotcontact).*|(?:source|contact|claim|evidence)verified)$/i;
-  for (const issue of parsed.error.issues) {
-    const location = JSON.stringify(issue.path);
-    if (issue.code !== "unrecognized_keys" || ![JSON.stringify(["outreachContract"]),
-      JSON.stringify(["outreachContract", "opening", "publicDetail"])].includes(location)) throw parsed.error;
+  const fence = raw.match(/^\s*```(?:json)?\s*\n([\s\S]*?)\n?```\s*$/i), formatNormalizations = fence ? ["complete_json_code_fence"] : [];
+  let core;
+  try { core = JSON.parse(fence ? fence[1] : raw); }
+  catch { throw new CommunicationsOutputValidationError([{ path: "/", code: "invalid_json",
+    message: "Return one JSON object using the supplied canonical fields; a complete JSON code fence is accepted." }], [], formatNormalizations); }
+  const parsed = communicationsOutputSchema.safeParse(core), normalizedMetadataPaths: string[] = [];
+  for (const issue of parsed.success ? [] : parsed.error.issues) {
+    if (issue.code !== "unrecognized_keys") continue;
     let target = core;
     for (const segment of issue.path) target = target[segment];
     for (const key of issue.keys) {
-      // The actual v1 artifact repeats the required review flag at this node.
-      // Verify the duplicate agrees; never normalize a false/conflicting flag.
-      if (location === JSON.stringify(["outreachContract"]) && key === "requiresHumanReview") {
-        if (target[key] !== true || core.requiresHumanReview !== true) throw parsed.error;
-      } else if (controlField.test(key.replace(/[^a-z0-9]/gi, ""))) throw parsed.error;
-      normalizedMetadataPaths.push("/" + [...issue.path, key].map(segment => String(segment).replace(/~/g, "~0").replace(/\//g, "~1")).join("/"));
+      normalizedMetadataPaths.push(pointer([...issue.path, key]));
       delete target[key];
     }
   }
-  return { output: communicationsOutputSchema.parse(core), normalizedMetadataPaths: normalizedMetadataPaths.sort() };
+  normalizedMetadataPaths.sort();
+  const canonical = communicationsOutputSchema.safeParse(core);
+  if (!canonical.success) throw new CommunicationsOutputValidationError(canonical.error.issues.map(issue => ({
+    path: pointer(issue.path), code: issue.code, message: issue.message })), normalizedMetadataPaths, formatNormalizations);
+  return { output: canonical.data, normalizedMetadataPaths, formatNormalizations };
 }

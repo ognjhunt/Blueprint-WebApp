@@ -3,7 +3,7 @@ import {
   COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest,
   type CommunicationsOutput,
 } from "./communications-contract";
-import { parseCommunicationsOutput, outputTextDigest, type CommunicationsOutputSource } from "./communications-output";
+import { parseCommunicationsOutput, outputTextDigest, CommunicationsOutputValidationError, type CommunicationsOutputSource } from "./communications-output";
 
 export type CommunicationsCheckpoint = {
   createClaimedAt: string | null; sessionId: string | null; turnId: string | null;
@@ -215,12 +215,18 @@ export class CommunicationsAgentsAPI {
     if (this.options.recordPaidDraftUsage) await this.options.recordPaidDraftUsage(jobId, checkpoint.requestDigest!, turn.usage ?? null);
     const items: any[] = [];
     let after = "";
-    for (let page = 0; page < 4; page++) {
+    const cursors = new Set<string>(), readDeadline = Date.now() + 100000;
+    let itemBytes = 0;
+    while (true) {
+      if (Date.now() >= readDeadline) throw new CommunicationsRuntimeError("agents_saved_items_read_deadline", true);
       const result = await this.json(`${path}/items?order=asc&limit=100${after ? `&after=${encodeURIComponent(after)}` : ""}`, 256000);
       if (!Array.isArray(result.data)) throw new CommunicationsRuntimeError("agents_items_invalid");
+      itemBytes += Buffer.byteLength(JSON.stringify(result.data));
+      if (itemBytes > 2000000) throw new CommunicationsRuntimeError("agents_saved_items_export_required");
       items.push(...result.data);
       if (!result.has_more) break;
-      if (!result.last_id || page === 3) throw new CommunicationsRuntimeError("agents_items_limit_exceeded");
+      if (typeof result.last_id !== "string" || !result.last_id || cursors.has(result.last_id)) throw new CommunicationsRuntimeError("agents_items_cursor_did_not_advance");
+      cursors.add(result.last_id);
       after = result.last_id;
     }
     const final = items.filter((item) => item.turn_id === turn.id && item.type === "message"
@@ -245,8 +251,16 @@ export class CommunicationsAgentsAPI {
     }
     let parsed;
     try { parsed = parseCommunicationsOutput(raw, this.options.reviewedSavedOutputDigest); }
-    catch { throw new CommunicationsRuntimeError("communications_output_invalid", false, outputSource); }
+    catch (error) {
+      if (error instanceof CommunicationsOutputValidationError) {
+        outputSource.validationIssues = error.validationIssues;
+        outputSource.normalizedMetadataPaths = error.normalizedMetadataPaths;
+        outputSource.formatNormalizations = error.formatNormalizations;
+      }
+      throw new CommunicationsRuntimeError("communications_output_invalid", false, outputSource);
+    }
     outputSource.normalizedMetadataPaths = parsed.normalizedMetadataPaths;
+    if (parsed.formatNormalizations.length) outputSource.formatNormalizations = parsed.formatNormalizations;
     return { output: parsed.output, checkpoint: { ...checkpoint }, usage: turn.usage ?? null, outputSource };
   }
   async cancel(checkpoint: CommunicationsCheckpoint) {

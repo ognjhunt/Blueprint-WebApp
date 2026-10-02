@@ -21,7 +21,7 @@ export const communicationsResearchInputSchema = z.object({
     siteId: id, taskId: id, caseId: id, decision: text, decisionOwner: text.nullable(),
     purpose: text, learningQuestion: text,
     contactSourceEmail: z.string().email().max(254), contactSourceUrl: url,
-    contactSourceCheckedAt: z.union([z.string().datetime(), z.string().date()]),
+    contactSourceCheckedAt: z.union([z.string().datetime({ offset: true }), z.string().date()]),
     contactSourceIdentifiesRecipient: z.literal(true),
     consent: z.object({
       status: z.literal("public_business_contact"), sharingBoundary: text,
