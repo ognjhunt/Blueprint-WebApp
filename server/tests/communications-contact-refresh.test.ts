@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { admitPublishedResearch, runCommunicationsIntake, runCommunicationsContactRefresh, RESEARCH_WORK_ITEMS } from "../agents/communications-intake";
-import { sameOperatorUrl, contactUnknowns, publishedPublicContact } from "../agents/communications-contact-evidence";
+import { sameOperatorUrl, contactUnknowns, publishedPublicContact, extractBusinessContact } from "../agents/communications-contact-evidence";
 import { verifyContactResolution, contactPageText } from "../agents/communications-contact-resolution";
 import { verifyPublishedResearch, researchPublicationSource } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
@@ -87,6 +87,51 @@ describe("contact-free pinned producer → communications contact fulfillment (o
     expect(f.records("briefs")[0].contact.scope).toBe("organization_business_route");
     expect(f.records("contactProofs")[0].contact.site).toBeNull();
     expect(f.records("briefs")[0].outreachContext.connectionEvidence).toBeNull();
+  });
+
+  it("accepts the retained official general-contact wording only as an organization route", () => {
+    // Visible public text checked 2026-10-02 at https://www.cleanservices.co.uk/contact.
+    // This excerpt is not a retained HTML/visibility proof or a production contact admission.
+    const quote = "For more information, contact us on: 0330 818 7008 info@cleanservices.co.uk";
+    const candidate = { organization: "CLEAN Linen & Workwear", organization_url: "https://www.cleanservices.co.uk", site: "Yeovil",
+      unknowns: ["Site data-sharing permission is unknown."], evidence: [{
+        claim: "CLEAN Linen & Workwear publishes a general contact route", quote,
+        url: "https://www.cleanservices.co.uk/contact", classification: "operator", claim_kind: "fact", origin: "live",
+        assertion_scope: "current_operational", checked_date: "2026-10-02",
+      }] };
+    expect(publishedPublicContact(candidate)).toMatchObject({ email: "info@cleanservices.co.uk", scope: "organization_business_route",
+      sourceUrl: "https://www.cleanservices.co.uk/contact" });
+    expect(extractBusinessContact(`Yeovil: ${quote}`, candidate, false, true).scope).toBe("organization_business_route");
+    expect(extractBusinessContact(`Yeovil business inquiries: ${quote}`, candidate, false, true).scope).toBe("site");
+    expect(() => publishedPublicContact({ ...candidate, evidence: [{ ...candidate.evidence[0], url: "https://other.example/contact" }] })).toThrow();
+    expect(() => extractBusinessContact(quote, candidate)).toThrow();
+  });
+
+  it("retains a general-route sidecar without changing research or inferring a site owner", async () => {
+    const f = setup({ actualProducer: true, unknowns: ["No public business contact has been identified.", "Site permission is unknown."] });
+    const original = structuredClone(f.snapshot);
+    f.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${f.candidate.organization}</h1><p>For more information, contact us on: ${f.prospect.contactEmail}</p>`));
+    await f.request(); await f.refresh(); await f.request(); await f.refresh();
+    expect(f.snapshot).toEqual(original);
+    expect(f.records("jobs")).toHaveLength(1); expect(f.records("contactProofs")).toHaveLength(1);
+    expect(f.records("contactProofs")[0]).toMatchObject({ contact: { scope: "organization_business_route", site: null }, qa: { state: "approved" } });
+    expect(f.records("briefs")[0]).toMatchObject({ unknowns: f.candidate.unknowns,
+      outreachContext: { connectionEvidence: null }, contact: { scope: "organization_business_route" } });
+  });
+
+  it.each(["Newsletter subscriptions", "Login assistance", "Personal email", "Technical support only", "Media enquiries", "No unsolicited contact"])
+    ("does not convert %s into a general business route", label => {
+      expect(() => extractBusinessContact(`${label}: For more information, contact us on: person@facility.example`,
+        { organization: "Synthetic operator", site: "Synthetic site" }, false, true)).toThrow();
+    });
+
+  it("rejects an ambiguous general-contact segment beside another valid route", async () => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, f.business
+      + `<p>${f.candidate.organization}: For more information, contact us on: first@facility.example or second@facility.example</p>`));
+    await f.request(); await f.refresh();
+    expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("refreshRequests")[0]).toMatchObject({ state: "terminal", reason: "contact_resolution_ambiguous_segment" });
   });
 
   it("survives concurrent consumption and restart/replay with one proof, job and first-touch claim", async () => {

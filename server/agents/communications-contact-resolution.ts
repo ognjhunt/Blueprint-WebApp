@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { communicationsDigest } from "./communications-contract";
-import { assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, extractBusinessContact, restrictedContact, sameOperatorUrl } from "./communications-contact-evidence";
+import { assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, extractBusinessContact, restrictedContact, sameOperatorUrl, supportedBusinessRoute } from "./communications-contact-evidence";
 import { CONTACT_PAGE_LIMIT, contactFetchUrl, type ContactPage, type ContactPageReader } from "./communications-contact-fetch";
 
 const EXTRACTOR = "blueprint.public-contact-text.v1" as const;
@@ -151,7 +151,7 @@ function checkResolution(value: unknown, source: any, prospectId: string) {
     for (const [segmentIndex, quote] of parsed.segments.entries()) {
       if (quote.length > 1200) continue;
       try { found.push({ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex, segmentIndex, quote, visibleTextDigest }); }
-      catch { if (/\b(?:business|commercial|partnership) (?:inquiries|enquiries)\b/i.test(quote) && quote.includes("@")
+      catch { if (supportedBusinessRoute(quote) && quote.includes("@")
         && !restrictedContact.test(quote)) throw new Error("contact_resolution_ambiguous_segment"); }
     }
   }
