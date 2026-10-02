@@ -5,7 +5,7 @@ import { communicationsFixture, communicationsNow, memoryFirestore } from "./fix
 import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
 import { communicationsDeliveryKey } from "../agents/communications-contract";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
-import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, type GmailDraftPorts } from "../agents/communications-gmail-draft";
+import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, type GmailDraftPorts } from "../agents/communications-gmail-draft";
 beforeEach(()=>vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE","Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000"));
 afterEach(()=>vi.unstubAllEnvs());
 function fixture() {
@@ -22,7 +22,7 @@ function fixture() {
  ]));
  let copied:any=null;
  const receipt={draftId:"gmail-draft-1",messageId:"gmail-message-1",threadId:"gmail-thread-1"};
- const ports:GmailDraftPorts={enabled:()=>true,requireCapability:vi.fn(async()=>{}),verifyMailbox:vi.fn(async()=>{}),priorContact:vi.fn(async()=>false),write:vi.fn(async content=>{copied=structuredClone(content);return{draftId:receipt.draftId};}),find:vi.fn(async content=>copied&&content.payloadDigest===copied.payloadDigest?receipt:null)};
+ const ports:GmailDraftPorts={enabled:()=>true,allowsRevision:()=>true,requireCapability:vi.fn(async()=>{}),verifyMailbox:vi.fn(async()=>{}),priorContact:vi.fn(async()=>false),write:vi.fn(async content=>{copied=structuredClone(content);return{draftId:receipt.draftId};}),find:vi.fn(async content=>copied&&content.payloadDigest===copied.payloadDigest?receipt:null)};
  const input={expectedReviewDigest:reviewDigest,expectedRevisionId:revisionId,mode:"write"};
  return{db,job,brief,ledgerId,input,ports,payload,root,receipt,setCopied:(v:any)=>{copied=v;}};
 }
@@ -40,7 +40,7 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   expect(f.ports.write).toHaveBeenCalledTimes(1);
   expect([...f.db.records].filter(([path])=>!path.includes("/gmailDraftBindings/"))).toEqual(source);
  });
- it("updates the same draft for a later canonical revision and does not duplicate its replay",async()=>{
+ it("keeps the approved verified copy unchanged when a later canonical revision appears",async()=>{
   const f=fixture();await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow);
   const payload=structuredClone(f.payload);payload.communications.output.body+=" Thank you.";payload.body=payload.communications.output.body;
   payload.transportBody=appendFirstContactFooter(payload.body,f.brief.contact.email);
@@ -49,9 +49,25 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   f.db.records.set(`${f.root}/jobs/${f.job.jobId}`,{...f.db.records.get(`${f.root}/jobs/${f.job.jobId}`),output:payload.communications.output,reviewDigest,draftRevisionId:revisionId});
   f.db.records.set(`${f.root}/draftRevisions/${revisionId}`,{ledgerId:f.ledgerId,jobId:f.job.jobId,output:payload.communications.output});
   const input={expectedReviewDigest:reviewDigest,expectedRevisionId:revisionId,mode:"write"};
-  expect(await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",input,f.ports,communicationsNow)).toMatchObject({state:"verified",draftId:"gmail-draft-1"});
-  expect(vi.mocked(f.ports.write).mock.calls[1][1]).toBe("gmail-draft-1");
-  await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",input,f.ports,communicationsNow);expect(f.ports.write).toHaveBeenCalledTimes(2);
+  await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",input,f.ports,communicationsNow)).rejects.toThrow("approved_copy_already_exists");
+  expect(f.ports.write).toHaveBeenCalledTimes(1);
+ });
+ it("admits only the configured job, immutable revision and reviewed payload before mailbox access",async()=>{
+  const f=fixture();vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","true");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF","BP-APPROVAL-GMAIL-DRAFT-20261002-TONY");
+  const configured=configuredGmailDraftPorts();expect(configured.enabled()).toBe(false);
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_JOB_ID",f.job.jobId);
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVISION_ID",f.input.expectedRevisionId);
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVIEW_DIGEST",f.input.expectedReviewDigest);
+  f.ports.enabled=configured.enabled;f.ports.allowsRevision=configured.allowsRevision;
+  expect(await communicationsGmailDraftStatus(f.db,f.ledgerId,f.payload,f.input.expectedRevisionId,f.input.expectedReviewDigest)).toMatchObject({writesEnabled:true,state:"not_copied"});
+  for(const input of [{...f.input,expectedRevisionId:"b".repeat(64)},{...f.input,expectedReviewDigest:"b".repeat(64)}]) {
+   await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",input,f.ports,communicationsNow)).rejects.toThrow("outside_approved_revision_window");
+  }
+  await expect(mirrorCommunicationsGmailDraft(f.db,`communications_${"b".repeat(64)}`,"owner",f.input,f.ports,communicationsNow)).rejects.toThrow("outside_approved_revision_window");
+  expect(f.ports.requireCapability).not.toHaveBeenCalled();expect(f.ports.write).not.toHaveBeenCalled();
+  expect(await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).toMatchObject({state:"verified"});
+  expect(await communicationsGmailDraftStatus(f.db,f.ledgerId,f.payload,f.input.expectedRevisionId,f.input.expectedReviewDigest)).toMatchObject({writesEnabled:false,state:"verified",currentRevisionVerified:true});
  });
  it("recovers an unknown create acknowledgement through exact readback and never creates twice",async()=>{
   const f=fixture();vi.mocked(f.ports.write).mockImplementationOnce(async content=>{f.setCopied(content);throw new Error("connection ended after accepted draft create");});

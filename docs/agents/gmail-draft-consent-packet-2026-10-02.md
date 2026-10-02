@@ -7,9 +7,13 @@ Gmail draft creation requires compose scope; the installed founder binding has
 read-only plus send scope. Completion artifact: an exact-revision, readback-
 verified Gmail `DRAFT` delivery copy, with canonical company records preserved.
 
-**Why blocked:** OAuth expansion and a real mailbox draft write need the owner's
-explicit permission. This packet is prepared; consent and draft writes remain
-disabled. The existing send grant is not message-send authorization. Google
+**Approval recorded:** The owner replied “Approve compose and one draft only”
+in this thread on 2026-10-02 to question item
+`["request_user_input_async","call_WPD6LNdwi8lTSCz8gFyTKNX3",0]`.
+The separate nonsecret reference is `BP-APPROVAL-GMAIL-DRAFT-20261002-TONY`.
+Consent remains an owner-browser action; this approval does not prove it has
+completed or that a Gmail copy exists. Draft writes remain disabled until the
+bounded activation below. The existing send grant is not message-send authorization. Google
 `gmail.compose` permits managing drafts **and sending**, so Google's consent
 cannot itself express draft-only use. Blueprint's stopped send controls and
 separate message approvals remain necessary.
@@ -29,10 +33,10 @@ identity headers must pass readback before reporting verified. Unknown create
 acknowledgements remain unresolved until that exact draft appears; they cannot
 trigger another create.
 
-**Exact response needed:** “Approve the separate compose consent for
-nijel@tryblueprint.io and one draft-only Gmail copy of Tony's preserved revision
-6554668d42ff72712f4d656afaeaedb0c2590dfb2956afe1fa510faec28d118d;
-do not send or resume schedules.” The founder completes Google's consent in
+**Approved scope:** Separate compose consent for `nijel@tryblueprint.io` and one
+draft-only Gmail copy of Tony's preserved revision
+`6554668d42ff72712f4d656afaeaedb0c2590dfb2956afe1fa510faec28d118d`.
+Do not send or resume schedules. The founder completes Google's consent in
 the existing authenticated owner browser. No secret value is entered in chat.
 
 **Execution owner after reply:** This audit's communications owner, with Nijel
@@ -58,6 +62,50 @@ copy. Status identifies the last readback and stale copies after edits. An
 unsaved edit cannot be copied. Consent and draft copying never tick approval
 boxes or start sending. Readback rejects extra Cc/Bcc/duplicate identity headers
 and attachments or alternate MIME content outside the authored plain text.
+
+The one-copy window additionally requires exact configured job ID, revision ID
+and review digest. It refuses another job or a regenerated/edited revision before
+mailbox access. A verified copy can only be observed; later revisions cannot
+update it under this approval. Unknown acknowledgements retain the original
+attempt and remain observation-only. No creator lease expires automatically.
+
+**Existing authorized configuration route:** The reviewed manual workflow
+`.github/workflows/tony-gmail-draft-window.yml` uses only the existing Actions
+`RENDER_API_KEY`. Its fixed target is web service `srv-d4vnmk3e5dus73aiohk0`;
+the worker service is untouched. It accepts only these operations:
+
+1. `prepare-consent` individually writes the approval reference and exact
+   approved job/revision/review keys, with
+   `BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED=false`. It refuses conflicting
+   existing scope. Run this on merged `main` before its main-CI deployment when
+   possible; no credential is copied or new secret installed.
+2. After the owner completes Google consent and authenticated founder status
+   confirms the same approved compose binding, `open-one-draft` changes only
+   the draft flag to `true`. The server still requires that consent and the exact
+   current unsent canonical revision. Use **Save Gmail draft** once, then retain
+   the full recipient/body/footer/header readback receipt. Do not regenerate.
+3. `close-one-draft` sets only the draft flag to `false` after that observed
+   copy, or to stop the window. Keep the canonical revision and optional Gmail
+   copy; closure does not delete either or revoke the existing OAuth binding.
+4. `inspect` performs only individual-key readback of the five nonsecret keys
+   and emits matching booleans. No complete service environment is requested.
+
+For example, the reviewed prepare action is:
+
+```bash
+gh workflow run tony-gmail-draft-window.yml --ref main -f operation=prepare-consent
+```
+
+The workflow does **not** call a deploy endpoint. Render's
+[per-key API](https://api-docs.render.com/reference/update-env-var) stores one
+key; its request has no activation/deploy option. Saved settings are not live
+process evidence: Render's [environment documentation](https://render.com/docs/configure-environment-variables)
+distinguishes save-only from deployment. The existing CI-gated exact-SHA
+`deploy.yml` remains the sole deploy owner for any needed activation or closure.
+After it completes, authenticated founder status and Approvals metadata must
+confirm the runtime gate. A config readback by itself cannot establish active
+consent preparation or draft capability. The already-verified copy is protected
+from a second write even while a draft-flag closure awaits deployment.
 
 **Deadline/checkpoint:** Before the first Gmail draft write; this is not a
 scheduled task. Resume only after the actual owner reply, deployed disabled

@@ -13,6 +13,7 @@ const requestSchema = z.object({ expectedReviewDigest: hash, expectedRevisionId:
 type DraftContent = { jobId: string; reviewDigest: string; payloadDigest: string; to: string; subject: string; body: string; messageId: string; threadId?: string; inReplyTo?: string };
 export type GmailDraftPorts = {
   enabled(): boolean; requireCapability(): Promise<void>; verifyMailbox(): Promise<unknown>;
+  allowsRevision(jobId: string, revisionId: string | null, reviewDigest: string): boolean;
   priorContact(email: string): Promise<boolean>;
   find(content: DraftContent, draftId?: string): Promise<{ draftId: string; messageId: string; threadId: string } | null>;
   write(content: DraftContent, draftId?: string): Promise<{ draftId: string }>;
@@ -20,6 +21,15 @@ export type GmailDraftPorts = {
 export class CommunicationsGmailDraftError extends Error { constructor(message: string, public status = 409) { super(message); } }
 function fail(message: string): never { throw new CommunicationsGmailDraftError(message); }
 const same = (a: unknown, b: unknown) => communicationsDigest(a) === communicationsDigest(b);
+function draftWindowConfigured() {
+  return Boolean(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF?.trim())
+    && ["JOB_ID", "REVISION_ID", "REVIEW_DIGEST"].every(field => /^[a-f0-9]{64}$/.test(process.env[`BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_${field}`] ?? ""));
+}
+function draftWindowAllows(jobId: string, revisionId: string | null, reviewDigest: string) {
+  return draftWindowConfigured() && jobId === process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_JOB_ID
+    && revisionId === process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVISION_ID
+    && reviewDigest === process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVIEW_DIGEST;
+}
 
 /** Manual, disabled-by-default delivery copy of an existing canonical revision.
  * No generation, approval, scheduler, draft/send endpoint or new first contact. */
@@ -28,6 +38,7 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
   if (!ports.enabled()) throw new CommunicationsGmailDraftError("gmail_draft_writes_disabled", 503);
   if (!requestedBy.trim() || requestedBy === "unknown-operator" || !/^communications_[a-f0-9]{64}$/.test(ledgerId)) fail("gmail_draft_operator_and_job_required");
   const request = requestSchema.parse(requestValue);
+  if (!ports.allowsRevision(ledgerId.slice("communications_".length), request.expectedRevisionId, request.expectedReviewDigest)) fail("gmail_draft_outside_approved_revision_window");
   await ports.requireCapability(); await ports.verifyMailbox();
   const root = db.doc(COMMUNICATIONS_ROOT), ledgerRef = db.collection("action_ledger").doc(ledgerId);
   const draftRef = root.collection("gmailDraftBindings").doc(ledgerId.slice("communications_".length));
@@ -69,6 +80,9 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
     if (old && (old.jobId !== job.jobId || old.ledgerId !== ledgerId || old.prospectId !== job.prospectId)) fail("gmail_draft_binding_identity_changed");
     if (old?.state === "writing") return { state: "writing" as const, content, old };
     if (old?.state === "unknown" || old?.state === "verified" && same(old.content, content)) return { state: "reconcile" as const, content: old.content as DraftContent, old };
+    // This window admits one preserved copy. A verified copy is observation-only;
+    // changing the draft or approving another revision needs another owner scope.
+    if (old?.state === "verified" || old?.draftId) fail("gmail_draft_approved_copy_already_exists");
     if (request.mode === "reconcile") return { state: "absent" as const, content, old };
     if (old && !["verified", "refused_before_write"].includes(old.state)) fail("gmail_draft_binding_requires_reconciliation");
     const row = { version: "blueprint.communications-gmail-draft-binding.v1", jobId: job.jobId, ledgerId, prospectId: job.prospectId,
@@ -93,7 +107,7 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
       // Check immediately before a provider write. Prior contact excludes this
       // draft's own DRAFT copy, so later edits do not become false first contact.
       if (!planned.content.threadId && await ports.priorContact(planned.content.to)) fail("gmail_draft_prior_contact_requires_reply_context");
-      if (!ports.enabled()) fail("gmail_draft_writes_disabled");
+      if (!ports.enabled() || !ports.allowsRevision(planned.content.jobId, planned.old.revisionId, planned.content.reviewDigest)) fail("gmail_draft_writes_disabled_or_window_changed");
       await ports.requireCapability();
       const [liveLedger, liveJob, liveReceipt, liveSource, liveSuppression] = await Promise.all([
         ledgerRef.get(), root.collection("jobs").doc(planned.content.jobId).get(),
@@ -101,7 +115,8 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
         db.collection("outboundProspects").doc(planned.old.prospectId).get(), db.collection("email_suppressions").doc(planned.content.to).get(),
       ]);
       const currentLedger=liveLedger.data(), currentSource=liveSource.data(), currentSuppression=liveSuppression.data();
-      if (!ports.enabled() || currentLedger?.status!=="pending_approval" || currentLedger.approved_by || currentLedger.approved_at
+      if (!ports.enabled() || !ports.allowsRevision(planned.content.jobId, planned.old.revisionId, planned.content.reviewDigest)
+        || currentLedger?.status!=="pending_approval" || currentLedger.approved_by || currentLedger.approved_at
         || currentLedger.sent_at || currentLedger.execution_attempts>0 || currentLedger.last_execution_at
         || communicationsDigest(currentLedger.action_payload)!==planned.content.payloadDigest
         || liveJob.data()?.state!=="pending_approval" || liveReceipt.exists || currentSource?.contactEmail?.toLowerCase()!==planned.content.to
@@ -129,9 +144,9 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
 
 /** Read-only canonical metadata for the existing Approvals queue. This never
  * calls Gmail or mistakes a prior verification for fresh mailbox observation. */
-export async function communicationsGmailDraftStatus(db: FirebaseFirestore.Firestore, ledgerId: string, payload: Record<string, unknown>) {
+export async function communicationsGmailDraftStatus(db: FirebaseFirestore.Firestore, ledgerId: string, payload: Record<string, unknown>, revisionId: string | null = null, reviewDigest: string | null = null) {
   const writesEnabled=process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED === "true"
-    && Boolean(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF);
+    && draftWindowAllows(ledgerId.slice("communications_".length), revisionId, reviewDigest ?? "");
   const base={writesEnabled, state:"unavailable", draftId:null as string|null, verifiedAt:null as string|null, currentRevisionVerified:false};
   if (!/^communications_[a-f0-9]{64}$/.test(ledgerId)) return base;
   try {
@@ -142,7 +157,7 @@ export async function communicationsGmailDraftStatus(db: FirebaseFirestore.Fires
       || row.jobId!==ledgerId.slice("communications_".length) || !["verified","writing","unknown","refused_before_write"].includes(row.state)) return base;
     const current=row.content?.payloadDigest===communicationsDigest(payload) && row.content?.to===payload.to
       && row.content?.subject===payload.subject && row.content?.body===payload.transportBody && row.content?.jobId===row.jobId;
-    return {...base,state:row.state==="verified" && !current ? "stale" : row.state,
+    return {...base,writesEnabled:writesEnabled && row.state!=="verified",state:row.state==="verified" && !current ? "stale" : row.state,
       draftId:typeof row.draftId==="string" ? row.draftId : null,
       verifiedAt:typeof row.verifiedAt==="number" && Number.isFinite(row.verifiedAt) ? new Date(row.verifiedAt).toISOString() : null,
       currentRevisionVerified:row.state==="verified" && current};
@@ -175,7 +190,8 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail): GmailDraftPor
     return Buffer.from(headers.join("\r\n")+"\r\n\r\n"+Buffer.from(content.body).toString("base64")).toString("base64url");
   };
   return {
-    enabled: () => process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED === "true" && Boolean(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF),
+    enabled: () => process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED === "true" && draftWindowConfigured(),
+    allowsRevision: draftWindowAllows,
     requireCapability: requireFounderDraftCapability, verifyMailbox: async () => verifyFounderMailbox(await client()),
     async priorContact(email) {
       const response = await (await client()).users.messages.list({ userId: "me", q: `in:anywhere -in:drafts {from:${JSON.stringify(email)} to:${JSON.stringify(email)}}`, maxResults: 1, includeSpamTrash: true });

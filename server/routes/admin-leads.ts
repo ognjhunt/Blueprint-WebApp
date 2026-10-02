@@ -1173,7 +1173,7 @@ router.get("/action-queue", requireAdmin, async (req: Request, res: Response) =>
       return lane ? item.lane === lane : true;
     });
     const limitedItems = await Promise.all(items.slice(0, limitNum).map(async item =>
-      item.action_payload.communications ? { ...item, gmail_draft: await communicationsGmailDraftStatus(firestore, item.id, item.action_payload) } : item));
+      item.action_payload.communications ? { ...item, gmail_draft: await communicationsGmailDraftStatus(firestore, item.id, item.action_payload, item.draft_revision_id ?? null, item.outreach_review?.digest ?? null) } : item));
 
     return res.json({
       items: limitedItems,
