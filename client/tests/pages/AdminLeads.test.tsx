@@ -35,7 +35,7 @@ function renderPage() {
 describe("AdminLeads scene readiness", () => {
   beforeEach(() => {
     useAuthMock.mockReturnValue({
-      currentUser: { email: "ops@tryblueprint.io" },
+      currentUser: { email: "ops@tryblueprint.io", uid: "owner-uid", getIdToken: vi.fn(async () => "synthetic-owner-token") },
       userData: { roles: ["admin"] },
       tokenClaims: { roles: ["admin"] },
     });
@@ -405,6 +405,44 @@ describe("AdminLeads scene readiness", () => {
     });
   });
 
+  it("authenticates the queue read and displays a saved communications draft with sending disabled", async () => {
+    const body = "I'm building Blueprint. Is this task useful to discuss?";
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (input, init) => {
+      if (String(input).startsWith("/api/admin/leads/action-queue?")) {
+        if ((init?.headers as Record<string, string>)?.Authorization !== "Bearer synthetic-owner-token") return Response.json({ error: "Missing or invalid authorization" }, { status: 401 });
+        return Response.json({ items: [{ id: "communications_saved-job", status: "pending_approval", lane: "outbound_prospect",
+          source_collection: "outboundProspects", source_doc_id: "saved-prospect", action_type: "send_email", action_tier: 3, draft_output: {},
+          action_payload: { to: "operator@facility.example", subject: "A task question", body, communications: { output: { body } } }, sending_enabled: false,
+          outreach_review: { digest: "a".repeat(64), hardChecksPassed: true, blockers: [], semanticReviewRequired: { evidence: "Verify sources." } } }],
+          summary: { total: 1, pending_approval: 1, failed: 0 } });
+      }
+      return Response.json({ leads: [], total: 0, byStatus: {}, byPriority: {} });
+    });
+    renderPage();
+    const tab = await screen.findByRole("tab", { name: /approvals/i }); fireEvent.mouseDown(tab); fireEvent.click(tab);
+    expect(await screen.findByText("To: operator@facility.example")).toBeVisible();
+    expect(screen.getByText(body)).toBeVisible(); expect(screen.getByText("Tier 3")).toBeVisible();
+    expect(screen.getByText(/Sending is disabled/)).toBeVisible(); expect(screen.getByRole("button", { name: "Approve outreach" })).toBeDisabled();
+    expect(fetchMock).toHaveBeenCalledWith("/api/admin/leads/action-queue?limit=100", expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer synthetic-owner-token" }) }));
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  });
+  it("shows a queue read failure with unknown counts, then retries successfully instead of claiming no approvals", async () => {
+    let queueFails = true;
+    vi.spyOn(global, "fetch").mockImplementation(async input => {
+      if (String(input).startsWith("/api/admin/leads/action-queue?")) return queueFails
+        ? Response.json({ error: "Missing or invalid authorization" }, { status: 401 })
+        : Response.json({ items: [], summary: { total: 0, pending_approval: 0, failed: 0 } });
+      return Response.json({ leads: [], total: 0, byStatus: {}, byPriority: {} });
+    });
+    renderPage();
+    const tab = await screen.findByRole("tab", { name: /approvals/i }); fireEvent.mouseDown(tab); fireEvent.click(tab);
+    expect(await screen.findByText(/Could not load the action queue \(401\)/)).toBeVisible();
+    expect(screen.queryByText("No pending approvals or failed actions right now.")).not.toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(4);
+    queueFails = false; fireEvent.click(screen.getByRole("button", { name: "Retry loading approvals" }));
+    expect(await screen.findByText("No pending approvals or failed actions right now.")).toBeVisible();
+    expect(screen.queryByText(/Could not load the action queue/)).not.toBeInTheDocument();
+  });
   it("submits the exact outreach digest and human checks from the existing approval card", async () => {
     const checks = {
       connection: "Check connection.", evidence: "Check sources.", boundedValue: "Check value limits.",
@@ -436,7 +474,7 @@ describe("AdminLeads scene readiness", () => {
     fireEvent.click(approve);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       "/api/admin/leads/action-queue/ledger-outreach/approve",
-      expect.objectContaining({ method: "POST", body: JSON.stringify({ outreachSemanticReview: {
+      expect.objectContaining({ method: "POST", headers: expect.objectContaining({ Authorization: "Bearer synthetic-owner-token" }), body: JSON.stringify({ outreachSemanticReview: {
         digest: "a".repeat(64), checks: { connection: "pass", evidence: "pass", boundedValue: "pass", easyQuestion: "pass", recipientChoice: "pass", workflow: "pass" },
       } }) }),
     ));
@@ -593,7 +631,7 @@ describe("AdminLeads scene readiness", () => {
       expect(promptSpy).toHaveBeenCalled();
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining("/api/admin/leads/action-queue/ledger-1/reject"),
-        expect.objectContaining({ method: "POST" }),
+        expect.objectContaining({ method: "POST", headers: expect.objectContaining({ Authorization: "Bearer synthetic-owner-token" }) }),
       );
     });
 
@@ -601,7 +639,7 @@ describe("AdminLeads scene readiness", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining("/api/admin/leads/action-queue/ledger-2/retry"),
-        expect.objectContaining({ method: "POST" }),
+        expect.objectContaining({ method: "POST", headers: expect.objectContaining({ Authorization: "Bearer synthetic-owner-token" }) }),
       );
     });
 

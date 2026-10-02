@@ -94,5 +94,18 @@
     "pendingTests": 0,
     "passedAssertionsIncludingSuites": 5857,
     "skippedAssertions": 0
+  },
+  "integration": {
+    "main": "373b7afba1238986dbfca70bc482e39f2d595277",
+    "mainPullRequest": 802,
+    "recoveryCodeChanged": false,
+    "mainFilesAdoptedUnmodified": [
+      "client/src/pages/AdminLeads.tsx",
+      "client/tests/pages/AdminLeads.test.tsx",
+      "e2e/adp-agent-tasks.spec.ts"
+    ],
+    "productionVersionObserved": "373b7afba1238986dbfca70bc482e39f2d595277",
+    "productionVersionObservedAt": "2026-10-02T05:02:16Z",
+    "finalCombinedHeadCi": "see PR803 current-head status"
   }
 }
