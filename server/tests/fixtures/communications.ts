@@ -65,8 +65,7 @@ export function communicationsFixture(intent: "outreach" | "reply" = "outreach")
 import { createHash } from "node:crypto";
 function requireHash(bytes: Buffer) { return createHash("sha256").update(bytes).digest("hex"); }
 
-export function memoryFirestore() {
-  const records = new Map<string, any>();
+export function memoryFirestore(records = new Map<string, any>()) {
   const clone = (value: any) => value === undefined ? undefined : structuredClone(value);
   const merge = (a: any, b: any): any => {
     const next = { ...a };

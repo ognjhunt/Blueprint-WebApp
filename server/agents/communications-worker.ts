@@ -19,6 +19,10 @@ import { executeAutomaticFirstContact } from "./communications-send";
 import { appendFirstContactFooter } from "./communications-first-contact-footer";
 import { CommunicationsDraftBudgetError, reserveCommunicationsDraft, recordCommunicationsDraftUsage,
   reconcileCommunicationsDraftCost } from "./communications-draft-budget";
+import { createNativeLearningHooks, REVIEWED_NATIVE_LEARNING_CONFIG } from "../research-learning/native-hooks";
+
+type CommunicationsLearningHooks = Pick<ReturnType<typeof createNativeLearningHooks>, "prepareNativeJob" | "afterNativeWork">;
+type PreparedLearning = Awaited<ReturnType<CommunicationsLearningHooks["prepareNativeJob"]>>;
 
 export type CommunicationsDependencies = {
   store: CommunicationsStore;
@@ -29,6 +33,7 @@ export type CommunicationsDependencies = {
   isSuppressed: (email: string) => Promise<boolean>;
   suppress: (email: string, reason: string) => Promise<{ persisted: boolean }>;
   now: () => number;
+  learningHooks?: CommunicationsLearningHooks;
   sendAutomatic?: (ledgerId: string) => Promise<{ state: "sent" | "auto_approved" | "failed"; reason?: string }>;
 };
 
@@ -89,7 +94,10 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     }
     verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId), brief, await deps.store.handoff(brief), await deps.store.contactProof(brief));
     const approval = await deps.store.approvalState(job.prospectId);
-    const input = buildCommunicationsInput(brief, thread, job.intent, approval);
+    const learning = deps.learningHooks ? await deps.learningHooks.prepareNativeJob("communications",
+      `blueprintCommunications/default/jobs/${jobId}`, [job.prospectId],
+      { allowCreate: !recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId }) : null;
+    const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning);
     const expired = claimed.checkpoint.createClaimedAt
       && deps.now() - Date.parse(claimed.checkpoint.createClaimedAt) >= 180000;
     // A completed saved turn remains useful after the observer/lease expired.
@@ -167,14 +175,32 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     if (retry) await deps.store.update(jobId, { state: "retry", reason: code, nextAttemptAt: deps.now() + claimed.attempts * 15000 });
     else await deps.store.finish(job, "blocked", code);
     return { state: retry ? "retry" : "blocked", reason: code };
+  } finally {
+    if (deps.learningHooks) {
+      try { await deps.learningHooks.afterNativeWork(`blueprintCommunications/default/jobs/${jobId}`); }
+      catch { logger.warn({ code: "communications_learning_observation_unavailable", jobId }, "Communications result retained; learning observation unavailable"); }
+    }
   }
 }
 
-function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown) {
+export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown, learning?: PreparedLearning) {
   const policy = intent === "outreach" ? COMMUNICATIONS_OUTREACH_GUIDANCE
     : "Use the actual correlated reply; first-touch drafting is not required for this reply.";
-  return JSON.stringify({ intent, approvedSender: FOUNDER_MAILBOX, researchBrief: brief,
-    currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy });
+  const base = { intent, approvedSender: FOUNDER_MAILBOX, researchBrief: brief,
+    currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy };
+  if (!learning) return JSON.stringify(base); // Legacy checkpoints keep their original input shape.
+  const h = learning.handoff, reference = { inputHash: learning.inputHash, recordRef: learning.recordRef,
+    preparedAt: learning.preparedAt, trust: "untrusted_evidence_only", sourceChecksRefreshed: false };
+  const learningHistory = { ...reference, unknown: learning.unknown,
+    ...(h ? { asOf: h.asOf, contextHash: h.contextHash, priorResearch: h.priorResearch.nativeResearchSubjects,
+      priorContactAndOutcomes: { coverage: h.priorContactAndOutcomes.coverage, prospects: h.priorContactAndOutcomes.prospects,
+        missingRecordsMean: h.priorContactAndOutcomes.missingRecordsMean },
+      businessHistory: h.businessHistory, businessOverview: h.businessOverview, unknowns: h.unknowns, provenance: h.provenance } : {}) };
+  const input = JSON.stringify({ ...base, learningHistory });
+  // Retain the immutable full context by reference without making its inline
+  // size a new first-draft gate. This choice replays from the same frozen input.
+  return Buffer.byteLength(input) <= 64000 ? input : JSON.stringify({ ...base,
+    learningHistory: { ...reference, unknown: "native_learning_context_exceeds_inline_budget" } });
 }
 
 /** Intake uses the existing worker flag; paid drafting has its separate gate. */
@@ -193,6 +219,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
   });
   const deps: CommunicationsDependencies = {
     store, api, readResearch: (date, admissionId) => readExistingResearchSnapshot(db, date, admissionId),
+    learningHooks: createNativeLearningHooks(db, REVIEWED_NATIVE_LEARNING_CONFIG),
     verifyMailbox: () => verifyFounderMailbox(), readThread: (id) => readFounderThread(id),
     isSuppressed: (email) => isEmailSuppressed(email, "growth_campaign"),
     suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "all", source: "communications_reply" }),

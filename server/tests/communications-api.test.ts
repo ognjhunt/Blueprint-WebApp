@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT } from "../agents/communications-contract";
 import { communicationsFixture } from "./fixtures/communications";
-import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION } from "../agents/communications-instructions";
+import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION } from "../agents/communications-instructions";
 
 function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: string; noFinal?: boolean; http?: number; failed?: boolean; itemsPage?: boolean; missingMetadata?: boolean; rawOutput?: string; instructions?: string; usage?: unknown } = {}) {
   const { output } = communicationsFixture();
@@ -88,6 +88,15 @@ describe("portable communications Agents API", () => {
     expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", "a".repeat(64), usage);
     expect(f.reservePaidDraft).not.toHaveBeenCalled();
     expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+  });
+  it("keeps the exact reviewed v2 framing definition recoverable after adding scoped history", async () => {
+    expect(COMMUNICATIONS_V2_DEFINITION.instructionsDigest).toBe("a3f340fc6c0745b7903673841c72a0eefb9721812453604dc3f9a5f3fe873f68");
+    const f = apiFixture({ reconnect: true, instructions: COMMUNICATIONS_V2_INSTRUCTIONS });
+    const result = await f.api.run({ ...f.params, input: "New learning context cannot replace a completed v2 request" });
+    expect(result.outputSource).toMatchObject({ definitionVersion: "blueprint.communications-definition.v2",
+      instructionsDigest: COMMUNICATIONS_V2_DEFINITION.instructionsDigest, requestDigest: "a".repeat(64) });
+    expect(f.reservePaidDraft).not.toHaveBeenCalled(); expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+    expect(COMMUNICATIONS_DEFINITION.version).toBe("blueprint.communications-definition.v3");
   });
   it("retains invalid output evidence and accounts terminal usage without creating another session", async () => {
     const usage = { input_tokens: 10396, output_tokens: 2373, total_tokens: 12769 }, rawOutput = '{"requiresHumanReview":false}';
