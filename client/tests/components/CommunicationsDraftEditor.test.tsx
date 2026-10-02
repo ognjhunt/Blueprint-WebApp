@@ -5,13 +5,14 @@ import { CommunicationsDraftEditor } from "@/components/admin/CommunicationsDraf
 const review = { digest: "a".repeat(64), hardChecksPassed: false, blockers: ["used_fact_missing"], semanticReviewRequired: {} };
 const output = { disposition: "draft", subject: "A question", body: "Original message?", reason: "Bounded question", usedFactIds: ["unknown"], refreshFactIds: [], requiresHumanReview: true,
   outreachContract: { senderIdentity: "I'm building Blueprint", value: { offer: "An observation", limits: "Public sources only" }, question: "Original message?", recipientChoice: "Your choice" } };
-const payload = { to: "operator@example.com", communications: { output, brief: { facts: [{ id: "fact-1", claim: "Verified packing workflow" }] } } };
+const payload = { to: "operator@example.com", communications: { job: { intent: "outreach" }, output, brief: { facts: [{ id: "fact-1", claim: "Verified packing workflow" }] } } };
 
 describe("saved communications draft editor", () => {
   it("repairs wording, known facts and question anchors without editing the source or granting approval", async () => {
     const onSave = vi.fn(async () => ({ review: { ...review, digest: "b".repeat(64), hardChecksPassed: true, blockers: [] } }));
     render(<CommunicationsDraftEditor payload={payload} review={review} onSave={onSave} />);
     fireEvent.click(screen.getByRole("button", { name: "Revise draft" }));
+    expect(screen.getByText(/Saving adds the approved mailing and unsubscribe footer/)).toHaveTextContent("previous full message stays in private revision history");
     fireEvent.change(screen.getByLabelText("Draft subject"), { target: { value: "Revised question" } });
     fireEvent.change(screen.getByLabelText("Draft message"), { target: { value: "I'm building Blueprint. Is this relevant?" } });
     fireEvent.click(screen.getByLabelText(/unknown: Unknown fact/));

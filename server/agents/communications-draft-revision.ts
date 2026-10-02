@@ -6,6 +6,8 @@ import {
 import { parseCommunicationsOutput, CommunicationsOutputValidationError } from "./communications-output";
 import { reviewCommunicationsPayload } from "./communications-review";
 import { COMMUNICATIONS_ROOT } from "./communications-store";
+import { appendFirstContactFooter } from "./communications-first-contact-footer";
+import { buildUnsubscribeUrl } from "../utils/email-suppression";
 
 export class CommunicationsDraftRevisionError extends Error {
   constructor(message: string, public status = 409, public issues?: unknown) { super(message); }
@@ -90,6 +92,12 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
     try { verifyCommunicationsHandoff(handoff.data(), brief); }
     catch { throw new CommunicationsDraftRevisionError("The research handoff changed; restore its verified record before editing"); }
     const currentReview = reviewCommunicationsPayload(payload, now);
+    let approvedTransport: string | undefined;
+    const approvedOutreachTransport = () => {
+      if (approvedTransport !== undefined) return approvedTransport;
+      try { return approvedTransport = appendFirstContactFooter(output.body, brief.contact.email); }
+      catch { throw new CommunicationsDraftRevisionError("The approved outreach mailing footer is unavailable on this server. Restore its existing configuration, then save again; this draft was not changed.", 503); }
+    };
     // A repeated acknowledged save is harmless. A different edit must reload
     // the current digest; it cannot silently overwrite another reviewer's work.
     const savedRevision = previousRevision?.data();
@@ -98,7 +106,9 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
     }
     if (savedRevision?.expectedReviewDigest === request.data.expectedReviewDigest && savedRevision.requestedBy === requestedBy
       && communicationsDigest(savedRevision.output) === communicationsDigest(output)
-      && communicationsDigest(envelope.data.output) === communicationsDigest(output)) {
+      && communicationsDigest(envelope.data.output) === communicationsDigest(output)
+      && (request.data.expectedReviewDigest !== currentReview.digest || job.intent !== "outreach"
+        || payload.transportBody === approvedOutreachTransport())) {
       return { ledgerId, revisionId: previousRevisionId!, state: "pending_approval", review: currentReview, sent: false, modelSessionCreated: false };
     }
     if (currentReview.digest !== request.data.expectedReviewDigest) {
@@ -106,11 +116,25 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
     }
     if (proposedRevision.exists) throw new CommunicationsDraftRevisionError("This revision audit already exists; reload the current draft");
     const oldBody = envelope.data.output.body;
-    if (payload.body !== oldBody || typeof payload.transportBody !== "string" || !payload.transportBody.startsWith(oldBody)) {
-      throw new CommunicationsDraftRevisionError("The saved transport message changed; restore its original footer before editing");
+    if (payload.body !== oldBody || typeof payload.transportBody !== "string") {
+      throw new CommunicationsDraftRevisionError("The saved message differs from its draft; restore that record before editing");
+    }
+    let transportBody: string;
+    if (job.intent === "outreach") {
+      // An explicit authenticated save can repair a legacy footer. Its full
+      // prior transport stays in the private immutable audit; client text never
+      // supplies the postal identity and deployment alone changes no draft.
+      transportBody = approvedOutreachTransport();
+    } else {
+      if (!payload.transportBody.startsWith(oldBody)) {
+        throw new CommunicationsDraftRevisionError("The saved reply transport changed; restore its original footer before editing");
+      }
+      transportBody = output.body + payload.transportBody.slice(oldBody.length);
     }
     const nextPayload = { ...payload, subject: output.subject, body: output.body,
-      transportBody: output.body + payload.transportBody.slice(oldBody.length),
+      transportBody,
+      ...(job.intent === "outreach" ? { commercialEmail: true, emailSuppressionScope: "growth_campaign",
+        unsubscribeUrl: buildUnsubscribeUrl({ email: brief.contact.email, scope: "all", campaignId: `communications_${job.jobId}` }) } : {}),
       outreachContract: output.outreachContract, communications: { ...envelope.data, output } };
     const review = reviewCommunicationsPayload(nextPayload, now);
     nextPayload.communicationsDraftDiagnostics = review.hardChecksPassed ? null : { blockers: review.blockers };
@@ -118,6 +142,8 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
       previousRevisionId,
       jobId: job.jobId, requestedBy, revisedAt: new Date(now).toISOString(),
       expectedReviewDigest: request.data.expectedReviewDigest, previousOutput: envelope.data.output,
+      previousPayload: payload, previousPayloadDigest: communicationsDigest(payload),
+      footerPolicy: job.intent === "outreach" ? "owner_configured_first_contact" : "preserve_reply_footer",
       previousDiagnostics: payload.communicationsDraftDiagnostics ?? null, previousReview: currentReview,
       submittedOutput: request.data.output, output, review,
       normalizedMetadataPaths: parsed.normalizedMetadataPaths, formatNormalizations: parsed.formatNormalizations,
