@@ -5,7 +5,22 @@ its existing daily-research worker hook. It supports source-backed site/task
 discovery for partner admission; packaging alone proves no live research,
 qualification, publication or deployment outcome.
 
-## Immutable package pin
+## Current reviewed repair package
+
+The October 2 release carries Pipeline source
+`b9da02f46d4ff6d9846da523b8da01449ae9ac85` (merged through PR2542).
+Its 655,360-byte archive SHA256 is
+`e54fa1529d1a2113fa0d088f59e12fcf40dc18e37f058b32621726ead4bcab82`,
+with 47 manifested source files. WebApp PR808 deployed this package as
+`80ba9b2d5c57092bfa3554093ee840b6872165cb` on both web and worker.
+Package installation leaves the stopped research controls unchanged.
+
+The original admitted package below remains the recovery identity for the
+existing October 1 run. Preserve its bytes and pass it as the original package
+to the corrected collector; use the reviewed package as the isolated repair.
+The old collector's missing-field checks must not be rerun unchanged.
+
+## Original admitted package pin
 
 - Pipeline source: `35f5c9ad43f84aa053aa7616a63a9aa4f6e32a61` (PR 2518)
 - Archive: `vendor/daily-research/blueprint-research.tar`
