@@ -3,6 +3,7 @@ import { CLASSIFICATION_POLICY, digest, instant, makeEvent, validateEvent, type 
 import { buildSnapshot, resolveHistory, verifySnapshot } from "../research-learning/snapshot";
 import { planResearchLearning } from "../research-learning/planner";
 import { ResearchLearningStore } from "../research-learning/store";
+import { readableHistory } from "../research-learning/readable-history";
 import { dryRunMigration, migrationFixture } from "../research-learning/migration";
 import { normalizeExistingSources, readExistingSources, type ExistingProspectSources } from "../research-learning/existing-sources";
 import { researchLearningContext, sheetsLearningView, notionLearningSummary } from "../research-learning/harness";
@@ -411,6 +412,15 @@ describe("append-only Firestore and agent/export handoffs", () => {
     expect(validateEvent(formatted)).toEqual(original);
     expect(JSON.stringify(formatted)).toBe(before);
     expect(() => validateEvent({ ...formatted, occurredAt: "2026-09-01T10:00:01Z" })).toThrow("hash_mismatch");
+  });
+  it("reads identical stored and live history for equivalent offset cutoffs", () => {
+    const { request } = learningScope(), contact = learningEvent("contact_observed"), research = learningEvent("research_observed");
+    const documents = [{ id: contact.eventId, data: () => contact }];
+    const before = JSON.stringify([request, contact, research]);
+    const canonical = readableHistory(documents, [research], request);
+    expect(canonical.events).toHaveLength(2);
+    expect(readableHistory(documents, [research], { ...request, asOf: "2026-10-01T12:00:00-05:00" })).toEqual(canonical);
+    expect(JSON.stringify([request, contact, research])).toBe(before);
   });
   it.each([
     { city: "São José & Saint-Louis-du-Ha! Ha!", industry: "Laundries / cafés", quarantine: [] },

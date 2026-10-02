@@ -115,6 +115,7 @@ export async function runDailyBusinessAnalysis(db: FirebaseFirestore.Firestore, 
   const now = instant.parse(clock()), jobKey = id.parse(input.jobKey), businessScope = businessReadScopeSchema.parse(input.businessScope);
   input = { ...input, focus: focusSchema.parse(input.focus) };
   const authorized = authorize(input.learningGrant, input.request, now);
+  input = { ...input, learningGrant: authorized.grant, request: authorized.request };
   if (!sectionSchema.options.every(section => authorized.request.sections.includes(section))) throw new Error("business_daily_sections_required");
   if (businessScope.expiresAt <= now || businessScope.principalId !== input.learningGrant.principalId) throw new Error("business_daily_scope_denied");
   const assertCurrentScope = () => {

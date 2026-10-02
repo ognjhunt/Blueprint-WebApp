@@ -4,7 +4,7 @@ import {
   communicationsDeliveryKey, verifyCommunicationsHandoff,
   communicationsEnvelopeSchema,
 } from "../agents/communications-contract";
-import { authorize, cohortLabel, entitiesSchema, makeEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
+import { authorize, cohortLabel, entitiesSchema, instant, makeEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
 import { eventSection } from "./snapshot";
 import { verifyPublishedResearch } from "../agents/communications-research";
 import { REVIEWED_RESEARCH_ROOT } from "../agents/communications-reviewed-research";
@@ -179,7 +179,7 @@ export async function readExistingSources(db: FirebaseFirestore.Firestore, grant
   options?: { frozenAsOf: string }) {
   const { request: authorized } = authorize(grant, request, now);
   const inputs: ExistingProspectSources[] = [], readQuarantine: Quarantine[] = [];
-  if (options && options.frozenAsOf !== authorized.asOf) throw new Error("learning_source_cutoff_changed");
+  if (options && instant.parse(options.frozenAsOf) !== authorized.asOf) throw new Error("learning_source_cutoff_changed");
   const cutoff = options ? Date.parse(authorized.asOf) : undefined;
   // A daily result has a durable cutoff. Project native evidence at that cutoff
   // only when Firestore proves the exact document version already existed.

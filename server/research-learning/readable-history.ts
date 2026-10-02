@@ -5,6 +5,7 @@ import type { Quarantine } from "./existing-sources";
 /** Read repair only: original documents stay untouched. A broken correction
  * suppresses its connected lineage so an obsolete root cannot become current. */
 export function readableHistory(documents: { id: string; data(): unknown }[], live: LearningEvent[], request: SnapshotRequest) {
+  request = { ...request, asOf: instant.parse(request.asOf) };
   const events: LearningEvent[] = [], quarantine: Quarantine[] = [], invalid = new Set<string>(), observedSourceRefs: string[] = [];
   const key = (prospectId: string, eventId: string) => JSON.stringify([prospectId, eventId]);
   const parent = new Map<string, string>();

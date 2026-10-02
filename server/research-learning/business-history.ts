@@ -122,8 +122,9 @@ export class BusinessHistoryStore {
   }
   async read(scope: BusinessReadScope, asOf: string) {
     const selected = businessReadScopeSchema.parse(scope), values: BusinessHistoryEvent[] = [];
-    const quarantine: { recordRef: string; reason: string }[] = [], invalidLineages = new Set<string>();
+    const quarantine: { recordRef: string; reason: string }[] = [], invalidLineages = new Set<string>(), invalidEventIds = new Set<string>();
     const lineageKey = (subjectKey: string, recordId: string) => JSON.stringify([subjectKey, recordId]);
+    const eventKey = (subjectKey: string, eventId: string) => JSON.stringify([subjectKey, eventId]);
     businessHistoryProjection([], selected, asOf, this.clock());
     for (const subjectKey of selected.subjectKeys) {
       const rows = await readQueryPages(this.db.doc(LEARNING_ROOT).collection("businessHistoryEvents").where("subjectKey", "==", subjectKey));
@@ -138,6 +139,12 @@ export class BusinessHistoryStore {
           // A malformed correction can make an older root obsolete. Suppress
           // only that identified lineage until repaired, never present it as current.
           if (raw?.subjectKey === subjectKey && id.safeParse(raw.recordId).success) invalidLineages.add(lineageKey(subjectKey, raw.recordId));
+          // A corrupt record ID must not revive its superseded ancestor. The
+          // query's authorized subject and retained event pointers identify
+          // affected lineages even when the revision itself cannot validate.
+          for (const value of [doc.id, raw?.eventId, raw?.supersedesEventId]) {
+            if (hash.safeParse(value).success) invalidEventIds.add(eventKey(subjectKey, value));
+          }
           quarantine.push({ recordRef: `${BUSINESS_HISTORY_ROOT}/${doc.id}`, reason: "business_event_invalid_reconcile_original_hash_and_identity" });
         }
       }
@@ -145,6 +152,7 @@ export class BusinessHistoryStore {
     const lineages = new Map<string, BusinessHistoryEvent[]>();
     for (const event of values) {
       const key = lineageKey(event.subjectKey, event.recordId);
+      if (invalidEventIds.has(eventKey(event.subjectKey, event.eventId))) invalidLineages.add(key);
       lineages.set(key, [...(lineages.get(key) ?? []), event]);
     }
     const valid: BusinessHistoryEvent[] = [];

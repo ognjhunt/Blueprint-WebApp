@@ -20,10 +20,17 @@ function setup(clock = () => now) {
     const event = learningEvent(kind); memory.records.set(`blueprintResearchLearning/default/events/${event.eventId}`, event);
   }
   memory.records.set("outboundProspects/prospect-1", { siteId: "site-prospect-1", taskId: "packing" });
-  const execute = () => runDailyBusinessAnalysis(memory.db, { jobKey: "daily-2026-10-02", businessScope, learningGrant: { ...learningGrant, sections: [...learningGrant.sections] }, request, focus: { city: "Sacramento", industry: "Laundromats" } }, clock);
+  const execute = (selectedRequest = request) => runDailyBusinessAnalysis(memory.db, { jobKey: "daily-2026-10-02", businessScope, learningGrant: { ...learningGrant, sections: [...learningGrant.sections] }, request: selectedRequest, focus: { city: "Sacramento", industry: "Laundromats" } }, clock);
   return { ...memory, hypothesis, execute };
 }
 describe("zero-model per-run and daily learning handlers", () => {
+  it("seals and replays the same daily history for equivalent offset cutoffs", async () => {
+    const canonical = setup(), offset = setup(), selected = { ...request, asOf: "2026-10-02T06:45:00-05:00" };
+    const first = await canonical.execute(), equivalent = await offset.execute(selected);
+    expect(first.overview).toEqual(equivalent.overview);
+    expect(equivalent.overview.outcomeAnalysis.scopeCounts.matureReplyRate.denominator).toBe(1);
+    expect((await canonical.execute(selected)).overview.overviewId).toBe(first.overview.overviewId);
+  });
   it("persists sourced factual terminal summaries idempotently without changing native source records", async () => {
     const memory = learningMemoryFirestore(), source = { jobId: "job-1", prospectId: "actual-prospect", state: "sent", updatedAt: Date.parse(now), privateBody: "PRIVATE_SENTINEL" }, ref = "blueprintCommunications/default/jobs/job-1";
     memory.records.set(ref, source);
