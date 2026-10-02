@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z, ZodError } from "zod";
 
-const mocks = vi.hoisted(() => ({ create: vi.fn(), tool: vi.fn(), requests: [] as any[] }));
-vi.mock("openai", () => ({ default: class { chat = { completions: { create: (input:any) => { mocks.requests.push(structuredClone(input)); return mocks.create(input); } } }; } }));
+const mocks = vi.hoisted(() => ({ create: vi.fn(), tool: vi.fn(), requests: [] as any[], options: [] as any[] }));
+vi.mock("openai", () => ({ default: class { chat = { completions: { create: (input:any, options:any) => { mocks.requests.push(structuredClone(input)); mocks.options.push(options); return mocks.create(input); } } }; } }));
 vi.mock("../agents/operator-tools", () => ({
   chatCompletionOperatorTools: [
     { type: "function", function: { name: "list_growth_campaigns" } },
@@ -28,8 +28,8 @@ const outputs = (requestIndex = 1) => mocks.requests[requestIndex].messages
   .filter((item:any) => item.role === "tool")
   .map((item:any) => ({id:item.tool_call_id, result:JSON.parse(item.content)}));
 beforeEach(() => { vi.resetModules(); vi.stubEnv("DEEPSEEK_API_KEY", "offline-fixture");
-  mocks.create.mockReset(); mocks.tool.mockReset(); mocks.requests.length=0; });
-afterEach(() => vi.unstubAllEnvs());
+  mocks.create.mockReset(); mocks.tool.mockReset(); mocks.requests.length=0; mocks.options.length=0; });
+afterEach(() => {vi.unstubAllEnvs();vi.restoreAllMocks();});
 
 describe("DeepSeek/Z.ai operator tool feedback", () => {
   it("returns malformed argument feedback to the same loop, retains sibling results, then accepts corrected arguments", async () => {
@@ -120,7 +120,8 @@ it("inherits persisted mutation quarantine and still permits read-only reconcili
 it.each(["provider", "schema"])("retains uncertain write quarantine and successful siblings after a later %s failure",async kind=>{
  mocks.create.mockResolvedValueOnce(response([call("good"),call("unknown","{}","create_growth_campaign_draft")]));
  if(kind==="provider")mocks.create.mockRejectedValueOnce(new Error("PRIVATE_TRANSPORT_TOKEN"));
- else mocks.create.mockResolvedValueOnce(response([],JSON.stringify({done:"PRIVATE_BAD_TYPE"})));
+ else mocks.create.mockResolvedValueOnce(response([],JSON.stringify({done:"PRIVATE_BAD_TYPE"})))
+   .mockRejectedValueOnce(new Error("PRIVATE_CORRECTION_TRANSPORT"));
  mocks.tool.mockResolvedValueOnce({rows:[{id:"canonical-fixture"}]}).mockRejectedValueOnce(new Error("PRIVATE_UNKNOWN_ACK"));
  const result=await run();expect(result).toMatchObject({status:"failed",artifacts:{mutation_reconciliation_required:true,calls:kind==="provider"?1:2}});
  expect(result.logs).toEqual(expect.arrayContaining([expect.objectContaining({event_type:"tool.result",status:"success",tool_result:{rows:[{id:"canonical-fixture"}]}})]));
@@ -128,4 +129,46 @@ it.each(["provider", "schema"])("retains uncertain write quarantine and successf
  expect(JSON.stringify(result.artifacts?.recovery_feedback)).not.toMatch(/PRIVATE/);
  if(kind==="schema")expect(result.artifacts?.recovery_feedback).toMatchObject({code:"output_schema_invalid",issues:[{path:"/done",code:"invalid_type",expectations:{expected:"boolean",received:"string"}}]});
  expect(mocks.tool).toHaveBeenCalledTimes(2);
+});
+
+it.each(["not valid JSON", '{"done":"unknown"}'])("corrects final output %s in the full existing conversation without tools", async raw=>{
+ mocks.create.mockResolvedValueOnce(response([],raw)).mockResolvedValueOnce(final());
+ const result=await run();expect(result).toMatchObject({status:"completed",output:{done:true},artifacts:{calls:2,output_repair_iterations:1,
+ output_repairs:[{rawOutput:raw}]}});
+ expect(mocks.requests[1].tools).toBeUndefined();expect(mocks.requests[1].tool_choice).toBeUndefined();
+ expect(mocks.options[1]).toMatchObject({maxRetries:0,timeout:expect.any(Number),signal:expect.any(AbortSignal)});
+ expect(mocks.requests[1].messages).toEqual(expect.arrayContaining([{role:"system",content:expect.any(String)},
+ {role:"user",content:"Inspect the authorized fixture."},{role:"assistant",content:raw}]));
+ const feedback=JSON.parse(mocks.requests[1].messages.at(-1).content).outputCorrection;
+ expect(feedback).toMatchObject({status:"recoverable_issue",issues:[{path:raw.startsWith("{")?"/done":"/output"}]});
+ expect(mocks.tool).not.toHaveBeenCalled();
+});
+
+it("exhausts the existing five-followup budget with originals, diagnostics and observed usage retained",async()=>{
+ const raw='{"done":"unresolved"}';mocks.create.mockResolvedValue(response([],raw));
+ const result=await run();expect(result).toMatchObject({status:"failed",error:"output_schema_invalid",raw_output_text:raw,
+ artifacts:{calls:6,output_repair_iterations:5,correction_bounds_exhausted:true,prompt_tokens:600,completion_tokens:120}});
+ expect(result.artifacts?.output_repairs).toHaveLength(6);expect(mocks.create).toHaveBeenCalledTimes(6);
+ expect(result.artifacts?.recovery_feedback).toMatchObject({issues:[{path:"/done",code:"invalid_type"}]});
+ expect(mocks.tool).not.toHaveBeenCalled();
+});
+
+it("does not start output correction after the configured invocation deadline",async()=>{
+ const clock=vi.spyOn(Date,"now").mockReturnValue(1);
+ mocks.create.mockImplementationOnce(async()=>{clock.mockReturnValue(120002);return response([],"malformed");});
+ const result=await run();expect(result).toMatchObject({status:"failed",artifacts:{correction_bounds_exhausted:true,calls:1,output_repair_iterations:0}});
+ expect(mocks.create).toHaveBeenCalledTimes(1);expect(result.artifacts?.output_repairs).toHaveLength(1);
+});
+
+it("preserves unknown-write control and rejects requested tools during final formatting correction",async()=>{
+ mocks.create.mockResolvedValueOnce(response([call("unknown","{}","create_growth_campaign_draft"),call("read")]))
+ .mockResolvedValueOnce(response([], '{"done":"unknown"}'))
+ .mockResolvedValueOnce(response([call("repeat-write","{}","create_growth_campaign_draft")]))
+ .mockResolvedValueOnce(final());
+ mocks.tool.mockRejectedValueOnce(new Error("PRIVATE_UNKNOWN_ACK")).mockResolvedValueOnce({rows:[]});
+ const result=await run();expect(result).toMatchObject({status:"completed",artifacts:{mutation_reconciliation_required:true,calls:4,tool_iterations:1,output_repair_iterations:2}});
+ expect(mocks.tool).toHaveBeenCalledTimes(2);expect(mocks.tool.mock.calls.filter(([name])=>name==="create_growth_campaign_draft")).toHaveLength(1);
+ for(const req of mocks.requests.slice(2)){expect(req.tools).toBeUndefined();expect(req.messages).toEqual(expect.arrayContaining([
+ expect.objectContaining({role:"tool",tool_call_id:"unknown"}),expect.objectContaining({role:"tool",tool_call_id:"read"})]));}
+ expect(result.artifacts?.output_repairs).toEqual(expect.arrayContaining([expect.objectContaining({feedback:expect.objectContaining({status:"control_denied",code:"output_repair_tools_forbidden"})})]));
 });
