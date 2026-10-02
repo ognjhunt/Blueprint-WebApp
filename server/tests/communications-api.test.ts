@@ -72,6 +72,17 @@ describe("portable communications Agents API", () => {
     expect(body.metadata.blueprint_communications_request_digest).toBe(f.checkpoints[0].requestDigest);
     expect(body.metadata.blueprint_communications_request_digest).toMatch(/^[a-f0-9]{64}$/);
   });
+  it("accepts the actual saved-agent GET metadata shape without resetting its reviewed settings", async () => {
+    const f = apiFixture();
+    const fetch = vi.fn(async (url: any) => String(url).includes("/models/") ? Response.json({ id: COMMUNICATIONS_MODEL })
+      : Response.json({ id: COMMUNICATIONS_SAVED_AGENT_ID, ...COMMUNICATIONS_SAVED_CONFIGURATION,
+        reasoning: { effort: "max", summary: null }, text: { format: { type: "text" }, verbosity: "low" },
+        multi_agent: { enabled: false, max_concurrent_subagents: null } }));
+    const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: false, fetch: fetch as any });
+    expect(await api.preflight()).toMatchObject({ runtime: "saved_agent", binding: {
+      agentId: COMMUNICATIONS_SAVED_AGENT_ID, instructionsDigest: "85bcc95f3f8d02fd680de41dbb00c5e4fb84aec7d68f3de3132f6ae57444f5d7" } });
+    expect(fetch).toHaveBeenCalledTimes(2); expect(f.reservePaidDraft).not.toHaveBeenCalled();
+  });
   it.each(["instructions", "reasoning", "tools", "tier"])("blocks changed saved %s before reserving or creating a paid session", async changedSaved => {
     const f = apiFixture({ changedSaved });
     await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "communications_saved_agent_definition_changed" });
