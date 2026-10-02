@@ -133,6 +133,22 @@ describe("portable communications Agents API", () => {
     expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", "a".repeat(64), usage);
     expect(f.reservePaidDraft).not.toHaveBeenCalled(); expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
   });
+  it.each(["valid_unicode", "inert_metadata", "invalid_body"])("preserves fully observed %s output beyond the old 20KB cutoff", async kind => {
+    const { output } = communicationsFixture(), wire: any = structuredClone(output);
+    if (kind === "inert_metadata") wire.sourceSnapshot = "x".repeat(24000);
+    else wire.body += "界".repeat(kind === "invalid_body" ? 20001 : 8000);
+    const rawOutput = JSON.stringify(wire), f = apiFixture({ reconnect: true, rawOutput });
+    expect(Buffer.byteLength(rawOutput)).toBeGreaterThan(20000);
+    if (kind === "invalid_body") await expect(f.api.reconcileSaved(f.params.checkpoint, "job-1")).rejects.toMatchObject({ code: "communications_output_invalid", outputSource: {
+      rawOutput, rawOutputBytes: Buffer.byteLength(rawOutput), validationIssues: expect.arrayContaining([expect.objectContaining({ path: "/body", code: "too_big" })]) } });
+    else {
+      const result = await f.api.reconcileSaved(f.params.checkpoint, "job-1");
+      expect(result?.outputSource).toMatchObject({ rawOutput, rawOutputBytes: Buffer.byteLength(rawOutput) });
+      expect(result?.output).toEqual(kind === "inert_metadata" ? output : wire);
+    }
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledTimes(1); expect(f.reservePaidDraft).not.toHaveBeenCalled();
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+  });
   it("never interprets idle or streamed deltas as completion", async () => {
     const f = apiFixture({ idle: true });
     await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_turn_pending", retryable: true });

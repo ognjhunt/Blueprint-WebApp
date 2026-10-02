@@ -237,7 +237,9 @@ export class CommunicationsAgentsAPI {
     const parts = final[0].content.filter((part: any) => part.type === "output_text");
     if (!parts.length || parts.some((part: any) => typeof part.text !== "string")) throw new CommunicationsRuntimeError("agents_final_answer_missing_or_ambiguous");
     const raw = parts.map((part: any) => part.text).join("");
-    if (Buffer.byteLength(raw) > 20000) throw new CommunicationsRuntimeError("agents_output_limit_exceeded");
+    // The fully read item page is already bounded at 256KB. A second 20KB
+    // whole-output limit would discard schema-valid Unicode drafts/metadata
+    // before retaining their source; preserve all observed bytes instead.
     const outputSource: CommunicationsOutputSource = {
       schema_version: "blueprint.communications-output-source.v1", jobId,
       budgetAdmissionId: communicationsDigest({ jobId }), requestDigest: checkpoint.requestDigest!,
