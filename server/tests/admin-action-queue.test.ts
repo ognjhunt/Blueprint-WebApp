@@ -9,6 +9,7 @@ import { reviewOutreachDraft } from "../agents/outreach-review";
 const approveActionMock = vi.hoisted(() => vi.fn());
 const rejectActionMock = vi.hoisted(() => vi.fn());
 const retryFailedActionMock = vi.hoisted(() => vi.fn());
+const reviseDraftMock = vi.hoisted(() => vi.fn());
 
 const ledgerRows = vi.hoisted(() => [
   {
@@ -193,7 +194,12 @@ vi.mock("../agents/action-executor", () => ({
   retryFailedAction: retryFailedActionMock,
 }));
 
-async function startServer(): Promise<{ server: Server; baseUrl: string }> {
+vi.mock("../agents/communications-draft-revision", async importOriginal => ({
+  ...await importOriginal<typeof import("../agents/communications-draft-revision")>(),
+  reviseCommunicationsDraft: reviseDraftMock,
+}));
+
+async function startServer(admin = true): Promise<{ server: Server; baseUrl: string }> {
   const { default: router } = await import("../routes/admin-leads");
   const app = express();
   app.use(express.json());
@@ -201,7 +207,7 @@ async function startServer(): Promise<{ server: Server; baseUrl: string }> {
     res.locals.firebaseUser = {
       uid: "admin-user",
       email: "ops@tryblueprint.io",
-      admin: true,
+      admin,
     };
     next();
   });
@@ -235,10 +241,32 @@ afterEach(() => {
   approveActionMock.mockReset();
   rejectActionMock.mockReset();
   retryFailedActionMock.mockReset();
+  reviseDraftMock.mockReset();
   vi.resetModules();
 });
 
 describe("admin action queue", () => {
+  it("revises only through authenticated admin identity and returns actionable validation errors", async () => {
+    const { CommunicationsDraftRevisionError } = await import("../agents/communications-draft-revision");
+    reviseDraftMock.mockRejectedValue(new CommunicationsDraftRevisionError("Repair the named draft fields and revalidate", 400,
+      [{ path: "/requiresHumanReview", message: "Must remain true" }]));
+    const { server, baseUrl } = await startServer();
+    const body = { expectedReviewDigest: "a".repeat(64), output: { body: "Revised draft" }, requestedBy: "invented@example.com" };
+    try {
+      const response = await fetch(`${baseUrl}/action-queue/communications_saved/revise`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "Repair the named draft fields and revalidate", issues: [{ path: "/requiresHumanReview" }] });
+      expect(reviseDraftMock).toHaveBeenCalledWith(expect.any(Object), "communications_saved", "ops@tryblueprint.io", body);
+    } finally { await stopServer(server); }
+  });
+
+  it("refuses non-admin draft revisions before reaching the service", async () => {
+    const { server, baseUrl } = await startServer(false);
+    try {
+      const response = await fetch(`${baseUrl}/action-queue/communications_saved/revise`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      expect(response.status).toBe(403); expect(reviseDraftMock).not.toHaveBeenCalled();
+    } finally { await stopServer(server); }
+  });
   it("keeps interrupted communications sends visible for receipt-only recovery", async () => {
     const original = ledgerRows[0];
     ledgerRows[0] = { ...original, data: { ...original.data, status: "executing" } };

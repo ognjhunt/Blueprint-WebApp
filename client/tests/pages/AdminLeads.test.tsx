@@ -443,6 +443,33 @@ describe("AdminLeads scene readiness", () => {
     expect(await screen.findByText("No pending approvals or failed actions right now.")).toBeVisible();
     expect(screen.queryByText(/Could not load the action queue/)).not.toBeInTheDocument();
   });
+  it("preserves an unsaved draft edit when a queue refresh fails", async () => {
+    let queueFails = false;
+    vi.spyOn(global, "fetch").mockImplementation(async input => {
+      if (String(input).startsWith("/api/admin/leads/action-queue?")) return queueFails
+        ? Response.json({ error: "Read unavailable" }, { status: 500 })
+        : Response.json({ items: [{ id: "communications_saved-job", status: "pending_approval", lane: "outbound_prospect",
+          source_collection: "outboundProspects", source_doc_id: "saved-prospect", action_type: "send_email", action_tier: 3, draft_output: {},
+          action_payload: { to: "operator@facility.example", subject: "A question", body: "Original message?", communications: { output: {
+            subject: "A question", body: "Original message?", usedFactIds: [], outreachContract: null }, brief: { facts: [] } } }, sending_enabled: false,
+          outreach_review: { digest: "a".repeat(64), hardChecksPassed: true, blockers: [], semanticReviewRequired: { evidence: "Verify sources." } } },
+          { id: "generic-pending", status: "pending_approval", lane: "waitlist", source_collection: "waitlistSubmissions", source_doc_id: "generic",
+            action_type: "send_email", action_tier: 3, draft_output: {}, action_payload: { to: "synthetic@example.com", subject: "Synthetic pending action", body: "A pending reply" } }],
+          summary: { total: 2, pending_approval: 2, failed: 0 } });
+      return Response.json({ leads: [], total: 0, byStatus: {}, byPriority: {} });
+    });
+    renderPage();
+    const tab = await screen.findByRole("tab", { name: /approvals/i }); fireEvent.mouseDown(tab); fireEvent.click(tab);
+    fireEvent.click(await screen.findByRole("button", { name: "Revise draft" }));
+    fireEvent.change(screen.getByLabelText("Draft message"), { target: { value: "My unsaved revision?" } });
+    queueFails = true; fireEvent.click(screen.getByRole("button", { name: "Refresh", exact: true }));
+    expect(await screen.findByText(/Showing the last loaded drafts/)).toBeVisible();
+    expect(screen.getByLabelText("Draft message")).toHaveValue("My unsaved revision?");
+    expect(screen.getByRole("button", { name: "Approve outreach" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Approve", exact: true })).toBeDisabled();
+    expect(screen.getAllByText("—")).toHaveLength(4);
+    expect(screen.queryByText("No pending approvals or failed actions right now.")).not.toBeInTheDocument();
+  });
   it("submits the exact outreach digest and human checks from the existing approval card", async () => {
     const checks = {
       connection: "Check connection.", evidence: "Check sources.", boundedValue: "Check value limits.",

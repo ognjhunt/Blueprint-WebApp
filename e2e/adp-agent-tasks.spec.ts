@@ -117,3 +117,73 @@ test("saved communications draft stays visible and draft-only after a queue read
   expect(writes).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("communications-approvals-draft-only.png"), fullPage: true });
 });
+
+test("owner repairs a saved draft and revalidates it while sending remains disabled", async ({ page }, testInfo) => {
+  const pageErrors: string[] = [];
+  let failQueue = false;
+  page.on("pageerror", error => { pageErrors.push(error.message); });
+  const original = "I'm building Blueprint. We guarantee results. Is this useful?";
+  const repaired = "I'm building Blueprint. Is this relevant?";
+  const output = { disposition: "draft", subject: "A workflow question", body: original, reason: "One bounded question",
+    usedFactIds: ["unknown"], refreshFactIds: [], requiresHumanReview: true,
+    outreachContract: { senderIdentity: "I'm building Blueprint", value: { offer: "A public observation", limits: "Public sources only" },
+      question: "Is this useful?", recipientChoice: "Your choice" } };
+  const item: any = { id: "communications_saved-job", status: "pending_approval", lane: "outbound_prospect",
+    action_type: "send_email", source_collection: "outboundProspects", source_doc_id: "saved-prospect", action_tier: 3,
+    draft_output: output, sending_enabled: false, action_payload: { to: "operator@facility.example", subject: output.subject, body: original,
+      communications: { output, brief: { facts: [{ id: "fact-1", claim: "A verified public workflow" }] } } },
+    outreach_review: { digest: "a".repeat(64), hardChecksPassed: false, blockers: ["used_fact_missing", "pressure_or_guarantee"],
+      semanticReviewRequired: { evidence: "Verify the source." } } };
+  const actions: string[] = [];
+  await page.route("**/*", async route => {
+    const request = route.request(), url = new URL(request.url());
+    if (["http:", "https:"].includes(url.protocol) && !["localhost", "127.0.0.1", "::1"].includes(url.hostname)) return route.fulfill({ status: 204, body: "" });
+    if (!url.pathname.startsWith("/api/")) return route.continue();
+    if (url.pathname.startsWith("/api/admin/leads/action-queue")) {
+      expect(request.headers().authorization).toBe("Bearer operator-qa-local-token");
+      if (request.method() === "POST") {
+        actions.push(url.pathname);
+        expect(url.pathname).toBe("/api/admin/leads/action-queue/communications_saved-job/revise");
+        const input = request.postDataJSON();
+        expect(Object.keys(input).sort()).toEqual(["expectedReviewDigest", "output"]);
+        expect(input.expectedReviewDigest).toBe("a".repeat(64));
+        expect(input.output).toMatchObject({ body: repaired, usedFactIds: ["fact-1"], requiresHumanReview: true, outreachContract: { question: "Is this relevant?" } });
+        item.action_payload.body = input.output.body; item.action_payload.communications.output = input.output;
+        item.outreach_review = { ...item.outreach_review, digest: "b".repeat(64), hardChecksPassed: true, blockers: [] };
+        return route.fulfill({ json: { state: "pending_approval", review: item.outreach_review, sent: false, modelSessionCreated: false } });
+      }
+      if (failQueue) return route.fulfill({ status: 500, json: { error: "Read temporarily unavailable" } });
+      return route.fulfill({ json: { items: [item], summary: { total: 1, pending_approval: 1, failed: 0 } } });
+    }
+    if (request.method() === "POST" && url.pathname !== "/api/analytics/ingest") actions.push(url.pathname);
+    const fixture = getOperatorQaFixtureForRequest(request.url(), request.method());
+    return fixture ? route.fulfill({ status: fixture.status, json: fixture.body }) : route.fulfill({ status: 503, json: { error: "No live API calls in browser fixture" } });
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/admin/leads");
+  await page.getByRole("tab", { name: "Approvals", exact: true }).click();
+  await expect(page.getByText(original, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Revise draft" }).click();
+  await page.getByRole("textbox", { name: "Draft message", exact: true }).fill(repaired);
+  failQueue = true;
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(page.getByText(/Showing the last loaded drafts/)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Draft message", exact: true })).toHaveValue(repaired);
+  await expect(page.getByRole("button", { name: "Approve outreach" })).toBeDisabled();
+  failQueue = false;
+  await page.getByRole("button", { name: "Retry loading approvals" }).click();
+  await expect(page.getByText(/Showing the last loaded drafts/)).toHaveCount(0);
+  await page.getByLabel(/unknown: Unknown fact/).click();
+  await expect(page.getByLabel(/unknown: Unknown fact/)).toHaveCount(0);
+  await page.getByLabel(/fact-1: A verified/).check();
+  await page.getByText("Review anchors", { exact: true }).click();
+  await page.getByRole("textbox", { name: "One learning question", exact: true }).fill("Is this relevant?");
+  await page.getByRole("button", { name: "Save and revalidate" }).click();
+  await expect(page.getByText(repaired, { exact: true })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Revision saved. It is ready for human review." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve outreach" })).toBeDisabled();
+  await expect(page.getByText("Tier 3", { exact: true })).toBeVisible();
+  expect(actions).toEqual(["/api/admin/leads/action-queue/communications_saved-job/revise"]);
+  expect(pageErrors).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("communications-draft-revision-draft-only.png"), fullPage: true });
+});
