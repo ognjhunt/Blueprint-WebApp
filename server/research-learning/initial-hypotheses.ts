@@ -27,3 +27,22 @@ export function initialHypothesisEvents(input: { subjectKey: string; capturedBy:
     confounders: [...hypothesis.confounders], whatWouldChangeBelief: [...hypothesis.whatWouldChangeBelief],
     causalProof: false, hardFilterProspects: false, unexpectedExplorationRequired: true }));
 }
+
+/** Capture separately with the idea's own original message identity, never
+ * attribute it to the earlier four messages or infer claims from attachments. */
+export function offShiftPreparationHypothesis(input: { subjectKey: string; capturedBy: string; occurredAt: string; recordedAt: string; sources: BusinessHistoryEvent["sources"] }) {
+  return makeBusinessHistory({ ...input, recordId: "BP-HYP-off-shift-preparation-human-handoff", kind: "hypothesis",
+    contentClass: "blueprint_business_only", supersedesEventId: null, status: "provisional",
+    statement: "Robots preparing bounded work off shift for humans to pick back up may be a useful opportunity to investigate.",
+    uncertainty: "A user-suggested opportunity, with no verified demand, robot capability, safety or causal evidence. Attached images have not been inspected. Original author ID and whole-message bytes may be unavailable; source metadata must state that explicitly.",
+    evidence: [],
+    confounders: ["contactability", "response_bias", "task_fit", "shift_timing", "human_decision_owner", "unattended_reliability", "exception_recovery", "inspection_and_safe_handoff", "task_boundaries"],
+    whatWouldChangeBelief: [
+      "Owner-confirmed next-shift readiness problems and bounded preparation tasks, together with verified task-specific robot evidence, would support further evaluation.",
+      "Sites reporting little readiness friction, unsuitable task boundaries, or unresolved unattended recovery, inspection or handoff risks would weaken the opportunity.",
+      "Slower execution may still help within an observed preparation window, but replies or curiosity alone do not establish demand or pilot readiness.",
+    ],
+    nextQuestion: "What has to be ready when your next shift arrives, and what sometimes isn’t?",
+    nextTest: "Compare explicit site answers and task evidence across relevant cohorts. Materials staging, kitting, replenishment and workspace preparation are examples to test, not proven capabilities. Inspect unattended reliability, exception recovery and safe human handoff; off-shift work is not inherently easier or safe.",
+    causalProof: false, hardFilterProspects: false, unexpectedExplorationRequired: true });
+}

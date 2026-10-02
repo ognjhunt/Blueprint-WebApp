@@ -5,7 +5,8 @@ import {
 } from "../agents/communications-contract";
 import { authorize, entitiesSchema, makeEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
 import { eventSection } from "./snapshot";
-import { readExistingResearchSnapshot, verifyPublishedResearch } from "../agents/communications-research";
+import { verifyPublishedResearch } from "../agents/communications-research";
+import { REVIEWED_RESEARCH_ROOT } from "../agents/communications-reviewed-research";
 import { projectBriefResearch } from "./brief-projection";
 
 const ROOT = "blueprintCommunications/default";
@@ -139,46 +140,78 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
 
 /** Harmless reads through the existing Firestore binding. Never reads Gmail or
  * OAuth documents. The caller must authorize the explicit prospect list first. */
-export async function readExistingSources(db: FirebaseFirestore.Firestore, grant: LearningGrant, request: SnapshotRequest, now: string) {
+export async function readExistingSources(db: FirebaseFirestore.Firestore, grant: LearningGrant, request: SnapshotRequest, now: string,
+  options?: { frozenAsOf: string }) {
   const { request: authorized } = authorize(grant, request, now);
   const inputs: ExistingProspectSources[] = [], readQuarantine: Quarantine[] = [];
+  if (options && options.frozenAsOf !== authorized.asOf) throw new Error("learning_source_cutoff_changed");
+  const cutoff = options ? Date.parse(authorized.asOf) : undefined;
+  // A daily result has a durable cutoff. Project native evidence at that cutoff
+  // only when Firestore proves the exact document version already existed.
+  // Never backdate a newly created/updated record from its reported event time.
+  // Missing version metadata stays unknown; stored learning events retain their
+  // original recordedAt and are filtered independently by buildSnapshot.
+  const admit = (snapshot: FirebaseFirestore.DocumentSnapshot, recordRef: string) => {
+    if (cutoff === undefined) return true;
+    if (!snapshot.exists) { readQuarantine.push({ recordRef, reason: "required_source_missing_at_frozen_cutoff" }); return false; }
+    const time = snapshot.updateTime, seconds = Math.floor(cutoff/1000), nanos = (cutoff-seconds*1000)*1000000;
+    const known = time && Number.isSafeInteger(time.seconds) && Number.isSafeInteger(time.nanoseconds);
+    if (!known || time.seconds > seconds || (time.seconds === seconds && time.nanoseconds > nanos)) {
+      readQuarantine.push({ recordRef, reason: known ? "source_version_after_frozen_cutoff" : "source_version_time_unknown" });
+      return false;
+    }
+    return true;
+  };
   for (const prospectId of authorized.prospectIds) {
     entitiesSchema.shape.prospectId.parse(prospectId);
     const prospectRef = db.collection("outboundProspects").doc(prospectId);
     const prospect = await prospectRef.get();
+    if (!admit(prospect, prospectRef.path)) continue;
     const jobs = await db.doc(ROOT).collection("jobs").where("prospectId", "==", prospectId).limit(101).get();
     const communications = authorized.sections.includes("replies") ? await prospectRef.collection("communicationsEvents").limit(501).get() : undefined;
     if (jobs.size > 100 || (communications?.size ?? 0) > 500) throw new Error("learning_source_export_required");
     const bundles: ExistingJob[] = [];
     for (const job of jobs.docs) {
       try {
+        if (!admit(job, `${ROOT}/jobs/${job.id}`)) continue;
         const record = job.data();
         const identity = communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"].map(k => [k, record[k]])));
         const brief = await db.doc(ROOT).collection("briefs").doc(identity.briefId).get();
         const handoff = await db.doc(ROOT).collection("handoffs").doc(identity.briefDigest).get();
         const source = await db.doc(ROOT).collection("researchSources").doc(identity.briefDigest).get();
+        if (!admit(brief, `${ROOT}/briefs/${identity.briefId}`)
+          || !admit(handoff, `${ROOT}/handoffs/${identity.briefDigest}`)
+          || !admit(source, `${ROOT}/researchSources/${identity.briefDigest}`)) continue;
         const parsedBrief = communicationsBriefSchema.parse(brief.data());
-        const reviewedSnapshot = parsedBrief.researchOrigin.admissionId
-          ? await readExistingResearchSnapshot(db, parsedBrief.researchOrigin.date, parsedBrief.researchOrigin.admissionId) : undefined;
-        const contactProof = parsedBrief.researchOrigin.contactEvidenceKind === "public_operator_resolution" && parsedBrief.researchOrigin.contactEvidenceDigest
-          ? (await db.doc(ROOT).collection("contactProofs").doc(parsedBrief.researchOrigin.contactEvidenceDigest).get()).data() : undefined;
-        const receipt = authorized.sections.includes("outreach") ? await db.doc(ROOT).collection("sendReceipts").doc(communicationsDeliveryKey(identity)).get() : undefined;
+        const admissionId = parsedBrief.researchOrigin.admissionId;
+        const reviewed = admissionId ? await db.collection(REVIEWED_RESEARCH_ROOT).doc(admissionId).get() : undefined;
+        if (reviewed && !admit(reviewed, `${REVIEWED_RESEARCH_ROOT}/${admissionId}`)) continue;
+        const contactDigest = parsedBrief.researchOrigin.contactEvidenceDigest;
+        const contact = parsedBrief.researchOrigin.contactEvidenceKind === "public_operator_resolution" && contactDigest
+          ? await db.doc(ROOT).collection("contactProofs").doc(contactDigest).get() : undefined;
+        if (contact && !admit(contact, `${ROOT}/contactProofs/${contactDigest}`)) continue;
+        const receiptRef = `${ROOT}/sendReceipts/${communicationsDeliveryKey(identity)}`;
+        const receiptRead = authorized.sections.includes("outreach") ? await db.doc(receiptRef).get() : undefined;
+        const receipt = receiptRead?.exists && admit(receiptRead, receiptRef) ? receiptRead : undefined;
         if (receipt?.exists && !jobs.docs.some(job => job.id === receipt.data()?.jobId)) {
           readQuarantine.push({ recordRef: `${ROOT}/sendReceipts/${communicationsDeliveryKey(identity)}`, reason: "orphan_or_legacy_receipt_requires_reconciliation" });
         }
         const ledger = receipt?.exists && receipt.data()?.jobId === identity.jobId ? await db.collection("action_ledger").doc(`communications_${identity.jobId}`).get() : undefined;
+        const ledgerEligible = ledger && admit(ledger, `action_ledger/communications_${identity.jobId}`);
         bundles.push({ id: job.id, record: identity, brief: brief.data(), handoff: handoff.data(), researchSource: source.data(),
-          reviewedSnapshot, contactProof,
-          receipt: receipt?.data()?.jobId === identity.jobId ? receipt?.data() : undefined, ledger: ledger?.data() });
+          reviewedSnapshot: reviewed?.data(), contactProof: contact?.data(),
+          receipt: receipt?.data()?.jobId === identity.jobId && ledgerEligible ? receipt?.data() : undefined,
+          ledger: ledgerEligible ? ledger?.data() : undefined });
       } catch {
         // A stale or malformed job must not suppress valid sibling history.
         // Retain only the exact record reference, never private parse errors.
         readQuarantine.push({ recordRef: `${ROOT}/jobs/${job.id}`, reason: "source_contract_or_exact_join_invalid" });
       }
     }
-    inputs.push({ prospectId, prospect: prospect.data(), jobs: bundles, communicationsEvents: communications?.docs.map(doc => ({ id: doc.id, record: doc.data() })) ?? [] });
+    inputs.push({ prospectId, prospect: prospect.data(), jobs: bundles, communicationsEvents: communications?.docs
+      .filter(doc => admit(doc, `${prospectRef.path}/communicationsEvents/${doc.id}`)).map(doc => ({ id: doc.id, record: doc.data() })) ?? [] });
   }
-  const normalized = normalizeExistingSources(inputs, now);
+  const normalized = normalizeExistingSources(inputs, options?.frozenAsOf ?? now);
   // The public reader boundary returns structured authorized events only.
   return { ...normalized, researchDetails: authorized.sections.includes("research") ? normalized.researchDetails : [],
     quarantine: [...readQuarantine, ...normalized.quarantine], events: normalized.events.filter(e => authorized.sections.includes(eventSection(e))) };

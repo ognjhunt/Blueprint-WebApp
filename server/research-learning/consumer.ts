@@ -43,7 +43,8 @@ const canonicalFields = (record: any) => canonicalSchema.parse({ siteId: record.
  * cannot silently cross snapshots. No sessions, pointers or exports are written.
  * A replacement host can invoke this API with its existing Admin binding. */
 export async function openResearchLearningSession(db: FirebaseFirestore.Firestore, bindingValue: ConsumerBinding,
-  selectionValue: ConsumerSelection, clock = () => new Date().toISOString(), options?: { businessHistory?: BusinessReadScope; businessOverviewJobKey?: string }) {
+  selectionValue: ConsumerSelection, clock = () => new Date().toISOString(), options?: { businessHistory?: BusinessReadScope; businessOverviewJobKey?: string;
+    nativeSourceCutoff?: boolean }) {
   const binding = consumerBindingSchema.parse(bindingValue), selected = consumerSelectionSchema.parse(selectionValue);
   if (options?.businessOverviewJobKey && !options.businessHistory) throw new Error("learning_consumer_business_scope_required");
   const businessScope = options?.businessHistory ? businessReadScopeSchema.parse(options.businessHistory) : null;
@@ -144,7 +145,8 @@ export async function openResearchLearningSession(db: FirebaseFirestore.Firestor
     const localGrant = { ...grant, prospectIds: [prospectId] }, localRequest = { ...request, prospectIds: [prospectId] };
     authorize(localGrant, localRequest, clock());
     try {
-      const live = await readExistingSources(db, localGrant, localRequest, asOf);
+      const live = await readExistingSources(db, localGrant, localRequest, options?.nativeSourceCutoff ? clock() : asOf,
+        options?.nativeSourceCutoff ? { frozenAsOf: asOf } : undefined);
       events.push(...live.events); nativeResearch.push(...live.researchDetails);
       live.observedSourceRefs.forEach(ref => readRefs.add(ref)); quarantine.push(...live.quarantine);
       if (live.quarantine.length) unknowns.add("current_history_incomplete");
