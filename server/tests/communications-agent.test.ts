@@ -122,6 +122,20 @@ describe("Blueprint-owned communications queue", () => {
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).output).toEqual(f.output);
     expect(f.deps.api.cancel).not.toHaveBeenCalled();
   });
+  it.each(["adapted_question", "plain_acknowledgment"])("keeps a %s reply eligible for exact human review without imposing the first-touch template", async kind => {
+    const f = await setup("reply");
+    f.output.body = kind === "adapted_question" ? "Thanks for explaining. Which packing step should we discuss? Is there public context you would like us to read first?"
+      : "Thanks for the clarification. We will keep the discussion within the recorded public-source boundary.";
+    f.output.usedFactIds = [];
+    expect(f.output.body).not.toContain(f.brief.contact.learningQuestion);
+    const result = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false });
+    const ledger = f.db.records.get(`action_ledger/${(result as any).ledgerId}`);
+    expect(ledger).toMatchObject({ status: "pending_approval", approved_by: null, action_tier: 3 });
+    expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).hardChecksPassed).toBe(true);
+    ledger.action_payload.communications.output.usedFactIds.push("unsupported-fact-id");
+    expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).blockers).toContain("used_fact_missing");
+  });
   it("retains a useful long draft without a cosmetic schema-length rejection", async () => {
     const f = await setup();
     f.output.subject = "A sourced question about this facility's packing work ".repeat(3);

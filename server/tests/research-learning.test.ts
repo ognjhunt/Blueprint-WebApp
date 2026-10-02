@@ -224,7 +224,8 @@ function existingReplySourceFixture(): ExistingProspectSources {
   input.communicationsEvents = [{ id: "sent_job-1", record: { type: "sent", job: originalJob,
     receipt: { messageId: "out-1", threadId: "thread-1", rfcMessageId: "<out-1@tryblueprint.io>" } } },
   { id: "reply_in-1", record: { type: "reply_received", jobId: "reply-job", untrusted: true, message: {
-    gmailMessageId: "in-1", gmailThreadId: "thread-1", from: brief.contact.email, to: ["nijel@tryblueprint.io"],
+    gmailMessageId: "in-1", gmailThreadId: "thread-1", rfcMessageId: "<in-1@fixture.example>", subject: "Re: original outreach",
+    from: brief.contact.email, to: ["nijel@tryblueprint.io"],
     receivedAt: "2026-10-01T10:00:00Z", inReplyTo: "<out-1@tryblueprint.io>", references: [], body: "PRIVATE_REPLY_SENTINEL" } } }];
   return input;
 }

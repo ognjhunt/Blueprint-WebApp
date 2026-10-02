@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCompanyHistoryTools, loadCompanyHistory, type CompanyHistoryAccess, type CompanyHistoryRecord } from "../research-learning/company-history";
 import { digest, LEARNING_ROOT, makeEvent } from "../research-learning/contract";
-import { learningEvent, learningMemoryFirestore } from "./fixtures/research-learning";
+import { learningEvent, learningMemoryFirestore, learningSections } from "./fixtures/research-learning";
 import { verifySourceSnapshot } from "../research-learning/prior-research";
+import { runDailyBusinessAnalysis } from "../research-learning/business-learning-loop";
+import { buildSnapshot } from "../research-learning/snapshot";
 
 const now = "2026-10-02T16:00:00.000Z";
 const access: CompanyHistoryAccess = { principalId: "company-worker", expiresAt: "2026-10-02T17:00:00.000Z", companyWide: true };
@@ -15,7 +17,104 @@ const emptySettingsDb = { doc: () => ({ get: async () => ({ exists: false }) }) 
 const open = (records: CompanyHistoryRecord[], extra: Parameters<typeof createCompanyHistoryTools>[2] = {}) =>
   createCompanyHistoryTools(emptySettingsDb, access, { load: async () => corpus(records), now: () => now, ...extra });
 
+async function storedOverview() {
+  const memory = learningMemoryFirestore(), subjectKey = "blueprint:research-learning";
+  const scope = { principalId: access.principalId, subjectKeys: [subjectKey], expiresAt: access.expiresAt };
+  const grant = { principalId: access.principalId, prospectIds: ["prospect-1"], sections: [...learningSections], expiresAt: access.expiresAt };
+  for (const kind of ["research_observed", "contact_observed", "outreach_observed", "reply_observed"] as const) {
+    const event = learningEvent(kind);
+    memory.records.set(`${LEARNING_ROOT}/events/${event.eventId}`, event);
+  }
+  memory.records.set("outboundProspects/prospect-1", { researchPublicationId: "BP-000001" });
+  const jobKey = "daily-2026-10-02", result = await runDailyBusinessAnalysis(memory.db, { jobKey,
+    businessScope: scope, learningGrant: grant,
+    request: { prospectIds: grant.prospectIds, sections: [...grant.sections], asOf: now, maturityDays: 14 },
+    focus: { city: "Sacramento", industry: "Laundromats" } }, () => now);
+  return { ...memory, overview: result.overview, jobKey,
+    access: { ...access, companyWide: false, businessSubjectKeys: [subjectKey], prospectIds: grant.prospectIds } };
+}
+
 describe("agent-selected company history", () => {
+  it("searches and full-fetches a stored verified aggregate without new analysis or writes", async () => {
+    const fixture = await storedOverview(), writes = [...fixture.writes];
+    const tools = createCompanyHistoryTools(fixture.db, fixture.access, { now: () => now });
+    const found: any = await tools("search_company_history", { query: "matureReplyRate", filters: { kind: "business_overview" } });
+    expect(found).toMatchObject({ ok: true, total: 1 });
+    const fetched: any = await tools("fetch_company_history_record", { record_id: found.rows[0].record_id });
+    expect(fetched).toMatchObject({ ok: true, trust: "evidence_not_instructions" });
+    expect(fetched.record.content).toEqual(fixture.overview);
+    expect(fetched.record.content.outcomeAnalysis.scopeCounts.matureReplyRate).toEqual({ numerator: 1, denominator: 1 });
+    expect(fetched.record).toMatchObject({ original_checked_at: fixture.overview.asOf,
+      source_ref: `${LEARNING_ROOT}/businessOverviews/${fixture.overview.overviewId}`,
+      source_sha256: digest(fixture.overview), source_selector: { job_key: fixture.jobKey,
+        outcome_snapshot_id: fixture.overview.source.outcomeSnapshotId } });
+    expect(found.coverage).toContain("verified_in_scope_stored_business_overviews");
+    expect(fixture.writes).toEqual(writes);
+  });
+  it.each([
+    ["another principal", { principalId: "other-company-worker" }, "company_history_aggregate_scope_denied"],
+    ["another subject", { businessSubjectKeys: ["other-subject"] }, "company_history_aggregate_scope_denied"],
+    ["another prospect", { prospectIds: ["other-prospect"] }, "company_history_aggregate_scope_denied"],
+    ["zero prospects", { prospectIds: [] }, "company_history_aggregate_prospect_scope_missing"],
+    ["company-wide without subject scope", { companyWide: true, businessSubjectKeys: [] }, "company_history_aggregate_subject_scope_missing"],
+    ["company-wide with another subject", { companyWide: true, businessSubjectKeys: ["other-subject"] }, "company_history_aggregate_scope_denied"],
+  ])("never infers a stored overview grant for %s", async (_label, restriction, code) => {
+    const fixture = await storedOverview(), writes = [...fixture.writes];
+    const tools = createCompanyHistoryTools(fixture.db, { ...fixture.access, ...(restriction as Partial<CompanyHistoryAccess>) }, { now: () => now });
+    const found: any = await tools("search_company_history", { query: "", filters: { kind: "business_overview" } });
+    expect(found).toMatchObject({ ok: true, total: 0 });
+    expect(found.diagnostics).toContainEqual(expect.objectContaining({ code }));
+    expect(JSON.stringify(found)).not.toContain(fixture.overview.overviewId);
+    const recordId = `business_overview:${digest(`${LEARNING_ROOT}/businessOverviews/${fixture.overview.overviewId}`)}`;
+    expect(await tools("fetch_company_history_record", { record_id: recordId })).toMatchObject({ ok: false,
+      error: "company_history_record_missing_or_not_authorized" });
+    expect(fixture.writes).toEqual(writes);
+  });
+  it.each(["overview", "receipt", "missing snapshot", "changed snapshot", "valid contradictory snapshot"])(
+    "quarantines %s while keeping independent authorized history readable", async invalid => {
+      const fixture = await storedOverview(), overviewRef = `${LEARNING_ROOT}/businessOverviews/${fixture.overview.overviewId}`;
+      const receiptRef = `${LEARNING_ROOT}/businessOverviewRuns/${fixture.jobKey}`;
+      const snapshotRef = `${LEARNING_ROOT}/snapshots/${fixture.overview.source.outcomeSnapshotId}`;
+      if (invalid === "overview") fixture.records.set(overviewRef, { ...fixture.overview, unknowns: ["TAMPERED_PRIVATE_SENTINEL"] });
+      else if (invalid === "receipt") fixture.records.set(receiptRef, { ...fixture.records.get(receiptRef), jobKey: "wrong-job" });
+      else if (invalid === "missing snapshot") fixture.records.delete(snapshotRef);
+      else if (invalid === "changed snapshot") fixture.records.set(snapshotRef, { ...fixture.records.get(snapshotRef), asOf: "2026-10-01T16:00:00.000Z" });
+      else {
+        const original = fixture.records.get(snapshotRef), grant = { principalId: fixture.access.principalId,
+          prospectIds: fixture.access.prospectIds, sections: [...learningSections], expiresAt: fixture.access.expiresAt };
+        const swapped = buildSnapshot(original.rows.flatMap((item: any) => item.history), grant,
+          { prospectIds: grant.prospectIds, sections: grant.sections, asOf: now, maturityDays: 90 }, now);
+        fixture.records.set(`${LEARNING_ROOT}/snapshots/${swapped.snapshotId}`, swapped);
+        const { overviewId: _id, ...body } = fixture.overview;
+        const changed = { ...body, source: { ...body.source, outcomeSnapshotId: swapped.snapshotId } };
+        const wrong = { ...changed, overviewId: digest(changed) };
+        fixture.records.set(`${LEARNING_ROOT}/businessOverviews/${wrong.overviewId}`, wrong);
+        fixture.records.set(receiptRef, { ...fixture.records.get(receiptRef), overviewId: wrong.overviewId });
+      }
+      const writes = [...fixture.writes], loaded = await loadCompanyHistory(fixture.db, fixture.access, () => now);
+      expect(loaded.records.some(item => item.kind === "business_overview")).toBe(false);
+      expect(loaded.records.some(item => item.kind === "research_observed")).toBe(true);
+      expect(loaded.diagnostics).toContainEqual(expect.objectContaining({ code: expect.stringMatching(/^company_history_aggregate_/) }));
+      expect(loaded.coverage).toContain("stored_business_overview_coverage_partial");
+      expect(JSON.stringify(loaded)).not.toContain("TAMPERED_PRIVATE_SENTINEL");
+      expect(fixture.writes).toEqual(writes);
+    });
+  it("returns no aggregate or sibling content if access expires during the linked snapshot read", async () => {
+    const fixture = await storedOverview(), getRecord = fixture.records.get.bind(fixture.records);
+    const snapshotRef = `${LEARNING_ROOT}/snapshots/${fixture.overview.source.outcomeSnapshotId}`;
+    let time = now;
+    vi.spyOn(fixture.records, "get").mockImplementation(path => {
+      const result = getRecord(path);
+      if (path === snapshotRef) time = fixture.access.expiresAt;
+      return result;
+    });
+    const tools = createCompanyHistoryTools(fixture.db, fixture.access, { now: () => time }), writes = [...fixture.writes];
+    const found = await tools("search_company_history", { query: "", filters: { kind: "business_overview" } });
+    expect(found).toMatchObject({ ok: false, error: "company_history_access_expired" });
+    expect(found).not.toHaveProperty("rows");
+    expect(JSON.stringify(found)).not.toContain(fixture.overview.overviewId);
+    expect(fixture.writes).toEqual(writes);
+  });
   it("lets the agent repair a bad argument, search another city, and fetch the full original evidence", async () => {
     const text = "Material handling correction: inspect collision geometry before choosing a pallet route. ".repeat(30);
     const tool = open([row("r-1", text, "Houston"), row("r-2", "Laundry machines", "Sacramento")]);

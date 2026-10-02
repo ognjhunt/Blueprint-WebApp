@@ -24,6 +24,14 @@ function setup(clock = () => now) {
   return { ...memory, hypothesis, execute };
 }
 describe("zero-model per-run and daily learning handlers", () => {
+  it("reads a stored small overview under a larger authorized company prospect list without widening its snapshot scope", async () => {
+    const f = setup(), saved = await f.execute(), writes = [...f.writes];
+    const authorized = ["prospect-1", ...Array.from({ length: 100 }, (_, index) => `other-${index}`)];
+    expect((await readBusinessOverview(f.db, "daily-2026-10-02", businessScope, authorized, now, undefined, () => now))?.overview).toEqual(saved.overview);
+    await expect(readBusinessOverview(f.db, "daily-2026-10-02", businessScope, authorized.slice(1), now, undefined, () => now)).rejects.toThrow("scope_denied");
+    await expect(readBusinessOverview(f.db, "daily-2026-10-02", businessScope, [], now, undefined, () => now)).rejects.toThrow("scope_denied");
+    expect(f.writes).toEqual(writes);
+  });
   it("seals and replays the same daily history for equivalent offset cutoffs", async () => {
     const canonical = setup(), offset = setup(), selected = { ...request, asOf: "2026-10-02T06:45:00-05:00" };
     const first = await canonical.execute(), equivalent = await offset.execute(selected);

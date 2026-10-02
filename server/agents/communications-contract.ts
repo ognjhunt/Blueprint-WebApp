@@ -49,6 +49,10 @@ export const communicationsBriefSchema = z.object({
   priorConversation: z.object({
     gmailThreadId: id, gmailMessageIds: z.array(id).min(1).max(20),
   }).strict().nullable(),
+  // Backend-only lineage for an attachment to an already approved sent thread.
+  // It carries no permission grant and does not change the original QA dates.
+  replyOrigin: z.object({ parentBriefId: id, parentBriefDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    sendReceiptKey: z.string().regex(/^[a-f0-9]{64}$/) }).strict().optional(),
   outreachContext: outreachContextSchema,
   qualityReview: z.object({
     state: z.literal("approved"), reviewedBy: text, reviewedAt: date, sourceRecordUrl: publicUrl,
@@ -84,6 +88,37 @@ export function verifyCommunicationsHandoff(value: unknown, brief: Communication
     || handoff.reviewedAt !== brief.qualityReview.reviewedAt
     || handoff.sourceRecordUrl !== brief.qualityReview.sourceRecordUrl) throw new Error("research_handoff_approval_missing_or_changed");
   return handoff;
+}
+
+const hash = z.string().regex(/^[a-f0-9]{64}$/);
+export const communicationsReplyBindingSchema = z.object({
+  version: z.literal("blueprint.communications-reply-binding.v1"),
+  briefDigest: hash, parentBriefId: id, parentBriefDigest: hash,
+  sendReceiptKey: hash, sendReceiptDigest: hash, approvalLedgerId: id,
+  outgoingMessageId: id, outgoingRfcMessageId: z.string().min(1).max(500),
+}).strict();
+
+/** Bind consequential sent provenance, while retaining the entire original
+ * receipt separately. Optional recovery notes/timestamps cannot revoke it. */
+export function communicationsSentReceiptIdentity(value: unknown) {
+  return z.object({ state: z.literal("sent"), jobId: id, payloadDigest: hash, approvalLedgerId: id,
+    rfcMessageId: z.string().min(1).max(500), firstContactAuthorityDigest: hash.optional(),
+    receipt: z.object({ messageId: id, threadId: id, rfcMessageId: z.string().min(1).max(500) }),
+  }).parse(value);
+}
+
+/** A thread attachment inherits research review; it never reviews new claims,
+ * refreshes dates, or changes the original permission/sharing boundary. */
+export function verifyCommunicationsReplyBinding(value: unknown, brief: CommunicationsBrief, parent: CommunicationsBrief) {
+  const binding = communicationsReplyBindingSchema.parse(value);
+  const expected = { ...parent, briefId: brief.briefId,
+    replyOrigin: { parentBriefId: parent.briefId, parentBriefDigest: communicationsDigest(parent), sendReceiptKey: binding.sendReceiptKey },
+    priorConversation: { gmailThreadId: brief.priorConversation?.gmailThreadId,
+      gmailMessageIds: [binding.outgoingMessageId] } };
+  if (brief.briefId === parent.briefId || binding.briefDigest !== communicationsDigest(brief)
+    || binding.parentBriefId !== parent.briefId || binding.parentBriefDigest !== communicationsDigest(parent)
+    || communicationsDigest(expected) !== communicationsDigest(brief)) throw new Error("reply_parent_context_changed");
+  return binding;
 }
 
 export const communicationsJobSchema = z.object({

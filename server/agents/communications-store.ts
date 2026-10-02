@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest,
-  type CommunicationsBrief, type CommunicationsJob, type CommunicationsOutput,
+  type CommunicationsBrief, type CommunicationsJob, type CommunicationsOutput, type CommunicationsHandoff,
   verifyCommunicationsHandoff, communicationsDeliveryKey,
+  verifyCommunicationsReplyBinding,
+  communicationsSentReceiptIdentity,
   type ThreadMessage,
 } from "./communications-contract";
 import type { CommunicationsCheckpoint } from "./communications-api";
@@ -76,9 +78,25 @@ export class CommunicationsStore {
     await this.handoff(brief);
     return brief;
   }
-  async handoff(brief: CommunicationsBrief) {
-    const snapshot = await this.db.doc(COMMUNICATIONS_ROOT).collection("handoffs").doc(communicationsDigest(brief)).get();
-    return verifyCommunicationsHandoff(snapshot.data(), brief);
+  async handoff(brief: CommunicationsBrief, lineage = new Set<string>()): Promise<CommunicationsHandoff> {
+    const digest = communicationsDigest(brief), root = this.db.doc(COMMUNICATIONS_ROOT);
+    if (lineage.has(digest)) throw new Error("reply_parent_lineage_cycle");
+    lineage.add(digest);
+    const snapshot = await root.collection("handoffs").doc(digest).get();
+    const handoff = verifyCommunicationsHandoff(snapshot.data(), brief);
+    if (brief.replyOrigin) {
+      const parent = communicationsBriefSchema.parse((await root.collection("briefs").doc(brief.replyOrigin.parentBriefId).get()).data());
+      const binding = verifyCommunicationsReplyBinding((await root.collection("replyBindings").doc(digest).get()).data(), brief, parent);
+      const parentHandoff = await this.handoff(parent, lineage);
+      const receipt = (await root.collection("sendReceipts").doc(binding.sendReceiptKey).get()).data();
+      if (!receipt || receipt.state !== "sent" || communicationsDigest(communicationsSentReceiptIdentity(receipt)) !== binding.sendReceiptDigest
+        || receipt.approvalLedgerId !== binding.approvalLedgerId || receipt.receipt?.messageId !== binding.outgoingMessageId
+        || receipt.receipt?.rfcMessageId !== binding.outgoingRfcMessageId || receipt.receipt?.threadId !== brief.priorConversation?.gmailThreadId
+        || communicationsDigest(handoff) !== communicationsDigest({ ...parentHandoff, briefDigest: digest })) {
+        throw new Error("reply_parent_receipt_or_handoff_changed");
+      }
+    }
+    return handoff;
   }
   async contactProof(brief: CommunicationsBrief) {
     if (brief.researchOrigin.contactEvidenceKind !== "public_operator_resolution") return undefined;
