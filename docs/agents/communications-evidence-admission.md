@@ -7,6 +7,33 @@ Completion artifact: reviewed source admission, source-bound first-contact
 regressions and a disabled staging path. This does not require shared-learning
 migration or activate inference/sending.
 
+The communications worker now calls the reviewed native learning hooks before
+forming a new draft request. It passes the exact job path and one canonical
+prospect ID, and freezes the validated context or unavailable-context unknown
+before the API computes its request digest. The prompt receives relevant
+contact/outcome history, original source dates and provisional business
+hypotheses. Full context remains content-addressed in
+`blueprintResearchLearning/default/nativeLearningInputs`; an oversized inline
+projection keeps its reference and an explicit unknown without becoming a
+first-draft gate. It never reads mailbox bodies or changes consent or suppression.
+
+Existing create/session checkpoints use `allowCreate:false`: legacy jobs without
+a binding retain their original input shape, while already bound jobs replay the
+same frozen context. Exact v1 and v2 writing instructions remain archived for
+saved-turn recovery. New requests use `blueprint.communications-definition.v3`.
+After the native result is persisted, the caller records its observed state with
+unknown outcome counts. A failed learning observation preserves the saved draft.
+This wiring leaves inference, sends and human approval under their existing gates.
+
+To synchronize the named communications `savedDefault` agent, its existing
+runtime owner resolves the actual ID from that binding, reads the current saved
+agent, and updates only `instructions` to the exact reviewed
+`COMMUNICATIONS_DEFINITION.instructions`. The update uses the existing project
+and credentials, changes no tools/model/permissions, and starts no session. Read
+back the exact instruction SHA-256 before updating the binding's version/digest.
+Do not guess an agent ID or replace unrelated provider metadata. Tony's original
+recovered draft remains pending human review and is never redrafted by this change.
+
 `POST /api/admin/communications/research-admissions` uses existing Firebase
 authentication, CSRF protection and server-revalidated admin custom claims.
 The protected service records its authenticated actor and review time. It accepts
