@@ -596,7 +596,7 @@ describe("agent session runtime", () => {
     expect(result.session?.title).toContain("Implementation");
     expect(result.handoffPrompt).toContain("Phase: Implementation");
     expect(result.handoffPrompt).toContain("docs/runbook.md");
-    expect(result.handoffPrompt).toContain("Retry once in this fresh thread");
+    expect(result.handoffPrompt).toContain("Inspect the retained context and select a recovery strategy");
     expect(result.handoffPrompt).toContain("Paperclip goal closeout contract");
     expect(result.handoffPrompt).toContain("Goal objective:");
     expect(result.handoffPrompt).toContain("Retry/resume condition:");
@@ -607,6 +607,24 @@ describe("agent session runtime", () => {
       workflow_phase: "implementation",
     });
     expect(runOpenAIResponsesTask).toHaveBeenCalled();
+  });
+
+  it("hands repeated investigation failures back to the agent with recovery choices and effect controls", async () => {
+    const { createAgentSession, forkAgentSessionWithHandoff } = await import("../agents/runtime");
+    const session = await createAgentSession({ title: "Recover useful work", task_kind: "operator_thread",
+      provider: "openai_responses", metadata: { workflow: { phase: "investigation", retryCount: 2 } } });
+    fake.store.agentRuns.set("run-repeated-context", { id: "run-repeated-context", session_id: session.id,
+      task_kind: "operator_thread", status: "failed", error: "context window exceeded",
+      input: { kind: "operator_thread", input: { message: "Recover useful work" } }, created_at: "timestamp" });
+    const result = await forkAgentSessionWithHandoff({ sessionId: session.id, phase: "investigation", sourceRunId: "run-repeated-context" });
+    expect(result.handoffPrompt).toContain("choose the next authorized action");
+    expect(result.handoffPrompt).toContain("Inspect prior errors and results");
+    expect(result.handoffPrompt).toContain("available tools");
+    expect(result.handoffPrompt).toContain("The phase is a starting point");
+    expect(result.handoffPrompt).not.toContain("bounded to one phase");
+    expect(result.handoffPrompt).toContain("reconcile uncertain mutations before retrying them");
+    expect(result.handoffPrompt).not.toContain("stop once the cause is clear");
+    expect(result.handoffPrompt).not.toContain("instead of retrying in place");
   });
 
   it("applies managed runtime profiles and records runtime events and checkpoints", async () => {

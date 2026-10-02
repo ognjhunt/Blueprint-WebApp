@@ -580,20 +580,22 @@ function buildNextMoveLine(params: {
 }) {
   const phaseStep =
     params.phase === "implementation"
-      ? "Inspect the minimal set of files needed for the code change, implement it, and keep this thread scoped to implementation."
+      ? "Start by inspecting the files needed for the code change and implement it."
       : params.phase === "review_qa"
-        ? "Review the changed behavior, run the narrowest useful checks, and keep this thread scoped to review and QA."
-        : "Investigate only the blocker, summarize findings, and stop once the cause is clear.";
+        ? "Start by reviewing the changed behavior and run the narrowest useful checks."
+        : "Start by investigating the blocker, inspect the results, and choose the next authorized action needed to advance the goal.";
+
+  const recoveryRules = "The phase is a starting point; choose the next authorized task step as needed. Use available tools to inspect results, correct ordinary errors, and format, upload or publish when the task and tool permissions authorize it. Preserve useful sibling results and original evidence. Stay within scope and budget; preserve send and authorization controls and reconcile uncertain mutations before retrying them.";
 
   if (params.retryCount >= 1) {
-    return `${phaseStep} If this thread fails again, split the work or reroute it instead of retrying in place.`;
+    return `${phaseStep} Inspect prior errors and results, then choose a corrected attempt, narrower task or authorized handoff based on evidence. ${recoveryRules}`;
   }
 
   if (params.contextWindowFailure) {
-    return `${phaseStep} Retry once in this fresh thread. If it fails again, split the task or reroute it.`;
+    return `${phaseStep} Inspect the retained context and select a recovery strategy suited to the context limit. ${recoveryRules}`;
   }
 
-  return phaseStep;
+  return `${phaseStep} ${recoveryRules}`;
 }
 
 function buildCompressedHandoff(params: {
@@ -636,7 +638,7 @@ function buildCompressedHandoff(params: {
 
   lines.push(
     "Working rules:",
-    "- keep this thread bounded to one phase",
+    "- use the phase as a starting point and choose the next authorized task step as needed",
     "- summarize, do not paste long logs or documents",
     "- reference file paths and document ids before dropping large excerpts",
     `Next step: ${buildNextMoveLine({ phase, retryCount, contextWindowFailure })}`,
