@@ -322,6 +322,14 @@ persists/reuses the exact returned input. `beforeWork` remains a read-only
 current-context API for relevant retrieval and offline/live dry-run checks.
 No provider create/cancel/retry is issued by this host adapter.
 
+Daily research initially includes up to ten host-authorized native prospect IDs
+alongside up to ten staged CRM rows. Missing CRM/native joins remain explicit
+unknowns and do not hide the native research/contact/outcome history. This
+compact selection is saved with the first native input and stays fixed on
+retry, even when additional company prospects appear. Neither bound is a
+success ceiling or a hard filter; broader authorized detail selections and
+exploration remain available to the native host.
+
 The strict persisted-handoff validator is
 `server/research-learning/native-handoff.ts`. Current company authorization is
 rechecked on every replay and daily manifest read. Removed prospects fail

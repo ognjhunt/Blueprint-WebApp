@@ -198,6 +198,17 @@ describe("native zero-model learning hooks", () => {
     f.records.set(sourceRef, f.source); const replay = await f.hooks.prepareNativeJob("daily_research", path); if (!replay) throw new Error("expected input");
     expect(replay.inputHash).toBe(first.inputHash); expect(replay.unknown).toBe("native_learning_context_unavailable"); expect(replay.handoff).toBeNull();
   });
+  it("includes authorized native history before research even when no staged CRM join exists, and freezes that selection on retry", async () => {
+    const f = fixture(), path = "blueprintDailyResearch/sites-first/runs/2026-10-02";
+    f.records.set("outboundProspects/prospect-1", { researchPublicationId: "BP-NATIVE-NOT-STAGED" });
+    const first = await f.hooks.prepareNativeJob("daily_research", path); if (!first?.handoff) throw new Error("expected input");
+    expect(first.prospectIds).toEqual(["prospect-1"]); expect(first.handoff.canonicalJoins).toEqual([]);
+    expect(first.handoff.priorContactAndOutcomes.prospects[0]).toMatchObject({ prospectId: "prospect-1", historyCount: 3, acceptedTouches: 1 });
+    expect(first.handoff.unknowns).toContain("crm_native_join_missing");
+    f.records.set("outboundProspects/another-prospect", { researchPublicationId: "BP-NEW" });
+    const writes = [...f.writes], replay = await f.hooks.prepareNativeJob("daily_research", path);
+    expect(replay?.prospectIds).toEqual(["prospect-1"]); expect(replay?.handoff).toEqual(first.handoff); expect(f.writes).toEqual(writes);
+  });
   it("rejects cross-role/job scopes before reading, and config/hashed context changes before replay", async () => {
     const f = fixture(), path = "blueprintDailyResearch/sites-first/runs/2026-10-02";
     await expect(f.hooks.prepareNativeJob("communications", path, ["prospect-1"])).rejects.toThrow("identity_invalid");

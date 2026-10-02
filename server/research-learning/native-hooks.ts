@@ -116,7 +116,8 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
   }
   async function beforeWork(role: "daily_research" | "communications", selectedProspectIds: string[] = []) {
     try {
-      const scope = await readScope(), selected = z.array(id).max(10).parse(selectedProspectIds);
+      const scope = await readScope(), selected = z.array(id).max(10).parse(role === "daily_research" && !selectedProspectIds.length
+        ? scope.prospectIds.slice(0,10) : selectedProspectIds);
       if (selected.some(value => !scope.prospectIds.includes(value))) throw new Error("native_learning_selected_prospect_denied");
       const schedule = chicagoAggregationTime(clock()), overviewDay = schedule.due ? schedule.day : chicagoDate(new Date(Date.parse(schedule.scheduledAt)-24*3600000).toISOString());
       const expiry = expires();
@@ -128,7 +129,7 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
         prospectIds: selected, capabilityIds: [], focus: config.focus, maturityDays: config.maturityDays }, clock,
       { businessHistory: { principalId: config.principalId, subjectKeys: config.businessSubjectKeys, expiresAt: expiry },
         businessOverviewJobKey: jobKey(overviewDay), nativeSourceCutoff: true });
-      return { available: true as const, ...session };
+      return { available: true as const, selectedProspectIds: selected, ...session };
     } catch {
       return { available: false as const, unknown: "native_learning_context_unavailable", paidModelCalls: 0 };
     }
@@ -154,7 +155,8 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
     const inputs = db.doc(LEARNING_ROOT).collection("nativeLearningInputs"), bindingRef = inputs.doc(digest({ role, recordRef: parsed }));
     const verifyIdentity = (input: z.infer<typeof nativeInputBindingSchema> | z.infer<typeof nativeInputSchema>) => {
       if (input.configHash !== configHash || input.nativeRecordRef !== parsed || input.role !== role
-        || digest(input.prospectIds) !== digest(selected) || input.sourceSnapshotId !== config.sourceSnapshotId) throw new Error("native_learning_input_changed");
+        || (role === "communications" && digest(input.prospectIds) !== digest(selected))
+        || input.sourceSnapshotId !== config.sourceSnapshotId) throw new Error("native_learning_input_changed");
     };
     const verify = async (value: unknown, expectedHash: string) => {
       const input = nativeInputSchema.parse(value), { inputHash, ...body } = input;
@@ -166,28 +168,31 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
         if (input.unknown !== null) throw new Error("native_learning_input_context_changed");
         const scope = await readScope();
         handoff = await validateNativeHandoff(input.handoff, { role, principalId: config.principalId,
-          subjectKeys: config.businessSubjectKeys, selectedProspectIds: selected, source: scope.source,
+          subjectKeys: config.businessSubjectKeys, selectedProspectIds: input.prospectIds, source: scope.source,
           companyProspectIds: scope.prospectIds, focus: config.focus, preparedAt: input.preparedAt, now: instant.parse(clock()) }, db);
-      } else if (input.handoff !== null || !input.unknown) throw new Error("native_learning_input_context_changed");
+      } else if (input.handoff !== null || !input.unknown || (role === "daily_research" && input.prospectIds.length)) throw new Error("native_learning_input_context_changed");
       return { ...input, handoff };
     };
     const loadBound = async (value: unknown) => {
       const binding = nativeInputBindingSchema.parse(value); verifyIdentity(binding);
       const ref = inputs.doc(binding.inputHash), saved = await ref.get();
       if (!saved.exists) throw new Error("native_learning_input_missing");
-      return { ...await verify(saved.data(), saved.id), recordRef: ref.path, bindingRef: bindingRef.path, replay: true };
+      const input = await verify(saved.data(), saved.id);
+      if (digest(input.prospectIds) !== digest(binding.prospectIds)) throw new Error("native_learning_input_changed");
+      return { ...input, recordRef: ref.path, bindingRef: bindingRef.path, replay: true };
     };
     const prior = await bindingRef.get();
     if (prior.exists) return loadBound(prior.data());
     if (!allowCreate) return null;
     const context = await beforeWork(role, selected), body = { version: "blueprint.native-learning-input.v1" as const,
-      configHash, nativeRecordRef: parsed, role, prospectIds: selected, sourceSnapshotId: config.sourceSnapshotId,
+      configHash, nativeRecordRef: parsed, role, prospectIds: context.available ? [...context.selectedProspectIds].sort() : selected,
+      sourceSnapshotId: config.sourceSnapshotId,
       preparedAt: instant.parse(clock()), handoff: context.available ? context.handoff : null,
       unknown: context.available ? null : context.unknown };
     const planned = await verify({ ...body, inputHash: digest(body) }, digest(body));
     if (Buffer.byteLength(JSON.stringify(planned)) > 900000) throw new Error("native_learning_input_export_or_narrow_scope_required");
     const binding = nativeInputBindingSchema.parse({ version: "blueprint.native-learning-input-binding.v1", configHash,
-      nativeRecordRef: parsed, role, prospectIds: selected, sourceSnapshotId: config.sourceSnapshotId, inputHash: planned.inputHash });
+      nativeRecordRef: parsed, role, prospectIds: planned.prospectIds, sourceSnapshotId: config.sourceSnapshotId, inputHash: planned.inputHash });
     const ref = inputs.doc(planned.inputHash);
     const saved = await db.runTransaction(async tx => { const current = await tx.get(bindingRef), content = await tx.get(ref);
       if (current.exists) return { binding: current.data(), replay: true };
