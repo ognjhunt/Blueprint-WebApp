@@ -21,7 +21,7 @@ function fixture() {
  [`outboundProspects/${job.prospectId}`,{contactEmail:brief.contact.email,siteId:brief.siteId,taskId:brief.taskId,caseId:brief.caseId,stage:"drafted",communications:{jobId:job.jobId,briefDigest:job.briefDigest}}],
  ]));
  let copied:any=null;
- const receipt={draftId:"gmail-draft-1",messageId:"gmail-message-1",threadId:"gmail-thread-1"};
+ const receipt={draftId:"gmail-draft-1",messageId:"gmail-message-1",threadId:"gmail-thread-1",authoredRfcMessageId:`<blueprint-draft-${job.jobId}@tryblueprint.io>`,observedRfcMessageId:"<gmail-rewritten@example.reserved.invalid>"};
  const ports:GmailDraftPorts={enabled:()=>true,allowsRevision:()=>true,requireCapability:vi.fn(async()=>{}),verifyMailbox:vi.fn(async()=>{}),priorContact:vi.fn(async()=>false),write:vi.fn(async content=>{copied=structuredClone(content);return{draftId:receipt.draftId};}),find:vi.fn(async content=>copied&&content.payloadDigest===copied.payloadDigest?receipt:null)};
  const input={expectedReviewDigest:reviewDigest,expectedRevisionId:revisionId,mode:"write"};
  return{db,job,brief,ledgerId,input,ports,payload,root,receipt,setCopied:(v:any)=>{copied=v;}};
@@ -75,6 +75,13 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   expect(await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).toMatchObject({state:"verified",sent:false});
   expect(f.ports.write).toHaveBeenCalledTimes(1);
  });
+ it("retains an accepted draft ID before a failed readback and reconciles only that copy",async()=>{
+  const f=fixture();vi.mocked(f.ports.find).mockRejectedValueOnce(new Error("readback failed after accepted create"));
+  await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).rejects.toThrow("unknown_acknowledgement");
+  expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"unknown",draftId:f.receipt.draftId,providerWriteSubmitted:true,providerAcceptedAt:expect.any(Number)});
+  expect(await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",{...f.input,mode:"reconcile"},f.ports,communicationsNow)).toMatchObject({state:"verified",draftId:f.receipt.draftId});
+  expect(vi.mocked(f.ports.find).mock.calls.at(-1)?.[1]).toBe(f.receipt.draftId);expect(f.ports.write).toHaveBeenCalledTimes(1);
+ });
  it("keeps a missing unknown draft unresolved instead of another POST",async()=>{
   const f=fixture();vi.mocked(f.ports.write).mockRejectedValueOnce(new Error("unknown acknowledgement"));
   await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).rejects.toThrow();
@@ -92,7 +99,7 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   expect(f.ports.write).not.toHaveBeenCalled();expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"refused_before_write",providerWriteSubmitted:false});
   expect(await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).toMatchObject({state:"verified"});expect(f.ports.write).toHaveBeenCalledTimes(1);
  });
- it("uses Gmail draft create/get only, preserves headers/footer and refuses a changed sender",async()=>{
+ it("preserves rewritten Gmail Message-ID provenance with exact identity/body and refuses changed copies",async()=>{
   const f=fixture();let full:any=null;
   const api:any={users:{drafts:{create:vi.fn(async(params:any,options:any)=>{
    expect(options.retry).toBe(false);const raw=Buffer.from(params.requestBody.message.raw,"base64url").toString("utf8"),[headerText,body]=raw.split("\r\n\r\n");
@@ -100,15 +107,46 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
    full={id:"draft-1",message:{id:"message-1",threadId:"thread-1",labelIds:["DRAFT"],payload:{mimeType:"text/plain",headers,body:{data:Buffer.from(body,"base64").toString("base64url")}}}};return{data:{id:"draft-1"}};
   }),get:vi.fn(async()=>({data:full})),send:vi.fn()},messages:{send:vi.fn()}}};
   const ports=configuredGmailDraftPorts(api), content:any={jobId:f.job.jobId,reviewDigest:f.input.expectedReviewDigest,payloadDigest:"c".repeat(64),to:f.payload.to,subject:f.payload.subject,body:f.payload.transportBody,messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`};
-  await ports.write(content);expect(await ports.find(content,"draft-1")).toEqual({draftId:"draft-1",messageId:"message-1",threadId:"thread-1"});
+  await ports.write(content);
+  // Observed live shape: Gmail rewrites this one transport field; the eight
+  // headers stay unique and every stable identity/body predicate still matches.
+  const messageId=full.message.payload.headers.find((header:any)=>header.name==="Message-ID");messageId.value="<gmail-rewritten.20261002@mail.gmail.com>";
+  expect(await ports.find(content,"draft-1")).toEqual({draftId:"draft-1",messageId:"message-1",threadId:"thread-1",authoredRfcMessageId:content.messageId,observedRfcMessageId:messageId.value});
+  messageId.value="invalid-message-id";await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");messageId.value="<gmail-rewritten.20261002@mail.gmail.com>";
   for(const name of ["Cc","Bcc","To"]){
    full.message.payload.headers.push({name,value:"extra@example.reserved.invalid"});
    await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");full.message.payload.headers.pop();
   }
   full.message.payload.parts=[{mimeType:"application/pdf",filename:"added.pdf",body:{attachmentId:"fixture-attachment"}}];
   await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");delete full.message.payload.parts;
+  for(const changedBody of [content.body+"\n",content.body.replace("Synthetic test location","Changed test location")]){
+   full.message.payload.body.data=Buffer.from(changedBody).toString("base64url");await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");
+  }
+  full.message.payload.body.data=Buffer.from(content.body).toString("base64url");
   const from=full.message.payload.headers.find((header:any)=>header.name==="From");from.value+=" attacker@example.reserved.invalid";
   await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");expect(api.users.drafts.send).not.toHaveBeenCalled();expect(api.users.messages.send).not.toHaveBeenCalled();
+ });
+ it("recovers a legacy unknown copy by exact recipient/subject and stable headers, refusing duplicates or incomplete inventory",async()=>{
+  const f=fixture();let content:any;
+  vi.mocked(f.ports.write).mockImplementationOnce(async value=>{content=structuredClone(value);throw new Error("legacy lost create acknowledgement");});
+  await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).rejects.toThrow("unknown_acknowledgement");
+  const full:any={id:"existing-draft",message:{id:"existing-message",threadId:"existing-thread",labelIds:["DRAFT"],payload:{mimeType:"text/plain",body:{data:Buffer.from(content.body).toString("base64url")},headers:[
+   {name:"From",value:"Nijel Hunt <nijel@tryblueprint.io>"},{name:"To",value:content.to},{name:"Reply-To",value:"nijel@tryblueprint.io"},{name:"Subject",value:content.subject},
+   {name:"Message-ID",value:"<gmail-rewritten.20261002@mail.gmail.com>"},{name:"X-Blueprint-Job-ID",value:content.jobId},{name:"X-Blueprint-Review-Digest",value:content.reviewDigest},{name:"X-Blueprint-Payload-Digest",value:content.payloadDigest},
+  ]}}};
+  let candidates:any={drafts:[{id:full.id}]};
+  const api:any={users:{drafts:{list:vi.fn(async({q}:any)=>({data:q.startsWith("rfc822msgid:")?{drafts:[]}:candidates})),get:vi.fn(async({id}:any)=>({data:{...full,id}})),create:vi.fn(),update:vi.fn(),send:vi.fn()},messages:{send:vi.fn()}}};
+  f.ports.find=configuredGmailDraftPorts(api).find;
+  const reconcile={...f.input,mode:"reconcile"};
+  candidates={drafts:[{id:full.id}],nextPageToken:"unread-more"};await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",reconcile,f.ports,communicationsNow)).rejects.toThrow("candidate_inventory_incomplete");
+  expect(api.users.drafts.get).not.toHaveBeenCalled();
+  candidates={drafts:[{id:full.id},{id:"second-copy"}]};await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",reconcile,f.ports,communicationsNow)).rejects.toThrow("multiple_copies_require_reconciliation");
+  expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"unknown",draftId:null});
+  candidates={drafts:[{id:full.id}]};
+  expect(await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",reconcile,f.ports,communicationsNow)).toMatchObject({state:"verified",draftId:full.id,sent:false,approved:false});
+  expect(api.users.drafts.list).toHaveBeenCalledWith({userId:"me",q:`to:${JSON.stringify(content.to)} subject:${JSON.stringify(content.subject)}`,maxResults:2});
+  expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`).receipt).toMatchObject({authoredRfcMessageId:content.messageId,observedRfcMessageId:"<gmail-rewritten.20261002@mail.gmail.com>"});
+  expect(f.ports.write).toHaveBeenCalledTimes(1);for(const method of [api.users.drafts.create,api.users.drafts.update,api.users.drafts.send,api.users.messages.send])expect(method).not.toHaveBeenCalled();
  });
  it("fences a still-running writer and needs exact process-ended proof for observation-only recovery",async()=>{
   const f=fixture();let release!:()=>void;const wait=new Promise<void>(resolve=>{release=resolve;});
