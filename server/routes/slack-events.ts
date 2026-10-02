@@ -6,6 +6,7 @@ import { logger } from "../logger";
 import { evaluateSlackHumanReplySurface } from "../utils/human-reply-slack";
 import { ingestHumanReplyPayload } from "../utils/human-reply-worker";
 import { buildSlackThreadCorrelationId } from "../utils/human-reply-routing";
+import { ingestSlackOpsIncident } from "../utils/ops-incident-ingest";
 
 const router = Router();
 
@@ -147,6 +148,7 @@ router.post("/events", async (req: SlackEventRequest, res: Response) => {
 
   if (payload.type === "event_callback") {
     try {
+      await ingestSlackOpsIncident(payload);
       const result = await maybeIngestSlackReply(payload);
       logger.info(
         {

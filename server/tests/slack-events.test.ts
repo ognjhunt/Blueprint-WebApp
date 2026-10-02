@@ -1,10 +1,13 @@
 // @vitest-environment node
 import express from "express";
 import { createServer, type Server } from "http";
+import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const ingestHumanReplyPayload = vi.hoisted(() => vi.fn());
 const evaluateSlackHumanReplySurface = vi.hoisted(() => vi.fn());
+const ingestSlackOpsIncident = vi.hoisted(() => vi.fn());
+vi.mock("../utils/ops-incident-ingest", () => ({ ingestSlackOpsIncident }));
 
 vi.mock("../utils/human-reply-worker", () => ({
   ingestHumanReplyPayload,
@@ -51,9 +54,27 @@ afterEach(() => {
   vi.resetModules();
   ingestHumanReplyPayload.mockReset();
   evaluateSlackHumanReplySurface.mockReset();
+  ingestSlackOpsIncident.mockReset();
 });
 
 describe("slack events route", () => {
+  it("admits bot incident evidence only after a valid production signature", async () => {
+    vi.stubEnv("NODE_ENV", "production"); vi.stubEnv("SLACK_SIGNING_SECRET", "fixture-secret");
+    const { server, baseUrl } = await startServer();
+    const body = JSON.stringify({ type: "event_callback", team_id: "T_TEST", api_app_id: "A_TEST", event_id: "EvBot",
+      event: { type: "message", subtype: "bot_message", bot_id: "B_SOURCE", channel: "C_TEST", text: "untrusted report", ts: "1790942810.680099" } });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = `v0=${createHmac("sha256", "fixture-secret").update(`v0:${timestamp}:${body}`).digest("hex")}`;
+    try {
+      const rejected = await fetch(`${baseUrl}/api/slack/events`, { method: "POST", body,
+        headers: { "Content-Type": "application/json", "x-slack-request-timestamp": timestamp, "x-slack-signature": "v0=invalid" } });
+      expect(rejected.status).toBe(401); expect(ingestSlackOpsIncident).not.toHaveBeenCalled();
+      const accepted = await fetch(`${baseUrl}/api/slack/events`, { method: "POST", body,
+        headers: { "Content-Type": "application/json", "x-slack-request-timestamp": timestamp, "x-slack-signature": signature } });
+      expect(accepted.status).toBe(200); expect(ingestSlackOpsIncident).toHaveBeenCalledWith(JSON.parse(body));
+      expect(ingestHumanReplyPayload).not.toHaveBeenCalled();
+    } finally { await stopServer(server); }
+  });
   it("responds to slack url verification challenges", async () => {
     const { server, baseUrl } = await startServer();
     try {
