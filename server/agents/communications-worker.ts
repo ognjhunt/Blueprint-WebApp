@@ -1,7 +1,7 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl, appendCommercialEmailFooter } from "../utils/email-suppression";
-import { outboundOutreachTask } from "./tasks/outbound-outreach";
+import { COMMUNICATIONS_OUTREACH_GUIDANCE } from "./communications-instructions";
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest, briefRefreshReasons,
   correlateReply, correlatedReplies, isOptOut, FOUNDER_MAILBOX, type CommunicationsBrief, type VerifiedThread,
@@ -32,7 +32,15 @@ export type CommunicationsDependencies = {
   sendAutomatic?: (ledgerId: string) => Promise<{ state: "sent" | "auto_approved" | "failed"; reason?: string }>;
 };
 
-export async function processCommunicationsJob(jobId: string, deps: CommunicationsDependencies) {
+/** Trusted operator lane, after the existing authenticated retry/CAS checks.
+ * This observes the same reviewed saved output and queues human review only. */
+export function recoverSavedCommunicationsDraft(jobId: string, expectedOutputSha256: string, deps: CommunicationsDependencies) {
+  if (!/^[a-f0-9]{64}$/.test(expectedOutputSha256)) throw new Error("communications_saved_output_digest_invalid");
+  return processCommunicationsJob(jobId, deps, { expectedOutputSha256 });
+}
+
+export async function processCommunicationsJob(jobId: string, deps: CommunicationsDependencies,
+  recovery?: { expectedOutputSha256: string }) {
   const claimed = await deps.store.claim(jobId);
   if (!claimed) return { state: "no_op" };
   const job = communicationsJobSchema.parse(Object.fromEntries(Object.entries(claimed).filter(([key]) =>
@@ -86,7 +94,8 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       && deps.now() - Date.parse(claimed.checkpoint.createClaimedAt) >= 180000;
     // A completed saved turn remains useful after the observer/lease expired.
     // Reconciliation does only GETs; never extend the deadline or create a turn.
-    const saved = expired ? await deps.api.reconcileSaved(claimed.checkpoint, jobId) : null;
+    const saved = recovery || expired ? await deps.api.reconcileSaved(claimed.checkpoint, jobId) : null;
+    if (recovery && !saved) throw new CommunicationsRuntimeError("communications_saved_output_not_completed");
     if (expired && !saved) {
       const cancelled = await deps.api.cancel(claimed.checkpoint);
       throw new CommunicationsRuntimeError(cancelled ? "communications_deadline_cancel_requested" : "session_create_requires_reconciliation");
@@ -95,7 +104,11 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       input, jobId, checkpoint: claimed.checkpoint,
       saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => deps.store.update(jobId, { checkpoint }),
     });
-    await deps.store.update(jobId, { output: result.output, checkpoint: result.checkpoint });
+    if (recovery && (!("outputSource" in result) || result.outputSource?.rawOutputSha256 !== recovery.expectedOutputSha256)) {
+      throw new CommunicationsRuntimeError("communications_saved_output_changed");
+    }
+    await deps.store.update(jobId, { output: result.output, checkpoint: result.checkpoint,
+      ...("outputSource" in result && result.outputSource ? { outputSource: result.outputSource } : {}) });
     if (result.output.disposition === "research_refresh") {
       const factIds = result.output.refreshFactIds;
       if (factIds.some((id) => !brief.facts.some((fact) => fact.id === id))) throw new Error("refresh_fact_unknown");
@@ -108,7 +121,8 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     }
     // The model's prose never supplies automatic send authority. The compiler
     // uses the immutable public evidence/state; all other drafts keep review.
-    const compiled = job.intent === "outreach" && automaticFirstContactEnabled()
+    const compatibilityRecovery = "outputSource" in result && !!result.outputSource?.normalizedMetadataPaths.length;
+    const compiled = !saved && !compatibilityRecovery && job.intent === "outreach" && automaticFirstContactEnabled()
       ? compileAutomaticFirstContact(brief, deps.now()) : null;
     const output = compiled ?? result.output;
     const provenance = compiled ? (await deps.store.db.doc("blueprintCommunications/default").collection("researchSources").doc(job.briefDigest).get()).data() : null;
@@ -138,6 +152,9 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     }
     return { state: "pending_approval", ledgerId, sent: false, gmailDraftCreated: false };
   } catch (error) {
+    if (error instanceof CommunicationsRuntimeError && error.outputSource) {
+      await deps.store.update(jobId, { reason: error.code, ...{ outputSource: error.outputSource } });
+    }
     if (error instanceof CommunicationsDraftBudgetError
       && ["communications_draft_cost_unresolved", "communications_draft_daily_admission_limit", "communications_draft_soft_target_reached"].includes(error.code)
       && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId) {
@@ -154,12 +171,8 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
 }
 
 function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown) {
-  const policy = intent === "outreach" ? outboundOutreachTask.build_prompt({
-    prospectId: brief.prospectId, facilityName: brief.facilityName, facilityAddress: "Use the verified research brief.",
-    observations: brief.outreachContext.observations, hypothesisedTask: brief.boundedJob,
-    connectionEvidence: brief.outreachContext.connectionEvidence, teamObservations: brief.outreachContext.teamObservations,
-    verifiedCapabilities: brief.outreachContext.verifiedCapabilities,
-  }) : "Use the actual correlated reply; first-touch drafting is not required for this reply.";
+  const policy = intent === "outreach" ? COMMUNICATIONS_OUTREACH_GUIDANCE
+    : "Use the actual correlated reply; first-touch drafting is not required for this reply.";
   return JSON.stringify({ intent, approvedSender: FOUNDER_MAILBOX, researchBrief: brief,
     currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy });
 }

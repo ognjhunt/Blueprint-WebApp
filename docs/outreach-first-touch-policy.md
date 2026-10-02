@@ -1,6 +1,6 @@
 # Blueprint first-contact outreach rules
 
-Owner direction: 2026-09-30. Canonical repo policy for outreach drafts and their
+Owner direction: 2026-09-30, clarified 2026-10-02. Canonical repo policy for outreach drafts and their
 pre-send review. This change authorizes no messages, invitations, or activation.
 Existing approval, suppression, sender, recipient, rights, and commercial controls
 continue to apply. A passing quality check is never permission to send.
@@ -14,15 +14,20 @@ continue to apply. A passing quality check is never permission to send.
 2. For a cold approach, reference one specific public detail and explain why it
    is relevant. Retain the source, confirm it concerns the recipient, and separate
    observed facts from hypotheses. A plausible URL alone does not verify a claim.
-3. Offer a small useful observation or task-specific research brief with clear
-   limits. Describe what it can establish and what it cannot. Do not promise
+3. Introduce "I'm building Blueprint" and briefly explain the honest purpose of
+   helping businesses explore where robots could fit into their operations. Use
+   a useful concrete observation when supported, or honestly explain what you are
+   learning about the workflow. A real offer has a clear scope in natural language.
+   Keep detailed evidence limitations, hypotheses and unknowns in internal review
+   metadata; do not dump "hypothesis only/cannot establish" disclaimers or offer
+   a generic research brief just to fill contract fields. Do not promise
    private research access, robot fit, reconstruction, deployment success, or
    other unsupported capabilities or outcomes.
 4. Ask one easy, non-confidential question first. Do not default to a questionnaire,
    meeting, calendar link, upload, video, private operational data, or multi-part
    request. A later capture/intake step requires the recipient's choice to continue.
    Tailor that question to the verified site state: unknown interest → ask whether
-   the job/topic is relevant without assuming interest; expressed interest → ask
+   how the task/workflow is handled without assuming manual work or robotics interest; expressed interest → ask
    about the learning goal; pilot → ask about an unresolved uncertainty; existing
    deployment → ask about expansion learning without assuming expansion plans.
    Retain the recipient/site-specific public signal and its source for any claimed
@@ -132,11 +137,70 @@ changes are part of it.
   source, excerpt, verifier, and timestamp. Metadata cannot verify additional prose.
 
 The sender identity, opening claim, relevance for cold contact, offer, limits, question, and
-recipient choice must appear verbatim in the body. The opening precedes the
+recipient choice must appear verbatim in the body. Value/scope anchors may be
+short natural phrases already in the body, not a required disclaimer paragraph.
+The communications brief's seeded learning question is guidance for first contact,
+not mandatory wording; the chosen question remains anchored in the contract and
+requires semantic review against the known task/site state. The opening precedes the
 offer/question. Metadata cannot stand in for language the recipient actually sees.
 Warm evidence includes `kind`, `claim`, `source`, `supportingExcerpt`, `verifiedBy`,
 and `verifiedAt` (ISO timestamp); operators record this when creating the prospect.
 The model cannot add verification to the authoritative prospect record.
+
+### Communications saved-output recovery
+
+The communications API uses its own single return shape and writing guidance;
+it does not embed the legacy outreach task's second JSON shape. Definition v2
+describes honest Blueprint purpose, specific public detail, supported useful
+observation and one contextual workflow question. The exact historical v1
+instructions remain in `communications-instructions.ts` for completed turns.
+Changing guidance never changes a saved request digest, source/check date or
+the recorded meaning of an earlier turn. After review, the runtime owner must
+update the saved communications definition and its instructions digest for
+future requests; this repository change does not perform that live update.
+
+`communications-output.ts` adapts informational extensions only at
+`outreachContract` and `outreachContract.opening.publicDetail`. All other schema
+errors and control/approval fields still fail. The canonical review contract
+retains its existing claim/source/body anchors and required human-review flag.
+Extra metadata never upgrades source classification, freshness, consent or
+approval. An adapted result always remains a human-reviewed draft; it cannot be
+substituted into the automatic first-contact compiler.
+
+The server persists `blueprint.communications-output-source.v1` on the existing
+job as `outputSource`: original raw output text, SHA256/byte count, normalized
+metadata JSON-pointer paths, stable job/budget-admission IDs, original request
+digest, provider session/root-turn/final-item provenance, definition version /
+instructions digest and usage digest. Raw JSON preserves every extra field and
+its original value. Rejected output keeps the same evidence rather than losing
+it. These records are private standard JSON under
+`blueprintCommunications/default/jobs/<jobId>` and can be exported using the
+existing authorized Admin SDK/company-store path; no new account, credentials,
+public ACL or model-provider delivery copy is required.
+
+The existing authenticated admin/CSRF retry route retains the same job, create
+claim and attempt budget. For an explicit reviewed artifact, trusted runtime
+code can call `recoverSavedCommunicationsDraft(jobId, rawOutputSha256, deps)`
+after that retry. Configure the existing `CommunicationsAgentsAPI` with
+`allowPaidInference: false` and its existing `recordPaidDraftUsage` callback;
+optionally set `reviewedSavedOutputDigest` to the same SHA256 for the API read.
+This lane only reads an existing bound session and completed root turn. It
+cannot create input, cancel a turn or automatically send, including before
+the usual inference deadline. Changed artifact/bindings or incomplete output
+remain blocked. All current identity, handoff, source, suppression, used-fact,
+body and semantic-review checks remain required. A retry alone does not grant
+approval, enable worker spending or release an email.
+
+Completed-turn usage is recorded against the original reservation/request/day
+before output parsing. Accounting is idempotent and never fabricates zero cost;
+missing usage retains the unresolved reservation. Human approval and any later
+send remain separate, with current send-time checks owned by communications.
+
+Offline framing examples, including generic brief/disclaimer and false-claim
+negative controls, are in `server/tests/fixtures/communications-writing-evals.json`.
+They are semantic review/eval cases, not runtime phrase or length filters. No
+paid model comparison is part of this repair. The actual saved artifact must
+also be replayed and its private byte hash verified before production recovery.
 
 `POST .../:prospectId/send` accepts `{subject, body, outreachContract}`. Copy the
 agent's `outreach_contract` to `outreachContract` and update its anchors for any

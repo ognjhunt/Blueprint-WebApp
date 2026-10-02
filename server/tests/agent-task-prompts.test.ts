@@ -118,7 +118,7 @@ describe("agent task prompts", () => {
     expect(prompt).toContain("CANONICAL FIRST-CONTACT RULES");
     expect(prompt).toContain("exactly one easy, non-confidential question");
     expect(prompt).toContain("TAILOR THE QUESTION TO VERIFIED SITE STATE");
-    expect(prompt).toContain("Unknown interest: ask whether the job/topic is relevant without assuming interest");
+    expect(prompt).toContain("Unknown interest: ask one easy question about the task/workflow");
     expect(prompt).toContain("Expressed interest: ask about the learning goal");
     expect(prompt).toContain("Pilot: ask about an unresolved uncertainty");
     expect(prompt).toContain("Existing deployment: ask about expansion learning without assuming expansion plans");
@@ -126,7 +126,10 @@ describe("agent task prompts", () => {
     expect(prompt).toContain('or ask "what prompted your interest" without evidence of expressed interest');
     expect(prompt).toContain("directions, not rigid templates");
     expect(prompt).toContain("never invent a relationship or imply community endorsement");
-    expect(prompt).toContain("small useful observation or task-specific research brief");
+    expect(prompt).toContain("helping businesses explore where robots could fit into their operations");
+    expect(prompt).toContain("Offer a useful concrete observation when one is supported");
+    expect(prompt).toContain("Keep detailed evidence limits and unknowns internal");
+    expect(prompt).toContain("not the default first-contact pitch");
     expect(prompt).toContain("Leave the decision about a deeper conversation with the recipient");
     expect(prompt).toContain("Always set requires_human_review=true");
     expect(prompt).toContain("outreach_contract");

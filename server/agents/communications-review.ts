@@ -52,7 +52,10 @@ export function reviewCommunicationsPayload(payload: Record<string, unknown>, no
   if (["unknown", "opted_out"].includes(brief.consent.status)) blockers.push("contact_permission_missing");
   if (output.disposition !== "draft" || !output.subject || !output.body || output.refreshFactIds.length) blockers.push("not_a_sendable_draft");
   if (!output.usedFactIds.length || output.usedFactIds.some((ref) => !brief.facts.some((fact) => fact.id === ref))) blockers.push("used_fact_missing");
-  if (!output.body.includes(brief.contact.learningQuestion) || (output.body.match(/\?/g) || []).length !== 1) blockers.push("learning_question_mismatch");
+  // First-contact wording is chosen from known task/site context by the writer
+  // and reviewed semantically. Its contract still anchors the exact one question.
+  if ((output.body.match(/\?/g) || []).length !== 1
+    || (job.intent === "reply" && !output.body.includes(brief.contact.learningQuestion))) blockers.push("learning_question_mismatch");
   if (job.intent === "outreach") {
     if (thread || job.inboundMessageId || brief.priorConversation) blockers.push("first_touch_has_prior_thread");
     if (communicationsDigest(payload.outreachContext) !== communicationsDigest(brief.outreachContext)

@@ -1,0 +1,84 @@
+{
+  "schema_version": "blueprint.communications-writing-evals.v1",
+  "mode": "offline semantic examples; no paid model execution or runtime phrase filter",
+  "rubric": [
+    "Introduce Blueprint honestly and explain why this workflow is relevant to the purpose.",
+    "Use the recorded public detail; keep facts and inference distinct without internal-disclaimer paragraphs.",
+    "Use a concrete useful observation when supported, rather than a generic research-brief pitch.",
+    "Ask one easy non-confidential task/workflow question suited to known site state.",
+    "Preserve recipient choice; do not invent a relationship, manual process, robotics interest, fit, promise or follow-up.",
+    "Review factual claims and contract anchors against the real brief separately; these examples grant no approval."
+  ],
+  "cases": [
+    {
+      "id": "unknown-cnc-workflow",
+      "known": { "interest": "unknown", "facts": ["P4Swiss/Lindel does CNC milling in Tucson"], "manualLoading": "unknown", "connection": null },
+      "body": "I'm building Blueprint to help businesses explore where robots could fit into their operations. I saw P4Swiss/Lindel does CNC milling in Tucson, and I'm learning how shops handle the work around the machines. Is loading and unloading something your team still handles manually, or is that already automated?",
+      "expectedSemanticDecision": "pass",
+      "reason": "Purpose and public detail lead to one task question; it does not claim manual work or robotics interest. This is the owner's illustrative direction, not approved send text."
+    },
+    {
+      "id": "unknown-workflow-variation",
+      "known": { "interest": "unknown", "facts": ["Synthetic site publishes a packing line"], "manualPacking": "unknown", "connection": null },
+      "body": "I'm building Blueprint and learning where robots might be useful in everyday business operations. Your site describes a packing line. How is the handoff into that line handled today?",
+      "expectedSemanticDecision": "pass",
+      "reason": "Different natural purpose wording and a workflow question are acceptable; no fixed sentence or robotics buying signal is required."
+    },
+    {
+      "id": "useful-supported-observation",
+      "known": { "interest": "unknown", "facts": ["Synthetic site publishes that mixed-size cartons enter the same packing line"], "automationState": "unknown", "connection": null },
+      "body": "I'm building Blueprint to help businesses explore where robots could fit. Your public description says mixed-size cartons enter the same packing line. Those size changes look like a useful place to understand the workflow before considering robot options. How does the line handle a change in carton size?",
+      "expectedSemanticDecision": "pass",
+      "reason": "A concrete observation is tied to a published detail and the interpretation is tentative, without a claim of manual work, fit or ROI."
+    },
+    {
+      "id": "expressed-interest-learning-goal",
+      "known": { "interest": "expressed", "facts": ["Synthetic operator publicly states it is exploring robot packing"], "connection": null },
+      "body": "I'm building Blueprint to help businesses explore where robots could fit into their operations. I saw your published note about exploring robot packing. What would you most want to learn about the packing step?",
+      "expectedSemanticDecision": "pass",
+      "reason": "Learning-goal wording is appropriate because the interest signal is known; it assumes no permission, fit or purchase."
+    },
+    {
+      "id": "known-pilot-uncertainty",
+      "known": { "interest": "pilot", "facts": ["Synthetic site publishes that it is running a robot packing pilot"], "connection": null },
+      "body": "I'm building Blueprint to help businesses explore where robots could fit. I saw your public update about the robot packing pilot. What is the main packing uncertainty the pilot still needs to resolve?",
+      "expectedSemanticDecision": "pass",
+      "reason": "Asks about the known pilot's uncertainty without assuming results, capacity or willingness to involve Blueprint."
+    },
+    {
+      "id": "known-deployment-open-question",
+      "known": { "interest": "deployed", "facts": ["Synthetic site publishes that robot packing is in production"], "expansionPlans": "unknown", "connection": null },
+      "body": "I'm building Blueprint to help businesses explore where robots could fit. I saw your public update about robot packing in production. Is there an open packing-workflow question that would be useful to explore?",
+      "expectedSemanticDecision": "pass",
+      "reason": "Uses the known deployment but presumes no expansion plan or interest in another evaluation."
+    },
+    {
+      "id": "generic-brief-and-disclaimer-dump",
+      "known": { "interest": "unknown", "facts": ["P4Swiss/Lindel does CNC milling in Tucson"], "connection": null },
+      "body": "I'm building Blueprint. I can offer a small learning brief about CNC part handling based on public sources. This is a hypothesis only and cannot establish robot fit, deployment readiness, permission to share or operational status. Is exploring robotics relevant to your site?",
+      "expectedSemanticDecision": "revise",
+      "reason": "Generic artifact offer and internal uncertainty dump replace the specific public detail, honest purpose and useful workflow question. Truthful caution belongs in internal metadata; do not solve this with a banned-phrase regex."
+    },
+    {
+      "id": "unsupported-manual-process",
+      "known": { "interest": "unknown", "facts": ["P4Swiss/Lindel does CNC milling in Tucson"], "manualLoading": "unknown", "connection": null },
+      "body": "I'm building Blueprint to help businesses explore where robots could fit. I saw your team manually loads every CNC machine. Could we automate that loading step?",
+      "expectedSemanticDecision": "block",
+      "reason": "Converts an unknown manual process into a factual claim and implies an unsupported delivery capability."
+    },
+    {
+      "id": "invented-interest-and-connection",
+      "known": { "interest": "unknown", "facts": ["P4Swiss/Lindel does CNC milling in Tucson"], "connection": null },
+      "body": "Our mutual contact recommended I reach out because you are interested in robotics. I'm building Blueprint. What prompted your interest in automating CNC loading?",
+      "expectedSemanticDecision": "block",
+      "reason": "Invents a warm route and robotics interest; no question template or metadata can license those claims."
+    },
+    {
+      "id": "default-meeting-and-private-data",
+      "known": { "interest": "unknown", "facts": ["Synthetic site publishes a packing line"], "connection": null },
+      "body": "I'm building Blueprint to help businesses explore where robots could fit. I saw your packing line. Can we schedule a demo and can you upload internal production footage?",
+      "expectedSemanticDecision": "block",
+      "reason": "Bundles a meeting and private capture request into first contact without recorded permission."
+    }
+  ]
+}
