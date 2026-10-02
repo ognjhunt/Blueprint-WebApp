@@ -103,7 +103,9 @@ export type VerifiedThread = {
 export const communicationsOutputSchema = z.object({
   disposition: z.enum(["draft", "research_refresh", "no_reply"]),
   subject: z.string().trim().max(1000), body: z.string().trim().max(20000),
-  reason: text, usedFactIds: z.array(id).max(16),
+  // Reasoning is evidence, not a field-length quota. Retain it completely within
+  // the existing bounded provider response; send and review authority stay separate.
+  reason: z.string().trim().min(1), usedFactIds: z.array(id).max(16),
   refreshFactIds: z.array(id).max(16),
   outreachContract: outreachReviewContractSchema.nullable(),
   requiresHumanReview: z.literal(true),

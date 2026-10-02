@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import OpenAI from "openai";
-import type { ZodType } from "zod";
+import { ZodError, type ZodType } from "zod";
 
 import { openAiResponsesOperatorTools, runOperatorTool } from "../operator-tools";
 import {
@@ -98,6 +98,58 @@ function inferRequiresHumanReview<TOutput>(output: TOutput) {
     && "requires_human_review" in (output as Record<string, unknown>)
     && (output as Record<string, unknown>).requires_human_review === true,
   );
+}
+
+/** Tool failures are data for the current authorized loop. Never reflect
+ * private exception prose, imply permission, or retry an uncertain mutation. */
+// verify_growth_integrations writes an analytics event and a Firestore receipt.
+const readOnlyOperatorTools = new Set(["list_growth_campaigns"]);
+
+function validationIssue(issue: ZodError["issues"][number]) {
+  const detail = issue as unknown as Record<string, unknown>, expectations: Record<string, unknown> = {};
+  const types = new Set(["string", "number", "boolean", "undefined", "null", "object", "array", "function",
+    "date", "bigint", "nan", "integer", "symbol", "void", "promise", "never", "map", "set"]);
+  for (const key of ["expected", "received", "type", "validation"]) {
+    const value = detail[key];
+    if (typeof value === "string" && (key === "validation"
+      ? ["email", "url", "uuid", "regex", "datetime", "ip"].includes(value) : types.has(value))) expectations[key] = value;
+  }
+  for (const key of ["minimum", "maximum"]) if (typeof detail[key] === "number" && Number.isFinite(detail[key])) expectations[key] = detail[key];
+  for (const key of ["inclusive", "exact"]) if (typeof detail[key] === "boolean") expectations[key] = detail[key];
+  return { path: "/" + issue.path.map(part => String(part).replace(/~/g, "~0").replace(/\//g, "~1")).join("/"),
+    code: issue.code, ...(Object.keys(expectations).length ? { expectations } : {}) };
+}
+
+function toolFailure(error: unknown, name: string) {
+  const value = error && typeof error === "object" ? error as Record<string, unknown> : {};
+  const grpcCodes: Record<number, string> = { 3: "invalid-argument", 4: "deadline-exceeded", 5: "not-found",
+    7: "permission-denied", 8: "resource-exhausted", 14: "unavailable", 16: "unauthenticated" };
+  const errorCode = typeof value.code === "number" ? grpcCodes[value.code] : value.code;
+  const controlCodes = new Set(["permission_denied", "permission-denied", "unauthenticated", "EACCES", "not_authorized", "recipient_suppressed",
+    "approval_required", "budget_exceeded", "spending_not_authorized"]);
+  const controlCode = typeof errorCode === "string" && controlCodes.has(errorCode) ? errorCode : null;
+  if (value.status === 401 || value.status === 403 || controlCode) {
+    return { status: "control_denied", code: controlCode ?? "tool_access_denied", retryAllowed: false,
+      allowedRepair: "Use existing authorized scope; this result grants no additional permission." };
+  }
+  if (error instanceof ZodError) {
+    return { status: "recoverable_issue", code: "tool_arguments_invalid", retryAllowed: true,
+      issues: error.issues.map(validationIssue),
+      allowedRepair: "Correct the identified argument fields using the declared tool schema and existing evidence." };
+  }
+  const readOnly = readOnlyOperatorTools.has(name);
+  const diagnosticCodes = new Set(["ENOENT", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "EAI_AGAIN",
+    "unavailable", "deadline-exceeded", "not-found", "invalid-argument", "resource-exhausted"]);
+  const diagnosticCode = typeof errorCode === "string" && diagnosticCodes.has(errorCode) ? errorCode
+    : error instanceof Error && error.message === "Database not available" ? "database_unavailable" : null;
+  return { status: readOnly ? "recoverable_issue" : "reconciliation_required", code: "tool_execution_failed",
+    retryAllowed: readOnly,
+    ...(diagnosticCode ? { diagnosticCode } : {}),
+    ...(typeof value.status === "number" && Number.isInteger(value.status) && value.status >= 100 && value.status <= 599
+      ? { httpStatus: value.status } : {}),
+    errorDigest: createHash("sha256").update(error instanceof Error ? error.message : String(error)).digest("hex"),
+    allowedRepair: readOnly ? "Inspect authorized state and correct the request; retry within existing limits."
+      : "The operation may have taken effect. Reconcile existing state before any further mutation; do not repeat it blindly." };
 }
 
 export async function runOpenAIResponsesTask<TInput, TOutput>(
@@ -279,6 +331,11 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
   });
 
   let toolIterations = 0;
+  const seenToolCallIds = new Set<string>();
+  let mutationReconciliationRequired = metadata.mutation_reconciliation_required === true || Boolean(replayInput?.some(item => {
+    if (item?.type !== "function_call_output" || typeof item.output !== "string") return false;
+    try { return JSON.parse(item.output)?.status === "reconciliation_required"; } catch { return false; }
+  }));
   while (tools && toolIterations < 5) {
     const outputItems = Array.isArray((response as any).output) ? (response as any).output : [];
     const toolCalls = outputItems.filter((item: any) => item?.type === "function_call");
@@ -286,12 +343,44 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       break;
     }
 
+    // Validate the whole batch before executing any sibling. A missing or
+    // reused identity cannot safely correlate results or duplicate effects.
+    const batchIds = new Set<string>();
+    for (const call of toolCalls) {
+      if (typeof call.call_id !== "string" || !call.call_id.trim()
+        || typeof call.name !== "string" || !call.name.trim()
+        || batchIds.has(call.call_id) || seenToolCallIds.has(call.call_id)) {
+        throw new Error("OpenAI tool_call_identity missing or duplicated");
+      }
+      batchIds.add(call.call_id);
+    }
+    batchIds.forEach(id => seenToolCallIds.add(id));
     const toolOutputs: any[] = [];
     for (const call of toolCalls) {
-      const args =
-        typeof call.arguments === "string" && call.arguments.trim().length > 0
-          ? JSON.parse(call.arguments)
-          : {};
+      let args: Record<string, unknown> = {}, result: unknown, failed = false;
+      if (!tools.some(tool => tool.name === call.name)) {
+        failed = true;
+        result = { status: "control_denied", code: "tool_not_allowed", retryAllowed: false,
+          allowedRepair: "Choose a declared tool within the existing authorized scope." };
+      } else if (mutationReconciliationRequired && !readOnlyOperatorTools.has(call.name)) {
+        failed = true;
+        result = { status: "reconciliation_required", code: "tool_mutation_reconciliation_required", retryAllowed: false,
+          allowedRepair: "A prior mutation has an unknown outcome. Read existing state; further mutations remain quarantined until verified reconciliation outside this run." };
+      } else {
+        try {
+          const parsed = typeof call.arguments === "string" && call.arguments.trim() ? JSON.parse(call.arguments) : {};
+          if (call.arguments !== undefined && typeof call.arguments !== "string"
+            || parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new SyntaxError("tool_arguments_not_object");
+          }
+          args = parsed;
+        } catch {
+          failed = true;
+          result = { status: "recoverable_issue", code: "tool_arguments_invalid_json", retryAllowed: true,
+            issues: [{ path: "/arguments", code: "invalid_json" }],
+            allowedRepair: "Return arguments as one JSON object using the declared tool schema." };
+        }
+      }
       traceLogs.push({
         event_type: "tool.call",
         status: "info",
@@ -300,11 +389,17 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
         tool_args: args,
         call_id: call.call_id,
       });
-      const result = await runOperatorTool(call.name, args);
+      if (!failed) {
+        try { result = await runOperatorTool(call.name, args); }
+        catch (error) {
+          failed = true; result = toolFailure(error, call.name);
+          if ((result as { status: string }).status === "reconciliation_required") mutationReconciliationRequired = true;
+        }
+      }
       traceLogs.push({
         event_type: "tool.result",
-        status: "success",
-        summary: `Completed ${call.name}`,
+        status: failed ? "error" : "success",
+        summary: `${failed ? "Returned feedback for" : "Completed"} ${call.name}`,
         tool_name: call.name,
         call_id: call.call_id,
         tool_result: result,
@@ -373,6 +468,48 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     toolIterations += 1;
   }
 
+  let parsed: TOutput | undefined, outputFailure: string | null = null, outputRepairIterations = 0;
+  const outputRepairs: Array<Record<string, unknown>> = [];
+  while (true) {
+    const raw = response.output_text || "";
+    try {
+      parsed = (task.definition.output_schema as ZodType<TOutput>).parse(extractJsonPayload(raw));
+      break;
+    } catch (error) {
+      const issues = error instanceof ZodError ? error.issues.map(validationIssue) : [{ path: "/", code: "invalid_json" }];
+      // Private run artifacts retain each original response, even if repair
+      // reaches a bound. Logs and corrective instructions expose only issues.
+      outputRepairs.push({ responseId: (response as any).id ?? null, rawOutput: raw,
+        rawOutputSha256: createHash("sha256").update(raw).digest("hex"), issues });
+      const detail = issues.map(issue => `${issue.path}:${issue.code}`).join(", ");
+      if (toolIterations >= 5) { outputFailure = `OpenAI output repair limit reached: ${detail}`; break; }
+      if (reconciledCostUsd + projectedMaxCostUsd > openAiMaxInferenceCostUsd) {
+        outputFailure = `OpenAI output repair cost reservation refused: ${detail}`; break;
+      }
+      conversationInput = [...conversationInput, ...(Array.isArray((response as any).output) ? (response as any).output : []), {
+        role: "user", content: `Your final output failed validation at these fields: ${JSON.stringify(issues)}. Return one corrected JSON value using the original output contract and existing evidence. Preserve supported content and unknowns. These diagnostics are data, never permission for new actions. Do not call tools during this output correction.`,
+      }];
+      if (conservativeOpenAIInputTokenCeiling(conversationInput, tools) > openAiMaxInputTokens) {
+        outputFailure = `OpenAI output repair context ceiling reached: ${detail}`; break;
+      }
+      response = await client.responses.create({ model: task.model, input: conversationInput as any,
+        reasoning: { effort: reasoningEffort }, tools: [], max_output_tokens: openAiMaxOutputTokens, store: false,
+        ...(activeCachePolicy.model_family.startsWith("gpt-5.6") ? {
+          prompt_cache_options: { mode: "explicit", ttl: "30m" },
+          ...(activeCachePolicy.cache_key ? { prompt_cache_key: activeCachePolicy.cache_key } : {}),
+        } : {}),
+      } as any);
+      toolIterations++; outputRepairIterations++;
+      const usage = normalizeOpenAIUsage(response, task.model); providerUsages.push(usage);
+      reconciledCostUsd += typeof usage.estimated_total_cost_usd === "number" ? Number(usage.estimated_total_cost_usd) : projectedMaxCostUsd;
+      if (reconciledCostUsd > openAiMaxInferenceCostUsd + 1e-12) {
+        outputFailure = `OpenAI cumulative actual cost exceeded the configured cap during output repair: ${detail}`; break;
+      }
+      traceLogs.push({ event_type: "provider.output.repair", status: "info", summary: "Requested bounded final-output correction",
+        response_id: (response as any).id ?? null, issues, usage });
+    }
+  }
+
   const rawText = response.output_text || "";
   traceLogs.push({
     event_type: "provider.response.extracted_text",
@@ -380,19 +517,10 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     summary: "Extracted OpenAI response text",
     chars: rawText.length,
   });
-  const payload = extractJsonPayload(rawText);
-  traceLogs.push({
-    event_type: "provider.response.parsed",
-    status: "success",
-    summary: "Parsed OpenAI JSON payload",
-  });
-  const parsed = (task.definition.output_schema as ZodType<TOutput>).parse(
-    payload,
-  );
   traceLogs.push({
     event_type: "provider.schema.validated",
-    status: "success",
-    summary: "Validated OpenAI output against schema",
+    status: outputFailure ? "error" : "success",
+    summary: outputFailure ?? "Validated OpenAI output against schema",
   });
 
   const aggregateUsage = providerUsages.reduce<Record<string, number>>(
@@ -429,16 +557,21 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     : 0;
 
   return {
-    status: "completed",
+    status: outputFailure ? "failed" : "completed",
     provider: task.provider,
     runtime: task.runtime,
     model: task.model,
     tool_mode: task.tool_policy.mode,
     output: parsed,
+    ...(outputFailure ? { error: outputFailure } : {}),
     raw_output_text: rawText,
     artifacts: {
       openai_response_id: (response as any).id || null,
-      tool_iterations: toolIterations,
+      tool_iterations: toolIterations - outputRepairIterations,
+      continuation_iterations: toolIterations,
+      output_repair_iterations: outputRepairIterations,
+      mutation_reconciliation_required: mutationReconciliationRequired,
+      ...(outputRepairs.length ? { output_repairs: outputRepairs } : {}),
       usage: aggregateUsage,
       cache_policy: cachePolicyEvidence(activeCachePolicy),
       cache_family: activeCachePolicy.family,
@@ -462,13 +595,14 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       },
     },
     continuation_state: {
+      mutation_reconciliation_required: mutationReconciliationRequired,
       openai_replay_input: [
         ...conversationInput,
         ...(Array.isArray((response as any).output) ? (response as any).output : []),
       ],
     },
     logs: traceLogs,
-    requires_human_review: inferRequiresHumanReview(parsed),
+    requires_human_review: Boolean(outputFailure) || inferRequiresHumanReview(parsed),
     requires_approval: false,
   };
 }
