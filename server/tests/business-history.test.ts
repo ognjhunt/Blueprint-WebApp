@@ -138,6 +138,18 @@ describe("sourced append-only company business history", () => {
     expect(read.quarantine).toHaveLength(3);
     expect(JSON.stringify([...f.records])).toBe(before); expect(f.writes).toEqual([]);
   });
+  it("suppresses a hash-valid cross-record supersession and its ancestors", async () => {
+    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now), original = decision();
+    const ancestor = decision({ supersedesEventId: original.eventId, statement: "An intermediate decision." });
+    const correction = decision({ recordId: "BP-DEC-wrong", supersedesEventId: ancestor.eventId, statement: "A mismatched revision." });
+    const sibling = decision({ recordId: "BP-DEC-sibling" });
+    for (const event of [original, ancestor, correction, sibling]) f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`, event);
+    const before = JSON.stringify([...f.records]), read = await store.read(scope, now);
+    expect(read.current.map(event => event.eventId)).toEqual([sibling.eventId]);
+    expect(read.history.map(event => event.eventId)).toEqual([sibling.eventId]);
+    expect(read.quarantine).toHaveLength(3);
+    expect(JSON.stringify([...f.records])).toBe(before); expect(f.writes).toEqual([]);
+  });
   it("accepts equivalent trusted source timestamps without mutating original provenance", async () => {
     const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now), event = decision();
     const trusted = structuredClone(context(event)); (trusted.verifiedSources[0] as any).originalTimestamp = "2026-10-01T17:00:00-05:00";

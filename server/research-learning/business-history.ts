@@ -149,16 +149,32 @@ export class BusinessHistoryStore {
         }
       }
     }
+    // Connect valid supersession pointers before checking complete lineages.
+    // A hash-valid cross-record revision is still broken and must suppress its
+    // predecessor, rather than being quarantined as an unrelated record.
+    const parents = new Map<string, string>();
+    const root = (key: string): string => {
+      let current = key;
+      const path: string[] = [];
+      while (parents.has(current) && parents.get(current) !== current) { path.push(current); current = parents.get(current)!; }
+      parents.set(current, current); path.forEach(item => parents.set(item, current)); return current;
+    };
+    const byId = new Map(values.map(event => [eventKey(event.subjectKey, event.eventId), event]));
+    for (const event of values) {
+      const target = event.supersedesEventId ? byId.get(eventKey(event.subjectKey, event.supersedesEventId)) : undefined;
+      if (target) parents.set(root(lineageKey(event.subjectKey, event.recordId)), root(lineageKey(target.subjectKey, target.recordId)));
+      if (invalidEventIds.has(eventKey(event.subjectKey, event.eventId))) invalidLineages.add(lineageKey(event.subjectKey, event.recordId));
+    }
+    const invalidRoots = new Set([...invalidLineages].map(root));
     const lineages = new Map<string, BusinessHistoryEvent[]>();
     for (const event of values) {
-      const key = lineageKey(event.subjectKey, event.recordId);
-      if (invalidEventIds.has(eventKey(event.subjectKey, event.eventId))) invalidLineages.add(key);
+      const key = root(lineageKey(event.subjectKey, event.recordId));
       lineages.set(key, [...(lineages.get(key) ?? []), event]);
     }
     const valid: BusinessHistoryEvent[] = [];
     for (const [key, lineage] of lineages) {
       try {
-        if (invalidLineages.has(key)) throw new Error("business_lineage_incomplete");
+        if (invalidRoots.has(key)) throw new Error("business_lineage_incomplete");
         businessHistoryProjection(lineage, selected, asOf, this.clock());
         valid.push(...lineage);
       } catch {
