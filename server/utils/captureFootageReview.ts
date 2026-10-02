@@ -27,6 +27,7 @@
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { runAgentTask } from "../agents/runtime";
+import { hydrateAgentEvidence } from "../agents/private-evidence";
 import {
   siteVideoEvidenceOutputSchema,
   type SiteVideoEvidenceInput,
@@ -169,17 +170,18 @@ export async function findPriorFootageReview(
 ): Promise<PriorFootageReview> {
   if (!db) return { state: "none" };
   const snapshot = await db.collection("agentRuns").where("metadata.capture_id", "==", captureId).get();
-  let latest: { at: number; run: Record<string, unknown> } | null = null;
+  let latest: { id: string; at: number; run: Record<string, unknown> } | null = null;
   for (const doc of snapshot.docs) {
     const run = doc.data() as Record<string, unknown>;
     if (run.task_kind !== "site_video_evidence") continue;
     const at = toMillis(run.started_at) ?? toMillis(run.created_at) ?? 0;
-    if (!latest || at > latest.at) latest = { at, run };
+    if (!latest || at > latest.at) latest = { id: doc.id, at, run };
   }
   if (!latest) return { state: "none" };
   if (latest.run.status === "running" && now - latest.at < REVIEW_IN_FLIGHT_MS) return { state: "running" };
   if (latest.run.status === "completed") {
-    const parsed = siteVideoEvidenceOutputSchema.safeParse(latest.run.output);
+    const recovered = await hydrateAgentEvidence(latest.run, { collection: "agentRuns", id: latest.id });
+    const parsed = siteVideoEvidenceOutputSchema.safeParse(recovered.output);
     if (parsed.success) return { state: "completed", output: parsed.data };
   }
   return { state: "none" };
@@ -193,17 +195,18 @@ export async function findPriorPrivacyReview(
   { state: "completed"; output: CaptureVideoPrivacyOutput }> {
   if (!db) return { state: "none" };
   const snapshot = await db.collection("agentRuns").where("metadata.capture_id", "==", captureId).get();
-  let latest: { at: number; run: Record<string, unknown> } | null = null;
+  let latest: { id: string; at: number; run: Record<string, unknown> } | null = null;
   for (const doc of snapshot.docs) {
     const run = doc.data() as Record<string, unknown>;
     if (run.task_kind !== "capture_video_privacy") continue;
     const at = toMillis(run.started_at) ?? toMillis(run.created_at) ?? 0;
-    if (!latest || at > latest.at) latest = { at, run };
+    if (!latest || at > latest.at) latest = { id: doc.id, at, run };
   }
   if (!latest) return { state: "none" };
   if (latest.run.status === "running" && now - latest.at < REVIEW_IN_FLIGHT_MS) return { state: "running" };
   if (latest.run.status === "completed") {
-    const parsed = captureVideoPrivacyOutputSchema.safeParse(latest.run.output);
+    const recovered = await hydrateAgentEvidence(latest.run, { collection: "agentRuns", id: latest.id });
+    const parsed = captureVideoPrivacyOutputSchema.safeParse(recovered.output);
     if (parsed.success) return { state: "completed", output: parsed.data };
   }
   return { state: "none" };

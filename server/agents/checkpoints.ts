@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence } from "./private-evidence";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -54,7 +55,7 @@ export async function createAgentCheckpoint(params: {
   };
 
   try {
-    await db.collection(CHECKPOINT_COLLECTION).doc(record.id).set(stripUndefinedDeep(record));
+    await persistAgentEvidence(db.collection(CHECKPOINT_COLLECTION).doc(record.id), { collection: "agentCheckpoints", id: record.id }, stripUndefinedDeep(record), db);
   } catch (error) {
     logger.warn(
       {
@@ -86,7 +87,7 @@ export async function listAgentCheckpoints(params: {
     .limit(Math.max(1, Math.min(params.limit ?? 100, 200)))
     .get();
 
-  return snapshot.docs.map((doc) => doc.data() as AgentCheckpointRecord);
+  return Promise.all(snapshot.docs.map((doc) => inspectAgentEvidence(doc.data() as AgentCheckpointRecord, { collection: "agentCheckpoints", id: doc.id })));
 }
 
 export async function getAgentCheckpoint(checkpointId: string) {
@@ -98,5 +99,5 @@ export async function getAgentCheckpoint(checkpointId: string) {
   if (!doc.exists) {
     return null;
   }
-  return doc.data() as AgentCheckpointRecord;
+  return hydrateAgentEvidence(doc.data() as AgentCheckpointRecord, { collection: "agentCheckpoints", id: checkpointId });
 }

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
+import { projectAgentEvidence } from "../agents/private-evidence";
 
 import {
   extractAgentCostTelemetry,
@@ -386,5 +387,89 @@ describe("agent cost telemetry", () => {
       cost_usd: 0.07,
       status: "warn",
     });
+  });
+});
+
+
+describe("offloaded agent cost accounting", () => {
+  const now = Date.parse("2026-10-02T14:00:00Z");
+  const original = () => ({ id: "accounting-run", session_id: "accounting-session", task_kind: "support_triage",
+    provider: "openai", model: "gpt-6-luna", created_at: new Date(now).toISOString(),
+    artifacts: { route: "openai_responses", usage: { input_tokens: 100000, output_tokens: 1000, cost_usd: 2 } }, logs: [],
+    output: { summary: "x".repeat(600000) } });
+  const compact = () => {
+    const run = original(), telemetry = extractAgentCostTelemetry(run), sha256 = "a".repeat(64);
+    return { ...run, artifacts: null, logs: null, output: null,
+      metadata: { cost_telemetry: telemetry }, agent_evidence_accounting_sha256: sha256,
+      agent_evidence_accounting_identity: { sha256, run_id: run.id, session_id: run.session_id, task_kind: run.task_kind,
+        provider: run.provider, requested_model: run.model, resolved_model: telemetry.model },
+      agent_evidence_ref: { version: 1, collection: "agentRuns", id: run.id, sha256, fields: ["output", "artifacts", "logs", "metadata"] } };
+  };
+  it("retains the exact $2 cost and $1 hourly STOP through an actual private projection", async () => {
+    const run = original(), telemetry = extractAgentCostTelemetry(run), objects = new Map<string, string>();
+    const storage: any = { bucketName: "synthetic-private-bucket",
+      createOnly: async (name: string, text: string) => { objects.set(name, text); return "created"; },
+      readText: async (name: string) => objects.get(name) ?? null,
+      info: async (name: string) => objects.has(name) ? { generation: "1", size: Buffer.byteLength(objects.get(name)!) } : null };
+    const projected = await projectAgentEvidence({ ...run, metadata: { cost_telemetry: telemetry } }, { collection: "agentRuns", id: run.id }, storage);
+    expect(projected.artifacts).toBeNull();
+    expect(extractAgentCostTelemetry(projected)).toEqual(telemetry);
+    expect(summarizeRollingAgentSpend([projected], { nowMs: now, stopUsd: { lastHour: 1 } }).windows.lastHour)
+      .toMatchObject({ cost_usd: 2, prompt_tokens: 100000, status: "stop" });
+  });
+  it("binds a legitimate resolved OpenRouter model separately from the requested alias", async () => {
+    const run = { ...original(), provider: "openrouter", model: "requested-provider-alias",
+      artifacts: { ...original().artifacts, openrouter_model: "deepseek/deepseek-v4-pro" } };
+    const telemetry = extractAgentCostTelemetry(run), objects = new Map<string, string>();
+    const storage: any = { bucketName: "synthetic-private-bucket",
+      createOnly: async (name: string, text: string) => { objects.set(name, text); return "created"; },
+      readText: async (name: string) => objects.get(name) ?? null,
+      info: async (name: string) => objects.has(name) ? { generation: "1", size: Buffer.byteLength(objects.get(name)!) } : null };
+    const projected = await projectAgentEvidence({ ...run, metadata: { cost_telemetry: telemetry } }, { collection: "agentRuns", id: run.id }, storage);
+    expect(extractAgentCostTelemetry(projected)).toEqual(telemetry);
+    expect(extractAgentCostTelemetry(projected).model).toBe("deepseek/deepseek-v4-pro");
+    expect(summarizeRollingAgentSpend([projected], { nowMs: now, stopUsd: { lastHour: 1 } }).windows.lastHour.status).toBe("stop");
+  });
+  it("refuses unresolved accounting after a failed evidence receipt", () => {
+    expect(() => extractAgentCostTelemetry({ ...compact(), agent_accounting_incomplete: true })).toThrow("agent_accounting_incomplete;");
+  });
+  it("rejects a forged model identity stamp without accepting another model's spend", () => {
+    const row = compact(); row.agent_evidence_accounting_identity.requested_model = "another-model";
+    expect(() => extractAgentCostTelemetry(row)).toThrow("model_source_binding;");
+  });
+  it("preserves original cost/cache/usage states rather than re-pricing the retained record", () => {
+    const row = compact();
+    Object.assign(row.metadata.cost_telemetry, { cost_status: "provider_reported", usage_detail_status: "complete",
+      cache_family: "existing-family", cache_decision: "reusable", estimated_savings_usd: -0.2 });
+    expect(extractAgentCostTelemetry(row)).toMatchObject(row.metadata.cost_telemetry);
+  });
+  it.each(["run_id", "session_id", "task_kind", "provider", "model"])("rejects compact %s identity changes", field => {
+    const row = compact(); (row.metadata.cost_telemetry as any)[field] = "another-source";
+    expect(() => extractAgentCostTelemetry(row)).toThrow(` ${field};`);
+  });
+  it.each(["missing_telemetry", "missing_binding", "stale_binding", "wrong_collection", "wrong_document"])("keeps %s unknown instead of admitting zero spend", failure => {
+    const row: any = compact();
+    if (failure === "missing_telemetry") delete row.metadata.cost_telemetry;
+    if (failure === "missing_binding") delete row.agent_evidence_accounting_sha256;
+    if (failure === "stale_binding") row.agent_evidence_accounting_sha256 = "b".repeat(64);
+    if (failure === "wrong_collection") row.agent_evidence_ref.collection = "agentSessions";
+    if (failure === "wrong_document") row.agent_evidence_ref.id = "other";
+    expect(() => summarizeRollingAgentSpend([row], { nowMs: now, stopUsd: { lastHour: 1 } })).toThrow("agent_cost_evidence_unavailable");
+  });
+  it.each([NaN, Infinity, -1, "2", undefined])("rejects noncanonical cost %s", value => {
+    const row = compact(); (row.metadata.cost_telemetry as any).cost_estimate_usd = value;
+    expect(() => extractAgentCostTelemetry(row)).toThrow("cost_estimate_usd;");
+  });
+  it("rejects impossible cache counters without dropping the whole source into zero", () => {
+    const row = compact(); row.metadata.cost_telemetry.cached_tokens = 100001;
+    expect(() => extractAgentCostTelemetry(row)).toThrow("token_partition;");
+  });
+  it("prefers hydrated raw provider receipts and ignores arbitrary inline task cost metadata", () => {
+    const run = original(), raw = extractAgentCostTelemetry(run), projected: any = compact();
+    projected.artifacts = run.artifacts;
+    projected.metadata.cost_telemetry.cost_usd = 999;
+    projected.agent_evidence_accounting_sha256 = "bad";
+    expect(extractAgentCostTelemetry(projected)).toEqual(raw);
+    expect(extractAgentCostTelemetry({ ...run, metadata: { cost_telemetry: { cost_usd: 999 } } })).toEqual(raw);
   });
 });

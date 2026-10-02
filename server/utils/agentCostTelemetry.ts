@@ -15,6 +15,10 @@ export type AgentTelemetryRun = {
   input?: unknown;
   created_at?: unknown;
   updated_at?: unknown;
+  agent_evidence_ref?: unknown;
+  agent_evidence_accounting_sha256?: unknown;
+  agent_evidence_accounting_identity?: unknown;
+  agent_accounting_incomplete?: unknown;
 };
 
 export type AgentTelemetrySummaryRow = {
@@ -665,7 +669,68 @@ function estimateUsageCost(row: ReturnType<typeof readUsageArtifacts>) {
   };
 }
 
+/** Missing compact accounting is unknown, never evidence of zero spend. */
+export class AgentCostEvidenceError extends Error {
+  constructor(readonly runId: string | null, readonly field: string) {
+    super(`agent_cost_evidence_unavailable: agentRuns/${runId ?? "unknown"} ${field}; hydrate the bound private evidence or restore canonical accounting`);
+    this.name = "AgentCostEvidenceError";
+  }
+}
+
+function compactAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTelemetryRecord | null {
+  if (!run.agent_evidence_ref) return null;
+  // Hydrated/original provider usage takes precedence over a retained summary.
+  if (asRecord(run.artifacts) || (Array.isArray(run.logs) && run.logs.length > 0)) return null;
+  const fail = (field: string): never => { throw new AgentCostEvidenceError(asNullableString(run.id), field); };
+  const ref = asRecord(run.agent_evidence_ref);
+  if (!ref || ref.version !== 1 || ref.collection !== "agentRuns" || ref.id !== run.id
+    || typeof ref.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(ref.sha256)
+    || run.agent_evidence_accounting_sha256 !== ref.sha256
+    || !Array.isArray(ref.fields) || !ref.fields.includes("metadata")
+    || !ref.fields.some(field => field === "artifacts" || field === "logs")) fail("source_binding");
+  const compact = asRecord(asRecord(run.metadata)?.cost_telemetry) ?? fail("metadata.cost_telemetry");
+  const source = asRecord(run.agent_evidence_accounting_identity) ?? fail("accounting_identity");
+  if (source.sha256 !== ref?.sha256 || source.requested_model !== run.model
+    || typeof source.resolved_model !== "string" || !source.resolved_model) fail("model_source_binding");
+  const identities = {
+    run_id: run.id, session_id: run.session_id ?? null,
+    task_kind: run.task_kind, provider: run.provider,
+  };
+  for (const [field, expected] of Object.entries(identities)) {
+    if (compact[field] !== expected || source[field] !== expected
+      || (field !== "session_id" && (typeof expected !== "string" || !expected))) fail(field);
+  }
+  if (compact.model !== source.resolved_model) fail("model");
+  const counters = ["calls", "prompt_tokens", "completion_tokens", "total_tokens", "cached_tokens",
+    "cache_write_tokens", "reasoning_tokens", "uncached_input_tokens", "reusable_prefix_tokens", "dynamic_suffix_tokens"];
+  const costs = ["cost_usd", "cost_estimate_usd", "uncached_input_cost_usd", "cache_write_cost_usd",
+    "cached_read_cost_usd", "output_cost_usd", "estimated_cost_without_caching_usd"];
+  for (const field of [...counters, ...costs, "estimated_savings_usd", "cache_hit_ratio"]) {
+    const value = compact[field];
+    if (typeof value !== "number" || !Number.isFinite(value)
+      || (field !== "estimated_savings_usd" && value < 0)
+      || (counters.includes(field) && !Number.isSafeInteger(value))) fail(field);
+  }
+  if (Number(compact.cache_hit_ratio) > 1 || Number(compact.cached_tokens) + Number(compact.cache_write_tokens) > Number(compact.prompt_tokens)
+    || Number(compact.uncached_input_tokens) > Number(compact.prompt_tokens)) fail("token_partition");
+  for (const field of ["agent_key", "route", "upstream_provider", "provider_route", "cache_family",
+    "prompt_contract_version", "privacy_scope", "processing_region", "cache_decision", "cache_decision_reason",
+    "usage_detail_status", "cost_status"]) {
+    if (typeof compact[field] !== "string" || !compact[field]) fail(field);
+  }
+  for (const field of ["issue_id", "cache_key_digest", "stable_prefix_digest", "provider_response_id"]) {
+    if (compact[field] !== null && (typeof compact[field] !== "string" || !compact[field])) fail(field);
+  }
+  if (compact.created_at_ms !== null && (typeof compact.created_at_ms !== "number" || !Number.isFinite(compact.created_at_ms))) fail("created_at_ms");
+  // The protected Firestore timestamps remain the rolling-window source, as for
+  // inline provider evidence; the retained pricing/status/counters are unchanged.
+  return { ...compact, created_at_ms: asTimestampMs(run.created_at ?? run.updated_at) ?? compact.created_at_ms } as AgentCostTelemetryRecord;
+}
+
 export function extractAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTelemetryRecord {
+  if (run.agent_accounting_incomplete === true) throw new AgentCostEvidenceError(asNullableString(run.id), "agent_accounting_incomplete");
+  const compact = compactAgentCostTelemetry(run);
+  if (compact) return compact;
   const artifacts = asRecord(run.artifacts) || {};
   const row = readUsageArtifacts(run);
   const totalTokens =
