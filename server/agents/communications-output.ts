@@ -15,16 +15,18 @@ export function outputTextDigest(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-/** The API transport adapter recognizes extensions only in the two metadata
- * objects affected by the legacy prompt. Unknown control fields,
+/** After an authenticated operator selects the exact reviewed artifact, the API
+ * adapter recognizes extensions only in the two metadata objects affected by
+ * the legacy prompt. Ordinary parsing remains strict. Unknown control fields,
  * other paths, missing/invalid core values, or a changed artifact still fail.
  * Every removed metadata path is named, and raw bytes remain in outputSource. */
 export function parseCommunicationsOutput(raw: string, expectedSavedOutputDigest?: string): { output: CommunicationsOutput; normalizedMetadataPaths: string[] } {
   if (expectedSavedOutputDigest && outputTextDigest(raw) !== expectedSavedOutputDigest) throw Error("communications_saved_output_changed");
   const value = JSON.parse(raw), parsed = communicationsOutputSchema.safeParse(value);
   if (parsed.success) return { output: parsed.data, normalizedMetadataPaths: [] };
+  if (!expectedSavedOutputDigest) throw parsed.error;
   const core = structuredClone(value), normalizedMetadataPaths: string[] = [];
-  const controlField = /^(?:__proto__|prototype|constructor|approved|approval|authority|permission|consent|send|status|disposition|to|from|replyTo|headers|transport|instructions|requiresHumanReview|requires_human_review|suppressed|optOut|doNotContact)$/i;
+  const controlField = /^(?:proto|prototype|constructor|status|disposition|to|from|replyto|headers|(?:approved|approval|authority|permission|consent|send|transport|instructions|requireshumanreview|suppressed|optout|donotcontact).*|(?:source|contact|claim|evidence)verified)$/i;
   for (const issue of parsed.error.issues) {
     const location = JSON.stringify(issue.path);
     if (issue.code !== "unrecognized_keys" || ![JSON.stringify(["outreachContract"]),
@@ -32,7 +34,7 @@ export function parseCommunicationsOutput(raw: string, expectedSavedOutputDigest
     let target = core;
     for (const segment of issue.path) target = target[segment];
     for (const key of issue.keys) {
-      if (controlField.test(key)) throw parsed.error;
+      if (controlField.test(key.replace(/[^a-z0-9]/gi, ""))) throw parsed.error;
       normalizedMetadataPaths.push("/" + [...issue.path, key].map(segment => String(segment).replace(/~/g, "~0").replace(/\//g, "~1")).join("/"));
       delete target[key];
     }

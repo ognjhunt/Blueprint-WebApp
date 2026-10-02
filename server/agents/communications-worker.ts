@@ -105,7 +105,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => deps.store.update(jobId, { checkpoint }),
     });
     if (recovery && (!("outputSource" in result) || result.outputSource?.rawOutputSha256 !== recovery.expectedOutputSha256)) {
-      throw new CommunicationsRuntimeError("communications_saved_output_changed");
+      throw new CommunicationsRuntimeError("communications_saved_output_changed", false, "outputSource" in result ? result.outputSource : undefined);
     }
     await deps.store.update(jobId, { output: result.output, checkpoint: result.checkpoint,
       ...("outputSource" in result && result.outputSource ? { outputSource: result.outputSource } : {}) });

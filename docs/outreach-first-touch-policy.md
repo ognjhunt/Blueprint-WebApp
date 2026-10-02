@@ -159,7 +159,8 @@ the recorded meaning of an earlier turn. After review, the runtime owner must
 update the saved communications definition and its instructions digest for
 future requests; this repository change does not perform that live update.
 
-`communications-output.ts` adapts informational extensions only at
+`communications-output.ts` requires the exact reviewed raw SHA256 before adapting
+informational extensions, and only at
 `outreachContract` and `outreachContract.opening.publicDetail`. All other schema
 errors and control/approval fields still fail. The canonical review contract
 retains its existing claim/source/body anchors and required human-review flag.
@@ -183,7 +184,8 @@ claim and attempt budget. For an explicit reviewed artifact, trusted runtime
 code can call `recoverSavedCommunicationsDraft(jobId, rawOutputSha256, deps)`
 after that retry. Configure the existing `CommunicationsAgentsAPI` with
 `allowPaidInference: false` and its existing `recordPaidDraftUsage` callback;
-optionally set `reviewedSavedOutputDigest` to the same SHA256 for the API read.
+set `reviewedSavedOutputDigest` to the same SHA256 for any metadata adaptation.
+Ordinary strict output needs no adaptation; the helper still verifies its hash.
 This lane only reads an existing bound session and completed root turn. It
 cannot create input, cancel a turn or automatically send, including before
 the usual inference deadline. Changed artifact/bindings or incomplete output
