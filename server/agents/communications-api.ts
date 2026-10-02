@@ -6,7 +6,9 @@ import {
 import { parseCommunicationsOutput, outputTextDigest, CommunicationsOutputValidationError, type CommunicationsOutputSource } from "./communications-output";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
   verifiedCommunicationsSavedAgent, verifiedCommunicationsHistoryAgent, COMMUNICATIONS_HISTORY_PROFILE,
-  COMMUNICATIONS_HISTORY_DEFINITION, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST } from "./communications-saved-agent";
+  COMMUNICATIONS_HISTORY_DEFINITION, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST,
+  verifiedCommunicationsCurrentSavedAgent, verifiedCommunicationsGmailBinding, verifiedCommunicationsGmailAgent,
+  COMMUNICATIONS_GMAIL_READ_DEFINITION, COMMUNICATIONS_GMAIL_READ_TOOLS, type CommunicationsGmailSessionBinding } from "./communications-saved-agent";
 
 import { getCompanyHistoryAccess, runOperatorTool } from "./operator-tools";
 import { toolFailure } from "./adapters/tool-recovery";
@@ -24,6 +26,8 @@ export type CommunicationsCheckpoint = {
   historyProfile?: typeof COMMUNICATIONS_HISTORY_PROFILE; historyConfigurationDigest?: string;
   historyToolReceipts?: CommunicationsHistoryReceipt[];
   historyEvidence?: Record<string, unknown>;
+  gmailMcp?: CommunicationsGmailSessionBinding;
+  nativeMcpItems?: unknown[];
 };
 export class CommunicationsRuntimeError extends Error {
   constructor(public code: string, public retryable = false, readonly outputSource?: CommunicationsOutputSource) { super(code); }
@@ -88,10 +92,10 @@ export class CommunicationsAgentsAPI {
     const model = await this.json(`/models/${COMMUNICATIONS_MODEL}`);
     if (model.id !== COMMUNICATIONS_MODEL) throw new CommunicationsRuntimeError("requested_luna_model_unavailable");
     const saved = await this.json(`/agents/${COMMUNICATIONS_SAVED_AGENT_ID}`, 256000);
-    let binding;
-    try { binding = verifiedCommunicationsSavedAgent(saved); }
+    let checked;
+    try { checked = verifiedCommunicationsCurrentSavedAgent(saved); }
     catch { throw new CommunicationsRuntimeError("communications_saved_agent_definition_changed"); }
-    return { model: model.id, project: COMMUNICATIONS_PROJECT, binding, runtime: "saved_agent" as const };
+    return { model: model.id, project: COMMUNICATIONS_PROJECT, ...checked, runtime: "saved_agent" as const };
   }
   async run(params: {
     input: string; jobId: string; checkpoint: CommunicationsCheckpoint;
@@ -103,35 +107,42 @@ export class CommunicationsAgentsAPI {
     const saveCheckpoint = async (value: CommunicationsCheckpoint) => params.saveCheckpoint(await this.projectHistoryCheckpoint(value, params.jobId));
     if (checkpoint.createClaimedAt && !checkpoint.sessionId) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const fresh = !checkpoint.sessionId;
-    const requestDigest = fresh
-      ? communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
-        configurationDigest: COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST,
-        historyProfile: COMMUNICATIONS_HISTORY_PROFILE, input: params.input })
-      : checkpoint.requestDigest;
-    if (!requestDigest || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
+    let requestDigest = checkpoint.requestDigest;
     if (fresh) {
       if (!this.options.reservePaidDraft || !this.options.recordPaidDraftUsage) throw new CommunicationsRuntimeError("communications_paid_draft_admission_required");
-      await this.preflight();
+      const checked = await this.preflight();
+      const configurationDigest = checked.gmailMcp?.configurationDigest ?? COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST;
+      requestDigest = communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
+        configurationDigest, historyProfile: COMMUNICATIONS_HISTORY_PROFILE, input: params.input,
+        ...(checked.gmailMcp ? { mcpProfile: checked.gmailMcp.profile, savedConfigurationDigest: checked.gmailMcp.savedConfigurationDigest } : {}) });
       await this.options.reservePaidDraft(params.jobId, requestDigest);
       checkpoint.createClaimedAt = new Date().toISOString();
       checkpoint.requestDigest = requestDigest;
       checkpoint.historyProfile = COMMUNICATIONS_HISTORY_PROFILE;
-      checkpoint.historyConfigurationDigest = COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST;
+      checkpoint.historyConfigurationDigest = configurationDigest;
+      if (checked.gmailMcp) checkpoint.gmailMcp = checked.gmailMcp;
+      else delete checkpoint.gmailMcp;
       // Commit the one-use create claim BEFORE any request can reach OpenAI.
       await saveCheckpoint({ ...checkpoint });
     }
+    if (!requestDigest || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
+    let gmailMcp;
+    try { gmailMcp = checkpoint.gmailMcp ? verifiedCommunicationsGmailBinding(checkpoint.gmailMcp) : undefined; }
+    catch { throw new CommunicationsRuntimeError("agents_existing_session_mcp_binding_mismatch"); }
+    const definition = gmailMcp ? COMMUNICATIONS_GMAIL_READ_DEFINITION : COMMUNICATIONS_HISTORY_DEFINITION;
     const handle = await this.request(fresh ? "/agents/sessions" : `/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, fresh ? {
       method: "POST", body: JSON.stringify({
-        agent_id: COMMUNICATIONS_SAVED_AGENT_ID, agent: COMMUNICATIONS_HISTORY_CONFIGURATION,
+        agent_id: COMMUNICATIONS_SAVED_AGENT_ID, agent: gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION,
         environment: { type: "none" }, input: params.input, stream: true,
         metadata: { blueprint_communications_job: params.jobId, role: "communications",
           blueprint_communications_request_digest: requestDigest,
           blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
-          blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
+          blueprint_communications_configuration_digest: gmailMcp?.savedConfigurationDigest ?? COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
           blueprint_communications_history_profile: COMMUNICATIONS_HISTORY_PROFILE,
-          blueprint_communications_history_configuration_digest: COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST,
-          blueprint_communications_definition: COMMUNICATIONS_HISTORY_DEFINITION.version,
-          blueprint_communications_instructions_digest: COMMUNICATIONS_HISTORY_DEFINITION.instructionsDigest },
+          blueprint_communications_history_configuration_digest: checkpoint.historyConfigurationDigest,
+          ...(gmailMcp ? { blueprint_communications_mcp_profile: gmailMcp.profile } : {}),
+          blueprint_communications_definition: definition.version,
+          blueprint_communications_instructions_digest: definition.instructionsDigest },
       }),
     } : { headers: { Accept: "text/event-stream" } });
     let terminal: string | null = null;
@@ -139,7 +150,7 @@ export class CommunicationsAgentsAPI {
     if (!reader) { handle.close(); throw new CommunicationsRuntimeError("agents_stream_missing", !fresh); }
     // A reconnected observer is opened before saved state is reconciled. No new
     // message is sent, and a missed completion event cannot create a second turn.
-    const saved = !fresh && !checkpoint.historyProfile ? this.reconcileSaved(checkpoint, params.jobId).then((result) => {
+    const saved = !fresh && !checkpoint.historyProfile ? this.reconcileSaved(checkpoint, params.jobId, saveCheckpoint).then((result) => {
       if (result) handle.close(); return { result, error: null };
     }, (error) => { handle.close(); return { result: null, error }; }) : null;
     try {
@@ -175,11 +186,11 @@ export class CommunicationsAgentsAPI {
     if (terminal && terminal !== "agent.session.turn.completed") throw new CommunicationsRuntimeError("agents_turn_failed_or_cancelled");
     const savedResult = saved ? await saved : null;
     if (savedResult?.error) throw savedResult.error;
-    let result = savedResult?.result ?? await this.reconcileSaved(checkpoint, params.jobId);
+    let result = savedResult?.result ?? await this.reconcileSaved(checkpoint, params.jobId, saveCheckpoint);
     if (!result && checkpoint.historyProfile) {
       // Recover missed required-action events without a new user message/turn.
       await this.handleHistoryActions(checkpoint, params.jobId, saveCheckpoint);
-      result = await this.reconcileSaved(checkpoint, params.jobId);
+      result = await this.reconcileSaved(checkpoint, params.jobId, saveCheckpoint);
     }
     if (!result) throw new CommunicationsRuntimeError("agents_turn_pending", !!checkpoint.sessionId);
     const projected = await this.projectHistoryCheckpoint(result.checkpoint, params.jobId);
@@ -187,15 +198,18 @@ export class CommunicationsAgentsAPI {
     return { ...result, checkpoint: projected };
   }
   private async projectHistoryCheckpoint(checkpoint: CommunicationsCheckpoint, jobId: string) {
-    if (!checkpoint.historyToolReceipts) return { ...checkpoint };
+    if (!checkpoint.historyToolReceipts && !checkpoint.nativeMcpItems) return { ...checkpoint };
     if (!checkpoint.sessionId || checkpoint.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE) {
       throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch");
     }
     const scope = { collection: "agentCheckpoints" as const, id: `communications-history:${jobId}:${checkpoint.sessionId}` };
-    const projection = await projectAgentEvidence({ snapshot: checkpoint.historyToolReceipts }, scope);
+    const projection = await projectAgentEvidence({ snapshot: checkpoint.gmailMcp
+      ? { historyToolReceipts: checkpoint.historyToolReceipts ?? [], nativeMcpItems: checkpoint.nativeMcpItems ?? [] }
+      : checkpoint.historyToolReceipts }, scope);
     const projected = { ...checkpoint };
     if (projection.agent_evidence_ref) {
       delete projected.historyToolReceipts;
+      delete projected.nativeMcpItems;
       projected.historyEvidence = projection;
     } else delete projected.historyEvidence;
     return projected;
@@ -203,13 +217,22 @@ export class CommunicationsAgentsAPI {
   private async hydrateHistoryCheckpoint(value: CommunicationsCheckpoint, jobId: string) {
     const checkpoint = { ...value };
     if (!checkpoint.historyEvidence) return checkpoint;
-    if (!checkpoint.sessionId || checkpoint.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE || checkpoint.historyToolReceipts) {
+    if (!checkpoint.sessionId || checkpoint.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE || checkpoint.historyToolReceipts || checkpoint.nativeMcpItems) {
       throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch");
     }
     const hydrated = await hydrateAgentEvidence(checkpoint.historyEvidence,
       { collection: "agentCheckpoints", id: `communications-history:${jobId}:${checkpoint.sessionId}` });
-    if (!Array.isArray(hydrated.snapshot)) throw new CommunicationsRuntimeError("agents_history_receipt_binding_mismatch");
-    checkpoint.historyToolReceipts = hydrated.snapshot;
+    if (checkpoint.gmailMcp) {
+      const snapshot = hydrated.snapshot as any;
+      if (!snapshot || !Array.isArray(snapshot.historyToolReceipts) || !Array.isArray(snapshot.nativeMcpItems)) {
+        throw new CommunicationsRuntimeError("agents_history_receipt_binding_mismatch");
+      }
+      checkpoint.historyToolReceipts = snapshot.historyToolReceipts;
+      checkpoint.nativeMcpItems = snapshot.nativeMcpItems;
+    } else {
+      if (!Array.isArray(hydrated.snapshot)) throw new CommunicationsRuntimeError("agents_history_receipt_binding_mismatch");
+      checkpoint.historyToolReceipts = hydrated.snapshot;
+    }
     delete checkpoint.historyEvidence;
     return checkpoint;
   }
@@ -360,15 +383,24 @@ export class CommunicationsAgentsAPI {
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const session = await this.json(path, 256000);
     const hasHistory = checkpoint.historyProfile !== undefined || session.metadata?.blueprint_communications_history_profile !== undefined;
+    const hasGmail = checkpoint.gmailMcp !== undefined || session.metadata?.blueprint_communications_mcp_profile !== undefined;
+    let gmailMcp;
+    if (hasGmail) {
+      try { gmailMcp = verifiedCommunicationsGmailBinding(checkpoint.gmailMcp!); }
+      catch { throw new CommunicationsRuntimeError("agents_existing_session_mcp_binding_mismatch"); }
+      if (!hasHistory || session.metadata?.blueprint_communications_mcp_profile !== gmailMcp.profile) {
+        throw new CommunicationsRuntimeError("agents_existing_session_mcp_binding_mismatch");
+      }
+    }
     let definition = communicationsDefinitionForInstructions(session.agent?.instructions);
     if (hasHistory) {
       if (checkpoint.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE
-        || checkpoint.historyConfigurationDigest !== COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST
+        || checkpoint.historyConfigurationDigest !== (gmailMcp?.configurationDigest ?? COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST)
         || session.metadata?.blueprint_communications_history_profile !== COMMUNICATIONS_HISTORY_PROFILE
-        || session.metadata?.blueprint_communications_history_configuration_digest !== COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST) {
+        || session.metadata?.blueprint_communications_history_configuration_digest !== checkpoint.historyConfigurationDigest) {
         throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch");
       }
-      try { definition = verifiedCommunicationsHistoryAgent(session.agent); }
+      try { definition = gmailMcp ? verifiedCommunicationsGmailAgent(session.agent, gmailMcp) : verifiedCommunicationsHistoryAgent(session.agent); }
       catch { throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch"); }
     }
     const usesSavedAgent = session.metadata?.blueprint_communications_saved_agent !== undefined;
@@ -376,7 +408,7 @@ export class CommunicationsAgentsAPI {
       try { if (!hasHistory) verifiedCommunicationsSavedAgent(session.agent); }
       catch { throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch"); }
       if (session.metadata.blueprint_communications_saved_agent !== COMMUNICATIONS_SAVED_AGENT_ID
-        || session.metadata.blueprint_communications_configuration_digest !== COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST) {
+        || session.metadata.blueprint_communications_configuration_digest !== (gmailMcp?.savedConfigurationDigest ?? COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST)) {
         throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
       }
     }
@@ -402,8 +434,9 @@ export class CommunicationsAgentsAPI {
       || turn.agent_id !== session.agent.id))) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
     return { session, turn, definition: definition! };
   }
-  async reconcileSaved(savedCheckpoint: CommunicationsCheckpoint, jobId: string) {
-    const checkpoint = { ...savedCheckpoint };
+  async reconcileSaved(savedCheckpoint: CommunicationsCheckpoint, jobId: string,
+    saveCheckpoint?: (checkpoint: CommunicationsCheckpoint) => Promise<void>) {
+    const checkpoint = await this.hydrateHistoryCheckpoint(savedCheckpoint, jobId);
     if (!checkpoint.sessionId) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const { session, turn, definition } = await this.readBoundDraftSession(checkpoint, jobId, checkpoint.requestDigest ?? "");
@@ -431,6 +464,17 @@ export class CommunicationsAgentsAPI {
       cursors.add(result.last_id);
       after = result.last_id;
     }
+    if (checkpoint.gmailMcp) {
+      // Availability is not proof of use. Retain GET-observed native calls and
+      // original arguments/results privately, including failed observations.
+      const calls = items.filter(item => item.type === "mcp_call");
+      checkpoint.nativeMcpItems = calls;
+      if (saveCheckpoint) await saveCheckpoint({ ...checkpoint });
+      const allowed = checkpoint.gmailMcp.savedTool.allowed_tools ?? COMMUNICATIONS_GMAIL_READ_TOOLS;
+      if (calls.some(item => item.turn_id !== turn.id || item.server_label !== "gmail" || !allowed.includes(item.name))) {
+        throw new CommunicationsRuntimeError("agents_native_mcp_call_binding_mismatch");
+      }
+    }
     const final = items.filter((item) => item.turn_id === turn.id && item.type === "message"
       && item.role === "assistant" && item.phase === "final_answer" && item.status === "completed");
     if (final.length !== 1) throw new CommunicationsRuntimeError("agents_final_answer_missing_or_ambiguous");
@@ -442,13 +486,18 @@ export class CommunicationsAgentsAPI {
     // The fully read item page is already bounded at 256KB. A second 20KB
     // whole-output limit would discard schema-valid Unicode drafts/metadata
     // before retaining their source; preserve all observed bytes instead.
-    const outputSource: CommunicationsOutputSource = {
+    const outputSource: CommunicationsOutputSource & { nativeMcpEvidence?: Record<string, unknown> } = {
       schema_version: "blueprint.communications-output-source.v1", jobId,
       budgetAdmissionId: communicationsDigest({ jobId }), requestDigest: checkpoint.requestDigest!,
       sessionId: checkpoint.sessionId!, turnId: turn.id, finalItemId: final[0].id,
       definitionVersion: definition.version, instructionsDigest: definition.instructionsDigest,
       rawOutput: raw, rawOutputSha256: outputTextDigest(raw), rawOutputBytes: Buffer.byteLength(raw),
       usageDigest: communicationsDigest(turn.usage ?? null), normalizedMetadataPaths: [],
+      ...(checkpoint.nativeMcpItems ? { nativeMcpEvidence: {
+        recordRef: `blueprintCommunications/default/jobs/${jobId}`, field: "checkpoint",
+        profile: checkpoint.gmailMcp!.profile, configurationDigest: checkpoint.gmailMcp!.configurationDigest,
+        callsDigest: communicationsDigest(checkpoint.nativeMcpItems), observedCalls: checkpoint.nativeMcpItems.length,
+      } } : {}),
     };
     if (this.options.reviewedSavedOutputDigest && this.options.reviewedSavedOutputDigest !== outputSource.rawOutputSha256) {
       throw new CommunicationsRuntimeError("communications_saved_output_changed", false, outputSource);
@@ -465,7 +514,7 @@ export class CommunicationsAgentsAPI {
     }
     outputSource.normalizedMetadataPaths = parsed.normalizedMetadataPaths;
     if (parsed.formatNormalizations.length) outputSource.formatNormalizations = parsed.formatNormalizations;
-    return { output: parsed.output, checkpoint: { ...checkpoint }, usage: turn.usage ?? null, outputSource };
+    return { output: parsed.output, checkpoint: await this.projectHistoryCheckpoint(checkpoint, jobId), usage: turn.usage ?? null, outputSource };
   }
   async cancel(checkpoint: CommunicationsCheckpoint) {
     if (!checkpoint.sessionId) return false;
