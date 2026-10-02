@@ -129,7 +129,8 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     }
     // The model's prose never supplies automatic send authority. The compiler
     // uses the immutable public evidence/state; all other drafts keep review.
-    const compatibilityRecovery = "outputSource" in result && !!result.outputSource?.normalizedMetadataPaths.length;
+    const compatibilityRecovery = "outputSource" in result && (!!result.outputSource?.normalizedMetadataPaths.length
+      || !!result.outputSource?.formatNormalizations?.length);
     const compiled = !saved && !compatibilityRecovery && job.intent === "outreach" && automaticFirstContactEnabled()
       ? compileAutomaticFirstContact(brief, deps.now()) : null;
     const output = compiled ?? result.output;
@@ -149,7 +150,10 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       communications: { version: "blueprint.communications.v1", job, brief, thread, output, approvalState: "pending_approval" },
     };
     const review = reviewCommunicationsPayload(payload, deps.now());
-    if (!review.hardChecksPassed || !review.digest) throw new Error(`draft_quality_failed:${review.blockers.join(",")}`);
+    if (!review.digest) throw new Error(`draft_quality_failed:${review.blockers.join(",")}`);
+    // Preserve useful drafts and isolate unresolved claims/style diagnostics in
+    // the existing human-review ledger. Approval/send still revalidate them.
+    if (!review.hardChecksPassed) payload.communicationsDraftDiagnostics = { blockers: review.blockers };
     // Check suppression again after inference. Queue admission is not sending.
     if (await deps.isSuppressed(brief.contact.email)) throw new Error("recipient_suppressed");
     const ledgerId = await deps.store.commitDraft(job, output, payload, review.digest, result.usage);

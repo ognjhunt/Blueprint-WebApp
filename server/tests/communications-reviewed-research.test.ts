@@ -48,6 +48,16 @@ describe("truthful authenticated report admission (offline, no paid calls or sen
     expect((output!.body.match(/\?/g) ?? []).length).toBe(1);
     expect(output!.body).not.toMatch(/ROI|guarantee|confidential/i);
   });
+  it.each(["2026-10-01", "2026-10-01T15:30:00-05:00", "2026-10-01T20:30:00.123456Z"])("preserves actual source date precision %s separately from the review time", async sourceDate => {
+    const input = officialResearchInput();
+    input.candidate.evidence.forEach(evidence => { evidence.source_checked_at = sourceDate; evidence.source_date = sourceDate; });
+    const f = await admit(input);
+    expect(f.outcome.state).toBe("admitted");
+    expect(f.brief!.contact.sourceCheckedAt).toBe(sourceDate);
+    expect(f.brief!.facts.every(fact => fact.sourceCheckedAt === sourceDate && fact.publishedAt === sourceDate)).toBe(true);
+    expect(f.brief!.qualityReview.reviewedAt).toBe("2026-10-01T21:05:00.000Z");
+    expect(verifyPublishedResearch(f.snapshot, f.brief!, await f.store.handoff(f.brief!)).briefDigest).toBe(f.outcome.briefDigest);
+  });
   it("preserves honest rendered retrieval when raw Wix HTML cannot be statically verified", async () => {
     const body = "<html><style>p{display:none}</style><body><p>Contact info@debourgh.com</p></body></html>";
     expect(contactPageText({ requestedUrl: "https://www.debourgh.com/", finalUrl: "https://www.debourgh.com/", redirects: [],

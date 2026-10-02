@@ -8,7 +8,7 @@ export const REVIEWED_RESEARCH_ROOT = "blueprintCommunications/default/reviewedR
 export const COMMUNICATIONS_CRM_ID = "1n95Ih0Swc-q-kZyUaDHoZh6SVzxvf_zt-CRR7i39bWY";
 const text = z.string().trim().min(1).max(1200);
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
-const date = z.union([z.string().datetime(), z.string().date()]);
+const date = z.union([z.string().datetime({ offset: true }), z.string().date()]);
 const url = z.string().url().max(1000).refine(x => {
   const u = new URL(x); return ["https:", "http:"].includes(u.protocol) && !u.username && !u.password;
 });
@@ -31,7 +31,7 @@ export const reviewedResearchInputSchema = z.object({
   }).strict(),
   assessment: sourceAssessmentSchema,
   crm: z.object({ spreadsheetId: z.literal(COMMUNICATIONS_CRM_ID), range: z.literal("Prospects!A1:Z1000"),
-    checkedAt: z.string().datetime(), rows: z.array(z.array(z.string().max(4000)).max(26)).max(1000),
+    checkedAt: z.string().datetime({ offset: true }), rows: z.array(z.array(z.string().max(4000)).max(26)).max(1000),
     rationale: text }).strict(),
 }).strict();
 export type ReviewedResearchInput = z.infer<typeof reviewedResearchInputSchema>;

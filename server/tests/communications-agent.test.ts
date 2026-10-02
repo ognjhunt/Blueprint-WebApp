@@ -2,7 +2,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
-import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey } from "../agents/communications-contract";
+import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { processCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
@@ -94,6 +94,34 @@ describe("Blueprint-owned communications queue", () => {
     expect(ledger).toMatchObject({ action_tier: 3, status: "pending_approval", approved_by: null, sent_at: null });
     expect(f.db.records.get(`outboundProspects/${f.brief.prospectId}`).communications.gmailDraftId).toBeNull();
     expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).hardChecksPassed).toBe(true);
+  });
+  it("retains a draft with an unsupported fact as a human-review diagnostic, never automatic authority", async () => {
+    const f = await setup("reply");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
+    f.output.usedFactIds.push("unknown-fact");
+    const result = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false });
+    const ledger = f.db.records.get(`action_ledger/${(result as any).ledgerId}`);
+    expect(ledger).toMatchObject({ action_tier: 3, status: "pending_approval", approved_by: null, action_payload: {
+      communicationsDraftDiagnostics: { blockers: expect.arrayContaining(["used_fact_missing"]) }, communications: { output: f.output } } });
+    expect(ledger.first_contact_authority).toBeUndefined();
+    expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).hardChecksPassed).toBe(false);
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).output).toEqual(f.output);
+    expect(f.deps.api.cancel).not.toHaveBeenCalled();
+  });
+  it("retains a useful long draft without a cosmetic schema-length rejection", async () => {
+    const f = await setup();
+    f.output.subject = "A sourced question about this facility's packing work ".repeat(3);
+    f.output.body += "\n" + "This is additional draft context for review. ".repeat(60);
+    expect(f.output.subject.length).toBeGreaterThan(120); expect(f.output.body.length).toBeGreaterThan(2200);
+    const canonical = communicationsOutputSchema.parse(f.output);
+    Object.assign(f.output, canonical);
+    const result = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false });
+    const ledger = f.db.records.get(`action_ledger/${(result as any).ledgerId}`);
+    expect(ledger.action_payload.communications.output).toEqual(canonical);
+    expect(ledger).toMatchObject({ action_tier: 3, approved_by: null });
+    expect(ledger.first_contact_authority).toBeUndefined();
   });
   it("reviews an evidence-bound workflow question without forcing the brief's seeded wording", async () => {
     const f = await setup(), originalQuestion = f.output.outreachContract!.question;

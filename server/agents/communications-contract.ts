@@ -8,7 +8,7 @@ export const FOUNDER_MAILBOX = "nijel@tryblueprint.io";
 export const FOUNDER_MAILBOX_ALIASES = [FOUNDER_MAILBOX, "hello@tryblueprint.io"] as const;
 const id = z.string().trim().min(1).max(160).regex(/^[a-zA-Z0-9_.:-]+$/);
 const text = z.string().trim().min(1).max(1200);
-const date = z.string().datetime();
+const date = z.string().datetime({ offset: true });
 const sourceDate = z.union([date, z.string().date()]);
 const publicUrl = z.string().url().max(1000).refine((value) => {
   const url = new URL(value);
@@ -102,7 +102,7 @@ export type VerifiedThread = {
 
 export const communicationsOutputSchema = z.object({
   disposition: z.enum(["draft", "research_refresh", "no_reply"]),
-  subject: z.string().trim().max(120), body: z.string().trim().max(2200),
+  subject: z.string().trim().max(1000), body: z.string().trim().max(20000),
   reason: text, usedFactIds: z.array(id).max(16),
   refreshFactIds: z.array(id).max(16),
   outreachContract: outreachReviewContractSchema.nullable(),

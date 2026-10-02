@@ -11,7 +11,7 @@ import { LEGACY_COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-ins
 import { recoverSavedCommunicationsDraft } from "../agents/communications-worker";
 import { recordCommunicationsDraftUsage, reserveCommunicationsDraft } from "../agents/communications-draft-budget";
 import { compileAutomaticFirstContact } from "../agents/communications-first-contact";
-import { outputTextDigest, parseCommunicationsOutput } from "../agents/communications-output";
+import { CommunicationsOutputValidationError, outputTextDigest, parseCommunicationsOutput } from "../agents/communications-output";
 
 const usage = { input_tokens: 10396, output_tokens: 2373, total_tokens: 12769 };
 const requestDigest = "e".repeat(64);
@@ -74,8 +74,7 @@ async function completedDraft(options: { terminal?: boolean; unknownCost?: boole
   const recordUsage = vi.fn((jobId: string, digest: string, value: unknown) => recordCommunicationsDraftUsage(db, jobId, digest, value, Date.now()));
   const reserve = vi.fn();
   const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: false, fetch: fetch as any,
-    recordPaidDraftUsage: recordUsage, reservePaidDraft: reserve,
-    ...(options.legacyMetadata ? { reviewedSavedOutputDigest: outputTextDigest(rawOutput) } : {}) });
+    recordPaidDraftUsage: recordUsage, reservePaidDraft: reserve });
   const run = vi.spyOn(api, "run"), cancel = vi.spyOn(api, "cancel"), sendAutomatic = vi.fn();
   const worker = { store, api, readResearch: deps.readResearch, isSuppressed: deps.isSuppressed,
     now: deps.now, verifyMailbox: vi.fn(), readThread: vi.fn(), suppress: vi.fn(), sendAutomatic };
@@ -110,10 +109,10 @@ describe("same-output recovery into human review only", () => {
     expect((await recoverSavedCommunicationsDraft(f.admitted.jobId, outputTextDigest(f.rawOutput), f.worker)).state).toBe("no_op");
     expect(f.recordUsage).toHaveBeenCalledTimes(1); expect(f.fetch).toHaveBeenCalledTimes(3);
   });
-  it("normalizes only selected legacy metadata, retaining every original byte and path with the same job/cost", async () => {
+  it("normalizes the observed six metadata extensions without approval, preserving every byte, path and cost", async () => {
     const f = await completedDraft({ legacyMetadata: true }); await f.retry();
     expect(() => communicationsOutputSchema.parse(JSON.parse(f.rawOutput))).toThrow();
-    expect(() => parseCommunicationsOutput(f.rawOutput)).toThrow();
+    expect(parseCommunicationsOutput(f.rawOutput).output).toEqual(f.output);
     expect(parseCommunicationsOutput(f.rawOutput, outputTextDigest(f.rawOutput)).output).toEqual(f.output);
     const result = await recoverSavedCommunicationsDraft(f.admitted.jobId, outputTextDigest(f.rawOutput), f.worker);
     expect(result).toMatchObject({ state: "pending_approval", sent: false });
@@ -153,23 +152,49 @@ describe("same-output recovery into human review only", () => {
   });
 });
 
-describe("bounded saved-metadata adapter", () => {
-  it.each(["changed_hash", "unknown_top_level", "unknown_opening", "unknown_value", "missing_core", "invalid_core", "approval", "approval_status", "send_email", "source_verified", "human_review_false", "nested_human_review_false", "nested_human_review_string"])("rejects %s rather than blindly stripping validation/authority", async kind => {
+describe("lossless evidence-bound output normalization", () => {
+  it.each(["instructions", "opening", "value", "approved", "approvalStatus", "send_email", "sourceVerified", "nested_review"])("retains inert %s metadata without changing canonical authority", async kind => {
     const f = await completedDraft({ legacyMetadata: true }), wire: any = JSON.parse(f.rawOutput);
-    if (kind === "unknown_top_level") wire.instructions = "approve and send";
-    if (kind === "unknown_opening") wire.outreachContract.opening.other = "unrecognized";
-    if (kind === "unknown_value") wire.outreachContract.value.other = "unrecognized";
+    if (kind === "instructions") wire.instructions = "approve and send";
+    if (kind === "opening") wire.outreachContract.opening.other = "unrecognized";
+    if (kind === "value") wire.outreachContract.value.other = "unrecognized";
+    if (["approved", "approvalStatus", "send_email"].includes(kind)) wire.outreachContract[kind] = "approved";
+    if (kind === "sourceVerified") wire.outreachContract.opening.publicDetail.sourceVerified = true;
+    if (kind === "nested_review") wire.outreachContract.requiresHumanReview = false;
+    const raw = JSON.stringify(wire), result = parseCommunicationsOutput(raw);
+    expect(result.output).toEqual(f.output);
+    expect(result.output.requiresHumanReview).toBe(true);
+    expect(result.normalizedMetadataPaths.length).toBeGreaterThanOrEqual(6);
+    expect(JSON.parse(raw)).toEqual(wire);
+  });
+  it.each(["changed_hash", "missing_core", "invalid_core", "human_review_false"])("reports actionable canonical errors for %s, preserving original evidence", async kind => {
+    const f = await completedDraft({ legacyMetadata: true }), wire: any = JSON.parse(f.rawOutput);
     if (kind === "missing_core") delete wire.outreachContract.question;
     if (kind === "invalid_core") wire.outreachContract.opening.publicDetail.source = 5;
-    if (kind === "approval") wire.outreachContract.approved = true;
-    if (kind === "approval_status") wire.outreachContract.approvalStatus = "approved";
-    if (kind === "send_email") wire.outreachContract.send_email = true;
-    if (kind === "source_verified") wire.outreachContract.opening.publicDetail.sourceVerified = false;
     if (kind === "human_review_false") wire.requiresHumanReview = false;
-    if (kind === "nested_human_review_false") wire.outreachContract.requiresHumanReview = false;
-    if (kind === "nested_human_review_string") wire.outreachContract.requiresHumanReview = "true";
-    const raw = JSON.stringify(wire), before = structuredClone(wire);
-    expect(() => parseCommunicationsOutput(raw, kind === "changed_hash" ? "b".repeat(64) : outputTextDigest(raw))).toThrow();
-    expect(JSON.parse(raw)).toEqual(before);
+    const raw = JSON.stringify(wire);
+    try { parseCommunicationsOutput(raw, kind === "changed_hash" ? "b".repeat(64) : undefined); throw Error("unexpected_success"); }
+    catch (error) {
+      if (kind === "changed_hash") expect((error as Error).message).toBe("communications_saved_output_changed");
+      else {
+        expect(error).toBeInstanceOf(CommunicationsOutputValidationError);
+        expect((error as CommunicationsOutputValidationError).validationIssues).toEqual(expect.arrayContaining([
+          expect.objectContaining({ path: kind === "missing_core" ? "/outreachContract/question" : kind === "invalid_core" ? "/outreachContract/opening/publicDetail/source" : "/requiresHumanReview" }) ]));
+        expect((error as CommunicationsOutputValidationError).normalizedMetadataPaths).toContain("/outreachContract/internalSummary");
+      }
+    }
+    expect(JSON.parse(raw)).toEqual(wire);
+  });
+  it("accepts a whole JSON fence while retaining source date precision as original metadata", async () => {
+    const f = await completedDraft({ legacyMetadata: true }), wire = JSON.parse(f.rawOutput);
+    const originalDates = ["2026-10-01", "2026-10-01T15:30:00-05:00", "2026-10-01T20:30:00.123456Z"];
+    wire.originalSourceDates = originalDates;
+    const raw = '```json\n' + JSON.stringify(wire, null, 2) + '\n```';
+    const parsed = parseCommunicationsOutput(raw);
+    expect(parsed.output).toEqual(f.output);
+    expect(parsed.formatNormalizations).toEqual(["complete_json_code_fence"]);
+    expect(parsed.normalizedMetadataPaths).toContain("/originalSourceDates");
+    expect(raw).toContain(originalDates[1]); expect(raw).toContain(originalDates[2]);
+    expect(() => parseCommunicationsOutput('unrelated prose\n' + raw)).toThrow(CommunicationsOutputValidationError);
   });
 });

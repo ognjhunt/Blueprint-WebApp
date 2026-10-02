@@ -19,8 +19,8 @@ first-draft gate. It never reads mailbox bodies or changes consent or suppressio
 
 Existing create/session checkpoints use `allowCreate:false`: legacy jobs without
 a binding retain their original input shape, while already bound jobs replay the
-same frozen context. Exact v1 and v2 writing instructions remain archived for
-saved-turn recovery. New requests use `blueprint.communications-definition.v3`.
+same frozen context. Exact v1, v2 and v3 writing instructions remain archived for
+saved-turn recovery. New requests use `blueprint.communications-definition.v4`.
 After the native result is persisted, the caller records its observed state with
 unknown outcome counts. A failed learning observation preserves the saved draft.
 This wiring leaves inference, sends and human approval under their existing gates.
@@ -115,3 +115,25 @@ SHA-256 while keeping production publication and send activation with the owner.
 
 Validation: `npm run check`, focused communications/admission tests and the full
 coverage suite; merge/deployment remains gated by the complete GitHub CI workflow.
+
+The standing agent-autonomy rule lives in root and server `AGENTS.md`. New
+communications requests use v4 instructions: choose useful work within actual
+spending/tool authority, repair ordinary errors, and keep unsupported claims
+unknown. Current operation is draft-only. This release grants no new tools,
+spending, access or sends.
+
+Canonical output parsing accepts a complete JSON code fence and projects
+additional metadata out of the actionable draft without an operator hash/approval
+prerequisite. Every original byte, SHA-256 and removed field path remains in
+server-created `outputSource`; control-sounding extra keys are inert data, never
+approval. Required canonical facts and `requiresHumanReview:true` still validate.
+Invalid fields return JSON-pointer diagnostics with original evidence retained.
+Valid drafts with unresolved semantic claims remain in the existing human review
+ledger with diagnostics; approval/send revalidates those claims. No draft
+metadata grants authority. Source date-only values, timezone offsets and fractional
+precision retain their exact value, separate from review dates.
+
+Saved item reads continue through progressing provider cursors rather than an
+arbitrary page quota. Resource/deadline exhaustion returns a recovery diagnostic,
+never a partial success or a new paid create. Pending usage remains unknown with
+the original reservation held; it does not prevent retaining the completed draft.

@@ -80,6 +80,20 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
 
 ## Working Rules
 
+- Agents own research strategy, authorized tools, depth and recovery. Use
+  evidence-backed judgment rather than rigid outreach templates or arbitrary
+  result quotas. Ordinary errors, harmless formatting/metadata/date-precision
+  differences and expected pending usage must not prematurely stop useful work.
+- Validation should explain the affected fields and how to repair them in the
+  same context. Normalize losslessly when the evidence supports it, retain the
+  original bytes/provenance/dates, and quarantine affected unsupported claims
+  where possible rather than discarding the whole result. Missing data remains
+  unknown; never fabricate facts, approvals or zero usage.
+- Retain consequential controls: user spending authority, access/security and
+  deletion approvals, idempotency/duplicate effects, opt-outs, and the current
+  draft-only/no-send direction. This autonomy rule does not authorize new spend,
+  broader access, external sends or another approval framework.
+
 - Preserve truthful product language around hosted sessions, captures, rights, and provenance.
 - Prefer only edits that strengthen Arm Decision Proof partner intake,
   authorization, durable experiment state, inspectable evidence, or bounded

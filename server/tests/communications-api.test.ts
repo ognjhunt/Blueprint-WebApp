@@ -3,13 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT } from "../agents/communications-contract";
 import { communicationsFixture } from "./fixtures/communications";
-import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION } from "../agents/communications-instructions";
+import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
 
-function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: string; noFinal?: boolean; http?: number; failed?: boolean; itemsPage?: boolean; missingMetadata?: boolean; rawOutput?: string; instructions?: string; usage?: unknown } = {}) {
+function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: string; noFinal?: boolean; http?: number; failed?: boolean; itemsPage?: boolean; itemPages?: number; repeatedCursor?: boolean; pagePadding?: number; advancePageClock?: boolean; missingMetadata?: boolean; rawOutput?: string; instructions?: string; usage?: unknown } = {}) {
   const { output } = communicationsFixture();
   const calls: Array<{ path: string; init: RequestInit }> = [];
   const checkpoints: any[] = [];
-  let requestDigest = "a".repeat(64);
+  let requestDigest = "a".repeat(64), pageNumber = 0;
   const stream = [{ type: "agent.session.created", session: { id: "session-1" } },
     { type: "agent.session.turn.created", turn_id: "turn-1", turn: { id: "turn-1", subagent_id: null } },
     { type: options.failed ? "agent.session.turn.failed" : "agent.session.turn.completed", turn_id: "turn-1" }];
@@ -27,6 +27,9 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
       metadata: options.missingMetadata ? {} : { blueprint_communications_job: "job-1", role: "communications", blueprint_communications_request_digest: requestDigest } });
     if (path.includes("/turns?")) return Response.json({ data: [{ id: "turn-1", agent_id: "agent-1", status: options.idle ? "running" : "completed", usage: options.usage ?? { input_tokens: 3 } }], has_more: false });
     if (path.includes("/items?")) {
+      pageNumber++;
+      if (options.advancePageClock) vi.setSystemTime(Date.now() + 100001);
+      if (options.itemPages && pageNumber < options.itemPages) return Response.json({ data: [{ id: `item-${pageNumber}`, type: "message", role: "assistant", phase: "commentary", status: "completed", turn_id: "turn-1", content: [{ type: "output_text", text: "x".repeat(options.pagePadding ?? 1) }] }], has_more: true, last_id: options.repeatedCursor ? "same-cursor" : `item-${pageNumber}` });
       if (options.itemsPage && !path.includes("after=")) return Response.json({ data: [{ id: "item-0", type: "message", role: "assistant", phase: "commentary", status: "completed", turn_id: "turn-1", content: [{ type: "output_text", text: "UNTRUSTED DELTA" }] }], has_more: true, last_id: "item-0" });
       return Response.json({ data: options.noFinal ? [] : [{ id: "final-1", type: "message", role: "assistant", phase: "final_answer", status: "completed", turn_id: "turn-1", content: [{ type: "output_text", text: options.rawOutput ?? JSON.stringify(output) }] }], has_more: false });
     }
@@ -96,15 +99,55 @@ describe("portable communications Agents API", () => {
     expect(result.outputSource).toMatchObject({ definitionVersion: "blueprint.communications-definition.v2",
       instructionsDigest: COMMUNICATIONS_V2_DEFINITION.instructionsDigest, requestDigest: "a".repeat(64) });
     expect(f.reservePaidDraft).not.toHaveBeenCalled(); expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
-    expect(COMMUNICATIONS_DEFINITION.version).toBe("blueprint.communications-definition.v3");
+    expect(COMMUNICATIONS_DEFINITION.version).toBe("blueprint.communications-definition.v4");
+  });
+  it("keeps the exact v3 learning instructions recoverable after the autonomy repair", async () => {
+    expect(COMMUNICATIONS_V3_DEFINITION.instructionsDigest).toBe("f225c45972fa5dc7e2d582a24672fa865abd8a661b55a41363168ff4854ea6d1");
+    const f = apiFixture({ reconnect: true, instructions: COMMUNICATIONS_V3_INSTRUCTIONS });
+    const result = await f.api.reconcileSaved(f.params.checkpoint, "job-1");
+    expect(result?.outputSource).toMatchObject({ definitionVersion: "blueprint.communications-definition.v3", instructionsDigest: COMMUNICATIONS_V3_DEFINITION.instructionsDigest });
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+  });
+  it("retains a final on the fifth saved page without a result quota or another paid create", async () => {
+    const f = apiFixture({ reconnect: true, itemPages: 5 });
+    expect((await f.api.reconcileSaved(f.params.checkpoint, "job-1"))?.output).toEqual(f.output);
+    expect(f.calls.filter(call => call.path.includes("/items?"))).toHaveLength(5);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledTimes(1); expect(f.reservePaidDraft).not.toHaveBeenCalled();
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+  });
+  it.each(["cursor", "resources", "deadline"])("returns a recovery diagnostic for saved read %s without partial success or create", async kind => {
+    const f = apiFixture({ reconnect: true, itemPages: 20, repeatedCursor: kind === "cursor", pagePadding: kind === "resources" ? 240000 : 0, advancePageClock: kind === "deadline" });
+    try {
+      if (kind === "deadline") { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-01T00:00:00Z")); }
+      await expect(f.api.reconcileSaved(f.params.checkpoint, "job-1")).rejects.toMatchObject({ code: kind === "cursor" ? "agents_items_cursor_did_not_advance" : kind === "resources" ? "agents_saved_items_export_required" : "agents_saved_items_read_deadline" });
+      expect(f.recordPaidDraftUsage).toHaveBeenCalledTimes(1); expect(f.reservePaidDraft).not.toHaveBeenCalled();
+      expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+    } finally { if (kind === "deadline") vi.useRealTimers(); }
   });
   it("retains invalid output evidence and accounts terminal usage without creating another session", async () => {
     const usage = { input_tokens: 10396, output_tokens: 2373, total_tokens: 12769 }, rawOutput = '{"requiresHumanReview":false}';
     const f = apiFixture({ reconnect: true, usage, rawOutput });
     await expect(f.api.reconcileSaved(f.params.checkpoint, "job-1")).rejects.toMatchObject({ code: "communications_output_invalid",
-      outputSource: { rawOutput, rawOutputBytes: Buffer.byteLength(rawOutput), jobId: "job-1", requestDigest: "a".repeat(64) } });
+      outputSource: { rawOutput, rawOutputBytes: Buffer.byteLength(rawOutput), jobId: "job-1", requestDigest: "a".repeat(64),
+        validationIssues: expect.arrayContaining([expect.objectContaining({ path: "/requiresHumanReview" })]) } });
     expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", "a".repeat(64), usage);
     expect(f.reservePaidDraft).not.toHaveBeenCalled(); expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+  });
+  it.each(["valid_unicode", "inert_metadata", "invalid_body"])("preserves fully observed %s output beyond the old 20KB cutoff", async kind => {
+    const { output } = communicationsFixture(), wire: any = structuredClone(output);
+    if (kind === "inert_metadata") wire.sourceSnapshot = "x".repeat(24000);
+    else wire.body += "界".repeat(kind === "invalid_body" ? 20001 : 8000);
+    const rawOutput = JSON.stringify(wire), f = apiFixture({ reconnect: true, rawOutput });
+    expect(Buffer.byteLength(rawOutput)).toBeGreaterThan(20000);
+    if (kind === "invalid_body") await expect(f.api.reconcileSaved(f.params.checkpoint, "job-1")).rejects.toMatchObject({ code: "communications_output_invalid", outputSource: {
+      rawOutput, rawOutputBytes: Buffer.byteLength(rawOutput), validationIssues: expect.arrayContaining([expect.objectContaining({ path: "/body", code: "too_big" })]) } });
+    else {
+      const result = await f.api.reconcileSaved(f.params.checkpoint, "job-1");
+      expect(result?.outputSource).toMatchObject({ rawOutput, rawOutputBytes: Buffer.byteLength(rawOutput) });
+      expect(result?.output).toEqual(kind === "inert_metadata" ? output : wire);
+    }
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledTimes(1); expect(f.reservePaidDraft).not.toHaveBeenCalled();
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
   });
   it("never interprets idle or streamed deltas as completion", async () => {
     const f = apiFixture({ idle: true });

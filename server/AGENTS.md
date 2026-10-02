@@ -8,6 +8,11 @@ Agent discovery: use this file for `server/**` details, but root `AGENTS.md` and
 
 Local conventions:
 
+- Apply the root agent-autonomy rule to runtime validation and recovery. Return
+  actionable field errors, preserve original evidence, and recover harmless
+  formatting/metadata differences without an extra approval step. Draft staging
+  may retain unresolved claim/review diagnostics; it does not authorize a send.
+
 - Start route mapping in `server/routes.ts`; start app/middleware/rate-limit/CSP questions in `server/index.ts`.
 - Keep external mutation behind existing auth, CSRF, policy, and human-gate checks.
 - Do not infer capture, rights, privacy, entitlement, or hosted-session readiness from static fixtures.
