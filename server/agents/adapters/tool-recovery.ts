@@ -4,7 +4,7 @@ import { ZodError } from "zod";
 /** Tool failures are data for the current authorized loop. Never reflect
  * private exception prose, imply permission, or retry an uncertain mutation. */
 // verify_growth_integrations writes an analytics event and a Firestore receipt.
-export const readOnlyOperatorTools = new Set(["list_growth_campaigns"]);
+export const readOnlyOperatorTools = new Set(["list_growth_campaigns", "search_company_history", "fetch_company_history_record"]);
 
 export function validationIssue(issue: ZodError["issues"][number]) {
   const detail = issue as unknown as Record<string, unknown>, expectations: Record<string, unknown> = {};

@@ -4,7 +4,7 @@ import OpenAI from "openai";
 import { readOnlyOperatorTools, toolFailure, validationIssue } from "./tool-recovery";
 import { ZodError, type ZodType } from "zod";
 
-import { openAiResponsesOperatorTools, runOperatorTool } from "../operator-tools";
+import { openAiResponsesOperatorTools, openAiResponsesHistoryTools, getCompanyHistoryAccess, runOperatorTool } from "../operator-tools";
 import {
   getOpenAiMaxOutputTokens,
   getOpenAiReasoningEffort,
@@ -117,7 +117,8 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     };
   }
 
-  const tools = task.kind === "operator_thread" ? openAiResponsesOperatorTools : undefined;
+  const historyAccess = getCompanyHistoryAccess(task);
+  const tools = task.kind === "operator_thread" ? openAiResponsesOperatorTools : historyAccess ? openAiResponsesHistoryTools : undefined;
   const traceLogs: Array<Record<string, unknown>> = [];
   const previousResponseId =
     task.session_policy.lane === "session" &&
@@ -339,7 +340,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
         call_id: call.call_id,
       });
       if (!failed) {
-        try { result = await runOperatorTool(call.name, args); }
+        try { result = await runOperatorTool(call.name, args, ...(historyAccess && openAiResponsesHistoryTools.some(tool => tool.name === call.name) ? [historyAccess] : [])); }
         catch (error) {
           failed = true; result = toolFailure(error, call.name);
           if ((result as { status: string }).status === "reconciliation_required") mutationReconciliationRequired = true;

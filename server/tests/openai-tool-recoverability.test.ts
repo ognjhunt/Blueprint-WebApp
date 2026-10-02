@@ -4,7 +4,8 @@ import { z, ZodError } from "zod";
 
 const mocks = vi.hoisted(() => ({ create: vi.fn(), tool: vi.fn() }));
 vi.mock("openai", () => ({ default: class { responses = { create: mocks.create }; } }));
-vi.mock("../agents/operator-tools", () => ({
+vi.mock("../agents/operator-tools", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../agents/operator-tools")>(),
   openAiResponsesOperatorTools: [
     { type: "function", name: "list_growth_campaigns" },
     { type: "function", name: "create_growth_campaign_draft" },

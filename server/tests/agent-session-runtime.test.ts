@@ -5,7 +5,8 @@ const chatReplayMocks = vi.hoisted(() => ({ create: vi.fn(), tool: vi.fn(), requ
 vi.mock("openai", () => ({ default: class { chat = { completions: { create: (input:any) => {
   chatReplayMocks.requests.push(structuredClone(input)); return chatReplayMocks.create(input);
 } } }; } }));
-vi.mock("../agents/operator-tools", () => ({ chatCompletionOperatorTools: [
+vi.mock("../agents/operator-tools", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../agents/operator-tools")>(), chatCompletionOperatorTools: [
   {type:"function",function:{name:"list_growth_campaigns"}},
   {type:"function",function:{name:"create_growth_campaign_draft"}},
 ], runOperatorTool:chatReplayMocks.tool }));

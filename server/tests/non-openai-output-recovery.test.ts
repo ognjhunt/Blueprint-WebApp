@@ -4,7 +4,9 @@ import { z } from "zod";
 
 const create = vi.hoisted(() => vi.fn());
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
-const task = (provider: string) => ({ kind: "operator_thread", provider, runtime: provider, model: provider === "gemini_video" ? "gemini-3.8-flash" : "claude-test",
+// This suite isolates output correction from the company-history tool phase.
+// Company-lane correction and transport evidence have their own adapter tests.
+const task = (provider: string) => ({ kind: "preview_diagnosis", provider, runtime: provider, model: provider === "gemini_video" ? "gemini-3.8-flash" : "claude-test",
   input: { taskVideoUrl: "https://example.com/clip.mp4" }, tool_policy: { mode: "api" },
   definition: { build_prompt: () => "Report observed count as JSON: {count:number}", output_schema: z.object({ count: z.number() }), video_processing_mode: "STATIC" } });
 const anthropic = (text: string, tokens = 10) => ({ id: "message", content: [{ type: "text", text }], usage: { input_tokens: 20, output_tokens: tokens }, stop_reason: "end_turn" });
@@ -48,7 +50,7 @@ describe("provider output correction retains paid evidence", () => {
     const { runAnthropicAgentSdkTask } = await import("../agents/adapters/anthropic-agent-sdk");
     const result = await runAnthropicAgentSdkTask(task("anthropic_agent_sdk") as never);
     expect(result).toMatchObject({ status: "completed", output: { count: 2 }, artifacts: { usage: { prompt_tokens: 40, completion_tokens: 20, total_tokens: 60 } } });
-    expect(create.mock.calls[1][0].messages).toEqual(expect.arrayContaining([expect.objectContaining({ role: "assistant", content: '{"count":"two"}' })]));
+    expect(create.mock.calls[1][0].messages).toEqual(expect.arrayContaining([expect.objectContaining({ role: "assistant", content: [{ type: "text", text: '{"count":"two"}' }] })]));
     expect(JSON.stringify(create.mock.calls[1][0])).toContain("/count");
     expect(JSON.stringify(create.mock.calls[1][0])).toContain('expected');
     expect(create.mock.calls[1][0].tools).toBeUndefined();

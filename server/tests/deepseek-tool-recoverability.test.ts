@@ -4,7 +4,8 @@ import { z, ZodError } from "zod";
 
 const mocks = vi.hoisted(() => ({ create: vi.fn(), tool: vi.fn(), requests: [] as any[], options: [] as any[] }));
 vi.mock("openai", () => ({ default: class { chat = { completions: { create: (input:any, options:any) => { mocks.requests.push(structuredClone(input)); mocks.options.push(options); return mocks.create(input); } } }; } }));
-vi.mock("../agents/operator-tools", () => ({
+vi.mock("../agents/operator-tools", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../agents/operator-tools")>(),
   chatCompletionOperatorTools: [
     { type: "function", function: { name: "list_growth_campaigns" } },
     { type: "function", function: { name: "create_growth_campaign_draft" } },

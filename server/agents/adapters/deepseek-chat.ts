@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { readOnlyOperatorTools, toolFailure, validationIssue } from "./tool-recovery";
 import { ZodError, type ZodType } from "zod";
 
-import { chatCompletionOperatorTools, runOperatorTool } from "../operator-tools";
+import { chatCompletionOperatorTools, chatCompletionHistoryTools, getCompanyHistoryAccess, runOperatorTool } from "../operator-tools";
 import type { AgentProvider, AgentResult, AgentTaskKind, NormalizedAgentTask } from "../types";
 
 const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
@@ -401,7 +401,8 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
     };
   }
 
-  const tools = task.kind === "operator_thread" ? chatCompletionOperatorTools : undefined;
+  const historyAccess = getCompanyHistoryAccess(task);
+  const tools = task.kind === "operator_thread" ? chatCompletionOperatorTools : historyAccess ? chatCompletionHistoryTools : undefined;
   const savedReplay = task.metadata?.deepseek_replay_input;
   if (savedReplay !== undefined && (!Array.isArray(savedReplay) || savedReplay[0]?.role !== "system"
     || savedReplay[0]?.content !== DEEPSEEK_STRUCTURED_SYSTEM_PROMPT
@@ -514,7 +515,7 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
       traceLogs.push({ event_type: "tool.call", status: "info", summary: `Invoked ${toolName}`,
         tool_name: toolName, tool_args: args, call_id: call.id });
       if (!failed) {
-        try { result = await runOperatorTool(toolName, args); }
+        try { result = await runOperatorTool(toolName, args, ...(historyAccess && chatCompletionHistoryTools.some(tool => tool.function.name === toolName) ? [historyAccess] : [])); }
         catch (error) {
           failed = true; result = toolFailure(error, toolName);
           if ((result as { status: string }).status === "reconciliation_required") mutationReconciliationRequired = true;
