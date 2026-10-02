@@ -473,3 +473,95 @@ describe("offloaded agent cost accounting", () => {
     expect(extractAgentCostTelemetry({ ...run, metadata: { cost_telemetry: { cost_usd: 999 } } })).toEqual(raw);
   });
 });
+
+describe("unknown usage at the telemetry and rolling admission boundary", () => {
+  const now = Date.parse("2026-10-02T14:00:00Z");
+  const partial = () => ({ id: "partial-run", session_id: "partial-session", task_kind: "operator_thread",
+    provider: "openai_responses", model: "gpt-5.6-sol", created_at: new Date(now).toISOString(),
+    artifacts: {
+      usage_detail_status: "partial", cost_status: "usage_partial",
+      usage: { calls: 2, input_tokens: null, output_tokens: null, total_tokens: null,
+        cached_tokens: null, cache_write_tokens: null, reasoning_tokens: null, uncached_input_tokens: null,
+        estimated_total_cost_usd: null, uncached_input_cost_usd: null, cache_write_cost_usd: null,
+        cached_read_cost_usd: null, output_cost_usd: null, estimated_cost_without_caching_usd: null, estimated_savings_usd: null },
+      known_usage_subtotals: { input_tokens: 100, output_tokens: 20, estimated_total_cost_usd: 0.0008 },
+      usage_samples: [{ estimated_total_cost_usd: 0.0008 }, { estimated_total_cost_usd: null }],
+      inference_reservation: { reconciled_cost_status: "includes_worst_case_reservations", known_reported_cost_usd: 0.0008,
+        unknown_usage_reserved_cost_usd: 0.72, projected_max_cost_per_call_usd: 0.72, reconciled_cost_usd: 0.7208 },
+    },
+    logs: [{ event_type: "provider.response.created", usage: { input_tokens: 100, output_tokens: 20,
+      input_tokens_details: { cached_tokens: 0 }, estimated_total_cost_usd: 0.0008 } }],
+    output: { summary: "Retained paid evidence." } });
+
+  it("extracts partial evidence without converting authoritative nulls or earlier receipts to totals", () => {
+    const run = partial(), record = extractAgentCostTelemetry(run);
+    expect(record).toMatchObject({ prompt_tokens: null, completion_tokens: null, total_tokens: null,
+      cached_tokens: null, cost_usd: null, cost_estimate_usd: null, uncached_input_cost_usd: null,
+      usage_detail_status: "partial", cost_status: "usage_partial", conservative_spend_usd: 0.7208,
+      spend_accounting_status: "reserved_unknown", known_usage_subtotals: run.artifacts.known_usage_subtotals });
+    expect(summarizeAgentCostTelemetry([run]).rows[0]).toMatchObject({ prompt_tokens: null, cost_usd: null });
+    expect(summarizeAgentCostWaste([run]).totals).toMatchObject({ prompt_tokens: null, cost_estimate_usd: null, cache_hit_ratio: null });
+  });
+
+  it("uses known receipt cost plus the unknown request reservation for the rolling STOP", () => {
+    const summary = summarizeRollingAgentSpend([partial()], { nowMs: now, stopUsd: { lastHour: 0.5 } });
+    expect(summary.windows.lastHour).toMatchObject({ cost_usd: 0.7208, prompt_tokens: null, completion_tokens: null, status: "stop" });
+    expect(summary.by_agent.operator_thread.lastHour.status).toBe("stop");
+  });
+
+  it("does not infer a known total from null cost counters or a stale positive scalar", () => {
+    const run = partial() as any;
+    delete run.artifacts.usage.estimated_total_cost_usd;
+    run.artifacts.cost_usd = 0.0008;
+    expect(extractAgentCostTelemetry(run)).toMatchObject({ prompt_tokens: null, cost_usd: null,
+      cost_estimate_usd: null, conservative_spend_usd: 0.7208 });
+  });
+
+  it("preserves explicit nested cache and reasoning unknowns over earlier response logs", () => {
+    const run = partial() as any;
+    run.artifacts.usage = { calls: 2, input_tokens: 200, output_tokens: 40,
+      input_tokens_details: { cached_tokens: null }, output_tokens_details: { reasoning_tokens: null } };
+    expect(extractAgentCostTelemetry(run)).toMatchObject({ prompt_tokens: 200, completion_tokens: 40,
+      cached_tokens: null, reasoning_tokens: null, uncached_input_tokens: null, cost_estimate_usd: null,
+      conservative_spend_usd: 0.7208 });
+  });
+
+  it("retains wholly missing usage with a valid full reservation", () => {
+    const run = partial() as any;
+    run.artifacts.usage_detail_status = "missing"; run.artifacts.cost_status = "usage_missing";
+    run.artifacts.known_usage_subtotals = {}; run.artifacts.usage_samples = [{ estimated_total_cost_usd: null }, { estimated_total_cost_usd: null }];
+    Object.assign(run.artifacts.inference_reservation, { known_reported_cost_usd: null, unknown_usage_reserved_cost_usd: 1.44, reconciled_cost_usd: 1.44 });
+    expect(extractAgentCostTelemetry(run)).toMatchObject({ cost_estimate_usd: null, conservative_spend_usd: 1.44,
+      usage_detail_status: "missing", known_usage_subtotals: {} });
+    expect(summarizeRollingAgentSpend([run], { nowMs: now, stopUsd: { lastHour: 1 } }).windows.lastHour.status).toBe("stop");
+  });
+
+  it.each(["missing", "under_reserved", "wrong_known", "nonfinite"])("keeps %s reservation evidence persistable and refuses new admission", kind => {
+    const run = partial() as any;
+    if (kind === "missing") delete run.artifacts.inference_reservation;
+    if (kind === "under_reserved") Object.assign(run.artifacts.inference_reservation, { unknown_usage_reserved_cost_usd: 0.01, reconciled_cost_usd: 0.0108 });
+    if (kind === "wrong_known") Object.assign(run.artifacts.inference_reservation, { known_reported_cost_usd: 0, reconciled_cost_usd: 0.72 });
+    if (kind === "nonfinite") run.artifacts.inference_reservation.reconciled_cost_usd = Infinity;
+    expect(extractAgentCostTelemetry(run)).toMatchObject({ cost_estimate_usd: null, conservative_spend_usd: null, spend_accounting_status: "unresolved" });
+    expect(() => summarizeRollingAgentSpend([run], { nowMs: now })).toThrow("unresolved_usage_reservation");
+  });
+
+  it("preserves nullable totals and conservative STOP through the actual source-bound private projection", async () => {
+    const run = { ...partial(), output: { summary: "paid-proof".repeat(80000) } }, telemetry = extractAgentCostTelemetry(run);
+    const objects = new Map<string, string>();
+    const storage: any = { bucketName: "synthetic-private-bucket",
+      createOnly: async (name: string, text: string) => { objects.set(name, text); return "created"; },
+      readText: async (name: string) => objects.get(name) ?? null,
+      info: async (name: string) => objects.has(name) ? { generation: "1", size: Buffer.byteLength(objects.get(name)!) } : null };
+    const projected = await projectAgentEvidence({ ...run, metadata: { cost_telemetry: telemetry } }, { collection: "agentRuns", id: run.id }, storage);
+    expect(projected.artifacts).toBeNull(); expect(extractAgentCostTelemetry(projected)).toEqual(telemetry);
+    expect(summarizeRollingAgentSpend([projected], { nowMs: now, stopUsd: { lastHour: 0.5 } }).windows.lastHour)
+      .toMatchObject({ cost_usd: 0.7208, prompt_tokens: null, status: "stop" });
+    expect(() => extractAgentCostTelemetry({ ...projected, agent_evidence_accounting_sha256: "b".repeat(64) })).toThrow("source_binding");
+    const forged = structuredClone(projected) as any;
+    forged.metadata.cost_telemetry.conservative_spend_usd = 0;
+    expect(() => summarizeRollingAgentSpend([forged], { nowMs: now })).toThrow("conservative_spend_usd");
+    forged.metadata.cost_telemetry.conservative_spend_usd = 0.0108;
+    expect(() => summarizeRollingAgentSpend([forged], { nowMs: now })).toThrow("spend_reservation");
+  });
+});

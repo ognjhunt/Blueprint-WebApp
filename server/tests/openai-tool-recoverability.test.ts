@@ -230,7 +230,7 @@ describe("OpenAI operator tool feedback", () => {
     const { extractAgentCostTelemetry } = await import("../utils/agentCostTelemetry");
     expect(extractAgentCostTelemetry({ id: "missing-usage", task_kind: "operator_thread", provider: "openai_responses",
       model: "gpt-5.6-sol", artifacts: result.artifacts, logs: result.logs } as any))
-      .toMatchObject({ calls: 2, usage_detail_status: "partial", cost_status: "usage_partial", prompt_tokens: 0 });
+      .toMatchObject({ calls: 2, usage_detail_status: "partial", cost_status: "usage_partial", prompt_tokens: null });
     if (stage === "output_repair") expect(mocks.create.mock.calls[1][0].tools).toEqual([]);
   });
 
