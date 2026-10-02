@@ -911,7 +911,7 @@ async function logRunEvent(
 async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
 ): Promise<AgentResult<TOutput>> {
-  if (requiresMutationReconciliation(task as unknown as Record<string, unknown>) && task.provider !== "openai_responses") {
+  if (requiresMutationReconciliation(task as unknown as Record<string, unknown>) && !["openai_responses", "deepseek_chat", "zai_glm"].includes(task.provider)) {
     return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
       tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
       error: `mutation_reconciliation_required: ${task.provider} cannot enforce the recorded mutation barrier. Inspect existing effects through the OpenAI Responses safe-read context or reconcile them before resuming this provider.`,
@@ -1494,6 +1494,14 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
   const admissionSessionId = options?.sessionId || normalizedTask.session_id;
   if (admissionSessionId && await sessionRequiresMutationReconciliation(admissionSessionId)) {
     normalizedTask.metadata = { ...(normalizedTask.metadata || {}), mutation_reconciliation_required: true };
+  }
+  if (admissionSessionId && ["deepseek_chat", "zai_glm"].includes(normalizedTask.provider)) {
+    // Always prefer verified persisted session history over caller/queued copies.
+    // Strict hydration must succeed before this provider can resume inference.
+    const persistedSession = await getSession(admissionSessionId);
+    const { deepseek_replay_input: _callerReplay, ...metadata } = normalizedTask.metadata || {};
+    const savedReplay = persistedSession?.metadata?.deepseek_replay_input;
+    normalizedTask.metadata = { ...metadata, ...(Array.isArray(savedReplay) ? { deepseek_replay_input: savedReplay } : {}) };
   }
   const normalizedTaskForLogs = normalizedTask as unknown as NormalizedAgentTask<
     unknown,
@@ -2590,8 +2598,11 @@ export async function sendAgentSessionMessage(params: {
   const replayInput = Array.isArray(continuationState.openai_replay_input)
     ? continuationState.openai_replay_input
     : null;
+  const chatReplayInput = Array.isArray(continuationState.deepseek_replay_input)
+    ? continuationState.deepseek_replay_input : null;
   const nextSessionMetadata = {
     ...sessionMetadataWithoutOpenAIContinuation,
+    ...(chatReplayInput ? { deepseek_replay_input: chatReplayInput } : {}),
     ...(requiresMutationReconciliation(result as unknown as Record<string, unknown>)
       ? { mutation_reconciliation_required: true } : {}),
     ...(replayInput

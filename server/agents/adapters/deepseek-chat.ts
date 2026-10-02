@@ -402,16 +402,20 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
   }
 
   const tools = task.kind === "operator_thread" ? chatCompletionOperatorTools : undefined;
-  const messages: any[] = [
-    {
-      role: "system",
-      content: DEEPSEEK_STRUCTURED_SYSTEM_PROMPT,
-    },
-    {
-      role: "user",
-      content: task.definition.build_prompt(task.input),
-    },
+  const savedReplay = task.metadata?.deepseek_replay_input;
+  if (savedReplay !== undefined && (!Array.isArray(savedReplay) || savedReplay[0]?.role !== "system"
+    || savedReplay[0]?.content !== DEEPSEEK_STRUCTURED_SYSTEM_PROMPT
+    || savedReplay.some((item: any, index: number) => !item || (index > 0 && !["user", "assistant", "tool"].includes(item.role))))) {
+    return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
+      tool_mode: task.tool_policy.mode, error: "deepseek_saved_context_invalid_restore_canonical_conversation",
+      artifacts: { inference_not_invoked: true, mutation_reconciliation_required: task.metadata?.mutation_reconciliation_required === true },
+      requires_human_review: true, requires_approval: false };
+  }
+  const messages: any[] = savedReplay ? structuredClone(savedReplay) : [
+    { role: "system", content: DEEPSEEK_STRUCTURED_SYSTEM_PROMPT },
   ];
+  messages.push({ role: "user", content: task.definition.build_prompt(task.input) });
+
   const providerPreferences = openRouterProviderPreferences(task.model);
   const traceLogs: Array<Record<string, unknown>> = [
     {
@@ -655,6 +659,8 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
       },
     },
     logs: traceLogs,
+    continuation_state: { mutation_reconciliation_required: mutationReconciliationRequired,
+      deepseek_replay_input: [...messages, { role: "assistant", content: rawText }] },
     requires_human_review: inferRequiresHumanReview(parsed),
     requires_approval: false,
   };
@@ -676,6 +682,7 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
         correction_bounds_exhausted: error instanceof Error && error.message === "output_correction_bounds_exhausted",
         mutation_reconciliation_required: mutationReconciliationRequired,
         recovery_feedback: feedback, deepseek_conversation_input: messages, ...aggregateUsage(usageSamples) },
+      continuation_state: { mutation_reconciliation_required: mutationReconciliationRequired, deepseek_replay_input: messages },
       logs: traceLogs, requires_human_review: true, requires_approval: false };
   }
 
