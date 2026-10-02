@@ -37,7 +37,7 @@ describe("agent-chosen read-only company history tools",()=>{
  });
  it("uses whole-company access only from an exact retained owner grant with its original shorter expiry",async()=>{
   mocks.learning.history_access={version:"blueprint.company-history-access.v1",principalId:"blueprint-learning-host",scope:"company_business_history",authorityRef:"existing-owner-approved-read",expiresAt:"2099-10-02T12:00:00.000Z"};
-  expect(await getCompanyHistoryAccess({kind:"capture_dispatch"})).toEqual({principalId:"blueprint-learning-host",companyWide:true,sourceSnapshotId:"a".repeat(64),expiresAt:"2099-10-02T12:00:00.000Z"});
+  expect(await getCompanyHistoryAccess({kind:"capture_dispatch"})).toEqual({principalId:"blueprint-learning-host",companyWide:true,sourceSnapshotId:"a".repeat(64),expiresAt:"2099-10-02T12:00:00.000Z",businessSubjectKeys:["blueprint:research-learning"]});
   mocks.learning.history_access.principalId="MODEL";expect(await getCompanyHistoryAccess({kind:"capture_dispatch"})).toBeNull();
  });
  it.each(["openai_responses","deepseek_chat","zai_glm"] as const)("lets %s choose a query, paginate then fetch records under mutation quarantine",async provider=>{
