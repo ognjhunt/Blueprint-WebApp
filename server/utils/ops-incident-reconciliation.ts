@@ -1,5 +1,5 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
-import { ingestSlackOpsIncident, opsIncidentConfig, type OpsIncidentConfig, type OpsEnvelope } from "./ops-incident-ingest";
+import { compareSlackTs, ingestSlackOpsIncident, opsIncidentConfig, type OpsIncidentConfig, type OpsEnvelope } from "./ops-incident-ingest";
 
 export type SlackCall = (method: string, params: Record<string, any>, write?: boolean) => Promise<Record<string, any>>;
 export async function existingSlackApi(method: string, params: Record<string, any>, write = false) {
@@ -37,11 +37,13 @@ export async function runOpsIncidentReconciliation(dependencies: { db?: Firebase
   if (!floor || !/^\d+(\.\d+)?$/.test(floor)) throw new Error("ops_reconciliation_start_missing");
   const oldest = String(Math.max(Number(floor), Number(saved.latestTs ?? floor) - 300));
   let cursor = "", processedCount = 0;
+  const threads = new Set<string>();
   const cursors = new Set<string>();
   do {
     const page = await read("conversations.history", { channel: config.channelId, oldest, latest, inclusive: "true", include_all_metadata: "true", limit: "100", ...(cursor ? { cursor } : {}) });
     if (!Array.isArray(page.messages)) throw new Error("ops_reconciliation_messages_missing");
     for (const event of page.messages) {
+      if (Number(event.reply_count) > 0 && /^\d+\.\d+$/.test(String(event.ts))) threads.add(event.ts);
       const envelope: OpsEnvelope = { team_id: config.teamId, api_app_id: config.appId, event: { ...event, type: "message", channel: config.channelId } };
       const result = await ingestSlackOpsIncident(envelope, { db, config });
       if (result.ingested) processedCount++;
@@ -50,6 +52,37 @@ export async function runOpsIncidentReconciliation(dependencies: { db?: Firebase
     if ((!cursor && page.has_more !== false) || (cursor && cursors.has(cursor))) throw new Error("ops_reconciliation_pagination_incomplete");
     if (cursor) cursors.add(cursor);
   } while (cursor);
+  // history does not return thread replies. Retained source incidents keep an
+  // older authorized parent reachable after it leaves the incremental window.
+  const incidents = await db.collection("blueprintOpsIncidents").doc("default").collection("incidents")
+    .where("channelId", "==", config.channelId).get();
+  const decimal = (value: string) => value.includes(".") ? value : `${value}.0`;
+  const inside = (ts: string, lower: string) => /^\d+\.\d+$/.test(ts)
+    && compareSlackTs(ts, decimal(lower)) >= 0 && compareSlackTs(ts, decimal(latest)) <= 0;
+  for (const incident of incidents.docs) {
+    const parent = incident.data().sourceThreadTs;
+    if (typeof parent === "string" && inside(parent, floor)) threads.add(parent);
+  }
+  for (const ts of threads) {
+    if (!inside(ts, floor)) continue;
+    let replyCursor = ""; const seen = new Set<string>();
+    do {
+      const page = await read("conversations.replies", { channel: config.channelId, ts, oldest, latest,
+        inclusive: "true", include_all_metadata: "true", limit: "100", ...(replyCursor ? { cursor: replyCursor } : {}) });
+      if (!Array.isArray(page.messages)) throw new Error("ops_reconciliation_thread_messages_missing");
+      for (const event of page.messages) {
+        if (!inside(String(event.ts), oldest)) continue;
+        const envelope: OpsEnvelope = { team_id: config.teamId, api_app_id: config.appId,
+          event: { ...event, type: "message", channel: config.channelId, thread_ts: event.thread_ts ?? ts } };
+        const result = await ingestSlackOpsIncident(envelope, { db, config });
+        if (result.ingested) processedCount++;
+      }
+      replyCursor = typeof page.response_metadata?.next_cursor === "string" ? page.response_metadata.next_cursor : "";
+      if ((!replyCursor && page.has_more !== false) || (replyCursor && seen.has(replyCursor)))
+        throw new Error("ops_reconciliation_thread_pagination_incomplete");
+      if (replyCursor) seen.add(replyCursor);
+    } while (replyCursor);
+  }
   // Only complete scans move the watermark; interrupted scans replay idempotently.
   await db.runTransaction(async tx => {
     const prior = (await tx.get(state)).data() ?? {};

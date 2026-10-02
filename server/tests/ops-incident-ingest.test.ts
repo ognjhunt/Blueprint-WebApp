@@ -17,9 +17,9 @@ function fixture() {
   const ref = (path: string): any => ({ id: path.split("/").at(-1), path, collection: (name: string) => ref(`${path}/${name}`),
     doc: (id: string) => ref(`${path}/${id}`), get: async () => snap(path),
     set: async (data: any, opts: any) => rows.set(path, opts?.merge ? { ...rows.get(path), ...data } : data),
-    where: (field: string, _op: string, expected: any) => ({ limit: () => ({ get: async () => ({ docs:
+    where: (field: string, _op: string, expected: any) => { const get = async () => ({ docs:
       [...rows.entries()].filter(([key, value]) => key.startsWith(`${path}/`) && value[field] === expected)
-        .map(([key, value]) => ({ id: key.split("/").at(-1), data: () => value, ref: ref(key) })) }) }) }) });
+        .map(([key, value]) => ({ id: key.split("/").at(-1), data: () => value, ref: ref(key) })) }); return { get, limit: () => ({ get }) }; } });
   const snap = (path: string) => ({ exists: rows.has(path), data: () => rows.get(path) });
   let queue = Promise.resolve();
   const db: any = { collection: ref, runTransaction: (fn: any) => {
@@ -88,7 +88,32 @@ describe("company-owned ops incidents", () => {
     const deps = { db: f.db, config, read, now: new Date("2026-10-02T12:15:00Z") };
     expect((await runOpsIncidentReconciliation(deps)).processedCount).toBe(1);
     expect((await runOpsIncidentReconciliation(deps)).processedCount).toBe(0);
-    expect(f.incident().occurrences).toBe(1); expect(read.mock.calls.every(([method]) => ["auth.test", "conversations.history"].includes(method))).toBe(true);
+    expect(f.incident().occurrences).toBe(1); expect(read.mock.calls.every(([method]) => ["auth.test", "conversations.history", "conversations.replies"].includes(method))).toBe(true);
+  });
+  it("recovers bound replies on a retained source thread whose parent left the incremental history window", async () => {
+    vi.stubEnv("BLUEPRINT_OPS_SLACK_RECONCILE_ENABLED", "true"); vi.stubEnv("BLUEPRINT_OPS_SLACK_RECONCILE_START_TS", "1790940000");
+    const f = fixture(); await ingestSlackOpsIncident(envelope(), { db: f.db, config });
+    const state = `blueprintOpsIncidents/default/reconciliation/${config.channelId}`;
+    f.rows.set(state, { latestTs: "1790943200" });
+    const reply = { ...envelope("1790943250.000001", "new-thread-blocker").event, thread_ts: envelope().event.ts };
+    const read = vi.fn(async (method: string, params: any) => method === "auth.test" ? { team_id: config.teamId, bot_id: config.ownBotId }
+      : method === "conversations.history" ? { messages: [], has_more: false }
+      : { messages: [reply], has_more: false });
+    const deps = { db: f.db, config, read, now: new Date("2026-10-02T12:15:00Z") };
+    expect((await runOpsIncidentReconciliation(deps)).processedCount).toBe(1);
+    expect((await runOpsIncidentReconciliation(deps)).processedCount).toBe(0);
+    expect(f.incident().occurrences).toBe(2);
+    expect(read.mock.calls.find(([method]) => method === "conversations.replies")?.[1])
+      .toMatchObject({ ts: envelope().event.ts, include_all_metadata: "true" });
+  });
+  it("leaves the watermark unchanged when a required source-thread page is incomplete", async () => {
+    vi.stubEnv("BLUEPRINT_OPS_SLACK_RECONCILE_ENABLED", "true"); vi.stubEnv("BLUEPRINT_OPS_SLACK_RECONCILE_START_TS", "1790940000");
+    const f = fixture(); await ingestSlackOpsIncident(envelope(), { db: f.db, config });
+    const read = vi.fn(async (method: string) => method === "auth.test" ? { team_id: config.teamId, bot_id: config.ownBotId }
+      : method === "conversations.history" ? { messages: [], has_more: false } : { messages: [], has_more: true });
+    await expect(runOpsIncidentReconciliation({ db: f.db, config, read, now: new Date("2026-10-02T12:15:00Z") }))
+      .rejects.toThrow("thread_pagination_incomplete");
+    expect([...f.rows.keys()].some(path => path.includes("/reconciliation/"))).toBe(false);
   });
   it("does not advance a watermark after partial pagination or read failure", async () => {
     vi.stubEnv("BLUEPRINT_OPS_SLACK_RECONCILE_ENABLED", "true"); vi.stubEnv("BLUEPRINT_OPS_SLACK_RECONCILE_START_TS", "1790940000");
