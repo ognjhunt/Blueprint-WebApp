@@ -135,7 +135,13 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
    {name:"Message-ID",value:"<gmail-rewritten.20261002@mail.gmail.com>"},{name:"X-Blueprint-Job-ID",value:content.jobId},{name:"X-Blueprint-Review-Digest",value:content.reviewDigest},{name:"X-Blueprint-Payload-Digest",value:content.payloadDigest},
   ]}}};
   let candidates:any={drafts:[{id:full.id}]};
-  const api:any={users:{drafts:{list:vi.fn(async({q}:any)=>({data:q.startsWith("rfc822msgid:")?{drafts:[]}:candidates})),get:vi.fn(async({id}:any)=>({data:{...full,id}})),create:vi.fn(),update:vi.fn(),send:vi.fn()},messages:{send:vi.fn()}}};
+  const api:any={users:{drafts:{list:vi.fn(async({q}:any)=>({data:q.startsWith("rfc822msgid:")
+   ? {drafts:candidates.drafts.filter((d:any)=>d.id==="second-copy")} : candidates})),get:vi.fn(async({id}:any)=>{
+   const copy=structuredClone(full);copy.id=id;
+   // Mixed transport IDs must still count as two copies of this Blueprint job.
+   if(id==="second-copy")copy.message.payload.headers.find((h:any)=>h.name==="Message-ID").value=content.messageId;
+   return{data:copy};
+  }),create:vi.fn(),update:vi.fn(),send:vi.fn()},messages:{send:vi.fn()}}};
   f.ports.find=configuredGmailDraftPorts(api).find;
   const reconcile={...f.input,mode:"reconcile"};
   candidates={drafts:[{id:full.id}],nextPageToken:"unread-more"};await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",reconcile,f.ports,communicationsNow)).rejects.toThrow("candidate_inventory_incomplete");

@@ -211,30 +211,23 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail): GmailDraftPor
       const api=await client();
       let draft: gmail_v1.Schema$Draft;
       if (!draftId) {
-        const found=await api.users.drafts.list({userId:"me",q:`rfc822msgid:${content.messageId}`,maxResults:2});
-        if (found.data.nextPageToken) fail("gmail_draft_candidate_inventory_incomplete");
-        if ((found.data.drafts?.length ?? 0)>1) fail("gmail_draft_multiple_copies_require_reconciliation");
-        draftId=found.data.drafts?.[0]?.id ?? undefined;
-        if (!draftId) {
-          // Gmail can replace the authored Message-ID. Recover an old unknown
-          // acknowledgement only through this exact recipient/subject window
-          // and the full stable Blueprint identity, never through another POST.
-          const candidates=await api.users.drafts.list({userId:"me",q:`to:${JSON.stringify(content.to)} subject:${JSON.stringify(content.subject)}`,maxResults:2});
-          if (candidates.data.nextPageToken) fail("gmail_draft_candidate_inventory_incomplete");
-          const matches: gmail_v1.Schema$Draft[]=[];
-          for (const candidate of candidates.data.drafts ?? []) {
-            if (!candidate.id) fail("gmail_draft_candidate_identity_missing");
-            const saved=(await api.users.drafts.get({userId:"me",id:candidate.id,format:"full"})).data;
-            if (saved.id!==candidate.id) fail("gmail_draft_candidate_identity_changed");
-            const headers=saved.message?.payload?.headers;
-            // Count changed copies with the same job too: choosing a clean
-            // sibling would conceal a duplicate or a manually altered copy.
-            if (headers?.some(header=>(header.name ?? "").toLowerCase()==="x-blueprint-job-id" && header.value?.trim()===content.jobId)) matches.push(saved);
-          }
-          if (matches.length>1) fail("gmail_draft_multiple_copies_require_reconciliation");
-          if (!matches.length) return null;
-          draft=matches[0]; draftId=draft.id!;
-        } else draft=(await api.users.drafts.get({userId:"me",id:draftId,format:"full"})).data;
+        // Inventory both authored and rewritten Message-IDs in the same bounded
+        // recipient/subject window. A transport-ID hit cannot hide a sibling.
+        const candidates=await api.users.drafts.list({userId:"me",q:`to:${JSON.stringify(content.to)} subject:${JSON.stringify(content.subject)}`,maxResults:2});
+        if (candidates.data.nextPageToken) fail("gmail_draft_candidate_inventory_incomplete");
+        const matches: gmail_v1.Schema$Draft[]=[];
+        for (const candidate of candidates.data.drafts ?? []) {
+          if (!candidate.id) fail("gmail_draft_candidate_identity_missing");
+          const saved=(await api.users.drafts.get({userId:"me",id:candidate.id,format:"full"})).data;
+          if (saved.id!==candidate.id) fail("gmail_draft_candidate_identity_changed");
+          const headers=saved.message?.payload?.headers;
+          // Count changed copies with the same job too: choosing a clean
+          // sibling would conceal a duplicate or a manually altered copy.
+          if (headers?.some(header=>(header.name ?? "").toLowerCase()==="x-blueprint-job-id" && header.value?.trim()===content.jobId)) matches.push(saved);
+        }
+        if (matches.length>1) fail("gmail_draft_multiple_copies_require_reconciliation");
+        if (!matches.length) return null;
+        draft=matches[0]; draftId=draft.id!;
       } else draft=(await api.users.drafts.get({userId:"me",id:draftId,format:"full"})).data;
       const message=draft.message, headers=message?.payload?.headers;
       const addresses=(value:string|null)=>(value?.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []).map(address=>address.toLowerCase()).join();
