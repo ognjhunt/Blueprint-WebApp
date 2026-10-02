@@ -15,7 +15,7 @@ export type GmailDraftPorts = {
   enabled(): boolean; requireCapability(): Promise<void>; verifyMailbox(): Promise<unknown>;
   allowsRevision(jobId: string, revisionId: string | null, reviewDigest: string): boolean;
   priorContact(email: string): Promise<boolean>;
-  find(content: DraftContent, draftId?: string): Promise<{ draftId: string; messageId: string; threadId: string } | null>;
+  find(content: DraftContent, draftId?: string): Promise<{ draftId: string; messageId: string; threadId: string; authoredRfcMessageId: string; observedRfcMessageId: string } | null>;
   write(content: DraftContent, draftId?: string): Promise<{ draftId: string }>;
 };
 export class CommunicationsGmailDraftError extends Error { constructor(message: string, public status = 409) { super(message); } }
@@ -125,6 +125,14 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
       if (planned.old.draftId && !await ports.find(planned.old.confirmedContent, planned.old.draftId)) fail("gmail_draft_previous_copy_changed_manual_reconciliation_required");
       submitted = true;
       const written = await ports.write(planned.content, planned.old.draftId ?? undefined);
+      // Retain the accepted provider identity before a readback can fail. This
+      // acknowledgement proves creation, not matching content or delivery.
+      await db.runTransaction(async tx => {
+        const current = (await tx.get(draftRef)).data();
+        if (!current || current.state !== "writing" || current.attemptId !== planned.old.attemptId
+          || !same(current.content, planned.content) || current.draftId && current.draftId !== written.draftId) fail("gmail_draft_writer_changed");
+        tx.update(draftRef, { draftId: written.draftId, providerAcceptedAt: Date.now(), providerWriteSubmitted: true });
+      });
       const receipt = await ports.find(planned.content, written.draftId);
       if (!receipt) fail("gmail_draft_readback_unverified");
       await mark("verified", receipt);
@@ -201,13 +209,27 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail): GmailDraftPor
     },
     async find(content, draftId) {
       const api=await client();
+      let draft: gmail_v1.Schema$Draft;
       if (!draftId) {
-        const found=await api.users.drafts.list({userId:"me",q:`rfc822msgid:${content.messageId}`,maxResults:2});
-        if ((found.data.drafts?.length ?? 0)>1 || found.data.nextPageToken) fail("gmail_draft_multiple_copies_require_reconciliation");
-        draftId=found.data.drafts?.[0]?.id ?? undefined;
-        if (!draftId) return null;
-      }
-      const draft=(await api.users.drafts.get({userId:"me",id:draftId,format:"full"})).data, message=draft.message, headers=message?.payload?.headers;
+        // Inventory both authored and rewritten Message-IDs in the same bounded
+        // recipient/subject window. A transport-ID hit cannot hide a sibling.
+        const candidates=await api.users.drafts.list({userId:"me",q:`to:${JSON.stringify(content.to)} subject:${JSON.stringify(content.subject)}`,maxResults:2});
+        if (candidates.data.nextPageToken) fail("gmail_draft_candidate_inventory_incomplete");
+        const matches: gmail_v1.Schema$Draft[]=[];
+        for (const candidate of candidates.data.drafts ?? []) {
+          if (!candidate.id) fail("gmail_draft_candidate_identity_missing");
+          const saved=(await api.users.drafts.get({userId:"me",id:candidate.id,format:"full"})).data;
+          if (saved.id!==candidate.id) fail("gmail_draft_candidate_identity_changed");
+          const headers=saved.message?.payload?.headers;
+          // Count changed copies with the same job too: choosing a clean
+          // sibling would conceal a duplicate or a manually altered copy.
+          if (headers?.some(header=>(header.name ?? "").toLowerCase()==="x-blueprint-job-id" && header.value?.trim()===content.jobId)) matches.push(saved);
+        }
+        if (matches.length>1) fail("gmail_draft_multiple_copies_require_reconciliation");
+        if (!matches.length) return null;
+        draft=matches[0]; draftId=draft.id!;
+      } else draft=(await api.users.drafts.get({userId:"me",id:draftId,format:"full"})).data;
+      const message=draft.message, headers=message?.payload?.headers;
       const addresses=(value:string|null)=>(value?.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []).map(address=>address.toLowerCase()).join();
       const get=(name:string)=>extractHeader(headers,name), normalize=(value:string)=>value.replace(/\r\n/g,"\n");
       const subject=(get("Subject") ?? "").replace(/=\?UTF-8\?B\?([A-Za-z0-9+/=]+)\?=/gi,(_,encoded:string)=>Buffer.from(encoded,"base64").toString("utf8"));
@@ -216,12 +238,12 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail): GmailDraftPor
         || ["from","to","reply-to","subject","message-id","x-blueprint-job-id","x-blueprint-review-digest","x-blueprint-payload-digest"].some(name=>headers?.filter(header=>(header.name ?? "").toLowerCase()===name).length!==1)
         || message.payload?.mimeType!=="text/plain" || Boolean(message.payload.filename) || Boolean(message.payload.body?.attachmentId)
         || (message.payload.parts?.length ?? 0)>0
-        || get("Message-ID")!==content.messageId || get("X-Blueprint-Job-ID")!==content.jobId
+        || !/^<[^<>\x00-\x20\x7f@]+@[^<>\x00-\x20\x7f@]+>$/.test(get("Message-ID") ?? "") || get("X-Blueprint-Job-ID")!==content.jobId
         || get("X-Blueprint-Review-Digest")!==content.reviewDigest || get("X-Blueprint-Payload-Digest")!==content.payloadDigest
         || addresses(get("To"))!==content.to || addresses(get("From"))!==FOUNDER_MAILBOX
         || addresses(get("Reply-To"))!==FOUNDER_MAILBOX || subject!==content.subject || normalize(extractPlainTextBody(message.payload))!==normalize(content.body)
         || (content.threadId && content.threadId!==message.threadId) || (content.inReplyTo && get("In-Reply-To")!==content.inReplyTo)) fail("gmail_draft_readback_content_changed");
-      return {draftId,messageId:message.id,threadId:message.threadId};
+      return {draftId,messageId:message.id,threadId:message.threadId,authoredRfcMessageId:content.messageId,observedRfcMessageId:get("Message-ID")!};
     },
     async write(content,draftId) {
       const api=await client(), requestBody={message:{raw:raw(content),...(content.threadId?{threadId:content.threadId}:{})}};
