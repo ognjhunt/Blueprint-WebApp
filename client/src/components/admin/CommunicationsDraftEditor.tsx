@@ -5,12 +5,12 @@ type Draft = Record<string, unknown> & { subject: string; body: string; usedFact
 type RevisionResult = { review: OutreachReviewSummary };
 
 /** Ordinary message editing plus optional source/wording anchor repair. The
- * server preserves the recipient, research and footer and rechecks each save. */
+ * server preserves research and history and rechecks each save. */
 export function CommunicationsDraftEditor({ payload, review, onSave }: {
   payload: Record<string, unknown>; review?: OutreachReviewSummary;
   onSave: (input: { expectedReviewDigest: string; output: Record<string, unknown> }) => Promise<RevisionResult>;
 }) {
-  const envelope = payload.communications as { output?: Draft; brief?: { facts?: { id: string; claim: string }[] } } | undefined;
+  const envelope = payload.communications as { job?: { intent?: string }; output?: Draft; brief?: { facts?: { id: string; claim: string }[] } } | undefined;
   const [editing, setEditing] = useState<{ digest: string; output: Draft; contract: string } | null>(null);
   const [pending, setPending] = useState(false), [error, setError] = useState(""), [result, setResult] = useState<OutreachReviewSummary | null>(null);
   const start = () => {
@@ -56,6 +56,7 @@ export function CommunicationsDraftEditor({ payload, review, onSave }: {
     {!editing ? <button type="button" className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
       disabled={!envelope?.output || !review?.digest} onClick={start}>Revise draft</button> : <>
       <p>Edit this saved draft, then revalidate it. Saving keeps it pending approval.</p>
+      {envelope?.job?.intent === "outreach" ? <p>Saving adds the approved mailing and unsubscribe footer. The previous full message stays in private revision history.</p> : null}
       <label className="block">Draft subject<input className="mt-1 block w-full border border-runway-line bg-transparent p-2"
         value={editing.output.subject} maxLength={1000} disabled={pending} onChange={event => update("subject", event.target.value)} /></label>
       <label className="block">Draft message<textarea className="mt-1 block min-h-48 w-full border border-runway-line bg-transparent p-2"

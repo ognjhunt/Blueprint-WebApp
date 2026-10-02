@@ -1,15 +1,25 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { communicationsDigest, communicationsDeliveryKey } from "../agents/communications-contract";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { reviseCommunicationsDraft } from "../agents/communications-draft-revision";
 import { appendCommercialEmailFooter } from "../utils/email-suppression";
+import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, authAdmin: null, storageAdmin: null, default: {} }));
 
-function fixture() {
-  const { job, brief, handoff, output } = communicationsFixture();
+const SYNTHETIC_POSTAL_LINE = "Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000";
+beforeEach(() => {
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", SYNTHETIC_POSTAL_LINE);
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE", "false");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "false");
+});
+afterEach(() => vi.unstubAllEnvs());
+
+function fixture(intent: "outreach" | "reply" = "outreach") {
+  const { job, brief, handoff, output, thread } = communicationsFixture(intent);
   output.usedFactIds = ["unknown-fact"];
   output.body += " We guarantee a result.";
   const ledgerId = `communications_${job.jobId}`, ledgerPath = `action_ledger/${ledgerId}`;
@@ -18,7 +28,8 @@ function fixture() {
     emailTransport: "founder_gmail", subject: output.subject, body: output.body,
     transportBody: appendCommercialEmailFooter({ text: output.body, email: brief.contact.email, scope: "growth_campaign" }),
     outreachContext: brief.outreachContext, outreachContract: output.outreachContract,
-    communications: { version: "blueprint.communications.v1", job, brief, output, thread: null, approvalState: "pending_approval" } };
+    ...(thread ? { gmailThreadId: thread.threadId, inReplyTo: thread.messages[1].rfcMessageId } : {}),
+    communications: { version: "blueprint.communications.v1", job, brief, output, thread, approvalState: "pending_approval" } };
   Object.assign(payload, { communicationsDraftDiagnostics: { blockers: ["used_fact_missing", "pressure_or_guarantee"] } });
   const ledger = { status: "pending_approval", action_type: "send_email", action_tier: 3, lane: "outbound_prospect",
     source_collection: "outboundProspects", source_doc_id: job.prospectId, action_payload: payload,
@@ -35,7 +46,7 @@ function fixture() {
     [`blueprintCommunications/default/handoffs/${job.briefDigest}`, handoff],
     [`blueprintCommunications/default/firstTouches/${communicationsDeliveryKey(job)}`, { jobId: job.jobId }],
   ]));
-  const repaired = communicationsFixture().output;
+  const repaired = communicationsFixture(intent).output;
   const input = { expectedReviewDigest: savedJob.reviewDigest!, output: repaired };
   return { db, ledgerId, ledgerPath, jobPath, sourcePath, input, job, brief, payload, ledger, savedJob };
 }
@@ -51,7 +62,9 @@ describe("authenticated draft revision", () => {
       outreach_semantic_review: null, outreach_reviewed_by: null, approval_reason: "requires_human_review" });
     expect(ledger.action_payload.body).toBe(f.input.output.body);
     expect(ledger.action_payload.communicationsDraftDiagnostics).toBeNull();
-    expect(ledger.action_payload.transportBody.slice(f.input.output.body.length)).toBe(f.payload.transportBody.slice(f.payload.body.length));
+    expect(ledger.action_payload.transportBody).toBe(appendFirstContactFooter(f.input.output.body, f.brief.contact.email));
+    expect(ledger.action_payload).toMatchObject({ commercialEmail: true, emailSuppressionScope: "growth_campaign" });
+    expect(new URL(ledger.action_payload.unsubscribeUrl).searchParams.get("scope")).toBe("all");
     expect(job.checkpoint).toEqual(oldJob.checkpoint); expect(job.usage).toEqual(oldJob.usage);
     expect(job.attempts).toBe(2); expect(job.outputSource).toEqual(oldJob.outputSource);
     expect(source.communications.state).toBe(oldSource.communications.state);
@@ -62,7 +75,71 @@ describe("authenticated draft revision", () => {
     const audit = f.db.records.get(`blueprintCommunications/default/draftRevisions/${result.revisionId}`);
     expect(audit).toMatchObject({ version: "blueprint.communications-draft-revision.v1", requestedBy: "owner@tryblueprint.io", previousOutput: f.savedJob.output,
       output: f.input.output, sent: false, modelSessionCreated: false });
+    expect(audit.previousPayload).toEqual(f.payload);
+    expect(audit.previousPayloadDigest).toBe(communicationsDigest(f.payload));
+    expect(audit.footerPolicy).toBe("owner_configured_first_contact");
     expect(audit.previousDiagnostics.blockers).toContain("used_fact_missing");
+  });
+
+  it("repairs a legacy transport/footer mismatch only on an explicit save and retains its exact private history", async () => {
+    const f = fixture(), ledger = f.db.records.get(f.ledgerPath);
+    const previousPayload = structuredClone(ledger.action_payload);
+    previousPayload.transportBody = previousPayload.transportBody.replace("/privacy", "/old-privacy");
+    ledger.action_payload = previousPayload;
+    const review = reviewCommunicationsPayload(previousPayload, communicationsNow);
+    expect(review.blockers).toContain("transport_body_changed");
+    const beforeJob = structuredClone(f.db.records.get(f.jobPath));
+    const result = await reviseCommunicationsDraft(f.db, f.ledgerId, "owner", { ...f.input, expectedReviewDigest: review.digest }, communicationsNow);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false, modelSessionCreated: false, review: { hardChecksPassed: true } });
+    const audit = f.db.records.get(`blueprintCommunications/default/draftRevisions/${result.revisionId}`);
+    expect(audit.previousPayload).toEqual(previousPayload);
+    expect(audit.previousReview.blockers).toContain("transport_body_changed");
+    expect(f.db.records.get(f.jobPath).outputSource).toEqual(beforeJob.outputSource);
+    expect(f.db.records.get(f.jobPath).checkpoint).toEqual(beforeJob.checkpoint);
+    expect(f.db.records.get(f.jobPath).usage).toEqual(beforeJob.usage);
+    expect(f.db.records.get(f.ledgerPath).action_payload.transportBody).toBe(appendFirstContactFooter(f.input.output.body, f.brief.contact.email));
+    expect(audit.previousPayload.transportBody).toBe(previousPayload.transportBody);
+  });
+
+  it("does not substitute a public or client postal address when approved server configuration is unavailable", async () => {
+    const f = fixture(), before = structuredClone([...f.db.records]);
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "");
+    await expect(reviseCommunicationsDraft(f.db, f.ledgerId, "owner", f.input, communicationsNow))
+      .rejects.toMatchObject({ status: 503, message: expect.stringContaining("approved outreach mailing footer is unavailable") });
+    expect([...f.db.records]).toEqual(before);
+    await expect(reviseCommunicationsDraft(f.db, f.ledgerId, "owner", { ...f.input, postalLine: SYNTHETIC_POSTAL_LINE }, communicationsNow))
+      .rejects.toMatchObject({ status: 400 });
+    expect([...f.db.records]).toEqual(before);
+  });
+
+  it("preserves a reply footer without requiring first-contact postal configuration", async () => {
+    const f = fixture("reply");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "");
+    const result = await reviseCommunicationsDraft(f.db, f.ledgerId, "owner", f.input, communicationsNow);
+    expect(result.review.hardChecksPassed).toBe(true);
+    expect(f.db.records.get(f.ledgerPath).action_payload.transportBody.slice(f.input.output.body.length))
+      .toBe(f.payload.transportBody.slice(f.payload.body.length));
+    expect(f.db.records.get(`blueprintCommunications/default/draftRevisions/${result.revisionId}`).footerPolicy).toBe("preserve_reply_footer");
+  });
+
+  it("refreshes a changed approved footer on an explicit unchanged-text save while keeping acknowledgement retries harmless", async () => {
+    const f = fixture(), ledger = f.db.records.get(f.ledgerPath);
+    // Start with an already canonical footer and make a same-text revision,
+    // leaving its pre/post review digest equal.
+    ledger.action_payload.transportBody = appendFirstContactFooter(f.payload.body, f.brief.contact.email);
+    const request = { expectedReviewDigest: reviewCommunicationsPayload(ledger.action_payload, communicationsNow).digest!, output: f.savedJob.output };
+    const first = await reviseCommunicationsDraft(f.db, f.ledgerId, "owner", request, communicationsNow);
+    expect(first.review.digest).toBe(request.expectedReviewDigest);
+    expect(await reviseCommunicationsDraft(f.db, f.ledgerId, "owner", request, communicationsNow + 1)).toEqual(first);
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "Blueprint Robotics, Inc. · Another synthetic test location, ZZ 00000");
+    const second = await reviseCommunicationsDraft(f.db, f.ledgerId, "owner", request, communicationsNow + 2);
+    expect(second.revisionId).not.toBe(first.revisionId);
+    expect(second.review.digest).not.toBe(first.review.digest);
+    expect(second.review.blockers).not.toContain("transport_body_changed");
+    expect(f.db.records.get(f.ledgerPath).action_payload.transportBody).toBe(appendFirstContactFooter(f.payload.body, f.brief.contact.email));
+    expect(await reviseCommunicationsDraft(f.db, f.ledgerId, "owner", request, communicationsNow + 3)).toEqual(second);
+    const audit = f.db.records.get(`blueprintCommunications/default/draftRevisions/${second.revisionId}`);
+    expect(audit.previousPayload.transportBody).toContain(SYNTHETIC_POSTAL_LINE);
   });
 
   it("retains remaining diagnostics and allows a second repair rather than stranding the draft", async () => {
