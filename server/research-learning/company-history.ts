@@ -4,7 +4,8 @@ import { verifySourceSnapshot } from "./prior-research";
 import { readQueryPages } from "./query-pages";
 import { readableHistory } from "./readable-history";
 import { resolveHistory } from "./snapshot";
-import { BusinessHistoryStore } from "./business-history";
+import { BusinessHistoryStore, businessReadScopeSchema } from "./business-history";
+import { readBusinessOverview } from "./business-learning-loop";
 import { siteLearningHistory, validateSiteLearning } from "./site-learning";
 import { readExistingSources } from "./existing-sources";
 import { REVIEWED_NATIVE_LEARNING_CONFIG } from "./native-hooks";
@@ -130,6 +131,9 @@ export async function loadCompanyHistory(db: FirebaseFirestore.Firestore, access
       diagnostics.push(...read.quarantine.map(item => ({ record_ref: item.recordRef, code: item.reason })));
       for (const brief of read.researchDetails) records.push(record(brief.recordRef, "research_brief", brief,
         { source_document_sha256: brief.briefHash, original_checked_at: brief.reviewedAt, task: brief.boundedTask }));
+      for (const detail of read.communicationsDetails) records.push(record(`${detail.recordRef}/${detail.kind}`, detail.kind, detail.content,
+        { source_ref: detail.recordRef, source_document_sha256: detail.sourceHash, original_checked_at: detail.occurredAt,
+          source_selector: { prospect_id: detail.prospectId, job_id: detail.jobId, projection: detail.kind } }));
     } catch { diagnostics.push({ record_ref: `outboundProspects/${prospectId}`, code: "company_history_native_record_unavailable" }); }
   }
   const readable = readableHistory(eventDocs, nativeEvents, { prospectIds: allIds, sections: [...sectionSchema.options], asOf, maturityDays: 14 });
@@ -155,6 +159,50 @@ export async function loadCompanyHistory(db: FirebaseFirestore.Firestore, access
       for (const event of history.history) records.push(record(`${LEARNING_ROOT}/businessHistoryEvents/${event.eventId}`, event.kind, event,
         { current: current.has(event.eventId), original_checked_at: event.occurredAt }));
     } catch { diagnostics.push({ code: "company_history_business_correction_lineage_invalid" }); }
+  }
+  // Stored aggregate analysis is dated evidence, not a new analysis request.
+  // Its scope comes only from the trusted caller, never the stored overview.
+  const aggregateScope = businessReadScopeSchema.safeParse({ principalId: access.principalId,
+    subjectKeys: access.businessSubjectKeys ?? [], expiresAt: access.expiresAt });
+  const aggregateProspects = access.companyWide ? allIds : prospectIds;
+  let aggregateCoverage = "stored_business_overviews_no_saved_receipts", aggregateCount = 0, aggregateSkipped = false;
+  if (!aggregateScope.success || !aggregateProspects.length) {
+    aggregateCoverage = "stored_business_overviews_not_authorized_by_current_scope";
+    diagnostics.push({ code: aggregateScope.success ? "company_history_aggregate_prospect_scope_missing"
+      : "company_history_aggregate_subject_scope_missing" });
+  } else {
+    try {
+      const receipts = await readQueryPages(root.collection("businessOverviewRuns")); check();
+      if (receipts.length) aggregateCoverage = "stored_business_overviews_unavailable_or_out_of_scope";
+      for (const saved of receipts) {
+        check();
+        const receiptRef = `${LEARNING_ROOT}/businessOverviewRuns/${saved.id}`;
+        try {
+          const receipt = saved.data();
+          if (receipt.version !== "blueprint.business-overview-run.v1" || receipt.jobKey !== saved.id
+            || receipt.paidAnalysisCalls !== 0) throw new Error("business_overview_run_receipt_invalid");
+          const verified = await readBusinessOverview(db, saved.id, aggregateScope.data, aggregateProspects, asOf, undefined, clock); check();
+          if (!verified) throw new Error("business_overview_run_receipt_missing");
+          const overview = verified.overview;
+          records.push(record(`${LEARNING_ROOT}/businessOverviews/${overview.overviewId}`, "business_overview", overview,
+            { original_checked_at: overview.asOf, city: overview.outcomeAnalysis.focus.city,
+              industry: overview.outcomeAnalysis.focus.industry, source_document_sha256: digest(overview),
+              source_selector: { job_key: saved.id, overview_id: overview.overviewId,
+                outcome_snapshot_id: overview.source.outcomeSnapshotId, history_snapshot_id: overview.source.historySnapshotId } }));
+          aggregateCount++;
+        } catch (error) {
+          check(); aggregateSkipped = true;
+          const code = error instanceof Error && /^business_overview_[a-z_]+$/.test(error.message)
+            ? `company_history_aggregate_${error.message.slice("business_overview_".length)}` : "company_history_aggregate_record_invalid";
+          diagnostics.push({ record_ref: receiptRef, code });
+        }
+      }
+      if (aggregateCount) aggregateCoverage = "verified_in_scope_stored_business_overviews";
+    } catch {
+      check(); aggregateSkipped = true;
+      aggregateCoverage = "stored_business_overviews_read_unavailable";
+      diagnostics.push({ record_ref: `${LEARNING_ROOT}/businessOverviewRuns`, code: "company_history_aggregate_read_unavailable" });
+    }
   }
   const authorizedCrm = [...new Set([...(access.crmIds ?? []), ...(source?.crmRows.filter(row => row.canonical.prospectId && prospectIds.includes(row.canonical.prospectId)).map(row => row.crmId) ?? [])])];
   const siteDocs = access.companyWide ? await readQueryPages(root.collection("siteLearningEvents"))
@@ -195,7 +243,8 @@ export async function loadCompanyHistory(db: FirebaseFirestore.Firestore, access
   }
   check();
   return { records: [...new Map(records.map(item => [item.record_id, item])).values()], diagnostics,
-    coverage: [access.companyWide ? "all_verified_company_CRM_and_capability_snapshots" : "authorized_canonical_CRM_and_capability_snapshot", "company_learning_events", "company_business_decisions_and_hypotheses", "company_site_learning", "verified_native_research_and_communications_projections", "raw_mailbox_and_unregistered_documents_not_indexed"] };
+    coverage: [access.companyWide ? "all_verified_company_CRM_and_capability_snapshots" : "authorized_canonical_CRM_and_capability_snapshot", "company_learning_events", "company_business_decisions_and_hypotheses", aggregateCoverage,
+      ...(aggregateSkipped ? ["stored_business_overview_coverage_partial"] : []), "company_site_learning", "verified_native_research_and_communications_projections", "raw_mailbox_and_unregistered_documents_not_indexed"] };
 }
 
 export function createCompanyHistoryTools(db: FirebaseFirestore.Firestore, access: CompanyHistoryAccess,

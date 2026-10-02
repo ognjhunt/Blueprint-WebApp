@@ -13,6 +13,7 @@ import { reviewCommunicationsPayload } from "./communications-review";
 import { CommunicationsStore, type CommunicationsJobRecord } from "./communications-store";
 import type { ActionPayload } from "./action-policies";
 import { runCommunicationsIntake } from "./communications-intake";
+import { runCommunicationsReplyIntake } from "./communications-reply-intake";
 import { readPublicContactPage } from "./communications-contact-fetch";
 import { automaticFirstContactEnabled, compileAutomaticFirstContact, firstContactGeography } from "./communications-first-contact";
 import { executeAutomaticFirstContact } from "./communications-send";
@@ -236,9 +237,13 @@ export function startCommunicationsWorker(): () => Promise<void> {
     now: () => Date.now(),
     sendAutomatic: executeAutomaticFirstContact,
   };
-  return startCommunicationsQueueLoop(deps, { intake: () => runCommunicationsIntake({ db,
-    readResearch: deps.readResearch, isSuppressed: deps.isSuppressed, now: deps.now,
-    readContactPage: readPublicContactPage }), processJobs: allowPaidInference });
+  return startCommunicationsQueueLoop(deps, { intake: async () => {
+    // Bound-thread opt-outs run before unrelated intake and the paid gate.
+    await runCommunicationsReplyIntake({ db, readResearch: deps.readResearch, readThread: deps.readThread,
+      isSuppressed: deps.isSuppressed, suppress: deps.suppress, now: deps.now });
+    await runCommunicationsIntake({ db, readResearch: deps.readResearch,
+      isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readPublicContactPage });
+  }, processJobs: allowPaidInference });
 }
 
 /** Stop admission immediately, then await the active job and its durable writes. */

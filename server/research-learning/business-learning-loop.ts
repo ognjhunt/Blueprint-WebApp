@@ -221,7 +221,7 @@ export async function readBusinessOverview(db: FirebaseFirestore.Firestore, jobK
   if (scope.expiresAt <= at) throw new Error("business_overview_scope_expired");
   if (!linked.exists) throw new Error("business_overview_outcome_snapshot_missing");
   const snapshot = verifySnapshot(linked.data() as LearningSnapshot, { principalId: scope.principalId,
-    prospectIds, sections: [...sectionSchema.options], expiresAt: scope.expiresAt }, at);
+    prospectIds: overview.scope.prospectIds, sections: [...sectionSchema.options], expiresAt: scope.expiresAt }, at);
   if (snapshot.snapshotId !== linked.id || snapshot.snapshotId !== sourceId || snapshot.asOf !== overview.asOf
     || digest([...snapshot.scope.prospectIds].sort()) !== digest([...overview.scope.prospectIds].sort())
     || digest(planResearchLearning(snapshot, overview.outcomeAnalysis.focus)) !== digest(overview.outcomeAnalysis)) throw new Error("business_overview_outcome_snapshot_changed");

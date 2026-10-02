@@ -20,6 +20,12 @@ const emailsIn = (quote: string): string[] => [...new Set((quote.match(/[a-zA-Z0
 export const restrictedContact = /\b(?:personal only|support only|technical (?:support|assistance)|customer support|careers?|jobs?|press|media|privacy|legal|do not contact|no unsolicited|not for business|unsubscribe|opt.out)\b/i;
 export const contactProhibition = /\b(?:(?:do not|don't) (?:contact|e-?mail|message|send|solicit)|no (?:unsolicited|solicitations?|marketing|outreach)|not for business|(?:has|have|is|are|was|were) (?:already )?(?:unsubscribed|opted[ -]?out)|stop (?:emailing|contacting|messaging))\b/i;
 const businessRoute = /\b(?:public business contact|business (?:inquiries|enquiries)|commercial (?:inquiries|enquiries)|partnership (?:inquiries|enquiries))\b/i;
+// An operator's general inquiry invitation establishes an organization route,
+// never a named recipient or site authority. Keep unrelated account/personal routes out.
+const generalContactRoute = /\bfor more information,?\s+contact us on\b/i;
+const unrelatedGeneralRoute = /\b(?:newsletters?|subscrib(?:e|ing)|subscriptions?|log[ -]?in|sign[ -]?in|passwords?|personal|private)\b/i;
+export const supportedBusinessRoute = (quote: string) => businessRoute.test(quote)
+  || (generalContactRoute.test(quote) && !unrelatedGeneralRoute.test(quote));
 export function containsContactName(quote: string, name: string) {
   const normalized = (text: string) => text.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
   const haystack = normalized(quote), needle = normalized(name);
@@ -36,12 +42,12 @@ export function containsContactName(quote: string, name: string) {
  * establishes neither site control nor permission to share site data. */
 export function extractBusinessContact(quote: string, candidate: any, legacySiteAssertion = false, organizationIdentified = false) {
   const emails = emailsIn(quote);
-  if (emails.length !== 1 || !z.string().email().safeParse(emails[0]).success || !businessRoute.test(quote)
+  if (emails.length !== 1 || !z.string().email().safeParse(emails[0]).success || !supportedBusinessRoute(quote)
     || restrictedContact.test(quote) || contactProhibition.test(quote)
     || (!legacySiteAssertion && !organizationIdentified && !containsContactName(quote, candidate.organization))) {
     throw new Error("verified_contact_source_binding_invalid");
   }
-  return { email: emails[0], scope: legacySiteAssertion || containsContactName(quote, candidate.site)
+  return { email: emails[0], scope: businessRoute.test(quote) && (legacySiteAssertion || containsContactName(quote, candidate.site))
     ? "site" as const : "organization_business_route" as const };
 }
 
@@ -51,7 +57,7 @@ export function publishedPublicContact(candidate: any) {
   const assertions = (candidate.evidence ?? []).filter((entry: any) => typeof entry.claim === "string"
     && (entry.claim.startsWith(PUBLIC_CONTACT_PREFIX) || (entry.classification === "operator" && entry.claim_kind === "fact"
       && entry.origin === "live" && entry.assertion_scope === "current_operational"
-      && businessRoute.test(entry.quote ?? "") && emailsIn(entry.quote ?? "").length)));
+      && supportedBusinessRoute(entry.quote ?? "") && emailsIn(entry.quote ?? "").length)));
   if (!assertions.length) throw new Error("verified_public_business_contact_missing");
   const matches = assertions.map((entry: any) => {
     const legacy = entry.claim.startsWith(PUBLIC_CONTACT_PREFIX);
