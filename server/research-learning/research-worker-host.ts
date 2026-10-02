@@ -108,6 +108,9 @@ export function researchLearningHost(db: FirebaseFirestore.Firestore, clock = ()
     const { control, hooks } = boundResearchLearningHooks(db, value, clock);
     const day = daySchema.parse(request.day);
     if (day < control.startDate || day > chicagoDate(clock())) throw new Error("research_learning_outside_scope");
+    // Observe the committed owned row through the same source-bound writer;
+    // this operation creates no input, aggregate or provider work.
+    if (request.op === "learning_after_run") return hooks.afterNativeWork(`${ROOT}/runs/${day}`);
     if (request.op !== "learning_context") throw new Error("research_learning_operation_invalid");
     if (typeof request.allow_create !== "boolean") throw new Error("research_learning_allow_create_required");
     const allowCreate = request.allow_create === true;
