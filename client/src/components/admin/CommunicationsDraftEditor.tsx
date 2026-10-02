@@ -98,11 +98,11 @@ export function CommunicationsDraftEditor({ payload, review, onSave, revisionId 
     {onGmailSave ? <div className="space-y-2 border-t border-runway-line pt-3">
       <button type="button" className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
         disabled={!gmailDraft?.writesEnabled || !review?.hardChecksPassed || !review.digest || !!editing || pending || gmailPending || ["writing","verified","stale"].includes(gmailDraft.state) || gmailResult?.state==="verified"}
-        onClick={()=>void copyToGmail("write")}>{gmailPending?"Checking Gmail draft…":"Save Gmail draft"}</button>
+        onClick={()=>void copyToGmail("write")}>{gmailPending?"Checking Gmail draft…":"Save to Gmail Drafts"}</button>
       {gmailDraft?.draftId || ["unknown","writing"].includes(gmailDraft?.state ?? "") ? <button type="button"
         className="ml-2 runway-cta-ghost min-h-0 px-4 py-2 text-sm" disabled={!gmailDraft?.writesEnabled || !!editing || pending || gmailPending || gmailDraft.state==="writing"}
         onClick={()=>void copyToGmail("reconcile")}>Check Gmail draft</button> : null}
-      {!gmailDraft?.writesEnabled ? <p>Gmail draft copies require separately approved compose access and draft-only activation. Review and edit this draft here meanwhile.</p> : <p>This copies the saved subject, message and approved footer. It keeps this job pending approval and does not send.</p>}
+      {!gmailDraft?.writesEnabled ? <p>Connect founder Gmail with draft access and use the exact approved saved revision. Review and edit this draft here meanwhile.</p> : <p>This saves the approved revision to Gmail Drafts without sending. Sending review checkboxes are not required for this draft copy.</p>}
       {gmailDraft?.currentRevisionVerified && !gmailResult ? <p role="status">Gmail draft for this saved revision was last readback verified{gmailDraft.verifiedAt?` at ${new Date(gmailDraft.verifiedAt).toLocaleString()}`:""}. It remains separate from approval and sending.</p> : null}
       {gmailDraft?.state==="stale" && !gmailResult ? <p>The Gmail copy belongs to an older revision. This one-copy approval does not authorize updating it.</p> : null}
       {gmailDraft?.state==="unknown" && !gmailResult ? <p>Gmail acknowledgement is unknown. Check the existing draft before another write; no duplicate will be created.</p> : null}

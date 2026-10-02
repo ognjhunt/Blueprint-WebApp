@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +27,7 @@ const FAILURE_STEP_LABELS: Record<string, string> = {
 /** Explicit owner actions only. No token/secret input or automatic grant/save. */
 export function FounderMailboxConnection() {
   const { currentUser } = useAuth();
+  const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(() => ["prepare", "returned"].includes(new URLSearchParams(window.location.search).get("founder_gmail") || ""));
   const onCallbackHost = window.location.origin === CALLBACK_ORIGIN;
   const [authorizationUrl, setAuthorizationUrl] = useState<string | null>(null);
@@ -63,12 +64,16 @@ export function FounderMailboxConnection() {
       } else { await status.refetch(); }
       return { ...result, action };
     },
+    onSuccess: async result => {
+      if (result.action.endsWith("complete")) await queryClient.invalidateQueries({ queryKey: ["admin-action-queue", currentUser?.uid] });
+    },
     onError: async () => { setAuthorizationUrl(null); await status.refetch(); },
   });
   const completed = decision.data?.action.endsWith("complete");
   const completeFailed = decision.isError && decision.variables?.endsWith("complete");
   const failureStep = status.data?.failureStage && Object.hasOwn(FAILURE_STEP_LABELS, status.data.failureStage)
     ? FAILURE_STEP_LABELS[status.data.failureStage] : undefined;
+  const savedConnection = !status.isError && ["connected_readonly", "connected_send_capable", "connected_draft_capable"].includes(status.data?.state ?? "");
   useEffect(() => { setAuthorizationUrl(null); decision.reset(); }, [currentUser?.uid]);
   return <section className="runway-panel p-5">
     <button type="button" className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
@@ -78,9 +83,11 @@ export function FounderMailboxConnection() {
       {connection.isError && <p role="alert">Founder connection preparation is unavailable.</p>}
       {status.isError && <p role="alert">Founder consent status is unavailable. Owner review is required before another connection attempt.</p>}
       {connection.data && <>
-        <p><strong>{connection.data.account}</strong>: {connection.data.binding.state === "missing"
+        {savedConnection ? <p><strong>{connection.data.account}</strong>: {status.data?.draftScopeGranted
+          ? "Founder Gmail is connected with saved draft access" : "Founder Gmail connection is saved"}.</p> : <p><strong>{connection.data.account}</strong>: {connection.data.binding.state === "missing"
           ? "separate founder binding is missing" : "separate founder storage is selected; current mailbox access is unverified"}.</p>
-        <p>{connection.data.oauth.ownerAction}</p>
+        }
+        {!savedConnection && <p>{connection.data.oauth.ownerAction}</p>}
         <p>{connection.data.oauth.dataAccess}</p>
         <p>Read access: <code>{connection.data.oauth.initialScopes.join(", ")}</code>.</p>
         <p>Sending later requires separate approval for <code>{connection.data.oauth.sendScopeAfterSeparateApproval}</code>.</p>
@@ -104,7 +111,7 @@ export function FounderMailboxConnection() {
           {!status.data.draftScopeGranted && <p>Gmail draft access needs separate approved compose consent. Google's compose scope also permits sending; Blueprint keeps sending separately controlled.</p>}
           {status.data.draftUpgradeAvailable && ["connected_readonly","connected_send_capable"].includes(status.data.state) && !completeFailed && !status.isError && !authorizationUrl && <button type="button" disabled={decision.isPending}
             className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate("draft-upgrade/start")}>Prepare Google draft-capability consent</button>}
-          {(status.data.draftScopeGranted || decision.data?.action === "draft-upgrade/complete") && <p>The founder compose grant is saved. Copy a saved revision with Save Gmail draft in Approvals; no message is approved or sent by consent.</p>}
+          {(status.data.draftScopeGranted || decision.data?.action === "draft-upgrade/complete") && <p>The founder compose grant is saved. Use Save to Gmail Drafts on the approved saved revision in Approvals. Sending review checkboxes apply only to sending.</p>}
           {!["idle", "awaiting_owner", "connected_readonly", "connected_send_capable", "connected_draft_capable"].includes(status.data.state) && !completed && <p>Connection status: {status.data.state}. Owner review is required before another connection attempt.</p>}
           </>}
         </>}

@@ -10,6 +10,8 @@ const approveActionMock = vi.hoisted(() => vi.fn());
 const rejectActionMock = vi.hoisted(() => vi.fn());
 const retryFailedActionMock = vi.hoisted(() => vi.fn());
 const reviseDraftMock = vi.hoisted(() => vi.fn());
+const mirrorGmailMock = vi.hoisted(() => vi.fn());
+const gmailPortsMock = vi.hoisted(() => vi.fn(() => ({ manualApprovedCopy: true })));
 
 const ledgerRows = vi.hoisted(() => [
   {
@@ -198,6 +200,10 @@ vi.mock("../agents/communications-draft-revision", async importOriginal => ({
   ...await importOriginal<typeof import("../agents/communications-draft-revision")>(),
   reviseCommunicationsDraft: reviseDraftMock,
 }));
+vi.mock("../agents/communications-gmail-draft", async importOriginal => ({
+  ...await importOriginal<typeof import("../agents/communications-gmail-draft")>(),
+  mirrorCommunicationsGmailDraft: mirrorGmailMock, configuredGmailDraftPorts: gmailPortsMock,
+}));
 
 async function startServer(admin = true): Promise<{ server: Server; baseUrl: string }> {
   const { default: router } = await import("../routes/admin-leads");
@@ -242,10 +248,35 @@ afterEach(() => {
   rejectActionMock.mockReset();
   retryFailedActionMock.mockReset();
   reviseDraftMock.mockReset();
+  mirrorGmailMock.mockReset(); gmailPortsMock.mockClear(); vi.unstubAllEnvs();
   vi.resetModules();
 });
 
 describe("admin action queue", () => {
+  it("uses the explicit manual copy path only for the configured authenticated owner", async () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID","admin-user");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","false");
+    mirrorGmailMock.mockResolvedValue({state:"verified",sent:false,approved:false});
+    const {server,baseUrl}=await startServer();
+    try {
+      const body={expectedReviewDigest:"a".repeat(64),expectedRevisionId:"b".repeat(64),mode:"write"};
+      const response=await fetch(`${baseUrl}/action-queue/communications_${"c".repeat(64)}/gmail-draft`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      expect(response.status).toBe(200);expect(await response.json()).toMatchObject({sent:false,approved:false});
+      expect(gmailPortsMock).toHaveBeenCalledExactlyOnceWith(undefined,"manual_approved_copy");
+      expect(mirrorGmailMock).toHaveBeenCalledExactlyOnceWith(expect.any(Object),`communications_${"c".repeat(64)}`,"ops@tryblueprint.io",body,{manualApprovedCopy:true});
+      expect(approveActionMock).not.toHaveBeenCalled();
+      expect(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED).toBe("false");
+    } finally {await stopServer(server);}
+  });
+  it.each(["different-owner",""])("does not give another admin or missing owner a manual copy path (%s)",async owner=>{
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID",owner);
+    const {server,baseUrl}=await startServer();
+    try {
+      const response=await fetch(`${baseUrl}/action-queue/communications_${"c".repeat(64)}/gmail-draft`,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+      expect(response.status).toBe(403);expect(await response.json()).toMatchObject({error:"gmail_draft_owner_required"});
+      expect(mirrorGmailMock).not.toHaveBeenCalled();expect(gmailPortsMock).not.toHaveBeenCalled();
+    } finally {await stopServer(server);}
+  });
   it("revises only through authenticated admin identity and returns actionable validation errors", async () => {
     const { CommunicationsDraftRevisionError } = await import("../agents/communications-draft-revision");
     reviseDraftMock.mockRejectedValue(new CommunicationsDraftRevisionError("Repair the named draft fields and revalidate", 400,

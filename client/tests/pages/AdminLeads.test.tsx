@@ -439,7 +439,7 @@ describe("AdminLeads scene readiness", () => {
       return Response.json({leads:[],total:0,byStatus:{},byPriority:{}});
     });
     renderPage();const tab=await screen.findByRole("tab",{name:/approvals/i});fireEvent.mouseDown(tab);fireEvent.click(tab);
-    const save=await screen.findByRole("button",{name:"Save Gmail draft"});await waitFor(()=>expect(save).toBeEnabled());
+    const save=await screen.findByRole("button",{name:"Save to Gmail Drafts"});await waitFor(()=>expect(save).toBeEnabled());
     expect(fetchMock.mock.calls.some(([,init])=>init?.method==="POST")).toBe(false);fireEvent.click(save);
     expect(await screen.findByText(/Gmail draft readback verified for this saved revision/)).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith(`/api/admin/leads/action-queue/${ledgerId}/gmail-draft`,expect.objectContaining({method:"POST",credentials:"include",headers:expect.objectContaining({Authorization:"Bearer synthetic-owner-token"}),body:JSON.stringify({expectedReviewDigest:digest,expectedRevisionId:revisionId,mode:"write"})}));

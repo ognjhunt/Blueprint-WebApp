@@ -53,18 +53,17 @@ compares the existing binding revision atomically and retains its prior
 encrypted credential in the flow's private recovery record. Draft writes remain
 off until the owner-authorized manual request below.
 
-The existing Approvals UI now exposes the same owner-controlled path:
-Prepare founder mailbox → Prepare Google draft-capability consent → Verify and
-save founder draft-capability upgrade. Each is an explicit click. The saved
-revision card offers **Save Gmail draft** only after approved compose capability
-and draft-only activation; **Check Gmail draft** observes an existing uncertain
+The existing Approvals UI exposes the owner-controlled consent path when a
+connection is needed. Once the approved compose grant is saved, the connected
+owner can use **Save to Gmail Drafts** directly on the exact approved saved
+revision, without opening a separate Render flag window. **Check Gmail draft** observes an existing uncertain
 copy. Status identifies the last readback and stale copies after edits. An
 unsaved edit cannot be copied. Consent and draft copying never tick approval
 boxes or start sending. Readback rejects extra Cc/Bcc/duplicate identity headers
 and attachments or alternate MIME content outside the authored plain text.
 
-The active approved window keeps **Check Gmail draft** available after a
-verified copy while disabling **Save Gmail draft** for verified or stale copies.
+The exact approval keeps **Check Gmail draft** available after a
+verified copy while disabling **Save to Gmail Drafts** for verified or stale copies.
 The one-copy window additionally requires exact configured job ID, revision ID
 and review digest. It refuses another job or a regenerated/edited revision before
 mailbox access. A verified copy can only be observed; later revisions cannot
@@ -82,12 +81,13 @@ the worker service is untouched. It accepts only these operations:
    existing scope. Run this on merged `main` before its main-CI deployment when
    possible; no credential is copied or new secret installed.
 2. After the owner completes Google consent and authenticated founder status
-   confirms the same approved compose binding, `open-one-draft` changes only
-   the draft flag to `true`. The server still requires that consent and the exact
-   current unsent canonical revision. Use **Save Gmail draft** once, then retain
-   the full recipient/body/footer/header readback receipt. Do not regenerate.
-3. `close-one-draft` sets only the draft flag to `false` after that observed
-   copy, or to stop the window. It first verifies all four allowlisted scope
+   confirms the same approved compose binding, use **Save to Gmail Drafts**
+   once and retain the full recipient/body/footer/header readback receipt.
+   No `open-one-draft` step is needed for this explicit manual action. The
+   existing workflow's `open-one-draft` operation changes the automatic-staging
+   flag only; it is not a prerequisite for the owner's manual save. Do not regenerate.
+3. `close-one-draft` sets only the automatic-staging flag to `false`. It
+   does not revoke the exact manual approval or saved compose grant. It first verifies all four allowlisted scope
    keys exactly match Tony's approval and refuses a conflicting owner window.
    Keep the canonical revision and optional Gmail
    copy; closure does not delete either or revoke the existing OAuth binding.
@@ -168,9 +168,10 @@ After approval, the exact manual draft-copy request is:
 ```
 
 It targets `/api/admin/leads/action-queue/communications_8bd2e1ad55b127866236c5ffd0872a59f6434ed378fa9dea319a53daedf8f0d0/gmail-draft`
-under existing authenticated admin/CSRF controls; `/api/admin/leads` is the
-verified mount in `server/routes.ts`. Draft flag
-`BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED` defaults off; the separate
+under existing authenticated admin/CSRF controls and the configured owner's
+Firebase UID; `/api/admin/leads` is the verified mount in `server/routes.ts`.
+Automatic staging flag `BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED`
+defaults off and is not required for this explicit exact approved manual copy; the separate
 `BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF` must match the reviewed
 compose credential. No flags were installed by this implementation.
 
@@ -178,8 +179,8 @@ The adapter copies the existing transport bytes, checks canonical revision,
 research handoff, opt-outs and send receipts, checks relevant prior contact
 excluding draft copies, and claims a fenced attempt before Gmail mutation.
 Changed canonical input or a manually changed prior Gmail copy refuses an
-update. A later explicit revision updates the same confirmed draft ID;
-identical replay reads it. SDK write retries are disabled. Unknown create/update
+update. A later revision requires its own authority; this one-copy approval
+cannot update a verified draft. Identical replay reads it. SDK write retries are disabled. Unknown create/update
 recovery is observation-only, by the stable Blueprint RFC Message-ID or exact
 draft ID plus content headers. A writer that genuinely ended needs its exact
 attempt and process-ended evidence before observation recovery; no expiry can

@@ -31,7 +31,7 @@ function draftWindowAllows(jobId: string, revisionId: string | null, reviewDiges
     && reviewDigest === process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVIEW_DIGEST;
 }
 
-/** Manual, disabled-by-default delivery copy of an existing canonical revision.
+/** Explicit delivery copy of an existing exact approved canonical revision.
  * No generation, approval, scheduler, draft/send endpoint or new first contact. */
 export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Firestore, ledgerId: string, requestedBy: string,
   requestValue: unknown, ports: GmailDraftPorts = configuredGmailDraftPorts(), now = Date.now()) {
@@ -146,6 +146,7 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
   } catch (error) {
     if (planned.state === "claimed") await mark(submitted ? "unknown" : "refused_before_write");
     if (error instanceof CommunicationsGmailDraftError) throw error;
+    if (!submitted && planned.state === "claimed") throw new CommunicationsGmailDraftError("gmail_draft_source_or_capability_refused_before_write", 409);
     throw new CommunicationsGmailDraftError("gmail_draft_unknown_acknowledgement_reconcile_exact_job", 503);
   }
 }
@@ -153,8 +154,11 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
 /** Read-only canonical metadata for the existing Approvals queue. This never
  * calls Gmail or mistakes a prior verification for fresh mailbox observation. */
 export async function communicationsGmailDraftStatus(db: FirebaseFirestore.Firestore, ledgerId: string, payload: Record<string, unknown>, revisionId: string | null = null, reviewDigest: string | null = null) {
-  const writesEnabled=process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED === "true"
+  let writesEnabled=/^communications_[a-f0-9]{64}$/.test(ledgerId)
     && draftWindowAllows(ledgerId.slice("communications_".length), revisionId, reviewDigest ?? "");
+  if (writesEnabled) {
+    try { await requireFounderDraftCapability(); } catch { writesEnabled=false; }
+  }
   const base={writesEnabled, state:"unavailable", draftId:null as string|null, verifiedAt:null as string|null, currentRevisionVerified:false};
   if (!/^communications_[a-f0-9]{64}$/.test(ledgerId)) return base;
   try {
@@ -186,7 +190,7 @@ export async function reconcileEndedGmailDraftWriter(db: FirebaseFirestore.Fires
   });
 }
 
-export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail): GmailDraftPorts {
+export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail, mode: "automated" | "manual_approved_copy" = "automated"): GmailDraftPorts {
   const client = async () => gmail ??= await existingFounderGmail();
   const raw = (content: DraftContent) => {
     if ([content.to,content.subject,content.messageId,content.inReplyTo ?? ""].some(value => /[\r\n]/.test(value))) fail("gmail_draft_header_invalid");
@@ -198,7 +202,9 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail): GmailDraftPor
     return Buffer.from(headers.join("\r\n")+"\r\n\r\n"+Buffer.from(content.body).toString("base64")).toString("base64url");
   };
   return {
-    enabled: () => process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED === "true" && draftWindowConfigured(),
+    // Only the authenticated explicit owner route selects manual mode. The
+    // global switch continues to govern any automatic/default draft staging.
+    enabled: () => draftWindowConfigured() && (mode === "manual_approved_copy" || process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED === "true"),
     allowsRevision: draftWindowAllows,
     requireCapability: requireFounderDraftCapability, verifyMailbox: async () => verifyFounderMailbox(await client()),
     async priorContact(email) {
