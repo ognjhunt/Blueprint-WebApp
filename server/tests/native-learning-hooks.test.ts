@@ -50,6 +50,66 @@ function nativeBundle(f: ReturnType<typeof fixture>) {
 }
 afterEach(() => { vi.useRealTimers(); });
 describe("native zero-model learning hooks", () => {
+  it("freezes and replays the eleventh authorized CRM row and its history without truncating the scope", async () => {
+    const f = fixture(), { snapshotId: _id, contentHash: _hash, ...original } = f.source;
+    const crmRows = Array.from({ length: 11 }, (_, index) => ({ ...original.crmRows[0], crmId: `BP-${String(index + 1).padStart(6, "0")}` }));
+    const body = { ...original, scope: { ...original.scope, crmIds: crmRows.map(row => row.crmId) }, crmRows };
+    const source = verifySourceSnapshot({ ...body, snapshotId: digest(body), contentHash: digest(body) });
+    f.records.set(`${LEARNING_ROOT}/sourceSnapshots/${source.snapshotId}`, source);
+    const hooks = createNativeLearningHooks(f.db, { ...f.config, sourceSnapshotId: source.snapshotId }, () => now);
+    const path = "blueprintDailyResearch/sites-first/runs/2026-10-02", input = await hooks.prepareNativeJob("daily_research", path);
+    expect(input?.handoff?.scope.crmIds).toHaveLength(11); expect(input?.handoff?.priorResearch.crmRows).toHaveLength(11);
+    expect((input?.relevantHistory as any).siteHistory).toHaveLength(11);
+    expect((await hooks.prepareNativeJob("daily_research", path, [], { allowCreate: false }))?.inputHash).toBe(input?.inputHash);
+  });
+  it("keeps a source-only corpus usable while native joins and outcome denominators remain unknown", async () => {
+    const f = fixture();
+    const hooks = createNativeLearningHooks(f.db, f.config, () => now, { binding: {
+      version: "blueprint.research-learning-consumer-binding.v1", principalId: f.config.principalId, role: "daily_research",
+      sourceSnapshotId: f.source.snapshotId, crmIds: ["BP-000001"], prospectIds: [],
+      discoveryCapabilityIds: ["cap-1"], detailCapabilityIds: ["cap-1"], expiresAt: "2026-10-02T12:00:00Z" },
+      selection: { crmIds: ["BP-000001"], prospectIds: [], capabilityIds: [], focus: f.config.focus, maturityDays: 14 } });
+    expect((await hooks.daily()).state).toBe("no_authorized_native_prospects");
+    const input = await hooks.prepareNativeJob("daily_research", "blueprintDailyResearch/sites-first/runs/2026-10-02");
+    expect(input?.handoff?.priorResearch.crmRows).toHaveLength(1); expect(input?.prospectIds).toEqual([]);
+    expect(input?.handoff?.priorContactAndOutcomes.planner).toBeNull();
+    expect(input?.handoff?.priorResearch.crmRows[0].canonical.prospectId).toBeNull();
+    expect((input?.relevantHistory as any).capabilityDetails[0].snapshot.capabilities[0].capabilityId).toBe("cap-1");
+    expect(f.reads).not.toContain("outboundProspects/prospect-1");
+  });
+  it("freezes every relevant history page beyond the former 500-event boundary", async () => {
+    const f = fixture(), timestamp = "2026-10-01T20:00:00.000Z";
+    for (let number = 0; number < 501; number++) {
+      const event = makeBusinessHistory({ kind: "decision", classification: "explicit_decision", statement: `Decision ${number}`,
+        rationale: null, recordId: `BP-DEC-page-${number}`, subjectKey: f.config.businessSubjectKeys[0],
+        contentClass: "blueprint_business_only", occurredAt: timestamp, recordedAt: timestamp, capturedBy: f.config.principalId,
+        supersedesEventId: null, sources: [{ system: "chat", threadId: "synthetic-business-thread", messageId: `decision-${number}`,
+          originalTimestamp: timestamp, originalAuthorId: "fixture-human", originalAuthorRole: "user",
+          sourceHash: digest(`Decision ${number}`), businessExcerpt: `Decision ${number}` }] });
+      f.records.set(`${LEARNING_ROOT}/businessHistoryEvents/${event.eventId}`, event);
+    }
+    const input = await f.hooks.prepareNativeJob("daily_research", "blueprintDailyResearch/sites-first/runs/2026-10-02");
+    const history = (input?.relevantHistory as any)?.businessHistory[0].history;
+    expect(history.complete).toBe(true); expect(history.pages).toHaveLength(21);
+    expect(history.pages.flatMap((page: any) => page.events)).toHaveLength(501);
+  });
+  it("uses the scheduled 06:45 cutoff even when restarting at noon", async () => {
+    const f = fixture(() => "2026-10-02T17:00:00.000Z"), result = await f.hooks.daily();
+    if (result.state !== "completed") throw new Error("expected overview");
+    expect(result.overview.asOf).toBe("2026-10-02T11:45:00.000Z");
+  });
+  it("never discovers outside the existing explicit native scope", async () => {
+    const f = fixture(); nativeBundle(f);
+    f.records.set("outboundProspects/not-authorized", { researchPublicationId: "BP-OTHER", privateNotes: "PRIVATE_OUTSIDE_SCOPE" });
+    const hooks = createNativeLearningHooks(f.db, f.config, () => now, { binding: {
+      version: "blueprint.research-learning-consumer-binding.v1", principalId: f.config.principalId, role: "daily_research",
+      sourceSnapshotId: f.source.snapshotId, crmIds: ["BP-000001"], prospectIds: ["prospect-1"],
+      discoveryCapabilityIds: [], detailCapabilityIds: [], expiresAt: "2026-10-02T12:00:00Z" },
+      selection: { crmIds: ["BP-000001"], prospectIds: ["prospect-1"], capabilityIds: [], focus: f.config.focus, maturityDays: 14 } });
+    const input = await hooks.prepareNativeJob("daily_research", "blueprintDailyResearch/sites-first/runs/2026-10-02");
+    expect(input?.prospectIds).toEqual(["prospect-1"]); expect(input?.handoff?.scope.prospectIds).toEqual(["prospect-1"]);
+    expect(f.reads).not.toContain("outboundProspects/not-authorized"); expect(JSON.stringify(input)).not.toContain("PRIVATE_OUTSIDE_SCOPE");
+  });
   it("includes verified native research/contact/accepted outreach under an advancing clock without stored learning events", async () => {
     let tick = 0; const f = fixture(() => new Date(Date.parse(now)+tick++).toISOString()); nativeBundle(f);
     const result = await f.hooks.daily();

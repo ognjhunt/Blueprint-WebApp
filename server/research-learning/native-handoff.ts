@@ -56,18 +56,18 @@ const overviewSchema = z.object({ version: z.literal("blueprint.business-overvie
   analysisScopeHash: hash.optional(), sourceQuarantine: quarantine.optional() }).strict();
 const handoffSchema = z.object({ version: z.literal("blueprint.research-learning-consumer.v1"), trust: z.literal("untrusted_evidence_only"),
   role: z.enum(["daily_research", "communications"]), asOf: instant, expiresAt: instant,
-  scope: z.object({ principalId: id, crmIds: ids(10), prospectIds: ids(20), detailCapabilityIds: z.array(id).length(0) }).strict(),
+  scope: z.object({ principalId: id, crmIds: ids(), prospectIds: ids(), detailCapabilityIds: z.array(id).length(0) }).strict(),
   source: z.object({ snapshotId: hash, scopedSnapshotId: hash, recordRef: pointer, provenance: sourceSnapshotSchema.shape.source }).strict(),
   priorResearch: z.object({ crmRows: sourceSnapshotSchema.shape.crmRows,
     capabilityDetails: z.object({ snapshot: z.null(), missingCapabilityIds: z.array(id).length(0), absenceMeans: z.literal("unknown_not_incompatible") }).strict(),
     sourceChecksRefreshed: z.literal(false), nativeResearchHash: hash,
-    nativeResearchSubjects: z.array(z.object({ prospectId: id, briefCount: n }).strict()).max(20) }).strict(),
+    nativeResearchSubjects: z.array(z.object({ prospectId: id, briefCount: n }).strict()).max(100) }).strict(),
   canonicalJoins: z.array(z.object({ crmId: id, prospectId: id, siteId: id.nullable(), taskId: id.nullable(), caseId: id.nullable(),
-    recordRef: pointer, sourceHash: hash, observedAt: instant }).strict()).max(10),
+    recordRef: pointer, sourceHash: hash, observedAt: instant }).strict()).max(100),
   priorContactAndOutcomes: z.object({ snapshotId: hash.nullable(), coverage: z.enum(["partial_authorized_scope", "authorized_records_only"]),
-    prospects: z.array(rowSchema).max(20), planner: planSchema.nullable(), missingRecordsMean: z.literal("unknown_not_no_contact_no_reply_or_rejection") }).strict(),
+    prospects: z.array(rowSchema).max(100), planner: planSchema.nullable(), missingRecordsMean: z.literal("unknown_not_no_contact_no_reply_or_rejection") }).strict(),
   siteLearning: z.object({ recent: z.array(siteLearningSchema).max(5), currentCount: n, historyCount: n, historyHash: hash, moreHistoryAvailable: z.boolean(),
-    subjects: z.array(z.object({ crmId: id, historyCount: n }).strict()).max(10) }).strict(),
+    subjects: z.array(z.object({ crmId: id, historyCount: n }).strict()).max(100) }).strict(),
   // This whole immutable projection must equal a directory rebuilt from the
   // verified host source below; it cannot carry arbitrary nested fields.
   discovery: z.unknown(),
@@ -86,6 +86,7 @@ const handoffSchema = z.object({ version: z.literal("blueprint.research-learning
  * the trusted host configuration before a persisted input can reach an agent. */
 export async function validateNativeHandoff(value: unknown, expected: { role: Handoff["role"]; principalId: string;
   subjectKeys: string[]; selectedProspectIds: string[]; source: SourceSnapshot; companyProspectIds: string[];
+  crmIds?: string[]; discoveryCapabilityIds?: string[];
   focus: { city: string; industry: string }; preparedAt: string; now: string }, db: FirebaseFirestore.Firestore): Promise<Handoff> {
   const handoff = handoffSchema.parse(value), { contextHash, ...content } = handoff;
   const fail = () => { throw new Error("native_learning_input_context_changed"); };
@@ -93,9 +94,11 @@ export async function validateNativeHandoff(value: unknown, expected: { role: Ha
   const subset = (a: string[], b: string[]) => { if (a.some(item => !b.includes(item))) fail(); };
   if (digest(content) !== contextHash || handoff.role !== expected.role || handoff.scope.principalId !== expected.principalId
     || handoff.asOf > expected.preparedAt || handoff.expiresAt <= handoff.asOf) fail();
-  const crmIds = expected.role === "daily_research" ? expected.source.scope.crmIds.slice(0,10) : [];
+  const crmIds = expected.role === "daily_research" ? expected.crmIds ?? expected.source.scope.crmIds : [];
+  const capabilityIds = expected.discoveryCapabilityIds ?? expected.source.scope.capabilityIds;
+  subset(crmIds, expected.source.scope.crmIds); subset(capabilityIds, expected.source.scope.capabilityIds);
   same(handoff.scope.crmIds, crmIds);
-  const grant = { principalId: expected.principalId, crmIds, capabilityIds: expected.source.scope.capabilityIds,
+  const grant = { principalId: expected.principalId, crmIds, capabilityIds,
     sections: ["crm", "capabilities"] as ("crm" | "capabilities")[], expiresAt: new Date(Date.parse(expected.now)+60000).toISOString() };
   const request = { crmIds, capabilityIds: grant.capabilityIds, sections: grant.sections, asOf: handoff.asOf };
   const source = scopeSourceSnapshot(expected.source, grant, request, expected.now);

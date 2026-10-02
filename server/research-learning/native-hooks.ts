@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { Timestamp } from "firebase-admin/firestore";
 import { digest, hash, id, instant, LEARNING_ROOT, sectionSchema } from "./contract";
-import { openResearchLearningSession } from "./consumer";
+import { consumerBindingSchema, consumerSelectionSchema, openResearchLearningSession,
+  type ConsumerBinding, type ConsumerSelection } from "./consumer";
 import { verifySourceSnapshot, safeText } from "./prior-research";
 import { BusinessHistoryStore } from "./business-history";
 import { chicagoDate, recordTerminalRun, runDailyBusinessAnalysis } from "./business-learning-loop";
@@ -32,8 +33,9 @@ type Handoff = Awaited<ReturnType<typeof openResearchLearningSession>>["handoff"
 const nativeRefSchema = z.string().regex(/^blueprint(?:DailyResearch\/sites-first\/runs\/\d{4}-\d{2}-\d{2}|Communications\/default\/jobs\/[A-Za-z0-9_.:-]+)$/);
 const nativeInputSchema = z.object({ version: z.literal("blueprint.native-learning-input.v1"), configHash: hash,
   nativeRecordRef: nativeRefSchema, role: z.enum(["daily_research", "communications"]),
-  prospectIds: z.array(id).max(10).refine(values => new Set(values).size === values.length),
+  prospectIds: z.array(id).max(100).refine(values => new Set(values).size === values.length),
   sourceSnapshotId: hash, preparedAt: instant, handoff: z.unknown().nullable(),
+  relevantHistory: z.unknown().optional(),
   unknown: z.literal("native_learning_context_unavailable").nullable(), inputHash: hash,
 }).strict();
 const nativeInputBindingSchema = nativeInputSchema.pick({ version: true, configHash: true, nativeRecordRef: true,
@@ -56,18 +58,33 @@ export function chicagoAggregationTime(value: string) {
 }
 
 export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, configValue: NativeLearningConfig,
-  clock = () => new Date().toISOString()) {
+  clock = () => new Date().toISOString(), options: { binding?: ConsumerBinding; selection?: ConsumerSelection } = {}) {
   const config = nativeLearningConfigSchema.parse(configValue), configHash = digest(config);
-  const expires = () => new Date(Date.parse(instant.parse(clock()))+15*60000).toISOString();
+  const binding = options.binding ? consumerBindingSchema.parse(options.binding) : null;
+  const selection = options.selection ? consumerSelectionSchema.parse(options.selection) : null;
+  if (binding && (binding.principalId !== config.principalId || binding.sourceSnapshotId !== config.sourceSnapshotId)
+    || selection && (digest(selection.focus) !== digest(config.focus) || selection.maturityDays !== config.maturityDays)) {
+    throw new Error("native_learning_host_binding_changed");
+  }
+  const expires = () => new Date(Math.min(Date.parse(instant.parse(clock()))+15*60000,
+    binding ? Date.parse(binding.expiresAt) : Infinity)).toISOString();
   const businessScope = () => ({ principalId: config.principalId, subjectKeys: config.businessSubjectKeys, expiresAt: expires() });
   const jobKey = (day: string) => `daily-learning-${day}-${configHash.slice(0,16)}`;
   async function readScope(asOf?: string) {
+    if (binding && binding.expiresAt <= instant.parse(clock())) throw new Error("native_learning_host_binding_expired");
     const sourceRef = db.doc(LEARNING_ROOT).collection("sourceSnapshots").doc(config.sourceSnapshotId);
     const query = db.collection("outboundProspects").select("researchPublicationId").limit(101);
     // Pin both reads to the supplied millisecond cutoff. Sampling the clock
     // after a query could silently omit a prospect created in that gap.
     const readTime = asOf ? Timestamp.fromDate(new Date(instant.parse(asOf))) : null;
-    const { saved, prospects } = readTime ? await db.runTransaction(async tx => {
+    const boundRead = async (read: (ref: FirebaseFirestore.DocumentReference) => Promise<FirebaseFirestore.DocumentSnapshot>) => {
+      const saved = await read(sourceRef);
+      const docs = await Promise.all(binding!.prospectIds.map(value => read(db.collection("outboundProspects").doc(value))));
+      return { saved, prospects: { docs: docs.filter(doc => doc.exists), size: docs.filter(doc => doc.exists).length } };
+    };
+    const { saved, prospects } = binding ? readTime ? await db.runTransaction(async tx => {
+      return boundRead(ref => tx.get(ref));
+    }, { readOnly: true, readTime }) : await boundRead(ref => ref.get()) : readTime ? await db.runTransaction(async tx => {
       const saved = await tx.get(sourceRef), prospects = await tx.get(query);
       if (!prospects.readTime || prospects.readTime.seconds !== readTime.seconds
         || prospects.readTime.nanoseconds !== readTime.nanoseconds) throw new Error("native_learning_scope_read_time_unverified");
@@ -80,7 +97,13 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
     // fetch contacts/notes or search any mailbox to build the shared scope.
     if (prospects.size > 100) throw new Error("native_learning_prospect_export_or_partition_required");
     const prospectIds = prospects.docs.map(doc => id.parse(doc.id)).sort();
-    return { source, prospectIds };
+    if (binding && (binding.crmIds.some(value => !source.scope.crmIds.includes(value))
+      || binding.discoveryCapabilityIds.some(value => !source.scope.capabilityIds.includes(value)))) {
+      throw new Error("native_learning_host_source_scope_changed");
+    }
+    return { source, prospectIds, crmIds: binding?.crmIds ?? source.scope.crmIds,
+      discoveryCapabilityIds: binding?.discoveryCapabilityIds ?? source.scope.capabilityIds,
+      detailCapabilityIds: binding?.detailCapabilityIds ?? source.scope.capabilityIds };
   }
   function validateManifest(value: unknown, expectedKey: string): Manifest {
     const manifest = manifestSchema.parse(value), { inputHash, ...body } = manifest;
@@ -99,7 +122,7 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
     let manifest: Manifest;
     if (prior.exists) manifest = validateManifest(prior.data(), key);
     else {
-      const asOf = instant.parse(clock()), scope = await readScope(asOf), body = { version: "blueprint.native-learning-job.v1" as const,
+      const asOf = schedule.scheduledAt, scope = await readScope(asOf), body = { version: "blueprint.native-learning-job.v1" as const,
         jobKey: key, configHash, day: schedule.day, asOf, sourceSnapshotId: config.sourceSnapshotId,
         principalId: config.principalId, subjectKeys: config.businessSubjectKeys, prospectIds: scope.prospectIds,
         focus: config.focus, maturityDays: config.maturityDays };
@@ -126,20 +149,44 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
   }
   async function beforeWork(role: "daily_research" | "communications", selectedProspectIds: string[] = []) {
     try {
-      const asOf = instant.parse(clock()), scope = await readScope(asOf), selected = z.array(id).max(10).parse(role === "daily_research" && !selectedProspectIds.length
-        ? scope.prospectIds.slice(0,10) : selectedProspectIds);
+      if (binding && binding.role !== role) throw new Error("native_learning_host_role_changed");
+      const asOf = instant.parse(clock()), scope = await readScope(asOf), selected = z.array(id).max(100).parse(role === "daily_research" && !selectedProspectIds.length
+        ? selection?.prospectIds ?? scope.prospectIds : selectedProspectIds);
       if (selected.some(value => !scope.prospectIds.includes(value))) throw new Error("native_learning_selected_prospect_denied");
       const schedule = chicagoAggregationTime(clock()), overviewDay = schedule.due ? schedule.day : chicagoDate(new Date(Date.parse(schedule.scheduledAt)-24*3600000).toISOString());
       const expiry = expires();
       const session = await openResearchLearningSession(db, { version: "blueprint.research-learning-consumer-binding.v1",
         principalId: config.principalId, role, sourceSnapshotId: config.sourceSnapshotId,
-        crmIds: scope.source.scope.crmIds, prospectIds: scope.prospectIds,
-        discoveryCapabilityIds: scope.source.scope.capabilityIds, detailCapabilityIds: scope.source.scope.capabilityIds, expiresAt: expiry },
-      { crmIds: role === "daily_research" ? scope.source.scope.crmIds.slice(0,10) : [],
-        prospectIds: selected, capabilityIds: [], focus: config.focus, maturityDays: config.maturityDays }, clock,
+        crmIds: scope.crmIds, prospectIds: scope.prospectIds,
+        discoveryCapabilityIds: scope.discoveryCapabilityIds, detailCapabilityIds: scope.detailCapabilityIds, expiresAt: expiry },
+      { crmIds: role === "daily_research" ? selection?.crmIds ?? scope.crmIds : [],
+        prospectIds: selected, capabilityIds: selection?.capabilityIds ?? [], focus: config.focus, maturityDays: config.maturityDays }, clock,
       { businessHistory: { principalId: config.principalId, subjectKeys: config.businessSubjectKeys, expiresAt: expiry },
         businessOverviewJobKey: jobKey(overviewDay), nativeSourceCutoff: true, frozenAsOf: asOf });
-      return { available: true as const, selectedProspectIds: selected, ...session };
+      const capture = (read: (cursor: any) => any) => {
+        const pages: any[] = [], seen = new Set<string>(); let cursor: any = null;
+        do {
+          const page = read(cursor); pages.push(page); cursor = page.nextCursor;
+          if (cursor) { const key = digest(cursor); if (seen.has(key)) throw new Error("native_learning_history_cursor_changed"); seen.add(key); }
+        } while (cursor);
+        return { pages, complete: true };
+      };
+      const relevantHistory = {
+        scope: { crmIds: session.handoff.scope.crmIds, prospectIds: session.handoff.scope.prospectIds,
+          detailCapabilityIds: scope.detailCapabilityIds, businessSubjectKeys: config.businessSubjectKeys },
+        // The private worker has no live closure tools. Freeze authorized public
+        // fact/source details too, so an index alone is not called consumption.
+        capabilityDetails: Array.from({ length: Math.ceil(scope.detailCapabilityIds.length / 5) }, (_, index) =>
+          session.details(scope.detailCapabilityIds.slice(index * 5, index * 5 + 5))),
+        businessHistory: config.businessSubjectKeys.map(subjectKey => ({ subjectKey,
+          history: session.handoff.businessHistory ? capture(cursor => session.decisionHistory(subjectKey, { pageSize: 25, cursor })) : null })),
+        prospectHistory: session.handoff.scope.prospectIds.map(prospectId => ({ prospectId,
+          outcomes: capture(cursor => session.history(prospectId, { pageSize: 25, cursor })),
+          research: capture(cursor => session.researchDetails(prospectId, { pageSize: 25, cursor })) })),
+        siteHistory: session.handoff.scope.crmIds.map(crmId => ({ crmId,
+          history: capture(cursor => session.siteHistory(crmId, { pageSize: 25, cursor })) })),
+      };
+      return { available: true as const, selectedProspectIds: selected, relevantHistory, ...session };
     } catch {
       return { available: false as const, unknown: "native_learning_context_unavailable", paidModelCalls: 0 };
     }
@@ -150,7 +197,7 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
   async function prepareNativeJob(role: "daily_research" | "communications", recordRef: string, selectedProspectIds: string[] = [],
     options: { allowCreate?: boolean } = {}) {
     const { allowCreate } = z.object({ allowCreate: z.boolean().default(true) }).strict().parse(options);
-    const parsed = nativeRefSchema.parse(recordRef), selected = z.array(id).max(10).parse(selectedProspectIds).sort();
+    const parsed = nativeRefSchema.parse(recordRef), selected = z.array(id).max(100).parse(selectedProspectIds).sort();
     if (new Set(selected).size !== selected.length || (role === "communications") !== parsed.startsWith("blueprintCommunications/")) throw new Error("native_learning_job_identity_invalid");
     if (role === "communications") {
       if (selected.length !== 1) throw new Error("native_learning_job_scope_invalid");
@@ -177,8 +224,23 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
       if (input.handoff) {
         if (input.unknown !== null) throw new Error("native_learning_input_context_changed");
         const scope = await readScope();
+        if (input.relevantHistory) {
+          const captured = z.object({ crmIds: z.array(id), prospectIds: z.array(id), detailCapabilityIds: z.array(id),
+            businessSubjectKeys: z.array(id) }).strict().parse((input.relevantHistory as any).scope);
+          if (captured.crmIds.some(value => !scope.crmIds.includes(value))
+            || captured.prospectIds.some(value => !scope.prospectIds.includes(value))
+            || captured.detailCapabilityIds.some(value => !scope.detailCapabilityIds.includes(value))
+            || digest(captured.businessSubjectKeys) !== digest(config.businessSubjectKeys)) throw new Error("native_learning_input_context_changed_history_scope_denied");
+          for (const page of (input.relevantHistory as any).capabilityDetails ?? []) if (page.snapshot) {
+            const details = verifySourceSnapshot(page.snapshot);
+            if (details.scope.crmIds.length || details.scope.capabilityIds.some(value => !captured.detailCapabilityIds.includes(value))) {
+              throw new Error("native_learning_input_context_changed_history_scope_denied");
+            }
+          }
+        }
         handoff = await validateNativeHandoff(input.handoff, { role, principalId: config.principalId,
           subjectKeys: config.businessSubjectKeys, selectedProspectIds: input.prospectIds, source: scope.source,
+          crmIds: selection?.crmIds ?? scope.crmIds, discoveryCapabilityIds: scope.discoveryCapabilityIds,
           companyProspectIds: scope.prospectIds, focus: config.focus, preparedAt: input.preparedAt, now: instant.parse(clock()) }, db);
       } else if (input.handoff !== null || !input.unknown || (role === "daily_research" && input.prospectIds.length)) throw new Error("native_learning_input_context_changed");
       return { ...input, handoff };
@@ -198,6 +260,7 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
       configHash, nativeRecordRef: parsed, role, prospectIds: context.available ? [...context.selectedProspectIds].sort() : selected,
       sourceSnapshotId: config.sourceSnapshotId,
       preparedAt: instant.parse(clock()), handoff: context.available ? context.handoff : null,
+      ...(context.available ? { relevantHistory: context.relevantHistory } : {}),
       unknown: context.available ? null : context.unknown };
     const planned = await verify({ ...body, inputHash: digest(body) }, digest(body));
     if (Buffer.byteLength(JSON.stringify(planned)) > 900000) throw new Error("native_learning_input_export_or_narrow_scope_required");

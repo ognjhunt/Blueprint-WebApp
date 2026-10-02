@@ -4,6 +4,8 @@ import {
   type CommunicationsOutput,
 } from "./communications-contract";
 import { parseCommunicationsOutput, outputTextDigest, CommunicationsOutputValidationError, type CommunicationsOutputSource } from "./communications-output";
+import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
+  verifiedCommunicationsSavedAgent } from "./communications-saved-agent";
 
 export type CommunicationsCheckpoint = {
   createClaimedAt: string | null; sessionId: string | null; turnId: string | null;
@@ -71,7 +73,11 @@ export class CommunicationsAgentsAPI {
   async preflight() {
     const model = await this.json(`/models/${COMMUNICATIONS_MODEL}`);
     if (model.id !== COMMUNICATIONS_MODEL) throw new CommunicationsRuntimeError("requested_luna_model_unavailable");
-    return { model: model.id, project: COMMUNICATIONS_PROJECT };
+    const saved = await this.json(`/agents/${COMMUNICATIONS_SAVED_AGENT_ID}`, 256000);
+    let binding;
+    try { binding = verifiedCommunicationsSavedAgent(saved); }
+    catch { throw new CommunicationsRuntimeError("communications_saved_agent_definition_changed"); }
+    return { model: model.id, project: COMMUNICATIONS_PROJECT, binding, runtime: "saved_agent" as const };
   }
   async run(params: {
     input: string; jobId: string; checkpoint: CommunicationsCheckpoint;
@@ -83,7 +89,8 @@ export class CommunicationsAgentsAPI {
     if (checkpoint.createClaimedAt && !checkpoint.sessionId) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const fresh = !checkpoint.sessionId;
     const requestDigest = fresh
-      ? communicationsDigest({ model: COMMUNICATIONS_MODEL, serviceTier: "default", instructions: COMMUNICATIONS_INSTRUCTIONS, input: params.input })
+      ? communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
+        configurationDigest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, input: params.input })
       : checkpoint.requestDigest;
     if (!requestDigest || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
     if (fresh) {
@@ -97,11 +104,12 @@ export class CommunicationsAgentsAPI {
     }
     const handle = await this.request(fresh ? "/agents/sessions" : `/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, fresh ? {
       method: "POST", body: JSON.stringify({
-        agent: { model: COMMUNICATIONS_MODEL, instructions: COMMUNICATIONS_INSTRUCTIONS,
-          service_tier: "default", reasoning: { effort: "medium" }, text: { verbosity: "low" }, tools: [], multi_agent: { enabled: false } },
+        agent_id: COMMUNICATIONS_SAVED_AGENT_ID,
         environment: { type: "none" }, input: params.input, stream: true,
         metadata: { blueprint_communications_job: params.jobId, role: "communications",
           blueprint_communications_request_digest: requestDigest,
+          blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
+          blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
           blueprint_communications_definition: COMMUNICATIONS_DEFINITION.version,
           blueprint_communications_instructions_digest: COMMUNICATIONS_DEFINITION.instructionsDigest },
       }),
@@ -178,9 +186,18 @@ export class CommunicationsAgentsAPI {
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const session = await this.json(path, 256000);
     const definition = communicationsDefinitionForInstructions(session.agent?.instructions);
+    const usesSavedAgent = session.metadata?.blueprint_communications_saved_agent !== undefined;
+    if (usesSavedAgent) {
+      try { verifiedCommunicationsSavedAgent(session.agent); }
+      catch { throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch"); }
+      if (session.metadata.blueprint_communications_saved_agent !== COMMUNICATIONS_SAVED_AGENT_ID
+        || session.metadata.blueprint_communications_configuration_digest !== COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST) {
+        throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
+      }
+    }
     if (session.id !== checkpoint.sessionId || typeof session.agent?.id !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(session.agent.id)
       || session.agent?.model !== COMMUNICATIONS_MODEL
-      || session.agent?.service_tier !== "default" || !definition
+      || session.agent?.service_tier !== (usesSavedAgent ? "auto" : "default") || !definition
       || !Array.isArray(session.agent?.tools) || session.agent.tools.length !== 0
       || session.agent?.multi_agent?.enabled !== false || session.environment?.type !== "none"
       || !Array.isArray(session.vault_ids) || session.vault_ids.length !== 0

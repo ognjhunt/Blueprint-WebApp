@@ -30,6 +30,9 @@ import { runRobotCapabilityRefreshLoop } from "./robotCapabilityRefresh";
 import { reconcileAgentRunSettlements } from "./agentEvalRuns";
 import { deliverOutbox } from "./captureOutbox";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
+import { runOpsIncidentReconciliation } from "./ops-incident-reconciliation";
+import { runSpendPublicationLoop } from "./spend-evidence-publication";
+import { runOpsIncidentDelivery } from "./ops-incident-delivery";
 
 const WORKER_STATUS_COLLECTION = "opsAutomationWorkerStatus";
 
@@ -51,6 +54,8 @@ type WorkerDefinition = {
    * prevent. An explicit `=0` still disables it.
    */
   defaultEnabled?: boolean;
+  /** Owner-stopped lanes never inherit the global automation flag. */
+  explicitEnable?: boolean;
   run: (params: { limit: number }) => Promise<WorkerRunResult>;
 };
 
@@ -94,6 +99,25 @@ async function persistWorkerStatus(
 }
 
 const workers: WorkerDefinition[] = [
+  {
+    key: "ops_incident_delivery", enabledEnv: "BLUEPRINT_OPS_SLACK_DELIVERY_ENABLED",
+    intervalEnv: "BLUEPRINT_OPS_SLACK_DELIVERY_INTERVAL_MS", batchEnv: "BLUEPRINT_OPS_SLACK_DELIVERY_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_OPS_SLACK_DELIVERY_STARTUP_DELAY_MS", defaultIntervalMs: 60000,
+    defaultBatchSize: 1, defaultStartupDelayMs: 60000, explicitEnable: true, run: () => runOpsIncidentDelivery(),
+  },
+  {
+    key: "spend_evidence_publication", enabledEnv: "BLUEPRINT_SPEND_PUBLICATION_ENABLED",
+    intervalEnv: "BLUEPRINT_SPEND_PUBLICATION_INTERVAL_MS", batchEnv: "BLUEPRINT_SPEND_PUBLICATION_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_SPEND_PUBLICATION_STARTUP_DELAY_MS", defaultIntervalMs: 60 * 60 * 1000,
+    defaultBatchSize: 1, defaultStartupDelayMs: 60000, explicitEnable: true, run: () => runSpendPublicationLoop(),
+  },
+  {
+    key: "ops_incident_reconciliation", enabledEnv: "BLUEPRINT_OPS_SLACK_RECONCILE_ENABLED",
+    intervalEnv: "BLUEPRINT_OPS_SLACK_RECONCILE_INTERVAL_MS", batchEnv: "BLUEPRINT_OPS_SLACK_RECONCILE_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_OPS_SLACK_RECONCILE_STARTUP_DELAY_MS", defaultIntervalMs: 60 * 60 * 1000,
+    defaultBatchSize: 1, defaultStartupDelayMs: 60000, explicitEnable: true,
+    run: () => runOpsIncidentReconciliation(),
+  },
   {
     key: "waitlist",
     enabledEnv: "BLUEPRINT_WAITLIST_AUTOMATION_ENABLED",
@@ -459,7 +483,7 @@ export function startOpsAutomationScheduler() {
   });
 
   for (const worker of workers) {
-    const laneEnabled = worker.defaultEnabled
+    const laneEnabled = worker.explicitEnable ? process.env[worker.enabledEnv] === "true" : worker.defaultEnabled
       ? process.env[worker.enabledEnv] === undefined ||
         isTruthyEnvValue(process.env[worker.enabledEnv])
       : isAutomationLaneEnabled(worker.enabledEnv);

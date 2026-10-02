@@ -3,6 +3,7 @@ import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest,
   communicationsDeliveryKey, verifyCommunicationsHandoff,
   communicationsEnvelopeSchema,
+  isOptOut,
 } from "../agents/communications-contract";
 import { authorize, cohortLabel, entitiesSchema, instant, makeEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
 import { eventSection } from "./snapshot";
@@ -141,6 +142,11 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
           observedSourceRefs.push(ref);
           try {
             const reply = item.record.message;
+            const observedAt = item.record.observedAt === undefined ? reply?.receivedAt : instant.parse(item.record.observedAt);
+            if (item.record.version === "blueprint.communications-reply-observation.v1"
+              && (item.record.prospectId !== input.prospectId || item.record.briefId !== job.briefId
+                || item.record.briefDigest !== job.briefDigest || item.record.messageHash !== communicationsDigest(reply)
+                || Date.parse(observedAt) < Date.parse(reply?.receivedAt))) throw new Error("reply_receipt_changed");
             const sentRefs = communicationsEvents.filter(e => e.record.type === "sent"
               && e.record.job?.prospectId === input.prospectId && brief.priorConversation?.gmailMessageIds.includes(e.record.receipt?.messageId)
               && e.record.receipt?.threadId === reply?.gmailThreadId);
@@ -154,9 +160,11 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
               || !reply.to?.some((to: string) => ["nijel@tryblueprint.io", "hello@tryblueprint.io"].includes(to.toLowerCase()))) throw new Error("reply_join_invalid");
             events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "reply_observed", occurredAt: reply.receivedAt,
               data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", messageId: reply.gmailMessageId, threadId: reply.gmailThreadId,
-                classification: { label: "unknown", interest: "unknown", objections: [], confidence: 0, method: "legacy_unknown", uncertain: true } },
+                classification: isOptOut(reply)
+                  ? { label: "opt_out", interest: "unknown", objections: [], confidence: 1, method: "deterministic", uncertain: false }
+                  : { label: "unknown", interest: "unknown", objections: [], confidence: 0, method: "legacy_unknown", uncertain: true } },
               evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(item.record),
-                checkedAt: reply.receivedAt, basis: "correlated_reply" }] }));
+                checkedAt: observedAt, basis: "correlated_reply" }] }));
           } catch {
             quarantine.push({ recordRef: ref,
               reason: "reply_evidence_invalid_reconcile_exact_message_thread_and_rfc_refs" });

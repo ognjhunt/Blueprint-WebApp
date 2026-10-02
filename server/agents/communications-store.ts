@@ -3,6 +3,7 @@ import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest,
   type CommunicationsBrief, type CommunicationsJob, type CommunicationsOutput,
   verifyCommunicationsHandoff, communicationsDeliveryKey,
+  type ThreadMessage,
 } from "./communications-contract";
 import type { CommunicationsCheckpoint } from "./communications-api";
 import type { ActionPayload } from "./action-policies";
@@ -198,9 +199,28 @@ export class CommunicationsStore {
         nextAttemptAt: this.now() + 15 * 60000, lease: { owner: this.owner, until: 0 }, updatedAt: this.now() });
     });
   }
-  async recordReply(job: CommunicationsJob, message: unknown) {
-    await this.db.collection("outboundProspects").doc(job.prospectId).collection("communicationsEvents").doc(`reply_${job.inboundMessageId}`).set({
-      type: "reply_received", jobId: job.jobId, message, untrusted: true,
+  async recordReply(job: CommunicationsJob, message: ThreadMessage, fetchedAt = new Date(this.now()).toISOString()) {
+    const identity = communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"]
+      .map(key => [key, (job as any)[key]]))), received = Date.parse(message.receivedAt), observed = Date.parse(fetchedAt);
+    if (identity.intent !== "reply" || identity.inboundMessageId !== message.gmailMessageId
+      || !Number.isFinite(received) || !Number.isFinite(observed) || received > observed || observed > this.now()) {
+      throw new Error("communications_reply_observation_invalid");
+    }
+    const messageHash = communicationsDigest(message), ref = this.db.collection("outboundProspects").doc(job.prospectId)
+      .collection("communicationsEvents").doc(`reply_${message.gmailMessageId}`);
+    return this.db.runTransaction(async tx => {
+      const previous = await tx.get(ref);
+      if (previous.exists) {
+        const saved = previous.data()!;
+        if (saved.type !== "reply_received" || saved.untrusted !== true || communicationsDigest(saved.message) !== messageHash
+          || (saved.messageHash !== undefined && saved.messageHash !== messageHash)) throw new Error("communications_reply_source_changed");
+        return "existing";
+      }
+      tx.create(ref, { version: "blueprint.communications-reply-observation.v1", type: "reply_received",
+        jobId: job.jobId, prospectId: job.prospectId, briefId: job.briefId, briefDigest: job.briefDigest,
+        message, messageHash, untrusted: true, originalObservedAt: fetchedAt,
+        observedAt: new Date(observed).toISOString(), recordedAt: this.now() });
+      return "created";
     });
   }
   async requestRefresh(job: CommunicationsJob, reasons: string[]) {

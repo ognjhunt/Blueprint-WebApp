@@ -36,7 +36,8 @@ export async function communicationsPreflight({ env = process.env, fetchImpl = f
       if (profile.data.emailAddress?.trim().toLowerCase() !== APPROVED_MAILBOX) mailbox = { state: "blocked", reason: "founder_gmail_wrong_mailbox" };
       else {
         const sendAs = await gmail.users.settings.sendAs.list({ userId: "me" }, { timeout: 15000 });
-        if (!sendAs.data.sendAs?.some(entry => entry.sendAsEmail?.toLowerCase() === APPROVED_MAILBOX && entry.verificationStatus === "accepted")) {
+        if (!sendAs.data.sendAs?.some(entry => entry.sendAsEmail?.toLowerCase() === APPROVED_MAILBOX
+          && (entry.isPrimary === true || entry.verificationStatus === "accepted"))) {
           mailbox = { state: "blocked", reason: "founder_sender_unverified_or_permission_missing" };
         } else mailbox = { state: "verified", mailbox: APPROVED_MAILBOX, sender: APPROVED_MAILBOX };
       }

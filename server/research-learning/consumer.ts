@@ -23,7 +23,7 @@ export const consumerBindingSchema = z.object({
 }).strict().refine(value => value.crmIds.length + value.discoveryCapabilityIds.length > 0
   && value.detailCapabilityIds.every(valueId => value.discoveryCapabilityIds.includes(valueId)));
 export type ConsumerBinding = z.infer<typeof consumerBindingSchema>;
-export const consumerSelectionSchema = z.object({ crmIds: ids(10), prospectIds: ids(10), capabilityIds: ids(5),
+export const consumerSelectionSchema = z.object({ crmIds: ids(), prospectIds: ids(), capabilityIds: ids(5),
   focus: z.object({ city: safeText(120), industry: safeText(120) }).strict(), maturityDays: z.number().int().min(1).max(90).default(14),
 }).strict();
 export type ConsumerSelection = z.input<typeof consumerSelectionSchema>;
