@@ -65,11 +65,11 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       if (!incoming) throw new Error("reply_correlation_missing");
       // Preserve what actually arrived. No model classification can rewrite it
       // into verified CRM fields or silently qualify the site.
-      await deps.store.recordReply(job, incoming);
+      await deps.store.recordReply(job, incoming, thread.fetchedAt);
       const replies = correlatedReplies(brief, thread);
       const optOut = replies.find(isOptOut);
       if (optOut) {
-        await deps.store.recordReply({ ...job, inboundMessageId: optOut.gmailMessageId }, optOut);
+        await deps.store.recordReply({ ...job, inboundMessageId: optOut.gmailMessageId }, optOut, thread.fetchedAt);
         const suppressed = await deps.suppress(brief.contact.email, `Correlated opt-out reply ${optOut.gmailMessageId}`);
         if (!suppressed.persisted) throw new Error("opt_out_suppression_not_persisted");
         await deps.store.db.collection("outboundProspects").doc(job.prospectId).set({
@@ -199,7 +199,9 @@ export function buildCommunicationsInput(brief: CommunicationsBrief, thread: Ver
     ...(h ? { asOf: h.asOf, contextHash: h.contextHash, priorResearch: h.priorResearch.nativeResearchSubjects,
       priorContactAndOutcomes: { coverage: h.priorContactAndOutcomes.coverage, prospects: h.priorContactAndOutcomes.prospects,
         missingRecordsMean: h.priorContactAndOutcomes.missingRecordsMean },
-      businessHistory: h.businessHistory, businessOverview: h.businessOverview, unknowns: h.unknowns, provenance: h.provenance } : {}) };
+      businessHistory: h.businessHistory, businessOverview: h.businessOverview,
+      ...(learning.relevantHistory ? { relevantHistory: learning.relevantHistory } : {}),
+      unknowns: h.unknowns, provenance: h.provenance } : {}) };
   const input = JSON.stringify({ ...base, learningHistory });
   // Retain the immutable full context by reference without making its inline
   // size a new first-draft gate. This choice replays from the same frozen input.

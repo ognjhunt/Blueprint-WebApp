@@ -230,6 +230,22 @@ function existingReplySourceFixture(): ExistingProspectSources {
 }
 
 describe("read-only existing-source joins and staged migration", () => {
+  it("binds new reply observations to their original bytes and later observation time without inferring interest", () => {
+    const input = existingReplySourceFixture(), record = input.communicationsEvents[1].record, job = input.jobs[0].record as any;
+    Object.assign(record, { version: "blueprint.communications-reply-observation.v1", prospectId: input.prospectId,
+      briefId: job.briefId, briefDigest: job.briefDigest, messageHash: communicationsDigest(record.message), observedAt: "2026-10-01T12:00:00Z" });
+    const result = normalizeExistingSources([input], learningNow), event = result.events.find(event => event.kind === "reply_observed");
+    expect(result.quarantine).toEqual([]); expect(event?.evidence[0].checkedAt).toBe("2026-10-01T12:00:00.000Z");
+    expect(event?.data).toMatchObject({ classification: { label: "unknown", interest: "unknown", uncertain: true } });
+    record.message.body = "Different bytes";
+    expect(normalizeExistingSources([input], learningNow).events.some(event => event.kind === "reply_observed")).toBe(false);
+  });
+  it("records an explicit correlated opt-out separately from rejection or demand", () => {
+    const input = existingReplySourceFixture(); input.communicationsEvents[1].record.message.body = "Please unsubscribe me.";
+    const result = normalizeExistingSources([input], learningNow);
+    expect(result.events.find(event => event.kind === "reply_observed")?.data).toMatchObject({
+      classification: { label: "opt_out", interest: "unknown", method: "deterministic", uncertain: false } });
+  });
   it("groups identical canonical copy despite distinct recipient transport footers", () => {
     const first = existingSourceFixture(), second = structuredClone(first), later = second.jobs[0];
     const identity = later.record as any;

@@ -1,6 +1,6 @@
 # Research and outreach learning layer
 
-Status: verified foundation deployed; prior-research reconciliation staged; business decision/run/daily handlers implemented offline. Caller hooks and Chicago scheduler activation remain separately owned integrations; see the business loop contract below.
+Status: verified foundation deployed; prior-research reconciliation staged; business decision/run/daily handlers implemented offline. The scoped private-worker integration now reuses canonical native hooks; activation and live consumption remain separately verified gates. See `docs/agents/communications-learning-audit-2026-10-02.md` for the exact bridge ABI, retained history, read-only checkpoint and remaining feedback-loop proof.
 Owner: WebApp learning projection, coordinated by the parent engineering lane.
 Agent autonomy: agents choose research strategy, tools and depth within the
 authorized task and repair ordinary errors in the same session. Relevant history
@@ -60,10 +60,12 @@ existing authorization. Its exact fields are `principalId`, `role`
 Never accept this binding from a model, client body or model-selected file.
 Discovery access is separate from detail access; the host expands detail scope
 when authorized. This logical scope is not a new IAM/OAuth/security grant.
-Selection contains at most ten `crmIds`, ten explicit native `prospectIds`,
-five initial `capabilityIds`, `focus: {city, industry}` and optional
-`maturityDays` (default fourteen). Larger runs select successive relevant
-scopes; ten is a context bound, not a research-success ceiling.
+Selection preserves up to the already granted hundred `crmIds` and native
+`prospectIds`, five initial `capabilityIds`, `focus: {city, industry}` and optional
+`maturityDays` (default fourteen). The private worker freezes every authorized
+history page and separately granted capability-detail page. Its actual 600,000
+byte input boundary requires an explicit export or narrower scope if exceeded;
+it never silently drops the eleventh row or stops after a fixed page count.
 
 Opening captures prior sanitized research and queries canonical prospects by
 exact `researchPublicationId` for the selected CRM IDs. Missing or competing

@@ -1,16 +1,30 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null }));
+const runtime = vi.hoisted(() => ({ db: null as any }));
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return runtime.db; } }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), error: vi.fn() }, attachRequestMeta: (input: unknown) => input }));
 import { startDailyResearchWorker } from "../utils/dailyResearchWorker";
 const learning = () => ({ daily: vi.fn(async () => ({ state: "completed" })), beforeWork: vi.fn(async () => ({ available: true as const, handoff: { contextHash: "synthetic-context", paidModelCalls: 0 } })),
   prepareNativeJob: vi.fn(async () => ({ handoff: { contextHash: "synthetic-context", paidModelCalls: 0 } })),
   afterNativeWork: vi.fn(async () => ({})) });
-afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); runtime.db = null; });
 describe("existing native research worker learning lifecycle", () => {
   it("does not load the package, start timers, or aggregate when the existing worker flag is disabled", async () => {
     vi.stubEnv("BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "false");
     const hooks = learning(), load = vi.fn(); await startDailyResearchWorker({ learning: hooks as any, loadPackage: load }).stop();
     expect(load).not.toHaveBeenCalled(); expect(hooks.daily).not.toHaveBeenCalled();
+  });
+  it.each([undefined, { enabled: false }])("does not activate absent/disabled learning merely because research is enabled", async control => {
+    vi.stubEnv("BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "true"); vi.useFakeTimers();
+    const get = vi.fn(async () => ({ data: () => ({ learning: control }) }));
+    runtime.db = { doc: vi.fn(() => ({ get })) };
+    const start = vi.fn((_options: any) => ({ stop: async () => {} }));
+    const worker = startDailyResearchWorker({ loadPackage: async () => ({ startDailyResearchWorker: start }) });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(runtime.db.doc).toHaveBeenCalledWith("blueprintDailyResearch/sites-first");
+    expect(get).toHaveBeenCalledTimes(1); expect(start).toHaveBeenCalledTimes(1);
+    expect(start.mock.calls[0][0]).not.toHaveProperty("learningHostModule");
+    expect(start.mock.calls[0][0]).not.toHaveProperty("learningHooks");
+    expect(vi.getTimerCount()).toBe(0); await worker.stop();
   });
   it("passes bounded pre-prompt and post-native callbacks while preserving the research package and provider flags", async () => {
     vi.stubEnv("BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "true"); vi.useFakeTimers();

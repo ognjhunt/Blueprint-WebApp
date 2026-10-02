@@ -78,6 +78,19 @@ describe("research handoff and publication integrity", () => {
 });
 
 describe("Blueprint-owned communications queue", () => {
+  it("retains one immutable correlated reply receipt with separate observed time and source hash", async () => {
+    const f = await setup("reply"), incoming = f.thread!.messages.at(-1)!;
+    await f.store.recordReply(f.job, incoming, f.thread!.fetchedAt);
+    const ref = `outboundProspects/${f.job.prospectId}/communicationsEvents/reply_${incoming.gmailMessageId}`;
+    const first = structuredClone(f.db.records.get(ref));
+    expect(first).toMatchObject({ version: "blueprint.communications-reply-observation.v1", messageHash: communicationsDigest(incoming),
+      observedAt: new Date(f.thread!.fetchedAt).toISOString(), originalObservedAt: f.thread!.fetchedAt,
+      recordedAt: communicationsNow, untrusted: true });
+    expect(await f.store.recordReply(f.job, incoming, f.thread!.fetchedAt)).toBe("existing");
+    expect(f.db.records.get(ref)).toEqual(first);
+    await expect(f.store.recordReply(f.job, { ...incoming, body: "Changed original message" }, f.thread!.fetchedAt)).rejects.toThrow("reply_source_changed");
+    expect(f.db.records.get(ref)).toEqual(first);
+  });
   it("does not start a timer or inference without separate worker and spending flags", () => {
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED", "true");
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE", "false");
