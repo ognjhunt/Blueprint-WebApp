@@ -57,7 +57,7 @@ import { SiteScreeningCallPanel } from "@/components/admin/SiteScreeningCallPane
 import { OutreachApprovalReview, type OutreachApproval, type OutreachReviewSummary } from "@/components/admin/OutreachApprovalReview";
 import { FounderMailboxConnection } from "@/components/admin/FounderMailboxConnection";
 import { CommunicationsRecovery } from "@/components/admin/CommunicationsRecovery";
-import { CommunicationsDraftEditor } from "@/components/admin/CommunicationsDraftEditor";
+import { CommunicationsDraftEditor, type GmailDraftSummary, type GmailDraftResult } from "@/components/admin/CommunicationsDraftEditor";
 
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -237,6 +237,8 @@ interface ActionQueueItem {
   draft_output: Record<string, unknown>;
   outreach_review?: OutreachReviewSummary;
   sending_enabled?: boolean;
+  draft_revision_id?: string|null;
+  gmail_draft?: GmailDraftSummary;
 }
 
 interface ActionQueueResponse {
@@ -929,6 +931,21 @@ export default function AdminLeads() {
       if (!response.ok) throw new Error(`Could not load the action queue (${response.status}). Retry the request.`);
       return response.json();
     },
+  });
+
+  const founderDraftCapability = useQuery<{draftScopeGranted?:boolean}>({
+    queryKey:["founder-gmail-consent-status",currentUser?.uid], enabled:isAdmin && Boolean(currentUser) && activeView==="approvals", retry:false,
+    queryFn:async()=>{const response=await fetch("/api/communications/gmail/oauth/status",{headers:await withFirebaseAuthHeaders(currentUser)});
+      if(!response.ok)throw new Error("Founder draft capability is unavailable.");return response.json();},
+  });
+  const saveGmailDraftMutation = useMutation({
+    mutationFn:async({ledgerId,...input}:{ledgerId:string;expectedReviewDigest:string;expectedRevisionId:string|null;mode:"write"|"reconcile"})=>{
+      const response=await fetch(`/api/admin/leads/action-queue/${ledgerId}/gmail-draft`,{method:"POST",credentials:"include",
+        headers:await withCsrfHeader(await withFirebaseAuthHeaders(currentUser,{"Content-Type":"application/json"}),{refresh:true}),body:JSON.stringify(input)});
+      const result=await response.json();if(!response.ok)throw new Error(result.error ?? "Gmail draft could not be verified. Check the existing draft before another write.");
+      return result as GmailDraftResult;
+    },
+    onSuccess:()=>queryClient.invalidateQueries({queryKey:["admin-action-queue"]}),
   });
 
   const approveActionMutation = useMutation({
@@ -1859,6 +1876,9 @@ export default function AdminLeads() {
                       {item.status === "pending_approval" ? (
                         <>
                           {item.action_payload.communications ? <CommunicationsDraftEditor payload={item.action_payload} review={item.outreach_review}
+                            revisionId={item.draft_revision_id ?? null}
+                            gmailDraft={item.gmail_draft ? {...item.gmail_draft,writesEnabled:item.gmail_draft.writesEnabled && founderDraftCapability.data?.draftScopeGranted===true && !founderDraftCapability.isError && !approvalQueueQuery.isError} : undefined}
+                            onGmailSave={input=>saveGmailDraftMutation.mutateAsync({ledgerId:item.id,...input})}
                             onSave={input => reviseActionMutation.mutateAsync({ ledgerId: item.id, ...input })} /> : null}
                           {item.lane === "outbound_prospect" || item.source_collection === "outboundProspects" || item.action_payload.communications ? (
                             <OutreachApprovalReview review={item.outreach_review} payload={item.action_payload}

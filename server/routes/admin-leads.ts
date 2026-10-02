@@ -28,7 +28,7 @@ import {
 import { reviewOutreachDraft, type OutreachReviewResult } from "../agents/outreach-review";
 import { isCommunicationsPayload, reviewCommunicationsPayload } from "../agents/communications-review";
 import { communicationsSendingEnabled } from "../agents/communications-send";
-import { mirrorCommunicationsGmailDraft, CommunicationsGmailDraftError } from "../agents/communications-gmail-draft";
+import { mirrorCommunicationsGmailDraft, CommunicationsGmailDraftError, communicationsGmailDraftStatus } from "../agents/communications-gmail-draft";
 import { reviseCommunicationsDraft, CommunicationsDraftRevisionError } from "../agents/communications-draft-revision";
 import type {
   DerivedAssetsAttachment,
@@ -359,6 +359,7 @@ type ActionLedgerRecord = Record<string, unknown> & {
   last_execution_at?: unknown;
   action_payload?: Record<string, unknown>;
   draft_output?: Record<string, unknown>;
+  draft_revision_id?: string | null;
 };
 
 type ActionQueueItem = {
@@ -385,6 +386,7 @@ type ActionQueueItem = {
   action_payload: Record<string, unknown>;
   draft_output: Record<string, unknown>;
   outreach_review?: OutreachReviewResult;
+  draft_revision_id?: string | null;
 };
 
 function normalizeActionLedgerItem(
@@ -439,7 +441,7 @@ function normalizeActionLedgerItem(
         context: data.action_payload?.outreachContext,
       }),
     } : {}),
-    ...(isCommunicationsPayload(data.action_payload ?? {}) ? { sending_enabled: communicationsSendingEnabled() } : {}),
+    ...(isCommunicationsPayload(data.action_payload ?? {}) ? { sending_enabled: communicationsSendingEnabled(), draft_revision_id: data.draft_revision_id ?? null } : {}),
   };
 }
 
@@ -1170,7 +1172,8 @@ router.get("/action-queue", requireAdmin, async (req: Request, res: Response) =>
       if (["executing", "operator_approved"].includes(item.status) && !isCommunicationsPayload(item.action_payload)) return false;
       return lane ? item.lane === lane : true;
     });
-    const limitedItems = items.slice(0, limitNum);
+    const limitedItems = await Promise.all(items.slice(0, limitNum).map(async item =>
+      item.action_payload.communications ? { ...item, gmail_draft: await communicationsGmailDraftStatus(firestore, item.id, item.action_payload) } : item));
 
     return res.json({
       items: limitedItems,

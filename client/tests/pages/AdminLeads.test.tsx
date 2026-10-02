@@ -426,6 +426,25 @@ describe("AdminLeads scene readiness", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/admin/leads/action-queue?limit=100", expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer synthetic-owner-token" }) }));
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
+  it("copies the exact saved revision from Approvals only on a manual authenticated click",async()=>{
+    const digest="a".repeat(64),revisionId="b".repeat(64),ledgerId=`communications_${"c".repeat(64)}`;
+    const fetchMock=vi.spyOn(global,"fetch").mockImplementation(async(input,init)=>{
+      const url=String(input);
+      if(url==="/api/communications/gmail/oauth/status")return Response.json({enabled:true,state:"connected_draft_capable",draftScopeGranted:true,sendsEnabled:false});
+      if(url.endsWith("/gmail-draft"))return Response.json({state:"verified",draftId:"gmail-draft-1",reviewDigest:digest,revisionId,sent:false});
+      if(url.startsWith("/api/admin/leads/action-queue?"))return Response.json({items:[{id:ledgerId,status:"pending_approval",lane:"outbound_prospect",source_collection:"outboundProspects",source_doc_id:"saved-prospect",action_type:"send_email",action_tier:3,draft_output:{},draft_revision_id:revisionId,
+        gmail_draft:{writesEnabled:true,state:"not_copied",draftId:null,verifiedAt:null,currentRevisionVerified:false},
+        action_payload:{to:"operator@facility.example",subject:"A task question",body:"A bounded question?",communications:{job:{intent:"outreach"},output:{subject:"A task question",body:"A bounded question?",usedFactIds:[],outreachContract:null},brief:{facts:[]}}},sending_enabled:false,
+        outreach_review:{digest,hardChecksPassed:true,blockers:[],semanticReviewRequired:{evidence:"Verify sources."}}}],summary:{total:1,pending_approval:1,failed:0}});
+      return Response.json({leads:[],total:0,byStatus:{},byPriority:{}});
+    });
+    renderPage();const tab=await screen.findByRole("tab",{name:/approvals/i});fireEvent.mouseDown(tab);fireEvent.click(tab);
+    const save=await screen.findByRole("button",{name:"Save Gmail draft"});await waitFor(()=>expect(save).toBeEnabled());
+    expect(fetchMock.mock.calls.some(([,init])=>init?.method==="POST")).toBe(false);fireEvent.click(save);
+    expect(await screen.findByText(/Gmail draft readback verified for this saved revision/)).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledWith(`/api/admin/leads/action-queue/${ledgerId}/gmail-draft`,expect.objectContaining({method:"POST",credentials:"include",headers:expect.objectContaining({Authorization:"Bearer synthetic-owner-token"}),body:JSON.stringify({expectedReviewDigest:digest,expectedRevisionId:revisionId,mode:"write"})}));
+    expect(fetchMock.mock.calls.filter(([,init])=>init?.method==="POST")).toHaveLength(1);expect(screen.getByRole("button",{name:"Approve outreach"})).toBeDisabled();
+  });
   it("shows a queue read failure with unknown counts, then retries successfully instead of claiming no approvals", async () => {
     let queueFails = true;
     vi.spyOn(global, "fetch").mockImplementation(async input => {

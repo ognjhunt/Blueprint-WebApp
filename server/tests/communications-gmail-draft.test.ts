@@ -85,6 +85,12 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   }),get:vi.fn(async()=>({data:full})),send:vi.fn()},messages:{send:vi.fn()}}};
   const ports=configuredGmailDraftPorts(api), content:any={jobId:f.job.jobId,reviewDigest:f.input.expectedReviewDigest,payloadDigest:"c".repeat(64),to:f.payload.to,subject:f.payload.subject,body:f.payload.transportBody,messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`};
   await ports.write(content);expect(await ports.find(content,"draft-1")).toEqual({draftId:"draft-1",messageId:"message-1",threadId:"thread-1"});
+  for(const name of ["Cc","Bcc","To"]){
+   full.message.payload.headers.push({name,value:"extra@example.reserved.invalid"});
+   await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");full.message.payload.headers.pop();
+  }
+  full.message.payload.parts=[{mimeType:"application/pdf",filename:"added.pdf",body:{attachmentId:"fixture-attachment"}}];
+  await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");delete full.message.payload.parts;
   const from=full.message.payload.headers.find((header:any)=>header.name==="From");from.value+=" attacker@example.reserved.invalid";
   await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");expect(api.users.drafts.send).not.toHaveBeenCalled();expect(api.users.messages.send).not.toHaveBeenCalled();
  });

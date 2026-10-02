@@ -113,18 +113,40 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
       const receipt = await ports.find(planned.content, written.draftId);
       if (!receipt) fail("gmail_draft_readback_unverified");
       await mark("verified", receipt);
-      return { state: "verified", draftId: receipt.draftId, revisionId: request.expectedRevisionId, sent: false, approved: false };
+      return { state: "verified", draftId: receipt.draftId, reviewDigest: planned.content.reviewDigest, revisionId: planned.old.revisionId, sent: false, approved: false };
     }
     // Unknown create/update is observation-only, including a process restart.
     const receipt = await ports.find(planned.content, planned.old.draftId ?? undefined);
     if (!receipt) return { state: "unknown", sent: false, gmailDraftCreated: false };
     await mark("verified", receipt);
-    return { state: "verified", draftId: receipt.draftId, sent: false, approved: false };
+    return { state: "verified", draftId: receipt.draftId, reviewDigest: planned.content.reviewDigest, revisionId: planned.old.revisionId, sent: false, approved: false };
   } catch (error) {
     if (planned.state === "claimed") await mark(submitted ? "unknown" : "refused_before_write");
     if (error instanceof CommunicationsGmailDraftError) throw error;
     throw new CommunicationsGmailDraftError("gmail_draft_unknown_acknowledgement_reconcile_exact_job", 503);
   }
+}
+
+/** Read-only canonical metadata for the existing Approvals queue. This never
+ * calls Gmail or mistakes a prior verification for fresh mailbox observation. */
+export async function communicationsGmailDraftStatus(db: FirebaseFirestore.Firestore, ledgerId: string, payload: Record<string, unknown>) {
+  const writesEnabled=process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED === "true"
+    && Boolean(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF);
+  const base={writesEnabled, state:"unavailable", draftId:null as string|null, verifiedAt:null as string|null, currentRevisionVerified:false};
+  if (!/^communications_[a-f0-9]{64}$/.test(ledgerId)) return base;
+  try {
+    const saved=await db.doc(COMMUNICATIONS_ROOT).collection("gmailDraftBindings").doc(ledgerId.slice("communications_".length)).get();
+    if (!saved.exists) return {...base,state:"not_copied"};
+    const row=saved.data()!;
+    if (row.version!=="blueprint.communications-gmail-draft-binding.v1" || row.ledgerId!==ledgerId
+      || row.jobId!==ledgerId.slice("communications_".length) || !["verified","writing","unknown","refused_before_write"].includes(row.state)) return base;
+    const current=row.content?.payloadDigest===communicationsDigest(payload) && row.content?.to===payload.to
+      && row.content?.subject===payload.subject && row.content?.body===payload.transportBody && row.content?.jobId===row.jobId;
+    return {...base,state:row.state==="verified" && !current ? "stale" : row.state,
+      draftId:typeof row.draftId==="string" ? row.draftId : null,
+      verifiedAt:typeof row.verifiedAt==="number" && Number.isFinite(row.verifiedAt) ? new Date(row.verifiedAt).toISOString() : null,
+      currentRevisionVerified:row.state==="verified" && current};
+  } catch { return base; }
 }
 
 /** Operator-only recovery after proof the exact writer process ended. No TTL
@@ -174,6 +196,10 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail): GmailDraftPor
       const get=(name:string)=>extractHeader(headers,name), normalize=(value:string)=>value.replace(/\r\n/g,"\n");
       const subject=(get("Subject") ?? "").replace(/=\?UTF-8\?B\?([A-Za-z0-9+/=]+)\?=/gi,(_,encoded:string)=>Buffer.from(encoded,"base64").toString("utf8"));
       if (draft.id!==draftId || !message?.id || !message.threadId || !message.labelIds?.includes("DRAFT") || message.labelIds.includes("SENT")
+        || headers?.some(header=>["cc","bcc"].includes((header.name ?? "").toLowerCase()) && Boolean(header.value?.trim()))
+        || ["from","to","reply-to","subject","message-id","x-blueprint-job-id","x-blueprint-review-digest","x-blueprint-payload-digest"].some(name=>headers?.filter(header=>(header.name ?? "").toLowerCase()===name).length!==1)
+        || message.payload?.mimeType!=="text/plain" || Boolean(message.payload.filename) || Boolean(message.payload.body?.attachmentId)
+        || (message.payload.parts?.length ?? 0)>0
         || get("Message-ID")!==content.messageId || get("X-Blueprint-Job-ID")!==content.jobId
         || get("X-Blueprint-Review-Digest")!==content.reviewDigest || get("X-Blueprint-Payload-Digest")!==content.payloadDigest
         || addresses(get("To"))!==content.to || addresses(get("From"))!==FOUNDER_MAILBOX

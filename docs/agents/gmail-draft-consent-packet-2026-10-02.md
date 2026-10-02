@@ -49,6 +49,16 @@ compares the existing binding revision atomically and retains its prior
 encrypted credential in the flow's private recovery record. Draft writes remain
 off until the owner-authorized manual request below.
 
+The existing Approvals UI now exposes the same owner-controlled path:
+Prepare founder mailbox → Prepare Google draft-capability consent → Verify and
+save founder draft-capability upgrade. Each is an explicit click. The saved
+revision card offers **Save Gmail draft** only after approved compose capability
+and draft-only activation; **Check Gmail draft** observes an existing uncertain
+copy. Status identifies the last readback and stale copies after edits. An
+unsaved edit cannot be copied. Consent and draft copying never tick approval
+boxes or start sending. Readback rejects extra Cc/Bcc/duplicate identity headers
+and attachments or alternate MIME content outside the authored plain text.
+
 **Deadline/checkpoint:** Before the first Gmail draft write; this is not a
 scheduled task. Resume only after the actual owner reply, deployed disabled
 code and verified existing OAuth registration. Disallowed workarounds: reuse

@@ -15,13 +15,13 @@ type ConnectionPreparation = {
   secretDestination: { provider: string; services: string[]; keys: string[] };
 };
 type ConsentStatus = { enabled: boolean; state: string; sendsEnabled: false; failureStage?: string;
-  purpose?: "send_upgrade"; sendScopeGranted?: boolean; sendUpgradeAvailable?: boolean };
-type ConsentAction = "start" | "complete" | "send-upgrade/start" | "send-upgrade/complete";
+  purpose?: "send_upgrade" | "draft_upgrade"; sendScopeGranted?: boolean; sendUpgradeAvailable?: boolean; draftScopeGranted?: boolean; draftUpgradeAvailable?: boolean };
+type ConsentAction = "start" | "complete" | "send-upgrade/start" | "send-upgrade/complete" | "draft-upgrade/start" | "draft-upgrade/complete";
 const FAILURE_STEP_LABELS: Record<string, string> = {
   secret_open: "opening the protected consent attempt", token_exchange: "Google token exchange",
-  token_validation: "read-only grant validation", mailbox_verification: "founder mailbox and sender verification",
+  token_validation: "scope grant validation", mailbox_verification: "founder mailbox and sender verification",
   owner_recheck: "owner authorization recheck", storage_readiness: "private storage readiness",
-  credential_persistence: "saving the private read-only connection", connection_acknowledgement: "confirming the saved connection",
+  credential_persistence: "saving the private founder connection", connection_acknowledgement: "confirming the saved connection",
 };
 
 /** Explicit owner actions only. No token/secret input or automatic grant/save. */
@@ -94,14 +94,18 @@ export function FounderMailboxConnection() {
             className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate("start")}>Prepare Google read-only consent</button>}
           {authorizationUrl && <a className="underline" href={authorizationUrl} referrerPolicy="no-referrer">Continue to Google as founder</a>}
           {status.data.state === "awaiting_owner" && !completeFailed && !status.isError && !completed && <button type="button" disabled={decision.isPending}
-            className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate(status.data.purpose === "send_upgrade" ? "send-upgrade/complete" : "complete")}>{status.data.purpose === "send_upgrade"
+            className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate(status.data.purpose === "draft_upgrade" ? "draft-upgrade/complete" : status.data.purpose === "send_upgrade" ? "send-upgrade/complete" : "complete")}>{status.data.purpose === "draft_upgrade" ? "Verify and save founder draft-capability upgrade" : status.data.purpose === "send_upgrade"
               ? "Verify and save founder send-capability upgrade" : "Verify and save founder read-only connection"}</button>}
           {decision.data?.action === "complete" && <p>Founder identity and accepted sender were verified at consent. The separate read-only connection is saved; sending remains disabled.</p>}
           {status.data.sendUpgradeAvailable && <p>The saved read-only binding remains in place until an explicitly consented send-capability upgrade is verified and saved. The upgrade requests only gmail.readonly and gmail.send. Outbound policy and runtime controls still apply.</p>}
           {status.data.sendUpgradeAvailable && status.data.state === "connected_readonly" && !completeFailed && !status.isError && !authorizationUrl && <button type="button" disabled={decision.isPending}
             className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate("send-upgrade/start")}>Prepare Google send-capability consent</button>}
           {(status.data.sendScopeGranted || decision.data?.action === "send-upgrade/complete") && <p>The founder read-and-send scope grant is saved. This does not authorize a message by itself; outbound policy, suppression and duplicate-send controls remain enforced.</p>}
-          {!["idle", "awaiting_owner", "connected_readonly", "connected_send_capable"].includes(status.data.state) && !completed && <p>Connection status: {status.data.state}. Owner review is required before another connection attempt.</p>}
+          {!status.data.draftScopeGranted && <p>Gmail draft access needs separate approved compose consent. Google's compose scope also permits sending; Blueprint keeps sending separately controlled.</p>}
+          {status.data.draftUpgradeAvailable && ["connected_readonly","connected_send_capable"].includes(status.data.state) && !completeFailed && !status.isError && !authorizationUrl && <button type="button" disabled={decision.isPending}
+            className="runway-cta-ghost px-3 py-2" onClick={() => decision.mutate("draft-upgrade/start")}>Prepare Google draft-capability consent</button>}
+          {(status.data.draftScopeGranted || decision.data?.action === "draft-upgrade/complete") && <p>The founder compose grant is saved. Copy a saved revision with Save Gmail draft in Approvals; no message is approved or sent by consent.</p>}
+          {!["idle", "awaiting_owner", "connected_readonly", "connected_send_capable", "connected_draft_capable"].includes(status.data.state) && !completed && <p>Connection status: {status.data.state}. Owner review is required before another connection attempt.</p>}
           </>}
         </>}
         {(completeFailed || status.data?.state === "failed_requires_new_owner_consent") && <p role="alert">This connection attempt failed and cannot be retried. Owner review and new Google consent are required. No sending was enabled.{failureStep ? ` Failed step: ${failureStep}.` : ""}</p>}
