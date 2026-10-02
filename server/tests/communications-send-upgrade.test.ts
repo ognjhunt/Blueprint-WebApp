@@ -30,7 +30,7 @@ describe("explicit owner-controlled founder send-capability upgrade", () => {
     expect(f.getSaved()).toMatchObject({ version: "blueprint.founder-gmail-credential.v2", consentPurpose: "send_upgrade", upgradedFromFlowId: "readonly-flow", scopes: [READ, SEND] });
     expect(f.ports.save).not.toHaveBeenCalled(); expect(f.ports.saveUpgrade).toHaveBeenCalledTimes(1);
     expect(JSON.stringify([...f.records.values()])).not.toMatch(/PRIVATE_CODE|PRIVATE_ACCESS|PRIVATE_NEW_REFRESH/);
-    expect(await f.consent.status(f.identity, "")).toEqual({ state: "connected_send_capable", sendScopeGranted: true, sendUpgradeAvailable: false });
+    expect(await f.consent.status(f.identity, "")).toEqual({ state: "connected_send_capable", sendScopeGranted: true, sendUpgradeAvailable: false, draftScopeGranted: false, draftUpgradeAvailable: false });
   });
   it.each([{ scopes: [READ] }, { scopes: [SEND] }, { scopes: [READ, READ] }, { scopes: [READ, SEND, "https://mail.google.com/"] }])("preserves the current binding when the granted scope set is $scopes", async ({ scopes }) => {
     const f = sendUpgradeFixture(), original = f.getBinding(), flow = await f.startUpgrade();

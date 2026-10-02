@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { FounderGmailConsent, FOUNDER_OAUTH_CALLBACK, type FounderConsentPorts } from "../agents/communications-oauth";
-import { FOUNDER_GMAIL_READ_SCOPE } from "../agents/communications-connection";
+import { FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE, FOUNDER_GMAIL_DRAFT_SCOPE } from "../agents/communications-connection";
 
 import { consentFixture } from "./fixtures/communications-oauth";
 
@@ -112,5 +112,27 @@ describe("founder-only owner-controlled Google consent", () => {
     const id = createHash("sha256").update(flow.state).digest("hex");
     f.records.set(id, { ...f.records.get(id), phase: "failed_requires_new_owner_consent", secrets: null, failureStage: "PRIVATE_ACCESS" });
     expect(await f.consent.status(f.identity, flow.cookie)).toEqual({ state: "failed_requires_new_owner_consent" });
+  });
+});
+
+
+describe("separate Gmail compose consent", () => {
+  it("does not start draft consent without the separate owner approval reference", async () => {
+    const f=consentFixture();
+    await expect(f.consent.start(f.identity,"draft_upgrade")).rejects.toThrow("founder_draft_consent_not_authorized");
+    expect(f.records.size).toBe(0);expect(f.ports.exchange).not.toHaveBeenCalled();
+  });
+  it("requests only the additional compose scope while retaining the existing exact read/send grant", async () => {
+    const f=consentFixture(), scopes=[FOUNDER_GMAIL_READ_SCOPE,FOUNDER_GMAIL_SEND_SCOPE];
+    const previous={flowId:"existing-send-flow",revision:"a".repeat(64),sendScopeGranted:true,scopes};
+    f.ports.currentBinding=vi.fn(async()=>previous);f.ports.saveUpgrade=vi.fn(async()=>{});
+    const consent=new FounderGmailConsent({...f.config,draftApprovalReference:"owner-reviewed-draft-only"},f.ports);
+    const started=await consent.start(f.identity,"draft_upgrade"), url=new URL(started.authorizationUrl);
+    expect(url.searchParams.get("scope")).toBe([...scopes,FOUNDER_GMAIL_DRAFT_SCOPE].join(" "));
+    expect(url.searchParams.get("include_granted_scopes")).toBe("false");expect(f.ports.exchange).not.toHaveBeenCalled();
+    vi.mocked(f.ports.exchange).mockResolvedValue({refreshToken:"PRIVATE_COMPOSE_REFRESH",accessToken:"PRIVATE_ACCESS",scopes:[...scopes,FOUNDER_GMAIL_DRAFT_SCOPE]});
+    await consent.callback({state:url.searchParams.get("state")!,code:"one-use-code"},started.cookie);
+    expect(await consent.finish(f.identity,started.cookie,"draft_upgrade")).toMatchObject({state:"connected_draft_capable",draftWritesEnabled:false,sendsEnabled:false});
+    expect(f.ports.saveUpgrade).toHaveBeenCalledWith(expect.objectContaining({version:"blueprint.founder-gmail-credential.v3",scopes:[...scopes,FOUNDER_GMAIL_DRAFT_SCOPE],draftApprovalReference:"owner-reviewed-draft-only"}),expect.any(String),previous);
   });
 });

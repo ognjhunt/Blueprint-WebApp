@@ -153,6 +153,22 @@ the documented caller mitigation without claiming account-wide closure, and
 request inclusion of attributable October usage before mitigation. Do not send
 a duplicate case or a response without explicit owner direction.
 
+Prepared response for existing case `179088312200405` (unsent, for the
+case-owning account `nijelhunt1999@gmail.com`):
+
+> I am following up on my October 1 courtesy-credit request for account
+> 111710313013. Please confirm the current case status and whether an
+> adjustment has been approved or applied. The September bill was $329.81;
+> the Cost Explorer line listed 33,377 API requests and $333.77 before credits.
+> An automated billing monitor was identified as a caller. I removed its
+> IAMAgent user on October 1, and the deployed mitigation disables the AWS
+> collector. A retained natural refresh made zero AWS requests; this does
+> not establish account-wide zero usage. Please review the requested
+> one-time September adjustment and any attributable October Cost Explorer
+> charges incurred before mitigation, and identify any information still
+> needed. I am also preparing to stop using AWS and need confirmation of
+> remaining charges or commitments before closing the account.
+
 The supported account-exit sequence is to inspect remaining resources, retained
 data, commitments and Marketplace subscriptions through existing no-fee console
 views; preserve required exports; confirm final/continuing liabilities and
@@ -161,3 +177,33 @@ actions. Account closure is not evidence of a zero final bill or immediate
 card-removal eligibility. Use the current [AWS account-closure instructions](https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-closing.html)
 and [Cost Explorer pricing](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/pricing/).
 The removed IAM identity must not be restored.
+
+## Retained comparison and release checkpoint
+
+Workstream 7's recovered comparison is explicitly a transcript-derived export,
+not recovered original report bytes. It contains 78 answer texts from 20 cases
+and 15 retained builder/correction sources. Each answer carries its UTF-8 hash
+and provenance. Original report/gzip bytes, source receipts and judge inputs
+remain unavailable; this export does not establish their scores or billing.
+
+The create-only company manifest is
+`gs://blueprint-8c1ca.appspot.com/operations/recovery/2026-10-02/research-comparison/d3d7fa1f3eccf5b4f9c8956ed76c5d6ae8df5c6e1d31a588db8a67d470e36903/manifest.json`,
+generation `1790948108210857`, 2,724 bytes, SHA256 equal to its directory name.
+It identifies the answer and source JSON objects and their generation-pinned
+recovery route. The independent release coordinator downloaded all three
+objects and verified their hashes on October 2. This recovery made no provider
+calls and executed no retained source code.
+
+WebApp PR808 merged as `80ba9b2d5c57092bfa3554093ee840b6872165cb`;
+all five main CI checks passed in run `37013307125`. The existing CI-gated
+Render deployment run `37013961954` finished successfully at
+`2026-10-02T13:38:36Z`: web deployment `dep-davr64u0tbcc73f2p420` and worker
+deployment `dep-davr650u01pc73frd6g0` both report `live` at that exact commit.
+The website's independent `/version.json` read matches; `/health` and
+`/health/ready` return 200. The retained `deploy-verification.json` SHA256 is
+`51cb03cd22b42609c78e1ac98f7fcb783c0ba8110e6bd1a187cd25c9dc75a7d6`.
+Its generation-pinned company copy is
+`gs://blueprint-8c1ca.appspot.com/operations/recovery/2026-10-02/webapp-deployment/51cb03cd22b42609c78e1ac98f7fcb783c0ba8110e6bd1a187cd25c9dc75a7d6/deploy-verification.json`,
+generation `1790948667282352`, 538 bytes, with download/hash readback verified.
+Deployment does not prove live research collection, Slack delivery, Gmail
+draft writes or schedule resumption.

@@ -58,5 +58,33 @@ describe("saved communications draft editor", () => {
     fireEvent.change(screen.getByLabelText("Draft review anchors (JSON)"), { target: { value: '"unfinished"' } });
     expect(screen.queryByLabelText("Bounded offer")).toBeNull();
     expect(screen.getByLabelText("Draft review anchors (JSON)")).toHaveValue('"unfinished"');
+  });  it("keeps Gmail draft copying disabled without activation and during an unsaved edit",()=>{
+    const onGmailSave=vi.fn(),onSave=vi.fn(),copy={writesEnabled:false,state:"not_copied",draftId:null,verifiedAt:null,currentRevisionVerified:false};
+    const view=render(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} onSave={onSave} gmailDraft={copy} onGmailSave={onGmailSave} />);
+    expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();fireEvent.click(screen.getByRole("button",{name:"Save Gmail draft"}));expect(onGmailSave).not.toHaveBeenCalled();
+    view.rerender(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} onSave={onSave} gmailDraft={{...copy,writesEnabled:true}} onGmailSave={onGmailSave} />);
+    fireEvent.click(screen.getByRole("button",{name:"Revise draft"}));expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();
   });
+  it("does not call an older draft copy verified for the current revision",async()=>{
+    const copy={writesEnabled:true,state:"unknown",draftId:null,verifiedAt:null,currentRevisionVerified:false};
+    const onGmailSave=vi.fn(async()=>({state:"verified",reviewDigest:"c".repeat(64),revisionId:"d".repeat(64),sent:false as const}));
+    render(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} revisionId={"b".repeat(64)} onSave={vi.fn()} gmailDraft={copy} onGmailSave={onGmailSave} />);
+    fireEvent.click(screen.getByRole("button",{name:"Check Gmail draft"}));
+    expect(await screen.findByRole("status")).toHaveTextContent("belongs to an older revision");
+    expect(onGmailSave).toHaveBeenCalledWith({expectedReviewDigest:review.digest,expectedRevisionId:"b".repeat(64),mode:"reconcile"});
+  });
+  it("keeps a verified copy observation-only while allowing explicit readback in the active approved window",async()=>{
+    const revisionId="b".repeat(64),copy={writesEnabled:true,state:"verified",draftId:"draft-1",verifiedAt:"2026-10-02T14:00:00Z",currentRevisionVerified:true};
+    const onGmailSave=vi.fn(async()=>({state:"verified",reviewDigest:review.digest,revisionId,sent:false as const}));
+    const view=render(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} revisionId={revisionId} onSave={vi.fn()} gmailDraft={copy} onGmailSave={onGmailSave} />);
+    expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Check Gmail draft"})).toBeEnabled();
+    fireEvent.click(screen.getByRole("button",{name:"Save Gmail draft"}));expect(onGmailSave).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"Check Gmail draft"}));
+    await waitFor(()=>expect(onGmailSave).toHaveBeenCalledExactlyOnceWith({expectedReviewDigest:review.digest,expectedRevisionId:revisionId,mode:"reconcile"}));
+    expect(await screen.findByText(/Gmail draft readback verified for this saved revision/)).toBeInTheDocument();
+    view.rerender(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} revisionId={revisionId} onSave={vi.fn()} gmailDraft={{...copy,state:"stale",currentRevisionVerified:false}} onGmailSave={onGmailSave} />);
+    expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();
+  });
+
 });

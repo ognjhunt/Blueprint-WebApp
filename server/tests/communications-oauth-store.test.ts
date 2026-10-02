@@ -4,10 +4,10 @@ const bindings = vi.hoisted(() => ({ db: null as any }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return bindings.db; }, authAdmin: null }));
 vi.mock("../utils/blueprintWorkStore", () => ({ checkWorkOperator: vi.fn(async () => true) }));
 import { configuredFounderConsent, saveFounderCredential, readFounderCredential, FOUNDER_STORAGE,
-  FOUNDER_CREDENTIAL_COLLECTION, FOUNDER_OAUTH_FLOW_COLLECTION, saveFounderUpgrade, requireFounderSendCapability } from "../agents/communications-oauth-store";
+  FOUNDER_CREDENTIAL_COLLECTION, FOUNDER_OAUTH_FLOW_COLLECTION, saveFounderUpgrade, requireFounderSendCapability, requireFounderDraftCapability } from "../agents/communications-oauth-store";
 import { encryptBoundFieldValue } from "../utils/field-encryption";
 import { FOUNDER_CONNECTION_ID, FOUNDER_OAUTH_CALLBACK, type FounderCredential } from "../agents/communications-oauth";
-import { FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE } from "../agents/communications-connection";
+import { FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE, FOUNDER_GMAIL_DRAFT_SCOPE } from "../agents/communications-connection";
 import { memoryFirestore } from "./fixtures/communications";
 import { checkWorkOperator } from "../utils/blueprintWorkStore";
 const credential: FounderCredential = { version: "blueprint.founder-gmail-credential.v1", binding: FOUNDER_CONNECTION_ID,
@@ -103,6 +103,20 @@ describe("private founder binding uses existing bound encryption and Firestore",
     await saveFounderUpgrade(upgraded, "upgrade-flow", previous);
     expect(JSON.stringify([...bindings.db.records])).toBe(committed);
     expect(process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED).not.toBe("true");
+  });
+  it("atomically adds reviewed draft capability, preserves the encrypted previous binding and keeps sends disabled", async () => {
+    configured();vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF","owner-reviewed-compose-only");
+    await saveFounderCredential(credential,"readonly-flow");
+    const previous=(await configuredFounderConsent()!.ports.currentBinding!())!, old=structuredClone(bindings.db.records.get(`${FOUNDER_CREDENTIAL_COLLECTION}/${FOUNDER_CONNECTION_ID}`));
+    const upgraded:FounderCredential={...credential,version:"blueprint.founder-gmail-credential.v3",scopes:[FOUNDER_GMAIL_READ_SCOPE,FOUNDER_GMAIL_DRAFT_SCOPE],consentPurpose:"draft_upgrade",upgradedFromFlowId:previous.flowId,draftApprovalReference:"owner-reviewed-compose-only"};
+    const path=`${FOUNDER_OAUTH_FLOW_COLLECTION}/compose-flow`;
+    bindings.db.records.set(path,{phase:"exchanging",purpose:"draft_upgrade",previousBinding:previous,ownerUid:credential.ownerUid,clientId:credential.clientId,approvalReference:credential.approvalReference,draftApprovalReference:upgraded.draftApprovalReference,grantMode:credential.grantMode,expiresAt:Math.floor(Date.now()/1000)+600,expireAt:new Date(Date.now()+600000),secrets:null});
+    await saveFounderUpgrade(upgraded,"compose-flow",previous);expect(await readFounderCredential()).toEqual(upgraded);
+    await expect(requireFounderDraftCapability()).resolves.toBeUndefined();await expect(requireFounderSendCapability()).rejects.toThrow("founder_send_scope_unverified");
+    expect(bindings.db.records.get(path)).toMatchObject({phase:"connected_draft_capable",previousCredential:old});
+    expect(bindings.db.records.get(path).expireAt).toBeUndefined();
+    expect(process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED).not.toBe("true");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF","changed");await expect(requireFounderDraftCapability()).rejects.toThrow("founder_draft_scope_unverified");
   });
   it.each(["revision", "owner", "phase", "expired", "transaction"])("preserves the old encrypted binding on an upgrade %s failure", async failure => {
     configured(); await saveFounderCredential(credential, "readonly-flow");

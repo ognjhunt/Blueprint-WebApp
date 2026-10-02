@@ -1,0 +1,47 @@
+name: Tony Gmail draft window (fixed nonsecret config)
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Fixed web-only configuration; founder consent and manual draft copy remain separate."
+        required: true
+        default: inspect
+        type: choice
+        options:
+          - inspect
+          - prepare-consent
+          - open-one-draft
+          - close-one-draft
+
+permissions:
+  contents: read
+
+# Serialize config changes with the existing sole exact-SHA deploy owner.
+concurrency:
+  group: render-deploy-main
+  cancel-in-progress: false
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the reviewed main workflow
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+        run: test "$DISPATCH_REF" = refs/heads/main
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Configure only the fixed Tony draft keys
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          OPERATION: ${{ inputs.operation }}
+        run: node scripts/render/tony-gmail-draft-window.mjs "$OPERATION"
+      - name: Record the activation boundary
+        run: |
+          echo 'Configuration readback only. Use the existing CI-gated exact-SHA deploy and authenticated application readback before claiming active runtime configuration.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This workflow does not call deployment, worker-config, Google consent, or Gmail APIs, and does not write credentials, send flags, or schedule flags.' >> "$GITHUB_STEP_SUMMARY"
