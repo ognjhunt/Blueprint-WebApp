@@ -63,6 +63,8 @@ unsaved edit cannot be copied. Consent and draft copying never tick approval
 boxes or start sending. Readback rejects extra Cc/Bcc/duplicate identity headers
 and attachments or alternate MIME content outside the authored plain text.
 
+The active approved window keeps **Check Gmail draft** available after a
+verified copy while disabling **Save Gmail draft** for verified or stale copies.
 The one-copy window additionally requires exact configured job ID, revision ID
 and review digest. It refuses another job or a regenerated/edited revision before
 mailbox access. A verified copy can only be observed; later revisions cannot
@@ -85,7 +87,9 @@ the worker service is untouched. It accepts only these operations:
    current unsent canonical revision. Use **Save Gmail draft** once, then retain
    the full recipient/body/footer/header readback receipt. Do not regenerate.
 3. `close-one-draft` sets only the draft flag to `false` after that observed
-   copy, or to stop the window. Keep the canonical revision and optional Gmail
+   copy, or to stop the window. It first verifies all four allowlisted scope
+   keys exactly match Tony's approval and refuses a conflicting owner window.
+   Keep the canonical revision and optional Gmail
    copy; closure does not delete either or revoke the existing OAuth binding.
 4. `inspect` performs only individual-key readback of the five nonsecret keys
    and emits matching booleans. No complete service environment is requested.

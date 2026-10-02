@@ -73,5 +73,18 @@ describe("saved communications draft editor", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("belongs to an older revision");
     expect(onGmailSave).toHaveBeenCalledWith({expectedReviewDigest:review.digest,expectedRevisionId:"b".repeat(64),mode:"reconcile"});
   });
+  it("keeps a verified copy observation-only while allowing explicit readback in the active approved window",async()=>{
+    const revisionId="b".repeat(64),copy={writesEnabled:true,state:"verified",draftId:"draft-1",verifiedAt:"2026-10-02T14:00:00Z",currentRevisionVerified:true};
+    const onGmailSave=vi.fn(async()=>({state:"verified",reviewDigest:review.digest,revisionId,sent:false as const}));
+    const view=render(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} revisionId={revisionId} onSave={vi.fn()} gmailDraft={copy} onGmailSave={onGmailSave} />);
+    expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Check Gmail draft"})).toBeEnabled();
+    fireEvent.click(screen.getByRole("button",{name:"Save Gmail draft"}));expect(onGmailSave).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"Check Gmail draft"}));
+    await waitFor(()=>expect(onGmailSave).toHaveBeenCalledExactlyOnceWith({expectedReviewDigest:review.digest,expectedRevisionId:revisionId,mode:"reconcile"}));
+    expect(await screen.findByText(/Gmail draft readback verified for this saved revision/)).toBeInTheDocument();
+    view.rerender(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} revisionId={revisionId} onSave={vi.fn()} gmailDraft={{...copy,state:"stale",currentRevisionVerified:false}} onGmailSave={onGmailSave} />);
+    expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();
+  });
 
 });

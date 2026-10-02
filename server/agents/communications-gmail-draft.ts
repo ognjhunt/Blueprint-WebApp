@@ -157,7 +157,7 @@ export async function communicationsGmailDraftStatus(db: FirebaseFirestore.Fires
       || row.jobId!==ledgerId.slice("communications_".length) || !["verified","writing","unknown","refused_before_write"].includes(row.state)) return base;
     const current=row.content?.payloadDigest===communicationsDigest(payload) && row.content?.to===payload.to
       && row.content?.subject===payload.subject && row.content?.body===payload.transportBody && row.content?.jobId===row.jobId;
-    return {...base,writesEnabled:writesEnabled && row.state!=="verified",state:row.state==="verified" && !current ? "stale" : row.state,
+    return {...base,state:row.state==="verified" && !current ? "stale" : row.state,
       draftId:typeof row.draftId==="string" ? row.draftId : null,
       verifiedAt:typeof row.verifiedAt==="number" && Number.isFinite(row.verifiedAt) ? new Date(row.verifiedAt).toISOString() : null,
       currentRevisionVerified:row.state==="verified" && current};

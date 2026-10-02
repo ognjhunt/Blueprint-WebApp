@@ -67,7 +67,7 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   await expect(mirrorCommunicationsGmailDraft(f.db,`communications_${"b".repeat(64)}`,"owner",f.input,f.ports,communicationsNow)).rejects.toThrow("outside_approved_revision_window");
   expect(f.ports.requireCapability).not.toHaveBeenCalled();expect(f.ports.write).not.toHaveBeenCalled();
   expect(await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).toMatchObject({state:"verified"});
-  expect(await communicationsGmailDraftStatus(f.db,f.ledgerId,f.payload,f.input.expectedRevisionId,f.input.expectedReviewDigest)).toMatchObject({writesEnabled:false,state:"verified",currentRevisionVerified:true});
+  expect(await communicationsGmailDraftStatus(f.db,f.ledgerId,f.payload,f.input.expectedRevisionId,f.input.expectedReviewDigest)).toMatchObject({writesEnabled:true,state:"verified",currentRevisionVerified:true});
  });
  it("recovers an unknown create acknowledgement through exact readback and never creates twice",async()=>{
   const f=fixture();vi.mocked(f.ports.write).mockImplementationOnce(async content=>{f.setCopied(content);throw new Error("connection ended after accepted draft create");});

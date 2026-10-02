@@ -35,4 +35,12 @@ describe("fixed Tony Render configuration",()=>{
   await expect(configureTonyDraftWindow("close-one-draft","key",request)).rejects.toThrow("HTTP503");
   expect(request).toHaveBeenCalledTimes(1);expect(text).not.toHaveBeenCalled();
  });
+ it("preserves a conflicting owner window when asked to close Tony's scope",async()=>{
+  const p=provider();await configureTonyDraftWindow("prepare-consent","key",p.request);
+  p.values.set("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF","another-owner-window");
+  p.values.set("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","true");
+  const prior=new Map(p.values);p.request.mockClear();
+  await expect(configureTonyDraftWindow("close-one-draft","key",p.request)).rejects.toThrow("conflicting_approval_window");
+  expect(p.request.mock.calls.some(([,options])=>options.method==="PUT")).toBe(false);expect(p.values).toEqual(prior);
+ });
 });

@@ -34,22 +34,20 @@ export async function configureTonyDraftWindow(operation, apiKey, request = fetc
     if (await read(key) !== value) throw new Error(`render_key_readback_mismatch:${key}`);
   };
   let writes = 0;
-  if (operation === "close-one-draft") {
-    await write(enabledKey, "false"); writes++;
-  } else if (operation !== "inspect") {
+  if (operation !== "inspect") {
     const current = {};
     for (const key of Object.keys(approved)) current[key] = await read(key);
     const enabled = await read(enabledKey);
     if (enabled !== null && !["true", "false"].includes(enabled)) throw new Error("draft_flag_not_boolean");
     for (const [key, expected] of Object.entries(approved)) {
       if (current[key] !== null && current[key] !== expected) throw new Error(`conflicting_approval_window:${key}`);
-      if (operation === "open-one-draft" && current[key] !== expected) throw new Error(`prepare_consent_required:${key}`);
+      if (operation !== "prepare-consent" && current[key] !== expected) throw new Error(`prepare_consent_required:${key}`);
     }
     if (operation === "prepare-consent") {
       if (enabled === "true") throw new Error("close_existing_draft_window_before_preparing");
       await write(enabledKey, "false"); writes++;
       for (const [key, value] of Object.entries(approved)) if (current[key] !== value) { await write(key, value); writes++; }
-    } else { await write(enabledKey, "true"); writes++; }
+    } else { await write(enabledKey, operation === "open-one-draft" ? "true" : "false"); writes++; }
   }
   const matches = {};
   for (const [key, value] of Object.entries(approved)) matches[key] = await read(key) === value;

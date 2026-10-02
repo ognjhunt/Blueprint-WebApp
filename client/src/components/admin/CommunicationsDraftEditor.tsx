@@ -21,6 +21,7 @@ export function CommunicationsDraftEditor({ payload, review, onSave, revisionId 
   useEffect(()=>{setGmailResult(null);setGmailError("");},[review?.digest,revisionId]);
   const copyToGmail=async(mode:"write"|"reconcile")=>{
     if (!onGmailSave || !review?.digest || !gmailDraft?.writesEnabled || editing || gmailPending) return;
+    if (mode==="write" && (["verified","stale"].includes(gmailDraft.state) || gmailResult?.state==="verified")) return;
     setGmailPending(true);setGmailError("");
     try {setGmailResult(await onGmailSave({expectedReviewDigest:review.digest,expectedRevisionId:revisionId,mode}));}
     catch(error){setGmailResult(null);setGmailError(error instanceof Error?error.message:"Gmail draft readback is unavailable.");}
@@ -96,17 +97,17 @@ export function CommunicationsDraftEditor({ payload, review, onSave, revisionId 
     </>}
     {onGmailSave ? <div className="space-y-2 border-t border-runway-line pt-3">
       <button type="button" className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-        disabled={!gmailDraft?.writesEnabled || !review?.hardChecksPassed || !review.digest || !!editing || pending || gmailPending || gmailDraft.state==="writing"}
+        disabled={!gmailDraft?.writesEnabled || !review?.hardChecksPassed || !review.digest || !!editing || pending || gmailPending || ["writing","verified","stale"].includes(gmailDraft.state) || gmailResult?.state==="verified"}
         onClick={()=>void copyToGmail("write")}>{gmailPending?"Checking Gmail draft…":"Save Gmail draft"}</button>
       {gmailDraft?.draftId || ["unknown","writing"].includes(gmailDraft?.state ?? "") ? <button type="button"
         className="ml-2 runway-cta-ghost min-h-0 px-4 py-2 text-sm" disabled={!gmailDraft?.writesEnabled || !!editing || pending || gmailPending || gmailDraft.state==="writing"}
         onClick={()=>void copyToGmail("reconcile")}>Check Gmail draft</button> : null}
       {!gmailDraft?.writesEnabled ? <p>Gmail draft copies require separately approved compose access and draft-only activation. Review and edit this draft here meanwhile.</p> : <p>This copies the saved subject, message and approved footer. It keeps this job pending approval and does not send.</p>}
       {gmailDraft?.currentRevisionVerified && !gmailResult ? <p role="status">Gmail draft for this saved revision was last readback verified{gmailDraft.verifiedAt?` at ${new Date(gmailDraft.verifiedAt).toLocaleString()}`:""}. It remains separate from approval and sending.</p> : null}
-      {gmailDraft?.state==="stale" && !gmailResult ? <p>The Gmail copy belongs to an older revision. Save Gmail draft to update that same copy.</p> : null}
+      {gmailDraft?.state==="stale" && !gmailResult ? <p>The Gmail copy belongs to an older revision. This one-copy approval does not authorize updating it.</p> : null}
       {gmailDraft?.state==="unknown" && !gmailResult ? <p>Gmail acknowledgement is unknown. Check the existing draft before another write; no duplicate will be created.</p> : null}
       {gmailDraft?.state==="writing" ? <p>A Gmail draft operation is still claimed. Wait for its readback or reconcile the ended writer.</p> : null}
-      {gmailResult ? <p role="status">{currentGmailResult?"Gmail draft readback verified for this saved revision. This job is still pending approval; nothing was sent.":gmailResult.state==="verified"?"The existing Gmail draft belongs to an older revision. Save Gmail draft to update the same copy.":gmailResult.state==="writing"?"The existing Gmail draft operation is still claimed. No duplicate operation started.":"Gmail draft is unverified. Check its existing acknowledgement before another write; nothing was sent."}</p> : null}
+      {gmailResult ? <p role="status">{currentGmailResult?"Gmail draft readback verified for this saved revision. This job is still pending approval; nothing was sent.":gmailResult.state==="verified"?"The existing Gmail draft belongs to an older revision. This one-copy approval does not authorize updating it.":gmailResult.state==="writing"?"The existing Gmail draft operation is still claimed. No duplicate operation started.":"Gmail draft is unverified. Check its existing acknowledgement before another write; nothing was sent."}</p> : null}
       {gmailError?<p role="alert">{gmailError}</p>:null}
     </div> : null}
     {error ? <p role="alert">{error}</p> : null}
