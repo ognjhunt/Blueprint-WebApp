@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { memoryFirestore, communicationsNow, communicationsFixture } from "./fixtures/communications";
 import { reserveCommunicationsDraft, recordCommunicationsDraftUsage, reconcileCommunicationsDraftCost, estimatedDraftMicros,
-  COMMUNICATIONS_DRAFT_BUDGET, configuredCommunicationsDraftBudget, reconcileCommunicationsDraftSession } from "../agents/communications-draft-budget";
+  COMMUNICATIONS_DRAFT_BUDGET, configuredCommunicationsDraftBudget, reconcileCommunicationsDraftSession,
+  claimCommunicationsRejectedCreateDraftBudget, type CommunicationsRejectedCreateDraftBudgetClaim } from "../agents/communications-draft-budget";
 import { communicationsDigest } from "../agents/communications-contract";
 import { CommunicationsStore } from "../agents/communications-store";
 const root = "blueprintCommunications/default", digest = "a".repeat(64);
@@ -173,4 +174,112 @@ describe("communications-only soft model target and serialized admissions", () =
     expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`).admissions).toBe(1);
     await expect(reserveCommunicationsDraft(db, "other-job", digest, communicationsNow)).rejects.toThrow("cost_unresolved");
   });
+});
+
+
+const correctionInput = (jobId = "job-1", now = communicationsNow): CommunicationsRejectedCreateDraftBudgetClaim => ({
+  jobId, originalRequestDigest: digest, originalCheckpointDigest: "b".repeat(64), correctedRequestDigest: "c".repeat(64),
+  recoveryDigest: "d".repeat(64), ownerDirectionRef: "private-reviewed-owner-direction", negativeCoverageDigest: "e".repeat(64),
+  originalCreateClaimedAt: new Date(now - 360000).toISOString(), correctedCreateClaimedAt: new Date(now).toISOString(), deadlineMs: now + 180000,
+});
+const claimCorrection = (db: ReturnType<typeof memoryFirestore>, input = correctionInput(), now = communicationsNow) =>
+  db.runTransaction(tx => claimCommunicationsRejectedCreateDraftBudget(db, tx, input, now));
+
+describe("same-job confirmed rejected-create corrected budget slot", () => {
+  it("retains original unknown reservation/hold and claims one corrected admission without a new job", async () => {
+    const db = memoryFirestore(), id = await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow);
+    await recordCommunicationsDraftUsage(db, "job-1", digest, null, communicationsNow);
+    const original = structuredClone(db.records.get(`${root}/draftBudgetAdmissions/${id}`));
+    expect(await claimCorrection(db)).toEqual({ admissionId: id });
+    const row = db.records.get(`${root}/draftBudgetAdmissions/${id}`);
+    expect(row.requestDigest).toBe(original.requestDigest); expect(row.admittedAt).toBe(original.admittedAt);
+    expect(row).toMatchObject({ state: "usage_unknown", usageState: "unresolved", originalUsageState: "unresolved" });
+    expect(row.correctedCreate).toMatchObject({ requestDigest: "c".repeat(64), state: "reserved", usageState: "unresolved", deadlineMs: communicationsNow + 180000 });
+    expect(row.correctedCreate.estimatedModelMicros).toBeUndefined();
+    expect(db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(id);
+    expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`).admissions).toBe(2);
+    expect(await claimCorrection(db)).toEqual({ admissionId: id });
+    expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`).admissions).toBe(2);
+    await expect(claimCorrection(db, { ...correctionInput(), correctedRequestDigest: "f".repeat(64) })).rejects.toThrow("already_claimed");
+    await expect(reserveCommunicationsDraft(db, "different-job", digest, communicationsNow + 86400000)).rejects.toThrow("cost_unresolved");
+  });
+
+  it("adds corrected known usage monotonically while the original cost stays unknown and blocks other jobs", async () => {
+    const db = memoryFirestore(), id = await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow);
+    await claimCorrection(db);
+    expect(await recordCommunicationsDraftUsage(db, "job-1", "c".repeat(64), usage, communicationsNow)).toBe(false);
+    expect(db.records.get(`${root}/draftBudgetAdmissions/${id}`)).toMatchObject({ state: "usage_unknown", originalUsageState: "unresolved",
+      knownTotalModelMicros: 358, knownTotalIsComplete: false, correctedCreate: { state: "usage_recorded", estimatedModelMicros: 358 } });
+    expect(db.records.get(`${root}/draftBudgetAdmissions/${id}`).estimatedModelMicros).toBeUndefined();
+    expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`).estimatedModelMicros).toBe(358);
+    await recordCommunicationsDraftUsage(db, "job-1", "c".repeat(64), { input_tokens: 1, output_tokens: 0, total_tokens: 1 }, communicationsNow);
+    expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`).estimatedModelMicros).toBe(358);
+    expect(db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(id);
+    await expect(reserveCommunicationsDraft(db, "another-job", digest, communicationsNow)).rejects.toThrow("cost_unresolved");
+    await expect(recordCommunicationsDraftUsage(db, "job-1", "f".repeat(64), usage, communicationsNow)).rejects.toThrow("usage_binding_changed");
+  });
+
+  it("does not mistake usage from either one attempt as the total and sums verified originals independently", async () => {
+    const db = memoryFirestore(), id = await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow);
+    await claimCorrection(db);
+    await recordCommunicationsDraftUsage(db, "job-1", digest, usage, communicationsNow);
+    expect(db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(id);
+    expect(db.records.get(`${root}/draftBudgetAdmissions/${id}`).knownTotalIsComplete).toBe(false);
+    expect(await recordCommunicationsDraftUsage(db, "job-1", "c".repeat(64), usage, communicationsNow)).toBe(true);
+    expect(db.records.get(`${root}/draftBudgetAdmissions/${id}`)).toMatchObject({ knownTotalModelMicros: 716, knownTotalIsComplete: true });
+    expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`).estimatedModelMicros).toBe(716);
+  });
+
+  it("keeps the corrected slot unknown when usage is absent and does not invent a full zero estimate", async () => {
+    const db = memoryFirestore(), id = await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow); await claimCorrection(db);
+    expect(await recordCommunicationsDraftUsage(db, "job-1", "c".repeat(64), null, communicationsNow)).toBe(false);
+    const row = db.records.get(`${root}/draftBudgetAdmissions/${id}`);
+    expect(row.correctedCreate).toMatchObject({ state: "usage_unknown", usageState: "unresolved" });
+    expect(row.correctedCreate.estimatedModelMicros).toBeUndefined();expect(row.knownTotalModelMicros).toBeUndefined();
+    expect(db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(id);
+  });
+
+  it.each(["deadline", "wrong_original", "wrong_active", "policy_changed", "target_reached", "daily_limit"])
+    ("rejects %s without mutating the original reservation", async kind => {
+      const db = memoryFirestore(), id = await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow), input = correctionInput();
+      if (kind === "deadline") input.deadlineMs += 1;
+      if (kind === "wrong_original") input.originalRequestDigest = "f".repeat(64);
+      if (kind === "wrong_active") db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId = "another";
+      if (kind === "policy_changed") vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "2.4");
+      if (kind === "target_reached") db.records.get(`${root}/draftBudgetDays/2026-09-30`).estimatedModelMicros = 2500000;
+      if (kind === "daily_limit") db.records.get(`${root}/draftBudgetDays/2026-09-30`).admissions = 5;
+      const before = structuredClone(db.records.get(`${root}/draftBudgetAdmissions/${id}`));
+      await expect(claimCorrection(db, input)).rejects.toThrow();
+      expect(db.records.get(`${root}/draftBudgetAdmissions/${id}`)).toEqual(before);
+    });
+
+  it("reconciles only the exact corrected saved child and still retains the original unknown hold", async () => {
+    const db = memoryFirestore(), id = await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow); await claimCorrection(db);
+    const checkpoint = { createClaimedAt: correctionInput().originalCreateClaimedAt, requestDigest: digest, sessionId: null, turnId: null,
+      rejectedCreateRecovery: { originalRequestDigest: digest, correctedRequestDigest: "c".repeat(64),
+        checkpoint: { createClaimedAt: correctionInput().correctedCreateClaimedAt, requestDigest: "c".repeat(64), sessionId: "corrected-saved-session", turnId: "corrected-turn" } } };
+    db.records.set(`${root}/jobs/job-1`, { jobId: "job-1", checkpoint });
+    const api = { reconcileUsage: vi.fn(async (value: any) => { expect(value).toEqual(checkpoint); return usage; }) };
+    await reconcileCommunicationsDraftCost(db, api, communicationsNow);
+    expect(api.reconcileUsage).toHaveBeenCalledTimes(1);
+    expect(db.records.get(`${root}/draftBudgetAdmissions/${id}`).correctedCreate.estimatedModelMicros).toBe(358);
+    expect(db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(id);
+    checkpoint.rejectedCreateRecovery.checkpoint.requestDigest = "f".repeat(64);
+    await expect(reconcileCommunicationsDraftCost(db, api, communicationsNow)).rejects.toThrow("usage_binding_changed");
+  });
+});
+
+it('legacy positive session recovery cannot overwrite the original checkpoint or misattribute corrected child usage',async()=>{
+  const db=memoryFirestore(),jobId='job-1',id=await reserveCommunicationsDraft(db,jobId,digest,communicationsNow);
+  await claimCorrection(db);
+  const checkpoint={createClaimedAt:correctionInput().originalCreateClaimedAt,requestDigest:digest,sessionId:null,turnId:null,
+    rejectedCreateRecovery:{correctedRequestDigest:'c'.repeat(64),checkpoint:{sessionId:null,turnId:null,requestDigest:'c'.repeat(64)}}};
+  db.records.set(`${root}/jobs/${jobId}`,{jobId,prospectId:'prospect-1',briefDigest:'b'.repeat(64),state:'blocked',checkpoint,lease:{until:0}});
+  const input={jobId,prospectId:'prospect-1',briefDigest:'b'.repeat(64),expectedCheckpointDigest:communicationsDigest(checkpoint),
+    sessionId:'actual-corrected-session',requestedBy:'verified-operator'};
+  const api={verifyExistingDraftSession:vi.fn(async()=>({sessionId:input.sessionId,requestDigest:'c'.repeat(64),turnId:'corrected-turn',usage}))};
+  const original=structuredClone(db.records.get(`${root}/jobs/${jobId}`));
+  await expect(reconcileCommunicationsDraftSession(db,api,input,communicationsNow)).rejects.toThrow('corrected_create_session_recovery_requires_child');
+  expect(api.verifyExistingDraftSession).not.toHaveBeenCalled();expect(db.records.get(`${root}/jobs/${jobId}`)).toEqual(original);
+  expect(db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(id);
 });

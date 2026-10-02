@@ -1,6 +1,7 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { isEmailSuppressed } from "../utils/email-suppression";
-import { communicationsEnvelopeSchema, communicationsBriefSchema, verifyCommunicationsHandoff, communicationsDigest, communicationsDeliveryKey, correlateReply, correlatedReplies, isOptOut } from "./communications-contract";
+import { communicationsEnvelopeSchema, communicationsBriefSchema, verifyCommunicationsHandoff, communicationsDigest, communicationsDeliveryKey, correlateReply, correlatedReplies, isOptOut,
+  verifyCommunicationsReplyBinding, communicationsSentReceiptIdentity } from "./communications-contract";
 import { COMMUNICATIONS_ROOT, CommunicationsStore } from "./communications-store";
 import { readExistingResearchSnapshot, verifyPublishedResearch } from "./communications-research";
 import { verifyFounderMailbox, readFounderThread, findFounderSentMessage, sendFounderMessage, hasFounderPriorContact } from "./communications-gmail";
@@ -56,7 +57,7 @@ export async function communicationsSendBlocker(payload: ActionPayload, ledgerId
       if (source.data()?.researchPublicationId !== provenance?.source?.sheetsProspectId) return "first_contact_source_missing_or_changed";
       // Bounded SENT metadata lookup covers prior founder mail outside CRM,
       // including historic casing. It never retrieves unrelated mail bodies.
-      if (await hasFounderPriorContact(brief.contact.email)) return "recipient_previously_contacted";
+      if (job.intent === "outreach" && await hasFounderPriorContact(brief.contact.email)) return "recipient_previously_contacted";
     }
     if (await isEmailSuppressed(brief.contact.email, "growth_campaign")) return "recipient_suppressed";
     await requireFounderSendCapability();
@@ -118,7 +119,7 @@ export async function reconcileCommunicationsSend(payload: ActionPayload) {
   return persistReceipt(payload, { messageId: found.id, threadId: found.threadId, rfcMessageId: record.rfcMessageId });
 }
 
-/** Exact human approval or the separate immutable first-contact policy only. */
+/** Exact human approval or the existing immutable owner-activated policy. */
 export async function executeCommunicationsSend(payload: ActionPayload) {
   const recovered = await reconcileCommunicationsSend(payload);
   if (recovered) return recovered;
@@ -154,6 +155,15 @@ export async function executeCommunicationsSend(payload: ActionPayload) {
       const contactProof = brief.researchOrigin.contactEvidenceKind === "public_operator_resolution"
         ? (await tx.get(root.collection("contactProofs").doc(brief.researchOrigin.contactEvidenceDigest!))).data() : undefined;
       if (approval.first_contact_authority_digest !== authorityDigest || communicationsDigest(savedAuthority ?? null) !== authorityDigest) throw new Error("first_contact_authority_missing_or_changed");
+      if (job.intent === "reply") {
+        if (!brief.replyOrigin) throw new Error("reply_parent_context_changed");
+        const parent = communicationsBriefSchema.parse((await tx.get(root.collection("briefs").doc(brief.replyOrigin.parentBriefId))).data());
+        const binding = verifyCommunicationsReplyBinding((await tx.get(root.collection("replyBindings").doc(job.briefDigest))).data(), brief, parent);
+        const receipt = (await tx.get(root.collection("sendReceipts").doc(binding.sendReceiptKey))).data();
+        if (communicationsDigest(communicationsSentReceiptIdentity(receipt)) !== binding.sendReceiptDigest
+          || receipt?.approvalLedgerId !== binding.approvalLedgerId
+          || receipt?.receipt?.threadId !== brief.priorConversation?.gmailThreadId) throw new Error("reply_parent_receipt_or_handoff_changed");
+      }
       verifyFirstContactSource(provenance, brief, contactProof, payload.recipientGeography);
       if (source.data()?.researchPublicationId !== provenance?.source?.sheetsProspectId) throw new Error("first_contact_source_missing_or_changed");
     }
@@ -201,7 +211,7 @@ export async function executeCommunicationsSend(payload: ActionPayload) {
   return persistReceipt(payload, receipt);
 }
 
-/** Private worker path; never upgrades another lane, reply or operator decision.
+/** Private worker path; never upgrades another lane or existing operator decision.
  * Recovery may observe an existing receipt even when new-send flags are off. */
 export async function executeAutomaticFirstContact(ledgerId: string): Promise<{ state: "sent" | "auto_approved" | "failed"; reason?: string }> {
   if (!dbAdmin) return { state: "auto_approved", reason: "communications_store_unavailable" };
@@ -209,7 +219,7 @@ export async function executeAutomaticFirstContact(ledgerId: string): Promise<{ 
   const data = (await ref.get()).data();
   const payload = data?.action_payload as ActionPayload;
   const envelope = communicationsEnvelopeSchema.safeParse(payload?.communications);
-  if (!envelope.success || envelope.data.job.intent !== "outreach" || ledgerId !== `communications_${envelope.data.job.jobId}`
+  if (!envelope.success || ledgerId !== `communications_${envelope.data.job.jobId}`
     || data?.lane !== "outbound_prospect" || data?.source_collection !== "outboundProspects"
     || data?.source_doc_id !== envelope.data.job.prospectId || data?.action_type !== "send_email"
     || !data?.first_contact_authority || !["auto_approved", "executing", "failed", "sent"].includes(data.status)) {

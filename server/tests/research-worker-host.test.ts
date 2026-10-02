@@ -84,6 +84,54 @@ describe("actual private research learning bridge ABI", () => {
 });
 
 describe("bound after-run observation through the real canonical writer", () => {
+  it("observes an authorized new-history run despite legacy focus/grant mismatch, then the next agent can read its exact retained summary", async () => {
+    const memory = learningMemoryFirestore(), recordRef = "blueprintDailyResearch/sites-first/runs/2026-10-02";
+    const record = { date: "2026-10-02", state: "completed", session_id: "existing-root-session", turn_id: "existing-root-turn" };
+    memory.records.set(recordRef, record);
+    const value: any = control();
+    value.history_access = { version: "blueprint.company-history-access.v1", principalId: value.binding.principalId,
+      expiresAt: "2026-10-02T12:30:00Z", scope: "company_business_history", authorityRef: "existing-owner-grant" };
+    value.businessScope.subjectKeys = ["blueprint:authorized-next-focus"];
+    value.terminalSubjectKey = value.businessScope.subjectKeys[0];
+    value.selection.focus = { city: "Houston", industry: "Warehouses" };
+    value.learningGrant.expiresAt = "2026-10-01T00:00:00Z";
+    const host = researchLearningHost(memory.db, () => now);
+    const first: any = await host({ op: "learning_after_run", day: "2026-10-02" }, value);
+    expect(first).toMatchObject({ append: "created", event: { subjectKey: value.terminalSubjectKey,
+      capturedBy: value.binding.principalId, kind: "run_summary", state: "completed", paidAnalysisCalls: 0,
+      sources: [{ recordRef, sourceHash: digest(record) }] } });
+    expect(await host({ op: "learning_after_run", day: "2026-10-02" }, value)).toMatchObject({ append: "existing" });
+    const { BusinessHistoryStore } = await import("../research-learning/business-history");
+    const next = await new BusinessHistoryStore(memory.db, () => now).read(value.businessScope, now);
+    expect(next.current).toEqual([first.event]);
+    expect(memory.records.get(recordRef)).toEqual(record);
+    expect(memory.writes).toEqual([`${LEARNING_ROOT}/businessHistoryEvents/${first.event.eventId}`]);
+    expect(fixture.daily).not.toHaveBeenCalled(); expect(fixture.prepare).not.toHaveBeenCalled();
+  });
+  it.each(["ungranted_subject", "missing_subject", "expired_during_source_read", "source_changed"])("does not write after-run history for %s", async reason => {
+    const memory = learningMemoryFirestore(), value: any = control();
+    const recordRef = "blueprintDailyResearch/sites-first/runs/2026-10-02";
+    memory.records.set(recordRef, { date: "2026-10-02", state: "completed" });
+    if (reason === "ungranted_subject") value.terminalSubjectKey = "outside:business-scope";
+    if (reason === "missing_subject") delete value.terminalSubjectKey;
+    let tick = now;
+    if (reason === "expired_during_source_read") {
+      const get = memory.records.get.bind(memory.records);
+      vi.spyOn(memory.records, "get").mockImplementation(path => {
+        const result = get(path); if (path === recordRef) tick = value.businessScope.expiresAt; return result;
+      });
+    }
+    if (reason === "source_changed") {
+      const get = memory.records.get.bind(memory.records); let reads = 0;
+      vi.spyOn(memory.records, "get").mockImplementation(path => {
+        const result = get(path);
+        return path === recordRef && ++reads === 2 ? { ...result, state: "failed" } : result;
+      });
+    }
+    await expect(researchLearningHost(memory.db, () => tick)({ op: "learning_after_run", day: "2026-10-02" }, value)).rejects.toThrow();
+    expect(memory.writes).toEqual([]);
+    if (["ungranted_subject", "missing_subject"].includes(reason)) expect(memory.reads).toEqual([]);
+  });
   it("retains reviewed partial publication as unknown outcomes and replays unchanged evidence once", async () => {
     fixture.realHooks = true;
     const memory = learningMemoryFirestore(), recordRef = "blueprintDailyResearch/sites-first/runs/2026-10-02";

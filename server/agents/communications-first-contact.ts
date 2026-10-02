@@ -1,5 +1,5 @@
 import { communicationsBriefSchema, communicationsDigest, communicationsEnvelopeSchema,
-  briefRefreshReasons, type CommunicationsBrief, type CommunicationsOutput } from "./communications-contract";
+  briefRefreshReasons, correlateReply, correlatedReplies, isOptOut, type CommunicationsBrief, type CommunicationsOutput } from "./communications-contract";
 import { publishedPublicContact, contactProhibition, PUBLIC_CONTACT_PREFIX, containsContactName } from "./communications-contact-evidence";
 import { verifyContactResolution } from "./communications-contact-resolution";
 import { reviewCommunicationsPayload } from "./communications-review";
@@ -26,6 +26,15 @@ export const FIRST_CONTACT_POLICY = Object.freeze({
   outreachPostalSource: "owner_configured_server_only",
 });
 export const FIRST_CONTACT_POLICY_DIGEST = communicationsDigest(FIRST_CONTACT_POLICY);
+/** Owner-activated prospective agent writing. The original compiler policy is
+ * retained verbatim so old charged drafts and send receipts remain verifiable. */
+export const ROUTINE_COMMUNICATIONS_POLICY = Object.freeze({ ...FIRST_CONTACT_POLICY,
+  version: "blueprint.automatic-communications-policy.v2",
+  category: "qualified_public_business_agent_communications",
+  bodyMaxWords: null, bodyBounds: "existing_communications_output_schema",
+  writer: "saved_communications_agent", automaticRepliesAuthorized: true,
+  replyScope: "exact_correlated_inbound_on_verified_sent_thread",
+});
 export const automaticFirstContactEnabled = () => process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED === "true";
 export function firstContactDailyLimit() {
   const raw = process.env.BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_DAILY_LIMIT ?? "";
@@ -42,6 +51,12 @@ const safeFragment = (value: string, max: number) => value.length <= max && valu
   && !/[\x00-\x1f\x7f?<>@]/.test(value) && !restricted.test(value) && !contactProhibition.test(value);
 const fresh = (value: string, now: number) => Number.isFinite(Date.parse(value))
   && Date.parse(value) <= now && now - Date.parse(value) <= FIRST_CONTACT_POLICY.sourceMaxAgeDays * 86400000;
+
+export function routineCommunicationsContentBlockers(output: CommunicationsOutput, intent: "outreach" | "reply" = "outreach") {
+  // A reply subject is immutable recipient provenance, not an authored claim.
+  return restricted.test((intent === "reply" ? "" : output.subject + " ") + output.body)
+    ? ["routine_public_scope_content_not_authorized"] : [];
+}
 
 /** Conservative positive anchors supplement source QA; generic robotics work,
  * negated/future activity and a pilot do not establish a production deployment. */
@@ -125,7 +140,8 @@ export function compileAutomaticFirstContact(briefValue: unknown, now: number): 
 }
 
 const payloadKeys = new Set(["type", "to", "from", "replyTo", "subject", "body", "emailTransport", "transportBody",
-  "commercialEmail", "emailSuppressionScope", "unsubscribeUrl", "outreachContext", "outreachContract", "communications", "recipientGeography"]);
+  "commercialEmail", "emailSuppressionScope", "unsubscribeUrl", "outreachContext", "outreachContract", "communications", "recipientGeography",
+  "gmailThreadId", "inReplyTo"]);
 
 /** No country inference from email domain, timezone, city or state name. Only an
  * explicit US location in the source-QA-approved operator geography excerpt
@@ -158,22 +174,47 @@ export function firstContactGeography(provenance: any, brief: CommunicationsBrie
 }
 
 /** This is a reproducible authority snapshot, not a fabricated human attestation. */
-export function firstContactAuthority(payload: ActionPayload, now: number, savedPostalLine?: string) {
+export function firstContactAuthority(payload: ActionPayload, now: number, savedPostalLine?: string, legacy = false) {
   const parsed = communicationsEnvelopeSchema.safeParse(payload.communications);
   if (!parsed.success || payload.type !== "send_email" || Object.keys(payload).some(key => !payloadKeys.has(key))) return null;
   const { job, brief, output, thread } = parsed.data;
   const postalLine = savedPostalLine ?? firstContactPostalLine();
-  if (!postalLine || job.intent !== "outreach" || job.inboundMessageId || thread || brief.priorConversation
-    || payload.commercialEmail !== true || payload.emailSuppressionScope !== "growth_campaign"
+  if (!postalLine || payload.commercialEmail !== true || payload.emailSuppressionScope !== "growth_campaign"
     || payload.transportBody !== appendFirstContactFooter(output.body, brief.contact.email, postalLine)) return null;
   const geography = payload.recipientGeography as ReturnType<typeof firstContactGeography>;
   if (!geography || geography.countryCode !== "US" || !fresh(geography.sourceCheckedAt, now)) return null;
-  const compiled = compileAutomaticFirstContact(brief, now);
-  if (!compiled || communicationsDigest(output) !== communicationsDigest(compiled)) return null;
+  if (legacy) {
+    if (job.intent !== "outreach" || job.inboundMessageId || thread || brief.priorConversation) return null;
+    const compiled = compileAutomaticFirstContact(brief, now);
+    if (!compiled || communicationsDigest(output) !== communicationsDigest(compiled)) return null;
+  } else {
+    // Input text and the writer's review marker never supply permission. Only
+    // existing published-business admission and a real correlated reply qualify.
+    if (brief.consent.status !== "public_business_contact" || !validateRecipientEmailAddress(brief.contact.email).valid
+      || !brief.researchOrigin.sourceDigest || !brief.researchOrigin.contactEvidenceDigest
+      || !brief.researchOrigin.contactEvidenceKind || !brief.consent.sourceRefs.includes(brief.contact.sourceUrl)
+      || !fresh(brief.contact.sourceCheckedAt, now) || briefRefreshReasons(brief, now).length) return null;
+    if (brief.stage.interest !== "unknown" && brief.stage.evidenceIds.some(id => {
+      const fact = brief.facts.find(item => item.id === id);
+      return !fact || !firstContactStateProof(brief, fact, now);
+    })) return null;
+    if (job.intent === "outreach") {
+      if (job.inboundMessageId || thread || brief.priorConversation || payload.gmailThreadId || payload.inReplyTo) return null;
+    } else {
+      if (!brief.replyOrigin || !thread || !job.inboundMessageId || !correlateReply(brief, thread, job.inboundMessageId)) return null;
+      const replies = correlatedReplies(brief, thread);
+      if (replies.some(isOptOut) || replies.at(-1)?.gmailMessageId !== job.inboundMessageId) return null;
+    }
+    // Retain the original public-only scope; broader disclosure/commitments do
+    // not become authorized because the recipient or writer asks for them.
+    if (routineCommunicationsContentBlockers(output, job.intent).length) return null;
+  }
   const review = reviewCommunicationsPayload(payload, now, postalLine);
   if (!review.hardChecksPassed || !review.digest) return null;
-  return { version: "blueprint.first-contact-authority.v1", kind: "standing_first_contact_policy",
-    policyVersion: FIRST_CONTACT_POLICY.version, policyDigest: FIRST_CONTACT_POLICY_DIGEST,
+  const policy = legacy ? FIRST_CONTACT_POLICY : ROUTINE_COMMUNICATIONS_POLICY;
+  return { version: legacy ? "blueprint.first-contact-authority.v1" : "blueprint.first-contact-authority.v2",
+    kind: legacy ? "standing_first_contact_policy" : "standing_agent_communications_policy",
+    policyVersion: policy.version, policyDigest: communicationsDigest(policy),
     dailyTimezone: FIRST_CONTACT_POLICY.dailyTimezone,
     qualification: FIRST_CONTACT_POLICY.qualification, evaluatedAt: new Date(now).toISOString(),
     jobId: job.jobId, prospectId: job.prospectId, siteId: brief.siteId, taskId: brief.taskId,
@@ -186,16 +227,20 @@ export function firstContactAuthority(payload: ActionPayload, now: number, saved
     recipientGeography: geography,
     outreachPostalLine: postalLine,
     followUpsAuthorized: false,
+    ...(!legacy ? { intent: job.intent, inboundMessageId: job.inboundMessageId,
+      threadDigest: thread ? communicationsDigest(thread) : null, replyOrigin: brief.replyOrigin ?? null } : {}),
   };
 }
 export type FirstContactAuthority = NonNullable<ReturnType<typeof firstContactAuthority>>;
 
 export function verifyFirstContactAuthority(value: any, payload: ActionPayload, now: number, historical = false) {
-  if (value?.kind !== "standing_first_contact_policy" || !Number.isFinite(Date.parse(value?.evaluatedAt))
+  const legacy = value?.version === "blueprint.first-contact-authority.v1" && value?.kind === "standing_first_contact_policy";
+  const routine = value?.version === "blueprint.first-contact-authority.v2" && value?.kind === "standing_agent_communications_policy";
+  if ((!legacy && !routine) || !Number.isFinite(Date.parse(value?.evaluatedAt))
     || Date.parse(value.evaluatedAt) > now) throw new Error("first_contact_authority_missing_or_changed");
-  const expected = firstContactAuthority(payload, Date.parse(value.evaluatedAt), value.outreachPostalLine);
+  const expected = firstContactAuthority(payload, Date.parse(value.evaluatedAt), value.outreachPostalLine, legacy);
   if (!expected || communicationsDigest(expected) !== communicationsDigest(value)
-    || (!historical && !firstContactAuthority(payload, now))) throw new Error("first_contact_authority_missing_or_changed");
+    || (!historical && !firstContactAuthority(payload, now, undefined, legacy))) throw new Error("first_contact_authority_missing_or_changed");
   return expected;
 }
 

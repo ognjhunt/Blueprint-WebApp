@@ -8,16 +8,17 @@ vi.mock("../agents/communications-oauth-store", () => ({ requireFounderSendCapab
 vi.mock("../agents/communications-gmail", () => ({ verifyFounderMailbox: vi.fn(async () => ({})), readFounderThread: vi.fn(),
   hasFounderPriorContact: vi.fn(async () => false),
   findFounderSentMessage: vi.fn(async () => null), sendFounderMessage: vi.fn(async params => ({ messageId: "mock-sent", threadId: "mock-thread", rfcMessageId: params.messageId })) }));
-import { communicationsNow, memoryFirestore } from "./fixtures/communications";
+import { communicationsNow, communicationsFixture, memoryFirestore } from "./fixtures/communications";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { admitPublishedResearch } from "../agents/communications-intake";
+import { admitBoundCommunicationsReplies } from "../agents/communications-reply-intake";
 import { processCommunicationsJob, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { communicationsDigest, communicationsDeliveryKey } from "../agents/communications-contract";
 import { compileAutomaticFirstContact, firstContactAuthority, firstContactLearningQuestion, verifyFirstContactAuthority,
   firstContactDailyLimit, firstContactRecipientKey, firstContactCalendarDay, firstContactGeography } from "../agents/communications-first-contact";
 import { executeAutomaticFirstContact, executeCommunicationsSend } from "../agents/communications-send";
-import { sendFounderMessage, findFounderSentMessage, verifyFounderMailbox, hasFounderPriorContact } from "../agents/communications-gmail";
+import { sendFounderMessage, findFounderSentMessage, verifyFounderMailbox, hasFounderPriorContact, readFounderThread } from "../agents/communications-gmail";
 import { requireFounderSendCapability } from "../agents/communications-oauth-store";
 import { isEmailSuppressed } from "../utils/email-suppression";
 import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
@@ -25,9 +26,10 @@ import { appendFirstContactFooter } from "../agents/communications-first-contact
 // Intentionally non-deliverable fixture; no real mailing address.
 const SYNTHETIC_POSTAL_LINE = "Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000";
 
-async function setup() {
+async function setup(beforeProcess?: (context: any) => Promise<void>, country: "US" | "CA" = "US") {
   const fixture = publishedResearchFixture({ publicContact: true, mutateCandidate: candidate => {
-    candidate.location = "Synthetic location, United States"; candidate.evidence[2].quote = "Synthetic packing site is located in the United States";
+    candidate.location = country === "US" ? "Synthetic location, United States" : "Toronto, Canada";
+    candidate.evidence[2].quote = country === "US" ? "Synthetic packing site is located in the United States" : "Synthetic packing site is located in Canada";
   } });
   const db = memoryFirestore(); bindings.db = db; bindings.snapshot = fixture.snapshot;
   const deps = { db, readResearch: async () => fixture.snapshot, isSuppressed: async () => false, now: () => Date.now() };
@@ -42,10 +44,37 @@ async function setup() {
   const api = { run: vi.fn(async () => ({ output, checkpoint: { createClaimedAt: null, sessionId: "mock-session", turnId: "mock-turn" }, usage: { mock: true } })), cancel: vi.fn(), reconcileSaved: vi.fn() };
   const workerDeps = { store, api, readResearch: deps.readResearch, now: deps.now, isSuppressed: deps.isSuppressed,
     verifyMailbox: vi.fn(), readThread: vi.fn(), suppress: vi.fn() };
+  if (beforeProcess) await beforeProcess({ db, admitted, brief, output, workerDeps });
   const outcome = await processCommunicationsJob(admitted.jobId, workerDeps);
   const ledgerId = `communications_${admitted.jobId}`, ledger = db.records.get(`action_ledger/${ledgerId}`);
-  return { ...fixture, db, store, brief, admitted, ledgerId, ledger, payload: ledger.action_payload, workerDeps, outcome,
+  return { ...fixture, db, store, brief, admitted, ledgerId, ledger, payload: ledger.action_payload, workerDeps, outcome, output,
     receiptPath: `${COMMUNICATIONS_ROOT}/sendReceipts/${communicationsDeliveryKey(ledger.action_payload.communications.job)}` };
+}
+
+async function setupAutomaticReply(subject?: string) {
+  const f = await setup();
+  expect(await executeAutomaticFirstContact(f.ledgerId)).toEqual({ state: "sent" });
+  const receipt = f.db.records.get(f.receiptPath);
+  const thread = communicationsFixture("reply").thread!;
+  thread.threadId = receipt.receipt.threadId;
+  Object.assign(thread.messages[0], { gmailThreadId: thread.threadId, gmailMessageId: receipt.receipt.messageId,
+    rfcMessageId: receipt.receipt.rfcMessageId, subject: f.payload.subject, body: f.payload.transportBody,
+    to: [f.brief.contact.email] });
+  Object.assign(thread.messages[1], { gmailThreadId: thread.threadId, from: f.brief.contact.email,
+    to: ["nijel@tryblueprint.io"], inReplyTo: receipt.receipt.rfcMessageId, references: [receipt.receipt.rfcMessageId] });
+  if (subject) thread.messages[1].subject = subject;
+  f.workerDeps.readThread.mockResolvedValue(thread);
+  vi.mocked(readFounderThread).mockResolvedValue(thread);
+  const admitted = await admitBoundCommunicationsReplies(communicationsDeliveryKey(f.payload.communications.job), {
+    ...f.workerDeps, db: f.db,
+  });
+  expect(admitted.state).toBe("queued");
+  const jobId = (admitted as { jobId: string }).jobId;
+  f.workerDeps.api.run.mockImplementation(async () => ({ output: { ...communicationsFixture("reply").output,
+    subject: thread.messages[1].subject, body: "Thanks for your reply. I will keep this discussion to public information.",
+    usedFactIds: [], outreachContract: null },
+    checkpoint: { createClaimedAt: null, sessionId: "mock-reply-session", turnId: "mock-reply-turn" }, usage: { mock: true } }));
+  return { ...f, thread, jobId, replyLedgerId: `communications_${jobId}` };
 }
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); vi.clearAllMocks();
@@ -61,9 +90,104 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); vi.c
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("bounded first-contact authority (all providers mocked)", () => {
+  it("treats a correlated Pricing subject as retained recipient provenance, without inventing a price or commitment", async () => {
+    const f = await setupAutomaticReply("Re: Pricing");
+    expect(await processCommunicationsJob(f.jobId, f.workerDeps)).toMatchObject({ state: "auto_approved" });
+    const ledger = f.db.records.get(`action_ledger/${f.replyLedgerId}`);
+    expect(ledger.action_payload.subject).toBe("Re: Pricing");
+    expect(ledger.action_payload.body).toBe("Thanks for your reply. I will keep this discussion to public information.");
+    expect(ledger.action_payload.body).not.toMatch(/pricing|price|contract|guarantee|\$/i);
+    expect(await executeAutomaticFirstContact(f.replyLedgerId)).toEqual({ state: "sent" });
+  });
+  it("retains prospective geographic-policy refusal as blocked evidence, without creating another human approval stop", async () => {
+    const f = await setup(undefined, "CA");
+    expect(f.outcome).toMatchObject({ state: "blocked", reason: "routine_recipient_geography_not_authorized", sent: false });
+    expect(f.ledger).toMatchObject({ status: "failed", approval_reason: "routine_recipient_geography_not_authorized",
+      approved_by: null, draft_output: { requires_human_review: false } });
+    expect(f.ledger.first_contact_authority).toBeUndefined();
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.admitted.jobId}`)).toMatchObject({ state: "blocked", output: f.output });
+    expect(sendFounderMessage).not.toHaveBeenCalled();
+  });
+  it("keeps a previously charged saved session in its original human lane", async () => {
+    const f = await setup(async ({ db, admitted }) => {
+      await db.doc(`${COMMUNICATIONS_ROOT}/jobs/${admitted.jobId}`).update({ checkpoint: {
+        createClaimedAt: new Date(communicationsNow).toISOString(), sessionId: "old-paid-session", turnId: "old-turn" } });
+    });
+    expect(f.outcome.state).toBe("pending_approval");
+    expect(f.ledger).not.toHaveProperty("first_contact_authority");
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.admitted.jobId}`)).not.toHaveProperty("automationPolicyVersion");
+    expect(sendFounderMessage).not.toHaveBeenCalled();
+  });
+  it("does not promote an existing pending approval when automation is later activated", async () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "false");
+    const f = await setup(), original = structuredClone(f.ledger);
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
+    expect(await processCommunicationsJob(f.admitted.jobId, f.workerDeps)).toEqual({ state: "no_op" });
+    expect(await executeAutomaticFirstContact(f.ledgerId)).toMatchObject({ state: "failed" });
+    expect(f.db.records.get(`action_ledger/${f.ledgerId}`)).toEqual(original);
+    expect(sendFounderMessage).not.toHaveBeenCalled();
+  });
+  it("answers an actually sent correlated reply once with the agent's plain acknowledgment and retained authority", async () => {
+    const f = await setupAutomaticReply();
+    vi.mocked(hasFounderPriorContact).mockClear();
+    expect(await processCommunicationsJob(f.jobId, f.workerDeps)).toMatchObject({ state: "auto_approved", sent: false });
+    const ledger = f.db.records.get(`action_ledger/${f.replyLedgerId}`);
+    expect(ledger).toMatchObject({ approved_by: null, status: "auto_approved", first_contact_authority: {
+      kind: "standing_agent_communications_policy", intent: "reply", inboundMessageId: f.thread.messages[1].gmailMessageId } });
+    expect(ledger.action_payload.body).toBe("Thanks for your reply. I will keep this discussion to public information.");
+    expect(ledger.action_payload.communications.output.usedFactIds).toEqual([]);
+    expect(await executeAutomaticFirstContact(f.replyLedgerId)).toEqual({ state: "sent" });
+    expect(await executeAutomaticFirstContact(f.replyLedgerId)).toEqual({ state: "sent" });
+    expect(sendFounderMessage).toHaveBeenCalledTimes(2);
+    expect(sendFounderMessage).toHaveBeenLastCalledWith(expect.objectContaining({ threadId: f.thread.threadId,
+      inReplyTo: f.thread.messages[1].rfcMessageId }));
+    const job = f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.jobId}`);
+    expect(await f.store.finishAutomatic(job, { state: "sent" })).toMatchObject({ state: "sent" });
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/firstContactDailyUsage/2026-09-30`).attempts).toBe(2);
+    expect(hasFounderPriorContact).not.toHaveBeenCalled(); // Prior contact is required for a reply.
+  });
+  it("retains an unknown automatic reply acknowledgment across restart without repeating the write", async () => {
+    const f = await setupAutomaticReply();
+    await processCommunicationsJob(f.jobId, f.workerDeps);
+    vi.mocked(sendFounderMessage).mockRejectedValueOnce(new Error("lost ACK"));
+    expect(await executeAutomaticFirstContact(f.replyLedgerId)).toMatchObject({ reason: "gmail_send_requires_reconciliation_no_resend" });
+    expect(await executeAutomaticFirstContact(f.replyLedgerId)).toMatchObject({ reason: "gmail_send_requires_reconciliation_no_resend" });
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "false");
+    vi.mocked(findFounderSentMessage).mockResolvedValueOnce({ id: "recovered-reply", threadId: f.thread.threadId });
+    expect(await executeAutomaticFirstContact(f.replyLedgerId)).toEqual({ state: "sent" });
+    expect(sendFounderMessage).toHaveBeenCalledTimes(2);
+  });
+  it.each(["opt_out", "changed_parent"])("denies automatic reply %s after drafting before any new send", async kind => {
+    const f = await setupAutomaticReply();
+    await processCommunicationsJob(f.jobId, f.workerDeps);
+    if (kind === "opt_out") f.thread.messages[1].body = "Please stop emailing us.";
+    else f.db.records.get(f.receiptPath).receipt.messageId = "changed-parent-message";
+    expect((await executeAutomaticFirstContact(f.replyLedgerId)).state).not.toBe("sent");
+    expect(sendFounderMessage).toHaveBeenCalledTimes(1);
+  });
+  it("continues verifying the original v1 compiler snapshot without upgrading its authority", async () => {
+    const f = await setup();
+    const payload = structuredClone(f.payload), compiled = compileAutomaticFirstContact(f.brief, communicationsNow)!;
+    Object.assign(payload, { body: compiled.body, subject: compiled.subject,
+      transportBody: appendFirstContactFooter(compiled.body, f.brief.contact.email), outreachContract: compiled.outreachContract });
+    payload.communications.output = compiled;
+    const authority = firstContactAuthority(payload, communicationsNow, undefined, true)!;
+    expect(authority).toMatchObject({ version: "blueprint.first-contact-authority.v1", kind: "standing_first_contact_policy" });
+    expect(verifyFirstContactAuthority(authority, payload, communicationsNow)).toEqual(authority);
+    const changed = structuredClone(payload);
+    changed.body += " A new sentence.";
+    changed.communications.output.body = changed.body;
+    changed.transportBody = appendFirstContactFooter(changed.body, f.brief.contact.email);
+    expect(() => verifyFirstContactAuthority(authority, changed, communicationsNow, true)).toThrow();
+  });
   it("records immutable authority with unknown interest and no invented human approval", async () => {
     const f = await setup(); expect(f.outcome).toMatchObject({ state: "auto_approved", sent: false });
-    expect(f.ledger).toMatchObject({ status: "auto_approved", action_tier: 1, approved_by: null, auto_approve_reason: "standing_first_contact_policy" });
+    expect(f.ledger).toMatchObject({ status: "auto_approved", action_tier: 1, approved_by: null, auto_approve_reason: "standing_agent_communications_policy" });
+    expect(f.payload.communications.output).toEqual(f.output);
+    expect(f.payload.body).toBe(f.output.body);
+    expect(f.payload.subject).toBe(f.output.subject);
+    expect(f.payload.communications.output.reason).not.toContain("Compiled");
     expect(f.payload.body).toContain("I'm building Blueprint.");
     expect(f.payload.body).toContain("Is exploring robotics for Packing relevant to your site?");
     expect(f.ledger.first_contact_authority.stage.interest).toBe("unknown");

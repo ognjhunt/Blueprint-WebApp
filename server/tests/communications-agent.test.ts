@@ -6,8 +6,8 @@ import { communicationsFixture, communicationsNow, memoryFirestore } from "./fix
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
-import { processCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
-import { CommunicationsRuntimeError } from "../agents/communications-api";
+import { processCommunicationsJob, recoverRejectedCommunicationsCreate, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
+import { CommunicationsRuntimeError, type CommunicationsAgentsAPI } from "../agents/communications-api";
 import { reserveCommunicationsDraft, reconcileCommunicationsDraftSession } from "../agents/communications-draft-budget";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 
@@ -33,6 +33,39 @@ async function setup(intent: "outreach" | "reply" = "outreach", now = () => comm
   return { ...fixture, job, db, store, deps, install };
 }
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); });
+
+describe("explicit rejected-create worker recovery", () => {
+  it("keeps an old rejected claim and normal draft review while invoking only the separately verified recovery", async () => {
+    const f = await setup(), original = { createClaimedAt: new Date(communicationsNow - 3600000).toISOString(),
+      requestDigest: "a".repeat(64), sessionId: null, turnId: null };
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ state: "blocked",
+      reason: "agents_api_http_400", attempts: 1, checkpoint: original });
+    const recoverRejectedCreate = vi.fn(async (_params: Parameters<CommunicationsAgentsAPI["recoverRejectedCreate"]>[0]) =>
+      ({ output: f.output, checkpoint: original, usage: null }));
+    const intent = { ownerDirectionRef: "private-retained-owner-direction", briefDigest: f.job.briefDigest,
+      deliveryKey: communicationsDeliveryKey(f.job) };
+    const result = await recoverRejectedCommunicationsCreate(f.job.jobId, communicationsDigest(original), intent,
+      { ...f.deps, api: { ...f.deps.api, recoverRejectedCreate } });
+    expect(result.state).toBe("pending_approval");
+    expect(recoverRejectedCreate).toHaveBeenCalledTimes(1);
+    expect(recoverRejectedCreate.mock.calls[0][0]).toMatchObject({ checkpoint: original, intent });
+    expect(f.deps.api.run).not.toHaveBeenCalled(); expect(f.deps.api.cancel).not.toHaveBeenCalled();
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`)).toMatchObject({ checkpoint: original, attempts: 2 });
+    expect(f.db.records.get(`outboundProspects/${f.job.prospectId}`).communications.gmailDraftId).toBeNull();
+  });
+  it.each(["agents_api_connection_unknown", "agents_api_http_500"])("does not lease an uncertain create tagged %s", async reason => {
+    const f = await setup(), checkpoint = { createClaimedAt: new Date(communicationsNow - 3600000).toISOString(),
+      requestDigest: "a".repeat(64), sessionId: null, turnId: null };
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).update({ state: "blocked", reason, attempts: 1, checkpoint });
+    const recoverRejectedCreate = vi.fn();
+    await expect(recoverRejectedCommunicationsCreate(f.job.jobId, communicationsDigest(checkpoint), {
+      ownerDirectionRef: "private-retained-owner-direction", briefDigest: f.job.briefDigest,
+      deliveryKey: communicationsDeliveryKey(f.job),
+    }, { ...f.deps, api: { ...f.deps.api, recoverRejectedCreate } })).rejects.toThrow("rejected_create_binding_changed");
+    expect(recoverRejectedCreate).not.toHaveBeenCalled();
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).attempts).toBe(1);
+  });
+});
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("research handoff and publication integrity", () => {
@@ -133,14 +166,67 @@ describe("Blueprint-owned communications queue", () => {
     expect(f.db.records.get(`outboundProspects/${f.brief.prospectId}`).communications.gmailDraftId).toBeNull();
     expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).hardChecksPassed).toBe(true);
   });
-  it("retains a draft with an unsupported fact as a human-review diagnostic, never automatic authority", async () => {
+  it("returns actionable draft-quality feedback before any ledger write, then retains the corrected output", async () => {
+    const f = await setup("reply"), feedback: any[] = [];
+    f.deps.api.run.mockImplementation(async (...args: any[]) => {
+      const validate = args[0].validateOutput;
+      const invalid = { ...structuredClone(f.output), usedFactIds: ["invented-fact"] };
+      feedback.push(await validate(invalid));
+      expect(feedback[0]).toEqual([expect.objectContaining({ path: "usedFactIds", code: "used_fact_missing",
+        message: expect.stringContaining("existing researchBrief.facts IDs") })]);
+      expect([...f.db.records.keys()].some(key => key.startsWith("action_ledger/"))).toBe(false);
+      expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).output).toBeUndefined();
+      expect(await validate(f.output)).toBeNull();
+      return { output: f.output, checkpoint: f.job.checkpoint, usage: { input_tokens: 10 } };
+    });
+    const result = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result.state).toBe("pending_approval"); // The fixture's owner send activation remains off.
+    const ledger = f.db.records.get(`action_ledger/communications_${f.job.jobId}`);
+    expect(ledger.action_payload.communications.output).toEqual(f.output);
+    expect(ledger.action_payload.communicationsDraftDiagnostics).toBeUndefined();
+    expect(f.deps.api.run).toHaveBeenCalledOnce();
+  });
+  it.each(["suppression", "expired_lease", "changed_brief"])("does not ask the agent to repair %s instead of respecting current authority", async kind => {
+    const f = await setup("reply"); let repairRequests = 0;
+    f.deps.api.run.mockImplementation(async (...args: any[]) => {
+      if (kind === "suppression") f.deps.isSuppressed.mockResolvedValue(true);
+      if (kind === "expired_lease") f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).lease.until = 0;
+      if (kind === "changed_brief") f.db.records.get(`${COMMUNICATIONS_ROOT}/briefs/${f.brief.briefId}`).contact.sourceUrl = "https://changed.example/contact";
+      const invalid = { ...structuredClone(f.output), usedFactIds: ["invented-fact"] };
+      await args[0].validateOutput(invalid);
+      repairRequests++;
+      return { output: f.output, checkpoint: f.job.checkpoint, usage: { input_tokens: 10 } };
+    });
+    if (kind === "expired_lease") {
+      // Another owner may now claim the job; refusal must not fabricate a
+      // successful finish or renew this expired writer's lease.
+      await expect(processCommunicationsJob(f.job.jobId, f.deps)).rejects.toThrow("communications_lease_lost");
+    } else expect((await processCommunicationsJob(f.job.jobId, f.deps)).state).toBe("blocked");
+    expect(repairRequests).toBe(0);
+    expect([...f.db.records.keys()].some(key => key.startsWith("action_ledger/"))).toBe(false);
+  });
+  it("does not repair an obsolete reply against a newly changed actual thread", async () => {
+    const f = await setup("reply"); let repairRequests = 0;
+    f.deps.readThread.mockImplementation(async () => structuredClone(f.thread!));
+    f.deps.api.run.mockImplementation(async (...args: any[]) => {
+      f.thread!.messages.push({ ...f.thread!.messages[1], gmailMessageId: "new-inbound", receivedAt: "2026-09-30T22:59:30Z" });
+      await args[0].validateOutput({ ...structuredClone(f.output), usedFactIds: ["invented-fact"] });
+      repairRequests++;
+      return { output: f.output, checkpoint: f.job.checkpoint, usage: { input_tokens: 10 } };
+    });
+    expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "blocked", reason: "reply_thread_changed_requires_current_context" });
+    expect(repairRequests).toBe(0);
+    expect([...f.db.records.keys()].some(key => key.startsWith("action_ledger/"))).toBe(false);
+  });
+  it("retains an uncorrected prospective draft with unsupported facts as blocked evidence, never automatic or human approval", async () => {
     const f = await setup("reply");
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");
     f.output.usedFactIds.push("unknown-fact");
     const result = await processCommunicationsJob(f.job.jobId, f.deps);
-    expect(result).toMatchObject({ state: "pending_approval", sent: false });
+    expect(result).toMatchObject({ state: "blocked", reason: "draft_quality_failed:used_fact_missing", sent: false });
     const ledger = f.db.records.get(`action_ledger/${(result as any).ledgerId}`);
-    expect(ledger).toMatchObject({ action_tier: 3, status: "pending_approval", approved_by: null, action_payload: {
+    expect(ledger).toMatchObject({ action_tier: 3, status: "failed", approved_by: null, action_payload: {
       communicationsDraftDiagnostics: { blockers: expect.arrayContaining(["used_fact_missing"]) }, communications: { output: f.output } } });
     expect(ledger.first_contact_authority).toBeUndefined();
     expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).hardChecksPassed).toBe(false);

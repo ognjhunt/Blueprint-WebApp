@@ -1,11 +1,26 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
-import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT } from "../agents/communications-contract";
+import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest } from "../agents/communications-contract";
 import { communicationsFixture } from "./fixtures/communications";
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
   COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } from "../agents/communications-saved-agent";
+
+import { hydrateAgentEvidence } from "../agents/private-evidence";
+const httpStorage = vi.hoisted(() => ({ enabled: false, fail: false, objects: new Map<string, string>() }));
+vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => httpStorage.enabled ? {
+  bucketName: "mock-private-http-evidence",
+  createOnly: async (name: string, content: string) => {
+    if (httpStorage.fail) throw new Error("storage unavailable");
+    if (!httpStorage.objects.has(name)) httpStorage.objects.set(name, content);
+    return "created";
+  },
+  readText: async (name: string) => httpStorage.objects.get(name) ?? null,
+  info: async (name: string) => httpStorage.objects.has(name)
+    ? { generation: "1", size: Buffer.byteLength(httpStorage.objects.get(name)!) } : null,
+} : null }));
+afterEach(() => { httpStorage.enabled = false; httpStorage.fail = false; httpStorage.objects.clear(); });
 
 function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: string; noFinal?: boolean; http?: number; failed?: boolean; itemsPage?: boolean; itemPages?: number; repeatedCursor?: boolean; pagePadding?: number; advancePageClock?: boolean; missingMetadata?: boolean; rawOutput?: string; instructions?: string; usage?: unknown; changedSaved?: string } = {}) {
   const { output } = communicationsFixture();
@@ -13,7 +28,7 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
   const checkpoints: any[] = [];
   let requestDigest = "a".repeat(64), pageNumber = 0;
   let savedBinding = false;
-  let sessionAgent: any = null, sessionMetadata: any = null;
+  let sessionAgent: any = null, sessionMetadata: any = null, sessionVaults: string[] = [];
   const agentId = () => savedBinding ? COMMUNICATIONS_SAVED_AGENT_ID : "agent-1";
   const savedAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...structuredClone(COMMUNICATIONS_SAVED_CONFIGURATION) };
   if (options.changedSaved === "instructions") savedAgent.instructions += " Changed";
@@ -33,13 +48,13 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
       if (init.method === "POST" && path.endsWith("/agents/sessions")) {
         const body = JSON.parse(String(init.body));
         requestDigest = body.metadata.blueprint_communications_request_digest;
-        sessionAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...body.agent }; sessionMetadata = body.metadata;
+        sessionAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...body.agent }; sessionMetadata = body.metadata; sessionVaults = body.vault_ids ?? [];
         savedBinding = true;
       }
       return new Response(stream.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
     }
     if (path.endsWith("/session-1")) return Response.json({ id: "session-1", status: "idle", agent: savedBinding ? sessionAgent : { id: "agent-1", model: options.model ?? COMMUNICATIONS_MODEL,
-      instructions: options.instructions ?? COMMUNICATIONS_INSTRUCTIONS, service_tier: "default", tools: [], multi_agent: { enabled: false } }, environment: { type: "none" }, vault_ids: [],
+      instructions: options.instructions ?? COMMUNICATIONS_INSTRUCTIONS, service_tier: "default", tools: [], multi_agent: { enabled: false } }, environment: { type: "none" }, vault_ids: sessionVaults,
       metadata: options.missingMetadata ? {} : sessionMetadata ?? { blueprint_communications_job: "job-1", role: "communications", blueprint_communications_request_digest: requestDigest,
         ...(savedBinding ? { blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
           blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } : {}) } });
@@ -56,10 +71,232 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
   const reservePaidDraft = vi.fn(async () => undefined), recordPaidDraftUsage = vi.fn(async () => undefined);
   const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true, fetch: fetchMock as any, reservePaidDraft, recordPaidDraftUsage });
   const params = { input: "synthetic context", jobId: "job-1", checkpoint: options.reconnect ? { createClaimedAt: "2026-09-30T23:00:00Z", sessionId: "session-1", turnId: "turn-1", requestDigest } : { createClaimedAt: null, sessionId: null, turnId: null }, saveCheckpoint: async (value: any) => { checkpoints.push(value); } };
-  return { api, params, calls, fetchMock, checkpoints, output, reservePaidDraft, recordPaidDraftUsage };
+  return { api, params, calls, fetchMock, checkpoints, output, reservePaidDraft, recordPaidDraftUsage, savedAgent };
+}
+
+async function rejectedCreateFixture(options: { coverage?: "matching" | "incomplete" | "ambiguous" | "timestamp";
+  correctedUnknown?: boolean; gateChanges?: boolean; mcp?: boolean } = {}) {
+  const f = apiFixture({ usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 } }), baseline = f.fetchMock.getMockImplementation()!;
+  if (options.mcp) (f.savedAgent as any).tools = [{ type: "mcp", server_label: "gmail",
+    credential_id: "synthetic-owner-credential", transport: { type: "http", server_url: "https://gmailmcp.googleapis.com/mcp/v1", headers: {} },
+    request_metadata: {}, allowed_tools: null, required: false, connection_origin: "service" }];
+  let creates = 0;
+  const prior = Math.floor(Date.now() / 1000) - 3600;
+  f.fetchMock.mockImplementation(async (url: any, init: any) => {
+    const path = new URL(String(url)).pathname + new URL(String(url)).search;
+    if (options.mcp && path.startsWith("/v1/vaults?")) return Response.json({ data: [{ id: "vault_mock_gmail", object: "vault" }], has_more: false });
+    if (options.mcp && path.startsWith("/v1/vaults/vault_mock_gmail/credentials?")) return Response.json({ data: [{
+      id: "synthetic-owner-credential", object: "vault.credential", vault_id: "vault_mock_gmail" }], has_more: false });
+    if (init.method === "POST" && path.endsWith("/agents/sessions")) {
+      expect(Object.keys(JSON.parse(String(init.body)).metadata).length).toBeLessThanOrEqual(16);
+      creates++;
+      if (creates === 1) return new Response("retained known invalid request", { status: 400 });
+      if (options.correctedUnknown) throw new Error("unknown corrected response");
+    }
+    if (path.startsWith("/v1/agents/sessions?")) {
+      expect(path).not.toContain("agent_id"); expect(path).not.toContain("job");
+      if (options.coverage === "incomplete") return Response.json({ data: [{ id: "old-1" }], has_more: true, last_id: "bad-cursor" });
+      return Response.json({ data: [{ id: "old-1" }], has_more: false });
+    }
+    if (path.endsWith("/agents/sessions/old-1")) return Response.json({ id: "old-1",
+      created_at: options.coverage === "timestamp" ? null : prior,
+      ...(options.coverage === "ambiguous" ? {} : { metadata: options.coverage === "matching" ? { blueprint_communications_job: "job-1" } : {} }) });
+    return baseline(url, init);
+  });
+  await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_api_http_400" });
+  const original = structuredClone(f.checkpoints.at(-1));
+  const proof = { httpStatus: 400 as const, jobId: "job-1", requestDigest: original.requestDigest,
+    createClaimedAt: original.createClaimedAt, inputDigest: communicationsDigest({ input: f.params.input }), evidenceDigest: communicationsDigest(original.httpEvidence) };
+  const intent = { ownerDirectionRef: "retained-owner-direction", briefDigest: "b".repeat(64), deliveryKey: "same-delivery-key" };
+  const assertion = vi.fn(async () => proof);
+  const gate = vi.fn(async () => { if (options.gateChanges && gate.mock.calls.length > 1) throw new Error("recipient_suppressed"); });
+  const claim = vi.fn(async (_jobId: string, checkpoint: any, recovery: any) => {
+    expect(communicationsDigest(checkpoint)).toBe(recovery.originalCheckpointDigest);
+    expect(creates).toBe(1);
+    await f.params.saveCheckpoint({ ...checkpoint, rejectedCreateRecovery: structuredClone(recovery) });
+  });
+  const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true, fetch: f.fetchMock as any,
+    reservePaidDraft: f.reservePaidDraft, recordPaidDraftUsage: f.recordPaidDraftUsage,
+    assertRejectedCreateRecovery: assertion, claimRejectedCreateRecovery: claim });
+  return { ...f, api, original, intent, assertion, claim, gate, creates: () => creates,
+    recoveryParams: { ...f.params, checkpoint: original, intent, assertRepairAllowed: gate } };
 }
 
 describe("portable communications Agents API", () => {
+  it("claims one corrected create after a verified400 and fresh complete global coverage, retaining original identity", async () => {
+    const f = await rejectedCreateFixture({ mcp: true });
+    const result = await f.api.recoverRejectedCreate(f.recoveryParams);
+    expect(result.output).toEqual(f.output);
+    expect(result.checkpoint.createClaimedAt).toBe(f.original.createClaimedAt);
+    expect(result.checkpoint.requestDigest).toBe(f.original.requestDigest);
+    expect(result.checkpoint.sessionId).toBeNull();
+    const recovery = result.checkpoint.rejectedCreateRecovery!;
+    expect(recovery.checkpoint.sessionId).toBe("session-1");
+    expect(recovery.originalCheckpointDigest).toBe(communicationsDigest(f.original));
+    expect(recovery.negativeCoverage).toMatchObject({ project: COMMUNICATIONS_PROJECT, count: 1 });
+    expect(recovery.deadlineMs).toBe(Date.parse(recovery.checkpoint.createClaimedAt!) + 180000);
+    expect(JSON.parse(recovery.correctedBody).metadata).toMatchObject({
+      blueprint_communications_recovery_binding_digest: communicationsDigest({
+        originalCheckpointDigest: recovery.originalCheckpointDigest, originalRequestDigest: f.original.requestDigest,
+        intent: f.intent, claimedAt: recovery.checkpoint.createClaimedAt, deadlineMs: recovery.deadlineMs }) });
+    expect(recovery.checkpoint.gmailMcp?.profile).toBe("mcp-vault-read-v1");
+    expect(f.creates()).toBe(2); expect(f.claim).toHaveBeenCalledTimes(1);
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledWith("job-1", recovery.correctedRequestDigest, expect.any(Object));
+    // Replacement observation and the other supported readers use the child;
+    // none converts original unknown usage or creates a third session.
+    expect((await f.api.run({ ...f.params, checkpoint: result.checkpoint })).output).toEqual(f.output);
+    expect((await f.api.reconcileSaved(result.checkpoint, "job-1"))?.output).toEqual(f.output);
+    expect(await f.api.reconcileUsage(result.checkpoint, "job-1")).toMatchObject({ input_tokens: 3 });
+    expect(await f.api.verifyExistingDraftSession(result.checkpoint, "job-1", f.original.requestDigest)).toMatchObject({ sessionId: "session-1", requestDigest: recovery.correctedRequestDigest });
+    expect(await f.api.cancel(result.checkpoint)).toBe(true);
+    expect(f.creates()).toBe(2);
+    await expect(f.api.recoverRejectedCreate({ ...f.recoveryParams, checkpoint: result.checkpoint })).rejects.toMatchObject({ code: "communications_rejected_create_ineligible" });
+  });
+  it("recovers an older canonical known400 without requiring a response body that was never retained", async () => {
+    const f = await rejectedCreateFixture();
+    delete f.original.httpFailure; delete f.original.httpEvidence;
+    const result = await f.api.recoverRejectedCreate(f.recoveryParams);
+    expect(result.output).toEqual(f.output);
+    expect(result.checkpoint.rejectedCreateRecovery!.rejectionProof).toMatchObject({ httpStatus: 400,
+      requestDigest: f.original.requestDigest, createClaimedAt: f.original.createClaimedAt });
+    expect(result.checkpoint.httpEvidence).toBeUndefined();
+    expect(f.creates()).toBe(2); expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+  });
+  it("rejects an altered corrected deadline or authority binding before any provider observation", async () => {
+    const f = await rejectedCreateFixture();
+    const result = await f.api.recoverRejectedCreate(f.recoveryParams);
+    const changed = structuredClone(result.checkpoint);
+    changed.rejectedCreateRecovery!.checkpoint.createClaimedAt = new Date(Date.now() + 180000).toISOString();
+    changed.rejectedCreateRecovery!.deadlineMs = Date.parse(changed.rejectedCreateRecovery!.checkpoint.createClaimedAt!) + 180000;
+    const calls = f.fetchMock.mock.calls.length;
+    await expect(f.api.run({ ...f.params, checkpoint: changed })).rejects.toMatchObject({ code: "communications_rejected_create_binding_invalid" });
+    expect(f.fetchMock).toHaveBeenCalledTimes(calls); expect(f.creates()).toBe(2);
+  });
+  it.each(["matching", "incomplete", "ambiguous", "timestamp"] as const)("refuses corrected create when global coverage is %s", async coverage => {
+    const f = await rejectedCreateFixture({ coverage });
+    await expect(f.api.recoverRejectedCreate(f.recoveryParams)).rejects.toMatchObject({ code: coverage === "matching"
+      ? "communications_rejected_create_session_exists" : coverage === "incomplete"
+        ? "communications_rejected_create_coverage_incomplete" : "communications_rejected_create_coverage_ambiguous" });
+    expect(f.claim).not.toHaveBeenCalled(); expect(f.creates()).toBe(1);
+  });
+  it("never repeats an uncertain corrected POST, preserving both separate claims and unknown usage", async () => {
+    const f = await rejectedCreateFixture({ correctedUnknown: true });
+    await expect(f.api.recoverRejectedCreate(f.recoveryParams)).rejects.toMatchObject({ code: "agents_api_connection_unknown" });
+    const retained = f.checkpoints.at(-1);
+    expect(retained.rejectedCreateRecovery.checkpoint).toMatchObject({ createClaimedAt: expect.any(String), sessionId: null });
+    const calls = f.fetchMock.mock.calls.length;
+    await expect(f.api.run({ ...f.params, checkpoint: retained })).rejects.toMatchObject({ code: "session_create_requires_reconciliation" });
+    expect(f.fetchMock).toHaveBeenCalledTimes(calls); expect(f.creates()).toBe(2);
+    expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
+    expect(retained.requestDigest).toBe(f.original.requestDigest);
+  });
+  it("rechecks consequential controls after the one-use recovery claim and does not POST if suppressed", async () => {
+    const f = await rejectedCreateFixture({ gateChanges: true });
+    await expect(f.api.recoverRejectedCreate(f.recoveryParams)).rejects.toThrow("recipient_suppressed");
+    expect(f.claim).toHaveBeenCalledTimes(1); expect(f.creates()).toBe(1);
+    expect(f.checkpoints.at(-1).rejectedCreateRecovery.checkpoint.sessionId).toBeNull();
+  });
+  it("denies owner-proof scope mismatch and non400 outcomes without global listing or another create", async () => {
+    const f = await rejectedCreateFixture();
+    f.assertion.mockResolvedValueOnce({ ...await f.assertion(), httpStatus: 429 as any });
+    const calls = f.fetchMock.mock.calls.length;
+    await expect(f.api.recoverRejectedCreate(f.recoveryParams)).rejects.toMatchObject({ code: "communications_rejected_create_evidence_invalid" });
+    expect(f.fetchMock).toHaveBeenCalledTimes(calls); expect(f.claim).not.toHaveBeenCalled();
+  });
+  it("retains rejected create bytes privately and resumes without another paid POST", async () => {
+    httpStorage.enabled = true;
+    const f = apiFixture();
+    const body = JSON.stringify({ error: { message: "PRIVATE INPUT " + "x".repeat(420000), type: "invalid_request_error" } });
+    const originalFetch = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => init.method === "POST"
+      ? new Response(body, { status: 400, headers: { "x-request-id": "req-synthetic-rejected" } })
+      : originalFetch(url, init));
+    let error: any;
+    try { await f.api.run(f.params); } catch (caught) { error = caught; }
+    expect(error).toMatchObject({ code: "agents_api_http_400", retryable: false });
+    expect(JSON.stringify(error)).not.toContain("PRIVATE INPUT");
+    const checkpoint = f.checkpoints.at(-1);
+    expect(checkpoint).toMatchObject({ sessionId: null, createClaimedAt: expect.any(String),
+      httpFailure: { status: 400, retention: "retained", capture: "complete" } });
+    expect(checkpoint.httpEvidence.agent_evidence_ref).toBeTruthy();
+    expect(JSON.stringify(checkpoint)).not.toContain("PRIVATE INPUT");
+    const binding = checkpoint.httpFailure.binding;
+    const hydrated = await hydrateAgentEvidence(checkpoint.httpEvidence, { collection: "agentCheckpoints",
+      id: `communications-http:job-1:${communicationsDigest(binding)}` });
+    expect(hydrated.snapshot.binding).toEqual(binding);
+    expect(hydrated.snapshot.response).toMatchObject({ status: 400, requestId: "req-synthetic-rejected" });
+    expect(Buffer.from(hydrated.snapshot.response.bodyBase64, "base64").toString()).toBe(body);
+    const calls = f.fetchMock.mock.calls.length;
+    await expect(f.api.run({ ...f.params, checkpoint })).rejects.toMatchObject({ code: "session_create_requires_reconciliation" });
+    expect(f.fetchMock).toHaveBeenCalledTimes(calls);
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
+  });
+  it("keeps the actual HTTP status and one-use claim when private offload and checkpoint retention fail", async () => {
+    httpStorage.enabled = true; httpStorage.fail = true;
+    const f = apiFixture(), originalFetch = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => init.method === "POST"
+      ? new Response("private " + "x".repeat(420000), { status: 422 }) : originalFetch(url, init));
+    let saves = 0, error: any;
+    try { await f.api.run({ ...f.params, saveCheckpoint: async value => {
+      if (++saves > 1) throw new Error("checkpoint unavailable");
+      await f.params.saveCheckpoint(value);
+    } }); } catch (caught) { error = caught; }
+    expect(error).toMatchObject({ code: "agents_api_http_422", httpFailure: { status: 422, retention: "checkpoint_unpersisted" } });
+    expect(error.privateHttpResponse.status).toBe(422);
+    expect(Buffer.from(error.privateHttpResponse.bodyBase64, "base64").toString()).toContain("private ");
+    expect(JSON.stringify(error)).not.toContain("private ");
+    const calls = f.fetchMock.mock.calls.length;
+    await expect(f.api.run({ ...f.params, checkpoint: f.checkpoints[0] })).rejects.toMatchObject({ code: "session_create_requires_reconciliation" });
+    expect(f.fetchMock).toHaveBeenCalledTimes(calls);
+    expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
+  });
+  it("binds preflight HTTP evidence to the existing job/input without creating paid authority", async () => {
+    const f = apiFixture({ http: 403 });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_api_http_403" });
+    const checkpoint = f.checkpoints.at(-1);
+    expect(checkpoint).toMatchObject({ createClaimedAt: null, sessionId: null,
+      httpFailure: { status: 403, binding: { jobId: "job-1", requestDigest: null,
+        inputDigest: communicationsDigest({ input: f.params.input }) } } });
+    expect(f.reservePaidDraft).not.toHaveBeenCalled();
+    expect(f.fetchMock.mock.calls.every(([, init]) => init.method !== "POST")).toBe(true);
+    await expect(f.api.run({ ...f.params, jobId: "other-job", checkpoint })).rejects.toMatchObject({ code: "agents_api_http_403" });
+    expect(f.fetchMock).toHaveBeenCalledTimes(2);
+    expect(f.reservePaidDraft).not.toHaveBeenCalled();
+  });
+  it("continues after a historical preflight rejection without renewing its original diagnostic scope", async () => {
+    const f = apiFixture();
+    f.fetchMock.mockImplementationOnce(async () => new Response("original preflight error", { status: 403 }));
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_api_http_403" });
+    const checkpoint = f.checkpoints.at(-1), originalBinding = checkpoint.httpFailure.binding;
+    const result = await f.api.run({ ...f.params, checkpoint });
+    expect(result.output).toEqual(f.output);
+    expect(result.checkpoint.httpFailure?.binding).toEqual(originalBinding);
+    expect(result.checkpoint.httpFailure?.binding.createClaimedAt).toBeNull();
+    expect(f.fetchMock.mock.calls.filter(([, init]) => init.method === "POST")).toHaveLength(1);
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+  });
+  it("observes a later verified turn even when earlier HTTP diagnostics are unavailable", async () => {
+    const f = apiFixture({ reconnect: true });
+    f.fetchMock.mockImplementationOnce(async () => new Response("earlier observation error", { status: 400 }));
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_api_http_400" });
+    const checkpoint = f.checkpoints.at(-1), originalBinding = checkpoint.httpFailure.binding;
+    const originalFetch = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await originalFetch(url, init);
+      return new Response((await response.text()).replaceAll("turn-1", "turn-2"), { status: response.status, headers: response.headers });
+    });
+    checkpoint.turnId = "turn-2";
+    // A lost optional diagnostic object cannot cancel valid saved accounting.
+    checkpoint.httpEvidence.snapshot.response.bodyBase64 = "corrupt";
+    const result = await f.api.run({ ...f.params, checkpoint });
+    expect(result.output).toEqual(f.output);
+    expect(result.checkpoint.turnId).toBe("turn-2");
+    expect(result.checkpoint.httpFailure).toMatchObject({ status: 400, binding: originalBinding, retention: "private_evidence_unavailable" });
+    expect(originalBinding.turnId).toBe("turn-1");
+    expect(f.fetchMock.mock.calls.every(([, init]) => init.method !== "POST")).toBe(true);
+  });
   it("uses exact Luna/Default project and a new-session read-only history override", async () => {
     const f = apiFixture();
     expect((await f.api.run(f.params)).output).toEqual(f.output);
@@ -303,5 +540,180 @@ describe("portable communications Agents API", () => {
     expect(JSON.parse(String(f.calls[0].init.body))).toEqual({ events: [{ type: "agent.session.input.cancel" }] });
     expect(f.reservePaidDraft).not.toHaveBeenCalled();
     expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
+  });
+});
+
+describe("new-session bounded communications final repair", () => {
+  const knownUsage = { input_tokens: 100, output_tokens: 20, total_tokens: 120,
+    input_tokens_details: { cached_tokens: 10 }, output_tokens_details: { reasoning_tokens: 2 } };
+  function repairFixture(options: { raw?: string; missingUsage?: boolean; unknown?: "accepted" | "absent";
+    alwaysInvalid?: boolean; wrongMessage?: boolean; evidence?: boolean; beforeSave?: (checkpoint: any) => void } = {}) {
+    const f = apiFixture({ rawOutput: options.raw ?? "not JSON", usage: knownUsage });
+    const originals = f.fetchMock;
+    if (options.evidence) (f.savedAgent.tools as any[]) = [{ type: "mcp", server_label: "gmail", credential_id: "synthetic-owner-credential",
+      transport: { type: "http", server_url: "https://gmailmcp.googleapis.com/mcp/v1", headers: {} }, request_metadata: {},
+      allowed_tools: null, required: false, connection_origin: "service" }];
+    const turns: any[] = [{ id: "turn-1", agent_id: COMMUNICATIONS_SAVED_AGENT_ID, status: "completed", usage: knownUsage }];
+    const items: any[] = [{ id: "final-1", type: "message", role: "assistant", phase: "final_answer", status: "completed",
+      turn_id: "turn-1", content: [{ type: "output_text", text: options.raw ?? "not JSON" }] }];
+    const native = { id: "mcp-1", type: "mcp_call", turn_id: "turn-1", server_label: "gmail", name: "get_thread",
+      arguments: JSON.stringify({ thread_id: "synthetic-thread" }), output: "Original private dated thread evidence", status: "completed" };
+    if (options.evidence) items.push(native);
+    const submissions: any[] = [], snapshots: any[] = [];
+    let historySubmitted = false;
+    let latest: any;
+    const fetchMock = vi.fn(async (url: any, init: any) => {
+      const path = new URL(String(url)).pathname + new URL(String(url)).search;
+      if (options.evidence && path.includes("/vaults?")) return Response.json({ data: [{ id: "vault_mock_gmail", object: "vault" }], has_more: false });
+      if (options.evidence && path.includes("/vaults/vault_mock_gmail/credentials?")) return Response.json({ data: [{
+        id: "synthetic-owner-credential", object: "vault.credential", vault_id: "vault_mock_gmail" }], has_more: false });
+      if (path.includes("/turns?")) return Response.json({ data: options.evidence && !historySubmitted
+        ? turns.map(turn => ({ ...turn, status: "waiting" })) : turns, has_more: false });
+      if (path.includes("/items?")) return Response.json({ data: items, has_more: false });
+      if (path.endsWith("/events") && init.method === "POST") {
+        expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
+        const event = JSON.parse(init.body).events[0];
+        if (event.type === "agent.session.input.tool_result") { historySubmitted = true; return new Response(null, { status: 202 }); }
+        expect(latest.finalRepairs.at(-1)).toMatchObject({ state: "input_unresolved", event,
+          requestDigest: communicationsDigest(event), idempotencyKey: init.headers["Idempotency-Key"] });
+        submissions.push({ event, headers: init.headers });
+        if (options.unknown !== "absent") {
+          const id = `turn-${turns.length + 1}`;
+          turns.push({ id, agent_id: COMMUNICATIONS_SAVED_AGENT_ID, status: "completed", usage: options.missingUsage ? null : knownUsage });
+          items.push({ id: `input-${id}`, type: "message", role: "user", turn_id: id,
+            content: options.wrongMessage ? [{ type: "input_text", text: "different input" }] : event.input[0].content },
+          { id: `final-${id}`, type: "message", role: "assistant", phase: "final_answer", status: "completed", turn_id: id,
+            content: [{ type: "output_text", text: options.alwaysInvalid ? "still invalid" : JSON.stringify(f.output) }] });
+        }
+        if (options.unknown) throw Error("synthetic acknowledgment lost");
+        return new Response(null, { status: 202 });
+      }
+      if (path.endsWith("/events") && turns.length > 1) return new Response(`${options.evidence ? 'data: {"type":"agent.session.requires_action"}\n\n' : ""}data: ${JSON.stringify({
+        type: "agent.session.turn.completed", turn_id: turns.at(-1).id })}\n\n`);
+      const response = await originals(url, init);
+      if (options.evidence && path.endsWith("/agents/sessions")) return new Response((await response.text()).replace(
+        'data: {"type":"agent.session.turn.completed"', 'data: {"type":"agent.session.requires_action"}\n\ndata: {"type":"agent.session.turn.completed"'));
+      if (options.evidence && path.endsWith("/session-1")) {
+        const session = await response.json();
+        session.required_actions = historySubmitted ? [] : [{ type: "function_call", name: "fetch_company_history_record",
+          call_id: "original-history-call", turn_id: "turn-1", arguments: { record_id: "history:original" } }];
+        session.status = historySubmitted ? "idle" : "requires_action";
+        return Response.json(session);
+      }
+      return response;
+    });
+    const saveCheckpoint = async (value: any) => {
+      options.beforeSave?.(value); latest = structuredClone(value); snapshots.push(latest);
+    };
+    const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true, fetch: fetchMock as any,
+      reservePaidDraft: f.reservePaidDraft, recordPaidDraftUsage: f.recordPaidDraftUsage });
+    return { ...f, api, fetchMock, params: { ...f.params, saveCheckpoint }, turns, items, submissions, snapshots,
+      checkpoint: () => latest };
+  }
+  it("returns exact schema feedback to the same session and settles both known turns once", async () => {
+    const f = repairFixture(), result = await f.api.run(f.params);
+    expect(result.output).toEqual(f.output); expect(f.submissions).toHaveLength(1);
+    expect(f.submissions[0].event).toMatchObject({ type: "agent.session.input.message", input: [{ role: "user",
+      content: [{ type: "input_text", text: expect.stringContaining("invalid_json") }] }] });
+    expect(result.checkpoint.finalOutputSources).toHaveLength(2);
+    expect(result.checkpoint.finalOutputSources![0]).toMatchObject({ rawOutput: "not JSON", turnId: "turn-1" });
+    expect(result.checkpoint.finalRepairs![0]).toMatchObject({ baselineTurnIds: ["turn-1"], turnId: "turn-2" });
+    expect(result.usage).toEqual({ input_tokens: 200, output_tokens: 40, total_tokens: 240,
+      input_tokens_details: { cached_tokens: 20 }, output_tokens_details: { reasoning_tokens: 4 } });
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, result.usage);
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    expect(f.calls.filter(call => call.init.method === "POST")).toHaveLength(1);
+  });
+  it("repairs caller-filtered quality feedback before settling the original admission", async () => {
+    const f = repairFixture({ raw: JSON.stringify(communicationsFixture().output) });
+    let calls = 0;
+    const validateOutput = vi.fn(() => ++calls === 1 ? [{ path: "/usedFactIds", code: "used_fact_missing", message: "Use a known brief fact ID." }] : null);
+    const result = await f.api.run({ ...f.params, validateOutput });
+    expect(validateOutput).toHaveBeenCalledTimes(2); expect(f.submissions).toHaveLength(1);
+    expect(result.checkpoint.finalRepairs![0].feedback[0].code).toBe("used_fact_missing");
+  });
+  it("reconciles an accepted correction after lost acknowledgment using exact GET message proof", async () => {
+    const f = repairFixture({ unknown: "accepted" });
+    expect((await f.api.run(f.params)).output).toEqual(f.output);
+    expect(f.submissions).toHaveLength(1);
+    expect(f.fetchMock.mock.calls.filter(([url, init]: any[]) => String(url).endsWith("/events") && !init.method)).toHaveLength(0);
+  });
+  it("never resubmits an unknown correction or creates another session on replacement", async () => {
+    const f = repairFixture({ unknown: "absent" });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_final_repair_pending" });
+    const saved = f.checkpoint(); f.recordPaidDraftUsage.mockClear();
+    await expect(f.api.run({ ...f.params, checkpoint: saved })).rejects.toMatchObject({ code: "agents_final_repair_pending" });
+    expect(f.submissions).toHaveLength(1); expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledWith("job-1", saved.requestDigest, null);
+    expect(await f.api.reconcileUsage(saved, "job-1")).toBeNull();
+  });
+  it("keeps missing correction usage unknown while retaining the original known receipt", async () => {
+    const f = repairFixture({ missingUsage: true }), result = await f.api.run(f.params);
+    expect(result.usage).toBeNull(); expect(result.checkpoint.usageReceipts).toMatchObject([
+      { turnId: "turn-1", usage: knownUsage }, { turnId: "turn-2", usage: null }]);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, null);
+  });
+  it("stops after two uniquely claimed corrections and preserves every invalid original", async () => {
+    const f = repairFixture({ alwaysInvalid: true });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "communications_output_invalid", outputSource: { turnId: "turn-3" } });
+    expect(f.submissions).toHaveLength(2); expect(new Set(f.submissions.map(call => call.headers["Idempotency-Key"])).size).toBe(2);
+    expect(f.checkpoint().finalOutputSources).toHaveLength(3);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, expect.objectContaining({ input_tokens: 300 }));
+  });
+  it("refuses a different saved user message instead of treating a latest turn as the correction", async () => {
+    const f = repairFixture({ wrongMessage: true });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_final_repair_message_proof_mismatch" });
+    expect(f.submissions).toHaveLength(1);
+  });
+  it("does not mint another turn when a consequential callback throws", async () => {
+    const f = repairFixture({ raw: JSON.stringify(communicationsFixture().output) });
+    await expect(f.api.run({ ...f.params, validateOutput: () => { throw Error("recipient_suppressed"); } })).rejects.toThrow("recipient_suppressed");
+    expect(f.submissions).toHaveLength(0); expect(f.checkpoint().finalOutputSources).toHaveLength(1);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, knownUsage);
+  });
+  it("retains original history and native Gmail receipts across the correction turn", async () => {
+    const tools = await import("../agents/operator-tools");
+    const access = vi.spyOn(tools, "getCompanyHistoryAccess").mockResolvedValue({ expiresAt: "2099-10-01T00:00:00Z" } as any);
+    const run = vi.spyOn(tools, "runOperatorTool").mockResolvedValue({ ok: true, record: { checked_at: "2026-10-01" } });
+    try {
+    const f = repairFixture({ evidence: true }), result = await f.api.run(f.params);
+    expect(result.output).toEqual(f.output);
+    expect(result.checkpoint.historyToolReceipts).toMatchObject([{ turnId: "turn-1", callId: "original-history-call",
+      delivery: "submitted", output: expect.stringContaining("2026-10-01") }]);
+    expect(result.checkpoint.nativeMcpItems).toMatchObject([{ turn_id: "turn-1", name: "get_thread", output: "Original private dated thread evidence" }]);
+    expect(result.checkpoint.gmailMcp).toMatchObject({ profile: "mcp-vault-read-v1", vaultIds: ["vault_mock_gmail"] });
+    const create = f.calls.find(call => call.path.endsWith("/agents/sessions") && call.init.method === "POST")!;
+    expect(JSON.parse(String(create.init.body)).vault_ids).toEqual(["vault_mock_gmail"]);
+    expect(result.checkpoint.finalOutputSources).toHaveLength(2);
+    expect(run).toHaveBeenCalledTimes(1);
+    } finally { access.mockRestore(); run.mockRestore(); }
+  });
+  it("rechecks consequential controls for malformed JSON before any correction request", async () => {
+    const f = repairFixture(), assertRepairAllowed = vi.fn(() => { throw Error("recipient_suppressed"); });
+    await expect(f.api.run({ ...f.params, assertRepairAllowed })).rejects.toThrow("recipient_suppressed");
+    expect(f.submissions).toHaveLength(0); expect(assertRepairAllowed).toHaveBeenCalledTimes(1);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, knownUsage);
+  });
+  it("retains final source and settles known usage when the original lease rejects final checkpoint persistence", async () => {
+    const f = repairFixture({ raw: JSON.stringify(communicationsFixture().output), beforeSave: checkpoint => {
+      if (checkpoint.finalRepairSettled) throw Error("communications_lease_lost");
+    } });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "communications_final_checkpoint_unpersisted",
+      outputSource: { rawOutput: JSON.stringify(f.output), turnId: "turn-1" } });
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, knownUsage);
+    expect(f.submissions).toHaveLength(0);
+  });
+  it("sends no correction after the original deadline crosses during checkpoint persistence", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-02T20:00:00Z"));
+    try {
+      const f = repairFixture({ beforeSave: checkpoint => {
+        if (checkpoint.finalRepairs?.length) vi.setSystemTime(Date.parse(checkpoint.createClaimedAt) + 180000);
+      } });
+      await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "communications_final_repair_deadline" });
+      expect(f.submissions).toHaveLength(0);
+      const saved = f.checkpoint(), previousCalls = f.fetchMock.mock.calls.length;
+      await expect(f.api.reconcileSaved(saved, "job-1")).rejects.toMatchObject({ code: "communications_output_invalid" });
+      expect(f.fetchMock.mock.calls.slice(previousCalls).every(([, init]: any[]) => init.method !== "POST")).toBe(true);
+    } finally { vi.useRealTimers(); }
   });
 });
