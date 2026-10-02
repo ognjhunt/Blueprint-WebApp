@@ -264,7 +264,7 @@ stable BP/native IDs and hashes before any later cutover. Existing staged
 reconciliation and no-destructive-migration rules continue to apply.
 
 The native host adapter in `server/research-learning/native-hooks.ts` owns only
-`nativeLearningJobs` plus the existing additive learning collections. Its
+`nativeLearningJobs`, `nativeLearningInputs` and the existing additive learning collections. Its
 reviewed source snapshot ID is explicit; it never changes a current pointer or
 research lease/control. A create-only daily manifest pins the Chicago day,
 first cutoff, relevant company prospect IDs, host principal, subject keys,
@@ -278,18 +278,41 @@ does deterministic aggregation once at or after 06:45 America/Chicago, handles
 DST, caches a completed civil day, retries failures and drains active work on
 shutdown. No extra provider inference or paid classification is introduced.
 `dailyResearchWorker.ts` passes an additive `learningHooks` package contract:
-`beforeRun(): Promise<structured handoff>` and
+`beforeRun(date): Promise<structured handoff>` and
 `afterRun(date): Promise<void>`. Before the prompt, the first callback awaits
-the durable daily overview, then reads current authorized context. The latter
+the durable daily overview, then freezes the authorized input for that native
+run identity before a new provider request. The latter
 observes only `blueprintDailyResearch/sites-first/runs/{date}` after native
 persistence. The pinned-package owner must consume these callbacks; older
 packages ignore them. This adapter alone does not establish native prompt
-consumption. Communications owners call `beforeWork("communications", [the
-exact authorized prospect ID])` before their normal prompt and
+consumption. Communications owners call `prepareNativeJob("communications",
+the exact job record path, [the exact authorized prospect ID])` before a new
+request, use the returned handoff or explicitly unknown input, and
 `afterNativeWork(the exact job record path)` after final/paused persistence.
 Parser, approvals, send policy, OAuth and research package/usage stay with their
 existing owners. The user's current draft-only direction overrides any earlier
 automatic outreach policy; these learning hooks grant no sends.
+
+`nativeLearningInputs` is a create-only structured input per exact role/native
+record identity, with config/source/context/input hashes and preparation time.
+Current communications job/prospect binding is rechecked on replay. Retries
+reuse the original bytes and source dates, even after the captured read expiry;
+the current native host remains responsible for authorization and fresh
+source/policy checks. Configuration/scope changes cannot silently rebuild the
+same job's request digest. Initially unknown context is also frozen, rather
+than changing an in-flight request when a source heals. Persisting the input
+must succeed before a new request; failure cannot fall back to a variable
+unrecorded input. The 900 KB guard requires narrower scope/export before write.
+
+Existing remote checkpoints retain their original inputs and never acquire a
+new learning field during recovery. For communications recovery,
+`prepareNativeJob(..., {allowCreate:false})` returns a previously frozen input
+or null; null preserves the legacy request shape without writes. The research
+package owner invokes `beforeRun(date)` only for a new request or its already
+learning-aware retry, skips it for legacy checkpoint reconciliation, and
+persists/reuses the exact returned input. `beforeWork` remains a read-only
+current-context API for relevant retrieval and offline/live dry-run checks.
+No provider create/cancel/retry is issued by this host adapter.
 
 Native pre-prompt and daily views authorize at the real clock, but preserve a
 fixed evidence cutoff. Firestore `updateTime` proves that each exact prospect,

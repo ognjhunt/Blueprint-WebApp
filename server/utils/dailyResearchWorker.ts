@@ -10,7 +10,7 @@ type ResearchPackage = { startDailyResearchWorker: (options: {
   bundleRoot: string; python: string; enabled: true; log: (status: string) => void;
   // The pinned-package owner consumes these callbacks before prompt creation
   // and after native persistence. Older packages ignore the additive field.
-  learningHooks?: { beforeRun: () => Promise<unknown>; afterRun: (date: string) => Promise<void> };
+  learningHooks?: { beforeRun: (date: string) => Promise<unknown>; afterRun: (date: string) => Promise<void> };
 }) => ResearchHandle };
 type WorkerDependencies = { loadPackage?: (url: string) => Promise<ResearchPackage>; learning?: NativeLearning | null };
 
@@ -37,10 +37,14 @@ export function startDailyResearchWorker(dependencies: WorkerDependencies = {}):
         enabled: true,
         log: (status: string) => logger.info(attachRequestMeta({ route: "daily-research", status }), "Research status"),
         ...(learning ? { learningHooks: {
-          beforeRun: async () => {
+          beforeRun: async (date: string) => {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("native_learning_run_identity_invalid");
             try { await learning.daily(); } catch { status("daily_overview_unavailable"); }
-            const context = await learning.beforeWork("daily_research");
-            return context.available ? context.handoff : { unknown: context.unknown, paidModelCalls: 0 }; },
+            try { const context = await learning.prepareNativeJob("daily_research", `blueprintDailyResearch/sites-first/runs/${date}`);
+              if (!context) throw new Error("native_learning_input_unavailable");
+              return context.handoff ?? { unknown: context.unknown, paidModelCalls: 0 }; }
+            catch { status("native_input_unavailable"); throw new Error("native_learning_input_unavailable"); }
+          },
           afterRun: async (date: string) => {
             if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { status("native_run_identity_invalid"); return; }
             try { await learning.afterNativeWork(`blueprintDailyResearch/sites-first/runs/${date}`); status("native_run_observed"); }

@@ -3,6 +3,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), error: vi.fn() }, attachRequestMeta: (input: unknown) => input }));
 import { startDailyResearchWorker } from "../utils/dailyResearchWorker";
 const learning = () => ({ daily: vi.fn(async () => ({ state: "completed" })), beforeWork: vi.fn(async () => ({ available: true as const, handoff: { contextHash: "synthetic-context", paidModelCalls: 0 } })),
+  prepareNativeJob: vi.fn(async () => ({ handoff: { contextHash: "synthetic-context", paidModelCalls: 0 } })),
   afterNativeWork: vi.fn(async () => ({})) });
 afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
 describe("existing native research worker learning lifecycle", () => {
@@ -18,8 +19,8 @@ describe("existing native research worker learning lifecycle", () => {
     await vi.advanceTimersByTimeAsync(0); expect(start).toHaveBeenCalledTimes(1); expect(hooks.daily).toHaveBeenCalledTimes(1);
     const options = start.mock.calls[0][0] as any;
     expect(options).toMatchObject({ enabled: true }); expect(options).not.toHaveProperty("allowPaidInference"); expect(options).not.toHaveProperty("control");
-    expect(await options.learningHooks.beforeRun()).toEqual({ contextHash: "synthetic-context", paidModelCalls: 0 });
-    expect(hooks.beforeWork).toHaveBeenCalledWith("daily_research");
+    expect(await options.learningHooks.beforeRun("2026-10-02")).toEqual({ contextHash: "synthetic-context", paidModelCalls: 0 });
+    expect(hooks.prepareNativeJob).toHaveBeenCalledWith("daily_research", "blueprintDailyResearch/sites-first/runs/2026-10-02");
     await options.learningHooks.afterRun("2026-10-02"); expect(hooks.afterNativeWork).toHaveBeenCalledWith("blueprintDailyResearch/sites-first/runs/2026-10-02");
     await options.learningHooks.afterRun("unrelated/mailbox"); expect(hooks.afterNativeWork).toHaveBeenCalledTimes(1);
     const stopping = worker.stop(); expect(worker.stop()).toBe(stopping); await stopping;
@@ -27,11 +28,11 @@ describe("existing native research worker learning lifecycle", () => {
   });
   it("keeps optional context/observation failures separate from native research behavior", async () => {
     vi.stubEnv("BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "true");
-    const hooks = { ...learning(), beforeWork: vi.fn(async () => ({ available: false as const, unknown: "native_learning_context_unavailable" })), afterNativeWork: vi.fn(async () => { throw new Error("PRIVATE_ERROR"); }) };
+    const hooks = { ...learning(), prepareNativeJob: vi.fn(async () => ({ handoff: null, unknown: "native_learning_context_unavailable" })), afterNativeWork: vi.fn(async () => { throw new Error("PRIVATE_ERROR"); }) };
     let options: any;
     const worker = startDailyResearchWorker({ learning: hooks as any, loadPackage: async () => ({ startDailyResearchWorker: input => { options = input; return { stop: async () => {} }; } }) });
     await Promise.resolve();
-    expect(await options.learningHooks.beforeRun()).toEqual({ unknown: "native_learning_context_unavailable", paidModelCalls: 0 });
+    expect(await options.learningHooks.beforeRun("2026-10-02")).toEqual({ unknown: "native_learning_context_unavailable", paidModelCalls: 0 });
     await expect(options.learningHooks.afterRun("2026-10-02")).resolves.toBeUndefined(); await worker.stop();
   });
   it("drains learning and does not start a package whose import completes after shutdown", async () => {
@@ -42,5 +43,14 @@ describe("existing native research worker learning lifecycle", () => {
     let drained = false; const stopping = worker.stop().then(() => { drained = true; });
     resolvePackage({ startDailyResearchWorker: start }); await Promise.resolve(); expect(drained).toBe(false); expect(start).not.toHaveBeenCalled();
     resolveLearning({ state: "completed" }); await stopping; expect(drained).toBe(true);
+  });
+  it("fails before a new provider request if its learning input cannot be frozen", async () => {
+    vi.stubEnv("BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "true");
+    const hooks = { ...learning(), prepareNativeJob: vi.fn(async () => { throw new Error("PRIVATE_ERROR"); }) };
+    let options: any;
+    const worker = startDailyResearchWorker({ learning: hooks as any, loadPackage: async () => ({ startDailyResearchWorker: input => { options = input; return { stop: async () => {} }; } }) });
+    await Promise.resolve();
+    await expect(options.learningHooks.beforeRun("2026-10-02")).rejects.toThrow("native_learning_input_unavailable");
+    await expect(options.learningHooks.beforeRun("mailbox/unrelated")).rejects.toThrow("identity_invalid"); await worker.stop();
   });
 });

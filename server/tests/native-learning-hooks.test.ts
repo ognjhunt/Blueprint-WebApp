@@ -177,4 +177,49 @@ describe("native zero-model learning hooks", () => {
     at = "2026-10-03T11:45:00.000Z"; await vi.advanceTimersByTimeAsync(60000); expect(run).toHaveBeenCalledTimes(2);
     await handle.stop();
   });
+  it.each(["daily_research", "communications"] as const)("pins the %s input once and retains exact hashes across later recovery", async role => {
+    let at = now; const f = fixture(() => at); nativeBundle(f);
+    const path = role === "communications" ? "blueprintCommunications/default/jobs/job-1" : "blueprintDailyResearch/sites-first/runs/2026-10-02";
+    const ids = role === "communications" ? ["prospect-1"] : [];
+    const first = await f.hooks.prepareNativeJob(role, path, ids), writes = [...f.writes];
+    if (!first) throw new Error("expected input");
+    expect(first.replay).toBe(false); expect(first.handoff?.role).toBe(role);
+    at = "2026-10-02T13:00:00.000Z";
+    const replay = await f.hooks.prepareNativeJob(role, path, ids); if (!replay) throw new Error("expected input");
+    expect(replay.replay).toBe(true); expect(replay.inputHash).toBe(first.inputHash); expect(replay.handoff).toEqual(first.handoff);
+    expect(f.writes).toEqual(writes); expect(writes).toEqual([first.recordRef]);
+    expect(JSON.stringify(first)).not.toContain("PRIVATE_SENTINEL");
+  });
+  it("preserves an initially unknown frozen input after the source later becomes available", async () => {
+    const f = fixture(), path = "blueprintDailyResearch/sites-first/runs/2026-10-02", sourceRef = `${LEARNING_ROOT}/sourceSnapshots/${f.source.snapshotId}`;
+    f.records.delete(sourceRef);
+    const first = await f.hooks.prepareNativeJob("daily_research", path); if (!first) throw new Error("expected input"); expect(first.handoff).toBeNull();
+    f.records.set(sourceRef, f.source); const replay = await f.hooks.prepareNativeJob("daily_research", path); if (!replay) throw new Error("expected input");
+    expect(replay.inputHash).toBe(first.inputHash); expect(replay.unknown).toBe("native_learning_context_unavailable"); expect(replay.handoff).toBeNull();
+  });
+  it("rejects cross-role/job scopes before reading, and config/hashed context changes before replay", async () => {
+    const f = fixture(), path = "blueprintDailyResearch/sites-first/runs/2026-10-02";
+    await expect(f.hooks.prepareNativeJob("communications", path, ["prospect-1"])).rejects.toThrow("identity_invalid");
+    await expect(f.hooks.prepareNativeJob("daily_research", "blueprintDailyResearch/sites-first/runs/2026-02-31")).rejects.toThrow("identity_invalid");
+    expect(f.reads).toEqual([]); const first = await f.hooks.prepareNativeJob("daily_research", path); if (!first) throw new Error("expected input");
+    const changed = createNativeLearningHooks(f.db, { ...f.config, focus: { city: "Oakland", industry: "Laundromats" } }, () => now);
+    await expect(changed.prepareNativeJob("daily_research", path)).rejects.toThrow("input_changed");
+    const { inputHash: _hash, ...body } = f.records.get(first.recordRef), bad = { ...body, handoff: { ...body.handoff, asOf: "2026-10-02T11:44:00.000Z" } };
+    f.records.set(first.recordRef, { ...bad, inputHash: digest(bad) });
+    await expect(f.hooks.prepareNativeJob("daily_research", path)).rejects.toThrow("context_changed"); expect(f.writes).toEqual([first.recordRef]);
+  });
+  it("rechecks the exact communications job/prospect binding before a stored input replay", async () => {
+    const f = fixture(); nativeBundle(f); const path = "blueprintCommunications/default/jobs/job-1";
+    await f.hooks.prepareNativeJob("communications", path, ["prospect-1"]); const writes = [...f.writes];
+    f.records.set(path, { ...f.records.get(path), prospectId: "unrelated" });
+    await expect(f.hooks.prepareNativeJob("communications", path, ["prospect-1"])).rejects.toThrow("scope_invalid"); expect(f.writes).toEqual(writes);
+  });
+  it("does not create or attach a new learning input when a legacy request already has a checkpoint", async () => {
+    const f = fixture(); nativeBundle(f); const path = "blueprintCommunications/default/jobs/job-1";
+    expect(await f.hooks.prepareNativeJob("communications", path, ["prospect-1"], { allowCreate: false })).toBeNull();
+    expect(f.writes).toEqual([]);
+    const first = await f.hooks.prepareNativeJob("communications", path, ["prospect-1"]); if (!first) throw new Error("expected input");
+    const read = await f.hooks.prepareNativeJob("communications", path, ["prospect-1"], { allowCreate: false });
+    expect(read?.inputHash).toBe(first.inputHash); expect(f.writes).toEqual([first.recordRef]);
+  });
 });

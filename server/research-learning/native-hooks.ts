@@ -26,6 +26,14 @@ const manifestSchema = z.object({ version: z.literal("blueprint.native-learning-
   focus: nativeLearningConfigSchema.shape.focus, maturityDays: z.number().int().min(1).max(90), inputHash: hash,
 }).strict();
 type Manifest = z.infer<typeof manifestSchema>;
+type Handoff = Awaited<ReturnType<typeof openResearchLearningSession>>["handoff"];
+const nativeRefSchema = z.string().regex(/^blueprint(?:DailyResearch\/sites-first\/runs\/\d{4}-\d{2}-\d{2}|Communications\/default\/jobs\/[A-Za-z0-9_.:-]+)$/);
+const nativeInputSchema = z.object({ version: z.literal("blueprint.native-learning-input.v1"), configHash: hash,
+  nativeRecordRef: nativeRefSchema, role: z.enum(["daily_research", "communications"]),
+  prospectIds: z.array(id).max(10).refine(values => new Set(values).size === values.length),
+  sourceSnapshotId: hash, preparedAt: instant, handoff: z.custom<Handoff>().nullable(),
+  unknown: z.literal("native_learning_context_unavailable").nullable(), inputHash: hash,
+}).strict();
 
 /** Chicago's 06:45 occurs after the DST transition hour. Resolve the IANA
  * offset for that civil date, then verify the computed civil time. */
@@ -118,6 +126,55 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
       return { available: false as const, unknown: "native_learning_context_unavailable", paidModelCalls: 0 };
     }
   }
+  /** Trusted native caller only: freeze the exact structured input before a
+   * NEW request. Existing provider checkpoints must retain their original input.
+   * Replay reauthorizes current scope but never rebuilds an old request digest. */
+  async function prepareNativeJob(role: "daily_research" | "communications", recordRef: string, selectedProspectIds: string[] = [],
+    options: { allowCreate?: boolean } = {}) {
+    const { allowCreate } = z.object({ allowCreate: z.boolean().default(true) }).strict().parse(options);
+    const parsed = nativeRefSchema.parse(recordRef), selected = z.array(id).max(10).parse(selectedProspectIds).sort();
+    if (new Set(selected).size !== selected.length || (role === "communications") !== parsed.startsWith("blueprintCommunications/")) throw new Error("native_learning_job_identity_invalid");
+    if (role === "communications") {
+      if (selected.length !== 1) throw new Error("native_learning_job_scope_invalid");
+      const job = await db.doc(parsed).get();
+      if (!job.exists || job.data()?.jobId !== job.id || job.data()?.prospectId !== selected[0]) throw new Error("native_learning_job_scope_invalid");
+      const prospect = await db.collection("outboundProspects").doc(selected[0]).get();
+      if (!prospect.exists) throw new Error("native_learning_job_scope_invalid");
+    } else {
+      const day = parsed.split("/").at(-1)!;
+      if (selected.length || !Number.isFinite(Date.parse(`${day}T12:00:00Z`)) || new Date(`${day}T12:00:00Z`).toISOString().slice(0,10) !== day) throw new Error("native_learning_job_identity_invalid");
+    }
+    const ref = db.doc(LEARNING_ROOT).collection("nativeLearningInputs").doc(digest({ role, recordRef: parsed }));
+    const verify = (value: unknown) => {
+      const input = nativeInputSchema.parse(value), { inputHash, ...body } = input;
+      if (digest(body) !== inputHash || input.configHash !== configHash || input.nativeRecordRef !== parsed || input.role !== role
+        || digest(input.prospectIds) !== digest(selected) || input.sourceSnapshotId !== config.sourceSnapshotId
+        || input.preparedAt > instant.parse(clock())) throw new Error("native_learning_input_changed");
+      if (input.handoff) {
+        const { contextHash, ...content } = input.handoff;
+        if (digest(content) !== contextHash || input.unknown !== null || input.handoff.version !== "blueprint.research-learning-consumer.v1"
+          || input.handoff.role !== role || input.handoff.scope.principalId !== config.principalId
+          || input.handoff.source.snapshotId !== config.sourceSnapshotId || input.handoff.asOf > input.preparedAt
+          || selected.some(value => !input.handoff!.scope.prospectIds.includes(value))
+          || (role === "communications" && digest([...input.handoff.scope.prospectIds].sort()) !== digest(selected))) throw new Error("native_learning_input_context_changed");
+      } else if (!input.unknown) throw new Error("native_learning_input_context_changed");
+      return input;
+    };
+    const prior = await ref.get();
+    if (prior.exists) return { ...verify(prior.data()), recordRef: ref.path, replay: true };
+    if (!allowCreate) return null;
+    const context = await beforeWork(role, selected), body = { version: "blueprint.native-learning-input.v1" as const,
+      configHash, nativeRecordRef: parsed, role, prospectIds: selected, sourceSnapshotId: config.sourceSnapshotId,
+      preparedAt: instant.parse(clock()), handoff: context.available ? context.handoff : null,
+      unknown: context.available ? null : context.unknown };
+    const planned = verify({ ...body, inputHash: digest(body) });
+    if (Buffer.byteLength(JSON.stringify(planned)) > 900000) throw new Error("native_learning_input_export_or_narrow_scope_required");
+    const saved = await db.runTransaction(async tx => { const current = await tx.get(ref);
+      if (current.exists) return { ...verify(current.data()), recordRef: ref.path, replay: true };
+      tx.create(ref, planned); return { ...planned, recordRef: ref.path, replay: false };
+    });
+    return saved;
+  }
   async function afterNativeWork(recordRef: string) {
     // Parse path before fetching; callers pass the exact record they own.
     const parsed = z.string().regex(/^blueprint(?:DailyResearch\/sites-first\/(?:runs|workItems)|Communications\/default\/jobs)\/[A-Za-z0-9_.:-]+$/).parse(recordRef);
@@ -127,7 +184,7 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
     return recordTerminalRun(db, { recordId, subjectKey: config.businessSubjectKeys[0], principalId: config.principalId,
       runId: id.parse(saved.id), receipt: { recordRef: parsed, sourceHash, checkedAt: instant.parse(clock()) } }, clock);
   }
-  return { beforeWork, afterNativeWork, daily, jobKey };
+  return { beforeWork, prepareNativeJob, afterNativeWork, daily, jobKey };
 }
 
 /** The existing native worker owns start/stop. Single-flight ticks and a durable
