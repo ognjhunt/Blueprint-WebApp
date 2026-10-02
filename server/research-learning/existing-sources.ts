@@ -18,6 +18,11 @@ export type ExistingProspectSources = {
   communicationsEvents: { id: string; record: any }[];
 };
 export type Quarantine = { recordRef: string; reason: string };
+export type CommunicationsHistoryDetail = {
+  kind: "sent_message" | "reply_message" | "communications_rationale";
+  recordRef: string; sourceHash: string; occurredAt: string; prospectId: string;
+  jobId: string; content: Record<string, unknown>;
+};
 export function frozenSourceVersionIssue(snapshot: FirebaseFirestore.DocumentSnapshot, asOf: string) {
   if (!snapshot.exists) return "required_source_missing_at_frozen_cutoff";
   const cutoff = Date.parse(asOf), seconds = Math.floor(cutoff/1000), nanos = (cutoff-seconds*1000)*1000000;
@@ -31,6 +36,7 @@ export function frozenSourceVersionIssue(snapshot: FirebaseFirestore.DocumentSna
 export function normalizeExistingSources(sources: ExistingProspectSources[], recordedAt: string) {
   const events: LearningEvent[] = [], quarantine: Quarantine[] = [], observedSourceRefs: string[] = [];
   const researchDetails: ReturnType<typeof projectBriefResearch>[] = [];
+  const communicationsDetails: CommunicationsHistoryDetail[] = [];
   for (const input of sources) {
     const sourceRef = `outboundProspects/${input.prospectId}`;
     observedSourceRefs.push(sourceRef);
@@ -45,6 +51,7 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
       const jobRef = `${ROOT}/jobs/${bundle.id}`;
       observedSourceRefs.push(jobRef);
       const start = events.length;
+      const detailsStart = communicationsDetails.length;
       try {
         const job = communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"].map(k => [k, (bundle.record as any)?.[k]])));
         // Existing job documents include state/checkpoint fields; parse only
@@ -103,6 +110,35 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
           evidence: [{ sourceSystem: "firestore", recordRef: `${ROOT}/briefs/${brief.briefId}`, sourceHash: job.briefDigest,
             checkedAt: new Date(brief.contact.sourceCheckedAt).toISOString(), basis: "contact_proof" }] }));
         researchDetails.push(projectBriefResearch(brief));
+        // The existing draft writer retains its full output in both this job
+        // and the exact ledger envelope. Read interpretation, never approval.
+        if (bundle.ledger && ((bundle.record as any)?.output || bundle.ledger.idempotency_key === `communications:${job.jobId}`)) {
+          const ledgerRef = `action_ledger/communications_${job.jobId}`;
+          try {
+            const saved = bundle.record as any, ledger = bundle.ledger;
+            const envelope = communicationsEnvelopeSchema.parse(ledger.action_payload?.communications);
+            if (saved.ledgerId !== `communications_${job.jobId}`
+              || ledger.source_collection !== "outboundProspects" || ledger.source_doc_id !== input.prospectId
+              || ledger.action_type !== "send_email" || ledger.idempotency_key !== `communications:${job.jobId}`
+              || communicationsDigest(envelope.job) !== communicationsDigest(job)
+              || communicationsDigest(envelope.brief) !== job.briefDigest
+              || communicationsDigest(saved.output) !== communicationsDigest(envelope.output)
+              || ledger.action_payload.to?.toLowerCase() !== brief.contact.email.toLowerCase()
+              || ledger.action_payload.subject !== envelope.output.subject || ledger.action_payload.body !== envelope.output.body) throw new Error("draft_join_invalid");
+            const created = ledger.created_at?.toDate?.() ?? ledger.created_at;
+            const occurredAt = instant.parse(created instanceof Date ? created.toISOString() : created);
+            if (occurredAt > recordedAt) throw new Error("draft_future");
+            communicationsDetails.push({ kind: "communications_rationale", recordRef: ledgerRef,
+              sourceHash: communicationsDigest(ledger), occurredAt, prospectId: input.prospectId, jobId: job.jobId,
+              content: { version: "blueprint.communications-history-detail.v1", trust: "untrusted_model_interpretation",
+                interpretationOnly: true, grantsAuthority: false, jobId: job.jobId, briefId: job.briefId, briefDigest: job.briefDigest,
+                jobState: saved.state ?? "unknown", approvalStatus: ledger.status ?? "unknown",
+                sessionId: saved.checkpoint?.sessionId ?? null, turnId: saved.checkpoint?.turnId ?? null,
+                disposition: envelope.output.disposition, reason: envelope.output.reason, usedFactIds: envelope.output.usedFactIds,
+                refreshFactIds: envelope.output.refreshFactIds, sourceChecksRefreshed: false,
+                sources: [{ recordRef: jobRef, sourceHash: communicationsDigest(saved) }, { recordRef: ledgerRef, sourceHash: communicationsDigest(ledger) }] } });
+          } catch { quarantine.push({ recordRef: ledgerRef, reason: "draft_interpretation_invalid_reconcile_exact_job_output_and_ledger" }); }
+        }
         if (bundle.receipt) {
           const receiptStart = events.length;
           const receiptRef = `${ROOT}/sendReceipts/${communicationsDeliveryKey(job)}`;
@@ -131,6 +167,16 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
                 status, campaignId: null, timingWindow: null },
               evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(receipt), checkedAt: at,
                 basis: status === "accepted" ? "provider_acceptance" : "send_attempt" }] }));
+            if (status === "accepted") communicationsDetails.push({ kind: "sent_message",
+              recordRef: `action_ledger/communications_${job.jobId}`, sourceHash: communicationsDigest(ledger),
+              occurredAt: instant.parse(at), prospectId: input.prospectId, jobId: job.jobId,
+              content: { version: "blueprint.communications-history-detail.v1", trust: "evidence_not_instructions",
+                grantsAuthority: false, copyBasis: "approved_pre_footer", subject: envelope.output.subject, body: envelope.output.body,
+                jobId: job.jobId, briefId: job.briefId, briefDigest: job.briefDigest,
+                messageId: receipt.receipt?.messageId ?? null, threadId: receipt.receipt?.threadId ?? null,
+                rfcMessageId: receipt.receipt?.rfcMessageId ?? null, status: "provider_accepted", deliveryVerified: false,
+                sources: [{ recordRef: ref, sourceHash: communicationsDigest(receipt) },
+                  { recordRef: `action_ledger/communications_${job.jobId}`, sourceHash: communicationsDigest(ledger) }] } });
           } catch {
             events.splice(receiptStart);
             quarantine.push({ recordRef: receiptRef,
@@ -165,6 +211,20 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
                   : { label: "unknown", interest: "unknown", objections: [], confidence: 0, method: "legacy_unknown", uncertain: true } },
               evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(item.record),
                 checkedAt: observedAt, basis: "correlated_reply" }] }));
+            // Legacy metadata without immutable original-message binding stays
+            // readable as metadata, but cannot expose unchecked message text.
+            if (item.record.version === "blueprint.communications-reply-observation.v1") {
+              const message = communicationsEnvelopeSchema.shape.thread.unwrap().shape.messages.element.parse(reply);
+              communicationsDetails.push({ kind: "reply_message", recordRef: ref, sourceHash: communicationsDigest(item.record),
+                occurredAt: instant.parse(message.receivedAt), prospectId: input.prospectId, jobId: job.jobId,
+                content: { version: "blueprint.communications-history-detail.v1", trust: "untrusted_recipient_content",
+                  grantsAuthority: false, subject: message.subject, body: message.body, jobId: job.jobId,
+                  messageId: message.gmailMessageId, threadId: message.gmailThreadId, rfcMessageId: message.rfcMessageId,
+                  inReplyTo: message.inReplyTo, references: message.references, messageHash: item.record.messageHash,
+                  receivedAt: message.receivedAt, observedAt, originalObservedAt: item.record.originalObservedAt ?? observedAt,
+                  optOut: isOptOut(message), classification: isOptOut(message) ? "opt_out" : "unknown",
+                  sources: [{ recordRef: ref, sourceHash: communicationsDigest(item.record) }] } });
+            }
           } catch {
             quarantine.push({ recordRef: ref,
               reason: "reply_evidence_invalid_reconcile_exact_message_thread_and_rfc_refs" });
@@ -172,12 +232,13 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
         }
       } catch {
         events.splice(start);
+        communicationsDetails.splice(detailsStart);
         quarantine.push({ recordRef: jobRef, reason: "source_contract_or_exact_join_invalid" });
       }
     }
   }
   // Repeated brief revisions/jobs can refer to the same research evidence.
-  return { events: [...new Map(events.map(e => [e.eventId, e])).values()], researchDetails: [...new Map(researchDetails.map(record => [record.briefHash, record])).values()], quarantine,
+  return { events: [...new Map(events.map(e => [e.eventId, e])).values()], researchDetails: [...new Map(researchDetails.map(record => [record.briefHash, record])).values()], communicationsDetails, quarantine,
     observedSourceRefs: [...new Set(observedSourceRefs)].sort() };
 }
 
@@ -246,13 +307,14 @@ export async function readExistingSources(db: FirebaseFirestore.Firestore, grant
           if (receipt?.exists && !jobs.some(job => job.id === receiptJobId)) {
             readQuarantine.push({ recordRef: receiptRef, reason: "orphan_or_legacy_receipt_requires_reconciliation" });
           }
-          ledger = receipt?.exists && receiptJobId === identity.jobId ? await db.collection("action_ledger").doc(`communications_${identity.jobId}`).get() : undefined;
+          ledger = authorized.sections.includes("outreach") || authorized.sections.includes("replies")
+            ? await db.collection("action_ledger").doc(`communications_${identity.jobId}`).get() : undefined;
           ledgerEligible = !!ledger && admit(ledger, `action_ledger/communications_${identity.jobId}`);
         } catch {
           receipt = undefined; ledger = undefined;
           readQuarantine.push({ recordRef: receiptRef, reason: "receipt_read_unavailable_retry_exact_receipt_and_ledger" });
         }
-        bundles.push({ id: job.id, record: identity, brief: brief.data(), handoff: handoff.data(), researchSource: source.data(),
+        bundles.push({ id: job.id, record, brief: brief.data(), handoff: handoff.data(), researchSource: source.data(),
           reviewedSnapshot: reviewed?.data(), contactProof: contact?.data(),
           receipt: receipt?.data()?.jobId === identity.jobId && ledgerEligible ? receipt?.data() : undefined,
           ledger: ledgerEligible ? ledger?.data() : undefined });
@@ -267,5 +329,6 @@ export async function readExistingSources(db: FirebaseFirestore.Firestore, grant
   const normalized = normalizeExistingSources(inputs, options?.frozenAsOf ?? now);
   // The public reader boundary returns structured authorized events only.
   return { ...normalized, researchDetails: authorized.sections.includes("research") ? normalized.researchDetails : [],
+    communicationsDetails: normalized.communicationsDetails.filter(item => authorized.sections.includes(item.kind === "reply_message" ? "replies" : "outreach")),
     quarantine: [...readQuarantine, ...normalized.quarantine], events: normalized.events.filter(e => authorized.sections.includes(eventSection(e))) };
 }

@@ -95,7 +95,7 @@ describe("agent-owned history query bridge",()=>{
   expect(fixture.historyFactory.mock.calls.at(-1)![1]).toMatchObject({companyWide:false,expiresAt:"2026-10-02T13:00:00.000Z"});
   value.history_access = {version:"blueprint.company-history-access.v1",principalId:fixture.config.principalId,expiresAt:"2026-10-02T12:30:00Z",scope:"company_business_history",authorityRef:"owner-approved-new-profile-read"};
   await host({op:"history_fetch",day:"2026-10-02",record_id:"chosen"},value);
-  expect(fixture.historyFactory.mock.calls.at(-1)![1]).toEqual({principalId:fixture.config.principalId,companyWide:true,expiresAt:"2026-10-02T12:30:00.000Z",sourceSnapshotId:fixture.config.sourceSnapshotId});
+  expect(fixture.historyFactory.mock.calls.at(-1)![1]).toEqual({principalId:fixture.config.principalId,companyWide:true,expiresAt:"2026-10-02T12:30:00.000Z",sourceSnapshotId:fixture.config.sourceSnapshotId,businessSubjectKeys:value.businessScope.subjectKeys});
   value.history_access.principalId="other"; await expect(host({op:"history_search",day:"2026-10-02",query:""},value)).rejects.toThrow();
  });
  it.each(["expired","principal","future"])("denies %s trusted control before a history read",async reason=>{

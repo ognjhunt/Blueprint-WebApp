@@ -68,9 +68,9 @@ export function boundResearchHistoryControl(value: unknown, clock = () => new Da
   if (chicagoDate(now) < control.startDate) throw new Error("research_learning_outside_scope");
   const access: CompanyHistoryAccess = { principalId: control.binding.principalId, expiresAt,
     sourceSnapshotId: control.binding.sourceSnapshotId, companyWide: !!control.history_access,
+    businessSubjectKeys: control.businessScope.subjectKeys,
     ...(!control.history_access ? { prospectIds: control.binding.prospectIds, crmIds: control.binding.crmIds,
-      capabilityIds: control.binding.detailCapabilityIds, discoveryCapabilityIds: control.binding.discoveryCapabilityIds,
-      businessSubjectKeys: control.businessScope.subjectKeys } : {}) };
+      capabilityIds: control.binding.detailCapabilityIds, discoveryCapabilityIds: control.binding.discoveryCapabilityIds } : {}) };
   return { control, access };
 }
 

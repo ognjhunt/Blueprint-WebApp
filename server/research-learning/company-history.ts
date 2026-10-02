@@ -131,6 +131,9 @@ export async function loadCompanyHistory(db: FirebaseFirestore.Firestore, access
       diagnostics.push(...read.quarantine.map(item => ({ record_ref: item.recordRef, code: item.reason })));
       for (const brief of read.researchDetails) records.push(record(brief.recordRef, "research_brief", brief,
         { source_document_sha256: brief.briefHash, original_checked_at: brief.reviewedAt, task: brief.boundedTask }));
+      for (const detail of read.communicationsDetails) records.push(record(`${detail.recordRef}/${detail.kind}`, detail.kind, detail.content,
+        { source_ref: detail.recordRef, source_document_sha256: detail.sourceHash, original_checked_at: detail.occurredAt,
+          source_selector: { prospect_id: detail.prospectId, job_id: detail.jobId, projection: detail.kind } }));
     } catch { diagnostics.push({ record_ref: `outboundProspects/${prospectId}`, code: "company_history_native_record_unavailable" }); }
   }
   const readable = readableHistory(eventDocs, nativeEvents, { prospectIds: allIds, sections: [...sectionSchema.options], asOf, maturityDays: 14 });
