@@ -950,7 +950,10 @@ export default function AdminLeads() {
     mutationFn: async ({ ledgerId, ...input }: { ledgerId: string; expectedReviewDigest: string; output: Record<string, unknown> }) => {
       const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/revise`, {
         method: "POST",
-        headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser, { "Content-Type": "application/json" })),
+        credentials: "include",
+        // Refresh before the explicit save: another session/cookie update can
+        // leave an open editor's cached token stale. Do not replay a draft POST.
+        headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser, { "Content-Type": "application/json" }), { refresh: true }),
         body: JSON.stringify(input),
       });
       const result = await response.json();

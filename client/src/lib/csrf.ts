@@ -4,6 +4,7 @@ let inflight: Promise<string> | null = null;
 const fetchCsrfToken = async (): Promise<string> => {
   const response = await fetch("/api/csrf", {
     credentials: "include",
+    cache: "no-store",
   });
 
   if (!response.ok) {
