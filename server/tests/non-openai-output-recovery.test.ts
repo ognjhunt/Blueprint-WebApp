@@ -32,6 +32,17 @@ beforeEach(() => { vi.resetModules(); create.mockReset(); vi.stubEnv("ANTHROPIC_
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe("provider output correction retains paid evidence", () => {
+  it.each([true, false])("preserves Anthropic output with missing usage without inventing counters (valid=%s)", async valid => {
+    create.mockResolvedValue({ id: "message-no-usage", content: [{ type: "text", text: valid ? '{"count":2}' : "not-json" }], stop_reason: "end_turn" });
+    const result = await (await import("../agents/adapters/anthropic-agent-sdk")).runAnthropicAgentSdkTask(task("anthropic_agent_sdk") as never);
+    expect(result.status).toBe(valid ? "completed" : "failed");
+    expect(result.artifacts?.usage).toMatchObject({ prompt_tokens: null, completion_tokens: null, total_tokens: null });
+    expect(result.artifacts?.output_usage_complete).toBe(false);
+    expect(result.raw_output_text).toBe(valid ? '{"count":2}' : "not-json");
+    if (!valid) expect(result.error).toBe("output_correction_usage_unavailable");
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   it("Anthropic repairs field errors in the same context and aggregates usage", async () => {
     create.mockResolvedValueOnce(anthropic('{"count":"two"}')).mockResolvedValueOnce(anthropic('{"count":2}'));
     const { runAnthropicAgentSdkTask } = await import("../agents/adapters/anthropic-agent-sdk");

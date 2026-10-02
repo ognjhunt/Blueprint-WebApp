@@ -97,7 +97,7 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
         { timeout: Math.max(1, deadline - Date.now()), maxRetries: 0 });
     } catch { return result(undefined, "anthropic_provider_request_failed"); }
     rawText = extractText(response.content);
-    const usage = response.usage as unknown as Record<string, unknown>;
+    const usage = (response.usage ?? {}) as unknown as Record<string, unknown>;
     usageSamples.push({ response_id: response.id, ...usage });
     providerResponses.push({ responseId: response.id, content: response.content, usage, stopReason: response.stop_reason });
     const input = usageCount(usage.input_tokens), output = usageCount(usage.output_tokens);
