@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Timestamp } from "firebase-admin/firestore";
 import { digest, hash, id, instant, LEARNING_ROOT, sectionSchema } from "./contract";
 import { openResearchLearningSession } from "./consumer";
 import { verifySourceSnapshot, safeText } from "./prior-research";
@@ -60,14 +61,23 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
   const expires = () => new Date(Date.parse(instant.parse(clock()))+15*60000).toISOString();
   const businessScope = () => ({ principalId: config.principalId, subjectKeys: config.businessSubjectKeys, expiresAt: expires() });
   const jobKey = (day: string) => `daily-learning-${day}-${configHash.slice(0,16)}`;
-  async function readScope() {
-    const saved = await db.doc(LEARNING_ROOT).collection("sourceSnapshots").doc(config.sourceSnapshotId).get();
+  async function readScope(asOf?: string) {
+    const sourceRef = db.doc(LEARNING_ROOT).collection("sourceSnapshots").doc(config.sourceSnapshotId);
+    const query = db.collection("outboundProspects").select("researchPublicationId").limit(101);
+    // Pin both reads to the supplied millisecond cutoff. Sampling the clock
+    // after a query could silently omit a prospect created in that gap.
+    const readTime = asOf ? Timestamp.fromDate(new Date(instant.parse(asOf))) : null;
+    const { saved, prospects } = readTime ? await db.runTransaction(async tx => {
+      const saved = await tx.get(sourceRef), prospects = await tx.get(query);
+      if (!prospects.readTime || prospects.readTime.seconds !== readTime.seconds
+        || prospects.readTime.nanoseconds !== readTime.nanoseconds) throw new Error("native_learning_scope_read_time_unverified");
+      return { saved, prospects };
+    }, { readOnly: true, readTime }) : { saved: await sourceRef.get(), prospects: await query.get() };
     if (!saved.exists) throw new Error("native_learning_source_missing");
     const source = verifySourceSnapshot(saved.data());
-    if (source.snapshotId !== config.sourceSnapshotId || source.asOf > instant.parse(clock())) throw new Error("native_learning_source_changed_or_future");
+    if (source.snapshotId !== config.sourceSnapshotId || source.asOf > instant.parse(asOf ?? clock())) throw new Error("native_learning_source_changed_or_future");
     // Existing company CRM authority covers structured prospect IDs. Do not
     // fetch contacts/notes or search any mailbox to build the shared scope.
-    const prospects = await db.collection("outboundProspects").select("researchPublicationId").limit(101).get();
     if (prospects.size > 100) throw new Error("native_learning_prospect_export_or_partition_required");
     const prospectIds = prospects.docs.map(doc => id.parse(doc.id)).sort();
     return { source, prospectIds };
@@ -89,8 +99,8 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
     let manifest: Manifest;
     if (prior.exists) manifest = validateManifest(prior.data(), key);
     else {
-      const scope = await readScope(), body = { version: "blueprint.native-learning-job.v1" as const,
-        jobKey: key, configHash, day: schedule.day, asOf: instant.parse(clock()), sourceSnapshotId: config.sourceSnapshotId,
+      const asOf = instant.parse(clock()), scope = await readScope(asOf), body = { version: "blueprint.native-learning-job.v1" as const,
+        jobKey: key, configHash, day: schedule.day, asOf, sourceSnapshotId: config.sourceSnapshotId,
         principalId: config.principalId, subjectKeys: config.businessSubjectKeys, prospectIds: scope.prospectIds,
         focus: config.focus, maturityDays: config.maturityDays };
       const planned = validateManifest({ ...body, inputHash: digest(body) }, key);
@@ -116,7 +126,7 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
   }
   async function beforeWork(role: "daily_research" | "communications", selectedProspectIds: string[] = []) {
     try {
-      const scope = await readScope(), selected = z.array(id).max(10).parse(role === "daily_research" && !selectedProspectIds.length
+      const asOf = instant.parse(clock()), scope = await readScope(asOf), selected = z.array(id).max(10).parse(role === "daily_research" && !selectedProspectIds.length
         ? scope.prospectIds.slice(0,10) : selectedProspectIds);
       if (selected.some(value => !scope.prospectIds.includes(value))) throw new Error("native_learning_selected_prospect_denied");
       const schedule = chicagoAggregationTime(clock()), overviewDay = schedule.due ? schedule.day : chicagoDate(new Date(Date.parse(schedule.scheduledAt)-24*3600000).toISOString());
@@ -128,7 +138,7 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
       { crmIds: role === "daily_research" ? scope.source.scope.crmIds.slice(0,10) : [],
         prospectIds: selected, capabilityIds: [], focus: config.focus, maturityDays: config.maturityDays }, clock,
       { businessHistory: { principalId: config.principalId, subjectKeys: config.businessSubjectKeys, expiresAt: expiry },
-        businessOverviewJobKey: jobKey(overviewDay), nativeSourceCutoff: true });
+        businessOverviewJobKey: jobKey(overviewDay), nativeSourceCutoff: true, frozenAsOf: asOf });
       return { available: true as const, selectedProspectIds: selected, ...session };
     } catch {
       return { available: false as const, unknown: "native_learning_context_unavailable", paidModelCalls: 0 };

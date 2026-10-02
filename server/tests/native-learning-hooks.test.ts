@@ -96,6 +96,35 @@ describe("native zero-model learning hooks", () => {
     const selected = await f.db.collection("outboundProspects").select("researchPublicationId").where("researchPublicationId", "==", "BP-000001").get();
     expect(selected.docs[0].data()).toEqual({ researchPublicationId: "BP-000001" });
   });
+  it("pins inventory and evidence to a fixed read-only timestamp when a prospect arrives during sampling", async () => {
+    let tick = 0; const f = fixture(() => new Date(Date.parse(now)+tick++).toISOString()); nativeBundle(f);
+    // The document is visible to a later current read, but was created after
+    // the fixed inventory cutoff requested by the native host.
+    f.records.set("outboundProspects/new-arrival", { researchPublicationId: "BP-NEW" });
+    f.createTimes.set("outboundProspects/new-arrival", "2026-10-02T11:45:00.100Z");
+    const daily = await f.hooks.daily(); if (daily.state !== "completed") throw new Error("expected overview");
+    expect(daily.overview.asOf).toBe(f.readOnlyCutoffs[0]); expect(daily.overview.scope.prospectIds).toEqual(["prospect-1"]);
+    expect(daily.overview.outcomeAnalysis.scopeCounts.scopedProspects).toBe(1);
+    expect((await f.hooks.daily()).state).toBe("completed");
+    const context = await f.hooks.beforeWork("daily_research"); if (!context.available) throw new Error("expected context");
+    expect(context.handoff.asOf).toBe(f.readOnlyCutoffs.at(-1)); expect(context.handoff.scope.prospectIds).toEqual(["prospect-1"]);
+  });
+  it("does not create a daily manifest or claim a context when the fixed query read time is unverified", async () => {
+    const f = fixture(), runTransaction = f.db.runTransaction;
+    f.db.runTransaction = (callback: any, options?: any) => runTransaction(options?.readOnly
+      ? (tx: any) => callback({ ...tx, get: async (ref: any) => { const value = await tx.get(ref); return ref.path ? value : { ...value, readTime: undefined }; } })
+      : callback, options);
+    await expect(f.hooks.daily()).rejects.toThrow("scope_read_time_unverified");
+    expect((await f.hooks.beforeWork("daily_research")).available).toBe(false); expect(f.writes).toEqual([]);
+  });
+  it("does not backdate a new canonical CRM join into a prior context cutoff", async () => {
+    const f = fixture(); nativeBundle(f);
+    f.records.set("outboundProspects/prospect-1", { ...f.records.get("outboundProspects/prospect-1"), researchPublicationId: "BP-000001" });
+    f.updateTimes.set("outboundProspects/prospect-1", "2026-10-02T11:45:00.001Z");
+    const context = await f.hooks.beforeWork("daily_research"); if (!context.available) throw new Error("expected partial context");
+    expect(context.handoff.canonicalJoins).toEqual([]); expect(context.handoff.unknowns).toContain("crm_native_join_unavailable_at_frozen_cutoff");
+    expect(context.handoff.provenance.quarantine).toContainEqual({ recordRef: "outboundProspects/prospect-1", reason: "source_version_after_frozen_cutoff" });
+  });
   it("aggregates at 06:45 Chicago and supplies the same sourced overview to both existing native roles", async () => {
     const f = fixture(), daily = await f.hooks.daily();
     expect(daily.state).toBe("completed"); expect(daily.paidModelCalls).toBe(0);

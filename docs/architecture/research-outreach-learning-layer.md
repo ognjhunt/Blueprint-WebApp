@@ -338,7 +338,16 @@ Schema or config changes require a new native job identity or an explicit
 reviewed recovery path, never mutating a previously frozen request.
 
 Native pre-prompt and daily views authorize at the real clock, but preserve a
-fixed evidence cutoff. Firestore `updateTime` proves that each exact prospect,
+fixed evidence cutoff. The host captures that cutoff before scope sampling,
+reads the immutable source and native prospect inventory in a read-only
+Firestore transaction at that exact `readTime`, and verifies the returned
+query read time. A prospect arriving after the query cannot silently predate a
+later sampled cutoff. Missing/mismatched point-in-time proof fails before any
+manifest write or context availability claim. The same cutoff feeds initial
+consumer context and native facts; canonical CRM joins also require a proven
+pre-cutoff version, otherwise their absence remains explicit unknown coverage.
+This uses the existing Firestore binding with no grants or provider requests.
+Firestore `updateTime` proves that each exact prospect,
 job, brief, handoff, research-source, reviewed publication, contact proof,
 receipt, ledger and correlated-reply document version existed by that cutoff.
 Later or unavailable metadata is quarantined; body timestamps cannot backdate

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { authorize, CLASSIFICATION_POLICY, digest, hash, id, instant, LEARNING_ROOT, sectionSchema, validateEvent, type LearningEvent } from "./contract";
-import { readExistingSources, type Quarantine } from "./existing-sources";
+import { readExistingSources, frozenSourceVersionIssue, type Quarantine } from "./existing-sources";
 import { authorizeSources, safeText, scopeSourceSnapshot, verifySourceSnapshot, type SourceGrant, type SourceSnapshot } from "./prior-research";
 import { ResearchSourceStore } from "./source-store";
 import { cachedDiscoveryIndex, searchDiscoveryIndex, type DiscoveryIndex, type DiscoveryQuery } from "./retrieval";
@@ -44,13 +44,14 @@ const canonicalFields = (record: any) => canonicalSchema.parse({ siteId: record.
  * A replacement host can invoke this API with its existing Admin binding. */
 export async function openResearchLearningSession(db: FirebaseFirestore.Firestore, bindingValue: ConsumerBinding,
   selectionValue: ConsumerSelection, clock = () => new Date().toISOString(), options?: { businessHistory?: BusinessReadScope; businessOverviewJobKey?: string;
-    nativeSourceCutoff?: boolean }) {
+    nativeSourceCutoff?: boolean; frozenAsOf?: string }) {
   const binding = consumerBindingSchema.parse(bindingValue), selected = consumerSelectionSchema.parse(selectionValue);
+  if (options?.frozenAsOf && !options.nativeSourceCutoff) throw new Error("learning_consumer_frozen_cutoff_requires_native_version_proof");
   if (options?.businessOverviewJobKey && !options.businessHistory) throw new Error("learning_consumer_business_scope_required");
   const businessScope = options?.businessHistory ? businessReadScopeSchema.parse(options.businessHistory) : null;
   if (businessScope && (businessScope.principalId !== binding.principalId || businessScope.expiresAt > binding.expiresAt)) throw new Error("learning_consumer_business_scope_denied");
   const expiresAt = businessScope?.expiresAt ?? binding.expiresAt;
-  const asOf = instant.parse(clock());
+  const asOf = instant.parse(options?.frozenAsOf ?? clock());
   const check = () => { if (expiresAt <= instant.parse(clock())) throw new Error("learning_consumer_binding_expired"); };
   check();
   if (!subset(selected.crmIds, binding.crmIds) || !subset(selected.prospectIds, binding.prospectIds)
@@ -127,6 +128,11 @@ export async function openResearchLearningSession(db: FirebaseFirestore.Firestor
       continue;
     }
     const row = rows.docs[0], record = row.data();
+    const versionIssue = options?.nativeSourceCutoff ? frozenSourceVersionIssue(row, asOf) : null;
+    if (versionIssue) {
+      quarantine.push({ recordRef: `outboundProspects/${row.id}`, reason: versionIssue });
+      unknowns.add("crm_native_join_unavailable_at_frozen_cutoff"); continue;
+    }
     try {
       const prospectId = id.parse(row.id), canonical = canonicalFields(record);
       if (record.researchPublicationId !== crmId) throw new Error("changed");

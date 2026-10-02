@@ -16,6 +16,13 @@ export type ExistingProspectSources = {
   communicationsEvents: { id: string; record: any }[];
 };
 export type Quarantine = { recordRef: string; reason: string };
+export function frozenSourceVersionIssue(snapshot: FirebaseFirestore.DocumentSnapshot, asOf: string) {
+  if (!snapshot.exists) return "required_source_missing_at_frozen_cutoff";
+  const cutoff = Date.parse(asOf), seconds = Math.floor(cutoff/1000), nanos = (cutoff-seconds*1000)*1000000;
+  const time = snapshot.updateTime;
+  if (!time || !Number.isSafeInteger(time.seconds) || !Number.isSafeInteger(time.nanoseconds)) return "source_version_time_unknown";
+  return time.seconds > seconds || (time.seconds === seconds && time.nanoseconds > nanos) ? "source_version_after_frozen_cutoff" : null;
+}
 
 /** Consumes only exact Firestore-owned joins. No mailbox search, auth expansion,
  * model classification or source writes. Legacy reply meaning stays unknown. */
@@ -153,11 +160,9 @@ export async function readExistingSources(db: FirebaseFirestore.Firestore, grant
   // original recordedAt and are filtered independently by buildSnapshot.
   const admit = (snapshot: FirebaseFirestore.DocumentSnapshot, recordRef: string) => {
     if (cutoff === undefined) return true;
-    if (!snapshot.exists) { readQuarantine.push({ recordRef, reason: "required_source_missing_at_frozen_cutoff" }); return false; }
-    const time = snapshot.updateTime, seconds = Math.floor(cutoff/1000), nanos = (cutoff-seconds*1000)*1000000;
-    const known = time && Number.isSafeInteger(time.seconds) && Number.isSafeInteger(time.nanoseconds);
-    if (!known || time.seconds > seconds || (time.seconds === seconds && time.nanoseconds > nanos)) {
-      readQuarantine.push({ recordRef, reason: known ? "source_version_after_frozen_cutoff" : "source_version_time_unknown" });
+    const reason = frozenSourceVersionIssue(snapshot, authorized.asOf);
+    if (reason) {
+      readQuarantine.push({ recordRef, reason });
       return false;
     }
     return true;
