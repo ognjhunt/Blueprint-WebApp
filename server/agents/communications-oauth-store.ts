@@ -168,7 +168,7 @@ async function readFounderBinding(data: Record<string, any>): Promise<{ credenti
 export async function requireFounderSendCapability(): Promise<void> {
   if (process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN?.trim()) throw new Error("founder_send_scope_unverified");
   const credential = await readFounderCredential();
-  if (!credential.scopes.includes(FOUNDER_GMAIL_SEND_SCOPE)) throw new Error("founder_send_scope_unverified");
+  if (!(credential.scopes as readonly string[]).includes(FOUNDER_GMAIL_SEND_SCOPE)) throw new Error("founder_send_scope_unverified");
 }
 
 /** Separate compose consent never substitutes for draft-write authorization. */

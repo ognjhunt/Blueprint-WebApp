@@ -18,7 +18,7 @@ export type GmailDraftPorts = {
   write(content: DraftContent, draftId?: string): Promise<{ draftId: string }>;
 };
 export class CommunicationsGmailDraftError extends Error { constructor(message: string, public status = 409) { super(message); } }
-const fail = (message: string): never => { throw new CommunicationsGmailDraftError(message); };
+function fail(message: string): never { throw new CommunicationsGmailDraftError(message); }
 const same = (a: unknown, b: unknown) => communicationsDigest(a) === communicationsDigest(b);
 
 /** Manual, disabled-by-default delivery copy of an existing canonical revision.
