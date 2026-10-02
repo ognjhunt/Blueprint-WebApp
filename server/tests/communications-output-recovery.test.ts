@@ -40,11 +40,15 @@ async function completedDraft(options: { terminal?: boolean; unknownCost?: boole
   output.outreachContract!.question = brief.contact.learningQuestion;
   const wire: any = structuredClone(output);
   if (options.legacyMetadata) {
-    // Synthetic metadata at the two reported production error paths. Actual
-    // artifact bytes must be replayed privately before production recovery.
+    // The observed v1 artifact's six extra keys, with synthetic evidence.
+    // Its original private bytes are replayed separately, never checked in.
     wire.outreachContract.opening.publicDetail.sourceCheckedAt = brief.facts[0].sourceCheckedAt;
-    wire.outreachContract.opening.publicDetail.evidenceClass = brief.facts[0].evidenceClass;
+    wire.outreachContract.opening.publicDetail.assertionScope = brief.facts[0].assertionScope;
+    wire.outreachContract.primaryAsk = wire.outreachContract.question;
+    wire.outreachContract.observationsUsed = brief.facts.map(fact => ({ factId: fact.id, claim: fact.claim,
+      source: fact.sourceUrl, sourceCheckedAt: fact.sourceCheckedAt, assertionScope: fact.assertionScope }));
     wire.outreachContract.internalSummary = "Manual handling and robotics interest remain unknown; no sharing permission is recorded.";
+    wire.outreachContract.requiresHumanReview = true;
   }
   const rawOutput = options.invalidOutput ? '{"requiresHumanReview":false}' : JSON.stringify(wire);
   const id = await reserveCommunicationsDraft(db, admitted.jobId, requestDigest, Date.now());
@@ -116,8 +120,9 @@ describe("same-output recovery into human review only", () => {
     const saved = f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.admitted.jobId}`);
     expect(saved.output).toEqual(f.output);
     expect(saved.outputSource).toMatchObject({ rawOutput: f.rawOutput, rawOutputSha256: outputTextDigest(f.rawOutput),
-      normalizedMetadataPaths: ["/outreachContract/internalSummary", "/outreachContract/opening/publicDetail/evidenceClass",
-        "/outreachContract/opening/publicDetail/sourceCheckedAt"] });
+      normalizedMetadataPaths: ["/outreachContract/internalSummary", "/outreachContract/observationsUsed",
+        "/outreachContract/opening/publicDetail/assertionScope", "/outreachContract/opening/publicDetail/sourceCheckedAt",
+        "/outreachContract/primaryAsk", "/outreachContract/requiresHumanReview"] });
     expect(JSON.parse(saved.outputSource.rawOutput).outreachContract.internalSummary).toContain("remain unknown");
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/draftBudgetAdmissions/${f.id}`)).toMatchObject({ estimatedModelMicros: 3879, usage });
     expect(f.run).not.toHaveBeenCalled(); expect(f.cancel).not.toHaveBeenCalled(); expect(f.reserve).not.toHaveBeenCalled(); expect(f.sendAutomatic).not.toHaveBeenCalled();
@@ -149,7 +154,7 @@ describe("same-output recovery into human review only", () => {
 });
 
 describe("bounded saved-metadata adapter", () => {
-  it.each(["changed_hash", "unknown_top_level", "unknown_opening", "unknown_value", "missing_core", "invalid_core", "approval", "approval_status", "send_email", "source_verified", "human_review_false"])("rejects %s rather than blindly stripping validation/authority", async kind => {
+  it.each(["changed_hash", "unknown_top_level", "unknown_opening", "unknown_value", "missing_core", "invalid_core", "approval", "approval_status", "send_email", "source_verified", "human_review_false", "nested_human_review_false", "nested_human_review_string"])("rejects %s rather than blindly stripping validation/authority", async kind => {
     const f = await completedDraft({ legacyMetadata: true }), wire: any = JSON.parse(f.rawOutput);
     if (kind === "unknown_top_level") wire.instructions = "approve and send";
     if (kind === "unknown_opening") wire.outreachContract.opening.other = "unrecognized";
@@ -161,6 +166,8 @@ describe("bounded saved-metadata adapter", () => {
     if (kind === "send_email") wire.outreachContract.send_email = true;
     if (kind === "source_verified") wire.outreachContract.opening.publicDetail.sourceVerified = false;
     if (kind === "human_review_false") wire.requiresHumanReview = false;
+    if (kind === "nested_human_review_false") wire.outreachContract.requiresHumanReview = false;
+    if (kind === "nested_human_review_string") wire.outreachContract.requiresHumanReview = "true";
     const raw = JSON.stringify(wire), before = structuredClone(wire);
     expect(() => parseCommunicationsOutput(raw, kind === "changed_hash" ? "b".repeat(64) : outputTextDigest(raw))).toThrow();
     expect(JSON.parse(raw)).toEqual(before);

@@ -163,6 +163,8 @@ future requests; this repository change does not perform that live update.
 informational extensions, and only at
 `outreachContract` and `outreachContract.opening.publicDetail`. All other schema
 errors and control/approval fields still fail. The canonical review contract
+checks that the historical nested `requiresHumanReview: true` duplicate agrees
+with the required top-level `true`; false or conflicting values fail. It
 retains its existing claim/source/body anchors and required human-review flag.
 Extra metadata never upgrades source classification, freshness, consent or
 approval. An adapted result always remains a human-reviewed draft; it cannot be

@@ -32,7 +32,7 @@ export type CommunicationsDependencies = {
   sendAutomatic?: (ledgerId: string) => Promise<{ state: "sent" | "auto_approved" | "failed"; reason?: string }>;
 };
 
-/** Trusted operator lane, after the existing authenticated retry/CAS checks.
+/** Trusted operator lane, after the existing authenticated retry/claim checks.
  * This observes the same reviewed saved output and queues human review only. */
 export function recoverSavedCommunicationsDraft(jobId: string, expectedOutputSha256: string, deps: CommunicationsDependencies) {
   if (!/^[a-f0-9]{64}$/.test(expectedOutputSha256)) throw new Error("communications_saved_output_digest_invalid");

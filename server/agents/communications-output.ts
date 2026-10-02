@@ -34,7 +34,11 @@ export function parseCommunicationsOutput(raw: string, expectedSavedOutputDigest
     let target = core;
     for (const segment of issue.path) target = target[segment];
     for (const key of issue.keys) {
-      if (controlField.test(key.replace(/[^a-z0-9]/gi, ""))) throw parsed.error;
+      // The actual v1 artifact repeats the required review flag at this node.
+      // Verify the duplicate agrees; never normalize a false/conflicting flag.
+      if (location === JSON.stringify(["outreachContract"]) && key === "requiresHumanReview") {
+        if (target[key] !== true || core.requiresHumanReview !== true) throw parsed.error;
+      } else if (controlField.test(key.replace(/[^a-z0-9]/gi, ""))) throw parsed.error;
       normalizedMetadataPaths.push("/" + [...issue.path, key].map(segment => String(segment).replace(/~/g, "~0").replace(/\//g, "~1")).join("/"));
       delete target[key];
     }
