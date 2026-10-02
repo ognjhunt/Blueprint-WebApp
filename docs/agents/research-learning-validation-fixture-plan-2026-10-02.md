@@ -1,6 +1,6 @@
 # Ready-to-review learning validation fixture
 
-State: prepared, **not approved or applied**. This is the concrete fixture for
+State: **approved and completed**, with immutable company-storage readback below. This is the concrete fixture for
 the owner's requested research → reply → aggregate → next context → portable
 readback check. All person/company/mail/provider observations below are
 fictional, `development_only`, and confined to validation. They never count as
@@ -94,3 +94,34 @@ Live agent consumption, real inbox ingestion and real outreach outcomes remain
 separate evidence gates. Approval requested by this packet is only for this
 fictional validation artifact and receipt; it cannot resume schedules, broaden
 OAuth, run paid inference or send a message.
+
+## Approved execution and readback — 2026-10-02
+
+The owner approved this exact bounded fixture in this thread's user reply on
+2026-10-02. Production `ResearchLearningStore`, `BusinessHistoryStore`, daily
+aggregation, correction projection and `createNativeLearningHooks` ran against
+an isolated local fixture store. The exported scenario times are explicitly
+virtual, fictional authoring times; the export separately records execution
+time. No production default prospect, job, event or send record was written.
+
+The create-only company object is:
+
+`gs://blueprint-8c1ca.appspot.com/operations/validation/research-learning/BP-VALIDATION-LEARNING-20261002-v1/e8d5fdda97ba47df32233255fa35311e06c01bd9db18250bc12b3bc17a66f2f5.json`
+
+Generation `1790946551829047`, 198,571 bytes; SHA-256 is the filename. One
+create-only metadata receipt lives at the exact receipt path above. Downloaded
+bytes reconstructed a replacement local store solely from the export; the
+replacement reproduced aggregate
+`06aad06827c9d4648390b2b3761c38d8498814534296cde7cdd4a593505e4014`
+and next input
+`5761e17184ee90ba0fffe256eebfd61069f2c116a96f4f245ddc8ead3c4f91d8`
+with zero replay writes. Baseline context stayed immutable after correction.
+
+Observed fixture counts: one informational-curiosity reply, zero accepted or
+verified-delivered messages, zero evaluation/pilot agreements. The corrected
+owner remains unknown, and the next question asks which evidence would change
+the decision and who owns it. Original reply, classification correction and
+business supersession hashes are retained. The actual source corpus remained
+11 CRM rows, four capabilities, 32 facts and zero real native joins.
+Paid analysis calls, provider jobs, sends and default-collection writes: zero.
+Live agent consumption and real inbox outcomes remain unproven by this fixture.

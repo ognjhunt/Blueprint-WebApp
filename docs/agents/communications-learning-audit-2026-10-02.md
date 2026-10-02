@@ -223,3 +223,25 @@ beyond 500 business decisions. Full TypeScript checking, local host bundling
 and the production portability audit are required before release. The required
 graphify refresh uses the existing isolated graphifyy interpreter and publishes
 the canonical root graph outputs; it introduces no package installation.
+
+### Authorized source-only learning binding readback
+
+This session installed only `blueprintDailyResearch/sites-first.learning`,
+transactionally refusing an existing conflicting binding and checking the
+retained source snapshot before writing. Exact control digest:
+`c83db248b206fec591d963592745d0ec616c6f0081efb6f13b51045880a43ad4`;
+Firestore readback update time `2026-10-02T13:10:09.627Z`. It selects all 11
+existing CRM rows and four discovery/detail capabilities, preserves 32 facts
+and all real null joins, and grants zero native prospects. The reviewed host
+principal and `blueprint:research-learning` subject remain unchanged. Scope
+expires `2026-10-03T00:00:00Z`; no automatic extension is permitted.
+
+Logical learning binding does not resume the daily research, communications or
+send schedules. Existing controls elsewhere on the root document were
+preserved. Export/recovery uses standard JSON of this exact learning leaf and
+canonical source snapshot; reread and compare its canonical digest before
+reusing it. For rollback, compare-and-remove this exact leaf only after owner
+authorization; never overwrite a newer binding or delete learning history.
+The bounded fixture above separately verified portable company-storage replay;
+source-only context readback preserved all 11 CRM rows/four capabilities/32
+facts and unknown real outcomes without a model call.
