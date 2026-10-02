@@ -1,6 +1,6 @@
 # Research and outreach learning layer
 
-Status: verified foundation deployed; prior-research reconciliation staged; runnable read-only consumer adapter/CLI available. Caller hooks remain separately owned integrations; see the consumer handoff contract below.
+Status: verified foundation deployed; prior-research reconciliation staged; business decision/run/daily handlers implemented offline. Caller hooks and Chicago scheduler activation remain separately owned integrations; see the business loop contract below.
 Owner: WebApp learning projection, coordinated by the parent engineering lane.
 Authorized objective: make site/job/team research reuse evidence from previous
 research, contact availability, outreach, replies and later outcomes. The owner
@@ -22,6 +22,8 @@ scientific verdict, rights, physical-outcome or send authority.
 | `blueprintResearchLearning/default/snapshots/{snapshotId}` | WebApp learning materializer | Immutable versioned, principal/prospect/section-scoped read projection. Hash-checked readback; no live current-pointer change in this release. |
 | `blueprintResearchLearning/default/sourceSnapshots/{snapshotId}` | Authorized source reconciler | Separate immutable CRM/capability snapshot. Reconcile existing BP IDs and complete independently read Sheet rows before staging; preserve nullable native joins. No synthetic v1 prospect events. |
 | `blueprintResearchLearning/default/siteLearningEvents/{eventId}` | Authenticated human-source adapter | Human-attested motive, bounded question, decision-changing evidence, stated decision/evidence owner IDs, brief/later/no/unknown choice and usefulness feedback. Capture actor differs from stated site owner. Correct by append-only chain; source/brief bindings are host-issued inputs. No live writer route is exposed. |
+| `blueprintResearchLearning/default/businessHistoryEvents/{eventId}` | Existing authorized host using exact verified source/decision metadata | Additive immutable decisions, provisional hypotheses and native terminal observations. No invented message IDs or competing source writers. |
+| `blueprintResearchLearning/default/businessOverviews/{overviewId}`, `businessOverviewRuns/{jobKey}` | Deterministic learning handler invoked by the existing scheduler owner | Atomic create-only scoped overview/replay receipt; normalized outcome counts; no new model call or source refresh. |
 | Sheets `Research Learning` review/export view | Learning exporter | Firestore-owned derived rows with existing CRM ID, snapshot hash/cutoff/event refs/unknowns. Sheet edits do not write back CRM or learning facts. Corrections enter through a separately authenticated human append. |
 | Notion playbook/learning summary | Summary exporter | Aggregate counts, denominators, unconfirmed hypotheses, confounders, exploration allocation and snapshot refs. No raw threads or authoritative CRM state. |
 
@@ -112,6 +114,154 @@ scope exposed only BP-CAP-001. BP-000001 had no current exact native join, so
 contact/outcome history stayed unknown. Synthetic contract tests separately
 exercise actual communications-owned accepted receipts, unknown delivery,
 human reply corrections, later owner outcomes, scope expiry and paging.
+
+## Business decisions, hypotheses and learning loop
+
+The additive `business-history.ts` contract stores company-only decision,
+hypothesis and native run observation events under
+`blueprintResearchLearning/default/businessHistoryEvents/{eventId}`. The trusted
+existing host owns capture; this is never a model-selected writer tool. Original
+chat/voice metadata must include thread ID, message ID, original timestamp,
+author ID/role, hash and a bounded business-only excerpt. Explicit decisions
+require a user source. Assistant interpretations remain `inference`; they
+cannot supersede an explicit decision. Original messages are not manufactured
+from summaries or delegation metadata. Personal material, addresses, credentials
+and unrelated mailbox content stay out of this projection.
+
+Updates append a hash-linked supersession for the same stable BP-DEC/BP-HYP ID
+and subject. Branches, competing roots, cycles, changed subject and wrong
+Firestore document keys fail closed. Each scoped view retains history and
+current records, exact source refs/hashes/check dates and its own content hash.
+The host verifies source identity and interpretation before passing
+`BusinessWriterContext` with the exact approved event hash and verified source
+metadata. Possessing a source pointer alone does not authorize classification.
+
+`initial-hypotheses.ts` defines four **provisional conversation hypotheses**:
+sites may seek readiness/learning before purchase; task-specific briefs may
+help assessment; early/small teams may collaborate; missing task/site
+information may block assessment. These are not market facts and are not seeded
+live. Original message metadata is required. Each hypothesis preserves
+supporting/counter/ambiguous evidence, uncertainty, confounders, what would change
+belief, the next question and a proposed test. Causal proof and prospect hard
+filters are always false; exploration of unexpected opportunities stays true.
+An authorized source-backed supersession records the results of an investigation.
+
+`business-learning-loop.ts` provides deterministic handlers:
+
+1. `BusinessHistoryStore.append`: persist a verified business message/event
+   immediately through the existing authorized host.
+2. `recordTerminalRun`: call after the native terminal record is committed.
+   Input contains only trusted actor/subject, stable BP-RUN ID, native run ID,
+   and the exact native record ref/hash/check date. The handler rereads that
+   record and derives state and communications prospect ID. Numeric native
+   `updatedAt` is labelled `native_update`, not an execution finish assertion;
+   research `remote_completed_at` is labelled `remote_completion`. Missing
+   timestamps use a labelled terminal observation with an explicit unknown.
+   Unsupported counts/context are null and unknown. `sent` alone never proves
+   acceptance, delivery, reply, interest or rejection. Normalized evidence in
+   the daily overview supplies outcome analysis. Retrying the same native
+   observation preserves its first check date; changed semantic identity/hash
+   fails closed rather than returning another request's summary. If the native
+   owner reuses a run ID for later attempts, bind a new stable BP-RUN observation
+   ID to its native path/source hash and retain the previous observation.
+3. `runDailyBusinessAnalysis`: the existing scheduler supplies a stable job key,
+   expiring subject scope, existing learning grant, exact authorized prospect
+   request/cutoff and city/industry focus. Daily comparison requires all five
+   outcome sections already authorized; a partial grant fails before database
+   access and is never expanded. It rereads normalized native records
+   and append-only evidence, retains the normalized outcome snapshot and creates
+   a scoped deterministic overview and its replay receipt atomically, and
+   verifies linked snapshot and overview readback. Replay, transactions and
+   return paths recheck expiry. The principal is bound to stored overview
+   reads. A changed request under the same job key fails closed.
+
+The intended cadence is after each verified message/event, after every terminal
+native run, and **06:45 America/Chicago before the 07:00 research run**. The
+cadence constant is an integration contract; this change installs no scheduler.
+The existing Chicago scheduler/lease owner must wire the daily handler once,
+preserve its DST-aware calendar and retain its job key across retries.
+
+An overview combines current decisions/inferences/hypotheses, observed counts
+and denominators, same-industry/other-city and other-industry/same-city cohorts,
+contact/message/task/team/timing controls and investigation questions. Small
+samples and delayed replies stay observational; contactability differs from
+interest and interest differs from pilot participation. Daily aggregation uses
+zero model calls, grants no sends and refreshes no public evidence check dates.
+Existing $5/day research, $1/day drafting soft target, US first-contact scope
+and five/day cap remain owned by their current policy. Model classification
+requires separately approved activation/budget and stays disabled.
+
+Trusted CLI modes use existing Admin authorization:
+
+```bash
+npx tsx scripts/research-learning/business-learning.ts capture \
+  --input /authorized/business-capture.json --output output/research-learning/new-capture.json
+npx tsx scripts/research-learning/business-learning.ts summarize-run \
+  --input /authorized/native-run-receipt.json --output output/research-learning/new-run-summary.json
+npx tsx scripts/research-learning/business-learning.ts aggregate \
+  --input /authorized/daily-learning-job.json --output output/research-learning/new-daily-overview.json
+```
+
+`capture` input is `{event, trustedContext}`; `summarize-run` is the strict
+native identity input described above; `aggregate` is
+`{jobKey,businessScope,learningGrant,request,focus}`. These private host inputs
+are standard JSON, not provider session objects. Output is create-only mode
+0600; retry with the original identity/job key and a new local output path.
+Daily output includes the existing strict `Research Learning` Sheet view and
+a sourced Notion playbook payload with provisional business hypotheses and
+separate decisions/inferences. Those payloads retain native/CRM IDs, denominators
+and source hashes; broad playbook output omits original chat excerpts. They
+perform no connector publication. Only additive owned learning collections are
+written. No source record,
+canonical `crm.json`, current pointer, OAuth/approval/send policy, scheduler,
+security grant, Sheet or Notion is mutated by these handlers.
+
+An opt-in fifth argument to `openResearchLearningSession` is
+`{businessHistory: {principalId,subjectKeys,expiresAt},businessOverviewJobKey?}`.
+The host chooses relevant subject keys after existing authorization. This adds
+compact `businessHistory` and optional scoped `businessOverview` to the handoff,
+and `decisionHistory(subjectKey,{pageSize,cursor})` for exact captured history.
+The agent must consume the overview and current relevant details before its
+normal research/draft work. Missing, stale or invalid optional history is marked
+unknown and preserves existing consumer behavior. Cursors bind subject,
+operation and history context; shorter business expiry shortens the session.
+
+The read CLI accepts optional `--business-scope /authorized/business-scope.json`
+and `--overview-job-key JOB`, plus request
+`businessHistory: [{subjectKey,pageSize}]`. Omit both options to retain the
+original v1 handoff fields/hash. Existing bindings and required arguments are
+unchanged. The research/communications owners must wire these options at their
+pre-prompt call sites; ownership coordination and source message metadata are
+required before claiming the full live loop is active.
+
+Before first capture/cutover, the owner performs this dry run:
+
+1. Export the actual relevant business messages with original IDs/timestamps,
+   author roles and hashes. Record excluded personal/secret material without
+   copying it into shared evidence. A delegation summary cannot substitute for
+   the original-message manifest.
+2. Construct candidate decisions/hypotheses offline with `makeBusinessHistory`
+   and project them with existing scoped history using
+   `businessHistoryProjection`. Confirm exact BP IDs, no conflicting roots or
+   supersession branches, source hashes, uncertainty and exclusion counts.
+3. Reconcile existing CRM/native/source snapshot IDs and counts against the
+   staged source dry-run manifest. Verify unchanged canonical CRM/history and
+   source-owned hashes. Do not create guessed native joins.
+4. Use the existing native owners' coordinated hook/scheduler release to read
+   both default v1 and opt-in context in a canary. Check scope/expiry, replay,
+   source snapshot readback, unknown delivery/interest and no sends/model calls.
+5. Activate only after reconciliation and hook behavior are verified. Publish
+   derived Sheet/Notion views through their authorized owners; never import
+   edits as CRM facts or replace original history. Retain prior readers for
+   rollback and portable JSON/source-hash manifests in company storage.
+
+Canonical recovery adds `businessHistoryEvents`, `businessOverviews` and
+`businessOverviewRuns` under existing Blueprint Firestore. Export the scoped
+history/overview and schema/hash/source metadata as standard JSON using the
+same repo and existing authorization. Sheets remains a derived review/export
+view; Notion remains a sourced aggregate playbook. Verify export row counts,
+stable BP/native IDs and hashes before any later cutover. Existing staged
+reconciliation and no-destructive-migration rules continue to apply.
 
 ## Permanent portability and release requirements
 

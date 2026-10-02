@@ -108,3 +108,7 @@ server/research-learning/source-store.ts
 server/research-learning/retrieval.ts
 server/research-learning/consumer.ts
 server/research-learning/brief-projection.ts
+
+server/research-learning/business-history.ts
+server/research-learning/business-learning-loop.ts
+server/research-learning/initial-hypotheses.ts
