@@ -69,6 +69,48 @@ describe("portable protected research reads", () => {
     const res = await read("/research-admissions/:admissionId", { admissionId: admitted.body.admissionId });
     expect(res.json).toHaveBeenCalledWith(bindings.db.records.get(`${REVIEWED_RESEARCH_ROOT}/${admitted.body.admissionId}`));
   });
+  it("exports intact historical records without writes or renewing their source/review dates", async () => {
+    const input = officialResearchInput(); input.crm.rows = [["Blueprint CRM"], [], ["BP-000099", "Unrelated operator"]];
+    const admitted = await invoke(input), id = admitted.body.admissionId;
+    const before = structuredClone([...bindings.db.records]);
+    vi.setSystemTime(new Date("2030-10-01T21:05:00Z"));
+    const res = await read("/research-admissions/:admissionId", { admissionId: id });
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(bindings.db.records.get(`${REVIEWED_RESEARCH_ROOT}/${id}`));
+    expect([...bindings.db.records]).toEqual(before);
+  });
+  it.each(["partial_restore", "missing_packet", "missing_review", "missing_artifact", "wrong_admission_id", "changed_packet",
+    "changed_crm", "partial_crm", "wrong_review_digest", "wrong_review_candidate", "malformed_review_date", "changed_artifact",
+    "wrong_source_identity", "wrong_run_key", "wrong_schema", "rekeyed_snapshot"])("refuses %s admission contents before export", async kind => {
+    const admitted = await invoke(officialResearchInput());
+    let id = admitted.body.admissionId;
+    let saved = structuredClone(bindings.db.records.get(`${REVIEWED_RESEARCH_ROOT}/${id}`));
+    if (kind === "partial_restore") saved = {};
+    if (kind === "missing_packet") delete saved.row.packet;
+    if (kind === "missing_review") delete saved.row.review;
+    if (kind === "missing_artifact") delete saved.files;
+    if (kind === "wrong_admission_id") saved.row.admission_id = "b".repeat(64);
+    if (kind === "changed_packet") saved.row.packet.candidate.organization = "Changed operator";
+    if (kind === "changed_crm") saved.row.packet.crm.rows = [{ cells: ["Altered CRM"] }];
+    if (kind === "partial_crm") delete saved.row.packet.crm.rows;
+    if (kind === "wrong_review_digest") saved.row.review.packet_digest = "b".repeat(64);
+    if (kind === "wrong_review_candidate") saved.row.review.accepted_keys = ["different-candidate"];
+    if (kind === "malformed_review_date") saved.row.review.reviewed_at = "invalid-date";
+    if (kind === "changed_artifact") saved.files.artifact = Buffer.from("Changed report").toString("base64");
+    if (kind === "wrong_source_identity") saved.row.source_record_id = "reviewed:other";
+    if (kind === "wrong_run_key") saved.row.run_key = "reviewed-report:other";
+    if (kind === "wrong_schema") saved.schema_version = "partial-restored-record";
+    if (kind === "rekeyed_snapshot") {
+      id = "b".repeat(64); saved.row.admission_id = id; saved.row.run_key = `reviewed-report:${id}`;
+    }
+    bindings.db.records.set(`${REVIEWED_RESEARCH_ROOT}/${id}`, saved);
+    const before = structuredClone([...bindings.db.records]);
+    const res = await read("/research-admissions/:admissionId", { admissionId: id });
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({ error: "reviewed_research_source_changed" });
+    expect(res.json).not.toHaveBeenCalledWith(saved);
+    expect([...bindings.db.records]).toEqual(before);
+  });
 });
 describe("authenticated reviewed-research admission route", () => {
   it("ignores client role claims and blocks missing/revoked server authority without writes", async () => {
