@@ -94,7 +94,11 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     }
     verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId), brief, await deps.store.handoff(brief), await deps.store.contactProof(brief));
     const approval = await deps.store.approvalState(job.prospectId);
-    const learning = deps.learningHooks ? await deps.learningHooks.prepareNativeJob("communications",
+    const agentChosenHistory = !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId
+      || claimed.checkpoint.historyProfile === "agent-history-v1";
+    // New sessions choose/fetch history themselves. Legacy charged sessions
+    // retain their original frozen context and after-work observation.
+    const learning = deps.learningHooks && !agentChosenHistory ? await deps.learningHooks.prepareNativeJob("communications",
       `blueprintCommunications/default/jobs/${jobId}`, [job.prospectId],
       { allowCreate: !recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId }) : null;
     const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning);

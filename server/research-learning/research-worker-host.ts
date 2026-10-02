@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { createCompanyHistoryTools, type CompanyHistoryAccess } from "./company-history";
 import { z } from "zod";
 import { digest, grantSchema, id, instant, sectionSchema } from "./contract";
 import { businessReadScopeSchema } from "./business-history";
@@ -38,6 +39,41 @@ export const researchLearningControlSchema = z.object({
   if (selection.capabilityIds.length) ctx.addIssue({ code: "custom", message: "research_learning_native_capability_details_not_supported" });
 });
 export type ResearchLearningControl = z.input<typeof researchLearningControlSchema>;
+export const researchHistoryAccessSchema = z.object({
+  version: z.literal("blueprint.company-history-access.v1"), principalId: id, expiresAt: instant,
+  scope: z.literal("company_business_history"), authorityRef: z.string().trim().min(1).max(512),
+}).strict();
+/** New profile parses only actual access. Frozen legacy selection/focus/grant
+ * stays confined to learning_context and cannot become a relevance prefilter. */
+export const researchHistoryControlSchema = z.object({
+  version: z.literal("blueprint.research-learning-worker.v1"), enabled: z.literal(true), startDate: daySchema,
+  binding: consumerBindingSchema, businessScope: businessReadScopeSchema,
+  history_access: researchHistoryAccessSchema.optional(),
+}).passthrough().superRefine((value, ctx) => {
+  const { binding, businessScope, history_access } = value;
+  if (binding.role !== "daily_research" || binding.principalId !== REVIEWED_NATIVE_LEARNING_CONFIG.principalId
+    || binding.principalId !== businessScope.principalId || businessScope.expiresAt > binding.expiresAt
+    || (history_access && (history_access.principalId !== binding.principalId || history_access.expiresAt > binding.expiresAt))) {
+    ctx.addIssue({ code: "custom", message: "research_history_scope_invalid_reconcile_existing_control" });
+  }
+});
+
+/** Reuse the retained host grant; never derive access from task kind or renew it. */
+export function boundResearchHistoryControl(value: unknown, clock = () => new Date().toISOString()) {
+  const control = researchHistoryControlSchema.parse(value);
+  const now = instant.parse(clock());
+  const expiresAt = [control.binding.expiresAt, control.businessScope.expiresAt,
+    ...(control.history_access ? [control.history_access.expiresAt] : [])].sort()[0];
+  if (expiresAt <= now) throw new Error("research_learning_scope_expired");
+  if (chicagoDate(now) < control.startDate) throw new Error("research_learning_outside_scope");
+  const access: CompanyHistoryAccess = { principalId: control.binding.principalId, expiresAt,
+    sourceSnapshotId: control.binding.sourceSnapshotId, companyWide: !!control.history_access,
+    ...(!control.history_access ? { prospectIds: control.binding.prospectIds, crmIds: control.binding.crmIds,
+      capabilityIds: control.binding.detailCapabilityIds, discoveryCapabilityIds: control.binding.discoveryCapabilityIds,
+      businessSubjectKeys: control.businessScope.subjectKeys } : {}) };
+  return { control, access };
+}
+
 
 export function boundResearchLearningHooks(db: FirebaseFirestore.Firestore, value: unknown,
   clock = () => new Date().toISOString()) {
@@ -56,7 +92,19 @@ export function boundResearchLearningHooks(db: FirebaseFirestore.Firestore, valu
 /** Loaded by the actual private Python/Firestore pipe. There is one TS-owned
  * 06:45 scheduler and one BP-RUN source-hash writer. No timer lives here. */
 export function researchLearningHost(db: FirebaseFirestore.Firestore, clock = () => new Date().toISOString()) {
-  return async (request: { op: string; day?: string; allow_create?: boolean }, value: unknown) => {
+  return async (request: { op: string; day?: string; allow_create?: boolean; query?: unknown; filters?: unknown; page_size?: unknown; cursor?: unknown; record_id?: unknown }, value: unknown) => {
+    if (request.op === "history_search" || request.op === "history_fetch") {
+      const { control, access } = boundResearchHistoryControl(value, clock);
+      const day = daySchema.parse(request.day), now = instant.parse(clock());
+      if (day < control.startDate || day > chicagoDate(now)) throw new Error("research_learning_outside_scope");
+      // Whole-company access requires an explicit trusted owner grant. Without
+      // it, use the entire existing binding (never model filters/selection).
+      const tools = createCompanyHistoryTools(db, access, { now: clock });
+      return request.op === "history_search"
+        ? tools("search_company_history", { query: request.query, ...(request.filters !== undefined ? { filters: request.filters } : {}),
+            ...(request.page_size !== undefined ? { page_size: request.page_size } : {}), ...(request.cursor !== undefined ? { cursor: request.cursor } : {}) })
+        : tools("fetch_company_history_record", { record_id: request.record_id });
+    }
     const { control, hooks } = boundResearchLearningHooks(db, value, clock);
     const day = daySchema.parse(request.day);
     if (day < control.startDate || day > chicagoDate(clock())) throw new Error("research_learning_outside_scope");

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { getAgentProfile } from "./agent-profiles";
+import { AgentEvidenceError, hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence, persistAgentEvidenceFailure, requiresMutationReconciliation } from "./private-evidence";
 import { createAgentCheckpoint, getAgentCheckpoint, listAgentCheckpoints } from "./checkpoints";
 import { createAgentCompaction, listAgentCompactions } from "./compactions";
 import { getEnvironmentProfile } from "./environment-profiles";
@@ -579,20 +580,22 @@ function buildNextMoveLine(params: {
 }) {
   const phaseStep =
     params.phase === "implementation"
-      ? "Inspect the minimal set of files needed for the code change, implement it, and keep this thread scoped to implementation."
+      ? "Start by inspecting the files needed for the code change and implement it."
       : params.phase === "review_qa"
-        ? "Review the changed behavior, run the narrowest useful checks, and keep this thread scoped to review and QA."
-        : "Investigate only the blocker, summarize findings, and stop once the cause is clear.";
+        ? "Start by reviewing the changed behavior and run the narrowest useful checks."
+        : "Start by investigating the blocker, inspect the results, and choose the next authorized action needed to advance the goal.";
+
+  const recoveryRules = "The phase is a starting point; choose the next authorized task step as needed. Use available tools to inspect results, correct ordinary errors, and format, upload or publish when the task and tool permissions authorize it. Preserve useful sibling results and original evidence. Stay within scope and budget; preserve send and authorization controls and reconcile uncertain mutations before retrying them.";
 
   if (params.retryCount >= 1) {
-    return `${phaseStep} If this thread fails again, split the work or reroute it instead of retrying in place.`;
+    return `${phaseStep} Inspect prior errors and results, then choose a corrected attempt, narrower task or authorized handoff based on evidence. ${recoveryRules}`;
   }
 
   if (params.contextWindowFailure) {
-    return `${phaseStep} Retry once in this fresh thread. If it fails again, split the task or reroute it.`;
+    return `${phaseStep} Inspect the retained context and select a recovery strategy suited to the context limit. ${recoveryRules}`;
   }
 
-  return phaseStep;
+  return `${phaseStep} ${recoveryRules}`;
 }
 
 function buildCompressedHandoff(params: {
@@ -635,7 +638,7 @@ function buildCompressedHandoff(params: {
 
   lines.push(
     "Working rules:",
-    "- keep this thread bounded to one phase",
+    "- use the phase as a starting point and choose the next authorized task step as needed",
     "- summarize, do not paste long logs or documents",
     "- reference file paths and document ids before dropping large excerpts",
     `Next step: ${buildNextMoveLine({ phase, retryCount, contextWindowFailure })}`,
@@ -908,6 +911,16 @@ async function logRunEvent(
 async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
 ): Promise<AgentResult<TOutput>> {
+  if (requiresMutationReconciliation(task as unknown as Record<string, unknown>) && !["openai_responses", "deepseek_chat", "zai_glm"].includes(task.provider)) {
+    return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
+      tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
+      error: `mutation_reconciliation_required: ${task.provider} cannot enforce the recorded mutation barrier. Inspect existing effects through the OpenAI Responses safe-read context or reconcile them before resuming this provider.`,
+      artifacts: { mutation_reconciliation_required: true, inference_not_invoked: true },
+      continuation_state: { mutation_reconciliation_required: true,
+        ...(Array.isArray(task.metadata?.openai_replay_input) ? { openai_replay_input: task.metadata.openai_replay_input } : {}),
+      },
+    };
+  }
   if (task.provider === "openai_responses") {
     const { runOpenAIResponsesTask } = await import("./adapters/openai-responses");
     return runOpenAIResponsesTask(task);
@@ -1044,14 +1057,14 @@ async function saveSession(session: PersistedAgentSession) {
   if (!db) {
     return;
   }
-  await db.collection("agentSessions").doc(session.id).set(stripUndefinedDeep(session), { merge: true });
+  await persistAgentEvidence(db.collection("agentSessions").doc(session.id), { collection: "agentSessions", id: session.id }, stripUndefinedDeep(session), db);
 }
 
 async function saveRun(run: PersistedAgentRun) {
   if (!db) {
     return;
   }
-  await db.collection("agentRuns").doc(run.id).set(stripUndefinedDeep(run), { merge: true });
+  await persistAgentEvidence(db.collection("agentRuns").doc(run.id), { collection: "agentRuns", id: run.id }, stripUndefinedDeep(run), db);
 }
 
 async function getRun(runId: string) {
@@ -1062,7 +1075,7 @@ async function getRun(runId: string) {
   if (!doc.exists) {
     return null;
   }
-  return doc.data() as PersistedAgentRun;
+  return hydrateAgentEvidence(doc.data() as PersistedAgentRun, { collection: "agentRuns", id: runId });
 }
 
 function readUsdThreshold(envKey: string) {
@@ -1091,9 +1104,10 @@ async function listRecentRunsForCostTelemetry(limit = 500): Promise<PersistedAge
     .orderBy("created_at", "desc")
     .limit(Math.max(1, Math.min(limit, 1000)))
     .get();
-  return snapshot.docs.map((doc) => ({
-    ...(doc.data() as PersistedAgentRun),
-    id: doc.id,
+  return Promise.all(snapshot.docs.map(async (doc) => {
+    const raw = { ...(doc.data() as PersistedAgentRun), id: doc.id };
+    if ((raw as unknown as Record<string, unknown>).agent_accounting_incomplete === true) throw new AgentEvidenceError("agent_usage_evidence_unavailable", { collection: "agentRuns", id: doc.id });
+    return hydrateAgentEvidence(raw, { collection: "agentRuns", id: doc.id });
   }));
 }
 
@@ -1255,7 +1269,7 @@ async function getSession(sessionId: string) {
   if (!doc.exists) {
     return null;
   }
-  return doc.data() as PersistedAgentSession;
+  return hydrateAgentEvidence(doc.data() as PersistedAgentSession, { collection: "agentSessions", id: sessionId });
 }
 
 async function listSessions(limit = 50) {
@@ -1267,7 +1281,7 @@ async function listSessions(limit = 50) {
     .orderBy("updated_at", "desc")
     .limit(Math.max(1, Math.min(limit, 100)))
     .get();
-  return snapshot.docs.map((doc) => doc.data() as PersistedAgentSession);
+  return Promise.all(snapshot.docs.map((doc) => inspectAgentEvidence(doc.data() as PersistedAgentSession, { collection: "agentSessions", id: doc.id })));
 }
 
 async function listRunsForSession(sessionId: string, limit = 100) {
@@ -1280,7 +1294,7 @@ async function listRunsForSession(sessionId: string, limit = 100) {
     .orderBy("created_at", "desc")
     .limit(Math.max(1, Math.min(limit, 200)))
     .get();
-  return snapshot.docs.map((doc) => doc.data() as PersistedAgentRun);
+  return Promise.all(snapshot.docs.map((doc) => inspectAgentEvidence(doc.data() as PersistedAgentRun, { collection: "agentRuns", id: doc.id })));
 }
 
 async function updateSessionRuntimePointers(
@@ -1391,7 +1405,7 @@ async function findActiveSessionRun(sessionKey: string) {
     return null;
   }
 
-  return snapshot.docs[0].data() as PersistedAgentRun;
+  return hydrateAgentEvidence(snapshot.docs[0].data() as PersistedAgentRun, { collection: "agentRuns", id: snapshot.docs[0].id });
 }
 
 async function markRunStatus(
@@ -1403,7 +1417,7 @@ async function markRunStatus(
     return;
   }
 
-  await db.collection("agentRuns").doc(runId).set(
+  await persistAgentEvidence(db.collection("agentRuns").doc(runId), { collection: "agentRuns", id: runId },
     stripUndefinedDeep({
       status,
       updated_at: nowTimestamp(),
@@ -1411,8 +1425,7 @@ async function markRunStatus(
       ...(status === "completed" ? { completed_at: nowTimestamp() } : {}),
       ...(status === "cancelled" ? { cancelled_at: nowTimestamp() } : {}),
       ...updates,
-    }),
-    { merge: true },
+    }), db,
   );
 }
 
@@ -1438,7 +1451,7 @@ async function dispatchQueuedRuns(sessionKey: string) {
     return null;
   }
 
-  const runRecord = queuedSnapshot.docs[0].data() as PersistedAgentRun;
+  const runRecord = await hydrateAgentEvidence(queuedSnapshot.docs[0].data() as PersistedAgentRun, { collection: "agentRuns", id: queuedSnapshot.docs[0].id });
   await markRunStatus(runRecord.id, "running");
 
   const result = await runAgentTask(runRecord.input as AgentTask, {
@@ -1452,6 +1465,16 @@ async function dispatchQueuedRuns(sessionKey: string) {
   }
 
   return result;
+}
+
+async function sessionRequiresMutationReconciliation(sessionId: string) {
+  if (!db) return false;
+  const session = await db.collection("agentSessions").doc(sessionId).get();
+  if (session.exists && session.data()?.mutation_reconciliation_required === true) return true;
+  // Also cover a partially failed marker write and already queued tasks.
+  const runs = await db.collection("agentRuns").where("session_id", "==", sessionId)
+    .where("mutation_reconciliation_required", "==", true).limit(1).get();
+  return !runs.empty;
 }
 
 export async function runAgentTask<TInput = unknown, TOutput = unknown>(
@@ -1468,6 +1491,18 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     throw new Error("adp_agent_use_admitted_task_controller");
   }
   const normalizedTask = normalizeTask<TInput, TOutput>(task);
+  const admissionSessionId = options?.sessionId || normalizedTask.session_id;
+  if (admissionSessionId && await sessionRequiresMutationReconciliation(admissionSessionId)) {
+    normalizedTask.metadata = { ...(normalizedTask.metadata || {}), mutation_reconciliation_required: true };
+  }
+  if (admissionSessionId && ["deepseek_chat", "zai_glm"].includes(normalizedTask.provider)) {
+    // Always prefer verified persisted session history over caller/queued copies.
+    // Strict hydration must succeed before this provider can resume inference.
+    const persistedSession = await getSession(admissionSessionId);
+    const { deepseek_replay_input: _callerReplay, ...metadata } = normalizedTask.metadata || {};
+    const savedReplay = persistedSession?.metadata?.deepseek_replay_input;
+    normalizedTask.metadata = { ...metadata, ...(Array.isArray(savedReplay) ? { deepseek_replay_input: savedReplay } : {}) };
+  }
   const normalizedTaskForLogs = normalizedTask as unknown as NormalizedAgentTask<
     unknown,
     unknown
@@ -1630,11 +1665,24 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     }
   }
 
-  const preRunCostStop = await evaluatePreRunCostStop({
-    task: normalizedTaskForLogs,
-    runId,
-    sessionId: options?.sessionId || normalizedTask.session_id || null,
-  });
+  let preRunCostStop;
+  try {
+    preRunCostStop = await evaluatePreRunCostStop({
+      task: normalizedTaskForLogs,
+      runId,
+      sessionId: options?.sessionId || normalizedTask.session_id || null,
+    });
+  } catch (error) {
+    const message = error instanceof AgentEvidenceError ? error.message : "agent_spend_evidence_unavailable";
+    await markRunStatus(runId, "failed", { error: message, requires_human_review: true }).catch(() => undefined);
+    return { status: "failed", provider: normalizedTask.provider, runtime: normalizedTask.runtime,
+      model: normalizedTask.model, tool_mode: normalizedTask.tool_policy.mode,
+      error: message, requires_human_review: true, requires_approval: false,
+      artifacts: { inference_not_invoked: true, cost_evidence_unavailable: true,
+        ...(requiresMutationReconciliation(normalizedTask as unknown as Record<string, unknown>) ? { mutation_reconciliation_required: true } : {}),
+      },
+    };
+  }
   if (preRunCostStop?.stopped) {
     return {
       status: "failed",
@@ -1699,9 +1747,11 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     });
   }
 
+  let retainedAdapterResult: AgentResult<TOutput> | undefined;
   try {
     const startedAtMs = Date.now();
     const result = await executeTask(normalizedTask);
+    retainedAdapterResult = result as AgentResult<TOutput>;
     const status = resultStatus(result);
     const latencyMs = Date.now() - startedAtMs;
     const outcomeEvaluation = gradeOutcome(normalizedTaskForLogs, result as AgentResult<unknown>);
@@ -1724,6 +1774,13 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       "windows" in costGuardrail
         ? highestSpendGuardrailStatus(costGuardrail)
         : null;
+
+    if (db && requiresMutationReconciliation(result as unknown as Record<string, unknown>)) {
+      // Compact marker must land before any potentially oversized evidence write.
+      const sessionId = options?.sessionId || normalizedTask.session_id;
+      if (sessionId) await db.collection("agentSessions").doc(sessionId).set({ mutation_reconciliation_required: true }, { merge: true });
+      await db.collection("agentRuns").doc(runId).set({ mutation_reconciliation_required: true }, { merge: true });
+    }
 
     if (db) {
       await markRunStatus(runId, status, {
@@ -1884,7 +1941,10 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     const message = error instanceof Error ? error.message : "Unknown agent runtime error";
 
     if (db) {
-      await markRunStatus(runId, "failed", {
+      await persistAgentEvidenceFailure(db.collection("agentRuns").doc(runId), { collection: "agentRuns", id: runId }, {
+        status: retainedAdapterResult && requiresMutationReconciliation(retainedAdapterResult as unknown as Record<string, unknown>) ? "running" : "failed",
+        updated_at: nowTimestamp(),
+        ...(retainedAdapterResult ? { artifact_persistence_error: "agent_evidence_persistence_failed", ...(requiresMutationReconciliation(retainedAdapterResult as unknown as Record<string, unknown>) ? { mutation_reconciliation_required: true } : {}) } : {}),
         error: message,
         requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
           status: "failed",
@@ -1901,7 +1961,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
             },
           ],
         },
-      });
+      }, error, db).catch(() => undefined);
     }
 
     logger.error(
@@ -1924,10 +1984,10 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         ...((((normalizedTask.metadata || {}) as Record<string, unknown>)
           .resolved_startup_context as Record<string, unknown> | undefined) || {}),
       },
-    });
+    }).catch(() => undefined);
 
     if (options?.sessionId) {
-      const session = await getSession(options.sessionId);
+      const session = await getSession(options.sessionId).catch(() => null);
       if (session) {
         await createRuntimeCheckpoint({
           session,
@@ -1938,7 +1998,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
             task: normalizedTask,
             error: message,
           },
-        });
+        }).catch(() => null);
       }
       await recordRuntimeEvent({
         session_id: options.sessionId,
@@ -1949,7 +2009,14 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         metadata: {
           tool_mode: normalizedTask.tool_policy.mode,
         },
-      });
+      }).catch(() => null);
+    }
+
+    if (retainedAdapterResult) {
+      return { ...retainedAdapterResult, status: "failed", requires_human_review: true,
+        error: error instanceof AgentEvidenceError ? error.message : "agent_evidence_persistence_failed",
+        artifacts: { ...(retainedAdapterResult.artifacts || {}), artifact_persistence_error: true, ...(error instanceof AgentEvidenceError && error.evidenceReference ? { private_evidence_reference: error.evidenceReference } : {}) },
+      };
     }
 
     return {
@@ -2089,6 +2156,9 @@ export async function sendAgentSessionMessage(params: {
     throw new Error("Agent session not found");
   }
 
+  if ((session as unknown as Record<string, unknown>).mutation_reconciliation_required === true) {
+    session.metadata = { ...(session.metadata || {}), mutation_reconciliation_required: true };
+  }
   const taskMetadata =
     params.task.metadata && typeof params.task.metadata === "object"
       ? (params.task.metadata as Record<string, unknown>)
@@ -2391,6 +2461,8 @@ export async function sendAgentSessionMessage(params: {
             resolved_startup_context: resolvedStartupContextSummary,
           }
         : taskMetadata),
+        ...(session.metadata?.mutation_reconciliation_required === true
+          ? { mutation_reconciliation_required: true } : {}),
         ...(Array.isArray(
           (session.metadata as Record<string, unknown> | undefined)?.openai_replay_input,
         )
@@ -2526,8 +2598,13 @@ export async function sendAgentSessionMessage(params: {
   const replayInput = Array.isArray(continuationState.openai_replay_input)
     ? continuationState.openai_replay_input
     : null;
+  const chatReplayInput = Array.isArray(continuationState.deepseek_replay_input)
+    ? continuationState.deepseek_replay_input : null;
   const nextSessionMetadata = {
     ...sessionMetadataWithoutOpenAIContinuation,
+    ...(chatReplayInput ? { deepseek_replay_input: chatReplayInput } : {}),
+    ...(requiresMutationReconciliation(result as unknown as Record<string, unknown>)
+      ? { mutation_reconciliation_required: true } : {}),
     ...(replayInput
       ? { openai_replay_input: replayInput }
       : typeof resultArtifacts.openai_response_id === "string"
@@ -2537,27 +2614,36 @@ export async function sendAgentSessionMessage(params: {
           : {}),
   };
 
-  await saveSession({
-    ...session,
-    status: result.status === "failed" ? "active" : "idle",
-    last_run_id: runId,
-    metadata: nextSessionMetadata,
-    updated_at: nowTimestamp(),
-  });
-  await createRuntimeCheckpoint({
-    session: {
+  try {
+    await saveSession({
       ...session,
+      status: result.status === "failed" ? "active" : "idle",
+      last_run_id: runId,
       metadata: nextSessionMetadata,
-    },
-    runId,
-    label: `Run ${result.status}`,
-    trigger: `run.${result.status}`,
-    snapshot: {
-      task: normalizedTask,
-      result,
-      session_metadata: nextSessionMetadata,
-    },
-  });
+      updated_at: nowTimestamp(),
+    });
+    await createRuntimeCheckpoint({
+      session: {
+        ...session,
+        metadata: nextSessionMetadata,
+      },
+      runId,
+      label: `Run ${result.status}`,
+      trigger: `run.${result.status}`,
+      snapshot: {
+        task: normalizedTask,
+        result,
+        session_metadata: nextSessionMetadata,
+      },
+    });
+
+  } catch (error) {
+    return { queued: false, runId, result: { ...result, status: "failed" as const,
+      requires_human_review: true,
+      error: error instanceof AgentEvidenceError ? error.message : "agent_evidence_persistence_failed",
+      artifacts: { ...(result.artifacts || {}), artifact_persistence_error: true, ...(error instanceof AgentEvidenceError && error.evidenceReference ? { private_evidence_reference: error.evidenceReference } : {}) },
+    } };
+  }
 
   return {
     queued: false,
@@ -2576,10 +2662,15 @@ export async function forkAgentSessionWithHandoff(params: {
     throw new Error("Agent session not found");
   }
 
-  const sourceRun =
+  let sourceRun =
     params.sourceRunId
       ? await getRun(params.sourceRunId)
       : (await listRunsForSession(params.sessionId, 1))[0] || null;
+
+  if (sourceRun && (sourceRun as unknown as Record<string, unknown>).agent_evidence_ref) sourceRun = await getRun(sourceRun.id);
+  const sourceQuarantine = requiresMutationReconciliation(sourceSession as unknown as Record<string, unknown>)
+    || (sourceRun && requiresMutationReconciliation(sourceRun as unknown as Record<string, unknown>))
+    || await sessionRequiresMutationReconciliation(params.sessionId);
 
   if (sourceRun && sourceRun.session_id && sourceRun.session_id !== params.sessionId) {
     throw new Error("Run does not belong to the requested session");
@@ -2651,6 +2742,7 @@ export async function forkAgentSessionWithHandoff(params: {
     provider: sourceSession.provider,
     runtime: sourceSession.runtime,
     metadata: {
+      ...(sourceQuarantine ? { mutation_reconciliation_required: true } : {}),
       startupContext,
       workflow: {
         phase: params.phase,
@@ -2670,6 +2762,7 @@ export async function forkAgentSessionWithHandoff(params: {
       kind: sourceSession.task_kind,
       input: forkInput,
       metadata: {
+        ...(sourceQuarantine ? { mutation_reconciliation_required: true } : {}),
         compact_startup_context: true,
         handoff_source_session_id: sourceSession.id,
         handoff_source_run_id: sourceRun?.id || null,
@@ -2844,8 +2937,11 @@ export async function cancelAgentRun(runId: string) {
 
 async function findLatestRunnableTask(sessionId: string) {
   const runs = await listRunsForSession(sessionId, 25);
-  const candidate = runs.find((run) => run.input && typeof run.input === "object");
-  return candidate ? (candidate.input as AgentTask) : null;
+  for (const record of runs) {
+    const run = (record as unknown as Record<string, unknown>).agent_evidence_ref ? await getRun(record.id) : record;
+    if (run?.input && typeof run.input === "object") return run.input as AgentTask;
+  }
+  return null;
 }
 
 export async function listRuntimeEventsForSession(sessionId: string, limit?: number) {
@@ -2984,11 +3080,15 @@ export async function resumeAgentSession(params: {
     throw new Error("Agent session not found");
   }
 
-  const checkpoint = params.checkpointId
+  let checkpoint = params.checkpointId
     ? await getAgentCheckpoint(params.checkpointId)
     : session.latest_checkpoint_id
       ? await getAgentCheckpoint(session.latest_checkpoint_id)
       : (await listAgentCheckpoints({ sessionId: params.sessionId, limit: 1 }))[0] || null;
+  if (checkpoint) {
+    checkpoint = await getAgentCheckpoint(checkpoint.id);
+    if (checkpoint && checkpoint.session_id !== params.sessionId) throw new Error("Checkpoint does not belong to the requested session");
+  }
   const lastTask = checkpoint?.snapshot?.task && typeof checkpoint.snapshot.task === "object"
     ? (checkpoint.snapshot.task as AgentTask)
     : await findLatestRunnableTask(params.sessionId);

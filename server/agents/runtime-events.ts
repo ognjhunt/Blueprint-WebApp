@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { hydrateAgentEvidence, inspectAgentEvidence, persistAgentEvidence } from "./private-evidence";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -57,7 +58,7 @@ export async function recordRuntimeEvent(params: {
   };
 
   try {
-    await db.collection(RUNTIME_EVENT_COLLECTION).doc(record.id).set(stripUndefinedDeep(record));
+    await persistAgentEvidence(db.collection(RUNTIME_EVENT_COLLECTION).doc(record.id), { collection: "agentRuntimeEvents", id: record.id }, stripUndefinedDeep(record), db);
   } catch (error) {
     logger.warn(
       {
@@ -96,5 +97,5 @@ export async function listRuntimeEvents(params: {
     .limit(Math.max(1, Math.min(params.limit ?? 200, 400)))
     .get();
 
-  return snapshot.docs.map((doc) => doc.data() as RuntimeEventRecord);
+  return Promise.all(snapshot.docs.map((doc) => inspectAgentEvidence(doc.data() as RuntimeEventRecord, { collection: "agentRuntimeEvents", id: doc.id })));
 }

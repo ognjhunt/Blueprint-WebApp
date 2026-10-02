@@ -5,7 +5,7 @@ import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT } from "../agents/communic
 import { communicationsFixture } from "./fixtures/communications";
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
-  COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST } from "../agents/communications-saved-agent";
+  COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } from "../agents/communications-saved-agent";
 
 function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: string; noFinal?: boolean; http?: number; failed?: boolean; itemsPage?: boolean; itemPages?: number; repeatedCursor?: boolean; pagePadding?: number; advancePageClock?: boolean; missingMetadata?: boolean; rawOutput?: string; instructions?: string; usage?: unknown; changedSaved?: string } = {}) {
   const { output } = communicationsFixture();
@@ -13,6 +13,7 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
   const checkpoints: any[] = [];
   let requestDigest = "a".repeat(64), pageNumber = 0;
   let savedBinding = false;
+  let sessionAgent: any = null, sessionMetadata: any = null;
   const agentId = () => savedBinding ? COMMUNICATIONS_SAVED_AGENT_ID : "agent-1";
   const savedAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...structuredClone(COMMUNICATIONS_SAVED_CONFIGURATION) };
   if (options.changedSaved === "instructions") savedAgent.instructions += " Changed";
@@ -30,16 +31,18 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
     if (path.endsWith(`/agents/${COMMUNICATIONS_SAVED_AGENT_ID}`)) return Response.json(savedAgent);
     if (path.endsWith("/agents/sessions") || path.endsWith("/events")) {
       if (init.method === "POST" && path.endsWith("/agents/sessions")) {
-        requestDigest = JSON.parse(String(init.body)).metadata.blueprint_communications_request_digest;
+        const body = JSON.parse(String(init.body));
+        requestDigest = body.metadata.blueprint_communications_request_digest;
+        sessionAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...body.agent }; sessionMetadata = body.metadata;
         savedBinding = true;
       }
       return new Response(stream.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
     }
-    if (path.endsWith("/session-1")) return Response.json({ id: "session-1", status: "idle", agent: savedBinding ? savedAgent : { id: "agent-1", model: options.model ?? COMMUNICATIONS_MODEL,
+    if (path.endsWith("/session-1")) return Response.json({ id: "session-1", status: "idle", agent: savedBinding ? sessionAgent : { id: "agent-1", model: options.model ?? COMMUNICATIONS_MODEL,
       instructions: options.instructions ?? COMMUNICATIONS_INSTRUCTIONS, service_tier: "default", tools: [], multi_agent: { enabled: false } }, environment: { type: "none" }, vault_ids: [],
-      metadata: options.missingMetadata ? {} : { blueprint_communications_job: "job-1", role: "communications", blueprint_communications_request_digest: requestDigest,
+      metadata: options.missingMetadata ? {} : sessionMetadata ?? { blueprint_communications_job: "job-1", role: "communications", blueprint_communications_request_digest: requestDigest,
         ...(savedBinding ? { blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
-          blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST } : {}) } });
+          blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } : {}) } });
     if (path.includes("/turns?")) return Response.json({ data: [{ id: "turn-1", agent_id: agentId(), status: options.idle ? "running" : "completed", usage: options.usage ?? { input_tokens: 3 } }], has_more: false });
     if (path.includes("/items?")) {
       pageNumber++;
@@ -57,13 +60,15 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
 }
 
 describe("portable communications Agents API", () => {
-  it("uses exact Luna/Default project, Blueprint infrastructure, no tool or research role", async () => {
+  it("uses exact Luna/Default project and a new-session read-only history override", async () => {
     const f = apiFixture();
     expect((await f.api.run(f.params)).output).toEqual(f.output);
     const create = f.calls.find(call => call.init.method === "POST")!;
     const body = JSON.parse(String(create.init.body));
     expect(body).toMatchObject({ agent_id: COMMUNICATIONS_SAVED_AGENT_ID, environment: { type: "none" }, stream: true });
-    expect(body.agent).toBeUndefined();
+    expect(body.agent).toEqual(COMMUNICATIONS_HISTORY_CONFIGURATION);
+    expect(body.metadata.blueprint_communications_history_profile).toBe(COMMUNICATIONS_HISTORY_PROFILE);
+    expect(COMMUNICATIONS_SAVED_CONFIGURATION.tools).toEqual([]);
     expect(create.init.headers).toMatchObject({ "OpenAI-Project": COMMUNICATIONS_PROJECT });
     expect(f.checkpoints[0]).toMatchObject({ createClaimedAt: expect.any(String), sessionId: null });
     expect(f.checkpoints.at(-1)).toMatchObject({ sessionId: "session-1", turnId: "turn-1" });

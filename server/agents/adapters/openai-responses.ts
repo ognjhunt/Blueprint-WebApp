@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 
 import OpenAI from "openai";
-import type { ZodType } from "zod";
+import { readOnlyOperatorTools, toolFailure, validationIssue } from "./tool-recovery";
+import { ZodError, type ZodType } from "zod";
 
-import { openAiResponsesOperatorTools, runOperatorTool } from "../operator-tools";
+import { openAiResponsesOperatorTools, openAiResponsesHistoryTools, getCompanyHistoryAccess, runOperatorTool } from "../operator-tools";
 import {
   getOpenAiMaxOutputTokens,
   getOpenAiReasoningEffort,
@@ -100,6 +101,60 @@ function inferRequiresHumanReview<TOutput>(output: TOutput) {
   );
 }
 
+const usageNumberFields = [
+  "input_tokens", "prompt_tokens", "output_tokens", "completion_tokens", "total_tokens",
+  "cached_tokens", "cache_write_tokens", "uncached_input_tokens", "reasoning_tokens",
+  "uncached_input_cost_usd", "cache_write_cost_usd", "cached_read_cost_usd", "output_cost_usd",
+  "estimated_total_cost_usd", "estimated_cost_without_caching_usd", "estimated_savings_usd",
+] as const;
+
+function reportedCounter(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function normalizeReportedOpenAIUsage(response: any, model: string): Record<string, unknown> {
+  const raw = response?.usage && typeof response.usage === "object" ? response.usage : null;
+  const input = reportedCounter(raw?.input_tokens), output = reportedCounter(raw?.output_tokens);
+  let cached = reportedCounter(raw?.input_tokens_details?.cached_tokens);
+  // Native Responses usage has no cache-write counter. Retain the existing
+  // extension when supplied; its absence in a received usage object means zero.
+  let write = raw ? (raw.input_tokens_details?.cache_write_tokens === undefined
+    ? 0 : reportedCounter(raw.input_tokens_details.cache_write_tokens)) : null;
+  if (input !== null && (cached ?? 0) + (write ?? 0) > input) {
+    // An impossible partition is not a zero-usage receipt. Keep the raw
+    // counters in provider_responses and reserve conservatively for its cost.
+    cached = null; write = null;
+  }
+  const reasoning = reportedCounter(raw?.output_tokens_details?.reasoning_tokens);
+  const usage: Record<string, unknown> = normalizeOpenAIUsage({ ...response, usage: {
+    input_tokens: input ?? (cached ?? 0) + (write ?? 0), output_tokens: output ?? 0,
+    input_tokens_details: { cached_tokens: cached ?? 0, cache_write_tokens: write ?? 0 },
+    output_tokens_details: { reasoning_tokens: reasoning ?? 0 },
+  } }, model);
+  const partitionKnown = input !== null && cached !== null && write !== null;
+  const tokensKnown = input !== null && output !== null;
+  Object.assign(usage, {
+    input_tokens: input, prompt_tokens: input, output_tokens: output, completion_tokens: output,
+    total_tokens: tokensKnown ? input + output : null,
+    cached_tokens: cached, cache_write_tokens: write, reasoning_tokens: reasoning,
+    uncached_input_tokens: input !== null && cached !== null && write !== null ? input - cached - write : null,
+    cache_hit_ratio: input !== null && cached !== null ? (input > 0 ? cached / input : 0) : null,
+  });
+  for (const [key, known] of [
+    ["uncached_input_cost_usd", partitionKnown], ["cache_write_cost_usd", input !== null && write !== null],
+    ["cached_read_cost_usd", input !== null && cached !== null], ["output_cost_usd", tokensKnown],
+    ["estimated_total_cost_usd", partitionKnown && tokensKnown],
+    ["estimated_cost_without_caching_usd", tokensKnown], ["estimated_savings_usd", partitionKnown && tokensKnown],
+  ] as const) {
+    if (!known) usage[key] = null;
+  }
+  const hasCounters = [input, output, cached, reasoning].some(value => value !== null);
+  usage.usage_detail_status = partitionKnown && tokensKnown && reasoning !== null
+    ? "complete" : hasCounters ? "partial" : "missing";
+  if (!(partitionKnown && tokensKnown)) usage.cost_status = hasCounters ? "usage_partial" : "usage_missing";
+  return usage;
+}
+
 export async function runOpenAIResponsesTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
 ): Promise<AgentResult<TOutput>> {
@@ -116,7 +171,8 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     };
   }
 
-  const tools = task.kind === "operator_thread" ? openAiResponsesOperatorTools : undefined;
+  const historyAccess = await getCompanyHistoryAccess(task);
+  const tools = task.kind === "operator_thread" ? openAiResponsesOperatorTools : historyAccess ? openAiResponsesHistoryTools : undefined;
   const traceLogs: Array<Record<string, unknown>> = [];
   const previousResponseId =
     task.session_policy.lane === "session" &&
@@ -241,8 +297,13 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     ...(initialCacheControls as any),
   } as any);
   const providerUsages: Array<Record<string, unknown>> = [
-    normalizeOpenAIUsage(response, task.model),
+    normalizeReportedOpenAIUsage(response, task.model),
   ];
+  const providerResponses: Array<Record<string, unknown>> = [{ response_id: response.id,
+    output: response.output, output_text: response.output_text, usage: response.usage ?? null,
+    request_status: "response_received" }];
+  let responseInConversation = false;
+  let pendingRequest: "continuation" | "output_correction" | null = null;
   let reconciledCostUsd = typeof providerUsages[0].estimated_total_cost_usd === "number"
     ? Number(providerUsages[0].estimated_total_cost_usd)
     : projectedMaxCostUsd;
@@ -279,6 +340,14 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
   });
 
   let toolIterations = 0;
+  const seenToolCallIds = new Set<string>();
+  let mutationReconciliationRequired = metadata.mutation_reconciliation_required === true || Boolean(replayInput?.some(item => {
+    if (item?.type !== "function_call_output" || typeof item.output !== "string") return false;
+    try { return JSON.parse(item.output)?.status === "reconciliation_required"; } catch { return false; }
+  }));
+  let parsed: TOutput | undefined, outputFailure: string | null = null, outputRepairIterations = 0;
+  const outputRepairs: Array<Record<string, unknown>> = [];
+  try {
   while (tools && toolIterations < 5) {
     const outputItems = Array.isArray((response as any).output) ? (response as any).output : [];
     const toolCalls = outputItems.filter((item: any) => item?.type === "function_call");
@@ -286,12 +355,44 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       break;
     }
 
+    // Validate the whole batch before executing any sibling. A missing or
+    // reused identity cannot safely correlate results or duplicate effects.
+    const batchIds = new Set<string>();
+    for (const call of toolCalls) {
+      if (typeof call.call_id !== "string" || !call.call_id.trim()
+        || typeof call.name !== "string" || !call.name.trim()
+        || batchIds.has(call.call_id) || seenToolCallIds.has(call.call_id)) {
+        throw new Error("OpenAI tool_call_identity missing or duplicated");
+      }
+      batchIds.add(call.call_id);
+    }
+    batchIds.forEach(id => seenToolCallIds.add(id));
     const toolOutputs: any[] = [];
     for (const call of toolCalls) {
-      const args =
-        typeof call.arguments === "string" && call.arguments.trim().length > 0
-          ? JSON.parse(call.arguments)
-          : {};
+      let args: Record<string, unknown> = {}, result: unknown, failed = false;
+      if (!tools.some(tool => tool.name === call.name)) {
+        failed = true;
+        result = { status: "control_denied", code: "tool_not_allowed", retryAllowed: false,
+          allowedRepair: "Choose a declared tool within the existing authorized scope." };
+      } else if (mutationReconciliationRequired && !readOnlyOperatorTools.has(call.name)) {
+        failed = true;
+        result = { status: "reconciliation_required", code: "tool_mutation_reconciliation_required", retryAllowed: false,
+          allowedRepair: "A prior mutation has an unknown outcome. Read existing state; further mutations remain quarantined until verified reconciliation outside this run." };
+      } else {
+        try {
+          const parsed = typeof call.arguments === "string" && call.arguments.trim() ? JSON.parse(call.arguments) : {};
+          if (call.arguments !== undefined && typeof call.arguments !== "string"
+            || parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new SyntaxError("tool_arguments_not_object");
+          }
+          args = parsed;
+        } catch {
+          failed = true;
+          result = { status: "recoverable_issue", code: "tool_arguments_invalid_json", retryAllowed: true,
+            issues: [{ path: "/arguments", code: "invalid_json" }],
+            allowedRepair: "Return arguments as one JSON object using the declared tool schema." };
+        }
+      }
       traceLogs.push({
         event_type: "tool.call",
         status: "info",
@@ -300,11 +401,17 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
         tool_args: args,
         call_id: call.call_id,
       });
-      const result = await runOperatorTool(call.name, args);
+      if (!failed) {
+        try { result = await runOperatorTool(call.name, args, ...(historyAccess && openAiResponsesHistoryTools.some(tool => tool.name === call.name) ? [historyAccess] : [])); }
+        catch (error) {
+          failed = true; result = toolFailure(error, call.name);
+          if ((result as { status: string }).status === "reconciliation_required") mutationReconciliationRequired = true;
+        }
+      }
       traceLogs.push({
         event_type: "tool.result",
-        status: "success",
-        summary: `Completed ${call.name}`,
+        status: failed ? "error" : "success",
+        summary: `${failed ? "Returned feedback for" : "Completed"} ${call.name}`,
         tool_name: call.name,
         call_id: call.call_id,
         tool_result: result,
@@ -316,15 +423,16 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       });
     }
 
+    const responseItems = Array.isArray((response as any).output)
+      ? (response as any).output
+      : [];
+    conversationInput = [...conversationInput, ...responseItems, ...toolOutputs];
+    responseInConversation = true;
     if (reconciledCostUsd + projectedMaxCostUsd > openAiMaxInferenceCostUsd) {
       throw new Error(
         "OpenAI follow-up worst-case reservation exceeds the configured cost cap",
       );
     }
-    const responseItems = Array.isArray((response as any).output)
-      ? (response as any).output
-      : [];
-    conversationInput = [...conversationInput, ...responseItems, ...toolOutputs];
     const followUpInputBytes = conservativeOpenAIInputTokenCeiling(
       conversationInput,
       tools,
@@ -332,6 +440,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     if (followUpInputBytes > openAiMaxInputTokens) {
       throw new Error("OpenAI follow-up context exceeds the declared token ceiling");
     }
+    pendingRequest = "continuation";
     response = await client.responses.create({
       model: task.model,
       input: conversationInput as any,
@@ -353,7 +462,11 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
           }
         : {}),
     } as any);
-    const followUpUsage = normalizeOpenAIUsage(response, task.model);
+    pendingRequest = null;
+    responseInConversation = false;
+    providerResponses.push({ response_id: response.id, output: response.output,
+      output_text: response.output_text, usage: response.usage ?? null, request_status: "response_received" });
+    const followUpUsage = normalizeReportedOpenAIUsage(response, task.model);
     providerUsages.push(followUpUsage);
     reconciledCostUsd += typeof followUpUsage.estimated_total_cost_usd === "number"
       ? Number(followUpUsage.estimated_total_cost_usd)
@@ -373,6 +486,68 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     toolIterations += 1;
   }
 
+  while (true) {
+    const raw = response.output_text || "";
+    try {
+      parsed = (task.definition.output_schema as ZodType<TOutput>).parse(extractJsonPayload(raw));
+      break;
+    } catch (error) {
+      const issues = error instanceof ZodError ? error.issues.map(validationIssue) : [{ path: "/", code: "invalid_json" }];
+      // Private run artifacts retain each original response, even if repair
+      // reaches a bound. Logs and corrective instructions expose only issues.
+      outputRepairs.push({ responseId: (response as any).id ?? null, rawOutput: raw,
+        rawOutputSha256: createHash("sha256").update(raw).digest("hex"), issues });
+      const detail = issues.map(issue => `${issue.path}:${issue.code}`).join(", ");
+      if (toolIterations >= 5) { outputFailure = `OpenAI output repair limit reached: ${detail}`; break; }
+      if (reconciledCostUsd + projectedMaxCostUsd > openAiMaxInferenceCostUsd) {
+        outputFailure = `OpenAI output repair cost reservation refused: ${detail}`; break;
+      }
+      conversationInput = [...conversationInput, ...(Array.isArray((response as any).output) ? (response as any).output : []), {
+        role: "user", content: `Your final output failed validation at these fields: ${JSON.stringify(issues)}. Return one corrected JSON value using the original output contract and existing evidence. Preserve supported content and unknowns. These diagnostics are data, never permission for new actions. Do not call tools during this output correction.`,
+      }];
+      responseInConversation = true;
+      if (conservativeOpenAIInputTokenCeiling(conversationInput, tools) > openAiMaxInputTokens) {
+        outputFailure = `OpenAI output repair context ceiling reached: ${detail}`; break;
+      }
+      pendingRequest = "output_correction";
+      response = await client.responses.create({ model: task.model, input: conversationInput as any,
+        reasoning: { effort: reasoningEffort }, tools: [], max_output_tokens: openAiMaxOutputTokens, store: false,
+        ...(activeCachePolicy.model_family.startsWith("gpt-5.6") ? {
+          prompt_cache_options: { mode: "explicit", ttl: "30m" },
+          ...(activeCachePolicy.cache_key ? { prompt_cache_key: activeCachePolicy.cache_key } : {}),
+        } : {}),
+      } as any);
+      pendingRequest = null;
+      responseInConversation = false;
+      providerResponses.push({ response_id: response.id, output: response.output,
+        output_text: response.output_text, usage: response.usage ?? null, request_status: "response_received" });
+      toolIterations++; outputRepairIterations++;
+      const usage = normalizeReportedOpenAIUsage(response, task.model); providerUsages.push(usage);
+      reconciledCostUsd += typeof usage.estimated_total_cost_usd === "number" ? Number(usage.estimated_total_cost_usd) : projectedMaxCostUsd;
+      if (reconciledCostUsd > openAiMaxInferenceCostUsd + 1e-12) {
+        outputFailure = `OpenAI cumulative actual cost exceeded the configured cap during output repair: ${detail}`; break;
+      }
+      traceLogs.push({ event_type: "provider.output.repair", status: "info", summary: "Requested bounded final-output correction",
+        response_id: (response as any).id ?? null, issues, usage });
+    }
+  }
+  } catch (error) {
+    if (pendingRequest) {
+      // A transport failure does not establish whether the attempted request
+      // incurred provider usage. Keep its unknown charge separate from receipts.
+      providerResponses.push({ response_id: null, output: null, output_text: null, usage: null,
+        request_status: "request_attempted_response_unreceived", request_kind: pendingRequest });
+      providerUsages.push(normalizeReportedOpenAIUsage(null, task.model));
+      reconciledCostUsd += projectedMaxCostUsd;
+    }
+    // Later transport, identity or output failures must return paid evidence
+    // and any discovered unknown mutation effects to runtime persistence.
+    outputFailure = error instanceof Error && error.message === "OpenAI tool_call_identity missing or duplicated"
+      ? "tool_call_identity_invalid" : "openai_provider_or_output_failure";
+    traceLogs.push({ event_type: "provider.recovery.failed", status: "error",
+      summary: "Retained OpenAI response and mutation reconciliation evidence", code: outputFailure });
+  }
+
   const rawText = response.output_text || "";
   traceLogs.push({
     event_type: "provider.response.extracted_text",
@@ -380,65 +555,52 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     summary: "Extracted OpenAI response text",
     chars: rawText.length,
   });
-  const payload = extractJsonPayload(rawText);
-  traceLogs.push({
-    event_type: "provider.response.parsed",
-    status: "success",
-    summary: "Parsed OpenAI JSON payload",
-  });
-  const parsed = (task.definition.output_schema as ZodType<TOutput>).parse(
-    payload,
-  );
   traceLogs.push({
     event_type: "provider.schema.validated",
-    status: "success",
-    summary: "Validated OpenAI output against schema",
+    status: outputFailure ? "error" : "success",
+    summary: outputFailure ?? "Validated OpenAI output against schema",
   });
 
-  const aggregateUsage = providerUsages.reduce<Record<string, number>>(
-    (total, usage) => {
-      for (const key of [
-        "input_tokens",
-        "prompt_tokens",
-        "output_tokens",
-        "completion_tokens",
-        "total_tokens",
-        "cached_tokens",
-        "cache_write_tokens",
-        "uncached_input_tokens",
-        "reasoning_tokens",
-        "uncached_input_cost_usd",
-        "cache_write_cost_usd",
-        "cached_read_cost_usd",
-        "output_cost_usd",
-        "estimated_total_cost_usd",
-        "estimated_cost_without_caching_usd",
-        "estimated_savings_usd",
-      ]) {
-        const value = usage[key];
-        if (typeof value === "number" && Number.isFinite(value)) {
-          total[key] = (total[key] ?? 0) + value;
-        }
-      }
-      return total;
-    },
-    {},
-  );
-  aggregateUsage.cache_hit_ratio = aggregateUsage.input_tokens > 0
-    ? aggregateUsage.cached_tokens / aggregateUsage.input_tokens
-    : 0;
+  const knownUsageSubtotals: Record<string, number> = {};
+  const aggregateUsage: Record<string, unknown> = { calls: providerUsages.length };
+  for (const key of usageNumberFields) {
+    const values = providerUsages.map(usage => usage[key]).filter((value): value is number =>
+      typeof value === "number" && Number.isFinite(value));
+    if (values.length) knownUsageSubtotals[key] = values.reduce((sum, value) => sum + value, 0);
+    aggregateUsage[key] = values.length === providerUsages.length ? knownUsageSubtotals[key] : null;
+  }
+  const usageDetailStatus = providerUsages.every(usage => usage.usage_detail_status === "complete")
+    ? "complete" : providerUsages.every(usage => usage.usage_detail_status === "missing") ? "missing" : "partial";
+  const costStatus = typeof aggregateUsage.estimated_total_cost_usd === "number"
+    ? providerUsages[0].cost_status : usageDetailStatus === "complete"
+      ? "model_pricing_unknown" : usageDetailStatus === "missing" ? "usage_missing" : "usage_partial";
+  Object.assign(aggregateUsage, { usage_detail_status: usageDetailStatus, cost_status: costStatus,
+    cache_hit_ratio: typeof aggregateUsage.input_tokens === "number" && typeof aggregateUsage.cached_tokens === "number"
+      ? (aggregateUsage.input_tokens > 0 ? aggregateUsage.cached_tokens / aggregateUsage.input_tokens : 0) : null });
+  traceLogs.push({ event_type: "provider.telemetry.aggregated", status: "info",
+    summary: "Aggregated reported OpenAI usage with explicit unknowns", usage: aggregateUsage });
 
   return {
-    status: "completed",
+    status: outputFailure ? "failed" : "completed",
     provider: task.provider,
     runtime: task.runtime,
     model: task.model,
     tool_mode: task.tool_policy.mode,
     output: parsed,
+    ...(outputFailure ? { error: outputFailure } : {}),
     raw_output_text: rawText,
     artifacts: {
       openai_response_id: (response as any).id || null,
-      tool_iterations: toolIterations,
+      tool_iterations: toolIterations - outputRepairIterations,
+      continuation_iterations: toolIterations,
+      output_repair_iterations: outputRepairIterations,
+      mutation_reconciliation_required: mutationReconciliationRequired,
+      provider_responses: providerResponses,
+      usage_samples: providerUsages,
+      known_usage_subtotals: knownUsageSubtotals,
+      usage_detail_status: usageDetailStatus,
+      cost_status: costStatus,
+      ...(outputRepairs.length ? { output_repairs: outputRepairs } : {}),
       usage: aggregateUsage,
       cache_policy: cachePolicyEvidence(activeCachePolicy),
       cache_family: activeCachePolicy.family,
@@ -457,18 +619,23 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
         max_output_tokens: openAiMaxOutputTokens,
         projected_max_cost_per_call_usd: projectedMaxCostUsd,
         reconciled_cost_usd: reconciledCostUsd,
+        reconciled_cost_status: providerUsages.some(usage => typeof usage.estimated_total_cost_usd !== "number")
+          ? "includes_worst_case_reservations" : "reported_usage_pricing_estimate",
+        known_reported_cost_usd: knownUsageSubtotals.estimated_total_cost_usd ?? null,
+        unknown_usage_reserved_cost_usd: providerUsages.filter(usage => typeof usage.estimated_total_cost_usd !== "number").length * projectedMaxCostUsd,
         hard_cost_cap_usd: openAiMaxInferenceCostUsd,
         cache_hit_assumed_for_reservation: false,
       },
     },
     continuation_state: {
+      mutation_reconciliation_required: mutationReconciliationRequired,
       openai_replay_input: [
         ...conversationInput,
-        ...(Array.isArray((response as any).output) ? (response as any).output : []),
+        ...(!responseInConversation && Array.isArray((response as any).output) ? (response as any).output : []),
       ],
     },
     logs: traceLogs,
-    requires_human_review: inferRequiresHumanReview(parsed),
+    requires_human_review: Boolean(outputFailure) || inferRequiresHumanReview(parsed),
     requires_approval: false,
   };
 }

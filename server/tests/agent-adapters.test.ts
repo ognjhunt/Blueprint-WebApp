@@ -5,6 +5,11 @@ const openAiCreate = vi.hoisted(() => vi.fn());
 const deepSeekChatCreate = vi.hoisted(() => vi.fn());
 const anthropicCreate = vi.hoisted(() => vi.fn());
 
+vi.mock("../agents/operator-tools", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../agents/operator-tools")>(),
+  runOperatorTool: vi.fn(async () => ({ status: "fixture_complete" })),
+}));
+
 vi.mock("openai", () => ({
   default: class OpenAI {
     responses = {
@@ -450,7 +455,7 @@ describe("agent adapters", () => {
       definition: operatorThreadTask,
     });
 
-    expect(deepSeekChatCreate).toHaveBeenCalledWith(
+    expect(deepSeekChatCreate.mock.calls[0][0]).toEqual(
       expect.objectContaining({
         model: "deepseek-v4-pro",
         response_format: { type: "json_object" },
@@ -584,15 +589,13 @@ describe("agent adapters", () => {
     });
 
     expect(result.status).toBe("completed");
-    expect(deepSeekChatCreate).toHaveBeenNthCalledWith(
-      1,
+    expect(deepSeekChatCreate.mock.calls[0][0]).toEqual(
       expect.objectContaining({
         model: "deepseek/deepseek-v4-pro",
         provider: expectedOpenRouterProviderPreferences,
       }),
     );
-    expect(deepSeekChatCreate).toHaveBeenNthCalledWith(
-      2,
+    expect(deepSeekChatCreate.mock.calls[1][0]).toEqual(
       expect.objectContaining({
         model: "deepseek/deepseek-v4-pro",
         provider: expectedOpenRouterProviderPreferences,

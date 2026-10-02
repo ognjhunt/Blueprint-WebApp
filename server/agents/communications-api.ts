@@ -1,15 +1,29 @@
-import { COMMUNICATIONS_INSTRUCTIONS, COMMUNICATIONS_DEFINITION, communicationsDefinitionForInstructions } from "./communications-instructions";
+import { COMMUNICATIONS_INSTRUCTIONS, communicationsDefinitionForInstructions } from "./communications-instructions";
 import {
   COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest,
   type CommunicationsOutput,
 } from "./communications-contract";
 import { parseCommunicationsOutput, outputTextDigest, CommunicationsOutputValidationError, type CommunicationsOutputSource } from "./communications-output";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
-  verifiedCommunicationsSavedAgent } from "./communications-saved-agent";
+  verifiedCommunicationsSavedAgent, verifiedCommunicationsHistoryAgent, COMMUNICATIONS_HISTORY_PROFILE,
+  COMMUNICATIONS_HISTORY_DEFINITION, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST } from "./communications-saved-agent";
 
+import { getCompanyHistoryAccess, runOperatorTool } from "./operator-tools";
+import { toolFailure } from "./adapters/tool-recovery";
+import { projectAgentEvidence, hydrateAgentEvidence } from "./private-evidence";
+
+export type CommunicationsHistoryReceipt = {
+  callId: string; turnId: string; name: string; arguments: unknown; requestDigest: string;
+  output: string; success: boolean; resultDigest: string; idempotencyKey: string;
+  historyAccessDigest?: string | null;
+  delivery: "prepared" | "submitted" | "ack_unknown";
+};
 export type CommunicationsCheckpoint = {
   createClaimedAt: string | null; sessionId: string | null; turnId: string | null;
   requestDigest?: string;
+  historyProfile?: typeof COMMUNICATIONS_HISTORY_PROFILE; historyConfigurationDigest?: string;
+  historyToolReceipts?: CommunicationsHistoryReceipt[];
+  historyEvidence?: Record<string, unknown>;
 };
 export class CommunicationsRuntimeError extends Error {
   constructor(public code: string, public retryable = false, readonly outputSource?: CommunicationsOutputSource) { super(code); }
@@ -85,12 +99,14 @@ export class CommunicationsAgentsAPI {
   }): Promise<{ output: CommunicationsOutput; checkpoint: CommunicationsCheckpoint; usage: unknown; outputSource?: CommunicationsOutputSource }> {
     if (!this.options.allowPaidInference) throw new CommunicationsRuntimeError("communications_inference_disabled");
     if (Buffer.byteLength(params.input) > 64000) throw new CommunicationsRuntimeError("communications_input_limit_exceeded");
-    const checkpoint = { ...params.checkpoint };
+    const checkpoint = await this.hydrateHistoryCheckpoint(params.checkpoint, params.jobId);
+    const saveCheckpoint = async (value: CommunicationsCheckpoint) => params.saveCheckpoint(await this.projectHistoryCheckpoint(value, params.jobId));
     if (checkpoint.createClaimedAt && !checkpoint.sessionId) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const fresh = !checkpoint.sessionId;
     const requestDigest = fresh
       ? communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
-        configurationDigest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, input: params.input })
+        configurationDigest: COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST,
+        historyProfile: COMMUNICATIONS_HISTORY_PROFILE, input: params.input })
       : checkpoint.requestDigest;
     if (!requestDigest || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
     if (fresh) {
@@ -99,19 +115,23 @@ export class CommunicationsAgentsAPI {
       await this.options.reservePaidDraft(params.jobId, requestDigest);
       checkpoint.createClaimedAt = new Date().toISOString();
       checkpoint.requestDigest = requestDigest;
+      checkpoint.historyProfile = COMMUNICATIONS_HISTORY_PROFILE;
+      checkpoint.historyConfigurationDigest = COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST;
       // Commit the one-use create claim BEFORE any request can reach OpenAI.
-      await params.saveCheckpoint({ ...checkpoint });
+      await saveCheckpoint({ ...checkpoint });
     }
     const handle = await this.request(fresh ? "/agents/sessions" : `/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, fresh ? {
       method: "POST", body: JSON.stringify({
-        agent_id: COMMUNICATIONS_SAVED_AGENT_ID,
+        agent_id: COMMUNICATIONS_SAVED_AGENT_ID, agent: COMMUNICATIONS_HISTORY_CONFIGURATION,
         environment: { type: "none" }, input: params.input, stream: true,
         metadata: { blueprint_communications_job: params.jobId, role: "communications",
           blueprint_communications_request_digest: requestDigest,
           blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
           blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
-          blueprint_communications_definition: COMMUNICATIONS_DEFINITION.version,
-          blueprint_communications_instructions_digest: COMMUNICATIONS_DEFINITION.instructionsDigest },
+          blueprint_communications_history_profile: COMMUNICATIONS_HISTORY_PROFILE,
+          blueprint_communications_history_configuration_digest: COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST,
+          blueprint_communications_definition: COMMUNICATIONS_HISTORY_DEFINITION.version,
+          blueprint_communications_instructions_digest: COMMUNICATIONS_HISTORY_DEFINITION.instructionsDigest },
       }),
     } : { headers: { Accept: "text/event-stream" } });
     let terminal: string | null = null;
@@ -119,10 +139,11 @@ export class CommunicationsAgentsAPI {
     if (!reader) { handle.close(); throw new CommunicationsRuntimeError("agents_stream_missing", !fresh); }
     // A reconnected observer is opened before saved state is reconciled. No new
     // message is sent, and a missed completion event cannot create a second turn.
-    const saved = !fresh ? this.reconcileSaved(checkpoint, params.jobId).then((result) => {
+    const saved = !fresh && !checkpoint.historyProfile ? this.reconcileSaved(checkpoint, params.jobId).then((result) => {
       if (result) handle.close(); return { result, error: null };
     }, (error) => { handle.close(); return { result: null, error }; }) : null;
     try {
+      if (!fresh && checkpoint.historyProfile) await this.handleHistoryActions(checkpoint, params.jobId, saveCheckpoint);
       const decoder = new TextDecoder();
       let buffer = "";
       while (!terminal) {
@@ -136,11 +157,15 @@ export class CommunicationsAgentsAPI {
           const data = frame.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
           if (!data || data === "[DONE]") continue;
           const event = JSON.parse(data);
-          if (event.session?.id && !checkpoint.sessionId) { checkpoint.sessionId = event.session.id; await params.saveCheckpoint({ ...checkpoint }); }
-          if (event.turn_id && !event.turn?.subagent_id && !checkpoint.turnId) { checkpoint.turnId = event.turn_id; await params.saveCheckpoint({ ...checkpoint }); }
+          if (event.session?.id && !checkpoint.sessionId) { checkpoint.sessionId = event.session.id; await saveCheckpoint({ ...checkpoint }); }
+          if (event.turn_id && !event.turn?.subagent_id && !checkpoint.turnId) { checkpoint.turnId = event.turn_id; await saveCheckpoint({ ...checkpoint }); }
           if (event.turn?.subagent_id) continue;
           if (["agent.session.turn.completed", "agent.session.turn.failed", "agent.session.turn.cancelled"].includes(event.type)) terminal = event.type;
-          if (["error", "agent.session.failed", "agent.session.requires_action"].includes(event.type)) throw new CommunicationsRuntimeError("agents_session_failed_or_unexpected_action");
+          if (event.type === "agent.session.requires_action" && checkpoint.historyProfile) {
+            await this.handleHistoryActions(checkpoint, params.jobId, saveCheckpoint);
+          } else if (["error", "agent.session.failed", "agent.session.requires_action"].includes(event.type)) {
+            throw new CommunicationsRuntimeError("agents_session_failed_or_unexpected_action");
+          }
         }
       }
     } catch (error) {
@@ -150,10 +175,159 @@ export class CommunicationsAgentsAPI {
     if (terminal && terminal !== "agent.session.turn.completed") throw new CommunicationsRuntimeError("agents_turn_failed_or_cancelled");
     const savedResult = saved ? await saved : null;
     if (savedResult?.error) throw savedResult.error;
-    const result = savedResult?.result ?? await this.reconcileSaved(checkpoint, params.jobId);
+    let result = savedResult?.result ?? await this.reconcileSaved(checkpoint, params.jobId);
+    if (!result && checkpoint.historyProfile) {
+      // Recover missed required-action events without a new user message/turn.
+      await this.handleHistoryActions(checkpoint, params.jobId, saveCheckpoint);
+      result = await this.reconcileSaved(checkpoint, params.jobId);
+    }
     if (!result) throw new CommunicationsRuntimeError("agents_turn_pending", !!checkpoint.sessionId);
-    await params.saveCheckpoint({ ...result.checkpoint });
-    return result;
+    const projected = await this.projectHistoryCheckpoint(result.checkpoint, params.jobId);
+    await params.saveCheckpoint(projected);
+    return { ...result, checkpoint: projected };
+  }
+  private async projectHistoryCheckpoint(checkpoint: CommunicationsCheckpoint, jobId: string) {
+    if (!checkpoint.historyToolReceipts) return { ...checkpoint };
+    if (!checkpoint.sessionId || checkpoint.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE) {
+      throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch");
+    }
+    const scope = { collection: "agentCheckpoints" as const, id: `communications-history:${jobId}:${checkpoint.sessionId}` };
+    const projection = await projectAgentEvidence({ snapshot: checkpoint.historyToolReceipts }, scope);
+    const projected = { ...checkpoint };
+    if (projection.agent_evidence_ref) {
+      delete projected.historyToolReceipts;
+      projected.historyEvidence = projection;
+    } else delete projected.historyEvidence;
+    return projected;
+  }
+  private async hydrateHistoryCheckpoint(value: CommunicationsCheckpoint, jobId: string) {
+    const checkpoint = { ...value };
+    if (!checkpoint.historyEvidence) return checkpoint;
+    if (!checkpoint.sessionId || checkpoint.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE || checkpoint.historyToolReceipts) {
+      throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch");
+    }
+    const hydrated = await hydrateAgentEvidence(checkpoint.historyEvidence,
+      { collection: "agentCheckpoints", id: `communications-history:${jobId}:${checkpoint.sessionId}` });
+    if (!Array.isArray(hydrated.snapshot)) throw new CommunicationsRuntimeError("agents_history_receipt_binding_mismatch");
+    checkpoint.historyToolReceipts = hydrated.snapshot;
+    delete checkpoint.historyEvidence;
+    return checkpoint;
+  }
+  /** Function results continue the existing root turn. Requests and exact results
+   * are durable before submission; unknown ACKs are observed on replacement and
+   * reuse the same provider idempotency key, never a new message or create. */
+  private async handleHistoryActions(checkpoint: CommunicationsCheckpoint, jobId: string,
+    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>) {
+    const { session, turn } = await this.readBoundDraftSession(checkpoint, jobId, checkpoint.requestDigest ?? "");
+    if (!checkpoint.historyProfile) throw new CommunicationsRuntimeError("agents_history_profile_required");
+    const actions = session.required_actions ?? [];
+    if (!Array.isArray(actions)) throw new CommunicationsRuntimeError("agents_history_actions_invalid");
+    if (!turn) {
+      if (actions.length) throw new CommunicationsRuntimeError("agents_history_action_turn_mismatch");
+      return;
+    }
+    if (actions.length && !["queued", "in_progress", "waiting"].includes(turn.status)) throw new CommunicationsRuntimeError("agents_history_action_turn_mismatch");
+    checkpoint.turnId = turn.id;
+    const receipts = checkpoint.historyToolReceipts ?? [];
+    if (!Array.isArray(receipts)) throw new CommunicationsRuntimeError("agents_history_receipt_binding_mismatch");
+    const callIds = new Set<string>();
+    for (const action of actions) {
+      if (action?.type !== "function_call" || typeof action.call_id !== "string"
+        || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(action.call_id) || action.turn_id !== turn.id
+        || typeof action.name !== "string" || !("arguments" in action) || callIds.has(action.call_id)) {
+        throw new CommunicationsRuntimeError("agents_history_action_provenance_invalid");
+      }
+      callIds.add(action.call_id);
+    }
+    // Validate all retained receipts before interpreting delivery status. A
+    // changed request/result cannot silently reuse an earlier successful call.
+    const retainedIds = new Set<string>();
+    for (const receipt of receipts) {
+      if (!receipt || typeof receipt !== "object" || typeof receipt.output !== "string"
+        || typeof receipt.success !== "boolean" || typeof receipt.callId !== "string" || typeof receipt.name !== "string"
+        || receipt.turnId !== turn.id || retainedIds.has(receipt.callId)
+        || receipt.requestDigest !== communicationsDigest({ sessionId: checkpoint.sessionId, turnId: receipt.turnId,
+          callId: receipt.callId, name: receipt.name, arguments: receipt.arguments })
+        || receipt.resultDigest !== communicationsDigest({ success: receipt.success, output: receipt.output })
+        || receipt.idempotencyKey !== `communications-history-${receipt.requestDigest}`
+        || !["prepared", "submitted", "ack_unknown"].includes(receipt.delivery)) {
+        throw new CommunicationsRuntimeError("agents_history_receipt_binding_mismatch");
+      }
+      retainedIds.add(receipt.callId);
+    }
+    for (const receipt of receipts) if (!callIds.has(receipt.callId) && receipt.delivery !== "submitted") {
+      receipt.delivery = "submitted"; // verified provider no longer requests it
+      await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
+    }
+    const historyAccess = actions.length ? await getCompanyHistoryAccess({ kind: "outbound_outreach" }) : null;
+    for (const action of actions) {
+      const requestDigest = communicationsDigest({ sessionId: checkpoint.sessionId, turnId: turn.id,
+        callId: action.call_id, name: action.name, arguments: action.arguments });
+      let receipt = receipts.find(item => item.callId === action.call_id);
+      if (receipt && receipt.requestDigest !== requestDigest) throw new CommunicationsRuntimeError("agents_history_call_redefined");
+      if (!receipt) {
+        let result: unknown, success = false, historyAccessDigest: string | null = null;
+        if (!["search_company_history", "fetch_company_history_record"].includes(action.name)) {
+          result = { status: "control_denied", code: "tool_not_declared", retryAllowed: false,
+            allowedRepair: "Choose a declared read-only history tool; this result grants no authority." };
+        } else if (Buffer.byteLength(JSON.stringify(action.arguments)) > 64000) {
+          result = { status: "recoverable_issue", code: "tool_arguments_resource_limit", retryAllowed: true,
+            allowedRepair: "Shorten the query/filters within the 64KB request limit." };
+        } else {
+          try {
+            let args;
+            try { args = typeof action.arguments === "string" ? JSON.parse(action.arguments) : action.arguments; }
+            catch { result = { status: "recoverable_issue", code: "tool_arguments_json_invalid", retryAllowed: true,
+              issues: [{ path: "/", code: "invalid_json", expectations: { type: "object" } }] }; }
+            if (result === undefined && (!args || typeof args !== "object" || Array.isArray(args))) {
+              result = { status: "recoverable_issue", code: "tool_arguments_invalid", retryAllowed: true,
+                issues: [{ path: "/", code: "invalid_type", expectations: { expected: "object" } }] };
+            }
+            if (result === undefined) {
+              historyAccessDigest = historyAccess ? communicationsDigest(historyAccess) : null;
+              result = await runOperatorTool(action.name, args, historyAccess ?? undefined);
+              success = !!result && typeof result === "object" && (result as { ok?: unknown }).ok === true;
+            }
+          } catch (error) { result = toolFailure(error, action.name); }
+        }
+        let output = JSON.stringify(result);
+        if (Buffer.byteLength(output) > 256000) {
+          success = false; output = JSON.stringify({ status: "recoverable_issue", code: "tool_result_resource_limit", retryAllowed: true,
+            allowedRepair: "Use a smaller page_size or fetch a narrower record; response exceeds the 256KB transport limit." });
+        }
+        receipt = { callId: action.call_id, turnId: turn.id, name: action.name, arguments: action.arguments, requestDigest,
+          output, success, historyAccessDigest, resultDigest: communicationsDigest({ success, output }),
+          idempotencyKey: `communications-history-${requestDigest}`, delivery: "prepared" };
+        receipts.push(receipt);
+        checkpoint.historyToolReceipts = receipts;
+        await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
+      }
+      // Sensitive cached output cannot outlive or widen its original retained
+      // read binding, including after an unknown provider acknowledgment.
+      if (receipt.historyAccessDigest || receipt.success) {
+        const currentAccess = await getCompanyHistoryAccess({ kind: "outbound_outreach" });
+        if (!historyAccess || Date.parse(historyAccess.expiresAt) <= Date.now() || !currentAccess
+          || Date.parse(currentAccess.expiresAt) <= Date.now()
+          || receipt.historyAccessDigest !== communicationsDigest(currentAccess)) {
+          throw new CommunicationsRuntimeError("agents_history_retained_access_changed_or_expired");
+        }
+      }
+      // A pending action plus the immutable result/key is safe to resubmit. The
+      // provider's documented idempotency header prevents a second acceptance.
+      const event = { type: "agent.session.input.tool_result", turn_id: receipt.turnId, call_id: receipt.callId,
+        success: receipt.success, ...(receipt.success ? { output: receipt.output } : { error: receipt.output }) };
+      try {
+        const submitted = await this.request(`/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, {
+          method: "POST", headers: { "Idempotency-Key": receipt.idempotencyKey }, body: JSON.stringify({ events: [event] }),
+        });
+        submitted.close(); receipt.delivery = "submitted";
+      } catch (error) {
+        receipt.delivery = "ack_unknown";
+        await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
+        throw new CommunicationsRuntimeError("agents_history_result_ack_unknown", true);
+      }
+      await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
+    }
   }
   /** Read saved artifacts only, including after the inference deadline expires. */
   async reconcileUsage(checkpoint: CommunicationsCheckpoint, jobId: string) {
@@ -185,10 +359,21 @@ export class CommunicationsAgentsAPI {
       || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const session = await this.json(path, 256000);
-    const definition = communicationsDefinitionForInstructions(session.agent?.instructions);
+    const hasHistory = checkpoint.historyProfile !== undefined || session.metadata?.blueprint_communications_history_profile !== undefined;
+    let definition = communicationsDefinitionForInstructions(session.agent?.instructions);
+    if (hasHistory) {
+      if (checkpoint.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE
+        || checkpoint.historyConfigurationDigest !== COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST
+        || session.metadata?.blueprint_communications_history_profile !== COMMUNICATIONS_HISTORY_PROFILE
+        || session.metadata?.blueprint_communications_history_configuration_digest !== COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST) {
+        throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch");
+      }
+      try { definition = verifiedCommunicationsHistoryAgent(session.agent); }
+      catch { throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch"); }
+    }
     const usesSavedAgent = session.metadata?.blueprint_communications_saved_agent !== undefined;
     if (usesSavedAgent) {
-      try { verifiedCommunicationsSavedAgent(session.agent); }
+      try { if (!hasHistory) verifiedCommunicationsSavedAgent(session.agent); }
       catch { throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch"); }
       if (session.metadata.blueprint_communications_saved_agent !== COMMUNICATIONS_SAVED_AGENT_ID
         || session.metadata.blueprint_communications_configuration_digest !== COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST) {
@@ -198,7 +383,7 @@ export class CommunicationsAgentsAPI {
     if (session.id !== checkpoint.sessionId || typeof session.agent?.id !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(session.agent.id)
       || session.agent?.model !== COMMUNICATIONS_MODEL
       || session.agent?.service_tier !== (usesSavedAgent ? "auto" : "default") || !definition
-      || !Array.isArray(session.agent?.tools) || session.agent.tools.length !== 0
+      || !Array.isArray(session.agent?.tools) || (!hasHistory && session.agent.tools.length !== 0)
       || session.agent?.multi_agent?.enabled !== false || session.environment?.type !== "none"
       || !Array.isArray(session.vault_ids) || session.vault_ids.length !== 0
       || session.metadata?.blueprint_communications_job !== jobId || session.metadata?.role !== "communications"
@@ -222,7 +407,7 @@ export class CommunicationsAgentsAPI {
     if (!checkpoint.sessionId) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const { session, turn, definition } = await this.readBoundDraftSession(checkpoint, jobId, checkpoint.requestDigest ?? "");
-    if (session.status === "failed" || session.status === "requires_action") throw new CommunicationsRuntimeError("agents_session_failed_or_unexpected_action");
+    if (session.status === "failed" || (session.status === "requires_action" && !checkpoint.historyProfile)) throw new CommunicationsRuntimeError("agents_session_failed_or_unexpected_action");
     if (!turn) return null;
     checkpoint.turnId = turn.id;
     if (["failed", "cancelled"].includes(turn.status)) throw new CommunicationsRuntimeError(`agents_turn_${turn.status}`);

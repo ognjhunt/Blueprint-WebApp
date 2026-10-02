@@ -59,11 +59,25 @@ async function setup(options: { sourceMissing?: boolean; checkpoint?: boolean } 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
-describe("communications consumes native scoped history before future requests", () => {
-  it("passes a real frozen exact-prospect handoff before the model and records only the persisted draft afterward", async () => {
-    const f = await setup();
+async function freezeLegacy(f: Awaited<ReturnType<typeof setup>>) {
+  await f.hooks.prepareNativeJob("communications", f.jobPath, [f.job.prospectId]);
+  await f.db.doc(f.jobPath).update({ checkpoint: { createClaimedAt: new Date(communicationsNow-1000).toISOString(),
+    sessionId: "original-session", turnId: "original-turn", requestDigest: "a".repeat(64) } });
+}
+
+describe("communications retains legacy history and new sessions choose history tools", () => {
+  it("new sessions do not require a frozen relevance preload and keep after-work observation", async () => {
+    const f = await setup(); f.deps.learningHooks.prepareNativeJob.mockRejectedValueOnce(Error("legacy eligibility unavailable"));
+    expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({state:"pending_approval",sent:false});
+    expect(f.deps.learningHooks.prepareNativeJob).not.toHaveBeenCalled();
+    expect(JSON.parse(f.deps.api.run.mock.calls[0][0].input).learningHistory).toBeUndefined();
+    expect(f.deps.learningHooks.afterNativeWork).toHaveBeenCalledTimes(1);
+    expect(f.learningMemory.writes.some(path=>path.startsWith(`${LEARNING_ROOT}/nativeLearningInputs/`))).toBe(false);
+  });
+  it("preserves an already charged legacy frozen exact-prospect handoff and records the persisted draft afterward", async () => {
+    const f = await setup(); await freezeLegacy(f);
     expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "pending_approval", sent: false });
-    expect(f.deps.learningHooks.prepareNativeJob).toHaveBeenCalledExactlyOnceWith("communications", f.jobPath, [f.job.prospectId], { allowCreate: true });
+    expect(f.deps.learningHooks.prepareNativeJob).toHaveBeenCalledExactlyOnceWith("communications", f.jobPath, [f.job.prospectId], { allowCreate: false });
     expect(f.deps.learningHooks.prepareNativeJob.mock.invocationCallOrder[0]).toBeLessThan(f.deps.api.run.mock.invocationCallOrder[0]);
     expect(f.deps.learningHooks.afterNativeWork.mock.invocationCallOrder[0]).toBeGreaterThan(f.deps.api.run.mock.invocationCallOrder[0]);
     const input = JSON.parse(f.deps.api.run.mock.calls[0][0].input), h = input.learningHistory;
@@ -84,7 +98,7 @@ describe("communications consumes native scoped history before future requests",
     expect(f.db.records.get(`action_ledger/communications_${f.job.jobId}`)).toMatchObject({ status: "pending_approval", action_tier: 3, approved_by: null });
   });
   it("freezes unavailable context as unknown without blocking and reuses it when source data later appears", async () => {
-    const f = await setup({ sourceMissing: true });
+    const f = await setup({ sourceMissing: true }); await freezeLegacy(f);
     f.deps.api.run.mockRejectedValueOnce(new CommunicationsRuntimeError("agents_api_http_503", true));
     expect((await processCommunicationsJob(f.job.jobId, f.deps)).state).toBe("retry");
     const first = f.deps.api.run.mock.calls[0][0].input;
@@ -113,7 +127,7 @@ describe("communications consumes native scoped history before future requests",
     expect(f.learningMemory.writes.some(path => path.startsWith(`${LEARNING_ROOT}/nativeLearningInputs/`))).toBe(false);
   });
   it("fails a changed persisted context before inference rather than admitting a rehashed replacement", async () => {
-    const f = await setup(); f.deps.api.run.mockRejectedValueOnce(new CommunicationsRuntimeError("agents_api_http_503", true));
+    const f = await setup(); await freezeLegacy(f); f.deps.api.run.mockRejectedValueOnce(new CommunicationsRuntimeError("agents_api_http_503", true));
     await processCommunicationsJob(f.job.jobId, f.deps);
     const first = JSON.parse(f.deps.api.run.mock.calls[0][0].input).learningHistory;
     const row = f.db.records.get(first.recordRef); row.preparedAt = "2026-09-30T21:00:00.000Z";

@@ -15,6 +15,10 @@ export type AgentTelemetryRun = {
   input?: unknown;
   created_at?: unknown;
   updated_at?: unknown;
+  agent_evidence_ref?: unknown;
+  agent_evidence_accounting_sha256?: unknown;
+  agent_evidence_accounting_identity?: unknown;
+  agent_accounting_incomplete?: unknown;
 };
 
 export type AgentTelemetrySummaryRow = {
@@ -24,21 +28,21 @@ export type AgentTelemetrySummaryRow = {
   model: string;
   provider_route: string;
   calls: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  cached_tokens: number;
-  cache_write_tokens: number;
-  reasoning_tokens: number;
-  uncached_input_tokens: number;
-  cost_usd: number;
-  uncached_input_cost_usd: number;
-  cache_write_cost_usd: number;
-  cached_read_cost_usd: number;
-  output_cost_usd: number;
-  estimated_cost_without_caching_usd: number;
-  estimated_savings_usd: number;
-  cache_hit_ratio: number;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  cached_tokens: number | null;
+  cache_write_tokens: number | null;
+  reasoning_tokens: number | null;
+  uncached_input_tokens: number | null;
+  cost_usd: number | null;
+  uncached_input_cost_usd: number | null;
+  cache_write_cost_usd: number | null;
+  cached_read_cost_usd: number | null;
+  output_cost_usd: number | null;
+  estimated_cost_without_caching_usd: number | null;
+  estimated_savings_usd: number | null;
+  cache_hit_ratio: number | null;
   cache_family: string;
   prompt_contract_version: string;
   processing_region: string;
@@ -57,22 +61,22 @@ export type AgentCostTelemetryRecord = {
   upstream_provider: string;
   provider_route: string;
   calls: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  cached_tokens: number;
-  cache_write_tokens: number;
-  reasoning_tokens: number;
-  uncached_input_tokens: number;
-  cost_usd: number;
-  cost_estimate_usd: number;
-  uncached_input_cost_usd: number;
-  cache_write_cost_usd: number;
-  cached_read_cost_usd: number;
-  output_cost_usd: number;
-  estimated_cost_without_caching_usd: number;
-  estimated_savings_usd: number;
-  cache_hit_ratio: number;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  cached_tokens: number | null;
+  cache_write_tokens: number | null;
+  reasoning_tokens: number | null;
+  uncached_input_tokens: number | null;
+  cost_usd: number | null;
+  cost_estimate_usd: number | null;
+  uncached_input_cost_usd: number | null;
+  cache_write_cost_usd: number | null;
+  cached_read_cost_usd: number | null;
+  output_cost_usd: number | null;
+  estimated_cost_without_caching_usd: number | null;
+  estimated_savings_usd: number | null;
+  cache_hit_ratio: number | null;
   cache_family: string;
   cache_key_digest: string | null;
   prompt_contract_version: string;
@@ -82,10 +86,15 @@ export type AgentCostTelemetryRecord = {
   cache_decision: string;
   cache_decision_reason: string;
   reusable_prefix_tokens: number;
-  dynamic_suffix_tokens: number;
+  dynamic_suffix_tokens: number | null;
   usage_detail_status: string;
   cost_status: string;
   provider_response_id: string | null;
+  known_usage_subtotals?: Record<string, number>;
+  conservative_spend_usd?: number | null;
+  spend_reservation?: { known_reported_cost_usd: number; unknown_usage_reserved_cost_usd: number;
+    projected_max_cost_per_call_usd: number; unknown_calls: number } | null;
+  spend_accounting_status?: "complete" | "reserved_unknown" | "unresolved";
   created_at_ms: number | null;
 };
 
@@ -101,10 +110,10 @@ export type AgentWasteSignalRow = {
     | "MODEL_PRICING_UNKNOWN"
     | "USAGE_DETAIL_MISSING";
   runs: number;
-  prompt_tokens: number;
-  cached_tokens: number;
-  cache_write_tokens: number;
-  cost_estimate_usd: number;
+  prompt_tokens: number | null;
+  cached_tokens: number | null;
+  cache_write_tokens: number | null;
+  cost_estimate_usd: number | null;
   run_ids: string[];
   recommendation: string;
 };
@@ -113,17 +122,17 @@ export type AgentCostWasteSummary = {
   totals: {
     runs: number;
     calls: number;
-    prompt_tokens: number;
-    completion_tokens: number;
-    cached_tokens: number;
-    cache_write_tokens: number;
-    cache_hit_ratio: number;
-    write_to_read_ratio: number;
+    prompt_tokens: number | null;
+    completion_tokens: number | null;
+    cached_tokens: number | null;
+    cache_write_tokens: number | null;
+    cache_hit_ratio: number | null;
+    write_to_read_ratio: number | null;
     cache_families: number;
     cache_families_with_writes_without_reads: number;
-    cost_estimate_usd: number;
-    estimated_cost_without_caching_usd: number;
-    estimated_savings_usd: number;
+    cost_estimate_usd: number | null;
+    estimated_cost_without_caching_usd: number | null;
+    estimated_savings_usd: number | null;
   };
   signals: AgentWasteSignalRow[];
   top_prompt_rows: AgentTelemetrySummaryRow[];
@@ -135,9 +144,9 @@ type SpendWindowKey = "last15m" | "lastHour" | "lastDay";
 export type AgentSpendWindow = {
   runs: number;
   cost_usd: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  cached_tokens: number;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  cached_tokens: number | null;
   status: "ok" | "warn" | "stop";
 };
 
@@ -385,15 +394,34 @@ function readUsageArtifacts(run: AgentTelemetryRun) {
   const cachePolicy = asRecord(artifacts.cache_policy) || {};
   const artifactUsage = usageSourceFromArtifacts(artifacts);
   const usageFallback = usageSourceFromLogs(run);
-  const usageValue = (key: string) => artifacts[key] ?? artifactUsage[key] ?? usageFallback[key];
-  const promptTokens = asNumber(usageValue("prompt_tokens"));
-  const directHitTokens = asNumber(usageValue("prompt_cache_hit_tokens"));
-  const cachedTokens = asNumber(usageValue("cached_tokens"), directHitTokens);
-  const cacheWriteTokens = asNumber(usageValue("cache_write_tokens"));
-  const uncachedInputTokens = asNumber(
-    usageValue("uncached_input_tokens"),
-    Math.max(0, promptTokens - cachedTokens - cacheWriteTokens),
-  );
+  const rawUsageSources = [artifacts.usage, artifacts.openrouter_usage, artifacts.provider_usage, artifacts.raw_usage].map(asRecord);
+  const aggregateLog = run.logs?.find(log => log.event_type === "provider.telemetry.aggregated");
+  const aliases: Record<string, string[]> = { prompt_tokens: ["prompt_tokens", "input_tokens"],
+    completion_tokens: ["completion_tokens", "output_tokens"], cost_usd: ["cost_usd", "cost", "costUsd"] };
+  const usageValue = (key: string) => {
+    for (const source of [artifacts, ...rawUsageSources, asRecord(aggregateLog?.usage)]) {
+      for (const name of aliases[key] ?? [key]) {
+        if (source && Object.prototype.hasOwnProperty.call(source, name)) return source[name];
+      }
+      const details = key === "cached_tokens" || key === "cache_write_tokens"
+        ? [asRecord(source?.prompt_tokens_details), asRecord(source?.input_tokens_details)]
+        : key === "reasoning_tokens" ? [asRecord(source?.completion_tokens_details), asRecord(source?.output_tokens_details)] : [];
+      for (const detail of details) {
+        if (detail && Object.prototype.hasOwnProperty.call(detail, key)) return detail[key];
+      }
+    }
+    return artifactUsage[key] ?? usageFallback[key];
+  };
+  const usageNumber = (key: string, fallback: number | null = 0): number | null =>
+    usageValue(key) === null ? null : optionalNumber(usageValue(key)) ?? fallback;
+  const promptTokens = usageNumber("prompt_tokens");
+  const directHitTokens = usageNumber("prompt_cache_hit_tokens");
+  const cachedTokens = usageNumber("cached_tokens", directHitTokens);
+  const cacheWriteTokens = usageNumber("cache_write_tokens");
+  const uncachedInputTokens = usageNumber("uncached_input_tokens",
+    promptTokens !== null && cachedTokens !== null && cacheWriteTokens !== null
+      ? Math.max(0, promptTokens - cachedTokens - cacheWriteTokens) : null);
+  const completionTokens = usageNumber("completion_tokens");
   const callsValue = usageValue("calls");
   return {
     task_kind: asString(run.task_kind, "unknown") as AgentTaskKind | "unknown",
@@ -408,16 +436,19 @@ function readUsageArtifacts(run: AgentTelemetryRun) {
           : 1
         : Math.max(0, Math.floor(asNumber(callsValue))),
     prompt_tokens: promptTokens,
-    completion_tokens: asNumber(usageValue("completion_tokens")),
-    total_tokens: asNumber(
-      usageValue("total_tokens"),
-      promptTokens + asNumber(usageValue("completion_tokens")),
-    ),
+    completion_tokens: completionTokens,
+    total_tokens: usageNumber("total_tokens", promptTokens !== null && completionTokens !== null
+      ? promptTokens + completionTokens : null),
     cached_tokens: cachedTokens,
     cache_write_tokens: cacheWriteTokens,
     uncached_input_tokens: uncachedInputTokens,
-    reasoning_tokens: asNumber(usageValue("reasoning_tokens")),
-    cost_usd: asNumber(usageValue("cost_usd")),
+    reasoning_tokens: usageNumber("reasoning_tokens"),
+    cost_usd: usageNumber("cost_usd", artifacts.cost_status === "usage_partial" || artifacts.cost_status === "usage_missing" ? null : 0),
+    cost_explicitly_unknown: usageValue("estimated_total_cost_usd") === null
+      || ["prompt_tokens", "completion_tokens", "cached_tokens", "cache_write_tokens", "uncached_input_tokens"]
+        .some(key => usageValue(key) === null),
+    raw_cost_components: Object.fromEntries(["uncached_input_cost_usd", "cache_write_cost_usd", "cached_read_cost_usd", "output_cost_usd",
+      "estimated_cost_without_caching_usd", "estimated_savings_usd"].map(key => [key, usageValue(key)])),
     cache_family: asString(artifacts.cache_family ?? cachePolicy.family, "unclassified"),
     cache_key_digest: asNullableString(
       artifacts.cache_key_digest ?? cachePolicy.cache_key_digest,
@@ -450,13 +481,10 @@ function readUsageArtifacts(run: AgentTelemetryRun) {
       artifacts.reusable_prefix_tokens
         ?? nestedRecord(cachePolicy, "economics")?.stable_prefix_tokens,
     ),
-    dynamic_suffix_tokens: asNumber(
-      artifacts.dynamic_suffix_tokens,
-      uncachedInputTokens,
-    ),
+    dynamic_suffix_tokens: artifacts.dynamic_suffix_tokens === null ? null : optionalNumber(artifacts.dynamic_suffix_tokens) ?? uncachedInputTokens,
     usage_detail_status: asString(
       artifacts.usage_detail_status,
-      promptTokens > 0 && (usageValue("cached_tokens") !== undefined)
+      promptTokens !== null && promptTokens > 0 && (usageValue("cached_tokens") !== undefined)
         && (usageValue("cache_write_tokens") !== undefined)
         ? "complete"
         : "missing",
@@ -585,6 +613,13 @@ function estimateCostPerMillionTokens(model: string) {
 }
 
 function estimateUsageCost(row: ReturnType<typeof readUsageArtifacts>) {
+  if (row.cost_explicitly_unknown) {
+    const component = (key: string) => optionalNumber(row.raw_cost_components[key]) ?? null;
+    return { estimatedTotalCostUsd: null, uncachedInputCostUsd: component("uncached_input_cost_usd"),
+      cacheWriteCostUsd: component("cache_write_cost_usd"), cachedReadCostUsd: component("cached_read_cost_usd"),
+      outputCostUsd: component("output_cost_usd"), estimatedCostWithoutCachingUsd: component("estimated_cost_without_caching_usd"),
+      estimatedSavingsUsd: component("estimated_savings_usd"), costStatus: row.cost_status };
+  }
   if (
     row.reported_uncached_input_cost_usd !== undefined
     && row.reported_cache_write_cost_usd !== undefined
@@ -609,7 +644,7 @@ function estimateUsageCost(row: ReturnType<typeof readUsageArtifacts>) {
   const pricing = pricingForModel(row.model);
   if (!pricing) {
     const totalTokens =
-      row.total_tokens || row.prompt_tokens + row.completion_tokens + row.reasoning_tokens;
+      asNumber(row.total_tokens) || asNumber(row.prompt_tokens) + asNumber(row.completion_tokens) + asNumber(row.reasoning_tokens);
     const fallback = Number(
       ((totalTokens / 1_000_000) * estimateCostPerMillionTokens(row.model)).toFixed(12),
     );
@@ -625,18 +660,18 @@ function estimateUsageCost(row: ReturnType<typeof readUsageArtifacts>) {
     };
   }
 
-  const cachedInputTokens = Math.max(0, Math.min(row.cached_tokens, row.prompt_tokens));
+  const cachedInputTokens = Math.max(0, Math.min(asNumber(row.cached_tokens), asNumber(row.prompt_tokens)));
   const cacheWriteTokens = Math.max(
     0,
-    Math.min(row.cache_write_tokens, row.prompt_tokens - cachedInputTokens),
+    Math.min(asNumber(row.cache_write_tokens), asNumber(row.prompt_tokens) - cachedInputTokens),
   );
   const cacheMissInputTokens = Math.max(
     0,
-    row.prompt_tokens - cachedInputTokens - cacheWriteTokens,
+    asNumber(row.prompt_tokens) - cachedInputTokens - cacheWriteTokens,
   );
-  const outputTokens = Math.max(row.completion_tokens, row.reasoning_tokens);
+  const outputTokens = Math.max(asNumber(row.completion_tokens), asNumber(row.reasoning_tokens));
   const longContext = Boolean(
-    pricing.longContextThreshold && row.prompt_tokens > pricing.longContextThreshold,
+    pricing.longContextThreshold && asNumber(row.prompt_tokens) > pricing.longContextThreshold,
   );
   const inputMultiplier = longContext ? pricing.longContextInputMultiplier ?? 1 : 1;
   const outputMultiplier = longContext ? pricing.longContextOutputMultiplier ?? 1 : 1;
@@ -650,7 +685,7 @@ function estimateUsageCost(row: ReturnType<typeof readUsageArtifacts>) {
   const estimatedTotalCostUsd =
     uncachedInputCostUsd + cacheWriteCostUsd + cachedReadCostUsd + outputCostUsd;
   const estimatedCostWithoutCachingUsd =
-    row.prompt_tokens / 1_000_000 * pricing.cacheMissInput * inputMultiplier + outputCostUsd;
+    asNumber(row.prompt_tokens) / 1_000_000 * pricing.cacheMissInput * inputMultiplier + outputCostUsd;
   return {
     estimatedTotalCostUsd: Number(estimatedTotalCostUsd.toFixed(12)),
     uncachedInputCostUsd: Number(uncachedInputCostUsd.toFixed(12)),
@@ -665,13 +700,140 @@ function estimateUsageCost(row: ReturnType<typeof readUsageArtifacts>) {
   };
 }
 
+/** Missing compact accounting is unknown, never evidence of zero spend. */
+export class AgentCostEvidenceError extends Error {
+  constructor(readonly runId: string | null, readonly field: string) {
+    super(`agent_cost_evidence_unavailable: agentRuns/${runId ?? "unknown"} ${field}; hydrate the bound private evidence or restore canonical accounting`);
+    this.name = "AgentCostEvidenceError";
+  }
+}
+
+function compactAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTelemetryRecord | null {
+  if (!run.agent_evidence_ref) return null;
+  // Hydrated/original provider usage takes precedence over a retained summary.
+  if (asRecord(run.artifacts) || (Array.isArray(run.logs) && run.logs.length > 0)) return null;
+  const fail = (field: string): never => { throw new AgentCostEvidenceError(asNullableString(run.id), field); };
+  const ref = asRecord(run.agent_evidence_ref);
+  if (!ref || ref.version !== 1 || ref.collection !== "agentRuns" || ref.id !== run.id
+    || typeof ref.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(ref.sha256)
+    || run.agent_evidence_accounting_sha256 !== ref.sha256
+    || !Array.isArray(ref.fields) || !ref.fields.includes("metadata")
+    || !ref.fields.some(field => field === "artifacts" || field === "logs")) fail("source_binding");
+  const compact = asRecord(asRecord(run.metadata)?.cost_telemetry) ?? fail("metadata.cost_telemetry");
+  const source = asRecord(run.agent_evidence_accounting_identity) ?? fail("accounting_identity");
+  if (source.sha256 !== ref?.sha256 || source.requested_model !== run.model
+    || typeof source.resolved_model !== "string" || !source.resolved_model) fail("model_source_binding");
+  const identities = {
+    run_id: run.id, session_id: run.session_id ?? null,
+    task_kind: run.task_kind, provider: run.provider,
+  };
+  for (const [field, expected] of Object.entries(identities)) {
+    if (compact[field] !== expected || source[field] !== expected
+      || (field !== "session_id" && (typeof expected !== "string" || !expected))) fail(field);
+  }
+  if (compact.model !== source.resolved_model) fail("model");
+  const counters = ["calls", "prompt_tokens", "completion_tokens", "total_tokens", "cached_tokens",
+    "cache_write_tokens", "reasoning_tokens", "uncached_input_tokens", "reusable_prefix_tokens", "dynamic_suffix_tokens"];
+  const costs = ["cost_usd", "cost_estimate_usd", "uncached_input_cost_usd", "cache_write_cost_usd",
+    "cached_read_cost_usd", "output_cost_usd", "estimated_cost_without_caching_usd"];
+  for (const field of [...counters, ...costs, "estimated_savings_usd", "cache_hit_ratio"]) {
+    const value = compact[field];
+    if (value === null && field !== "calls" && field !== "reusable_prefix_tokens"
+      && (compact.usage_detail_status !== "complete" || ((costs.includes(field) || field === "estimated_savings_usd") && compact.cost_estimate_usd === null))) continue;
+    if (typeof value !== "number" || !Number.isFinite(value)
+      || (field !== "estimated_savings_usd" && value < 0)
+      || (counters.includes(field) && !Number.isSafeInteger(value))) fail(field);
+  }
+  if ((typeof compact.cache_hit_ratio === "number" && compact.cache_hit_ratio > 1)
+    || (typeof compact.prompt_tokens === "number" && typeof compact.cached_tokens === "number" && typeof compact.cache_write_tokens === "number"
+      && compact.cached_tokens + compact.cache_write_tokens > compact.prompt_tokens)
+    || (typeof compact.prompt_tokens === "number" && typeof compact.uncached_input_tokens === "number"
+      && compact.uncached_input_tokens > compact.prompt_tokens)) fail("token_partition");
+  if (compact.spend_accounting_status !== undefined || compact.conservative_spend_usd !== undefined || compact.known_usage_subtotals !== undefined) {
+    const known = asRecord(compact.known_usage_subtotals) ?? fail("known_usage_subtotals");
+    for (const [field, value] of Object.entries(known)) {
+      if (typeof value !== "number" || !Number.isFinite(value) || (field !== "estimated_savings_usd" && value < 0)) fail("known_usage_subtotals");
+    }
+    const conservative = compact.conservative_spend_usd;
+    if (compact.spend_accounting_status === "unresolved") {
+      if (conservative !== null || compact.cost_estimate_usd !== null) fail("conservative_spend_usd");
+    } else if (compact.spend_accounting_status === "reserved_unknown") {
+      const bound = asRecord(compact.spend_reservation) ?? fail("spend_reservation");
+      for (const field of ["known_reported_cost_usd", "unknown_usage_reserved_cost_usd", "projected_max_cost_per_call_usd", "unknown_calls"]) {
+        if (typeof bound[field] !== "number" || !Number.isFinite(bound[field]) || Number(bound[field]) < 0) fail("spend_reservation");
+      }
+      if (compact.cost_estimate_usd !== null || typeof conservative !== "number" || !Number.isFinite(conservative)
+        || conservative <= asNumber(known.estimated_total_cost_usd)) fail("conservative_spend_usd");
+      if (!Number.isSafeInteger(bound.unknown_calls) || Number(bound.unknown_calls) < 1 || Number(bound.unknown_calls) > Number(compact.calls)
+        || Number(bound.projected_max_cost_per_call_usd) <= 0
+        || Math.abs(Number(bound.known_reported_cost_usd) - asNumber(known.estimated_total_cost_usd)) > 1e-9
+        || Math.abs(Number(bound.unknown_usage_reserved_cost_usd) - Number(bound.projected_max_cost_per_call_usd) * Number(bound.unknown_calls)) > 1e-9
+        || Math.abs(Number(conservative) - Number(bound.known_reported_cost_usd) - Number(bound.unknown_usage_reserved_cost_usd)) > 1e-9) fail("spend_reservation");
+    } else if (compact.spend_accounting_status === "complete") {
+      if (typeof conservative !== "number" || !Number.isFinite(conservative) || conservative < 0
+        || conservative !== compact.cost_estimate_usd) fail("conservative_spend_usd");
+    } else fail("spend_accounting_status");
+  } else if (compact.cost_estimate_usd === null) fail("conservative_spend_usd");
+  for (const field of ["agent_key", "route", "upstream_provider", "provider_route", "cache_family",
+    "prompt_contract_version", "privacy_scope", "processing_region", "cache_decision", "cache_decision_reason",
+    "usage_detail_status", "cost_status"]) {
+    if (typeof compact[field] !== "string" || !compact[field]) fail(field);
+  }
+  for (const field of ["issue_id", "cache_key_digest", "stable_prefix_digest", "provider_response_id"]) {
+    if (compact[field] !== null && (typeof compact[field] !== "string" || !compact[field])) fail(field);
+  }
+  if (compact.created_at_ms !== null && (typeof compact.created_at_ms !== "number" || !Number.isFinite(compact.created_at_ms))) fail("created_at_ms");
+  // The protected Firestore timestamps remain the rolling-window source, as for
+  // inline provider evidence; the retained pricing/status/counters are unchanged.
+  return { ...compact, created_at_ms: asTimestampMs(run.created_at ?? run.updated_at) ?? compact.created_at_ms } as AgentCostTelemetryRecord;
+}
+
+function addReported(left: number | null, right: number | null): number | null {
+  return left === null || right === null ? null : Number((left + right).toFixed(12));
+}
+
+function reportedRatio(numerator: number | null, denominator: number | null): number | null {
+  return numerator === null || denominator === null ? null : denominator > 0 ? numerator / denominator : 0;
+}
+
+function readConservativeReservation(artifacts: Record<string, unknown>, known: Record<string, number>): NonNullable<AgentCostTelemetryRecord["spend_reservation"]> | null {
+  const reservation = asRecord(artifacts.inference_reservation);
+  if (!reservation || reservation.reconciled_cost_status !== "includes_worst_case_reservations") return null;
+  const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0;
+  const estimatedKnown = reservation.known_reported_cost_usd === null ? 0 : reservation.known_reported_cost_usd;
+  const unknown = reservation.unknown_usage_reserved_cost_usd, total = reservation.reconciled_cost_usd;
+  const maximum = reservation.projected_max_cost_per_call_usd;
+  if (!finite(estimatedKnown) || !finite(unknown) || unknown <= 0 || !finite(total) || !finite(maximum) || maximum <= 0
+    || Math.abs(estimatedKnown - (known.estimated_total_cost_usd ?? 0)) > 1e-9
+    || Math.abs(total - estimatedKnown - unknown) > 1e-9) return null;
+  const samples = artifacts.usage_samples;
+  if (!Array.isArray(samples) || samples.length === 0) return null;
+  const unknownCalls = samples.filter(sample => !finite(asRecord(sample)?.estimated_total_cost_usd)).length;
+  const knownSampleCost = samples.reduce((sum, sample) => {
+    const cost = asRecord(sample)?.estimated_total_cost_usd;
+    return sum + (finite(cost) ? cost : 0);
+  }, 0);
+  if (Math.abs(estimatedKnown - knownSampleCost) > 1e-9) return null;
+  if (unknownCalls < 1 || Math.abs(unknown - maximum * unknownCalls) > 1e-9) return null;
+  return { known_reported_cost_usd: estimatedKnown, unknown_usage_reserved_cost_usd: unknown,
+    projected_max_cost_per_call_usd: maximum, unknown_calls: unknownCalls };
+}
+
 export function extractAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTelemetryRecord {
+  if (run.agent_accounting_incomplete === true) throw new AgentCostEvidenceError(asNullableString(run.id), "agent_accounting_incomplete");
+  const compact = compactAgentCostTelemetry(run);
+  if (compact) return compact;
   const artifacts = asRecord(run.artifacts) || {};
   const row = readUsageArtifacts(run);
-  const totalTokens =
-    row.total_tokens || row.prompt_tokens + row.completion_tokens + row.reasoning_tokens;
+  const totalTokens = row.total_tokens;
+  const knownUsageSubtotals = Object.fromEntries(Object.entries(asRecord(artifacts.known_usage_subtotals) ?? {})
+    .filter(([key, value]) => typeof value === "number" && Number.isFinite(value) && (key === "estimated_savings_usd" || value >= 0))) as Record<string, number>;
   const cost = estimateUsageCost(row);
-  const costUsd = Number(row.cost_usd.toFixed(12));
+  const costUsd = row.cost_explicitly_unknown || row.cost_usd === null ? null : Number(row.cost_usd.toFixed(12));
+  const estimatedCost = row.cost_explicitly_unknown ? null : costUsd !== null && costUsd > 0 ? costUsd : cost.estimatedTotalCostUsd;
+  const spendReservation = estimatedCost === null ? readConservativeReservation(artifacts, knownUsageSubtotals) : null;
+  const conservativeSpend = estimatedCost ?? (spendReservation
+    ? spendReservation.known_reported_cost_usd + spendReservation.unknown_usage_reserved_cost_usd : null);
   return {
     run_id: asNullableString(run.id),
     session_id: asNullableString(run.session_id),
@@ -691,7 +853,7 @@ export function extractAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTele
     cache_write_tokens: row.cache_write_tokens,
     reasoning_tokens: row.reasoning_tokens,
     cost_usd: costUsd,
-    cost_estimate_usd: costUsd > 0 ? costUsd : cost.estimatedTotalCostUsd,
+    cost_estimate_usd: estimatedCost,
     uncached_input_tokens: row.uncached_input_tokens,
     uncached_input_cost_usd: cost.uncachedInputCostUsd,
     cache_write_cost_usd: cost.cacheWriteCostUsd,
@@ -699,7 +861,7 @@ export function extractAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTele
     output_cost_usd: cost.outputCostUsd,
     estimated_cost_without_caching_usd: cost.estimatedCostWithoutCachingUsd,
     estimated_savings_usd: cost.estimatedSavingsUsd,
-    cache_hit_ratio: row.prompt_tokens > 0 ? row.cached_tokens / row.prompt_tokens : 0,
+    cache_hit_ratio: reportedRatio(row.cached_tokens, row.prompt_tokens),
     cache_family: row.cache_family,
     cache_key_digest: row.cache_key_digest,
     prompt_contract_version: row.prompt_contract_version,
@@ -713,6 +875,10 @@ export function extractAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTele
     usage_detail_status: row.usage_detail_status,
     cost_status: row.cost_status !== "unknown" ? row.cost_status : cost.costStatus,
     provider_response_id: row.provider_response_id,
+    known_usage_subtotals: knownUsageSubtotals,
+    conservative_spend_usd: conservativeSpend,
+    spend_reservation: spendReservation,
+    spend_accounting_status: estimatedCost !== null ? "complete" : conservativeSpend !== null ? "reserved_unknown" : "unresolved",
     created_at_ms: asTimestampMs(run.created_at ?? run.updated_at),
   };
 }
@@ -769,46 +935,19 @@ export function summarizeAgentCostTelemetry(runs: AgentTelemetryRun[]) {
       rowsByKey.set(key, row);
       continue;
     }
-    rowsByKey.set(key, {
-      ...previous,
-      calls: previous.calls + row.calls,
-      prompt_tokens: previous.prompt_tokens + row.prompt_tokens,
-      completion_tokens: previous.completion_tokens + row.completion_tokens,
-      total_tokens: previous.total_tokens + row.total_tokens,
-      cached_tokens: previous.cached_tokens + row.cached_tokens,
-      cache_write_tokens: previous.cache_write_tokens + row.cache_write_tokens,
-      uncached_input_tokens: previous.uncached_input_tokens + row.uncached_input_tokens,
-      reasoning_tokens: previous.reasoning_tokens + row.reasoning_tokens,
-      cost_usd: Number((previous.cost_usd + row.cost_usd).toFixed(12)),
-      uncached_input_cost_usd: Number(
-        (previous.uncached_input_cost_usd + row.uncached_input_cost_usd).toFixed(12),
-      ),
-      cache_write_cost_usd: Number(
-        (previous.cache_write_cost_usd + row.cache_write_cost_usd).toFixed(12),
-      ),
-      cached_read_cost_usd: Number(
-        (previous.cached_read_cost_usd + row.cached_read_cost_usd).toFixed(12),
-      ),
-      output_cost_usd: Number(
-        (previous.output_cost_usd + row.output_cost_usd).toFixed(12),
-      ),
-      estimated_cost_without_caching_usd: Number(
-        (
-          previous.estimated_cost_without_caching_usd
-          + row.estimated_cost_without_caching_usd
-        ).toFixed(12),
-      ),
-      estimated_savings_usd: Number(
-        (previous.estimated_savings_usd + row.estimated_savings_usd).toFixed(12),
-      ),
-    });
+    const merged = { ...previous, calls: previous.calls + row.calls };
+    for (const field of ["prompt_tokens", "completion_tokens", "total_tokens", "cached_tokens", "cache_write_tokens",
+      "uncached_input_tokens", "reasoning_tokens", "cost_usd", "uncached_input_cost_usd", "cache_write_cost_usd",
+      "cached_read_cost_usd", "output_cost_usd", "estimated_cost_without_caching_usd", "estimated_savings_usd"] as const) {
+      merged[field] = addReported(previous[field], row[field]);
+    }
+    rowsByKey.set(key, merged);
   }
 
   const rows: AgentTelemetrySummaryRow[] = [...rowsByKey.values()]
     .map((row) => ({
       ...row,
-      cache_hit_ratio:
-        row.prompt_tokens > 0 ? row.cached_tokens / row.prompt_tokens : 0,
+      cache_hit_ratio: reportedRatio(row.cached_tokens, row.prompt_tokens),
     }))
     .sort((a, b) =>
       a.task_kind.localeCompare(b.task_kind) ||
@@ -846,10 +985,14 @@ function classifySpendWindow(
 
 function addTelemetryToWindow(window: AgentSpendWindow, telemetry: AgentCostTelemetryRecord) {
   window.runs += 1;
-  window.cost_usd = Number((window.cost_usd + telemetry.cost_estimate_usd).toFixed(12));
-  window.prompt_tokens += telemetry.prompt_tokens;
-  window.completion_tokens += telemetry.completion_tokens;
-  window.cached_tokens += telemetry.cached_tokens;
+  const spend = telemetry.conservative_spend_usd ?? telemetry.cost_estimate_usd;
+  if (typeof spend !== "number" || !Number.isFinite(spend) || spend < 0) {
+    throw new AgentCostEvidenceError(telemetry.run_id, "unresolved_usage_reservation");
+  }
+  window.cost_usd = Number((window.cost_usd + spend).toFixed(12));
+  window.prompt_tokens = addReported(window.prompt_tokens, telemetry.prompt_tokens);
+  window.completion_tokens = addReported(window.completion_tokens, telemetry.completion_tokens);
+  window.cached_tokens = addReported(window.cached_tokens, telemetry.cached_tokens);
 }
 
 export function summarizeRollingAgentSpend(
@@ -941,6 +1084,10 @@ function isNoChangeRun(run: AgentTelemetryRun) {
   ].some(textIndicatesNoChange);
 }
 
+function sumReported(records: AgentCostTelemetryRecord[], field: "prompt_tokens" | "cached_tokens" | "cache_write_tokens" | "cost_estimate_usd"): number | null {
+  return records.reduce<number | null>((sum, record) => addReported(sum, record[field]), 0);
+}
+
 function buildWasteSignalRow(
   signal: AgentWasteSignalRow["signal"],
   records: AgentCostTelemetryRecord[],
@@ -949,12 +1096,10 @@ function buildWasteSignalRow(
   return {
     signal,
     runs: records.length,
-    prompt_tokens: records.reduce((sum, record) => sum + record.prompt_tokens, 0),
-    cached_tokens: records.reduce((sum, record) => sum + record.cached_tokens, 0),
-    cache_write_tokens: records.reduce((sum, record) => sum + record.cache_write_tokens, 0),
-    cost_estimate_usd: Number(
-      records.reduce((sum, record) => sum + record.cost_estimate_usd, 0).toFixed(12),
-    ),
+    prompt_tokens: sumReported(records, "prompt_tokens"),
+    cached_tokens: sumReported(records, "cached_tokens"),
+    cache_write_tokens: sumReported(records, "cache_write_tokens"),
+    cost_estimate_usd: sumReported(records, "cost_estimate_usd"),
     run_ids: records
       .map((record) => record.run_id)
       .filter((value): value is string => Boolean(value))
@@ -976,8 +1121,8 @@ export function summarizeAgentCostWaste(
   const recordsByRunId = new Map(records.map((record, index) => [record.run_id ?? `index:${index}`, record]));
   const lowCacheHighPrompt = records.filter(
     (record) =>
-      record.prompt_tokens >= lowCachePromptTokenFloor &&
-      record.cache_hit_ratio < lowCacheHitRatioCeiling,
+      record.prompt_tokens !== null && record.cache_hit_ratio !== null &&
+      record.prompt_tokens >= lowCachePromptTokenFloor && record.cache_hit_ratio < lowCacheHitRatioCeiling,
   );
   const noChangeRecords = runs
     .map((run, index) =>
@@ -1000,8 +1145,8 @@ export function summarizeAgentCostWaste(
   }
   const writesWithoutReuse = [...byFamily.values()]
     .filter((family) =>
-      family.reduce((sum, record) => sum + record.cache_write_tokens, 0) > 0
-      && family.reduce((sum, record) => sum + record.cached_tokens, 0) === 0)
+      (sumReported(family, "cache_write_tokens") ?? 0) > 0
+      && sumReported(family, "cached_tokens") === 0)
     .flat();
   const fragmented = [...byFamily.values()]
     .filter((family) => new Set(family.map((record) => record.cache_key_digest).filter(Boolean)).size > 1)
@@ -1087,40 +1232,23 @@ export function summarizeAgentCostWaste(
     }
   }
 
-  const totals = records.reduce(
-    (acc, record) => ({
-      runs: acc.runs + 1,
-      calls: acc.calls + record.calls,
-      prompt_tokens: acc.prompt_tokens + record.prompt_tokens,
-      completion_tokens: acc.completion_tokens + record.completion_tokens,
-      cached_tokens: acc.cached_tokens + record.cached_tokens,
-      cache_write_tokens: acc.cache_write_tokens + record.cache_write_tokens,
-      cost_estimate_usd: Number((acc.cost_estimate_usd + record.cost_estimate_usd).toFixed(12)),
-      estimated_cost_without_caching_usd: Number(
-        (
-          acc.estimated_cost_without_caching_usd
-          + record.estimated_cost_without_caching_usd
-        ).toFixed(12),
-      ),
-      estimated_savings_usd: Number(
-        (acc.estimated_savings_usd + record.estimated_savings_usd).toFixed(12),
-      ),
+  const totals = records.reduce<Pick<AgentCostWasteSummary["totals"], "runs" | "calls" | "prompt_tokens" | "completion_tokens" |
+    "cached_tokens" | "cache_write_tokens" | "cost_estimate_usd" | "estimated_cost_without_caching_usd" | "estimated_savings_usd">>(
+    (acc, record) => ({ runs: acc.runs + 1, calls: acc.calls + record.calls,
+      prompt_tokens: addReported(acc.prompt_tokens, record.prompt_tokens),
+      completion_tokens: addReported(acc.completion_tokens, record.completion_tokens),
+      cached_tokens: addReported(acc.cached_tokens, record.cached_tokens),
+      cache_write_tokens: addReported(acc.cache_write_tokens, record.cache_write_tokens),
+      cost_estimate_usd: addReported(acc.cost_estimate_usd, record.cost_estimate_usd),
+      estimated_cost_without_caching_usd: addReported(acc.estimated_cost_without_caching_usd, record.estimated_cost_without_caching_usd),
+      estimated_savings_usd: addReported(acc.estimated_savings_usd, record.estimated_savings_usd),
     }),
-    {
-      runs: 0,
-      calls: 0,
-      prompt_tokens: 0,
-      completion_tokens: 0,
-      cached_tokens: 0,
-      cache_write_tokens: 0,
-      cost_estimate_usd: 0,
-      estimated_cost_without_caching_usd: 0,
-      estimated_savings_usd: 0,
-    },
+    { runs: 0, calls: 0, prompt_tokens: 0, completion_tokens: 0, cached_tokens: 0, cache_write_tokens: 0,
+      cost_estimate_usd: 0, estimated_cost_without_caching_usd: 0, estimated_savings_usd: 0 },
   );
   const topPromptRows = summarizeAgentCostTelemetry(runs).rows
     .slice()
-    .sort((left, right) => right.prompt_tokens - left.prompt_tokens)
+    .sort((left, right) => (right.prompt_tokens ?? -1) - (left.prompt_tokens ?? -1))
     .slice(0, 5);
   const recommendations = [
     "Preserve high-quality routing; reduce prompt/context churn, cache misses, and duplicate/no-change execution before changing core model families.",
@@ -1130,11 +1258,9 @@ export function summarizeAgentCostWaste(
   return {
     totals: {
       ...totals,
-      cache_hit_ratio:
-        totals.prompt_tokens > 0 ? totals.cached_tokens / totals.prompt_tokens : 0,
-      write_to_read_ratio:
-        totals.cached_tokens > 0
-          ? totals.cache_write_tokens / totals.cached_tokens
+      cache_hit_ratio: reportedRatio(totals.cached_tokens, totals.prompt_tokens),
+      write_to_read_ratio: totals.cached_tokens === null || totals.cache_write_tokens === null ? null
+        : totals.cached_tokens > 0 ? totals.cache_write_tokens / totals.cached_tokens
           : totals.cache_write_tokens > 0 ? Number.POSITIVE_INFINITY : 0,
       cache_families: byFamily.size,
       cache_families_with_writes_without_reads: new Set(
