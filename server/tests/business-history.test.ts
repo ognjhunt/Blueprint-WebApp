@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { digest } from "../research-learning/contract";
 import { BusinessHistoryStore, businessHistoryProjection, makeBusinessHistory, validateBusinessHistory, type BusinessHistoryInput } from "../research-learning/business-history";
-import { initialHypothesisEvents } from "../research-learning/initial-hypotheses";
+import { initialHypothesisEvents, offShiftPreparationHypothesis } from "../research-learning/initial-hypotheses";
 import { learningMemoryFirestore } from "./fixtures/research-learning";
 
 const now = "2026-10-01T23:00:00.000Z";
@@ -23,6 +23,21 @@ describe("sourced append-only company business history", () => {
     expect(view.current).toHaveLength(2); expect(view.current[0].sources[0]).toMatchObject({ threadId: "synthetic-business-thread", messageId: "synthetic-message-1", originalTimestamp: "2026-10-01T22:00:00.000Z" });
     expect(new Set(view.current.map(event => event.kind === "decision" && event.classification))).toEqual(new Set(["explicit_decision", "inference"]));
     expect(JSON.stringify(view)).not.toContain("PRIVATE_SECRET");
+  });
+  it("retains legacy event IDs and labels excerpt hashes and unknown author identity without inventing metadata", () => {
+    const original = decision(), { eventId, version: _version, ...input } = original;
+    expect(makeBusinessHistory(input).eventId).toBe(eventId);
+    const excerpt = "Robots could prepare work for humans on the next shift.", timestamp = "2026-10-02T01:01:57.000Z";
+    const source = { system: "chat" as const, threadId: "synthetic-business-thread", messageId: "synthetic-offshift-message",
+      originalTimestamp: timestamp, originalAuthorId: null, originalAuthorRole: "user" as const,
+      sourceHashBasis: "provided_business_excerpt" as const, sourceHash: digest(excerpt), businessExcerpt: excerpt };
+    const captured = offShiftPreparationHypothesis({ subjectKey, capturedBy: scope.principalId, occurredAt: timestamp,
+      recordedAt: "2026-10-02T01:20:00.000Z", sources: [source] });
+    expect(captured).toMatchObject({ recordId: "BP-HYP-off-shift-preparation-human-handoff", status: "provisional", evidence: [], causalProof: false, hardFilterProspects: false, unexpectedExplorationRequired: true });
+    expect(captured.sources[0]).toMatchObject({ originalAuthorId: null, sourceHashBasis: "provided_business_excerpt" });
+    expect(captured.kind === "hypothesis" && captured.nextQuestion).toBe("What has to be ready when your next shift arrives, and what sometimes isn’t?");
+    expect(() => offShiftPreparationHypothesis({ subjectKey, capturedBy: scope.principalId, occurredAt: timestamp,
+      recordedAt: "2026-10-02T01:20:00.000Z", sources: [{ ...source, businessExcerpt: "Changed without a matching hash." }] })).toThrow("excerpt_hash_invalid");
   });
   it.each(["missing_message", "personal_class", "email", "secret", "assistant_explicit", "future_source"])("rejects %s before persistence", invalid => {
     const original = decision(), { version: _version, eventId: _id, ...input } = original; const candidate: any = structuredClone(input);

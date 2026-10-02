@@ -69,23 +69,42 @@ export function learningScenario() {
 /** Narrow Firestore test double with atomic create-only commits and nested
  * field queries. Throws on any source update/set/delete. */
 export function learningMemoryFirestore() {
-  const records = new Map<string, any>(), writes: string[] = [], reads: string[] = [];
+  const records = new Map<string, any>(), writes: string[] = [], reads: string[] = [], updateTimes = new Map<string, string | null>();
+  const createTimes = new Map<string, string>(), readOnlyCutoffs: string[] = [];
   const getPath = (path: string, obj: any) => path.split(".").reduce((v, part) => v?.[part], obj);
-  const snap = (path: string): any => ({ exists: records.has(path), id: path.split("/").at(-1), data: () => structuredClone(records.get(path)) });
+  const snap = (path: string): any => {
+    const at = updateTimes.get(path), millis = at ? Date.parse(at) : NaN, seconds = Math.floor(millis/1000);
+    return { exists: records.has(path), id: path.split("/").at(-1), data: () => structuredClone(records.get(path)),
+      updateTime: Number.isFinite(millis) ? { seconds, nanoseconds: (millis-seconds*1000)*1000000 } : undefined };
+  };
   const doc = (path: string): any => ({ path, get: async () => { reads.push(path); return snap(path); }, collection: (name: string) => collection(`${path}/${name}`) });
   const collection = (path: string): any => {
-    const query = (filters: [string, any][] = [], limit = 10000): any => ({
-      doc: (name: string) => doc(`${path}/${name}`), where: (key: string, _op: string, value: any) => query([...filters, [key, value]], limit),
-      limit: (n: number) => query(filters, n), get: async () => {
+    const query = (filters: [string, any][] = [], limit = 10000, fields?: string[]): any => ({
+      doc: (name: string) => doc(`${path}/${name}`), where: (key: string, _op: string, value: any) => query([...filters, [key, value]], limit, fields),
+      select: (...selected: string[]) => query(filters, limit, selected),
+      limit: (n: number) => query(filters, n, fields), get: async () => {
         reads.push(path);
         const docs = [...records].filter(([key, value]) => key.startsWith(`${path}/`) && key.slice(path.length + 1).split("/").length === 1
-          && filters.every(([field, expected]) => getPath(field, value) === expected)).slice(0, limit).map(([key]) => snap(key));
+          && filters.every(([field, expected]) => getPath(field, value) === expected)).slice(0, limit).map(([key]) => {
+            const original = snap(key);
+            return fields ? { ...original, data: () => Object.fromEntries(fields.map(field => [field, getPath(field, original.data())])) } : original;
+          });
         return { docs, size: docs.length, empty: docs.length === 0 };
       },
     });
     return query();
   };
-  const db: any = { doc, collection, runTransaction: async (callback: any) => {
+  const db: any = { doc, collection, runTransaction: async (callback: any, options?: any) => {
+    if (options?.readOnly) {
+      const asOf = options.readTime.toDate().toISOString(); readOnlyCutoffs.push(asOf);
+      return callback({ get: async (ref: any) => {
+        const value = await ref.get();
+        if (ref.path) return value;
+        const docs = value.docs.filter((row: any) => !createTimes.has(`outboundProspects/${row.id}`)
+          || createTimes.get(`outboundProspects/${row.id}`)! <= asOf);
+        return { ...value, docs, size: docs.length, empty: docs.length === 0, readTime: options.readTime };
+      }, create: () => { throw new Error("read_only_write_forbidden"); } });
+    }
     const pending: [string, any][] = [];
     const result = await callback({ get: async (ref: any) => ref.path ? ref.get() : ref.get(), create: (ref: any, value: any) => {
       if (!ref.path.startsWith("blueprintResearchLearning/default/")) throw new Error("source_write_forbidden");
@@ -95,5 +114,5 @@ export function learningMemoryFirestore() {
     for (const [path, value] of pending) { records.set(path, value); writes.push(path); }
     return result;
   } };
-  return { db, records, writes, reads };
+  return { db, records, writes, reads, updateTimes, createTimes, readOnlyCutoffs };
 }

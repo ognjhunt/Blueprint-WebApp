@@ -6,8 +6,9 @@ export const BUSINESS_HISTORY_ROOT = `${LEARNING_ROOT}/businessHistoryEvents`;
 const ids = z.array(id).max(100).refine(values => new Set(values).size === values.length);
 const pointer = z.string().min(1).max(500).regex(/^[A-Za-z0-9_.:/-]+$/);
 const messageSource = z.object({ system: z.enum(["chat", "voice_transcript"]), threadId: id, messageId: id,
-  originalTimestamp: instant, originalAuthorId: id, originalAuthorRole: z.enum(["user", "assistant"]),
-  sourceHash: hash, businessExcerpt: safeText(1200) }).strict();
+  originalTimestamp: instant, originalAuthorId: id.nullable(), originalAuthorRole: z.enum(["user", "assistant"]),
+  sourceHash: hash, sourceHashBasis: z.enum(["original_message", "provided_business_excerpt"]).optional(),
+  businessExcerpt: safeText(1200) }).strict();
 const firestoreSource = z.object({ system: z.literal("firestore"), recordRef: pointer, sourceHash: hash, checkedAt: instant }).strict();
 export const businessSourceSchema = z.union([messageSource, firestoreSource]);
 const evidence = z.object({ recordRef: pointer, sourceHash: hash, checkedAt: instant, eventId: hash.nullable(), factId: id.nullable(),
@@ -25,7 +26,7 @@ export const businessHistoryEventSchema = z.discriminatedUnion("kind", [
     whatWouldChangeBelief: z.array(safeText(600)).min(1).max(10), nextQuestion: safeText(600), nextTest: safeText(600),
     causalProof: z.literal(false), hardFilterProspects: z.literal(false), unexpectedExplorationRequired: z.literal(true) }).strict(),
   z.object({ ...base, kind: z.literal("run_summary"), runId: id,
-    state: z.enum(["completed", "failed", "cancelled", "sent", "no_reply", "opted_out", "awaiting_review", "reviewed", "superseded"]),
+    state: z.enum(["completed", "failed", "cancelled", "sent", "no_reply", "opted_out", "awaiting_review", "reviewed", "superseded", "pending_approval", "awaiting_research", "blocked", "auto_approved"]),
     requestDigest: hash, nativeTimestamp: instant.nullable(), timeBasis: z.enum(["native_update", "remote_completion", "terminal_observation"]),
     contextHash: hash.nullable(), sourceSnapshotId: hash.nullable(),
     counts: z.record(id, z.number().int().nonnegative().nullable()).refine(value => Object.keys(value).length <= 30),
@@ -41,6 +42,10 @@ export function validateBusinessHistory(value: unknown) {
   const prefix = event.kind === "decision" ? "BP-DEC-" : event.kind === "hypothesis" ? "BP-HYP-" : "BP-RUN-";
   if (!event.recordId.startsWith(prefix)) throw new Error("business_history_record_identity_invalid");
   const messages = event.sources.filter((source): source is z.infer<typeof messageSource> => source.system !== "firestore");
+  // An unavailable author ID remains null. An excerpt hash never pretends to
+  // authenticate unprovided whole-message bytes; legacy source hashes keep
+  // their original shape and event IDs when the optional basis is absent.
+  if (messages.some(source => source.sourceHashBasis === "provided_business_excerpt" && source.sourceHash !== digest(source.businessExcerpt))) throw new Error("business_history_excerpt_hash_invalid");
   if (event.sources.some(source => (source.system === "firestore" ? source.checkedAt : source.originalTimestamp) > event.recordedAt)) throw new Error("business_history_source_future");
   if (event.kind !== "run_summary" && (!messages.length || messages.some(source => source.originalTimestamp > event.occurredAt))) throw new Error("business_history_original_message_required");
   if (event.kind === "decision" && event.classification === "explicit_decision" && !messages.some(source => source.originalAuthorRole === "user")) throw new Error("business_history_explicit_user_source_required");

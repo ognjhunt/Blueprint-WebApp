@@ -263,6 +263,114 @@ view; Notion remains a sourced aggregate playbook. Verify export row counts,
 stable BP/native IDs and hashes before any later cutover. Existing staged
 reconciliation and no-destructive-migration rules continue to apply.
 
+The native host adapter in `server/research-learning/native-hooks.ts` owns only
+`nativeLearningJobs`, `nativeLearningInputs` and the existing additive learning collections. Its
+reviewed source snapshot ID is explicit; it never changes a current pointer or
+research lease/control. A create-only daily manifest pins the Chicago day,
+first cutoff, relevant company prospect IDs, host principal, subject keys,
+focus and input hash. Retry uses that exact manifest and overview. More than
+100 native prospects requires a documented partition/export; it is a bounded
+read contract, not a prospect success quota. The Sacramento/laundromat focus
+defines comparison cohorts and never filters other opportunities.
+
+The existing worker flag owns the learning lifecycle. Its local minute timer
+does deterministic aggregation once at or after 06:45 America/Chicago, handles
+DST, caches a completed civil day, retries failures and drains active work on
+shutdown. No extra provider inference or paid classification is introduced.
+`dailyResearchWorker.ts` passes an additive `learningHooks` package contract:
+`beforeRun(date): Promise<structured handoff>` and
+`afterRun(date): Promise<void>`. Before the prompt, the first callback awaits
+the durable daily overview, then freezes the authorized input for that native
+run identity before a new provider request. The latter
+observes only `blueprintDailyResearch/sites-first/runs/{date}` after native
+persistence. The pinned-package owner must consume these callbacks; older
+packages ignore them. This adapter alone does not establish native prompt
+consumption. Communications owners call `prepareNativeJob("communications",
+the exact job record path, [the exact authorized prospect ID])` before a new
+request, use the returned handoff or explicitly unknown input, and
+`afterNativeWork(the exact job record path)` after final/paused persistence.
+Parser, approvals, send policy, OAuth and research package/usage stay with their
+existing owners. The user's current draft-only direction overrides any earlier
+automatic outreach policy; these learning hooks grant no sends.
+
+`nativeLearningInputs/{inputHash}` contains the create-only structured input;
+`nativeLearningInputs/{digest({role,recordRef})}` is a create-only job binding
+to that first content hash. Both records commit atomically. The payload must
+match its document ID and the binding's hash. Rehashing a changed payload
+cannot silently replace an initially unavailable input. Config/source/context
+hashes and preparation time remain portable fields. Replay validates the full
+sanitized contract, exact approved business subject keys, company prospect
+scope and current communications job/prospect binding. Cached CRM rows,
+source provenance and directory projections must equal the verified immutable
+source; research prospect scopes consist only of selected IDs and exact CRM
+joins. A self-consistent content hash never grants broader access. Retries
+reuse the original bytes and source dates, even after the captured read expiry;
+the current native host remains responsible for authorization and fresh
+source/policy checks. Configuration/scope changes cannot silently rebuild the
+same job's request digest. Initially unknown context is also frozen, rather
+than changing an in-flight request when a source heals. Persisting the input
+must succeed before a new request; failure cannot fall back to a variable
+unrecorded input. The 900 KB guard requires narrower scope/export before write.
+
+Existing remote checkpoints retain their original inputs and never acquire a
+new learning field during recovery. For communications recovery,
+`prepareNativeJob(..., {allowCreate:false})` returns a previously frozen input
+or null; null preserves the legacy request shape without writes. The research
+package owner invokes `beforeRun(date)` only for a new request or its already
+learning-aware retry, skips it for legacy checkpoint reconciliation, and
+persists/reuses the exact returned input. `beforeWork` remains a read-only
+current-context API for relevant retrieval and offline/live dry-run checks.
+No provider create/cancel/retry is issued by this host adapter.
+
+Daily research initially includes up to ten host-authorized native prospect IDs
+alongside up to ten staged CRM rows. Missing CRM/native joins remain explicit
+unknowns and do not hide the native research/contact/outcome history. This
+compact selection is saved with the first native input and stays fixed on
+retry, even when additional company prospects appear. Neither bound is a
+success ceiling or a hard filter; broader authorized detail selections and
+exploration remain available to the native host.
+
+The strict persisted-handoff validator is
+`server/research-learning/native-handoff.ts`. Current company authorization is
+rechecked on every replay and daily manifest read. Removed prospects fail
+closed; later task/site field updates do not rewrite the captured optional IDs.
+Schema or config changes require a new native job identity or an explicit
+reviewed recovery path, never mutating a previously frozen request.
+
+Native pre-prompt and daily views authorize at the real clock, but preserve a
+fixed evidence cutoff. The host captures that cutoff before scope sampling,
+reads the immutable source and native prospect inventory in a read-only
+Firestore transaction at that exact `readTime`, and verifies the returned
+query read time. A prospect arriving after the query cannot silently predate a
+later sampled cutoff. Missing/mismatched point-in-time proof fails before any
+manifest write or context availability claim. The same cutoff feeds initial
+consumer context and native facts; canonical CRM joins also require a proven
+pre-cutoff version, otherwise their absence remains explicit unknown coverage.
+This uses the existing Firestore binding with no grants or provider requests.
+Firestore `updateTime` proves that each exact prospect,
+job, brief, handoff, research-source, reviewed publication, contact proof,
+receipt, ledger and correlated-reply document version existed by that cutoff.
+Later or unavailable metadata is quarantined; body timestamps cannot backdate
+it. Later optional receipt/ledger evidence does not erase earlier research.
+Quarantine marks coverage incomplete, so zero observed outreach/replies cannot
+be interpreted as proof that none occurred. Projected pre-cutoff native facts
+use the captured cutoff; stored learning events keep their actual original
+`recordedAt`. The original consumer defaults remain unchanged; native hosts
+explicitly enable the additional `nativeSourceCutoff` check.
+
+The off-shift preparation/human-handoff idea is a separately sourced provisional
+hypothesis, never a verified capability, demand signal or hard filter. Its
+discovery question is: “What has to be ready when your next shift arrives, and
+what sometimes isn’t?” Materials staging, kitting, replenishment and workspace
+preparation are hypotheses to test. Unattended reliability, exception recovery,
+inspection, safe handoff and task boundaries need actual evidence. Uninspected
+attachments supply no claims. An unavailable original author ID remains null;
+an explicitly marked `provided_business_excerpt` hash uses the canonical JSON
+digest of that supplied business excerpt, never pretends to hash unavailable
+whole-message bytes, and is validated before append. The optional basis leaves
+legacy source shapes and event IDs unchanged. Recovered whole-message metadata
+can be retained later through a sourced append/supersession.
+
 ## Permanent portability and release requirements
 
 Root and nested `AGENTS.md` now require company-controlled canonical storage

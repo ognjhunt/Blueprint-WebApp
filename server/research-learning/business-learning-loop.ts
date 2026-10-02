@@ -16,7 +16,9 @@ const focusSchema = z.object({ city: safeText(120), industry: safeText(120) }).s
 export const runSummaryInputSchema = z.object({ recordId: id, subjectKey: id, principalId: id, runId: id,
   receipt: z.object({ recordRef: z.string().regex(/^blueprint(?:DailyResearch\/sites-first\/(?:runs|workItems)|Communications\/default\/jobs)\/[A-Za-z0-9_.:-]+$/), sourceHash: hash, checkedAt: instant }).strict(),
 }).strict();
-/** Native source observation only. Outcome metrics and research context must
+/** Native source observation after final or paused native work. Pending
+ * approval/research is a paused draft/work state, never a send or failure claim.
+ * Outcome metrics and research context must
  * come from normalized evidence; a terminal state is never delivery proof. */
 export async function recordTerminalRun(db: FirebaseFirestore.Firestore, value: unknown, clock = () => new Date().toISOString()) {
   const input = runSummaryInputSchema.parse(value), now = instant.parse(clock());
@@ -34,7 +36,7 @@ export async function recordTerminalRun(db: FirebaseFirestore.Firestore, value: 
   const record = await db.doc(input.receipt.recordRef).get(), data = record.data();
   if (!record.exists || digest(data) !== input.receipt.sourceHash) throw new Error("business_run_receipt_missing_or_changed");
   const communications = input.receipt.recordRef.startsWith("blueprintCommunications/");
-  const allowed = communications ? ["sent", "no_reply", "opted_out", "failed", "superseded"] : ["completed", "awaiting_review", "reviewed", "failed", "cancelled"];
+  const allowed = communications ? ["sent", "no_reply", "opted_out", "failed", "superseded", "pending_approval", "awaiting_research", "blocked", "auto_approved"] : ["completed", "awaiting_review", "reviewed", "failed", "cancelled"];
   if (!allowed.includes(data?.state)) throw new Error("business_run_not_terminal");
   if (communications && data?.jobId !== input.runId) throw new Error("business_run_identity_changed");
   // Native communications updatedAt uses epoch milliseconds. Research remote
@@ -160,7 +162,7 @@ export async function runDailyBusinessAnalysis(db: FirebaseFirestore.Firestore, 
     return finishResult(overview, true);
   }
   const history = await new BusinessHistoryStore(db, clock).read(businessScope, input.request.asOf);
-  const live = await readExistingSources(db, input.learningGrant, input.request, clock());
+  const live = await readExistingSources(db, input.learningGrant, input.request, clock(), { frozenAsOf: input.request.asOf });
   const events = [...live.events];
   for (const prospectId of input.request.prospectIds) {
     const rows = await root.collection("events").where("entities.prospectId", "==", prospectId).limit(501).get();
@@ -170,7 +172,9 @@ export async function runDailyBusinessAnalysis(db: FirebaseFirestore.Firestore, 
   const learning = buildSnapshot(events, input.learningGrant, input.request, clock());
   if (Buffer.byteLength(JSON.stringify(learning)) > 900000) throw new Error("business_daily_snapshot_export_or_narrow_scope_required");
   const built = buildBusinessOverview(history, learning, businessScope, input.learningGrant, input.focus, clock());
-  const overview = { ...built, analysisScopeHash: scopeHash, sourceQuarantine: live.quarantine.map(record => ({ ...record, recordRef: /^[A-Za-z0-9_.:/-]+$/.test(record.recordRef) ? record.recordRef : "authorized_scope/invalid_record_id" })) };
+  const overview = { ...built, analysisScopeHash: scopeHash,
+    unknowns: [...new Set([...built.unknowns, ...(live.quarantine.length ? ["native_source_coverage_incomplete"] : [])])].sort(),
+    sourceQuarantine: live.quarantine.map(record => ({ ...record, recordRef: /^[A-Za-z0-9_.:/-]+$/.test(record.recordRef) ? record.recordRef : "authorized_scope/invalid_record_id" })) };
   // Source quarantine is part of the immutable hash, never silently omitted.
   const { overviewId: _id, ...body } = overview, sealed = { ...body, overviewId: digest(body) };
   if (Buffer.byteLength(JSON.stringify(sealed)) > 900000) throw new Error("business_daily_overview_scope_too_large");
