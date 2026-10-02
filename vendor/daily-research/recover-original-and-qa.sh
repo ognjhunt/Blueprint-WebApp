@@ -39,6 +39,19 @@ research_overlay_root="$(mktemp -d /tmp/blueprint-recovered-qa-2b0dd7df.XXXXXX)"
 "$research_sdk" "$research_render_root/scripts/install-daily-research.py" \
   --source "$research_artifact_dir" --target "$research_overlay_root" --verify-only
 
+# The reviewed bridge resolves Node imports from its own isolated package.
+# Reuse the deployed dependencies; no package installation or credential change.
+ln -s -- "$research_render_root/node_modules" "$research_overlay_root/node_modules"
+node --input-type=module - "$research_overlay_root/release" <<'JS'
+import {createRequire} from 'node:module';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const require = createRequire(pathToFileURL(resolve(process.argv[2], 'tools/daily_research/firestore_bridge.mjs')));
+const dependencies = ['firebase-admin/app', 'firebase-admin/firestore', 'google-auth-library'];
+for (const name of dependencies) require.resolve(name);
+console.log(JSON.stringify({node_dependencies_verified: dependencies}));
+JS
+
 exec env PYTHONPATH="$research_overlay_root/release" \
   timeout --signal=TERM --kill-after=60s 1860s \
   "$research_sdk" \
