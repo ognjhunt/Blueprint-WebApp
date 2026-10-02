@@ -75,13 +75,20 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
 }
 
 async function rejectedCreateFixture(options: { coverage?: "matching" | "incomplete" | "ambiguous" | "timestamp";
-  correctedUnknown?: boolean; gateChanges?: boolean } = {}) {
+  correctedUnknown?: boolean; gateChanges?: boolean; mcp?: boolean } = {}) {
   const f = apiFixture({ usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 } }), baseline = f.fetchMock.getMockImplementation()!;
+  if (options.mcp) (f.savedAgent as any).tools = [{ type: "mcp", server_label: "gmail",
+    credential_id: "synthetic-owner-credential", transport: { type: "http", server_url: "https://gmailmcp.googleapis.com/mcp/v1", headers: {} },
+    request_metadata: {}, allowed_tools: null, required: false, connection_origin: "service" }];
   let creates = 0;
   const prior = Math.floor(Date.now() / 1000) - 3600;
   f.fetchMock.mockImplementation(async (url: any, init: any) => {
     const path = new URL(String(url)).pathname + new URL(String(url)).search;
+    if (options.mcp && path.startsWith("/v1/vaults?")) return Response.json({ data: [{ id: "vault_mock_gmail", object: "vault" }], has_more: false });
+    if (options.mcp && path.startsWith("/v1/vaults/vault_mock_gmail/credentials?")) return Response.json({ data: [{
+      id: "synthetic-owner-credential", object: "vault.credential", vault_id: "vault_mock_gmail" }], has_more: false });
     if (init.method === "POST" && path.endsWith("/agents/sessions")) {
+      expect(Object.keys(JSON.parse(String(init.body)).metadata).length).toBeLessThanOrEqual(16);
       creates++;
       if (creates === 1) return new Response("retained known invalid request", { status: 400 });
       if (options.correctedUnknown) throw new Error("unknown corrected response");
@@ -117,7 +124,7 @@ async function rejectedCreateFixture(options: { coverage?: "matching" | "incompl
 
 describe("portable communications Agents API", () => {
   it("claims one corrected create after a verified400 and fresh complete global coverage, retaining original identity", async () => {
-    const f = await rejectedCreateFixture();
+    const f = await rejectedCreateFixture({ mcp: true });
     const result = await f.api.recoverRejectedCreate(f.recoveryParams);
     expect(result.output).toEqual(f.output);
     expect(result.checkpoint.createClaimedAt).toBe(f.original.createClaimedAt);
@@ -129,9 +136,10 @@ describe("portable communications Agents API", () => {
     expect(recovery.negativeCoverage).toMatchObject({ project: COMMUNICATIONS_PROJECT, count: 1 });
     expect(recovery.deadlineMs).toBe(Date.parse(recovery.checkpoint.createClaimedAt!) + 180000);
     expect(JSON.parse(recovery.correctedBody).metadata).toMatchObject({
-      blueprint_communications_original_request_digest: f.original.requestDigest,
-      blueprint_communications_brief_digest: f.intent.briefDigest,
-      blueprint_communications_delivery_key: f.intent.deliveryKey });
+      blueprint_communications_recovery_binding_digest: communicationsDigest({
+        originalCheckpointDigest: recovery.originalCheckpointDigest, originalRequestDigest: f.original.requestDigest,
+        intent: f.intent, claimedAt: recovery.checkpoint.createClaimedAt, deadlineMs: recovery.deadlineMs }) });
+    expect(recovery.checkpoint.gmailMcp?.profile).toBe("mcp-vault-read-v1");
     expect(f.creates()).toBe(2); expect(f.claim).toHaveBeenCalledTimes(1);
     expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
     expect(f.recordPaidDraftUsage).toHaveBeenCalledWith("job-1", recovery.correctedRequestDigest, expect.any(Object));

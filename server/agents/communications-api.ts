@@ -185,6 +185,7 @@ export class CommunicationsAgentsAPI {
     saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>;
     validateOutput?: CommunicationsOutputValidator; assertRepairAllowed?: () => void | Promise<void>;
   }): Promise<{ output: CommunicationsOutput; checkpoint: CommunicationsCheckpoint; usage: unknown; outputSource?: CommunicationsOutputSource }> {
+    if (!this.options.allowPaidInference) throw new CommunicationsRuntimeError("communications_inference_disabled");
     if (params.checkpoint.rejectedCreateRecovery) {
       const recovery = this.verifyRecoveryRecord(params.checkpoint, params.jobId, params.input);
       return this.runRecoveryAttempt(params, recovery);
@@ -240,14 +241,12 @@ export class CommunicationsAgentsAPI {
         blueprint_communications_history_profile: COMMUNICATIONS_HISTORY_PROFILE,
         blueprint_communications_final_repair_profile: FINAL_REPAIR_PROFILE,
         blueprint_communications_history_configuration_digest: child.historyConfigurationDigest,
-        blueprint_communications_original_request_digest: original.requestDigest,
-        blueprint_communications_brief_digest: params.intent.briefDigest,
-        blueprint_communications_delivery_key: params.intent.deliveryKey,
         blueprint_communications_rejected_create_recovery: "rejected-create-v1",
-        blueprint_communications_original_checkpoint_digest: communicationsDigest(original),
-        blueprint_communications_recovery_owner_direction_digest: communicationsDigest(params.intent),
-        blueprint_communications_recovery_claimed_at: child.createClaimedAt,
-        blueprint_communications_recovery_deadline_ms: String(this.repairDeadline(child)),
+        // Provider metadata permits only 16 pairs. Keep complete provenance in
+        // the canonical recovery record and bind it with one compact digest.
+        blueprint_communications_recovery_binding_digest: communicationsDigest({
+          originalCheckpointDigest: communicationsDigest(original), originalRequestDigest: original.requestDigest,
+          intent: params.intent, claimedAt: child.createClaimedAt, deadlineMs: this.repairDeadline(child) }),
         ...(gmailMcp ? { blueprint_communications_mcp_profile: gmailMcp.profile,
           ...(gmailMcp.profile === "mcp-vault-read-v1" ? { blueprint_communications_mcp_binding_digest: communicationsDigest(gmailMcp) } : {}) } : {}),
         blueprint_communications_definition: definition.version, blueprint_communications_instructions_digest: definition.instructionsDigest } };
@@ -287,13 +286,9 @@ export class CommunicationsAgentsAPI {
       || digest !== recovery.correctedRequestDigest || communicationsDigest(body) !== recovery.correctedRequestDigest
       || typeof body.input !== "string" || Buffer.byteLength(body.input) > 64000 || (input !== undefined && body.input !== input)
       || body.metadata?.blueprint_communications_job !== jobId
-      || body.metadata?.blueprint_communications_original_request_digest !== original.requestDigest
-      || body.metadata?.blueprint_communications_brief_digest !== recovery.intent.briefDigest
-      || body.metadata?.blueprint_communications_delivery_key !== recovery.intent.deliveryKey
-      || body.metadata?.blueprint_communications_original_checkpoint_digest !== recovery.originalCheckpointDigest
-      || body.metadata?.blueprint_communications_recovery_owner_direction_digest !== communicationsDigest(recovery.intent)
-      || body.metadata?.blueprint_communications_recovery_claimed_at !== recovery.checkpoint.createClaimedAt
-      || body.metadata?.blueprint_communications_recovery_deadline_ms !== String(recovery.deadlineMs)
+      || body.metadata?.blueprint_communications_recovery_binding_digest !== communicationsDigest({
+        originalCheckpointDigest: recovery.originalCheckpointDigest, originalRequestDigest: recovery.originalRequestDigest,
+        intent: recovery.intent, claimedAt: recovery.checkpoint.createClaimedAt, deadlineMs: recovery.deadlineMs })
       || recovery.negativeCoverage.project !== COMMUNICATIONS_PROJECT
       || !Array.isArray(recovery.negativeCoverage.rows) || recovery.negativeCoverage.count !== recovery.negativeCoverage.rows.length
       || recovery.negativeCoverage.digest !== communicationsDigest(recovery.negativeCoverage.rows)
