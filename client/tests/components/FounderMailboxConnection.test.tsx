@@ -11,10 +11,19 @@ beforeEach(() => {
   auth.useAuth.mockReturnValue({ currentUser: { uid: "ops-user", getIdToken: auth.getIdToken } });
 });
 afterEach(() => vi.restoreAllMocks());
-function page() {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><FounderMailboxConnection /></QueryClientProvider>);
+function page(client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
+  return render(<QueryClientProvider client={client}><FounderMailboxConnection /></QueryClientProvider>);
 }
 describe("founder connection preparation in Blueprint review", () => {
+  it("shows the saved compose connection instead of the static preparation warning", async () => {
+    vi.spyOn(global,"fetch").mockImplementation(async url => String(url).endsWith("/status")
+      ? Response.json({enabled:true,state:"connected_draft_capable",draftScopeGranted:true,sendsEnabled:false})
+      : Response.json({connection:{account:"nijel@tryblueprint.io",binding:{state:"private_storage_selected_unverified"},oauth:{ownerAction:"Inspect the existing callback first",initialScopes:["gmail.readonly"],sendScopeAfterSeparateApproval:"gmail.send",dataAccess:"Mailbox messages"},secretDestination:{services:["Blueprint-WebApp"]}}}));
+    page();fireEvent.click(screen.getByRole("button",{name:"Prepare founder mailbox"}));
+    expect(await screen.findByText(/Founder Gmail is connected with saved draft access/)).toBeVisible();
+    expect(screen.queryByText(/current mailbox access is unverified/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Inspect the existing callback first")).not.toBeInTheDocument();
+  });
   it("loads on owner request using only GET and offers no credential entry or OAuth grant", async () => {
     const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (url) => String(url).endsWith("/status") ? Response.json({ enabled: false, state: "disabled_or_unconfigured" }) : Response.json({ connection: {
       account: "nijel@tryblueprint.io", binding: { state: "missing" }, oauth: {
@@ -179,17 +188,20 @@ describe("founder connection preparation in Blueprint review", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/communications/gmail/oauth/draft-upgrade/start",expect.objectContaining({method:"POST",body:"{}"}));
   });
   it("saves returned compose consent only on its separate owner completion click",async()=>{
+    const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+    const refreshApprovals=vi.spyOn(client,"invalidateQueries");
     let saved=false;const fetchMock=vi.spyOn(global,"fetch").mockImplementation(async url=>{
       if(String(url).endsWith("/status"))return Response.json({enabled:true,state:saved?"connected_draft_capable":"awaiting_owner",purpose:"draft_upgrade",draftScopeGranted:saved,sendsEnabled:false});
       if(String(url).endsWith("/draft-upgrade/complete")){saved=true;return Response.json({state:"connected_draft_capable",draftScopeGranted:true,sendsEnabled:false});}
       return Response.json({connection:{account:"nijel@tryblueprint.io",binding:{state:"private_storage_selected_unverified"},oauth:{ownerAction:"Owner-approved setup",initialScopes:["gmail.readonly"],sendScopeAfterSeparateApproval:"gmail.send",dataAccess:"Mailbox messages/settings"},secretDestination:{services:["Blueprint web","worker"]}}});
     });
-    page();fireEvent.click(screen.getByRole("button",{name:"Prepare founder mailbox"}));
+    page(client);fireEvent.click(screen.getByRole("button",{name:"Prepare founder mailbox"}));
     const complete=await screen.findByRole("button",{name:"Verify and save founder draft-capability upgrade"});
     expect(fetchMock.mock.calls.some(([,init])=>init?.method==="POST")).toBe(false);fireEvent.click(complete);
     expect(await screen.findByText(/founder compose grant is saved/)).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/communications/gmail/oauth/draft-upgrade/complete",expect.objectContaining({method:"POST",body:"{}"}));
     expect(fetchMock.mock.calls.filter(([,init])=>init?.method==="POST")).toHaveLength(1);
+    await waitFor(()=>expect(refreshApprovals).toHaveBeenCalledWith({queryKey:["admin-action-queue","ops-user"]}));
   });
 
 });

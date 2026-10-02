@@ -8,6 +8,15 @@ const output = { disposition: "draft", subject: "A question", body: "Original me
 const payload = { to: "operator@example.com", communications: { job: { intent: "outreach" }, output, brief: { facts: [{ id: "fact-1", claim: "Verified packing workflow" }] } } };
 
 describe("saved communications draft editor", () => {
+  it("offers the exact approved manual Gmail copy without sending checkboxes",async()=>{
+    const onGmailSave=vi.fn(async()=>({state:"verified",reviewDigest:review.digest,revisionId:"b".repeat(64),sent:false as const}));
+    render(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} revisionId={"b".repeat(64)} onSave={vi.fn()}
+      gmailDraft={{writesEnabled:true,state:"not_copied",draftId:null,verifiedAt:null,currentRevisionVerified:false}} onGmailSave={onGmailSave} />);
+    fireEvent.click(screen.getByRole("button",{name:"Save to Gmail Drafts"}));
+    await waitFor(()=>expect(onGmailSave).toHaveBeenCalledExactlyOnceWith({expectedReviewDigest:review.digest,expectedRevisionId:"b".repeat(64),mode:"write"}));
+    expect(screen.getByText(/Sending review checkboxes are not required/)).toBeVisible();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+  });
   it("repairs wording, known facts and question anchors without editing the source or granting approval", async () => {
     const onSave = vi.fn(async () => ({ review: { ...review, digest: "b".repeat(64), hardChecksPassed: true, blockers: [] } }));
     render(<CommunicationsDraftEditor payload={payload} review={review} onSave={onSave} />);
@@ -61,9 +70,9 @@ describe("saved communications draft editor", () => {
   });  it("keeps Gmail draft copying disabled without activation and during an unsaved edit",()=>{
     const onGmailSave=vi.fn(),onSave=vi.fn(),copy={writesEnabled:false,state:"not_copied",draftId:null,verifiedAt:null,currentRevisionVerified:false};
     const view=render(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} onSave={onSave} gmailDraft={copy} onGmailSave={onGmailSave} />);
-    expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();fireEvent.click(screen.getByRole("button",{name:"Save Gmail draft"}));expect(onGmailSave).not.toHaveBeenCalled();
+    expect(screen.getByRole("button",{name:"Save to Gmail Drafts"})).toBeDisabled();fireEvent.click(screen.getByRole("button",{name:"Save to Gmail Drafts"}));expect(onGmailSave).not.toHaveBeenCalled();
     view.rerender(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} onSave={onSave} gmailDraft={{...copy,writesEnabled:true}} onGmailSave={onGmailSave} />);
-    fireEvent.click(screen.getByRole("button",{name:"Revise draft"}));expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();
+    fireEvent.click(screen.getByRole("button",{name:"Revise draft"}));expect(screen.getByRole("button",{name:"Save to Gmail Drafts"})).toBeDisabled();
   });
   it("does not call an older draft copy verified for the current revision",async()=>{
     const copy={writesEnabled:true,state:"unknown",draftId:null,verifiedAt:null,currentRevisionVerified:false};
@@ -77,14 +86,14 @@ describe("saved communications draft editor", () => {
     const revisionId="b".repeat(64),copy={writesEnabled:true,state:"verified",draftId:"draft-1",verifiedAt:"2026-10-02T14:00:00Z",currentRevisionVerified:true};
     const onGmailSave=vi.fn(async()=>({state:"verified",reviewDigest:review.digest,revisionId,sent:false as const}));
     const view=render(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} revisionId={revisionId} onSave={vi.fn()} gmailDraft={copy} onGmailSave={onGmailSave} />);
-    expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Save to Gmail Drafts"})).toBeDisabled();
     expect(screen.getByRole("button",{name:"Check Gmail draft"})).toBeEnabled();
-    fireEvent.click(screen.getByRole("button",{name:"Save Gmail draft"}));expect(onGmailSave).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"Save to Gmail Drafts"}));expect(onGmailSave).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button",{name:"Check Gmail draft"}));
     await waitFor(()=>expect(onGmailSave).toHaveBeenCalledExactlyOnceWith({expectedReviewDigest:review.digest,expectedRevisionId:revisionId,mode:"reconcile"}));
     expect(await screen.findByText(/Gmail draft readback verified for this saved revision/)).toBeInTheDocument();
     view.rerender(<CommunicationsDraftEditor payload={payload} review={{...review,hardChecksPassed:true}} revisionId={revisionId} onSave={vi.fn()} gmailDraft={{...copy,state:"stale",currentRevisionVerified:false}} onGmailSave={onGmailSave} />);
-    expect(screen.getByRole("button",{name:"Save Gmail draft"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Save to Gmail Drafts"})).toBeDisabled();
   });
 
 });

@@ -24,8 +24,8 @@ export function OutreachApprovalReview({ review, payload, pending, onApprove, se
 
   return (
     <div className="w-full space-y-3 border border-runway-line p-3 text-sm">
-      <p className="font-medium">Outreach review</p>
-      <p>Read the exact message and verify its sources before approving each review item.</p>
+      <p className="font-medium">Sending review</p>
+      <p>These checkboxes approve sending. They are not required to save an already approved revision to Gmail Drafts. Read the exact message and verify its sources before approving each review item.</p>
       {typeof payload.from === "string" ? <p>From: {payload.from}</p> : null}
       <p>To: {String(payload.to ?? "")}</p>
       <p>Subject: {String(payload.subject ?? "")}</p>

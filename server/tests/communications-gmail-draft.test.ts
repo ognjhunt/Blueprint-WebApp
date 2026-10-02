@@ -1,12 +1,14 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, authAdmin: null, default: {} }));
+const capability = vi.hoisted(() => vi.fn());
+vi.mock("../agents/communications-oauth-store", () => ({ requireFounderDraftCapability: capability }));
 import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
 import { communicationsDeliveryKey } from "../agents/communications-contract";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, type GmailDraftPorts } from "../agents/communications-gmail-draft";
-beforeEach(()=>vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE","Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000"));
+beforeEach(()=>{vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE","Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");capability.mockReset().mockResolvedValue(undefined);});
 afterEach(()=>vi.unstubAllEnvs());
 function fixture() {
  const {job,brief,handoff,output}=communicationsFixture(), ledgerId=`communications_${job.jobId}`;
@@ -27,6 +29,32 @@ function fixture() {
  return{db,job,brief,ledgerId,input,ports,payload,root,receipt,setCopied:(v:any)=>{copied=v;}};
 }
 describe("manual Gmail draft copy of the exact canonical revision",()=>{
+ it("admits an explicit exact approved copy with the global automated staging flag off",async()=>{
+  const f=fixture();vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","false");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF","owner-reviewed-compose-only");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_JOB_ID",f.job.jobId);
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVISION_ID",f.input.expectedRevisionId);
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVIEW_DIGEST",f.input.expectedReviewDigest);
+  const manual=configuredGmailDraftPorts(undefined,"manual_approved_copy");
+  expect(configuredGmailDraftPorts().enabled()).toBe(false);
+  expect(manual.enabled()).toBe(true);
+  f.ports.enabled=manual.enabled;f.ports.allowsRevision=manual.allowsRevision;f.ports.requireCapability=manual.requireCapability;
+  expect(await communicationsGmailDraftStatus(f.db,f.ledgerId,f.payload,f.input.expectedRevisionId,f.input.expectedReviewDigest)).toMatchObject({writesEnabled:true});
+  expect(await communicationsGmailDraftStatus(f.db,`communications_${"b".repeat(64)}`,f.payload,f.input.expectedRevisionId,f.input.expectedReviewDigest)).toMatchObject({writesEnabled:false});
+  expect(await communicationsGmailDraftStatus(f.db,`invalid_prefix_${f.job.jobId}`,f.payload,f.input.expectedRevisionId,f.input.expectedReviewDigest)).toMatchObject({writesEnabled:false});
+  expect(await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).toMatchObject({state:"verified",sent:false,approved:false});
+  await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow);
+  expect(f.ports.write).toHaveBeenCalledTimes(1);
+  expect(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED).toBe("false");
+  capability.mockRejectedValueOnce(new Error("founder_draft_scope_unverified"));
+  expect(await communicationsGmailDraftStatus(f.db,f.ledgerId,f.payload,f.input.expectedRevisionId,f.input.expectedReviewDigest)).toMatchObject({writesEnabled:false});
+ });
+ it("rechecks the exact matching compose capability before any provider write",async()=>{
+  const f=fixture();vi.mocked(f.ports.requireCapability).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("founder_draft_scope_unverified"));
+  await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).rejects.toThrow("gmail_draft_source_or_capability_refused_before_write");
+  expect(f.ports.write).not.toHaveBeenCalled();
+  expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"refused_before_write",providerWriteSubmitted:false});
+ });
  it("stays fully inactive by default before credential, database or Gmail calls",async()=>{
   const f=fixture();f.ports.enabled=()=>false;
   await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).rejects.toThrow("gmail_draft_writes_disabled");
