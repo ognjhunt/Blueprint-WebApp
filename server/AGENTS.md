@@ -12,6 +12,9 @@ Local conventions:
   actionable field errors, preserve original evidence, and recover harmless
   formatting/metadata differences without an extra approval step. Draft staging
   may retain unresolved claim/review diagnostics; it does not authorize a send.
+  Keep valid sibling records usable when an optional claim fails. Page relevant
+  authorized history rather than stopping at a result count, and identify the
+  affected record and repair needed without logging private content.
 
 - Start route mapping in `server/routes.ts`; start app/middleware/rate-limit/CSP questions in `server/index.ts`.
 - Keep external mutation behind existing auth, CSRF, policy, and human-gate checks.

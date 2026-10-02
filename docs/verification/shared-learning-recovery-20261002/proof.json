@@ -1,0 +1,111 @@
+{
+  "version": "blueprint.shared-learning-recovery-proof.v1",
+  "repository": "ognjhunt/Blueprint-WebApp",
+  "codeHead": "ebc6d7f482400f13bbeb61fd733df2cc9afab8ba",
+  "reconciledMain": "3c028e2d48e6d2a42cb58a747a33b36b4b6e31c0",
+  "recovery": {
+    "sourceCommit": "dec6536ea01f96255063b6cd34a84d7017f00c09",
+    "base": "20e67863d8fa75f9a4d73b64e3e91a935ae6d76d",
+    "path": "docs/recovery/learning-evidence-recovery-20261002.patch",
+    "bytes": 75039,
+    "sha256": "09f46414f919e01d521de7cadae1c737d5f0535db6b09a3c4c4ed0e076adf62c",
+    "format": "UTF-8 git patch",
+    "reconstructedFiles": 19
+  },
+  "independentReview": {
+    "requestedModel": "gpt-6.1-sol",
+    "codeHead": "ebc6d7f482400f13bbeb61fd733df2cc9afab8ba",
+    "findingsFixed": 3,
+    "remainingConcreteCodeBlockers": 0,
+    "passedTestFiles": 4,
+    "passedTests": 136
+  },
+  "focusedVerification": {
+    "passedTestFiles": 8,
+    "passedTests": 253,
+    "providerPortabilityFindings": 0
+  },
+  "syntheticReplay": {
+    "inputPath": "docs/verification/research-learning-20261001/offline-input.json",
+    "inputSha256": "82342d7ca8213d28dc2352628a2126631557e2f98295284f0f0f3ca1b322c84d",
+    "dryRunPath": "docs/verification/research-learning-20261001/offline-dry-run.json",
+    "dryRunSha256": "1f6ab699e70a9eb3954d8c8f650c1a3ab817099f7a495848cfa895d257233397",
+    "snapshotId": "e0694453bc60cf66e47534cf75f9057e84d84aaaec7316625b198a947b92f132",
+    "prospects": 8,
+    "initialAppendEvents": 26,
+    "replayAppendEvents": 0,
+    "replayPreservedEvents": 26,
+    "errors": [],
+    "readyForCutover": false,
+    "dataClass": "synthetic_fixture"
+  },
+  "graphRefresh": {
+    "status": "passed",
+    "dependency": "graphifyy==0.9.73 in isolated local interpreter",
+    "modelInputTokens": 0,
+    "modelOutputTokens": 0,
+    "graphNodes": 1511,
+    "graphEdges": 2828,
+    "communities": 55,
+    "preexistingMissingManifestPath": "client/src/components/blueprint/app/PolicyCanaryReportOverview.tsx"
+  },
+  "release": {
+    "pullRequest": "https://github.com/ognjhunt/Blueprint-WebApp/pull/803",
+    "isDraft": true,
+    "merged": false,
+    "deployed": false,
+    "productionBehaviorProven": false,
+    "hold": "parent confirmation of clear shared-worker paid research window",
+    "communications": "draft_only_no_send"
+  },
+  "canonicalRecovery": {
+    "codeAndProof": "user-owned GitHub",
+    "businessRecords": "existing company Firestore with existing authorized portable exports",
+    "requiredLibraryDependency": false
+  },
+  "effects": {
+    "paidModelApiCalls": 0,
+    "emails": 0,
+    "prospectSends": 0,
+    "credentialChanges": 0,
+    "accessSecurityChanges": 0,
+    "sourceDeletion": 0,
+    "liveRecordMigration": 0
+  },
+  "ci": {
+    "runUrl": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/36966303674",
+    "headSha": "ebc6d7f482400f13bbeb61fd733df2cc9afab8ba",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": {
+      "check": "success",
+      "test": "success",
+      "e2e": "success",
+      "rules-emulator": "success",
+      "build": "success"
+    }
+  },
+  "alphaReleaseGate": {
+    "command": "npm run alpha:check",
+    "codeHead": "ebc6d7f482400f13bbeb61fd733df2cc9afab8ba",
+    "exitCode": 0,
+    "passedTests": 5207,
+    "failedTests": 0,
+    "pendingTests": 0,
+    "passedAssertionsIncludingSuites": 5857,
+    "skippedAssertions": 0
+  },
+  "integration": {
+    "main": "373b7afba1238986dbfca70bc482e39f2d595277",
+    "mainPullRequest": 802,
+    "recoveryCodeChanged": false,
+    "mainFilesAdoptedUnmodified": [
+      "client/src/pages/AdminLeads.tsx",
+      "client/tests/pages/AdminLeads.test.tsx",
+      "e2e/adp-agent-tasks.spec.ts"
+    ],
+    "productionVersionObserved": "373b7afba1238986dbfca70bc482e39f2d595277",
+    "productionVersionObservedAt": "2026-10-02T05:02:16Z",
+    "finalCombinedHeadCi": "see PR803 current-head status"
+  }
+}

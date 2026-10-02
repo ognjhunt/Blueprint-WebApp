@@ -95,6 +95,8 @@ server/utils/taskEvaluationFirebaseTenant.ts
 
 # Private research/outreach outcome learning contracts; no live source exports.
 server/research-learning/contract.ts
+server/research-learning/query-pages.ts
+server/research-learning/readable-history.ts
 server/research-learning/existing-sources.ts
 server/research-learning/harness.ts
 server/research-learning/migration.ts

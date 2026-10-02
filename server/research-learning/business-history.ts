@@ -1,3 +1,4 @@
+import { readQueryPages } from "./query-pages";
 import { z } from "zod";
 import { digest, hash, id, instant, LEARNING_ROOT } from "./contract";
 import { safeText } from "./prior-research";
@@ -104,30 +105,83 @@ export class BusinessHistoryStore {
   constructor(private db: FirebaseFirestore.Firestore, private clock = () => new Date().toISOString()) {}
   async append(value: unknown, context: BusinessWriterContext): Promise<"created" | "existing"> {
     const event = validateBusinessHistory(value), now = instant.parse(this.clock());
+    const verifiedSources = context.verifiedSources.map(source => businessSourceSchema.parse(source));
     if (event.capturedBy !== context.principalId || !context.subjectKeys.includes(event.subjectKey) || context.approvedEventId !== event.eventId
-      || event.recordedAt > now || event.sources.some(source => !context.verifiedSources.some(verified => digest(verified) === digest(source)))) throw new Error("business_history_writer_scope_or_source_denied");
+      || event.recordedAt > now || event.sources.some(source => !verifiedSources.some(verified => digest(verified) === digest(source)))) throw new Error("business_history_writer_scope_or_source_denied");
     const collection = this.db.doc(LEARNING_ROOT).collection("businessHistoryEvents"), ref = collection.doc(event.eventId);
     return this.db.runTransaction(async tx => {
       const existing = await tx.get(ref);
       if (existing.exists) { if (validateBusinessHistory(existing.data()).eventId !== event.eventId) throw new Error("business_history_existing_conflict"); return "existing"; }
-      const rows = await tx.get(collection.where("recordId", "==", event.recordId).limit(501));
-      if (rows.size > 500) throw new Error("business_history_export_required");
-      const prior = rows.docs.map(doc => validateStoredBusinessHistory(doc));
+      const rows = await readQueryPages(collection.where("recordId", "==", event.recordId), query => tx.get(query));
+      const prior = rows.map(doc => validateStoredBusinessHistory(doc));
       if (prior.some(previous => previous.subjectKey !== event.subjectKey)) throw new Error("business_history_record_scope_changed");
-      // Validate the complete bounded lineage before an immutable create.
+      // Validate the complete lineage before an immutable create.
       businessHistoryProjection([...prior, event], { principalId: context.principalId, subjectKeys: [event.subjectKey], expiresAt: new Date(Date.parse(now)+60000).toISOString() }, now, now);
       tx.create(ref, event); return "created";
     });
   }
   async read(scope: BusinessReadScope, asOf: string) {
-    const selected = businessReadScopeSchema.parse(scope), values: unknown[] = [];
+    const selected = businessReadScopeSchema.parse(scope), values: BusinessHistoryEvent[] = [];
+    const quarantine: { recordRef: string; reason: string }[] = [], invalidLineages = new Set<string>(), invalidEventIds = new Set<string>();
+    const lineageKey = (subjectKey: string, recordId: string) => JSON.stringify([subjectKey, recordId]);
+    const eventKey = (subjectKey: string, eventId: string) => JSON.stringify([subjectKey, eventId]);
     businessHistoryProjection([], selected, asOf, this.clock());
     for (const subjectKey of selected.subjectKeys) {
-      const rows = await this.db.doc(LEARNING_ROOT).collection("businessHistoryEvents").where("subjectKey", "==", subjectKey).limit(501).get();
-      if (rows.size > 500 || values.length + rows.size > 1000) throw new Error("business_history_export_required");
-      values.push(...rows.docs.map(doc => { const event = validateStoredBusinessHistory(doc);
-        if (event.subjectKey !== subjectKey) throw new Error("business_history_stored_scope_changed"); return event; }));
+      const rows = await readQueryPages(this.db.doc(LEARNING_ROOT).collection("businessHistoryEvents").where("subjectKey", "==", subjectKey));
+      for (const doc of rows) {
+        const raw = doc.data(), recorded = instant.safeParse(raw?.recordedAt);
+        if (recorded.success && recorded.data > instant.parse(asOf)) continue;
+        try {
+          const event = validateStoredBusinessHistory(doc);
+          if (event.subjectKey !== subjectKey) throw new Error("business_history_stored_scope_changed");
+          values.push(event);
+        } catch {
+          // A malformed correction can make an older root obsolete. Suppress
+          // only that identified lineage until repaired, never present it as current.
+          if (raw?.subjectKey === subjectKey && id.safeParse(raw.recordId).success) invalidLineages.add(lineageKey(subjectKey, raw.recordId));
+          // A corrupt record ID must not revive its superseded ancestor. The
+          // query's authorized subject and retained event pointers identify
+          // affected lineages even when the revision itself cannot validate.
+          for (const value of [doc.id, raw?.eventId, raw?.supersedesEventId]) {
+            if (hash.safeParse(value).success) invalidEventIds.add(eventKey(subjectKey, value));
+          }
+          quarantine.push({ recordRef: `${BUSINESS_HISTORY_ROOT}/${doc.id}`, reason: "business_event_invalid_reconcile_original_hash_and_identity" });
+        }
+      }
     }
-    return businessHistoryProjection(values, selected, asOf, this.clock());
+    // Connect valid supersession pointers before checking complete lineages.
+    // A hash-valid cross-record revision is still broken and must suppress its
+    // predecessor, rather than being quarantined as an unrelated record.
+    const parents = new Map<string, string>();
+    const root = (key: string): string => {
+      let current = key;
+      const path: string[] = [];
+      while (parents.has(current) && parents.get(current) !== current) { path.push(current); current = parents.get(current)!; }
+      parents.set(current, current); path.forEach(item => parents.set(item, current)); return current;
+    };
+    const byId = new Map(values.map(event => [eventKey(event.subjectKey, event.eventId), event]));
+    for (const event of values) {
+      const target = event.supersedesEventId ? byId.get(eventKey(event.subjectKey, event.supersedesEventId)) : undefined;
+      if (target) parents.set(root(lineageKey(event.subjectKey, event.recordId)), root(lineageKey(target.subjectKey, target.recordId)));
+      if (invalidEventIds.has(eventKey(event.subjectKey, event.eventId))) invalidLineages.add(lineageKey(event.subjectKey, event.recordId));
+    }
+    const invalidRoots = new Set([...invalidLineages].map(root));
+    const lineages = new Map<string, BusinessHistoryEvent[]>();
+    for (const event of values) {
+      const key = root(lineageKey(event.subjectKey, event.recordId));
+      lineages.set(key, [...(lineages.get(key) ?? []), event]);
+    }
+    const valid: BusinessHistoryEvent[] = [];
+    for (const [key, lineage] of lineages) {
+      try {
+        if (invalidRoots.has(key)) throw new Error("business_lineage_incomplete");
+        businessHistoryProjection(lineage, selected, asOf, this.clock());
+        valid.push(...lineage);
+      } catch {
+        quarantine.push(...lineage.map(event => ({ recordRef: `${BUSINESS_HISTORY_ROOT}/${event.eventId}`,
+          reason: "business_lineage_conflict_reconcile_supersession_without_deleting_history" })));
+      }
+    }
+    return { ...businessHistoryProjection(valid, selected, asOf, this.clock()), quarantine };
   }
 }

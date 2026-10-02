@@ -1,3 +1,4 @@
+import { readQueryPages } from "./query-pages";
 import { LEARNING_ROOT, authorize, validateEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
 import { buildSnapshot, validateCorrection, verifySnapshot, type LearningSnapshot } from "./snapshot";
 
@@ -39,9 +40,8 @@ export class ResearchLearningStore {
     authorize(grant, request, now);
     const values: unknown[] = [];
     for (const prospectId of request.prospectIds) {
-      const records = await this.collection("events").where("entities.prospectId", "==", prospectId).limit(501).get();
-      if (records.size > 500) throw new Error("learning_history_export_required");
-      values.push(...records.docs.map(doc => doc.data()));
+      const records = await readQueryPages(this.collection("events").where("entities.prospectId", "==", prospectId));
+      values.push(...records.map(doc => doc.data()));
     }
     const snapshot = buildSnapshot(values, grant, request, now);
     if (Buffer.byteLength(JSON.stringify(snapshot), "utf8") > 900000) throw new Error("learning_snapshot_scope_too_large");

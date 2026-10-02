@@ -1,3 +1,5 @@
+import { readableHistory } from "./readable-history";
+import { readQueryPages } from "./query-pages";
 import { z } from "zod";
 import { authorize, digest, hash, id, instant, LEARNING_ROOT, sectionSchema, validateEvent, type LearningGrant, type SnapshotRequest } from "./contract";
 import { readExistingSources } from "./existing-sources";
@@ -66,7 +68,9 @@ export function buildBusinessOverview(history: BusinessHistorySnapshot, learning
   const authorized = businessReadScopeSchema.parse(scope), at = instant.parse(now);
   focus = focusSchema.parse(focus);
   if (authorized.expiresAt <= at || history.principalId !== authorized.principalId || history.subjectKeys.some(key => !authorized.subjectKeys.includes(key)) || history.asOf > at) throw new Error("business_overview_scope_denied");
-  const { snapshotId: _id, historyHash: _hash, ...content } = history;
+  // Read diagnostics are bound separately into sourceQuarantine; healthy
+  // canonical history snapshots retain their original hash and shape.
+  const { snapshotId: _id, historyHash: _hash, quarantine: _readDiagnostics, ...content } = history as BusinessHistorySnapshot & { quarantine?: unknown };
   if (digest(content) !== history.snapshotId || digest(history.history) !== history.historyHash) throw new Error("business_overview_history_changed");
   verifySnapshot(learning, learningGrant, at);
   const plan = planResearchLearning(learning, focus), hypotheses = history.current.filter(event => event.kind === "hypothesis");
@@ -111,6 +115,7 @@ export async function runDailyBusinessAnalysis(db: FirebaseFirestore.Firestore, 
   const now = instant.parse(clock()), jobKey = id.parse(input.jobKey), businessScope = businessReadScopeSchema.parse(input.businessScope);
   input = { ...input, focus: focusSchema.parse(input.focus) };
   const authorized = authorize(input.learningGrant, input.request, now);
+  input = { ...input, learningGrant: authorized.grant, request: authorized.request };
   if (!sectionSchema.options.every(section => authorized.request.sections.includes(section))) throw new Error("business_daily_sections_required");
   if (businessScope.expiresAt <= now || businessScope.principalId !== input.learningGrant.principalId) throw new Error("business_daily_scope_denied");
   const assertCurrentScope = () => {
@@ -163,13 +168,15 @@ export async function runDailyBusinessAnalysis(db: FirebaseFirestore.Firestore, 
   }
   const history = await new BusinessHistoryStore(db, clock).read(businessScope, input.request.asOf);
   const live = await readExistingSources(db, input.learningGrant, input.request, clock(), { frozenAsOf: input.request.asOf });
-  const events = [...live.events];
+  live.quarantine.push(...history.quarantine);
+  const events = [...live.events], storedDocuments: FirebaseFirestore.QueryDocumentSnapshot[] = [];
   for (const prospectId of input.request.prospectIds) {
-    const rows = await root.collection("events").where("entities.prospectId", "==", prospectId).limit(501).get();
-    if (rows.size > 500 || events.length + rows.size > 5000) throw new Error("business_daily_history_export_required");
-    events.push(...rows.docs.map(doc => { const event = validateEvent(doc.data()); if (event.eventId !== doc.id || event.entities.prospectId !== prospectId) throw new Error("business_daily_stored_history_changed"); return event; }));
+    const rows = await readQueryPages(root.collection("events").where("entities.prospectId", "==", prospectId));
+    storedDocuments.push(...rows);
   }
-  const learning = buildSnapshot(events, input.learningGrant, input.request, clock());
+  const readable = readableHistory(storedDocuments, events, input.request);
+  live.quarantine.push(...readable.quarantine);
+  const learning = buildSnapshot(readable.events, input.learningGrant, input.request, clock());
   if (Buffer.byteLength(JSON.stringify(learning)) > 900000) throw new Error("business_daily_snapshot_export_or_narrow_scope_required");
   const built = buildBusinessOverview(history, learning, businessScope, input.learningGrant, input.focus, clock());
   const overview = { ...built, analysisScopeHash: scopeHash,

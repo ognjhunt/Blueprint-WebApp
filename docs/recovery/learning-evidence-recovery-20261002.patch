@@ -1,0 +1,984 @@
+diff --git a/AGENTS.md b/AGENTS.md
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -80,6 +80,20 @@
+ 
+ ## Working Rules
+ 
++- Agents choose research strategy, tools and depth within the authorized task,
++  and repair ordinary errors in the same session. Formatting, harmless extra
++  metadata, equivalent date precision, expected pending usage and arbitrary
++  result counts must not end useful work.
++- Preserve original evidence and provenance when normalizing an input. Return
++  actionable validation errors; quarantine only the unsupported claim or
++  affected record where possible and continue with the valid evidence. Never
++  invent facts, silently drop evidence or treat a context/page size as a success
++  quota.
++- Retain consequential controls: the user's spending authority, access/security
++  and deletion approvals, idempotency and duplicate effects, and opt-outs.
++  The current outreach direction remains draft-only with no prospect sends;
++  agent autonomy grants neither external sends nor unlimited spend.
++
+ - Preserve truthful product language around hosted sessions, captures, rights, and provenance.
+ - Prefer only edits that strengthen Arm Decision Proof partner intake,
+   authorization, durable experiment state, inspectable evidence, or bounded
+diff --git a/derived/graphify/webapp-architecture/corpus.manifest.txt b/derived/graphify/webapp-architecture/corpus.manifest.txt
+--- a/derived/graphify/webapp-architecture/corpus.manifest.txt
++++ b/derived/graphify/webapp-architecture/corpus.manifest.txt
+@@ -95,6 +95,8 @@
+ 
+ # Private research/outreach outcome learning contracts; no live source exports.
+ server/research-learning/contract.ts
++server/research-learning/query-pages.ts
++server/research-learning/readable-history.ts
+ server/research-learning/existing-sources.ts
+ server/research-learning/harness.ts
+ server/research-learning/migration.ts
+diff --git a/docs/architecture/research-outreach-learning-layer.md b/docs/architecture/research-outreach-learning-layer.md
+--- a/docs/architecture/research-outreach-learning-layer.md
++++ b/docs/architecture/research-outreach-learning-layer.md
+@@ -2,6 +2,17 @@
+ 
+ Status: verified foundation deployed; prior-research reconciliation staged; business decision/run/daily handlers implemented offline. Caller hooks and Chicago scheduler activation remain separately owned integrations; see the business loop contract below.
+ Owner: WebApp learning projection, coordinated by the parent engineering lane.
++Agent autonomy: agents choose research strategy, tools and depth within the
++authorized task and repair ordinary errors in the same session. Relevant history
++is read in document-ID pages without a result-count success quota. Equivalent
++timestamp formats normalize to the same identity; original source hashes and
++check dates remain unchanged. Invalid optional receipt/reply/cohort fields and
++business/site history produce specific repair references while valid sibling
++evidence remains usable. A malformed business revision suppresses its affected
++lineage until reconciliation rather than presenting an obsolete decision.
++Canonical writes and consequential spending/access, deletion, idempotency,
++opt-out and the current draft-only direction retain their existing owners.
++
+ Authorized objective: make site/job/team research reuse evidence from previous
+ research, contact availability, outreach, replies and later outcomes. The owner
+ explicitly approved this support layer on 2026-10-01 at 17:07. It does not change
+diff --git a/server/AGENTS.md b/server/AGENTS.md
+--- a/server/AGENTS.md
++++ b/server/AGENTS.md
+@@ -8,6 +8,13 @@
+ 
+ Local conventions:
+ 
++- Apply root's agent-autonomy rule in runtime behavior: repair harmless input
++  differences, preserve source evidence, and keep valid sibling records usable
++  when an optional claim fails. Validation should identify the affected record
++  and repair needed without logging private content. Page relevant authorized
++  history rather than stopping at a result count; retain spending/access,
++  opt-out, idempotency and current draft-only controls.
++
+ - Start route mapping in `server/routes.ts`; start app/middleware/rate-limit/CSP questions in `server/index.ts`.
+ - Keep external mutation behind existing auth, CSRF, policy, and human-gate checks.
+ - Do not infer capture, rights, privacy, entitlement, or hosted-session readiness from static fixtures.
+diff --git a/server/research-learning/business-history.ts b/server/research-learning/business-history.ts
+--- a/server/research-learning/business-history.ts
++++ b/server/research-learning/business-history.ts
+@@ -1,3 +1,4 @@
++import { readQueryPages } from "./query-pages";
+ import { z } from "zod";
+ import { digest, hash, id, instant, LEARNING_ROOT } from "./contract";
+ import { safeText } from "./prior-research";
+@@ -104,30 +105,59 @@
+   constructor(private db: FirebaseFirestore.Firestore, private clock = () => new Date().toISOString()) {}
+   async append(value: unknown, context: BusinessWriterContext): Promise<"created" | "existing"> {
+     const event = validateBusinessHistory(value), now = instant.parse(this.clock());
++    const verifiedSources = context.verifiedSources.map(source => businessSourceSchema.parse(source));
+     if (event.capturedBy !== context.principalId || !context.subjectKeys.includes(event.subjectKey) || context.approvedEventId !== event.eventId
++      || event.recordedAt > now || event.sources.some(source => !verifiedSources.some(verified => digest(verified) === digest(source)))) throw new Error("business_history_writer_scope_or_source_denied");
+-      || event.recordedAt > now || event.sources.some(source => !context.verifiedSources.some(verified => digest(verified) === digest(source)))) throw new Error("business_history_writer_scope_or_source_denied");
+     const collection = this.db.doc(LEARNING_ROOT).collection("businessHistoryEvents"), ref = collection.doc(event.eventId);
+     return this.db.runTransaction(async tx => {
+       const existing = await tx.get(ref);
+       if (existing.exists) { if (validateBusinessHistory(existing.data()).eventId !== event.eventId) throw new Error("business_history_existing_conflict"); return "existing"; }
++      const rows = await readQueryPages(collection.where("recordId", "==", event.recordId), query => tx.get(query));
++      const prior = rows.map(doc => validateStoredBusinessHistory(doc));
+-      const rows = await tx.get(collection.where("recordId", "==", event.recordId).limit(501));
+-      if (rows.size > 500) throw new Error("business_history_export_required");
+-      const prior = rows.docs.map(doc => validateStoredBusinessHistory(doc));
+       if (prior.some(previous => previous.subjectKey !== event.subjectKey)) throw new Error("business_history_record_scope_changed");
++      // Validate the complete lineage before an immutable create.
+-      // Validate the complete bounded lineage before an immutable create.
+       businessHistoryProjection([...prior, event], { principalId: context.principalId, subjectKeys: [event.subjectKey], expiresAt: new Date(Date.parse(now)+60000).toISOString() }, now, now);
+       tx.create(ref, event); return "created";
+     });
+   }
+   async read(scope: BusinessReadScope, asOf: string) {
++    const selected = businessReadScopeSchema.parse(scope), values: BusinessHistoryEvent[] = [];
++    const quarantine: { recordRef: string; reason: string }[] = [], invalidLineages = new Set<string>();
++    const lineageKey = (subjectKey: string, recordId: string) => JSON.stringify([subjectKey, recordId]);
+-    const selected = businessReadScopeSchema.parse(scope), values: unknown[] = [];
+     businessHistoryProjection([], selected, asOf, this.clock());
+     for (const subjectKey of selected.subjectKeys) {
++      const rows = await readQueryPages(this.db.doc(LEARNING_ROOT).collection("businessHistoryEvents").where("subjectKey", "==", subjectKey));
++      for (const doc of rows) {
++        const raw = doc.data(), recorded = instant.safeParse(raw?.recordedAt);
++        if (recorded.success && recorded.data > instant.parse(asOf)) continue;
++        try {
++          const event = validateStoredBusinessHistory(doc);
++          if (event.subjectKey !== subjectKey) throw new Error("business_history_stored_scope_changed");
++          values.push(event);
++        } catch {
++          // A malformed correction can make an older root obsolete. Suppress
++          // only that identified lineage until repaired, never present it as current.
++          if (raw?.subjectKey === subjectKey && id.safeParse(raw.recordId).success) invalidLineages.add(lineageKey(subjectKey, raw.recordId));
++          quarantine.push({ recordRef: `${BUSINESS_HISTORY_ROOT}/${doc.id}`, reason: "business_event_invalid_reconcile_original_hash_and_identity" });
++        }
++      }
++    }
++    const lineages = new Map<string, BusinessHistoryEvent[]>();
++    for (const event of values) {
++      const key = lineageKey(event.subjectKey, event.recordId);
++      lineages.set(key, [...(lineages.get(key) ?? []), event]);
++    }
++    const valid: BusinessHistoryEvent[] = [];
++    for (const [key, lineage] of lineages) {
++      try {
++        if (invalidLineages.has(key)) throw new Error("business_lineage_incomplete");
++        businessHistoryProjection(lineage, selected, asOf, this.clock());
++        valid.push(...lineage);
++      } catch {
++        quarantine.push(...lineage.map(event => ({ recordRef: `${BUSINESS_HISTORY_ROOT}/${event.eventId}`,
++          reason: "business_lineage_conflict_reconcile_supersession_without_deleting_history" })));
++      }
+-      const rows = await this.db.doc(LEARNING_ROOT).collection("businessHistoryEvents").where("subjectKey", "==", subjectKey).limit(501).get();
+-      if (rows.size > 500 || values.length + rows.size > 1000) throw new Error("business_history_export_required");
+-      values.push(...rows.docs.map(doc => { const event = validateStoredBusinessHistory(doc);
+-        if (event.subjectKey !== subjectKey) throw new Error("business_history_stored_scope_changed"); return event; }));
+     }
++    return { ...businessHistoryProjection(valid, selected, asOf, this.clock()), quarantine };
+-    return businessHistoryProjection(values, selected, asOf, this.clock());
+   }
+ }
+diff --git a/server/research-learning/business-learning-loop.ts b/server/research-learning/business-learning-loop.ts
+--- a/server/research-learning/business-learning-loop.ts
++++ b/server/research-learning/business-learning-loop.ts
+@@ -1,3 +1,5 @@
++import { readableHistory } from "./readable-history";
++import { readQueryPages } from "./query-pages";
+ import { z } from "zod";
+ import { authorize, digest, hash, id, instant, LEARNING_ROOT, sectionSchema, validateEvent, type LearningGrant, type SnapshotRequest } from "./contract";
+ import { readExistingSources } from "./existing-sources";
+@@ -66,7 +68,9 @@
+   const authorized = businessReadScopeSchema.parse(scope), at = instant.parse(now);
+   focus = focusSchema.parse(focus);
+   if (authorized.expiresAt <= at || history.principalId !== authorized.principalId || history.subjectKeys.some(key => !authorized.subjectKeys.includes(key)) || history.asOf > at) throw new Error("business_overview_scope_denied");
++  // Read diagnostics are bound separately into sourceQuarantine; healthy
++  // canonical history snapshots retain their original hash and shape.
++  const { snapshotId: _id, historyHash: _hash, quarantine: _readDiagnostics, ...content } = history as BusinessHistorySnapshot & { quarantine?: unknown };
+-  const { snapshotId: _id, historyHash: _hash, ...content } = history;
+   if (digest(content) !== history.snapshotId || digest(history.history) !== history.historyHash) throw new Error("business_overview_history_changed");
+   verifySnapshot(learning, learningGrant, at);
+   const plan = planResearchLearning(learning, focus), hypotheses = history.current.filter(event => event.kind === "hypothesis");
+@@ -163,13 +167,15 @@
+   }
+   const history = await new BusinessHistoryStore(db, clock).read(businessScope, input.request.asOf);
+   const live = await readExistingSources(db, input.learningGrant, input.request, clock(), { frozenAsOf: input.request.asOf });
++  live.quarantine.push(...history.quarantine);
++  const events = [...live.events], storedDocuments: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+-  const events = [...live.events];
+   for (const prospectId of input.request.prospectIds) {
++    const rows = await readQueryPages(root.collection("events").where("entities.prospectId", "==", prospectId));
++    storedDocuments.push(...rows);
+-    const rows = await root.collection("events").where("entities.prospectId", "==", prospectId).limit(501).get();
+-    if (rows.size > 500 || events.length + rows.size > 5000) throw new Error("business_daily_history_export_required");
+-    events.push(...rows.docs.map(doc => { const event = validateEvent(doc.data()); if (event.eventId !== doc.id || event.entities.prospectId !== prospectId) throw new Error("business_daily_stored_history_changed"); return event; }));
+   }
++  const readable = readableHistory(storedDocuments, events, input.request);
++  live.quarantine.push(...readable.quarantine);
++  const learning = buildSnapshot(readable.events, input.learningGrant, input.request, clock());
+-  const learning = buildSnapshot(events, input.learningGrant, input.request, clock());
+   if (Buffer.byteLength(JSON.stringify(learning)) > 900000) throw new Error("business_daily_snapshot_export_or_narrow_scope_required");
+   const built = buildBusinessOverview(history, learning, businessScope, input.learningGrant, input.focus, clock());
+   const overview = { ...built, analysisScopeHash: scopeHash,
+diff --git a/server/research-learning/consumer.ts b/server/research-learning/consumer.ts
+--- a/server/research-learning/consumer.ts
++++ b/server/research-learning/consumer.ts
+@@ -1,3 +1,5 @@
++import { readableHistory } from "./readable-history";
++import { readQueryPages } from "./query-pages";
+ import { z } from "zod";
+ import { authorize, CLASSIFICATION_POLICY, digest, hash, id, instant, LEARNING_ROOT, sectionSchema, validateEvent, type LearningEvent } from "./contract";
+ import { readExistingSources, frozenSourceVersionIssue, type Quarantine } from "./existing-sources";
+@@ -61,7 +63,11 @@
+     capabilityIds: binding.discoveryCapabilityIds, sections: ["crm", "capabilities"], expiresAt: binding.expiresAt };
+   const store = new ResearchSourceStore(db, clock);
+   let business: BusinessHistorySnapshot | null = null, businessUnavailable = false;
++  let businessQuarantine: Quarantine[] = [];
++  if (businessScope) { try {
++    const read = await new BusinessHistoryStore(db, clock).read(businessScope, asOf);
++    business = read; businessQuarantine = read.quarantine;
++  } catch { businessUnavailable = true; } }
+-  if (businessScope) { try { business = await new BusinessHistoryStore(db, clock).read(businessScope, asOf); } catch { businessUnavailable = true; } }
+   check();
+   const businessContext = business ? { version: "blueprint.business-history-context.v1" as const, snapshotId: business.snapshotId, historyHash: business.historyHash, asOf: business.asOf,
+     subjectKeys: business.subjectKeys, currentCount: business.current.length, historyCount: business.history.length,
+@@ -109,9 +115,10 @@
+       { crmIds: [], capabilityIds: available, sections: ["capabilities"], asOf }, clock()) : null,
+       missingCapabilityIds: requested.filter(value => !available.includes(value)), absenceMeans: "unknown_not_incompatible" };
+   };
++  const quarantine: Quarantine[] = [...businessQuarantine];
+-  const quarantine: Quarantine[] = [];
+   const unknowns = new Set(source.unknowns);
+   if (businessUnavailable) unknowns.add("business_history_unavailable_or_invalid");
++  if (businessQuarantine.length) unknowns.add("business_history_incomplete_reconcile_affected_records");
+   if (cachedCrmIds.length !== selected.crmIds.length) unknowns.add("crm_rows_missing_from_prior_snapshot");
+   if (cachedCapabilityIds.length !== binding.discoveryCapabilityIds.length) unknowns.add("capabilities_missing_from_prior_snapshot");
+   const prospectIds = new Set(selected.prospectIds);
+@@ -144,7 +151,7 @@
+   const allProspects = [...prospectIds].sort(), sections = [...sectionSchema.options];
+   const grant = { principalId: binding.principalId, prospectIds: allProspects, sections, expiresAt: binding.expiresAt };
+   const request = { prospectIds: allProspects, sections, asOf, maturityDays: selected.maturityDays };
++  const events: LearningEvent[] = [], storedDocuments: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+-  const events: LearningEvent[] = [];
+   const nativeResearch: ReturnType<typeof projectBriefResearch>[] = [];
+   const readRefs = new Set<string>();
+   for (const prospectId of allProspects) {
+@@ -161,19 +168,25 @@
+       unknowns.add("current_history_incomplete");
+     }
+     check();
++    const records = await readQueryPages(db.doc(LEARNING_ROOT).collection("events").where("entities.prospectId", "==", prospectId));
++    storedDocuments.push(...records);
++  }
++  const readable = readableHistory(storedDocuments, events, request);
++  quarantine.push(...readable.quarantine);
++  if (readable.quarantine.length) unknowns.add("stored_history_incomplete");
++  readable.observedSourceRefs.forEach(recordRef => readRefs.add(recordRef));
++  const outcomeSnapshot: LearningSnapshot | null = allProspects.length ? buildSnapshot(readable.events, grant, request, clock()) : null;
++  const siteLearning: Awaited<ReturnType<typeof store.readSiteLearning>> = { history: [], current: [] };
++  for (const crmId of selected.crmIds) {
++    try {
++      const read = await store.readSiteLearning({ ...sourceGrant, sections: ["site_learning"] },
++        { crmIds: [crmId], capabilityIds: [], sections: ["site_learning"], asOf });
++      siteLearning.history.push(...read.history); siteLearning.current.push(...read.current);
++    } catch {
++      quarantine.push({ recordRef: `${LEARNING_ROOT}/siteLearningEvents`, reason: `site_history_retry:${crmId}` });
++      unknowns.add("site_history_incomplete_retry_affected_crm");
+-    const records = await db.doc(LEARNING_ROOT).collection("events").where("entities.prospectId", "==", prospectId).limit(501).get();
+-    if (records.size > 500) throw new Error("learning_consumer_history_export_required");
+-    for (const row of records.docs) {
+-      try {
+-        const event = validateEvent(row.data());
+-        if (event.eventId !== row.id || event.entities.prospectId !== prospectId) throw new Error("changed");
+-        events.push(event); readRefs.add(`${LEARNING_ROOT}/events/${row.id}`);
+-      } catch { quarantine.push({ recordRef: `${LEARNING_ROOT}/events/${row.id}`, reason: "stored_event_invalid" }); unknowns.add("stored_history_incomplete"); }
+     }
+   }
+-  const outcomeSnapshot: LearningSnapshot | null = allProspects.length ? buildSnapshot(events, grant, request, clock()) : null;
+-  const siteLearning = selected.crmIds.length ? await store.readSiteLearning({ ...sourceGrant, sections: ["site_learning"] },
+-    { crmIds: selected.crmIds, capabilityIds: [], sections: ["site_learning"], asOf }) : { history: [], current: [] };
+   const capabilityDetails = details(selected.capabilityIds);
+   let businessOverview: Awaited<ReturnType<typeof readBusinessOverview>> = null;
+   if (options?.businessOverviewJobKey && businessScope) {
+diff --git a/server/research-learning/contract.ts b/server/research-learning/contract.ts
+--- a/server/research-learning/contract.ts
++++ b/server/research-learning/contract.ts
+@@ -16,8 +16,14 @@
+ };
+ export const id = z.string().min(1).max(160).regex(/^[A-Za-z0-9_.:-]+$/);
+ export const hash = z.string().regex(/^[a-f0-9]{64}$/);
++export const instant = z.string().datetime({ offset: true })
++  .refine(value => Number.isFinite(Date.parse(value)), { message: "learning_timestamp_invalid_repair_iso_offset_or_calendar_date" })
++  .transform(value => new Date(value).toISOString());
++// Public cohort labels include accents, non-Latin scripts and punctuation.
++// Exclude private addresses, controls and credential-like material.
++export const cohortLabel = z.string().min(1).max(120).refine(value => !/[\p{Cc}\p{Cf}@]/u.test(value)
++  && !/(?:bearer\s+\S+|(?:token|password|secret|api[_ -]?key)\s*[:=])/i.test(value));
++const label = cohortLabel;
+-export const instant = z.string().datetime().transform(value => new Date(value).toISOString());
+-const label = z.string().min(1).max(120).regex(/^[A-Za-z0-9 ._:/-]+$/);
+ const uniqueIds = z.array(id).max(100).refine(items => new Set(items).size === items.length);
+ export const entitiesSchema = z.object({
+   prospectId: id, crmId: id.nullable(), companyId: id.nullable(),
+diff --git a/server/research-learning/existing-sources.ts b/server/research-learning/existing-sources.ts
+--- a/server/research-learning/existing-sources.ts
++++ b/server/research-learning/existing-sources.ts
+@@ -1,9 +1,10 @@
++import { readQueryPages } from "./query-pages";
+ import {
+   communicationsBriefSchema, communicationsJobSchema, communicationsDigest,
+   communicationsDeliveryKey, verifyCommunicationsHandoff,
+   communicationsEnvelopeSchema,
+ } from "../agents/communications-contract";
++import { authorize, cohortLabel, entitiesSchema, makeEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
+-import { authorize, entitiesSchema, makeEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
+ import { eventSection } from "./snapshot";
+ import { verifyPublishedResearch } from "../agents/communications-research";
+ import { REVIEWED_RESEARCH_ROOT } from "../agents/communications-reviewed-research";
+@@ -33,6 +34,12 @@
+     const sourceRef = `outboundProspects/${input.prospectId}`;
+     observedSourceRefs.push(sourceRef);
+     if (!input.prospect) { quarantine.push({ recordRef: sourceRef, reason: "canonical_prospect_missing" }); continue; }
++    const communicationsEvents = input.communicationsEvents.filter(item => {
++      if (item.record && typeof item.record === "object") return true;
++      quarantine.push({ recordRef: `${sourceRef}/communicationsEvents/${item.id}`,
++        reason: "communications_event_invalid_reconcile_original_record_identity" });
++      return false;
++    });
+     for (const bundle of input.jobs) {
+       const jobRef = `${ROOT}/jobs/${bundle.id}`;
+       observedSourceRefs.push(jobRef);
+@@ -74,10 +81,18 @@
+         const common = { entities, recordedAt, actorId: "firestore-learning-adapter", correctsEventId: null };
+         const researchRef = `${ROOT}/researchSources/${job.briefDigest}`;
+         observedSourceRefs.push(researchRef);
++        const cohort: Record<"city" | "industry", string> = { city: "unknown", industry: "unknown" };
++        for (const field of ["city", "industry"] as const) {
++          const value = source.candidate[field];
++          if (value == null) continue;
++          const parsed = cohortLabel.safeParse(value);
++          if (parsed.success) cohort[field] = parsed.data;
++          else quarantine.push({ recordRef: researchRef, reason: `cohort_${field}_invalid_reconcile_public_label` });
++        }
+         events.push(makeEvent({ ...common, writer: "research_adapter", kind: "research_observed", occurredAt: brief.qualityReview.reviewedAt,
+           // No industry/geography inference from free text. Missing structured
+           // cohort metadata remains explicit until the research owner supplies it.
++          data: { city: cohort.city, industry: cohort.industry, factIds: brief.facts.map(f => f.id),
+-          data: { city: source.candidate.city ?? "unknown", industry: source.candidate.industry ?? "unknown", factIds: brief.facts.map(f => f.id),
+             factChecks: brief.facts.map(f => ({ factId: f.id, sourceHash: communicationsDigest(f), grade: f.evidenceClass,
+               sourceCheckedAt: new Date(f.sourceCheckedAt).toISOString() })) },
+           evidence: [{ sourceSystem: "firestore", recordRef: researchRef, sourceHash: communicationsDigest(bundle.researchSource),
+@@ -86,54 +101,67 @@
+           data: { availability: ["public_business_contact", "reply_requested"].includes(brief.consent.status) ? "verified_business_route" : "unverified" },
+           evidence: [{ sourceSystem: "firestore", recordRef: `${ROOT}/briefs/${brief.briefId}`, sourceHash: job.briefDigest,
+             checkedAt: new Date(brief.contact.sourceCheckedAt).toISOString(), basis: "contact_proof" }] }));
++        researchDetails.push(projectBriefResearch(brief));
+         if (bundle.receipt) {
++          const receiptStart = events.length;
++          const receiptRef = `${ROOT}/sendReceipts/${communicationsDeliveryKey(job)}`;
++          try {
++            const receipt = bundle.receipt, ledger = bundle.ledger;
++            const ref = `${ROOT}/sendReceipts/${communicationsDeliveryKey(job)}`;
++            observedSourceRefs.push(ref);
++            const envelope = communicationsEnvelopeSchema.parse(ledger?.action_payload?.communications);
++            if (receipt.jobId !== job.jobId || !["attempting", "unknown", "sent"].includes(receipt.state)
++              || !ledger?.action_payload || communicationsDigest(ledger.action_payload) !== receipt.payloadDigest
++              || receipt.approvalLedgerId !== `communications_${job.jobId}`
++              || communicationsDigest(envelope.job) !== communicationsDigest(job)
++              || communicationsDigest(envelope.brief) !== job.briefDigest
++              || ledger.action_payload.to?.toLowerCase() !== brief.contact.email.toLowerCase()
++              || ledger.action_payload.subject !== envelope.output.subject || ledger.action_payload.body !== envelope.output.body
++              || typeof ledger.action_payload.transportBody !== "string") throw new Error("receipt_join_invalid");
++            const status = receipt.state === "sent" ? "accepted" : receipt.state === "attempting" ? "attempted" : "unknown";
++            const at = status === "accepted" ? receipt.sentAt : receipt.attemptedAt;
++            events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "outreach_observed", occurredAt: at,
++              data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", intent: job.intent,
++                payloadDigest: receipt.payloadDigest, approvalLedgerId: receipt.approvalLedgerId,
++                // Copy controls use the approved pre-footer copy. Full payload
++                // and receipt hashes still retain recipient-specific transport evidence.
++                messageDigest: communicationsDigest({ subject: envelope.output.subject, body: envelope.output.body }), messageVariant: null,
++                messageId: receipt.receipt?.messageId ?? null, threadId: receipt.receipt?.threadId ?? null,
++                status, campaignId: null, timingWindow: null },
++              evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(receipt), checkedAt: at,
++                basis: status === "accepted" ? "provider_acceptance" : "send_attempt" }] }));
++          } catch {
++            events.splice(receiptStart);
++            quarantine.push({ recordRef: receiptRef,
++              reason: "receipt_evidence_invalid_reconcile_exact_job_payload_and_gmail_refs" });
++          }
+-          const receipt = bundle.receipt, ledger = bundle.ledger;
+-          const ref = `${ROOT}/sendReceipts/${communicationsDeliveryKey(job)}`;
+-          observedSourceRefs.push(ref);
+-          const envelope = communicationsEnvelopeSchema.parse(ledger?.action_payload?.communications);
+-          if (receipt.jobId !== job.jobId || !["attempting", "unknown", "sent"].includes(receipt.state)
+-            || !ledger?.action_payload || communicationsDigest(ledger.action_payload) !== receipt.payloadDigest
+-            || receipt.approvalLedgerId !== `communications_${job.jobId}`
+-            || communicationsDigest(envelope.job) !== communicationsDigest(job)
+-            || communicationsDigest(envelope.brief) !== job.briefDigest
+-            || ledger.action_payload.to?.toLowerCase() !== brief.contact.email.toLowerCase()
+-            || ledger.action_payload.subject !== envelope.output.subject || ledger.action_payload.body !== envelope.output.body
+-            || typeof ledger.action_payload.transportBody !== "string") throw new Error("receipt_join_invalid");
+-          const status = receipt.state === "sent" ? "accepted" : receipt.state === "attempting" ? "attempted" : "unknown";
+-          const at = status === "accepted" ? receipt.sentAt : receipt.attemptedAt;
+-          events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "outreach_observed", occurredAt: at,
+-            data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", intent: job.intent,
+-              payloadDigest: receipt.payloadDigest, approvalLedgerId: receipt.approvalLedgerId,
+-              // Copy controls use the approved pre-footer copy. Full payload
+-              // and receipt hashes still retain recipient-specific transport evidence.
+-              messageDigest: communicationsDigest({ subject: envelope.output.subject, body: envelope.output.body }), messageVariant: null,
+-              messageId: receipt.receipt?.messageId ?? null, threadId: receipt.receipt?.threadId ?? null,
+-              status, campaignId: null, timingWindow: null },
+-            evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(receipt), checkedAt: at,
+-              basis: status === "accepted" ? "provider_acceptance" : "send_attempt" }] }));
+         }
++        for (const item of communicationsEvents.filter(e => e.record.type === "reply_received" && e.record.jobId === job.jobId)) {
+-        for (const item of input.communicationsEvents.filter(e => e.record.type === "reply_received" && e.record.jobId === job.jobId)) {
+           const ref = `${sourceRef}/communicationsEvents/${item.id}`;
+           observedSourceRefs.push(ref);
++          try {
++            const reply = item.record.message;
++            const sentRefs = communicationsEvents.filter(e => e.record.type === "sent"
++              && e.record.job?.prospectId === input.prospectId && brief.priorConversation?.gmailMessageIds.includes(e.record.receipt?.messageId)
++              && e.record.receipt?.threadId === reply?.gmailThreadId);
++            // The worker also records an earlier correlated opt-out under this
++            // job. Its own immutable Gmail identity need not be the job trigger.
++            if (item.record.untrusted !== true || job.intent !== "reply" || !job.inboundMessageId || !reply
++              || item.id !== `reply_${reply.gmailMessageId}` || !brief.priorConversation
++              || reply.gmailThreadId !== brief.priorConversation.gmailThreadId
++              || reply.from?.toLowerCase() !== brief.contact.email.toLowerCase()
++              || !sentRefs.some(e => e.record.receipt.rfcMessageId && (reply.inReplyTo === e.record.receipt.rfcMessageId || reply.references?.includes(e.record.receipt.rfcMessageId)))
++              || !reply.to?.some((to: string) => ["nijel@tryblueprint.io", "hello@tryblueprint.io"].includes(to.toLowerCase()))) throw new Error("reply_join_invalid");
++            events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "reply_observed", occurredAt: reply.receivedAt,
++              data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", messageId: reply.gmailMessageId, threadId: reply.gmailThreadId,
++                classification: { label: "unknown", interest: "unknown", objections: [], confidence: 0, method: "legacy_unknown", uncertain: true } },
++              evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(item.record),
++                checkedAt: reply.receivedAt, basis: "correlated_reply" }] }));
++          } catch {
++            quarantine.push({ recordRef: ref,
++              reason: "reply_evidence_invalid_reconcile_exact_message_thread_and_rfc_refs" });
++          }
+-          const reply = item.record.message;
+-          const sentRefs = input.communicationsEvents.filter(e => e.record.type === "sent"
+-            && e.record.job?.prospectId === input.prospectId && brief.priorConversation?.gmailMessageIds.includes(e.record.receipt?.messageId)
+-            && e.record.receipt?.threadId === reply?.gmailThreadId);
+-          // The worker also records an earlier correlated opt-out under this
+-          // job. Its own immutable Gmail identity need not be the job trigger.
+-          if (item.record.untrusted !== true || job.intent !== "reply" || !job.inboundMessageId || !reply
+-            || item.id !== `reply_${reply.gmailMessageId}` || !brief.priorConversation
+-            || reply.gmailThreadId !== brief.priorConversation.gmailThreadId
+-            || reply.from?.toLowerCase() !== brief.contact.email.toLowerCase()
+-            || !sentRefs.some(e => e.record.receipt.rfcMessageId && (reply.inReplyTo === e.record.receipt.rfcMessageId || reply.references?.includes(e.record.receipt.rfcMessageId)))
+-            || !reply.to?.some((to: string) => ["nijel@tryblueprint.io", "hello@tryblueprint.io"].includes(to.toLowerCase()))) throw new Error("reply_join_invalid");
+-          events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "reply_observed", occurredAt: reply.receivedAt,
+-            data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", messageId: reply.gmailMessageId, threadId: reply.gmailThreadId,
+-              classification: { label: "unknown", interest: "unknown", objections: [], confidence: 0, method: "legacy_unknown", uncertain: true } },
+-            evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(item.record),
+-              checkedAt: reply.receivedAt, basis: "correlated_reply" }] }));
+         }
+-        researchDetails.push(projectBriefResearch(brief));
+       } catch {
+         events.splice(start);
+         quarantine.push({ recordRef: jobRef, reason: "source_contract_or_exact_join_invalid" });
+@@ -172,11 +200,16 @@
+     const prospectRef = db.collection("outboundProspects").doc(prospectId);
+     const prospect = await prospectRef.get();
+     if (!admit(prospect, prospectRef.path)) continue;
++    const jobs = await readQueryPages(db.doc(ROOT).collection("jobs").where("prospectId", "==", prospectId));
++    let communications: FirebaseFirestore.QueryDocumentSnapshot[] | undefined;
++    try {
++      communications = authorized.sections.includes("replies") ? await readQueryPages(prospectRef.collection("communicationsEvents")) : undefined;
++    } catch {
++      readQuarantine.push({ recordRef: `${prospectRef.path}/communicationsEvents`,
++        reason: "communications_events_read_unavailable_retry_authorized_prospect" });
++    }
+-    const jobs = await db.doc(ROOT).collection("jobs").where("prospectId", "==", prospectId).limit(101).get();
+-    const communications = authorized.sections.includes("replies") ? await prospectRef.collection("communicationsEvents").limit(501).get() : undefined;
+-    if (jobs.size > 100 || (communications?.size ?? 0) > 500) throw new Error("learning_source_export_required");
+     const bundles: ExistingJob[] = [];
++    for (const job of jobs) {
+-    for (const job of jobs.docs) {
+       try {
+         if (!admit(job, `${ROOT}/jobs/${job.id}`)) continue;
+         const record = job.data();
+@@ -196,13 +229,21 @@
+           ? await db.doc(ROOT).collection("contactProofs").doc(contactDigest).get() : undefined;
+         if (contact && !admit(contact, `${ROOT}/contactProofs/${contactDigest}`)) continue;
+         const receiptRef = `${ROOT}/sendReceipts/${communicationsDeliveryKey(identity)}`;
++        let receipt: FirebaseFirestore.DocumentSnapshot | undefined, ledger: FirebaseFirestore.DocumentSnapshot | undefined;
++        let ledgerEligible = false;
++        try {
++          const receiptRead = authorized.sections.includes("outreach") ? await db.doc(receiptRef).get() : undefined;
++          receipt = receiptRead?.exists && admit(receiptRead, receiptRef) ? receiptRead : undefined;
++          const receiptJobId = receipt?.data()?.jobId;
++          if (receipt?.exists && !jobs.some(job => job.id === receiptJobId)) {
++            readQuarantine.push({ recordRef: receiptRef, reason: "orphan_or_legacy_receipt_requires_reconciliation" });
++          }
++          ledger = receipt?.exists && receiptJobId === identity.jobId ? await db.collection("action_ledger").doc(`communications_${identity.jobId}`).get() : undefined;
++          ledgerEligible = !!ledger && admit(ledger, `action_ledger/communications_${identity.jobId}`);
++        } catch {
++          receipt = undefined; ledger = undefined;
++          readQuarantine.push({ recordRef: receiptRef, reason: "receipt_read_unavailable_retry_exact_receipt_and_ledger" });
+-        const receiptRead = authorized.sections.includes("outreach") ? await db.doc(receiptRef).get() : undefined;
+-        const receipt = receiptRead?.exists && admit(receiptRead, receiptRef) ? receiptRead : undefined;
+-        if (receipt?.exists && !jobs.docs.some(job => job.id === receipt.data()?.jobId)) {
+-          readQuarantine.push({ recordRef: `${ROOT}/sendReceipts/${communicationsDeliveryKey(identity)}`, reason: "orphan_or_legacy_receipt_requires_reconciliation" });
+         }
+-        const ledger = receipt?.exists && receipt.data()?.jobId === identity.jobId ? await db.collection("action_ledger").doc(`communications_${identity.jobId}`).get() : undefined;
+-        const ledgerEligible = ledger && admit(ledger, `action_ledger/communications_${identity.jobId}`);
+         bundles.push({ id: job.id, record: identity, brief: brief.data(), handoff: handoff.data(), researchSource: source.data(),
+           reviewedSnapshot: reviewed?.data(), contactProof: contact?.data(),
+           receipt: receipt?.data()?.jobId === identity.jobId && ledgerEligible ? receipt?.data() : undefined,
+@@ -213,8 +254,7 @@
+         readQuarantine.push({ recordRef: `${ROOT}/jobs/${job.id}`, reason: "source_contract_or_exact_join_invalid" });
+       }
+     }
++    inputs.push({ prospectId, prospect: prospect.data(), jobs: bundles, communicationsEvents: communications?.filter(doc => admit(doc, `${prospectRef.path}/communicationsEvents/${doc.id}`)).map(doc => ({ id: doc.id, record: doc.data() })) ?? [] });
+-    inputs.push({ prospectId, prospect: prospect.data(), jobs: bundles, communicationsEvents: communications?.docs
+-      .filter(doc => admit(doc, `${prospectRef.path}/communicationsEvents/${doc.id}`)).map(doc => ({ id: doc.id, record: doc.data() })) ?? [] });
+   }
+   const normalized = normalizeExistingSources(inputs, options?.frozenAsOf ?? now);
+   // The public reader boundary returns structured authorized events only.
+diff --git a/server/research-learning/query-pages.ts b/server/research-learning/query-pages.ts
+new file mode 100644
+--- /dev/null
++++ b/server/research-learning/query-pages.ts
+@@ -0,0 +1,19 @@
++import { FieldPath } from "firebase-admin/firestore";
++
++/** Page an already-authorized query. A transport page size is not a result
++ * quota. Document-ID cursors preserve each original record and its metadata.
++ * A supplied reader keeps transaction reads in the caller's transaction. */
++export async function readQueryPages(query: FirebaseFirestore.Query,
++  read = (page: FirebaseFirestore.Query) => page.get()) {
++  const pageSize = 100;
++  const ordered = query.orderBy(FieldPath.documentId());
++  const records: FirebaseFirestore.QueryDocumentSnapshot[] = [];
++  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
++  do {
++    const page = await read((cursor ? ordered.startAfter(cursor) : ordered).limit(pageSize));
++    records.push(...page.docs);
++    if (page.size < pageSize) break;
++    cursor = page.docs.at(-1);
++  } while (cursor);
++  return records;
++}
+diff --git a/server/research-learning/readable-history.ts b/server/research-learning/readable-history.ts
+new file mode 100644
+--- /dev/null
++++ b/server/research-learning/readable-history.ts
+@@ -0,0 +1,61 @@
++import { hash, instant, LEARNING_ROOT, validateEvent, type LearningEvent, type SnapshotRequest } from "./contract";
++import { eventSection, resolveHistory, sectionsByKind } from "./snapshot";
++import type { Quarantine } from "./existing-sources";
++
++/** Read repair only: original documents stay untouched. A broken correction
++ * suppresses its connected lineage so an obsolete root cannot become current. */
++export function readableHistory(documents: { id: string; data(): unknown }[], live: LearningEvent[], request: SnapshotRequest) {
++  const events: LearningEvent[] = [], quarantine: Quarantine[] = [], invalid = new Set<string>(), observedSourceRefs: string[] = [];
++  const key = (prospectId: string, eventId: string) => JSON.stringify([prospectId, eventId]);
++  const parent = new Map<string, string>();
++  const root = (value: string): string => {
++    const path: string[] = []; let current = value;
++    while (parent.has(current) && parent.get(current) !== current) { path.push(current); current = parent.get(current)!; }
++    parent.set(current, current); path.forEach(item => parent.set(item, current)); return current;
++  };
++  const union = (left: string, right: string) => { parent.set(root(left), root(right)); };
++  const admit = (event: LearningEvent) => request.prospectIds.includes(event.entities.prospectId)
++    && request.sections.includes(eventSection(event)) && event.recordedAt <= request.asOf && event.occurredAt <= request.asOf
++    && event.evidence.every(evidence => evidence.checkedAt <= request.asOf);
++  for (const event of live) if (admit(event)) events.push(event);
++  for (const document of documents) {
++    const raw: any = document.data(), prospectId = raw?.entities?.prospectId;
++    if (!request.prospectIds.includes(prospectId)) continue;
++    const section = typeof raw?.kind === "string" && Object.hasOwn(sectionsByKind, raw.kind)
++      ? sectionsByKind[raw.kind as LearningEvent["kind"]] : undefined;
++    if (section ? !request.sections.includes(section) : request.sections.length !== 5) continue;
++    // An identified future revision does not change an earlier frozen view.
++    const recorded = instant.safeParse(raw?.recordedAt);
++    if (recorded.success && recorded.data > request.asOf) continue;
++    try {
++      const event = validateEvent(raw);
++      if (event.eventId !== document.id) throw new Error("stored_document_identity_changed");
++      if (admit(event)) { events.push(event); observedSourceRefs.push(`${LEARNING_ROOT}/events/${document.id}`); }
++    } catch {
++      quarantine.push({ recordRef: `${LEARNING_ROOT}/events/${document.id}`, reason: "stored_event_invalid_reconcile_original_hash_and_identity" });
++      for (const value of [document.id, raw?.eventId, raw?.correctsEventId]) if (hash.safeParse(value).success) invalid.add(key(prospectId, value));
++      if (hash.safeParse(raw?.eventId).success && hash.safeParse(raw?.correctsEventId).success)
++        union(key(prospectId, raw.eventId), key(prospectId, raw.correctsEventId));
++    }
++  }
++  for (const event of events) {
++    const own = key(event.entities.prospectId, event.eventId); root(own);
++    if (event.correctsEventId) union(own, key(event.entities.prospectId, event.correctsEventId));
++  }
++  const invalidRoots = new Set([...invalid].map(root)), groups = new Map<string, LearningEvent[]>();
++  for (const event of events) {
++    const own = root(key(event.entities.prospectId, event.eventId));
++    groups.set(own, [...(groups.get(own) ?? []), event]);
++  }
++  const valid: LearningEvent[] = [];
++  for (const [lineage, group] of groups) {
++    try {
++      if (invalidRoots.has(lineage)) throw new Error("stored_lineage_incomplete");
++      resolveHistory(group); valid.push(...group);
++    } catch {
++      quarantine.push(...group.map(event => ({ recordRef: `${LEARNING_ROOT}/events/${event.eventId}`,
++        reason: "stored_lineage_conflict_reconcile_correction_without_deleting_history" })));
++    }
++  }
++  return { events: valid, quarantine, observedSourceRefs: [...new Set(observedSourceRefs)].sort() };
++}
+diff --git a/server/research-learning/snapshot.ts b/server/research-learning/snapshot.ts
+--- a/server/research-learning/snapshot.ts
++++ b/server/research-learning/snapshot.ts
+@@ -3,10 +3,11 @@
+   type LearningEvent, type LearningGrant, type Section, type SnapshotRequest,
+ } from "./contract";
+ 
++export const sectionsByKind: Record<LearningEvent["kind"], Section> = {
++  research_observed: "research", contact_observed: "contact", outreach_observed: "outreach",
++  delivery_observed: "outreach", reply_observed: "replies", outcome_observed: "outcomes",
++};
++export function eventSection(event: LearningEvent): Section { return sectionsByKind[event.kind]; }
+-export function eventSection(event: LearningEvent): Section {
+-  return event.kind === "research_observed" ? "research" : event.kind === "contact_observed" ? "contact"
+-    : event.kind === "reply_observed" ? "replies" : event.kind === "outcome_observed" ? "outcomes" : "outreach";
+-}
+ export type SnapshotRow = {
+   prospectId: string;
+   history: LearningEvent[];
+@@ -74,7 +75,12 @@
+ export function buildSnapshot(values: unknown[], grant: LearningGrant, input: SnapshotRequest, now: string): LearningSnapshot {
+   const { request } = authorize(grant, input, now);
+   // Discard unrelated records before parsing or serializing any of their fields.
++  const scoped = values.filter((value: any) => {
++    if (!request.prospectIds.includes(value?.entities?.prospectId)) return false;
++    const section = typeof value?.kind === "string" && Object.hasOwn(sectionsByKind, value.kind)
++      ? sectionsByKind[value.kind as LearningEvent["kind"]] : undefined;
++    return section ? request.sections.includes(section) : request.sections.length === 5;
++  });
+-  const scoped = values.filter((value: any) => request.prospectIds.includes(value?.entities?.prospectId));
+   const allowed = scoped.map(validateEvent).filter(event => event.recordedAt <= request.asOf && event.occurredAt <= request.asOf
+     && event.evidence.every(e => e.checkedAt <= request.asOf) && request.sections.includes(eventSection(event)));
+   const rows = [...request.prospectIds].sort().map(prospectId => {
+diff --git a/server/research-learning/source-store.ts b/server/research-learning/source-store.ts
+--- a/server/research-learning/source-store.ts
++++ b/server/research-learning/source-store.ts
+@@ -1,3 +1,4 @@
++import { readQueryPages } from "./query-pages";
+ import { LEARNING_ROOT } from "./contract";
+ import { authorizeSources, scopeSourceSnapshot, verifySourceSnapshot, validatedReconciliationSnapshot, type reconcilePriorResearch, type SourceGrant, type SourceRequest } from "./prior-research";
+ import { siteLearningHistory, validateSiteCorrection, validateSiteLearning } from "./site-learning";
+@@ -64,9 +65,12 @@
+     if (!selected.sections.includes("site_learning")) return { history: [], current: [] };
+     const records = this.db.doc(LEARNING_ROOT).collection("siteLearningEvents"), values: unknown[] = [];
+     for (const crmId of selected.crmIds) {
++      const rows = await readQueryPages(records.where("crmId", "==", crmId));
++      values.push(...rows.map(row => {
++        const event = validateSiteLearning(row.data());
++        if (event.eventId !== row.id || event.crmId !== crmId) throw new Error("site_learning_document_identity_changed");
++        return event;
++      }));
+-      const rows = await records.where("crmId", "==", crmId).limit(501).get();
+-      if (rows.size > 500) throw new Error("site_learning_history_export_required");
+-      values.push(...rows.docs.map(row => row.data()));
+     }
+     return siteLearningHistory(values, grant, request, this.now());
+   }
+diff --git a/server/research-learning/store.ts b/server/research-learning/store.ts
+--- a/server/research-learning/store.ts
++++ b/server/research-learning/store.ts
+@@ -1,3 +1,4 @@
++import { readQueryPages } from "./query-pages";
+ import { LEARNING_ROOT, authorize, validateEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
+ import { buildSnapshot, validateCorrection, verifySnapshot, type LearningSnapshot } from "./snapshot";
+ 
+@@ -39,9 +40,8 @@
+     authorize(grant, request, now);
+     const values: unknown[] = [];
+     for (const prospectId of request.prospectIds) {
++      const records = await readQueryPages(this.collection("events").where("entities.prospectId", "==", prospectId));
++      values.push(...records.map(doc => doc.data()));
+-      const records = await this.collection("events").where("entities.prospectId", "==", prospectId).limit(501).get();
+-      if (records.size > 500) throw new Error("learning_history_export_required");
+-      values.push(...records.docs.map(doc => doc.data()));
+     }
+     const snapshot = buildSnapshot(values, grant, request, now);
+     if (Buffer.byteLength(JSON.stringify(snapshot), "utf8") > 900000) throw new Error("learning_snapshot_scope_too_large");
+diff --git a/server/tests/business-history.test.ts b/server/tests/business-history.test.ts
+--- a/server/tests/business-history.test.ts
++++ b/server/tests/business-history.test.ts
+@@ -88,9 +88,57 @@
+   it("rejects valid events under wrong Firestore document keys before projecting or appending", async () => {
+     const f = learningMemoryFirestore(), event = decision(), store = new BusinessHistoryStore(f.db, () => now);
+     f.records.set("blueprintResearchLearning/default/businessHistoryEvents/wrong-key", event);
++    const read = await store.read(scope, now);
++    expect(read.history).toEqual([]);
++    expect(read.quarantine).toContainEqual({ recordRef: "blueprintResearchLearning/default/businessHistoryEvents/wrong-key", reason: "business_event_invalid_reconcile_original_hash_and_identity" });
+-    await expect(store.read(scope, now)).rejects.toThrow("document_identity_changed");
+     const next = decision({ supersedesEventId: event.eventId, statement: "A sourced later decision." });
+     await expect(store.append(next, context(next))).rejects.toThrow("document_identity_changed"); expect(f.writes).toEqual([]);
+   });
+ 
++  it("keeps valid business records while quarantining an invalid record and a competing lineage", async () => {
++    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now);
++    const valid = decision({ recordId: "BP-DEC-valid" }), original = decision(), conflict = decision({ statement: "Competing decision." });
++    for (const event of [valid, original, conflict]) f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`, event);
++    f.records.set("blueprintResearchLearning/default/businessHistoryEvents/bad", { subjectKey, body: "PRIVATE_SENTINEL" });
++    const read = await store.read(scope, now);
++    expect(read.current.map(event => event.eventId)).toEqual([valid.eventId]); expect(read.quarantine).toHaveLength(3);
++    expect(f.records.size).toBe(4); expect(f.writes).toEqual([]); expect(JSON.stringify(read)).not.toContain("PRIVATE_SENTINEL");
++  });
++  it("does not resurrect an obsolete decision when its malformed revision needs repair", async () => {
++    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now), original = decision();
++    const valid = decision({ recordId: "BP-DEC-valid" }), correction = decision({ supersedesEventId: original.eventId, statement: "Later sourced decision." });
++    for (const event of [original, valid]) f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`, event);
++    f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${correction.eventId}`, { ...correction, statement: "PRIVATE_MUTATED_BODY" });
++    const read = await store.read(scope, now);
++    expect(read.current.map(event => event.eventId)).toEqual([valid.eventId]);
++    expect(read.quarantine).toHaveLength(2); expect(f.records.size).toBe(3); expect(f.writes).toEqual([]);
++  });
++  it("pages every authorized business record beyond the former 500-record stop", async () => {
++    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now), expected = new Set<string>();
++    for (let index = 0; index < 503; index++) {
++      const event = decision({ recordId: `BP-DEC-page-${index}` }); expected.add(event.eventId);
++      f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`, event);
++    }
++    const read = await store.read(scope, now);
++    expect(new Set(read.history.map(event => event.eventId))).toEqual(expected); expect(read.quarantine).toEqual([]); expect(f.writes).toEqual([]);
++    const canonical = businessHistoryProjection(read.history, scope, now, now);
++    expect(read.snapshotId).toBe(canonical.snapshotId); expect(read.historyHash).toBe(canonical.historyHash);
++  });
++  it("accepts equivalent trusted source timestamps without mutating original provenance", async () => {
++    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now), event = decision();
++    const trusted = structuredClone(context(event)); (trusted.verifiedSources[0] as any).originalTimestamp = "2026-10-01T17:00:00-05:00";
++    const before = JSON.stringify(trusted);
++    expect(await store.append(event, trusted)).toBe("created"); expect(JSON.stringify(trusted)).toBe(before);
++    expect(f.records.get(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`).sources[0].sourceHash).toBe(event.sources[0].sourceHash);
++  });
++  it("quarantines an impossible ISO offset without aborting other business records", async () => {
++    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now);
++    const valid = decision({ recordId: "BP-DEC-valid" }), invalid = decision();
++    f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${valid.eventId}`, valid);
++    f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${invalid.eventId}`, { ...invalid, recordedAt: "2026-10-01T23:00:00+99:99" });
++    const read = await store.read(scope, now);
++    expect(read.current.map(event => event.eventId)).toEqual([valid.eventId]);
++    expect(read.quarantine).toHaveLength(1); expect(f.writes).toEqual([]);
++  });
++
+ });
+diff --git a/server/tests/business-learning-loop.test.ts b/server/tests/business-learning-loop.test.ts
+--- a/server/tests/business-learning-loop.test.ts
++++ b/server/tests/business-learning-loop.test.ts
+@@ -62,11 +62,15 @@
+     expect(overviewFreshness(first.overview, now).stale).toBe(false); expect(overviewFreshness(first.overview, "2026-10-03T14:00:00.000Z").stale).toBe(true);
+     expect(overviewFreshness(first.overview, now, digest("changed source")).stale).toBe(true);
+   });
++  it("rejects changed retry scope and keeps valid evidence through stored-history repair", async () => {
+-  it("fails safely on changed retry scope and corrupted stored history without committing a summary", async () => {
+     const f = setup(); await f.execute();
+     await expect(runDailyBusinessAnalysis(f.db, { jobKey: "daily-2026-10-02", businessScope, learningGrant: { ...learningGrant, sections: [...learningGrant.sections] }, request: { ...request, maturityDays: 90 }, focus: { city: "Sacramento", industry: "Laundromats" } }, () => now)).rejects.toThrow("job_scope_changed");
+     const other = setup(); other.records.set("blueprintResearchLearning/default/events/invalid", { entities: { prospectId: "prospect-1" }, body: "PRIVATE_SENTINEL" });
++    const repaired = await other.execute();
++    expect(repaired.overview.sourceQuarantine).toContainEqual({ recordRef: "blueprintResearchLearning/default/events/invalid", reason: "stored_event_invalid_reconcile_original_hash_and_identity" });
++    expect(repaired.overview.outcomeAnalysis.cohorts[0].counts.matureReplyRate).toEqual({ numerator: 0, denominator: 1 });
++    expect(JSON.stringify(repaired)).not.toContain("PRIVATE_SENTINEL");
++    expect((await other.execute()).overview.overviewId).toBe(repaired.overview.overviewId);
+-    await expect(other.execute()).rejects.toThrow(); expect(other.writes).toEqual([]);
+   });
+   it("rejects expiry during replay and before transactional creates", async () => {
+     for (const phase of ["replay", "transaction"]) {
+diff --git a/server/tests/fixtures/research-learning.ts b/server/tests/fixtures/research-learning.ts
+--- a/server/tests/fixtures/research-learning.ts
++++ b/server/tests/fixtures/research-learning.ts
+@@ -79,13 +79,17 @@
+   };
+   const doc = (path: string): any => ({ path, get: async () => { reads.push(path); return snap(path); }, collection: (name: string) => collection(`${path}/${name}`) });
+   const collection = (path: string): any => {
++    const query = (filters: [string, any][] = [], limit = 10000, fields?: string[], ordered = false, after?: string): any => ({
++      doc: (name: string) => doc(`${path}/${name}`), where: (key: string, _op: string, value: any) => query([...filters, [key, value]], limit, fields, ordered, after),
++      select: (...selected: string[]) => query(filters, limit, selected, ordered, after),
++      orderBy: () => query(filters, limit, fields, true, after),
++      startAfter: (snapshot: any) => query(filters, limit, fields, ordered, snapshot.id),
++      limit: (n: number) => query(filters, n, fields, ordered, after), get: async () => {
+-    const query = (filters: [string, any][] = [], limit = 10000, fields?: string[]): any => ({
+-      doc: (name: string) => doc(`${path}/${name}`), where: (key: string, _op: string, value: any) => query([...filters, [key, value]], limit, fields),
+-      select: (...selected: string[]) => query(filters, limit, selected),
+-      limit: (n: number) => query(filters, n, fields), get: async () => {
+         reads.push(path);
++        const matched = [...records].filter(([key, value]) => key.startsWith(`${path}/`) && key.slice(path.length + 1).split("/").length === 1
++          && filters.every(([field, expected]) => getPath(field, value) === expected));
++        if (ordered) matched.sort(([left], [right]) => left.localeCompare(right));
++        const docs = matched.filter(([key]) => !after || key.slice(path.length + 1) > after).slice(0, limit).map(([key]) => {
+-        const docs = [...records].filter(([key, value]) => key.startsWith(`${path}/`) && key.slice(path.length + 1).split("/").length === 1
+-          && filters.every(([field, expected]) => getPath(field, value) === expected)).slice(0, limit).map(([key]) => {
+             const original = snap(key);
+             return fields ? { ...original, data: () => Object.fromEntries(fields.map(field => [field, getPath(field, original.data())])) } : original;
+           });
+diff --git a/server/tests/research-learning-consumer.test.ts b/server/tests/research-learning-consumer.test.ts
+--- a/server/tests/research-learning-consumer.test.ts
++++ b/server/tests/research-learning-consumer.test.ts
+@@ -262,7 +262,7 @@
+   it("keeps prior research available when optional business history is invalid and reports unknown", async () => {
+     const f = fixture(); f.records.set("blueprintResearchLearning/default/businessHistoryEvents/invalid", { subjectKey: "blueprint:research-learning", body: "PRIVATE_SENTINEL" });
+     const session = await openResearchLearningSession(f.db, f.binding, f.selection, () => now, { businessHistory: { principalId: f.binding.principalId, subjectKeys: ["blueprint:research-learning"], expiresAt: f.binding.expiresAt } });
++    expect(session.handoff.priorResearch.crmRows).toHaveLength(1); expect(session.handoff.unknowns).toContain("business_history_incomplete_reconcile_affected_records");
+-    expect(session.handoff.priorResearch.crmRows).toHaveLength(1); expect(session.handoff.unknowns).toContain("business_history_unavailable_or_invalid");
+     expect(JSON.stringify(session.handoff)).not.toContain("PRIVATE_SENTINEL"); expect(f.writes).toEqual([]);
+   });
+   it("supports an unknown-only cached scope without inferring capability incompatibility", async () => {
+@@ -290,4 +290,42 @@
+     expect(() => session.siteHistory("BP-000001", { pageSize: 3, cursor: { contextHash: session.handoff.contextHash, crmId: "BP-000002", offset: 3 } })).toThrow("cursor_invalid");
+     expect(f.writes).toEqual([]);
+   });
++  it("pages every stored contact event beyond the former 500-record stop", async () => {
++    const f = fixture(); native(f); const expected = new Set<string>();
++    for (let index = 0; index < 503; index++) expected.add(stored(f, "contact_observed", { actorId: `adapter-${index}` }).eventId);
++    const session = await f.open(), observed: string[] = []; let cursor: any = null;
++    do { const page = session.history("prospect-1", { pageSize: 25, cursor }); observed.push(...page.events.map(event => event.eventId)); cursor = page.nextCursor; } while (cursor);
++    expect(new Set(observed)).toEqual(expected); expect(session.handoff.provenance.quarantine).toEqual([]); expect(f.writes).toEqual([]);
++  });
++  it("keeps prior research when an optional site-learning record needs repair", async () => {
++    const f = fixture(); f.records.set(`${LEARNING_ROOT}/siteLearningEvents/bad`, { crmId: "BP-000001", body: "PRIVATE_SITE_SENTINEL" });
++    const session = await f.open();
++    expect(session.handoff.priorResearch.crmRows).toHaveLength(1);
++    expect(session.handoff.unknowns).toContain("site_history_incomplete_retry_affected_crm");
++    expect(session.handoff.provenance.quarantine).toContainEqual({ recordRef: `${LEARNING_ROOT}/siteLearningEvents`, reason: "site_history_retry:BP-000001" });
++    expect(JSON.stringify(session.handoff)).not.toContain("PRIVATE_SITE_SENTINEL"); expect(f.writes).toEqual([]);
++  });
++  it("suppresses a broken correction lineage while keeping unrelated contact evidence usable", async () => {
++    const f = fixture(); native(f);
++    const reply = stored(f, "reply_observed"), contact = stored(f, "contact_observed");
++    const correction = learningCorrection(reply);
++    f.records.set(`${LEARNING_ROOT}/events/${correction.eventId}`, { ...correction, body: "PRIVATE_BROKEN_CORRECTION" });
++    const session = await f.open(), history = session.history("prospect-1", { pageSize: 25, cursor: null });
++    expect(history.currentEventIds).toEqual([contact.eventId]);
++    expect(history.events.map(event => event.eventId)).toEqual([contact.eventId]);
++    expect(session.handoff.unknowns).toContain("stored_history_incomplete");
++    expect(session.handoff.provenance.quarantine).toContainEqual(expect.objectContaining({ recordRef: `${LEARNING_ROOT}/events/${reply.eventId}`, reason: "stored_lineage_conflict_reconcile_correction_without_deleting_history" }));
++    expect(JSON.stringify(session.handoff)).not.toContain("PRIVATE_BROKEN_CORRECTION"); expect(f.records.has(`${LEARNING_ROOT}/events/${reply.eventId}`)).toBe(true);
++    expect(f.writes).toEqual([]);
++  });
++  it("quarantines an invalid offset timestamp without aborting healthy sibling history", async () => {
++    const f = fixture(); native(f); const contact = stored(f, "contact_observed");
++    const reply = stored(f, "reply_observed");
++    f.records.set(`${LEARNING_ROOT}/events/${reply.eventId}`, { ...reply, recordedAt: "2026-10-01T22:00:00+99:99" });
++    const session = await f.open(), history = session.history("prospect-1", { pageSize: 25, cursor: null });
++    expect(history.currentEventIds).toEqual([contact.eventId]);
++    expect(session.handoff.unknowns).toContain("stored_history_incomplete");
++    expect(f.writes).toEqual([]);
++  });
++
+ });
+diff --git a/server/tests/research-learning.test.ts b/server/tests/research-learning.test.ts
+--- a/server/tests/research-learning.test.ts
++++ b/server/tests/research-learning.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from "vitest";
++import { CLASSIFICATION_POLICY, digest, instant, makeEvent, validateEvent, type EventInput, type LearningEvent } from "../research-learning/contract";
+-import { CLASSIFICATION_POLICY, digest, makeEvent, validateEvent, type EventInput, type LearningEvent } from "../research-learning/contract";
+ import { buildSnapshot, resolveHistory, verifySnapshot } from "../research-learning/snapshot";
+ import { planResearchLearning } from "../research-learning/planner";
+ import { ResearchLearningStore } from "../research-learning/store";
+@@ -271,7 +271,7 @@
+     expect(serialized).not.toContain(input.jobs[0].ledger.action_payload.transportBody);
+     expect(normalized.events.some(e => e.kind === "delivery_observed")).toBe(false);
+   });
++  it.each(["crm", "site", "case", "recipient", "ledger_job", "source_digest", "receipt_job", "copy_subject", "copy_body"])("quarantines the affected claim for invalid %s joins", change => {
+-  it.each(["crm", "site", "case", "recipient", "ledger_job", "source_digest", "receipt_job", "copy_subject", "copy_body"])("quarantines invalid %s joins without partial events", change => {
+     const input = existingSourceFixture(), job = input.jobs[0];
+     if (change === "crm") input.prospect.researchPublicationId = "different";
+     if (change === "site") input.prospect.siteId = "different";
+@@ -284,7 +284,13 @@
+     if (change === "copy_body") job.ledger.action_payload.body = "Different copy";
+     if (["recipient", "ledger_job", "copy_subject", "copy_body"].includes(change)) job.receipt.payloadDigest = communicationsDigest(job.ledger.action_payload);
+     const result = normalizeExistingSources([input], learningNow);
++    if (["crm", "site", "case", "source_digest"].includes(change)) expect(result.events).toEqual([]);
++    else {
++      expect(result.events.map(event => event.kind)).toEqual(["research_observed", "contact_observed"]);
++      expect(result.researchDetails).toHaveLength(1);
++      expect(result.quarantine[0].reason).toBe("receipt_evidence_invalid_reconcile_exact_job_payload_and_gmail_refs");
++    }
++    expect(result.quarantine).toHaveLength(1);
+-    expect(result.events).toEqual([]); expect(result.quarantine).toHaveLength(1);
+   });
+   it("preserves historical sends and blocks cutover when current contact changes", () => {
+     const input = existingSourceFixture(); input.prospect.contactEmail = "corrected@facility.example";
+@@ -325,7 +331,11 @@
+     if (change === "missing_trigger") (input.jobs[0].record as any).inboundMessageId = null;
+     input.communicationsEvents.push(earlier);
+     const result = normalizeExistingSources([input], learningNow);
++    expect(result.events.filter(event => ["research_observed", "contact_observed"].includes(event.kind))).toHaveLength(2);
++    const invalidJob = ["job_intent", "missing_trigger"].includes(change);
++    expect(result.events.filter(event => event.kind === "reply_observed")).toHaveLength(invalidJob ? 0 : 1);
++    expect(result.quarantine).toHaveLength(invalidJob ? 2 : 1);
++    expect(result.quarantine.every(row => row.reason === "reply_evidence_invalid_reconcile_exact_message_thread_and_rfc_refs")).toBe(true);
+-    expect(result.events).toEqual([]); expect(result.quarantine).toHaveLength(1);
+   });
+   it("authorizes before any existing-source read and never reads OAuth/mailboxes", async () => {
+     const memory = learningMemoryFirestore(), { grant, request } = learningScope();
+@@ -392,4 +402,92 @@
+     expect(JSON.stringify(notion)).not.toContain("thread-"); expect(JSON.stringify(notion)).not.toContain("prospectIds");
+     expect(notion.authority).toBe("learning_summary_only");
+   });
++  it("normalizes equivalent timestamp formats without changing source evidence or event identity", () => {
++    const original = learningEvent("research_observed"), formatted = structuredClone(original);
++    formatted.occurredAt = "2026-09-01T05:00:00-05:00";
++    formatted.recordedAt = "2026-10-01T17:00:00+00:00";
++    formatted.evidence[0].checkedAt = "2026-09-01T10:00:00.000000Z";
++    const before = JSON.stringify(formatted);
++    expect(validateEvent(formatted)).toEqual(original);
++    expect(JSON.stringify(formatted)).toBe(before);
++    expect(() => validateEvent({ ...formatted, occurredAt: "2026-09-01T10:00:01Z" })).toThrow("hash_mismatch");
++  });
++  it.each([
++    { city: "São José & Saint-Louis-du-Ha! Ha!", industry: "Laundries / cafés", quarantine: [] },
++    { city: "private@example.org", industry: "Laundries", quarantine: ["cohort_city_invalid_reconcile_public_label"] },
++  ])("retains verified facts through public cohort-label repair: $city", metadata => {
++    const input = existingSourceFixture(), bundle = input.jobs[0], brief: any = bundle.brief;
++    Object.assign(bundle.researchSource.source.candidate, { city: metadata.city, industry: metadata.industry });
++    brief.researchOrigin.sourceDigest = communicationsDigest(bundle.researchSource.source);
++    const briefDigest = communicationsDigest(brief), job: any = bundle.record;
++    job.briefDigest = briefDigest; job.costState = "pending"; job.resultCount = 11; job.providerMetadata = { harmless: true };
++    (bundle.handoff as any).briefDigest = briefDigest; bundle.researchSource.briefDigest = briefDigest;
++    bundle.ledger.action_payload.communications.brief = brief;
++    bundle.ledger.action_payload.communications.job.briefDigest = briefDigest;
++    bundle.receipt.payloadDigest = communicationsDigest(bundle.ledger.action_payload);
++    const before = JSON.stringify(input), normalized = normalizeExistingSources([input], learningNow);
++    expect(normalized.quarantine.map(row => row.reason)).toEqual(metadata.quarantine);
++    const research = normalized.events.find(event => event.kind === "research_observed")!;
++    expect(research.data).toMatchObject({ city: metadata.quarantine.length ? "unknown" : metadata.city, industry: metadata.industry });
++    expect(research.evidence[0].sourceHash).toBe(communicationsDigest(bundle.researchSource));
++    expect(normalized.events).toHaveLength(3); expect(normalized.researchDetails).toHaveLength(1);
++    expect(JSON.stringify(input)).toBe(before); expect(JSON.stringify(normalized)).not.toContain("private@example.org");
++  });
++  it("keeps a valid reply beside malformed optional communications metadata", () => {
++    const input = existingReplySourceFixture(); input.communicationsEvents.push({ id: "bad", record: null });
++    const before = JSON.stringify(input), result = normalizeExistingSources([input], learningNow);
++    expect(result.events.filter(event => event.kind === "reply_observed")).toHaveLength(1);
++    expect(result.researchDetails).toHaveLength(1);
++    expect(result.quarantine).toEqual([{ recordRef: "outboundProspects/prospect-1/communicationsEvents/bad", reason: "communications_event_invalid_reconcile_original_record_identity" }]);
++    expect(JSON.stringify(input)).toBe(before);
++  });
++  it("reads past 100 jobs and repairs an optional receipt network failure without losing verified research", async () => {
++    const f = learningMemoryFirestore(), input = existingSourceFixture(), bundle = input.jobs[0], root = "blueprintCommunications/default";
++    const identity = { ...bundle.ledger.action_payload.communications.job, jobId: "zz-valid-job" };
++    bundle.ledger.action_payload.communications.job = identity;
++    bundle.receipt.jobId = identity.jobId; bundle.receipt.approvalLedgerId = `communications_${identity.jobId}`;
++    bundle.receipt.payloadDigest = communicationsDigest(bundle.ledger.action_payload);
++    f.records.set("outboundProspects/prospect-1", input.prospect);
++    for (let index = 0; index < 105; index++) f.records.set(`${root}/jobs/bad-${String(index).padStart(3, "0")}`, { prospectId: input.prospectId, body: "PRIVATE_SENTINEL" });
++    f.records.set(`${root}/jobs/${identity.jobId}`, { ...identity, costState: "pending", resultCount: 11 });
++    f.records.set(`${root}/briefs/${identity.briefId}`, bundle.brief);
++    f.records.set(`${root}/handoffs/${identity.briefDigest}`, bundle.handoff);
++    f.records.set(`${root}/researchSources/${identity.briefDigest}`, bundle.researchSource);
++    const receiptRef = `${root}/sendReceipts/${communicationsDeliveryKey(identity)}`;
++    f.records.set(receiptRef, bundle.receipt); f.records.set(`action_ledger/communications_${identity.jobId}`, bundle.ledger);
++    let unavailable = true; const originalDoc = f.db.doc;
++    f.db.doc = (path: string) => { const ref = originalDoc(path);
++      return path === receiptRef ? { ...ref, get: async () => { if (unavailable) throw Error("PRIVATE_NETWORK_ERROR"); return ref.get(); } } : ref; };
++    const originalCollection = f.db.collection;
++    f.db.collection = (path: string) => {
++      const collection = originalCollection(path); if (path !== "outboundProspects") return collection;
++      return { ...collection, doc: (prospectId: string) => {
++        const ref = collection.doc(prospectId), child = ref.collection;
++        return { ...ref, collection: (name: string) => { if (name === "communicationsEvents" && unavailable) throw Error("PRIVATE_REPLY_NETWORK_ERROR"); return child(name); } };
++      } };
++    };
++    const { grant, request } = learningScope();
++    const partial = await readExistingSources(f.db, grant, request, learningNow);
++    expect(partial.events.map(event => event.kind)).toEqual(["research_observed", "contact_observed"]);
++    expect(partial.researchDetails).toHaveLength(1);
++    expect(partial.quarantine).toContainEqual({ recordRef: "outboundProspects/prospect-1/communicationsEvents", reason: "communications_events_read_unavailable_retry_authorized_prospect" });
++    expect(partial.quarantine).toContainEqual({ recordRef: receiptRef, reason: "receipt_read_unavailable_retry_exact_receipt_and_ledger" });
++    unavailable = false; const repaired = await readExistingSources(f.db, grant, request, learningNow);
++    expect(repaired.events.find(event => event.kind === "outreach_observed")?.data).toMatchObject({ status: "accepted", jobId: identity.jobId });
++    expect(repaired.events.find(event => event.kind === "research_observed")?.eventId).toBe(partial.events[0].eventId);
++    expect(JSON.stringify([partial, repaired])).not.toContain("PRIVATE_"); expect(f.writes).toEqual([]);
++  });
++  it("filters unauthorized reply records before validating a research-only snapshot", () => {
++    const { grant, request } = learningScope(), research = learningEvent("research_observed");
++    const read = buildSnapshot([research, { kind: "reply_observed", entities: research.entities, body: "PRIVATE_UNAUTHORIZED_REPLY" }],
++      { ...grant, sections: ["research"] }, { ...request, sections: ["research"] }, learningNow);
++    expect(read.rows[0].history).toEqual([research]); expect(JSON.stringify(read)).not.toContain("PRIVATE_UNAUTHORIZED_REPLY");
++  });
++
++  it("returns an actionable validation issue for an impossible ISO offset", () => {
++    const invalid = instant.safeParse("2026-10-02T12:00:00+99:99");
++    expect(invalid.success).toBe(false);
++    if (!invalid.success) expect(invalid.error.issues.some(issue => issue.message === "learning_timestamp_invalid_repair_iso_offset_or_calendar_date")).toBe(true);
++  });
++
+ });
