@@ -78,3 +78,42 @@ test("admitted agent cancellation and cleanup retain honest status and diagnosis
   expect(pageErrors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("adp-agent-tasks.png"), fullPage: false });
 });
+
+// Uses the existing dev-only operator fixture; no live auth or external effects.
+test("saved communications draft stays visible and draft-only after a queue read failure", async ({ page }, testInfo) => {
+  const body = "I'm building Blueprint. Is this workflow useful to discuss?";
+  let failQueue = true;
+  const writes: string[] = [];
+  await page.route("**/*", async route => {
+    const request = route.request(), url = new URL(request.url());
+    if (["http:", "https:"].includes(url.protocol) && !["localhost", "127.0.0.1", "::1"].includes(url.hostname)) return route.fulfill({ status: 204, body: "" });
+    if (!url.pathname.startsWith("/api/")) return route.continue();
+    if (request.method() === "POST" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
+    if (url.pathname === "/api/admin/leads/action-queue") {
+      expect(request.headers().authorization).toBe("Bearer operator-qa-local-token");
+      if (failQueue) return route.fulfill({ status: 500, json: { error: "Failed to fetch action queue" } });
+      return route.fulfill({ json: { items: [{ id: "communications_saved-job", status: "pending_approval", lane: "outbound_prospect",
+        action_type: "send_email", source_collection: "outboundProspects", source_doc_id: "saved-prospect", action_tier: 3, draft_output: {},
+        action_payload: { to: "operator@facility.example", subject: "A workflow question", body, communications: { output: { body } } }, sending_enabled: false,
+        outreach_review: { digest: "a".repeat(64), hardChecksPassed: true, blockers: [], semanticReviewRequired: { evidence: "Verify the source." } } }],
+        summary: { total: 1, pending_approval: 1, failed: 0 } } });
+    }
+    const fixture = getOperatorQaFixtureForRequest(request.url(), request.method());
+    return fixture ? route.fulfill({ status: fixture.status, json: fixture.body }) : route.fulfill({ status: 503, json: { error: "No live API calls in browser fixture" } });
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/admin/leads");
+  await page.getByRole("tab", { name: "Approvals", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Could not load the action queue (500)" })).toBeVisible();
+  await expect(page.getByText("No pending approvals or failed actions right now.")).toHaveCount(0);
+  await expect(page.getByText("—", { exact: true })).toHaveCount(4);
+  failQueue = false;
+  await page.getByRole("button", { name: "Retry loading approvals" }).click();
+  await expect(page.getByText("To: operator@facility.example", { exact: true })).toBeVisible();
+  await expect(page.getByText(body, { exact: true })).toBeVisible();
+  await expect(page.getByText("Tier 3", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve outreach" })).toBeDisabled();
+  await expect(page.getByText(/Sending is disabled/)).toBeVisible();
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("communications-approvals-draft-only.png"), fullPage: true });
+});
