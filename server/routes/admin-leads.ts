@@ -28,6 +28,7 @@ import {
 import { reviewOutreachDraft, type OutreachReviewResult } from "../agents/outreach-review";
 import { isCommunicationsPayload, reviewCommunicationsPayload } from "../agents/communications-review";
 import { communicationsSendingEnabled } from "../agents/communications-send";
+import { mirrorCommunicationsGmailDraft, CommunicationsGmailDraftError } from "../agents/communications-gmail-draft";
 import { reviseCommunicationsDraft, CommunicationsDraftRevisionError } from "../agents/communications-draft-revision";
 import type {
   DerivedAssetsAttachment,
@@ -1194,6 +1195,16 @@ router.post("/action-queue/:ledgerId/revise", requireAdmin, async (req: Request,
     if (error instanceof CommunicationsDraftRevisionError) return res.status(error.status).json({ error: error.message, issues: error.issues });
     logger.error({ error }, "Error revising communications draft");
     return res.status(500).json({ error: "Could not save this revision. Reload the draft and retry." });
+  }
+});
+
+router.post("/action-queue/:ledgerId/gmail-draft", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) return res.status(503).json({ error: "Database not available" });
+    return res.json(await mirrorCommunicationsGmailDraft(db, req.params.ledgerId, getOperatorEmail(res), req.body));
+  } catch (error) {
+    if (error instanceof CommunicationsGmailDraftError) return res.status(error.status).json({ error: error.message });
+    return res.status(409).json({ error: "gmail_draft_request_invalid_or_source_unavailable" });
   }
 });
 

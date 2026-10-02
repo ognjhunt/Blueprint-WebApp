@@ -8,6 +8,7 @@ export const FOUNDER_GMAIL_BINDING_KEYS = [
 ] as const;
 export const FOUNDER_GMAIL_READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 export const FOUNDER_GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
+export const FOUNDER_GMAIL_DRAFT_SCOPE = "https://www.googleapis.com/auth/gmail.compose";
 
 /** Preparation only. No client discovery, OAuth URL, token entry or grant. */
 export function founderMailboxConnectionPlan(env: NodeJS.ProcessEnv = process.env) {
