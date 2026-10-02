@@ -104,3 +104,20 @@ describe("isolated research learning caller", () => {
     expect(f.writes).toHaveLength(writes);
   });
 });
+
+it("loads the learning host at the path emitted by the production entrypoints", async () => {
+  const { build } = await import("esbuild");
+  const { readFileSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+  const packageJson = JSON.parse(readFileSync(resolve("package.json"), "utf8"));
+  const buildCommand = packageJson.scripts.build as string;
+  const entrypoints = buildCommand.match(/npx esbuild (.*?) --platform=node/)?.[1].split(" ");
+  expect(entrypoints).toBeDefined();
+  // Parsing the actual build entrypoints preserves esbuild's shared outbase.
+  const result = await build({ entryPoints: entrypoints, platform: "node", packages: "external",
+    bundle: true, format: "esm", outdir: "dist", write: false });
+  const hook = readFileSync(resolve("server/utils/dailyResearchWorker.ts"), "utf8");
+  const configured = hook.match(/learningModule: resolve\("([^"]+)"\)/)?.[1];
+  expect(configured).toBe("dist/research-learning/research-worker-host.js");
+  expect(result.outputFiles.some(file => file.path === resolve(configured!))).toBe(true);
+});

@@ -561,7 +561,7 @@ handlers. `dailyResearchWorker.ts` passes its compiled local module to the
 portable research package's existing private pipe. The isolated research clock
 runs the deterministic daily handler at Chicago 06:45, including DST and
 restart catch-up; it does not enable the general ops scheduler. The module is
-built as `dist/research-worker-host.js`. Communications callers remain owned by
+built as `dist/research-learning/research-worker-host.js`. Communications callers remain owned by
 the communications workflow; no send, OAuth or `server/worker.ts` change occurs.
 
 Optional trusted `blueprintDailyResearch/sites-first.learning` configuration

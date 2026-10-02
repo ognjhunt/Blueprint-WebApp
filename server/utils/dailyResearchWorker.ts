@@ -20,7 +20,7 @@ export function startDailyResearchWorker(): ResearchHandle {
         bundleRoot: resolve(packageRoot, "release"),
         python: resolve(packageRoot, "venv/bin/python"),
         enabled: true,
-        learningModule: resolve("dist/research-worker-host.js"),
+        learningModule: resolve("dist/research-learning/research-worker-host.js"),
         log: (status: string) => logger.info(attachRequestMeta({ route: "daily-research", status }), "Research status"),
       });
     })
