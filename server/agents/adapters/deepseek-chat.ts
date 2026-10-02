@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import type { ZodType } from "zod";
+import { readOnlyOperatorTools, toolFailure, validationIssue } from "./tool-recovery";
+import { ZodError, type ZodType } from "zod";
 
 import { chatCompletionOperatorTools, runOperatorTool } from "../operator-tools";
 import type { AgentProvider, AgentResult, AgentTaskKind, NormalizedAgentTask } from "../types";
@@ -385,14 +386,14 @@ async function createDeepSeekCompletion(params: {
 export async function runDeepSeekChatTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
 ): Promise<AgentResult<TOutput>> {
-  if (!client) {
+  if (task.provider === "zai_glm" ? !zaiClient : !client) {
     return {
       status: "failed",
       provider: task.provider,
       runtime: task.runtime,
       model: task.model,
       tool_mode: task.tool_policy.mode,
-      error: "DEEPSEEK_API_KEY is not configured",
+      error: task.provider === "zai_glm" ? "ZAI_API_KEY is not configured" : "DEEPSEEK_API_KEY is not configured",
       requires_human_review: true,
       requires_approval: false,
     };
@@ -431,7 +432,12 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
 
   const usageSamples: ExtractedUsage[] = [];
   const generationIds: string[] = [];
-  let response = await createDeepSeekCompletion({
+  let toolIterations = 0;
+  const seenToolCallIds = new Set<string>();
+  let mutationReconciliationRequired = task.metadata?.mutation_reconciliation_required === true;
+  let response: any;
+  try {
+  response = await createDeepSeekCompletion({
     model: task.model,
     messages,
     tools,
@@ -451,7 +457,6 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
     usage: initialUsage,
   });
 
-  let toolIterations = 0;
   while (tools && toolIterations < 5) {
     const message = response.choices?.[0]?.message;
     const toolCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
@@ -459,39 +464,56 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
       break;
     }
 
+    // Correlate the entire batch before executing siblings: missing/reused IDs
+    // cannot safely identify results or uncertain effects.
+    const batchIds = new Set<string>();
+    for (const call of toolCalls) {
+      if (typeof call.id !== "string" || !call.id.trim() || batchIds.has(call.id) || seenToolCallIds.has(call.id)) {
+        throw new Error("DeepSeek tool_call_identity missing or duplicated");
+      }
+      batchIds.add(call.id);
+    }
+    batchIds.forEach(id => seenToolCallIds.add(id));
     messages.push(message);
     for (const call of toolCalls) {
-      const toolName = call.function?.name;
-      if (!toolName) {
-        throw new Error("DeepSeek returned a tool call without a function name");
+      const toolName = typeof call.function?.name === "string" ? call.function.name : "";
+      let args: Record<string, unknown> = {}, result: unknown, failed = false;
+      if (!tools.some(tool => tool.function.name === toolName)) {
+        failed = true;
+        result = { status: "control_denied", code: "tool_not_allowed", retryAllowed: false,
+          allowedRepair: "Choose a declared tool within the existing authorized scope." };
+      } else if (mutationReconciliationRequired && !readOnlyOperatorTools.has(toolName)) {
+        failed = true;
+        result = { status: "reconciliation_required", code: "tool_mutation_reconciliation_required", retryAllowed: false,
+          allowedRepair: "A prior mutation has an unknown outcome. Read existing state; further mutations remain quarantined until verified reconciliation outside this run." };
+      } else {
+        try {
+          const raw = call.function?.arguments;
+          const parsed = typeof raw === "string" && raw.trim() ? JSON.parse(raw) : {};
+          if (raw !== undefined && typeof raw !== "string" || parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new SyntaxError("tool_arguments_not_object");
+          }
+          args = parsed;
+        } catch {
+          failed = true;
+          result = { status: "recoverable_issue", code: "tool_arguments_invalid_json", retryAllowed: true,
+            issues: [{ path: "/arguments", code: "invalid_json" }],
+            allowedRepair: "Return arguments as one JSON object using the declared tool schema." };
+        }
       }
-      const args =
-        typeof call.function?.arguments === "string" &&
-        call.function.arguments.trim().length > 0
-          ? JSON.parse(call.function.arguments)
-          : {};
-      traceLogs.push({
-        event_type: "tool.call",
-        status: "info",
-        summary: `Invoked ${toolName}`,
-        tool_name: toolName,
-        tool_args: args,
-        call_id: call.id,
-      });
-      const result = await runOperatorTool(toolName, args);
-      traceLogs.push({
-        event_type: "tool.result",
-        status: "success",
-        summary: `Completed ${toolName}`,
-        tool_name: toolName,
-        call_id: call.id,
-        tool_result: result,
-      });
-      messages.push({
-        role: "tool",
-        tool_call_id: call.id,
-        content: JSON.stringify(result),
-      });
+      traceLogs.push({ event_type: "tool.call", status: "info", summary: `Invoked ${toolName}`,
+        tool_name: toolName, tool_args: args, call_id: call.id });
+      if (!failed) {
+        try { result = await runOperatorTool(toolName, args); }
+        catch (error) {
+          failed = true; result = toolFailure(error, toolName);
+          if ((result as { status: string }).status === "reconciliation_required") mutationReconciliationRequired = true;
+        }
+      }
+      traceLogs.push({ event_type: "tool.result", status: failed ? "error" : "success",
+        summary: `${failed ? "Returned feedback for" : "Completed"} ${toolName}`,
+        tool_name: toolName, call_id: call.id, tool_result: result });
+      messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
     }
 
     response = await createDeepSeekCompletion({
@@ -597,6 +619,7 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
       prompt_cache_hit_ratio: aggregate.prompt_cache_hit_ratio,
       calls: aggregate.calls,
       tool_iterations: toolIterations,
+      mutation_reconciliation_required: mutationReconciliationRequired,
       response_cache: {
         enabled: false,
         reason: route === "deepseek_via_openrouter"
@@ -615,4 +638,23 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
     requires_human_review: inferRequiresHumanReview(parsed),
     requires_approval: false,
   };
+  } catch (error) {
+    // A later model/transport/identity/schema error must not erase successful
+    // siblings or discovered unknown mutation effects from the durable run.
+    const feedback = error instanceof ZodError
+      ? { status: "recoverable_issue", code: "output_schema_invalid", issues: error.issues.map(validationIssue),
+          allowedRepair: "Correct the output fields using the existing conversation and canonical evidence." }
+      : { status: "recoverable_issue", code: error instanceof Error && error.message === "DeepSeek tool_call_identity missing or duplicated"
+          ? "tool_call_identity_invalid" : "provider_or_output_failure",
+          allowedRepair: "Inspect the retained provider response and conversation. Reconcile any uncertain mutation before further writes." };
+    traceLogs.push({ event_type: "provider.recovery.failed", status: "error", summary: "Retained recoverable failure evidence", feedback });
+    return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
+      tool_mode: task.tool_policy.mode, error: feedback.code,
+      raw_output_text: extractRawText(response?.choices?.[0]?.message),
+      artifacts: { provider: task.provider, model: task.model, generation_ids: generationIds,
+        tool_iterations: toolIterations, mutation_reconciliation_required: mutationReconciliationRequired,
+        recovery_feedback: feedback, deepseek_conversation_input: messages, ...aggregateUsage(usageSamples) },
+      logs: traceLogs, requires_human_review: true, requires_approval: false };
+  }
+
 }
