@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   getDemandAttributionFromContext,
   hasDemandAttribution,
@@ -914,13 +915,17 @@ export default function AdminLeads() {
   });
 
   const approvalQueueQuery = useQuery<ActionQueueResponse>({
-    queryKey: ["admin-action-queue"],
-    enabled: isAdmin && activeView === "approvals",
+    queryKey: ["admin-action-queue", currentUser?.uid],
+    enabled: isAdmin && Boolean(currentUser) && activeView === "approvals",
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 30_000,
     queryFn: async () => {
       const response = await fetch("/api/admin/leads/action-queue?limit=100", {
-        headers: await withCsrfHeader({}),
+        headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser)),
       });
-      if (!response.ok) throw new Error("Failed to fetch action queue");
+      if (!response.ok) throw new Error(`Could not load the action queue (${response.status}). Retry the request.`);
       return response.json();
     },
   });
@@ -929,7 +934,7 @@ export default function AdminLeads() {
     mutationFn: async ({ ledgerId, outreachSemanticReview }: { ledgerId: string; outreachSemanticReview?: OutreachApproval }) => {
       const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/approve`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser, { "Content-Type": "application/json" })),
         ...(outreachSemanticReview ? { body: JSON.stringify({ outreachSemanticReview }) } : {}),
       });
       if (!response.ok) throw new Error("Failed to approve action");
@@ -944,7 +949,7 @@ export default function AdminLeads() {
     mutationFn: async ({ ledgerId, reason }: { ledgerId: string; reason: string }) => {
       const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/reject`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser, { "Content-Type": "application/json" })),
         body: JSON.stringify({ reason }),
       });
       if (!response.ok) throw new Error("Failed to reject action");
@@ -959,7 +964,7 @@ export default function AdminLeads() {
     mutationFn: async (ledgerId: string) => {
       const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/retry`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser, { "Content-Type": "application/json" })),
       });
       if (!response.ok) throw new Error("Failed to retry action");
       return response.json();
@@ -1446,22 +1451,23 @@ export default function AdminLeads() {
     }
 
     if (activeView === "approvals") {
+      const countsKnown = Boolean(approvalQueueQuery.data) && !approvalQueueQuery.isError;
       return [
         {
           label: "Queued items",
-          value: approvalQueueQuery.data?.summary.total ?? approvalQueueItems.length,
+          value: countsKnown ? approvalQueueQuery.data!.summary.total : "—",
         },
         {
           label: "Pending approval",
-          value: approvalQueueQuery.data?.summary.pending_approval ?? 0,
+          value: countsKnown ? approvalQueueQuery.data!.summary.pending_approval : "—",
         },
         {
           label: "Failed",
-          value: approvalQueueQuery.data?.summary.failed ?? 0,
+          value: countsKnown ? approvalQueueQuery.data!.summary.failed : "—",
         },
         {
           label: "Tier 3 items",
-          value: approvalQueueItems.filter((item) => item.action_tier === 3).length,
+          value: countsKnown ? approvalQueueItems.filter((item) => item.action_tier === 3).length : "—",
         },
       ];
     }
@@ -1536,6 +1542,7 @@ export default function AdminLeads() {
     approvalQueueItems,
     fieldOpsJobs,
     financeQueueItems.length,
+    approvalQueueQuery.isError,
     approvalQueueQuery.data?.summary.failed,
     approvalQueueQuery.data?.summary.pending_approval,
     approvalQueueQuery.data?.summary.total,
@@ -1751,6 +1758,14 @@ export default function AdminLeads() {
               {approvalQueueQuery.isLoading ? (
                 <div className="runway-panel p-6 text-runway-mute">
                   Loading action queue...
+                </div>
+              ) : approvalQueueQuery.isError ? (
+                <div role="alert" className="runway-panel p-6 text-runway-red">
+                  <p>{approvalQueueQuery.error.message}</p>
+                  <button type="button" className="runway-cta-ghost mt-3 min-h-0 px-3 py-2 text-sm"
+                    disabled={approvalQueueQuery.isFetching} onClick={() => void approvalQueueQuery.refetch()}>
+                    Retry loading approvals
+                  </button>
                 </div>
               ) : approvalQueueItems.length === 0 ? (
                 <div className="runway-panel p-6 text-runway-mute">
