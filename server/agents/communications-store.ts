@@ -9,7 +9,10 @@ import {
 } from "./communications-contract";
 import type { CommunicationsCheckpoint } from "./communications-api";
 import type { ActionPayload } from "./action-policies";
-import { automaticFirstContactEnabled, firstContactAuthority, verifyFirstContactSource } from "./communications-first-contact";
+import { automaticFirstContactEnabled, firstContactAuthority, verifyFirstContactSource, ROUTINE_COMMUNICATIONS_POLICY,
+  routineCommunicationsContentBlockers } from "./communications-first-contact";
+import { firstContactPostalLine } from "./communications-first-contact-footer";
+import { reviewCommunicationsPayload } from "./communications-review";
 
 export const COMMUNICATIONS_ROOT = "blueprintCommunications/default";
 export const COMMUNICATIONS_JOB_STATES = Object.freeze(["queued", "running", "retry", "blocked", "awaiting_research",
@@ -18,6 +21,7 @@ export type CommunicationsJobRecord = CommunicationsJob & {
   state: typeof COMMUNICATIONS_JOB_STATES[number];
   attempts: number; checkpoint: CommunicationsCheckpoint; output?: CommunicationsOutput;
   lease?: { owner: string; until: number }; nextAttemptAt?: number; reason?: string;
+  automationPolicyVersion?: string;
 };
 
 /** Read before the caller writes. The stable first-touch claim also covers
@@ -266,7 +270,7 @@ export class CommunicationsStore {
         tx.get(root.collection("sendReceipts").doc(communicationsDeliveryKey(identity)))]);
       const row = saved.data(), action = ledger.data(), delivery = receipt.data();
       const boundJob = action?.action_payload?.communications?.job;
-      if (!row || identity.intent !== "outreach" || !["auto_approved", "sent", "failed"].includes(row.state)
+      if (!row || !["auto_approved", "sent", "failed"].includes(row.state)
         || row.prospectId !== identity.prospectId || row.briefDigest !== identity.briefDigest || row.ledgerId !== ledgerId
         || !action?.first_contact_authority || action.lane !== "outbound_prospect" || action.source_collection !== "outboundProspects"
         || action.source_doc_id !== identity.prospectId || action.action_type !== "send_email"
@@ -304,6 +308,14 @@ export class CommunicationsStore {
         || communicationsDigest(communicationsBriefSchema.parse(brief.data())) !== job.briefDigest) throw new Error("canonical_context_changed");
       if (existing.exists && communicationsDigest(existing.data()?.action_payload) !== communicationsDigest(payload)) throw new Error("draft_idempotency_conflict");
       let authority = proposedAuthority;
+      if (record.automationPolicyVersion !== ROUTINE_COMMUNICATIONS_POLICY.version) authority = null;
+      const prospective = record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
+      const quality = reviewCommunicationsPayload(payload, this.now());
+      let refusal = authority ? null : !automaticFirstContactEnabled() ? "automatic_first_contact_disabled"
+        : !firstContactPostalLine() ? "first_contact_postal_footer_unavailable"
+        : !quality.hardChecksPassed ? `draft_quality_failed:${quality.blockers.join(",")}`
+        : (payload.recipientGeography as any)?.countryCode !== "US" ? "routine_recipient_geography_not_authorized"
+        : routineCommunicationsContentBlockers(output, job.intent)[0] ?? "routine_source_scope_or_evidence_not_authorized";
       if (authority) {
         const approvedBrief = communicationsBriefSchema.parse(brief.data());
         const root = this.db.doc(COMMUNICATIONS_ROOT);
@@ -313,10 +325,24 @@ export class CommunicationsStore {
           ? (await tx.get(root.collection("contactProofs").doc(approvedBrief.researchOrigin.contactEvidenceDigest!))).data() : undefined;
         try {
           verifyCommunicationsHandoff(handoff, approvedBrief);
+          if (job.intent === "reply") {
+            if (!approvedBrief.replyOrigin) throw new Error("reply_parent_context_changed");
+            const parent = communicationsBriefSchema.parse((await tx.get(root.collection("briefs").doc(approvedBrief.replyOrigin.parentBriefId))).data());
+            const binding = verifyCommunicationsReplyBinding((await tx.get(root.collection("replyBindings").doc(job.briefDigest))).data(), approvedBrief, parent);
+            const receipt = (await tx.get(root.collection("sendReceipts").doc(binding.sendReceiptKey))).data();
+            if (communicationsDigest(communicationsSentReceiptIdentity(receipt)) !== binding.sendReceiptDigest
+              || receipt?.approvalLedgerId !== binding.approvalLedgerId
+              || receipt?.receipt?.threadId !== approvedBrief.priorConversation?.gmailThreadId) throw new Error("reply_parent_receipt_or_handoff_changed");
+          }
           verifyFirstContactSource(provenance, approvedBrief, proof, payload.recipientGeography, this.now());
           if (source.data()?.researchPublicationId !== provenance?.source?.sheetsProspectId
             || authority.reviewDigest !== reviewDigest) throw new Error("first_contact_source_missing_or_changed");
-        } catch { authority = null; }
+        } catch (error) {
+          authority = null;
+          refusal = error instanceof Error && /^[a-z_][a-z0-9_:,.-]*$/.test(error.message)
+            ? error.message === "first_contact_geography_requires_review" ? "routine_recipient_geography_not_authorized" : error.message
+            : "routine_source_scope_or_evidence_not_authorized";
+        }
       }
       const authorityDigest = authority ? communicationsDigest(authority) : null;
       const authorityRef = authorityDigest ? this.db.doc(COMMUNICATIONS_ROOT).collection("firstContactAuthorities").doc(authorityDigest) : null;
@@ -324,24 +350,25 @@ export class CommunicationsStore {
       if (savedAuthority?.exists && communicationsDigest(savedAuthority.data()) !== authorityDigest) throw new Error("first_contact_authority_immutable_conflict");
       // Existing approvals/rejections are never silently promoted or rewritten.
       const automatic = !existing.exists ? !!authority : !!existing.data()?.first_contact_authority;
-      const state = automatic ? "auto_approved" : "pending_approval";
+      const policyBlocked = prospective && !automatic;
+      const state = automatic ? "auto_approved" : policyBlocked ? "blocked" : "pending_approval";
       const now = new Date(this.now());
       if (!existing.exists) tx.create(ledgerRef, {
         idempotency_key: `communications:${job.jobId}`, lane: "outbound_prospect", action_type: "send_email", action_tier: automatic ? 1 : 3,
         source_collection: "outboundProspects", source_doc_id: job.prospectId,
-        action_payload: payload, draft_output: { ...output, requires_human_review: true, category: "communications" },
-        status: state, approval_reason: automatic ? null : "requires_human_review",
-        auto_approve_reason: automatic ? "standing_first_contact_policy" : null,
+        action_payload: payload, draft_output: { ...output, requires_human_review: !prospective, category: "communications" },
+        status: policyBlocked ? "failed" : state, approval_reason: policyBlocked ? refusal : automatic ? null : "requires_human_review",
+        auto_approve_reason: automatic ? authority?.kind : null,
         ...(automatic ? { first_contact_authority: authority, first_contact_authority_digest: authorityDigest } : {}),
         approved_by: null, approved_at: null, rejected_by: null, rejected_reason: null,
-        execution_attempts: 0, last_execution_error: null, last_execution_at: null, sent_at: null, created_at: now, updated_at: now,
+        execution_attempts: 0, last_execution_error: policyBlocked ? refusal : null, last_execution_at: null, sent_at: null, created_at: now, updated_at: now,
       });
       if (authority && !existing.exists && authorityRef && !savedAuthority?.exists) tx.create(authorityRef, authority);
-      tx.update(jobRef, { state, output, usage, ledgerId, reviewDigest, updatedAt: this.now() });
+      tx.update(jobRef, { state, output, usage, ledgerId, reviewDigest, ...(policyBlocked ? { reason: refusal } : {}), updatedAt: this.now() });
       tx.set(sourceRef, { communications: { jobId: job.jobId, ledgerId, briefId: job.briefId, briefDigest: job.briefDigest,
         state, draft: output, reviewDigest, gmailDraftId: null, updatedAt: this.now() } }, { merge: true });
       tx.set(sourceRef.collection("communicationsEvents").doc(job.jobId), {
-        type: "draft_persisted", job, output, ledgerId, reviewDigest, state,
+        type: "draft_persisted", job, output, ledgerId, reviewDigest, state, ...(policyBlocked ? { reason: refusal } : {}),
         ...(automatic ? { firstContactAuthorityDigest: authorityDigest } : {}), sent: false, gmailDraftCreated: false, recordedAt: this.now(),
       });
     });

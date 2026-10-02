@@ -5,8 +5,10 @@ import { COMMUNICATIONS_OUTREACH_GUIDANCE } from "./communications-instructions"
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest, briefRefreshReasons,
   correlateReply, correlatedReplies, isOptOut, FOUNDER_MAILBOX, type CommunicationsBrief, type VerifiedThread,
+  type CommunicationsJob, type CommunicationsOutput,
 } from "./communications-contract";
-import { CommunicationsAgentsAPI, CommunicationsRuntimeError, type CommunicationsCheckpoint } from "./communications-api";
+import { CommunicationsAgentsAPI, CommunicationsRuntimeError, type CommunicationsCheckpoint,
+  type CommunicationsOutputFeedback } from "./communications-api";
 import { verifyFounderMailbox, readFounderThread } from "./communications-gmail";
 import { readExistingResearchSnapshot, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
 import { reviewCommunicationsPayload } from "./communications-review";
@@ -15,9 +17,10 @@ import type { ActionPayload } from "./action-policies";
 import { runCommunicationsIntake } from "./communications-intake";
 import { runCommunicationsReplyIntake } from "./communications-reply-intake";
 import { readPublicContactPage } from "./communications-contact-fetch";
-import { automaticFirstContactEnabled, compileAutomaticFirstContact, firstContactGeography } from "./communications-first-contact";
+import { automaticFirstContactEnabled, firstContactGeography, ROUTINE_COMMUNICATIONS_POLICY,
+  routineCommunicationsContentBlockers } from "./communications-first-contact";
 import { executeAutomaticFirstContact } from "./communications-send";
-import { appendFirstContactFooter } from "./communications-first-contact-footer";
+import { appendFirstContactFooter, firstContactPostalLine } from "./communications-first-contact-footer";
 import { CommunicationsDraftBudgetError, reserveCommunicationsDraft, recordCommunicationsDraftUsage,
   reconcileCommunicationsDraftCost } from "./communications-draft-budget";
 import { createNativeLearningHooks, REVIEWED_NATIVE_LEARNING_CONFIG } from "../research-learning/native-hooks";
@@ -103,6 +106,36 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       `blueprintCommunications/default/jobs/${jobId}`, [job.prospectId],
       { allowCreate: !recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId }) : null;
     const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning);
+    // Bind only prospective work before its first paid create. Reconnected
+    // sessions retain this decision; old charged/Tony sessions never acquire it.
+    if (!recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId && automaticFirstContactEnabled()) {
+      claimed.automationPolicyVersion = ROUTINE_COMMUNICATIONS_POLICY.version;
+      await deps.store.update(jobId, { automationPolicyVersion: claimed.automationPolicyVersion });
+    }
+    const automatic = !recovery && claimed.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version
+      && automaticFirstContactEnabled() && !!firstContactPostalLine();
+    const provenance = automatic ? (await deps.store.db.doc("blueprintCommunications/default").collection("researchSources").doc(job.briefDigest).get()).data() : null;
+    const recipientGeography = automatic ? firstContactGeography(provenance, brief, deps.now()) : null;
+    const assemble = (output: CommunicationsOutput) => buildCommunicationsPayload(job, brief, thread, output, automatic, recipientGeography);
+    const assertRepairAllowed = async () => {
+      // Repair cannot refresh or replace consequential context. The original
+      // input, dates, lease and thread remain the correction boundary.
+      const current = (await deps.store.db.doc("blueprintCommunications/default").collection("jobs").doc(jobId).get()).data();
+      if (!current || !claimed.lease || current.lease?.owner !== claimed.lease.owner || !Number.isFinite(current.lease?.until)
+        || current.lease.until <= deps.now() || claimed.lease.until <= deps.now()) throw new Error("communications_lease_lost");
+      if (await deps.isSuppressed(brief.contact.email)) throw new Error("recipient_suppressed");
+      if (briefRefreshReasons(brief, deps.now()).length) throw new Error("research_refresh_required");
+      if (communicationsDigest(await deps.store.brief(job.briefId)) !== job.briefDigest) throw new Error("research_brief_changed");
+      verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId),
+        brief, await deps.store.handoff(brief), await deps.store.contactProof(brief));
+      const latest = (await deps.store.db.collection("outboundProspects").doc(job.prospectId).get()).data();
+      if (!latest || latest.stage === "closed" || latest.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
+        || latest.siteId !== brief.siteId || latest.taskId !== brief.taskId) throw new Error("canonical_prospect_identity_missing_or_changed");
+      if (thread && communicationsDigest((await deps.readThread(thread.threadId)).messages) !== communicationsDigest(thread.messages)) {
+        throw new Error("reply_thread_changed_requires_current_context");
+      }
+      if (current.lease.until <= deps.now() || claimed.lease.until <= deps.now()) throw new Error("communications_lease_lost");
+    };
     const expired = claimed.checkpoint.createClaimedAt
       && deps.now() - Date.parse(claimed.checkpoint.createClaimedAt) >= 180000;
     // A completed saved turn remains useful after the observer/lease expired.
@@ -116,6 +149,16 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const result = saved ?? await deps.api.run({
       input, jobId, checkpoint: claimed.checkpoint,
       saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => deps.store.update(jobId, { checkpoint }),
+      assertRepairAllowed,
+      validateOutput: async (output) => {
+        const issues: CommunicationsOutputFeedback = output.disposition === "research_refresh"
+          ? output.refreshFactIds.some(id => !brief.facts.some(fact => fact.id === id))
+            ? [{ path: "refreshFactIds", code: "refresh_fact_unknown", message: "Select only fact IDs already present in researchBrief.facts; do not invent evidence." }] : []
+          : output.disposition === "no_reply" ? [] : communicationsDraftFeedback(assemble(output), output, job.intent, automatic, deps.now());
+        if (!issues.length) return null;
+        await assertRepairAllowed();
+        return issues;
+      },
     });
     if (recovery && (!("outputSource" in result) || result.outputSource?.rawOutputSha256 !== recovery.expectedOutputSha256)) {
       throw new CommunicationsRuntimeError("communications_saved_output_changed", false, "outputSource" in result ? result.outputSource : undefined);
@@ -132,28 +175,10 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       await deps.store.finish(job, "no_reply", result.output.reason);
       return { state: "no_reply" };
     }
-    // The model's prose never supplies automatic send authority. The compiler
-    // uses the immutable public evidence/state; all other drafts keep review.
-    const compatibilityRecovery = "outputSource" in result && (!!result.outputSource?.normalizedMetadataPaths.length
-      || !!result.outputSource?.formatNormalizations?.length);
-    const compiled = !saved && !compatibilityRecovery && job.intent === "outreach" && automaticFirstContactEnabled()
-      ? compileAutomaticFirstContact(brief, deps.now()) : null;
-    const output = compiled ?? result.output;
-    const provenance = compiled ? (await deps.store.db.doc("blueprintCommunications/default").collection("researchSources").doc(job.briefDigest).get()).data() : null;
-    const recipientGeography = compiled ? firstContactGeography(provenance, brief, deps.now()) : null;
-    const incoming = thread?.messages.find((message) => message.gmailMessageId === job.inboundMessageId);
-    const payload: ActionPayload = {
-      type: "send_email", to: brief.contact.email.toLowerCase(), from: FOUNDER_MAILBOX, replyTo: FOUNDER_MAILBOX,
-      subject: output.subject, body: output.body, emailTransport: "founder_gmail",
-      transportBody: compiled ? appendFirstContactFooter(output.body, brief.contact.email)
-        : appendCommercialEmailFooter({ text: output.body, email: brief.contact.email, scope: "growth_campaign" }),
-      commercialEmail: true, emailSuppressionScope: "growth_campaign",
-      unsubscribeUrl: buildUnsubscribeUrl({ email: brief.contact.email, scope: compiled ? "all" : "growth_campaign", campaignId: `communications_${jobId}` }),
-      outreachContext: brief.outreachContext, outreachContract: output.outreachContract,
-      ...(recipientGeography ? { recipientGeography } : {}),
-      ...(thread && incoming ? { gmailThreadId: thread.threadId, inReplyTo: incoming.rfcMessageId } : {}),
-      communications: { version: "blueprint.communications.v1", job, brief, thread, output, approvalState: "pending_approval" },
-    };
+    // Retain the writer's exact message. The separately verified immutable
+    // server policy, not model prose or schema markers, supplies send authority.
+    const output = result.output;
+    const payload = assemble(output);
     const review = reviewCommunicationsPayload(payload, deps.now());
     if (!review.digest) throw new Error(`draft_quality_failed:${review.blockers.join(",")}`);
     // Preserve useful drafts and isolate unresolved claims/style diagnostics in
@@ -167,6 +192,8 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       const persisted = await deps.store.finishAutomatic(job, outcome);
       return { ...outcome, ...persisted, ledgerId, sent: persisted.state === "sent", gmailDraftCreated: false };
     }
+    const persisted = (await deps.store.db.doc("blueprintCommunications/default").collection("jobs").doc(jobId).get()).data();
+    if (persisted?.state === "blocked") return { state: "blocked", reason: persisted.reason, ledgerId, sent: false, gmailDraftCreated: false };
     return { state: "pending_approval", ledgerId, sent: false, gmailDraftCreated: false };
   } catch (error) {
     if (error instanceof CommunicationsRuntimeError && error.outputSource) {
@@ -190,6 +217,61 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       catch { logger.warn({ code: "communications_learning_observation_unavailable", jobId }, "Communications result retained; learning observation unavailable"); }
     }
   }
+}
+
+function buildCommunicationsPayload(job: CommunicationsJob, brief: CommunicationsBrief, thread: VerifiedThread | null,
+  output: CommunicationsOutput, automatic: boolean, recipientGeography: ReturnType<typeof firstContactGeography>): ActionPayload {
+  const incoming = thread?.messages.find(message => message.gmailMessageId === job.inboundMessageId);
+  return {
+    type: "send_email", to: brief.contact.email.toLowerCase(), from: FOUNDER_MAILBOX, replyTo: FOUNDER_MAILBOX,
+    subject: output.subject, body: output.body, emailTransport: "founder_gmail",
+    transportBody: automatic ? appendFirstContactFooter(output.body, brief.contact.email)
+      : appendCommercialEmailFooter({ text: output.body, email: brief.contact.email, scope: "growth_campaign" }),
+    commercialEmail: true, emailSuppressionScope: "growth_campaign",
+    unsubscribeUrl: buildUnsubscribeUrl({ email: brief.contact.email, scope: automatic ? "all" : "growth_campaign", campaignId: `communications_${job.jobId}` }),
+    outreachContext: brief.outreachContext, outreachContract: output.outreachContract,
+    ...(recipientGeography ? { recipientGeography } : {}),
+    ...(thread && incoming ? { gmailThreadId: thread.threadId, inReplyTo: incoming.rfcMessageId } : {}),
+    communications: { version: "blueprint.communications.v1", job, brief, thread, output, approvalState: "pending_approval" },
+  };
+}
+
+/** Field diagnostics only: this does not approve, publish, commit or send. */
+function communicationsDraftFeedback(payload: ActionPayload, output: CommunicationsOutput, intent: CommunicationsJob["intent"], automatic: boolean, now: number): CommunicationsOutputFeedback {
+  const fixes: Record<string, [string, string]> = {
+    used_fact_missing: ["usedFactIds", "Reference only existing researchBrief.facts IDs; remove unsupported claims and IDs. Outreach needs a sourced fact; a plain acknowledgment need not cite one."],
+    learning_question_mismatch: ["body", "For first outreach, use one easy question fitting the verified site; replies may adapt to the actual incoming message."],
+    not_a_sendable_draft: ["disposition", "Provide a nonempty subject/body for a draft, or choose no_reply/research_refresh. A draft must have no refreshFactIds."],
+    outreach_contract_missing_or_invalid: ["outreachContract", "For outreach, supply the recorded structured outreach contract matching this message; replies use null."],
+    blueprint_identity_required: ["outreachContract.senderIdentity", "Identify Blueprint truthfully in the body and matching senderIdentity."],
+    blueprint_identity_required_before_offer: ["body", "Put the recorded Blueprint identity before the offer."],
+    review_anchor_missing_from_body: ["outreachContract", "Align the contract anchors with the exact authored body; preserve verified evidence and sharing limits."],
+    verified_or_public_opening_must_come_first: ["body", "Place the verified/public opening before the offer and question."],
+    exactly_one_initial_question_required: ["outreachContract.question", "Use one easy question ending in '?' for first outreach and include that exact question in the body."],
+    team_feasibility_status_requires_matching_evidence: ["outreachContract.workflow", "Use pending with no feasibility sources, or public_research with sources already recorded in teamObservations."],
+    team_feasibility_not_in_recorded_evidence: ["outreachContract.workflow.teamFeasibilitySources", "Use only sources already in the verified teamObservations; otherwise keep feasibility pending."],
+    capability_claim_not_verified_in_record: ["outreachContract.capabilityClaims", "Remove unsupported capability claims; reference only capabilities already verified in this brief."],
+    cold_detail_not_in_recorded_evidence: ["outreachContract.opening.publicDetail", "Choose an exact public observation already in the recorded outreachContext."],
+    cold_detail_requires_public_url: ["outreachContract.opening.publicDetail.source", "Use the public source URL already recorded for that observation."],
+    unverified_connection_claim: ["body", "Remove the claimed relationship; use the existing public-business context without inventing a connection."],
+    connection_claim_not_verified_in_record: ["outreachContract.opening", "Use a cold public opening unless this brief already contains verified relationship evidence."],
+    shared_community_implies_endorsement: ["body", "Remove the endorsement claim; a shared community does not establish endorsement."],
+    discovery_cannot_promise_qualified_match_or_capacity: ["body", "Remove unsupported match, capacity or deployment promises; preserve evidence limits."],
+    discovery_cannot_claim_site_sharing_permission: ["body", "Remove the sharing claim; this context does not authorize site disclosure."],
+    default_meeting_or_questionnaire: ["body", "Remove the unapproved meeting/questionnaire request; keep the response within the recorded purpose."],
+    confidential_or_capture_ask: ["body", "Remove requests for private data, footage or credentials; use existing authorized public context."],
+    pressure_or_guarantee: ["body", "Remove pressure or guarantees; preserve recipient choice and unknown outcomes."],
+    unsafe_reply_content: ["body", "Remove guarantees, pressure, credential or unapproved footage/private-data requests."],
+    reply_subject_changed: ["subject", "Use the exact subject of the correlated incoming message already supplied in emailThread."],
+    routine_public_scope_content_not_authorized: ["body", "Keep routine communications within the recorded public-business purpose; remove pricing, commitments, private/sensitive claims or requests. Do not invent additional authority."],
+  };
+  const review = reviewCommunicationsPayload(payload, now);
+  const blockers = [...new Set([...review.blockers, ...(automatic ? routineCommunicationsContentBlockers(output, intent) : [])])];
+  const consequential = blockers.filter(code => !fixes[code]);
+  if (consequential.length) throw new Error(`communications_context_not_repairable:${consequential.join(",")}`);
+  const issues = blockers.map(code => ({ code, path: fixes[code][0], message: fixes[code][1] }));
+  if (/[\r\n]/.test(output.subject)) issues.push({ path: "subject", code: "email_header_injection", message: "Use a single-line subject; remove carriage returns and newlines." });
+  return issues;
 }
 
 export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown, learning?: PreparedLearning) {

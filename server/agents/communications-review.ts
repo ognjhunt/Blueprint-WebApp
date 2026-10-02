@@ -40,7 +40,7 @@ export function reviewCommunicationsPayload(payload: Record<string, unknown>, no
   }
   const knownFooter = ["growth_campaign", "all"].some(scope => payload.transportBody === appendCommercialEmailFooter({ text: output.body, email: brief.contact.email, scope }));
   let firstContactFooter = false;
-  if (!knownFooter && job.intent === "outreach") {
+  if (!knownFooter) {
     try { firstContactFooter = payload.transportBody === appendFirstContactFooter(output.body, brief.contact.email, savedPostalLine); }
     catch { /* Missing owner config refuses new automatic sends, never import. */ }
   }

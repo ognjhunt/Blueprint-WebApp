@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
-import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT } from "../agents/communications-contract";
+import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest } from "../agents/communications-contract";
 import { communicationsFixture } from "./fixtures/communications";
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
@@ -56,7 +56,7 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
   const reservePaidDraft = vi.fn(async () => undefined), recordPaidDraftUsage = vi.fn(async () => undefined);
   const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true, fetch: fetchMock as any, reservePaidDraft, recordPaidDraftUsage });
   const params = { input: "synthetic context", jobId: "job-1", checkpoint: options.reconnect ? { createClaimedAt: "2026-09-30T23:00:00Z", sessionId: "session-1", turnId: "turn-1", requestDigest } : { createClaimedAt: null, sessionId: null, turnId: null }, saveCheckpoint: async (value: any) => { checkpoints.push(value); } };
-  return { api, params, calls, fetchMock, checkpoints, output, reservePaidDraft, recordPaidDraftUsage };
+  return { api, params, calls, fetchMock, checkpoints, output, reservePaidDraft, recordPaidDraftUsage, savedAgent };
 }
 
 describe("portable communications Agents API", () => {
@@ -303,5 +303,174 @@ describe("portable communications Agents API", () => {
     expect(JSON.parse(String(f.calls[0].init.body))).toEqual({ events: [{ type: "agent.session.input.cancel" }] });
     expect(f.reservePaidDraft).not.toHaveBeenCalled();
     expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
+  });
+});
+
+describe("new-session bounded communications final repair", () => {
+  const knownUsage = { input_tokens: 100, output_tokens: 20, total_tokens: 120,
+    input_tokens_details: { cached_tokens: 10 }, output_tokens_details: { reasoning_tokens: 2 } };
+  function repairFixture(options: { raw?: string; missingUsage?: boolean; unknown?: "accepted" | "absent";
+    alwaysInvalid?: boolean; wrongMessage?: boolean; evidence?: boolean; beforeSave?: (checkpoint: any) => void } = {}) {
+    const f = apiFixture({ rawOutput: options.raw ?? "not JSON", usage: knownUsage });
+    const originals = f.fetchMock;
+    if (options.evidence) (f.savedAgent.tools as any[]) = [{ type: "mcp", server_label: "gmail", credential_id: "synthetic-owner-credential",
+      transport: { type: "http", server_url: "https://gmailmcp.googleapis.com/mcp/v1", headers: {} }, request_metadata: {},
+      allowed_tools: null, required: false, connection_origin: "service" }];
+    const turns: any[] = [{ id: "turn-1", agent_id: COMMUNICATIONS_SAVED_AGENT_ID, status: "completed", usage: knownUsage }];
+    const items: any[] = [{ id: "final-1", type: "message", role: "assistant", phase: "final_answer", status: "completed",
+      turn_id: "turn-1", content: [{ type: "output_text", text: options.raw ?? "not JSON" }] }];
+    const native = { id: "mcp-1", type: "mcp_call", turn_id: "turn-1", server_label: "gmail", name: "get_thread",
+      arguments: JSON.stringify({ thread_id: "synthetic-thread" }), output: "Original private dated thread evidence", status: "completed" };
+    if (options.evidence) items.push(native);
+    const submissions: any[] = [], snapshots: any[] = [];
+    let historySubmitted = false;
+    let latest: any;
+    const fetchMock = vi.fn(async (url: any, init: any) => {
+      const path = new URL(String(url)).pathname + new URL(String(url)).search;
+      if (path.includes("/turns?")) return Response.json({ data: options.evidence && !historySubmitted
+        ? turns.map(turn => ({ ...turn, status: "waiting" })) : turns, has_more: false });
+      if (path.includes("/items?")) return Response.json({ data: items, has_more: false });
+      if (path.endsWith("/events") && init.method === "POST") {
+        expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
+        const event = JSON.parse(init.body).events[0];
+        if (event.type === "agent.session.input.tool_result") { historySubmitted = true; return new Response(null, { status: 202 }); }
+        expect(latest.finalRepairs.at(-1)).toMatchObject({ state: "input_unresolved", event,
+          requestDigest: communicationsDigest(event), idempotencyKey: init.headers["Idempotency-Key"] });
+        submissions.push({ event, headers: init.headers });
+        if (options.unknown !== "absent") {
+          const id = `turn-${turns.length + 1}`;
+          turns.push({ id, agent_id: COMMUNICATIONS_SAVED_AGENT_ID, status: "completed", usage: options.missingUsage ? null : knownUsage });
+          items.push({ id: `input-${id}`, type: "message", role: "user", turn_id: id,
+            content: options.wrongMessage ? [{ type: "input_text", text: "different input" }] : event.input[0].content },
+          { id: `final-${id}`, type: "message", role: "assistant", phase: "final_answer", status: "completed", turn_id: id,
+            content: [{ type: "output_text", text: options.alwaysInvalid ? "still invalid" : JSON.stringify(f.output) }] });
+        }
+        if (options.unknown) throw Error("synthetic acknowledgment lost");
+        return new Response(null, { status: 202 });
+      }
+      if (path.endsWith("/events") && turns.length > 1) return new Response(`${options.evidence ? 'data: {"type":"agent.session.requires_action"}\n\n' : ""}data: ${JSON.stringify({
+        type: "agent.session.turn.completed", turn_id: turns.at(-1).id })}\n\n`);
+      const response = await originals(url, init);
+      if (options.evidence && path.endsWith("/agents/sessions")) return new Response((await response.text()).replace(
+        'data: {"type":"agent.session.turn.completed"', 'data: {"type":"agent.session.requires_action"}\n\ndata: {"type":"agent.session.turn.completed"'));
+      if (options.evidence && path.endsWith("/session-1")) {
+        const session = await response.json();
+        session.required_actions = historySubmitted ? [] : [{ type: "function_call", name: "fetch_company_history_record",
+          call_id: "original-history-call", turn_id: "turn-1", arguments: { record_id: "history:original" } }];
+        session.status = historySubmitted ? "idle" : "requires_action";
+        return Response.json(session);
+      }
+      return response;
+    });
+    const saveCheckpoint = async (value: any) => {
+      options.beforeSave?.(value); latest = structuredClone(value); snapshots.push(latest);
+    };
+    const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true, fetch: fetchMock as any,
+      reservePaidDraft: f.reservePaidDraft, recordPaidDraftUsage: f.recordPaidDraftUsage });
+    return { ...f, api, fetchMock, params: { ...f.params, saveCheckpoint }, turns, items, submissions, snapshots,
+      checkpoint: () => latest };
+  }
+  it("returns exact schema feedback to the same session and settles both known turns once", async () => {
+    const f = repairFixture(), result = await f.api.run(f.params);
+    expect(result.output).toEqual(f.output); expect(f.submissions).toHaveLength(1);
+    expect(f.submissions[0].event).toMatchObject({ type: "agent.session.input.message", input: [{ role: "user",
+      content: [{ type: "input_text", text: expect.stringContaining("invalid_json") }] }] });
+    expect(result.checkpoint.finalOutputSources).toHaveLength(2);
+    expect(result.checkpoint.finalOutputSources![0]).toMatchObject({ rawOutput: "not JSON", turnId: "turn-1" });
+    expect(result.checkpoint.finalRepairs![0]).toMatchObject({ baselineTurnIds: ["turn-1"], turnId: "turn-2" });
+    expect(result.usage).toEqual({ input_tokens: 200, output_tokens: 40, total_tokens: 240,
+      input_tokens_details: { cached_tokens: 20 }, output_tokens_details: { reasoning_tokens: 4 } });
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, result.usage);
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    expect(f.calls.filter(call => call.init.method === "POST")).toHaveLength(1);
+  });
+  it("repairs caller-filtered quality feedback before settling the original admission", async () => {
+    const f = repairFixture({ raw: JSON.stringify(communicationsFixture().output) });
+    let calls = 0;
+    const validateOutput = vi.fn(() => ++calls === 1 ? [{ path: "/usedFactIds", code: "used_fact_missing", message: "Use a known brief fact ID." }] : null);
+    const result = await f.api.run({ ...f.params, validateOutput });
+    expect(validateOutput).toHaveBeenCalledTimes(2); expect(f.submissions).toHaveLength(1);
+    expect(result.checkpoint.finalRepairs![0].feedback[0].code).toBe("used_fact_missing");
+  });
+  it("reconciles an accepted correction after lost acknowledgment using exact GET message proof", async () => {
+    const f = repairFixture({ unknown: "accepted" });
+    expect((await f.api.run(f.params)).output).toEqual(f.output);
+    expect(f.submissions).toHaveLength(1);
+    expect(f.fetchMock.mock.calls.filter(([url, init]: any[]) => String(url).endsWith("/events") && !init.method)).toHaveLength(0);
+  });
+  it("never resubmits an unknown correction or creates another session on replacement", async () => {
+    const f = repairFixture({ unknown: "absent" });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_final_repair_pending" });
+    const saved = f.checkpoint(); f.recordPaidDraftUsage.mockClear();
+    await expect(f.api.run({ ...f.params, checkpoint: saved })).rejects.toMatchObject({ code: "agents_final_repair_pending" });
+    expect(f.submissions).toHaveLength(1); expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledWith("job-1", saved.requestDigest, null);
+    expect(await f.api.reconcileUsage(saved, "job-1")).toBeNull();
+  });
+  it("keeps missing correction usage unknown while retaining the original known receipt", async () => {
+    const f = repairFixture({ missingUsage: true }), result = await f.api.run(f.params);
+    expect(result.usage).toBeNull(); expect(result.checkpoint.usageReceipts).toMatchObject([
+      { turnId: "turn-1", usage: knownUsage }, { turnId: "turn-2", usage: null }]);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, null);
+  });
+  it("stops after two uniquely claimed corrections and preserves every invalid original", async () => {
+    const f = repairFixture({ alwaysInvalid: true });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "communications_output_invalid", outputSource: { turnId: "turn-3" } });
+    expect(f.submissions).toHaveLength(2); expect(new Set(f.submissions.map(call => call.headers["Idempotency-Key"])).size).toBe(2);
+    expect(f.checkpoint().finalOutputSources).toHaveLength(3);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, expect.objectContaining({ input_tokens: 300 }));
+  });
+  it("refuses a different saved user message instead of treating a latest turn as the correction", async () => {
+    const f = repairFixture({ wrongMessage: true });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_final_repair_message_proof_mismatch" });
+    expect(f.submissions).toHaveLength(1);
+  });
+  it("does not mint another turn when a consequential callback throws", async () => {
+    const f = repairFixture({ raw: JSON.stringify(communicationsFixture().output) });
+    await expect(f.api.run({ ...f.params, validateOutput: () => { throw Error("recipient_suppressed"); } })).rejects.toThrow("recipient_suppressed");
+    expect(f.submissions).toHaveLength(0); expect(f.checkpoint().finalOutputSources).toHaveLength(1);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, knownUsage);
+  });
+  it("retains original history and native Gmail receipts across the correction turn", async () => {
+    const tools = await import("../agents/operator-tools");
+    const access = vi.spyOn(tools, "getCompanyHistoryAccess").mockResolvedValue({ expiresAt: "2099-10-01T00:00:00Z" } as any);
+    const run = vi.spyOn(tools, "runOperatorTool").mockResolvedValue({ ok: true, record: { checked_at: "2026-10-01" } });
+    try {
+    const f = repairFixture({ evidence: true }), result = await f.api.run(f.params);
+    expect(result.output).toEqual(f.output);
+    expect(result.checkpoint.historyToolReceipts).toMatchObject([{ turnId: "turn-1", callId: "original-history-call",
+      delivery: "submitted", output: expect.stringContaining("2026-10-01") }]);
+    expect(result.checkpoint.nativeMcpItems).toMatchObject([{ turn_id: "turn-1", name: "get_thread", output: "Original private dated thread evidence" }]);
+    expect(result.checkpoint.finalOutputSources).toHaveLength(2);
+    expect(run).toHaveBeenCalledTimes(1);
+    } finally { access.mockRestore(); run.mockRestore(); }
+  });
+  it("rechecks consequential controls for malformed JSON before any correction request", async () => {
+    const f = repairFixture(), assertRepairAllowed = vi.fn(() => { throw Error("recipient_suppressed"); });
+    await expect(f.api.run({ ...f.params, assertRepairAllowed })).rejects.toThrow("recipient_suppressed");
+    expect(f.submissions).toHaveLength(0); expect(assertRepairAllowed).toHaveBeenCalledTimes(1);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, knownUsage);
+  });
+  it("retains final source and settles known usage when the original lease rejects final checkpoint persistence", async () => {
+    const f = repairFixture({ raw: JSON.stringify(communicationsFixture().output), beforeSave: checkpoint => {
+      if (checkpoint.finalRepairSettled) throw Error("communications_lease_lost");
+    } });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "communications_final_checkpoint_unpersisted",
+      outputSource: { rawOutput: JSON.stringify(f.output), turnId: "turn-1" } });
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, knownUsage);
+    expect(f.submissions).toHaveLength(0);
+  });
+  it("sends no correction after the original deadline crosses during checkpoint persistence", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-02T20:00:00Z"));
+    try {
+      const f = repairFixture({ beforeSave: checkpoint => {
+        if (checkpoint.finalRepairs?.length) vi.setSystemTime(Date.parse(checkpoint.createClaimedAt) + 180000);
+      } });
+      await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "communications_final_repair_deadline" });
+      expect(f.submissions).toHaveLength(0);
+      const saved = f.checkpoint(), previousCalls = f.fetchMock.mock.calls.length;
+      await expect(f.api.reconcileSaved(saved, "job-1")).rejects.toMatchObject({ code: "communications_output_invalid" });
+      expect(f.fetchMock.mock.calls.slice(previousCalls).every(([, init]: any[]) => init.method !== "POST")).toBe(true);
+    } finally { vi.useRealTimers(); }
   });
 });

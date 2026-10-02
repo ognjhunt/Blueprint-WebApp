@@ -4,7 +4,7 @@ import { z } from "zod";
 import { digest, grantSchema, id, instant, sectionSchema } from "./contract";
 import { businessReadScopeSchema } from "./business-history";
 import { consumerBindingSchema, consumerSelectionSchema } from "./consumer";
-import { chicagoDate } from "./business-learning-loop";
+import { chicagoDate, recordTerminalRun } from "./business-learning-loop";
 import { createNativeLearningHooks, REVIEWED_NATIVE_LEARNING_CONFIG } from "./native-hooks";
 
 const ROOT = "blueprintDailyResearch/sites-first";
@@ -105,12 +105,29 @@ export function researchLearningHost(db: FirebaseFirestore.Firestore, clock = ()
             ...(request.page_size !== undefined ? { page_size: request.page_size } : {}), ...(request.cursor !== undefined ? { cursor: request.cursor } : {}) })
         : tools("fetch_company_history_record", { record_id: request.record_id });
     }
+    if (request.op === "learning_after_run") {
+      // A committed run observation uses the same actual business authority
+      // as new-profile history reads. It does not create legacy learning input
+      // or depend on the legacy fixed relevance selection/learning grant.
+      const { control, access } = boundResearchHistoryControl(value, clock);
+      const day = daySchema.parse(request.day), subjectKey = id.parse(control.terminalSubjectKey);
+      if (day < control.startDate || day > chicagoDate(clock())) throw new Error("research_learning_outside_scope");
+      if (!control.businessScope.subjectKeys.includes(subjectKey)) throw new Error("research_learning_terminal_subject_outside_scope");
+      const checkedClock = () => {
+        const now = instant.parse(clock());
+        if (access.expiresAt <= now) throw new Error("research_learning_scope_expired");
+        return now;
+      };
+      const recordRef = `${ROOT}/runs/${day}`, saved = await db.doc(recordRef).get();
+      checkedClock();
+      if (!saved.exists) throw new Error("native_learning_run_missing");
+      const sourceHash = digest(saved.data()), recordId = `BP-RUN-${digest({ recordRef, sourceHash })}`;
+      return recordTerminalRun(db, { recordId, subjectKey, principalId: control.binding.principalId,
+        runId: day, receipt: { recordRef, sourceHash, checkedAt: checkedClock() } }, checkedClock);
+    }
     const { control, hooks } = boundResearchLearningHooks(db, value, clock);
     const day = daySchema.parse(request.day);
     if (day < control.startDate || day > chicagoDate(clock())) throw new Error("research_learning_outside_scope");
-    // Observe the committed owned row through the same source-bound writer;
-    // this operation creates no input, aggregate or provider work.
-    if (request.op === "learning_after_run") return hooks.afterNativeWork(`${ROOT}/runs/${day}`);
     if (request.op !== "learning_context") throw new Error("research_learning_operation_invalid");
     if (typeof request.allow_create !== "boolean") throw new Error("research_learning_allow_create_required");
     const allowCreate = request.allow_create === true;

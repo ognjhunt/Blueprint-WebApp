@@ -245,7 +245,8 @@ describe("actual communications Agents API history continuation", () => {
     expect(mocks.run).toHaveBeenCalledTimes(6); expect(f.events).toHaveLength(7); expect(f.events[6]).toEqual(f.events[5]);
     expect(f.reserve).toHaveBeenCalledTimes(1);
     const reconstructed = await hydrateAgentEvidence(result.checkpoint.historyEvidence!, {collection:"agentCheckpoints",id:"communications-history:job-1:session-1"});
-    expect((reconstructed.snapshot as any[]).map(receipt=>receipt.delivery)).toEqual(Array(6).fill("submitted"));
+    const receipts = Array.isArray(reconstructed.snapshot) ? reconstructed.snapshot : (reconstructed.snapshot as any).historyToolReceipts;
+    expect(receipts.map((receipt: any)=>receipt.delivery)).toEqual(Array(6).fill("submitted"));
     const before = f.requests.length; mocks.objects.clear();
     await expect(f.api().run(f.params())).rejects.toMatchObject({code:"agent_evidence_object_missing"});
     expect(f.requests).toHaveLength(before); expect(mocks.run).toHaveBeenCalledTimes(6);
