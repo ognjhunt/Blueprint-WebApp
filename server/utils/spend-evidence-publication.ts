@@ -99,13 +99,41 @@ export function spendNotionProperties(entry: Record<string, any>) {
   return out;
 }
 
+// Compare full RFC3339 instants without changing retained bytes or rounding
+// sub-millisecond precision. Calendar dates keep their original grain.
+function parsedTimestamp(value: unknown) {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/i);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second, fraction, offset] = match;
+  const y = Number(year), m = Number(month), d = Number(day);
+  const leap = y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);
+  const monthDays = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (m < 1 || m > 12 || d < 1 || d > monthDays[m - 1]
+    || Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59
+    || (offset.toUpperCase() !== "Z" && (Number(offset.slice(1, 3)) > 23 || Number(offset.slice(4, 6)) > 59))) return null;
+  const milliseconds = Date.parse(`${year}-${month}-${day}T${hour}:${minute}:${second}${offset.toUpperCase()}`);
+  if (!Number.isFinite(milliseconds)) return null;
+  return { milliseconds, fraction: (fraction ?? "").replace(/0+$/, "") };
+}
+const comparableTimestamp = (value: unknown) => parsedTimestamp(value) ?? value;
+function observationTimeOrder(a: unknown, b: unknown) {
+  const left = parsedTimestamp(a), right = parsedTimestamp(b);
+  if (!left || !right) throw new Error("spend_observation_time_invalid");
+  if (left.milliseconds !== right.milliseconds) return left.milliseconds < right.milliseconds ? -1 : 1;
+  const width = Math.max(left.fraction.length, right.fraction.length);
+  const l = left.fraction.padEnd(width, "0"), r = right.fraction.padEnd(width, "0");
+  return l === r ? 0 : l < r ? -1 : 1;
+}
+
 function propertyValue(property: any) {
   if (!property) return undefined;
   if (property.title) return property.title.map((part: any) => part.plain_text ?? part.text?.content ?? "").join("");
   if (property.rich_text) return property.rich_text.map((part: any) => part.plain_text ?? part.text?.content ?? "").join("");
   if ("number" in property) return property.number;
   if ("select" in property) return property.select?.name ?? null;
-  if ("date" in property) return property.date ? { start: property.date.start, end: property.date.end ?? null, time_zone: property.date.time_zone ?? null } : null;
+  if ("date" in property) return property.date ? { start: comparableTimestamp(property.date.start),
+    end: comparableTimestamp(property.date.end ?? null), time_zone: property.date.time_zone ?? null } : null;
   if ("url" in property) return property.url;
 }
 const sameProperty = (a: unknown, b: unknown) => JSON.stringify(propertyValue(a)) === JSON.stringify(propertyValue(b));
@@ -138,6 +166,7 @@ export async function publishSpendProjection(snapshot: Snapshot, dependencies: {
   // The durable intent owns unknown outcomes; SDK retries must not duplicate a create.
   const notion = dependencies.notion ?? (token ? new Client({ auth: token, retry: false, timeoutMs: 15000 }) : null);
   if (!db || !notion) throw new Error("spend_publication_existing_binding_missing");
+  if (!parsedTimestamp(snapshot.source_collected_at)) throw new Error("spend_source_observation_time_invalid");
   let published = 0, stale = 0;
   const quarantined: string[] = [];
   for (const entry of snapshot.notion_projection.upserts) {
@@ -153,8 +182,10 @@ export async function publishSpendProjection(snapshot: Snapshot, dependencies: {
       // An active writer never expires into a second writer. A crashed process
       // needs operator reconciliation with evidence that its attempt is over.
       if (prior.status === "publication_writing") throw new Error("spend_publication_writer_active");
-      if (prior.sourceCollectedAt && Date.parse(prior.sourceCollectedAt) > Date.parse(snapshot.source_collected_at)) return "stale";
-      if (prior.sourceCollectedAt === snapshot.source_collected_at && prior.revisionId && prior.revisionId !== entry.revision_id)
+      const observationOrder = prior.sourceCollectedAt === undefined ? null
+        : observationTimeOrder(prior.sourceCollectedAt, snapshot.source_collected_at);
+      if (observationOrder !== null && observationOrder > 0) return "stale";
+      if (observationOrder === 0 && prior.revisionId && prior.revisionId !== entry.revision_id)
         throw new Error("spend_same_time_revision_conflict");
       if (prior.status === "publication_unknown") {
         if (found && prior.revisionId === entry.revision_id && prior.propertyDigest === digest(properties)

@@ -106,6 +106,91 @@ describe("retained spend publication", () => {
     await expect(publishSpendProjection(value, f)).rejects.toThrow("readback_failed:Day");
     expect([...f.records.values()][0].status).toBe("publication_unknown");
   });
+  it("verifies equivalent Notion date formatting and retries without another create", async () => {
+    vi.stubEnv("BLUEPRINT_SPEND_PUBLICATION_ENABLED", "true"); const f = fixture(), value = snapshot();
+    Object.assign(value.notion_projection.upserts[0].properties, { "date:Source checked:start": "2026-10-02T12:00:00.000Z" });
+    const original = JSON.stringify(value);
+    f.notion.pages.create.mockImplementationOnce(async (params: any) => {
+      const p = { id: "page-1", properties: { ...params.properties,
+        "Source checked": { date: { start: "2026-10-02T07:00:00-05:00" } } } };
+      f.pages.set(p.id, p); return p;
+    });
+    expect((await publishSpendProjection(value, f)).published).toBe(1);
+    expect((await publishSpendProjection(value, f)).published).toBe(1);
+    expect(f.notion.pages.create).toHaveBeenCalledTimes(1);
+    expect(f.notion.pages.update).not.toHaveBeenCalled();
+    expect(JSON.stringify(value)).toBe(original);
+    expect([...f.records.values()][0].status).toBe("readback_verified");
+  });
+  it("reconciles unknown create after Notion normalizes the source date", async () => {
+    vi.stubEnv("BLUEPRINT_SPEND_PUBLICATION_ENABLED", "true"); const f = fixture(), value = snapshot();
+    Object.assign(value.notion_projection.upserts[0].properties, { "date:Source checked:start": "2026-10-02T12:00:00Z" });
+    f.notion.pages.create.mockImplementationOnce(async (params: any) => {
+      f.pages.set("page-1", { id: "page-1", properties: { ...params.properties,
+        "Source checked": { date: { start: "2026-10-02T12:00:00.000+00:00" } } } });
+      throw new Error("response_lost");
+    });
+    await expect(publishSpendProjection(value, f)).rejects.toThrow("response_lost");
+    expect((await publishSpendProjection(value, f)).published).toBe(1);
+    expect(f.notion.pages.create).toHaveBeenCalledTimes(1);
+    expect(f.notion.pages.update).not.toHaveBeenCalled();
+  });
+  it("does not bypass same-observation revision conflict with another timezone spelling", async () => {
+    vi.stubEnv("BLUEPRINT_SPEND_PUBLICATION_ENABLED", "true"); const f = fixture();
+    await publishSpendProjection(snapshot(), f);
+    const correction = snapshot(); correction.source_collected_at = "2026-10-02T06:59:00-05:00";
+    correction.notion_projection.upserts[0].revision_id = `sha256:${"d".repeat(64)}`;
+    correction.notion_projection.upserts[0].properties.Amount = 99;
+    await expect(publishSpendProjection(correction, f)).rejects.toThrow("same_time_revision_conflict");
+    expect(f.notion.pages.update).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["2026-10-02T11:59:00.000002Z", "2026-10-02T11:59:00.000001Z"],
+    ["2026-10-02T06:59:00.000002-05:00", "2026-10-02T11:59:00.0000010+00:00"],
+  ])("keeps an older microsecond observation from overwriting current billing (%s, %s)", async (currentTime, olderTime) => {
+    vi.stubEnv("BLUEPRINT_SPEND_PUBLICATION_ENABLED", "true"); const f = fixture(), current = snapshot();
+    current.source_collected_at = currentTime;
+    await publishSpendProjection(current, f);
+    const older = snapshot(); older.source_collected_at = olderTime;
+    older.notion_projection.upserts[0].revision_id = `sha256:${"d".repeat(64)}`;
+    older.notion_projection.upserts[0].properties.Amount = 99;
+    expect((await publishSpendProjection(older, f)).stale).toBe(1);
+    expect(f.notion.pages.update).not.toHaveBeenCalled();
+    expect(f.pages.get("page-1").properties.Amount.number).toBe(42);
+  });
+  it("admits a genuinely newer sub-millisecond correction", async () => {
+    vi.stubEnv("BLUEPRINT_SPEND_PUBLICATION_ENABLED", "true"); const f = fixture(), current = snapshot();
+    current.source_collected_at = "2026-10-02T11:59:00.000001Z";
+    await publishSpendProjection(current, f);
+    const newer = snapshot(); newer.source_collected_at = "2026-10-02T06:59:00.000002-05:00";
+    newer.notion_projection.upserts[0].revision_id = `sha256:${"d".repeat(64)}`;
+    newer.notion_projection.upserts[0].properties.Amount = 99;
+    expect((await publishSpendProjection(newer, f)).published).toBe(1);
+    expect(f.notion.pages.update).toHaveBeenCalledTimes(1);
+  });
+  it("keeps unknown observation ordering from issuing a billing overwrite", async () => {
+    vi.stubEnv("BLUEPRINT_SPEND_PUBLICATION_ENABLED", "true"); const f = fixture(), incomplete = snapshot();
+    incomplete.source_collected_at = "2026-10-02";
+    await expect(publishSpendProjection(incomplete, f)).rejects.toThrow("source_observation_time_invalid");
+    expect(f.notion.dataSources.query).not.toHaveBeenCalled();
+    await publishSpendProjection(snapshot(), f);
+    const prior = [...f.records.values()][0]; prior.sourceCollectedAt = "2026-02-30T00:00:00Z";
+    const correction = snapshot(); correction.source_collected_at = "2026-10-02T12:01:00Z";
+    correction.notion_projection.upserts[0].properties.Amount = 99;
+    await expect(publishSpendProjection(correction, f)).rejects.toThrow("observation_time_invalid");
+    expect(f.notion.pages.update).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["2026-10-02T12:00:00.000001Z", "2026-10-02T12:00:00.000002Z"],
+    ["2026-10-02", "2026-10-02T00:00:00Z"],
+    ["2026-02-30T00:00:00Z", "2026-03-02T00:00:00Z"],
+  ])("keeps different precision, calendar grain or invalid date unverified (%s, %s)", async (start, returned) => {
+    vi.stubEnv("BLUEPRINT_SPEND_PUBLICATION_ENABLED", "true"); const f = fixture(), value = snapshot();
+    Object.assign(value.notion_projection.upserts[0].properties, { "date:Source checked:start": start });
+    f.notion.pages.retrieve.mockImplementationOnce(async ({ page_id }: any) => ({ ...f.pages.get(page_id), properties:
+      { ...f.pages.get(page_id).properties, "Source checked": { date: { start: returned } } } }));
+    await expect(publishSpendProjection(value, f)).rejects.toThrow("readback_failed:Source checked");
+  });
   it("quarantines an unsupported projection while retaining its original bytes and publishing unaffected entries", async () => {
     vi.stubEnv("BLUEPRINT_SPEND_PUBLICATION_ENABLED", "true"); const f = fixture(), value = snapshot();
     Object.assign(value.notion_projection.upserts[0].properties, { "Unsupported admin field": "untrusted" });
