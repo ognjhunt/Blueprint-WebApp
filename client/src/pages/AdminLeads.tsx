@@ -57,6 +57,7 @@ import { SiteScreeningCallPanel } from "@/components/admin/SiteScreeningCallPane
 import { OutreachApprovalReview, type OutreachApproval, type OutreachReviewSummary } from "@/components/admin/OutreachApprovalReview";
 import { FounderMailboxConnection } from "@/components/admin/FounderMailboxConnection";
 import { CommunicationsRecovery } from "@/components/admin/CommunicationsRecovery";
+import { CommunicationsDraftEditor } from "@/components/admin/CommunicationsDraftEditor";
 
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -943,6 +944,21 @@ export default function AdminLeads() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-action-queue"] });
     },
+  });
+
+  const reviseActionMutation = useMutation({
+    mutationFn: async ({ ledgerId, ...input }: { ledgerId: string; expectedReviewDigest: string; output: Record<string, unknown> }) => {
+      const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/revise`, {
+        method: "POST",
+        headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser, { "Content-Type": "application/json" })),
+        body: JSON.stringify(input),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error([result.error ?? "Could not save this draft revision.",
+        ...(result.issues ?? []).map((issue: { path?: string | (string | number)[]; message?: string }) => `${Array.isArray(issue.path) ? issue.path.join(".") : issue.path ?? "draft"}: ${issue.message ?? "Invalid value"}`)].join(" "));
+      return result as { review: OutreachReviewSummary };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-action-queue"] }),
   });
 
   const rejectActionMutation = useMutation({
@@ -1839,6 +1855,8 @@ export default function AdminLeads() {
                     <div className="mt-4 flex flex-wrap gap-2">
                       {item.status === "pending_approval" ? (
                         <>
+                          {item.action_payload.communications ? <CommunicationsDraftEditor payload={item.action_payload} review={item.outreach_review}
+                            onSave={input => reviseActionMutation.mutateAsync({ ledgerId: item.id, ...input })} /> : null}
                           {item.lane === "outbound_prospect" || item.source_collection === "outboundProspects" || item.action_payload.communications ? (
                             <OutreachApprovalReview review={item.outreach_review} payload={item.action_payload}
                               sendingEnabled={item.sending_enabled}
