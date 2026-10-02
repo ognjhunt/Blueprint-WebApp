@@ -57,6 +57,22 @@ reconciliation; it cannot issue another blind create. Older source revisions
 cannot replace newer ones. Full source bytes remain in GCS even when individual
 rows cannot safely be published.
 
+An active Notion writer is fenced by its exact attempt ID; its ownership does
+not expire into a concurrent writer. SDK write retries are disabled. A locally
+settled error becomes `publication_unknown` and requires exact property
+readback, including date end/timezone. After a process crash, an authenticated
+operator may call `reconcileEndedSpendWriter` with the exact attempt ID and
+evidence that the process ended; this releases only into unknown-result
+reconciliation and never authorizes a blind create. Unsupported projection
+fields remain in original bytes and quarantine their affected source entry.
+Older snapshots are marked superseded rather than claiming their values were
+read back. Source coverage gaps remain visible after supported upsert readback.
+
+The October 2 snapshot was imported through this retained-byte path into the
+canonical object and snapshot record above. No provider collection or Notion
+publication was triggered. Producer commit remains unknown; the nearby
+observed host release is retained only as context.
+
 ## Company worker wiring
 
 `server/routes/slack-events.ts` verifies Slack signatures before incident
@@ -90,6 +106,12 @@ thread. Slack API acceptance and actual readback are separate. After a lost
 acknowledgment, the worker searches the thread for its own exact delivery key;
 an unobserved POST remains unknown and is never blindly repeated. The missed-
 event reader uses the same ingestion function and never creates repair workers.
+
+Slack history and thread reads request full metadata. Reconciliation covers
+parents in the explicit time window plus retained source-incident threads;
+any incomplete thread page leaves the channel watermark unchanged. The
+company fingerprint includes material report fields as well as the source's
+reported fingerprint, so a stale source digest cannot hide a changed blocker.
 
 ## Required observed acceptance
 
