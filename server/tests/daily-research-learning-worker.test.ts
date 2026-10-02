@@ -28,6 +28,33 @@ describe("existing native research worker learning lifecycle", () => {
     expect(start.mock.calls[0][0]).not.toHaveProperty("learningHooks");
     expect(vi.getTimerCount()).toBe(0); await worker.stop();
   });
+  it.each(["authorized", "expired", "foreign_principal", "legacy_profile"])("loads the new-profile history host only for retained %s admission", async admission => {
+    vi.stubEnv("BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "true");
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-02T12:00:00Z"));
+    const control = { version: "blueprint.research-learning-worker.v1", enabled: true, startDate: "2026-10-01",
+      binding: { version: "blueprint.research-learning-consumer-binding.v1", role: "daily_research",
+        principalId: "blueprint-learning-host", sourceSnapshotId: "0e1ccd1e7dcb22cca5df09aea78f2cfbdf857d8fe4436105722234302ddf0527",
+        crmIds: ["BP-000001"], prospectIds: [], discoveryCapabilityIds: [], detailCapabilityIds: [], expiresAt: "2026-10-03T00:00:00Z" },
+      businessScope: { principalId: "blueprint-learning-host", subjectKeys: ["blueprint:research-learning"], expiresAt: "2026-10-02T13:00:00Z" },
+      selection: { focus: { city: "Seattle", industry: "Warehouses" } },
+      history_access: { version: "blueprint.company-history-access.v1", principalId: "blueprint-learning-host",
+        expiresAt: "2026-10-02T12:30:00Z", scope: "company_business_history", authorityRef: "retained-owner-history-read" } };
+    if (admission === "expired") control.history_access.expiresAt = "2026-10-02T11:00:00Z";
+    if (admission === "foreign_principal") control.history_access.principalId = "another-principal";
+    const original = structuredClone(control);
+    runtime.db = { doc: vi.fn(() => ({ get: async () => ({ data: () => ({ learning: control,
+      config: { history_profile: admission === "legacy_profile" ? undefined : "agent-history-v1" }, enabled: false }) }) })) };
+    const start = vi.fn((_options: any) => ({ stop: async () => {} }));
+    const worker = startDailyResearchWorker({ loadPackage: async () => ({ startDailyResearchWorker: start }) });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(start).toHaveBeenCalledTimes(1);
+    const options = start.mock.calls[0][0];
+    if (admission === "authorized") expect(options.learningHostModule).toBe(resolve("dist/research-learning/research-worker-host.js"));
+    else expect(options).not.toHaveProperty("learningHostModule");
+    expect(options).not.toHaveProperty("learningHooks");
+    expect(vi.getTimerCount()).toBe(0); expect(control).toEqual(original);
+    await worker.stop();
+  });
   it("passes bounded pre-prompt and post-native callbacks while preserving the research package and provider flags", async () => {
     vi.stubEnv("BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "true"); vi.useFakeTimers();
     const hooks = learning(), stop = vi.fn(async () => {}), start = vi.fn((_options: any) => ({ stop }));

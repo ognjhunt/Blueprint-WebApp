@@ -1,14 +1,20 @@
 import type { AgentTaskKind } from "./types";
 import type { CompanyHistoryAccess } from "../research-learning/company-history";
 
-// Access is constructed by the trusted backend task dispatcher, never tool args
-// or a model-supplied metadata grant. Customer/media lanes receive no company ACL.
+// Task kind only excludes customer/media lanes. The actual scope and original
+// expiry come from the existing private owner-controlled read binding, never
+// model input/metadata or an automatically renewed runtime grant.
 const companyTaskKinds = new Set<AgentTaskKind>(["operator_thread", "adp_run_operator", "external_harness_thread",
   "capture_dispatch", "robot_capability_extraction", "outbound_outreach", "support_triage"]);
-export function getCompanyHistoryAccess(task: { kind: AgentTaskKind }): CompanyHistoryAccess | null {
+export async function getCompanyHistoryAccess(task: { kind: AgentTaskKind }): Promise<CompanyHistoryAccess | null> {
   if (!companyTaskKinds.has(task.kind)) return null;
-  return { principalId: "blueprint-company-agent-runtime", companyWide: true,
-    expiresAt: new Date(Date.now() + 15 * 60_000).toISOString() };
+  try {
+    const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
+    if (!dbAdmin) return null;
+    const retained = (await dbAdmin.doc("blueprintDailyResearch/sites-first").get()).data()?.learning;
+    const { boundResearchHistoryControl } = await import("../research-learning/research-worker-host");
+    return boundResearchHistoryControl(retained).access;
+  } catch { return null; } // Missing/expired/unverifiable access grants no scope.
 }
 export const openAiResponsesHistoryTools: any[] = [
   { type: "function", name: "search_company_history", strict: false,

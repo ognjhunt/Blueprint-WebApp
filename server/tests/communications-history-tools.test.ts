@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ run: vi.fn(), objects: new Map<string, string>(), generation: "1" }));
+const mocks = vi.hoisted(() => ({ run: vi.fn(), objects: new Map<string, string>(), generation: "1", learning:null as any }));
+vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{doc:()=>({get:async()=>({data:()=>({learning:mocks.learning})})})}}));
 vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => ({
   bucketName: "mock-existing-private-bucket",
   createOnly: async (name: string, content: string) => { if (!mocks.objects.has(name)) mocks.objects.set(name, content); return "created"; },
@@ -15,7 +16,7 @@ import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
 import { hydrateAgentEvidence } from "../agents/private-evidence";
 import { communicationsFixture } from "./fixtures/communications";
 
-function fixture(options: { unknownAck?: "accepted" | "pending"; tamper?: "tools" | "profile" | "turn"; single?: boolean; pages?: number; unknownAt?: number } = {}) {
+function fixture(options: { unknownAck?: "accepted" | "pending"; tamper?: "tools" | "profile" | "turn"; single?: boolean; pages?: number; unknownAt?: number; expireDuringSave?: boolean } = {}) {
   const { output } = communicationsFixture();
   let stage = 0, unknown = !!options.unknownAck, createBody: any;
   let latest: CommunicationsCheckpoint = { createClaimedAt: null, sessionId: null, turnId: null };
@@ -60,11 +61,18 @@ function fixture(options: { unknownAck?: "accepted" | "pending"; tamper?: "tools
   });
   const reserve = vi.fn(async () => undefined), usage = vi.fn(async () => undefined);
   const api = () => new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true, fetch: fetch as any, reservePaidDraft: reserve, recordPaidDraftUsage: usage });
-  const params = () => ({ input: "trusted research/thread", jobId: "job-1", checkpoint: structuredClone(latest), saveCheckpoint: async (checkpoint: CommunicationsCheckpoint) => { latest = structuredClone(checkpoint); saved.push(structuredClone(checkpoint)); } });
+  const params = () => ({ input: "trusted research/thread", jobId: "job-1", checkpoint: structuredClone(latest), saveCheckpoint: async (checkpoint: CommunicationsCheckpoint) => { latest = structuredClone(checkpoint); saved.push(structuredClone(checkpoint));
+    if(options.expireDuringSave && checkpoint.historyToolReceipts?.at(-1)?.delivery === "prepared") vi.setSystemTime(Date.now()+10000);
+  } });
   return { api, params, requests, events, saved, reserve, output, latest: () => structuredClone(latest), mutateAction: (value: object) => { actions[stage].arguments = value as any; } };
 }
 beforeEach(() => {
-  mocks.run.mockReset(); mocks.objects.clear(); mocks.generation="1";
+  mocks.run.mockReset(); mocks.objects.clear(); mocks.generation="1";mocks.learning={
+  version:"blueprint.research-learning-worker.v1",enabled:true,startDate:"2026-10-01",
+  binding:{version:"blueprint.research-learning-consumer-binding.v1",principalId:"blueprint-learning-host",role:"daily_research",
+    sourceSnapshotId:"a".repeat(64),crmIds:["BP-000001"],prospectIds:[],discoveryCapabilityIds:["summary-capability"],detailCapabilityIds:[],expiresAt:"2099-10-03T00:00:00.000Z"},
+  businessScope:{principalId:"blueprint-learning-host",subjectKeys:["blueprint:research-learning"],expiresAt:"2099-10-02T13:00:00.000Z"},
+};
   mocks.run.mockImplementation(async (name: string) => name === "search_company_history"
     ? { ok: true, rows: [{ record_id: "history:chosen", source_ref: "company-owned/source", original_checked_at: "2026-10-01" }], next_cursor: null, coverage: ["crm"], semantic: { status: "not_authorized" } }
     : { ok: true, record: { record_id: "history:chosen", source_sha256: "a".repeat(64), content: { evidence: "chosen original" } } });
@@ -81,7 +89,7 @@ describe("actual communications Agents API history continuation", () => {
     expect(JSON.parse(f.events[0].event.error)).toMatchObject({ code: "tool_arguments_json_invalid", issues: [{ path: "/", code: "invalid_json" }] });
     expect(f.events.slice(1).every(item => item.event.success && item.event.type === "agent.session.input.tool_result" && item.event.turn_id === "turn-1")).toBe(true);
     expect(mocks.run).toHaveBeenCalledTimes(2);
-    expect(mocks.run).toHaveBeenNthCalledWith(1, "search_company_history", { query: "robot workflow Seattle", filters: { city: "Seattle" }, page_size: 2 }, expect.objectContaining({ principalId: "blueprint-company-agent-runtime", companyWide: true }));
+    expect(mocks.run).toHaveBeenNthCalledWith(1, "search_company_history", { query: "robot workflow Seattle", filters: { city: "Seattle" }, page_size: 2 }, expect.objectContaining({ principalId: "blueprint-learning-host", companyWide: false, prospectIds: [], expiresAt:"2099-10-02T13:00:00.000Z" }));
     expect(mocks.run).toHaveBeenNthCalledWith(2, "fetch_company_history_record", { record_id: "history:chosen" }, expect.any(Object));
     expect(f.requests.filter(item => item.init.method === "POST" && item.path.endsWith("/agents/sessions"))).toHaveLength(1);
     expect(f.requests.filter(item => item.init.method === "POST").every(item => !String(item.init.body).includes("agent.session.input.message"))).toBe(true);
@@ -98,6 +106,30 @@ describe("actual communications Agents API history continuation", () => {
     expect(f.events).toHaveLength(unknownAck === "accepted" ? 1 : 2);
     if (unknownAck === "pending") { expect(f.events[1]).toEqual(f.events[0]); expect(f.events[1].key).toBe(`communications-history-${before.historyToolReceipts![0].requestDigest}`); }
     expect(result.checkpoint.historyToolReceipts?.[0].delivery).toBe("submitted");
+  });
+  it("shows a safe denied tool result when retained access expires, without substituting task-kind authority", async () => {
+    const f=fixture({single:true});mocks.learning.businessScope.expiresAt="2000-01-01T00:00:00Z";
+    const result=await f.api().run(f.params());expect(result.output).toEqual(f.output);
+    expect(mocks.run).not.toHaveBeenCalled();
+    expect(JSON.parse(f.events[0].event.error)).toMatchObject({status:"control_denied",code:"permission_denied",retryAllowed:false});
+  });
+  it("does not replay cached sensitive output after its retained read binding expires", async () => {
+    const f=fixture({single:true,unknownAck:"pending"});
+    await expect(f.api().run(f.params())).rejects.toMatchObject({code:"agents_history_result_ack_unknown"});
+    expect(f.latest().historyToolReceipts![0].historyAccessDigest).toMatch(/^[a-f0-9]{64}$/);
+    mocks.learning.businessScope.expiresAt="2000-01-01T00:00:00Z";
+    await expect(f.api().run(f.params())).rejects.toMatchObject({code:"agents_history_retained_access_changed_or_expired"});
+    expect(f.events).toHaveLength(1);expect(mocks.run).toHaveBeenCalledTimes(1);
+  });
+  it("checks the original retained expiry again after checkpoint persistence and before provider delivery", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.learning.businessScope.expiresAt=new Date(Date.now()+5000).toISOString();
+      const f=fixture({single:true,expireDuringSave:true});
+      await expect(f.api().run(f.params())).rejects.toMatchObject({code:"agents_history_retained_access_changed_or_expired"});
+      expect(mocks.run).toHaveBeenCalledTimes(1);expect(f.events).toHaveLength(0);
+      expect(f.latest().historyToolReceipts![0].delivery).toBe("prepared");
+    } finally { vi.useRealTimers(); }
   });
   it("returns structured field/type failure to the native agent, preserving successful continuation", async () => {
     const f = fixture({ single: true });

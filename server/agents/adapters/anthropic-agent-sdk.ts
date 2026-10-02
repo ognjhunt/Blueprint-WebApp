@@ -78,7 +78,7 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
   ];
 
   const messages: Anthropic.Messages.MessageParam[] = [{ role: "user", content: task.definition.build_prompt(task.input) }];
-  const historyAccess = getCompanyHistoryAccess(task);
+  const historyAccess = await getCompanyHistoryAccess(task);
   const historyTools: Anthropic.Messages.Tool[] = historyAccess ? openAiResponsesHistoryTools.map(tool => ({
     name: tool.name, description: tool.description, input_schema: tool.parameters,
   })) : [];

@@ -71,7 +71,7 @@ describe("OpenAI operator tool feedback", () => {
 
   it.each(["missing", "duplicate"])("refuses %s call identity before any tool in the batch executes", async kind => {
     mocks.create.mockResolvedValueOnce(response([call("same"), call(kind === "missing" ? "" : "same")]));
-    await expect(run()).rejects.toThrow("tool_call_identity");
+    expect(await run()).toMatchObject({ status: "failed", error: "tool_call_identity_invalid" });
     expect(mocks.tool).not.toHaveBeenCalled(); expect(mocks.create).toHaveBeenCalledTimes(1);
   });
 
@@ -167,5 +167,40 @@ describe("OpenAI operator tool feedback", () => {
     mocks.tool.mockRejectedValueOnce(issue.error); await run();
     expect(outputs()[0].result.issues).toEqual([{ path: "/", code: "invalid_literal" }]);
     expect(JSON.stringify(outputs())).not.toContain("private_");
+  });
+
+  it.each(["continuation", "output_correction"])("retains uncertain mutations, sibling results and paid responses when %s transport throws", async stage => {
+    const invalid = '{"done":"unknown"}', cache = { expected_prompt_cache_reuse_count: 1, expected_prompt_cache_reuse_probability: 1 };
+    mocks.create.mockResolvedValueOnce(response([call("write", "{}", "create_growth_campaign_draft"), call("sibling")]));
+    if (stage === "output_correction") mocks.create.mockResolvedValueOnce(response([
+      { type: "message", content: [{ type: "output_text", text: invalid }] },
+    ], invalid));
+    mocks.create.mockRejectedValueOnce(new Error("PRIVATE_PROVIDER_URL"));
+    mocks.tool.mockRejectedValueOnce(new Error("PRIVATE_UNKNOWN_ACK")).mockResolvedValue({ rows: [{ id: "retained-sibling" }] });
+    const failed = await run(cache);
+    expect(failed).toMatchObject({ status: "failed", error: "openai_provider_or_output_failure", requires_human_review: true,
+      artifacts: { mutation_reconciliation_required: true, usage: { input_tokens: stage === "continuation" ? 100 : 200,
+        completion_tokens: stage === "continuation" ? 20 : 40 } },
+      continuation_state: { mutation_reconciliation_required: true } });
+    expect(failed.artifacts?.provider_responses).toHaveLength(stage === "continuation" ? 1 : 2);
+    const replay = failed.continuation_state?.openai_replay_input as any[];
+    expect(replay.filter(item => item.type === "function_call" && item.call_id === "write")).toHaveLength(1);
+    expect(JSON.parse(replay.find(item => item.type === "function_call_output" && item.call_id === "write").output))
+      .toMatchObject({ status: "reconciliation_required", retryAllowed: false });
+    expect(JSON.parse(replay.find(item => item.type === "function_call_output" && item.call_id === "sibling").output))
+      .toEqual({ rows: [{ id: "retained-sibling" }] });
+    if (stage === "output_correction") {
+      expect(failed.raw_output_text).toBe(invalid);
+      expect(failed.artifacts?.output_repairs).toEqual([expect.objectContaining({ rawOutput: invalid })]);
+      expect(mocks.create.mock.calls[2][0].tools).toEqual([]);
+    }
+    expect(failed.error).not.toContain("PRIVATE_");
+    mocks.create.mockResolvedValueOnce(response([call("new-write", "{}", "create_growth_campaign_draft"), call("read-after-failure")]))
+      .mockResolvedValueOnce(final());
+    const recovered = await run({ ...cache, openai_replay_input: replay });
+    expect(recovered.status).toBe("completed");
+    expect(recovered.artifacts?.mutation_reconciliation_required).toBe(true);
+    expect(mocks.tool.mock.calls.filter(([name]) => name === "create_growth_campaign_draft")).toHaveLength(1);
+    expect(mocks.tool).toHaveBeenLastCalledWith("list_growth_campaigns", {});
   });
 });

@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-const mocks=vi.hoisted(()=>({create:vi.fn(),requests:[] as any[],history:vi.fn()}));
+const mocks=vi.hoisted(()=>({create:vi.fn(),requests:[] as any[],history:vi.fn(),learning:null as any,read:vi.fn()}));
+vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{doc:(path:string)=>({get:async()=>{mocks.read(path);return {data:()=>({learning:mocks.learning})};}})}}));
 vi.mock("openai",()=>({default:class {
  responses={create:(input:any)=>{mocks.requests.push(structuredClone(input));return mocks.create(input);}};
  chat={completions:{create:(input:any)=>{mocks.requests.push(structuredClone(input));return mocks.create(input);}}};
@@ -9,17 +10,35 @@ vi.mock("openai",()=>({default:class {
 vi.mock("../research-learning/company-history",()=>({runCompanyHistoryTool:mocks.history}));
 import {getCompanyHistoryAccess,openAiResponsesHistoryTools,runOperatorTool} from "../agents/operator-tools";
 beforeEach(()=>{vi.resetModules();vi.stubEnv("OPENAI_API_KEY","offline-fixture");vi.stubEnv("DEEPSEEK_API_KEY","offline-fixture");
- vi.stubEnv("ZAI_API_KEY","offline-fixture");mocks.create.mockReset();mocks.history.mockReset();mocks.requests.length=0;});
+ vi.stubEnv("ZAI_API_KEY","offline-fixture");mocks.create.mockReset();mocks.history.mockReset();mocks.requests.length=0;mocks.read.mockReset();mocks.learning={
+  version:"blueprint.research-learning-worker.v1",enabled:true,startDate:"2026-10-01",
+  binding:{version:"blueprint.research-learning-consumer-binding.v1",principalId:"blueprint-learning-host",role:"daily_research",
+    sourceSnapshotId:"a".repeat(64),crmIds:["BP-000001"],prospectIds:[],discoveryCapabilityIds:["summary-capability"],detailCapabilityIds:[],expiresAt:"2099-10-03T00:00:00.000Z"},
+  businessScope:{principalId:"blueprint-learning-host",subjectKeys:["blueprint:research-learning"],expiresAt:"2099-10-02T13:00:00.000Z"},
+};});
 afterEach(()=>vi.unstubAllEnvs());
 describe("agent-chosen read-only company history tools",()=>{
- it("constructs access from backend task kind and ignores model metadata/input grants",async()=>{
+ it("reuses the exact retained backend read binding without widening zero-native scope or renewing expiry",async()=>{
   const task:any={kind:"capture_dispatch",metadata:{principalId:"MODEL",companyWide:false,historyEmbedding:{authorized:true}},input:{principalId:"MODEL"}};
-  expect(getCompanyHistoryAccess(task)).toMatchObject({principalId:"blueprint-company-agent-runtime",companyWide:true});
-  expect(getCompanyHistoryAccess(task)).not.toHaveProperty("embeddingAuthority");
-  expect(getCompanyHistoryAccess({kind:"capture_video_privacy"})).toBeNull();
-  expect(getCompanyHistoryAccess({kind:"inbound_qualification"})).toBeNull();
+  const access=await getCompanyHistoryAccess(task);
+  expect(access).toEqual({principalId:"blueprint-learning-host",companyWide:false,expiresAt:"2099-10-02T13:00:00.000Z",sourceSnapshotId:"a".repeat(64),crmIds:["BP-000001"],prospectIds:[],capabilityIds:[],discoveryCapabilityIds:["summary-capability"],businessSubjectKeys:["blueprint:research-learning"]});
+  expect(mocks.read).toHaveBeenCalledWith("blueprintDailyResearch/sites-first");
+  expect(access).not.toHaveProperty("embeddingAuthority");
+  expect(await getCompanyHistoryAccess({kind:"capture_video_privacy"})).toBeNull();
+  expect(await getCompanyHistoryAccess({kind:"inbound_qualification"})).toBeNull();
   await expect(runOperatorTool("search_company_history",{query:""})).rejects.toMatchObject({code:"permission_denied"});
   expect(mocks.history).not.toHaveBeenCalled();
+ });
+ it.each(["missing","expired","wrong-principal"])("denies %s retained binding despite a company task/model grant",async reason=>{
+  if(reason==="missing")mocks.learning=null;
+  if(reason==="expired")mocks.learning.businessScope.expiresAt="2000-01-01T00:00:00Z";
+  if(reason==="wrong-principal")mocks.learning.binding.principalId="MODEL";
+  expect(await getCompanyHistoryAccess({kind:"operator_thread",metadata:{companyWide:true,expiresAt:"2099-12-31T00:00:00Z"}} as any)).toBeNull();
+ });
+ it("uses whole-company access only from an exact retained owner grant with its original shorter expiry",async()=>{
+  mocks.learning.history_access={version:"blueprint.company-history-access.v1",principalId:"blueprint-learning-host",scope:"company_business_history",authorityRef:"existing-owner-approved-read",expiresAt:"2099-10-02T12:00:00.000Z"};
+  expect(await getCompanyHistoryAccess({kind:"capture_dispatch"})).toEqual({principalId:"blueprint-learning-host",companyWide:true,sourceSnapshotId:"a".repeat(64),expiresAt:"2099-10-02T12:00:00.000Z"});
+  mocks.learning.history_access.principalId="MODEL";expect(await getCompanyHistoryAccess({kind:"capture_dispatch"})).toBeNull();
  });
  it.each(["openai_responses","deepseek_chat","zai_glm"] as const)("lets %s choose a query, paginate then fetch records under mutation quarantine",async provider=>{
   const query={query:"retained operator outcome",filters:{city:"Seattle",industry:"industrial kitchen"},page_size:2};
@@ -40,7 +59,7 @@ describe("agent-chosen read-only company history tools",()=>{
   const result=provider==="openai_responses"?await (await import("../agents/adapters/openai-responses")).runOpenAIResponsesTask(task)
    :await (await import("../agents/adapters/deepseek-chat")).runDeepSeekChatTask(task);
   expect(result.status).toBe("completed");expect(mocks.history.mock.calls.map(([name,args])=>({name,args}))).toEqual(calls.map(({name,args})=>({name,args})));
-  for(const [, ,access]of mocks.history.mock.calls){expect(access).toMatchObject({principalId:"blueprint-company-agent-runtime",companyWide:true});expect(access).not.toHaveProperty("embeddingAuthority");}
+  for(const [, ,access]of mocks.history.mock.calls){expect(access).toMatchObject({principalId:"blueprint-learning-host",companyWide:false,prospectIds:[],expiresAt:"2099-10-02T13:00:00.000Z"});expect(access).not.toHaveProperty("embeddingAuthority");}
   expect(mocks.requests[0].tools.map((tool:any)=>tool.name??tool.function.name)).toEqual(openAiResponsesHistoryTools.map(tool=>tool.name));
   expect(JSON.stringify(mocks.requests.at(-1))).toContain("selected-canonical-record");
   expect(result.artifacts?.mutation_reconciliation_required).toBe(true);

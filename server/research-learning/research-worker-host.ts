@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createCompanyHistoryTools } from "./company-history";
+import { createCompanyHistoryTools, type CompanyHistoryAccess } from "./company-history";
 import { z } from "zod";
 import { digest, grantSchema, id, instant, sectionSchema } from "./contract";
 import { businessReadScopeSchema } from "./business-history";
@@ -58,6 +58,22 @@ export const researchHistoryControlSchema = z.object({
   }
 });
 
+/** Reuse the retained host grant; never derive access from task kind or renew it. */
+export function boundResearchHistoryControl(value: unknown, clock = () => new Date().toISOString()) {
+  const control = researchHistoryControlSchema.parse(value);
+  const now = instant.parse(clock());
+  const expiresAt = [control.binding.expiresAt, control.businessScope.expiresAt,
+    ...(control.history_access ? [control.history_access.expiresAt] : [])].sort()[0];
+  if (expiresAt <= now) throw new Error("research_learning_scope_expired");
+  if (chicagoDate(now) < control.startDate) throw new Error("research_learning_outside_scope");
+  const access: CompanyHistoryAccess = { principalId: control.binding.principalId, expiresAt,
+    sourceSnapshotId: control.binding.sourceSnapshotId, companyWide: !!control.history_access,
+    ...(!control.history_access ? { prospectIds: control.binding.prospectIds, crmIds: control.binding.crmIds,
+      capabilityIds: control.binding.detailCapabilityIds, discoveryCapabilityIds: control.binding.discoveryCapabilityIds,
+      businessSubjectKeys: control.businessScope.subjectKeys } : {}) };
+  return { control, access };
+}
+
 
 export function boundResearchLearningHooks(db: FirebaseFirestore.Firestore, value: unknown,
   clock = () => new Date().toISOString()) {
@@ -78,18 +94,12 @@ export function boundResearchLearningHooks(db: FirebaseFirestore.Firestore, valu
 export function researchLearningHost(db: FirebaseFirestore.Firestore, clock = () => new Date().toISOString()) {
   return async (request: { op: string; day?: string; allow_create?: boolean; query?: unknown; filters?: unknown; page_size?: unknown; cursor?: unknown; record_id?: unknown }, value: unknown) => {
     if (request.op === "history_search" || request.op === "history_fetch") {
-      const control = researchHistoryControlSchema.parse(value);
+      const { control, access } = boundResearchHistoryControl(value, clock);
       const day = daySchema.parse(request.day), now = instant.parse(clock());
       if (day < control.startDate || day > chicagoDate(now)) throw new Error("research_learning_outside_scope");
-      const expiresAt = [control.binding.expiresAt, control.businessScope.expiresAt, ...(control.history_access ? [control.history_access.expiresAt] : [])].sort()[0];
-      if (expiresAt <= now) throw new Error("research_learning_scope_expired");
       // Whole-company access requires an explicit trusted owner grant. Without
       // it, use the entire existing binding (never model filters/selection).
-      const tools = createCompanyHistoryTools(db, { principalId: control.binding.principalId, expiresAt,
-        sourceSnapshotId: control.binding.sourceSnapshotId, companyWide: !!control.history_access,
-        ...(!control.history_access ? { prospectIds: control.binding.prospectIds, crmIds: control.binding.crmIds,
-          capabilityIds: control.binding.detailCapabilityIds, discoveryCapabilityIds: control.binding.discoveryCapabilityIds,
-          businessSubjectKeys: control.businessScope.subjectKeys } : {}) }, { now: clock });
+      const tools = createCompanyHistoryTools(db, access, { now: clock });
       return request.op === "history_search"
         ? tools("search_company_history", { query: request.query, ...(request.filters !== undefined ? { filters: request.filters } : {}),
             ...(request.page_size !== undefined ? { page_size: request.page_size } : {}), ...(request.cursor !== undefined ? { cursor: request.cursor } : {}) })

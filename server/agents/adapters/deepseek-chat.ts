@@ -401,7 +401,7 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
     };
   }
 
-  const historyAccess = getCompanyHistoryAccess(task);
+  const historyAccess = await getCompanyHistoryAccess(task);
   const tools = task.kind === "operator_thread" ? chatCompletionOperatorTools : historyAccess ? chatCompletionHistoryTools : undefined;
   const savedReplay = task.metadata?.deepseek_replay_input;
   if (savedReplay !== undefined && (!Array.isArray(savedReplay) || savedReplay[0]?.role !== "system"

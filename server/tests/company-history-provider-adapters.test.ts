@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { digest } from "../research-learning/contract";
 
-const { anthropicCreate, historyRun } = vi.hoisted(() => ({ anthropicCreate: vi.fn(), historyRun: vi.fn() }));
+const { anthropicCreate, historyRun, retained } = vi.hoisted(() => ({ anthropicCreate: vi.fn(), historyRun: vi.fn(), retained: {learning:null as any} }));
+vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{doc:()=>({get:async()=>({data:()=>({learning:retained.learning})})})}}));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create: anthropicCreate }; } }));
 vi.mock("../agents/operator-tools", async importOriginal => ({
   ...await importOriginal<typeof import("../agents/operator-tools")>(), runOperatorTool: historyRun,
@@ -24,7 +25,12 @@ const call = (id: string, name: string, input: unknown) => ({ type: "tool_use", 
 const answer = (text = "final") => ({ type: "text", text: JSON.stringify({ answer: text }) });
 
 beforeEach(() => {
-  vi.resetModules(); anthropicCreate.mockReset(); historyRun.mockReset();
+  vi.resetModules(); anthropicCreate.mockReset(); historyRun.mockReset(); retained.learning={
+  version:"blueprint.research-learning-worker.v1",enabled:true,startDate:"2026-10-01",
+  binding:{version:"blueprint.research-learning-consumer-binding.v1",principalId:"blueprint-learning-host",role:"daily_research",
+    sourceSnapshotId:"a".repeat(64),crmIds:["BP-000001"],prospectIds:[],discoveryCapabilityIds:["summary-capability"],detailCapabilityIds:[],expiresAt:"2099-10-03T00:00:00.000Z"},
+  businessScope:{principalId:"blueprint-learning-host",subjectKeys:["blueprint:research-learning"],expiresAt:"2099-10-02T13:00:00.000Z"},
+};
   vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture"); vi.stubEnv("GEMINI_API_KEY", "offline-fixture");
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
@@ -47,7 +53,7 @@ describe("Anthropic read-only company history", () => {
     expect(result.status).toBe("completed");
     expect(result.artifacts?.usage).toMatchObject({ prompt_tokens: 100, completion_tokens: 50 });
     expect(historyRun).toHaveBeenCalledTimes(4);
-    expect(historyRun.mock.calls[0][2]).toMatchObject({ principalId: "blueprint-company-agent-runtime", companyWide: true });
+    expect(historyRun.mock.calls[0][2]).toMatchObject({ principalId: "blueprint-learning-host", companyWide: false, prospectIds: [], expiresAt: "2099-10-02T13:00:00.000Z" });
     const request = anthropicCreate.mock.calls.at(-1)![0];
     expect(request.tools.map((tool: any) => tool.name)).toEqual(["search_company_history", "fetch_company_history_record"]);
     expect(request.messages[0].content).toContain("Original task");

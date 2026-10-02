@@ -15,6 +15,7 @@ import { projectAgentEvidence, hydrateAgentEvidence } from "./private-evidence";
 export type CommunicationsHistoryReceipt = {
   callId: string; turnId: string; name: string; arguments: unknown; requestDigest: string;
   output: string; success: boolean; resultDigest: string; idempotencyKey: string;
+  historyAccessDigest?: string | null;
   delivery: "prepared" | "submitted" | "ack_unknown";
 };
 export type CommunicationsCheckpoint = {
@@ -258,13 +259,14 @@ export class CommunicationsAgentsAPI {
       receipt.delivery = "submitted"; // verified provider no longer requests it
       await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
     }
+    const historyAccess = actions.length ? await getCompanyHistoryAccess({ kind: "outbound_outreach" }) : null;
     for (const action of actions) {
       const requestDigest = communicationsDigest({ sessionId: checkpoint.sessionId, turnId: turn.id,
         callId: action.call_id, name: action.name, arguments: action.arguments });
       let receipt = receipts.find(item => item.callId === action.call_id);
       if (receipt && receipt.requestDigest !== requestDigest) throw new CommunicationsRuntimeError("agents_history_call_redefined");
       if (!receipt) {
-        let result: unknown, success = false;
+        let result: unknown, success = false, historyAccessDigest: string | null = null;
         if (!["search_company_history", "fetch_company_history_record"].includes(action.name)) {
           result = { status: "control_denied", code: "tool_not_declared", retryAllowed: false,
             allowedRepair: "Choose a declared read-only history tool; this result grants no authority." };
@@ -282,7 +284,8 @@ export class CommunicationsAgentsAPI {
                 issues: [{ path: "/", code: "invalid_type", expectations: { expected: "object" } }] };
             }
             if (result === undefined) {
-              result = await runOperatorTool(action.name, args, getCompanyHistoryAccess({ kind: "outbound_outreach" })!);
+              historyAccessDigest = historyAccess ? communicationsDigest(historyAccess) : null;
+              result = await runOperatorTool(action.name, args, historyAccess ?? undefined);
               success = !!result && typeof result === "object" && (result as { ok?: unknown }).ok === true;
             }
           } catch (error) { result = toolFailure(error, action.name); }
@@ -293,11 +296,21 @@ export class CommunicationsAgentsAPI {
             allowedRepair: "Use a smaller page_size or fetch a narrower record; response exceeds the 256KB transport limit." });
         }
         receipt = { callId: action.call_id, turnId: turn.id, name: action.name, arguments: action.arguments, requestDigest,
-          output, success, resultDigest: communicationsDigest({ success, output }),
+          output, success, historyAccessDigest, resultDigest: communicationsDigest({ success, output }),
           idempotencyKey: `communications-history-${requestDigest}`, delivery: "prepared" };
         receipts.push(receipt);
         checkpoint.historyToolReceipts = receipts;
         await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
+      }
+      // Sensitive cached output cannot outlive or widen its original retained
+      // read binding, including after an unknown provider acknowledgment.
+      if (receipt.historyAccessDigest || receipt.success) {
+        const currentAccess = await getCompanyHistoryAccess({ kind: "outbound_outreach" });
+        if (!historyAccess || Date.parse(historyAccess.expiresAt) <= Date.now() || !currentAccess
+          || Date.parse(currentAccess.expiresAt) <= Date.now()
+          || receipt.historyAccessDigest !== communicationsDigest(currentAccess)) {
+          throw new CommunicationsRuntimeError("agents_history_retained_access_changed_or_expired");
+        }
       }
       // A pending action plus the immutable result/key is safe to resubmit. The
       // provider's documented idempotency header prevents a second acceptance.

@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 import { logger, attachRequestMeta } from "../logger";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { createNativeLearningHooks, startNativeLearningScheduler } from "../research-learning/native-hooks";
-import { boundResearchLearningHooks } from "../research-learning/research-worker-host";
+import { boundResearchHistoryControl, boundResearchLearningHooks } from "../research-learning/research-worker-host";
 
 type ResearchHandle = { stop: () => Promise<void> };
 type NativeLearning = ReturnType<typeof createNativeLearningHooks>;
@@ -24,6 +24,7 @@ export function startDailyResearchWorker(dependencies: WorkerDependencies = {}):
   }
   const packageRoot = resolve("dist/daily-research");
   let learning = dependencies.learning ?? null;
+  let historyHostAuthorized = false;
   const status = (state: string) => logger.info(attachRequestMeta({ route: "daily-research-learning", state }), "Learning status");
   let aggregate = learning ? startNativeLearningScheduler({ enabled: true, run: learning.daily, onStatus: status }) : null;
   let stopping = false;
@@ -33,10 +34,17 @@ export function startDailyResearchWorker(dependencies: WorkerDependencies = {}):
     .then(async (module) => {
       if (stopping) return;
       if (dependencies.learning === undefined && dbAdmin) {
-        const control = (await dbAdmin.doc("blueprintDailyResearch/sites-first").get()).data()?.learning;
+        const root = (await dbAdmin.doc("blueprintDailyResearch/sites-first").get()).data();
+        const control = root?.learning;
         if (control?.enabled === true) {
+          if (root?.config?.history_profile === "agent-history-v1") {
+            try { boundResearchHistoryControl(control); historyHostAuthorized = true; }
+            catch { status("authorized_history_control_unavailable"); }
+          }
+          // Legacy callbacks remain separately admitted. Their fixed selection
+          // cannot prevent an authorized new-profile read-only host from loading.
           try { learning = boundResearchLearningHooks(dbAdmin, control).hooks; }
-          catch { status("authorized_learning_control_unavailable"); }
+          catch { if (!historyHostAuthorized) status("authorized_learning_control_unavailable"); }
         }
         if (stopping) return;
         aggregate = learning ? startNativeLearningScheduler({ enabled: true, run: learning.daily, onStatus: status }) : null;
@@ -49,7 +57,7 @@ export function startDailyResearchWorker(dependencies: WorkerDependencies = {}):
         log: (status: string) => logger.info(attachRequestMeta({ route: "daily-research", status }), "Research status"),
         // The private bridge converts this filesystem path to a file URL once.
         // An already encoded URL becomes a different, nonexistent cwd path.
-        ...(selectedLearning ? { learningHostModule: resolve("dist/research-learning/research-worker-host.js") } : {}),
+        ...(selectedLearning || historyHostAuthorized ? { learningHostModule: resolve("dist/research-learning/research-worker-host.js") } : {}),
         ...(selectedLearning ? { learningHooks: {
           beforeRun: async (date: string) => {
             if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("native_learning_run_identity_invalid");
