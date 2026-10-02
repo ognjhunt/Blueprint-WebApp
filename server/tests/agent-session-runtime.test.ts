@@ -837,7 +837,8 @@ it.each(["continuation", "output_correction"])("persists OpenAI quarantine after
   const first = await runtime.sendAgentSessionMessage({ sessionId: session.id, task: { kind: "operator_thread", provider: "openai_responses",
     runtime: "openai_responses", model: "gpt-5.6-sol", input: { message: "Inspect approved state." } } });
   expect(first.result).toMatchObject({ status: "failed", error: "openai_provider_or_output_failure",
-    artifacts: { mutation_reconciliation_required: true, usage: { input_tokens: stage === "continuation" ? 100 : 200 } } });
+    artifacts: { mutation_reconciliation_required: true, usage: { input_tokens: null },
+      known_usage_subtotals: { input_tokens: stage === "continuation" ? 100 : 200 } } });
   expect(fake.store.agentSessions.get(session.id)?.mutation_reconciliation_required).toBe(true);
   expect([...fake.store.agentRuns.values()].some(row => row.mutation_reconciliation_required === true)).toBe(true);
   const hydrated = await runtime.getAgentSession(session.id);

@@ -16,7 +16,8 @@ vi.mock("../agents/operator-tools", async (importOriginal) => ({
 const call = (call_id: string, args = "{}", name = "list_growth_campaigns") =>
   ({ type: "function_call", call_id, name, arguments: args });
 const response = (output: unknown[], output_text = "") => ({ id: "response-fixture", output, output_text,
-  usage: { input_tokens: 100, output_tokens: 20 } });
+  usage: { input_tokens: 100, output_tokens: 20, input_tokens_details: { cached_tokens: 0 },
+    output_tokens_details: { reasoning_tokens: 0 } } });
 const final = () => response([], JSON.stringify({ done: true }));
 async function run(metadata: Record<string, unknown> = {}) {
   const { runOpenAIResponsesTask } = await import("../agents/adapters/openai-responses");
@@ -179,10 +180,20 @@ describe("OpenAI operator tool feedback", () => {
     mocks.tool.mockRejectedValueOnce(new Error("PRIVATE_UNKNOWN_ACK")).mockResolvedValue({ rows: [{ id: "retained-sibling" }] });
     const failed = await run(cache);
     expect(failed).toMatchObject({ status: "failed", error: "openai_provider_or_output_failure", requires_human_review: true,
-      artifacts: { mutation_reconciliation_required: true, usage: { input_tokens: stage === "continuation" ? 100 : 200,
-        completion_tokens: stage === "continuation" ? 20 : 40 } },
+      artifacts: { mutation_reconciliation_required: true, usage_detail_status: "partial", cost_status: "usage_partial",
+        usage: { input_tokens: null, completion_tokens: null, estimated_total_cost_usd: null },
+        known_usage_subtotals: { input_tokens: stage === "continuation" ? 100 : 200,
+          completion_tokens: stage === "continuation" ? 20 : 40 } },
       continuation_state: { mutation_reconciliation_required: true } });
-    expect(failed.artifacts?.provider_responses).toHaveLength(stage === "continuation" ? 1 : 2);
+    expect(failed.artifacts?.provider_responses).toHaveLength(stage === "continuation" ? 2 : 3);
+    expect((failed.artifacts?.provider_responses as any[]).at(-1)).toMatchObject({ response_id: null, usage: null,
+      request_status: "request_attempted_response_unreceived", request_kind: stage === "continuation" ? "continuation" : "output_correction" });
+    expect((failed.artifacts?.usage_samples as any[]).at(-1)).toMatchObject({ input_tokens: null, output_tokens: null,
+      total_tokens: null, estimated_total_cost_usd: null, usage_detail_status: "missing" });
+    const reservation = failed.artifacts?.inference_reservation as any;
+    expect(reservation.reconciled_cost_usd).toBeGreaterThanOrEqual(reservation.projected_max_cost_per_call_usd);
+    expect(reservation.reconciled_cost_status).toBe("includes_worst_case_reservations");
+    expect(reservation.unknown_usage_reserved_cost_usd).toBe(reservation.projected_max_cost_per_call_usd);
     const replay = failed.continuation_state?.openai_replay_input as any[];
     expect(replay.filter(item => item.type === "function_call" && item.call_id === "write")).toHaveLength(1);
     expect(JSON.parse(replay.find(item => item.type === "function_call_output" && item.call_id === "write").output))
@@ -202,5 +213,62 @@ describe("OpenAI operator tool feedback", () => {
     expect(recovered.artifacts?.mutation_reconciliation_required).toBe(true);
     expect(mocks.tool.mock.calls.filter(([name]) => name === "create_growth_campaign_draft")).toHaveLength(1);
     expect(mocks.tool).toHaveBeenLastCalledWith("list_growth_campaigns", {});
+  });
+
+  it.each(["continuation", "output_repair"])("keeps received missing usage unknown during %s and preserves known receipts", async stage => {
+    const missing = { ...final(), usage: undefined };
+    mocks.create.mockResolvedValueOnce(stage === "continuation" ? response([call("read")]) : response([], '{"done":"unknown"}'))
+      .mockResolvedValueOnce(missing);
+    mocks.tool.mockResolvedValue({ rows: [] });
+    const result = await run();
+    expect(result).toMatchObject({ status: "completed", artifacts: { usage_detail_status: "partial", cost_status: "usage_partial",
+      usage: { calls: 2, input_tokens: null, output_tokens: null, total_tokens: null, estimated_total_cost_usd: null },
+      known_usage_subtotals: { input_tokens: 100, output_tokens: 20, total_tokens: 120, estimated_total_cost_usd: 0.0008 } } });
+    expect((result.artifacts?.provider_responses as any[])[1]).toMatchObject({ usage: null, request_status: "response_received" });
+    const reservation = result.artifacts?.inference_reservation as any;
+    expect(reservation.reconciled_cost_usd).toBeCloseTo(0.0008 + reservation.projected_max_cost_per_call_usd, 12);
+    const { extractAgentCostTelemetry } = await import("../utils/agentCostTelemetry");
+    expect(extractAgentCostTelemetry({ id: "missing-usage", task_kind: "operator_thread", provider: "openai_responses",
+      model: "gpt-5.6-sol", artifacts: result.artifacts, logs: result.logs } as any))
+      .toMatchObject({ calls: 2, usage_detail_status: "partial", cost_status: "usage_partial", prompt_tokens: 0 });
+    if (stage === "output_repair") expect(mocks.create.mock.calls[1][0].tools).toEqual([]);
+  });
+
+  it.each(["input_tokens", "output_tokens"])("retains partial counters when a continuation omits %s", async missingKey => {
+    const partial = final() as any; delete partial.usage[missingKey];
+    mocks.create.mockResolvedValueOnce(response([call("read")])).mockResolvedValueOnce(partial);
+    mocks.tool.mockResolvedValue({ rows: [] });
+    const result = await run(), usage = result.artifacts?.usage as any;
+    expect(result.status).toBe("completed");
+    expect(result.artifacts).toMatchObject({ usage_detail_status: "partial", cost_status: "usage_partial" });
+    expect(usage[missingKey]).toBeNull(); expect(usage.total_tokens).toBeNull(); expect(usage.estimated_total_cost_usd).toBeNull();
+    expect(usage[missingKey === "input_tokens" ? "output_tokens" : "input_tokens"]).toBe(missingKey === "input_tokens" ? 40 : 200);
+    expect((result.artifacts?.known_usage_subtotals as any)[missingKey]).toBe(missingKey === "input_tokens" ? 100 : 20);
+    const reservation = result.artifacts?.inference_reservation as any;
+    expect(reservation.reconciled_cost_usd).toBeCloseTo(0.0008 + reservation.projected_max_cost_per_call_usd, 12);
+  });
+
+  it("retains an impossible input partition as unknown instead of dropping the initial response", async () => {
+    const invalid = final(); invalid.usage.input_tokens_details.cached_tokens = 200;
+    mocks.create.mockResolvedValueOnce(invalid);
+    const result = await run();
+    expect(result).toMatchObject({ status: "completed", artifacts: { usage_detail_status: "partial", cost_status: "usage_partial",
+      usage: { input_tokens: 100, output_tokens: 20, cached_tokens: null, uncached_input_tokens: null, estimated_total_cost_usd: null } } });
+    expect((result.artifacts?.provider_responses as any[])[0].usage.input_tokens_details.cached_tokens).toBe(200);
+    const reservation = result.artifacts?.inference_reservation as any;
+    expect(reservation.reconciled_cost_usd).toBe(reservation.projected_max_cost_per_call_usd);
+  });
+
+  it("reserves unknown continuation cost and refuses another request beyond the existing cap", async () => {
+    vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "1");
+    mocks.create.mockResolvedValueOnce(response([call("first-read")]))
+      .mockResolvedValueOnce({ ...response([call("second-read")]), usage: undefined });
+    mocks.tool.mockResolvedValue({ rows: [] });
+    const result = await run();
+    expect(result.status).toBe("failed"); expect(mocks.create).toHaveBeenCalledTimes(2);
+    expect(result.artifacts).toMatchObject({ usage_detail_status: "partial", cost_status: "usage_partial",
+      known_usage_subtotals: { estimated_total_cost_usd: 0.0008 } });
+    const reservation = result.artifacts?.inference_reservation as any;
+    expect(reservation.reconciled_cost_usd + reservation.projected_max_cost_per_call_usd).toBeGreaterThan(reservation.hard_cost_cap_usd);
   });
 });

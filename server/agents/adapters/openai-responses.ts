@@ -101,6 +101,60 @@ function inferRequiresHumanReview<TOutput>(output: TOutput) {
   );
 }
 
+const usageNumberFields = [
+  "input_tokens", "prompt_tokens", "output_tokens", "completion_tokens", "total_tokens",
+  "cached_tokens", "cache_write_tokens", "uncached_input_tokens", "reasoning_tokens",
+  "uncached_input_cost_usd", "cache_write_cost_usd", "cached_read_cost_usd", "output_cost_usd",
+  "estimated_total_cost_usd", "estimated_cost_without_caching_usd", "estimated_savings_usd",
+] as const;
+
+function reportedCounter(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function normalizeReportedOpenAIUsage(response: any, model: string): Record<string, unknown> {
+  const raw = response?.usage && typeof response.usage === "object" ? response.usage : null;
+  const input = reportedCounter(raw?.input_tokens), output = reportedCounter(raw?.output_tokens);
+  let cached = reportedCounter(raw?.input_tokens_details?.cached_tokens);
+  // Native Responses usage has no cache-write counter. Retain the existing
+  // extension when supplied; its absence in a received usage object means zero.
+  let write = raw ? (raw.input_tokens_details?.cache_write_tokens === undefined
+    ? 0 : reportedCounter(raw.input_tokens_details.cache_write_tokens)) : null;
+  if (input !== null && (cached ?? 0) + (write ?? 0) > input) {
+    // An impossible partition is not a zero-usage receipt. Keep the raw
+    // counters in provider_responses and reserve conservatively for its cost.
+    cached = null; write = null;
+  }
+  const reasoning = reportedCounter(raw?.output_tokens_details?.reasoning_tokens);
+  const usage: Record<string, unknown> = normalizeOpenAIUsage({ ...response, usage: {
+    input_tokens: input ?? (cached ?? 0) + (write ?? 0), output_tokens: output ?? 0,
+    input_tokens_details: { cached_tokens: cached ?? 0, cache_write_tokens: write ?? 0 },
+    output_tokens_details: { reasoning_tokens: reasoning ?? 0 },
+  } }, model);
+  const partitionKnown = input !== null && cached !== null && write !== null;
+  const tokensKnown = input !== null && output !== null;
+  Object.assign(usage, {
+    input_tokens: input, prompt_tokens: input, output_tokens: output, completion_tokens: output,
+    total_tokens: tokensKnown ? input + output : null,
+    cached_tokens: cached, cache_write_tokens: write, reasoning_tokens: reasoning,
+    uncached_input_tokens: input !== null && cached !== null && write !== null ? input - cached - write : null,
+    cache_hit_ratio: input !== null && cached !== null ? (input > 0 ? cached / input : 0) : null,
+  });
+  for (const [key, known] of [
+    ["uncached_input_cost_usd", partitionKnown], ["cache_write_cost_usd", input !== null && write !== null],
+    ["cached_read_cost_usd", input !== null && cached !== null], ["output_cost_usd", tokensKnown],
+    ["estimated_total_cost_usd", partitionKnown && tokensKnown],
+    ["estimated_cost_without_caching_usd", tokensKnown], ["estimated_savings_usd", partitionKnown && tokensKnown],
+  ] as const) {
+    if (!known) usage[key] = null;
+  }
+  const hasCounters = [input, output, cached, reasoning].some(value => value !== null);
+  usage.usage_detail_status = partitionKnown && tokensKnown && reasoning !== null
+    ? "complete" : hasCounters ? "partial" : "missing";
+  if (!(partitionKnown && tokensKnown)) usage.cost_status = hasCounters ? "usage_partial" : "usage_missing";
+  return usage;
+}
+
 export async function runOpenAIResponsesTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
 ): Promise<AgentResult<TOutput>> {
@@ -243,11 +297,13 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     ...(initialCacheControls as any),
   } as any);
   const providerUsages: Array<Record<string, unknown>> = [
-    normalizeOpenAIUsage(response, task.model),
+    normalizeReportedOpenAIUsage(response, task.model),
   ];
   const providerResponses: Array<Record<string, unknown>> = [{ response_id: response.id,
-    output: response.output, output_text: response.output_text, usage: response.usage ?? null }];
+    output: response.output, output_text: response.output_text, usage: response.usage ?? null,
+    request_status: "response_received" }];
   let responseInConversation = false;
+  let pendingRequest: "continuation" | "output_correction" | null = null;
   let reconciledCostUsd = typeof providerUsages[0].estimated_total_cost_usd === "number"
     ? Number(providerUsages[0].estimated_total_cost_usd)
     : projectedMaxCostUsd;
@@ -384,6 +440,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     if (followUpInputBytes > openAiMaxInputTokens) {
       throw new Error("OpenAI follow-up context exceeds the declared token ceiling");
     }
+    pendingRequest = "continuation";
     response = await client.responses.create({
       model: task.model,
       input: conversationInput as any,
@@ -405,10 +462,11 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
           }
         : {}),
     } as any);
+    pendingRequest = null;
     responseInConversation = false;
     providerResponses.push({ response_id: response.id, output: response.output,
-      output_text: response.output_text, usage: response.usage ?? null });
-    const followUpUsage = normalizeOpenAIUsage(response, task.model);
+      output_text: response.output_text, usage: response.usage ?? null, request_status: "response_received" });
+    const followUpUsage = normalizeReportedOpenAIUsage(response, task.model);
     providerUsages.push(followUpUsage);
     reconciledCostUsd += typeof followUpUsage.estimated_total_cost_usd === "number"
       ? Number(followUpUsage.estimated_total_cost_usd)
@@ -451,6 +509,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       if (conservativeOpenAIInputTokenCeiling(conversationInput, tools) > openAiMaxInputTokens) {
         outputFailure = `OpenAI output repair context ceiling reached: ${detail}`; break;
       }
+      pendingRequest = "output_correction";
       response = await client.responses.create({ model: task.model, input: conversationInput as any,
         reasoning: { effort: reasoningEffort }, tools: [], max_output_tokens: openAiMaxOutputTokens, store: false,
         ...(activeCachePolicy.model_family.startsWith("gpt-5.6") ? {
@@ -458,11 +517,12 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
           ...(activeCachePolicy.cache_key ? { prompt_cache_key: activeCachePolicy.cache_key } : {}),
         } : {}),
       } as any);
+      pendingRequest = null;
       responseInConversation = false;
       providerResponses.push({ response_id: response.id, output: response.output,
-        output_text: response.output_text, usage: response.usage ?? null });
+        output_text: response.output_text, usage: response.usage ?? null, request_status: "response_received" });
       toolIterations++; outputRepairIterations++;
-      const usage = normalizeOpenAIUsage(response, task.model); providerUsages.push(usage);
+      const usage = normalizeReportedOpenAIUsage(response, task.model); providerUsages.push(usage);
       reconciledCostUsd += typeof usage.estimated_total_cost_usd === "number" ? Number(usage.estimated_total_cost_usd) : projectedMaxCostUsd;
       if (reconciledCostUsd > openAiMaxInferenceCostUsd + 1e-12) {
         outputFailure = `OpenAI cumulative actual cost exceeded the configured cap during output repair: ${detail}`; break;
@@ -472,6 +532,14 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     }
   }
   } catch (error) {
+    if (pendingRequest) {
+      // A transport failure does not establish whether the attempted request
+      // incurred provider usage. Keep its unknown charge separate from receipts.
+      providerResponses.push({ response_id: null, output: null, output_text: null, usage: null,
+        request_status: "request_attempted_response_unreceived", request_kind: pendingRequest });
+      providerUsages.push(normalizeReportedOpenAIUsage(null, task.model));
+      reconciledCostUsd += projectedMaxCostUsd;
+    }
     // Later transport, identity or output failures must return paid evidence
     // and any discovered unknown mutation effects to runtime persistence.
     outputFailure = error instanceof Error && error.message === "OpenAI tool_call_identity missing or duplicated"
@@ -493,38 +561,24 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     summary: outputFailure ?? "Validated OpenAI output against schema",
   });
 
-  const aggregateUsage = providerUsages.reduce<Record<string, number>>(
-    (total, usage) => {
-      for (const key of [
-        "input_tokens",
-        "prompt_tokens",
-        "output_tokens",
-        "completion_tokens",
-        "total_tokens",
-        "cached_tokens",
-        "cache_write_tokens",
-        "uncached_input_tokens",
-        "reasoning_tokens",
-        "uncached_input_cost_usd",
-        "cache_write_cost_usd",
-        "cached_read_cost_usd",
-        "output_cost_usd",
-        "estimated_total_cost_usd",
-        "estimated_cost_without_caching_usd",
-        "estimated_savings_usd",
-      ]) {
-        const value = usage[key];
-        if (typeof value === "number" && Number.isFinite(value)) {
-          total[key] = (total[key] ?? 0) + value;
-        }
-      }
-      return total;
-    },
-    {},
-  );
-  aggregateUsage.cache_hit_ratio = aggregateUsage.input_tokens > 0
-    ? aggregateUsage.cached_tokens / aggregateUsage.input_tokens
-    : 0;
+  const knownUsageSubtotals: Record<string, number> = {};
+  const aggregateUsage: Record<string, unknown> = { calls: providerUsages.length };
+  for (const key of usageNumberFields) {
+    const values = providerUsages.map(usage => usage[key]).filter((value): value is number =>
+      typeof value === "number" && Number.isFinite(value));
+    if (values.length) knownUsageSubtotals[key] = values.reduce((sum, value) => sum + value, 0);
+    aggregateUsage[key] = values.length === providerUsages.length ? knownUsageSubtotals[key] : null;
+  }
+  const usageDetailStatus = providerUsages.every(usage => usage.usage_detail_status === "complete")
+    ? "complete" : providerUsages.every(usage => usage.usage_detail_status === "missing") ? "missing" : "partial";
+  const costStatus = typeof aggregateUsage.estimated_total_cost_usd === "number"
+    ? providerUsages[0].cost_status : usageDetailStatus === "complete"
+      ? "model_pricing_unknown" : usageDetailStatus === "missing" ? "usage_missing" : "usage_partial";
+  Object.assign(aggregateUsage, { usage_detail_status: usageDetailStatus, cost_status: costStatus,
+    cache_hit_ratio: typeof aggregateUsage.input_tokens === "number" && typeof aggregateUsage.cached_tokens === "number"
+      ? (aggregateUsage.input_tokens > 0 ? aggregateUsage.cached_tokens / aggregateUsage.input_tokens : 0) : null });
+  traceLogs.push({ event_type: "provider.telemetry.aggregated", status: "info",
+    summary: "Aggregated reported OpenAI usage with explicit unknowns", usage: aggregateUsage });
 
   return {
     status: outputFailure ? "failed" : "completed",
@@ -543,6 +597,9 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       mutation_reconciliation_required: mutationReconciliationRequired,
       provider_responses: providerResponses,
       usage_samples: providerUsages,
+      known_usage_subtotals: knownUsageSubtotals,
+      usage_detail_status: usageDetailStatus,
+      cost_status: costStatus,
       ...(outputRepairs.length ? { output_repairs: outputRepairs } : {}),
       usage: aggregateUsage,
       cache_policy: cachePolicyEvidence(activeCachePolicy),
@@ -562,6 +619,10 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
         max_output_tokens: openAiMaxOutputTokens,
         projected_max_cost_per_call_usd: projectedMaxCostUsd,
         reconciled_cost_usd: reconciledCostUsd,
+        reconciled_cost_status: providerUsages.some(usage => typeof usage.estimated_total_cost_usd !== "number")
+          ? "includes_worst_case_reservations" : "reported_usage_pricing_estimate",
+        known_reported_cost_usd: knownUsageSubtotals.estimated_total_cost_usd ?? null,
+        unknown_usage_reserved_cost_usd: providerUsages.filter(usage => typeof usage.estimated_total_cost_usd !== "number").length * projectedMaxCostUsd,
         hard_cost_cap_usd: openAiMaxInferenceCostUsd,
         cache_hit_assumed_for_reservation: false,
       },
