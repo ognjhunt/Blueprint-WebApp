@@ -88,9 +88,57 @@ describe("sourced append-only company business history", () => {
   it("rejects valid events under wrong Firestore document keys before projecting or appending", async () => {
     const f = learningMemoryFirestore(), event = decision(), store = new BusinessHistoryStore(f.db, () => now);
     f.records.set("blueprintResearchLearning/default/businessHistoryEvents/wrong-key", event);
-    await expect(store.read(scope, now)).rejects.toThrow("document_identity_changed");
+    const read = await store.read(scope, now);
+    expect(read.history).toEqual([]);
+    expect(read.quarantine).toContainEqual({ recordRef: "blueprintResearchLearning/default/businessHistoryEvents/wrong-key", reason: "business_event_invalid_reconcile_original_hash_and_identity" });
     const next = decision({ supersedesEventId: event.eventId, statement: "A sourced later decision." });
     await expect(store.append(next, context(next))).rejects.toThrow("document_identity_changed"); expect(f.writes).toEqual([]);
+  });
+
+  it("keeps valid business records while quarantining an invalid record and a competing lineage", async () => {
+    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now);
+    const valid = decision({ recordId: "BP-DEC-valid" }), original = decision(), conflict = decision({ statement: "Competing decision." });
+    for (const event of [valid, original, conflict]) f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`, event);
+    f.records.set("blueprintResearchLearning/default/businessHistoryEvents/bad", { subjectKey, body: "PRIVATE_SENTINEL" });
+    const read = await store.read(scope, now);
+    expect(read.current.map(event => event.eventId)).toEqual([valid.eventId]); expect(read.quarantine).toHaveLength(3);
+    expect(f.records.size).toBe(4); expect(f.writes).toEqual([]); expect(JSON.stringify(read)).not.toContain("PRIVATE_SENTINEL");
+  });
+  it("does not resurrect an obsolete decision when its malformed revision needs repair", async () => {
+    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now), original = decision();
+    const valid = decision({ recordId: "BP-DEC-valid" }), correction = decision({ supersedesEventId: original.eventId, statement: "Later sourced decision." });
+    for (const event of [original, valid]) f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`, event);
+    f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${correction.eventId}`, { ...correction, statement: "PRIVATE_MUTATED_BODY" });
+    const read = await store.read(scope, now);
+    expect(read.current.map(event => event.eventId)).toEqual([valid.eventId]);
+    expect(read.quarantine).toHaveLength(2); expect(f.records.size).toBe(3); expect(f.writes).toEqual([]);
+  });
+  it("pages every authorized business record beyond the former 500-record stop", async () => {
+    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now), expected = new Set<string>();
+    for (let index = 0; index < 503; index++) {
+      const event = decision({ recordId: `BP-DEC-page-${index}` }); expected.add(event.eventId);
+      f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`, event);
+    }
+    const read = await store.read(scope, now);
+    expect(new Set(read.history.map(event => event.eventId))).toEqual(expected); expect(read.quarantine).toEqual([]); expect(f.writes).toEqual([]);
+    const canonical = businessHistoryProjection(read.history, scope, now, now);
+    expect(read.snapshotId).toBe(canonical.snapshotId); expect(read.historyHash).toBe(canonical.historyHash);
+  });
+  it("accepts equivalent trusted source timestamps without mutating original provenance", async () => {
+    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now), event = decision();
+    const trusted = structuredClone(context(event)); (trusted.verifiedSources[0] as any).originalTimestamp = "2026-10-01T17:00:00-05:00";
+    const before = JSON.stringify(trusted);
+    expect(await store.append(event, trusted)).toBe("created"); expect(JSON.stringify(trusted)).toBe(before);
+    expect(f.records.get(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`).sources[0].sourceHash).toBe(event.sources[0].sourceHash);
+  });
+  it("quarantines an impossible ISO offset without aborting other business records", async () => {
+    const f = learningMemoryFirestore(), store = new BusinessHistoryStore(f.db, () => now);
+    const valid = decision({ recordId: "BP-DEC-valid" }), invalid = decision();
+    f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${valid.eventId}`, valid);
+    f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${invalid.eventId}`, { ...invalid, recordedAt: "2026-10-01T23:00:00+99:99" });
+    const read = await store.read(scope, now);
+    expect(read.current.map(event => event.eventId)).toEqual([valid.eventId]);
+    expect(read.quarantine).toHaveLength(1); expect(f.writes).toEqual([]);
   });
 
 });

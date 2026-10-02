@@ -16,8 +16,14 @@ export const digest = (value: unknown): string => {
 };
 export const id = z.string().min(1).max(160).regex(/^[A-Za-z0-9_.:-]+$/);
 export const hash = z.string().regex(/^[a-f0-9]{64}$/);
-export const instant = z.string().datetime().transform(value => new Date(value).toISOString());
-const label = z.string().min(1).max(120).regex(/^[A-Za-z0-9 ._:/-]+$/);
+export const instant = z.string().datetime({ offset: true })
+  .refine(value => Number.isFinite(Date.parse(value)), { message: "learning_timestamp_invalid_repair_iso_offset_or_calendar_date" })
+  .transform(value => new Date(value).toISOString());
+// Public cohort labels include accents, non-Latin scripts and punctuation.
+// Exclude private addresses, controls and credential-like material.
+export const cohortLabel = z.string().min(1).max(120).refine(value => !/[\p{Cc}\p{Cf}@]/u.test(value)
+  && !/(?:bearer\s+\S+|(?:token|password|secret|api[_ -]?key)\s*[:=])/i.test(value));
+const label = cohortLabel;
 const uniqueIds = z.array(id).max(100).refine(items => new Set(items).size === items.length);
 export const entitiesSchema = z.object({
   prospectId: id, crmId: id.nullable(), companyId: id.nullable(),

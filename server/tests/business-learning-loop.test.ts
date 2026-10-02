@@ -62,11 +62,15 @@ describe("zero-model per-run and daily learning handlers", () => {
     expect(overviewFreshness(first.overview, now).stale).toBe(false); expect(overviewFreshness(first.overview, "2026-10-03T14:00:00.000Z").stale).toBe(true);
     expect(overviewFreshness(first.overview, now, digest("changed source")).stale).toBe(true);
   });
-  it("fails safely on changed retry scope and corrupted stored history without committing a summary", async () => {
+  it("rejects changed retry scope and keeps valid evidence through stored-history repair", async () => {
     const f = setup(); await f.execute();
     await expect(runDailyBusinessAnalysis(f.db, { jobKey: "daily-2026-10-02", businessScope, learningGrant: { ...learningGrant, sections: [...learningGrant.sections] }, request: { ...request, maturityDays: 90 }, focus: { city: "Sacramento", industry: "Laundromats" } }, () => now)).rejects.toThrow("job_scope_changed");
     const other = setup(); other.records.set("blueprintResearchLearning/default/events/invalid", { entities: { prospectId: "prospect-1" }, body: "PRIVATE_SENTINEL" });
-    await expect(other.execute()).rejects.toThrow(); expect(other.writes).toEqual([]);
+    const repaired = await other.execute();
+    expect(repaired.overview.sourceQuarantine).toContainEqual({ recordRef: "blueprintResearchLearning/default/events/invalid", reason: "stored_event_invalid_reconcile_original_hash_and_identity" });
+    expect(repaired.overview.outcomeAnalysis.cohorts[0].counts.matureReplyRate).toEqual({ numerator: 0, denominator: 1 });
+    expect(JSON.stringify(repaired)).not.toContain("PRIVATE_SENTINEL");
+    expect((await other.execute()).overview.overviewId).toBe(repaired.overview.overviewId);
   });
   it("rejects expiry during replay and before transactional creates", async () => {
     for (const phase of ["replay", "transaction"]) {

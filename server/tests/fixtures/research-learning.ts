@@ -79,13 +79,17 @@ export function learningMemoryFirestore() {
   };
   const doc = (path: string): any => ({ path, get: async () => { reads.push(path); return snap(path); }, collection: (name: string) => collection(`${path}/${name}`) });
   const collection = (path: string): any => {
-    const query = (filters: [string, any][] = [], limit = 10000, fields?: string[]): any => ({
-      doc: (name: string) => doc(`${path}/${name}`), where: (key: string, _op: string, value: any) => query([...filters, [key, value]], limit, fields),
-      select: (...selected: string[]) => query(filters, limit, selected),
-      limit: (n: number) => query(filters, n, fields), get: async () => {
+    const query = (filters: [string, any][] = [], limit = 10000, fields?: string[], ordered = false, after?: string): any => ({
+      doc: (name: string) => doc(`${path}/${name}`), where: (key: string, _op: string, value: any) => query([...filters, [key, value]], limit, fields, ordered, after),
+      select: (...selected: string[]) => query(filters, limit, selected, ordered, after),
+      orderBy: () => query(filters, limit, fields, true, after),
+      startAfter: (snapshot: any) => query(filters, limit, fields, ordered, snapshot.id),
+      limit: (n: number) => query(filters, n, fields, ordered, after), get: async () => {
         reads.push(path);
-        const docs = [...records].filter(([key, value]) => key.startsWith(`${path}/`) && key.slice(path.length + 1).split("/").length === 1
-          && filters.every(([field, expected]) => getPath(field, value) === expected)).slice(0, limit).map(([key]) => {
+        const matched = [...records].filter(([key, value]) => key.startsWith(`${path}/`) && key.slice(path.length + 1).split("/").length === 1
+          && filters.every(([field, expected]) => getPath(field, value) === expected));
+        if (ordered) matched.sort(([left], [right]) => left.localeCompare(right));
+        const docs = matched.filter(([key]) => !after || key.slice(path.length + 1) > after).slice(0, limit).map(([key]) => {
             const original = snap(key);
             return fields ? { ...original, data: () => Object.fromEntries(fields.map(field => [field, getPath(field, original.data())])) } : original;
           });

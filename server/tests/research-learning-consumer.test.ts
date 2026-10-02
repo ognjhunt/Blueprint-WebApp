@@ -262,7 +262,7 @@ describe("runnable read-only research and communications consumer", () => {
   it("keeps prior research available when optional business history is invalid and reports unknown", async () => {
     const f = fixture(); f.records.set("blueprintResearchLearning/default/businessHistoryEvents/invalid", { subjectKey: "blueprint:research-learning", body: "PRIVATE_SENTINEL" });
     const session = await openResearchLearningSession(f.db, f.binding, f.selection, () => now, { businessHistory: { principalId: f.binding.principalId, subjectKeys: ["blueprint:research-learning"], expiresAt: f.binding.expiresAt } });
-    expect(session.handoff.priorResearch.crmRows).toHaveLength(1); expect(session.handoff.unknowns).toContain("business_history_unavailable_or_invalid");
+    expect(session.handoff.priorResearch.crmRows).toHaveLength(1); expect(session.handoff.unknowns).toContain("business_history_incomplete_reconcile_affected_records");
     expect(JSON.stringify(session.handoff)).not.toContain("PRIVATE_SENTINEL"); expect(f.writes).toEqual([]);
   });
   it("supports an unknown-only cached scope without inferring capability incompatibility", async () => {
@@ -290,4 +290,42 @@ describe("runnable read-only research and communications consumer", () => {
     expect(() => session.siteHistory("BP-000001", { pageSize: 3, cursor: { contextHash: session.handoff.contextHash, crmId: "BP-000002", offset: 3 } })).toThrow("cursor_invalid");
     expect(f.writes).toEqual([]);
   });
+  it("pages every stored contact event beyond the former 500-record stop", async () => {
+    const f = fixture(); native(f); const expected = new Set<string>();
+    for (let index = 0; index < 503; index++) expected.add(stored(f, "contact_observed", { actorId: `adapter-${index}` }).eventId);
+    const session = await f.open(), observed: string[] = []; let cursor: any = null;
+    do { const page = session.history("prospect-1", { pageSize: 25, cursor }); observed.push(...page.events.map(event => event.eventId)); cursor = page.nextCursor; } while (cursor);
+    expect(new Set(observed)).toEqual(expected); expect(session.handoff.provenance.quarantine).toEqual([]); expect(f.writes).toEqual([]);
+  });
+  it("keeps prior research when an optional site-learning record needs repair", async () => {
+    const f = fixture(); f.records.set(`${LEARNING_ROOT}/siteLearningEvents/bad`, { crmId: "BP-000001", body: "PRIVATE_SITE_SENTINEL" });
+    const session = await f.open();
+    expect(session.handoff.priorResearch.crmRows).toHaveLength(1);
+    expect(session.handoff.unknowns).toContain("site_history_incomplete_retry_affected_crm");
+    expect(session.handoff.provenance.quarantine).toContainEqual({ recordRef: `${LEARNING_ROOT}/siteLearningEvents`, reason: "site_history_retry:BP-000001" });
+    expect(JSON.stringify(session.handoff)).not.toContain("PRIVATE_SITE_SENTINEL"); expect(f.writes).toEqual([]);
+  });
+  it("suppresses a broken correction lineage while keeping unrelated contact evidence usable", async () => {
+    const f = fixture(); native(f);
+    const reply = stored(f, "reply_observed"), contact = stored(f, "contact_observed");
+    const correction = learningCorrection(reply);
+    f.records.set(`${LEARNING_ROOT}/events/${correction.eventId}`, { ...correction, body: "PRIVATE_BROKEN_CORRECTION" });
+    const session = await f.open(), history = session.history("prospect-1", { pageSize: 25, cursor: null });
+    expect(history.currentEventIds).toEqual([contact.eventId]);
+    expect(history.events.map(event => event.eventId)).toEqual([contact.eventId]);
+    expect(session.handoff.unknowns).toContain("stored_history_incomplete");
+    expect(session.handoff.provenance.quarantine).toContainEqual(expect.objectContaining({ recordRef: `${LEARNING_ROOT}/events/${reply.eventId}`, reason: "stored_lineage_conflict_reconcile_correction_without_deleting_history" }));
+    expect(JSON.stringify(session.handoff)).not.toContain("PRIVATE_BROKEN_CORRECTION"); expect(f.records.has(`${LEARNING_ROOT}/events/${reply.eventId}`)).toBe(true);
+    expect(f.writes).toEqual([]);
+  });
+  it("quarantines an invalid offset timestamp without aborting healthy sibling history", async () => {
+    const f = fixture(); native(f); const contact = stored(f, "contact_observed");
+    const reply = stored(f, "reply_observed");
+    f.records.set(`${LEARNING_ROOT}/events/${reply.eventId}`, { ...reply, recordedAt: "2026-10-01T22:00:00+99:99" });
+    const session = await f.open(), history = session.history("prospect-1", { pageSize: 25, cursor: null });
+    expect(history.currentEventIds).toEqual([contact.eventId]);
+    expect(session.handoff.unknowns).toContain("stored_history_incomplete");
+    expect(f.writes).toEqual([]);
+  });
+
 });

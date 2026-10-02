@@ -1,3 +1,5 @@
+import { readableHistory } from "./readable-history";
+import { readQueryPages } from "./query-pages";
 import { z } from "zod";
 import { authorize, CLASSIFICATION_POLICY, digest, hash, id, instant, LEARNING_ROOT, sectionSchema, validateEvent, type LearningEvent } from "./contract";
 import { readExistingSources, frozenSourceVersionIssue, type Quarantine } from "./existing-sources";
@@ -61,7 +63,11 @@ export async function openResearchLearningSession(db: FirebaseFirestore.Firestor
     capabilityIds: binding.discoveryCapabilityIds, sections: ["crm", "capabilities"], expiresAt: binding.expiresAt };
   const store = new ResearchSourceStore(db, clock);
   let business: BusinessHistorySnapshot | null = null, businessUnavailable = false;
-  if (businessScope) { try { business = await new BusinessHistoryStore(db, clock).read(businessScope, asOf); } catch { businessUnavailable = true; } }
+  let businessQuarantine: Quarantine[] = [];
+  if (businessScope) { try {
+    const read = await new BusinessHistoryStore(db, clock).read(businessScope, asOf);
+    business = read; businessQuarantine = read.quarantine;
+  } catch { businessUnavailable = true; } }
   check();
   const businessContext = business ? { version: "blueprint.business-history-context.v1" as const, snapshotId: business.snapshotId, historyHash: business.historyHash, asOf: business.asOf,
     subjectKeys: business.subjectKeys, currentCount: business.current.length, historyCount: business.history.length,
@@ -109,9 +115,10 @@ export async function openResearchLearningSession(db: FirebaseFirestore.Firestor
       { crmIds: [], capabilityIds: available, sections: ["capabilities"], asOf }, clock()) : null,
       missingCapabilityIds: requested.filter(value => !available.includes(value)), absenceMeans: "unknown_not_incompatible" };
   };
-  const quarantine: Quarantine[] = [];
+  const quarantine: Quarantine[] = [...businessQuarantine];
   const unknowns = new Set(source.unknowns);
   if (businessUnavailable) unknowns.add("business_history_unavailable_or_invalid");
+  if (businessQuarantine.length) unknowns.add("business_history_incomplete_reconcile_affected_records");
   if (cachedCrmIds.length !== selected.crmIds.length) unknowns.add("crm_rows_missing_from_prior_snapshot");
   if (cachedCapabilityIds.length !== binding.discoveryCapabilityIds.length) unknowns.add("capabilities_missing_from_prior_snapshot");
   const prospectIds = new Set(selected.prospectIds);
@@ -144,7 +151,7 @@ export async function openResearchLearningSession(db: FirebaseFirestore.Firestor
   const allProspects = [...prospectIds].sort(), sections = [...sectionSchema.options];
   const grant = { principalId: binding.principalId, prospectIds: allProspects, sections, expiresAt: binding.expiresAt };
   const request = { prospectIds: allProspects, sections, asOf, maturityDays: selected.maturityDays };
-  const events: LearningEvent[] = [];
+  const events: LearningEvent[] = [], storedDocuments: FirebaseFirestore.QueryDocumentSnapshot[] = [];
   const nativeResearch: ReturnType<typeof projectBriefResearch>[] = [];
   const readRefs = new Set<string>();
   for (const prospectId of allProspects) {
@@ -161,19 +168,25 @@ export async function openResearchLearningSession(db: FirebaseFirestore.Firestor
       unknowns.add("current_history_incomplete");
     }
     check();
-    const records = await db.doc(LEARNING_ROOT).collection("events").where("entities.prospectId", "==", prospectId).limit(501).get();
-    if (records.size > 500) throw new Error("learning_consumer_history_export_required");
-    for (const row of records.docs) {
-      try {
-        const event = validateEvent(row.data());
-        if (event.eventId !== row.id || event.entities.prospectId !== prospectId) throw new Error("changed");
-        events.push(event); readRefs.add(`${LEARNING_ROOT}/events/${row.id}`);
-      } catch { quarantine.push({ recordRef: `${LEARNING_ROOT}/events/${row.id}`, reason: "stored_event_invalid" }); unknowns.add("stored_history_incomplete"); }
+    const records = await readQueryPages(db.doc(LEARNING_ROOT).collection("events").where("entities.prospectId", "==", prospectId));
+    storedDocuments.push(...records);
+  }
+  const readable = readableHistory(storedDocuments, events, request);
+  quarantine.push(...readable.quarantine);
+  if (readable.quarantine.length) unknowns.add("stored_history_incomplete");
+  readable.observedSourceRefs.forEach(recordRef => readRefs.add(recordRef));
+  const outcomeSnapshot: LearningSnapshot | null = allProspects.length ? buildSnapshot(readable.events, grant, request, clock()) : null;
+  const siteLearning: Awaited<ReturnType<typeof store.readSiteLearning>> = { history: [], current: [] };
+  for (const crmId of selected.crmIds) {
+    try {
+      const read = await store.readSiteLearning({ ...sourceGrant, sections: ["site_learning"] },
+        { crmIds: [crmId], capabilityIds: [], sections: ["site_learning"], asOf });
+      siteLearning.history.push(...read.history); siteLearning.current.push(...read.current);
+    } catch {
+      quarantine.push({ recordRef: `${LEARNING_ROOT}/siteLearningEvents`, reason: `site_history_retry:${crmId}` });
+      unknowns.add("site_history_incomplete_retry_affected_crm");
     }
   }
-  const outcomeSnapshot: LearningSnapshot | null = allProspects.length ? buildSnapshot(events, grant, request, clock()) : null;
-  const siteLearning = selected.crmIds.length ? await store.readSiteLearning({ ...sourceGrant, sections: ["site_learning"] },
-    { crmIds: selected.crmIds, capabilityIds: [], sections: ["site_learning"], asOf }) : { history: [], current: [] };
   const capabilityDetails = details(selected.capabilityIds);
   let businessOverview: Awaited<ReturnType<typeof readBusinessOverview>> = null;
   if (options?.businessOverviewJobKey && businessScope) {

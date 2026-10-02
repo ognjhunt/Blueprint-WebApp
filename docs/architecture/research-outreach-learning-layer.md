@@ -2,6 +2,17 @@
 
 Status: verified foundation deployed; prior-research reconciliation staged; business decision/run/daily handlers implemented offline. Caller hooks and Chicago scheduler activation remain separately owned integrations; see the business loop contract below.
 Owner: WebApp learning projection, coordinated by the parent engineering lane.
+Agent autonomy: agents choose research strategy, tools and depth within the
+authorized task and repair ordinary errors in the same session. Relevant history
+is read in document-ID pages without a result-count success quota. Equivalent
+timestamp formats normalize to the same identity; original source hashes and
+check dates remain unchanged. Invalid optional receipt/reply/cohort fields and
+business/site history produce specific repair references while valid sibling
+evidence remains usable. A malformed business revision suppresses its affected
+lineage until reconciliation rather than presenting an obsolete decision.
+Canonical writes and consequential spending/access, deletion, idempotency,
+opt-out and the current draft-only direction retain their existing owners.
+
 Authorized objective: make site/job/team research reuse evidence from previous
 research, contact availability, outreach, replies and later outcomes. The owner
 explicitly approved this support layer on 2026-10-01 at 17:07. It does not change

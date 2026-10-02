@@ -1,3 +1,4 @@
+import { readQueryPages } from "./query-pages";
 import { LEARNING_ROOT } from "./contract";
 import { authorizeSources, scopeSourceSnapshot, verifySourceSnapshot, validatedReconciliationSnapshot, type reconcilePriorResearch, type SourceGrant, type SourceRequest } from "./prior-research";
 import { siteLearningHistory, validateSiteCorrection, validateSiteLearning } from "./site-learning";
@@ -64,9 +65,12 @@ export class ResearchSourceStore {
     if (!selected.sections.includes("site_learning")) return { history: [], current: [] };
     const records = this.db.doc(LEARNING_ROOT).collection("siteLearningEvents"), values: unknown[] = [];
     for (const crmId of selected.crmIds) {
-      const rows = await records.where("crmId", "==", crmId).limit(501).get();
-      if (rows.size > 500) throw new Error("site_learning_history_export_required");
-      values.push(...rows.docs.map(row => row.data()));
+      const rows = await readQueryPages(records.where("crmId", "==", crmId));
+      values.push(...rows.map(row => {
+        const event = validateSiteLearning(row.data());
+        if (event.eventId !== row.id || event.crmId !== crmId) throw new Error("site_learning_document_identity_changed");
+        return event;
+      }));
     }
     return siteLearningHistory(values, grant, request, this.now());
   }

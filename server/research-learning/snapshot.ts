@@ -3,10 +3,11 @@ import {
   type LearningEvent, type LearningGrant, type Section, type SnapshotRequest,
 } from "./contract";
 
-export function eventSection(event: LearningEvent): Section {
-  return event.kind === "research_observed" ? "research" : event.kind === "contact_observed" ? "contact"
-    : event.kind === "reply_observed" ? "replies" : event.kind === "outcome_observed" ? "outcomes" : "outreach";
-}
+export const sectionsByKind: Record<LearningEvent["kind"], Section> = {
+  research_observed: "research", contact_observed: "contact", outreach_observed: "outreach",
+  delivery_observed: "outreach", reply_observed: "replies", outcome_observed: "outcomes",
+};
+export function eventSection(event: LearningEvent): Section { return sectionsByKind[event.kind]; }
 export type SnapshotRow = {
   prospectId: string;
   history: LearningEvent[];
@@ -74,7 +75,12 @@ export function resolveHistory(values: unknown[]): { history: LearningEvent[]; a
 export function buildSnapshot(values: unknown[], grant: LearningGrant, input: SnapshotRequest, now: string): LearningSnapshot {
   const { request } = authorize(grant, input, now);
   // Discard unrelated records before parsing or serializing any of their fields.
-  const scoped = values.filter((value: any) => request.prospectIds.includes(value?.entities?.prospectId));
+  const scoped = values.filter((value: any) => {
+    if (!request.prospectIds.includes(value?.entities?.prospectId)) return false;
+    const section = typeof value?.kind === "string" && Object.hasOwn(sectionsByKind, value.kind)
+      ? sectionsByKind[value.kind as LearningEvent["kind"]] : undefined;
+    return section ? request.sections.includes(section) : request.sections.length === 5;
+  });
   const allowed = scoped.map(validateEvent).filter(event => event.recordedAt <= request.asOf && event.occurredAt <= request.asOf
     && event.evidence.every(e => e.checkedAt <= request.asOf) && request.sections.includes(eventSection(event)));
   const rows = [...request.prospectIds].sort().map(prospectId => {
