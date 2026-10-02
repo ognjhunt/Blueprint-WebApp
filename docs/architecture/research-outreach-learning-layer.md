@@ -553,3 +553,47 @@ Run the required graphify refresh after code changes. Record broader checks,
 independent Sol review, actual dry-run counts and any tooling blockers in the
 task closeout. Green synthetic tests prove the offline contract, not live ingest
 or export readiness.
+
+## Research caller integration
+
+`research-worker-host.ts` is the concrete research caller for the merged pure
+handlers. `dailyResearchWorker.ts` passes its compiled local module to the
+portable research package's existing private pipe. The isolated research clock
+runs the deterministic daily handler at Chicago 06:45, including DST and
+restart catch-up; it does not enable the general ops scheduler. The module is
+built as `dist/research-learning/research-worker-host.js`. Communications callers remain owned by
+the communications workflow; no send, OAuth or `server/worker.ts` change occurs.
+
+Optional trusted `blueprintDailyResearch/sites-first.learning` configuration
+must satisfy exported `researchLearningControlSchema`. It binds the existing
+consumer selection/source snapshot, principal, business subjects, outcome
+grant, actual expirations, first admitted date and terminal subject. IDs and
+joins come from reconciled source records, never names or inferred interest.
+All outcome sections must already be authorized, and grant prospect IDs must
+match the consumer binding. Nothing is enabled or granted by installing code.
+Absent/disabled learning keeps existing behavior. Expired scopes require the
+existing Blueprint control-plane authorization; Dot is not a runtime step.
+
+The daily job key is `research-learning:YYYY-MM-DD:0645` and the immutable
+analysis `asOf` is that date's Chicago 06:45. At pre-create, the scoped consumer
+reads the verified retained overview and current relevant history from one
+captured closure. Relevant histories are paged locally, bounded to 500 events
+per selected subject and a 600 KB input; continuation/unknown coverage stays
+explicit. Exact UTF-8 JSON bytes, their SHA-256, binding digest and create
+payload are persisted before inference. A missing verified overview, changed
+scope or expiry refuses the create claim. Restart uses those same bytes.
+
+The after-terminal caller observes the exact native `runs/YYYY-MM-DD` document
+with `recordTerminalRun`, using a stable BP observation ID that includes the
+native state/source hash. QA/publication/cleanup transitions preserve previous
+observations. Unsupported counts/finish times remain null; terminal state is
+not evidence of delivered outreach or pilot interest. Recovery scans at most
+100 scoped native projections and requires explicit export/reconciliation
+beyond that boundary; it never scans private canary sessions.
+
+Runtime enablement and production package release remain held until the active
+baseline finishes and native source/binding reconciliation is verified. Required
+original-message evidence is owned by source capture. No business decisions are
+seeded from this delegation, and no live learning/connector publication is
+claimed by hermetic tests. Portable exports retain the dated run's context and
+the linked learning history/overview/snapshot hashes in Blueprint storage.

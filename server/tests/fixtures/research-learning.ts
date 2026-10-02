@@ -74,12 +74,12 @@ export function learningMemoryFirestore() {
   const snap = (path: string): any => ({ exists: records.has(path), id: path.split("/").at(-1), data: () => structuredClone(records.get(path)) });
   const doc = (path: string): any => ({ path, get: async () => { reads.push(path); return snap(path); }, collection: (name: string) => collection(`${path}/${name}`) });
   const collection = (path: string): any => {
-    const query = (filters: [string, any][] = [], limit = 10000): any => ({
-      doc: (name: string) => doc(`${path}/${name}`), where: (key: string, _op: string, value: any) => query([...filters, [key, value]], limit),
+    const query = (filters: [string, string, any][] = [], limit = 10000): any => ({
+      doc: (name: string) => doc(`${path}/${name}`), where: (key: string, op: string, value: any) => query([...filters, [key, op, value]], limit),
       limit: (n: number) => query(filters, n), get: async () => {
         reads.push(path);
         const docs = [...records].filter(([key, value]) => key.startsWith(`${path}/`) && key.slice(path.length + 1).split("/").length === 1
-          && filters.every(([field, expected]) => getPath(field, value) === expected)).slice(0, limit).map(([key]) => snap(key));
+          && filters.every(([field, op, expected]) => op === ">=" ? getPath(field, value) >= expected : getPath(field, value) === expected)).slice(0, limit).map(([key]) => snap(key));
         return { docs, size: docs.length, empty: docs.length === 0 };
       },
     });
