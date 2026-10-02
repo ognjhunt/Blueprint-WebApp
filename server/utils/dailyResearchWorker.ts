@@ -47,7 +47,9 @@ export function startDailyResearchWorker(dependencies: WorkerDependencies = {}):
         python: resolve(packageRoot, "venv/bin/python"),
         enabled: true,
         log: (status: string) => logger.info(attachRequestMeta({ route: "daily-research", status }), "Research status"),
-        ...(selectedLearning ? { learningHostModule: pathToFileURL(resolve("dist/research-learning/research-worker-host.js")).href } : {}),
+        // The private bridge converts this filesystem path to a file URL once.
+        // An already encoded URL becomes a different, nonexistent cwd path.
+        ...(selectedLearning ? { learningHostModule: resolve("dist/research-learning/research-worker-host.js") } : {}),
         ...(selectedLearning ? { learningHooks: {
           beforeRun: async (date: string) => {
             if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("native_learning_run_identity_invalid");
