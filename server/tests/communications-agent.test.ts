@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createHash } from "node:crypto";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
@@ -39,6 +40,30 @@ describe("research handoff and publication integrity", () => {
     const f = communicationsFixture();
     expect(communicationsBriefSchema.parse(f.brief)).toEqual(f.brief);
     expect(verifyPublishedResearch(f.snapshot, f.brief, f.handoff).packetDigest).toBe(f.brief.researchOrigin.packetDigest);
+  });
+  it.each(["", "\n"])("verifies original Python evidence bytes with %j framing without re-encoding floats", (suffix) => {
+    const f = communicationsFixture();
+    const canonical = '[{"turn_id":"research-turn-1","usage":{"input_cost":1.0,"output_cost":0.0}}]';
+    const digest = createHash("sha256").update(canonical).digest("hex");
+    const encoded = Buffer.from(canonical + suffix).toString("base64");
+    f.snapshot.row.evidence_digest = digest;
+    f.snapshot.files.evidence = encoded;
+    expect(researchDigest(JSON.parse(canonical))).not.toBe(digest);
+    expect(verifyPublishedResearch(f.snapshot, f.brief, f.handoff).packetDigest).toBe(f.brief.researchOrigin.packetDigest);
+    expect(f.snapshot.files.evidence).toBe(encoded);
+    expect(f.snapshot.row.evidence_digest).toBe(digest);
+  });
+  it.each(["float_lexeme", "zero_lexeme", "extra_lf", "crlf", "trailing_space"])("rejects evidence %s changes even when parsed values match", (change) => {
+    const f = communicationsFixture();
+    const canonical = '[{"turn_id":"research-turn-1","usage":{"input_cost":1.0,"output_cost":0.0}}]';
+    const changed = change === "float_lexeme" ? canonical.replace("1.0", "1") + "\n"
+      : change === "zero_lexeme" ? canonical.replace("0.0", "0") + "\n"
+      : change === "extra_lf" ? canonical + "\n\n"
+      : change === "crlf" ? canonical + "\r\n" : canonical + " \n";
+    f.snapshot.row.evidence_digest = createHash("sha256").update(canonical).digest("hex");
+    f.snapshot.files.evidence = Buffer.from(changed).toString("base64");
+    expect(JSON.parse(changed)).toEqual(JSON.parse(canonical));
+    expect(() => verifyPublishedResearch(f.snapshot, f.brief, f.handoff)).toThrow("research_evidence_digest_mismatch");
   });
   it.each(["contact", "consent", "classification", "consequential", "site"])('refuses %s mutation under the original full handoff approval', (field) => {
     const f = communicationsFixture();

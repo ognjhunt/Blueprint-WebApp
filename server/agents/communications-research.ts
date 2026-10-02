@@ -79,8 +79,12 @@ export function verifyResearchPublication(snapshot: any, origin: CommunicationsB
   const savedReview = JSON.parse(Buffer.from(snapshot.files.review, "base64").toString("utf8"));
   const { packet_digest: savedDigest, ...savedPacket } = savedReview;
   if (savedDigest !== origin.packetDigest || researchDigest(savedPacket) !== origin.packetDigest) throw new Error("research_review_packet_mismatch");
-  const evidence = JSON.parse(Buffer.from(snapshot.files.evidence, "base64").toString("utf8"));
-  if (researchDigest(evidence) !== row.evidence_digest) throw new Error("research_evidence_digest_mismatch");
+  const evidenceBytes = Buffer.from(snapshot.files.evidence, "base64");
+  JSON.parse(evidenceBytes.toString("utf8"));
+  // The producer writes canonical Python JSON plus one LF. Hash its retained
+  // bytes: parsing/re-encoding loses provider float lexemes such as 1.0/0.0.
+  const canonicalEvidence = evidenceBytes.at(-1) === 0x0a ? evidenceBytes.subarray(0, -1) : evidenceBytes;
+  if (hash(canonicalEvidence) !== row.evidence_digest) throw new Error("research_evidence_digest_mismatch");
   const review = row.review;
   if (review?.packet_digest !== origin.packetDigest || !review.reviewer_reference
     || review.source_support_verified !== true || review.crm_rechecked !== true
