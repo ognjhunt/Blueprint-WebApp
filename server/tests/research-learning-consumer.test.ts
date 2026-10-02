@@ -12,6 +12,7 @@ import { officialResearchInput } from "./fixtures/official-contact-research";
 import { stageReviewedResearch } from "../agents/communications-reviewed-research";
 import { admitPublishedResearch } from "../agents/communications-intake";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
+import { makeBusinessHistory } from "../research-learning/business-history";
 import { resolvePublicContact } from "../agents/communications-contact-resolution";
 
 const now = "2026-10-01T22:00:00.000Z";
@@ -240,6 +241,29 @@ describe("runnable read-only research and communications consumer", () => {
     expect(session.search(query).rows[0].name).toBe("Company 1");
     stored(f, "outcome_observed"); expect(session.history("prospect-1", { pageSize: 25, cursor: null }).events).toHaveLength(1);
     const next = await f.open(); expect(next.history("prospect-1", { pageSize: 25, cursor: null }).events).toHaveLength(2);
+  });
+  it("adds authorized sourced company decisions without changing existing reader grants or exposing unrelated history", async () => {
+    const f = fixture(), subjectKey = "blueprint:research-learning";
+    const make = (recordId: string, statement: string, supersedesEventId: string | null = null) => makeBusinessHistory({ kind: "decision", recordId, subjectKey, contentClass: "blueprint_business_only", classification: "explicit_decision", statement, rationale: null,
+      occurredAt: "2026-10-01T21:00:00.000Z", recordedAt: now, capturedBy: f.binding.principalId, supersedesEventId,
+      sources: [{ system: "chat", threadId: "synthetic-thread", messageId: "synthetic-message", originalTimestamp: "2026-10-01T21:00:00.000Z", originalAuthorId: "company-owner", originalAuthorRole: "user", sourceHash: digest("synthetic source"), businessExcerpt: statement }] });
+    const first = make("BP-DEC-source", "Use the existing database."), next = make("BP-DEC-source", "Preserve portable company records.", first.eventId);
+    for (const event of [first, next]) f.records.set(`blueprintResearchLearning/default/businessHistoryEvents/${event.eventId}`, event);
+    f.records.set("blueprintResearchLearning/default/businessHistoryEvents/unrelated", { subjectKey: "personal", body: "PRIVATE_PERSONAL_SENTINEL" });
+    const businessHistory = { principalId: f.binding.principalId, subjectKeys: [subjectKey], expiresAt: f.binding.expiresAt };
+    const session = await openResearchLearningSession(f.db, f.binding, f.selection, () => now, { businessHistory });
+    expect(session.handoff.businessHistory?.explicitDecisions.map(event => event.eventId)).toEqual([next.eventId]);
+    const page = session.decisionHistory(subjectKey, { pageSize: 1, cursor: null }); expect(page.total).toBe(2);
+    expect(session.decisionHistory(subjectKey, { pageSize: 1, cursor: page.nextCursor }).events).toHaveLength(1);
+    expect(() => session.decisionHistory("personal", { pageSize: 1, cursor: null })).toThrow("scope_denied");
+    expect(JSON.stringify(session.handoff)).not.toContain("PRIVATE_PERSONAL_SENTINEL"); expect(f.writes).toEqual([]);
+    await expect(openResearchLearningSession(f.db, f.binding, f.selection, () => now, { businessHistory: { ...businessHistory, principalId: "other" } })).rejects.toThrow("scope_denied");
+  });
+  it("keeps prior research available when optional business history is invalid and reports unknown", async () => {
+    const f = fixture(); f.records.set("blueprintResearchLearning/default/businessHistoryEvents/invalid", { subjectKey: "blueprint:research-learning", body: "PRIVATE_SENTINEL" });
+    const session = await openResearchLearningSession(f.db, f.binding, f.selection, () => now, { businessHistory: { principalId: f.binding.principalId, subjectKeys: ["blueprint:research-learning"], expiresAt: f.binding.expiresAt } });
+    expect(session.handoff.priorResearch.crmRows).toHaveLength(1); expect(session.handoff.unknowns).toContain("business_history_unavailable_or_invalid");
+    expect(JSON.stringify(session.handoff)).not.toContain("PRIVATE_SENTINEL"); expect(f.writes).toEqual([]);
   });
   it("supports an unknown-only cached scope without inferring capability incompatibility", async () => {
     const f = fixture(); native(f, "BP-NEW"); f.binding.crmIds = ["BP-NEW"]; f.binding.discoveryCapabilityIds = ["cap-new"]; f.binding.detailCapabilityIds = ["cap-new"];
