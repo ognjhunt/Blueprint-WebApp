@@ -3,8 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT } from "../agents/communications-contract";
 import { communicationsFixture } from "./fixtures/communications";
+import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION } from "../agents/communications-instructions";
 
-function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: string; noFinal?: boolean; http?: number; failed?: boolean; itemsPage?: boolean; missingMetadata?: boolean } = {}) {
+function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: string; noFinal?: boolean; http?: number; failed?: boolean; itemsPage?: boolean; missingMetadata?: boolean; rawOutput?: string; instructions?: string; usage?: unknown } = {}) {
   const { output } = communicationsFixture();
   const calls: Array<{ path: string; init: RequestInit }> = [];
   const checkpoints: any[] = [];
@@ -22,18 +23,18 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
       return new Response(stream.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
     }
     if (path.endsWith("/session-1")) return Response.json({ id: "session-1", status: "idle", agent: { id: "agent-1", model: options.model ?? COMMUNICATIONS_MODEL,
-      instructions: COMMUNICATIONS_INSTRUCTIONS, service_tier: "default", tools: [], multi_agent: { enabled: false } }, environment: { type: "none" }, vault_ids: [],
+      instructions: options.instructions ?? COMMUNICATIONS_INSTRUCTIONS, service_tier: "default", tools: [], multi_agent: { enabled: false } }, environment: { type: "none" }, vault_ids: [],
       metadata: options.missingMetadata ? {} : { blueprint_communications_job: "job-1", role: "communications", blueprint_communications_request_digest: requestDigest } });
-    if (path.includes("/turns?")) return Response.json({ data: [{ id: "turn-1", agent_id: "agent-1", status: options.idle ? "running" : "completed", usage: { input_tokens: 3 } }], has_more: false });
+    if (path.includes("/turns?")) return Response.json({ data: [{ id: "turn-1", agent_id: "agent-1", status: options.idle ? "running" : "completed", usage: options.usage ?? { input_tokens: 3 } }], has_more: false });
     if (path.includes("/items?")) {
       if (options.itemsPage && !path.includes("after=")) return Response.json({ data: [{ id: "item-0", type: "message", role: "assistant", phase: "commentary", status: "completed", turn_id: "turn-1", content: [{ type: "output_text", text: "UNTRUSTED DELTA" }] }], has_more: true, last_id: "item-0" });
-      return Response.json({ data: options.noFinal ? [] : [{ id: "final-1", type: "message", role: "assistant", phase: "final_answer", status: "completed", turn_id: "turn-1", content: [{ type: "output_text", text: JSON.stringify(output) }] }], has_more: false });
+      return Response.json({ data: options.noFinal ? [] : [{ id: "final-1", type: "message", role: "assistant", phase: "final_answer", status: "completed", turn_id: "turn-1", content: [{ type: "output_text", text: options.rawOutput ?? JSON.stringify(output) }] }], has_more: false });
     }
     throw new Error("unexpected mock path");
   });
   const reservePaidDraft = vi.fn(async () => undefined), recordPaidDraftUsage = vi.fn(async () => undefined);
   const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true, fetch: fetchMock as any, reservePaidDraft, recordPaidDraftUsage });
-  const params = { input: "synthetic context", jobId: "job-1", checkpoint: options.reconnect ? { createClaimedAt: "2026-09-30T23:00:00Z", sessionId: "session-1", turnId: "turn-1" } : { createClaimedAt: null, sessionId: null, turnId: null }, saveCheckpoint: async (value: any) => { checkpoints.push(value); } };
+  const params = { input: "synthetic context", jobId: "job-1", checkpoint: options.reconnect ? { createClaimedAt: "2026-09-30T23:00:00Z", sessionId: "session-1", turnId: "turn-1", requestDigest } : { createClaimedAt: null, sessionId: null, turnId: null }, saveCheckpoint: async (value: any) => { checkpoints.push(value); } };
   return { api, params, calls, fetchMock, checkpoints, output, reservePaidDraft, recordPaidDraftUsage };
 }
 
@@ -73,6 +74,29 @@ describe("portable communications Agents API", () => {
     expect(f.calls.some(call => call.init.method === "POST" || call.path.endsWith("/events"))).toBe(false);
     expect(f.calls[0].path).toBe("/v1/agents/sessions/session-1");
   });
+  it("recovers a completed historical definition with its original request digest, provenance and usage", async () => {
+    const usage = { input_tokens: 10396, output_tokens: 2373, total_tokens: 12769 };
+    const f = apiFixture({ reconnect: true, instructions: LEGACY_COMMUNICATIONS_INSTRUCTIONS, usage });
+    const result = await f.api.run({ ...f.params, input: "Changed current writing guidance must not relabel this existing request" });
+    expect(result.output).toEqual(f.output);
+    expect(result.outputSource).toMatchObject({ schema_version: "blueprint.communications-output-source.v1",
+      jobId: "job-1", sessionId: "session-1", turnId: "turn-1", finalItemId: "final-1", requestDigest: "a".repeat(64),
+      definitionVersion: LEGACY_COMMUNICATIONS_DEFINITION.version, instructionsDigest: LEGACY_COMMUNICATIONS_DEFINITION.instructionsDigest,
+      rawOutput: JSON.stringify(f.output), normalizedMetadataPaths: [] });
+    expect(COMMUNICATIONS_DEFINITION.instructionsDigest).not.toBe(LEGACY_COMMUNICATIONS_DEFINITION.instructionsDigest);
+    expect(result.usage).toEqual(usage); expect(result.checkpoint.requestDigest).toBe("a".repeat(64));
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", "a".repeat(64), usage);
+    expect(f.reservePaidDraft).not.toHaveBeenCalled();
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+  });
+  it("retains invalid output evidence and accounts terminal usage without creating another session", async () => {
+    const usage = { input_tokens: 10396, output_tokens: 2373, total_tokens: 12769 }, rawOutput = '{"requiresHumanReview":false}';
+    const f = apiFixture({ reconnect: true, usage, rawOutput });
+    await expect(f.api.reconcileSaved(f.params.checkpoint, "job-1")).rejects.toMatchObject({ code: "communications_output_invalid",
+      outputSource: { rawOutput, rawOutputBytes: Buffer.byteLength(rawOutput), jobId: "job-1", requestDigest: "a".repeat(64) } });
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", "a".repeat(64), usage);
+    expect(f.reservePaidDraft).not.toHaveBeenCalled(); expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+  });
   it("never interprets idle or streamed deltas as completion", async () => {
     const f = apiFixture({ idle: true });
     await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_turn_pending", retryable: true });
@@ -97,7 +121,7 @@ describe("portable communications Agents API", () => {
   });
   it("checks the saved session's exact job binding", async () => {
     const f = apiFixture({ reconnect: true, missingMetadata: true });
-    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_session_job_binding_mismatch" });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_existing_session_binding_mismatch" });
   });
   it("blocks paid inference by default while allowing read-only model discovery", async () => {
     const f = apiFixture(); const api = new CommunicationsAgentsAPI({ apiKey: "mock", allowPaidInference: false, fetch: f.fetchMock as any });

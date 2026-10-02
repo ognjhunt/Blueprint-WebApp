@@ -95,6 +95,21 @@ describe("Blueprint-owned communications queue", () => {
     expect(f.db.records.get(`outboundProspects/${f.brief.prospectId}`).communications.gmailDraftId).toBeNull();
     expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).hardChecksPassed).toBe(true);
   });
+  it("reviews an evidence-bound workflow question without forcing the brief's seeded wording", async () => {
+    const f = await setup(), originalQuestion = f.output.outreachContract!.question;
+    const question = "Is the packing step handled manually, or is it already automated?";
+    f.output.body = f.output.body.replace(originalQuestion, question);
+    f.output.outreachContract!.question = question;
+    expect(f.brief.contact.learningQuestion).not.toBe(question);
+    const result = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false });
+    const ledger = f.db.records.get(`action_ledger/${(result as any).ledgerId}`);
+    expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).hardChecksPassed).toBe(true);
+    expect(ledger.outreach_semantic_review).toBeUndefined();
+    const input = JSON.parse(f.deps.api.run.mock.calls[0][0].input);
+    expect(input.firstTouchPolicy).not.toContain("automation_status");
+    expect(input.firstTouchPolicy).toContain("learningQuestion is a suggestion, not fixed wording");
+  });
   it("claims concurrently enqueued work once across two worker owners", async () => {
     const f = await setup();
     const other = { ...f.deps, store: new CommunicationsStore(f.db, () => communicationsNow, "other-owner") };
