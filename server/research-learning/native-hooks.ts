@@ -4,6 +4,7 @@ import { openResearchLearningSession } from "./consumer";
 import { verifySourceSnapshot, safeText } from "./prior-research";
 import { BusinessHistoryStore } from "./business-history";
 import { chicagoDate, recordTerminalRun, runDailyBusinessAnalysis } from "./business-learning-loop";
+import { validateNativeHandoff } from "./native-handoff";
 
 /** Existing authenticated native callers own these inputs. No model arguments,
  * credentials, provider calls, send authority or source/control mutations. */
@@ -31,8 +32,12 @@ const nativeRefSchema = z.string().regex(/^blueprint(?:DailyResearch\/sites-firs
 const nativeInputSchema = z.object({ version: z.literal("blueprint.native-learning-input.v1"), configHash: hash,
   nativeRecordRef: nativeRefSchema, role: z.enum(["daily_research", "communications"]),
   prospectIds: z.array(id).max(10).refine(values => new Set(values).size === values.length),
-  sourceSnapshotId: hash, preparedAt: instant, handoff: z.custom<Handoff>().nullable(),
+  sourceSnapshotId: hash, preparedAt: instant, handoff: z.unknown().nullable(),
   unknown: z.literal("native_learning_context_unavailable").nullable(), inputHash: hash,
+}).strict();
+const nativeInputBindingSchema = nativeInputSchema.pick({ version: true, configHash: true, nativeRecordRef: true,
+  role: true, prospectIds: true, sourceSnapshotId: true, inputHash: true }).extend({
+  version: z.literal("blueprint.native-learning-input-binding.v1"),
 }).strict();
 
 /** Chicago's 06:45 occurs after the DST transition hour. Resolve the IANA
@@ -96,6 +101,8 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
         instant.parse(clock()); tx.create(ref, planned); return planned;
       });
     }
+    const currentScope = await readScope();
+    if (manifest.prospectIds.some(value => !currentScope.prospectIds.includes(value))) throw new Error("native_learning_manifest_scope_denied");
     if (!manifest.prospectIds.length) {
       const history = await new BusinessHistoryStore(db, clock).read(businessScope(), manifest.asOf);
       return { state: "no_authorized_native_prospects" as const, day: manifest.day, jobKey: key, asOf: manifest.asOf,
@@ -144,36 +151,52 @@ export function createNativeLearningHooks(db: FirebaseFirestore.Firestore, confi
       const day = parsed.split("/").at(-1)!;
       if (selected.length || !Number.isFinite(Date.parse(`${day}T12:00:00Z`)) || new Date(`${day}T12:00:00Z`).toISOString().slice(0,10) !== day) throw new Error("native_learning_job_identity_invalid");
     }
-    const ref = db.doc(LEARNING_ROOT).collection("nativeLearningInputs").doc(digest({ role, recordRef: parsed }));
-    const verify = (value: unknown) => {
-      const input = nativeInputSchema.parse(value), { inputHash, ...body } = input;
-      if (digest(body) !== inputHash || input.configHash !== configHash || input.nativeRecordRef !== parsed || input.role !== role
-        || digest(input.prospectIds) !== digest(selected) || input.sourceSnapshotId !== config.sourceSnapshotId
-        || input.preparedAt > instant.parse(clock())) throw new Error("native_learning_input_changed");
-      if (input.handoff) {
-        const { contextHash, ...content } = input.handoff;
-        if (digest(content) !== contextHash || input.unknown !== null || input.handoff.version !== "blueprint.research-learning-consumer.v1"
-          || input.handoff.role !== role || input.handoff.scope.principalId !== config.principalId
-          || input.handoff.source.snapshotId !== config.sourceSnapshotId || input.handoff.asOf > input.preparedAt
-          || selected.some(value => !input.handoff!.scope.prospectIds.includes(value))
-          || (role === "communications" && digest([...input.handoff.scope.prospectIds].sort()) !== digest(selected))) throw new Error("native_learning_input_context_changed");
-      } else if (!input.unknown) throw new Error("native_learning_input_context_changed");
-      return input;
+    const inputs = db.doc(LEARNING_ROOT).collection("nativeLearningInputs"), bindingRef = inputs.doc(digest({ role, recordRef: parsed }));
+    const verifyIdentity = (input: z.infer<typeof nativeInputBindingSchema> | z.infer<typeof nativeInputSchema>) => {
+      if (input.configHash !== configHash || input.nativeRecordRef !== parsed || input.role !== role
+        || digest(input.prospectIds) !== digest(selected) || input.sourceSnapshotId !== config.sourceSnapshotId) throw new Error("native_learning_input_changed");
     };
-    const prior = await ref.get();
-    if (prior.exists) return { ...verify(prior.data()), recordRef: ref.path, replay: true };
+    const verify = async (value: unknown, expectedHash: string) => {
+      const input = nativeInputSchema.parse(value), { inputHash, ...body } = input;
+      verifyIdentity(input);
+      if (digest(body) !== inputHash || inputHash !== expectedHash
+        || input.preparedAt > instant.parse(clock())) throw new Error("native_learning_input_changed");
+      let handoff: Handoff | null = null;
+      if (input.handoff) {
+        if (input.unknown !== null) throw new Error("native_learning_input_context_changed");
+        const scope = await readScope();
+        handoff = await validateNativeHandoff(input.handoff, { role, principalId: config.principalId,
+          subjectKeys: config.businessSubjectKeys, selectedProspectIds: selected, source: scope.source,
+          companyProspectIds: scope.prospectIds, focus: config.focus, preparedAt: input.preparedAt, now: instant.parse(clock()) }, db);
+      } else if (input.handoff !== null || !input.unknown) throw new Error("native_learning_input_context_changed");
+      return { ...input, handoff };
+    };
+    const loadBound = async (value: unknown) => {
+      const binding = nativeInputBindingSchema.parse(value); verifyIdentity(binding);
+      const ref = inputs.doc(binding.inputHash), saved = await ref.get();
+      if (!saved.exists) throw new Error("native_learning_input_missing");
+      return { ...await verify(saved.data(), saved.id), recordRef: ref.path, bindingRef: bindingRef.path, replay: true };
+    };
+    const prior = await bindingRef.get();
+    if (prior.exists) return loadBound(prior.data());
     if (!allowCreate) return null;
     const context = await beforeWork(role, selected), body = { version: "blueprint.native-learning-input.v1" as const,
       configHash, nativeRecordRef: parsed, role, prospectIds: selected, sourceSnapshotId: config.sourceSnapshotId,
       preparedAt: instant.parse(clock()), handoff: context.available ? context.handoff : null,
       unknown: context.available ? null : context.unknown };
-    const planned = verify({ ...body, inputHash: digest(body) });
+    const planned = await verify({ ...body, inputHash: digest(body) }, digest(body));
     if (Buffer.byteLength(JSON.stringify(planned)) > 900000) throw new Error("native_learning_input_export_or_narrow_scope_required");
-    const saved = await db.runTransaction(async tx => { const current = await tx.get(ref);
-      if (current.exists) return { ...verify(current.data()), recordRef: ref.path, replay: true };
-      tx.create(ref, planned); return { ...planned, recordRef: ref.path, replay: false };
+    const binding = nativeInputBindingSchema.parse({ version: "blueprint.native-learning-input-binding.v1", configHash,
+      nativeRecordRef: parsed, role, prospectIds: selected, sourceSnapshotId: config.sourceSnapshotId, inputHash: planned.inputHash });
+    const ref = inputs.doc(planned.inputHash);
+    const saved = await db.runTransaction(async tx => { const current = await tx.get(bindingRef), content = await tx.get(ref);
+      if (current.exists) return { binding: current.data(), replay: true };
+      if (content.exists && digest(content.data()) !== digest(planned)) throw new Error("native_learning_input_changed");
+      instant.parse(clock());
+      if (!content.exists) tx.create(ref, planned);
+      tx.create(bindingRef, binding); return { binding, replay: false };
     });
-    return saved;
+    return { ...await loadBound(saved.binding), replay: saved.replay };
   }
   async function afterNativeWork(recordRef: string) {
     // Parse path before fetching; callers pass the exact record they own.

@@ -293,9 +293,17 @@ Parser, approvals, send policy, OAuth and research package/usage stay with their
 existing owners. The user's current draft-only direction overrides any earlier
 automatic outreach policy; these learning hooks grant no sends.
 
-`nativeLearningInputs` is a create-only structured input per exact role/native
-record identity, with config/source/context/input hashes and preparation time.
-Current communications job/prospect binding is rechecked on replay. Retries
+`nativeLearningInputs/{inputHash}` contains the create-only structured input;
+`nativeLearningInputs/{digest({role,recordRef})}` is a create-only job binding
+to that first content hash. Both records commit atomically. The payload must
+match its document ID and the binding's hash. Rehashing a changed payload
+cannot silently replace an initially unavailable input. Config/source/context
+hashes and preparation time remain portable fields. Replay validates the full
+sanitized contract, exact approved business subject keys, company prospect
+scope and current communications job/prospect binding. Cached CRM rows,
+source provenance and directory projections must equal the verified immutable
+source; research prospect scopes consist only of selected IDs and exact CRM
+joins. A self-consistent content hash never grants broader access. Retries
 reuse the original bytes and source dates, even after the captured read expiry;
 the current native host remains responsible for authorization and fresh
 source/policy checks. Configuration/scope changes cannot silently rebuild the
@@ -313,6 +321,13 @@ learning-aware retry, skips it for legacy checkpoint reconciliation, and
 persists/reuses the exact returned input. `beforeWork` remains a read-only
 current-context API for relevant retrieval and offline/live dry-run checks.
 No provider create/cancel/retry is issued by this host adapter.
+
+The strict persisted-handoff validator is
+`server/research-learning/native-handoff.ts`. Current company authorization is
+rechecked on every replay and daily manifest read. Removed prospects fail
+closed; later task/site field updates do not rewrite the captured optional IDs.
+Schema or config changes require a new native job identity or an explicit
+reviewed recovery path, never mutating a previously frozen request.
 
 Native pre-prompt and daily views authorize at the real clock, but preserve a
 fixed evidence cutoff. Firestore `updateTime` proves that each exact prospect,

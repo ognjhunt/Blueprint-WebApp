@@ -6,6 +6,7 @@ import { learningMemoryFirestore, learningEvent } from "./fixtures/research-lear
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { previewResearchCommunications } from "../agents/communications-producer";
 import { communicationsBriefSchema, communicationsDigest, communicationsDeliveryKey } from "../agents/communications-contract";
+import { makeBusinessHistory } from "../research-learning/business-history";
 
 const now = "2026-10-02T11:45:00.000Z";
 function fixture(clock = () => now) {
@@ -187,7 +188,7 @@ describe("native zero-model learning hooks", () => {
     at = "2026-10-02T13:00:00.000Z";
     const replay = await f.hooks.prepareNativeJob(role, path, ids); if (!replay) throw new Error("expected input");
     expect(replay.replay).toBe(true); expect(replay.inputHash).toBe(first.inputHash); expect(replay.handoff).toEqual(first.handoff);
-    expect(f.writes).toEqual(writes); expect(writes).toEqual([first.recordRef]);
+    expect(f.writes).toEqual(writes); expect(writes).toEqual([first.recordRef, first.bindingRef]);
     expect(JSON.stringify(first)).not.toContain("PRIVATE_SENTINEL");
   });
   it("preserves an initially unknown frozen input after the source later becomes available", async () => {
@@ -206,7 +207,7 @@ describe("native zero-model learning hooks", () => {
     await expect(changed.prepareNativeJob("daily_research", path)).rejects.toThrow("input_changed");
     const { inputHash: _hash, ...body } = f.records.get(first.recordRef), bad = { ...body, handoff: { ...body.handoff, asOf: "2026-10-02T11:44:00.000Z" } };
     f.records.set(first.recordRef, { ...bad, inputHash: digest(bad) });
-    await expect(f.hooks.prepareNativeJob("daily_research", path)).rejects.toThrow("context_changed"); expect(f.writes).toEqual([first.recordRef]);
+    await expect(f.hooks.prepareNativeJob("daily_research", path)).rejects.toThrow("input_changed"); expect(f.writes).toEqual([first.recordRef, first.bindingRef]);
   });
   it("rechecks the exact communications job/prospect binding before a stored input replay", async () => {
     const f = fixture(); nativeBundle(f); const path = "blueprintCommunications/default/jobs/job-1";
@@ -220,6 +221,40 @@ describe("native zero-model learning hooks", () => {
     expect(f.writes).toEqual([]);
     const first = await f.hooks.prepareNativeJob("communications", path, ["prospect-1"]); if (!first) throw new Error("expected input");
     const read = await f.hooks.prepareNativeJob("communications", path, ["prospect-1"], { allowCreate: false });
-    expect(read?.inputHash).toBe(first.inputHash); expect(f.writes).toEqual([first.recordRef]);
+    expect(read?.inputHash).toBe(first.inputHash); expect(f.writes).toEqual([first.recordRef, first.bindingRef]);
+  });
+  it.each(["business_subject", "business_record", "prospect", "capability", "extra_field"])("rejects fully rehashed and rebound %s scope substitution", async kind => {
+    const f = fixture(), path = "blueprintDailyResearch/sites-first/runs/2026-10-02";
+    const first = await f.hooks.prepareNativeJob("daily_research", path); if (!first?.handoff) throw new Error("expected input");
+    const handoff = structuredClone(first.handoff) as any;
+    if (kind === "business_subject") handoff.businessHistory.subjectKeys = ["private:personal"];
+    if (kind === "business_record") handoff.businessHistory.explicitDecisions = [makeBusinessHistory({ kind: "decision", classification: "explicit_decision",
+      recordId: "BP-DEC-private", subjectKey: "private:personal", contentClass: "blueprint_business_only", occurredAt: "2026-10-01T12:00:00.000Z",
+      recordedAt: "2026-10-01T12:00:00.000Z", capturedBy: "fixture", supersedesEventId: null, statement: "PRIVATE_SCOPE_SENTINEL", rationale: null,
+      sources: [{ system: "chat", threadId: "private-thread", messageId: "private-message", originalTimestamp: "2026-10-01T12:00:00.000Z",
+        originalAuthorId: "fixture", originalAuthorRole: "user", sourceHash: digest("private") , businessExcerpt: "PRIVATE_SCOPE_SENTINEL" }] })];
+    if (kind === "prospect") handoff.scope.prospectIds = ["unrelated-prospect"];
+    if (kind === "capability") handoff.scope.detailCapabilityIds = ["private-capability"];
+    if (kind === "extra_field") handoff.priorContactAndOutcomes.privateBody = "PRIVATE_SCOPE_SENTINEL";
+    const { contextHash: _contextHash, ...context } = handoff; handoff.contextHash = digest(context);
+    const { inputHash: _inputHash, ...input } = f.records.get(first.recordRef), body = { ...input, handoff }, inputHash = digest(body);
+    f.records.set(`${LEARNING_ROOT}/nativeLearningInputs/${inputHash}`, { ...body, inputHash });
+    f.records.set(first.bindingRef, { ...f.records.get(first.bindingRef), inputHash });
+    const writes = [...f.writes]; await expect(f.hooks.prepareNativeJob("daily_research", path)).rejects.toThrow(); expect(f.writes).toEqual(writes);
+  });
+  it("rejects an unknown-to-available replacement even with valid inner and outer hashes", async () => {
+    const f = fixture(), path = "blueprintDailyResearch/sites-first/runs/2026-10-02", sourceRef = `${LEARNING_ROOT}/sourceSnapshots/${f.source.snapshotId}`;
+    f.records.delete(sourceRef); const first = await f.hooks.prepareNativeJob("daily_research", path); if (!first) throw new Error("expected input");
+    f.records.set(sourceRef, f.source); const live = await f.hooks.beforeWork("daily_research"); if (!live.available) throw new Error("expected context");
+    const { inputHash: _hash, ...input } = f.records.get(first.recordRef), body = { ...input, unknown: null, handoff: live.handoff };
+    f.records.set(first.recordRef, { ...body, inputHash: digest(body) });
+    await expect(f.hooks.prepareNativeJob("daily_research", path)).rejects.toThrow("input_changed");
+  });
+  it("reauthorizes a frozen input and daily manifest when a prospect is removed from company scope", async () => {
+    const f = fixture(), path = "blueprintDailyResearch/sites-first/runs/2026-10-02";
+    await f.hooks.prepareNativeJob("daily_research", path); await f.hooks.daily(); const writes = [...f.writes];
+    f.records.delete("outboundProspects/prospect-1");
+    await expect(f.hooks.prepareNativeJob("daily_research", path)).rejects.toThrow("context_changed");
+    await expect(f.hooks.daily()).rejects.toThrow("scope_denied"); expect(f.writes).toEqual(writes);
   });
 });

@@ -113,4 +113,5 @@ server/research-learning/business-history.ts
 server/research-learning/business-learning-loop.ts
 server/research-learning/initial-hypotheses.ts
 server/research-learning/native-hooks.ts
+server/research-learning/native-handoff.ts
 server/utils/dailyResearchWorker.ts
