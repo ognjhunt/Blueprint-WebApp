@@ -34,6 +34,7 @@ import { createHash } from "node:crypto";
 import type { ZodType } from "zod";
 
 import type { AgentResult, NormalizedAgentTask } from "../types";
+import { outputCorrectionEvidence, outputCorrectionPrompt, usageCount } from "./output-correction";
 
 /** Bounds what the worker holds in memory; the Files API itself takes far more. */
 const MAX_VIDEO_BYTES = 64 * 1024 * 1024;
@@ -193,17 +194,18 @@ async function generateFromVideo(input: { apiKey: string; model: string; prompt:
   if (!response.ok) throw new GeminiVideoError("gemini_video_provider_failed", `Gemini returned HTTP ${response.status}`);
   const payload = await response.json() as {
     candidates?: Array<{ finishReason?: string; content?: { parts?: VideoResponsePart[] } }>;
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number };
     modelVersion?: string;
   };
   const candidate = payload.candidates?.[0];
+  const evidence = { text: (candidate?.content?.parts ?? []).filter(part => !part.thought && typeof part.text === "string").map(part => part.text).join("\n"), usage: payload.usageMetadata };
   if (candidate?.finishReason !== "STOP") {
     // The reason and token counts, never content: enough to tell a budget
     // from a safety stop without a second paid call to find out.
     const usage = payload.usageMetadata;
     throw new GeminiVideoError("gemini_video_incomplete",
       `Gemini did not finish the video analysis (finishReason=${candidate?.finishReason ?? "none"}, `
-      + `candidatesTokens=${usage?.candidatesTokenCount ?? "?"}, totalTokens=${usage?.totalTokenCount ?? "?"})`);
+      + `candidatesTokens=${usage?.candidatesTokenCount ?? "?"}, totalTokens=${usage?.totalTokenCount ?? "?"})`, evidence);
   }
   const parts = candidate.content?.parts ?? [];
   const calls = parts.filter((part) =>
@@ -211,7 +213,7 @@ async function generateFromVideo(input: { apiKey: string; model: string; prompt:
   const responses = parts.filter((part) =>
     (part.toolResponse?.toolType ?? part.tool_response?.tool_type) === "MEDIA_PROCESSING").length;
   if (processingMode === "AGENTIC" && (!calls || !responses)) {
-    throw new GeminiVideoError("gemini_video_agentic_trace_missing", "Video navigation was requested but not evidenced by the response");
+    throw new GeminiVideoError("gemini_video_agentic_trace_missing", "Video navigation was requested but not evidenced by the response", evidence);
   }
   return {
     text: parts.filter((part) => !part.thought && typeof part.text === "string").map((part) => part.text).join("\n"),
@@ -234,6 +236,7 @@ export class GeminiVideoError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    readonly evidence?: { text: string; usage?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } },
   ) {
     super(message);
   }
@@ -479,21 +482,69 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     };
   }
 
+  const receipts: Array<Record<string, unknown>> = [], usageSamples: Array<Record<string, unknown>> = [];
+  const artifacts: Record<string, unknown> = { output_repairs: receipts, usage_samples: usageSamples };
+  let retainedVideo: Awaited<ReturnType<typeof openVideo>> | undefined;
+  let rawText = "", promptTokens = 0, completionTokens = 0, totalTokens = 0;
+  let promptComplete = true, outputComplete = true, totalComplete = true, reasoningTokens = 0;
+  const retainUsage = (usage: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } | undefined) => {
+    usageSamples.push({ ...(usage || {}) });
+    const input = usageCount(usage?.promptTokenCount), visibleOutput = usageCount(usage?.candidatesTokenCount), thoughts = usage?.thoughtsTokenCount === undefined ? 0 : usageCount(usage.thoughtsTokenCount), total = usageCount(usage?.totalTokenCount);
+    const output = visibleOutput !== null && thoughts !== null ? visibleOutput + thoughts : null;
+    reasoningTokens += thoughts ?? 0;
+    promptComplete &&= input !== null; outputComplete &&= output !== null; totalComplete &&= total !== null;
+    promptTokens += input ?? 0; completionTokens += output ?? 0; totalTokens += total ?? 0;
+    artifacts.usage = { prompt_tokens: promptComplete ? promptTokens : null,
+      completion_tokens: outputComplete ? completionTokens : null, total_tokens: totalComplete ? totalTokens : null, reasoning_tokens: reasoningTokens };
+  };
   try {
     const videoUrl = readVideoUrl(task.input);
     const video = await openVideo(videoUrl);
-
+    retainedVideo = video;
+    const prompt = task.definition.build_prompt(task.input);
+    const deadline = Date.now() + ANALYSIS_TIMEOUT_MS;
+    let remainingOutput = task.definition.video_max_output_tokens ?? MAX_OUTPUT_TOKENS;
     const response = await analyseAgenticVideo({ apiKey, model: task.model,
-      prompt: task.definition.build_prompt(task.input), video,
+      prompt, video,
       processingMode: task.definition.video_processing_mode ?? "AGENTIC",
       samplingFps: task.definition.video_sampling_fps,
       maxOutputTokens: task.definition.video_max_output_tokens });
     const { bytes: videoBytes, sha256: videoSha256 } = video.receipt();
-    const rawText = response.text;
-    const parsed = extractJsonPayload(rawText);
-    const output = (task.definition.output_schema as ZodType<TOutput>).parse(parsed);
-
-    const usage = response.usage;
+    Object.assign(artifacts, { video_bytes: videoBytes, video_content_type: video.contentType,
+      video_sha256: videoSha256, video_processing: response.processing });
+    rawText = response.text;
+    retainUsage(response.usage);
+    remainingOutput -= outputComplete ? completionTokens : remainingOutput;
+    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [{ role: "user", parts: [{ text: prompt }] }];
+    let output: TOutput | undefined;
+    for (let attempt = 0; ; attempt++) {
+      try { output = (task.definition.output_schema as ZodType<TOutput>).parse(extractJsonPayload(rawText)); break; }
+      catch (error) {
+        const receipt = outputCorrectionEvidence(rawText, error);
+        receipts.push({ ...receipt, usage: usageSamples[usageSamples.length - 1] });
+        if (attempt === 5) throw new GeminiVideoError("output_correction_limit", "Final output still fails validation after bounded correction");
+        if (!promptComplete || !outputComplete || !totalComplete) throw new GeminiVideoError("output_correction_usage_unavailable", "Retained input and output usage must be known before another request");
+        if (Date.now() >= deadline || remainingOutput <= 0) throw new GeminiVideoError("output_correction_budget_exhausted", "Original runtime or aggregate output budget exhausted");
+        contents.push({ role: "model", parts: [{ text: rawText || "(empty response)" }] },
+          { role: "user", parts: [{ text: outputCorrectionPrompt(receipt.issues) }] });
+        try {
+        const correction = await fetch(`${GEMINI_API}/v1beta/models/${encodeURIComponent(task.model)}:generateContent`, {
+          method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+          body: JSON.stringify({ contents, generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: remainingOutput } }),
+        });
+        if (!correction.ok) throw new GeminiVideoError("gemini_output_correction_provider_failed", `Gemini returned HTTP ${correction.status}`);
+        const payload = await correction.json() as { candidates?: Array<{ finishReason?: string; content?: { parts?: VideoResponsePart[] } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } };
+        rawText = (payload.candidates?.[0]?.content?.parts ?? []).filter(part => !part.thought && typeof part.text === "string").map(part => part.text).join("\n");
+        retainUsage(payload.usageMetadata);
+        remainingOutput = (task.definition.video_max_output_tokens ?? MAX_OUTPUT_TOKENS) - (outputComplete ? completionTokens : (task.definition.video_max_output_tokens ?? MAX_OUTPUT_TOKENS));
+        if (payload.candidates?.[0]?.finishReason !== "STOP") throw new GeminiVideoError("gemini_output_correction_incomplete", "Text correction did not finish");
+        } catch (error) {
+          if (error instanceof GeminiVideoError) throw error;
+          throw new GeminiVideoError("gemini_output_correction_provider_failed", "Text correction could not be read; retained analysis and paid usage remain available");
+        }
+      }
+    }
 
     return {
       ...base,
@@ -503,19 +554,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
       requires_human_review: false,
       requires_approval: false,
       error: null,
-      artifacts: {
-        video_bytes: videoBytes,
-        video_content_type: video.contentType,
-        video_sha256: videoSha256,
-        video_processing: response.processing,
-        usage: usage
-          ? {
-              prompt_tokens: usage.promptTokenCount ?? null,
-              completion_tokens: usage.candidatesTokenCount ?? null,
-              total_tokens: usage.totalTokenCount ?? null,
-            }
-          : null,
-      },
+      artifacts,
       logs: [
         {
           event_type: "provider.video.analysed",
@@ -525,6 +564,18 @@ export async function runGeminiVideoTask<TInput, TOutput>(
       ],
     };
   } catch (error) {
+    if (error instanceof GeminiVideoError && error.evidence) {
+      rawText = error.evidence.text;
+      retainUsage(error.evidence.usage);
+    }
+    if (retainedVideo && artifacts.video_sha256 === undefined) {
+      const receipt = retainedVideo.receipt();
+      const complete = receipt.bytes === retainedVideo.byteLength;
+      Object.assign(artifacts, { video_read_complete: complete, video_content_type: retainedVideo.contentType,
+        ...(complete ? { video_bytes: receipt.bytes, video_sha256: receipt.sha256 }
+          : { video_partial_bytes: receipt.bytes, video_partial_sha256: receipt.sha256 }),
+      });
+    }
     const code = error instanceof GeminiVideoError ? error.code : "gemini_video_failed";
     return {
       ...base,
@@ -533,6 +584,8 @@ export async function runGeminiVideoTask<TInput, TOutput>(
       // A link we cannot read is the site's to fix, so somebody has to say so.
       requires_human_review: true,
       requires_approval: false,
+      raw_output_text: rawText,
+      artifacts,
     };
   }
 }
