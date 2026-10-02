@@ -1,3 +1,5 @@
+import { isAbsolute, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 const runtime = vi.hoisted(() => ({ db: null as any }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return runtime.db; } }));
@@ -33,6 +35,12 @@ describe("existing native research worker learning lifecycle", () => {
     await vi.advanceTimersByTimeAsync(0); expect(start).toHaveBeenCalledTimes(1); expect(hooks.daily).toHaveBeenCalledTimes(1);
     const options = start.mock.calls[0][0] as any;
     expect(options).toMatchObject({ enabled: true }); expect(options).not.toHaveProperty("allowPaidInference"); expect(options).not.toHaveProperty("control");
+    // The packaged Python bridge calls pathToFileURL on the inherited module
+    // path. Passing it an already encoded file URL creates a different path.
+    expect(isAbsolute(options.learningHostModule)).toBe(true);
+    expect(pathToFileURL(options.learningHostModule).href).toBe(
+      pathToFileURL(resolve("dist/research-learning/research-worker-host.js")).href,
+    );
     expect(await options.learningHooks.beforeRun("2026-10-02")).toEqual({ contextHash: "synthetic-context", paidModelCalls: 0 });
     expect(hooks.prepareNativeJob).toHaveBeenCalledWith("daily_research", "blueprintDailyResearch/sites-first/runs/2026-10-02");
     await options.learningHooks.afterRun("2026-10-02"); expect(hooks.afterNativeWork).toHaveBeenCalledWith("blueprintDailyResearch/sites-first/runs/2026-10-02");
