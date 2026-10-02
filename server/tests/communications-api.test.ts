@@ -4,12 +4,21 @@ import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT } from "../agents/communications-contract";
 import { communicationsFixture } from "./fixtures/communications";
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
+import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
+  COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST } from "../agents/communications-saved-agent";
 
-function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: string; noFinal?: boolean; http?: number; failed?: boolean; itemsPage?: boolean; itemPages?: number; repeatedCursor?: boolean; pagePadding?: number; advancePageClock?: boolean; missingMetadata?: boolean; rawOutput?: string; instructions?: string; usage?: unknown } = {}) {
+function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: string; noFinal?: boolean; http?: number; failed?: boolean; itemsPage?: boolean; itemPages?: number; repeatedCursor?: boolean; pagePadding?: number; advancePageClock?: boolean; missingMetadata?: boolean; rawOutput?: string; instructions?: string; usage?: unknown; changedSaved?: string } = {}) {
   const { output } = communicationsFixture();
   const calls: Array<{ path: string; init: RequestInit }> = [];
   const checkpoints: any[] = [];
   let requestDigest = "a".repeat(64), pageNumber = 0;
+  let savedBinding = false;
+  const agentId = () => savedBinding ? COMMUNICATIONS_SAVED_AGENT_ID : "agent-1";
+  const savedAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...structuredClone(COMMUNICATIONS_SAVED_CONFIGURATION) };
+  if (options.changedSaved === "instructions") savedAgent.instructions += " Changed";
+  if (options.changedSaved === "reasoning") savedAgent.reasoning.effort = "medium";
+  if (options.changedSaved === "tools") (savedAgent.tools as any[]).push({ type: "function" });
+  if (options.changedSaved === "tier") savedAgent.service_tier = "default";
   const stream = [{ type: "agent.session.created", session: { id: "session-1" } },
     { type: "agent.session.turn.created", turn_id: "turn-1", turn: { id: "turn-1", subagent_id: null } },
     { type: options.failed ? "agent.session.turn.failed" : "agent.session.turn.completed", turn_id: "turn-1" }];
@@ -18,14 +27,20 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
     calls.push({ path, init });
     if (options.http) return new Response("PRIVATE MUST NOT LEAK", { status: options.http });
     if (path.includes("/models/")) return Response.json({ id: options.model ?? COMMUNICATIONS_MODEL });
+    if (path.endsWith(`/agents/${COMMUNICATIONS_SAVED_AGENT_ID}`)) return Response.json(savedAgent);
     if (path.endsWith("/agents/sessions") || path.endsWith("/events")) {
-      if (init.method === "POST" && path.endsWith("/agents/sessions")) requestDigest = JSON.parse(String(init.body)).metadata.blueprint_communications_request_digest;
+      if (init.method === "POST" && path.endsWith("/agents/sessions")) {
+        requestDigest = JSON.parse(String(init.body)).metadata.blueprint_communications_request_digest;
+        savedBinding = true;
+      }
       return new Response(stream.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
     }
-    if (path.endsWith("/session-1")) return Response.json({ id: "session-1", status: "idle", agent: { id: "agent-1", model: options.model ?? COMMUNICATIONS_MODEL,
+    if (path.endsWith("/session-1")) return Response.json({ id: "session-1", status: "idle", agent: savedBinding ? savedAgent : { id: "agent-1", model: options.model ?? COMMUNICATIONS_MODEL,
       instructions: options.instructions ?? COMMUNICATIONS_INSTRUCTIONS, service_tier: "default", tools: [], multi_agent: { enabled: false } }, environment: { type: "none" }, vault_ids: [],
-      metadata: options.missingMetadata ? {} : { blueprint_communications_job: "job-1", role: "communications", blueprint_communications_request_digest: requestDigest } });
-    if (path.includes("/turns?")) return Response.json({ data: [{ id: "turn-1", agent_id: "agent-1", status: options.idle ? "running" : "completed", usage: options.usage ?? { input_tokens: 3 } }], has_more: false });
+      metadata: options.missingMetadata ? {} : { blueprint_communications_job: "job-1", role: "communications", blueprint_communications_request_digest: requestDigest,
+        ...(savedBinding ? { blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
+          blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST } : {}) } });
+    if (path.includes("/turns?")) return Response.json({ data: [{ id: "turn-1", agent_id: agentId(), status: options.idle ? "running" : "completed", usage: options.usage ?? { input_tokens: 3 } }], has_more: false });
     if (path.includes("/items?")) {
       pageNumber++;
       if (options.advancePageClock) vi.setSystemTime(Date.now() + 100001);
@@ -47,14 +62,21 @@ describe("portable communications Agents API", () => {
     expect((await f.api.run(f.params)).output).toEqual(f.output);
     const create = f.calls.find(call => call.init.method === "POST")!;
     const body = JSON.parse(String(create.init.body));
-    expect(body).toMatchObject({ agent: { model: "gpt-6-luna", tools: [], multi_agent: { enabled: false } }, environment: { type: "none" }, stream: true });
+    expect(body).toMatchObject({ agent_id: COMMUNICATIONS_SAVED_AGENT_ID, environment: { type: "none" }, stream: true });
+    expect(body.agent).toBeUndefined();
     expect(create.init.headers).toMatchObject({ "OpenAI-Project": COMMUNICATIONS_PROJECT });
     expect(f.checkpoints[0]).toMatchObject({ createClaimedAt: expect.any(String), sessionId: null });
     expect(f.checkpoints.at(-1)).toMatchObject({ sessionId: "session-1", turnId: "turn-1" });
     expect(f.reservePaidDraft).toHaveBeenCalledTimes(1); expect(f.recordPaidDraftUsage).toHaveBeenCalledTimes(1);
-    expect(body.agent.service_tier).toBe("default");
+    expect(body.metadata.blueprint_communications_configuration_digest).toBe(COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST);
     expect(body.metadata.blueprint_communications_request_digest).toBe(f.checkpoints[0].requestDigest);
     expect(body.metadata.blueprint_communications_request_digest).toMatch(/^[a-f0-9]{64}$/);
+  });
+  it.each(["instructions", "reasoning", "tools", "tier"])("blocks changed saved %s before reserving or creating a paid session", async changedSaved => {
+    const f = apiFixture({ changedSaved });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "communications_saved_agent_definition_changed" });
+    expect(f.reservePaidDraft).not.toHaveBeenCalled(); expect(f.checkpoints).toEqual([]);
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
   });
   it("requires a durable admission and refuses a failed reservation before paid POST", async () => {
     const f = apiFixture(); const unguarded = new CommunicationsAgentsAPI({ apiKey: "mock", allowPaidInference: true, fetch: f.fetchMock as any });
@@ -195,6 +217,8 @@ describe("portable communications Agents API", () => {
     const f = apiFixture();
     const fetchMock = vi.fn(async (url: any) => {
       if (String(url).includes("/models/")) return Response.json({ id: COMMUNICATIONS_MODEL });
+      if (String(url).endsWith(`/agents/${COMMUNICATIONS_SAVED_AGENT_ID}`)) return Response.json({
+        id: COMMUNICATIONS_SAVED_AGENT_ID, ...COMMUNICATIONS_SAVED_CONFIGURATION });
       if (kind === "timeout") throw new Error("synthetic connection timeout");
       return new Response(new ReadableStream({ start(controller) { controller.error(new Error("synthetic stream loss")); } }));
     });
@@ -203,7 +227,7 @@ describe("portable communications Agents API", () => {
     await expect(api.run(f.params)).rejects.toMatchObject({ code: kind === "timeout" ? "agents_api_connection_unknown" : "session_create_requires_reconciliation", retryable: false });
     expect(f.checkpoints[0]).toMatchObject({ createClaimedAt: expect.any(String), requestDigest: expect.stringMatching(/^[a-f0-9]{64}$/), sessionId: null });
     await expect(api.run({ ...f.params, checkpoint: f.checkpoints[0] })).rejects.toMatchObject({ code: "session_create_requires_reconciliation" });
-    expect(fetchMock).toHaveBeenCalledTimes(2); expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3); expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
     expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
   });
   it("GET-verifies an existing exact session/root turn while paid inference is disabled", async () => {

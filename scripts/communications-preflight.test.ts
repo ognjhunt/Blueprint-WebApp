@@ -48,6 +48,16 @@ describe("in-place read-only communications preflight", () => {
     const f = fixture("ohstnhunt@gmail.com"); const result = await communicationsPreflight(f);
     expect(result.mailbox.reason).toBe("founder_gmail_wrong_mailbox"); expect(f.sendAs).not.toHaveBeenCalled();
   });
+  it("accepts the exact verified primary founder address without custom alias status", async () => {
+    const f = fixture();
+    f.sendAs.mockResolvedValueOnce({ data: { sendAs: [{ sendAsEmail: FOUNDER_MAILBOX, isPrimary: true }] } } as any);
+    expect((await communicationsPreflight(f)).mailbox.state).toBe("verified");
+  });
+  it("requires accepted verification for a custom sender alias", async () => {
+    const f = fixture();
+    f.sendAs.mockResolvedValueOnce({ data: { sendAs: [{ sendAsEmail: FOUNDER_MAILBOX, isPrimary: false }] } } as any);
+    expect((await communicationsPreflight(f)).mailbox.reason).toBe("founder_sender_unverified_or_permission_missing");
+  });
   it("does not substitute another model or print provider error content", async () => {
     const f = fixture(); f.fetchImpl.mockResolvedValueOnce(new Response("PRIVATE_PROVIDER_CONTENT", { status: 403 }));
     expect((await communicationsPreflight(f)).modelDiscovery.reason).toBe("model_discovery_http_403");
