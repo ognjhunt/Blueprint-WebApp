@@ -120,6 +120,7 @@ test("saved communications draft stays visible and draft-only after a queue read
 
 test("owner repairs a saved draft and revalidates it while sending remains disabled", async ({ page }, testInfo) => {
   const pageErrors: string[] = [];
+  let failQueue = false;
   page.on("pageerror", error => { pageErrors.push(error.message); });
   const original = "I'm building Blueprint. We guarantee results. Is this useful?";
   const repaired = "I'm building Blueprint. Is this relevant?";
@@ -151,6 +152,7 @@ test("owner repairs a saved draft and revalidates it while sending remains disab
         item.outreach_review = { ...item.outreach_review, digest: "b".repeat(64), hardChecksPassed: true, blockers: [] };
         return route.fulfill({ json: { state: "pending_approval", review: item.outreach_review, sent: false, modelSessionCreated: false } });
       }
+      if (failQueue) return route.fulfill({ status: 500, json: { error: "Read temporarily unavailable" } });
       return route.fulfill({ json: { items: [item], summary: { total: 1, pending_approval: 1, failed: 0 } } });
     }
     if (request.method() === "POST" && url.pathname !== "/api/analytics/ingest") actions.push(url.pathname);
@@ -163,6 +165,14 @@ test("owner repairs a saved draft and revalidates it while sending remains disab
   await expect(page.getByText(original, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Revise draft" }).click();
   await page.getByRole("textbox", { name: "Draft message", exact: true }).fill(repaired);
+  failQueue = true;
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(page.getByText(/Showing the last loaded drafts/)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Draft message", exact: true })).toHaveValue(repaired);
+  await expect(page.getByRole("button", { name: "Approve outreach" })).toBeDisabled();
+  failQueue = false;
+  await page.getByRole("button", { name: "Retry loading approvals" }).click();
+  await expect(page.getByText(/Showing the last loaded drafts/)).toHaveCount(0);
   await page.getByLabel(/unknown: Unknown fact/).click();
   await expect(page.getByLabel(/unknown: Unknown fact/)).toHaveCount(0);
   await page.getByLabel(/fact-1: A verified/).check();

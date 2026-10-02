@@ -1771,20 +1771,20 @@ export default function AdminLeads() {
             <div className="space-y-3">
               <FounderMailboxConnection />
               <CommunicationsRecovery />
-              {approvalQueueQuery.isLoading ? (
-                <div className="runway-panel p-6 text-runway-mute">
-                  Loading action queue...
-                </div>
-              ) : approvalQueueQuery.isError ? (
+              {approvalQueueQuery.isError ? (
                 <div role="alert" className="runway-panel p-6 text-runway-red">
                   <p>{approvalQueueQuery.error.message}</p>
+                  {approvalQueueItems.length ? <p>Showing the last loaded drafts. Your current edit is preserved; retry to refresh their status.</p> : null}
                   <button type="button" className="runway-cta-ghost mt-3 min-h-0 px-3 py-2 text-sm"
                     disabled={approvalQueueQuery.isFetching} onClick={() => void approvalQueueQuery.refetch()}>
                     Retry loading approvals
                   </button>
                 </div>
+              ) : null}
+              {approvalQueueQuery.isLoading ? (
+                <div className="runway-panel p-6 text-runway-mute">Loading action queue...</div>
               ) : approvalQueueItems.length === 0 ? (
-                <div className="runway-panel p-6 text-runway-mute">
+                approvalQueueQuery.isError ? null : <div className="runway-panel p-6 text-runway-mute">
                   No pending approvals or failed actions right now.
                 </div>
               ) : (
@@ -1860,11 +1860,11 @@ export default function AdminLeads() {
                           {item.lane === "outbound_prospect" || item.source_collection === "outboundProspects" || item.action_payload.communications ? (
                             <OutreachApprovalReview review={item.outreach_review} payload={item.action_payload}
                               sendingEnabled={item.sending_enabled}
-                              pending={approveActionMutation.isPending}
+                              pending={approveActionMutation.isPending || approvalQueueQuery.isError}
                               onApprove={(outreachSemanticReview) => approveActionMutation.mutate({ ledgerId: item.id, outreachSemanticReview })} />
                           ) : (
                             <button type="button" onClick={() => approveActionMutation.mutate({ ledgerId: item.id })}
-                              className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" disabled={approveActionMutation.isPending}>
+                              className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" disabled={approveActionMutation.isPending || approvalQueueQuery.isError}>
                               Approve
                             </button>
                           )}
