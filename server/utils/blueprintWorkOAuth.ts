@@ -4,7 +4,7 @@ import type { OAuthServerProvider, AuthorizationParams } from "@modelcontextprot
 import type { OAuthClientInformationFull, OAuthTokens, OAuthTokenRevocationRequest } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { InvalidClientError, InvalidGrantError, InvalidScopeError, InvalidTokenError, InvalidTargetError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 
-export const WORK_SCOPES = ["blueprint:runs:read", "blueprint:runs:prepare", "blueprint:runs:launch", "blueprint:runs:release"];
+export const WORK_SCOPES = ["blueprint:runs:read", "blueprint:runs:prepare", "blueprint:runs:launch", "blueprint:runs:release", "blueprint:research:read", "blueprint:research:start"];
 export const WORK_OAUTH_PATH = "/api/blueprint-work/oauth";
 export const WORK_MCP_PATH = "/api/blueprint-work/mcp";
 const ACCESS_SECONDS = 900;

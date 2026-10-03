@@ -9,6 +9,8 @@ const LABELS: Record<string, string> = {
   "blueprint:runs:launch":
     "Launch and activate runs within their approved budgets",
   "blueprint:runs:release": "Release stopped GPU resources after a run",
+  "blueprint:research:read": "Read your retained delegated research reports",
+  "blueprint:research:start": "Delegate research within separately approved spending limits",
 };
 
 export default function ConnectChatGPT() {

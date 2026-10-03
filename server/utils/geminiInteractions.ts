@@ -97,6 +97,8 @@ export interface CreateGeminiInteractionParams {
   stream?: boolean;
   tools?: Array<Record<string, unknown>>;
   agentConfig?: Record<string, unknown>;
+  /** Transport-only bound; never sent as a Google request field. */
+  timeoutMs?: number;
 }
 
 const GEMINI_INTERACTIONS_BASE_URL =
@@ -119,14 +121,25 @@ function buildRequestHeaders() {
 export function extractGeminiInteractionText(
   interaction: GeminiInteraction | null | undefined,
 ) {
-  if (!interaction || !Array.isArray(interaction.outputs)) {
-    return "";
-  }
+  if (!interaction) return "";
+  // Current Interactions responses use steps[].content; retain compatibility
+  // with older outputs[]. Thinking summaries are not research reports.
+  const steps = Array.isArray(interaction.steps) ? interaction.steps as any[] : [];
+  const current = steps.flatMap(step => step?.type === "model_output" && Array.isArray(step.content)
+    ? step.content.filter((part: any) => part?.type === "text" && typeof part.text === "string").map((part: any) => part.text) : []);
+  const legacy = Array.isArray(interaction.outputs) ? interaction.outputs
+    .filter(output => typeof output?.text === "string").map(output => output.text as string) : [];
+  return (current.length ? current : legacy).join("\n\n");
+}
 
-  return interaction.outputs
-    .map((output) => (typeof output?.text === "string" ? output.text.trim() : ""))
-    .filter(Boolean)
-    .join("\n\n");
+/** Private transport diagnosis. Never log payload or headers; callers retain
+ * the body in approved company evidence and expose only safe status metadata. */
+export class GeminiInteractionHttpError extends Error {
+  constructor(message: string, readonly status: number, readonly payload: unknown,
+    readonly requestId: string | null) {
+    super(message);
+    this.name = "GeminiInteractionHttpError";
+  }
 }
 
 export async function createGeminiInteraction(
@@ -157,6 +170,7 @@ export async function createGeminiInteraction(
 
   const response = await fetch(GEMINI_INTERACTIONS_BASE_URL, {
     method: "POST",
+    ...(params.timeoutMs ? { signal: AbortSignal.timeout(params.timeoutMs) } : {}),
     headers: buildRequestHeaders(),
     body: JSON.stringify(body),
   });
@@ -169,17 +183,19 @@ export async function createGeminiInteraction(
     const message =
       payload?.error?.message
       || `Gemini Interactions API create failed (${response.status})`;
-    throw new Error(message);
+    throw new GeminiInteractionHttpError(message, response.status, payload,
+      response.headers.get("x-goog-request-id") || response.headers.get("x-request-id"));
   }
 
   return payload;
 }
 
-export async function getGeminiInteraction(interactionId: string) {
+export async function getGeminiInteraction(interactionId: string, timeoutMs?: number) {
   const response = await fetch(
     `${GEMINI_INTERACTIONS_BASE_URL}/${encodeURIComponent(interactionId)}`,
     {
       method: "GET",
+      ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       headers: buildRequestHeaders(),
     },
   );
@@ -192,7 +208,8 @@ export async function getGeminiInteraction(interactionId: string) {
     const message =
       payload?.error?.message
       || `Gemini Interactions API get failed (${response.status})`;
-    throw new Error(message);
+    throw new GeminiInteractionHttpError(message, response.status, payload,
+      response.headers.get("x-goog-request-id") || response.headers.get("x-request-id"));
   }
 
   return payload;

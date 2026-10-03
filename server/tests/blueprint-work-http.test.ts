@@ -110,6 +110,21 @@ describe("Blueprint Work real OAuth and MCP HTTP transport", () => {
     expect(operationScope("DELETE", "/run")).toBeNull();
     expect(operationScope("POST", "/run/terminal-resource-releases")).toBe("blueprint:runs:release");
   });
+  it("advertises separate research MCP permissions and refuses GPU-only grants before any research submission", async () => {
+    const base = await start(); const tokens = await connect(base, "blueprint:runs:read blueprint:runs:launch");
+    const client = new Client({ name: "research-boundary-test", version: "1" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(base + "/api/blueprint-work/mcp"), {
+      requestInit: { headers: { Authorization: `Bearer ${tokens.access_token}` } },
+    }));
+    const tools = await client.listTools();
+    const startTool = tools.tools.find(t => t.name === "start_gemini_deep_research");
+    expect(startTool?._meta).toMatchObject({ securitySchemes: [{ type: "oauth2", scopes: ["blueprint:research:start"] }] });
+    expect(tools.tools.some(t => t.name === "get_gemini_deep_research")).toBe(true);
+    const result = await client.callTool({ name: "start_gemini_deep_research", arguments: { request_key: "one", question: "Research CNC tending" } });
+    expect(result.isError).toBe(true); expect(JSON.stringify(result.content)).toContain("research_scope_required");
+    expect(result._meta).toMatchObject({ "mcp/www_authenticate": [expect.stringContaining("blueprint:research:start")] });
+    await client.close();
+  });
   it("fails closed when disabled and refuses consent without CSRF", async () => {
     const base = await start();
     expect((await fetch(base + "/api/blueprint-work/consent/unknown", { method: "POST", headers: {
