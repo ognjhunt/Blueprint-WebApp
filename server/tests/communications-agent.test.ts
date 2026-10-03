@@ -9,7 +9,7 @@ import { communicationsFixture, communicationsNow, memoryFirestore, cancelledCon
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
-import { processCommunicationsJob, recoverRejectedCommunicationsCreate, continueCancelledCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
+import { buildCommunicationsInput, processCommunicationsJob, recoverRejectedCommunicationsCreate, continueCancelledCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { CommunicationsRuntimeError, type CommunicationsAgentsAPI } from "../agents/communications-api";
 import { reserveCommunicationsDraft, reconcileCommunicationsDraftSession, COMMUNICATIONS_DRAFT_BUDGET } from "../agents/communications-draft-budget";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
@@ -361,6 +361,23 @@ describe("Blueprint-owned communications queue", () => {
     expect(input.firstTouchPolicy).not.toContain("automation_status");
     expect(input.firstTouchPolicy).toContain("learningQuestion is a suggestion, not fixed wording");
   });
+  it.each(["outreach", "reply"] as const)("supplies fresh %s writing guidance without changing archived charged input", async intent => {
+    const f = await setup(intent);
+    await processCommunicationsJob(f.job.jobId, f.deps);
+    const input = JSON.parse(f.deps.api.run.mock.calls[0][0].input);
+    expect(input.writingGuidance).toContain("shared company inbox");
+    expect(input.writingGuidance).toContain("named person");
+    expect(input.writingGuidance).toContain("followed by Nijel on the next line");
+    expect(input.writingGuidance).toContain("in internal structured fields");
+    const saved = f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).checkpoint;
+    expect(saved.draftWritingGuidance).toBe(input.writingGuidance);
+    // A claimed/rejected create reconstructs the same exact frozen choice,
+    // while old charged checkpoints without it keep their historical shape.
+    const charged = { ...saved, createClaimedAt: new Date(communicationsNow).toISOString(), sessionId: null };
+    expect(buildCommunicationsInput(input.researchBrief, input.emailThread, intent, input.currentApproval, undefined,
+      charged.executionWindow, charged.draftWritingGuidance)).toBe(f.deps.api.run.mock.calls[0][0].input);
+    expect(JSON.parse(buildCommunicationsInput(f.brief, f.thread, intent, null))).not.toHaveProperty("writingGuidance");
+  });
   it("claims concurrently enqueued work once across two worker owners", async () => {
     const f = await setup();
     const other = { ...f.deps, store: new CommunicationsStore(f.db, () => communicationsNow, "other-owner") };
@@ -398,6 +415,14 @@ describe("Blueprint-owned communications queue", () => {
     const input = JSON.parse(f.deps.api.run.mock.calls[0][0].input);
     expect(input).toMatchObject({ emailContentTrust: "untrusted_data", currentApproval: { state: "not_requested" } });
     expect(f.db.records.get(`outboundProspects/${f.brief.prospectId}`).stage).toBe("contacted");
+  });
+  it.each(["Please don’t follow up.", "No further follow-ups, please."])("honors the offered reply opt-out: %s", async body => {
+    const f = await setup("reply"); f.thread!.messages[1].body = body;
+    expect((await processCommunicationsJob(f.job.jobId, f.deps)).state).toBe("opted_out");
+    expect(f.deps.suppress).toHaveBeenCalledWith(f.brief.contact.email, "Correlated opt-out reply message-in-1");
+    expect(f.deps.api.run).not.toHaveBeenCalled();
+    expect(f.db.records.get(`outboundProspects/${f.brief.prospectId}`).stage).toBe("closed");
+    expect(isOptOut({ ...f.thread!.messages[1], body: "> " + body + "\nI’d like to know more." })).toBe(false);
   });
   it("honors newer correlated opt-out when older reply work was queued", async () => {
     const f = await setup("reply");

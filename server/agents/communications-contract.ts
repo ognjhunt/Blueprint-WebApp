@@ -218,7 +218,7 @@ export function authorText(body: string) {
   return lines.slice(0, end < 0 ? lines.length : end).filter((line) => !/^\s*>/.test(line)).join("\n").trim();
 }
 export function isOptOut(message: ThreadMessage) {
-  return /\b(?:unsubscribe|remove (?:me|us) from|take (?:me|us) off|(?:do not|don't) (?:contact|email|message)|stop (?:emailing|contacting|sending|messaging)|no more (?:emails|messages))\b/i
+  return /\b(?:unsubscribe|remove (?:me|us) from|take (?:me|us) off|(?:do not|don't) (?:contact|email|message|follow[ -]?up)|stop (?:emailing|contacting|sending|messaging|following[ -]?up)|no (?:more |further )?(?:follow[ -]?ups?)|no more (?:emails|messages))\b/i
     .test(authorText(message.body).replace(/[’‘]/g, "'"));
 }
 

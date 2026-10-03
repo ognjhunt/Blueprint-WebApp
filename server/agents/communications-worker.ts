@@ -1,7 +1,7 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl, appendCommercialEmailFooter } from "../utils/email-suppression";
-import { COMMUNICATIONS_OUTREACH_GUIDANCE } from "./communications-instructions";
+import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "../utils/email-suppression";
+import { COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest, briefRefreshReasons,
   correlateReply, correlatedReplies, isOptOut, FOUNDER_MAILBOX, type CommunicationsBrief, type VerifiedThread,
@@ -23,7 +23,7 @@ import { readPublicContactPage } from "./communications-contact-fetch";
 import { automaticFirstContactEnabled, firstContactGeography, ROUTINE_COMMUNICATIONS_POLICY,
   routineCommunicationsContentBlockers } from "./communications-first-contact";
 import { executeAutomaticFirstContact } from "./communications-send";
-import { appendFirstContactFooter, firstContactPostalLine } from "./communications-first-contact-footer";
+import { appendCommunicationsFooter, appendFirstContactFooter, firstContactPostalLine } from "./communications-first-contact-footer";
 import { CommunicationsDraftBudgetError, reserveCommunicationsDraft, recordCommunicationsDraftUsage,
   reconcileCommunicationsDraftCost, claimCommunicationsRejectedCreateDraftBudget, claimCommunicationsCancelledContinuationBudget,
   assertCommunicationsContinuationBudget } from "./communications-draft-budget";
@@ -214,10 +214,11 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       // Validate before persisting or reserving a paid create. Configuration
       // changes cannot extend a charged checkpoint's already frozen window.
       communicationsExecutionDeadline({ ...claimed.checkpoint, executionWindow });
-      claimed.checkpoint = { ...claimed.checkpoint, executionWindow };
+      claimed.checkpoint = { ...claimed.checkpoint, executionWindow, draftWritingGuidance: COMMUNICATIONS_WRITING_GUIDANCE };
       await deps.store.update(jobId, { checkpoint: claimed.checkpoint });
     }
-    const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning, claimed.checkpoint.executionWindow);
+    const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning, claimed.checkpoint.executionWindow,
+      claimed.checkpoint.draftWritingGuidance);
     // Bind only prospective work before its first paid create. Reconnected
     // sessions retain this decision; old charged/Tony sessions never acquire it.
     if (!recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId && automaticFirstContactEnabled()) {
@@ -389,7 +390,7 @@ function buildCommunicationsPayload(job: CommunicationsJob, brief: Communication
     type: "send_email", to: brief.contact.email.toLowerCase(), from: FOUNDER_MAILBOX, replyTo: FOUNDER_MAILBOX,
     subject: output.subject, body: output.body, emailTransport: "founder_gmail",
     transportBody: automatic ? appendFirstContactFooter(output.body, brief.contact.email)
-      : appendCommercialEmailFooter({ text: output.body, email: brief.contact.email, scope: "growth_campaign" }),
+      : appendCommunicationsFooter(output.body, brief.contact.email),
     commercialEmail: true, emailSuppressionScope: "growth_campaign",
     unsubscribeUrl: buildUnsubscribeUrl({ email: brief.contact.email, scope: automatic ? "all" : "growth_campaign", campaignId: `communications_${job.jobId}` }),
     outreachContext: brief.outreachContext, outreachContract: output.outreachContract,
@@ -438,11 +439,12 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
 }
 
 export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown,
-  learning?: PreparedLearning, executionWindow?: CommunicationsExecutionWindow) {
+  learning?: PreparedLearning, executionWindow?: CommunicationsExecutionWindow, draftWritingGuidance?: string) {
   const policy = intent === "outreach" ? COMMUNICATIONS_OUTREACH_GUIDANCE
     : "Use the actual correlated reply; first-touch drafting is not required for this reply.";
   const base = { intent, approvedSender: FOUNDER_MAILBOX, researchBrief: brief,
     currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy,
+    ...(draftWritingGuidance ? { writingGuidance: draftWritingGuidance } : {}),
     ...(executionWindow ? { executionBoundary: { window: executionWindow,
       guidance: "Work within this frozen wall-clock window. Use evidence-backed judgment to return a usable complete draft with truthful unknowns before the deadline; do not repeat completed reads or trade factual quality for speed. This clock grants no spend, access or send authority." } } : {}) };
   if (!learning) return JSON.stringify(base); // Legacy checkpoints keep their original input shape.

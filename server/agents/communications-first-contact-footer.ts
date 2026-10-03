@@ -10,10 +10,20 @@ export function firstContactPostalLine() {
     && /\b[A-Z]{2} \d{5}(?:-\d{4})?$/.test(line) ? line : null;
 }
 
-export function appendFirstContactFooter(text: string, email: string, savedPostalLine?: string) {
+/** Friendly business outreach retains a reply opt-out without subscription language.
+ * The canonical suppression URL remains separately recorded by the caller. */
+export function appendCommunicationsFooter(text: string, email: string, scope = "growth_campaign") {
+  const footer = appendCommercialEmailFooter({ text: "", email, scope })
+    .replace(/^Privacy: (.+)\/privacy$/m, "Blueprint: $1")
+    .replace(/^Unsubscribe from .+ emails: .+$/m, "If you’d rather I don’t follow up, just let me know.");
+  return text.trimEnd() + footer;
+}
+
+export function appendFirstContactFooter(text: string, email: string, savedPostalLine?: string, legacy = false) {
   // Build the footer separately: model/source text containing unsubscribe or
   // privacy words cannot suppress it or replace its approved postal line.
-  const footer = appendCommercialEmailFooter({ text: "", email, scope: "all" });
+  const footer = legacy ? appendCommercialEmailFooter({ text: "", email, scope: "all" })
+    : appendCommunicationsFooter("", email, "all");
   const postalLine = savedPostalLine ?? firstContactPostalLine();
   if (!postalLine || !footer.includes(COMPANY_POSTAL_LINE)) throw new Error("first_contact_postal_footer_unavailable");
   return text.trimEnd() + footer.replace(COMPANY_POSTAL_LINE, postalLine);

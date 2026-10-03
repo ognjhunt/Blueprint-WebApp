@@ -12,7 +12,7 @@ import { logger } from "../logger";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const requestSchema = z.object({ expectedReviewDigest: hash, expectedRevisionId: hash.nullable(), mode: z.enum(["write", "reconcile"]).default("write") }).strict();
-type DraftContent = { jobId: string; reviewDigest: string; payloadDigest: string; to: string; subject: string; body: string; messageId: string; threadId?: string; inReplyTo?: string };
+type DraftContent = { jobId: string; reviewDigest: string; payloadDigest: string; to: string; subject: string; body: string; messageId: string; mimeProfile?: "multipart-alternative-v1"; threadId?: string; inReplyTo?: string };
 export type GmailDraftPorts = {
   enabled(): boolean; requireCapability(): Promise<void>; verifyMailbox(): Promise<unknown>;
   allowsRevision(jobId: string, revisionId: string | null, reviewDigest: string): boolean;
@@ -113,11 +113,14 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
     const review = reviewCommunicationsPayload(payload, now);
     if (!review.hardChecksPassed || review.digest !== request.expectedReviewDigest || saved.reviewDigest !== review.digest
       || (ledger!.draft_revision_id ?? null) !== request.expectedRevisionId || (saved.draftRevisionId ?? null) !== request.expectedRevisionId) fail("gmail_draft_revision_changed_reload_approvals");
+    const old = prior.data();
     const content: DraftContent = { jobId: job.jobId, reviewDigest: review.digest!, payloadDigest: communicationsDigest(payload),
       to: payload.to, subject: payload.subject, body: payload.transportBody,
       messageId: `<blueprint-draft-${job.jobId}@tryblueprint.io>`,
+      // A new delivery profile never relabels a retained text/plain attempt.
+      ...(!old ? { mimeProfile: "multipart-alternative-v1" as const }
+        : old.content?.mimeProfile ? { mimeProfile: old.content.mimeProfile } : {}),
       ...(payload.gmailThreadId ? { threadId: payload.gmailThreadId } : {}), ...(payload.inReplyTo ? { inReplyTo: payload.inReplyTo } : {}) };
-    const old = prior.data();
     if (old && (old.jobId !== job.jobId || old.ledgerId !== ledgerId || old.prospectId !== job.prospectId)) fail("gmail_draft_binding_identity_changed");
     if (old?.state === "writing") return { state: request.mode === "reconcile" ? "reconcile" as const : "writing" as const, content: old.content as DraftContent, old };
     if (old?.state === "unknown" || old?.state === "verified" && same(old.content, content)) return { state: "reconcile" as const, content: old.content as DraftContent, old };
@@ -275,16 +278,57 @@ export async function reconcileEndedGmailDraftWriter(db: FirebaseFirestore.Fires
   });
 }
 
+/** Deterministic delivery view only; authored plain bytes remain canonical. */
+function gmailDraftHtml(body: string) {
+  const escape = (value: string) => value.replace(/[&<>"']/g, character =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]!));
+  const lines = body.replace(/\r\n/g, "\n").split("\n").map(line => {
+    const link = /^Blueprint: (https?:\/\/\S+)$/.exec(line);
+    if (!link) return escape(line);
+    let url: URL;
+    try { url = new URL(link[1]); } catch { return escape(line); }
+    if (url.username || url.password) return escape(line);
+    return `Blueprint: <a href="${escape(url.href)}">${escape(link[1])}</a>`;
+  });
+  return `<html><body><div>${lines.join("<br>\n")}</div></body></html>`;
+}
+function gmailDraftBodyMatches(payload: gmail_v1.Schema$MessagePart | undefined, content: DraftContent) {
+  const normalize = (value: string) => value.replace(/\r\n/g, "\n");
+  if (!payload || payload.filename || payload.body?.attachmentId) return false;
+  if (!content.mimeProfile) return payload.mimeType === "text/plain" && !(payload.parts?.length)
+    && normalize(extractPlainTextBody(payload)) === normalize(content.body);
+  if (content.mimeProfile !== "multipart-alternative-v1" || payload.mimeType !== "multipart/alternative"
+    || payload.body?.data || payload.parts?.length !== 2
+    || payload.headers?.some(header => (header.name ?? "").toLowerCase() === "content-disposition"
+      && !/^inline(?:;|$)/i.test(header.value ?? ""))) return false;
+  const parts = payload.parts;
+  const inline = (part: gmail_v1.Schema$MessagePart, mime: string) => part.mimeType === mime && !part.filename
+    && !part.body?.attachmentId && typeof part.body?.data === "string" && !(part.parts?.length)
+    && !(part.headers?.some(header => (header.name ?? "").toLowerCase() === "content-disposition"
+      && !/^inline(?:;|$)/i.test(header.value ?? "")));
+  const plain = parts.filter(part => inline(part, "text/plain")), html = parts.filter(part => inline(part, "text/html"));
+  return plain.length === 1 && html.length === 1
+    && normalize(Buffer.from(plain[0].body!.data!, "base64url").toString("utf8")) === normalize(content.body)
+    && normalize(Buffer.from(html[0].body!.data!, "base64url").toString("utf8")) === gmailDraftHtml(content.body);
+}
+
 export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail, mode: "automated" | "manual_approved_copy" = "automated"): GmailDraftPorts {
   const client = async () => gmail ??= await existingFounderGmail();
   const raw = (content: DraftContent) => {
     if ([content.to,content.subject,content.messageId,content.inReplyTo ?? ""].some(value => /[\r\n]/.test(value))) fail("gmail_draft_header_invalid");
+    if (content.mimeProfile && content.mimeProfile !== "multipart-alternative-v1") fail("gmail_draft_mime_profile_invalid");
     const headers = [`From: Nijel Hunt <${FOUNDER_MAILBOX}>`, `To: ${content.to}`, `Reply-To: ${FOUNDER_MAILBOX}`, `Message-ID: ${content.messageId}`,
       `Subject: =?UTF-8?B?${Buffer.from(content.subject).toString("base64")}?=`, `X-Blueprint-Job-ID: ${content.jobId}`,
       `X-Blueprint-Review-Digest: ${content.reviewDigest}`, `X-Blueprint-Payload-Digest: ${content.payloadDigest}`,
-      "MIME-Version: 1.0", "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64",
-      ...(content.inReplyTo ? [`In-Reply-To: ${content.inReplyTo}`,`References: ${content.inReplyTo}`] : [])];
-    return Buffer.from(headers.join("\r\n")+"\r\n\r\n"+Buffer.from(content.body).toString("base64")).toString("base64url");
+      "MIME-Version: 1.0", ...(content.inReplyTo ? [`In-Reply-To: ${content.inReplyTo}`,`References: ${content.inReplyTo}`] : [])];
+    if (!content.mimeProfile) return Buffer.from([...headers, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64"].join("\r\n")
+      + "\r\n\r\n" + Buffer.from(content.body).toString("base64")).toString("base64url");
+    const boundary = `blueprint-${communicationsDigest(content).slice(0, 48)}`;
+    const part = (mime: string, body: string) => `--${boundary}\r\nContent-Type: ${mime}; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n`
+      + (Buffer.from(body).toString("base64").match(/.{1,76}/g) ?? []).join("\r\n") + "\r\n";
+    const message = [...headers, `Content-Type: multipart/alternative; boundary="${boundary}"`].join("\r\n") + "\r\n\r\n"
+      + part("text/plain", content.body) + part("text/html", gmailDraftHtml(content.body)) + `--${boundary}--\r\n`;
+    return Buffer.from(message).toString("base64url");
   };
   return {
     // Only the authenticated explicit owner route selects manual mode. The
@@ -322,19 +366,19 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail, mode: "automat
       } else draft=(await api.users.drafts.get({userId:"me",id:draftId,format:"full"})).data;
       const message=draft.message, headers=message?.payload?.headers;
       const addresses=(value:string|null)=>(value?.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []).map(address=>address.toLowerCase()).join();
-      const get=(name:string)=>extractHeader(headers,name), normalize=(value:string)=>value.replace(/\r\n/g,"\n");
+      const get=(name:string)=>extractHeader(headers,name);
       const subject=(get("Subject") ?? "").replace(/=\?UTF-8\?B\?([A-Za-z0-9+/=]+)\?=/gi,(_,encoded:string)=>Buffer.from(encoded,"base64").toString("utf8"));
       if (draft.id!==draftId || !message?.id || !message.threadId || !message.labelIds?.includes("DRAFT") || message.labelIds.includes("SENT")
         || headers?.some(header=>["cc","bcc"].includes((header.name ?? "").toLowerCase()) && Boolean(header.value?.trim()))
         || ["from","to","reply-to","subject","message-id","x-blueprint-job-id","x-blueprint-review-digest","x-blueprint-payload-digest"].some(name=>headers?.filter(header=>(header.name ?? "").toLowerCase()===name).length!==1)
-        || message.payload?.mimeType!=="text/plain" || Boolean(message.payload.filename) || Boolean(message.payload.body?.attachmentId)
-        || (message.payload.parts?.length ?? 0)>0
+        || !gmailDraftBodyMatches(message.payload, content)
         || !/^<[^<>\x00-\x20\x7f@]+@[^<>\x00-\x20\x7f@]+>$/.test(get("Message-ID") ?? "") || get("X-Blueprint-Job-ID")!==content.jobId
         || get("X-Blueprint-Review-Digest")!==content.reviewDigest || get("X-Blueprint-Payload-Digest")!==content.payloadDigest
         || addresses(get("To"))!==content.to || addresses(get("From"))!==FOUNDER_MAILBOX
-        || addresses(get("Reply-To"))!==FOUNDER_MAILBOX || subject!==content.subject || normalize(extractPlainTextBody(message.payload))!==normalize(content.body)
+        || addresses(get("Reply-To"))!==FOUNDER_MAILBOX || subject!==content.subject
         || (content.threadId && content.threadId!==message.threadId) || (content.inReplyTo && get("In-Reply-To")!==content.inReplyTo)) fail("gmail_draft_readback_content_changed");
-      return {draftId,messageId:message.id,threadId:message.threadId,authoredRfcMessageId:content.messageId,observedRfcMessageId:get("Message-ID")!};
+      return {draftId,messageId:message.id,threadId:message.threadId,authoredRfcMessageId:content.messageId,observedRfcMessageId:get("Message-ID")!,
+        ...(content.mimeProfile ? { mimeProfile: content.mimeProfile, htmlSha256: createHash("sha256").update(gmailDraftHtml(content.body)).digest("hex") } : {})};
     },
     async write(content,draftId) {
       const api=await client(), requestBody={message:{raw:raw(content),...(content.threadId?{threadId:content.threadId}:{})}};
