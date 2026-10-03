@@ -29,6 +29,7 @@ import { CommunicationsDraftBudgetError, reserveCommunicationsDraft, recordCommu
   assertCommunicationsContinuationBudget } from "./communications-draft-budget";
 import { createNativeLearningHooks, REVIEWED_NATIVE_LEARNING_CONFIG } from "../research-learning/native-hooks";
 import { getCompanyHistoryAccess } from "./operator-tools";
+import { runCommunicationsGmailDraftCopies } from "./communications-gmail-draft";
 
 type CommunicationsLearningHooks = Pick<ReturnType<typeof createNativeLearningHooks>, "prepareNativeJob" | "afterNativeWork">;
 type PreparedLearning = Awaited<ReturnType<CommunicationsLearningHooks["prepareNativeJob"]>>;
@@ -490,17 +491,20 @@ export function startCommunicationsWorker(): () => Promise<void> {
       isSuppressed: deps.isSuppressed, suppress: deps.suppress, now: deps.now });
     await runCommunicationsIntake({ db, readResearch: deps.readResearch,
       isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readPublicContactPage });
-  }, processJobs: allowPaidInference });
+  }, copyDrafts: canContinue => runCommunicationsGmailDraftCopies(db, undefined, undefined, canContinue), processJobs: allowPaidInference });
 }
 
 /** Stop admission immediately, then await the active job and its durable writes. */
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
-  options: { intake?: () => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
+  options: { intake?: () => Promise<void>; copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
   let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
   let automaticCursor: string | undefined;
   const tick = async () => {
     try {
       if (options.intake) await options.intake();
+      if (stopped) return;
+      try { await options.copyDrafts?.(() => !stopped); }
+      catch { logger.warn({ code: "communications_gmail_draft_copy_direction_unavailable" }, "Gmail staging waits for its retained copy direction"); }
       if (stopped || options.processJobs === false) return;
       if (deps.sendAutomatic && automaticFirstContactEnabled()) {
         for (const job of await deps.store.automaticJobs(5, automaticCursor)) {

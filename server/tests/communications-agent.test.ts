@@ -519,6 +519,16 @@ describe("Blueprint-owned communications queue", () => {
     await vi.advanceTimersByTimeAsync(120000);
     expect(f.deps.api.run).toHaveBeenCalledTimes(1); expect(f.store.dueJobIds).toHaveBeenCalledTimes(1);
   });
+  it("runs existing draft-copy staging independently of paid inference and drains it on shutdown", async () => {
+    const f = await setup();
+    let finish!: () => void, canContinue!: () => boolean;
+    const copyDrafts = vi.fn(async (allowed: () => boolean) => { canContinue = allowed; await new Promise<void>(resolve => { finish = resolve; }); });
+    const stop = startCommunicationsQueueLoop(f.deps, { processJobs: false, copyDrafts });
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(copyDrafts).toHaveBeenCalledTimes(1); expect(canContinue()).toBe(true); expect(f.deps.api.run).not.toHaveBeenCalled();
+    const drained = stop(); expect(canContinue()).toBe(false); finish(); await drained;
+    await vi.advanceTimersByTimeAsync(60000); expect(copyDrafts).toHaveBeenCalledTimes(1); expect(f.deps.api.run).not.toHaveBeenCalled();
+  });
   it("allows a bounded operator retry after dependency repair with the same durable session identity", async () => {
     const f = await setup();
     const checkpoint = { createClaimedAt: new Date(communicationsNow - 10000).toISOString(), sessionId: "same-session", turnId: "same-turn" };

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { type gmail_v1 } from "googleapis";
 import { communicationsDigest, communicationsDeliveryKey, communicationsEnvelopeSchema, FOUNDER_MAILBOX, verifyCommunicationsHandoff, communicationsBriefSchema } from "./communications-contract";
@@ -7,6 +7,8 @@ import { COMMUNICATIONS_ROOT } from "./communications-store";
 import { existingFounderGmail, verifyFounderMailbox } from "./communications-gmail";
 import { requireFounderDraftCapability } from "./communications-oauth-store";
 import { extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
+import { resolveBundleStorage } from "../utils/siteCaptureBundleStorage";
+import { logger } from "../logger";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const requestSchema = z.object({ expectedReviewDigest: hash, expectedRevisionId: hash.nullable(), mode: z.enum(["write", "reconcile"]).default("write") }).strict();
@@ -17,10 +19,49 @@ export type GmailDraftPorts = {
   priorContact(email: string): Promise<boolean>;
   find(content: DraftContent, draftId?: string): Promise<{ draftId: string; messageId: string; threadId: string; authoredRfcMessageId: string; observedRfcMessageId: string } | null>;
   write(content: DraftContent, draftId?: string): Promise<{ draftId: string }>;
+  copyDirection?: { ref: GmailDraftCopyDirectionRef; digest: string };
+};
+type GmailDraftCopyDirectionRef = { uri: string; generation: string; sha256: string };
+export type GmailDraftCopyDirection = {
+  version: "blueprint.communications-gmail-draft-copy-direction.v1"; owner: "Nijel Hunt";
+  approvedAt: string; expiresAt: string;
+  direction: { kind: "direct_current_chat_human_reply"; text: string; sourceRef: string };
+  binding: { mailbox: typeof FOUNDER_MAILBOX; composeApprovalReference: string };
+  scope: { draftOnly: true; gmailCopiesAuthorized: true; sendsAuthorized: false; newInferenceAuthorized: false; accessChangesAuthorized: false };
 };
 export class CommunicationsGmailDraftError extends Error { constructor(message: string, public status = 409) { super(message); } }
 function fail(message: string): never { throw new CommunicationsGmailDraftError(message); }
 const same = (a: unknown, b: unknown) => communicationsDigest(a) === communicationsDigest(b);
+const recurringCopiesEnabled = () => process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED === "true"
+  && process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED !== "true"
+  && process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED !== "true";
+
+/** The separate protected copy direction does not change paid authority or the
+ * original compose-consent reference. Nothing supplied by a model admits it. */
+async function gmailDraftCopyDirection(db: FirebaseFirestore.Firestore, now: () => number) {
+  const ref: GmailDraftCopyDirectionRef | undefined = (await db.doc(COMMUNICATIONS_ROOT).get()).data()?.gmailDraftCopyDirection;
+  if (!ref) return null;
+  const storage = resolveBundleStorage(), match = /^gs:\/\/blueprint-8c1ca\.appspot\.com\/(operations\/recovery\/[^\s]+\/agent-e2e-gmail-draft-copy-owner-direction\.json)$/.exec(ref.uri ?? "");
+  if (!storage || storage.bucketName !== "blueprint-8c1ca.appspot.com" || !match
+    || !/^[0-9]+$/.test(ref.generation) || !/^[a-f0-9]{64}$/.test(ref.sha256)) fail("gmail_draft_copy_direction_invalid");
+  const before = await storage.info(match[1]);
+  if (!before || before.generation !== ref.generation || !Number.isSafeInteger(before.size) || before.size < 1 || before.size > 32000) fail("gmail_draft_copy_direction_invalid");
+  const raw = await storage.readText(match[1]), after = await storage.info(match[1]);
+  if (raw === null || Buffer.byteLength(raw) !== before.size || after?.generation !== ref.generation
+    || createHash("sha256").update(raw).digest("hex") !== ref.sha256) fail("gmail_draft_copy_direction_invalid");
+  let authority: GmailDraftCopyDirection;
+  try { authority = JSON.parse(raw); } catch { return fail("gmail_draft_copy_direction_invalid"); }
+  if (authority?.version !== "blueprint.communications-gmail-draft-copy-direction.v1" || authority.owner !== "Nijel Hunt"
+    || !Number.isFinite(Date.parse(authority.approvedAt)) || Date.parse(authority.approvedAt) > now()
+    || !Number.isFinite(Date.parse(authority.expiresAt)) || Date.parse(authority.expiresAt) <= now()
+    || authority.direction?.kind !== "direct_current_chat_human_reply" || typeof authority.direction.text !== "string" || !authority.direction.text.trim()
+    || !/^gs:\/\/blueprint-8c1ca\.appspot\.com\/operations\/recovery\//.test(authority.direction.sourceRef ?? "")
+    || authority.binding?.mailbox !== FOUNDER_MAILBOX || !authority.binding.composeApprovalReference
+    || authority.binding.composeApprovalReference !== process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF
+    || authority.scope?.draftOnly !== true || authority.scope.gmailCopiesAuthorized !== true || authority.scope.sendsAuthorized !== false
+    || authority.scope.newInferenceAuthorized !== false || authority.scope.accessChangesAuthorized !== false) fail("gmail_draft_copy_direction_invalid");
+  return { ref, digest: communicationsDigest(authority), expiresAt: authority.expiresAt };
+}
 function draftWindowConfigured() {
   return Boolean(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF?.trim())
     && ["JOB_ID", "REVISION_ID", "REVIEW_DIGEST"].every(field => /^[a-f0-9]{64}$/.test(process.env[`BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_${field}`] ?? ""));
@@ -78,7 +119,7 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
       ...(payload.gmailThreadId ? { threadId: payload.gmailThreadId } : {}), ...(payload.inReplyTo ? { inReplyTo: payload.inReplyTo } : {}) };
     const old = prior.data();
     if (old && (old.jobId !== job.jobId || old.ledgerId !== ledgerId || old.prospectId !== job.prospectId)) fail("gmail_draft_binding_identity_changed");
-    if (old?.state === "writing") return { state: "writing" as const, content, old };
+    if (old?.state === "writing") return { state: request.mode === "reconcile" ? "reconcile" as const : "writing" as const, content: old.content as DraftContent, old };
     if (old?.state === "unknown" || old?.state === "verified" && same(old.content, content)) return { state: "reconcile" as const, content: old.content as DraftContent, old };
     // This window admits one preserved copy. A verified copy is observation-only;
     // changing the draft or approving another revision needs another owner scope.
@@ -89,6 +130,7 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
       state: "writing", attemptId, content, deliveryKey: communicationsDeliveryKey(job), revisionId: request.expectedRevisionId, requestedBy, claimedAt: now,
       draftId: old?.draftId ?? null, confirmedContent: old?.state === "verified" ? old.content : old?.confirmedContent ?? null, confirmedReceipt: old?.receipt ?? old?.confirmedReceipt ?? null,
       sent: false, approved: false };
+    if (ports.copyDirection) Object.assign(row, { copyDirection: ports.copyDirection });
     tx.set(draftRef, row); return { state: "claimed" as const, content, old: row };
   });
   if (planned.state === "writing") return { state: "writing", sent: false, gmailDraftCreated: false };
@@ -123,6 +165,10 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
         || ["closed","converted"].includes(currentSource?.stage) || currentSuppression?.global_suppressed===true
         || currentSuppression?.suppressed_scopes?.some((scope:string)=>["all","growth_campaign"].includes(scope))) fail("gmail_draft_source_changed_before_write");
       if (planned.old.draftId && !await ports.find(planned.old.confirmedContent, planned.old.draftId)) fail("gmail_draft_previous_copy_changed_manual_reconciliation_required");
+      if (ports.copyDirection) {
+        await ports.requireCapability();
+        if (!ports.enabled()) fail("gmail_draft_copy_direction_changed");
+      }
       submitted = true;
       const written = await ports.write(planned.content, planned.old.draftId ?? undefined);
       // Retain the accepted provider identity before a readback can fail. This
@@ -148,6 +194,45 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
     if (error instanceof CommunicationsGmailDraftError) throw error;
     if (!submitted && planned.state === "claimed") throw new CommunicationsGmailDraftError("gmail_draft_source_or_capability_refused_before_write", 409);
     throw new CommunicationsGmailDraftError("gmail_draft_unknown_acknowledgement_reconcile_exact_job", 503);
+  }
+}
+
+/** Stage eligible internal drafts without approval or inference. Existing
+ * writing/unknown claims are observed only; no clock can license a new create. */
+export async function runCommunicationsGmailDraftCopies(db: FirebaseFirestore.Firestore, now = () => Date.now(), basePorts = configuredGmailDraftPorts(), canContinue = () => true) {
+  if (!recurringCopiesEnabled()) return;
+  const direction = await gmailDraftCopyDirection(db, now);
+  if (!direction) return;
+  const ports: GmailDraftPorts = { ...basePorts, copyDirection: direction,
+    enabled: () => recurringCopiesEnabled() && canContinue() && now() < Date.parse(direction.expiresAt),
+    allowsRevision: (jobId, revisionId, reviewDigest) => /^[a-f0-9]{64}$/.test(jobId) && /^[a-f0-9]{64}$/.test(reviewDigest)
+      && (revisionId === null || /^[a-f0-9]{64}$/.test(revisionId)),
+    requireCapability: async () => {
+      if (!recurringCopiesEnabled() || !same(await gmailDraftCopyDirection(db, now), direction)) fail("gmail_draft_copy_direction_changed");
+      await basePorts.requireCapability();
+    } };
+  let cursor: string | undefined;
+  while (recurringCopiesEnabled() && canContinue()) {
+    let query = db.doc(COMMUNICATIONS_ROOT).collection("jobs").where("state", "==", "pending_approval").orderBy("__name__").limit(50);
+    if (cursor) query = query.startAfter(cursor);
+    const page = await query.get();
+    if (page.empty) return;
+    for (const doc of page.docs) {
+      cursor = doc.id;
+      if (!recurringCopiesEnabled() || !canContinue()) return;
+      const ledgerId = `communications_${doc.id}`, ledger = (await db.collection("action_ledger").doc(ledgerId).get()).data();
+      if (!ledger || ledger.status !== "pending_approval" || !ledger.action_payload?.communications) continue;
+      const old = (await db.doc(COMMUNICATIONS_ROOT).collection("gmailDraftBindings").doc(doc.id).get()).data();
+      if (old?.state === "verified") continue; // One copy stays preserved across later revisions.
+      try {
+        await mirrorCommunicationsGmailDraft(db, ledgerId, "Nijel Hunt (retained recurring copy direction)", {
+          expectedReviewDigest: doc.data().reviewDigest, expectedRevisionId: ledger.draft_revision_id ?? null,
+          mode: ["writing", "unknown"].includes(old?.state) ? "reconcile" : "write",
+        }, ports, now());
+      } catch (error) {
+        logger.warn({ jobId: doc.id, code: error instanceof CommunicationsGmailDraftError ? error.message : "gmail_draft_copy_reconciliation_required" }, "Canonical Gmail draft copy needs reconciliation");
+      }
+    }
   }
 }
 
