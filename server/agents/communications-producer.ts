@@ -1,3 +1,4 @@
+import { leadTaskSourceSupports, requireVerifiedLead } from "./lead-verification";
 import { z } from "zod";
 import {
   briefRefreshReasons, communicationsBriefSchema, communicationsDigest,
@@ -57,6 +58,7 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
     packetDigest: snapshot?.row?.packet_digest, rawArtifactDigest: snapshot?.row?.raw_output_digest,
     ...(snapshot?.row?.admission_id ? { admissionId: snapshot.row.admission_id } : {}) };
   const source = researchPublicationSource(snapshot, origin);
+  requireVerifiedLead(source, now);
   const candidate = source.candidate;
   const canonical = canonicalContext(prospect, input.context, source.sheetsProspectId);
   if (candidate.organization !== canonical.facilityName || candidate.task !== canonical.hypothesisedTask) {
@@ -79,9 +81,9 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
     };
   });
   const observation = candidate.evidence.findIndex((entry: any) => entry.role === "task"
-    && entry.classification === "operator" && entry.claim_kind === "fact"
+    && ["operator", "independent"].includes(entry.classification) && entry.claim_kind === "fact"
     && entry.origin === "live" && entry.assertion_scope === "current_operational"
-    && (!entry.visibility || entry.visibility === "public") && sameOperatorUrl(entry.url, candidate.organization_url)
+    && (!entry.visibility || entry.visibility === "public") && (sameOperatorUrl(entry.url, candidate.organization_url) || leadTaskSourceSupports(source, entry))
     && !entry.claim.startsWith(PUBLIC_CONTACT_PREFIX));
   if (observation < 0) throw new Error("research_adapter_public_task_fact_missing");
   const sourceDigest = communicationsDigest(source);
@@ -124,6 +126,7 @@ export async function approveResearchCommunications(db: FirebaseFirestore.Firest
   preview: CommunicationsResearchPreview, input: CommunicationsResearchInput, expectedDigest: string,
   reviewedBy: string, now: number) {
   if (!reviewedBy.trim() || expectedDigest !== preview.previewDigest) throw new Error("research_adapter_preview_changed");
+  requireVerifiedLead(preview.source, now);
   const brief = communicationsBriefSchema.parse({ ...preview.proposal, qualityReview: {
     state: "approved", reviewedBy, reviewedAt: new Date(now).toISOString(), sourceRecordUrl: preview.sourceRecordUrl,
   } });

@@ -8,6 +8,7 @@ import { COMMUNICATIONS_ROOT, prepareCommunicationsEnqueue } from "./communicati
 import { reviewCommunicationsPayload } from "./communications-review";
 import { verifyFirstContactAuthority } from "./communications-first-contact";
 import { verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
+import { LeadVerificationRequired } from "./lead-verification";
 import type { ActionPayload } from "./action-policies";
 
 export type CommunicationsReplyIntakeDependencies = {
@@ -87,6 +88,7 @@ export async function admitBoundCommunicationsReplies(receiptKey: string, deps: 
   const replies = correlatedReplies(brief, thread);
   if (!replies.length) return { state: "no_reply" as const };
   const optOut = replies.find(isOptOut), incoming = optOut ?? replies.at(-1)!;
+  let verificationGap: LeadVerificationRequired["verification"] | null = null;
   if (!optOut) {
     // Only new drafting requires current research/canonical context. A real
     // opt-out still protects the originally verified recipient when it drifts.
@@ -96,8 +98,16 @@ export async function admitBoundCommunicationsReplies(receiptKey: string, deps: 
       || parent.prospect.siteId !== parent.brief.siteId || parent.prospect.taskId !== parent.brief.taskId) throw new Error("reply_canonical_context_changed");
     const proof = parent.brief.researchOrigin.contactEvidenceKind === "public_operator_resolution"
       ? (await root.collection("contactProofs").doc(parent.brief.researchOrigin.contactEvidenceDigest!).get()).data() : undefined;
-    verifyPublishedResearch(await deps.readResearch(parent.brief.researchOrigin.date, parent.brief.researchOrigin.admissionId),
-      parent.brief, parent.handoff, proof);
+    try {
+      verifyPublishedResearch(await deps.readResearch(parent.brief.researchOrigin.date, parent.brief.researchOrigin.admissionId),
+        parent.brief, parent.handoff, proof, deps.now());
+    } catch (error) {
+      if (!(error instanceof LeadVerificationRequired)) throw error;
+      // A correlated observed reply is durable untrusted evidence. Current
+      // qualification gates new inference/outreach, without erasing the reply
+      // or pretending that reception refreshed the original source dates.
+      verificationGap = error.verification;
+    }
   }
   const input = { prospectId: brief.prospectId, briefId: brief.briefId, briefDigest: communicationsDigest(brief),
     intent: "reply" as const, inboundMessageId: incoming.gmailMessageId };
@@ -180,6 +190,8 @@ export async function admitBoundCommunicationsReplies(receiptKey: string, deps: 
     if (!savedHandoff.exists) tx.create(root.collection("handoffs").doc(job.briefDigest), derivedHandoff);
     if (derivedProvenance && !savedProvenance.exists) tx.create(root.collection("researchSources").doc(job.briefDigest), derivedProvenance);
     queued.commit();
+    if (verificationGap) tx.update(root.collection("jobs").doc(job.jobId), { state: "awaiting_research",
+      reason: "lead_verification_required", leadVerification: verificationGap, updatedAt: deps.now() });
     if (optOut) {
       tx.update(root.collection("jobs").doc(job.jobId), { state: "opted_out", reason: "recipient_opt_out", updatedAt: deps.now() });
       if (source.data()?.contactEmail?.toLowerCase() === brief.contact.email.toLowerCase()) {
@@ -189,8 +201,8 @@ export async function admitBoundCommunicationsReplies(receiptKey: string, deps: 
     }
     tx.create(claimRef, { version: "blueprint.communications-reply-intake.v1", jobId: job.jobId,
       messageHash: communicationsDigest(incoming), parentBriefDigest: parent.job.briefDigest,
-      sendReceiptKey: receiptKey, state: optOut ? "opted_out" : "queued", observedAt: thread.fetchedAt });
-    return { state: optOut ? "opted_out" as const : "queued" as const, jobId: job.jobId };
+      sendReceiptKey: receiptKey, state: optOut ? "opted_out" : verificationGap ? "awaiting_research" : "queued", observedAt: thread.fetchedAt });
+    return { state: optOut ? "opted_out" as const : verificationGap ? "awaiting_research" as const : "queued" as const, jobId: job.jobId };
   });
 }
 

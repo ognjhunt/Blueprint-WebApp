@@ -1,3 +1,4 @@
+import { LeadVerificationRequired } from "../agents/lead-verification";
 import { Router } from "express";
 import { createHash } from "node:crypto";
 import { dbAdmin, storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -60,7 +61,8 @@ router.post("/research-admissions", async (req, res) => {
   if (!access.isAdmin || !access.uid) return res.status(403).json({ error: "forbidden" });
   if (!dbAdmin) return res.status(503).json({ error: "reviewed_research_store_unavailable" });
   const parsed = reviewedResearchInputSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "reviewed_research_input_invalid" });
+  if (!parsed.success) return res.status(400).json({ error: "reviewed_research_input_invalid",
+    fields: parsed.error.issues.map(issue => ({ path: issue.path.join("."), repair: issue.message })) });
   try {
     const now = Date.now();
     const snapshot = await stageReviewedResearch(dbAdmin, parsed.data, access.uid, now);
@@ -72,6 +74,8 @@ router.post("/research-admissions", async (req, res) => {
       artifactDigest: snapshot.row.raw_output_digest, sheetsPublished: false, notionPublished: false,
       ...outcome, sent: false, sessionCreated: false });
   } catch (error) {
+    if (error instanceof LeadVerificationRequired) return res.status(409).json({ error: "lead_verification_required",
+      verification: error.verification, sent: false, sessionCreated: false });
     const code = error instanceof Error && /^reviewed_research_[a-z_]+$/.test(error.message) ? error.message : "reviewed_research_source_requires_refresh";
     return res.status(409).json({ error: code, sent: false, sessionCreated: false });
   }

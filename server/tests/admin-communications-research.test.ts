@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { officialResearchInput } from "./fixtures/official-contact-research";
+import { syntheticReviewedResearchInput } from "./fixtures/lead-verification";
 import { memoryFirestore } from "./fixtures/communications";
 import { createHash } from "node:crypto";
 const bindings = vi.hoisted(() => ({ db: null as any, storage: null as any, access: vi.fn(), suppressed: vi.fn() }));
@@ -65,12 +66,12 @@ describe("portable protected research reads", () => {
     expect((await read("/research-admissions/:admissionId", { admissionId: "a".repeat(64) })).status).toHaveBeenCalledWith(403);
     bindings.access.mockResolvedValue({ isAdmin: true, uid: "server-verified-user" });
     expect((await read("/research-artifacts/:artifactId/:part?", { artifactId: "../unsafe" })).status).toHaveBeenCalledWith(400);
-    const admitted = await invoke(officialResearchInput());
+    const admitted = await invoke(syntheticReviewedResearchInput());
     const res = await read("/research-admissions/:admissionId", { admissionId: admitted.body.admissionId });
     expect(res.json).toHaveBeenCalledWith(bindings.db.records.get(`${REVIEWED_RESEARCH_ROOT}/${admitted.body.admissionId}`));
   });
   it("exports intact historical records without writes or renewing their source/review dates", async () => {
-    const input = officialResearchInput(); input.crm.rows = [["Blueprint CRM"], [], ["BP-000099", "Unrelated operator"]];
+    const input = syntheticReviewedResearchInput(); input.crm.rows = [["Blueprint CRM"], [], ["BP-000099", "Unrelated operator"]];
     const admitted = await invoke(input), id = admitted.body.admissionId;
     const before = structuredClone([...bindings.db.records]);
     vi.setSystemTime(new Date("2030-10-01T21:05:00Z"));
@@ -82,7 +83,7 @@ describe("portable protected research reads", () => {
   it.each(["partial_restore", "missing_packet", "missing_review", "missing_artifact", "wrong_admission_id", "changed_packet",
     "changed_crm", "partial_crm", "wrong_review_digest", "wrong_review_candidate", "malformed_review_date", "changed_artifact",
     "wrong_source_identity", "wrong_run_key", "wrong_schema", "rekeyed_snapshot"])("refuses %s admission contents before export", async kind => {
-    const admitted = await invoke(officialResearchInput());
+    const admitted = await invoke(syntheticReviewedResearchInput());
     let id = admitted.body.admissionId;
     let saved = structuredClone(bindings.db.records.get(`${REVIEWED_RESEARCH_ROOT}/${id}`));
     if (kind === "partial_restore") saved = {};
@@ -113,19 +114,25 @@ describe("portable protected research reads", () => {
   });
 });
 describe("authenticated reviewed-research admission route", () => {
+  it("returns retained missing-evidence assessment and repair reasons without admission or writes", async () => {
+    const response = await invoke(officialResearchInput());
+    expect(response).toMatchObject({ status: 409, body: { error: "lead_verification_required",
+      verification: { status: "unresolved", assessment: null, eligible_for_qualified_promotion: false }, sent: false } });
+    expect(bindings.db.records.size).toBe(0);
+  });
   it("ignores client role claims and blocks missing/revoked server authority without writes", async () => {
     bindings.access.mockResolvedValue({ isAdmin: false, uid: "request-user" });
-    expect((await invoke(officialResearchInput())).status).toBe(403);
+    expect((await invoke(syntheticReviewedResearchInput())).status).toBe(403);
     expect(bindings.db.records.size).toBe(0);
   });
   it("rejects caller-controlled approval, reviewer or invented API-session fields", async () => {
     for (const addition of [{ approved: true }, { reviewedBy: "forged-agent" }, { sessionId: "fake-api-session" }]) {
-      expect((await invoke({ ...officialResearchInput(), ...addition })).status).toBe(400);
+      expect((await invoke({ ...syntheticReviewedResearchInput(), ...addition })).status).toBe(400);
     }
     expect(bindings.db.records.size).toBe(0);
   });
   it("persists server actor/time, public-role assessment and truthful projection status while queuing no session/send", async () => {
-    const input = officialResearchInput(); input.crm.checkedAt = new Date().toISOString();
+    const input = syntheticReviewedResearchInput(); input.crm.checkedAt = new Date().toISOString();
     const response = await invoke(input);
     expect(response).toMatchObject({ status: 200, body: { state: "admitted", sheetsPublished: false,
       notionPublished: false, provenanceKind: "codex_report", sent: false, sessionCreated: false } });
@@ -137,6 +144,6 @@ describe("authenticated reviewed-research admission route", () => {
   });
   it("returns unavailable store without requesting credentials or changing access", async () => {
     bindings.db = null;
-    expect((await invoke(officialResearchInput())).status).toBe(503);
+    expect((await invoke(syntheticReviewedResearchInput())).status).toBe(503);
   });
 });

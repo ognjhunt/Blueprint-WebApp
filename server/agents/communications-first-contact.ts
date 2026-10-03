@@ -1,3 +1,4 @@
+import { requireVerifiedLead } from "./lead-verification";
 import { communicationsBriefSchema, communicationsDigest, communicationsEnvelopeSchema,
   briefRefreshReasons, correlateReply, correlatedReplies, isOptOut, type CommunicationsBrief, type CommunicationsOutput } from "./communications-contract";
 import { publishedPublicContact, contactProhibition, PUBLIC_CONTACT_PREFIX, containsContactName } from "./communications-contact-evidence";
@@ -254,6 +255,7 @@ export function verifyFirstContactSource(provenance: any, brief: CommunicationsB
     || typeof source?.candidate?.site !== "string" || !source.candidate.site
     || source?.researchReview?.source_support_verified !== true || source?.researchReview?.crm_rechecked !== true
     || !source?.researchReview?.accepted_keys?.includes(brief.researchOrigin.candidateKey)) throw new Error("first_contact_source_missing_or_changed");
+  requireVerifiedLead(source, now);
   const contact = brief.researchOrigin.contactEvidenceKind === "public_operator_resolution"
     ? verifyContactResolution(contactProof, source, brief.prospectId) : qualifiedSourceContact(source);
   if (contact.email !== brief.contact.email.toLowerCase() || contact.sourceUrl !== brief.contact.sourceUrl
@@ -261,7 +263,7 @@ export function verifyFirstContactSource(provenance: any, brief: CommunicationsB
     throw new Error("first_contact_source_missing_or_changed");
   }
   const observations = brief.outreachContext.observations.every(item => source.candidate.evidence.some((entry: any) =>
-    entry.role === "task" && entry.classification === "operator" && entry.claim_kind === "fact"
+    entry.role === "task" && ["operator", "independent"].includes(entry.classification) && entry.claim_kind === "fact"
     && entry.claim === item.claim && entry.url === item.source));
   if (!observations || !brief.outreachContext.observations.length) throw new Error("first_contact_public_task_missing");
   const country = firstContactGeography(provenance, brief, now);

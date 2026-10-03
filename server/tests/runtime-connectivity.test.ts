@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const runAgentTask = vi.hoisted(() => vi.fn());
 
@@ -7,21 +7,21 @@ vi.mock("../agents/runtime", () => ({
   runAgentTask,
 }));
 
+beforeEach(() => {
+  // Provider preference tests must not depend on the developer's configured
+  // house provider or local auth. Restore ambient values without reading them.
+  for (const name of ["CODEX_LOCAL_AVAILABLE", "CODEX_AUTH_FILE", "CODEX_DEFAULT_MODEL",
+    "DEEPSEEK_API_KEY", "DEEPSEEK_DEFAULT_MODEL", "DEEPSEEK_OPERATOR_THREAD_MODEL", "DEEPSEEK_TIMEOUT_MS",
+    "ZAI_API_KEY", "ZAI_DEFAULT_MODEL", "ZAI_OPERATOR_THREAD_MODEL", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
+    "ACP_HARNESS_URL", "OPENCLAW_BASE_URL", "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER",
+    "BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER", "ANTHROPIC_OPERATOR_THREAD_MODEL", "OPENAI_OPERATOR_THREAD_MODEL"]) {
+    vi.stubEnv(name, "");
+  }
+  vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
+});
+
 afterEach(() => {
-  delete process.env.CODEX_LOCAL_AVAILABLE;
-  delete process.env.CODEX_AUTH_FILE;
-  delete process.env.CODEX_DEFAULT_MODEL;
-  delete process.env.DEEPSEEK_API_KEY;
-  delete process.env.DEEPSEEK_DEFAULT_MODEL;
-  delete process.env.DEEPSEEK_OPERATOR_THREAD_MODEL;
-  delete process.env.DEEPSEEK_TIMEOUT_MS;
-  delete process.env.OPENAI_API_KEY;
-  delete process.env.ANTHROPIC_API_KEY;
-  delete process.env.ACP_HARNESS_URL;
-  delete process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER;
-  delete process.env.BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER;
-  delete process.env.ANTHROPIC_OPERATOR_THREAD_MODEL;
-  delete process.env.OPENAI_OPERATOR_THREAD_MODEL;
+  vi.unstubAllEnvs();
   runAgentTask.mockReset();
   vi.resetModules();
 });

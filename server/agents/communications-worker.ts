@@ -195,7 +195,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       await deps.store.requestRefresh(job, refresh);
       return { state: "awaiting_research", reasons: refresh };
     }
-    verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId), brief, await deps.store.handoff(brief), await deps.store.contactProof(brief));
+    verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId), brief, await deps.store.handoff(brief), await deps.store.contactProof(brief), deps.now());
     const approval = await deps.store.approvalState(job.prospectId);
     const agentChosenHistory = !!phase || !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId
       || claimed.checkpoint.historyProfile === "agent-history-v1";
@@ -254,7 +254,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       if (briefRefreshReasons(brief, deps.now()).length) throw new Error("research_refresh_required");
       if (communicationsDigest(await deps.store.brief(job.briefId)) !== job.briefDigest) throw new Error("research_brief_changed");
       verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId),
-        brief, await deps.store.handoff(brief), await deps.store.contactProof(brief));
+        brief, await deps.store.handoff(brief), await deps.store.contactProof(brief), deps.now());
       const latest = (await deps.store.db.collection("outboundProspects").doc(job.prospectId).get()).data();
       if (!latest || latest.stage === "closed" || latest.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
         || latest.siteId !== brief.siteId || latest.taskId !== brief.taskId) throw new Error("canonical_prospect_identity_missing_or_changed");

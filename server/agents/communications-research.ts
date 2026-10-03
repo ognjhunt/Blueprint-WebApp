@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { verificationDigest, researchDigest } from "./research-digest";
+export { researchDigest } from "./research-digest";
+import { evaluateLeadCohort, evaluateLeadVerification, leadPacketCandidates, requireVerifiedLead } from "./lead-verification";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { communicationsDigest, verifyCommunicationsHandoff, type CommunicationsBrief } from "./communications-contract";
@@ -21,10 +24,12 @@ export async function readExistingResearchSnapshot(db: FirebaseFirestore.Firesto
 }
 
 /** A reviewed work item alone does not prove publication to either canonical hub. */
-export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrief, approval: unknown, contactProof?: unknown) {
+export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrief, approval: unknown, contactProof?: unknown, now = Date.now()) {
   const handoff = verifyCommunicationsHandoff(approval, brief);
   const verified = verifyResearchPublication(snapshot, brief.researchOrigin);
   const { row, candidate } = verified;
+  requireVerifiedLead({ candidate, leadVerification: verified.verification.assessment,
+    ...("leadVerificationCohort" in verified ? { leadVerificationCohort: verified.leadVerificationCohort } : {}) }, now);
   if (handoff.sheetsReceipt !== verified.sheetsReceipt || handoff.notionReceipt !== verified.notionReceipt) {
     throw new Error("research_publication_receipt_changed");
   }
@@ -108,7 +113,14 @@ export function verifyResearchPublication(snapshot: any, origin: CommunicationsB
   }
   const candidate = row.packet?.candidates?.find((item: any) => item.candidate_key === origin.candidateKey);
   if (!candidate) throw new Error("research_candidate_missing");
-  return { row, candidate, selected,
+  const leadVerification = row.review?.lead_verification?.results?.find((result: any) => result.candidate_key === origin.candidateKey)?.assessment ?? null;
+  const leadVerificationCohort = leadVerification != null ? { candidates: leadPacketCandidates(row.packet),
+    assessments: Object.fromEntries(row.review.lead_verification.results.map((result: any) => [result.candidate_key, result.assessment])),
+    duplicateChecks: row.review.lead_verification.duplicate_checks ?? {} } : undefined;
+  const verification = leadVerificationCohort ? evaluateLeadCohort(leadVerificationCohort.candidates,
+    leadVerificationCohort.assessments, Date.now(), leadVerificationCohort.duplicateChecks).find(result => result.candidate_key === origin.candidateKey)!
+    : evaluateLeadVerification(candidate, leadVerification, Date.now());
+  return { row, candidate, selected, ...(leadVerificationCohort ? { leadVerificationCohort } : {}), verification,
     sheetsReceipt: row.delivery.sheets.receipt.reference,
     notionReceipt: row.delivery?.notion?.state === "acknowledged" ? row.delivery.notion.receipt.reference : null,
   };
@@ -124,7 +136,7 @@ export function researchPublicationSource(snapshot: any, origin: CommunicationsB
     || row.review.reviewer_reference !== `agent-turn:${row.session_id}:${qa.turn_id}`
     || createHash("sha256").update(qaBytes).digest("hex") !== qa.artifact_digest
     || row.review.qa_artifact_digest !== qa.artifact_digest
-    || researchDigest(qa.decision) !== researchDigest(row.review)) throw new Error("research_adapter_qa_binding_missing");
+    || communicationsDigest(qa.decision) !== communicationsDigest(row.review)) throw new Error("research_adapter_qa_binding_missing");
   const qaResult = JSON.parse(qaBytes.toString("utf8"));
   if (qaResult.schema_version !== "blueprint.research-qa.v1" || qaResult.packet_digest !== origin.packetDigest
     || qaResult.crm_digest !== qa.crm_digest || qaResult.source_support_verified !== true
@@ -132,6 +144,25 @@ export function researchPublicationSource(snapshot: any, origin: CommunicationsB
     || !Array.isArray(qaResult.checks) || !qaResult.accepted_keys.includes(origin.candidateKey)
     || !qaResult.checks.some((check: any) => check.candidate_key === origin.candidateKey
       && check.source_support_verified === true && check.duplicate === false)) throw new Error("research_adapter_qa_binding_missing");
+  const check = qaResult.checks.find((check: any) => check.candidate_key === origin.candidateKey);
+  const assessment = check?.lead_verification;
+  const retained = row.review.lead_verification?.results?.find((result: any) => result.candidate_key === origin.candidateKey);
+  if ((assessment != null || retained != null) && (!retained
+    || verificationDigest(assessment ?? null) !== retained.assessment_digest
+    || verificationDigest(assessment ?? null) !== verificationDigest(retained.assessment ?? null))) throw new Error("research_adapter_lead_verification_binding_missing");
+  if (assessment != null) {
+    for (const member of leadPacketCandidates(row.packet)) {
+      const raw = qaResult.checks.find((entry: any) => entry.candidate_key === member.candidate_key)?.lead_verification ?? null;
+      const result = row.review.lead_verification.results.find((entry: any) => entry.candidate_key === member.candidate_key);
+      if (!result || result.candidate_digest !== verificationDigest(member)
+        || result.assessment_digest !== verificationDigest(raw)
+        || verificationDigest(result.assessment ?? null) !== verificationDigest(raw)) throw new Error("research_adapter_lead_verification_binding_missing");
+    }
+  }
+  const duplicateChecks = Object.fromEntries(qaResult.checks.map((check: any) => [check.candidate_key,
+    { duplicate: check.duplicate, duplicate_of: check.duplicate_of ?? null, reason: check.reason }]));
+  if (row.review.lead_verification?.duplicate_checks && communicationsDigest(duplicateChecks)
+    !== communicationsDigest(row.review.lead_verification.duplicate_checks)) throw new Error("research_adapter_lead_verification_binding_missing");
   const delivery = row.delivery.sheets, plan = delivery.plan;
   const rows = plan?.sheet_rows;
   if (!Array.isArray(rows) || rows.length !== selected.length
@@ -159,26 +190,12 @@ export function researchPublicationSource(snapshot: any, origin: CommunicationsB
     runKey: row.run_key, date: origin.date, candidateKey: origin.candidateKey,
     packetDigest: origin.packetDigest, rawArtifactDigest: origin.rawArtifactDigest,
     candidate, researchReview: row.review, qaArtifactDigest: qa.artifact_digest,
+    ...(assessment != null ? { leadVerification: assessment, leadVerificationCohort: {
+      candidates: leadPacketCandidates(row.packet), assessments: Object.fromEntries(qaResult.checks.map((check: any) => [check.candidate_key, check.lead_verification ?? null])), duplicateChecks } } : {}),
     sheetsId: row.packet.destinations.sheet_id,
     sheetsProspectId: ids[selected.findIndex((item: any) => item.candidate_key === origin.candidateKey)],
     sheetsReceipt, notionReceipt, sheetsPlanDigest: researchDigest(plan),
     // Preserve the byte/digest shape of previously admitted API publications.
     ...(notionReceipt === null ? { sourceRecordUrl: `https://docs.google.com/spreadsheets/d/${row.packet.destinations.sheet_id}/edit` } : {}),
   };
-}
-
-/** Python json.dumps(sort_keys=True, separators=(',', ':'), ensure_ascii=True).
- * The research packet contract uses integer token counts and string confidence;
- * unexpected non-integer numbers fail closed instead of guessing Python floats.
- */
-export function researchDigest(value: unknown): string {
-  const encode = (item: any): string => {
-    if (typeof item === "number" && !Number.isSafeInteger(item)) throw new Error("research_number_contract_unsupported");
-    if (Array.isArray(item)) return `[${item.map(encode).join(",")}]`;
-    if (item && typeof item === "object") return `{${Object.keys(item).sort().map((key) => `${encode(key)}:${encode(item[key])}`).join(",")}}`;
-    const json = JSON.stringify(item);
-    if (json === undefined) throw new Error("research_digest_value_invalid");
-    return json.replace(/[\u007f-\uffff]/g, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
-  };
-  return createHash("sha256").update(encode(value)).digest("hex");
 }
