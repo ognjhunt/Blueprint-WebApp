@@ -566,14 +566,15 @@ export class CommunicationsAgentsAPI {
    * are durable before submission; unknown ACKs are observed on replacement and
    * reuse the same provider idempotency key, never a new message or create. */
   private async handleHistoryActions(checkpoint: CommunicationsCheckpoint, jobId: string,
-    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>) {
+    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>,
+    assertRepairAllowed?: () => void | Promise<void>) {
     const { session, turn, turns } = await this.readBoundDraftSession(checkpoint, jobId, checkpoint.requestDigest ?? "");
     if (!checkpoint.historyProfile) throw new CommunicationsRuntimeError("agents_history_profile_required");
     const actions = session.required_actions ?? [];
     if (!Array.isArray(actions)) throw new CommunicationsRuntimeError("agents_history_actions_invalid");
     if (!turn) {
       if (actions.length) throw new CommunicationsRuntimeError("agents_history_action_turn_mismatch");
-      return;
+      return 0;
     }
     if (actions.length && !["queued", "in_progress", "waiting"].includes(turn.status)) throw new CommunicationsRuntimeError("agents_history_action_turn_mismatch");
     checkpoint.turnId = turn.id;
@@ -668,6 +669,10 @@ export class CommunicationsAgentsAPI {
       if (checkpoint.finalRepairProfile && Date.now() >= this.repairDeadline(checkpoint)) {
         throw new CommunicationsRuntimeError("communications_final_repair_deadline");
       }
+      await assertRepairAllowed?.();
+      if (checkpoint.finalRepairProfile && Date.now() >= this.repairDeadline(checkpoint)) {
+        throw new CommunicationsRuntimeError("communications_final_repair_deadline");
+      }
       try {
         const submitted = await this.request(`/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, {
           method: "POST", headers: { "Idempotency-Key": receipt.idempotencyKey }, body: JSON.stringify({ events: [event] }),
@@ -681,6 +686,7 @@ export class CommunicationsAgentsAPI {
       }
       await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
     }
+    return actions.length;
   }
   /** Read saved artifacts only, including after the inference deadline expires. */
   async reconcileUsage(checkpoint: CommunicationsCheckpoint, jobId: string): Promise<unknown> {
@@ -1004,6 +1010,20 @@ export class CommunicationsAgentsAPI {
       try {
         result = await this.readFinal(checkpoint, jobId, save, true);
         if (!result) {
+          // Streams have no replay. A waiting final-repair turn can have a
+          // saved function request even when its requires_action event was
+          // lost. Answer it through the existing durable responder before
+          // treating the turn as merely pending; this creates no new turn.
+          if (checkpoint.historyProfile && this.options.allowPaidInference
+            && !this.options.reviewedSavedOutputDigest && !checkpoint.finalRepairSettled
+            && Date.now() < this.repairDeadline(checkpoint)) {
+            await assertRepairAllowed?.();
+            const answered = await this.handleHistoryActions(checkpoint, jobId, save, assertRepairAllowed);
+            if (answered) {
+              await this.observeRepair(checkpoint, jobId, save);
+              continue;
+            }
+          }
           await settle(null, false);
           throw new CommunicationsRuntimeError(checkpoint.finalRepairs?.length ? "agents_final_repair_pending" : "agents_turn_pending", true,
             checkpoint.finalOutputSources?.at(-1));

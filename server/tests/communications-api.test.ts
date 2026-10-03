@@ -547,7 +547,8 @@ describe("new-session bounded communications final repair", () => {
   const knownUsage = { input_tokens: 100, output_tokens: 20, total_tokens: 120,
     input_tokens_details: { cached_tokens: 10 }, output_tokens_details: { reasoning_tokens: 2 } };
   function repairFixture(options: { raw?: string; missingUsage?: boolean; unknown?: "accepted" | "absent";
-    alwaysInvalid?: boolean; wrongMessage?: boolean; evidence?: boolean; beforeSave?: (checkpoint: any) => void } = {}) {
+    alwaysInvalid?: boolean; wrongMessage?: boolean; evidence?: boolean; missingHistoryEvent?: boolean;
+    beforeSave?: (checkpoint: any) => void } = {}) {
     const f = apiFixture({ rawOutput: options.raw ?? "not JSON", usage: knownUsage });
     const originals = f.fetchMock;
     if (options.evidence) (f.savedAgent.tools as any[]) = [{ type: "mcp", server_label: "gmail", credential_id: "synthetic-owner-credential",
@@ -591,7 +592,7 @@ describe("new-session bounded communications final repair", () => {
       if (path.endsWith("/events") && turns.length > 1) return new Response(`${options.evidence ? 'data: {"type":"agent.session.requires_action"}\n\n' : ""}data: ${JSON.stringify({
         type: "agent.session.turn.completed", turn_id: turns.at(-1).id })}\n\n`);
       const response = await originals(url, init);
-      if (options.evidence && path.endsWith("/agents/sessions")) return new Response((await response.text()).replace(
+      if (options.evidence && !options.missingHistoryEvent && path.endsWith("/agents/sessions")) return new Response((await response.text()).replace(
         'data: {"type":"agent.session.turn.completed"', 'data: {"type":"agent.session.requires_action"}\n\ndata: {"type":"agent.session.turn.completed"'));
       if (options.evidence && path.endsWith("/session-1")) {
         const session = await response.json();
@@ -687,6 +688,41 @@ describe("new-session bounded communications final repair", () => {
     expect(result.checkpoint.finalOutputSources).toHaveLength(2);
     expect(run).toHaveBeenCalledTimes(1);
     } finally { access.mockRestore(); run.mockRestore(); }
+  });
+  it("answers a saved history request when the final-repair stream missed its action event, without a new turn", async () => {
+    const tools = await import("../agents/operator-tools");
+    const access = vi.spyOn(tools, "getCompanyHistoryAccess").mockResolvedValue({ expiresAt: "2099-10-01T00:00:00Z" } as any);
+    const run = vi.spyOn(tools, "runOperatorTool").mockResolvedValue({ ok: true, record: { outcome: "prior outreach feedback" } });
+    try {
+      const f = repairFixture({ evidence: true, missingHistoryEvent: true, raw: JSON.stringify(communicationsFixture().output) });
+      const assertRepairAllowed = vi.fn(async () => undefined);
+      const result = await f.api.run({ ...f.params, assertRepairAllowed });
+      expect(result.output).toEqual(f.output);
+      expect(run).toHaveBeenCalledExactlyOnceWith("fetch_company_history_record", { record_id: "history:original" }, expect.any(Object));
+      const posted = f.fetchMock.mock.calls.filter(([, init]: any[]) => init.method === "POST");
+      expect(posted.filter(([url]: any[]) => String(url).endsWith("/agents/sessions"))).toHaveLength(1);
+      const events = posted.filter(([url]: any[]) => String(url).endsWith("/events"))
+        .flatMap(([, init]: any[]) => JSON.parse(String(init.body)).events);
+      expect(events).toMatchObject([{ type: "agent.session.input.tool_result", turn_id: "turn-1", call_id: "original-history-call", success: true }]);
+      expect(result.checkpoint.historyToolReceipts).toMatchObject([{ callId: "original-history-call", delivery: "submitted" }]);
+      expect(result.checkpoint.finalRepairs ?? []).toHaveLength(0);
+      expect(assertRepairAllowed).toHaveBeenCalledTimes(2);
+    } finally { access.mockRestore(); run.mockRestore(); }
+  });
+  it("does not answer missed actions once the original deadline has passed, including through saved observation", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-02T20:00:00Z"));
+    const tools = await import("../agents/operator-tools");
+    const run = vi.spyOn(tools, "runOperatorTool");
+    try {
+      const f = repairFixture({ evidence: true, missingHistoryEvent: true, beforeSave: checkpoint => {
+        if (checkpoint.usageReceipts?.length) vi.setSystemTime(Date.parse(checkpoint.createClaimedAt) + 180000);
+      } });
+      await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_turn_pending" });
+      const postsBefore = f.fetchMock.mock.calls.filter(([, init]: any[]) => init.method === "POST").length;
+      expect(await f.api.reconcileSaved(f.checkpoint(), "job-1")).toBeNull();
+      expect(f.fetchMock.mock.calls.filter(([, init]: any[]) => init.method === "POST")).toHaveLength(postsBefore);
+      expect(postsBefore).toBe(1); expect(run).not.toHaveBeenCalled();
+    } finally { run.mockRestore(); vi.useRealTimers(); }
   });
   it("rechecks consequential controls for malformed JSON before any correction request", async () => {
     const f = repairFixture(), assertRepairAllowed = vi.fn(() => { throw Error("recipient_suppressed"); });
