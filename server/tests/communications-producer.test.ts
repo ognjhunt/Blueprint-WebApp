@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { previewResearchCommunications, approveResearchCommunications } from "../agents/communications-producer";
 import { communicationsDigest } from "../agents/communications-contract";
-import { verifyPublishedResearch } from "../agents/communications-research";
+import { researchPublicationSource, verifyPublishedResearch, verifyResearchPublication } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { processCommunicationsJob } from "../agents/communications-worker";
 import { communicationsNow, memoryFirestore } from "./fixtures/communications";
@@ -16,6 +16,14 @@ function setup() {
 }
 
 describe("published research → human reviewed communications producer (offline)", () => {
+  it("keeps old publications readable while missing lead verification blocks qualified/outreach promotion", () => {
+    const f = publishedResearchFixture({ leadVerification: false });
+    const origin = { date: f.input.date, candidateKey: f.candidate.candidate_key,
+      packetDigest: f.snapshot.row.packet_digest, rawArtifactDigest: f.snapshot.row.raw_output_digest };
+    expect(verifyResearchPublication(f.snapshot, origin).verification).toMatchObject({ status: "unresolved", assessment: null });
+    expect(researchPublicationSource(f.snapshot, origin)).not.toHaveProperty("leadVerification");
+    expect(() => previewResearchCommunications(f.snapshot, "prospect-1", f.prospect, f.input, communicationsNow)).toThrow("lead_verification_required");
+  });
   it("preserves original QA, Sheets ID, dates, vendor class, quotes and cached source IDs without claiming interest", () => {
     const f = setup(), preview = f.preview();
     expect(preview.source.sheetsProspectId).toBe("BP-000042");

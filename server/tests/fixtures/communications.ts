@@ -1,5 +1,6 @@
 import { communicationsDigest, type CommunicationsBrief, type VerifiedThread, type CommunicationsOutput } from "../../agents/communications-contract";
 import { researchDigest } from "../../agents/communications-research";
+import { syntheticLeadVerification, syntheticVerificationCohort } from "./lead-verification";
 import { outreachContext, outreachContract, outreachDraft } from "./outreach-review";
 
 export const communicationsNow = Date.parse("2026-09-30T23:00:00Z");
@@ -23,7 +24,7 @@ export function communicationsFixture(intent: "outreach" | "reply" = "outreach")
   // Exact schema: sources are named sourceUrl, never inherited legacy keys.
   delete (brief.facts[0] as any).source;
   const evidence = [{ claim: brief.facts[0].claim, url: brief.facts[0].sourceUrl, source_checked_at: brief.facts[0].sourceCheckedAt, classification: "operator", claim_kind: "fact" }];
-  const packet = { candidates: [{ candidate_key: "candidate-1", evidence }], destinations: { sheet_id: "synthetic-sheet", sheet_tab: "Prospects", notion_parent: "synthetic-notion" } };
+  const packet = { candidates: [{ candidate_key: "candidate-1", organization: brief.facilityName, site: "Synthetic packing site", location: "Synthetic location", task: brief.boundedJob, evidence }], destinations: { sheet_id: "synthetic-sheet", sheet_tab: "Prospects", notion_parent: "synthetic-notion" } };
   const artifact = Buffer.from('{"synthetic":true}');
   const row: any = { date: "2026-09-30", run_key: "blueprint-researcher:2026-09-30", state: "completed", session_id: "research-session-1",
     turn_id: "research-turn-1", remote_completed_at: 1790802000, artifact_downloaded: true, packet,
@@ -31,7 +32,8 @@ export function communicationsFixture(intent: "outreach" | "reply" = "outreach")
   // Use actual byte hashes, matching the research Store's immutable artifact contract.
   row.raw_output_digest = requireHash(artifact);
   row.packet_digest = researchDigest(packet);
-  row.review = { packet_digest: row.packet_digest, reviewer_reference: "qa-run-1", source_support_verified: true, crm_rechecked: true, accepted_keys: ["candidate-1"], summary: "Synthetic verified research" };
+  row.review = { packet_digest: row.packet_digest, reviewer_reference: "qa-run-1", source_support_verified: true, crm_rechecked: true, accepted_keys: ["candidate-1"], summary: "Synthetic verified research",
+    lead_verification: syntheticVerificationCohort(packet.candidates[0], syntheticLeadVerification(packet.candidates[0]), communicationsNow) };
   row.delivery = Object.fromEntries(["sheets", "notion"].map((destination) => {
     const payload = destination === "sheets" ? { sheet_id: packet.destinations.sheet_id, tab: "Prospects", candidates: packet.candidates }
       : { parent_id: packet.destinations.notion_parent, summary: row.review.summary, candidates: packet.candidates };

@@ -166,10 +166,10 @@ describe("bound founder-thread reply intake (all providers mocked)", () => {
   it("does not refresh expired research when a new reply arrives", async () => {
     const f = await setup(), now = communicationsNow + 40 * 86400000;
     const deps = { ...f.deps, now: () => now };
-    await admitBoundCommunicationsReplies(f.receiptKey, deps);
+    expect(await admitBoundCommunicationsReplies(f.receiptKey, deps)).toMatchObject({ state: "awaiting_research" });
     const job = f.replyJobs()[0][1];
-    expect(await processCommunicationsJob(job.jobId, { ...f.worker, now: deps.now,
-      store: new CommunicationsStore(f.db, deps.now, "late-worker") })).toMatchObject({ state: "awaiting_research" });
+    expect(job).toMatchObject({ state: "awaiting_research", leadVerification: { status: "unresolved" } });
+    expect(f.observations()).toHaveLength(1);
     expect(f.api.run).not.toHaveBeenCalled(); expect((await f.store.brief(job.briefId)).facts).toEqual(f.brief.facts);
   });
 

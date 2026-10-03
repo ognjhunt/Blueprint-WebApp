@@ -1,3 +1,4 @@
+import { leadTaskSourceSupports, requireVerifiedLead } from "./lead-verification";
 import { randomUUID } from "node:crypto";
 import { communicationsBriefSchema, communicationsDigest, briefRefreshReasons,
   verifyCommunicationsHandoff, type CommunicationsBrief } from "./communications-contract";
@@ -28,6 +29,8 @@ async function needsResearch(deps: IntakeDependencies, identity: ReturnType<type
     const ref = root.collection("intake").doc(intakeId), previous = await tx.get(ref);
     if (previous.exists && previous.data()?.state === "admitted") {
       const saved = previous.data()!;
+      if (reason.startsWith("lead_verification_required:")) return { ...saved, state: "needs_research", reasons: [reason],
+        eligibleForOutreach: false };
       return reason === "communications_research_admission_superseded"
         ? { ...saved, state: "already_requested", reasons: [reason] } : saved;
     }
@@ -69,7 +72,7 @@ async function existingVerifiedBrief(deps: IntakeDependencies, snapshot: any, so
     || brief.facilityName !== source.candidate.organization || brief.boundedJob !== source.candidate.task
     || brief.siteId !== prospect.siteId || brief.taskId !== prospect.taskId || brief.caseId !== prospect.caseId
     || brief.conflicts.length || brief.stage.interest !== "unknown") throw new Error("verified_contact_handoff_binding_invalid");
-  verifyPublishedResearch(snapshot, brief, await store.handoff(brief), await store.contactProof(brief));
+  verifyPublishedResearch(snapshot, brief, await store.handoff(brief), await store.contactProof(brief), deps.now());
   const stale = briefRefreshReasons(brief, deps.now());
   if (stale.length) throw new Error(`verified_contact_handoff_stale:${stale.join(",")}`);
   return brief;
@@ -83,6 +86,7 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
     const source = researchPublicationSource(snapshot, { date: identity.date, candidateKey,
       packetDigest: identity.packetDigest, rawArtifactDigest: identity.rawArtifactDigest,
       ...(identity.admissionId ? { admissionId: identity.admissionId } : {}) });
+    requireVerifiedLead(source, deps.now());
     const root = deps.db.doc(COMMUNICATIONS_ROOT), key = bindingKey(source), bindingRef = root.collection("researchBindings").doc(key);
     const binding = (await bindingRef.get()).data();
     const matches = await deps.db.collection("outboundProspects").where("researchPublicationId", "==", source.sheetsProspectId).limit(3).get();
@@ -102,9 +106,9 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
     }
     const email = contact?.email ?? reused!.contact.email.toLowerCase();
     if (await deps.isSuppressed(email)) throw new Error("recipient_suppressed");
-    const taskFact = source.candidate.evidence.find((entry: any) => entry.role === "task" && entry.classification === "operator"
+    const taskFact = source.candidate.evidence.find((entry: any) => entry.role === "task" && ["operator", "independent"].includes(entry.classification)
       && entry.claim_kind === "fact" && entry.origin === "live" && entry.assertion_scope === "current_operational"
-      && (!entry.visibility || entry.visibility === "public") && sameOperatorUrl(entry.url, source.candidate.organization_url)
+      && (!entry.visibility || entry.visibility === "public") && (sameOperatorUrl(entry.url, source.candidate.organization_url) || leadTaskSourceSupports(source, entry))
       && !entry.claim.startsWith(PUBLIC_CONTACT_PREFIX));
     if (!taskFact) throw new Error("research_adapter_public_task_fact_missing");
     const projection: FirebaseFirestore.DocumentData = original ? { ...original,

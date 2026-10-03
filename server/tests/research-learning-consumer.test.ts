@@ -8,7 +8,7 @@ import { publishedResearchFixture } from "./fixtures/published-research";
 import { previewResearchCommunications } from "../agents/communications-producer";
 import { communicationsBriefSchema, communicationsDigest, communicationsDeliveryKey } from "../agents/communications-contract";
 import { memoryFirestore } from "./fixtures/communications";
-import { officialResearchInput } from "./fixtures/official-contact-research";
+import { syntheticLeadVerification, syntheticReviewedResearchInput } from "./fixtures/lead-verification";
 import { stageReviewedResearch } from "../agents/communications-reviewed-research";
 import { admitPublishedResearch } from "../agents/communications-intake";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
@@ -133,8 +133,12 @@ describe("runnable read-only research and communications consumer", () => {
     expect(() => session.researchDetails("unrelated", { pageSize: 1, cursor: null })).toThrow("scope_denied");
     expect(() => session.researchDetails("prospect-1", { pageSize: 1, cursor: { contextHash: session.handoff.contextHash, prospectId: "unrelated", operation: "native_research", offset: 0 } })).toThrow("cursor_invalid");
   });
-  it("reads the real reviewed-report admission contract without inventing a CRM row or provider session", async () => {
-    const f = fixture("communications"), ownerDb = memoryFirestore(), input = officialResearchInput();
+  it("reads the reviewed-report admission contract from synthetic evidence without inventing a CRM row or provider session", async () => {
+    const f = fixture("communications"), ownerDb = memoryFirestore(), input = syntheticReviewedResearchInput();
+    // Public contact evidence still contains recipient information that the
+    // separate learning projection must omit, as in the original test.
+    input.candidate.evidence[1].claim = `The synthetic operator publishes ${input.assessment.contact.email} as its business contact.`;
+    input.leadVerification = syntheticLeadVerification(input.candidate, "2026-10-01T21:00:00Z");
     const staged = await stageReviewedResearch(ownerDb, input, "authenticated-offline-owner", Date.parse(now));
     const result: any = await admitPublishedResearch(staged, input.candidate.candidate_key, { db: ownerDb, now: () => Date.parse(now),
       readResearch: (date, admissionId) => readExistingResearchSnapshot(ownerDb, date, admissionId), isSuppressed: async () => false });

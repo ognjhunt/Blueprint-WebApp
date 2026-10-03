@@ -2,12 +2,13 @@ import { createHash } from "node:crypto";
 import { researchDigest } from "../../agents/communications-research";
 import type { CommunicationsResearchInput } from "../../agents/communications-producer";
 import { communicationsFixture } from "./communications";
+import { syntheticLeadVerification, syntheticVerificationCohort } from "./lead-verification";
 import { PUBLIC_CONTACT_PREFIX } from "../../agents/communications-contact-evidence";
 
 /** Synthetic records shaped like the pinned v3 runner/consumer/publisher output.
  * Unlike the original consumer fixture, this includes full QA and publication plans. */
 export function publishedResearchFixture(options: { unknowns?: string[]; taskClaim?: string;
-  publicContact?: boolean; naturalContact?: boolean; actualProducer?: boolean; date?: string; mutateCandidate?: (candidate: any) => void } = {}) {
+  verificationAssessedAt?: string; leadVerification?: boolean; publicContact?: boolean; naturalContact?: boolean; actualProducer?: boolean; date?: string; mutateCandidate?: (candidate: any) => void } = {}) {
   const { snapshot, brief, output } = communicationsFixture();
   const candidate = {
     candidate_key: "candidate-1", identity_keys: ["candidate-1"],
@@ -84,15 +85,18 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
   const artifact = Buffer.from(JSON.stringify(raw));
   row.raw_output_digest = createHash("sha256").update(artifact).digest("hex");
   snapshot.files.artifact = artifact.toString("base64");
+  const leadVerification = options.leadVerification === false ? undefined : syntheticLeadVerification(candidate, options.verificationAssessedAt);
   const qaResult = { schema_version: "blueprint.research-qa.v1", packet_digest: row.packet_digest,
     crm_digest: researchDigest([]), source_support_verified: true, accepted_keys: [candidate.candidate_key],
     summary: "Reviewed synthetic site/job/team evidence; contact requires separate verification",
-    checks: [{ candidate_key: candidate.candidate_key, source_support_verified: true, duplicate: false, reason: "Synthetic reviewed sources" }] };
+    checks: [{ candidate_key: candidate.candidate_key, source_support_verified: true, duplicate: false, reason: "Synthetic reviewed sources",
+      ...(leadVerification ? { lead_verification: leadVerification } : {}) }] };
   const qaBytes = Buffer.from(JSON.stringify(qaResult));
   const artifact_digest = createHash("sha256").update(qaBytes).digest("hex");
   row.review = { packet_digest: row.packet_digest, reviewer_reference: `agent-turn:${row.session_id}:qa-turn-1`,
     source_support_verified: true, crm_rechecked: true, accepted_keys: [candidate.candidate_key],
-    summary: qaResult.summary, qa_artifact_digest: artifact_digest };
+    summary: qaResult.summary, qa_artifact_digest: artifact_digest,
+    ...(leadVerification ? { lead_verification: syntheticVerificationCohort(candidate, leadVerification, Date.parse("2026-09-30T23:00:00Z")) } : {}) };
   row.qa = { state: "validated", turn_status: "completed", turn_id: "qa-turn-1", artifact_digest,
     crm_digest: qaResult.crm_digest, decision: row.review };
   for (const destination of ["sheets", "notion"]) {

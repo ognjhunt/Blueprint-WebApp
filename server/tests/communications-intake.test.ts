@@ -22,6 +22,17 @@ function setup(options: Parameters<typeof publishedResearchFixture>[0] = { publi
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("agent-owned published research intake (offline)", () => {
+  it("does not report cached admission as eligible after its bound verification expires", async () => {
+    const f = setup();
+    const first: any = await f.admit();
+    expect(first.state).toBe("admitted");
+    const before = structuredClone([...f.db.records.entries()]);
+    f.deps.now = () => communicationsNow + 9 * 86400000;
+    const stale: any = await f.admit();
+    expect(stale).toMatchObject({ state: "needs_research", eligibleForOutreach: false });
+    expect(stale.reasons.join(" ")).toContain("lead_verification_required");
+    expect([...f.db.records.entries()]).toEqual(before);
+  });
   it("admits exact source contact and derives internal context without a human API; mock drafting never calls Gmail", async () => {
     const f = setup(), admitted: any = await f.admit();
     expect(admitted).toMatchObject({ state: "admitted", humanContextApprovalRequired: false, sent: false, sessionCreated: false });
@@ -155,7 +166,7 @@ describe("agent-owned published research intake (offline)", () => {
     time += 181000;
     // Algorithm-only source update: this synthetic later accepted publication
     // does not prove the research owner's CRM dedup/refresh publishing policy.
-    const refreshed = publishedResearchFixture({ publicContact: true, date: new Date(time).toISOString().slice(0, 10), mutateCandidate: candidate => {
+    const refreshed = publishedResearchFixture({ publicContact: true, verificationAssessedAt: new Date(time - 30000).toISOString(), date: new Date(time).toISOString().slice(0, 10), mutateCandidate: candidate => {
       for (const fact of candidate.evidence) {
         fact.source_checked_at = new Date(time - 60000).toISOString(); fact.checked_date = fact.source_checked_at.slice(0, 10);
         fact.origin = "live"; fact.snapshot_loaded_at = null; fact.snapshot_record_id = null; fact.snapshot_fact_id = null;

@@ -21,25 +21,26 @@ const ENV_KEYS = [
   "OPENAI_DEFAULT_MODEL",
   "CODEX_LOCAL_AVAILABLE",
   "DEEPSEEK_API_KEY",
+  "ZAI_API_KEY",
   "OPENAI_API_KEY",
   "ANTHROPIC_API_KEY",
   "ACP_HARNESS_URL",
   "OPENCLAW_BASE_URL",
 ];
 
-function clearEnv() {
-  for (const key of ENV_KEYS) delete process.env[key];
+function isolateEnv() {
+  for (const key of ENV_KEYS) vi.stubEnv(key, "");
 }
 
 beforeEach(() => {
-  clearEnv();
+  isolateEnv();
   vi.resetModules();
   // Deterministic: this machine may have a real ~/.codex/auth.json.
   process.env.CODEX_LOCAL_AVAILABLE = "0";
 });
 
 afterEach(() => {
-  clearEnv();
+  vi.unstubAllEnvs();
   vi.resetModules();
 });
 
