@@ -126,17 +126,18 @@ describe("portable communications Agents API", () => {
   it("backs off transient saved GET failures within one new window without settling pending usage or creating another turn", async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-03T00:00:00Z"));
     const f = apiFixture({ usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 } });
-    const now = Date.now(), errors = [503, 429, "connection"];
+    const now = Date.now(), errors = [503, 429, "connection", "body"];
     const window = { version: "communications-execution-window-v1" as const, preparedAt: new Date(now).toISOString(),
       deadlineAt: new Date(now + 1200000).toISOString(), timeoutSeconds: 1200 };
-    const baseline = f.fetchMock.getMockImplementation()!; let failures = 0;
+    const baseline = f.fetchMock.getMockImplementation()!; let failures = 0, replacement = false;
     f.fetchMock.mockImplementation(async (url: any, init: any) => {
       const path = new URL(String(url)).pathname;
       if (path.endsWith("/session-1") && f.checkpoints.at(-1)?.usageReceipts?.length && failures < errors.length) {
-        expect(f.checkpoints.at(-1).finalRepairSettled).not.toBe(true);
+        if (!replacement) expect(f.checkpoints.at(-1).finalRepairSettled).not.toBe(true);
         expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
         const error = errors[failures++];
         if (error === "connection") throw Error("synthetic GET connection lost");
+        if (error === "body") return new Response(new ReadableStream({ start(controller) { controller.error(new TypeError("synthetic GET body lost")); } }));
         return new Response("synthetic temporary read failure", { status: error as number });
       }
       const response = await baseline(url, init);
@@ -156,13 +157,21 @@ describe("portable communications Agents API", () => {
         checkpoint: { ...f.params.checkpoint, executionWindow: window }, assertRepairAllowed });
       await vi.runAllTimersAsync();
       const result = await pending;
-      expect(result.output).toEqual(f.output); expect(failures).toBe(3);
-      expect(Date.now() - now).toBeGreaterThanOrEqual(7000);
+      expect(result.output).toEqual(f.output); expect(failures).toBe(errors.length);
+      expect(Date.now() - now).toBeGreaterThanOrEqual(12000);
       expect(result.checkpoint.finalRepairSettled).toBe(true);
       expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest,
         { input_tokens: 3, output_tokens: 2, total_tokens: 5 });
       expect(f.fetchMock.mock.calls.filter(([, init]: any[]) => init.method === "POST")).toHaveLength(1);
       expect(assertRepairAllowed.mock.calls.length).toBeGreaterThanOrEqual(6);
+      // A replacement observer follows the same bounded GET path even before
+      // any quality-repair turn exists; it never reopens a create claim.
+      failures = 0; replacement = true; f.recordPaidDraftUsage.mockClear();
+      const replay = f.api.run({ ...f.params, input: JSON.stringify({ executionBoundary: { window } }),
+        checkpoint: result.checkpoint, assertRepairAllowed });
+      await vi.runAllTimersAsync(); expect((await replay).output).toEqual(f.output);
+      expect(failures).toBe(errors.length);
+      expect(f.fetchMock.mock.calls.filter(([, init]: any[]) => init.method === "POST")).toHaveLength(1);
     } finally { vi.useRealTimers(); }
   });
   it("reconnects the same prospective turn past three minutes and refuses a changed frozen clock on replay", async () => {

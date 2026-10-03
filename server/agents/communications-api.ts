@@ -344,6 +344,12 @@ export class CommunicationsAgentsAPI {
         }
         return JSON.parse(text + decoder.decode());
       } finally { await reader.cancel().catch(() => undefined); }
+    } catch (error) {
+      if (error instanceof CommunicationsRuntimeError) throw error;
+      // This method issues only GETs. A body transport loss is as uncertain as
+      // losing the response headers; malformed JSON remains a hard diagnostic.
+      if (error instanceof SyntaxError) throw new CommunicationsRuntimeError("agents_saved_response_invalid");
+      throw new CommunicationsRuntimeError("agents_api_connection_unknown", true);
     } finally { handle.close(); }
   }
   async preflight() {
@@ -567,7 +573,7 @@ export class CommunicationsAgentsAPI {
       if (!saved) throw new CommunicationsRuntimeError("agents_final_repair_pending", true, checkpoint.finalOutputSources?.at(-1));
       return saved;
     }
-    if (checkpoint.finalRepairProfile && checkpoint.finalRepairs?.length) {
+    if (checkpoint.finalRepairProfile && (checkpoint.finalRepairs?.length || (checkpoint.executionWindow && !fresh))) {
       return await this.finishFinal(checkpoint, params.jobId, saveCheckpoint, params.validateOutput, params.assertRepairAllowed);
     }
     let gmailMcp;
