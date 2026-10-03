@@ -2,6 +2,59 @@ import { communicationsDigest, COMMUNICATIONS_MODEL } from "./communications-con
 import { firstContactCalendarDay, FIRST_CONTACT_POLICY } from "./communications-first-contact";
 import { COMMUNICATIONS_ROOT, COMMUNICATIONS_JOB_STATES } from "./communications-store";
 import type { CommunicationsAgentsAPI, CommunicationsCheckpoint, CommunicationsCancelledContinuation } from "./communications-api";
+import { createHash } from "node:crypto";
+import { resolveBundleStorage } from "../utils/siteCaptureBundleStorage";
+
+export type CommunicationsRecurringBudgetDirection = {
+  version: "blueprint.communications-recurring-budget-direction.v1"; owner: "Nijel Hunt"; approvedAt: string; expiresAt: string;
+  expiryBasis: "operator_boundary_no_later_than_existing_history_scope";
+  direction: { spending: { kind: "direct_current_chat_human_reply"; questionItemId: [string, string, number]; answer: "$10 per day" };
+    unattended: { kind: "verified_prior_human_instruction"; text: string; sourceRef: string } };
+  allocation: { timezone: "America/Chicago"; maxCombinedDailyUsd: 10; researchReservationUsd: 5; communicationsReservationUsd: 5 };
+  scope: { draftOnly: true; sendsAuthorized: false; gmailCopiesAuthorized: false; accessChangesAuthorized: false;
+    newDraftSessionsAuthorized: true; recurringWorkersAuthorized: true };
+  liability: { admissionId: string; jobId: string; originalRequestDigest: string; originalCheckpointDigest: string;
+    originalPolicyDigest: string; reservedExposureUsd: 1 };
+};
+type DirectionRef = { uri: string; generation: string; sha256: string };
+
+/** Private server root selects an immutable company receipt. Model inputs and
+ * the narrower manual-continuation grant cannot activate recurring admission. */
+async function recurringBudgetDirection(db: FirebaseFirestore.Firestore, clock: () => number) {
+  const ref: DirectionRef | undefined = (await db.doc(COMMUNICATIONS_ROOT).get()).data()?.recurringDraftBudgetDirection;
+  if (!ref) return null;
+  const storage = resolveBundleStorage(), match = /^gs:\/\/blueprint-8c1ca\.appspot\.com\/(operations\/recovery\/[^\s]+\/agent-e2e-recurring-budget-owner-direction\.json)$/.exec(ref.uri ?? "");
+  const fail = () => new CommunicationsDraftBudgetError("communications_recurring_direction_invalid");
+  if (!storage || storage.bucketName !== "blueprint-8c1ca.appspot.com" || !match || !/^[0-9]+$/.test(ref.generation)
+    || !/^[a-f0-9]{64}$/.test(ref.sha256)) throw fail();
+  const info = await storage.info(match[1]);
+  if (!info || info.generation !== ref.generation || !Number.isSafeInteger(info.size) || info.size < 1 || info.size > 32000) throw fail();
+  const raw = await storage.readText(match[1]), after = await storage.info(match[1]);
+  if (raw === null || Buffer.byteLength(raw) !== info.size || after?.generation !== ref.generation
+    || createHash("sha256").update(raw).digest("hex") !== ref.sha256) throw fail();
+  let a: CommunicationsRecurringBudgetDirection;
+  try { a = JSON.parse(raw); } catch { throw fail(); }
+  const now = clock();
+  const hashes = [a?.liability?.admissionId, a?.liability?.jobId, a?.liability?.originalRequestDigest,
+    a?.liability?.originalCheckpointDigest, a?.liability?.originalPolicyDigest];
+  if (a?.version !== "blueprint.communications-recurring-budget-direction.v1" || a.owner !== "Nijel Hunt"
+    || !Number.isFinite(Date.parse(a.approvedAt)) || Date.parse(a.approvedAt) > now
+    || !Number.isFinite(Date.parse(a.expiresAt)) || Date.parse(a.expiresAt) <= now
+    || a.expiryBasis !== "operator_boundary_no_later_than_existing_history_scope"
+    || a.direction?.spending?.kind !== "direct_current_chat_human_reply" || a.direction.spending.answer !== "$10 per day"
+    || !Array.isArray(a.direction.spending.questionItemId) || a.direction.spending.questionItemId.length !== 3
+    || a.direction.spending.questionItemId[0] !== "request_user_input_async" || !/^call_[A-Za-z0-9]+$/.test(a.direction.spending.questionItemId[1])
+    || a.direction.spending.questionItemId[2] !== 0 || a.direction.unattended?.kind !== "verified_prior_human_instruction"
+    || typeof a.direction.unattended.text !== "string" || !a.direction.unattended.text.trim()
+    || !/^gs:\/\/blueprint-8c1ca\.appspot\.com\/operations\/recovery\//.test(a.direction.unattended.sourceRef)
+    || a.allocation?.timezone !== "America/Chicago" || a.allocation.maxCombinedDailyUsd !== 10
+    || a.allocation.researchReservationUsd !== 5 || a.allocation.communicationsReservationUsd !== 5
+    || a.scope?.draftOnly !== true || a.scope.sendsAuthorized !== false || a.scope.gmailCopiesAuthorized !== false
+    || a.scope.accessChangesAuthorized !== false || a.scope.newDraftSessionsAuthorized !== true || a.scope.recurringWorkersAuthorized !== true
+    || hashes.some(hash => typeof hash !== "string" || !/^[a-f0-9]{64}$/.test(hash)) || a.liability.reservedExposureUsd !== 1
+    || communicationsDigest({ jobId: a.liability.jobId }) !== a.liability.admissionId) throw fail();
+  return { authority: a, ref, digest: communicationsDigest(a) };
+}
 
 export const COMMUNICATIONS_DRAFT_BUDGET = Object.freeze({
   version: "blueprint.communications-draft-soft-budget.v1", model: COMMUNICATIONS_MODEL,
@@ -41,13 +94,70 @@ export function estimatedDraftMicros(usage: any): number | null {
 /** Serialize fresh paid admissions before POST. An unresolved earlier cost is
  * retained across day changes and blocks other jobs, rather than meaning zero. */
 export async function reserveCommunicationsDraft(db: FirebaseFirestore.Firestore, jobId: string, requestDigest: string, now: number) {
-  const policy = configuredCommunicationsDraftBudget();
+  // Preserve the injected clock's basis while accounting for awaited storage
+  // reads and transaction retries; a captured timestamp cannot extend authority.
+  const started = performance.now(), clock = () => now + Math.max(0, performance.now() - started);
+  const configured = configuredCommunicationsDraftBudget(), recurring = await recurringBudgetDirection(db, clock);
+  const { maxDailyAdmissions: _legacyCountLimit, ...rates } = configured;
+  const policy = recurring ? { ...rates, version: "blueprint.communications-recurring-draft-soft-budget.v1" } : configured;
   const root = db.doc(COMMUNICATIONS_ROOT), id = communicationsDigest({ jobId }), day = firstContactCalendarDay(now);
   const ref = root.collection("draftBudgetAdmissions").doc(id), stateRef = root.collection("draftBudgetState").doc("current");
   const dayRef = root.collection("draftBudgetDays").doc(day);
   return db.runTransaction(async tx => {
     const [existing, state, daily] = await Promise.all([tx.get(ref), tx.get(stateRef), tx.get(dayRef)]);
     const row = existing.data(), active = state.data()?.activeAdmissionId;
+    if (recurring) {
+      const a = recurring.authority, liability = a.liability;
+      const [control, held, heldJob, research] = await Promise.all([tx.get(root), tx.get(root.collection("draftBudgetAdmissions").doc(liability.admissionId)),
+        tx.get(root.collection("jobs").doc(liability.jobId)), tx.get(db.doc("blueprintDailyResearch/sites-first"))]);
+      const old = held.data(), original = heldJob.data(), phase = original?.cancelledContinuation;
+      const researchConfig = research.data()?.config, pointer = state.data()?.recurringActiveAdmissionId;
+      const cost = daily.data()?.estimatedModelMicros ?? 0, admissions = daily.data()?.admissions ?? 0;
+      if (Date.parse(a.expiresAt) <= clock()
+        || communicationsDigest(control.data()?.recurringDraftBudgetDirection ?? null) !== communicationsDigest(recurring.ref)
+        || active !== liability.admissionId || !old || old.jobId !== liability.jobId || old.requestDigest !== liability.originalRequestDigest
+        || old.state !== "usage_unknown" || old.originalUsageState !== "unresolved"
+        || !old.policy || old.policyDigest !== liability.originalPolicyDigest || communicationsDigest(old.policy) !== liability.originalPolicyDigest
+        || old.policy.softTargetUsd !== liability.reservedExposureUsd
+        || !original || communicationsDigest(original.checkpoint) !== liability.originalCheckpointDigest
+        || (original.lease?.until ?? 0) > now || !phase || phase.checkpoint.finalRepairSettled !== true
+        || !phase.turnId || old.cancelledContinuation?.intentDigest !== phase.intentDigest
+        || old.cancelledContinuation.usageState !== "best_effort_not_invoice"
+        || old.correctedCreate?.usageState !== "best_effort_not_invoice" || old.correctedCreate.state !== "usage_recorded"
+        || !Number.isSafeInteger(old.correctedCreate.estimatedModelMicros) || old.correctedCreate.estimatedModelMicros < 0
+        || !Number.isSafeInteger(cost) || cost < 0 || !Number.isSafeInteger(admissions) || admissions < 0
+        || (old.correctedCreate.day === day && cost < old.correctedCreate.estimatedModelMicros)
+        || policy.softTargetUsd !== a.allocation.communicationsReservationUsd
+        || researchConfig?.soft_target_usd !== a.allocation.researchReservationUsd
+        || typeof researchConfig?.recurring_budget_authority_reference !== "string" || !researchConfig.recurring_budget_authority_reference.trim()
+        || process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED === "true") {
+        throw new CommunicationsDraftBudgetError("communications_recurring_budget_binding_changed");
+      }
+      if (existing.exists) {
+        if (row?.jobId !== jobId || row.requestDigest !== requestDigest || row.policyDigest !== communicationsDigest(policy)
+          || row.state !== "reserved" || pointer !== id || row.recurringDirection?.digest !== recurring.digest) {
+          throw new CommunicationsDraftBudgetError("communications_draft_reservation_requires_reconciliation");
+        }
+        return id; // Same proven pre-create claim; never a second admission.
+      }
+      if (pointer) throw new CommunicationsDraftBudgetError("communications_draft_cost_unresolved");
+      const unresolved = await tx.get(root.collection("draftBudgetAdmissions").where("state", "in", ["reserved", "usage_unknown"]).limit(2));
+      if (unresolved.docs.some(doc => doc.id !== liability.admissionId)) throw new CommunicationsDraftBudgetError("communications_draft_cost_unresolved");
+      const exposure = liability.reservedExposureUsd * 1000000, allowance = policy.softTargetUsd * 1000000 - exposure - cost;
+      if (!Number.isSafeInteger(allowance) || allowance <= 0) throw new CommunicationsDraftBudgetError("communications_draft_soft_target_reached");
+      if (Date.parse(a.expiresAt) <= clock()) throw new CommunicationsDraftBudgetError("communications_recurring_direction_invalid");
+      tx.create(ref, { version: "blueprint.communications-draft-admission.v1", jobId, requestDigest, day,
+        timezone: policy.timezone, policy, policyDigest: communicationsDigest(policy), state: "reserved", admittedAt: new Date(now).toISOString(),
+        recurringDirection: { ref: recurring.ref, digest: recurring.digest, liabilityAdmissionId: liability.admissionId,
+          retainedUnknownPolicyReservationMicros: exposure, researchReservationUsd: a.allocation.researchReservationUsd,
+          additionalAllowanceMicros: allowance, accountingComplete: false, invoiceVerified: false } });
+      // Preserve the original activeAdmissionId/claim. Only one new admission
+      // can occupy this additional bounded slot across every day boundary.
+      tx.set(stateRef, { recurringActiveAdmissionId: id }, { merge: true });
+      tx.set(dayRef, { day, timezone: policy.timezone, admissions: admissions + 1,
+        estimatedModelMicros: cost, softTargetUsd: policy.softTargetUsd, updatedAt: new Date(now).toISOString() });
+      return id;
+    }
     if (existing.exists) {
       if (row?.jobId !== jobId || row.requestDigest !== requestDigest || row.policyDigest !== communicationsDigest(policy)
         || row.state !== "reserved" || active !== id) throw new CommunicationsDraftBudgetError("communications_draft_reservation_requires_reconciliation");
@@ -63,7 +173,7 @@ export async function reserveCommunicationsDraft(db: FirebaseFirestore.Firestore
     tx.create(ref, { version: "blueprint.communications-draft-admission.v1", jobId, requestDigest, day,
       timezone: COMMUNICATIONS_DRAFT_BUDGET.timezone, policy,
       policyDigest: communicationsDigest(policy), state: "reserved", admittedAt: new Date(now).toISOString() });
-    tx.set(stateRef, { activeAdmissionId: id });
+    tx.set(stateRef, { activeAdmissionId: id }, { merge: true });
     tx.set(dayRef, { day, timezone: COMMUNICATIONS_DRAFT_BUDGET.timezone, admissions: admissions + 1,
       estimatedModelMicros: cost, softTargetUsd: policy.softTargetUsd, updatedAt: new Date(now).toISOString() });
     return id;
@@ -216,7 +326,7 @@ async function writeDraftUsage(tx: FirebaseFirestore.Transaction, root: Firebase
       knownTotalModelMicros: retained + (row.correctedCreate.estimatedModelMicros ?? 0),
       knownTotalIsComplete: !correctionUnknown } : {}) });
   tx.set(dayRef, { estimatedModelMicros: total, updatedAt: new Date(now).toISOString() }, { merge: true });
-  if (!correctionUnknown && state?.activeAdmissionId === id) tx.set(stateRef, { activeAdmissionId: null });
+  if (!correctionUnknown) clearOwnedDraftBudgetPointer(tx, stateRef, id, row, state);
   return !correctionUnknown;
 }
 
@@ -250,8 +360,14 @@ async function writeCorrectedDraftUsage(tx: FirebaseFirestore.Transaction, root:
       cumulativeAcceptedSessionModelMicros: retained, additionalEstimatedModelMicros: Math.max(0, retained - row.cancelledContinuation.baselineModelMicros),
       usageState: "best_effort_not_invoice", accountingComplete: false, invoiceVerified: false } } : {}) });
   tx.set(dayRef, { estimatedModelMicros: total, updatedAt: new Date(now).toISOString() }, { merge: true });
-  if (originalResolved && state?.activeAdmissionId === id) tx.set(stateRef, { activeAdmissionId: null });
+  if (originalResolved) clearOwnedDraftBudgetPointer(tx, stateRef, id, row, state);
   return originalResolved; // Without verified original usage the existing active hold remains.
+}
+
+function clearOwnedDraftBudgetPointer(tx: FirebaseFirestore.Transaction, ref: FirebaseFirestore.DocumentReference,
+  id: string, row: any, state: any) {
+  const field = row.recurringDirection ? "recurringActiveAdmissionId" : "activeAdmissionId";
+  if (state?.[field] === id) tx.set(ref, { [field]: null }, { merge: true });
 }
 
 export type CommunicationsDraftSessionRecovery = {
@@ -293,7 +409,7 @@ export async function reconcileCommunicationsDraftSession(db: FirebaseFirestore.
       && job.checkpoint.sessionId === input.sessionId && job.checkpoint.requestDigest === row.requestDigest
       && ["usage_recorded", "usage_unknown"].includes(row.state)) return true;
     if (checkpointDigest !== input.expectedCheckpointDigest || !["reserved", "usage_unknown"].includes(row.state)
-      || state?.activeAdmissionId !== id) throw new CommunicationsDraftBudgetError("communications_draft_recovery_binding_changed");
+      || state?.[row.recurringDirection ? "recurringActiveAdmissionId" : "activeAdmissionId"] !== id) throw new CommunicationsDraftBudgetError("communications_draft_recovery_binding_changed");
     return false;
   };
   const [saved, savedJob, savedState] = await Promise.all([ref.get(), jobRef.get(), stateRef.get()]);
@@ -327,10 +443,16 @@ export async function reconcileCommunicationsDraftSession(db: FirebaseFirestore.
 
 /** One pending root turn, GET reconciliation only. No new session or input. */
 export async function reconcileCommunicationsDraftCost(db: FirebaseFirestore.Firestore,
-  api: { reconcileUsage: (checkpoint: any, jobId: string) => Promise<unknown> }, now: number) {
-  const root = db.doc(COMMUNICATIONS_ROOT), unresolved = await root.collection("draftBudgetAdmissions").where("state", "in", ["reserved", "usage_unknown"]).limit(1).get();
-  if (unresolved.empty) return;
-  const row = unresolved.docs[0].data();
+  api: Pick<CommunicationsAgentsAPI, "reconcileUsage"> & Partial<Pick<CommunicationsAgentsAPI, "reconcileCancelledContinuationUsage">>, now: number) {
+  const root = db.doc(COMMUNICATIONS_ROOT), state = (await root.collection("draftBudgetState").doc("current").get()).data();
+  const pointer = state?.recurringActiveAdmissionId;
+  if (pointer && (typeof pointer !== "string" || !/^[a-f0-9]{64}$/.test(pointer))) throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
+  // The one newly active draft is observed first. The immutable old liability
+  // cannot starve its usage reconciliation or cause it to be read as that job.
+  const unresolved = pointer ? await root.collection("draftBudgetAdmissions").doc(pointer).get()
+    : (await root.collection("draftBudgetAdmissions").where("state", "in", ["reserved", "usage_unknown"]).limit(1).get()).docs[0];
+  if (!unresolved) return;
+  const row = unresolved.data();
   if (!row?.jobId || !row.requestDigest) throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
   const job = (await root.collection("jobs").doc(row.jobId).get()).data();
   if (row.correctedCreate) {
@@ -340,7 +462,9 @@ export async function reconcileCommunicationsDraftCost(db: FirebaseFirestore.Fir
       || recovery.correctedRequestDigest !== row.correctedCreate.requestDigest || child.requestDigest !== row.correctedCreate.requestDigest) {
       throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
     }
-    const usage = await api.reconcileUsage(checkpoint, row.jobId);
+    if (job.cancelledContinuation && !api.reconcileCancelledContinuationUsage) return; // Never fall back to the old single-root child.
+    const usage = job.cancelledContinuation ? await api.reconcileCancelledContinuationUsage!(checkpoint, job.cancelledContinuation, row.jobId)
+      : await api.reconcileUsage(checkpoint, row.jobId);
     await recordCommunicationsDraftUsage(db, row.jobId, row.correctedCreate.requestDigest, usage, now);
     return;
   }

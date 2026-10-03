@@ -914,6 +914,23 @@ export class CommunicationsAgentsAPI {
     // Cost can be observed for a failed/unusable draft without licensing a send.
     return turn.usage ?? null;
   }
+  /** Observe the retained expanded phase without changing its original child
+   * checkpoint or requiring expired inference authority. Every request is GET;
+   * original session/configuration and exact input/root proofs still apply. */
+  async reconcileCancelledContinuationUsage(original: CommunicationsCheckpoint, phase: CommunicationsCancelledContinuation, jobId: string): Promise<unknown> {
+    const binding = phase.intent.authority.binding, child = effectiveCommunicationsCheckpoint(original);
+    if (binding.jobId !== jobId || communicationsDigest(original) !== binding.originalCheckpointDigest
+      || child.sessionId !== binding.sessionId || child.requestDigest !== binding.correctedRequestDigest
+      || communicationsDigest(communicationsContinuationSessionBinding(child)) !== phase.intent.sessionBindingDigest
+      || phase.intentDigest !== communicationsDigest(phase.intent)
+      || communicationsDigest(phase.intent.event) !== communicationsDigest(continuationEvent(phase.intent.authority, phase.intent.authorityRef, phase.intent.window))) {
+      throw new CommunicationsRuntimeError("communications_continuation_binding_changed");
+    }
+    const { checkpoint, ...retained } = phase;
+    const view = await this.hydrateHistoryCheckpoint({ ...checkpoint, ownerContinuation: retained }, jobId);
+    const { turns } = await this.readBoundDraftSession(view, jobId, child.requestDigest!, true);
+    return this.cumulativeUsage(view, turns);
+  }
   /** Explicit recovery observes an EXISTING session only. The caller cannot
    * supply usage or replace a create claim. Missing legacy request metadata is
    * not proof of a matching request, absence, cancellation or zero spend. */
@@ -928,9 +945,9 @@ export class CommunicationsAgentsAPI {
     return { sessionId: checkpoint.sessionId!, requestDigest, turnId: turn?.id ?? null,
       usage: turn && ["completed", "failed", "cancelled"].includes(turn.status) ? turn.usage ?? null : null };
   }
-  private async readBoundDraftSession(checkpoint: CommunicationsCheckpoint, jobId: string, requestDigest: string) {
+  private async readBoundDraftSession(checkpoint: CommunicationsCheckpoint, jobId: string, requestDigest: string, readOnlyPhase = false) {
     const phase = checkpoint.ownerContinuation;
-    if (phase && (!this.options.loadContinuationAuthority || phase.intent.version !== "owner-cancelled-continuation-v1"
+    if (phase && ((!readOnlyPhase && !this.options.loadContinuationAuthority) || phase.intent.version !== "owner-cancelled-continuation-v1"
       || phase.intentDigest !== communicationsDigest(phase.intent) || phase.intent.authorityDigest !== communicationsDigest(phase.intent.authority)
       || phase.intent.authority.binding.jobId !== jobId || phase.intent.authority.binding.correctedRequestDigest !== requestDigest
       || phase.intent.authority.binding.sessionId !== checkpoint.sessionId

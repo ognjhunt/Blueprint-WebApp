@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
+const storage = vi.hoisted(() => ({ raw: "", generation: "1", afterRead: undefined as (() => void) | undefined }));
+vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => ({ bucketName: "blueprint-8c1ca.appspot.com",
+  info: async () => ({ generation: storage.generation, size: Buffer.byteLength(storage.raw) }),
+  readText: async () => { storage.afterRead?.(); return storage.raw; } }) }));
 import { memoryFirestore, communicationsNow, communicationsFixture, cancelledContinuationFixture } from "./fixtures/communications";
 import { reserveCommunicationsDraft, recordCommunicationsDraftUsage, reconcileCommunicationsDraftCost, estimatedDraftMicros,
   COMMUNICATIONS_DRAFT_BUDGET, configuredCommunicationsDraftBudget, reconcileCommunicationsDraftSession,
@@ -70,6 +75,133 @@ describe("one owner-authorized phase inside the existing unresolved hold", () =>
 // approval or production configuration. They are never used to enable spending.
 beforeEach(() => vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "2.5"));
 afterEach(() => vi.unstubAllEnvs());
+
+describe("retained recurring direction and one new draft slot", () => {
+  function recurring() {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "5");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "false");
+    storage.generation = "1"; storage.afterRead = undefined;
+    const f = cancelledContinuationFixture(), db = memoryFirestore(), id = communicationsDigest({ jobId: f.job.jobId });
+    const path = `${root}/draftBudgetAdmissions/${id}`, day = "2026-09-30", policy = { ...COMMUNICATIONS_DRAFT_BUDGET, softTargetUsd: 1 };
+    const phase = { ...f.phase, state: "submitted", turnId: "continued-turn", checkpoint: { ...f.phase.checkpoint, finalRepairSettled: true } };
+    const authority: any = { version: "blueprint.communications-recurring-budget-direction.v1", owner: "Nijel Hunt",
+      approvedAt: new Date(communicationsNow - 1000).toISOString(), expiresAt: new Date(communicationsNow + 3 * 86400000).toISOString(),
+      expiryBasis: "operator_boundary_no_later_than_existing_history_scope",
+      direction: { spending: { kind: "direct_current_chat_human_reply", questionItemId: ["request_user_input_async", "call_synthetic", 0], answer: "$10 per day" },
+        unattended: { kind: "verified_prior_human_instruction", text: "Synthetic fixture direction", sourceRef: "gs://blueprint-8c1ca.appspot.com/operations/recovery/synthetic/direction.json" } },
+      allocation: { timezone: "America/Chicago", maxCombinedDailyUsd: 10, researchReservationUsd: 5, communicationsReservationUsd: 5 },
+      scope: { draftOnly: true, sendsAuthorized: false, gmailCopiesAuthorized: false, accessChangesAuthorized: false,
+        newDraftSessionsAuthorized: true, recurringWorkersAuthorized: true },
+      liability: { admissionId: id, jobId: f.job.jobId, originalRequestDigest: f.checkpoint.requestDigest,
+        originalCheckpointDigest: communicationsDigest(f.checkpoint), originalPolicyDigest: communicationsDigest(policy), reservedExposureUsd: 1 } };
+    const retain = () => { storage.raw = JSON.stringify(authority); db.records.set(root, { recurringDraftBudgetDirection: {
+      uri: "gs://blueprint-8c1ca.appspot.com/operations/recovery/synthetic/agent-e2e-recurring-budget-owner-direction.json", generation: "1",
+      sha256: createHash("sha256").update(storage.raw).digest("hex") } }); };
+    retain();
+    db.records.set(path, { jobId: f.job.jobId, requestDigest: f.checkpoint.requestDigest, policy, policyDigest: communicationsDigest(policy),
+      state: "usage_unknown", originalUsageState: "unresolved", correctedCreate: { requestDigest: f.child.requestDigest,
+        claimDigest: "c".repeat(64), policy, policyDigest: communicationsDigest(policy), day, state: "usage_recorded",
+        usageState: "best_effort_not_invoice", estimatedModelMicros: 55334 },
+      cancelledContinuation: { intentDigest: phase.intentDigest, baselineModelMicros: 55334, usageState: "best_effort_not_invoice" } });
+    db.records.set(`${root}/jobs/${f.job.jobId}`, { ...f.job, checkpoint: f.checkpoint, cancelledContinuation: phase, lease: { until: 0 } });
+    db.records.set(`${root}/draftBudgetState/current`, { activeAdmissionId: id });
+    db.records.set(`${root}/draftBudgetDays/${day}`, { admissions: 3, estimatedModelMicros: 55334 });
+    db.records.set("blueprintDailyResearch/sites-first", { config: { soft_target_usd: 5, recurring_budget_authority_reference: "synthetic-retained-direction" } });
+    return { ...f, db, id, path, day, authority, retain, phase,
+      reserve: (job = "new-job", now = communicationsNow) => reserveCommunicationsDraft(db, job, digest, now) };
+  }
+  it("serializes one new admission, retaining the original checkpoint/hold and counting known usage once", async () => {
+    const f = recurring(), held = structuredClone(f.db.records.get(f.path)), job = structuredClone(f.db.records.get(`${root}/jobs/${f.job.jobId}`));
+    const results = await Promise.allSettled([f.reserve("new-1"), f.reserve("new-2")]);
+    expect(results.filter(r => r.status === "fulfilled")).toHaveLength(1);
+    const id = (results.find(r => r.status === "fulfilled") as PromiseFulfilledResult<string>).value;
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id, recurringActiveAdmissionId: id });
+    expect(f.db.records.get(`${root}/draftBudgetAdmissions/${id}`)).toMatchObject({ recurringDirection: {
+      additionalAllowanceMicros: 3944666, retainedUnknownPolicyReservationMicros: 1000000, accountingComplete: false, invoiceVerified: false } });
+    expect(f.db.records.get(f.path)).toEqual(held); expect(f.db.records.get(`${root}/jobs/${f.job.jobId}`)).toEqual(job);
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(55334);
+  });
+  it("replays only the identical pre-create claim and clears only its owned new pointer with monotonic usage", async () => {
+    const f = recurring(), id = await f.reserve(); expect(await f.reserve()).toBe(id);
+    await expect(reserveCommunicationsDraft(f.db, "new-job", "b".repeat(64), communicationsNow)).rejects.toThrow("requires_reconciliation");
+    await recordCommunicationsDraftUsage(f.db, "new-job", digest, usage, communicationsNow);
+    await recordCommunicationsDraftUsage(f.db, "new-job", digest, { input_tokens: 1, output_tokens: 0, total_tokens: 1 }, communicationsNow);
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id, recurringActiveAdmissionId: null });
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(55334 + 358);
+    const later = await f.reserve("later"); await recordCommunicationsDraftUsage(f.db, "new-job", digest, usage, communicationsNow);
+    await recordCommunicationsDraftUsage(f.db, f.job.jobId, f.child.requestDigest, { input_tokens: 1, output_tokens: 0, total_tokens: 1 }, communicationsNow);
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id, recurringActiveAdmissionId: later });
+  });
+  it("keeps missing usage across a day boundary and stops at the remaining soft allowance without adding a result quota", async () => {
+    const f = recurring();
+    for (let i = 0; i < 6; i++) { await f.reserve(`known-${i}`); await recordCommunicationsDraftUsage(f.db, `known-${i}`, digest, usage, communicationsNow); }
+    await f.reserve(); await recordCommunicationsDraftUsage(f.db, "new-job", digest, null, communicationsNow);
+    await expect(f.reserve("tomorrow", communicationsNow + 86400000)).rejects.toThrow("cost_unresolved");
+    const g = recurring(); g.db.records.get(`${root}/draftBudgetDays/${g.day}`).estimatedModelMicros = 4000000;
+    await expect(g.reserve()).rejects.toThrow("soft_target_reached");
+  });
+  it.each(["expired", "hash", "generation", "manual_grant", "unattended", "send", "checkpoint", "policy", "phase_pending", "phase_usage_unknown", "lease", "research", "auto_send", "baseline_missing", "other_unknown", "ref_race"])("refuses %s without a new claim", async kind => {
+    const f = recurring(), row = f.db.records.get(f.path), job = f.db.records.get(`${root}/jobs/${f.job.jobId}`);
+    if (kind === "expired") f.authority.expiresAt = new Date(communicationsNow).toISOString();
+    if (kind === "manual_grant") f.authority.version = "blueprint.communications-cancelled-continuation-authority.v1";
+    if (kind === "unattended") f.authority.direction.unattended.text = "";
+    if (kind === "send") f.authority.scope.sendsAuthorized = true;
+    f.retain();
+    if (kind === "hash") storage.raw += " ";
+    if (kind === "generation") storage.generation = "2";
+    if (kind === "checkpoint") job.checkpoint.requestDigest = "f".repeat(64);
+    if (kind === "policy") row.policy.softTargetUsd = 0;
+    if (kind === "phase_pending") job.cancelledContinuation.checkpoint.finalRepairSettled = false;
+    if (kind === "phase_usage_unknown") row.cancelledContinuation.usageState = "unresolved";
+    if (kind === "lease") job.lease.until = communicationsNow + 1;
+    if (kind === "research") f.db.records.get("blueprintDailyResearch/sites-first").config.soft_target_usd = 6;
+    if (kind === "auto_send") vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
+    if (kind === "baseline_missing") f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros = 0;
+    if (kind === "other_unknown") f.db.records.set(`${root}/draftBudgetAdmissions/unrelated`, { state: "usage_unknown" });
+    if (kind === "ref_race") storage.afterRead = () => { f.db.records.get(root).recurringDraftBudgetDirection.sha256 = "f".repeat(64); };
+    await expect(f.reserve()).rejects.toThrow();
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id });
+    expect(f.db.records.has(`${root}/draftBudgetAdmissions/${communicationsDigest({ jobId: "new-job" })}`)).toBe(false);
+  });
+  it.each(["storage", "transaction"])("refuses authority expiring during awaited %s instead of trusting the captured clock", async boundary => {
+    vi.useFakeTimers({ toFake: ["performance"] });
+    try {
+      const f = recurring(); f.authority.expiresAt = new Date(communicationsNow + 1000).toISOString(); f.retain();
+      if (boundary === "storage") storage.afterRead = () => vi.advanceTimersByTime(1001);
+      else {
+        const transact = f.db.runTransaction;
+        f.db.runTransaction = async (callback: any) => { vi.advanceTimersByTime(1001); return transact(callback); };
+      }
+      await expect(f.reserve()).rejects.toThrow();
+      expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id });
+      expect(f.db.records.has(`${root}/draftBudgetAdmissions/${communicationsDigest({ jobId: "new-job" })}`)).toBe(false);
+    } finally { vi.useRealTimers(); }
+  });
+  it("prioritizes the new active draft and observes expanded old-phase usage without the immutable old-child reader", async () => {
+    const f = recurring(); await f.reserve();
+    const cp = { sessionId: "new-session", requestDigest: digest };
+    f.db.records.set(`${root}/jobs/new-job`, { checkpoint: cp });
+    const api = { reconcileUsage: vi.fn(async () => usage), reconcileCancelledContinuationUsage: vi.fn(async () => ({ input_tokens: 1, output_tokens: 0, total_tokens: 1 })) };
+    await reconcileCommunicationsDraftCost(f.db, api, communicationsNow);
+    expect(api.reconcileUsage).toHaveBeenCalledWith(cp, "new-job"); expect(api.reconcileCancelledContinuationUsage).not.toHaveBeenCalled();
+    Object.assign(f.checkpoint.rejectedCreateRecovery, { originalRequestDigest: f.checkpoint.requestDigest, correctedRequestDigest: f.child.requestDigest });
+    f.db.records.get(`${root}/jobs/${f.job.jobId}`).checkpoint = f.checkpoint;
+    await reconcileCommunicationsDraftCost(f.db, api, communicationsNow);
+    expect(api.reconcileUsage).toHaveBeenCalledTimes(1);
+    expect(api.reconcileCancelledContinuationUsage).toHaveBeenCalledWith(f.checkpoint, f.phase, f.job.jobId);
+    await reconcileCommunicationsDraftCost(f.db, { reconcileUsage: api.reconcileUsage }, communicationsNow);
+    expect(api.reconcileUsage).toHaveBeenCalledTimes(1);
+  });
+  it("uses the owned new pointer when binding an existing unknown-create session", async () => {
+    const f = recurring(), jobId = "9".repeat(64), id = await f.reserve(jobId), cp = { createClaimedAt: new Date(communicationsNow).toISOString(), requestDigest: digest };
+    f.db.records.set(`${root}/jobs/${jobId}`, { jobId, prospectId: "new-prospect", briefDigest: digest, state: "blocked", checkpoint: cp, lease: { until: 0 } });
+    const api = { verifyExistingDraftSession: vi.fn(async () => ({ sessionId: "existing-session", requestDigest: digest, turnId: "existing-turn", usage })) };
+    await reconcileCommunicationsDraftSession(f.db, api, { jobId, prospectId: "new-prospect", briefDigest: digest,
+      expectedCheckpointDigest: communicationsDigest(cp), sessionId: "existing-session", requestedBy: "synthetic-operator" }, communicationsNow);
+    expect(f.db.records.get(`${root}/draftBudgetAdmissions/${id}`).state).toBe("usage_recorded");
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id, recurringActiveAdmissionId: null });
+  });
+});
 
 describe("communications-only soft model target and serialized admissions", () => {
   it("serializes fresh admissions and retains an unresolved in-flight reservation", async () => {
