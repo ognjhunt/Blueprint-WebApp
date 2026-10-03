@@ -415,7 +415,7 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
     team_feasibility_status_requires_matching_evidence: ["outreachContract.workflow", "Use pending with no feasibility sources, or public_research with sources already recorded in teamObservations."],
     team_feasibility_not_in_recorded_evidence: ["outreachContract.workflow.teamFeasibilitySources", "Use only sources already in the verified teamObservations; otherwise keep feasibility pending."],
     capability_claim_not_verified_in_record: ["outreachContract.capabilityClaims", "Remove unsupported capability claims; reference only capabilities already verified in this brief."],
-    cold_detail_not_in_recorded_evidence: ["outreachContract.opening.publicDetail", "Choose an exact public observation already in the recorded outreachContext."],
+    cold_detail_not_in_recorded_evidence: ["outreachContract.opening.publicDetail", "Use an existing public observation and its exact source. When claim is a faithful short paraphrase, retain the original exact observation in publicDetail.sourceClaim; do not invent facts."],
     cold_detail_requires_public_url: ["outreachContract.opening.publicDetail.source", "Use the public source URL already recorded for that observation."],
     unverified_connection_claim: ["body", "Remove the claimed relationship; use the existing public-business context without inventing a connection."],
     connection_claim_not_verified_in_record: ["outreachContract.opening", "Use a cold public opening unless this brief already contains verified relationship evidence."],
