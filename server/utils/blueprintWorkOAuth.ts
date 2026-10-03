@@ -2,9 +2,10 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Response } from "express";
 import type { OAuthServerProvider, AuthorizationParams } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 import type { OAuthClientInformationFull, OAuthTokens, OAuthTokenRevocationRequest } from "@modelcontextprotocol/sdk/shared/auth.js";
+import { geminiResearchControlSchema, GEMINI_RESEARCH_CONTROL_KEY } from "./geminiResearchMcp";
 import { InvalidClientError, InvalidGrantError, InvalidScopeError, InvalidTokenError, InvalidTargetError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 
-export const WORK_SCOPES = ["blueprint:runs:read", "blueprint:runs:prepare", "blueprint:runs:launch", "blueprint:runs:release"];
+export const WORK_SCOPES = ["blueprint:runs:read", "blueprint:runs:prepare", "blueprint:runs:launch", "blueprint:runs:release", "blueprint:research:read", "blueprint:research:start"];
 export const WORK_OAUTH_PATH = "/api/blueprint-work/oauth";
 export const WORK_MCP_PATH = "/api/blueprint-work/mcp";
 const ACCESS_SECONDS = 900;
@@ -47,7 +48,8 @@ export class BlueprintWorkOAuth implements OAuthServerProvider {
   readonly resource: string;
   readonly clientsStore;
   constructor(readonly store: WorkStore, readonly origin: string,
-    readonly checkOperator: CheckOperator, readonly now: () => number = () => Math.floor(Date.now() / 1000)) {
+    readonly checkOperator: CheckOperator, readonly now: () => number = () => Math.floor(Date.now() / 1000),
+    readonly researchControlStore?: WorkStore) {
     const url = new URL(origin);
     if (url.protocol !== "https:" || url.origin !== origin) throw new Error("work_origin_requires_https_origin");
     this.issuer = origin + WORK_OAUTH_PATH;
@@ -69,6 +71,44 @@ export class BlueprintWorkOAuth implements OAuthServerProvider {
         return registered;
       },
     };
+  }
+  private async grantAuthorityAvailable(grant: Row) {
+    if (!await this.checkOperator(grant.identity)) return false;
+    if (!grant.appOwnedResearchControlDigest) return true;
+    const parsed = geminiResearchControlSchema.safeParse(await this.researchControlStore?.get(GEMINI_RESEARCH_CONTROL_KEY));
+    return parsed.success && parsed.data.enabled && parsed.data.actorUid === grant.identity.uid
+      && parsed.data.tenantId === grant.identity.tenantId && Date.parse(parsed.data.expiresAt) / 1000 > this.now()
+      && workHash(JSON.stringify(parsed.data)) === grant.appOwnedResearchControlDigest;
+  }
+  /** Trusted offline operator entry only. No HTTP/MCP route calls this method;
+   * it cannot accept arbitrary scopes, redirect URLs or model-created grants. */
+  async mintResearchOperatorGrant(identity: WorkIdentity, input: { setupKey: string; expiresAt: string }) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(input.setupKey) || !await this.checkOperator(identity))
+      throw new InvalidGrantError("Verified Blueprint operator setup required");
+    const parsed = geminiResearchControlSchema.safeParse(await this.researchControlStore?.get(GEMINI_RESEARCH_CONTROL_KEY));
+    if (!parsed.success || !parsed.data.enabled || parsed.data.actorUid !== identity.uid || parsed.data.tenantId !== identity.tenantId)
+      throw new InvalidGrantError("Current retained research scope and budget required");
+    const requested = Date.parse(input.expiresAt) / 1000;
+    const expiresAt = Math.floor(Math.min(requested, Date.parse(parsed.data.expiresAt) / 1000, this.now() + GRANT_SECONDS));
+    if (!Number.isFinite(requested) || expiresAt <= this.now()) throw new InvalidGrantError("Explicit unexpired setup expiry required");
+    const controlDigest = workHash(JSON.stringify(parsed.data));
+    const clientId = opaque(), grantId = opaque();
+    const scopes = ["blueprint:research:read", "blueprint:research:start"];
+    const client = { client_id: clientId, client_id_issued_at: this.now(), client_name: "Blueprint owned research MCP",
+      redirect_uris: [], token_endpoint_auth_method: "none" as const, grant_types: ["refresh_token"],
+      response_types: [], scope: scopes.join(" ") };
+    return this.store.transaction(async tx => {
+      const setup = key("research-setup", `${identity.tenantId ?? ""}:${identity.uid}:${input.setupKey}`);
+      if (await tx.get(setup)) throw new InvalidGrantError("Research setup already claimed; observe original credential only");
+      const grant = { clientId, identity, scopes, resource: this.resource, expiresAt, revoked: false,
+        createdAt: this.now(), appOwnedResearchControlDigest: controlDigest,
+        scopeRef: parsed.data.scopeRef, budgetRef: parsed.data.budgetRef };
+      tx.set(key("client", clientId), client);
+      tx.set(key("grant", grantId), grant);
+      tx.set(setup, { clientId, grantReference: key("grant", grantId), controlDigest, expiresAt });
+      const tokens = this.tokens(tx, grantId, grant);
+      return { client, tokens, grantReference: key("grant", grantId), controlDigest, expiresAt };
+    });
   }
   private target(resource?: URL) {
     if (resource?.href !== this.resource) throw new InvalidTargetError("Blueprint Work resource is required");
@@ -117,7 +157,7 @@ export class BlueprintWorkOAuth implements OAuthServerProvider {
       expiresAt: Math.min(this.now() + ACCESS_SECONDS, grant.expiresAt) });
     tx.set(key("refresh", refresh), { grantId, clientId: grant.clientId, scopes: grant.scopes,
       expiresAt: grant.expiresAt, used: false });
-    return { access_token: access, refresh_token: refresh, token_type: "Bearer", expires_in: ACCESS_SECONDS,
+    return { access_token: access, refresh_token: refresh, token_type: "Bearer", expires_in: Math.min(ACCESS_SECONDS, grant.expiresAt - this.now()),
       scope: grant.scopes.join(" ") };
   }
   async exchangeAuthorizationCode(client: OAuthClientInformationFull, code: string, verifier?: string,
@@ -144,7 +184,7 @@ export class BlueprintWorkOAuth implements OAuthServerProvider {
     this.target(resource);
     const row = await this.store.get(key("refresh", refresh));
     const grant = row && await this.store.get(key("grant", row.grantId));
-    if (!grant || !await this.checkOperator(grant.identity)) throw new InvalidGrantError("Operator authorization unavailable");
+    if (!grant || !await this.grantAuthorityAvailable(grant)) throw new InvalidGrantError("Operator authorization unavailable");
     const result = await this.store.transaction(async tx => {
       const token = await tx.get(key("refresh", refresh));
       const current = token && await tx.get(key("grant", token.grantId));
@@ -167,7 +207,7 @@ export class BlueprintWorkOAuth implements OAuthServerProvider {
     const row = await this.store.get(key("access", token));
     const grant = row && await this.store.get(key("grant", row.grantId));
     if (!row || !grant || row.expiresAt <= this.now() || grant.expiresAt <= this.now() || grant.revoked
-      || grant.resource !== this.resource || !await this.checkOperator(grant.identity)) throw new InvalidTokenError("Expired or revoked Blueprint access");
+      || grant.resource !== this.resource || !await this.grantAuthorityAvailable(grant)) throw new InvalidTokenError("Expired or revoked Blueprint access");
     return { token, clientId: row.clientId, scopes: row.scopes as string[], expiresAt: row.expiresAt,
       resource: new URL(this.resource), extra: { identity: grant.identity, grantId: row.grantId } };
   }
