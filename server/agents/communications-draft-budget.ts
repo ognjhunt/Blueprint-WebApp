@@ -1,7 +1,7 @@
 import { communicationsDigest, COMMUNICATIONS_MODEL } from "./communications-contract";
 import { firstContactCalendarDay, FIRST_CONTACT_POLICY } from "./communications-first-contact";
 import { COMMUNICATIONS_ROOT, COMMUNICATIONS_JOB_STATES } from "./communications-store";
-import type { CommunicationsAgentsAPI, CommunicationsCheckpoint } from "./communications-api";
+import type { CommunicationsAgentsAPI, CommunicationsCheckpoint, CommunicationsCancelledContinuation } from "./communications-api";
 
 export const COMMUNICATIONS_DRAFT_BUDGET = Object.freeze({
   version: "blueprint.communications-draft-soft-budget.v1", model: COMMUNICATIONS_MODEL,
@@ -120,6 +120,65 @@ export async function claimCommunicationsRejectedCreateDraftBudget(db: FirebaseF
   return { admissionId: id };
 }
 
+/** Reserve the explicitly authorized phase inside the EXISTING active hold.
+ * The old unknown $1 policy exposure is a reservation, never measured spend or
+ * a refund. Research keeps its $5 reservation. This is soft admission only;
+ * provider usage and the rejected create's invoice remain incomplete. */
+export async function claimCommunicationsCancelledContinuationBudget(db: FirebaseFirestore.Firestore,
+  tx: FirebaseFirestore.Transaction, phase: CommunicationsCancelledContinuation, now: number) {
+  const a = phase.intent.authority, b = a.binding, root = db.doc(COMMUNICATIONS_ROOT);
+  const id = communicationsDigest({ jobId: b.jobId }), ref = root.collection("draftBudgetAdmissions").doc(id);
+  const day = firstContactCalendarDay(now), dayRef = root.collection("draftBudgetDays").doc(day);
+  const [saved, state, daily, research] = await Promise.all([tx.get(ref), tx.get(root.collection("draftBudgetState").doc("current")),
+    tx.get(dayRef), tx.get(db.doc("blueprintDailyResearch/sites-first"))]);
+  const row = saved.data(), known = daily.data()?.estimatedModelMicros, admissions = daily.data()?.admissions;
+  const normal = research.data(), correction = row?.correctedCreate;
+  if (!row || row.jobId !== b.jobId || row.requestDigest !== b.originalRequestDigest
+    || state.data()?.activeAdmissionId !== id || row.state !== "usage_unknown" || row.originalUsageState !== "unresolved"
+    || !row.policy || communicationsDigest(row.policy) !== row.policyDigest
+    || row.policy.softTargetUsd !== a.allocation.originalUnknownPolicyReservationUsd
+    || !correction || correction.requestDigest !== b.correctedRequestDigest || correction.day !== day
+    || !correction.policy || communicationsDigest(correction.policy) !== correction.policyDigest
+    || !Number.isSafeInteger(known) || known < 0 || !Number.isSafeInteger(admissions) || admissions < 0
+    || !Number.isSafeInteger(correction.estimatedModelMicros) || correction.estimatedModelMicros < 0
+    || normal?.enabled !== false || normal.config?.enabled !== false || normal.config?.soft_target_usd !== a.allocation.researchReservationUsd
+    || typeof normal.config?.recurring_budget_authority_reference !== "string" || !normal.config.recurring_budget_authority_reference.trim()
+    || Date.parse(phase.intent.window.deadlineAt) <= now || Date.parse(a.expiresAt) <= now) {
+    throw new CommunicationsDraftBudgetError("communications_continuation_budget_binding_changed");
+  }
+  if (row.cancelledContinuation) {
+    if (row.cancelledContinuation.intentDigest !== phase.intentDigest) throw new CommunicationsDraftBudgetError("communications_continuation_budget_already_claimed");
+    const ceiling = row.cancelledContinuation.admissionCeilingMicros;
+    if (!Number.isSafeInteger(ceiling) || known >= ceiling) throw new CommunicationsDraftBudgetError("communications_draft_soft_target_reached");
+    return { admissionId: id }; // Reconnect only, never permission for another user-input POST.
+  }
+  if (correction.usageState !== "best_effort_not_invoice" || correction.estimatedModelMicros !== a.allocation.correctedKnownModelMicros
+    || known < correction.estimatedModelMicros || admissions >= COMMUNICATIONS_DRAFT_BUDGET.maxDailyAdmissions
+    || a.allocation.researchReservationUsd + a.allocation.communicationsReservationUsd !== a.allocation.maxCombinedDailyUsd
+    || a.allocation.maxCombinedDailyUsd !== 10 || a.allocation.communicationsReservationUsd !== 5) {
+    throw new CommunicationsDraftBudgetError("communications_continuation_budget_binding_changed");
+  }
+  const unresolved = await tx.get(root.collection("draftBudgetAdmissions").where("state", "in", ["reserved", "usage_unknown"]).limit(2));
+  if (unresolved.docs.some(doc => doc.id !== id)) throw new CommunicationsDraftBudgetError("communications_draft_cost_unresolved");
+  const ceiling = (a.allocation.communicationsReservationUsd - a.allocation.originalUnknownPolicyReservationUsd) * 1000000;
+  const allowance = ceiling - known;
+  if (!Number.isSafeInteger(allowance) || allowance <= 0) throw new CommunicationsDraftBudgetError("communications_draft_soft_target_reached");
+  tx.update(ref, { cancelledContinuation: { version: "owner-cancelled-continuation-v1", intentDigest: phase.intentDigest,
+    authorityRef: phase.intent.authorityRef, authorityDigest: phase.intent.authorityDigest, day,
+    baselineModelMicros: correction.estimatedModelMicros, knownDailyAtClaimMicros: known, additionalAllowanceMicros: allowance,
+    admissionCeilingMicros: ceiling, originalUnknownPolicyReservationUsd: a.allocation.originalUnknownPolicyReservationUsd,
+    researchReservationUsd: a.allocation.researchReservationUsd, accountingComplete: false, invoiceVerified: false,
+    admittedAt: new Date(now).toISOString() } });
+  tx.set(dayRef, { admissions: admissions + 1, updatedAt: new Date(now).toISOString() }, { merge: true });
+  return { admissionId: id };
+}
+
+export async function assertCommunicationsContinuationBudget(db: FirebaseFirestore.Firestore,
+  phase: CommunicationsCancelledContinuation, now: number) {
+  // Reuse the same validation/reads without altering the existing reservation.
+  return db.runTransaction(tx => claimCommunicationsCancelledContinuationBudget(db, tx, phase, now));
+}
+
 /** Only the verified saved root turn supplies usage. Missing or inconsistent
  * accounting holds the admission; a visible draft does not prove its cost. */
 export async function recordCommunicationsDraftUsage(db: FirebaseFirestore.Firestore, jobId: string, requestDigest: string, usage: unknown, now: number) {
@@ -186,7 +245,10 @@ async function writeCorrectedDraftUsage(tx: FirebaseFirestore.Transaction, root:
   tx.update(ref, { state: originalResolved ? "usage_recorded" : "usage_unknown",
     usageState: originalResolved ? "best_effort_not_invoice" : "unresolved", knownTotalModelMicros: originalKnown + retained,
     knownTotalIsComplete: originalResolved, correctedCreate: { ...correction, state: "usage_recorded", usage,
-      estimatedModelMicros: retained, usageState: "best_effort_not_invoice", checkedAt: new Date(now).toISOString() } });
+      estimatedModelMicros: retained, usageState: "best_effort_not_invoice", checkedAt: new Date(now).toISOString() },
+    ...(row.cancelledContinuation ? { cancelledContinuation: { ...row.cancelledContinuation,
+      cumulativeAcceptedSessionModelMicros: retained, additionalEstimatedModelMicros: Math.max(0, retained - row.cancelledContinuation.baselineModelMicros),
+      usageState: "best_effort_not_invoice", accountingComplete: false, invoiceVerified: false } } : {}) });
   tx.set(dayRef, { estimatedModelMicros: total, updatedAt: new Date(now).toISOString() }, { merge: true });
   if (originalResolved && state?.activeAdmissionId === id) tx.set(stateRef, { activeAdmissionId: null });
   return originalResolved; // Without verified original usage the existing active hold remains.

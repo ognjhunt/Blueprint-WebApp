@@ -7,7 +7,8 @@ import {
   communicationsSentReceiptIdentity,
   type ThreadMessage,
 } from "./communications-contract";
-import type { CommunicationsCheckpoint, CommunicationsRejectedCreateRecovery,
+import { communicationsContinuationDeadline, communicationsContinuationSessionBinding } from "./communications-api";
+import type { CommunicationsCheckpoint, CommunicationsCancelledContinuation, CommunicationsRejectedCreateRecovery,
   CommunicationsRejectedCreateRecoveryIntent } from "./communications-api";
 import type { ActionPayload } from "./action-policies";
 import { automaticFirstContactEnabled, firstContactAuthority, verifyFirstContactSource, ROUTINE_COMMUNICATIONS_POLICY,
@@ -23,6 +24,7 @@ export type CommunicationsJobRecord = CommunicationsJob & {
   attempts: number; checkpoint: CommunicationsCheckpoint; output?: CommunicationsOutput;
   lease?: { owner: string; until: number }; nextAttemptAt?: number; reason?: string;
   automationPolicyVersion?: string;
+  cancelledContinuation?: CommunicationsCancelledContinuation;
 };
 
 /** Read before the caller writes. The stable first-touch claim also covers
@@ -252,16 +254,58 @@ export class CommunicationsStore {
       tx.update(ref, { ...update, updatedAt: this.now() });
     });
   }
+  /** A separate operator phase leases the same cancelled job. Its original
+   * checkpoint, attempts and first-touch claim are never reset or overwritten. */
+  async claimCancelledContinuation(jobId: string, phase: CommunicationsCancelledContinuation,
+    claimBudget: (tx: FirebaseFirestore.Transaction) => Promise<unknown>) {
+    const ref = this.jobs().doc(jobId);
+    return this.db.runTransaction(async tx => {
+      const record = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
+      if (!record || record.state !== "blocked" || record.reason !== "agents_turn_cancelled"
+        || (record.lease?.until ?? 0) > this.now() || record.output || record.automationPolicyVersion
+        || record.prospectId !== phase.intent.authority.binding.prospectId || record.briefDigest !== phase.intent.authority.binding.briefDigest
+        || communicationsDigest(record.checkpoint) !== phase.intent.authority.binding.originalCheckpointDigest
+        || phase.intent.authority.binding.jobId !== jobId || communicationsDigest(phase.intent) !== phase.intentDigest
+        || communicationsContinuationDeadline(phase) <= this.now()
+        || (record.cancelledContinuation && record.cancelledContinuation.intentDigest !== phase.intentDigest)
+        || (await tx.get(this.db.collection("action_ledger").doc(`communications_${jobId}`))).exists) {
+        throw new Error("communications_continuation_binding_changed");
+      }
+      await claimBudget(tx);
+      const lease = { owner: this.owner, until: Math.min(this.now() + 180000, communicationsContinuationDeadline(phase)) };
+      tx.update(ref, { cancelledContinuation: phase, lease, updatedAt: this.now() });
+      return { ...record, cancelledContinuation: phase, lease };
+    });
+  }
+  async updateCancelledContinuation(jobId: string, phase: CommunicationsCancelledContinuation) {
+    const ref = this.jobs().doc(jobId);
+    await this.db.runTransaction(async tx => {
+      const record = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined, old = record?.cancelledContinuation;
+      if (!record || record.lease?.owner !== this.owner || record.lease.until <= this.now()
+        || !old || old.intentDigest !== phase.intentDigest || communicationsDigest(phase.intent) !== old.intentDigest
+        || communicationsDigest(record.checkpoint) !== phase.intent.authority.binding.originalCheckpointDigest
+        || communicationsDigest(communicationsContinuationSessionBinding(phase.checkpoint)) !== phase.intent.sessionBindingDigest
+        || phase.checkpoint.ownerContinuation || (old.turnId && old.turnId !== phase.turnId)
+        || (old.state !== "prepared" && phase.state === "prepared")
+        || (old.state === "submitted" && phase.state !== "submitted")) throw new Error("communications_continuation_binding_changed");
+      tx.update(ref, { cancelledContinuation: phase, updatedAt: this.now() });
+    });
+  }
   /** The execution window is immutable; only its current owner's short lease renews. */
   async renewLease(jobId: string, executionWindow: NonNullable<CommunicationsCheckpoint["executionWindow"]>) {
     const ref = this.jobs().doc(jobId);
     return this.db.runTransaction(async tx => {
       const record = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
-      if (!record || record.state !== "running" || record.lease?.owner !== this.owner || record.lease.until <= this.now()
-        || record.checkpoint.rejectedCreateRecovery
-        || communicationsDigest(record.checkpoint.executionWindow ?? null) !== communicationsDigest(executionWindow)
+      const phase = record?.cancelledContinuation;
+      const normal = record?.state === "running" && !record.checkpoint.rejectedCreateRecovery
+        && communicationsDigest(record.checkpoint.executionWindow ?? null) === communicationsDigest(executionWindow);
+      const continuation = record?.state === "blocked" && record.reason === "agents_turn_cancelled" && phase
+        && communicationsDigest(record.checkpoint) === phase.intent.authority.binding.originalCheckpointDigest
+        && communicationsDigest(phase.intent) === phase.intentDigest
+        && communicationsDigest(phase.intent.window) === communicationsDigest(executionWindow);
+      if (!record || (!normal && !continuation) || record.lease?.owner !== this.owner || record.lease.until <= this.now()
         || Date.parse(executionWindow.deadlineAt) <= this.now()) throw new Error("communications_lease_lost");
-      const lease = { owner: this.owner, until: this.now() + 180000 };
+      const lease = { owner: this.owner, until: Math.min(this.now() + 180000, Date.parse(executionWindow.deadlineAt)) };
       tx.update(ref, { lease });
       return lease;
     });
@@ -375,8 +419,8 @@ export class CommunicationsStore {
         || communicationsDigest(communicationsBriefSchema.parse(brief.data())) !== job.briefDigest) throw new Error("canonical_context_changed");
       if (existing.exists && communicationsDigest(existing.data()?.action_payload) !== communicationsDigest(payload)) throw new Error("draft_idempotency_conflict");
       let authority = proposedAuthority;
-      if (record.automationPolicyVersion !== ROUTINE_COMMUNICATIONS_POLICY.version) authority = null;
-      const prospective = record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
+      if (record.automationPolicyVersion !== ROUTINE_COMMUNICATIONS_POLICY.version || record.cancelledContinuation) authority = null;
+      const prospective = !record.cancelledContinuation && record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
       let refusal: string | null = null;
       if (prospective && !authority) {
         const quality = reviewCommunicationsPayload(payload, this.now());

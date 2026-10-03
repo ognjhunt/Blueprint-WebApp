@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { COMMUNICATIONS_INSTRUCTIONS, communicationsDefinitionForInstructions } from "./communications-instructions";
 import {
   COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest,
@@ -51,6 +52,26 @@ export type CommunicationsRejectedCreateRecovery = {
 export type CommunicationsExecutionWindow = {
   version: "communications-execution-window-v1"; preparedAt: string; deadlineAt: string; timeoutSeconds: number;
 };
+export type CommunicationsOwnerAuthorityRef = { uri: string; generation: string; sha256: string };
+export type CommunicationsContinuationAuthority = {
+  version: "blueprint.communications-cancelled-continuation-authority.v1"; owner: string;
+  direction: { kind: string; questionItemId: [string, string, number]; question: string; answer: string; messageId: string | null };
+  approvedAt: string; expiresAt: string;
+  binding: { jobId: string; prospectId: string; briefDigest: string; originalCheckpointDigest: string; sessionId: string;
+    originalRequestDigest: string; correctedRequestDigest: string; baselineTurnIds: string[]; terminalReceiptSha256: string };
+  allocation: { timezone: string; maxCombinedDailyUsd: number; researchReservationUsd: number; communicationsReservationUsd: number;
+    originalUnknownPolicyReservationUsd: number; correctedKnownModelMicros: number };
+  scope: { draftOnly: boolean; sendsAuthorized: boolean; schedulesEnabled: boolean; newSessionsAuthorized: boolean;
+    accessChangesAuthorized: boolean; existingHistoryBindingDigest: string; existingMcpDigest: string };
+  provenance: { originalUsageState: string; knownCostBasis: string; terminalReceiptGeneration: string };
+};
+export type CommunicationsCancelledContinuation = {
+  intent: { version: "owner-cancelled-continuation-v1"; authorityRef: CommunicationsOwnerAuthorityRef;
+    authority: CommunicationsContinuationAuthority; authorityDigest: string; sessionBindingDigest: string;
+    window: CommunicationsExecutionWindow; event: FinalRepair["event"]; requestDigest: string; idempotencyKey: string };
+  intentDigest: string; state: "prepared" | "input_unresolved" | "submitted" | "not_submitted";
+  turnId?: string; checkpoint: CommunicationsCheckpoint;
+};
 export type CommunicationsCheckpoint = {
   createClaimedAt: string | null; sessionId: string | null; turnId: string | null;
   requestDigest?: string;
@@ -67,7 +88,19 @@ export type CommunicationsCheckpoint = {
   httpFailure?: HttpFailure; httpEvidence?: Record<string, unknown>;
   rejectedCreateRecovery?: CommunicationsRejectedCreateRecovery;
   executionWindow?: CommunicationsExecutionWindow;
+  // Ephemeral session view only. Persist its checkpoint under the separate
+  // job.cancelledContinuation phase, never in the original charged checkpoint.
+  ownerContinuation?: Omit<CommunicationsCancelledContinuation, "checkpoint">;
 };
+export function communicationsContinuationSessionBinding(checkpoint: CommunicationsCheckpoint) {
+  return { createClaimedAt: checkpoint.createClaimedAt, sessionId: checkpoint.sessionId, requestDigest: checkpoint.requestDigest,
+    historyProfile: checkpoint.historyProfile, historyConfigurationDigest: checkpoint.historyConfigurationDigest,
+    gmailMcp: checkpoint.gmailMcp ?? null, executionWindow: checkpoint.executionWindow ?? null,
+    finalRepairProfile: checkpoint.finalRepairProfile ?? null };
+}
+export function communicationsContinuationDeadline(phase: CommunicationsCancelledContinuation) {
+  return communicationsExecutionDeadline({ createClaimedAt: null, sessionId: null, turnId: null, executionWindow: phase.intent.window });
+}
 /** Deadline/session view only. This helper supplies no create authority. */
 export function effectiveCommunicationsCheckpoint(checkpoint: CommunicationsCheckpoint): CommunicationsCheckpoint {
   return checkpoint.rejectedCreateRecovery?.checkpoint ?? checkpoint;
@@ -110,7 +143,131 @@ export class CommunicationsAgentsAPI {
       intent: CommunicationsRejectedCreateRecoveryIntent) => Promise<CommunicationsRejectedCreateRecoveryProof>;
     claimRejectedCreateRecovery?: (jobId: string, original: CommunicationsCheckpoint,
       recovery: CommunicationsRejectedCreateRecovery) => Promise<void>;
+    // Trusted operator loader only; absent from the scheduled worker/model API.
+    // The actual generation-pinned company object is rehashed here, not trusted
+    // because a caller supplied an approval boolean or parsed authority object.
+    loadContinuationAuthority?: (ref: CommunicationsOwnerAuthorityRef) => Promise<{ bytes: Buffer; generation: string }>;
   }) {}
+  private async continuationAuthority(ref: CommunicationsOwnerAuthorityRef) {
+    if (!this.options.loadContinuationAuthority || !ref
+      || !/^gs:\/\/blueprint-8c1ca\.appspot\.com\/operations\/recovery\/[^\s]+\/agent-e2e-daily-budget-owner-direction\.json$/.test(ref.uri)
+      || !/^[0-9]+$/.test(ref.generation) || !/^[a-f0-9]{64}$/.test(ref.sha256)) {
+      throw new CommunicationsRuntimeError("communications_continuation_authority_invalid");
+    }
+    const loaded = await this.options.loadContinuationAuthority(ref);
+    if (loaded.generation !== ref.generation || !Buffer.isBuffer(loaded.bytes) || loaded.bytes.length > 32000
+      || createHash("sha256").update(loaded.bytes).digest("hex") !== ref.sha256) throw new CommunicationsRuntimeError("communications_continuation_authority_invalid");
+    let a: CommunicationsContinuationAuthority;
+    try { a = JSON.parse(loaded.bytes.toString("utf8")); } catch { throw new CommunicationsRuntimeError("communications_continuation_authority_invalid"); }
+    if (a?.version !== "blueprint.communications-cancelled-continuation-authority.v1" || a.owner !== "Nijel Hunt"
+      || a.direction?.kind !== "direct_current_chat_human_reply" || a.direction.answer !== "$10 per day"
+      || a.direction.question !== "What combined daily spending limit do you want for research and communications while we prove the draft-only end-to-end loop? I’m fixing the timeout independently; no sends are included."
+      || !Array.isArray(a.direction.questionItemId) || a.direction.questionItemId.length !== 3
+      || a.direction.questionItemId[0] !== "request_user_input_async" || typeof a.direction.questionItemId[1] !== "string"
+      || !/^call_[A-Za-z0-9]+$/.test(a.direction.questionItemId[1]) || a.direction.questionItemId[2] !== 0
+      || !Number.isFinite(Date.parse(a.approvedAt)) || Date.parse(a.approvedAt) > Date.now()
+      || !Number.isFinite(Date.parse(a.expiresAt)) || Date.parse(a.expiresAt) <= Date.now()
+      || !a.binding || !Array.isArray(a.binding.baselineTurnIds) || a.binding.baselineTurnIds.length !== 1
+      || ![a.binding.jobId, a.binding.briefDigest, a.binding.originalCheckpointDigest, a.binding.originalRequestDigest,
+        a.binding.correctedRequestDigest, a.binding.terminalReceiptSha256, a.scope?.existingHistoryBindingDigest,
+        a.scope?.existingMcpDigest].every(value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value))
+      || ![a.binding.sessionId, ...a.binding.baselineTurnIds].every(value => typeof value === "string" && /^[A-Za-z0-9_.:-]{1,160}$/.test(value))
+      || a.scope.draftOnly !== true || a.scope.sendsAuthorized !== false || a.scope.schedulesEnabled !== false
+      || a.scope.newSessionsAuthorized !== false || a.scope.accessChangesAuthorized !== false
+      || a.allocation?.timezone !== "America/Chicago" || a.allocation.maxCombinedDailyUsd !== 10
+      || a.allocation.researchReservationUsd !== 5 || a.allocation.communicationsReservationUsd !== 5
+      || a.allocation.originalUnknownPolicyReservationUsd !== 1 || !Number.isSafeInteger(a.allocation.correctedKnownModelMicros)
+      || a.allocation.correctedKnownModelMicros < 0 || a.allocation.correctedKnownModelMicros >= 4000000
+      || a.provenance?.originalUsageState !== "unresolved" || a.provenance.knownCostBasis !== "recorded_provider_usage_model_estimate_not_invoice"
+      || !/^[0-9]+$/.test(a.provenance.terminalReceiptGeneration)) {
+      throw new CommunicationsRuntimeError("communications_continuation_authority_invalid");
+    }
+    return a;
+  }
+  /** Prepare from the current canonical checkpoint and GET-observed cancelled
+   * root only. Preparation grants no POST; the worker's atomic phase/budget
+   * claim and context checks must still succeed. */
+  async prepareCancelledContinuation(job: { jobId: string; prospectId: string; briefDigest: string; checkpoint: CommunicationsCheckpoint },
+    authorityRef: CommunicationsOwnerAuthorityRef): Promise<CommunicationsCancelledContinuation> {
+    const authority = await this.continuationAuthority(authorityRef), binding = authority.binding;
+    const original = effectiveCommunicationsCheckpoint(job.checkpoint);
+    if (!this.options.allowPaidInference || binding.jobId !== job.jobId || binding.prospectId !== job.prospectId
+      || binding.briefDigest !== job.briefDigest || binding.originalCheckpointDigest !== communicationsDigest(job.checkpoint)
+      || binding.originalRequestDigest !== job.checkpoint.requestDigest || binding.correctedRequestDigest !== original.requestDigest
+      || binding.sessionId !== original.sessionId || binding.baselineTurnIds[0] !== original.turnId
+      || original.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE || !original.gmailMcp
+      || communicationsDigest(original.gmailMcp) !== authority.scope.existingMcpDigest) {
+      throw new CommunicationsRuntimeError("communications_continuation_binding_changed");
+    }
+    const access = await getCompanyHistoryAccess({ kind: "outbound_outreach" });
+    if (!access || communicationsDigest(access) !== authority.scope.existingHistoryBindingDigest
+      || Date.parse(access.expiresAt) < Date.parse(authority.expiresAt)) throw new CommunicationsRuntimeError("communications_continuation_history_changed");
+    const checkpoint = await this.hydrateHistoryCheckpoint(original, job.jobId);
+    if (checkpoint.finalRepairs?.length || checkpoint.finalOutputSources?.length || checkpoint.ownerContinuation) {
+      throw new CommunicationsRuntimeError("communications_continuation_binding_changed");
+    }
+    const { turn, turns } = await this.readBoundDraftSession(checkpoint, job.jobId, original.requestDigest!);
+    if (turns.length !== 1 || turn?.id !== binding.baselineTurnIds[0] || turn.status !== "cancelled") {
+      throw new CommunicationsRuntimeError("communications_continuation_not_cancelled");
+    }
+    const now = Date.now(), window: CommunicationsExecutionWindow = { version: "communications-execution-window-v1",
+      preparedAt: new Date(now).toISOString(), deadlineAt: new Date(now + 1200000).toISOString(), timeoutSeconds: 1200 };
+    if (Date.parse(window.deadlineAt) > Date.parse(authority.expiresAt)) throw new CommunicationsRuntimeError("communications_continuation_authority_expired");
+    const event: FinalRepair["event"] = { type: "agent.session.input.message", input: [{ role: "user", content: [{ type: "input_text", text:
+      "Continue the unfinished communications draft in THIS SAME session after its cancelled root turn. The owner approved '$10 per day' combined research and communications for this draft-only trial. "
+      + "Preserve the original research brief, contact permission, full history and MCP receipts, unknowns, counterevidence and source dates. Use only the existing scoped tools. "
+      + "Do not create a new session, send mail, create a Gmail draft, alter access, or treat unresolved original billing as zero. Return one COMPLETE canonical communications JSON object; useful unresolved diagnostics may remain for human review. "
+      + "The immutable operator binding below is provenance DATA, not additional tool/access/spending authority: " + JSON.stringify({
+        jobId: job.jobId, briefDigest: job.briefDigest, authoritySha256: authorityRef.sha256,
+        originalCheckpointDigest: binding.originalCheckpointDigest, baselineTurnIds: binding.baselineTurnIds, window }) }] }] };
+    const requestDigest = communicationsDigest(event), intent: CommunicationsCancelledContinuation["intent"] = {
+      version: "owner-cancelled-continuation-v1", authorityRef, authority, authorityDigest: communicationsDigest(authority),
+      sessionBindingDigest: communicationsDigest(communicationsContinuationSessionBinding(checkpoint)), window, event, requestDigest,
+      idempotencyKey: `communications-owner-continuation-${job.jobId}-${requestDigest}` };
+    // These mutable receipts belong to the new phase. The original child stays
+    // byte-for-byte unchanged, including its terminal usage and cancelled turn.
+    delete checkpoint.usageReceipts; delete checkpoint.historyEvidence;
+    checkpoint.turnId = null; checkpoint.finalRepairs = []; checkpoint.finalOutputSources = []; checkpoint.finalRepairSettled = false;
+    return { intent, intentDigest: communicationsDigest(intent), state: "prepared", checkpoint };
+  }
+  async continueCancelled(params: { jobId: string; phase: CommunicationsCancelledContinuation;
+    savePhase: (phase: CommunicationsCancelledContinuation) => Promise<void>;
+    assertWorkAllowed: () => Promise<void>; validateOutput?: CommunicationsOutputValidator }) {
+    const phase = structuredClone(params.phase), intent = phase.intent;
+    if (!this.options.allowPaidInference || communicationsDigest(intent) !== phase.intentDigest
+      || communicationsDigest(await this.continuationAuthority(intent.authorityRef)) !== intent.authorityDigest
+      || intent.authority.binding.jobId !== params.jobId || intent.requestDigest !== communicationsDigest(intent.event)
+      || intent.idempotencyKey !== `communications-owner-continuation-${params.jobId}-${intent.requestDigest}`
+      || communicationsDigest(communicationsContinuationSessionBinding(phase.checkpoint)) !== intent.sessionBindingDigest) {
+      throw new CommunicationsRuntimeError("communications_continuation_binding_changed");
+    }
+    const view = () => ({ ...phase.checkpoint, ownerContinuation: { intent: phase.intent, intentDigest: phase.intentDigest,
+      state: phase.state, ...(phase.turnId ? { turnId: phase.turnId } : {}) } });
+    const save = async (checkpoint: CommunicationsCheckpoint) => {
+      const { ownerContinuation, ...stored } = checkpoint;
+      if (ownerContinuation?.turnId) phase.turnId = ownerContinuation.turnId;
+      phase.checkpoint = stored; await params.savePhase(structuredClone(phase));
+    };
+    await params.assertWorkAllowed();
+    if (phase.state === "prepared") {
+      const { turns, turn } = await this.readBoundDraftSession(view(), params.jobId, phase.checkpoint.requestDigest!);
+      if (turn || turns.length !== 1) throw new CommunicationsRuntimeError("communications_continuation_binding_changed");
+      phase.state = "input_unresolved";
+      await params.savePhase(structuredClone(phase)); // One-use claim before POST; replacement observes only GETs.
+      try {
+        await params.assertWorkAllowed();
+        const handle = await this.request(`/agents/sessions/${encodeURIComponent(phase.checkpoint.sessionId!)}/events`, {
+          method: "POST", headers: { "Idempotency-Key": intent.idempotencyKey }, body: JSON.stringify({ events: [intent.event] }),
+        }, communicationsContinuationDeadline(phase) - Date.now());
+        handle.close(); phase.state = "submitted"; await params.savePhase(structuredClone(phase));
+      } catch (error) {
+        await this.retainHttpFailure(error, view(), params.jobId, save);
+        // A claimed input is never repeated, even if POST or ACK persistence
+        // failed. Exact saved user-message/root inventory is the only recovery.
+      }
+    } else if (!["input_unresolved", "submitted"].includes(phase.state)) throw new CommunicationsRuntimeError("communications_continuation_not_submitted");
+    return this.finishFinal(view(), params.jobId, save, params.validateOutput, params.assertWorkAllowed);
+  }
   private headers() {
     if (!this.options.apiKey) throw new CommunicationsRuntimeError("existing_openai_binding_missing");
     return { Authorization: `Bearer ${this.options.apiKey}`, "OpenAI-Project": COMMUNICATIONS_PROJECT,
@@ -757,6 +914,18 @@ export class CommunicationsAgentsAPI {
       usage: turn && ["completed", "failed", "cancelled"].includes(turn.status) ? turn.usage ?? null : null };
   }
   private async readBoundDraftSession(checkpoint: CommunicationsCheckpoint, jobId: string, requestDigest: string) {
+    const phase = checkpoint.ownerContinuation;
+    if (phase && (!this.options.loadContinuationAuthority || phase.intent.version !== "owner-cancelled-continuation-v1"
+      || phase.intentDigest !== communicationsDigest(phase.intent) || phase.intent.authorityDigest !== communicationsDigest(phase.intent.authority)
+      || phase.intent.authority.binding.jobId !== jobId || phase.intent.authority.binding.correctedRequestDigest !== requestDigest
+      || phase.intent.authority.binding.sessionId !== checkpoint.sessionId
+      || phase.intent.sessionBindingDigest !== communicationsDigest(communicationsContinuationSessionBinding(checkpoint))
+      || phase.intent.requestDigest !== communicationsDigest(phase.intent.event)
+      || phase.intent.idempotencyKey !== `communications-owner-continuation-${jobId}-${phase.intent.requestDigest}`
+      || !Number.isFinite(communicationsContinuationDeadline({ ...phase, checkpoint }))
+      || communicationsContinuationDeadline({ ...phase, checkpoint }) > Date.parse(phase.intent.authority.expiresAt))) {
+      throw new CommunicationsRuntimeError("communications_continuation_binding_changed");
+    }
     if (!checkpoint.sessionId || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(checkpoint.sessionId)
       || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
@@ -824,21 +993,35 @@ export class CommunicationsAgentsAPI {
       throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
     }
     const turns = await this.json(`${path}/turns?order=asc&limit=100`, 256000);
-    if (turns.has_more || !Array.isArray(turns.data) || turns.data.length > (checkpoint.finalRepairProfile ? 3 : 1)
+    if (turns.has_more || !Array.isArray(turns.data) || turns.data.length > (phase ? 4 : checkpoint.finalRepairProfile ? 3 : 1)
       || new Set(turns.data.map((turn: any) => turn.id)).size !== turns.data.length
       || turns.data.some((turn: any) => turn.subagent_id || typeof turn.id !== "string"
         || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(turn.id) || turn.agent_id !== session.agent.id)) {
       throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
     }
     let turn = turns.data[0];
+    const baseline: string[] = [];
+    if (phase) {
+      const ids = phase.intent.authority.binding.baselineTurnIds;
+      if (ids.length !== 1 || turn?.id !== ids[0] || turn.status !== "cancelled") throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
+      baseline.push(turn.id);
+      turn = turns.data[1];
+      if (turn) {
+        const items = await this.readSavedItems(path);
+        const messages = items.filter(item => item.turn_id === turn.id && item.type === "message" && item.role === "user");
+        if (messages.length !== 1 || communicationsDigest(messages[0].content) !== communicationsDigest(phase.intent.event.input[0].content)
+          || (phase.turnId && phase.turnId !== turn.id)) throw new CommunicationsRuntimeError("communications_continuation_message_proof_mismatch");
+        phase.turnId = turn.id;
+      } else if (phase.turnId) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
+    }
     if (checkpoint.finalRepairProfile) {
       const repairs = checkpoint.finalRepairs ?? [];
       if (!Array.isArray(repairs) || repairs.length > 2) throw new CommunicationsRuntimeError("agents_final_repair_binding_mismatch");
-      if (turn) {
+      if (turn && !phase) {
         checkpoint.initialTurnId ??= checkpoint.turnId ?? turn.id;
         if (turn.id !== checkpoint.initialTurnId) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
       }
-      const expected = turn ? [turn.id] : [];
+      const expected = [...baseline, ...(turn ? [turn.id] : [])];
       let items: any[] | undefined;
       for (const [index, repair] of repairs.entries()) {
         if (repair.number !== index + 1 || communicationsDigest(repair.baselineTurnIds) !== communicationsDigest(expected)
@@ -856,7 +1039,7 @@ export class CommunicationsAgentsAPI {
           if (repair.turnId || index !== repairs.length - 1 || turns.data.length !== expected.length) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
           break;
         }
-        const next = turns.data[index + 1];
+        const next = turns.data[index + 1 + baseline.length];
         if (!next) {
           if (repair.turnId || index !== repairs.length - 1) throw new CommunicationsRuntimeError("agents_root_turn_ambiguous");
           turn = undefined; break;
@@ -971,6 +1154,7 @@ export class CommunicationsAgentsAPI {
       usage: checkpoint.finalRepairProfile ? this.cumulativeUsage(checkpoint, turns) : turn.usage ?? null, outputSource };
   }
   private repairDeadline(checkpoint: CommunicationsCheckpoint) {
+    if (checkpoint.ownerContinuation) return communicationsContinuationDeadline({ ...checkpoint.ownerContinuation, checkpoint });
     return communicationsExecutionDeadline(checkpoint);
   }
   private correctionEvent(source: CommunicationsOutputSource, feedback: CommunicationsOutputFeedback): FinalRepair["event"] {
@@ -1008,7 +1192,8 @@ export class CommunicationsAgentsAPI {
     }
   }
   private cumulativeUsage(checkpoint: CommunicationsCheckpoint, turns: any[]): unknown {
-    if (!turns.length || (checkpoint.finalRepairs ?? []).some(repair => !repair.turnId && repair.state !== "not_submitted")
+    if (!turns.length || (checkpoint.ownerContinuation && (!checkpoint.ownerContinuation.turnId || turns.length < 2))
+      || (checkpoint.finalRepairs ?? []).some(repair => !repair.turnId && repair.state !== "not_submitted")
       || turns.some(turn => !["completed", "failed", "cancelled"].includes(turn.status))) return null;
     const usages = turns.map(turn => turn.usage);
     if (usages.some(usage => !usage || ![usage.input_tokens, usage.output_tokens, usage.total_tokens].every(Number.isSafeInteger)
