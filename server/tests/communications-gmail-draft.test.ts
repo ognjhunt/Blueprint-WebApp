@@ -1,13 +1,17 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, authAdmin: null, default: {} }));
 const capability = vi.hoisted(() => vi.fn());
+const copyStorage = vi.hoisted(() => ({ raw: "", generation: "1" }));
 vi.mock("../agents/communications-oauth-store", () => ({ requireFounderDraftCapability: capability }));
+vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => ({ bucketName: "blueprint-8c1ca.appspot.com",
+ info: async () => ({ generation: copyStorage.generation, size: Buffer.byteLength(copyStorage.raw) }), readText: async () => copyStorage.raw }) }));
 import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
 import { communicationsDeliveryKey } from "../agents/communications-contract";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
-import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, type GmailDraftPorts } from "../agents/communications-gmail-draft";
+import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, runCommunicationsGmailDraftCopies, type GmailDraftPorts } from "../agents/communications-gmail-draft";
 beforeEach(()=>{vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE","Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");capability.mockReset().mockResolvedValue(undefined);});
 afterEach(()=>vi.unstubAllEnvs());
 function fixture() {
@@ -28,6 +32,53 @@ function fixture() {
  const input={expectedReviewDigest:reviewDigest,expectedRevisionId:revisionId,mode:"write"};
  return{db,job,brief,ledgerId,input,ports,payload,root,receipt,setCopied:(v:any)=>{copied=v;}};
 }
+describe("separate retained recurring Gmail copy direction",()=>{
+ function recurring() {
+  const f=fixture();copyStorage.generation="1";
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","true");vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED","false");vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED","false");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF","unchanged-existing-compose-consent");
+  const authority:any={version:"blueprint.communications-gmail-draft-copy-direction.v1",owner:"Nijel Hunt",approvedAt:new Date(communicationsNow-1000).toISOString(),expiresAt:new Date(communicationsNow+60000).toISOString(),
+   direction:{kind:"direct_current_chat_human_reply",text:"Synthetic fixture copy-only direction",sourceRef:"gs://blueprint-8c1ca.appspot.com/operations/recovery/synthetic/human-copy-direction.json"},
+   binding:{mailbox:"nijel@tryblueprint.io",composeApprovalReference:"unchanged-existing-compose-consent"},scope:{draftOnly:true,gmailCopiesAuthorized:true,sendsAuthorized:false,newInferenceAuthorized:false,accessChangesAuthorized:false}};
+  const retain=()=>{copyStorage.raw=JSON.stringify(authority);f.db.records.set(f.root,{gmailDraftCopyDirection:{uri:"gs://blueprint-8c1ca.appspot.com/operations/recovery/synthetic/agent-e2e-gmail-draft-copy-owner-direction.json",generation:"1",sha256:createHash("sha256").update(copyStorage.raw).digest("hex")},recurringDraftBudgetDirection:{unchangedPaidAuthority:true}});};retain();
+  delete f.db.records.get(`action_ledger/${f.ledgerId}`).draft_revision_id;delete f.db.records.get(`${f.root}/jobs/${f.job.jobId}`).draftRevisionId;
+  return{...f,authority,retain};
+ }
+ it("stages an unrevised canonical pending draft without send approval or changing paid/compose authority, then preserves its copy",async()=>{
+  const f=recurring(), before=structuredClone([...f.db.records]);
+  await runCommunicationsGmailDraftCopies(f.db,()=>communicationsNow,f.ports);await runCommunicationsGmailDraftCopies(f.db,()=>communicationsNow,f.ports);
+  expect(f.ports.write).toHaveBeenCalledTimes(1);expect(f.ports.find).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(f.ports.write).mock.calls[0][0].body).toBe(f.payload.transportBody);
+  expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"verified",revisionId:null,copyDirection:{digest:expect.any(String)},sent:false,approved:false});
+  expect([...f.db.records].filter(([path])=>!path.includes("/gmailDraftBindings/"))).toEqual(before);
+  expect(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF).toBe("unchanged-existing-compose-consent");
+ });
+ it.each(["unknown","writing"])("observes an existing %s claim through GET-only recovery without repeating create",async state=>{
+  const f=recurring();vi.mocked(f.ports.write).mockImplementationOnce(async content=>{f.setCopied(content);throw Error("accepted create but acknowledgement lost");});
+  await runCommunicationsGmailDraftCopies(f.db,()=>communicationsNow,f.ports);
+  expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`).state).toBe("unknown");
+  f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`).state=state;
+  await runCommunicationsGmailDraftCopies(f.db,()=>communicationsNow,f.ports);
+  expect(f.ports.write).toHaveBeenCalledTimes(1);expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`).state).toBe("verified");
+ });
+ it.each(["disabled","expired","hash","generation","compose_binding","send_scope","access_scope","send_enabled","suppressed","sent"])("refuses %s without a provider write",async kind=>{
+  const f=recurring();
+  if(kind==="expired")f.authority.expiresAt=new Date(communicationsNow).toISOString();
+  if(kind==="compose_binding")f.authority.binding.composeApprovalReference="replacement-consent-ref";
+  if(kind==="send_scope")f.authority.scope.sendsAuthorized=true;if(kind==="access_scope")f.authority.scope.accessChangesAuthorized=true;
+  f.retain();if(kind==="hash")copyStorage.raw+=" ";if(kind==="generation")copyStorage.generation="2";
+  if(kind==="disabled")vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","false");if(kind==="send_enabled")vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED","true");
+  if(kind==="suppressed")f.db.records.set(`email_suppressions/${f.brief.contact.email.toLowerCase()}`,{global_suppressed:true});
+  if(kind==="sent")f.db.records.get(`action_ledger/${f.ledgerId}`).sent_at=communicationsNow;
+  await runCommunicationsGmailDraftCopies(f.db,()=>communicationsNow,f.ports).catch(()=>undefined);expect(f.ports.write).not.toHaveBeenCalled();
+ });
+ it("rechecks a revoked/expired direction after the claim and before the provider write",async()=>{
+  const f=recurring();let current=communicationsNow;
+  vi.mocked(f.ports.priorContact).mockImplementationOnce(async()=>{current+=60001;return false;});
+  await runCommunicationsGmailDraftCopies(f.db,()=>current,f.ports);
+  expect(f.ports.write).not.toHaveBeenCalled();expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"refused_before_write",providerWriteSubmitted:false});
+ });
+});
 describe("manual Gmail draft copy of the exact canonical revision",()=>{
  it("admits an explicit exact approved copy with the global automated staging flag off",async()=>{
   const f=fixture();vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","false");
