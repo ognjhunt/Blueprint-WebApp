@@ -10,7 +10,7 @@ import {
 import { CommunicationsAgentsAPI, CommunicationsRuntimeError, type CommunicationsCheckpoint,
   type CommunicationsOutputFeedback, type CommunicationsRejectedCreateRecoveryIntent,
   type CommunicationsRejectedCreateRecoveryProof,
-  effectiveCommunicationsCheckpoint } from "./communications-api";
+  type CommunicationsExecutionWindow, communicationsExecutionDeadline, effectiveCommunicationsCheckpoint } from "./communications-api";
 import { verifyFounderMailbox, readFounderThread } from "./communications-gmail";
 import { readExistingResearchSnapshot, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
 import { reviewCommunicationsPayload } from "./communications-review";
@@ -97,6 +97,28 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
   if (!claimed) return { state: "no_op" };
   const job = communicationsJobSchema.parse(Object.fromEntries(Object.entries(claimed).filter(([key]) =>
     ["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"].includes(key))));
+  let heartbeat: ReturnType<typeof setInterval> | undefined, deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  let renewal: Promise<void> | undefined, leaseError: unknown, cancellation: Promise<boolean> | undefined;
+  let observing = false;
+  const cancelOwnedWindow = async () => {
+    const current = (await deps.store.db.doc(`blueprintCommunications/default/jobs/${jobId}`).get()).data() as CommunicationsJobRecord | undefined;
+    if (!current || !claimed.lease || current.state !== "running" || current.lease?.owner !== claimed.lease.owner
+      || !Number.isFinite(current.lease.until) || current.lease.until <= deps.now() || current.checkpoint.rejectedCreateRecovery
+      || !current.checkpoint.executionWindow || !current.checkpoint.createClaimedAt
+      || current.checkpoint.requestDigest !== claimed.checkpoint.requestDigest || current.checkpoint.sessionId !== claimed.checkpoint.sessionId
+      || communicationsDigest(current.checkpoint.executionWindow) !== communicationsDigest(claimed.checkpoint.executionWindow)
+      || deps.now() < communicationsExecutionDeadline(current.checkpoint)) return false;
+    // Only the accepted canonical session can be cancelled. Unknown create ACKs
+    // retain their claim/accounting hold and require existing GET reconciliation.
+    return deps.api.cancel(current.checkpoint);
+  };
+  const stopObservation = async () => {
+    observing = false;
+    if (heartbeat) clearInterval(heartbeat);
+    if (deadlineTimer) clearTimeout(deadlineTimer);
+    await renewal;
+    await cancellation;
+  };
   try {
     const brief = communicationsBriefSchema.parse(await deps.store.brief(job.briefId));
     if (brief.prospectId !== job.prospectId || job.briefDigest !== communicationsDigest(brief)) throw new Error("research_brief_changed");
@@ -148,7 +170,20 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const learning = deps.learningHooks && !agentChosenHistory ? await deps.learningHooks.prepareNativeJob("communications",
       `blueprintCommunications/default/jobs/${jobId}`, [job.prospectId],
       { allowCreate: !recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId }) : null;
-    const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning);
+    if (!recovery && !rejectedCreate && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId) {
+      const timeoutSeconds = Number(process.env.BLUEPRINT_COMMUNICATIONS_EXECUTION_TIMEOUT_SECONDS ?? 1200);
+      if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 180 || timeoutSeconds > 3600) {
+        throw new CommunicationsRuntimeError("communications_execution_window_invalid");
+      }
+      const executionWindow: CommunicationsExecutionWindow = { version: "communications-execution-window-v1",
+        preparedAt: new Date(deps.now()).toISOString(), deadlineAt: new Date(deps.now() + timeoutSeconds * 1000).toISOString(), timeoutSeconds };
+      // Validate before persisting or reserving a paid create. Configuration
+      // changes cannot extend a charged checkpoint's already frozen window.
+      communicationsExecutionDeadline({ ...claimed.checkpoint, executionWindow });
+      claimed.checkpoint = { ...claimed.checkpoint, executionWindow };
+      await deps.store.update(jobId, { checkpoint: claimed.checkpoint });
+    }
+    const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning, claimed.checkpoint.executionWindow);
     // Bind only prospective work before its first paid create. Reconnected
     // sessions retain this decision; old charged/Tony sessions never acquire it.
     if (!recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId && automaticFirstContactEnabled()) {
@@ -163,6 +198,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const assertRepairAllowed = async () => {
       // Repair cannot refresh or replace consequential context. The original
       // input, dates, lease and thread remain the correction boundary.
+      if (leaseError) throw new CommunicationsRuntimeError("communications_lease_lost");
       const current = (await deps.store.db.doc("blueprintCommunications/default").collection("jobs").doc(jobId).get()).data();
       if (!current || !claimed.lease || current.lease?.owner !== claimed.lease.owner || !Number.isFinite(current.lease?.until)
         || current.lease.until <= deps.now() || claimed.lease.until <= deps.now()) throw new Error("communications_lease_lost");
@@ -181,7 +217,23 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     };
     const activeCheckpoint = effectiveCommunicationsCheckpoint(claimed.checkpoint);
     const expired = !rejectedCreate && activeCheckpoint.createClaimedAt
-      && deps.now() - Date.parse(activeCheckpoint.createClaimedAt) >= 180000;
+      && deps.now() >= communicationsExecutionDeadline(activeCheckpoint);
+    if (!recovery && !rejectedCreate && activeCheckpoint.executionWindow && !expired) {
+      const window = activeCheckpoint.executionWindow;
+      observing = true;
+      heartbeat = setInterval(() => {
+        if (renewal || leaseError || !observing || deps.now() >= communicationsExecutionDeadline(claimed.checkpoint)) return;
+        renewal = deps.store.renewLease(jobId, window).then(lease => { claimed.lease = lease; }, error => {
+          // A transient datastore failure does not revoke a still-owned lease.
+          // Retry the next heartbeat; an expired/replaced owner remains fenced.
+          if ((error instanceof Error && error.message === "communications_lease_lost") || (claimed.lease?.until ?? 0) <= deps.now()) leaseError = error;
+        })
+          .finally(() => { renewal = undefined; });
+      }, 45000);
+      deadlineTimer = setTimeout(() => {
+        if (observing && !leaseError) cancellation = cancelOwnedWindow().catch(() => false);
+      }, Math.max(0, communicationsExecutionDeadline(activeCheckpoint) - deps.now()));
+    }
     // A completed saved turn remains useful after the observer/lease expired.
     // Reconciliation does only GETs; never extend the deadline or create a turn.
     const saved = recovery || expired ? await deps.api.reconcileSaved(claimed.checkpoint, jobId) : null;
@@ -194,7 +246,11 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       deps.api.recoverRejectedCreate!({ ...params, intent: rejectedCreate.intent }) : deps.api.run.bind(deps.api);
     const result = saved ?? await run({
       input, jobId, checkpoint: claimed.checkpoint,
-      saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => deps.store.update(jobId, { checkpoint }),
+      saveCheckpoint: async (checkpoint: CommunicationsCheckpoint) => {
+        if (leaseError) throw new CommunicationsRuntimeError("communications_lease_lost");
+        await deps.store.update(jobId, { checkpoint });
+        claimed.checkpoint = checkpoint;
+      },
       assertRepairAllowed,
       validateOutput: async (output) => {
         const issues: CommunicationsOutputFeedback = output.disposition === "research_refresh"
@@ -206,6 +262,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
         return issues;
       },
     });
+    await stopObservation();
     if (recovery && (!("outputSource" in result) || result.outputSource?.rawOutputSha256 !== recovery.expectedOutputSha256)) {
       throw new CommunicationsRuntimeError("communications_saved_output_changed", false, "outputSource" in result ? result.outputSource : undefined);
     }
@@ -242,6 +299,12 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     if (persisted?.state === "blocked") return { state: "blocked", reason: persisted.reason, ledgerId, sent: false, gmailDraftCreated: false };
     return { state: "pending_approval", ledgerId, sent: false, gmailDraftCreated: false };
   } catch (error) {
+    await stopObservation();
+    if (claimed.checkpoint.executionWindow && claimed.checkpoint.createClaimedAt && deps.now() >= communicationsExecutionDeadline(claimed.checkpoint)
+      && error instanceof CommunicationsRuntimeError && ["communications_execution_deadline", "communications_final_repair_deadline"].includes(error.code)) {
+      const cancelled = await (cancellation ?? cancelOwnedWindow().catch(() => false));
+      error = new CommunicationsRuntimeError(cancelled ? "communications_deadline_cancel_requested" : "session_create_requires_reconciliation");
+    }
     if (error instanceof CommunicationsRuntimeError && error.outputSource) {
       await deps.store.update(jobId, { reason: error.code, ...{ outputSource: error.outputSource } });
     }
@@ -258,6 +321,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     else await deps.store.finish(job, "blocked", code);
     return { state: retry ? "retry" : "blocked", reason: code };
   } finally {
+    await stopObservation();
     if (deps.learningHooks) {
       try { await deps.learningHooks.afterNativeWork(`blueprintCommunications/default/jobs/${jobId}`); }
       catch { logger.warn({ code: "communications_learning_observation_unavailable", jobId }, "Communications result retained; learning observation unavailable"); }
@@ -320,11 +384,14 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
   return issues;
 }
 
-export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown, learning?: PreparedLearning) {
+export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown,
+  learning?: PreparedLearning, executionWindow?: CommunicationsExecutionWindow) {
   const policy = intent === "outreach" ? COMMUNICATIONS_OUTREACH_GUIDANCE
     : "Use the actual correlated reply; first-touch drafting is not required for this reply.";
   const base = { intent, approvedSender: FOUNDER_MAILBOX, researchBrief: brief,
-    currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy };
+    currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy,
+    ...(executionWindow ? { executionBoundary: { window: executionWindow,
+      guidance: "Work within this frozen wall-clock window. Use evidence-backed judgment to return a usable complete draft with truthful unknowns before the deadline; do not repeat completed reads or trade factual quality for speed. This clock grants no spend, access or send authority." } } : {}) };
   if (!learning) return JSON.stringify(base); // Legacy checkpoints keep their original input shape.
   const h = learning.handoff, reference = { inputHash: learning.inputHash, recordRef: learning.recordRef,
     preparedAt: learning.preparedAt, trust: "untrusted_evidence_only", sourceChecksRefreshed: false };

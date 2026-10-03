@@ -48,6 +48,9 @@ export type CommunicationsRejectedCreateRecovery = {
     rows: { id: string; createdAt: string; metadataDigest: string }[] };
   correctedBody: string; correctedRequestDigest: string; deadlineMs: number; checkpoint: CommunicationsCheckpoint;
 };
+export type CommunicationsExecutionWindow = {
+  version: "communications-execution-window-v1"; preparedAt: string; deadlineAt: string; timeoutSeconds: number;
+};
 export type CommunicationsCheckpoint = {
   createClaimedAt: string | null; sessionId: string | null; turnId: string | null;
   requestDigest?: string;
@@ -63,6 +66,7 @@ export type CommunicationsCheckpoint = {
   finalRepairSettled?: boolean;
   httpFailure?: HttpFailure; httpEvidence?: Record<string, unknown>;
   rejectedCreateRecovery?: CommunicationsRejectedCreateRecovery;
+  executionWindow?: CommunicationsExecutionWindow;
 };
 /** Deadline/session view only. This helper supplies no create authority. */
 export function effectiveCommunicationsCheckpoint(checkpoint: CommunicationsCheckpoint): CommunicationsCheckpoint {
@@ -73,6 +77,22 @@ export class CommunicationsRuntimeError extends Error {
   declare readonly privateHttpEvidence?: Record<string, unknown>;
   declare readonly httpFailure?: HttpFailure;
   constructor(public code: string, public retryable = false, readonly outputSource?: CommunicationsOutputSource) { super(code); }
+}
+/** Prospective clock only; existing charged checkpoints retain their 180s boundary. */
+export function communicationsExecutionDeadline(checkpoint: CommunicationsCheckpoint): number {
+  const window = checkpoint.executionWindow;
+  if (!window) return Date.parse(checkpoint.createClaimedAt ?? "") + 180000;
+  const prepared = Date.parse(window.preparedAt), deadline = Date.parse(window.deadlineAt);
+  if (window.version !== "communications-execution-window-v1"
+    || Object.keys(window).sort().join(",") !== "deadlineAt,preparedAt,timeoutSeconds,version"
+    || !Number.isInteger(window.timeoutSeconds) || window.timeoutSeconds < 180 || window.timeoutSeconds > 3600
+    || !Number.isFinite(prepared) || !Number.isFinite(deadline) || deadline !== prepared + window.timeoutSeconds * 1000
+    || window.preparedAt !== new Date(prepared).toISOString() || window.deadlineAt !== new Date(deadline).toISOString()
+    || (checkpoint.createClaimedAt !== null && (!Number.isFinite(Date.parse(checkpoint.createClaimedAt))
+      || Date.parse(checkpoint.createClaimedAt) < prepared || Date.parse(checkpoint.createClaimedAt) >= deadline))) {
+    throw new CommunicationsRuntimeError("communications_execution_window_invalid");
+  }
+  return deadline;
 }
 export { COMMUNICATIONS_INSTRUCTIONS } from "./communications-instructions";
 
@@ -351,12 +371,22 @@ export class CommunicationsAgentsAPI {
     const checkpoint = await this.hydrateHistoryCheckpoint(params.checkpoint, params.jobId);
     const saveCheckpoint = async (value: CommunicationsCheckpoint) => params.saveCheckpoint(await this.projectHistoryCheckpoint(value, params.jobId));
     try {
+    if (checkpoint.executionWindow) {
+      const deadline = communicationsExecutionDeadline(checkpoint);
+      let inputWindow;
+      try { inputWindow = JSON.parse(params.input).executionBoundary?.window; } catch { /* diagnosed below */ }
+      if (communicationsDigest(inputWindow ?? null) !== communicationsDigest(checkpoint.executionWindow)) {
+        throw new CommunicationsRuntimeError("communications_execution_input_binding_mismatch");
+      }
+      if (!checkpoint.createClaimedAt && Date.now() >= deadline) throw new CommunicationsRuntimeError("communications_execution_deadline");
+    }
     if (checkpoint.createClaimedAt && !checkpoint.sessionId && !correctedBody) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const fresh = !checkpoint.sessionId;
     let requestDigest = checkpoint.requestDigest;
     if (fresh && !correctedBody) {
       if (!this.options.reservePaidDraft || !this.options.recordPaidDraftUsage) throw new CommunicationsRuntimeError("communications_paid_draft_admission_required");
       const checked = await this.preflight();
+      if (checkpoint.executionWindow && Date.now() >= this.repairDeadline(checkpoint)) throw new CommunicationsRuntimeError("communications_execution_deadline");
       const configurationDigest = checked.gmailMcp?.configurationDigest ?? COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST;
       requestDigest = communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
         configurationDigest, historyProfile: COMMUNICATIONS_HISTORY_PROFILE, finalRepairProfile: FINAL_REPAIR_PROFILE, input: params.input,
@@ -398,6 +428,7 @@ export class CommunicationsAgentsAPI {
           blueprint_communications_configuration_digest: gmailMcp?.savedConfigurationDigest ?? COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST,
           blueprint_communications_history_profile: COMMUNICATIONS_HISTORY_PROFILE,
           blueprint_communications_final_repair_profile: FINAL_REPAIR_PROFILE,
+          ...(checkpoint.executionWindow ? { blueprint_communications_execution_window_digest: communicationsDigest(checkpoint.executionWindow) } : {}),
           blueprint_communications_history_configuration_digest: checkpoint.historyConfigurationDigest,
           ...(gmailMcp ? { blueprint_communications_mcp_profile: gmailMcp.profile,
             ...(gmailMcp.profile === "mcp-vault-read-v1" ? { blueprint_communications_mcp_binding_digest: communicationsDigest(gmailMcp) } : {}) } : {}),
@@ -414,7 +445,7 @@ export class CommunicationsAgentsAPI {
       if (result) handle.close(); return { result, error: null };
     }, (error) => { handle.close(); return { result: null, error }; }) : null;
     try {
-      if (!fresh && checkpoint.historyProfile) await this.handleHistoryActions(checkpoint, params.jobId, saveCheckpoint);
+      if (!fresh && checkpoint.historyProfile) await this.handleHistoryActions(checkpoint, params.jobId, saveCheckpoint, checkpoint.executionWindow ? params.assertRepairAllowed : undefined);
       const decoder = new TextDecoder();
       let buffer = "";
       while (!terminal) {
@@ -433,7 +464,7 @@ export class CommunicationsAgentsAPI {
           if (event.turn?.subagent_id) continue;
           if (["agent.session.turn.completed", "agent.session.turn.failed", "agent.session.turn.cancelled"].includes(event.type)) terminal = event.type;
           if (event.type === "agent.session.requires_action" && checkpoint.historyProfile) {
-            await this.handleHistoryActions(checkpoint, params.jobId, saveCheckpoint);
+            await this.handleHistoryActions(checkpoint, params.jobId, saveCheckpoint, checkpoint.executionWindow ? params.assertRepairAllowed : undefined);
           } else if (["error", "agent.session.failed", "agent.session.requires_action"].includes(event.type)) {
             throw new CommunicationsRuntimeError("agents_session_failed_or_unexpected_action");
           }
@@ -566,14 +597,14 @@ export class CommunicationsAgentsAPI {
    * are durable before submission; unknown ACKs are observed on replacement and
    * reuse the same provider idempotency key, never a new message or create. */
   private async handleHistoryActions(checkpoint: CommunicationsCheckpoint, jobId: string,
-    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>) {
+    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>, assertWorkAllowed?: () => void | Promise<void>) {
     const { session, turn, turns } = await this.readBoundDraftSession(checkpoint, jobId, checkpoint.requestDigest ?? "");
     if (!checkpoint.historyProfile) throw new CommunicationsRuntimeError("agents_history_profile_required");
     const actions = session.required_actions ?? [];
     if (!Array.isArray(actions)) throw new CommunicationsRuntimeError("agents_history_actions_invalid");
     if (!turn) {
       if (actions.length) throw new CommunicationsRuntimeError("agents_history_action_turn_mismatch");
-      return;
+      return 0;
     }
     if (actions.length && !["queued", "in_progress", "waiting"].includes(turn.status)) throw new CommunicationsRuntimeError("agents_history_action_turn_mismatch");
     checkpoint.turnId = turn.id;
@@ -668,6 +699,10 @@ export class CommunicationsAgentsAPI {
       if (checkpoint.finalRepairProfile && Date.now() >= this.repairDeadline(checkpoint)) {
         throw new CommunicationsRuntimeError("communications_final_repair_deadline");
       }
+      await assertWorkAllowed?.();
+      if (checkpoint.finalRepairProfile && Date.now() >= this.repairDeadline(checkpoint)) {
+        throw new CommunicationsRuntimeError("communications_final_repair_deadline");
+      }
       try {
         const submitted = await this.request(`/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, {
           method: "POST", headers: { "Idempotency-Key": receipt.idempotencyKey }, body: JSON.stringify({ events: [event] }),
@@ -681,6 +716,7 @@ export class CommunicationsAgentsAPI {
       }
       await saveCheckpoint({ ...checkpoint, historyToolReceipts: receipts.map(item => ({ ...item })) });
     }
+    return actions.length;
   }
   /** Read saved artifacts only, including after the inference deadline expires. */
   async reconcileUsage(checkpoint: CommunicationsCheckpoint, jobId: string): Promise<unknown> {
@@ -725,6 +761,13 @@ export class CommunicationsAgentsAPI {
       || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const session = await this.json(path, 256000);
+    if (checkpoint.executionWindow !== undefined || session.metadata?.blueprint_communications_execution_window_digest !== undefined) {
+      if (!checkpoint.executionWindow || !checkpoint.finalRepairProfile
+        || session.metadata?.blueprint_communications_execution_window_digest !== communicationsDigest(checkpoint.executionWindow)
+        || !Number.isFinite(communicationsExecutionDeadline(checkpoint))) {
+        throw new CommunicationsRuntimeError("agents_execution_window_binding_mismatch");
+      }
+    }
     if (checkpoint.finalRepairProfile !== undefined || session.metadata?.blueprint_communications_final_repair_profile !== undefined) {
       if (checkpoint.finalRepairProfile !== FINAL_REPAIR_PROFILE
         || session.metadata?.blueprint_communications_final_repair_profile !== FINAL_REPAIR_PROFILE
@@ -928,7 +971,7 @@ export class CommunicationsAgentsAPI {
       usage: checkpoint.finalRepairProfile ? this.cumulativeUsage(checkpoint, turns) : turn.usage ?? null, outputSource };
   }
   private repairDeadline(checkpoint: CommunicationsCheckpoint) {
-    return Date.parse(checkpoint.createClaimedAt ?? "") + 180000;
+    return communicationsExecutionDeadline(checkpoint);
   }
   private correctionEvent(source: CommunicationsOutputSource, feedback: CommunicationsOutputFeedback): FinalRepair["event"] {
     return { type: "agent.session.input.message", input: [{ role: "user", content: [{ type: "input_text", text:
@@ -1004,7 +1047,20 @@ export class CommunicationsAgentsAPI {
       try {
         result = await this.readFinal(checkpoint, jobId, save, true);
         if (!result) {
+          if (checkpoint.historyProfile && this.options.allowPaidInference && !this.options.reviewedSavedOutputDigest
+            && !checkpoint.finalRepairSettled && Date.now() < this.repairDeadline(checkpoint)) {
+            // A transport timeout is not a new worker attempt or inference turn.
+            // Keep observing/servicing the same root turn within its frozen clock.
+            await assertRepairAllowed?.();
+            const answered = await this.handleHistoryActions(checkpoint, jobId, save, assertRepairAllowed);
+            if (answered || checkpoint.executionWindow) {
+              await this.observeRepair(checkpoint, jobId, save, assertRepairAllowed);
+              if (checkpoint.executionWindow && Date.now() < this.repairDeadline(checkpoint)) await new Promise(resolve => setTimeout(resolve, 250));
+              continue;
+            }
+          }
           await settle(null, false);
+          if (checkpoint.executionWindow) throw new CommunicationsRuntimeError("communications_execution_deadline");
           throw new CommunicationsRuntimeError(checkpoint.finalRepairs?.length ? "agents_final_repair_pending" : "agents_turn_pending", true,
             checkpoint.finalOutputSources?.at(-1));
         }
@@ -1022,7 +1078,8 @@ export class CommunicationsAgentsAPI {
           source = error.outputSource; feedback = source.validationIssues!;
         } else {
           if (checkpoint.sessionId && checkpoint.usageReceipts?.length
-            && !(error instanceof CommunicationsRuntimeError && ["agents_turn_pending", "agents_final_repair_pending", "communications_final_checkpoint_unpersisted"].includes(error.code))) {
+            && !(error instanceof CommunicationsRuntimeError && ["agents_turn_pending", "agents_final_repair_pending", "communications_final_checkpoint_unpersisted",
+              "communications_execution_deadline", "communications_lease_lost"].includes(error.code))) {
             await settle(this.cumulativeUsage(checkpoint, (checkpoint.usageReceipts ?? []).map(receipt => ({ id: receipt.turnId, ...receipt }))), true);
           }
           throw error;
@@ -1079,11 +1136,11 @@ export class CommunicationsAgentsAPI {
         // Saved input_unresolved is authoritative even if the ack or its
         // persistence was lost. The next iteration is GET reconciliation only.
       }
-      if (accepted && Date.now() < repair.deadlineMs) await this.observeRepair(checkpoint, jobId, save);
+      if (accepted && Date.now() < repair.deadlineMs) await this.observeRepair(checkpoint, jobId, save, checkpoint.executionWindow ? assertRepairAllowed : undefined);
     }
   }
   private async observeRepair(checkpoint: CommunicationsCheckpoint, jobId: string,
-    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>) {
+    saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>, assertWorkAllowed?: () => void | Promise<void>) {
     const remaining = this.repairDeadline(checkpoint) - Date.now();
     if (remaining <= 0) return;
     let handle: Awaited<ReturnType<CommunicationsAgentsAPI["request"]>> | undefined;
@@ -1105,7 +1162,7 @@ export class CommunicationsAgentsAPI {
           const event = JSON.parse(data);
           if (event.turn?.subagent_id) continue;
           if (["agent.session.turn.completed", "agent.session.turn.failed", "agent.session.turn.cancelled"].includes(event.type)) return;
-          if (event.type === "agent.session.requires_action") await this.handleHistoryActions(checkpoint, jobId, saveCheckpoint);
+          if (event.type === "agent.session.requires_action") await this.handleHistoryActions(checkpoint, jobId, saveCheckpoint, assertWorkAllowed);
         }
       }
     } catch (error) {

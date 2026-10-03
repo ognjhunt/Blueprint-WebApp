@@ -13,9 +13,10 @@ import { BusinessHistoryStore } from "../research-learning/business-history";
 import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { learningMemoryFirestore, learningEvent } from "./fixtures/research-learning";
 
-async function setup(options: { sourceMissing?: boolean; checkpoint?: boolean } = {}) {
+async function setup(options: { sourceMissing?: boolean; checkpoint?: boolean; liveClock?: boolean } = {}) {
   const f = communicationsFixture(), learningMemory = learningMemoryFirestore(), db = memoryFirestore(learningMemory.records);
-  const clock = () => new Date(communicationsNow).toISOString(), store = new CommunicationsStore(db, () => communicationsNow, "communications-learning-owner");
+  const now = options.liveClock ? () => Date.now() : () => communicationsNow;
+  const clock = () => new Date(communicationsNow).toISOString(), store = new CommunicationsStore(db, now, "communications-learning-owner");
   const body = { version: "blueprint.research-learning-source-snapshot.v1", asOf: "2026-09-30T20:00:00.000Z",
     scope: { principalId: "source-reconciler", crmIds: [], capabilityIds: ["cap-1"], sections: ["crm", "capabilities"] },
     source: { crm: { recordRef: "blueprintDailyResearch/sites-first/files/crm.json", sourceHash: digest("crm"), capturedAt: "2026-09-30T20:00:00Z" },
@@ -53,7 +54,7 @@ async function setup(options: { sourceMissing?: boolean; checkpoint?: boolean } 
     checkpoint: learningMemory.records.get(jobPath).checkpoint, usage: { input_tokens: 10 } })),
     cancel: vi.fn(async () => true), reconcileSaved: vi.fn(async () => null as any) },
     readResearch: vi.fn(async () => f.snapshot), verifyMailbox: vi.fn(async () => ({})), readThread: vi.fn(async () => f.thread!),
-    isSuppressed: vi.fn(async () => false), suppress: vi.fn(async () => ({ persisted: true })), now: () => communicationsNow };
+    isSuppressed: vi.fn(async () => false), suppress: vi.fn(async () => ({ persisted: true })), now };
   return { ...f, job, jobPath, db, hooks, deps, learningMemory, source, sourcePath, hypothesis };
 }
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); });
@@ -66,6 +67,59 @@ async function freezeLegacy(f: Awaited<ReturnType<typeof setup>>) {
 }
 
 describe("communications retains legacy history and new sessions choose history tools", () => {
+  it("keeps one prospective session owned beyond the short lease and exposes its frozen 20-minute clock", async () => {
+    const f = await setup({ liveClock: true });
+    vi.spyOn(f.deps.store, "renewLease").mockRejectedValueOnce(Error("temporary datastore unavailable"));
+    let complete!: () => void, entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const pending = new Promise<void>(resolve => { complete = resolve; });
+    (f.deps.api.run as any).mockImplementationOnce(async (params: any) => {
+      await params.saveCheckpoint({ ...params.checkpoint, createClaimedAt: new Date().toISOString(), sessionId: "owned-session", turnId: "owned-turn", requestDigest: "a".repeat(64) });
+      entered(); await pending; await params.assertRepairAllowed();
+      return { output: f.output, checkpoint: f.db.records.get(f.jobPath).checkpoint, usage: { input_tokens: 10 } };
+    });
+    const result = processCommunicationsJob(f.job.jobId, f.deps); await started;
+    const original = structuredClone(f.db.records.get(f.jobPath).checkpoint);
+    await vi.advanceTimersByTimeAsync(240000);
+    const running = f.db.records.get(f.jobPath);
+    expect(running).toMatchObject({ state: "running", attempts: 1, checkpoint: original });
+    expect(running.lease.until).toBeGreaterThan(Date.now());
+    expect(JSON.parse((f.deps.api.run.mock.calls as any)[0][0].input).executionBoundary.window).toEqual({
+      version: "communications-execution-window-v1", preparedAt: new Date(communicationsNow).toISOString(),
+      deadlineAt: new Date(communicationsNow + 1200000).toISOString(), timeoutSeconds: 1200 });
+    complete(); expect(await result).toMatchObject({ state: "pending_approval", sent: false, gmailDraftCreated: false });
+    expect(f.deps.api.run).toHaveBeenCalledTimes(1); expect(f.deps.api.cancel).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("requests cancellation once at a configured new-session deadline without claiming a terminal provider result", async () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_EXECUTION_TIMEOUT_SECONDS", "180");
+    const f = await setup({ liveClock: true }); let entered!: () => void, stop!: (error: unknown) => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const pending = new Promise<never>((_, reject) => { stop = reject; });
+    (f.deps.api.run as any).mockImplementationOnce(async (params: any) => {
+      await params.saveCheckpoint({ ...params.checkpoint, createClaimedAt: new Date().toISOString(), sessionId: "owned-session", turnId: "owned-turn", requestDigest: "a".repeat(64) });
+      entered(); return pending;
+    });
+    f.deps.api.cancel.mockImplementationOnce(async () => { stop(new CommunicationsRuntimeError("communications_execution_deadline")); return true; });
+    const result = processCommunicationsJob(f.job.jobId, f.deps); await started;
+    await vi.advanceTimersByTimeAsync(180000);
+    expect(await result).toMatchObject({ state: "blocked", reason: "communications_deadline_cancel_requested" });
+    expect(f.deps.api.cancel).toHaveBeenCalledTimes(1);
+    expect(f.db.records.get(f.jobPath).checkpoint).toMatchObject({ sessionId: "owned-session", executionWindow: { timeoutSeconds: 180 } });
+    expect(f.db.records.get(f.jobPath).checkpoint.finalRepairSettled).toBeUndefined();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("refuses renewal by a different owner and invalid prospective timing before inference", async () => {
+    const f = await setup({ liveClock: true }); const claimed = await f.deps.store.claim(f.job.jobId);
+    const window = { version: "communications-execution-window-v1" as const, preparedAt: new Date().toISOString(),
+      deadlineAt: new Date(Date.now() + 1200000).toISOString(), timeoutSeconds: 1200 };
+    await f.db.doc(f.jobPath).update({ checkpoint: { ...claimed!.checkpoint, executionWindow: window }, lease: { owner: "replacement-owner", until: Date.now() + 180000 } });
+    await expect(f.deps.store.renewLease(f.job.jobId, window)).rejects.toThrow("communications_lease_lost");
+    expect(f.db.records.get(f.jobPath).lease.owner).toBe("replacement-owner");
+    const next = await setup(); vi.stubEnv("BLUEPRINT_COMMUNICATIONS_EXECUTION_TIMEOUT_SECONDS", "unbounded");
+    expect(await processCommunicationsJob(next.job.jobId, next.deps)).toMatchObject({ state: "blocked", reason: "communications_execution_window_invalid" });
+    expect(next.deps.api.run).not.toHaveBeenCalled();
+  });
   it("new sessions do not require a frozen relevance preload and keep after-work observation", async () => {
     const f = await setup(); f.deps.learningHooks.prepareNativeJob.mockRejectedValueOnce(Error("legacy eligibility unavailable"));
     expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({state:"pending_approval",sent:false});
@@ -81,6 +135,8 @@ describe("communications retains legacy history and new sessions choose history 
     expect(f.deps.learningHooks.prepareNativeJob.mock.invocationCallOrder[0]).toBeLessThan(f.deps.api.run.mock.invocationCallOrder[0]);
     expect(f.deps.learningHooks.afterNativeWork.mock.invocationCallOrder[0]).toBeGreaterThan(f.deps.api.run.mock.invocationCallOrder[0]);
     const input = JSON.parse(f.deps.api.run.mock.calls[0][0].input), h = input.learningHistory;
+    expect(input.executionBoundary).toBeUndefined();
+    expect(f.db.records.get(f.jobPath).checkpoint.executionWindow).toBeUndefined();
     expect(h).toMatchObject({ trust: "untrusted_evidence_only", sourceChecksRefreshed: false, preparedAt: new Date(communicationsNow).toISOString(), unknown: null });
     expect(h.priorContactAndOutcomes.prospects.map((row: any) => row.prospectId)).toEqual([f.job.prospectId]);
     expect(h.priorContactAndOutcomes.prospects[0].historyCount).toBeGreaterThan(0);

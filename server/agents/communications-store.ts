@@ -252,6 +252,20 @@ export class CommunicationsStore {
       tx.update(ref, { ...update, updatedAt: this.now() });
     });
   }
+  /** The execution window is immutable; only its current owner's short lease renews. */
+  async renewLease(jobId: string, executionWindow: NonNullable<CommunicationsCheckpoint["executionWindow"]>) {
+    const ref = this.jobs().doc(jobId);
+    return this.db.runTransaction(async tx => {
+      const record = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
+      if (!record || record.state !== "running" || record.lease?.owner !== this.owner || record.lease.until <= this.now()
+        || record.checkpoint.rejectedCreateRecovery
+        || communicationsDigest(record.checkpoint.executionWindow ?? null) !== communicationsDigest(executionWindow)
+        || Date.parse(executionWindow.deadlineAt) <= this.now()) throw new Error("communications_lease_lost");
+      const lease = { owner: this.owner, until: this.now() + 180000 };
+      tx.update(ref, { lease });
+      return lease;
+    });
+  }
   async approvalState(prospectId: string) {
     const source = await this.db.collection("outboundProspects").doc(prospectId).get();
     if (!source.exists) throw new Error("canonical_prospect_missing");
