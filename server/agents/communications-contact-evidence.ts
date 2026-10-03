@@ -18,7 +18,7 @@ export function sameOperatorUrl(value: string, organizationUrl: string) {
 }
 const emailsIn = (quote: string): string[] => [...new Set((quote.match(/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) ?? []).map(email => email.toLowerCase()))];
 export const restrictedContact = /\b(?:personal only|support only|technical (?:support|assistance)|customer support|careers?|jobs?|press|media|privacy|legal|do not contact|no unsolicited|not for business|unsubscribe|opt.out)\b/i;
-export const contactProhibition = /\b(?:(?:do not|don't) (?:contact|e-?mail|message|send|solicit)|no (?:unsolicited|solicitations?|marketing|outreach)|not for business|(?:has|have|is|are|was|were) (?:already )?(?:unsubscribed|opted[ -]?out)|stop (?:emailing|contacting|messaging))\b/i;
+export const contactProhibition = /\b(?:(?:do not|don['’]t) (?:contact|e-?mail|message|send|solicit|follow[ -]?up)|no (?:unsolicited|solicitations?|marketing|outreach)|no (?:more |further )?follow[ -]?ups?|not for business|(?:has|have|is|are|was|were) (?:already )?(?:unsubscribed|opted[ -]?out)|stop (?:emailing|contacting|messaging))\b/i;
 const businessRoute = /\b(?:public business contact|business (?:inquiries|enquiries)|commercial (?:inquiries|enquiries)|partnership (?:inquiries|enquiries))\b/i;
 // An operator's general inquiry invitation establishes an organization route,
 // never a named recipient or site authority. Keep unrelated account/personal routes out.
@@ -80,6 +80,11 @@ export function publishedPublicContact(candidate: any) {
   return matches[0];
 }
 
+// Missing prior-contact history is evidence uncertainty, not a recipient
+// restriction. Remove only that phrase from classification; retain every
+// original unknown and inspect the remaining text for consequential limits.
+const priorContactUncertainty = /\b(?:(?:prior|previous)[ -]+contact(?:[ -]+history)?(?:\s+(?:is|remains?))?\s+(?:unknown|unverified|not (?:yet )?(?:known|checked|verified|established))|(?:unknown|unverified)\s+(?:prior|previous)[ -]+contact(?:[ -]+history)?)\b/gi;
+
 /** Preserve site/data-sharing permission unknowns. Recipient prohibitions block;
  * only explicit missing-contact gaps can be resolved with a new sidecar proof. */
 export function contactUnknowns(candidate: any) {
@@ -88,8 +93,11 @@ export function contactUnknowns(candidate: any) {
     if (contactProhibition.test(unknown) || /\b(?:unsubscribe|opt(?:ed)?[ ._-]?out)\b/i.test(unknown)) blocked.push(unknown);
     else if (/\b(?:permission|consent)\b/i.test(unknown) && !/\b(?:site|capture|data|sharing|disclos|deployment)\b/i.test(unknown)) blocked.push(unknown);
     else if (/\b(?:contacts?|recipients?|e-?mail|outreach)\b/i.test(unknown)) {
-      if (!/\b(?:permission|consent|restriction|prohibit|unavailable|not available|refus)/i.test(unknown)
-        && /\b(?:not (?:yet )?(?:identified|researched|verified|established)|no (?:verified |public |business )*contact.*identified|missing|unverified)\b/i.test(unknown)) gaps.push(unknown);
+      const remaining = unknown.replace(priorContactUncertainty, "");
+      const restricted = /\b(?:permission|consent|restriction|prohibit|unavailable|not available|refus)/i.test(remaining);
+      if (!restricted && !/\b(?:contact(?:s|ed|ing)?|recipients?|e-?mail(?:ed)?|outreach)\b/i.test(remaining)) continue;
+      if (!restricted
+        && /\b(?:not (?:yet )?(?:identified|researched|verified|established)|no (?:verified |public |business )*contact.*identified|missing|unverified)\b/i.test(remaining)) gaps.push(unknown);
       else blocked.push(unknown);
     }
   }

@@ -71,6 +71,35 @@ describe("contact-free pinned producer → communications contact fulfillment (o
     expect(f.records("contactProofs")).toHaveLength(0);
   });
 
+  it("retains the Oct3 prior-contact unknown and still requires independent public contact proof", async () => {
+    // Retained candidate wording; the contact/publication fixture below is
+    // synthetic and never joins this text to a real recipient or authority.
+    const unknown = "Current decision, interest, decision owner, timing, budget, willingness to pay, pilot intent and previous contact unknown. Recent dryers alone do not establish demand.";
+    const f = setup({ actualProducer: true, unknowns: [unknown, "Site data-sharing permission is unknown."] });
+    const original = structuredClone(f.snapshot);
+    expect(contactUnknowns(f.candidate)).toEqual({ gaps: [], blocked: [] });
+    expect(await f.request()).toMatchObject({ state: "needs_research", reasons: ["verified_public_business_contact_missing"] });
+    expect(f.records("jobs")).toHaveLength(0); expect(f.deps.readContactPage).not.toHaveBeenCalled();
+    await f.refresh();
+    expect(f.records("jobs")).toHaveLength(1); expect(f.records("contactProofs")).toHaveLength(1);
+    expect(f.records("briefs")[0]).toMatchObject({ unknowns: f.candidate.unknowns, stage: { interest: "unknown" } });
+    expect(f.snapshot).toEqual(original);
+    expect(() => extractBusinessContact("commercial@laundryrepublic.com", { organization: "Laundry Republic", site: "Balham" }, false, true))
+      .toThrow("verified_contact_source_binding_invalid");
+  });
+
+  it.each(["Previous contact is unknown.", "Prior-contact history remains unknown.", "Unknown prior contact history."])
+    ("does not turn history uncertainty into a recipient restriction: %s", unknown => {
+      expect(contactUnknowns({ unknowns: [unknown] })).toEqual({ gaps: [], blocked: [] });
+    });
+
+  it.each(["Permission to email this site is unknown.", "The recipient has opted out.", "Contact identity is ambiguous.",
+    "Already contacted this operator.", "No unsolicited outreach.", "The contact is not available.", "Restrictions remain unknown.", "Please don’t follow up.", "No further follow-ups."])
+    ("preserves consequential limits beside history uncertainty: %s", restriction => {
+      const unknown = `Prior contact unverified. ${restriction}`;
+      expect(contactUnknowns({ unknowns: [unknown] }).blocked).toEqual([unknown]);
+    });
+
   it.each([["https://www.facility.example", "https://facility.example/contact"],
     ["https://facility.example", "https://www.facility.example/contact"],
     ["https://www.facility.example", "https://contact.facility.example/contact"]])("normalizes www symmetrically: %s → %s", (organizationUrl, contactUrl) => {
