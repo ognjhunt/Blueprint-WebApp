@@ -365,6 +365,9 @@ describe("Blueprint-owned communications queue", () => {
     const f = await setup(intent);
     await processCommunicationsJob(f.job.jobId, f.deps);
     const input = JSON.parse(f.deps.api.run.mock.calls[0][0].input);
+    expect(input.writingGuidance).toContain("not a newsletter subscription");
+    expect(input.writingGuidance).toContain("founder’s comments about draft style are not recipient refusals");
+    expect(input.writingGuidance).toContain("makes the homepage clickable");
     expect(input.writingGuidance).toContain("shared company inbox");
     expect(input.writingGuidance).toContain("named person");
     expect(input.writingGuidance).toContain("followed by Nijel on the next line");
