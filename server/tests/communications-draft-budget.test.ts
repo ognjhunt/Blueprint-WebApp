@@ -163,6 +163,20 @@ describe("retained recurring direction and one new draft slot", () => {
     expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id });
     expect(f.db.records.has(`${root}/draftBudgetAdmissions/${communicationsDigest({ jobId: "new-job" })}`)).toBe(false);
   });
+  it.each(["storage", "transaction"])("refuses authority expiring during awaited %s instead of trusting the captured clock", async boundary => {
+    vi.useFakeTimers({ toFake: ["performance"] });
+    try {
+      const f = recurring(); f.authority.expiresAt = new Date(communicationsNow + 1000).toISOString(); f.retain();
+      if (boundary === "storage") storage.afterRead = () => vi.advanceTimersByTime(1001);
+      else {
+        const transact = f.db.runTransaction;
+        f.db.runTransaction = async (callback: any) => { vi.advanceTimersByTime(1001); return transact(callback); };
+      }
+      await expect(f.reserve()).rejects.toThrow();
+      expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id });
+      expect(f.db.records.has(`${root}/draftBudgetAdmissions/${communicationsDigest({ jobId: "new-job" })}`)).toBe(false);
+    } finally { vi.useRealTimers(); }
+  });
   it("prioritizes the new active draft and observes expanded old-phase usage without the immutable old-child reader", async () => {
     const f = recurring(); await f.reserve();
     const cp = { sessionId: "new-session", requestDigest: digest };

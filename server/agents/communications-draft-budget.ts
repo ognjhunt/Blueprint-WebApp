@@ -20,7 +20,7 @@ type DirectionRef = { uri: string; generation: string; sha256: string };
 
 /** Private server root selects an immutable company receipt. Model inputs and
  * the narrower manual-continuation grant cannot activate recurring admission. */
-async function recurringBudgetDirection(db: FirebaseFirestore.Firestore, now: number) {
+async function recurringBudgetDirection(db: FirebaseFirestore.Firestore, clock: () => number) {
   const ref: DirectionRef | undefined = (await db.doc(COMMUNICATIONS_ROOT).get()).data()?.recurringDraftBudgetDirection;
   if (!ref) return null;
   const storage = resolveBundleStorage(), match = /^gs:\/\/blueprint-8c1ca\.appspot\.com\/(operations\/recovery\/[^\s]+\/agent-e2e-recurring-budget-owner-direction\.json)$/.exec(ref.uri ?? "");
@@ -34,6 +34,7 @@ async function recurringBudgetDirection(db: FirebaseFirestore.Firestore, now: nu
     || createHash("sha256").update(raw).digest("hex") !== ref.sha256) throw fail();
   let a: CommunicationsRecurringBudgetDirection;
   try { a = JSON.parse(raw); } catch { throw fail(); }
+  const now = clock();
   const hashes = [a?.liability?.admissionId, a?.liability?.jobId, a?.liability?.originalRequestDigest,
     a?.liability?.originalCheckpointDigest, a?.liability?.originalPolicyDigest];
   if (a?.version !== "blueprint.communications-recurring-budget-direction.v1" || a.owner !== "Nijel Hunt"
@@ -93,7 +94,10 @@ export function estimatedDraftMicros(usage: any): number | null {
 /** Serialize fresh paid admissions before POST. An unresolved earlier cost is
  * retained across day changes and blocks other jobs, rather than meaning zero. */
 export async function reserveCommunicationsDraft(db: FirebaseFirestore.Firestore, jobId: string, requestDigest: string, now: number) {
-  const configured = configuredCommunicationsDraftBudget(), recurring = await recurringBudgetDirection(db, now);
+  // Preserve the injected clock's basis while accounting for awaited storage
+  // reads and transaction retries; a captured timestamp cannot extend authority.
+  const started = performance.now(), clock = () => now + Math.max(0, performance.now() - started);
+  const configured = configuredCommunicationsDraftBudget(), recurring = await recurringBudgetDirection(db, clock);
   const { maxDailyAdmissions: _legacyCountLimit, ...rates } = configured;
   const policy = recurring ? { ...rates, version: "blueprint.communications-recurring-draft-soft-budget.v1" } : configured;
   const root = db.doc(COMMUNICATIONS_ROOT), id = communicationsDigest({ jobId }), day = firstContactCalendarDay(now);
@@ -109,7 +113,8 @@ export async function reserveCommunicationsDraft(db: FirebaseFirestore.Firestore
       const old = held.data(), original = heldJob.data(), phase = original?.cancelledContinuation;
       const researchConfig = research.data()?.config, pointer = state.data()?.recurringActiveAdmissionId;
       const cost = daily.data()?.estimatedModelMicros ?? 0, admissions = daily.data()?.admissions ?? 0;
-      if (communicationsDigest(control.data()?.recurringDraftBudgetDirection ?? null) !== communicationsDigest(recurring.ref)
+      if (Date.parse(a.expiresAt) <= clock()
+        || communicationsDigest(control.data()?.recurringDraftBudgetDirection ?? null) !== communicationsDigest(recurring.ref)
         || active !== liability.admissionId || !old || old.jobId !== liability.jobId || old.requestDigest !== liability.originalRequestDigest
         || old.state !== "usage_unknown" || old.originalUsageState !== "unresolved"
         || !old.policy || old.policyDigest !== liability.originalPolicyDigest || communicationsDigest(old.policy) !== liability.originalPolicyDigest
@@ -140,6 +145,7 @@ export async function reserveCommunicationsDraft(db: FirebaseFirestore.Firestore
       if (unresolved.docs.some(doc => doc.id !== liability.admissionId)) throw new CommunicationsDraftBudgetError("communications_draft_cost_unresolved");
       const exposure = liability.reservedExposureUsd * 1000000, allowance = policy.softTargetUsd * 1000000 - exposure - cost;
       if (!Number.isSafeInteger(allowance) || allowance <= 0) throw new CommunicationsDraftBudgetError("communications_draft_soft_target_reached");
+      if (Date.parse(a.expiresAt) <= clock()) throw new CommunicationsDraftBudgetError("communications_recurring_direction_invalid");
       tx.create(ref, { version: "blueprint.communications-draft-admission.v1", jobId, requestDigest, day,
         timezone: policy.timezone, policy, policyDigest: communicationsDigest(policy), state: "reserved", admittedAt: new Date(now).toISOString(),
         recurringDirection: { ref: recurring.ref, digest: recurring.digest, liabilityAdmissionId: liability.admissionId,
