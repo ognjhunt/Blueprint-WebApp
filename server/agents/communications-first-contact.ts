@@ -180,7 +180,7 @@ export function firstContactAuthority(payload: ActionPayload, now: number, saved
   const { job, brief, output, thread } = parsed.data;
   const postalLine = savedPostalLine ?? firstContactPostalLine();
   if (!postalLine || payload.commercialEmail !== true || payload.emailSuppressionScope !== "growth_campaign"
-    || payload.transportBody !== appendFirstContactFooter(output.body, brief.contact.email, postalLine)) return null;
+    || ![false, true].some(legacyFooter => payload.transportBody === appendFirstContactFooter(output.body, brief.contact.email, postalLine, legacyFooter))) return null;
   const geography = payload.recipientGeography as ReturnType<typeof firstContactGeography>;
   if (!geography || geography.countryCode !== "US" || !fresh(geography.sourceCheckedAt, now)) return null;
   if (legacy) {

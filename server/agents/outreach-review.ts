@@ -39,7 +39,7 @@ export const outreachReviewContractSchema = z.object({
     z.object({
       kind: z.literal("cold"),
       noVerifiedConnectionReason: text,
-      publicDetail: observation,
+      publicDetail: observation.extend({ sourceClaim: text.optional() }).strict(),
       relevance: text,
     }).strict(),
     z.object({
@@ -156,7 +156,7 @@ export function reviewOutreachDraft(draft: OutreachDraft): OutreachReviewResult 
   if (opening.kind === "cold") {
     anchors.push(opening.publicDetail.claim, opening.relevance);
     if (!context.data.observations.some((item) =>
-      item.claim === opening.publicDetail.claim && item.source === opening.publicDetail.source,
+      item.claim === (opening.publicDetail.sourceClaim ?? opening.publicDetail.claim) && item.source === opening.publicDetail.source,
     )) blockers.push("cold_detail_not_in_recorded_evidence");
     try {
       const url = new URL(opening.publicDetail.source);

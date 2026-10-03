@@ -88,6 +88,8 @@ export type CommunicationsCheckpoint = {
   httpFailure?: HttpFailure; httpEvidence?: Record<string, unknown>;
   rejectedCreateRecovery?: CommunicationsRejectedCreateRecovery;
   executionWindow?: CommunicationsExecutionWindow;
+  /** Exact prospective writing directions, retained across charged recovery. */
+  draftWritingGuidance?: string;
   // Ephemeral session view only. Persist its checkpoint under the separate
   // job.cancelledContinuation phase, never in the original charged checkpoint.
   ownerContinuation?: Omit<CommunicationsCancelledContinuation, "checkpoint">;

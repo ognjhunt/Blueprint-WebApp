@@ -26,6 +26,32 @@ describe("first-contact outreach review", () => {
     expect(reviewOutreachDraft({ ...outreachDraft, contract }).blockers).toContain("cold_detail_not_in_recorded_evidence");
   });
 
+  it("retains the exact source claim internally while reviewing a short faithful cold opening", () => {
+    const contract = structuredClone(outreachContract);
+    if (contract.opening.kind !== "cold") throw new Error("fixture must be cold");
+    const original = contract.opening.publicDetail.claim;
+    const recorded = original + " This sourced paragraph includes internal context that does not belong in the email.";
+    const concise = "Your careers page mentions a packing station.";
+    const context = { ...structuredClone(outreachContext), observations: [{ claim: recorded, source: contract.opening.publicDetail.source }] };
+    contract.opening.publicDetail = { ...contract.opening.publicDetail, claim: concise, sourceClaim: recorded };
+    const draft = { ...outreachDraft, body: outreachDraft.body.replace(original, concise), context, contract };
+    const result = reviewOutreachDraft(draft);
+    expect(result.hardChecksPassed).toBe(true);
+    expect(draft.body).not.toContain(recorded);
+    expect(validateOutreachSemanticReview(result, undefined)).toBe("outreach_semantic_review_required");
+    expect(validateOutreachSemanticReview(result, { digest: result.digest, checks: { ...passingOutreachChecks, evidence: "block" } }))
+      .toBe("outreach_semantic_review_not_passed");
+    for (const changed of [
+      { ...contract.opening.publicDetail, sourceClaim: "A different, unrecorded source claim." },
+      { ...contract.opening.publicDetail, source: "https://different.example/news" },
+      { claim: concise, source: contract.opening.publicDetail.source },
+    ]) {
+      expect(reviewOutreachDraft({ ...draft, contract: { ...contract, opening: { ...contract.opening, publicDetail: changed } } }).blockers)
+        .toContain("cold_detail_not_in_recorded_evidence");
+    }
+    expect(reviewOutreachDraft({ ...draft, body: outreachDraft.body }).blockers).toContain("review_anchor_missing_from_body");
+  });
+
   it.each(["inferred", "file:///private/research", "https://user:secret@facility.example/news", "javascript:alert(1)"])("requires a public-source URL: %s", (source) => {
     const contract = structuredClone(outreachContract);
     if (contract.opening.kind !== "cold") throw new Error("fixture must be cold");

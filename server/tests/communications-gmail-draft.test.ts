@@ -205,10 +205,50 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   const from=full.message.payload.headers.find((header:any)=>header.name==="From");from.value+=" attacker@example.reserved.invalid";
   await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");expect(api.users.drafts.send).not.toHaveBeenCalled();expect(api.users.messages.send).not.toHaveBeenCalled();
  });
+ it("writes clickable escaped HTML alongside exact canonical plain text and verifies both alternatives",async()=>{
+  const f=fixture();let full:any;
+  const api:any={users:{drafts:{create:vi.fn(async({requestBody}:any,options:any)=>{
+   expect(options.retry).toBe(false);
+   const raw=Buffer.from(requestBody.message.raw,"base64url").toString("utf8");
+   const at=raw.indexOf("\r\n\r\n"), headerText=raw.slice(0,at);
+   const headers=headerText.split("\r\n").map(line=>{const i=line.indexOf(":");return{name:line.slice(0,i),value:line.slice(i+1).trim()};});
+   const boundary=/boundary="([^"]+)"/.exec(headerText)![1];
+   const parts=raw.slice(at+4).split(`--${boundary}`).slice(1,-1).map(part=>{
+    const split=part.indexOf("\r\n\r\n"), mimeType=/Content-Type: ([^;]+)/.exec(part)![1];
+    return{mimeType,body:{data:Buffer.from(part.slice(split+4).trim(),"base64").toString("base64url")}};
+   });
+   full={id:"rich-draft",message:{id:"rich-message",threadId:"rich-thread",labelIds:["DRAFT"],payload:{mimeType:"multipart/alternative",headers,parts}}};
+   return{data:{id:full.id}};
+  }),get:vi.fn(async()=>({data:full})),send:vi.fn()},messages:{send:vi.fn()}}};
+  const ports=configuredGmailDraftPorts(api), content:any={jobId:f.job.jobId,reviewDigest:f.input.expectedReviewDigest,payloadDigest:"c".repeat(64),
+   to:f.payload.to,subject:f.payload.subject,body:f.payload.transportBody+"\n<unsafe>&\"'",messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`,mimeProfile:"multipart-alternative-v1"};
+  await ports.write(content);
+  const parts=full.message.payload.parts;
+  expect(Buffer.from(parts[0].body.data,"base64url").toString()).toBe(content.body);
+  const html=Buffer.from(parts[1].body.data,"base64url").toString();
+  expect(html).toContain('<a href="https://tryblueprint.io/">https://tryblueprint.io</a>');
+  expect(html).toContain("&lt;unsafe&gt;&amp;&quot;&#39;");expect(html).not.toContain("<unsafe>");
+  expect(html).toContain("If you’d rather I don’t follow up, just let me know.");expect(html).not.toContain("Unsubscribe from");
+  expect(await ports.find(content,full.id)).toMatchObject({draftId:full.id,mimeProfile:content.mimeProfile,htmlSha256:createHash("sha256").update(html).digest("hex")});
+  const original=structuredClone(full);
+  for(const change of ["html","plain","attachment","root_attachment","duplicate","recipient"]){
+   full=structuredClone(original);
+   if(change==="html")full.message.payload.parts[1].body.data=Buffer.from(html.replace("https://tryblueprint.io/","https://changed.example/")).toString("base64url");
+   if(change==="plain")full.message.payload.parts[0].body.data=Buffer.from(content.body+"\n").toString("base64url");
+   if(change==="attachment")full.message.payload.parts[1].body.attachmentId="hidden-attachment";
+   if(change==="root_attachment")full.message.payload.headers.push({name:"Content-Disposition",value:"attachment"});
+   if(change==="duplicate")full.message.payload.parts.push(structuredClone(parts[1]));
+   if(change==="recipient")full.message.payload.headers.push({name:"Cc",value:"extra@example.reserved.invalid"});
+   await expect(ports.find(content,full.id)).rejects.toThrow("readback_content_changed");
+  }
+  expect(api.users.drafts.create).toHaveBeenCalledOnce();expect(api.users.drafts.send).not.toHaveBeenCalled();expect(api.users.messages.send).not.toHaveBeenCalled();
+ });
  it("recovers a legacy unknown copy by exact recipient/subject and stable headers, refusing duplicates or incomplete inventory",async()=>{
   const f=fixture();let content:any;
   vi.mocked(f.ports.write).mockImplementationOnce(async value=>{content=structuredClone(value);throw new Error("legacy lost create acknowledgement");});
   await expect(mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"owner",f.input,f.ports,communicationsNow)).rejects.toThrow("unknown_acknowledgement");
+  // Retained pre-profile attempts remain exact text/plain observations.
+  delete content.mimeProfile; delete f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`).content.mimeProfile;
   const full:any={id:"existing-draft",message:{id:"existing-message",threadId:"existing-thread",labelIds:["DRAFT"],payload:{mimeType:"text/plain",body:{data:Buffer.from(content.body).toString("base64url")},headers:[
    {name:"From",value:"Nijel Hunt <nijel@tryblueprint.io>"},{name:"To",value:content.to},{name:"Reply-To",value:"nijel@tryblueprint.io"},{name:"Subject",value:content.subject},
    {name:"Message-ID",value:"<gmail-rewritten.20261002@mail.gmail.com>"},{name:"X-Blueprint-Job-ID",value:content.jobId},{name:"X-Blueprint-Review-Digest",value:content.reviewDigest},{name:"X-Blueprint-Payload-Digest",value:content.payloadDigest},

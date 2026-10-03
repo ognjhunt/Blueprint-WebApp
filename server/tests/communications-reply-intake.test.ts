@@ -144,7 +144,7 @@ describe("bound founder-thread reply intake (all providers mocked)", () => {
     // forbids drafting, but does not erase that recipient's opt-out.
     expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "blocked" }]);
     expect(f.replyJobs()).toHaveLength(0); expect(f.api.run).not.toHaveBeenCalled();
-    f.thread.messages[1].body = "Please unsubscribe us.";
+    f.thread.messages[1].body = "Please don’t follow up.";
     f.deps.readResearch.mockClear();
     expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "opted_out" }]);
     expect(f.deps.readResearch).not.toHaveBeenCalled(); expect(f.api.run).not.toHaveBeenCalled();

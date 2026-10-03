@@ -194,12 +194,24 @@ describe("bounded first-contact authority (all providers mocked)", () => {
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/firstContactAuthorities/${f.ledger.first_contact_authority_digest}`)).toEqual(f.ledger.first_contact_authority);
     expect(sendFounderMessage).not.toHaveBeenCalled();
     expect(f.payload.transportBody).toContain(SYNTHETIC_POSTAL_LINE);
-    expect(f.payload.transportBody).toContain("scope=all");
+    expect(new URL(f.payload.unsubscribeUrl).searchParams.get("scope")).toBe("all");
   });
   it("always adds the approved outreach postal/opt-out footer even if content mentions privacy and unsubscribe", () => {
     const body = "Public wording includes unsubscribe and /privacy";
     const text = appendFirstContactFooter(body, "ops@business.example");
-    expect(text).toContain(SYNTHETIC_POSTAL_LINE); expect(text).toContain("scope=all");
+    expect(text).toContain(SYNTHETIC_POSTAL_LINE);
+    expect(text).toContain("Blueprint: https://tryblueprint.io");
+    expect(text).toContain("If you’d rather I don’t follow up, just let me know.");
+    expect(text).not.toContain("Privacy:"); expect(text).not.toContain("Unsubscribe from");
+    expect(text).not.toContain("/api/growth/email/unsubscribe");
+  });
+  it("verifies the exact historical postal/privacy/URL footer without rewriting its authority", async () => {
+    const f = await setup();
+    f.payload.transportBody = appendFirstContactFooter(f.output.body, f.brief.contact.email, SYNTHETIC_POSTAL_LINE, true);
+    const legacy = firstContactAuthority(f.payload, communicationsNow);
+    expect(legacy).not.toBeNull(); expect(f.payload.transportBody).toContain("Privacy:");
+    expect(f.payload.transportBody).toContain("scope=all");
+    expect(verifyFirstContactAuthority(legacy, f.payload, communicationsNow)).not.toBeNull();
   });
   it("holds automatic authority when the owner-configured outreach address is missing", async () => {
     const f = await setup(); vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "");

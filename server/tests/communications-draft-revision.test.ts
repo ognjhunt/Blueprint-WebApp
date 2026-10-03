@@ -84,7 +84,7 @@ describe("authenticated draft revision", () => {
   it("repairs a legacy transport/footer mismatch only on an explicit save and retains its exact private history", async () => {
     const f = fixture(), ledger = f.db.records.get(f.ledgerPath);
     const previousPayload = structuredClone(ledger.action_payload);
-    previousPayload.transportBody = previousPayload.transportBody.replace("/privacy", "/old-privacy");
+    previousPayload.transportBody = appendFirstContactFooter(previousPayload.body, f.brief.contact.email, undefined, true).replace("/privacy", "/old-privacy");
     ledger.action_payload = previousPayload;
     const review = reviewCommunicationsPayload(previousPayload, communicationsNow);
     expect(review.blockers).toContain("transport_body_changed");
