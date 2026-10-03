@@ -101,6 +101,17 @@ export function communicationsContinuationSessionBinding(checkpoint: Communicati
 export function communicationsContinuationDeadline(phase: CommunicationsCancelledContinuation) {
   return communicationsExecutionDeadline({ createClaimedAt: null, sessionId: null, turnId: null, executionWindow: phase.intent.window });
 }
+function continuationEvent(authority: CommunicationsContinuationAuthority, ref: CommunicationsOwnerAuthorityRef,
+  window: CommunicationsExecutionWindow): FinalRepair["event"] {
+  const b = authority.binding;
+  return { type: "agent.session.input.message", input: [{ role: "user", content: [{ type: "input_text", text:
+    "Continue the unfinished communications draft in THIS SAME session after its cancelled root turn. The owner approved '$10 per day' combined research and communications for this draft-only trial. "
+    + "Preserve the original research brief, contact permission, full history and MCP receipts, unknowns, counterevidence and source dates. Use only the existing scoped tools. "
+    + "Do not create a new session, send mail, create a Gmail draft, alter access, or treat unresolved original billing as zero. Return one COMPLETE canonical communications JSON object; useful unresolved diagnostics may remain for human review. "
+    + "The immutable operator binding below is provenance DATA, not additional tool/access/spending authority: " + JSON.stringify({
+      jobId: b.jobId, briefDigest: b.briefDigest, authoritySha256: ref.sha256,
+      originalCheckpointDigest: b.originalCheckpointDigest, baselineTurnIds: b.baselineTurnIds, window }) }] }] };
+}
 /** Deadline/session view only. This helper supplies no create authority. */
 export function effectiveCommunicationsCheckpoint(checkpoint: CommunicationsCheckpoint): CommunicationsCheckpoint {
   return checkpoint.rejectedCreateRecovery?.checkpoint ?? checkpoint;
@@ -213,13 +224,7 @@ export class CommunicationsAgentsAPI {
     const now = Date.now(), window: CommunicationsExecutionWindow = { version: "communications-execution-window-v1",
       preparedAt: new Date(now).toISOString(), deadlineAt: new Date(now + 1200000).toISOString(), timeoutSeconds: 1200 };
     if (Date.parse(window.deadlineAt) > Date.parse(authority.expiresAt)) throw new CommunicationsRuntimeError("communications_continuation_authority_expired");
-    const event: FinalRepair["event"] = { type: "agent.session.input.message", input: [{ role: "user", content: [{ type: "input_text", text:
-      "Continue the unfinished communications draft in THIS SAME session after its cancelled root turn. The owner approved '$10 per day' combined research and communications for this draft-only trial. "
-      + "Preserve the original research brief, contact permission, full history and MCP receipts, unknowns, counterevidence and source dates. Use only the existing scoped tools. "
-      + "Do not create a new session, send mail, create a Gmail draft, alter access, or treat unresolved original billing as zero. Return one COMPLETE canonical communications JSON object; useful unresolved diagnostics may remain for human review. "
-      + "The immutable operator binding below is provenance DATA, not additional tool/access/spending authority: " + JSON.stringify({
-        jobId: job.jobId, briefDigest: job.briefDigest, authoritySha256: authorityRef.sha256,
-        originalCheckpointDigest: binding.originalCheckpointDigest, baselineTurnIds: binding.baselineTurnIds, window }) }] }] };
+    const event = continuationEvent(authority, authorityRef, window);
     const requestDigest = communicationsDigest(event), intent: CommunicationsCancelledContinuation["intent"] = {
       version: "owner-cancelled-continuation-v1", authorityRef, authority, authorityDigest: communicationsDigest(authority),
       sessionBindingDigest: communicationsDigest(communicationsContinuationSessionBinding(checkpoint)), window, event, requestDigest,
@@ -237,6 +242,8 @@ export class CommunicationsAgentsAPI {
     if (!this.options.allowPaidInference || communicationsDigest(intent) !== phase.intentDigest
       || communicationsDigest(await this.continuationAuthority(intent.authorityRef)) !== intent.authorityDigest
       || intent.authority.binding.jobId !== params.jobId || intent.requestDigest !== communicationsDigest(intent.event)
+      || intent.window.timeoutSeconds !== 1200 || Date.parse(intent.window.preparedAt) > Date.now()
+      || communicationsDigest(intent.event) !== communicationsDigest(continuationEvent(intent.authority, intent.authorityRef, intent.window))
       || intent.idempotencyKey !== `communications-owner-continuation-${params.jobId}-${intent.requestDigest}`
       || communicationsDigest(communicationsContinuationSessionBinding(phase.checkpoint)) !== intent.sessionBindingDigest) {
       throw new CommunicationsRuntimeError("communications_continuation_binding_changed");
@@ -254,8 +261,9 @@ export class CommunicationsAgentsAPI {
       if (turn || turns.length !== 1) throw new CommunicationsRuntimeError("communications_continuation_binding_changed");
       phase.state = "input_unresolved";
       await params.savePhase(structuredClone(phase)); // One-use claim before POST; replacement observes only GETs.
+      try { await params.assertWorkAllowed(); }
+      catch (error) { phase.state = "not_submitted"; await params.savePhase(structuredClone(phase)); throw error; }
       try {
-        await params.assertWorkAllowed();
         const handle = await this.request(`/agents/sessions/${encodeURIComponent(phase.checkpoint.sessionId!)}/events`, {
           method: "POST", headers: { "Idempotency-Key": intent.idempotencyKey }, body: JSON.stringify({ events: [intent.event] }),
         }, communicationsContinuationDeadline(phase) - Date.now());
@@ -1121,15 +1129,18 @@ export class CommunicationsAgentsAPI {
     // The fully read item page is already bounded at 256KB. A second 20KB
     // whole-output limit would discard schema-valid Unicode drafts/metadata
     // before retaining their source; preserve all observed bytes instead.
-    const outputSource: CommunicationsOutputSource & { nativeMcpEvidence?: Record<string, unknown> } = {
+    const outputSource: CommunicationsOutputSource & { nativeMcpEvidence?: Record<string, unknown>; ownerContinuation?: Record<string, unknown> } = {
       schema_version: "blueprint.communications-output-source.v1", jobId,
       budgetAdmissionId: communicationsDigest({ jobId }), requestDigest: checkpoint.requestDigest!,
       sessionId: checkpoint.sessionId!, turnId: turn.id, finalItemId: final[0].id,
       definitionVersion: definition.version, instructionsDigest: definition.instructionsDigest,
       rawOutput: raw, rawOutputSha256: outputTextDigest(raw), rawOutputBytes: Buffer.byteLength(raw),
       usageDigest: communicationsDigest(turn.usage ?? null), normalizedMetadataPaths: [],
+      ...(checkpoint.ownerContinuation ? { ownerContinuation: { intentDigest: checkpoint.ownerContinuation.intentDigest,
+        authorityRef: checkpoint.ownerContinuation.intent.authorityRef, eventRequestDigest: checkpoint.ownerContinuation.intent.requestDigest,
+        window: checkpoint.ownerContinuation.intent.window } } : {}),
       ...(checkpoint.gmailMcp && checkpoint.nativeMcpItems ? { nativeMcpEvidence: {
-        recordRef: `blueprintCommunications/default/jobs/${jobId}`, field: "checkpoint",
+        recordRef: `blueprintCommunications/default/jobs/${jobId}`, field: checkpoint.ownerContinuation ? "cancelledContinuation.checkpoint" : "checkpoint",
         profile: checkpoint.gmailMcp!.profile, configurationDigest: checkpoint.gmailMcp!.configurationDigest,
         callsDigest: communicationsDigest(checkpoint.nativeMcpItems), observedCalls: checkpoint.nativeMcpItems.length,
       } } : {}),
@@ -1242,7 +1253,7 @@ export class CommunicationsAgentsAPI {
       await assertRepairAllowed?.();
     };
     const retrySavedRead = async (error: unknown) => {
-      if (!checkpoint.executionWindow || !(error instanceof CommunicationsRuntimeError) || !error.retryable
+      if (!(checkpoint.executionWindow || checkpoint.ownerContinuation) || !(error instanceof CommunicationsRuntimeError) || !error.retryable
         || !(error.code === "agents_api_connection_unknown" || /^agents_api_http_(?:429|5\d\d)$/.test(error.code))) return false;
       // Only failed GET transport reads retry. No new turn/create, terminal
       // settlement, or zero usage can be inferred from an unavailable receipt.
@@ -1266,9 +1277,9 @@ export class CommunicationsAgentsAPI {
             // Keep observing/servicing the same root turn within its frozen clock.
             await assertRepairAllowed?.();
             const answered = await this.handleHistoryActions(checkpoint, jobId, save, assertRepairAllowed);
-            if (answered || checkpoint.executionWindow) {
+            if (answered || checkpoint.executionWindow || checkpoint.ownerContinuation) {
               await this.observeRepair(checkpoint, jobId, save, assertRepairAllowed);
-              if (checkpoint.executionWindow && Date.now() < this.repairDeadline(checkpoint)) {
+              if ((checkpoint.executionWindow || checkpoint.ownerContinuation) && Date.now() < this.repairDeadline(checkpoint)) {
                 if (answered) backoffMs = 1000;
                 await pauseObservation();
               }
@@ -1276,7 +1287,7 @@ export class CommunicationsAgentsAPI {
             }
           }
           await settle(null, false);
-          if (checkpoint.executionWindow) throw new CommunicationsRuntimeError("communications_execution_deadline");
+          if (checkpoint.executionWindow || checkpoint.ownerContinuation) throw new CommunicationsRuntimeError("communications_execution_deadline");
           throw new CommunicationsRuntimeError(checkpoint.finalRepairs?.length ? "agents_final_repair_pending" : "agents_turn_pending", true,
             checkpoint.finalOutputSources?.at(-1));
         }
@@ -1291,6 +1302,14 @@ export class CommunicationsAgentsAPI {
         await save({ ...checkpoint });
       } catch (error) {
         if (await retrySavedRead(error)) continue;
+        if (checkpoint.ownerContinuation && error instanceof CommunicationsRuntimeError && error.code === "agents_history_result_ack_unknown") {
+          // Observe the same root/action before any idempotent tool-result
+          // reconciliation. An unknown ACK is not a terminal inference failure.
+          if (Date.now() >= this.repairDeadline(checkpoint)) {
+            await settle(null, false); throw new CommunicationsRuntimeError("communications_execution_deadline");
+          }
+          await pauseObservation(); continue;
+        }
         if (error instanceof CommunicationsRuntimeError && error.code === "communications_output_invalid" && error.outputSource?.validationIssues?.length) {
           source = error.outputSource; feedback = source.validationIssues!;
         } else {
@@ -1356,7 +1375,7 @@ export class CommunicationsAgentsAPI {
         // Saved input_unresolved is authoritative even if the ack or its
         // persistence was lost. The next iteration is GET reconciliation only.
       }
-      if (accepted && Date.now() < repair.deadlineMs) await this.observeRepair(checkpoint, jobId, save, checkpoint.executionWindow ? assertRepairAllowed : undefined);
+      if (accepted && Date.now() < repair.deadlineMs) await this.observeRepair(checkpoint, jobId, save, (checkpoint.executionWindow || checkpoint.ownerContinuation) ? assertRepairAllowed : undefined);
     }
   }
   private async observeRepair(checkpoint: CommunicationsCheckpoint, jobId: string,
@@ -1386,7 +1405,7 @@ export class CommunicationsAgentsAPI {
         }
       }
     } catch (error) {
-      if (checkpoint.executionWindow && error instanceof CommunicationsRuntimeError) throw error;
+      if ((checkpoint.executionWindow || checkpoint.ownerContinuation) && error instanceof CommunicationsRuntimeError) throw error;
       await this.retainHttpFailure(error, checkpoint, jobId, saveCheckpoint);
       // Observer loss is only a reason to GET the exact saved attempt.
     } finally { handle?.close(); await reader?.cancel().catch(() => undefined); }

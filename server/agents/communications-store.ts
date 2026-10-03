@@ -261,18 +261,19 @@ export class CommunicationsStore {
     const ref = this.jobs().doc(jobId);
     return this.db.runTransaction(async tx => {
       const record = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
-      if (!record || record.state !== "blocked" || record.reason !== "agents_turn_cancelled"
+      if (!record || record.state !== "blocked" || (record.reason !== "agents_turn_cancelled" && !record.cancelledContinuation)
         || (record.lease?.until ?? 0) > this.now() || record.output || record.automationPolicyVersion
         || record.prospectId !== phase.intent.authority.binding.prospectId || record.briefDigest !== phase.intent.authority.binding.briefDigest
         || communicationsDigest(record.checkpoint) !== phase.intent.authority.binding.originalCheckpointDigest
         || phase.intent.authority.binding.jobId !== jobId || communicationsDigest(phase.intent) !== phase.intentDigest
+        || communicationsDigest(communicationsContinuationSessionBinding(phase.checkpoint)) !== phase.intent.sessionBindingDigest
         || communicationsContinuationDeadline(phase) <= this.now()
         || (record.cancelledContinuation && record.cancelledContinuation.intentDigest !== phase.intentDigest)
         || (await tx.get(this.db.collection("action_ledger").doc(`communications_${jobId}`))).exists) {
         throw new Error("communications_continuation_binding_changed");
       }
       await claimBudget(tx);
-      const lease = { owner: this.owner, until: Math.min(this.now() + 180000, communicationsContinuationDeadline(phase)) };
+      const lease = { owner: this.owner, until: this.now() + 180000 };
       tx.update(ref, { cancelledContinuation: phase, lease, updatedAt: this.now() });
       return { ...record, cancelledContinuation: phase, lease };
     });
@@ -299,13 +300,13 @@ export class CommunicationsStore {
       const phase = record?.cancelledContinuation;
       const normal = record?.state === "running" && !record.checkpoint.rejectedCreateRecovery
         && communicationsDigest(record.checkpoint.executionWindow ?? null) === communicationsDigest(executionWindow);
-      const continuation = record?.state === "blocked" && record.reason === "agents_turn_cancelled" && phase
+      const continuation = record?.state === "blocked" && phase
         && communicationsDigest(record.checkpoint) === phase.intent.authority.binding.originalCheckpointDigest
         && communicationsDigest(phase.intent) === phase.intentDigest
         && communicationsDigest(phase.intent.window) === communicationsDigest(executionWindow);
       if (!record || (!normal && !continuation) || record.lease?.owner !== this.owner || record.lease.until <= this.now()
         || Date.parse(executionWindow.deadlineAt) <= this.now()) throw new Error("communications_lease_lost");
-      const lease = { owner: this.owner, until: Math.min(this.now() + 180000, Date.parse(executionWindow.deadlineAt)) };
+      const lease = { owner: this.owner, until: this.now() + 180000 };
       tx.update(ref, { lease });
       return lease;
     });

@@ -116,3 +116,37 @@ export function memoryFirestore(records = new Map<string, any>()) {
   } };
   return db;
 }
+
+/** Synthetic owner direction/phase; never a production approval or credential. */
+export function cancelledContinuationFixture(now = communicationsNow) {
+  const f = communicationsFixture(), child: any = { createClaimedAt: new Date(now - 3600000).toISOString(),
+    sessionId: "cancelled-session", turnId: "cancelled-turn", requestDigest: "b".repeat(64),
+    historyProfile: "agent-history-v1", historyConfigurationDigest: "c".repeat(64),
+    finalRepairProfile: "same-session-final-v1", finalRepairSettled: true, gmailMcp: { synthetic: true } };
+  const checkpoint: any = { createClaimedAt: child.createClaimedAt, sessionId: null, turnId: null, requestDigest: "a".repeat(64),
+    rejectedCreateRecovery: { checkpoint: child } };
+  const authority: any = { version: "blueprint.communications-cancelled-continuation-authority.v1", owner: "Nijel Hunt",
+    direction: { kind: "direct_current_chat_human_reply", questionItemId: ["request_user_input_async", "call_synthetic", 0],
+      question: "What combined daily spending limit do you want for research and communications while we prove the draft-only end-to-end loop? I’m fixing the timeout independently; no sends are included.",
+      answer: "$10 per day", messageId: null }, approvedAt: new Date(now - 1000).toISOString(), expiresAt: new Date(now + 86400000).toISOString(),
+    binding: { jobId: f.job.jobId, prospectId: f.job.prospectId, briefDigest: f.job.briefDigest, originalCheckpointDigest: communicationsDigest(checkpoint),
+      sessionId: child.sessionId, originalRequestDigest: checkpoint.requestDigest, correctedRequestDigest: child.requestDigest,
+      baselineTurnIds: [child.turnId], terminalReceiptSha256: "d".repeat(64) },
+    allocation: { timezone: "America/Chicago", maxCombinedDailyUsd: 10, researchReservationUsd: 5, communicationsReservationUsd: 5,
+      originalUnknownPolicyReservationUsd: 1, correctedKnownModelMicros: 55334 },
+    scope: { draftOnly: true, sendsAuthorized: false, schedulesEnabled: false, newSessionsAuthorized: false, accessChangesAuthorized: false,
+      existingHistoryBindingDigest: "e".repeat(64), existingMcpDigest: communicationsDigest(child.gmailMcp) },
+    provenance: { originalUsageState: "unresolved", knownCostBasis: "recorded_provider_usage_model_estimate_not_invoice", terminalReceiptGeneration: "1" } };
+  const bytes = Buffer.from(JSON.stringify(authority)), ref = { uri: "gs://blueprint-8c1ca.appspot.com/operations/recovery/synthetic/agent-e2e-daily-budget-owner-direction.json",
+    generation: "1", sha256: requireHash(bytes) };
+  const intent: any = { version: "owner-cancelled-continuation-v1", authorityRef: ref, authority, authorityDigest: communicationsDigest(authority),
+    sessionBindingDigest: communicationsDigest({ createClaimedAt: child.createClaimedAt, sessionId: child.sessionId,
+      requestDigest: child.requestDigest, historyProfile: child.historyProfile, historyConfigurationDigest: child.historyConfigurationDigest,
+      gmailMcp: child.gmailMcp, executionWindow: null, finalRepairProfile: child.finalRepairProfile }),
+    window: { version: "communications-execution-window-v1", preparedAt: new Date(now).toISOString(),
+      deadlineAt: new Date(now + 1200000).toISOString(), timeoutSeconds: 1200 },
+    event: { type: "agent.session.input.message", input: [{ role: "user", content: [{ type: "input_text", text: "Synthetic continuation" }] }] },
+    requestDigest: "0".repeat(64), idempotencyKey: "synthetic-only" };
+  const phase: any = { intent, intentDigest: communicationsDigest(intent), state: "prepared", checkpoint: { ...child, turnId: null } };
+  return { ...f, child, checkpoint, authority, bytes, ref, phase };
+}

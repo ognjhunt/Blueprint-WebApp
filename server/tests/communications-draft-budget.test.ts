@@ -1,15 +1,71 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
-import { memoryFirestore, communicationsNow, communicationsFixture } from "./fixtures/communications";
+import { memoryFirestore, communicationsNow, communicationsFixture, cancelledContinuationFixture } from "./fixtures/communications";
 import { reserveCommunicationsDraft, recordCommunicationsDraftUsage, reconcileCommunicationsDraftCost, estimatedDraftMicros,
   COMMUNICATIONS_DRAFT_BUDGET, configuredCommunicationsDraftBudget, reconcileCommunicationsDraftSession,
-  claimCommunicationsRejectedCreateDraftBudget, type CommunicationsRejectedCreateDraftBudgetClaim } from "../agents/communications-draft-budget";
+  claimCommunicationsRejectedCreateDraftBudget, claimCommunicationsCancelledContinuationBudget,
+  assertCommunicationsContinuationBudget, type CommunicationsRejectedCreateDraftBudgetClaim } from "../agents/communications-draft-budget";
 import { communicationsDigest } from "../agents/communications-contract";
 import { CommunicationsStore } from "../agents/communications-store";
 const root = "blueprintCommunications/default", digest = "a".repeat(64);
 const usage = { input_tokens: 1000, output_tokens: 200, total_tokens: 1200,
   input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 100 } };
+
+describe("one owner-authorized phase inside the existing unresolved hold", () => {
+  function continuationBudget() {
+    const f = cancelledContinuationFixture(), db = memoryFirestore(), id = communicationsDigest({ jobId: f.job.jobId });
+    const policy = { ...COMMUNICATIONS_DRAFT_BUDGET, softTargetUsd: 1 };
+    const path = `${root}/draftBudgetAdmissions/${id}`, day = "2026-09-30";
+    db.records.set(path, { jobId: f.job.jobId, requestDigest: f.checkpoint.requestDigest, policy, policyDigest: communicationsDigest(policy),
+      state: "usage_unknown", usageState: "unresolved", originalUsageState: "unresolved", correctedCreate: {
+        requestDigest: f.child.requestDigest, policy, policyDigest: communicationsDigest(policy), claimDigest: "c".repeat(64),
+        day, state: "usage_recorded", usageState: "best_effort_not_invoice", estimatedModelMicros: 55334 } });
+    db.records.set(`${root}/draftBudgetState/current`, { activeAdmissionId: id });
+    db.records.set(`${root}/draftBudgetDays/${day}`, { admissions: 2, estimatedModelMicros: 55334 });
+    db.records.set("blueprintDailyResearch/sites-first", { enabled: false, config: { enabled: false, soft_target_usd: 5,
+      recurring_budget_authority_reference: "retained-synthetic-research-authority" } });
+    const claim = () => db.runTransaction((tx: any) => claimCommunicationsCancelledContinuationBudget(db, tx, f.phase, communicationsNow));
+    return { ...f, db, id, path, day, claim };
+  }
+  it("reserves 3.944666 additional soft dollars once without clearing/refunding original unknown cost", async () => {
+    const f = continuationBudget(), original = structuredClone(f.db.records.get(f.path));
+    await Promise.all([f.claim(), f.claim()]);
+    expect(f.db.records.get(f.path)).toMatchObject({ ...original, cancelledContinuation: {
+      additionalAllowanceMicros: 3944666, baselineModelMicros: 55334, originalUnknownPolicyReservationUsd: 1,
+      researchReservationUsd: 5, accountingComplete: false, invoiceVerified: false } });
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).admissions).toBe(3);
+    expect(f.db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(f.id);
+    await expect(reserveCommunicationsDraft(f.db, "other", digest, communicationsNow)).rejects.toThrow("cost_unresolved");
+    await assertCommunicationsContinuationBudget(f.db, f.phase, communicationsNow);
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(55334);
+  });
+  it.each(["unknown_baseline", "wrong_original", "other_hold", "research_enabled", "research_target", "daily_ceiling", "wrong_day"])("refuses %s before a phase claim", async kind => {
+    const f = continuationBudget(), row = f.db.records.get(f.path);
+    if (kind === "unknown_baseline") delete row.correctedCreate.estimatedModelMicros;
+    if (kind === "wrong_original") row.requestDigest = "9".repeat(64);
+    if (kind === "other_hold") f.db.records.set(`${root}/draftBudgetAdmissions/other`, { state: "usage_unknown" });
+    if (kind === "research_enabled") f.db.records.get("blueprintDailyResearch/sites-first").enabled = true;
+    if (kind === "research_target") f.db.records.get("blueprintDailyResearch/sites-first").config.soft_target_usd = 6;
+    if (kind === "daily_ceiling") f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros = 4000000;
+    if (kind === "wrong_day") row.correctedCreate.day = "2026-09-29";
+    await expect(f.claim()).rejects.toThrow();
+    expect(f.db.records.get(f.path).cancelledContinuation).toBeUndefined();
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).admissions).toBe(2);
+  });
+  it("accounts cumulative accepted-session usage without double-counting baseline or resolving original400", async () => {
+    const f = continuationBudget(); await f.claim();
+    const cumulative = { input_tokens: 300000, output_tokens: 10000, total_tokens: 310000 };
+    await recordCommunicationsDraftUsage(f.db, f.job.jobId, f.child.requestDigest, cumulative, communicationsNow);
+    const amount = estimatedDraftMicros(cumulative)!;
+    expect(f.db.records.get(f.path)).toMatchObject({ state: "usage_unknown", originalUsageState: "unresolved", knownTotalIsComplete: false,
+      cancelledContinuation: { additionalEstimatedModelMicros: amount - 55334, cumulativeAcceptedSessionModelMicros: amount, accountingComplete: false } });
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(amount);
+    await recordCommunicationsDraftUsage(f.db, f.job.jobId, f.child.requestDigest, null, communicationsNow);
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(amount);
+    expect(f.db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(f.id);
+  });
+});
 // Hermetic test targets below are invented fixtures, unrelated to any owner
 // approval or production configuration. They are never used to enable spending.
 beforeEach(() => vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "2.5"));
