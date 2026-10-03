@@ -56,3 +56,45 @@ existing same-job operator retry after dependency repair. It reuses the same
 reserved admission without counting twice and does not clear another job's
 unknown-cost hold. A claimed create without a known session must instead use
 verified existing-session recovery and must never repeat creation.
+
+## Owner-authorized continuation of a cancelled draft
+
+`continueCancelledCommunicationsJob(jobId, authorityRef, deps)` is an existing
+worker operator entry, separate from recurring admission. `authorityRef` holds
+the canonical company GCS URI, generation and raw SHA-256 of the retained
+`blueprint.communications-cancelled-continuation-authority.v1` direct owner
+direction. The API's trusted `loadContinuationAuthority` callback downloads
+that generation in place; the API rehashes the bytes and checks the recorded
+human direction, expiry, full original checkpoint, session, brief, history and
+MCP bindings. The recurring worker has no loader or continuation invocation.
+
+The existing cancelled root must be the sole original root. A separate
+`job.cancelledContinuation` intent freezes one user-input event, idempotency key
+and twenty-minute window. It leases the same job and reserves inside its existing
+budget admission before submission. All original checkpoints, request digests,
+three-attempt history and first-touch claims remain unchanged. The old session's
+metadata is checked against its original clock and configuration; the new phase
+clock is proved by its exact saved user message and new root turn. A claimed
+input with unknown acknowledgement is reconciled with GETs and never repeated.
+The existing same-session output validation permits at most two bound formatting
+corrections within this phase; scoped history results use the same durable
+receipts and current-access checks. A lease watchdog cancels only the observed
+owned session when its new phase deadline expires.
+
+Workers, research control and automatic delivery remain stopped. Current
+research publication, contact permission, suppression and scope are rechecked
+before further work. The owner's combined $10/day direction is allocated as
+$5 research reservation and $5 communications reservation by operator policy,
+not a quoted owner allocation. The communications reservation includes the
+retained original $1 policy exposure and known accepted-session usage. The
+original HTTP400 cost remains unknown, globally held and never refunded. The
+remaining allowance and token usage are soft admission/estimates, not proof of
+an invoice or a hard billing cap. This bounded continuation currently requires
+the accepted session's original Chicago accounting day; it does not activate
+future recurring admissions or clear their unresolved-cost gate.
+
+Valid output enters the same pending human-review ledger. No new session,
+Gmail draft copy, send, access grant, scheduler activation or original deadline
+rewrite occurs. Missing terminal usage stays unknown. Canonical recovery remains
+the existing Firestore job/admission and immutable private-evidence export,
+with the authority URI/generation/hash and phase intent digest retained there.

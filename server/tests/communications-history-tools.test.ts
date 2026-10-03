@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ run: vi.fn(), objects: new Map<string, string>(), generation: "1", learning:null as any }));
 vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{doc:()=>({get:async()=>({data:()=>({learning:mocks.learning})})})}}));
 vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => ({
@@ -9,7 +9,7 @@ vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () =
   info: async (name: string) => mocks.objects.has(name) ? { generation: mocks.generation, size: Buffer.byteLength(mocks.objects.get(name)!) } : null,
 }) }));
 vi.mock("../research-learning/company-history", () => ({ runCompanyHistoryTool: mocks.run }));
-import { CommunicationsAgentsAPI, type CommunicationsCheckpoint } from "../agents/communications-api";
+import { CommunicationsAgentsAPI, CommunicationsRuntimeError, type CommunicationsCheckpoint } from "../agents/communications-api";
 import { communicationsDigest, COMMUNICATIONS_MODEL } from "../agents/communications-contract";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
   COMMUNICATIONS_HISTORY_PROFILE, COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST,
@@ -21,7 +21,9 @@ import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
   COMMUNICATIONS_MCP_VAULT_READ_PROFILE, resolveCommunicationsMcpVaultBinding, communicationsMcpVaultIds,
   verifiedCommunicationsCurrentSavedAgent } from "../agents/communications-saved-agent";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
-import { communicationsFixture } from "./fixtures/communications";
+import { cancelledContinuationFixture, communicationsFixture } from "./fixtures/communications";
+import { getCompanyHistoryAccess } from "../agents/operator-tools";
+import { outputTextDigest } from "../agents/communications-output";
 
 // Safe metadata shape retained from the owner's GET; no token or inline auth.
 const ownerGmailTool = { type: "mcp", server_label: "gmail",
@@ -129,6 +131,134 @@ beforeEach(() => {
   mocks.run.mockImplementation(async (name: string) => name === "search_company_history"
     ? { ok: true, rows: [{ record_id: "history:chosen", source_ref: "company-owned/source", original_checked_at: "2026-10-01" }], next_cursor: null, coverage: ["crm"], semantic: { status: "not_authorized" } }
     : { ok: true, record: { record_id: "history:chosen", source_sha256: "a".repeat(64), content: { evidence: "chosen original" } } });
+});
+
+describe("owner-authorized cancelled same-session continuation", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime("2026-10-03T00:45:00Z"); });
+  afterEach(() => vi.useRealTimers());
+  async function cancelled(options: { unknownAck?: boolean; historyAckUnknown?: boolean; historyAckAtDeadline?: boolean; tamper?: "message" | "extra_turn"; usageUnknown?: boolean } = {}) {
+    const f = cancelledContinuationFixture(Date.now()), saved = { id: COMMUNICATIONS_SAVED_AGENT_ID,
+      ...structuredClone(COMMUNICATIONS_SAVED_CONFIGURATION), tools: [structuredClone(ownerGmailTool)] };
+    const mcp = verifiedCommunicationsCurrentSavedAgent(saved).gmailMcp!;
+    Object.assign(f.child, { gmailMcp: mcp, historyConfigurationDigest: mcp.configurationDigest, initialTurnId: "cancelled-turn" });
+    f.authority.binding.originalCheckpointDigest = communicationsDigest(f.checkpoint);
+    f.authority.scope.existingMcpDigest = communicationsDigest(mcp);
+    f.authority.scope.existingHistoryBindingDigest = communicationsDigest(await getCompanyHistoryAccess({ kind: "outbound_outreach" }));
+    const raw = Buffer.from(JSON.stringify(f.authority)), ref = { ...f.ref, sha256: outputTextDigest(raw.toString()) };
+    let posted = false, event: any, latest: any, failRead = false, historyAnswered = false;
+    const usage = { input_tokens: 100, output_tokens: 10, total_tokens: 110 };
+    const fetch = vi.fn(async (url: any, init: RequestInit = {}) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith("/events")) {
+        if (init.method === "POST") {
+          const submitted = JSON.parse(String(init.body)).events[0];
+          if (submitted.type === "agent.session.input.tool_result") {
+            historyAnswered = true;
+            if (options.historyAckAtDeadline) vi.setSystemTime(Date.parse(latest.intent.window.deadlineAt));
+            throw new Error("synthetic history ACK loss");
+          }
+          expect(latest.state).toBe("input_unresolved");
+          event = submitted; posted = true;
+          if (options.unknownAck) throw new Error("synthetic lost ACK");
+        }
+        return new Response("");
+      }
+      if (failRead) throw new CommunicationsRuntimeError("communications_lease_lost");
+      if (path.endsWith("/cancelled-session")) return Response.json({ id: "cancelled-session", status: options.historyAckUnknown && posted && !historyAnswered ? "requires_action" : "idle",
+        required_actions: options.historyAckUnknown && posted && !historyAnswered ? [{ type: "function_call", call_id: "continuation-history",
+          turn_id: "continued-turn", name: "search_company_history", arguments: { query: "prior contact" } }] : [],
+        agent: { id: COMMUNICATIONS_SAVED_AGENT_ID, ...mcp.configuration }, vault_ids: [], environment: { type: "none" }, metadata: {
+          role: "communications", blueprint_communications_job: f.job.jobId, blueprint_communications_request_digest: f.child.requestDigest,
+          blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
+          blueprint_communications_configuration_digest: mcp.savedConfigurationDigest,
+          blueprint_communications_history_profile: "agent-history-v1", blueprint_communications_history_configuration_digest: mcp.configurationDigest,
+          blueprint_communications_mcp_profile: mcp.profile, blueprint_communications_final_repair_profile: "same-session-final-v1" } });
+      if (path.endsWith("/turns")) return Response.json({ data: [{ id: "cancelled-turn", agent_id: COMMUNICATIONS_SAVED_AGENT_ID,
+        status: "cancelled", usage }, ...(posted ? [{ id: "continued-turn", agent_id: COMMUNICATIONS_SAVED_AGENT_ID,
+          status: options.historyAckUnknown && !historyAnswered ? "waiting" : "completed",
+          ...(options.usageUnknown ? {} : { usage }) }] : []), ...(posted && options.tamper === "extra_turn"
+          ? [{ id: "unbound-turn", agent_id: COMMUNICATIONS_SAVED_AGENT_ID, status: "completed", usage }] : [])], has_more: false });
+      if (path.endsWith("/items")) return Response.json({ data: posted ? [
+        { id: "owner-input", turn_id: "continued-turn", type: "message", role: "user", content: options.tamper === "message"
+          ? [{ type: "input_text", text: "different owner text" }] : event.input[0].content },
+        { id: "continued-final", turn_id: "continued-turn", type: "message", role: "assistant", phase: "final_answer", status: "completed",
+          content: [{ type: "output_text", text: JSON.stringify(f.output) }] }] : [], has_more: false });
+      throw new Error("unexpected synthetic provider path");
+    });
+    const load = vi.fn(async () => ({ bytes: raw, generation: ref.generation })), record = vi.fn(async () => undefined), reserve = vi.fn();
+    const api = new CommunicationsAgentsAPI({ apiKey: "synthetic-never-real", allowPaidInference: true, fetch: fetch as any,
+      loadContinuationAuthority: load, recordPaidDraftUsage: record, reservePaidDraft: reserve });
+    const phase = await api.prepareCancelledContinuation({ ...f.job, checkpoint: f.checkpoint }, ref);
+    latest = structuredClone(phase);
+    const persist = async (value: any) => { latest = structuredClone(value); };
+    const params = () => ({ jobId: f.job.jobId, phase: structuredClone(latest), savePhase: persist, assertWorkAllowed: async () => undefined });
+    return { ...f, api, phase, ref, raw, load, fetch, record, reserve, params, latest: () => latest,
+      failRead: () => { failRead = true; }, restoreRead: () => { failRead = false; } };
+  }
+  it("binds one new root and cumulative terminal usage without adding a window to original provider metadata", async () => {
+    const f = await cancelled(), original = structuredClone(f.checkpoint);
+    const result = await f.api.continueCancelled(f.params());
+    expect(result.output).toEqual(f.output); expect(result.usage).toMatchObject({ input_tokens: 200, output_tokens: 20, total_tokens: 220 });
+    expect(f.checkpoint).toEqual(original); expect(f.latest().checkpoint.ownerContinuation).toBeUndefined();
+    expect(f.latest()).toMatchObject({ state: "submitted", turnId: "continued-turn", checkpoint: { finalRepairSettled: true } });
+    const posts = f.fetch.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(posts).toHaveLength(1); expect(String(posts[0][0])).toContain("/cancelled-session/events");
+    expect(f.reserve).not.toHaveBeenCalled(); expect(f.record).toHaveBeenLastCalledWith(f.job.jobId, f.child.requestDigest,
+      { input_tokens: 200, output_tokens: 20, total_tokens: 220 });
+    expect((result.outputSource as any).ownerContinuation.intentDigest).toBe(f.phase.intentDigest);
+  });
+  it("GET-reconciles an accepted unknown ACK, never repeating the claimed user input", async () => {
+    const f = await cancelled({ unknownAck: true });
+    await f.api.continueCancelled(f.params());
+    expect(f.latest().state).toBe("input_unresolved");
+    await f.api.continueCancelled(f.params());
+    expect(f.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+    expect(f.latest().turnId).toBe("continued-turn");
+  });
+  it("observes a history-result unknown ACK before settling, keeping the root pending and original checkpoint intact", async () => {
+    const f = await cancelled({ historyAckUnknown: true }), running = f.api.continueCancelled(f.params());
+    await vi.advanceTimersByTimeAsync(1000);
+    const result = await running;
+    expect(result.output).toEqual(f.output);
+    expect(f.latest().checkpoint.historyToolReceipts).toMatchObject([{ callId: "continuation-history", delivery: "ack_unknown" }]);
+    expect(f.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2); // One owner input + one exact tool result.
+    expect(f.latest().checkpoint.finalRepairSettled).toBe(true);
+  });
+  it("keeps an unknown history ACK at deadline pending and usage null for the owned watchdog/GET recovery", async () => {
+    const f = await cancelled({ historyAckUnknown: true, historyAckAtDeadline: true });
+    await expect(f.api.continueCancelled(f.params())).rejects.toThrow("communications_execution_deadline");
+    expect(f.latest().checkpoint.finalRepairSettled).toBe(false);
+    expect(f.record).toHaveBeenLastCalledWith(f.job.jobId, f.child.requestDigest, null);
+    expect(f.latest().checkpoint.historyToolReceipts).toMatchObject([{ delivery: "ack_unknown" }]);
+    expect(f.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
+  });
+  it.each(["message", "extra_turn"] as const)("refuses %s rather than binding unrelated paid work", async tamper => {
+    const f = await cancelled({ tamper });
+    await expect(f.api.continueCancelled(f.params())).rejects.toThrow(tamper === "message" ? "message_proof_mismatch" : "root_turn_ambiguous");
+    expect(f.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+    expect(f.latest().checkpoint.finalRepairSettled).toBe(false);
+  });
+  it("retains missing terminal usage as unknown, never the original baseline alone", async () => {
+    const f = await cancelled({ usageUnknown: true }), result = await f.api.continueCancelled(f.params());
+    expect(result.usage).toBeNull(); expect(f.record).toHaveBeenLastCalledWith(f.job.jobId, f.child.requestDigest, null);
+  });
+  it.each(["raw_hash", "generation", "expired", "scope", "checkpoint", "window"])("refuses changed %s before POST", async kind => {
+    const f = await cancelled(), p = f.params();
+    if (kind === "raw_hash") f.load.mockResolvedValue({ bytes: Buffer.from("{}"), generation: "1" });
+    if (kind === "generation") f.load.mockResolvedValue({ bytes: f.raw, generation: "2" });
+    if (kind === "expired") vi.setSystemTime(Date.parse(f.authority.expiresAt));
+    if (kind === "scope") p.phase.intent.authority.scope.sendsAuthorized = true;
+    if (kind === "checkpoint") p.phase.checkpoint.requestDigest = "9".repeat(64);
+    if (kind === "window") p.phase.intent.window.timeoutSeconds = 3600;
+    await expect(f.api.continueCancelled(p)).rejects.toThrow();
+    expect(f.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  });
+  it("records a known pre-POST lease refusal as not submitted, with no paid work", async () => {
+    const f = await cancelled(), p = f.params(); let checks = 0;
+    p.assertWorkAllowed = async () => { if (++checks === 2) throw new CommunicationsRuntimeError("communications_lease_lost"); };
+    await expect(f.api.continueCancelled(p)).rejects.toThrow("lease_lost");
+    expect(f.latest().state).toBe("not_submitted"); expect(f.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  });
 });
 
 describe("prospective communications Gmail and Notion read binding", () => {

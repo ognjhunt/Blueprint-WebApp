@@ -2,13 +2,16 @@
 import { createHash } from "node:crypto";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
-import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
+const continuationMocks = vi.hoisted(() => ({ access: null as any }));
+vi.mock("../agents/operator-tools", async importOriginal => ({ ...await importOriginal<typeof import("../agents/operator-tools")>(),
+  getCompanyHistoryAccess: async () => continuationMocks.access }));
+import { communicationsFixture, communicationsNow, memoryFirestore, cancelledContinuationFixture } from "./fixtures/communications";
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
-import { processCommunicationsJob, recoverRejectedCommunicationsCreate, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
+import { processCommunicationsJob, recoverRejectedCommunicationsCreate, continueCancelledCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { CommunicationsRuntimeError, type CommunicationsAgentsAPI } from "../agents/communications-api";
-import { reserveCommunicationsDraft, reconcileCommunicationsDraftSession } from "../agents/communications-draft-budget";
+import { reserveCommunicationsDraft, reconcileCommunicationsDraftSession, COMMUNICATIONS_DRAFT_BUDGET } from "../agents/communications-draft-budget";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 
 async function setup(intent: "outreach" | "reply" = "outreach", now = () => communicationsNow) {
@@ -33,6 +36,88 @@ async function setup(intent: "outreach" | "reply" = "outreach", now = () => comm
   return { ...fixture, job, db, store, deps, install };
 }
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); });
+
+describe("same-job cancelled continuation worker", () => {
+  async function cancelledJob() {
+    const f = await setup("outreach", () => Date.now()), c = cancelledContinuationFixture(Date.now());
+    continuationMocks.access = { expiresAt: c.authority.expiresAt, syntheticReadScope: "unchanged" };
+    c.authority.scope.existingHistoryBindingDigest = communicationsDigest(continuationMocks.access);
+    c.phase.intent.authorityDigest = communicationsDigest(c.authority); c.phase.intentDigest = communicationsDigest(c.phase.intent);
+    const path = `${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`, id = communicationsDigest({ jobId: f.job.jobId });
+    f.db.records.set(path, { ...f.job, state: "blocked", reason: "agents_turn_cancelled", attempts: 3, checkpoint: c.checkpoint,
+      lease: { owner: "prior-owner", until: 0 } });
+    const policy = { ...COMMUNICATIONS_DRAFT_BUDGET, softTargetUsd: 1 };
+    f.db.records.set(`${COMMUNICATIONS_ROOT}/draftBudgetAdmissions/${id}`, { jobId: f.job.jobId, requestDigest: c.checkpoint.requestDigest,
+      state: "usage_unknown", usageState: "unresolved", originalUsageState: "unresolved", policy, policyDigest: communicationsDigest(policy),
+      correctedCreate: { requestDigest: c.child.requestDigest, day: "2026-09-30", estimatedModelMicros: 55334,
+        usageState: "best_effort_not_invoice", policy, policyDigest: communicationsDigest(policy) } });
+    f.db.records.set(`${COMMUNICATIONS_ROOT}/draftBudgetDays/2026-09-30`, { admissions: 2, estimatedModelMicros: 55334 });
+    f.db.records.set(`${COMMUNICATIONS_ROOT}/draftBudgetState/current`, { activeAdmissionId: id });
+    f.db.records.set("blueprintDailyResearch/sites-first", { enabled: false, config: { enabled: false, soft_target_usd: 5,
+      recurring_budget_authority_reference: "synthetic-retained-research" } });
+    for (const key of ["BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED", "BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED"]) vi.stubEnv(key, "false");
+    const prepareCancelledContinuation = vi.fn(async () => structuredClone(c.phase));
+    const complete = async (p: any) => {
+      await p.assertWorkAllowed();
+      await p.savePhase({ ...p.phase, state: "submitted", turnId: "continued-turn", checkpoint: { ...p.phase.checkpoint, turnId: "continued-turn" } });
+      return { output: f.output, checkpoint: c.child, usage: null };
+    };
+    const continueCancelled = vi.fn(complete), learning = { afterNativeWork: vi.fn(async () => undefined), prepareNativeJob: vi.fn() };
+    const deps = { ...f.deps, api: { ...f.deps.api, prepareCancelledContinuation, continueCancelled }, learningHooks: learning as any };
+    return { ...f, c, path, id, deps, complete, continueCancelled, prepareCancelledContinuation, learning };
+  }
+  it("preserves all three attempts/checkpoints/first-touch bytes and commits a human-review draft only", async () => {
+    const f = await cancelledJob(), original = structuredClone(f.db.records.get(f.path).checkpoint);
+    const touch = structuredClone(f.db.records.get(`${COMMUNICATIONS_ROOT}/firstTouches/${communicationsDeliveryKey(f.job)}`));
+    const result = await continueCancelledCommunicationsJob(f.job.jobId, f.c.ref, f.deps);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false, gmailDraftCreated: false });
+    expect(f.db.records.get(f.path)).toMatchObject({ state: "pending_approval", attempts: 3, checkpoint: original,
+      cancelledContinuation: { state: "submitted", turnId: "continued-turn" } });
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/firstTouches/${communicationsDeliveryKey(f.job)}`)).toEqual(touch);
+    expect(f.db.records.get(`action_ledger/${(result as any).ledgerId}`)).toMatchObject({ status: "pending_approval", approved_by: null, sent_at: null });
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/draftBudgetState/current`).activeAdmissionId).toBe(f.id);
+    expect(f.deps.api.run).not.toHaveBeenCalled(); expect(f.deps.api.cancel).not.toHaveBeenCalled();
+    expect(f.learning.prepareNativeJob).not.toHaveBeenCalled(); expect(f.learning.afterNativeWork).toHaveBeenCalledOnce();
+    expect((await continueCancelledCommunicationsJob(f.job.jobId, f.c.ref, f.deps)).state).toBe("no_op");
+    expect(f.continueCancelled).toHaveBeenCalledOnce();
+  });
+  it("renews the same lease past three minutes without changing the frozen twenty-minute phase or old checkpoint", async () => {
+    const f = await cancelledJob(); let release!: () => void;
+    const wait = new Promise<void>(resolve => { release = resolve; });
+    f.continueCancelled.mockImplementation(async p => { await wait; return f.complete(p); });
+    const running = continueCancelledCommunicationsJob(f.job.jobId, f.c.ref, f.deps);
+    await vi.advanceTimersByTimeAsync(240000);
+    const active = f.db.records.get(f.path);
+    expect(active.lease.until).toBeGreaterThan(Date.now()); expect(active.attempts).toBe(3);
+    expect(active.checkpoint).toEqual(f.c.checkpoint); expect(active.cancelledContinuation.intent.window).toEqual(f.c.phase.intent.window);
+    release(); expect((await running).state).toBe("pending_approval");
+  });
+  it("refuses a delayed prepared snapshot after the one-use phase advanced, without overwriting its claim or lease", async () => {
+    const f = await cancelledJob(), budget = vi.fn(async () => undefined), stale = structuredClone(f.c.phase);
+    await f.store.claimCancelledContinuation(f.job.jobId, stale, budget);
+    await f.store.updateCancelledContinuation(f.job.jobId, { ...stale, state: "input_unresolved" });
+    f.db.records.get(f.path).lease.until = 0; // Prior observer crashed; its input claim survives.
+    const current = structuredClone(f.db.records.get(f.path)); budget.mockClear();
+    await expect(f.store.claimCancelledContinuation(f.job.jobId, stale, budget)).rejects.toThrow("continuation_binding_changed");
+    expect(f.db.records.get(f.path)).toEqual(current); expect(budget).not.toHaveBeenCalled();
+  });
+  it.each(["worker_enabled", "changed_checkpoint", "suppressed", "history_changed", "lost_lease"])("refuses %s without replacing checkpoints or committing a draft", async kind => {
+    const f = await cancelledJob();
+    if (kind === "worker_enabled") vi.stubEnv("BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED", "true");
+    if (kind === "changed_checkpoint") f.db.records.get(f.path).checkpoint.requestDigest = "9".repeat(64);
+    if (kind === "suppressed") f.deps.isSuppressed.mockResolvedValue(true);
+    if (kind === "history_changed") continuationMocks.access.syntheticReadScope = "changed";
+    if (kind === "lost_lease") f.continueCancelled.mockImplementation(async p => {
+      f.db.records.get(f.path).lease.owner = "different-owner"; return f.complete(p);
+    });
+    const original = structuredClone(f.db.records.get(f.path).checkpoint);
+    if (["worker_enabled", "changed_checkpoint", "lost_lease"].includes(kind)) await expect(continueCancelledCommunicationsJob(f.job.jobId, f.c.ref, f.deps)).rejects.toThrow();
+    else expect((await continueCancelledCommunicationsJob(f.job.jobId, f.c.ref, f.deps)).state).toBe("blocked");
+    expect(f.db.records.get(f.path).checkpoint).toEqual(original); expect(f.db.records.get(f.path).attempts).toBe(3);
+    expect([...f.db.records.keys()].filter(path => path.startsWith("action_ledger/"))).toHaveLength(0);
+    expect(f.deps.api.run).not.toHaveBeenCalled(); expect(f.deps.api.cancel).not.toHaveBeenCalled();
+  });
+});
 
 describe("explicit rejected-create worker recovery", () => {
   it("keeps an old rejected claim and normal draft review while invoking only the separately verified recovery", async () => {
