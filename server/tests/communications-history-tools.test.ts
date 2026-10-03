@@ -242,6 +242,17 @@ describe("owner-authorized cancelled same-session continuation", () => {
     const f = await cancelled({ usageUnknown: true }), result = await f.api.continueCancelled(f.params());
     expect(result.usage).toBeNull(); expect(f.record).toHaveBeenLastCalledWith(f.job.jobId, f.child.requestDigest, null);
   });
+  it.each([false, true])("GET-observes expanded phase usage after inference authority expires (missing=%s), without original checkpoint changes", async usageUnknown => {
+    const f = await cancelled({ usageUnknown }); await f.api.continueCancelled(f.params());
+    const original = structuredClone(f.checkpoint), before = f.fetch.mock.calls.length;
+    vi.setSystemTime(Date.parse(f.authority.expiresAt) + 1);
+    const api = new CommunicationsAgentsAPI({ apiKey: "synthetic-never-real", allowPaidInference: false, fetch: f.fetch as any });
+    const result = await api.reconcileCancelledContinuationUsage(f.checkpoint, f.latest(), f.job.jobId);
+    expect(result).toEqual(usageUnknown ? null : { input_tokens: 200, output_tokens: 20, total_tokens: 220 });
+    expect(f.fetch.mock.calls.slice(before).every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+    expect(f.checkpoint).toEqual(original);
+    await expect(api.reconcileCancelledContinuationUsage({ ...f.checkpoint, turnId: "tampered" }, f.latest(), f.job.jobId)).rejects.toThrow("binding_changed");
+  });
   it.each(["raw_hash", "generation", "expired", "scope", "checkpoint", "window"])("refuses changed %s before POST", async kind => {
     const f = await cancelled(), p = f.params();
     if (kind === "raw_hash") f.load.mockResolvedValue({ bytes: Buffer.from("{}"), generation: "1" });
