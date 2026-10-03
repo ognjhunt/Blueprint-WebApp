@@ -92,6 +92,15 @@ describe("same-job cancelled continuation worker", () => {
     expect(active.checkpoint).toEqual(f.c.checkpoint); expect(active.cancelledContinuation.intent.window).toEqual(f.c.phase.intent.window);
     release(); expect((await running).state).toBe("pending_approval");
   });
+  it("refuses a delayed prepared snapshot after the one-use phase advanced, without overwriting its claim or lease", async () => {
+    const f = await cancelledJob(), budget = vi.fn(async () => undefined), stale = structuredClone(f.c.phase);
+    await f.store.claimCancelledContinuation(f.job.jobId, stale, budget);
+    await f.store.updateCancelledContinuation(f.job.jobId, { ...stale, state: "input_unresolved" });
+    f.db.records.get(f.path).lease.until = 0; // Prior observer crashed; its input claim survives.
+    const current = structuredClone(f.db.records.get(f.path)); budget.mockClear();
+    await expect(f.store.claimCancelledContinuation(f.job.jobId, stale, budget)).rejects.toThrow("continuation_binding_changed");
+    expect(f.db.records.get(f.path)).toEqual(current); expect(budget).not.toHaveBeenCalled();
+  });
   it.each(["worker_enabled", "changed_checkpoint", "suppressed", "history_changed", "lost_lease"])("refuses %s without replacing checkpoints or committing a draft", async kind => {
     const f = await cancelledJob();
     if (kind === "worker_enabled") vi.stubEnv("BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED", "true");

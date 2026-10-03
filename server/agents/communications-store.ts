@@ -268,7 +268,8 @@ export class CommunicationsStore {
         || phase.intent.authority.binding.jobId !== jobId || communicationsDigest(phase.intent) !== phase.intentDigest
         || communicationsDigest(communicationsContinuationSessionBinding(phase.checkpoint)) !== phase.intent.sessionBindingDigest
         || communicationsContinuationDeadline(phase) <= this.now()
-        || (record.cancelledContinuation && record.cancelledContinuation.intentDigest !== phase.intentDigest)
+        || (record.cancelledContinuation ? communicationsDigest(record.cancelledContinuation) !== communicationsDigest(phase)
+          : phase.state !== "prepared" || phase.turnId !== undefined || phase.checkpoint.turnId !== null)
         || (await tx.get(this.db.collection("action_ledger").doc(`communications_${jobId}`))).exists) {
         throw new Error("communications_continuation_binding_changed");
       }
