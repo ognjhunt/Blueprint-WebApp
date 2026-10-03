@@ -42,7 +42,7 @@ async function main() {
         query: { limit: 100, ...(after ? { after } : {}) } });
       if (!Array.isArray(page.data) || typeof page.has_more !== "boolean") throw new Error("research_setup_vault_inventory_invalid");
       credentials.push(...page.data.map(safe));
-      if (!page.has_more) return { vaultId: vault.id, status: vault.status, complete: true, credentials };
+      if (!page.has_more) return { vaultId: vault.id, object: vault.object, complete: true, credentials };
       const last = page.data.at(-1)?.id;
       if (typeof last !== "string" || last === after) throw new Error("research_setup_vault_pagination_invalid");
       after = last;

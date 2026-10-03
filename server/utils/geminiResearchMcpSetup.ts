@@ -3,7 +3,7 @@ import { geminiResearchControlSchema, GEMINI_RESEARCH_CONTROL_KEY, type Research
 
 export type ResearchCredentialMetadata = { id: string; vault_id: string; metadata: Record<string, string>;
   auth: { type: string; mcp_server_url?: string | null } };
-type Inventory = { vaultId: string; status: string; complete: boolean; credentials: ResearchCredentialMetadata[] };
+type Inventory = { vaultId: string; object: string; complete: boolean; credentials: ResearchCredentialMetadata[] };
 type CredentialRequest = { name: string; metadata: Record<string, string>; auth: {
   type: "mcp_oauth"; mcp_server_url: string; access_token: string; expires_at: string;
   refresh: { token_endpoint: string; client_id: string; refresh_token: string; resource: string; scope: string;
@@ -25,7 +25,7 @@ export async function setupGeminiResearchCredential(input: { setupKey: string; v
   const setupDigest = workHash(JSON.stringify({ ...input, actorUid: identity.uid, tenantId: identity.tenantId, controlDigest }));
   const claimKey = `credential-setup-${workHash(`${identity.tenantId ?? ""}:${identity.uid}:${input.setupKey}`)}`;
   const inventory = await deps.inventory(input.vaultId);
-  if (!inventory.complete || inventory.vaultId !== input.vaultId || inventory.status !== "active" || inventory.credentials.length > 1)
+  if (!inventory.complete || inventory.vaultId !== input.vaultId || inventory.object !== "vault" || inventory.credentials.length > 1)
     throw new Error("research_setup_existing_dedicated_vault_required");
   const claim = await deps.store.transaction(async tx => {
     const prior = await tx.get(claimKey);
@@ -51,7 +51,7 @@ export async function setupGeminiResearchCredential(input: { setupKey: string; v
   // Fixed server-owned OAuth endpoints and exactly two research scopes.
   const fresh = await deps.inventory(input.vaultId);
   const actual = geminiResearchControlSchema.safeParse(await deps.store.get(GEMINI_RESEARCH_CONTROL_KEY));
-  if (!fresh.complete || fresh.vaultId !== input.vaultId || fresh.status !== "active" || fresh.credentials.length || !actual.success
+  if (!fresh.complete || fresh.vaultId !== input.vaultId || fresh.object !== "vault" || fresh.credentials.length || !actual.success
     || workHash(JSON.stringify(actual.data)) !== controlDigest || !await deps.provider.checkOperator(identity))
     throw new Error("research_setup_authority_or_vault_changed_before_submission");
   try {
@@ -78,7 +78,7 @@ async function observeSetup(row: any, key: string, inventory: Inventory, deps: {
   const matches = inventory.credentials.filter(c => c.metadata?.blueprint_setup_digest === row.setupDigest
     && c.metadata?.control_sha256 === row.controlDigest && c.metadata?.grant_reference === row.grantReference
     && c.metadata?.authority_expires_at === row.authorityExpiresAt && c.vault_id === row.vaultId && c.auth?.type === "mcp_oauth" && c.auth?.mcp_server_url === deps.provider.resource);
-  if (!inventory.complete || inventory.vaultId !== row.vaultId || inventory.credentials.length !== 1 || matches.length !== 1 || inventory.status !== "active")
+  if (!inventory.complete || inventory.vaultId !== row.vaultId || inventory.credentials.length !== 1 || matches.length !== 1 || inventory.object !== "vault")
     return { state: "credential_ack_unknown", setup_digest: row.setupDigest,
       action: "No unique original credential is proven. GET observation only; never repeat credential registration." };
   const credential = matches[0];

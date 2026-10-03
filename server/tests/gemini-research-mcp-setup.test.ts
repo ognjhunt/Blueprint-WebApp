@@ -47,7 +47,7 @@ describe("trusted research-only MCP credential setup", () => {
   });
   it("recovers a credential registration lost ACK by exact singleton metadata without reminting or another registration", async () => {
     const f = await fixture(); let credentials: ResearchCredentialMetadata[] = [];
-    const inventory = vi.fn(async () => ({ vaultId: "vault_existing", status: "active", complete: true, credentials }));
+    const inventory = vi.fn(async () => ({ vaultId: "vault_existing", object: "vault", complete: true, credentials }));
     let access = "", refresh = "";
     const register = vi.fn(async (vaultId: string, body: any): Promise<ResearchCredentialMetadata> => {
       access = body.auth.access_token; refresh = body.auth.refresh.refresh_token;
@@ -67,14 +67,34 @@ describe("trusted research-only MCP credential setup", () => {
     expect(f.artifacts.retain).toHaveBeenCalledOnce();
     await expect(setupGeminiResearchCredential({ ...input, expiresAt: new Date((now + 60) * 1000).toISOString() }, identity, deps)).rejects.toThrow("original_claim_changed");
   });
+  it("accepts an actual SDK-shaped existing vault with object/id and no invented status field", async () => {
+    const f = await fixture();
+    const sdkVault = { id: "vault_existing", created_at: 1791028800, metadata: {}, name: "Owner research", object: "vault" };
+    expect(sdkVault).not.toHaveProperty("status");
+    let credentials: ResearchCredentialMetadata[] = [];
+    const inventory = async () => ({ vaultId: sdkVault.id, object: sdkVault.object, complete: true, credentials });
+    const register = vi.fn(async (vaultId: string, body: any) => {
+      const credential = { id: "credential_sdk_one", vault_id: vaultId, metadata: body.metadata,
+        auth: { type: "mcp_oauth", mcp_server_url: body.auth.mcp_server_url } };
+      credentials = [credential]; return credential;
+    });
+    expect(await setupGeminiResearchCredential({ setupKey: "sdk-shaped", vaultId: sdkVault.id, expiresAt: control.expiresAt },
+      identity, { ...f, inventory, register })).toMatchObject({ state: "credential_readback_verified", credential_id: "credential_sdk_one" });
+    expect(register).toHaveBeenCalledOnce();
+    const g = await fixture();
+    await expect(setupGeminiResearchCredential({ setupKey: "wrong-object", vaultId: sdkVault.id, expiresAt: control.expiresAt },
+      identity, { ...g, register, inventory: async () => ({ vaultId: sdkVault.id, object: "not-a-vault", complete: true, credentials: [] }) }))
+      .rejects.toThrow("dedicated_vault_required");
+    expect(register).toHaveBeenCalledOnce(); expect(g.auth.rows.size).toBe(0);
+  });
   it("refuses unrelated or incomplete vault contents before minting tokens or registration", async () => {
     const f = await fixture(); const register = vi.fn();
     const input = { setupKey: "one", vaultId: "vault_existing", expiresAt: control.expiresAt };
     const unrelated = { id: "credential_unrelated", vault_id: "vault_existing", metadata: {}, auth: { type: "static_bearer" } };
     await expect(setupGeminiResearchCredential(input, identity, { ...f, register,
-      inventory: async () => ({ vaultId: "vault_existing", status: "active", complete: true, credentials: [unrelated] }) })).rejects.toThrow("unrelated");
+      inventory: async () => ({ vaultId: "vault_existing", object: "vault", complete: true, credentials: [unrelated] }) })).rejects.toThrow("unrelated");
     await expect(setupGeminiResearchCredential(input, identity, { ...f, register,
-      inventory: async () => ({ vaultId: "vault_existing", status: "active", complete: false, credentials: [] }) })).rejects.toThrow("dedicated");
+      inventory: async () => ({ vaultId: "vault_existing", object: "vault", complete: false, credentials: [] }) })).rejects.toThrow("dedicated");
     expect(f.auth.rows.size).toBe(0); expect(register).not.toHaveBeenCalled();
   });
 });
