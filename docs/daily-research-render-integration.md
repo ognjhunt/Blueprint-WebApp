@@ -7,18 +7,41 @@ qualification, publication or deployment outcome.
 
 ## Current reviewed repair package
 
-The October 2 release carries Pipeline source
-`b9da02f46d4ff6d9846da523b8da01449ae9ac85` (merged through PR2542).
-Its 655,360-byte archive SHA256 is
-`e54fa1529d1a2113fa0d088f59e12fcf40dc18e37f058b32621726ead4bcab82`,
-with 47 manifested source files. WebApp PR808 deployed this package as
-`80ba9b2d5c57092bfa3554093ee840b6872165cb` on both web and worker.
-Package installation leaves the stopped research controls unchanged.
+The October 3 release carries controlled Pipeline source
+`3bd4c9ba143e0789fc20f696c8a4ef311b7b82e9` (PR2560; reviewed head
+`a08f2e130254b74ca3b94d8062d33b42700294f0`). Its 839,680-byte archive
+SHA256 is `09b92cf66a4c8b050ef9d7482f69fc7851ca4519def057bfdb388eefdd08c0f1`,
+with 49 manifested source files. It preserves the deployed owner MCP, history,
+QA and publication source from `e863c2823bfc8a6b604609e8fb85daa31ae5552b`.
+This is a research-only controlled release; Pipeline main is a separate lineage.
+
+The founder approved automatic cleanup of completed research runs on October 3:
+save and verify complete company-owned backups, confirm the run has finished,
+delete only its attached temporary provider resources, and verify cleanup while
+retaining reports, sources, CRM and learning records. The existing scheduler
+implements this lifecycle only when a retained `cleanup_policy` is enabled in
+its trusted company control. Installing the package alone enables no deletion.
+
+Before deletion, the worker verifies completed research, validated QA, actual
+Notion/Sheets publication receipts, exact session/environment/turn ownership,
+complete provider records and artifact contents, and the canonical portable
+export. Every backup object in the existing private company bucket is read back
+by generation, byte count and SHA256. A durable one-use deletion claim prevents
+repeating an uncertain DELETE; later observations use GET only. Both session and
+attached environment must return authenticated 404 before clearing the next-run
+guard. Unknown usage remains unknown and `billing_stop_verified` remains false.
+
+The policy starts with the completed October 3 run and keeps the existing
+October 9 at 7pm Central expiry. It changes no research/comms spending authority,
+access scope, sending, Gmail draft setting, CRM record or retained learning record.
+Canonical backup objects use `gs://blueprint-8c1ca.appspot.com/operations/research/cleanup/DATE/MANIFEST_HASH/`;
+the run row and portable `cleanup-manifest.json` carry exact object generations,
+hashes, sizes and source-row binding. Replacement agents recover through the
+existing authorized worker storage binding and normal `render export` route.
 
 The original admitted package below remains the recovery identity for the
-existing October 1 run. Preserve its bytes and pass it as the original package
-to the corrected collector; use the reviewed package as the isolated repair.
-The old collector's missing-field checks must not be rerun unchanged.
+October 1 run. Preserve its bytes and original input bindings; an upgrade does
+not rewrite prior charged runs or their receipts.
 
 ## Original admitted package pin
 
