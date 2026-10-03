@@ -76,9 +76,11 @@ export class BlueprintWorkOAuth implements OAuthServerProvider {
     if (!await this.checkOperator(grant.identity)) return false;
     if (!grant.appOwnedResearchControlDigest) return true;
     const parsed = geminiResearchControlSchema.safeParse(await this.researchControlStore?.get(GEMINI_RESEARCH_CONTROL_KEY));
-    return parsed.success && parsed.data.enabled && parsed.data.actorUid === grant.identity.uid
+    // Closing new-start admission must preserve existing request reads/refresh.
+    // Minting requires enabled=true; keep every other original control field bound.
+    return parsed.success && parsed.data.actorUid === grant.identity.uid
       && parsed.data.tenantId === grant.identity.tenantId && Date.parse(parsed.data.expiresAt) / 1000 > this.now()
-      && workHash(JSON.stringify(parsed.data)) === grant.appOwnedResearchControlDigest;
+      && workHash(JSON.stringify({ ...parsed.data, enabled: true })) === grant.appOwnedResearchControlDigest;
   }
   /** Trusted offline operator entry only. No HTTP/MCP route calls this method;
    * it cannot accept arbitrary scopes, redirect URLs or model-created grants. */

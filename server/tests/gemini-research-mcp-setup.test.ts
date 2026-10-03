@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MemoryWorkStore } from "./helpers/work-memory-store";
 import { BlueprintWorkOAuth } from "../utils/blueprintWorkOAuth";
 import { setupGeminiResearchCredential, type ResearchCredentialMetadata } from "../utils/geminiResearchMcpSetup";
-import type { ResearchArtifacts } from "../utils/geminiResearchMcp";
+import { executeGeminiResearchTool, type ResearchArtifacts } from "../utils/geminiResearchMcp";
 const identity = { uid: "operator-1", tenantId: null, authTime: 1000 };
 const now = 1000;
 const control = { enabled: true, actorUid: identity.uid, tenantId: null, scopeRef: "retained-scope", budgetRef: "retained-budget",
@@ -44,6 +44,34 @@ describe("trusted research-only MCP credential setup", () => {
     await f.store.set("control", control); f.revokeRole();
     await expect(f.provider.mintResearchOperatorGrant(identity, input)).rejects.toThrow();
     expect(f.auth.rows.size).toBe(0);
+  });
+  it("keeps existing-token and refreshed reads usable after admission closes without creating another request", async () => {
+    const f = await fixture();
+    const grant = await f.provider.mintResearchOperatorGrant(identity, { setupKey: "one", expiresAt: control.expiresAt });
+    const output = { id: "research-original", status: "completed", outputs: [{ text: "Exact retained report\n" }] };
+    const create = vi.fn(async () => output), get = vi.fn(async () => output);
+    const deps = { ...f, create, get, ready: () => {}, artifacts: { ...f.artifacts, read: vi.fn(async () => output) } };
+    const question = { request_key: "original", question: "The original approved question" };
+    const initial = await f.provider.verifyAccessToken(grant.tokens.access_token);
+    await executeGeminiResearchTool("start_gemini_deep_research", question, initial.extra.identity, initial.scopes, deps);
+    await f.store.set("control", { ...control, enabled: false });
+    const closedRows = structuredClone([...f.store.rows]);
+    const existing = await f.provider.verifyAccessToken(grant.tokens.access_token);
+    expect(await executeGeminiResearchTool("get_gemini_deep_research", { request_key: question.request_key },
+      existing.extra.identity, existing.scopes, deps)).toMatchObject({ provider_id: output.id, report: "Exact retained report\n" });
+    const refreshed = await f.provider.exchangeRefreshToken(grant.client, grant.tokens.refresh_token!, undefined, new URL(f.provider.resource));
+    const refreshedAccess = await f.provider.verifyAccessToken(refreshed.access_token);
+    expect(await executeGeminiResearchTool("get_gemini_deep_research", { request_key: question.request_key },
+      refreshedAccess.extra.identity, refreshedAccess.scopes, deps)).toMatchObject({ provider_id: output.id, report: "Exact retained report\n" });
+    expect(await executeGeminiResearchTool("start_gemini_deep_research", question,
+      refreshedAccess.extra.identity, refreshedAccess.scopes, deps)).toMatchObject({ provider_id: output.id, status: "completed" });
+    await expect(executeGeminiResearchTool("start_gemini_deep_research", { ...question, request_key: "new-request" },
+      refreshedAccess.extra.identity, refreshedAccess.scopes, deps)).rejects.toThrow("research_admission_disabled_or_expired");
+    expect(create).toHaveBeenCalledTimes(1); expect(get).not.toHaveBeenCalled();
+    expect([...f.store.rows]).toEqual(closedRows);
+    f.revokeRole();
+    await expect(f.provider.verifyAccessToken(refreshed.access_token)).rejects.toThrow();
+    await expect(f.provider.exchangeRefreshToken(grant.client, refreshed.refresh_token!, undefined, new URL(f.provider.resource))).rejects.toThrow();
   });
   it("recovers a credential registration lost ACK by exact singleton metadata without reminting or another registration", async () => {
     const f = await fixture(); let credentials: ResearchCredentialMetadata[] = [];
