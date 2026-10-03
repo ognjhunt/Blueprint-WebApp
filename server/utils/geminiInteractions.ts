@@ -111,6 +111,10 @@ function getGeminiInteractionsApiKey() {
   );
 }
 
+export function assertGeminiInteractionsConfigured() {
+  getGeminiInteractionsApiKey(); // Presence only: never return or log the key.
+}
+
 function buildRequestHeaders() {
   return {
     "Content-Type": "application/json",
@@ -140,6 +144,34 @@ export class GeminiInteractionHttpError extends Error {
     super(message);
     this.name = "GeminiInteractionHttpError";
   }
+}
+
+async function interactionPayload(response: Response): Promise<GeminiInteraction> {
+  if (response.ok) return await response.json() as GeminiInteraction;
+  const reader = response.body?.getReader();
+  const chunks: Uint8Array[] = []; let bytes = 0, truncated = false;
+  if (reader) {
+    try {
+      for (;;) {
+        const next = await reader.read(); if (next.done) break;
+        const remaining = 65536 - bytes;
+        if (next.value.byteLength > remaining) {
+          if (remaining) chunks.push(next.value.slice(0, remaining));
+          bytes += remaining; truncated = true; await reader.cancel(); break;
+        }
+        chunks.push(next.value); bytes += next.value.byteLength;
+      }
+    } catch { truncated = true; } finally { reader.releaseLock(); }
+  }
+  const body = Buffer.concat(chunks), text = body.toString("utf8");
+  let payload: any;
+  try { payload = !truncated ? JSON.parse(text) : null; } catch { payload = null; }
+  if (payload === null) payload = { body_text: text, body_base64: body.toString("base64"),
+    body_truncated: truncated, retained_body_bytes: bytes };
+  const message = typeof payload?.error?.message === "string" ? payload.error.message
+    : `Gemini Interactions API failed (${response.status})`;
+  throw new GeminiInteractionHttpError(message, response.status, payload,
+    response.headers.get("x-goog-request-id") || response.headers.get("x-request-id"));
 }
 
 export async function createGeminiInteraction(
@@ -175,19 +207,7 @@ export async function createGeminiInteraction(
     body: JSON.stringify(body),
   });
 
-  const payload = (await response.json()) as GeminiInteraction & {
-    error?: { message?: string };
-  };
-
-  if (!response.ok) {
-    const message =
-      payload?.error?.message
-      || `Gemini Interactions API create failed (${response.status})`;
-    throw new GeminiInteractionHttpError(message, response.status, payload,
-      response.headers.get("x-goog-request-id") || response.headers.get("x-request-id"));
-  }
-
-  return payload;
+  return interactionPayload(response);
 }
 
 export async function getGeminiInteraction(interactionId: string, timeoutMs?: number) {
@@ -200,19 +220,7 @@ export async function getGeminiInteraction(interactionId: string, timeoutMs?: nu
     },
   );
 
-  const payload = (await response.json()) as GeminiInteraction & {
-    error?: { message?: string };
-  };
-
-  if (!response.ok) {
-    const message =
-      payload?.error?.message
-      || `Gemini Interactions API get failed (${response.status})`;
-    throw new GeminiInteractionHttpError(message, response.status, payload,
-      response.headers.get("x-goog-request-id") || response.headers.get("x-request-id"));
-  }
-
-  return payload;
+  return interactionPayload(response);
 }
 
 export async function pollGeminiInteractionUntilComplete(input: {

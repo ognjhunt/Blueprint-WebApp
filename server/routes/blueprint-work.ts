@@ -78,7 +78,7 @@ async function operationCall(req: Request, operation: WorkOperation) {
 export function registerBlueprintWorkRoutes(app: Express) {
   const enabled = () => process.env.BLUEPRINT_WORK_ENABLED === "true";
   const origin = process.env.BLUEPRINT_WORK_PUBLIC_ORIGIN || "https://tryblueprint.io";
-  const provider = new BlueprintWorkOAuth(firestoreWorkStore, origin, checkWorkOperator);
+  const provider = new BlueprintWorkOAuth(firestoreWorkStore, origin, checkWorkOperator, undefined, geminiResearchStore);
   const metadataUrl = `${origin}/.well-known/oauth-protected-resource${WORK_MCP_PATH}`;
   const gate = (_req: Request, res: Response, next: NextFunction) => {
     res.set("Cache-Control", "no-store");

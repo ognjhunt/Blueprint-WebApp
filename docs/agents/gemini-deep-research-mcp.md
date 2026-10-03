@@ -39,11 +39,45 @@ allocation and connection before a bounded comparison.
 
 OAuth requires `blueprint:research:start` for delegation and
 `blueprint:research:read` for observation. Existing grants are not upgraded.
-The existing OAuth redirect allowlist remains ChatGPT-only; a saved
-Agents-service connection is **not yet authenticated by this source change**.
-The owner must verify a supported connection/authentication path before attaching
-this endpoint to the saved lead agent. Do not broaden callbacks generically or
-fabricate an authenticated connection from a tool-list response.
+The existing OAuth redirect allowlist remains ChatGPT-only. For saved Agents
+service use, a trusted offline owner command now mints an app-owned research-only
+grant directly in the same hashed OAuth store, without a callback or public mint
+route. Actual saved authentication and tool use still require live owner receipts.
+
+### Existing-vault owner onboarding
+
+The local release owner uses existing runtime credentials and a dedicated existing
+empty vault. Preview first (these are source examples, not executed commands):
+
+```sh
+npx tsx scripts/agents/setup-gemini-research-mcp.ts \
+  --setup-key OWNER_REVIEWED_SETUP_KEY --vault-id EXISTING_VAULT_ID \
+  --operator-uid VERIFIED_OWNER_UID --expires-at ACTUAL_OWNER_EXPIRY_UTC
+```
+
+Only add `--apply` after reviewing that concrete preview. Actual server-managed
+operator role, current control actor/tenant/scope/budget, full dedicated-vault
+inventory and explicit expiry are required. Expiry is clamped to the requested
+expiry, actual control expiry and the existing 30-day OAuth grant bound, never
+silently extended. Access tokens rotate through the existing 900-second path;
+refresh remains research-only and is refused if the exact control changes or the
+operator role is revoked. GPU scopes are never included.
+
+A durable company setup claim precedes one credential registration. The original
+setup key, vault, expiry and authority digest cannot change. On unknown response,
+repeat observation of that original setup key performs GET-only exact singleton
+metadata reconciliation; no repeated registration, new vault or remint occurs.
+Plaintext OAuth tokens remain only in process memory and go directly to the
+existing SDK's `mcp_oauth` registration. They are never printed, stored in public
+metadata or written to secret files. SDK automatic retries/debug body logging are
+disabled. Resource and refresh endpoint are server-owned; the exact OAuth resource
+is also included in the vault refresh configuration.
+
+The resulting safe credential/vault/grant metadata receipt is privately retained
+and hash/readback verified. It proves configuration readback, **not authenticated
+tool use**. The owner must then verify `tools/list`, appropriate scope refusal and
+the intended saved-agent/vault attachment before a paid comparison. This command
+never modifies existing saved agents, charged definitions or worker schedules.
 
 ## Agent use and recovery
 
@@ -54,7 +88,9 @@ checked again before submission. Subsequent calls with the same key/question
 observe that task. Changing its question is refused with repair feedback.
 
 An HTTP error retains its actual status, parsed provider body and provider request
-ID privately, bound to the original claim/question hash. Normal tool responses
+ID privately, bound to the original claim/question hash. Non-JSON error bodies
+retain at most 64 KiB with exact retained bytes/base64 and an explicit truncation
+flag. Missing configured Gemini key is refused before a new claim/reservation. Normal tool responses
 expose only safe status/code and the private diagnostic receipt. Read the complete
 diagnostic through the existing `provider_record` view; it does not reset a
 claim, infer zero cost, or submit a correction automatically.

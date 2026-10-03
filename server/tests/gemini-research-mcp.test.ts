@@ -24,7 +24,7 @@ async function fixture() {
     read: vi.fn(async receipt => structuredClone(evidence.get(receipt.sha256))),
   };
   const create = vi.fn(async () => output), get = vi.fn(async () => output);
-  return { store, artifacts, create, get, clock: () => new Date("2026-10-03T13:00:00Z") };
+  return { store, artifacts, create, get, ready: () => {}, clock: () => new Date("2026-10-03T13:00:00Z") };
 }
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe("Gemini Max delegated research MCP", () => {
@@ -70,6 +70,25 @@ describe("Gemini Max delegated research MCP", () => {
     expect(diagnosis.questionSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(fetch).toHaveBeenCalledTimes(1); expect(f.get).not.toHaveBeenCalled();
     expect([...f.store.rows.values()].find(v => v.requestKey === "study-1")).toMatchObject({ providerId: null, reservationMicros: 7000000, costMicros: null });
+  });
+  it("retains a nonJSON HTTP502 body/request ID and denies missing configured key before claiming exposure", async () => {
+    const f = await fixture();
+    vi.stubEnv("GOOGLE_GENAI_API_KEY", ""); vi.stubEnv("GEMINI_API_KEY", "");
+    await expect(executeGeminiResearchTool("start_gemini_deep_research", question, actor, scopes, { ...f, ready: undefined }))
+      .rejects.toThrow();
+    expect([...f.store.rows.keys()].filter(k => k.startsWith("request-") || k.startsWith("budget-"))).toHaveLength(0);
+    expect(f.create).not.toHaveBeenCalled();
+    vi.stubEnv("GOOGLE_GENAI_API_KEY", "nonsecret-fixture-key");
+    const body = "<html>Private upstream proxy failure</html>";
+    const fetch = vi.fn(async () => new Response(body, { status: 502, headers: { "x-request-id": "proxy-one" } }));
+    vi.stubGlobal("fetch", fetch); f.create.mockImplementation(createGeminiInteraction as any);
+    const result = await executeGeminiResearchTool("start_gemini_deep_research", question, actor, scopes, f);
+    expect(result).toMatchObject({ status: "create_http_error", provider_http_status: 502, cost_micros: null });
+    expect(JSON.stringify(result)).not.toContain("Private upstream");
+    const read = await executeGeminiResearchTool("get_gemini_deep_research", { request_key: "study-1", view: "provider_record" }, actor, scopes, f);
+    expect(JSON.parse((read as any).report)).toMatchObject({ httpStatus: 502, requestId: "proxy-one", payload: {
+      body_text: body, body_base64: Buffer.from(body).toString("base64"), body_truncated: false } });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
   it("does not infer scope/budget access from GPU grants, missing/disabled/expired control, or another actor", async () => {
     const f = await fixture();

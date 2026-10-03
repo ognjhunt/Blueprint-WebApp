@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createHash } from "node:crypto";
 import type { WorkIdentity, WorkStore } from "./blueprintWorkOAuth";
 import { createGeminiInteraction, getGeminiInteraction, extractGeminiInteractionText,
-  buildGeminiDeepResearchAgentConfig, GEMINI_DEEP_RESEARCH_MAX_AGENT, GeminiInteractionHttpError, type GeminiInteraction } from "./geminiInteractions";
+  buildGeminiDeepResearchAgentConfig, GEMINI_DEEP_RESEARCH_MAX_AGENT, GeminiInteractionHttpError, assertGeminiInteractionsConfigured, type GeminiInteraction } from "./geminiInteractions";
 
 export const GEMINI_RESEARCH_READ_SCOPE = "blueprint:research:read";
 export const GEMINI_RESEARCH_START_SCOPE = "blueprint:research:start";
@@ -28,7 +28,7 @@ export type ResearchArtifacts = {
   read(receipt: ResearchEvidence): Promise<unknown>;
 };
 type Deps = { store: WorkStore; artifacts: ResearchArtifacts;
-  create?: typeof createGeminiInteraction; get?: typeof getGeminiInteraction; clock?: () => Date };
+  create?: typeof createGeminiInteraction; get?: typeof getGeminiInteraction; ready?: () => void; clock?: () => Date };
 const day = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 const identityMatches = (row: any, identity: WorkIdentity) => row.actorUid === identity.uid && row.tenantId === identity.tenantId;
 function assertAdmission(value: unknown, identity: WorkIdentity, now: Date) {
@@ -62,6 +62,7 @@ export async function executeGeminiResearchTool(name: GeminiResearchTool, args: 
   if (name === "start_gemini_deep_research") {
     const question = (input as z.infer<typeof GEMINI_RESEARCH_TOOLS.start_gemini_deep_research>).question;
     const questionHash = hash(question);
+    if (!existing) (deps.ready || assertGeminiInteractionsConfigured)();
     const claim = await deps.store.transaction(async tx => {
       const prior = await tx.get(requestKey);
       if (prior) {
