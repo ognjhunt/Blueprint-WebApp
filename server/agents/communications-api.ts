@@ -1226,6 +1226,28 @@ export class CommunicationsAgentsAPI {
       if (this.options.recordPaidDraftUsage) await this.options.recordPaidDraftUsage(jobId, checkpoint.requestDigest!, usage);
       if (persistenceFailed) throw new CommunicationsRuntimeError("communications_final_checkpoint_unpersisted", false, checkpoint.finalOutputSources?.at(-1));
     };
+    let backoffMs = 1000;
+    const pauseObservation = async () => {
+      await assertRepairAllowed?.();
+      const remaining = this.repairDeadline(checkpoint) - Date.now();
+      if (remaining <= 0) throw new CommunicationsRuntimeError("communications_execution_deadline");
+      await new Promise(resolve => setTimeout(resolve, Math.min(backoffMs, remaining)));
+      backoffMs = Math.min(backoffMs * 2, 5000);
+      await assertRepairAllowed?.();
+    };
+    const retrySavedRead = async (error: unknown) => {
+      if (!checkpoint.executionWindow || !(error instanceof CommunicationsRuntimeError) || !error.retryable
+        || !(error.code === "agents_api_connection_unknown" || /^agents_api_http_(?:429|5\d\d)$/.test(error.code))) return false;
+      // Only failed GET transport reads retry. No new turn/create, terminal
+      // settlement, or zero usage can be inferred from an unavailable receipt.
+      await this.retainHttpFailure(error, checkpoint, jobId, save);
+      if (Date.now() >= this.repairDeadline(checkpoint)) {
+        await settle(null, false);
+        throw new CommunicationsRuntimeError("communications_execution_deadline");
+      }
+      await pauseObservation();
+      return true;
+    };
     while (true) {
       let result: Awaited<ReturnType<CommunicationsAgentsAPI["readFinal"]>> = null;
       let source: CommunicationsOutputSource | undefined, feedback: CommunicationsOutputFeedback = [];
@@ -1240,7 +1262,10 @@ export class CommunicationsAgentsAPI {
             const answered = await this.handleHistoryActions(checkpoint, jobId, save, assertRepairAllowed);
             if (answered || checkpoint.executionWindow) {
               await this.observeRepair(checkpoint, jobId, save, assertRepairAllowed);
-              if (checkpoint.executionWindow && Date.now() < this.repairDeadline(checkpoint)) await new Promise(resolve => setTimeout(resolve, 250));
+              if (checkpoint.executionWindow && Date.now() < this.repairDeadline(checkpoint)) {
+                if (answered) backoffMs = 1000;
+                await pauseObservation();
+              }
               continue;
             }
           }
@@ -1259,6 +1284,7 @@ export class CommunicationsAgentsAPI {
         source.validationIssues = feedback;
         await save({ ...checkpoint });
       } catch (error) {
+        if (await retrySavedRead(error)) continue;
         if (error instanceof CommunicationsRuntimeError && error.code === "communications_output_invalid" && error.outputSource?.validationIssues?.length) {
           source = error.outputSource; feedback = source.validationIssues!;
         } else {
@@ -1275,7 +1301,10 @@ export class CommunicationsAgentsAPI {
         await settle(this.cumulativeUsage(checkpoint, (checkpoint.usageReceipts ?? []).map(receipt => ({ id: receipt.turnId, ...receipt }))), true);
         throw new CommunicationsRuntimeError("communications_output_invalid", false, source);
       }
-      const { turns, turn } = await this.readBoundDraftSession(checkpoint, jobId, checkpoint.requestDigest!);
+      let bound: Awaited<ReturnType<CommunicationsAgentsAPI["readBoundDraftSession"]>>;
+      try { bound = await this.readBoundDraftSession(checkpoint, jobId, checkpoint.requestDigest!); }
+      catch (error) { if (await retrySavedRead(error)) continue; throw error; }
+      const { turns, turn } = bound;
       if (!turn || turn.status !== "completed" || Date.now() >= this.repairDeadline(checkpoint)) {
         await settle(this.cumulativeUsage(checkpoint, turns), true);
         throw new CommunicationsRuntimeError("communications_final_repair_deadline", false, source);
@@ -1351,6 +1380,7 @@ export class CommunicationsAgentsAPI {
         }
       }
     } catch (error) {
+      if (checkpoint.executionWindow && error instanceof CommunicationsRuntimeError) throw error;
       await this.retainHttpFailure(error, checkpoint, jobId, saveCheckpoint);
       // Observer loss is only a reason to GET the exact saved attempt.
     } finally { handle?.close(); await reader?.cancel().catch(() => undefined); }

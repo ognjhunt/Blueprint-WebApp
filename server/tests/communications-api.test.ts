@@ -123,6 +123,48 @@ async function rejectedCreateFixture(options: { coverage?: "matching" | "incompl
 }
 
 describe("portable communications Agents API", () => {
+  it("backs off transient saved GET failures within one new window without settling pending usage or creating another turn", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-03T00:00:00Z"));
+    const f = apiFixture({ usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 } });
+    const now = Date.now(), errors = [503, 429, "connection"];
+    const window = { version: "communications-execution-window-v1" as const, preparedAt: new Date(now).toISOString(),
+      deadlineAt: new Date(now + 1200000).toISOString(), timeoutSeconds: 1200 };
+    const baseline = f.fetchMock.getMockImplementation()!; let failures = 0;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith("/session-1") && f.checkpoints.at(-1)?.usageReceipts?.length && failures < errors.length) {
+        expect(f.checkpoints.at(-1).finalRepairSettled).not.toBe(true);
+        expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
+        const error = errors[failures++];
+        if (error === "connection") throw Error("synthetic GET connection lost");
+        return new Response("synthetic temporary read failure", { status: error as number });
+      }
+      const response = await baseline(url, init);
+      if (path.endsWith("/agents/sessions") && init.method === "POST") return new Response([
+        { type: "agent.session.created", session: { id: "session-1" } },
+        { type: "agent.session.turn.created", turn_id: "turn-1", turn: { id: "turn-1", subagent_id: null } },
+      ].map(event => `data: ${JSON.stringify(event)}\n\n`).join(""));
+      if (path.endsWith("/turns")) {
+        const body = await response.json(); body.data[0].status = failures === errors.length ? "completed" : "in_progress";
+        return Response.json(body);
+      }
+      return response;
+    });
+    try {
+      const assertRepairAllowed = vi.fn(async () => undefined);
+      const pending = f.api.run({ ...f.params, input: JSON.stringify({ executionBoundary: { window } }),
+        checkpoint: { ...f.params.checkpoint, executionWindow: window }, assertRepairAllowed });
+      await vi.runAllTimersAsync();
+      const result = await pending;
+      expect(result.output).toEqual(f.output); expect(failures).toBe(3);
+      expect(Date.now() - now).toBeGreaterThanOrEqual(7000);
+      expect(result.checkpoint.finalRepairSettled).toBe(true);
+      expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest,
+        { input_tokens: 3, output_tokens: 2, total_tokens: 5 });
+      expect(f.fetchMock.mock.calls.filter(([, init]: any[]) => init.method === "POST")).toHaveLength(1);
+      expect(assertRepairAllowed.mock.calls.length).toBeGreaterThanOrEqual(6);
+    } finally { vi.useRealTimers(); }
+  });
   it("reconnects the same prospective turn past three minutes and refuses a changed frozen clock on replay", async () => {
     const f = apiFixture({ usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 } });
     const now = Date.now(); let clock = now, observed = false;
