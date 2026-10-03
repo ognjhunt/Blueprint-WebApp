@@ -125,9 +125,9 @@ describe("truthful authenticated report admission (offline, no paid calls or sen
     input.leadVerification = syntheticLeadVerification(input.candidate, "2026-10-01T21:00:00Z");
     expect((await admit(input)).outcome.state).toBe("admitted");
   });
-  it("binds concurrent immutable revisions of a site-label alias to one source identity", async () => {
+  it("binds normalized spelling of the same site to one source identity", async () => {
     const a = syntheticReviewedResearchInput(), b = structuredClone(a), db = memoryFirestore();
-    b.candidate.site = "Different site label";
+    b.candidate.site = a.candidate.site.toUpperCase();
     b.leadVerification = syntheticLeadVerification(b.candidate, "2026-10-01T21:00:00Z");
     const outcomes = await Promise.allSettled([stageReviewedResearch(db, a, "a", now), stageReviewedResearch(db, b, "b", now)]);
     expect(outcomes.filter(x => x.status === "fulfilled")).toHaveLength(2);
@@ -145,6 +145,18 @@ describe("truthful authenticated report admission (offline, no paid calls or sen
     const rows = await Promise.all([a, b, c, d].map(input => stageReviewedResearch(db, input, "synthetic-admin", now)));
     expect(new Set(rows.map(row => row.row.source_record_id)).size).toBe(4);
     expect([...db.records.keys()].filter(key => key.startsWith(REVIEWED_RESEARCH_ROOT + "/"))).toHaveLength(4);
+  });
+  it("retains two named physical facilities with the same operator, city, task and shared contact", async () => {
+    const a = syntheticReviewedResearchInput(), b = structuredClone(a), db = memoryFirestore();
+    b.candidate.site = "South synthetic plant, 20 Test Road"; b.candidate.candidate_key = "synthetic-same-city-other-site";
+    b.leadVerification = syntheticLeadVerification(b.candidate, "2026-10-01T21:00:00Z");
+    const existing = Array(19).fill(""); Object.assign(existing, { 0: "BP-000099", 1: a.candidate.organization, 3: a.candidate.site,
+      5: a.assessment.contact.email, 9: a.candidate.evidence[0].url, 14: a.candidate.task, 17: a.candidate.location }); b.crm.rows = [existing];
+    const first = await stageReviewedResearch(db, a, "synthetic-admin", now);
+    await db.doc("outboundProspects/north").set({ facilityName: a.candidate.organization, facilitySite: a.candidate.site,
+      facilityAddress: a.candidate.location, hypothesisedTask: a.candidate.task, contactEmail: a.assessment.contact.email });
+    const rows = [first, await stageReviewedResearch(db, b, "synthetic-admin", now)];
+    expect(new Set(rows.map(row => row.row.source_record_id)).size).toBe(2);
   });
   it.each(["other_site", "other_operator"])("preserves %s with the same task and public mailbox in complete CRM/canonical records", async kind => {
     const input = syntheticReviewedResearchInput(), db = memoryFirestore();

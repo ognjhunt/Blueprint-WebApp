@@ -96,23 +96,24 @@ describe("evidence-bound lead verification (hermetic invented evidence)", () => 
     assessment.sources[0].classification = "vendor";
     expect(evaluateLeadVerification(candidate, assessment, now).status).toBe("unresolved");
   });
-  it("deduplicates normalized operator/location/task while preserving distinct tasks and sites", () => {
-    expect(leadIdentityKey(candidate)).toBe(leadIdentityKey({ ...candidate, organization: "ＳＹＮＴＨＥＴＩＣ OPERATOR", site: "Alias", location: "10 test road TEST CITY" }));
+  it("deduplicates normalized operator/site/location/task while preserving distinct physical sites in one city", () => {
+    expect(leadIdentityKey(candidate)).toBe(leadIdentityKey({ ...candidate, organization: "ＳＹＮＴＨＥＴＩＣ OPERATOR", site: "INVENTED packing SITE", location: "10 test road TEST CITY" }));
     expect(leadIdentityKey(candidate)).not.toBe(leadIdentityKey({ ...candidate, task: "sorting" }));
     expect(leadIdentityKey(candidate)).not.toBe(leadIdentityKey({ ...candidate, location: "20 Test Road" }));
-    expect(leadIdentityKey({ ...candidate, location: "" })).toBeNull();
+    expect(leadIdentityKey(candidate)).not.toBe(leadIdentityKey({ ...candidate, site: "South plant, 20 Test Road" }));
+    expect(leadIdentityKey({ ...candidate, site: "", location: "" })).toBeNull();
   });
   it("recomputes the entire raw cohort and refuses a verified duplicate with rejected counterevidence", () => {
     const alias = { ...candidate, candidate_key: "alias", site: "Alias label" };
     const a = syntheticLeadVerification(candidate), b = syntheticLeadVerification(alias);
     b.claims.human_workflow.status = "contradicted";
-    const context = { candidates: [candidate, alias], assessments: { synthetic: a, alias: b } };
-    const results = evaluateLeadCohort(context.candidates, context.assessments, now);
+    const context = { candidates: [candidate, alias], assessments: { synthetic: a, alias: b }, duplicateChecks: { alias: { duplicate: true, duplicate_of: "synthetic", reason: "Invented exact physical-site alias linkage." } } };
+    const results = evaluateLeadCohort(context.candidates, context.assessments, now, context.duplicateChecks);
     expect(results.every(result => result.status === "unresolved" && !result.eligible_for_qualified_promotion)).toBe(true);
     expect(results[1].duplicate_of).toBe("synthetic");
     expect(() => requireVerifiedLead({ candidate, leadVerification: a, leadVerificationCohort: context }, now)).toThrow("duplicate assessments conflict");
     b.claims.human_workflow.status = "verified_fact";
-    expect(evaluateLeadCohort(context.candidates, context.assessments, now).map(result => result.eligible_for_qualified_promotion)).toEqual([true, false]);
+    expect(evaluateLeadCohort(context.candidates, context.assessments, now, context.duplicateChecks).map(result => result.eligible_for_qualified_promotion)).toEqual([true, false]);
   });
   it("retains preselection duplicates and lets an assessed original follow an earlier semantic alias", () => {
     const alias = { ...candidate, candidate_key: "alias", organization: "Synthetic Operator LLC", discovery_index: 0 };

@@ -11,7 +11,7 @@ const text = (value: unknown): value is string => typeof value === "string" && !
 const object = (value: any) => value && typeof value === "object" && !Array.isArray(value);
 export const leadIdentityText = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 export function leadIdentityKey(candidate: any): string | null {
-  const parts = [candidate?.organization, candidate?.location, candidate?.task];
+  const parts = [candidate?.organization, candidate?.site || candidate?.location, candidate?.location || candidate?.site, candidate?.task];
   return parts.every(value => text(value) && leadIdentityText(value)) ? verificationDigest(parts.map(leadIdentityText)) : null;
 }
 function moment(value: unknown) {

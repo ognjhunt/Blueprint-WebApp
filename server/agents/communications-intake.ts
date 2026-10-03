@@ -114,6 +114,7 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
     const projection: FirebaseFirestore.DocumentData = original ? { ...original,
       ...((!original.contactEmail && !original.communicationsContextReview)
         || (source.admissionId && original.entityAdmission === "research_provisional") ? { contactEmail: email } : {}) } : { facilityName: source.candidate.organization, facilityAddress: source.candidate.location,
+      facilitySite: source.candidate.site,
       locationSource: "published_research_location_not_verified_street_address",
       contactEmail: email, hypothesisedTask: source.candidate.task, stage: "drafted", inferredGates: {}, gateAnswerSources: {}, contactedAtIso: null,
       observations: [{ claim: taskFact.claim, source: taskFact.url }],

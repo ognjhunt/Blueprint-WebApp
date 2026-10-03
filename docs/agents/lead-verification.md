@@ -39,6 +39,11 @@ assessment/candidate hashes, identity, reasons and separate gates. Repair feedba
 identifies missing binding, source, scope, freshness or counterevidence. It does
 not create a retry loop, search quota or forced rejection.
 
+Identity retains normalized operator, site label, location and task together.
+Two named physical sites in the same city remain distinct. A retained,
+reasoned `duplicate_of` assessment links aliases to the same physical site;
+city or shared contact alone cannot establish equivalence.
+
 The authenticated reviewed-research endpoint accepts optional raw
 `leadVerification` data so raw validation remains useful. Staging recomputes it
 and requires `verified` before admission; no supplied status or approval flag

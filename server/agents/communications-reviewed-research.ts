@@ -60,7 +60,8 @@ export function validateReviewedResearch(inputValue: unknown, now: number) {
   if (input.crm.rows.some(row => {
     if (!/^BP-\d{6}$/.test(row[0] ?? "") || (row[14] && researchIdentityText(row[14]) !== researchIdentityText(input.candidate.task))) return false;
     const rowAddress = researchIdentityText(row[17] ?? "");
-    const sameSite = rowAddress ? rowAddress === address : researchIdentityText(row[3] ?? "") === researchIdentityText(input.candidate.site);
+    const rowSite = researchIdentityText(row[3] ?? ""), sameSite = rowAddress ? rowAddress === address
+      && (!rowSite || rowSite === researchIdentityText(input.candidate.site)) : rowSite === researchIdentityText(input.candidate.site);
     // Incomplete old CRM identity requires a refresh; a known other physical
     // site/task does not collapse into this candidate via company/email alone.
     const rowOrganization = researchIdentityText(row[1] ?? "");
@@ -124,7 +125,8 @@ export async function stageReviewedResearch(db: FirebaseFirestore.Firestore, inp
       const p = doc.data();
       if (p.researchPublicationId === sourceRecordId && p.entityAdmission === "research_provisional") return false;
       const operator = researchIdentityText(p.facilityName ?? ""), address = researchIdentityText(p.facilityAddress ?? ""), task = researchIdentityText(p.hypothesisedTask ?? "");
-      const sameOperator = operator === researchIdentityText(input.candidate.organization), sameSite = address === researchIdentityText(input.candidate.location);
+      const site = researchIdentityText(p.facilitySite ?? ""), sameOperator = operator === researchIdentityText(input.candidate.organization);
+      const sameSite = address === researchIdentityText(input.candidate.location) && (!site || site === researchIdentityText(input.candidate.site));
       const sameTask = task === researchIdentityText(input.candidate.task);
       if (operator && address && task) return sameOperator && sameSite && sameTask;
       if ((operator && !sameOperator) || (address && !sameSite) || (task && !sameTask)) return false;
