@@ -642,7 +642,8 @@ export class CommunicationsAgentsAPI {
         }
       }
     } catch (error) {
-      if (error instanceof CommunicationsRuntimeError) throw error;
+      if (error instanceof CommunicationsRuntimeError
+        && !(checkpoint.executionWindow && error.code === "agents_history_result_ack_unknown")) throw error;
       // Lost stream is resolved from persisted turn/items, never from idle/deltas.
     } finally { handle.close(); await reader.cancel().catch(() => undefined); }
     if (terminal && terminal !== "agent.session.turn.completed") throw new CommunicationsRuntimeError("agents_turn_failed_or_cancelled");
@@ -1302,7 +1303,7 @@ export class CommunicationsAgentsAPI {
         await save({ ...checkpoint });
       } catch (error) {
         if (await retrySavedRead(error)) continue;
-        if (checkpoint.ownerContinuation && error instanceof CommunicationsRuntimeError && error.code === "agents_history_result_ack_unknown") {
+        if ((checkpoint.executionWindow || checkpoint.ownerContinuation) && error instanceof CommunicationsRuntimeError && error.code === "agents_history_result_ack_unknown") {
           // Observe the same root/action before any idempotent tool-result
           // reconciliation. An unknown ACK is not a terminal inference failure.
           if (Date.now() >= this.repairDeadline(checkpoint)) {

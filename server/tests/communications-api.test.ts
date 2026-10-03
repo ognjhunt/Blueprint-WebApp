@@ -637,6 +637,7 @@ describe("new-session bounded communications final repair", () => {
     input_tokens_details: { cached_tokens: 10 }, output_tokens_details: { reasoning_tokens: 2 } };
   function repairFixture(options: { raw?: string; missingUsage?: boolean; unknown?: "accepted" | "absent";
     alwaysInvalid?: boolean; wrongMessage?: boolean; evidence?: boolean; missingHistoryEvent?: boolean;
+    historyAck?: "accepted" | "pending" | "deadline";
     beforeSave?: (checkpoint: any) => void } = {}) {
     const f = apiFixture({ rawOutput: options.raw ?? "not JSON", usage: knownUsage });
     const originals = f.fetchMock;
@@ -650,7 +651,7 @@ describe("new-session bounded communications final repair", () => {
       arguments: JSON.stringify({ thread_id: "synthetic-thread" }), output: "Original private dated thread evidence", status: "completed" };
     if (options.evidence) items.push(native);
     const submissions: any[] = [], snapshots: any[] = [];
-    let historySubmitted = false;
+    let historySubmitted = false, historyAttempts = 0;
     let latest: any;
     const fetchMock = vi.fn(async (url: any, init: any) => {
       const path = new URL(String(url)).pathname + new URL(String(url)).search;
@@ -663,7 +664,15 @@ describe("new-session bounded communications final repair", () => {
       if (path.endsWith("/events") && init.method === "POST") {
         expect(f.recordPaidDraftUsage).not.toHaveBeenCalled();
         const event = JSON.parse(init.body).events[0];
-        if (event.type === "agent.session.input.tool_result") { historySubmitted = true; return new Response(null, { status: 202 }); }
+        if (event.type === "agent.session.input.tool_result") {
+          historyAttempts++;
+          if (options.historyAck && historyAttempts === 1) {
+            historySubmitted = options.historyAck === "accepted";
+            if (options.historyAck === "deadline") vi.setSystemTime(Date.parse(latest.executionWindow.deadlineAt));
+            throw Error("synthetic history acknowledgment lost");
+          }
+          historySubmitted = true; return new Response(null, { status: 202 });
+        }
         expect(latest.finalRepairs.at(-1)).toMatchObject({ state: "input_unresolved", event,
           requestDigest: communicationsDigest(event), idempotencyKey: init.headers["Idempotency-Key"] });
         submissions.push({ event, headers: init.headers });
@@ -713,6 +722,40 @@ describe("new-session bounded communications final repair", () => {
     expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, result.usage);
     expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
     expect(f.calls.filter(call => call.init.method === "POST")).toHaveLength(1);
+  });
+  it.each(["accepted", "pending", "deadline"] as const)("recovers a normal-window %s history ACK in the same invocation without another history read or create", async historyAck => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-03T02:00:00Z"));
+    const tools = await import("../agents/operator-tools");
+    const access = vi.spyOn(tools, "getCompanyHistoryAccess").mockResolvedValue({ expiresAt: "2099-10-01T00:00:00Z" } as any);
+    const run = vi.spyOn(tools, "runOperatorTool").mockResolvedValue({ ok: true, record: { outcome: "retained history" } });
+    try {
+      const f = repairFixture({ evidence: true, historyAck, raw: JSON.stringify(communicationsFixture().output) });
+      const window = { version: "communications-execution-window-v1" as const, preparedAt: new Date().toISOString(),
+        deadlineAt: new Date(Date.now() + 1200000).toISOString(), timeoutSeconds: 1200 };
+      const resultPromise = f.api.run({ ...f.params, input: JSON.stringify({ executionBoundary: { window } }),
+        checkpoint: { ...f.params.checkpoint, executionWindow: window }, assertRepairAllowed: async () => undefined });
+      const outcome = resultPromise.then(value => ({ value, error: null }), error => ({ value: null, error }));
+      await vi.runAllTimersAsync(); const result = await outcome;
+      expect(run).toHaveBeenCalledTimes(1);
+      const posts = f.fetchMock.mock.calls.filter(([, init]: any[]) => init.method === "POST");
+      expect(posts.filter(([url]: any[]) => String(url).endsWith("/agents/sessions"))).toHaveLength(1);
+      const toolPosts = posts.filter(([url]: any[]) => String(url).endsWith("/events"));
+      expect(toolPosts).toHaveLength(historyAck === "pending" ? 2 : 1);
+      const receipt = f.checkpoint().historyToolReceipts[0];
+      for (const [, init] of toolPosts as any[]) {
+        expect(init.headers["Idempotency-Key"]).toBe(receipt.idempotencyKey);
+        expect(JSON.parse(init.body).events).toEqual([{ type: "agent.session.input.tool_result", turn_id: receipt.turnId,
+          call_id: receipt.callId, success: true, output: receipt.output }]);
+      }
+      if (historyAck === "deadline") {
+        expect(result.error).toMatchObject({ code: "communications_execution_deadline" });
+        expect(f.checkpoint().finalRepairSettled).not.toBe(true);
+        expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, null);
+      } else {
+        expect(result.error).toBeNull(); expect(result.value?.output).toEqual(f.output);
+        expect(f.checkpoint().finalRepairs ?? []).toHaveLength(0);
+      }
+    } finally { access.mockRestore(); run.mockRestore(); vi.useRealTimers(); }
   });
   it("repairs caller-filtered quality feedback before settling the original admission", async () => {
     const f = repairFixture({ raw: JSON.stringify(communicationsFixture().output) });
