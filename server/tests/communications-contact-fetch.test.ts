@@ -4,15 +4,23 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { contactFetchUrl, contactHttpRequest, isPublicContactAddress, readPublicContactPage, CONTACT_PAGE_LIMIT } from "../agents/communications-contact-fetch";
 
-function transport(options: { addresses?: { address: string; family: number }[]; status?: number; headers?: Record<string, string>; body?: string } = {}) {
+function transport(options: { addresses?: { address: string; family: number }[]; status?: number; headers?: Record<string, string>; body?: string;
+  prematureAbort?: boolean; pending?: boolean } = {}) {
   const lookup = vi.fn(async () => options.addresses ?? [{ address: "8.8.8.8", family: 4 }]);
   const request = vi.fn((_url: URL, _config: any, response: any) => {
     const req = new EventEmitter() as any;
-    req.destroy = (error: Error) => { req.emit("error", error); req.emit("close"); };
+    let stream: any;
+    req.destroy = (error: Error) => { stream?.destroy(); req.emit("error", error); req.emit("close"); };
     req.end = () => queueMicrotask(() => {
-      const stream = new PassThrough() as any; stream.statusCode = options.status ?? 200;
+      stream = new PassThrough() as any; stream.statusCode = options.status ?? 200;
       stream.headers = options.headers ?? { "content-type": "text/html" };
-      response(stream); stream.end(options.body ?? "<p>Public page</p>"); req.emit("close");
+      const destroy = stream.destroy.bind(stream);
+      // IncomingMessage can emit aborted synchronously when locally destroyed.
+      stream.destroy = () => { stream.emit("aborted"); return destroy(); };
+      response(stream);
+      if (options.prematureAbort) { stream.emit("aborted"); req.emit("close"); return; }
+      if (options.pending) return;
+      stream.end(options.body ?? "<p>Public page</p>"); req.emit("close");
     });
     return req;
   });
@@ -50,8 +58,21 @@ describe("bounded public contact retrieval (offline transport)", () => {
     { "content-type": "text/plain", "content-length": String(CONTACT_PAGE_LIMIT + 1) }])("refuses unsafe response headers %j", async headers => {
     await expect(contactHttpRequest(new URL("https://facility.example"), 1000, transport({ headers }) as any)).rejects.toThrow("response_forbidden");
   });
-  it("enforces the streaming byte limit before decoding or trusting text", async () => {
+  it("retains the streaming size limit when local destruction synchronously aborts the response", async () => {
     await expect(contactHttpRequest(new URL("https://facility.example"), 1000, transport({ body: "x".repeat(CONTACT_PAGE_LIMIT + 1) }) as any)).rejects.toThrow("size_limit");
+  });
+  it("reports a genuinely premature response abort as incomplete", async () => {
+    await expect(contactHttpRequest(new URL("https://facility.example"), 1000,
+      transport({ prematureAbort: true }) as any)).rejects.toThrow("contact_fetch_incomplete");
+  });
+  it("retains the deadline error when request destruction synchronously aborts a pending response", async () => {
+    vi.useFakeTimers();
+    try {
+      const result = contactHttpRequest(new URL("https://facility.example"), 1000, transport({ pending: true }) as any);
+      const rejected = expect(result).rejects.toThrow("contact_fetch_timeout");
+      await vi.advanceTimersByTimeAsync(1000);
+      await rejected;
+    } finally { vi.useRealTimers(); }
   });
   it("returns a redirect for explicit same-operator validation, without automatic follow", async () => {
     const deps = transport({ status: 302, headers: { location: "https://attacker.example/contact" } });

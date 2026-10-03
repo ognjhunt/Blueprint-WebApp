@@ -51,23 +51,25 @@ export async function contactHttpRequest(url: URL, timeoutMs: number,
         if ([301, 302, 303, 307, 308].includes(status)) {
           response.destroy(); resolve({ status, location: response.headers.location, contentType, body: Buffer.alloc(0) }); return;
         }
-        if (status === 404 || status === 410) { response.destroy(); reject(new Error("contact_fetch_page_unavailable")); return; }
+        if (status === 404 || status === 410) { reject(new Error("contact_fetch_page_unavailable")); response.destroy(); return; }
         if (status !== 200 || !/^(?:text\/html|text\/plain)(?:;|$)/.test(contentType)
           || (response.headers["content-encoding"] && response.headers["content-encoding"] !== "identity")
           || Number(response.headers["content-length"] ?? 0) > CONTACT_PAGE_LIMIT) {
-          response.destroy(); reject(new Error("contact_fetch_response_forbidden")); return;
+          reject(new Error("contact_fetch_response_forbidden")); response.destroy(); return;
         }
         const chunks: Buffer[] = []; let size = 0;
         response.on("data", chunk => {
           const bytes = Buffer.from(chunk); size += bytes.length;
-          if (size > CONTACT_PAGE_LIMIT) { response.destroy(); reject(new Error("contact_fetch_size_limit")); }
+          if (size > CONTACT_PAGE_LIMIT) { reject(new Error("contact_fetch_size_limit")); response.destroy(); }
           else chunks.push(bytes);
         });
         response.on("error", reject);
         response.on("aborted", () => reject(new Error("contact_fetch_incomplete")));
         response.on("end", () => resolve({ status, contentType, body: Buffer.concat(chunks) }));
       });
-      const deadlineTimer = setTimeout(() => req.destroy(new Error("contact_fetch_timeout")), Math.max(1, deadline - Date.now()));
+      const deadlineTimer = setTimeout(() => {
+        const error = new Error("contact_fetch_timeout"); reject(error); req.destroy(error);
+      }, Math.max(1, deadline - Date.now()));
       req.on("error", reject); req.on("close", () => clearTimeout(deadlineTimer)); req.end();
     });
   } finally { clearTimeout(timer); }
