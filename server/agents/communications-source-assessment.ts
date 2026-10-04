@@ -53,6 +53,48 @@ export function assessedPublicContact(candidate: any, value: unknown) {
     evidenceDigest: communicationsDigest({ entry, assessment }), kind: "published_evidence" as const, resolvedGaps: resolved };
 }
 
+// USPS codes by state name; a postal code is already canonical.
+const US_STATE_CODES: Record<string, string> = { alabama: "al", alaska: "ak", arizona: "az", arkansas: "ar", california: "ca",
+  colorado: "co", connecticut: "ct", delaware: "de", "district of columbia": "dc", florida: "fl", georgia: "ga", hawaii: "hi",
+  idaho: "id", illinois: "il", indiana: "in", iowa: "ia", kansas: "ks", kentucky: "ky", louisiana: "la", maine: "me",
+  maryland: "md", massachusetts: "ma", michigan: "mi", minnesota: "mn", mississippi: "ms", missouri: "mo", montana: "mt",
+  nebraska: "ne", nevada: "nv", "new hampshire": "nh", "new jersey": "nj", "new mexico": "nm", "new york": "ny",
+  "north carolina": "nc", "north dakota": "nd", ohio: "oh", oklahoma: "ok", oregon: "or", pennsylvania: "pa",
+  "rhode island": "ri", "south carolina": "sc", "south dakota": "sd", tennessee: "tn", texas: "tx", utah: "ut",
+  vermont: "vt", virginia: "va", washington: "wa", "west virginia": "wv", wisconsin: "wi", wyoming: "wy", "puerto rico": "pr" };
+const US_CODES = new Set(Object.values(US_STATE_CODES));
+const COUNTRY_ALIASES = [["united", "states", "of", "america"], ["united", "states"], ["usa"], ["us"], ["u", "s", "a"], ["u", "s"]];
+const locationWords = (x: string) => x.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean);
+/** Location tokens with state names as USPS codes and country aliases as "us". */
+function locationTokens(text: string) {
+  const words = locationWords(text), tokens: string[] = [];
+  for (let i = 0; i < words.length;) {
+    const country = COUNTRY_ALIASES.find(alias => alias.every((word, k) => words[i + k] === word));
+    if (country) { tokens.push("us"); i += country.length; continue; }
+    const state = [3, 2, 1].map(n => words.slice(i, i + n)).find(name => name.length && US_STATE_CODES[name.join(" ")]);
+    if (state) { tokens.push(US_STATE_CODES[state.join(" ")]); i += state.length; continue; }
+    tokens.push(words[i]); i += 1;
+  }
+  return tokens;
+}
+/** US sources write "City, ST ZIP, United States" while records keep "City, State, Country". The
+ * quote must name every location token in order within a short span (a street, suite or ZIP may
+ * sit between); a US state code implies the United States. */
+export function quoteNamesSiteLocation(quote: string, location: string) {
+  const want = locationTokens(location), have = locationTokens(quote);
+  const required = want.length >= 2 && want.at(-1) === "us" && US_CODES.has(want[want.length - 2]) ? want.slice(0, -1) : want;
+  if (!required.length) return false;
+  for (let start = 0; start < have.length; start++) {
+    if (have[start] !== required[0]) continue;
+    let matched = 1;
+    for (let i = start + 1; i < have.length && matched < required.length && i - start <= required.length + 4; i++) {
+      if (have[i] === required[matched]) matched++;
+    }
+    if (matched === required.length) return true;
+  }
+  return false;
+}
+
 export function assessedSiteGeography(candidate: any, value: unknown) {
   const assessment = sourceAssessmentSchema.extend({ contact: sourceAssessmentSchema.shape.contact.nullable() }).parse(value);
   const entry = operatorEvidence(candidate, assessment.geography.evidenceIndex, "geography");
@@ -60,7 +102,7 @@ export function assessedSiteGeography(candidate: any, value: unknown) {
   // facility cannot supply the positive evidence for this site's geography.
   const normalize = (x: string) => x.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   const address = normalize(assessment.geography.address);
-  if (!address || !normalize(entry.quote).includes(address) || normalize(candidate.location) !== address
+  if (!address || normalize(candidate.location) !== address || !quoteNamesSiteLocation(entry.quote, assessment.geography.address)
     || /\b(?:not located|outside (?:the )?(?:US|USA|United States))\b/i.test(entry.quote)
     || assessment.conflicts.length) throw new Error("source_assessment_site_geography_invalid");
   return { countryCode: "US", sourceUrl: entry.url, sourceCheckedAt: entry.source_checked_at ?? entry.checked_date,
