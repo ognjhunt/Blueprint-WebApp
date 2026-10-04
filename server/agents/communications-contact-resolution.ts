@@ -5,7 +5,7 @@ import { defaultTreeAdapter, parse, type DefaultTreeAdapterMap } from "parse5";
 import { assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, EMAIL, extractBusinessContact, restrictedContact, sameOperatorUrl, supportedBusinessRoute } from "./communications-contact-evidence";
 import { CONTACT_RESEARCH_PAGE_LIMIT, contactFetchUrl, type ContactPage, type ContactPageReader } from "./communications-contact-fetch";
 import { contactDiscoverySchema, type ContactDiscovery } from "./communications-contact-research";
-import { elementFacts, hidingRules, hidingStyle, matchesHidingRule, type ElementFacts } from "./communications-contact-visibility";
+import { elementFacts, hidingRules, hidingStyle, matchesHidingRule } from "./communications-contact-visibility";
 
 const EXTRACTOR = "blueprint.public-contact-text.v2" as const;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
@@ -156,7 +156,7 @@ export function contactPageText(page: ContactPage) {
   });
   const sheet = hidingRules(sheets);
   const linkBase = baseHref ? new URL(baseHref, page.finalUrl).href : page.finalUrl;
-  const frames: { hidden: boolean; styleHidden: boolean; muted: boolean }[] = [], ancestry: ElementFacts[] = [];
+  const frames: { hidden: boolean; styleHidden: boolean; muted: boolean }[] = [];
   // Text is assembled from parts, tracking only its last character: re-testing a growing
   // string on every append costs quadratic time on pages with many inline elements.
   let parts: string[] = [], textLength = 0, endsWithSpace = false, boundary = false;
@@ -181,7 +181,7 @@ export function contactPageText(page: ContactPage) {
   const work: (HtmlNode | { close: string })[] = [document];
   while (work.length) {
     const item = work.pop()!;
-    if ("close" in item) { boundary = true; if (BLOCKS.has(item.close)) flush(); frames.pop(); ancestry.pop(); continue; }
+    if ("close" in item) { boundary = true; if (BLOCKS.has(item.close)) flush(); frames.pop(); continue; }
     if (item.nodeName === "#text") { appendText((item as DefaultTreeAdapterMap["textNode"]).value); continue; }
     const children = childNodes(item);
     if (!isElement(item)) { for (let i = children.length - 1; i >= 0; i--) work.push(children[i]); continue; }
@@ -195,13 +195,12 @@ export function contactPageText(page: ContactPage) {
       && child.attrs.some(({ name }) => name === "shadowrootmode" || name === "shadowroot"));
     const hidden = !!parent?.hidden || container || shadowHost || !STATIC.has(tag)
       || "hidden" in attrs || "popover" in attrs || "inert" in attrs || attrs["aria-hidden"]?.trim().toLowerCase() === "true";
-    const facts = elementFacts(tag, attrs);
-    const styleHidden = !!parent?.styleHidden || hidingStyle(attrs.style ?? "") || matchesHidingRule(sheet, facts, ancestry);
+    const styleHidden = !!parent?.styleHidden || hidingStyle(attrs.style ?? "") || matchesHidingRule(sheet, elementFacts(tag, attrs));
     if (tag === "a" && !hidden && !styleHidden) {
       const href = attrs.href;
       if (href) { try { const url = new URL(href, linkBase); if (/contact|inquir|enquir|partnership|leadership|management|teams?|people|operations|technology|about/i.test(url.pathname)) links.push(url.href); } catch { /* untrusted link */ } }
     }
-    frames.push({ hidden, styleHidden, muted: !!parent?.muted || tag === "footer" || tag === "nav" }); ancestry.push(facts);
+    frames.push({ hidden, styleHidden, muted: !!parent?.muted || tag === "footer" || tag === "nav" });
     work.push({ close: tag });
     if (!container) for (let i = children.length - 1; i >= 0; i--) work.push(children[i]);
   }

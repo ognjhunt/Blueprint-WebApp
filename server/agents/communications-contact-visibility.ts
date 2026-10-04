@@ -134,9 +134,7 @@ export function hidingStyle(style: string) {
 
 type Compound = { tag?: string; ids: string[]; classes: string[];
   attributes: { name: string; operator?: string; value?: string }[] };
-// Required ancestors, nearest first; `parent` marks a child combinator.
-type Selector = { subject: Compound; ancestors: { compound: Compound; parent: boolean }[] };
-export type HidingRules = { index: Map<string, Map<string, Selector>>; collapsed: Set<string>; count: number; checks: number };
+export type HidingRules = { index: Map<string, Map<string, Compound>>; collapsed: Set<string>; count: number; checks: number };
 export type ElementFacts = { tag: string; id?: string; classes: Set<string>; attrs: Record<string, string> };
 // Distinct hiding rules, distinct rules per index key, and selector checks per page.
 const MAX_HIDING_RULES = 10000, MAX_RULES_PER_KEY = 256, MAX_RULE_CHECKS = 2_000_000;
@@ -158,28 +156,8 @@ function splitTopLevel(text: string, separator: (ch: string) => boolean) {
   return parts;
 }
 
-/** Compounds and the combinators between them, left to right. */
-function selectorChain(selector: string) {
-  const compounds: string[] = [], combinators: string[] = [];
-  let depth = 0, quote = "", current = "", pending = "";
-  const finish = () => { if (compounds.length) combinators.push(pending || " "); compounds.push(current); current = ""; pending = " "; };
-  for (let i = 0; i < selector.length; i++) {
-    const ch = selector[i];
-    if (ch === "\\") { current += ch + (selector[i + 1] ?? ""); i++; continue; }
-    if (quote) { current += ch; if (ch === quote) quote = ""; continue; }
-    if (!depth && /[\s>+~]/.test(ch)) {
-      if (current) finish();
-      if (!/\s/.test(ch)) pending = ch;
-      continue;
-    }
-    if (ch === '"' || ch === "'") quote = ch;
-    else if (ch === "(" || ch === "[") depth++;
-    else if ((ch === ")" || ch === "]") && depth > 0) depth--;
-    current += ch;
-  }
-  if (current) finish();
-  return { compounds, combinators };
-}
+/** The compound selectors of a complex selector, left to right (combinators dropped). */
+const selectorCompounds = (selector: string) => splitTopLevel(selector.trim(), ch => /[\s>+~]/.test(ch)).filter(Boolean);
 
 function matchingParen(text: string, open: number) {
   let depth = 0, quote = "";
@@ -199,7 +177,6 @@ const ATTRIBUTE = /\[\s*((?:[-\w]|\\.)+)\s*(?:([~|^$*]?=)\s*(?:"((?:[^"\\]|\\.)*
 const PSEUDO = /(::?)(-?[a-z][-a-z0-9]*)/iy;
 const ELEMENT_TEXT_PSEUDO = /^(?:first-line|first-letter)$/;
 const LEGACY_PSEUDO_ELEMENT = /^(?:before|after|first-line|first-letter)$/;
-const ALTERNATIVES = /^(?:is|where|matches|any|-webkit-any|-moz-any)$/;
 const unescapeCss = (name: string) => name.replace(/\\([0-9a-f]{1,6})\s?|\\([\s\S])/gi, (_all, hex: string | undefined, ch: string | undefined) => {
   if (hex === undefined) return ch ?? "";
   const code = parseInt(hex, 16);
@@ -210,7 +187,7 @@ const unescapeCss = (name: string) => name.replace(/\\([0-9a-f]{1,6})\s?|\\([\s\
  * but never under-exclude. Undefined for syntax it cannot read or for generated content only. */
 function parseCompound(text: string) {
   const compound: Compound = { ids: [], classes: [], attributes: [] };
-  let at = 0, conditional = false, alternatives: string[] | undefined;
+  let at = 0, conditional = false;
   const sticky = (pattern: RegExp) => { pattern.lastIndex = at; const match = pattern.exec(text); if (match) at = pattern.lastIndex; return match; };
   if (text[0] === "*") { compound.tag = "*"; at = 1; }
   else { const tag = sticky(IDENT); if (tag) compound.tag = unescapeCss(tag[0]).toLowerCase(); }
@@ -230,44 +207,30 @@ function parseCompound(text: string) {
       const match = sticky(PSEUDO);
       if (!match) return undefined;
       const name = match[2].toLowerCase(), element = match[1] === "::" || LEGACY_PSEUDO_ELEMENT.test(name);
-      let args: string | undefined;
       if (text[at] === "(") {
         const close = matchingParen(text, at);
         if (close < 0) return undefined;
-        args = text.slice(at + 1, close); at = close + 1;
+        at = close + 1;
       }
       // Hiding generated content (::before, ::marker, ...) does not hide the element's own text.
       if (element && !ELEMENT_TEXT_PSEUDO.test(name)) return undefined;
-      if (!element && ALTERNATIVES.test(name) && args !== undefined) alternatives = [...(alternatives ?? []), ...splitTopLevel(args, c => c === ",")];
-      else if (!element) conditional = true;
+      if (!element) conditional = true;
     } else return undefined;
   }
-  return { compound, conditional, alternatives };
+  return { compound, conditional };
 }
 
 const keyed = (c: Compound) => c.ids.length > 0 || c.classes.length > 0 || c.attributes.length > 0;
 
-/** Matchable forms of one selector. Descendant and child combinators are matched exactly; a
- * sibling combinator drops what is left of it (over-excludes), except for a bare element type,
- * which would otherwise exclude every element of that type. */
-function parseSelector(selector: string, depth = 0): Selector[] {
-  const { compounds, combinators } = selectorChain(selector.trim());
-  if (!compounds.length || compounds[0].startsWith("@") || compounds.length > 32 || depth > 3) return [];
-  const parsed = compounds.map(parseCompound);
-  if (parsed.some(p => p === undefined)) return [];
-  const ancestors: Selector["ancestors"] = []; let dropped = false;
-  for (let i = compounds.length - 2; i >= 0; i--) {
-    if (combinators[i] === "+" || combinators[i] === "~") { dropped = true; break; }
-    ancestors.push({ compound: parsed[i]!.compound, parent: combinators[i] === ">" });
-  }
-  const subject = parsed.at(-1)!;
-  if (subject.alternatives && !keyed(subject.compound)) {
-    return subject.alternatives.flatMap(alternative => parseSelector(alternative, depth + 1)).map(inner => ({
-      subject: { ...inner.subject, tag: inner.subject.tag && inner.subject.tag !== "*" ? inner.subject.tag : subject.compound.tag },
-      ancestors: [...inner.ancestors, ...ancestors] }));
-  }
-  if (!keyed(subject.compound) && (subject.conditional || dropped || subject.alternatives)) return [];
-  return [{ subject: subject.compound, ancestors }];
+/** The subject compound a hiding rule applies to. Ancestors and conditions are ignored, so a
+ * class, id or attribute subject over-excludes; a bare element type counts only as a whole,
+ * unconditional selector, since it would otherwise exclude every element of that type. Rules
+ * a static reader cannot evaluate are an accepted limit: proofs record that CSS was not rendered. */
+function selectorSubject(selector: string): Compound | undefined {
+  const compounds = selectorCompounds(selector);
+  const subject = compounds.length && !compounds[0].startsWith("@") ? parseCompound(compounds.at(-1)!) : undefined;
+  if (!subject) return undefined;
+  return keyed(subject.compound) || (compounds.length === 1 && !subject.conditional) ? subject.compound : undefined;
 }
 
 /** Every style rule's own declarations, in one linear pass. Handles nested rules, strings,
@@ -306,14 +269,14 @@ function forEachStyleRule(css: string, visit: (selector: string, declarations: s
 const ruleKey = (c: Compound) => c.ids.length ? `#${c.ids[0]}` : c.classes.length ? `.${c.classes[0]}`
   : c.tag && c.tag !== "*" ? c.tag : c.attributes.length ? `[${c.attributes[0].name}` : "*";
 
-/** The bare selector an index key stands for (no further conditions or ancestors). */
-function keySelector(key: string): Selector {
+/** The bare compound an index key stands for (no further conditions). */
+function keyCompound(key: string): Compound {
   const subject: Compound = { ids: [], classes: [], attributes: [] };
   if (key.startsWith("#")) subject.ids.push(key.slice(1));
   else if (key.startsWith(".")) subject.classes.push(key.slice(1));
   else if (key.startsWith("[")) subject.attributes.push({ name: key.slice(1) });
   else subject.tag = key;
-  return { subject, ancestors: [] };
+  return subject;
 }
 
 /** Hiding rules from embedded style sheets, indexed for bounded matching. A key with more
@@ -323,19 +286,19 @@ export function hidingRules(sheets: readonly string[]): HidingRules {
   for (const sheet of sheets) {
     forEachStyleRule(stripCssComments(sheet), (selector, declarations) => {
       if (!hidingStyle(declarations)) return;
-      for (const parsed of parseSelector(selector)) {
-        const key = ruleKey(parsed.subject);
-        if (rules.collapsed.has(key)) continue;
-        const bucket = rules.index.get(key) ?? new Map<string, Selector>(), identity = JSON.stringify(parsed);
-        if (bucket.has(identity)) continue;
-        if (++rules.count > MAX_HIDING_RULES) limit();
-        if (bucket.size >= MAX_RULES_PER_KEY) {
-          rules.collapsed.add(key);
-          rules.index.set(key, new Map([["collapsed", keySelector(key)]]));
-          continue;
-        }
-        rules.index.set(key, bucket.set(identity, parsed));
+      const subject = selectorSubject(selector);
+      if (!subject) return;
+      const key = ruleKey(subject);
+      if (rules.collapsed.has(key)) return;
+      const bucket = rules.index.get(key) ?? new Map<string, Compound>(), identity = JSON.stringify(subject);
+      if (bucket.has(identity)) return;
+      if (++rules.count > MAX_HIDING_RULES) limit();
+      if (bucket.size >= MAX_RULES_PER_KEY) {
+        rules.collapsed.add(key);
+        rules.index.set(key, new Map([["collapsed", keyCompound(key)]]));
+        return;
       }
+      rules.index.set(key, bucket.set(identity, subject));
     });
   }
   return rules;
@@ -361,25 +324,15 @@ const compoundMatches = (c: Compound, e: ElementFacts) => (!c.tag || c.tag === "
   && c.ids.every(id => id === e.id) && c.classes.every(name => e.classes.has(name))
   && c.attributes.every(a => attributeMatches(e.attrs[a.name], a.operator, a.value));
 
-function chainMatches(rules: HidingRules, chain: Selector["ancestors"], step: number, ancestors: readonly ElementFacts[], at: number): boolean {
-  if (step === chain.length) return true;
-  const { compound, parent } = chain[step];
-  for (let i = at; i >= 0 && (!parent || i === at); i--) {
-    if (++rules.checks > MAX_RULE_CHECKS) limit();
-    if (compoundMatches(compound, ancestors[i]) && chainMatches(rules, chain, step + 1, ancestors, i - 1)) return true;
-  }
-  return false;
-}
-
-/** True when an embedded hiding rule selects the element (ancestors: document order, parent last). */
-export function matchesHidingRule(rules: HidingRules, element: ElementFacts, ancestors: readonly ElementFacts[] = []) {
+/** True when an embedded hiding rule selects the element. */
+export function matchesHidingRule(rules: HidingRules, element: ElementFacts) {
   if (!rules.count) return false;
   const keys = new Set([...(element.id !== undefined ? [`#${element.id}`] : []), ...[...element.classes].map(name => `.${name}`), element.tag,
     ...Object.keys(element.attrs).map(name => `[${name}`), "*"]);
   for (const key of keys) {
-    for (const selector of rules.index.get(key)?.values() ?? []) {
+    for (const compound of rules.index.get(key)?.values() ?? []) {
       if (++rules.checks > MAX_RULE_CHECKS) limit();
-      if (compoundMatches(selector.subject, element) && chainMatches(rules, selector.ancestors, 0, ancestors, ancestors.length - 1)) return true;
+      if (compoundMatches(compound, element)) return true;
     }
   }
   return false;
