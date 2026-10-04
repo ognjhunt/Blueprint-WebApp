@@ -8,15 +8,36 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 4 package pins reviewed Pipeline head
-`b375c8fdf446376f20660512e6283ab7062db34c` (PR2578), based on the controlled
-research lineage. Its 942,080-byte archive SHA256 is
-`a78efa3dcd056d36df787ae9a507492593389e9161458f9dab77f75be8a610f9`,
-with 53 manifested source files. The manifest SHA256 is
-`053c0b279f222f3aeb9a62b644825b0a36a5e5757c2ca58cbe77b9816647654b`.
+`f3b3d7fb015fc2650f941bb78bc406c13f656aa0` (PR2579), based on the controlled
+research lineage. Its 962,560-byte archive SHA256 is
+`ba0461647c6f5518a8f86338996942b523e6ae735e347931b8b4e425f9f57419`,
+with 54 manifested source files. The manifest SHA256 is
+`f58d6ecba5b962485b37669c15570298539ebef61c0f63f90653d0bf0564b2af`.
 It preserves the existing owner MCP, history,
 QA, publication, capability-integrity repair and cleanup source from
 `8f2135479e6f3187b725ac47d2bfd596809a6879`.
 This is a research-only controlled release; Pipeline main is a separate lineage.
+
+Unresolved eligible contact gaps now return to the existing daily research agent
+through a frozen, publication-bound input. At most three tasks join a daily
+input and each original publication gets at most two recovery attempts. The
+agent researches current workflow owners and routing roles through its existing
+Perplexity and public-source tools; optional Exa expansion remains separately
+gated. Recipient preference is a relevant current professional person, an
+appropriate task team, then a general business inbox. Titles alone do not prove
+remit. Only complete official operator-page evidence can admit the recovered
+contact; native tool acknowledgements, retained source bytes and QA are verified
+before resuming communications. Integrity failures quarantine the original
+claim without undoing research publication.
+
+Authenticated reviewed staging may retain a verified site/task with no resolved
+contact. That record creates a research gap and zero draft jobs. Stable CRM
+refreshes require the original row digest and matching site/task identity. No
+separate agent create, spending authority or send permission is added. The
+static contact reader retains bounded fetching and one complete-body oversized
+page retry. Generated messages still require current qualification, suppression
+and budget admission before inference. Founder Gmail draft copying retains
+its separate protected direction and current-ledger checks.
 
 The optional `exa-guarded-v1` profile adds host-controlled start/read functions
 to the same daily research session before final QA. It shares the existing $5

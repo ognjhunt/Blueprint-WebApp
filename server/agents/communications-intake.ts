@@ -11,11 +11,14 @@ import { COMMUNICATIONS_ROOT, CommunicationsStore, prepareCommunicationsEnqueue 
 import { firstContactLearningQuestion } from "./communications-first-contact";
 import { qualifiedSourceContact } from "./communications-source-assessment";
 import { sameOperatorUrl } from "./communications-contact-evidence";
+import type { ContactDiscovery } from "./communications-contact-research";
 
 // Read-only discovery of the existing pinned research owner's completed work.
 export const RESEARCH_WORK_ITEMS = "blueprintDailyResearch/sites-first/workItems";
 type IntakeDependencies = { db: FirebaseFirestore.Firestore; readResearch: ResearchSnapshotReader;
-  isSuppressed: (email: string) => Promise<boolean>; now: () => number; readContactPage?: ContactPageReader };
+  isSuppressed: (email: string) => Promise<boolean>; now: () => number; readContactPage?: ContactPageReader;
+  requestContactResearch?: (source: any, prospectId: string, reason: string) => Promise<boolean>;
+  readContactDiscovery?: (source: any, prospectId: string) => Promise<ContactDiscovery | null> };
 const bindingKey = (source: any) => communicationsDigest(source.admissionId
   ? { sourceRecordId: source.sheetsProspectId } : { sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
 const sourceIdentity = (row: any, candidateKey: string) => ({ date: row.date ?? null, runKey: row.run_key ?? row.runKey ?? null, candidateKey,
@@ -231,37 +234,53 @@ export async function runCommunicationsContactRefresh(deps: IntakeDependencies) 
         // Accept the old prefix-era pending contact requests without touching the research owner.
         const contactGap = request?.kind === "public_contact_resolution" || (!request?.kind
           && request?.reasons?.some((reason: string) => ["verified_public_business_contact_missing", "verified_contact_conflicting_unknowns"].includes(reason)));
-        if (!request || !contactGap || !["pending", "retry_wait", "running"].includes(request.state)
+        if (!request || !contactGap || !["pending", "retry_wait", "running", "agent_research_wait"].includes(request.state)
           || (request.lease?.until ?? 0) > deps.now() || (request.nextAttemptAt ?? 0) > deps.now()) return null;
-        if ((request.attempts ?? 0) >= 2) { tx.set(doc.ref, { state: "terminal", reason: "contact_refresh_attempts_exhausted", lease: { owner, until: 0 } }, { merge: true }); return null; }
+        const waitingForAgent = request.state === "agent_research_wait" || request.waitingForAgent === true;
+        if (!waitingForAgent && (request.attempts ?? 0) >= 2) { tx.set(doc.ref, { state: "terminal", reason: "contact_refresh_attempts_exhausted", lease: { owner, until: 0 } }, { merge: true }); return null; }
         const claimed: FirebaseFirestore.DocumentData = { ...request, owner: "blueprint-communications-agent", kind: "public_contact_resolution", state: "running",
-          attempts: (request.attempts ?? 0) + 1, lease: { owner, until: deps.now() + 180000 }, startedAt: deps.now() };
+          attempts: (request.attempts ?? 0) + (waitingForAgent ? 0 : 1),
+          waitingForAgent, lease: { owner, until: deps.now() + 180000 }, startedAt: deps.now() };
         tx.set(doc.ref, claimed); return claimed;
       });
       if (!claim) continue;
+      let source: any = null, prospectId: string | null = null;
       try {
-        const snapshot: any = await deps.readResearch(claim.date);
+        const snapshot: any = await deps.readResearch(claim.date, claim.admissionId);
         if (communicationsDigest(sourceIdentity(snapshot?.row ?? {}, claim.candidateKey)) !== communicationsDigest(sourceIdentity(claim, claim.candidateKey))) throw new Error("contact_refresh_source_changed");
-        const source = researchPublicationSource(snapshot, { date: claim.date, candidateKey: claim.candidateKey,
-          packetDigest: claim.packetDigest, rawArtifactDigest: claim.rawArtifactDigest });
+        source = researchPublicationSource(snapshot, { date: claim.date, candidateKey: claim.candidateKey,
+          packetDigest: claim.packetDigest, rawArtifactDigest: claim.rawArtifactDigest,
+          ...(claim.admissionId ? { admissionId: claim.admissionId } : {}) });
+        requireVerifiedLead(source, deps.now());
         const binding = (await root.collection("researchBindings").doc(bindingKey(source)).get()).data();
         const matches = await deps.db.collection("outboundProspects").where("researchPublicationId", "==", source.sheetsProspectId).limit(3).get();
         if (matches.size > 1 || (binding && matches.docs.some(doc => doc.id !== binding.prospectId))) throw new Error("research_adapter_source_already_bound");
-        const prospectId = binding?.prospectId ?? matches.docs[0]?.id ?? `research-${bindingKey(source)}`;
-        const canonical = (await deps.db.collection("outboundProspects").doc(prospectId).get()).data();
+        prospectId = binding?.prospectId ?? matches.docs[0]?.id ?? `research-${bindingKey(source)}`;
+        const canonical = (await deps.db.collection("outboundProspects").doc(prospectId!).get()).data();
         if (canonical && canonical.stage !== "drafted") throw new Error("recipient_closed_or_already_contacted");
-        const proof = await resolvePublicContact(source, prospectId, deps.readContactPage, deps.now);
+        const discovery = await deps.readContactDiscovery?.(source, prospectId!);
+        if (claim.waitingForAgent && !discovery) {
+          await deps.db.runTransaction(async tx => {
+            const current = (await tx.get(doc.ref)).data();
+            if (current?.lease?.owner !== owner || current.state !== "running" || current.lease.until <= deps.now()) return;
+            tx.set(doc.ref, { state: "agent_research_wait", lease: { owner, until: 0 },
+              nextAttemptAt: deps.now() + 300000 }, { merge: true });
+          });
+          break;
+        }
+        const proof = await resolvePublicContact(source, prospectId!, deps.readContactPage, deps.now, discovery ?? undefined);
         // Re-read the immutable published snapshot after network work, before admission.
-        await admitPublishedResearch(await deps.readResearch(claim.date), claim.candidateKey, deps, { proof, requestId: doc.id, leaseOwner: owner });
+        await admitPublishedResearch(await deps.readResearch(claim.date, claim.admissionId), claim.candidateKey, deps, { proof, requestId: doc.id, leaseOwner: owner });
       } catch (error) {
         const reason = error instanceof Error ? error.message.slice(0, 1200) : "contact_refresh_failed";
         const transient = /contact_fetch_(?:timeout|dns_timeout|incomplete|failed)|ECONN|ENOTFOUND|EAI_AGAIN/.test(reason) && claim.attempts < 2;
+        const researchQueued = !transient && source && prospectId && await deps.requestContactResearch?.(source, prospectId, reason);
         await deps.db.runTransaction(async tx => {
           const current = (await tx.get(doc.ref)).data();
-          if (current?.lease?.owner !== owner || current.state !== "running") return;
-          tx.set(doc.ref, { state: transient ? "retry_wait" : "terminal", reason, completedAt: deps.now(),
-            nextAttemptAt: transient ? deps.now() + 300000 : 0, lease: { owner, until: 0 },
-            sent: false, sessionCreated: false }, { merge: true });
+          if (current?.lease?.owner !== owner || current.state !== "running" || current.lease.until <= deps.now()) return;
+          tx.set(doc.ref, { state: transient ? "retry_wait" : researchQueued ? "agent_research_wait" : "terminal", reason, completedAt: deps.now(),
+            nextAttemptAt: transient || researchQueued ? deps.now() + 300000 : 0, lease: { owner, until: 0 },
+            waitingForAgent: Boolean(researchQueued), sent: false, sessionCreated: false }, { merge: true });
         });
       }
       break;
