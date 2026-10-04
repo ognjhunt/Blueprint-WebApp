@@ -16,7 +16,11 @@ export function sameOperatorUrl(value: string, organizationUrl: string) {
     && ["https:", "http:"].includes(org.protocol) && !org.username && !org.password
     && (host === owner || host.endsWith(`.${owner}`));
 }
-const emailsIn = (quote: string): string[] => [...new Set((quote.match(/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) ?? []).map(email => email.toLowerCase()))];
+/** The one literal-address pattern shared by extraction and element-boundary checks. An address
+ * starts and ends at a Unicode word edge, so it is never cut out of a longer visible word (after
+ * a non-ASCII letter, a soft hyphen or a zero-width character). */
+export const EMAIL = /(?<![\p{L}\p{N}\p{M}\p{Cf}])[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?![\p{L}\p{N}\p{M}])/gu;
+const emailsIn = (quote: string): string[] => [...new Set((quote.match(EMAIL) ?? []).map(email => email.toLowerCase()))];
 export const restrictedContact = /\b(?:personal only|support only|technical (?:support|assistance)|customer support|careers?|jobs?|press|media|privacy|legal|do not contact|no unsolicited|not for business|unsubscribe|opt.out)\b/i;
 export const contactProhibition = /\b(?:(?:do not|don['’]t) (?:contact|e-?mail|message|send|solicit|follow[ -]?up)|no (?:unsolicited|solicitations?|marketing|outreach)|no (?:more |further )?follow[ -]?ups?|not for business|(?:has|have|is|are|was|were) (?:already )?(?:unsubscribed|opted[ -]?out)|stop (?:emailing|contacting|messaging))\b/i;
 const businessRoute = /\b(?:public business contact|business (?:inquiries|enquiries)|commercial (?:inquiries|enquiries)|partnership (?:inquiries|enquiries))\b/i;

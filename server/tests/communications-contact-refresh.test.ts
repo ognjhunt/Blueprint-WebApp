@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { admitPublishedResearch, runCommunicationsIntake, runCommunicationsContactRefresh, RESEARCH_WORK_ITEMS } from "../agents/communications-intake";
 import { sameOperatorUrl, contactUnknowns, publishedPublicContact, extractBusinessContact } from "../agents/communications-contact-evidence";
-import { verifyContactResolution, contactPageText } from "../agents/communications-contact-resolution";
+import { verifyContactResolution, contactPageText, literalAddressUnsafe } from "../agents/communications-contact-resolution";
 import { verifyPublishedResearch, researchPublicationSource } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { processCommunicationsJob } from "../agents/communications-worker";
@@ -11,6 +11,9 @@ import { communicationsDigest } from "../agents/communications-contract";
 import { communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import type { ContactPage } from "../agents/communications-contact-fetch";
+import { CONTACT_RESEARCH_PAGE_LIMIT } from "../agents/communications-contact-fetch";
+import { hidingStyle } from "../agents/communications-contact-visibility";
+import { readFileSync } from "node:fs";
 import { requestNativeContactResearch, readNativeContactDiscovery } from "../agents/communications-contact-research";
 
 const htmlPage = (url: string, body: string, checkedAt = new Date(communicationsNow).toISOString()): ContactPage => ({
@@ -391,12 +394,14 @@ ${main}</section></main><footer>Careers: careers@facility.example</footer>
     expect(f.records("contactProofs")[0].extraction.visibilityBasis).toBe("static_text_css_not_rendered");
   });
   it.each(['<div hidden></body>Business inquiries: hidden@facility.example</div>',
-    '<div hidden>Business inquiries: hidden@facility.example', '<div hidden></p>Business inquiries: hidden@facility.example</div>'])("refuses malformed or unfinished hidden nesting: %s", async markup => {
-    // Tolerant parsing (owner decision 2026-10-04): stray or missing closing tags never
-    // release hidden content; the page simply has no visible contact.
-    const page = htmlPage("https://facility.example/contact", `<h1>Org</h1>${markup}`);
-    expect(contactPageText(page).segments.join(" ")).not.toContain("hidden@facility.example");
-    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1>${markup}`));
+    '<div hidden>Business inquiries: hidden@facility.example', '<div hidden></p>Business inquiries: hidden@facility.example</div>',
+    '<div hidden></body></html><p>Business inquiries: hidden@facility.example</p></div>'])("refuses malformed or unfinished hidden nesting: %s", async markup => {
+    // Tolerant, browser-equivalent parsing (owner decision 2026-10-04): stray or missing closing
+    // tags never release hidden content, including inside an explicit <html><body> document.
+    for (const wrap of [(m: string) => `<h1>Org</h1>${m}`, (m: string) => `<!DOCTYPE html><html><head></head><body><h1>Org</h1>${m}`]) {
+      expect(contactPageText(htmlPage("https://facility.example/contact", wrap(markup))).segments.join(" ")).not.toContain("hidden@facility.example");
+    }
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<!DOCTYPE html><html><body><h1>${f.candidate.organization}</h1>${markup}`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
     expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_missing_or_ambiguous");
   });
@@ -404,16 +409,20 @@ ${main}</section></main><footer>Careers: careers@facility.example</footer>
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><div ${attr}>${f.business}</div>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
   });
-  it("refuses malformed/self-closing non-void and duplicate attributes, and does not read hrefs from quoted values", async () => {
+  it("resolves self-closing non-void elements and duplicate attributes as browsers do, and does not read hrefs from quoted values", async () => {
     // A self-closing slash on an HTML element is ignored, as browsers do, so the hidden div still contains the text.
     const selfClosing = setup(); selfClosing.deps.readContactPage.mockImplementation(async url => htmlPage(url,
       `<h1>${selfClosing.candidate.organization}</h1><div hidden />Business inquiries: hidden@facility.example</div>`));
     await selfClosing.request(); await selfClosing.refresh(); expect(selfClosing.records("jobs")).toHaveLength(0);
     expect(selfClosing.records("refreshRequests")[0].reason).toBe("contact_resolution_missing_or_ambiguous");
-    // Duplicate attributes remain refused (unchanged by the 2026-10-04 decision).
-    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><link rel=icon rel=stylesheet href=/site.css>`));
+    // Duplicate attributes resolve exactly as browsers do (the first one wins), so a later
+    // duplicate can neither release hidden text nor redirect a contact link.
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${f.candidate.organization}</h1><div style="display:none" style="color:red">${f.business}</div><div hidden hidden="">${f.business}</div>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
-    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_markup_unsupported");
+    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_missing_or_ambiguous");
+    expect(contactPageText(htmlPage("https://facility.example/", '<a href="/contact" href="https://attacker.example/contact">Contact</a>')).links)
+      .toEqual(["https://facility.example/contact"]);
     const parsed = contactPageText(htmlPage("https://facility.example/", '<a title=" href=/contact " href="https://attacker.example/contact">Contact</a>'));
     expect(parsed.links).toEqual(["https://attacker.example/contact"]);
   });
@@ -430,5 +439,202 @@ describe("element-level contact visibility (owner decision 2026-10-04)", () => {
     const parsed = contactPageText(page('<p>Business inquiries: <a href="mailto:a@facility.example">a@facility.example</a>.</p><p>x<b>y</b>@facility.example</p>'));
     expect(parsed.segments).toEqual(["Business inquiries: a@facility.example.", "xy@facility.example"]);
     expect(parsed.joins[1]).toEqual([1, 2]);
+  });
+});
+
+// Independent review of the first element-level implementation: every input below became an
+// approved contact proof through a hand-written tolerant tree builder. Markup is now parsed with
+// browser-equivalent (WHATWG) tree construction, so text a browser does not render is never proof.
+describe("browser-equivalent markup parsing for contact proof", () => {
+  const H = "hidden@facility.example", DOC = "<!DOCTYPE html>";
+  const page = (body: string) => htmlPage("https://facility.example/contact", body);
+  const visibleText = (body: string) => contactPageText(page(body)).segments.join(" ");
+  const hiddenProbes: [string, string][] = [
+    ["A1 </body> inside a hidden element", `${DOC}<html><body><h1>Org</h1><div hidden></body><p>Business inquiries: ${H}</p></div></html>`],
+    ["A2 </html> inside a hidden element", `${DOC}<html><body><h1>Org</h1><div hidden></html><p>Business inquiries: ${H}</p></div>`],
+    ["A3 </b> over a hidden block", `${DOC}<h1>Org</h1><b><div hidden></b><p>Business inquiries: ${H}</p></div>`],
+    ["A3a </a> over a hidden block", `${DOC}<h1>Org</h1><a href="/about"><div hidden></a><p>Business inquiries: ${H}</p></div>`],
+    ["A3b </span> across a display:none block", `${DOC}<h1>Org</h1><span><div style="display:none"></span><p>Business inquiries: ${H}</p></div>`],
+    ["A4 </div> across a table cell", `${DOC}<h1>Org</h1><div><table><tr><td><span hidden></div>Business inquiries: ${H}</span></td></tr></table></div>`],
+    ["A5 quirks-mode table inside a hidden paragraph", `<h1>Org</h1><p hidden><table><tr><td>Business inquiries: ${H}</td></tr></table>`],
+    ["A6 unclosed script", `${DOC}<html><body><h1>Org</h1><div><script>var a = 1;</div><p>Business inquiries: ${H}</p>`],
+    ["A7 noembed raw text", `${DOC}<h1>Org</h1><div><noembed></div><p>Business inquiries: ${H}</p></noembed></div>`],
+    ["A8 unclosed style", `${DOC}<html><body><h1>Org</h1><div><style>.a{}</div><p>Business inquiries: ${H}</p>`],
+    ["B1 nested template", `${DOC}<h1>Org</h1><template><template></template><p>Business inquiries: ${H}</p></template>`],
+    ["B2 nested svg", `${DOC}<h1>Org</h1><svg><svg></svg>Business inquiries: ${H}</svg>`],
+    ["B3 custom element named like a container", `${DOC}<h1>Org</h1><svg-icon name="x"></svg-icon><div hidden><svg viewBox="0 0 1 1"></svg><p>Business inquiries: ${H}</p></div>`],
+    ["B3b video-like custom element", `${DOC}<h1>Org</h1><video-player src="a"></video-player><div hidden><video></video><p>Business inquiries: ${H}</p></div>`],
+    ["B4 container start inside an attribute value", `${DOC}<h1>Org</h1><p title="Use a <script> tag">Tip</p><div hidden><script>init()</script><p>Business inquiries: ${H}</p></div>`],
+    ["B5 container start inside a comment", `${DOC}<h1>Org</h1><!-- legacy: <script> --><div hidden><script>init()</script><p>Business inquiries: ${H}</p></div>`],
+    ["B6 uppercase svg", `${DOC}<h1>Org</h1><SVG>Business inquiries: ${H}</svg>`],
+    ["B7 legacy escaped script", `${DOC}<h1>Org</h1><script><!-- document.write("<script>a()</script>"); var c = "Business inquiries: ${H}"; --></script><p>after</p>`],
+    ["C1 unterminated comment", `${DOC}<h1>Org</h1><!-- old contact <p>Business inquiries: ${H}</p>`],
+    ["C2 unterminated comment containing >", `${DOC}<h1>Org</h1><!-- a > b <p>Business inquiries: ${H}</p>`],
+    ["C3 unterminated attribute quote", `${DOC}<h1>Org</h1><p>Business inquiries: <span title='x>${H}</span></p>`],
+    ["C4 attribute value after an unquoted apostrophe", `${DOC}<h1>Org</h1><p><img alt=O'Brien src="/a.png" title="Business inquiries: ${H}"></p>`],
+    ["C5 bogus comment", `${DOC}<h1>Org</h1><p></3 Business inquiries: ${H}></p>`],
+  ];
+  it.each(hiddenProbes)("never reads text a browser does not render: %s", (_name, body) => {
+    expect(visibleText(body)).not.toContain(H);
+  });
+  it.each([
+    ["A9 </div> closes a hidden inline child", `${DOC}<h1>Org</h1><div><span hidden></div><p>Business inquiries: ${H}</p>`],
+    ["A10 a new paragraph closes a hidden one", `${DOC}<h1>Org</h1><p hidden>x<p>Business inquiries: ${H}`],
+  ])("releases text exactly where a browser renders it: %s", (_name, body) => {
+    expect(visibleText(body)).toContain(`Business inquiries: ${H}`);
+  });
+  it.each(["A1", "A3a", "A3b", "A6", "B1", "B3", "B5", "C3", "C4"])("creates no proof end to end for %s", async id => {
+    const f = setup(), body = hiddenProbes.find(([name]) => name.startsWith(`${id} `))![1].replace("<h1>Org</h1>", `<h1>${f.candidate.organization}</h1>`);
+    f.deps.readContactPage.mockImplementation(async url => htmlPage(url, body));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0); expect(f.records("contactProofs")).toHaveLength(0);
+    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_missing_or_ambiguous");
+  });
+  const hidingStyles = ["display:none", "display: none !important", "visibility :hidden", "opacity:0.0 !important", "opacity:0%", "opacity:0e0",
+    "font-size:0.0px", "font-size:0.4px", "font:0/0 a", "clip-path:inset(100%)", "max-height:0;overflow:hidden", "position:fixed;top:-100vh",
+    "color:transparent", "color:rgba(0,0,0,0)", "color:rgb(0 0 0 / 0%)", "color:#0000", "-webkit-text-fill-color:transparent",
+    "content-visibility:hidden", "position:absolute;clip:rect(1px,1px,1px,1px);width:1px;height:1px;overflow:hidden",
+    "transform:scaleX(0)", "transform:scale(1,0)", "transform:translateX(-9999px)", "transform:translateX(-100%)", "transform:matrix(0,0,0,0,0,0)",
+    "transform:rotateY(90deg)", "scale:0", "translate:-9999px", "position:absolute;left:9999px", "margin:0 0 0 -10000px", "inset:-9999px auto auto -9999px",
+    "width:0ex", "filter:opacity(0)", "display&colon;none", "displ\\61 y:none", "display:var(--hide)", "display:/* x */none", "zoom:0.01"];
+  it.each(hidingStyles)("excludes text under a hiding inline style: %s", style => {
+    expect(visibleText(`${DOC}<h1>Org</h1><div style="${style}"><p>Business inquiries: ${H}</p></div>`)).not.toContain(H);
+  });
+  it.each(["color:red", "display:block", "opacity:1", "width:100%", "margin:0 auto", "transform:translateX(10px)", "font-size:16px",
+    "position:relative;left:-20px", "clip-path:inset(0)", "background:url(data:image/png;base64,AAAA)"])("keeps text under an ordinary inline style: %s", style => {
+    expect(hidingStyle(style)).toBe(false);
+    expect(visibleText(`${DOC}<h1>Org</h1><div style="${style}"><p>Business inquiries: ok@facility.example</p></div>`)).toContain("ok@facility.example");
+  });
+  it.each([["@media nesting", "@media (min-width:0){ .c { display:none } }"], ["comment between", ".c /* x */ { display /* y */ : none }"],
+    ["selector list with a complex selector", "div > p, .c { visibility:hidden }"], ["universal", "*{opacity:0}"], ["uppercase tag", "P{display:none}"],
+    ["important and newline", ".c{\n  display : none !important;\n}"], ["compound", ".a.c{display:none}"], ["descendant", "div .c{display:none}"],
+    ["attribute", "[data-x]{display:none}"], ["attribute value", '[data-x="Y"]{display:none}'], ["conditional pseudo-class", ".c:not(:focus){clip:rect(0 0 0 0)}"],
+    ["nested CSS", "div { color: red; .c { display: none } }"], ["case-insensitive class", ".A{display:none}"], ["legacy comment markers", "<!-- .c{display:none} -->"]])(
+    "excludes text matched by an embedded hiding rule: %s", (_name, rule) => {
+    expect(visibleText(`${DOC}<style>${rule}</style><h1>Org</h1><div><p class="a c" data-x="y">Business inquiries: ${H}</p></div>`)).not.toContain(H);
+  });
+  it("collapses repeated subject compounds so ordinary large style sheets stay within the rule caps", () => {
+    const sheet = Array.from({ length: 2000 }, (_, i) => `.menu-${i} .sub-menu{display:none}`).join("");
+    expect(visibleText(`${DOC}<style>${sheet}</style><h1>Org</h1><p class="sub-menu">Business inquiries: ${H}</p><p>Business inquiries: ok@facility.example</p>`))
+      .toBe("Org Business inquiries: ok@facility.example");
+  });
+  it("applies a style sheet inside inline SVG, as browsers do, but never one inside an inert template", () => {
+    expect(visibleText(`${DOC}<svg><style>.c{display:none}</style></svg><h1>Org</h1><p class="c">Business inquiries: ${H}</p>`)).not.toContain(H);
+    expect(visibleText(`${DOC}<template><style>.c{display:none}</style></template><h1>Org</h1><p class="c">Business inquiries: ok@facility.example</p>`))
+      .toContain("ok@facility.example");
+  });
+  it("does not treat a rule that hides only generated content as hiding the element's own text", () => {
+    expect(visibleText(`${DOC}<style>.c::before{display:none}.c:after{display:none}</style><h1>Org</h1><p class="c">Business inquiries: ok@facility.example</p>`))
+      .toContain("ok@facility.example");
+  });
+  it("treats an address that exists only across element boundaries as ambiguous, even beside a literal one", async () => {
+    const f = setup(), lead = `<p>${f.candidate.organization}, ${f.candidate.site}. Business inquiries: `;
+    f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `${DOC}<h1>${f.candidate.organization}</h1>${lead}${f.prospect.contactEmail}</p>${lead}sales<span>@</span>facility.example</p>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_ambiguous_segment");
+  });
+  it("accepts valid HTML that omits optional end tags", () => {
+    const table = `${DOC}<h1>Org</h1><table>${Array.from({ length: 70 }, (_, i) => `<tr><td>r${i}<td>v`).join("")}</table><p>Business inquiries: ok@facility.example</p>`;
+    const list = `${DOC}<h1>Org</h1><dl>${Array.from({ length: 130 }, (_, i) => `<dt>t${i}<dd>d`).join("")}</dl><p>Business inquiries: ok@facility.example</p>`;
+    expect(visibleText(table)).toContain("Business inquiries: ok@facility.example");
+    expect(visibleText(list)).toContain("Business inquiries: ok@facility.example");
+  });
+  it("strips the internal boundary marker from page text and keeps join offsets on code points", () => {
+    const parsed = contactPageText(page("<p>Business \u{1F600}\u{1F600} inquiries: in<b>fo</b>@facility.example and in\u0001fo@facility.example and x&#1;y@facility.example</p>"));
+    expect(parsed.segments.some(segment => segment.includes("\u0001"))).toBe(false);
+    expect(parsed.segments[0]).toContain("info@facility.example and info@facility.example and xy@facility.example");
+    expect(parsed.joins[0]).toHaveLength(2);
+  });
+  it("refuses nesting deeper than a browser's tree builder keeps, without quadratic parsing", () => {
+    const started = performance.now();
+    expect(() => contactPageText(page("<div>".repeat(Math.floor(CONTACT_RESEARCH_PAGE_LIMIT / 5))))).toThrow("contact_resolution_markup_limit");
+    expect(performance.now() - started).toBeLessThan(3000);
+  });
+  it.each([
+    ["unclosed formatting elements", "<b>"], ["distinct formatting elements", "<b id=x>"], ["formatting then blocks", "<b><i><u><s><p>x</p>"],
+    ["misnested links", "<a><p>x</a>"], ["nested tables", "<table><tr><td>"], ["svg without >", "<svg"], ["unclosed svg", "<svg>"],
+    ["comment starts", "<!--"], ["many attributes", "<p a=1 b=2 c=3 d=4>"], ["selects", "<select><option>"], ["entities", "&amp;&colon;&#x40;"],
+    ["style without braces", "<style>aaaa"], ["style with many hiding rules", "<style>.a{display:none}"],
+    ["attribute-only hiding rules", '<i q1 q2 q3>x</i>', `<style>${Array.from({ length: 9000 }, (_, i) => `[q${i}]{display:none}`).join("")}</style>`],
+    ["hiding rules sharing a first class", '<i class="a">x</i>', `<style>${Array.from({ length: 9000 }, (_, i) => `.a.b${i}{display:none}`).join("")}</style>`],
+    ["repeated descendant subjects", '<i class="sub">x</i>', `<style>${Array.from({ length: 9000 }, (_, i) => `.m${i} .sub{display:none}`).join("")}</style>`]])(
+    "bounds parse time on adversarial %s pages", (_name, unit, head = "") => {
+    const markup = head + unit.repeat(Math.floor((CONTACT_RESEARCH_PAGE_LIMIT - 64 - head.length) / unit.length));
+    const started = performance.now();
+    try { contactPageText(page(markup)); } catch (error) { expect((error as Error).message).toBe("contact_resolution_markup_limit"); }
+    expect(performance.now() - started).toBeLessThan(3000);
+  });
+  // Second independent review (browser ground truth: headless Chromium, network blocked).
+  it.each([
+    ["document shadow host", `${DOC}<body><template shadowrootmode="open"><h1>Org</h1></template><p>Org. Business inquiries: ${H}</p></body>`],
+    ["element shadow host", `${DOC}<h1>Org</h1><div><template shadowrootmode="closed"><p>Shadow</p></template><p>Business inquiries: ${H}</p></div>`],
+    ["named slot only", `${DOC}<h1>Org</h1><section><template shadowrootmode="open"><slot name="x"></slot></template><p>Business inquiries: ${H}</p></section>`],
+    ["legacy shadowroot attribute", `${DOC}<h1>Org</h1><div><template shadowroot="open"></template><p>Business inquiries: ${H}</p></div>`],
+  ])("never reads the light DOM of a declarative shadow host: %s", (_name, body) => {
+    expect(visibleText(body)).not.toContain(H);
+  });
+  it("creates no proof end to end from a declarative shadow host's light DOM", async () => {
+    const f = setup();
+    f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `${DOC}<body><template shadowrootmode="open"><h1>${f.candidate.organization}</h1></template>${f.business}</body>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0); expect(f.records("contactProofs")).toHaveLength(0);
+  });
+  it.each(["transform:rotate3d(1,0,0,90deg)", "rotate:x 90deg", "rotate:1 0 0 90deg", "transform:skewX(90deg)", "transform:scale(1%)", "scale:1%",
+    "clip-path:polygon(0 0,1px 0,0 1px)", "mask-image:linear-gradient(transparent,transparent)", "-webkit-mask-image:linear-gradient(transparent,transparent)",
+    "color:color-mix(in srgb, transparent 100%, red)", "content:url(/x.png)", "display:n\\6f ne"])("excludes text under a further hiding inline style: %s", style => {
+    expect(visibleText(`${DOC}<h1>Org</h1><div style="${style}"><p>Business inquiries: ${H}</p></div>`)).not.toContain(H);
+  });
+  it.each(["position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)", "margin-top:-100px", "rotate:90deg", "transform:rotate(90deg)",
+    "font-family:'Open Sans'", "content:normal"])("keeps text under an ordinary layout style: %s", style => {
+    expect(hidingStyle(style)).toBe(false);
+  });
+  it.each([["nested rule under its parent", "div { .c { display: none } }", true], ["nested rule without its parent", ".wrap { .c { display: none } }", false],
+    ["escaped class", ".md\\:hidden{display:none}", true, "md:hidden"], ["escaped punctuation", ".\\!hidden{display:none}", true, "!hidden"],
+    ["alternatives", ":is(.c){display:none}", true], ["descendant of a hidden container", ".modal p{display:none}", true, "c", "modal"],
+    ["descendant outside the container", ".modal p{display:none}", false, "c", "page"], ["child combinator", ".modal > p{display:none}", true, "c", "modal"],
+    ["brace inside a string", '.a{content:"{"} .c{display:none}', true], ["block left open at the end of the sheet", ".c{display:none", true],
+    ["keyframe selector", "@keyframes p { from { opacity: 0 } }", false], ["font face", "@font-face { font-family: x; src: url(x.woff) }", false],
+    ["escaped font name", 'p { font-family: "\\5FAE\\8F6F" }', false]] as [string, string, boolean, string?, string?][])(
+    "evaluates embedded rules as browsers select them: %s", (_name, rule, hidden, cls = "c", container = "") => {
+    const text = visibleText(`${DOC}<style>${rule}</style><h1>Org</h1><div class="${container}"><p class="${cls}">Business inquiries: ${H}</p></div>`);
+    if (hidden) expect(text).not.toContain(H); else expect(text).toContain(H);
+  });
+  it.each([
+    ["formatting-element rebuilds", Array.from({ length: 300 }, (_, i) => `<b a=${i}>`).join(""), "<p> </p>"],
+    ["formatting elements rebuilt in every block", Array.from({ length: 250 }, (_, i) => `<p><b a=${i}></p>`).join(""), "<p>x</p>"],
+    ["long transform values", '<div style="transform:', "abcdefgh"],
+    ["one tag with many attributes", "<p ", "a b c d "],
+    ["class buckets inside the per-key cap", `<style>${Array.from({ length: 39 }, (_, k) => Array.from({ length: 256 }, (_, j) => `.c${k}.z${j}{display:none}`).join("")).join("")}</style>`,
+      `<i class="${Array.from({ length: 39 }, (_, k) => `c${k}`).join(" ")}">x</i>`],
+    ["many inline elements in one block", "<p>", "a@b.co<i>,</i>"],
+    ["deep nesting with stray end tags", "<div>".repeat(250), "</h1>"],
+  ])("bounds work on further adversarial pages: %s", (_name, head, unit) => {
+    const markup = head + unit.repeat(Math.floor((CONTACT_RESEARCH_PAGE_LIMIT - 64 - head.length) / unit.length));
+    const started = performance.now();
+    try {
+      const parsed = contactPageText(page(markup));
+      parsed.segments.forEach((segment, index) => literalAddressUnsafe(segment, parsed.joins[index]));
+    } catch (error) { expect((error as Error).message).toBe("contact_resolution_markup_limit"); }
+    expect(performance.now() - started).toBeLessThan(3000);
+  });
+  it.each([["a non-ASCII letter", "m${UMLAUT}ller@facility.example", "ller@facility.example"],
+    ["a soft hyphen", "business${SOFT}inquiries@facility.example", "inquiries@facility.example"],
+    ["a zero-width space", "in${ZWSP}fo@facility.example", "fo@facility.example"]].map(([name, raw, cut]) => [name,
+      raw.replace("${UMLAUT}", "\u00fc").replace("${SOFT}", "&shy;").replace("${ZWSP}", "&#8203;"), cut]))(
+    "never cuts an address out of a longer visible word after %s", async (_name, address, cut) => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${f.candidate.organization}</h1><p>${f.candidate.organization}, ${f.candidate.site}. Business inquiries: ${address}</p>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(JSON.stringify(f.records("contactProofs"))).not.toContain(cut);
+  });
+  it("refuses an address displayed through a bidirectional override", async () => {
+    // Directly before an address the override already blocks extraction (a format character at its edge).
+    expect(literalAddressUnsafe("\u202eBusiness inquiries: ab@cd.efgh")).toBe(true);
+    expect(literalAddressUnsafe("Business inquiries: ab@cd.efgh")).toBe(false);
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${f.candidate.organization}</h1><p>${f.candidate.organization}, ${f.candidate.site}. Business inquiries: &#x202E;${f.prospect.contactEmail}</p>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
+  it("pins the HTML tree builder the v2 extractor and its stored digests were calibrated against", () => {
+    // Upgrading parse5 can change visible text and therefore stored proof digests: bump EXTRACTOR first.
+    expect(JSON.parse(readFileSync(new URL("../../node_modules/parse5/package.json", import.meta.url), "utf8")).version).toBe("7.3.0");
   });
 });

@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { communicationsDigest } from "./communications-contract";
-import { assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, extractBusinessContact, restrictedContact, sameOperatorUrl, supportedBusinessRoute } from "./communications-contact-evidence";
+import { defaultTreeAdapter, parse, type DefaultTreeAdapterMap } from "parse5";
+import { assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, EMAIL, extractBusinessContact, restrictedContact, sameOperatorUrl, supportedBusinessRoute } from "./communications-contact-evidence";
 import { CONTACT_RESEARCH_PAGE_LIMIT, contactFetchUrl, type ContactPage, type ContactPageReader } from "./communications-contact-fetch";
 import { contactDiscoverySchema, type ContactDiscovery } from "./communications-contact-research";
+import { elementFacts, hidingRules, hidingStyle, matchesHidingRule, type ElementFacts } from "./communications-contact-visibility";
 
 const EXTRACTOR = "blueprint.public-contact-text.v2" as const;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
@@ -33,82 +35,103 @@ export const contactResolutionSchema = resolutionBaseSchema.extend({
 });
 export type ContactResolution = z.infer<typeof contactResolutionSchema>;
 
-const decode = (value: string) => value.replace(/&(?:#(x[\da-f]+|\d+);?|(?:amp|lt|gt|quot|apos|nbsp|Tab|NewLine);)/gi, (all, number: string) => {
-  if (number) { const code = number[0].toLowerCase() === "x" ? parseInt(number.slice(1), 16) : Number(number);
-    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : " "; }
-  return ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'", "&nbsp;": " ", "&tab;": "\t", "&newline;": "\n" } as Record<string, string>)[all.toLowerCase()] ?? " ";
-});
-function htmlAttributes(value: string): Record<string, string> {
-  let rest = value.startsWith("<") ? value.replace(/^<\s*\/?\s*[a-z][a-z\d-]*/i, "").replace(/>$/, "") : value;
-  const result: Record<string, string> = Object.create(null);
-  while (rest.trim()) {
-    rest = rest.trimStart(); if (rest === "/") break;
-    const name = rest.match(/^[^\s=<>\/"'\x60]+/)?.[0];
-    if (!name || Object.hasOwn(result, name.toLowerCase())) throw new Error("contact_resolution_markup_unsupported");
-    rest = rest.slice(name.length).trimStart(); let raw = "";
-    if (rest.startsWith("=")) {
-      rest = rest.slice(1).trimStart();
-      if (rest[0] === '"' || rest[0] === "'") {
-        const end = rest.indexOf(rest[0], 1);
-        if (end < 0) throw new Error("contact_resolution_markup_unsupported");
-        raw = rest.slice(1, end); rest = rest.slice(end + 1);
-      } else {
-        const token = rest.match(/^[^\s"'=<>\x60]+/)?.[0];
-        if (!token) throw new Error("contact_resolution_markup_unsupported");
-        raw = token; rest = rest.slice(token.length);
-      }
-      if (rest && !/^[\s/]/.test(rest)) throw new Error("contact_resolution_markup_unsupported");
-    }
-    result[name.toLowerCase()] = decode(raw);
-  }
-  return result;
-}
 /** Owner decision 2026-10-04: element-level visibility. Page-level presentation (stylesheets,
  * scripts, event handlers, embedded documents, legacy presentation attributes) no longer
- * disqualifies a page. Detectably hidden content is excluded, CSS is never rendered, and every
- * proof records that basis. A page that navigates away on load remains unverified. */
+ * disqualifies a page. Markup is parsed with browser-equivalent (WHATWG) tree construction,
+ * detectably hidden content is excluded, CSS is never rendered, and every proof records that
+ * basis. A page that navigates away on load remains unverified. */
 export const VISIBILITY_BASIS = "static_text_css_not_rendered" as const;
-const HIDDEN_CONTAINERS = /<(script|style|template|noscript|svg|math|iframe|object|canvas|video|audio|select|textarea|title|noframes)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
-const HIDING_STYLE = [
-  /(?:^|;)\s*display\s*:\s*none\b/i,
-  /(?:^|;)\s*visibility\s*:\s*(?:hidden|collapse)\b/i,
-  /(?:^|;)\s*opacity\s*:\s*0*(?:\.0+)?\s*(?:!important\s*)?(?:;|$)/i,
-  /(?:^|;)\s*(?:font-size|width|height|max-width|max-height)\s*:\s*0*(?:\.0+)?(?:px|em|rem|pt|%|vh|vw)?\s*(?:!important\s*)?(?:;|$)/i,
-  /(?:^|;)\s*(?:left|right|top|bottom|text-indent|margin-left|margin-top)\s*:\s*-\s*\d{3,}/i,
-  /(?:^|;)\s*clip\s*:\s*rect\(\s*0/i,
-  /(?:^|;)\s*clip-path\s*:\s*(?:inset\(\s*(?:50|100)%|circle\(\s*0)/i,
-  /(?:^|;)\s*transform\s*:\s*scale\(\s*0*(?:\.0+)?\s*[,)]/i,
-];
-const hidingStyle = (style: string) => HIDING_STYLE.some(rule => rule.test(style.replace(/\/\*[\s\S]*?\*\//g, "")));
-/** Simple `tag`, `*`, `.class`, `#id` and tag-qualified rules in an embedded <style> that hide
- * text. Complex selectors are not evaluated; CSS is never rendered (recorded on each proof). */
-function embeddedHidingSelectors(markup: string) {
-  const tags = new Set<string>(), classes = new Set<string>(), ids = new Set<string>();
-  for (const block of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
-    for (const rule of block[1].replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      if (!hidingStyle(rule[2])) continue;
-      for (const selector of rule[1].split(",")) {
-        const simple = selector.trim().match(/^(\*|[a-z][a-z\d-]*)?(?:([.#])([A-Za-z_][\w-]*))?$/i);
-        if (!simple || (!simple[1] && !simple[2])) continue;
-        if (simple[2]) (simple[2] === "." ? classes : ids).add(simple[3]);
-        else tags.add(simple[1].toLowerCase());
-      }
+type HtmlNode = DefaultTreeAdapterMap["node"];
+type HtmlElement = DefaultTreeAdapterMap["element"];
+const HTML_NS = "http://www.w3.org/1999/xhtml";
+// Parser budgets. Real pages nest far less than 256 open elements and create far fewer than
+// 60k elements; adversarial nesting and formatting-element rebuilds otherwise cost quadratic
+// time and unbounded memory. parse5 also checks each attribute against the tag's earlier ones.
+const MAX_OPEN_ELEMENTS = 256, MAX_ELEMENTS = 60_000, MAX_TAG_ATTRIBUTES = 4096;
+const markupLimit = () => { throw new Error("contact_resolution_markup_limit"); };
+/** Linear upper bound on attributes per start tag (separators and assignments outside quoted values). */
+function tagAttributesExceeded(markup: string) {
+  for (let at = markup.indexOf("<"); at >= 0; at = markup.indexOf("<", at + 1)) {
+    if (!/[a-z]/i.test(markup[at + 1] ?? "")) continue;
+    let count = 0, i = at + 1;
+    while (i < markup.length && markup[i] !== ">") {
+      if (markup[i] === "=") {
+        count++; i++;
+        while (i < markup.length && markup.charCodeAt(i) <= 32) i++;
+        if (markup[i] === '"' || markup[i] === "'") { const close = markup.indexOf(markup[i], i + 1); i = close < 0 ? markup.length : close + 1; }
+      } else if (markup.charCodeAt(i) <= 32 || markup[i] === "/") {
+        count++;
+        while (i < markup.length && (markup.charCodeAt(i) <= 32 || markup[i] === "/")) i++;
+      } else i++;
+      if (count > MAX_TAG_ATTRIBUTES) return true;
     }
-  }
-  return { tags, classes, ids };
-}
-const JOIN = "\u0001";
-const VOID = /^(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/;
-const AUTO_CLOSE_SAME = /^(?:li|p|dt|dd|tr|td|th|option)$/;
-const CLOSES_P = /^(?:p|div|section|article|ul|ol|dl|table|h[1-6]|address|blockquote|header|footer|nav|figure|hr|pre)$/;
-const EMAIL = /[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-/** True when an address in the quote would have to be stitched across an element boundary. */
-export function crossesElementBoundary(quote: string, joins: readonly number[] = []) {
-  for (const match of quote.matchAll(EMAIL)) {
-    const start = match.index ?? 0, end = start + match[0].length;
-    if (joins.some(at => at > start && at < end)) return true;
+    at = i;
   }
   return false;
+}
+function parseHtml(markup: string) {
+  if (tagAttributesExceeded(markup)) markupLimit();
+  let open = 0, created = 0;
+  return parse(markup, { treeAdapter: { ...defaultTreeAdapter,
+    createElement: (tagName, namespaceURI, attrs) => {
+      if (++created > MAX_ELEMENTS) markupLimit();
+      return defaultTreeAdapter.createElement(tagName, namespaceURI, attrs);
+    },
+    onItemPush: () => { if (++open > MAX_OPEN_ELEMENTS) markupLimit(); },
+    onItemPop: () => { open -= 1; } } });
+}
+const isElement = (node: HtmlNode): node is HtmlElement => "tagName" in node;
+const childNodes = (node: HtmlNode): HtmlNode[] => "childNodes" in node ? node.childNodes : [];
+function attributes(element: HtmlElement) {
+  const result: Record<string, string> = Object.create(null);
+  for (const { name, value } of element.attrs) if (!(name in result)) result[name] = value;
+  return result;
+}
+/** Every element in document order, iteratively. Template contents are a separate inert
+ * fragment and are never visited. */
+function forEachElement(root: HtmlNode, visit: (element: HtmlElement) => void) {
+  const work = [root];
+  while (work.length) {
+    const node = work.pop()!, children = childNodes(node);
+    if (isElement(node)) visit(node);
+    for (let i = children.length - 1; i >= 0; i--) work.push(children[i]);
+  }
+}
+function textContent(element: HtmlElement) {
+  let text = ""; const work: HtmlNode[] = [element];
+  while (work.length) {
+    const node = work.pop()!, children = childNodes(node);
+    if (node.nodeName === "#text") text += (node as DefaultTreeAdapterMap["textNode"]).value;
+    for (let i = children.length - 1; i >= 0; i--) work.push(children[i]);
+  }
+  return text;
+}
+// Raw-text, non-rendered and foreign-content containers: their contents are never text.
+const CONTAINERS = new Set(["script", "style", "template", "noscript", "noembed", "noframes", "iframe", "object", "canvas",
+  "video", "audio", "select", "textarea", "title", "xmp", "plaintext", "datalist", "svg", "math"]);
+const STATIC = new Set(["html", "body", "main", "article", "section", "header", "footer", "nav", "div", "p", "span", "address", "a",
+  "h1", "h2", "h3", "h4", "h5", "h6", "strong", "em", "b", "i", "u", "s", "small", "abbr", "cite", "q", "blockquote", "ul", "ol", "li",
+  "dl", "dt", "dd", "table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption", "figure", "figcaption", "time", "br", "hr"]);
+const BLOCKS = new Set(["p", "div", "section", "article", "li", "address", "h1", "h2", "h3", "h4", "h5", "h6", "br", "hr", "footer",
+  "header", "nav", "table", "tr", "td"]);
+const JOIN = "\u0001";
+/** True when an address in the quote would have to be stitched across an element boundary.
+ * Boundary offsets are ascending, so each address needs one binary search. */
+export function crossesElementBoundary(quote: string, joins: readonly number[] = []) {
+  if (!joins.length) return false;
+  for (const match of quote.matchAll(EMAIL)) {
+    const start = match.index ?? 0, end = start + match[0].length;
+    let low = 0, high = joins.length;
+    while (low < high) { const mid = (low + high) >> 1; if (joins[mid] <= start) low = mid + 1; else high = mid; }
+    if (low < joins.length && joins[low] < end) return true;
+  }
+  return false;
+}
+// Bidirectional controls and marks can display an address in a different order than its text.
+const BIDI_CONTROL = /[\u202a-\u202e\u2066-\u2069\u200e\u200f\u061c]/;
+/** True when no address in the quote can be read as one literal, left-to-right run of visible text. */
+export function literalAddressUnsafe(quote: string, joins: readonly number[] = []) {
+  return crossesElementBoundary(quote, joins) || (BIDI_CONTROL.test(quote) && quote.match(EMAIL) !== null);
 }
 
 /** Static text extraction; no script execution, CSS rendering or hidden/raw markup contact
@@ -123,63 +146,66 @@ export function contactPageText(page: ContactPage) {
     const plain = body.split(/\n\s*\n/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean);
     return { segments: plain, joins: plain.map(() => [] as number[]), links, restrictionText: body, visibilityUnverified: false };
   }
-  const sheet = embeddedHidingSelectors(body);
-  // Contents of non-rendered/hidden containers (including inline SVG with self-closing children)
-  // are never text; blank them so they cannot break tokenization.
-  const markup = body.replace(HIDDEN_CONTAINERS, (_all, tag: string) => `<${tag}></${tag}>`);
-  const tokens = markup.match(/<!--[\s\S]*?-->|<(?:[^"'<>]|"[^"]*"|'[^']*')*>|[^<]+|</g) ?? [];
-  const baseHref = tokens.filter(tag => /^<base\b/i.test(tag)).map(tag => htmlAttributes(tag).href).find(Boolean);
+  const document = parseHtml(body), sheets: string[] = [];
+  let baseHref: string | undefined, visibilityUnverified = false;
+  forEachElement(document, element => {
+    const attrs = attributes(element), html = element.namespaceURI === HTML_NS;
+    if (element.tagName === "style") sheets.push(textContent(element));
+    if (html && element.tagName === "base" && attrs.href && baseHref === undefined) baseHref = attrs.href;
+    if (html && element.tagName === "meta" && attrs["http-equiv"]?.trim().toLowerCase() === "refresh") visibilityUnverified = true;
+  });
+  const sheet = hidingRules(sheets);
   const linkBase = baseHref ? new URL(baseHref, page.finalUrl).href : page.finalUrl;
-  const stack: { tag: string; hidden: boolean; styleHidden: boolean }[] = [];
-  let text = "", restrictionText = "", boundary = false, visibilityUnverified = false;
+  const frames: { hidden: boolean; styleHidden: boolean; muted: boolean }[] = [], ancestry: ElementFacts[] = [];
+  // Text is assembled from parts, tracking only its last character: re-testing a growing
+  // string on every append costs quadratic time on pages with many inline elements.
+  let parts: string[] = [], textLength = 0, endsWithSpace = false, boundary = false;
+  const restriction: string[] = [];
   const flush = () => {
-    const value = text.replace(/\s+/g, " ").trim(); text = ""; boundary = false;
+    const value = parts.join("").replace(/\s+/g, " ").trim(); parts = []; textLength = 0; boundary = false;
     const at: number[] = []; let clean = "";
     for (const ch of value) { if (ch === JOIN) at.push(clean.length); else clean += ch; }
     if (clean.trim()) { segments.push(clean); joins.push(at); }
+    if (segments.length > 4000) throw new Error("contact_resolution_markup_limit");
   };
-  const blocks = /^(?:p|div|section|article|li|address|h[1-6]|br|hr|footer|header|nav|table|tr|td)$/;
-  const staticTag = /^(?:html|body|main|article|section|header|footer|nav|div|p|span|address|a|h[1-6]|strong|em|b|i|u|s|small|abbr|cite|q|blockquote|ul|ol|li|dl|dt|dd|table|thead|tbody|tfoot|tr|td|th|caption|figure|figcaption|time|br|hr)$/;
   const appendText = (raw: string) => {
-    const value = decode(raw).replaceAll(JOIN, "");
-    if (stack.some(x => x.hidden)) return;
-    restrictionText += ` ${value}`;
-    if (stack.some(x => x.styleHidden || ["footer", "nav"].includes(x.tag))) return;
-    if (boundary && text && !/\s$/.test(text) && !/^\s/.test(value)) text += JOIN;
-    text += value; boundary = false;
+    const value = raw.replaceAll(JOIN, ""), frame = frames.at(-1);
+    if (frame?.hidden) return;
+    restriction.push(value);
+    if (frame?.styleHidden || frame?.muted) return;
+    if (boundary && textLength && !endsWithSpace && !/^\s/.test(value)) { parts.push(JOIN); textLength += 1; endsWithSpace = false; }
+    if (value) { parts.push(value); textLength += value.length; endsWithSpace = /\s$/.test(value); }
+    boundary = false;
   };
-  for (const token of tokens) {
-    if (token.startsWith("<!--")) continue;
-    const match = token.match(/^<\s*(\/?)\s*([a-z][a-z\d-]*)\b([\s\S]*)>$/i);
-    if (!match) {
-      if (/^<[!?]/.test(token)) continue;
-      appendText(token); continue; // a literal "<" that opens no tag is ordinary text
-    }
+  // Document-order open/text/close events over the browser-equivalent tree.
+  const work: (HtmlNode | { close: string })[] = [document];
+  while (work.length) {
+    const item = work.pop()!;
+    if ("close" in item) { boundary = true; if (BLOCKS.has(item.close)) flush(); frames.pop(); ancestry.pop(); continue; }
+    if (item.nodeName === "#text") { appendText((item as DefaultTreeAdapterMap["textNode"]).value); continue; }
+    const children = childNodes(item);
+    if (!isElement(item)) { for (let i = children.length - 1; i >= 0; i--) work.push(children[i]); continue; }
+    const tag = item.tagName, attrs = attributes(item), parent = frames.at(-1);
+    const container = item.namespaceURI !== HTML_NS || CONTAINERS.has(tag);
     boundary = true;
-    const [, closing, rawTag, attributes] = match, tag = rawTag.toLowerCase();
-    if (blocks.test(tag)) flush();
-    if (closing) {
-      const at = stack.map(x => x.tag).lastIndexOf(tag);
-      if (at >= 0) stack.length = at; // close back to the match; a stray closing tag is ignored
-      continue;
-    }
-    const attrs = htmlAttributes(attributes), voidTag = VOID.test(tag);
-    if (tag === "meta" && attrs["http-equiv"]?.trim().toLowerCase() === "refresh") visibilityUnverified = true;
-    if (AUTO_CLOSE_SAME.test(tag) && stack.at(-1)?.tag === tag) stack.pop();
-    else if (CLOSES_P.test(tag) && stack.at(-1)?.tag === "p") stack.pop();
-    const hidden = stack.some(x => x.hidden) || !staticTag.test(tag)
-      || Object.hasOwn(attrs, "hidden") || Object.hasOwn(attrs, "popover") || Object.hasOwn(attrs, "inert") || attrs["aria-hidden"]?.toLowerCase() === "true";
-    const styleHidden = stack.some(x => x.styleHidden) || hidingStyle(attrs.style ?? "") || sheet.tags.has("*") || sheet.tags.has(tag)
-      || (attrs.class ?? "").split(/\s+/).some(name => sheet.classes.has(name)) || (attrs.id !== undefined && sheet.ids.has(attrs.id));
+    if (BLOCKS.has(tag)) flush();
+    // A declarative shadow root replaces what the host renders; its light DOM shows only through
+    // slots, which static text cannot resolve, so the host's own children are never read.
+    const shadowHost = children.some(child => isElement(child) && child.tagName === "template" && child.namespaceURI === HTML_NS
+      && child.attrs.some(({ name }) => name === "shadowrootmode" || name === "shadowroot"));
+    const hidden = !!parent?.hidden || container || shadowHost || !STATIC.has(tag)
+      || "hidden" in attrs || "popover" in attrs || "inert" in attrs || attrs["aria-hidden"]?.trim().toLowerCase() === "true";
+    const facts = elementFacts(tag, attrs);
+    const styleHidden = !!parent?.styleHidden || hidingStyle(attrs.style ?? "") || matchesHidingRule(sheet, facts, ancestry);
     if (tag === "a" && !hidden && !styleHidden) {
       const href = attrs.href;
       if (href) { try { const url = new URL(href, linkBase); if (/contact|inquir|enquir|partnership|leadership|management|teams?|people|operations|technology|about/i.test(url.pathname)) links.push(url.href); } catch { /* untrusted link */ } }
     }
-    // Browsers ignore a self-closing slash on HTML elements, so it still opens the element.
-    if (!voidTag) stack.push({ tag, hidden, styleHidden });
-    if (stack.length > 128 || segments.length > 4000) throw new Error("contact_resolution_markup_limit");
+    frames.push({ hidden, styleHidden, muted: !!parent?.muted || tag === "footer" || tag === "nav" }); ancestry.push(facts);
+    work.push({ close: tag });
+    if (!container) for (let i = children.length - 1; i >= 0; i--) work.push(children[i]);
   }
-  flush(); return { segments, joins, links: [...new Set(links)], restrictionText: restrictionText.replace(/\s+/g, " ").trim(), visibilityUnverified };
+  flush(); return { segments, joins, links: [...new Set(links)], restrictionText: restriction.join(" ").replace(/\s+/g, " ").trim(), visibilityUnverified };
 }
 
 export function contactPublication(source: any, prospectId: string) {
@@ -238,9 +264,12 @@ function checkResolution(value: unknown, source: any, prospectId: string) {
     for (const link of parsed.links) { try { reachable.add(contactFetchUrl(link, source.candidate.organization_url).href); } catch { /* no scope widening */ } }
     if (parsed.visibilityUnverified) continue;
     for (const [segmentIndex, quote] of parsed.segments.entries()) {
-      if (quote.length > 1200 || crossesElementBoundary(quote, parsed.joins[segmentIndex])) continue;
-      try { found.push({ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex, segmentIndex, quote, visibleTextDigest }); }
-      catch { if (supportedBusinessRoute(quote) && quote.includes("@")
+      if (quote.length > 1200) continue;
+      try {
+        // A business route whose address only exists across element boundaries is ambiguous, not absent.
+        if (literalAddressUnsafe(quote, parsed.joins[segmentIndex])) throw new Error("contact_resolution_spliced_address");
+        found.push({ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex, segmentIndex, quote, visibleTextDigest });
+      } catch { if (supportedBusinessRoute(quote) && quote.includes("@")
         && !restrictedContact.test(quote)) throw new Error("contact_resolution_ambiguous_segment"); }
     }
   }
@@ -297,7 +326,7 @@ export async function resolvePublicContact(source: any, prospectId: string, read
     const parsed = contactPageText(page);
     if (parsed.visibilityUnverified) return [];
     const organizationIdentified = parsed.segments.some(segment => containsContactName(segment, source.candidate.organization));
-    return parsed.segments.flatMap((quote, segmentIndex) => { if (crossesElementBoundary(quote, parsed.joins[segmentIndex])) return [];
+    return parsed.segments.flatMap((quote, segmentIndex) => { if (quote.length > 1200 || literalAddressUnsafe(quote, parsed.joins[segmentIndex])) return [];
       try { return [{ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex,
       segmentIndex, quote, visibleTextDigest: communicationsDigest({ segments: parsed.segments,
         restrictionText: parsed.restrictionText, visibilityUnverified: parsed.visibilityUnverified }) }]; } catch { return []; } });
