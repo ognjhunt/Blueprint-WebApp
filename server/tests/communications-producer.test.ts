@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { previewResearchCommunications, approveResearchCommunications } from "../agents/communications-producer";
@@ -16,6 +17,23 @@ function setup() {
 }
 
 describe("published research → human reviewed communications producer (offline)", () => {
+  it("reads a verified publication without robot matching and preserves its blank capability column", () => {
+    const f = publishedResearchFixture({ mutateCandidate: candidate => {
+      candidate.evidence = candidate.evidence.filter((entry: any) => entry.role !== "capability");
+      candidate.potential_robot_match = "unknown";
+    } });
+    const plan = f.snapshot.row.delivery.sheets.plan;
+    plan.sheet_rows[0][15] = "";
+    plan.body_json = JSON.stringify({ majorDimension: "ROWS", values: plan.sheet_rows });
+    plan.request_digest = createHash("sha256").update(plan.body_json).digest("hex");
+    const origin = { date: f.input.date, candidateKey: f.candidate.candidate_key,
+      packetDigest: f.snapshot.row.packet_digest, rawArtifactDigest: f.snapshot.row.raw_output_digest };
+    const source = researchPublicationSource(f.snapshot, origin);
+    expect(source.candidate.potential_robot_match).toBe("unknown");
+    expect(verifyResearchPublication(f.snapshot, origin).verification.status).toBe("verified");
+    expect(source.candidate.evidence.some((entry: any) => entry.role === "capability")).toBe(false);
+  });
+
   it("keeps old publications readable while missing lead verification blocks qualified/outreach promotion", () => {
     const f = publishedResearchFixture({ leadVerification: false });
     const origin = { date: f.input.date, candidateKey: f.candidate.candidate_key,

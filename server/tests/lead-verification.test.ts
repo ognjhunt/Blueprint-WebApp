@@ -9,6 +9,15 @@ const now = Date.parse("2026-10-01T12:00:00Z");
 const candidate = { candidate_key: "synthetic", organization: "Synthetic Operator", site: "Invented packing site",
   location: "10 Test Road, Test City", task: "packing" };
 describe("evidence-bound lead verification (hermetic invented evidence)", () => {
+  it("matches every Pipeline v2 diagnostic fixture, including lossless aliases and unknown expiry", () => {
+    const cases = JSON.parse(readFileSync(new URL("./fixtures/lead-verification-diagnostics.json", import.meta.url), "utf8"));
+    for (const item of cases) {
+      const original = structuredClone(item.assessment);
+      expect(evaluateLeadVerification(item.candidate, item.assessment, Date.parse(item.now)), item.name).toMatchObject(item.expected);
+      expect(item.assessment).toEqual(original);
+    }
+  });
+
   it("matches Pipeline's retained cross-language digest/status fixture including Unicode and inert floats", () => {
     const fixture = JSON.parse(readFileSync(new URL("./fixtures/lead-verification.json", import.meta.url), "utf8"));
     expect(evaluateLeadVerification(fixture.candidate, fixture.assessment, Date.parse(fixture.now))).toMatchObject(fixture.expected);

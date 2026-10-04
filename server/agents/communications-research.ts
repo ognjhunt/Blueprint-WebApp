@@ -178,10 +178,10 @@ export function researchPublicationSource(snapshot: any, origin: CommunicationsB
     const item = selected[index];
     const task = item.evidence?.find((entry: any) => entry.role === "task");
     const capability = item.evidence?.find((entry: any) => entry.role === "capability");
-    if (!task || !capability || !["unqualified", "needs_review"].includes(item.qualification_status)) throw new Error("research_adapter_candidate_invalid");
+    if (!task || !capability && item.potential_robot_match !== "unknown" || !["unqualified", "needs_review"].includes(item.qualification_status)) throw new Error("research_adapter_candidate_invalid");
     const expected = [ids[index], item.organization, "Facility / site", item.site, "", "", "Needs recheck", "",
       item.potential_robot_match, task.url, "Research", "", `${item.proposed_next_action}\n${plan.marker}`, "", item.task,
-      capability.url, "Unverified", item.location, row.date];
+      capability?.url || "", "Unverified", item.location, row.date];
     if (researchDigest(rows[index]) !== researchDigest(expected)) throw new Error("research_adapter_sheet_identity_missing");
   }
   if (notionReceipt !== null && (typeof notionReceipt !== "string" || !/^notion:[a-f0-9-]{32,36}$/.test(notionReceipt))) throw new Error("research_adapter_notion_identity_missing");
