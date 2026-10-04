@@ -112,8 +112,15 @@ describe("founder-sent draft observation (all providers faked)", () => {
     await f.run(); expect(f.ports.draftExists).toHaveBeenCalledTimes(1); expect(f.ports.readThread).toHaveBeenCalledTimes(1);
   });
 
+  it("never anchors a send redirected to someone else, and never watches that thread", async () => {
+    const f = setup(); f.thread.messages[0].to = ["someone-else@facility.example"];
+    expect(await f.run()).toMatchObject({ outcomes: [{ state: "requires_reconciliation", reason: "founder_sent_recipient_or_sender_changed" }] });
+    expect(f.db.records.get(f.paths.check)).toMatchObject({ state: "requires_reconciliation", optOutWatch: false, nextCheckAt: null });
+    f.advance(48 * HOUR); await f.run();
+    expect(f.ports.readThread).toHaveBeenCalledTimes(1); expect(f.db.records.has(f.paths.observation)).toBe(false);
+  });
+
   it.each([
-    ["redirected", (f: ReturnType<typeof setup>) => { f.thread.messages[0].to = ["someone-else@facility.example"]; }, "founder_sent_recipient_or_sender_changed"],
     ["alias-sent", (f: ReturnType<typeof setup>) => { f.thread.messages[0].from = ["hello@tryblueprint.io"]; }, "founder_sent_recipient_or_sender_changed"],
     ["oversized", (f: ReturnType<typeof setup>) => { for (let index = 0; index < 20; index++) f.thread.messages.unshift({ ...f.sentMessage,
       gmailMessageId: `older-${index}`, internalDate: f.verifiedAt - (index + 1) * 60000, rfcMessageIds: [`<older-${index}@mail.gmail.example>`] }); },
@@ -178,7 +185,31 @@ describe("founder-sent draft observation (all providers faked)", () => {
       to: ["hello@tryblueprint.io"], internalDate: f.sentAt + HOUR, rfcMessageIds: ["<opt-out@facility.example>"], blueprintJobIds: [], body: "Unsubscribe" });
     expect(await runCommunicationsFounderSentObserver(f.db, { now: f.now, ports: f.ports, suppress }))
       .toMatchObject({ outcomes: [{ state: "error", reason: "opt_out_suppression_not_persisted" }] });
-    expect(f.db.records.get(f.paths.check)).toMatchObject({ state: "pending", lastError: "opt_out_suppression_not_persisted" });
+    // The verdict was durable before the suppression failed, so the fence holds.
+    expect(f.db.records.get(f.paths.check)).toMatchObject({ state: "requires_reconciliation", reason: "founder_sent_recipient_or_sender_changed",
+      optOutWatch: true, lastError: "opt_out_suppression_not_persisted", nextCheckAt: f.now() + 15 * 60000 });
+    await expect(reviseCommunicationsDraft(f.db, f.ledgerId, "owner@tryblueprint.io", { expectedReviewDigest: f.reviewDigest, output: f.output },
+      communicationsNow)).rejects.toThrow("may already hold a sent copy");
+    // The retry is an opt-out watch: no drafts.get, and the persisted opt-out ends the watch.
+    suppress.mockResolvedValue({ persisted: true }); f.advance(15 * 60000);
+    await runCommunicationsFounderSentObserver(f.db, { now: f.now, ports: f.ports, suppress });
+    expect(f.ports.draftExists).toHaveBeenCalledTimes(1);
+    expect(f.db.records.get(f.paths.check)).toMatchObject({ state: "requires_reconciliation", optOutWatch: false, optOutSuppressedAt: f.now() });
+  });
+
+  it("keeps a reconciliation fence and its watch through a transient Gmail error", async () => {
+    const f = setup(); f.thread.messages[0].from = ["hello@tryblueprint.io"];
+    expect(await f.run()).toMatchObject({ outcomes: [{ state: "requires_reconciliation" }] });
+    f.ports.readThread.mockRejectedValueOnce(Object.assign(new Error("founder_sent_gmail_timeout"), { code: 503 }));
+    f.advance(24 * HOUR);
+    expect(await f.run()).toMatchObject({ outcomes: [{ state: "error", reason: "founder_sent_gmail_timeout" }] });
+    expect(f.db.records.get(f.paths.check)).toMatchObject({ state: "requires_reconciliation", reason: "founder_sent_recipient_or_sender_changed",
+      optOutWatch: true, lastError: "founder_sent_gmail_timeout" });
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+    expect(await communicationsSendBlocker(f.payload, f.ledgerId)).toBe("founder_send_requires_reconciliation");
+    expect(sendFounderMessage).not.toHaveBeenCalled();
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
+    f.advance(15 * 60000); await f.run(); expect(f.ports.draftExists).toHaveBeenCalledTimes(1);
   });
 
   it.each([["system receipt", "system_send_owned", "founder_sent_system_receipt_exists"], ["malformed copy", "requires_reconciliation", "founder_sent_binding_invalid"]])(
@@ -389,6 +420,34 @@ describe("durable founder read capability and the read-only Gmail adapter", () =
     expect(f.db.records.get(f.paths.state)).toMatchObject({ blocked: false, reason: null, blockedAt: null });
   });
 
+  it("pauses founder-thread reply intake under the same access-denial pause", async () => {
+    const f = setup();
+    const allowed = () => founderSentRepliesAllowed(f.db, { now: f.now, requireCapability: f.ports.requireCapability });
+    expect(await allowed()).toBe(true);
+    f.db.records.set(f.paths.state, { blocked: true, reason: "founder_sent_gmail_http_403", blockedAt: f.now(), directionDigest: communicationsDigest(f.direction) });
+    expect(await allowed()).toBe(false);
+    f.advance(HOUR); expect(await allowed()).toBe(true);
+  });
+
+  it("treats a revoked refresh token (OAuth invalid_grant) as an access denial", async () => {
+    const f = setup(); configureBinding(); await saveFounderCredential(readonlyCredential, "flow-1");
+    const gmail = fakeGmail(f), revoked = Object.assign(new Error("invalid_grant"), { code: 400, response: { status: 400, data: { error: "invalid_grant" } } });
+    gmail.api.users.getProfile.mockRejectedValue(revoked);
+    const run = () => runCommunicationsFounderSentObserver(f.db, { now: f.now, ports: configuredFounderSentObserverPorts(gmail.api) });
+    expect(await run()).toMatchObject({ state: "blocked", reason: "founder_sent_gmail_oauth_invalid_grant" });
+    expect(await run()).toEqual({ state: "blocked", reason: "founder_sent_gmail_oauth_invalid_grant", outcomes: [] });
+    expect(gmail.api.users.getProfile).toHaveBeenCalledOnce();
+  });
+
+  it("pauses on invalid_grant from any port, not only the real adapter", async () => {
+    const f = setup();
+    f.ports.verifyMailbox.mockRejectedValueOnce(Object.assign(new Error("Request failed"), { response: { status: 400, data: { error: "invalid_grant" } } }));
+    expect(await f.run()).toMatchObject({ state: "blocked", reason: "founder_sent_gmail_oauth_invalid_grant" });
+    expect(f.db.records.get(f.paths.state)).toMatchObject({ blocked: true, reason: "founder_sent_gmail_oauth_invalid_grant" });
+    expect(await f.run()).toEqual({ state: "blocked", reason: "founder_sent_gmail_oauth_invalid_grant", outcomes: [] });
+    expect(f.ports.verifyMailbox).toHaveBeenCalledOnce();
+  });
+
   it("times out a hung Gmail read without holding the tick", async () => {
     const f = setup(); configureBinding(); await saveFounderCredential(readonlyCredential, "flow-1");
     const gmail = fakeGmail(f); gmail.api.users.threads.get.mockImplementation(() => new Promise(() => undefined));
@@ -580,6 +639,14 @@ describe("founder-sent thread reply intake", () => {
     const f = await observedThread({ edited: true });
     expect(verifyFounderSendObservation(f.db.records.get(f.paths.observation)).contentMatch).toBe("differs_from_draft");
     expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "learning_only" }]);
+  });
+
+  it("times out a hung founder-thread read without holding reply intake", async () => {
+    const f = await observedThread(); f.readThread.mockImplementation(() => new Promise(() => undefined));
+    const pending = runCommunicationsReplyIntake(f.deps);
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(await pending).toMatchObject([{ observationId: f.job.jobId, state: "blocked", reason: "reply_founder_thread_timeout" }]);
+    expect(f.replyJobs()).toHaveLength(0);
   });
 
   it("refuses a thread whose sent bytes no longer match the observation", async () => {

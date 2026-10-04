@@ -85,10 +85,21 @@ function providerStatus(error: unknown) {
   const value = (error as any)?.response?.status ?? (error as any)?.status ?? (error as any)?.code;
   return typeof value === "number" ? value : typeof value === "string" && /^\d{3}$/.test(value) ? Number(value) : undefined;
 }
+/** A revoked refresh token arrives as OAuth 400 invalid_grant, not 401/403. */
+function invalidGrant(error: unknown) {
+  return (error as any)?.response?.data?.error === "invalid_grant" || (error instanceof Error && error.message === "invalid_grant");
+}
 function accessDenied(error: unknown) {
   if (error instanceof FounderSentObserverError && error.stop) return error.message;
+  if (invalidGrant(error)) return "founder_sent_gmail_oauth_invalid_grant";
   const status = providerStatus(error);
   return status === 401 || status === 403 ? `founder_sent_gmail_http_${status}` : null;
+}
+const ACCESS_DENIAL = /^founder_sent_gmail_(?:http_40[13]|oauth_invalid_grant)$/;
+/** The access-denial pause: an hour, ended early by a new owner direction. */
+function accessPaused(state: any, direction: AdmittedDirection, now: number) {
+  return state?.blocked === true && ACCESS_DENIAL.test(state.reason ?? "") && state.directionDigest === direction.digest
+    && now < (state.blockedAt ?? 0) + ACCESS_DENIED_PAUSE;
 }
 
 /** Same send/automatic-first-contact check as Gmail draft staging. */
@@ -141,7 +152,11 @@ export async function founderSentRepliesAllowed(db: FirebaseFirestore.Firestore,
   options: { now?: () => number; requireCapability?: () => Promise<void> } = {}) {
   try {
     if (!founderSentObserverEnabled()) return false;
-    if (!await founderSentDirection(db, options.now ?? (() => Date.now()))) return false;
+    const now = options.now ?? (() => Date.now()), direction = await founderSentDirection(db, now);
+    if (!direction) return false;
+    // A recent access denial pauses founder-thread reads for reply intake too.
+    const state = (await db.doc(COMMUNICATIONS_ROOT).collection("intakeState").doc("founderSentObserver").get()).data();
+    if (accessPaused(state, direction, now())) return false;
     await (options.requireCapability ?? requireFounderReadCapability)();
     return true;
   } catch { return false; }
@@ -377,12 +392,18 @@ async function observeBinding(db: FirebaseFirestore.Firestore, ports: FounderSen
     return true;
   };
   const reconcile = async (reason: string, thread: FounderSentThread | null) => {
-    const watched = !!thread && thread.threadId === binding.receipt.threadId;
-    const suppressed = watched && await suppressOptOut(thread!);
-    // A persisted opt-out suppresses the recipient everywhere, so the watch ends.
-    const watching = watched && !suppressed;
-    await write({ state: "requires_reconciliation", reason, optOutWatch: watching, lastOptOutScanAt: watched ? now : null,
-      nextCheckAt: watching ? now + OPT_OUT_WATCH_INTERVAL : null, ...(suppressed ? { optOutSuppressedAt: now } : {}) });
+    const recipient = binding.content.to.toLowerCase();
+    // Watch only a verified copy thread in which the bound recipient took part.
+    const watched = !!thread && thread.threadId === binding.receipt.threadId && thread.messages.some(message =>
+      !message.labelIds.includes("DRAFT") && [...message.from, ...message.to, ...message.cc].includes(recipient));
+    // The fence is durable before anything else can fail; a failed
+    // suppression then retries from this verdict instead of erasing it.
+    await write({ state: "requires_reconciliation", reason, optOutWatch: watched, lastOptOutScanAt: watched ? now : null,
+      nextCheckAt: watched ? now + OPT_OUT_WATCH_INTERVAL : null });
+    if (watched && await suppressOptOut(thread!)) {
+      // A persisted opt-out suppresses the recipient everywhere, so the watch ends.
+      await write({ state: "requires_reconciliation", reason, optOutWatch: false, lastOptOutScanAt: now, nextCheckAt: null, optOutSuppressedAt: now });
+    }
     return { jobId, state: "requires_reconciliation", reason };
   };
   if (due.mode === "opt_out_watch") return reconcile(previous?.reason ?? "founder_sent_reconciliation", await ports.readThread(binding.receipt.threadId));
@@ -428,8 +449,7 @@ export async function runCommunicationsFounderSentObserver(db: FirebaseFirestore
   if (!direction) return { state: "disabled", reason: "founder_sent_direction_missing", outcomes: [] };
   const root = db.doc(COMMUNICATIONS_ROOT), stateRef = root.collection("intakeState").doc("founderSentObserver");
   const saved = (await stateRef.get()).data();
-  if (saved?.blocked === true && /^founder_sent_gmail_http_40[13]$/.test(saved.reason ?? "") && saved.directionDigest === direction.digest
-    && now() < (saved.blockedAt ?? 0) + ACCESS_DENIED_PAUSE) return { state: "blocked", reason: saved.reason, outcomes: [] };
+  if (accessPaused(saved, direction, now())) return { state: "blocked", reason: saved!.reason, outcomes: [] };
   const ports = options.ports ?? configuredFounderSentObserverPorts();
   await ports.requireCapability();
   const active = () => founderSentObserverEnabled() && canContinue() && now() < Date.parse(direction.expiresAt);
@@ -458,8 +478,13 @@ export async function runCommunicationsFounderSentObserver(db: FirebaseFirestore
         if (accessDenied(error)) return stop(error, "founder_sent_gmail_unavailable");
         if (!active()) return { state: "stopped", outcomes };
         const errors = (due.previous?.bindingDigest === due.bindingDigest ? due.previous.errors ?? 0 : 0) + 1, reason = safeCode(error, "founder_sent_check_unavailable");
-        await root.collection("founderSendChecks").doc(row.id).set(checkRecord(row.id, due.bindingDigest, due.previous,
-          { reason: "check_error", errors, lastError: reason, nextCheckAt: now() + backoff(errors) }, now()));
+        // Read the verdict again: reconcile() may have written it before failing.
+        const current = (await root.collection("founderSendChecks").doc(row.id).get()).data();
+        const verdict = current?.bindingDigest === due.bindingDigest && current.state === "requires_reconciliation" ? current : null;
+        await root.collection("founderSendChecks").doc(row.id).set(checkRecord(row.id, due.bindingDigest, verdict ?? due.previous,
+          verdict ? { state: "requires_reconciliation", reason: verdict.reason, optOutWatch: verdict.optOutWatch === true,
+            lastOptOutScanAt: verdict.lastOptOutScanAt ?? null, errors, lastError: reason, nextCheckAt: now() + backoff(errors) }
+            : { reason: "check_error", errors, lastError: reason, nextCheckAt: now() + backoff(errors) }, now()));
         outcome = { jobId: row.id, state: "error", reason };
       }
       // Revisit this binding first next time; nothing about it was decided.
@@ -498,6 +523,7 @@ export function configuredFounderSentObserverPorts(gmail?: gmail_v1.Gmail): Foun
       const status = providerStatus(error);
       if (status === 404 && onMissing) return onMissing();
       if (status === 401 || status === 403) throw new FounderSentObserverError(`founder_sent_gmail_http_${status}`, true);
+      if (invalidGrant(error)) throw new FounderSentObserverError("founder_sent_gmail_oauth_invalid_grant", true);
       if (error instanceof FounderSentObserverError) throw error;
       throw new FounderSentObserverError(safeCode(error, "founder_sent_gmail_unavailable"));
     } finally { if (timer) clearTimeout(timer); }

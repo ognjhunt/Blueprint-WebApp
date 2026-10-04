@@ -25,6 +25,14 @@ export type CommunicationsReplyIntakeDependencies = {
   founderSentRepliesAllowed?: () => Promise<boolean>;
 };
 
+const FOUNDER_THREAD_READ_TIMEOUT = 30000;
+async function withTimeout<T>(work: Promise<T>, ms: number, code: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([work, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(code)), ms); })]);
+  } finally { if (timer) clearTimeout(timer); }
+}
+
 function jobIdentity(value: Record<string, unknown>) {
   return communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"]
     .map(key => [key, value[key]])));
@@ -122,7 +130,9 @@ async function admitFounderSentReplies(observationId: string, deps: Communicatio
 async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsReplyIntakeDependencies) {
   const root = deps.db.doc(COMMUNICATIONS_ROOT), founder = parent.kind === "founder_send_observed";
   const sentThreadId = parent.kind === "system_send" ? parent.receipt.receipt.threadId : parent.observation.sent.threadId;
-  const thread = await deps.readThread(sentThreadId);
+  // A hung founder-thread read must not hold intake; system threads keep the existing reader.
+  const thread = founder ? await withTimeout(deps.readThread(sentThreadId), FOUNDER_THREAD_READ_TIMEOUT, "reply_founder_thread_timeout")
+    : await deps.readThread(sentThreadId);
   validObservation(thread, deps.now());
   const outgoing = thread.messages.find(message => message.gmailMessageId === (parent.kind === "system_send"
     ? parent.receipt.receipt.messageId : parent.observation.sent.gmailMessageId));
