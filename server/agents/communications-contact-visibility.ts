@@ -258,12 +258,15 @@ function selectorSubject(selector: string): Compound | undefined {
   return keyed(subject.compound) || (compounds.length === 1 && !subject.conditional) ? subject.compound : undefined;
 }
 
-/** Every style rule's own declarations, in one linear pass. Handles nested rules, strings,
- * grouping at-rules and blocks left open at the end of the sheet (closed there, as browsers do). */
-function forEachStyleRule(css: string, visit: (selector: string, declarations: string) => void) {
+/** Every selector of a style rule whose own declarations hide, in one linear pass. Handles nested
+ * rules, strings, grouping at-rules and blocks left open at the end of the sheet (closed there,
+ * as browsers do). */
+function forEachHidingSelector(css: string, visit: (selector: string) => void) {
   type Block = { selectors: string[] | null; declarations: string; skip: boolean };
   const stack: Block[] = [{ selectors: null, declarations: "", skip: false }];
-  const close = () => { const block = stack.pop()!; if (!block.skip && block.selectors) for (const s of block.selectors) visit(s, block.declarations); };
+  // Declarations are evaluated once per block, however many selectors share them.
+  const close = () => { const block = stack.pop()!;
+    if (!block.skip && block.selectors?.length && hidingStyle(block.declarations)) for (const s of block.selectors) visit(s); };
   let quote = "", start = 0;
   for (let i = 0; i < css.length; i++) {
     const ch = css[i];
@@ -310,8 +313,7 @@ function keyCompound(key: string): Compound {
 export function hidingRules(sheets: readonly string[]): HidingRules {
   const rules: HidingRules = { index: new Map(), collapsed: new Set(), count: 0, checks: 0 };
   for (const sheet of sheets) {
-    forEachStyleRule(stripCssComments(sheet), (selector, declarations) => {
-      if (!hidingStyle(declarations)) return;
+    forEachHidingSelector(stripCssComments(sheet), selector => {
       const subject = selectorSubject(selector);
       if (!subject) return;
       const key = ruleKey(subject);

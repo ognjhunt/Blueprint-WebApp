@@ -114,7 +114,7 @@ const STATIC = new Set(["html", "body", "main", "article", "section", "header", 
   "dl", "dt", "dd", "table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption", "figure", "figcaption", "time", "br", "hr"]);
 const BLOCKS = new Set(["p", "div", "section", "article", "li", "address", "h1", "h2", "h3", "h4", "h5", "h6", "br", "hr", "footer",
   "header", "nav", "table", "tr", "td"]);
-const JOIN = "\u0001";
+const JOIN = "\u0001", ZERO_WIDTH_NO_BREAK_SPACE = String.fromCharCode(0xfeff), WORD_JOINER = String.fromCharCode(0x2060);
 /** True when an address in the quote would have to be stitched across an element boundary.
  * Boundary offsets are ascending, so each address needs one binary search. */
 export function crossesElementBoundary(quote: string, joins: readonly number[] = []) {
@@ -129,9 +129,25 @@ export function crossesElementBoundary(quote: string, joins: readonly number[] =
 }
 // Bidirectional controls and marks can display an address in a different order than its text.
 const BIDI_CONTROL = /[\u202a-\u202e\u2066-\u2069\u200e\u200f\u061c]/;
-/** True when no address in the quote can be read as one literal, left-to-right run of visible text. */
-export function literalAddressUnsafe(quote: string, joins: readonly number[] = []) {
-  return crossesElementBoundary(quote, joins) || (BIDI_CONTROL.test(quote) && quote.match(EMAIL) !== null);
+/** Visible text glued to a segment across its block boundaries (no whitespace between): `tail`
+ * ends the preceding visible text and `lead` starts the following one. */
+export type SegmentEdge = { tail?: string; lead?: string };
+/** True when no address in the quote can be read as one literal, left-to-right run of visible text.
+ * CSS can lay blocks out inline, so an address at a block edge is unsafe when the glued text
+ * would continue it into a different address (a lowercase domain continuation, or a preceding
+ * local-part fragment); a new word such as "Phone" or a phone number does not. */
+export function literalAddressUnsafe(quote: string, joins: readonly number[] = [], edge: SegmentEdge = {}) {
+  if (crossesElementBoundary(quote, joins) || (BIDI_CONTROL.test(quote) && quote.match(EMAIL) !== null)) return true;
+  for (const match of quote.matchAll(EMAIL)) {
+    const start = match.index ?? 0, end = start + match[0].length;
+    if (end === quote.length && edge.lead && /^[a-z.-]/.test(edge.lead)
+      && ((match[0] + edge.lead).match(EMAIL)?.[0].length ?? 0) > match[0].length) return true;
+    if (start === 0 && edge.tail) {
+      const combined = edge.tail + match[0];
+      if ([...combined.matchAll(EMAIL)].some(m => (m.index ?? 0) < edge.tail!.length && (m.index ?? 0) + m[0].length === combined.length)) return true;
+    }
+  }
+  return false;
 }
 
 /** Static text extraction; no script execution, CSS rendering or hidden/raw markup contact
@@ -144,7 +160,7 @@ export function contactPageText(page: ContactPage) {
   const body = new TextDecoder("utf-8", { fatal: true }).decode(bytes), segments: string[] = [], joins: number[][] = [], links: string[] = [];
   if (/^text\/plain(?:;|$)/.test(page.contentType)) {
     const plain = body.split(/\n\s*\n/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean);
-    return { segments: plain, joins: plain.map(() => [] as number[]), links, restrictionText: body, visibilityUnverified: false };
+    return { segments: plain, joins: plain.map(() => [] as number[]), edges: plain.map((): SegmentEdge => ({})), links, restrictionText: body, visibilityUnverified: false };
   }
   const document = parseHtml(body), sheets: string[] = [];
   let baseHref: string | undefined, visibilityUnverified = false;
@@ -160,19 +176,35 @@ export function contactPageText(page: ContactPage) {
   // Text is assembled from parts, tracking only its last character: re-testing a growing
   // string on every append costs quadratic time on pages with many inline elements.
   let parts: string[] = [], textLength = 0, endsWithSpace = false, boundary = false;
-  const restriction: string[] = [];
+  const restriction: string[] = [], edges: SegmentEdge[] = [];
+  // Block-boundary glue: the last flushed segment ended without whitespace and nothing visible
+  // has followed yet; `start` is the glued tail for the segment now being built.
+  let glue: { segment: number; tail: string } | null = null, start: string | undefined;
   const flush = () => {
+    const glued = textLength > 0 && !endsWithSpace;
     const value = parts.join("").replace(/\s+/g, " ").trim(); parts = []; textLength = 0; boundary = false;
     const at: number[] = []; let clean = "";
     for (const ch of value) { if (ch === JOIN) at.push(clean.length); else clean += ch; }
-    if (clean.trim()) { segments.push(clean); joins.push(at); }
+    if (clean.trim()) {
+      segments.push(clean); joins.push(at); edges.push(start ? { tail: start } : {});
+      glue = glued ? { segment: segments.length - 1, tail: /\S{1,64}$/.exec(clean)?.[0] ?? "" } : null;
+    } else if (value) glue = null;
+    start = undefined;
     if (segments.length > 4000) throw new Error("contact_resolution_markup_limit");
   };
+  const link = (value: string) => {
+    if (!glue || !value) return;
+    if (!/^\s/.test(value)) { edges[glue.segment].lead = /^\S{1,64}/.exec(value)?.[0]; start = glue.tail; }
+    glue = null;
+  };
   const appendText = (raw: string) => {
-    const value = raw.replaceAll(JOIN, ""), frame = frames.at(-1);
+    // A zero-width no-break space is whitespace to JavaScript but invisible on the page.
+    const value = raw.replaceAll(JOIN, "").replaceAll(ZERO_WIDTH_NO_BREAK_SPACE, WORD_JOINER), frame = frames.at(-1);
     if (frame?.hidden) return;
     restriction.push(value);
-    if (frame?.styleHidden || frame?.muted) return;
+    if (frame?.styleHidden) return;
+    if (frame?.muted) { link(value); start = undefined; return; }
+    link(value);
     if (boundary && textLength && !endsWithSpace && !/^\s/.test(value)) { parts.push(JOIN); textLength += 1; endsWithSpace = false; }
     if (value) { parts.push(value); textLength += value.length; endsWithSpace = /\s$/.test(value); }
     boundary = false;
@@ -204,7 +236,7 @@ export function contactPageText(page: ContactPage) {
     work.push({ close: tag });
     if (!container) for (let i = children.length - 1; i >= 0; i--) work.push(children[i]);
   }
-  flush(); return { segments, joins, links: [...new Set(links)], restrictionText: restriction.join(" ").replace(/\s+/g, " ").trim(), visibilityUnverified };
+  flush(); return { segments, joins, edges, links: [...new Set(links)], restrictionText: restriction.join(" ").replace(/\s+/g, " ").trim(), visibilityUnverified };
 }
 
 export function contactPublication(source: any, prospectId: string) {
@@ -266,7 +298,7 @@ function checkResolution(value: unknown, source: any, prospectId: string) {
       if (quote.length > 1200) continue;
       try {
         // A business route whose address only exists across element boundaries is ambiguous, not absent.
-        if (literalAddressUnsafe(quote, parsed.joins[segmentIndex])) throw new Error("contact_resolution_spliced_address");
+        if (literalAddressUnsafe(quote, parsed.joins[segmentIndex], parsed.edges[segmentIndex])) throw new Error("contact_resolution_spliced_address");
         found.push({ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex, segmentIndex, quote, visibleTextDigest });
       } catch { if (supportedBusinessRoute(quote) && quote.includes("@")
         && !restrictedContact.test(quote)) throw new Error("contact_resolution_ambiguous_segment"); }
@@ -325,7 +357,7 @@ export async function resolvePublicContact(source: any, prospectId: string, read
     const parsed = contactPageText(page);
     if (parsed.visibilityUnverified) return [];
     const organizationIdentified = parsed.segments.some(segment => containsContactName(segment, source.candidate.organization));
-    return parsed.segments.flatMap((quote, segmentIndex) => { if (quote.length > 1200 || literalAddressUnsafe(quote, parsed.joins[segmentIndex])) return [];
+    return parsed.segments.flatMap((quote, segmentIndex) => { if (quote.length > 1200 || literalAddressUnsafe(quote, parsed.joins[segmentIndex], parsed.edges[segmentIndex])) return [];
       try { return [{ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex,
       segmentIndex, quote, visibleTextDigest: communicationsDigest({ segments: parsed.segments,
         restrictionText: parsed.restrictionText, visibilityUnverified: parsed.visibilityUnverified }) }]; } catch { return []; } });

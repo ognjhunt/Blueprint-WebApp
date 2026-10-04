@@ -671,6 +671,47 @@ describe("browser-equivalent markup parsing for contact proof", () => {
     try { contactPageText(page(markup)); } catch (error) { expect((error as Error).message).toBe("contact_resolution_markup_limit"); }
     expect(performance.now() - started).toBeLessThan(3000);
   });
+  // Fourth independent review: blocks that CSS lays out inline can continue an address.
+  it.each([
+    ["inline blocks continuing the domain", (lead: string) => `<div style="display:inline">${lead}sales@facility.co</div><div style="display:inline">m</div>`, "sales@facility.co\""],
+    ["a flex row continuing the domain", (lead: string) => `<div style="display:flex"><div>${lead}sales@facility.co</div><div>m</div></div>`, "sales@facility.co\""],
+    ["an external layout continuing the domain", (lead: string) => `<link rel="stylesheet" href="/row.css"><div class="row"><p>${lead}sales@facility.co</p><p>m</p></div>`, "sales@facility.co\""],
+  ])("never extracts an address that inline layout could continue: %s", async (_name, build, cut) => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${f.candidate.organization}</h1>${build(`${f.candidate.organization}, ${f.candidate.site}. Business inquiries: `)}`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(JSON.stringify(f.records("contactProofs"))).not.toContain(cut);
+  });
+  it("refuses an address whose local part a preceding glued block could continue", () => {
+    const parsed = contactPageText(page(`${DOC}<div>sa</div><div>les@facility.example (business inquiries)</div>`));
+    const index = parsed.segments.findIndex(segment => segment.startsWith("les@"));
+    expect(parsed.edges[index]).toEqual({ tail: "sa" });
+    expect(literalAddressUnsafe(parsed.segments[index], parsed.joins[index], parsed.edges[index])).toBe(true);
+  });
+  it.each([["a new labelled block", "<p>Phone: 555-0100</p>"], ["a phone number block", "<p>555-0100</p>"], ["whitespace between blocks", "\n<p>more</p>"],
+    ["a separate paragraph", "<p>Hours</p>"]])("keeps a minified address at a block edge followed by %s", async (_name, next) => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${f.candidate.organization}</h1><p>${f.candidate.organization}, ${f.candidate.site}. Business inquiries: ${f.prospect.contactEmail}</p>${next}`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(1);
+  });
+  it.each([["a backspace control before the local part", "sa&#8;les@facility.example", "les@facility.example"],
+    ["a next-line control before the local part", `sa${String.fromCharCode(0x85)}les@facility.example`, "les@facility.example"],
+    ["a zero-width no-break space before the local part", "sa&#65279;les@facility.example", "les@facility.example"],
+    ["a zero-width no-break space inside the domain", "sales@facility.co&#65279;m", "sales@facility.co\""]])(
+    "never cuts an address at %s", async (_name, address, cut) => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${f.candidate.organization}</h1><p>${f.candidate.organization}, ${f.candidate.site}. Business inquiries: ${address}</p>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(JSON.stringify(f.records("contactProofs"))).not.toContain(cut);
+  });
+  it("evaluates a declaration block once, however many selectors share it", () => {
+    const selectors = Array.from({ length: 1024 }, (_, i) => `.s${i}`).join(",");
+    const declarations = `color:red;${"x".repeat(CONTACT_RESEARCH_PAGE_LIMIT - 20000)};display:none`;
+    const started = performance.now();
+    try { contactPageText(page(`<style>${selectors}{${declarations}}</style><h1>Org</h1><p class="s7">Business inquiries: ${H}</p>`)); }
+    catch (error) { expect((error as Error).message).toBe("contact_resolution_markup_limit"); }
+    expect(performance.now() - started).toBeLessThan(3000);
+  });
   it("pins the HTML tree builder the v2 extractor and its stored digests were calibrated against", () => {
     // Upgrading parse5 can change visible text and therefore stored proof digests: bump EXTRACTOR first.
     expect(JSON.parse(readFileSync(new URL("../../node_modules/parse5/package.json", import.meta.url), "utf8")).version).toBe("7.3.0");
