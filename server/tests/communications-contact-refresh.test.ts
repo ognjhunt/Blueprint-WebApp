@@ -11,6 +11,7 @@ import { communicationsDigest } from "../agents/communications-contract";
 import { communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import type { ContactPage } from "../agents/communications-contact-fetch";
+import { requestNativeContactResearch, readNativeContactDiscovery } from "../agents/communications-contact-research";
 
 const htmlPage = (url: string, body: string, checkedAt = new Date(communicationsNow).toISOString()): ContactPage => ({
   requestedUrl: url, finalUrl: url, redirects: [], checkedAt, status: 200, contentType: "text/html; charset=utf-8", bodyBase64: Buffer.from(body).toString("base64"),
@@ -31,6 +32,22 @@ function setup(options: Parameters<typeof publishedResearchFixture>[0] = {}) {
 }
 
 describe("contact-free pinned producer → communications contact fulfillment (offline)", () => {
+  it("terminates a quarantined native research proof without retrying a provider or losing attempt history",async()=>{
+    const f=setup({actualProducer:true,unknowns:["No public business contact has been identified."]});
+    f.deps.readContactPage.mockImplementation(async url=>htmlPage(url,"<p>Synthetic operator site, no public address identified.</p>"));
+    const deps={...f.deps,requestContactResearch:(source:any,id:string,reason:string)=>requestNativeContactResearch(f.db,source,id,reason,f.deps.now()),
+      readContactDiscovery:(source:any,id:string)=>readNativeContactDiscovery(f.db,source,id)};
+    await f.request();await runCommunicationsContactRefresh(deps);
+    expect(f.records("refreshRequests")[0]).toMatchObject({state:"agent_research_wait",attempts:1});
+    const [path]=[...f.db.records.keys()].filter(key=>key.includes("/contactResearchRequests/"));
+    expect(path).toBeTruthy();await f.db.doc(path).set({state:"blocked",attempts:1,reason:"contact_research_receipt_changed"},{merge:true});
+    const pageCalls=f.deps.readContactPage.mock.calls.length;f.advance(300001);
+    await runCommunicationsContactRefresh(deps);await runCommunicationsContactRefresh(deps);
+    expect(f.records("refreshRequests")[0]).toMatchObject({state:"terminal",reason:"contact_agent_research_proof_invalid",attempts:1,sessionCreated:false});
+    expect(f.db.records.get(path)).toMatchObject({state:"blocked",attempts:1});
+    expect(f.records("jobs")).toHaveLength(0);expect(f.records("briefs")).toHaveLength(0);
+    expect(f.deps.readContactPage.mock.calls).toHaveLength(pageCalls);
+  });
   it("fulfills an actual-format contact-free publication into a draft-ready job, retaining source and terminal contact QA", async () => {
     const f = setup({ actualProducer: true, unknowns: ["No public business contact has been identified.", "Site data-sharing permission is unknown."] });
     const artifact = JSON.parse(Buffer.from(f.snapshot.files.artifact, "base64").toString());

@@ -34,6 +34,7 @@ function operatorEvidence(candidate: any, index: number, role: string) {
 }
 
 export function assessedPublicContact(candidate: any, value: unknown) {
+  if ((value as any)?.contact === null) throw new Error("verified_public_business_contact_missing");
   const assessment = sourceAssessmentSchema.parse(value), selected = assessment.contact;
   const entry = operatorEvidence(candidate, selected.evidenceIndex, "contact");
   const emails = (entry.quote.match(/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) ?? []).map((x: string) => x.toLowerCase());
@@ -53,7 +54,7 @@ export function assessedPublicContact(candidate: any, value: unknown) {
 }
 
 export function assessedSiteGeography(candidate: any, value: unknown) {
-  const assessment = sourceAssessmentSchema.parse(value);
+  const assessment = sourceAssessmentSchema.extend({ contact: sourceAssessmentSchema.shape.contact.nullable() }).parse(value);
   const entry = operatorEvidence(candidate, assessment.geography.evidenceIndex, "geography");
   // The exact site/address relationship is reviewed. A headquarters or another
   // facility cannot supply the positive evidence for this site's geography.

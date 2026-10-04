@@ -18,6 +18,27 @@ QA, publication, capability-integrity repair and cleanup source from
 `8f2135479e6f3187b725ac47d2bfd596809a6879`.
 This is a research-only controlled release; Pipeline main is a separate lineage.
 
+Unresolved eligible contact gaps now return to the existing daily research agent
+through a frozen, publication-bound input. At most three tasks join a daily
+input and each original publication gets at most two recovery attempts. The
+agent researches current workflow owners and routing roles through its existing
+Perplexity and public-source tools; optional Exa expansion remains separately
+gated. Recipient preference is a relevant current professional person, an
+appropriate task team, then a general business inbox. Titles alone do not prove
+remit. Only complete official operator-page evidence can admit the recovered
+contact; native tool acknowledgements, retained source bytes and QA are verified
+before resuming communications. Integrity failures quarantine the original
+claim without undoing research publication.
+
+Authenticated reviewed staging may retain a verified site/task with no resolved
+contact. That record creates a research gap and zero draft jobs. Stable CRM
+refreshes require the original row digest and matching site/task identity. No
+separate agent create, spending authority or send permission is added. The
+static contact reader retains bounded fetching and one complete-body oversized
+page retry. Generated messages still require current qualification, suppression
+and budget admission before inference. Founder Gmail draft copying retains
+its separate protected direction and current-ledger checks.
+
 The optional `exa-guarded-v1` profile adds host-controlled start/read functions
 to the same daily research session before final QA. It shares the existing $5
 research authority and requires actual authentication, supported native cost-cap

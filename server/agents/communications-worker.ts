@@ -13,13 +13,14 @@ import { CommunicationsAgentsAPI, CommunicationsRuntimeError, type Communication
   type CommunicationsExecutionWindow, communicationsExecutionDeadline, effectiveCommunicationsCheckpoint } from "./communications-api";
 import { communicationsContinuationDeadline, type CommunicationsOwnerAuthorityRef, type CommunicationsCancelledContinuation } from "./communications-api";
 import { verifyFounderMailbox, readFounderThread } from "./communications-gmail";
-import { readExistingResearchSnapshot, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
+import { readExistingResearchSnapshot, researchPublicationSource, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
 import { reviewCommunicationsPayload } from "./communications-review";
 import { CommunicationsStore, type CommunicationsJobRecord } from "./communications-store";
 import type { ActionPayload } from "./action-policies";
 import { runCommunicationsIntake } from "./communications-intake";
 import { runCommunicationsReplyIntake } from "./communications-reply-intake";
-import { readPublicContactPage } from "./communications-contact-fetch";
+import { readResearchContactPage } from "./communications-contact-fetch";
+import { requestNativeContactResearch, readNativeContactDiscovery, verifyExistingContactDiscovery, contactDiscoverySchema, contactResearchTask } from "./communications-contact-research";
 import { automaticFirstContactEnabled, firstContactGeography, ROUTINE_COMMUNICATIONS_POLICY,
   routineCommunicationsContentBlockers } from "./communications-first-contact";
 import { executeAutomaticFirstContact } from "./communications-send";
@@ -195,7 +196,14 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       await deps.store.requestRefresh(job, refresh);
       return { state: "awaiting_research", reasons: refresh };
     }
-    verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId), brief, await deps.store.handoff(brief), await deps.store.contactProof(brief), deps.now());
+    const verifyCurrentResearch = async () => {
+      const snapshot = await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId);
+      const proof: any = await deps.store.contactProof(brief);
+      if (proof?.discovery) await verifyExistingContactDiscovery(deps.store.db,
+        contactResearchTask(researchPublicationSource(snapshot, brief.researchOrigin), job.prospectId), contactDiscoverySchema.parse(proof.discovery));
+      return verifyPublishedResearch(snapshot, brief, await deps.store.handoff(brief), proof, deps.now());
+    };
+    await verifyCurrentResearch();
     const approval = await deps.store.approvalState(job.prospectId);
     const agentChosenHistory = !!phase || !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId
       || claimed.checkpoint.historyProfile === "agent-history-v1";
@@ -253,8 +261,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       if (await deps.isSuppressed(brief.contact.email)) throw new Error("recipient_suppressed");
       if (briefRefreshReasons(brief, deps.now()).length) throw new Error("research_refresh_required");
       if (communicationsDigest(await deps.store.brief(job.briefId)) !== job.briefDigest) throw new Error("research_brief_changed");
-      verifyPublishedResearch(await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId),
-        brief, await deps.store.handoff(brief), await deps.store.contactProof(brief), deps.now());
+      await verifyCurrentResearch();
       const latest = (await deps.store.db.collection("outboundProspects").doc(job.prospectId).get()).data();
       if (!latest || latest.stage === "closed" || latest.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
         || latest.siteId !== brief.siteId || latest.taskId !== brief.taskId) throw new Error("canonical_prospect_identity_missing_or_changed");
@@ -492,7 +499,9 @@ export function startCommunicationsWorker(): () => Promise<void> {
     await runCommunicationsReplyIntake({ db, readResearch: deps.readResearch, readThread: deps.readThread,
       isSuppressed: deps.isSuppressed, suppress: deps.suppress, now: deps.now });
     await runCommunicationsIntake({ db, readResearch: deps.readResearch,
-      isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readPublicContactPage });
+      isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readResearchContactPage,
+      requestContactResearch: (source, prospectId, reason) => requestNativeContactResearch(db, source, prospectId, reason, deps.now()),
+      readContactDiscovery: (source, prospectId) => readNativeContactDiscovery(db, source, prospectId) });
   }, copyDrafts: canContinue => runCommunicationsGmailDraftCopies(db, undefined, undefined, canContinue), processJobs: allowPaidInference });
 }
 

@@ -4,9 +4,11 @@ import { BlockList, isIP } from "node:net";
 import { sameOperatorUrl } from "./communications-contact-evidence";
 
 export const CONTACT_PAGE_LIMIT = 128 * 1024;
+export const CONTACT_RESEARCH_PAGE_LIMIT = 384 * 1024;
 export type ContactPage = { requestedUrl: string; finalUrl: string; redirects: string[];
   checkedAt: string; status: 200; contentType: string; bodyBase64: string };
-export type ContactPageReader = (url: string, organizationUrl: string, deadline: number) => Promise<ContactPage>;
+export type ContactPageReader = (url: string, organizationUrl: string, deadline: number,
+  options?: { maxBytes: number }) => Promise<ContactPage>;
 const privateV4 = new BlockList();
 for (const [address, prefix] of [["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
   ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24], ["192.168.0.0", 16],
@@ -30,7 +32,8 @@ export function contactFetchUrl(value: string, organizationUrl: string) {
 /** Validation is pinned to the actual TLS connection; no second DNS resolution,
  * cookies, credentials, auth, environment proxy or automatic redirects. */
 export async function contactHttpRequest(url: URL, timeoutMs: number,
-  deps = { lookup, request }): Promise<{ status: number; location?: string; contentType: string; body: Buffer }> {
+  deps = { lookup, request }, maxBytes = CONTACT_PAGE_LIMIT): Promise<{ status: number; location?: string; contentType: string; body: Buffer }> {
+  if (![CONTACT_PAGE_LIMIT, CONTACT_RESEARCH_PAGE_LIMIT].includes(maxBytes)) throw new Error("contact_fetch_limit_invalid");
   const deadline = Date.now() + timeoutMs;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -54,13 +57,16 @@ export async function contactHttpRequest(url: URL, timeoutMs: number,
         if (status === 404 || status === 410) { reject(new Error("contact_fetch_page_unavailable")); response.destroy(); return; }
         if (status !== 200 || !/^(?:text\/html|text\/plain)(?:;|$)/.test(contentType)
           || (response.headers["content-encoding"] && response.headers["content-encoding"] !== "identity")
-          || Number(response.headers["content-length"] ?? 0) > CONTACT_PAGE_LIMIT) {
+          ) {
           reject(new Error("contact_fetch_response_forbidden")); response.destroy(); return;
+        }
+        if (Number(response.headers["content-length"] ?? 0) > maxBytes) {
+          reject(new Error("contact_fetch_size_limit")); response.destroy(); return;
         }
         const chunks: Buffer[] = []; let size = 0;
         response.on("data", chunk => {
           const bytes = Buffer.from(chunk); size += bytes.length;
-          if (size > CONTACT_PAGE_LIMIT) { reject(new Error("contact_fetch_size_limit")); response.destroy(); }
+          if (size > maxBytes) { reject(new Error("contact_fetch_size_limit")); response.destroy(); }
           else chunks.push(bytes);
         });
         response.on("error", reject);
@@ -74,6 +80,12 @@ export async function contactHttpRequest(url: URL, timeoutMs: number,
     });
   } finally { clearTimeout(timer); }
 }
+
+/** Larger complete bodies are allowed only in the bounded contact recovery.
+ * Streaming, DNS/TLS pinning and redirect/credential restrictions are unchanged. */
+export const readResearchContactPage: ContactPageReader = (value, organizationUrl, deadline, options) =>
+  readPublicContactPage(value, organizationUrl, deadline,
+    (url, timeout) => contactHttpRequest(url, timeout, undefined, options?.maxBytes ?? CONTACT_PAGE_LIMIT));
 
 export async function readPublicContactPage(value: string, organizationUrl: string, deadline: number,
   httpRequest = contactHttpRequest): Promise<ContactPage> {

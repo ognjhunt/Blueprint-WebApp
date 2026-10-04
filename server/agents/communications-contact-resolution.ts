@@ -2,14 +2,15 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { communicationsDigest } from "./communications-contract";
 import { assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, extractBusinessContact, restrictedContact, sameOperatorUrl, supportedBusinessRoute } from "./communications-contact-evidence";
-import { CONTACT_PAGE_LIMIT, contactFetchUrl, type ContactPage, type ContactPageReader } from "./communications-contact-fetch";
+import { CONTACT_RESEARCH_PAGE_LIMIT, contactFetchUrl, type ContactPage, type ContactPageReader } from "./communications-contact-fetch";
+import { contactDiscoverySchema, type ContactDiscovery } from "./communications-contact-research";
 
 const EXTRACTOR = "blueprint.public-contact-text.v1" as const;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const pageSchema = z.object({ requestedUrl: z.string().url(), finalUrl: z.string().url(), redirects: z.array(z.string().url()).max(2),
   checkedAt: z.string().datetime(), status: z.literal(200), contentType: z.string().max(200),
-  bodyBase64: z.string().max(Math.ceil(CONTACT_PAGE_LIMIT / 3) * 4), bodyDigest: digest, byteCount: z.number().int().positive().max(CONTACT_PAGE_LIMIT),
+  bodyBase64: z.string().max(Math.ceil(CONTACT_RESEARCH_PAGE_LIMIT / 3) * 4), bodyDigest: digest, byteCount: z.number().int().positive().max(CONTACT_RESEARCH_PAGE_LIMIT),
 }).strict();
 const resolutionBaseSchema = z.object({
   version: z.literal("blueprint.contact-resolution.v1"),
@@ -18,6 +19,7 @@ const resolutionBaseSchema = z.object({
     qaArtifactDigest: digest, researchQaReference: z.string().min(1),
     sheetsId: z.string().min(1), sheetsProspectId: z.string().min(1), prospectId: z.string().min(1) }).strict(),
   pages: z.array(pageSchema).min(1).max(3),
+  discovery: contactDiscoverySchema.optional(),
   contact: z.object({ email: z.string().email(), scope: z.enum(["site", "organization_business_route"]),
     organization: z.string().min(1), site: z.string().nullable(), purpose: z.literal("business_inquiries"),
     status: z.literal("public_business_contact"), sourceUrl: z.string().url(), sourceCheckedAt: z.string().datetime() }).strict(),
@@ -65,7 +67,7 @@ function htmlAttributes(value: string): Record<string, string> {
  * contact inference. Separate blocks never supply each other's business labels. */
 export function contactPageText(page: ContactPage) {
   const bytes = Buffer.from(page.bodyBase64, "base64");
-  if (!bytes.length || bytes.length > CONTACT_PAGE_LIMIT || bytes.toString("base64") !== page.bodyBase64
+  if (!bytes.length || bytes.length > CONTACT_RESEARCH_PAGE_LIMIT || bytes.toString("base64") !== page.bodyBase64
     || !/^(?:text\/html|text\/plain)(?:;|$)/.test(page.contentType)) throw new Error("contact_resolution_body_invalid");
   const body = new TextDecoder("utf-8", { fatal: true }).decode(bytes), segments: string[] = [], links: string[] = [];
   if (/^text\/plain(?:;|$)/.test(page.contentType)) return { segments: body.split(/\n\s*\n/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean), links, restrictionText: body, visibilityUnverified: false };
@@ -113,7 +115,7 @@ export function contactPageText(page: ContactPage) {
     if (Object.hasOwn(attrs, "style")) blockVisibilityUnverified = true;
     if (tag === "a" && !hidden) {
       const href = attrs.href;
-      if (href) { try { const url = new URL(href, linkBase); if (/contact|inquir|enquir|partnership/i.test(url.pathname)) links.push(url.href); } catch { /* untrusted link */ } }
+      if (href) { try { const url = new URL(href, linkBase); if (/contact|inquir|enquir|partnership|leadership|management|teams?|people|operations|technology|about/i.test(url.pathname)) links.push(url.href); } catch { /* untrusted link */ } }
     }
     if (!voidTag) stack.push({ tag, hidden, inlineStyle: Object.hasOwn(attrs, "style") });
     if (stack.length > 128 || segments.length > 4000) throw new Error("contact_resolution_markup_limit");
@@ -129,6 +131,29 @@ export function contactPublication(source: any, prospectId: string) {
     sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId, prospectId };
 }
 
+/** Rank only contacts that already pass literal public business-route proof.
+ * A title or email local part cannot establish a relevant decision maker. */
+export function publicContactPriority(quote: string, candidate: any) {
+  if (/\b(?:former|formerly|previously|retired|no longer|not responsible|does not (?:lead|manage|oversee)|left (?:the )?company)\b/i.test(quote)) return 3;
+  const taskWords = String(candidate.task).normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? [];
+  const remit = /\b(?:responsible for|oversees|leads|manages|evaluates)\b/i.test(quote)
+    && taskWords.some(word => containsContactName(quote, word));
+  const role = /\b(?:director|manager|head|vice president|chief)\b/i.test(quote);
+  const named = /\b[\p{Lu}][\p{Ll}]+(?:[-’'][\p{L}]+)?\s+[\p{Lu}][\p{Ll}]+(?:[-’'][\p{L}]+)?\s*,\s*(?:[Dd]irector|[Mm]anager|[Hh]ead|[Vv]ice [Pp]resident|[Cc]hief)\b/u.test(quote);
+  if (named && role && remit && containsContactName(quote, candidate.site)) return 0;
+  if (/\b(?:operations|technology|automation|robotics|procurement|engineering)\s+(?:team|inquiries|enquiries|department)\b/i.test(quote)
+    && taskWords.some(word => containsContactName(quote, word))) return 1;
+  return 2;
+}
+function preferredContact<T extends { email: string; quote: string }>(contacts: T[], candidate: any): T {
+  contacts = contacts.filter(contact => publicContactPriority(contact.quote, candidate) < 3);
+  if (!contacts.length) throw new Error("contact_resolution_missing_or_ambiguous");
+  const priority = Math.min(...contacts.map(contact => publicContactPriority(contact.quote, candidate)));
+  const preferred = contacts.filter(contact => publicContactPriority(contact.quote, candidate) === priority);
+  if (new Set(preferred.map(contact => contact.email)).size !== 1) throw new Error("contact_resolution_missing_or_ambiguous");
+  return preferred[0];
+}
+
 function checkResolution(value: unknown, source: any, prospectId: string) {
   const base = resolutionBaseSchema.parse(value);
   assertContactUnknowns(source.candidate, true);
@@ -137,6 +162,12 @@ function checkResolution(value: unknown, source: any, prospectId: string) {
   const found: { email: string; scope: "site" | "organization_business_route"; pageIndex: number; segmentIndex: number; quote: string; visibleTextDigest: string }[] = [];
   const reachable = new Set([source.candidate.organization_url, ...source.candidate.evidence.filter((x: any) => x.classification === "operator").map((x: any) => x.url)]
     .filter((x: string) => sameOperatorUrl(x, source.candidate.organization_url)).map((x: string) => { try { return contactFetchUrl(x, source.candidate.organization_url).href; } catch { return ""; } }));
+  if (base.pages.reduce((total, page) => total + page.byteCount, 0) > 512 * 1024) throw new Error("contact_resolution_total_size_limit");
+  if (base.discovery) {
+    if (base.discovery.sourceDigest !== communicationsDigest(source)
+      || base.discovery.requestId !== communicationsDigest({ publication: contactPublication(source, prospectId), sourceDigest: communicationsDigest(source) })) throw new Error("contact_research_source_changed");
+    for (const s of base.discovery.sources) reachable.add(contactFetchUrl(s.url, source.candidate.organization_url).href);
+  }
   for (const [pageIndex, page] of base.pages.entries()) {
     const bytes = Buffer.from(page.bodyBase64, "base64"), requested = contactFetchUrl(page.requestedUrl, source.candidate.organization_url).href;
     if (!reachable.has(requested) || page.byteCount !== bytes.length || page.bodyDigest !== hash(bytes)
@@ -155,8 +186,7 @@ function checkResolution(value: unknown, source: any, prospectId: string) {
         && !restrictedContact.test(quote)) throw new Error("contact_resolution_ambiguous_segment"); }
     }
   }
-  if (!found.length || new Set(found.map(x => x.email)).size !== 1) throw new Error("contact_resolution_missing_or_ambiguous");
-  const selected = found[0], page = base.pages[selected.pageIndex];
+  const selected = preferredContact(found, source.candidate), page = base.pages[selected.pageIndex];
   if (communicationsDigest(base.extraction) !== communicationsDigest({ version: EXTRACTOR, pageIndex: selected.pageIndex,
     segmentIndex: selected.segmentIndex, quote: selected.quote, visibleTextDigest: selected.visibleTextDigest })
     || base.contact.email !== selected.email || base.contact.scope !== selected.scope
@@ -179,9 +209,11 @@ export function verifyContactResolution(value: unknown, source: any, prospectId:
 
 /** Bounded communications-owned research. Only cited pages and discovered operator
  * contact links, three pages/24 seconds; no guessed path/address, model or Gmail. */
-export async function resolvePublicContact(source: any, prospectId: string, readPage: ContactPageReader, now: () => number) {
+export async function resolvePublicContact(source: any, prospectId: string, readPage: ContactPageReader, now: () => number,
+  discovery?: ContactDiscovery) {
   assertContactUnknowns(source.candidate, true);
-  const queue = [source.candidate.organization_url, ...source.candidate.evidence.filter((x: any) => x.classification === "operator").map((x: any) => x.url)];
+  const queue = [...(discovery?.sources.map(s => s.url) ?? []), source.candidate.organization_url,
+    ...source.candidate.evidence.filter((x: any) => x.classification === "operator").map((x: any) => x.url)];
   const visited = new Set<string>(), pages: z.infer<typeof pageSchema>[] = [], deadline = now() + 24000;
   while (queue.length && pages.length < 3 && visited.size < 6 && now() < deadline) {
     let url: string;
@@ -189,9 +221,16 @@ export async function resolvePublicContact(source: any, prospectId: string, read
     if (visited.has(url)) continue; visited.add(url);
     let page: ContactPage;
     try { page = await readPage(url, source.candidate.organization_url, deadline); }
-    catch (error) { if (error instanceof Error && error.message === "contact_fetch_page_unavailable") continue; throw error; }
+    catch (error) {
+      if (error instanceof Error && error.message === "contact_fetch_size_limit") {
+        try { page = await readPage(url, source.candidate.organization_url, deadline, { maxBytes: CONTACT_RESEARCH_PAGE_LIMIT }); }
+        catch (larger) { if (larger instanceof Error && ["contact_fetch_size_limit", "contact_fetch_page_unavailable"].includes(larger.message)) continue; throw larger; }
+      } else if (error instanceof Error && error.message === "contact_fetch_page_unavailable") continue;
+      else throw error;
+    }
     if (page.requestedUrl !== url || Date.parse(page.checkedAt) > now() || now() - Date.parse(page.checkedAt) > 60000) throw new Error("contact_resolution_check_date_invalid");
     const parsed = contactPageText(page), bytes = Buffer.from(page.bodyBase64, "base64");
+    if (bytes.length + pages.reduce((total, p) => total + p.byteCount, 0) > 512 * 1024) continue;
     pages.push({ ...page, byteCount: bytes.length, bodyDigest: hash(bytes) });
     // Discovered contact links take precedence over another general source page.
     queue.unshift(...parsed.links);
@@ -206,8 +245,9 @@ export async function resolvePublicContact(source: any, prospectId: string, read
   });
   if (!candidates.length) throw new Error(pages.some(page => contactPageText(page).visibilityUnverified)
     ? "contact_resolution_visibility_unverified" : "contact_resolution_missing_or_ambiguous");
-  const selected = candidates[0], page = pages[selected.pageIndex];
+  const selected = preferredContact(candidates, source.candidate), page = pages[selected.pageIndex];
   const base = checkResolution({ version: "blueprint.contact-resolution.v1", publication: contactPublication(source, prospectId), pages,
+    ...(discovery ? { discovery } : {}),
     contact: { email: selected.email, scope: selected.scope, organization: source.candidate.organization,
       site: selected.scope === "site" ? source.candidate.site : null, purpose: "business_inquiries", status: "public_business_contact",
       sourceUrl: page.finalUrl, sourceCheckedAt: page.checkedAt },

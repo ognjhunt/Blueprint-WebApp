@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { communicationsDigest, type CommunicationsBrief } from "./communications-contract";
 import { assessedPublicContact, assessedSiteGeography, sourceAssessmentSchema } from "./communications-source-assessment";
-import { sameOperatorUrl } from "./communications-contact-evidence";
+import { sameOperatorUrl, assertContactUnknowns } from "./communications-contact-evidence";
 import { evaluateLeadVerification, leadIdentityKey, leadTaskSourceSupports, requireVerifiedLead } from "./lead-verification";
 
 export const REVIEWED_RESEARCH_ROOT = "blueprintCommunications/default/reviewedResearch";
@@ -30,9 +30,10 @@ export const reviewedResearchInputSchema = z.object({
     site: z.string().trim().min(1).max(300), location: z.string().trim().min(1).max(300), task: z.string().trim().min(1).max(120),
     unknowns: z.array(text).max(16), evidence: z.array(evidence).min(3).max(16),
   }).strict(),
-  assessment: sourceAssessmentSchema,
+  assessment: sourceAssessmentSchema.extend({ contact: sourceAssessmentSchema.shape.contact.nullable() }),
   // Kept as raw evidence so malformed/extra metadata yields repair guidance.
   leadVerification: z.unknown().optional(),
+  refresh: z.object({ sheetsProspectId: z.string().regex(/^BP-\d{6}$/), previousRowDigest: digest }).strict().optional(),
   crm: z.object({ spreadsheetId: z.literal(COMMUNICATIONS_CRM_ID), range: z.literal("Prospects!A1:Z1000"),
     checkedAt: z.string().datetime({ offset: true }), rows: z.array(z.array(z.string().max(4000)).max(26)).max(1000),
     rationale: text }).strict(),
@@ -57,6 +58,17 @@ export function validateReviewedResearch(inputValue: unknown, now: number) {
   if (!fresh(input.crm.checkedAt, now)) throw new Error("reviewed_research_crm_stale");
   if (input.crm.rows.length >= 1000) throw new Error("reviewed_research_crm_overflow");
   const organization = researchIdentityText(input.candidate.organization), address = researchIdentityText(input.candidate.location);
+  if (input.refresh) {
+    const rows = input.crm.rows.filter(row => row[0] === input.refresh!.sheetsProspectId);
+    const row = rows[0];
+    if (rows.length !== 1 || !row || communicationsDigest(row) !== input.refresh.previousRowDigest
+      || researchIdentityText(row[1] ?? "") !== organization
+      || researchIdentityText(row[3] ?? "") !== researchIdentityText(input.candidate.site)
+      || researchIdentityText(row[17] ?? "") !== address
+      || researchIdentityText(row[14] ?? "") !== researchIdentityText(input.candidate.task)) {
+      throw new Error("reviewed_research_refresh_identity_changed");
+    }
+  }
   if (input.crm.rows.some(row => {
     if (!/^BP-\d{6}$/.test(row[0] ?? "") || (row[14] && researchIdentityText(row[14]) !== researchIdentityText(input.candidate.task))) return false;
     const rowAddress = researchIdentityText(row[17] ?? "");
@@ -65,14 +77,18 @@ export function validateReviewedResearch(inputValue: unknown, now: number) {
     // Incomplete old CRM identity requires a refresh; a known other physical
     // site/task does not collapse into this candidate via company/email alone.
     const rowOrganization = researchIdentityText(row[1] ?? "");
+    if (input.refresh?.sheetsProspectId === row[0]) return false;
     return (sameSite && (!rowOrganization || rowOrganization === organization)) || (!rowAddress && !row[3] && (rowOrganization === organization
-      || (row[5] ?? "").toLowerCase().includes(input.assessment.contact.email.toLowerCase())));
+      || (input.assessment.contact && (row[5] ?? "").toLowerCase().includes(input.assessment.contact.email.toLowerCase()))));
   })) throw new Error("reviewed_research_crm_duplicate_requires_refresh");
-  const contact = assessedPublicContact(input.candidate, input.assessment), geography = assessedSiteGeography(input.candidate, input.assessment);
+  const contact = input.assessment.contact ? assessedPublicContact(input.candidate, input.assessment) : null;
+  if (!contact) assertContactUnknowns(input.candidate, true);
+  if (!contact && (input.assessment.resolvedGaps.length || input.assessment.conflicts.length)) throw new Error("reviewed_research_contact_gap_unresolved");
+  const geography = assessedSiteGeography(input.candidate, input.assessment);
   const task = input.candidate.evidence.find(entry => entry.role === "task" && ["operator", "independent"].includes(entry.classification) && entry.claim_kind === "fact"
     && entry.visibility === "public" && entry.assertion_scope === "current_operational" && (sameOperatorUrl(entry.url, input.candidate.organization_url)
       || leadTaskSourceSupports(input, entry)));
-  if (!task || !fresh(task.source_checked_at, now) || !fresh(contact.sourceCheckedAt, now) || !fresh(geography.sourceCheckedAt, now)) {
+  if (!task || !fresh(task.source_checked_at, now) || (contact && !fresh(contact.sourceCheckedAt, now)) || !fresh(geography.sourceCheckedAt, now)) {
     throw new Error("reviewed_research_current_source_missing");
   }
   return input;
@@ -87,12 +103,13 @@ export async function stageReviewedResearch(db: FirebaseFirestore.Firestore, inp
   const verification = requireVerifiedLead(parsed, now);
   const input = validateReviewedResearch(parsed, now);
   const packet = { candidate: input.candidate, assessment: input.assessment,
+    ...(input.refresh ? { refresh: input.refresh } : {}),
     ...(input.leadVerification !== undefined ? { leadVerification: input.leadVerification } : {}), artifact: {
     kind: input.artifact.kind, reference: input.artifact.reference, sourceRecordUrl: input.artifact.sourceRecordUrl,
   }, crm: input.crm };
   const packetDigest = communicationsDigest(packet), admissionId = communicationsDigest({ packetDigest, rawArtifactDigest: input.artifact.sha256 });
   const identityKey = leadIdentityKey(input.candidate)!;
-  const sourceRecordId = `reviewed:${identityKey}`;
+  const sourceRecordId = input.refresh?.sheetsProspectId ?? `reviewed:${identityKey}`;
   const row = { date: input.date, run_key: `reviewed-report:${admissionId}`, state: "completed",
     packet_digest: packetDigest, raw_output_digest: input.artifact.sha256, packet,
     review: { reviewer_reference: `authenticated:${actor}`, reviewed_at: new Date(now).toISOString(),
@@ -106,7 +123,7 @@ export async function stageReviewedResearch(db: FirebaseFirestore.Firestore, inp
   const ref = db.collection(REVIEWED_RESEARCH_ROOT).doc(admissionId);
   const identityRef = db.doc("blueprintCommunications/default").collection("reviewedResearchIdentities").doc(identityKey);
   const recipientRef = db.doc("blueprintCommunications/default").collection("reviewedResearchRecipients")
-    .doc(communicationsDigest({ email: input.assessment.contact.email.toLowerCase(), identityKey }));
+    .doc(communicationsDigest({ email: input.assessment.contact?.email.toLowerCase() ?? null, identityKey }));
   const addressRef = db.doc("blueprintCommunications/default").collection("reviewedResearchAddresses")
     .doc(communicationsDigest({ identityKey }));
   return db.runTransaction(async tx => {
@@ -123,7 +140,7 @@ export async function stageReviewedResearch(db: FirebaseFirestore.Firestore, inp
     }
     if (prospects.size > 1000 || prospects.docs.some(doc => {
       const p = doc.data();
-      if (p.researchPublicationId === sourceRecordId && p.entityAdmission === "research_provisional") return false;
+      if (p.researchPublicationId === sourceRecordId && p.entityAdmission === "research_provisional" && p.stage === "drafted") return false;
       const operator = researchIdentityText(p.facilityName ?? ""), address = researchIdentityText(p.facilityAddress ?? ""), task = researchIdentityText(p.hypothesisedTask ?? "");
       const site = researchIdentityText(p.facilitySite ?? ""), sameOperator = operator === researchIdentityText(input.candidate.organization);
       const sameSite = address === researchIdentityText(input.candidate.location) && (!site || site === researchIdentityText(input.candidate.site));
@@ -132,7 +149,7 @@ export async function stageReviewedResearch(db: FirebaseFirestore.Firestore, inp
       if ((operator && !sameOperator) || (address && !sameSite) || (task && !sameTask)) return false;
       // Incomplete legacy identities are rechecked, never silently merged by a
       // shared mailbox alone. Complete distinct entities/sites stay usable.
-      return sameOperator || sameSite || p.contactEmail?.toLowerCase() === input.assessment.contact.email.toLowerCase();
+      return sameOperator || sameSite || (input.assessment.contact && p.contactEmail?.toLowerCase() === input.assessment.contact.email.toLowerCase());
     })) throw new Error("reviewed_research_canonical_duplicate_requires_refresh");
     tx.create(ref, snapshot);
     for (const binding of [identityRef, recipientRef, addressRef]) {
@@ -157,12 +174,13 @@ export function reviewedResearchPublication(snapshot: any, origin: Communication
     || sha256(Buffer.from(snapshot.files?.artifact ?? "", "base64")) !== origin.rawArtifactDigest) throw new Error("reviewed_research_source_changed");
   const input = validateReviewedResearch({ date: row.date, artifact: { ...packet.artifact, rawBase64: snapshot.files.artifact, sha256: row.raw_output_digest },
     candidate: packet.candidate, assessment: packet.assessment, crm: packet.crm,
+    ...(packet.refresh ? { refresh: packet.refresh } : {}),
     ...(packet.leadVerification !== undefined ? { leadVerification: packet.leadVerification } : {}) }, Date.parse(row.review.reviewed_at));
   const admissionId = communicationsDigest({ packetDigest: row.packet_digest, rawArtifactDigest: row.raw_output_digest });
   const identityKey = packet.leadVerification !== undefined ? leadIdentityKey(input.candidate)!
     : communicationsDigest({ organization: researchIdentityText(input.candidate.organization),
       site: researchIdentityText(input.candidate.site), address: researchIdentityText(input.candidate.location) });
-  if (admissionId !== origin.admissionId || row.source_record_id !== `reviewed:${identityKey}`
+  if (admissionId !== origin.admissionId || row.source_record_id !== (input.refresh?.sheetsProspectId ?? `reviewed:${identityKey}`)
     || row.run_key !== `reviewed-report:${admissionId}` || packet.candidate.candidate_key !== origin.candidateKey) throw new Error("reviewed_research_identity_changed");
   const verification = evaluateLeadVerification(input.candidate, input.leadVerification ?? null, Date.now());
   if (packet.leadVerification !== undefined && communicationsDigest(row.review.lead_verification?.assessment ?? null)
