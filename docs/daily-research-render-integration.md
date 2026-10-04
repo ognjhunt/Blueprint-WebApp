@@ -7,16 +7,19 @@ qualification, publication or deployment outcome.
 
 ## Current reviewed repair package
 
-The October 4 package pins reviewed Pipeline head
-`42ca18ec568f64b2dde0895a77c5d982e8a1bf6e` (PR2580), based on the controlled
-research lineage. Its 942,080-byte archive SHA256 is
-`b546ed80f9364203e70b76386ea646e7d3f255362fcb1f725d4849d95ebecc2d`,
-with 53 manifested source files. The manifest SHA256 is
-`316b5d4739eb5035db5e1f28ed3eac1825fc8e86d3c00d090fd44c2b189e5df8`.
-It preserves the existing owner MCP, history,
-QA, publication, capability-integrity repair and cleanup source from
-`8f2135479e6f3187b725ac47d2bfd596809a6879`.
-This is a research-only controlled release; Pipeline main is a separate lineage.
+The October 4 package pins reviewed Pipeline commit
+`aae6c5ad8d8b035682a1190eeedcebb7705cffcb` (Pipeline main via PR2549, containing PR2584 and PR2585), whose lineage already contains
+PR2579, PR2580 and PR2581. Its 1,013,760-byte archive SHA256 is
+`cf7f5086f580e49f81934e466f063536002dc2246bac368568748f47c98fd7b8`,
+with 54 manifested source files. The manifest SHA256 is
+`c869553058e740aac200bcfd6ad8f844cf365f7f99a9a532385c17f3b36d7410`.
+It preserves the existing owner MCP, history, QA, publication, capability-integrity
+repair and cleanup source, and adds versioned lead-verification diagnostics (v2 for
+new rows; stored v1 results unchanged), a paged discovery inventory, packet-budget
+repair feedback, the Exa Ultra cap contract and contact-research recovery.
+This is the first package whose source commit is on Pipeline `main` (merged by
+PR2549); it also keeps reviewed QA placeholders blocking (PR2585).
+This is a research-only controlled release from Pipeline `main`.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
 through a frozen, publication-bound input. At most three tasks join a daily
