@@ -12,9 +12,18 @@ const numbers = (value: string): Measure[] => [...value.matchAll(NUMBER)].map(([
   px: Number(n) * (UNIT_PX[unit] ?? (/^(?:[sld]?v(?:w|h|i|b|min|max)|cq(?:w|h|i|b|min|max))$/.test(unit) ? 10 : 1)) }));
 const fraction = (value: string) => { const x = numbers(value)[0]; return x === undefined ? undefined : x.unit === "%" ? x.n / 100 : x.n; };
 const tiny = (value: string) => { const x = numbers(value)[0]; return x !== undefined && x.px <= 1; };
-// Fully shifted by its own size, or far outside any plausible viewport. Ordinary layout offsets
-// such as centring (-50%) or overlapping sections (-100px) stay visible.
-const offScreen = (value: string) => numbers(value).some(x => x.unit === "%" ? x.n <= -100 : x.px <= -1000 || x.px >= 5000);
+// Off-screen hiding idioms (skip links, image replacement, off-canvas panels): a horizontal shift of
+// 200px or more (half the containing block, or the element's own width for a transform), a
+// vertical one of 500px or more, or anything beyond 5000px. Ordinary layout offsets such as
+// centring (-50% transforms) or overlapping sections (-100px margins) stay visible.
+type Axis = "x" | "y";
+const shifted = (x: Measure | undefined, axis: Axis, ownSize = false) => x !== undefined && (x.unit === "%"
+  ? x.n <= (ownSize || axis === "y" ? -100 : -50)
+  : x.px >= 5000 || x.px <= (axis === "x" ? -200 : -500));
+const offScreen = (value: string, axis: Axis, ownSize = false) => numbers(value).some(x => shifted(x, axis, ownSize));
+/** Box shorthand components (top, right, bottom, left) per the CSS 1-4 value rules. */
+const box = (list: Measure[]) => list.length === 1 ? [list[0], list[0], list[0], list[0]] : list.length === 2 ? [list[0], list[1], list[0], list[1]]
+  : list.length === 3 ? [list[0], list[1], list[2], list[1]] : list.slice(0, 4);
 const faint = (alpha: number | undefined) => alpha !== undefined && alpha <= 0.1;
 const nearZero = (x: Measure) => Math.abs(x.unit === "%" ? x.n / 100 : x.n) <= 0.05;
 const degrees = (value: string) => { const x = numbers(value)[0];
@@ -56,17 +65,21 @@ function hidingTransform(value: string) {
   for (const [, name, args] of value.matchAll(TRANSFORM_FUNCTION)) {
     const list = numbers(args), parts = args.split(",");
     if (/^scale(?:x|y|z|3d)?$/.test(name) && list.some(nearZero)) return true;
-    if (/^translate(?:x|y|z|3d)?$/.test(name) && offScreen(args)) return true;
+    if (name === "translate" || name === "translate3d") { if (shifted(list[0], "x", true) || shifted(list[1], "y", true)) return true; }
+    if (name === "translatex" && shifted(list[0], "x", true)) return true;
+    if (name === "translatey" && shifted(list[0], "y", true)) return true;
     if (/^skew[xy]?$/.test(name) && parts.some(part => edgeOn(degrees(part)))) return true;
     if (/^rotate[xy]$/.test(name) && edgeOn(degrees(args))) return true;
     if (name === "rotate3d" && list.length >= 4 && (list[0].n !== 0 || list[1].n !== 0) && edgeOn(degrees(parts.at(-1) ?? ""))) return true;
     if (name === "matrix" && list.length === 6) {
       const [a, b, c, d, e, f] = list.map(x => x.n);
-      if ((Math.abs(a) <= 0.05 && Math.abs(b) <= 0.05) || (Math.abs(c) <= 0.05 && Math.abs(d) <= 0.05) || offScreen(`${e} ${f}`)) return true;
+      if ((Math.abs(a) <= 0.05 && Math.abs(b) <= 0.05) || (Math.abs(c) <= 0.05 && Math.abs(d) <= 0.05)
+        || shifted({ n: e, unit: "", px: e }, "x") || shifted({ n: f, unit: "", px: f }, "y")) return true;
     }
     if (name === "matrix3d" && list.length === 16) {
       const m = list.map(x => x.n);
-      if ((Math.abs(m[0]) <= 0.05 && Math.abs(m[1]) <= 0.05) || (Math.abs(m[4]) <= 0.05 && Math.abs(m[5]) <= 0.05) || offScreen(`${m[12]} ${m[13]}`)) return true;
+      if ((Math.abs(m[0]) <= 0.05 && Math.abs(m[1]) <= 0.05) || (Math.abs(m[4]) <= 0.05 && Math.abs(m[5]) <= 0.05)
+        || shifted({ n: m[12], unit: "", px: m[12] }, "x") || shifted({ n: m[13], unit: "", px: m[13] }, "y")) return true;
     }
   }
   return false;
@@ -75,7 +88,9 @@ function hidingTransform(value: string) {
 // Properties whose unresolved value (custom property, attr(), env() or a CSS escape) fails closed.
 const VISIBILITY_PROPERTY = /^(?:display|visibility|content-visibility|opacity|color|text-fill-color|filter|clip|clip-path|mask(?:-image)?|transform|scale|translate|rotate|font-size|font|text-indent|zoom)$/;
 const SIZE = /^(?:font-size|width|height|max-width|max-height|inline-size|block-size|max-inline-size|max-block-size)$/;
-const OFFSET = /^(?:left|right|top|bottom|inset(?:-inline|-block)?(?:-start|-end)?|margin(?:-left|-right|-top|-bottom|-inline|-block)?(?:-start|-end)?)$/;
+// Offsets that move the element itself, by axis (end-side margins only move what follows).
+const X_OFFSET = /^(?:left|right|inset-inline(?:-start|-end)?|margin-left|margin-inline-start)$/;
+const Y_OFFSET = /^(?:top|bottom|inset-block(?:-start|-end)?|margin-top|margin-block-start)$/;
 const MASK = /^mask(?:-image|-border(?:-source)?|-box-image)?$/;
 
 function hidingDeclaration(property: string, value: string) {
@@ -88,11 +103,19 @@ function hidingDeclaration(property: string, value: string) {
   if (property === "color" || property === "text-fill-color") return transparentColor(value);
   if (SIZE.test(property)) return tiny(value);
   if (property === "font") return value.split(/\s+/).some(token => /^(?:0|(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?(?:[a-z]+|%))(?:\/|$)/.test(token) && tiny(token));
-  if (OFFSET.test(property)) return offScreen(value);
-  if (property === "text-indent") return offScreen(value) || numbers(value).some(x => x.unit === "%" ? x.n >= 100 : x.px >= 999);
+  if (X_OFFSET.test(property)) return offScreen(value, "x");
+  if (Y_OFFSET.test(property)) return offScreen(value, "y");
+  if (property === "inset" || property === "margin") {
+    const [top, right, bottom, left] = box(numbers(value));
+    return shifted(top, "y") || shifted(left, "x") || (property === "inset" && (shifted(right, "x") || shifted(bottom, "y")));
+  }
+  if (property === "margin-inline" || property === "margin-block") return shifted(numbers(value)[0], property === "margin-inline" ? "x" : "y");
+  if (property === "text-indent") return offScreen(value, "x") || numbers(value).some(x => x.unit === "%" ? x.n >= 100 : x.px >= 999);
   if (property === "transform") return hidingTransform(value);
   if (property === "scale") return numbers(value).some(nearZero);
-  if (property === "translate") return offScreen(value);
+  if (property === "translate") { const list = numbers(value); return shifted(list[0], "x", true) || shifted(list[1], "y", true); }
+  // A bidirectional override displays the text in a different order than it is written.
+  if (property === "unicode-bidi") return /\b(?:bidi-override|isolate-override)\b/.test(value);
   if (property === "rotate") {
     const list = numbers(value), axis = /(?:^|\s)[xy](?:\s|$)/.test(value) || (list.length >= 4 && (list[0].n !== 0 || list[1].n !== 0));
     return axis && edgeOn(degrees(value.trim().split(/\s+/).at(-1) ?? ""));
@@ -135,9 +158,11 @@ export function hidingStyle(style: string) {
 type Compound = { tag?: string; ids: string[]; classes: string[];
   attributes: { name: string; operator?: string; value?: string }[] };
 export type HidingRules = { index: Map<string, Map<string, Compound>>; collapsed: Set<string>; count: number; checks: number };
-export type ElementFacts = { tag: string; id?: string; classes: Set<string>; attrs: Record<string, string> };
+// Lowercased values and whitespace tokens are computed once per element and attribute.
+export type ElementFacts = { tag: string; id?: string; classes: Set<string>; attrs: Record<string, string>;
+  lower: Map<string, string>; tokens: Map<string, Set<string>> };
 // Distinct hiding rules, distinct rules per index key, and selector checks per page.
-const MAX_HIDING_RULES = 10000, MAX_RULES_PER_KEY = 256, MAX_RULE_CHECKS = 2_000_000;
+const MAX_HIDING_RULES = 10000, MAX_RULES_PER_KEY = 256, MAX_RULE_CHECKS = 2_000_000, MAX_SELECTOR_LENGTH = 4096;
 const limit = () => { throw new Error("contact_resolution_markup_limit"); };
 
 /** Splits on a top-level character, ignoring parentheses, brackets, strings and escapes. */
@@ -257,7 +282,8 @@ function forEachStyleRule(css: string, visit: (selector: string, declarations: s
     if (atRule === undefined) {
       const own = splitTopLevel(prelude, c => c === ",").map(s => s.trim()).filter(Boolean);
       selectors = block.selectors ? block.selectors.flatMap(parent => own.map(child => child.includes("&") ? child.replaceAll("&", parent) : `${parent} ${child}`)) : own;
-      if (selectors.length > 1024) limit();
+      // Nesting can multiply selector length at every level ("&&&&" expands each parent copy).
+      if (selectors.length > 1024 || selectors.some(selector => selector.length > MAX_SELECTOR_LENGTH)) limit();
     }
     stack.push({ selectors, declarations: "", skip: block.skip || (atRule !== undefined && !grouping) });
     if (stack.length > 64) limit();
@@ -304,12 +330,18 @@ export function hidingRules(sheets: readonly string[]): HidingRules {
   return rules;
 }
 
-function attributeMatches(actual: string | undefined, operator: string | undefined, expected: string | undefined) {
+function attributeMatches(element: ElementFacts, name: string, operator: string | undefined, expected: string | undefined) {
+  const actual = element.attrs[name];
   if (actual === undefined) return false;
   if (!operator || expected === undefined) return true;
-  const value = actual.toLowerCase();
+  let value = element.lower.get(name);
+  if (value === undefined) { value = actual.toLowerCase(); element.lower.set(name, value); }
   if (operator === "=") return value === expected;
-  if (operator === "~=") return value.split(/\s+/).includes(expected);
+  if (operator === "~=") {
+    let tokens = element.tokens.get(name);
+    if (tokens === undefined) { tokens = new Set(value.split(/\s+/).filter(Boolean)); element.tokens.set(name, tokens); }
+    return tokens.has(expected);
+  }
   if (operator === "|=") return value === expected || value.startsWith(`${expected}-`);
   if (operator === "^=") return expected !== "" && value.startsWith(expected);
   if (operator === "$=") return expected !== "" && value.endsWith(expected);
@@ -318,11 +350,11 @@ function attributeMatches(actual: string | undefined, operator: string | undefin
 
 /** Class and id comparisons are case-insensitive, as quirks-mode pages match them. */
 export function elementFacts(tag: string, attrs: Record<string, string>): ElementFacts {
-  return { tag, id: attrs.id?.toLowerCase(), classes: new Set((attrs.class ?? "").toLowerCase().split(/\s+/).filter(Boolean)), attrs };
+  return { tag, id: attrs.id?.toLowerCase(), classes: new Set((attrs.class ?? "").toLowerCase().split(/\s+/).filter(Boolean)), attrs, lower: new Map(), tokens: new Map() };
 }
 const compoundMatches = (c: Compound, e: ElementFacts) => (!c.tag || c.tag === "*" || c.tag === e.tag)
   && c.ids.every(id => id === e.id) && c.classes.every(name => e.classes.has(name))
-  && c.attributes.every(a => attributeMatches(e.attrs[a.name], a.operator, a.value));
+  && c.attributes.every(a => attributeMatches(e, a.name, a.operator, a.value));
 
 /** True when an embedded hiding rule selects the element. */
 export function matchesHidingRule(rules: HidingRules, element: ElementFacts) {

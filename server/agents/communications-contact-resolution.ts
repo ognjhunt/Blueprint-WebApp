@@ -47,7 +47,7 @@ const HTML_NS = "http://www.w3.org/1999/xhtml";
 // Parser budgets. Real pages nest far less than 256 open elements and create far fewer than
 // 60k elements; adversarial nesting and formatting-element rebuilds otherwise cost quadratic
 // time and unbounded memory. parse5 also checks each attribute against the tag's earlier ones.
-const MAX_OPEN_ELEMENTS = 256, MAX_ELEMENTS = 60_000, MAX_TAG_ATTRIBUTES = 4096;
+const MAX_OPEN_ELEMENTS = 256, MAX_ELEMENTS = 60_000, MAX_TAG_ATTRIBUTES = 512;
 const markupLimit = () => { throw new Error("contact_resolution_markup_limit"); };
 /** Linear upper bound on attributes per start tag (separators and assignments outside quoted values). */
 function tagAttributesExceeded(markup: string) {

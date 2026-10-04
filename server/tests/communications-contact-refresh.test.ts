@@ -632,6 +632,45 @@ describe("browser-equivalent markup parsing for contact proof", () => {
       `<h1>${f.candidate.organization}</h1><p>${f.candidate.organization}, ${f.candidate.site}. Business inquiries: &#x202E;${f.prospect.contactEmail}</p>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
   });
+  // Third independent review: regressions in off-screen offsets, nesting expansion and address edges.
+  it.each(["position:absolute;left:-999px", "position:absolute;left:-600px", "text-indent:-999px", "margin-left:-999px",
+    "position:relative;top:-999px", "transform:translateX(-999px)", "position:absolute;left:-99%", "position:absolute;right:-999px",
+    "inset:0 auto auto -999px", "margin:0 0 0 -999px", "unicode-bidi:bidi-override;direction:rtl"])("excludes text moved off screen or reordered: %s", style => {
+    expect(visibleText(`${DOC}<h1>Org</h1><div style="${style}"><p>Business inquiries: ${H}</p></div>`)).not.toContain(H);
+  });
+  it.each(["margin-top:-100px", "position:absolute;left:-20px", "text-indent:-1em", "position:absolute;right:20px", "margin-right:-999px",
+    "transform:translate(-50%,-50%)", "translate:-50% -50%", "position:relative;top:-120px"])("keeps text under an ordinary offset: %s", style => {
+    expect(hidingStyle(style)).toBe(false);
+  });
+  it("refuses nesting that multiplies selector length instead of exhausting memory", () => {
+    const started = performance.now();
+    const css = `.a{${"&&&&&&&&&&{".repeat(8)}display:none${"}".repeat(9)}`;
+    expect(() => contactPageText(page(`${DOC}<style>${css}</style><h1>Org</h1><p>Business inquiries: ok@facility.example</p>`))).toThrow("contact_resolution_markup_limit");
+    expect(performance.now() - started).toBeLessThan(3000);
+  });
+  it.each([["a soft hyphen", "info@facility.exa&shy;mple", "info@facility.exa\""], ["a zero-width space", "sales@facility.co&#8203;m", "sales@facility.co\""],
+    ["a word joiner", "sales@facility.co&#8288;m", "sales@facility.co\""], ["a control character", "sales@facility.co&#8;m", "sales@facility.co\""]])(
+    "never truncates an address at %s inside its domain", async (_name, address, cut) => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${f.candidate.organization}</h1><p>${f.candidate.organization}, ${f.candidate.site}. Business inquiries: ${address}</p>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(JSON.stringify(f.records("contactProofs"))).not.toContain(cut);
+  });
+  it("creates no proof from an address displayed through a CSS bidirectional override", async () => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${f.candidate.organization}</h1><p>${f.candidate.organization}, ${f.candidate.site}. Business inquiries: <span style="unicode-bidi:bidi-override;direction:rtl">hg.fe@dc.ba</span></p>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
+  it.each([
+    ["token attribute rules against a long value", `<style>${Array.from({ length: 250 }, (_, i) => `[data-x~="z${i}"]{display:none}`).join("")}</style>`,
+      `<i data-x="${"q ".repeat(1000)}">x</i>`],
+    ["tags with hundreds of distinct attributes", "", `<p ${Array.from({ length: 500 }, (_, i) => `a${i}`).join(" ")}>x</p>`],
+  ])("bounds attribute work on adversarial pages: %s", (_name, head, unit) => {
+    const markup = head + unit.repeat(Math.max(1, Math.floor((CONTACT_RESEARCH_PAGE_LIMIT - 64 - head.length) / unit.length)));
+    const started = performance.now();
+    try { contactPageText(page(markup)); } catch (error) { expect((error as Error).message).toBe("contact_resolution_markup_limit"); }
+    expect(performance.now() - started).toBeLessThan(3000);
+  });
   it("pins the HTML tree builder the v2 extractor and its stored digests were calibrated against", () => {
     // Upgrading parse5 can change visible text and therefore stored proof digests: bump EXTRACTOR first.
     expect(JSON.parse(readFileSync(new URL("../../node_modules/parse5/package.json", import.meta.url), "utf8")).version).toBe("7.3.0");
