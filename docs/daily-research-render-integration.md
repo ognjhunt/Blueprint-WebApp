@@ -8,11 +8,11 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 4 package pins reviewed Pipeline head
-`b375c8fdf446376f20660512e6283ab7062db34c` (PR2578), based on the controlled
+`42ca18ec568f64b2dde0895a77c5d982e8a1bf6e` (PR2580), based on the controlled
 research lineage. Its 942,080-byte archive SHA256 is
-`a78efa3dcd056d36df787ae9a507492593389e9161458f9dab77f75be8a610f9`,
+`b546ed80f9364203e70b76386ea646e7d3f255362fcb1f725d4849d95ebecc2d`,
 with 53 manifested source files. The manifest SHA256 is
-`053c0b279f222f3aeb9a62b644825b0a36a5e5757c2ca58cbe77b9816647654b`.
+`316b5d4739eb5035db5e1f28ed3eac1825fc8e86d3c00d090fd44c2b189e5df8`.
 It preserves the existing owner MCP, history,
 QA, publication, capability-integrity repair and cleanup source from
 `8f2135479e6f3187b725ac47d2bfd596809a6879`.
@@ -46,6 +46,11 @@ generic paid multi-provider MCP profile cannot be combined with this path.
 Sending, access, schedules, spending authority and existing frozen rows are
 unchanged by the package. Source and consumer exact-head CI must both pass before
 release, and live installation/readback remain separate from source review.
+
+Prospective known tool failures retain stable JSON codes in the error and output
+fields. An optional Exa skip preserves its specific reason and next-step guidance
+so the lead can continue ordinary research. Unknown exceptions keep the existing
+safe error, and previously retained tool receipts remain unchanged.
 
 New research sessions explicitly supply a setup command generated from the same
 reviewed capability manifest as their inline files. Python standard-library
