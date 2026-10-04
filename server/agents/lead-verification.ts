@@ -19,10 +19,12 @@ function moment(value: unknown) {
   // Date-only publication dates are useful context; assessment/check authority
   // requires an explicit timezone. Preserve its original precision and bytes.
   if (typeof value !== "string") throw new Error("timestamp needs offset");
-  const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+  // Accept ±HH:MM and ±HHMM offsets, matching Python's parser (shell `date %z` emits ±HHMM).
+  const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(Z|[+-]\d{2}:?\d{2})$/.exec(value);
   if (!match || +match[1] < 1 || +match[4] >= 24 || +match[5] >= 60 || +(match[6] ?? "0") >= 60
     || new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00Z`).toISOString().slice(0, 10) !== `${match[1]}-${match[2]}-${match[3]}`) throw new Error("timestamp invalid");
-  const seconds = Date.parse(`${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6] ?? "00"}${match[8]}`);
+  const offset = match[8].length === 5 ? `${match[8].slice(0, 3)}:${match[8].slice(3)}` : match[8];
+  const seconds = Date.parse(`${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6] ?? "00"}${offset}`);
   if (!Number.isFinite(seconds)) throw new Error("timestamp invalid");
   // Python datetime retains microseconds; Date.parse drops them. Compare at
   // the same precision so a future check/assessment cannot hide in one ms.
@@ -181,9 +183,10 @@ export function leadPacketCandidates(packet: any) {
   return packet.verification_cohort_version === LEAD_VERIFICATION_VERSION
     ? [...packet.candidates, ...(packet.duplicates ?? [])].sort((a, b) => a.discovery_index - b.discovery_index) : packet.candidates;
 }
-export function evaluateLeadCohort(candidates: any[], assessments: Record<string, any>, now: number, duplicateChecks: Record<string, any> = {}) {
+export function evaluateLeadCohort(candidates: any[], assessments: Record<string, any>, now: number, duplicateChecks: Record<string, any> = {},
+  resultVersion = LEAD_DIAGNOSTIC_RESULT_VERSION) {
   const results: (ReturnType<typeof evaluateLeadVerification> & { duplicate_of?: string; duplicate_check?: any })[] = candidates.map(candidate =>
-    evaluateLeadVerification(candidate, assessments[candidate.candidate_key] ?? null, now));
+    evaluateLeadVerification(candidate, assessments[candidate.candidate_key] ?? null, now, resultVersion));
   const indexed = new Map(results.map(result => [result.candidate_key, result]));
   for (const result of results) {
     const check = duplicateChecks[result.candidate_key];
@@ -240,7 +243,10 @@ export function leadTaskSourceSupports(source: any, entry: any) {
 /** Never accept a client/cached result's eligible/status flags as authority. */
 export function requireVerifiedLead(source: any, now: number) {
   const context = source?.leadVerificationCohort;
-  const result = context ? evaluateLeadCohort(context.candidates, context.assessments, now, context.duplicateChecks)
+  // A published row is re-verified under the result version it was decided with; rows
+  // without a pin predate v2 and keep the original v1 evaluator.
+  const result = context ? evaluateLeadCohort(context.candidates, context.assessments, now, context.duplicateChecks,
+    context.resultVersion ?? LEAD_VERIFICATION_RESULT_VERSION)
     .find(result => result.candidate_digest === verificationDigest(source.candidate))
     ?? evaluateLeadVerification(source?.candidate, null, now)
     : evaluateLeadVerification(source?.candidate, source?.leadVerification ?? null, now);

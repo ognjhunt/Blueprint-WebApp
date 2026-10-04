@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { verificationDigest, researchDigest } from "./research-digest";
 export { researchDigest } from "./research-digest";
-import { evaluateLeadCohort, evaluateLeadVerification, leadPacketCandidates, requireVerifiedLead } from "./lead-verification";
+import { evaluateLeadCohort, evaluateLeadVerification, LEAD_VERIFICATION_RESULT_VERSION, leadPacketCandidates, requireVerifiedLead } from "./lead-verification";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { communicationsDigest, verifyCommunicationsHandoff, type CommunicationsBrief } from "./communications-contract";
@@ -114,11 +114,13 @@ export function verifyResearchPublication(snapshot: any, origin: CommunicationsB
   const candidate = row.packet?.candidates?.find((item: any) => item.candidate_key === origin.candidateKey);
   if (!candidate) throw new Error("research_candidate_missing");
   const leadVerification = row.review?.lead_verification?.results?.find((result: any) => result.candidate_key === origin.candidateKey)?.assessment ?? null;
+  const pinned = row.packet?.lead_verification_result_version;
   const leadVerificationCohort = leadVerification != null ? { candidates: leadPacketCandidates(row.packet),
     assessments: Object.fromEntries(row.review.lead_verification.results.map((result: any) => [result.candidate_key, result.assessment])),
-    duplicateChecks: row.review.lead_verification.duplicate_checks ?? {} } : undefined;
+    duplicateChecks: row.review.lead_verification.duplicate_checks ?? {}, ...(pinned ? { resultVersion: pinned } : {}) } : undefined;
   const verification = leadVerificationCohort ? evaluateLeadCohort(leadVerificationCohort.candidates,
-    leadVerificationCohort.assessments, Date.now(), leadVerificationCohort.duplicateChecks).find(result => result.candidate_key === origin.candidateKey)!
+    leadVerificationCohort.assessments, Date.now(), leadVerificationCohort.duplicateChecks,
+    pinned ?? LEAD_VERIFICATION_RESULT_VERSION).find(result => result.candidate_key === origin.candidateKey)!
     : evaluateLeadVerification(candidate, leadVerification, Date.now());
   return { row, candidate, selected, ...(leadVerificationCohort ? { leadVerificationCohort } : {}), verification,
     sheetsReceipt: row.delivery.sheets.receipt.reference,
@@ -191,7 +193,9 @@ export function researchPublicationSource(snapshot: any, origin: CommunicationsB
     packetDigest: origin.packetDigest, rawArtifactDigest: origin.rawArtifactDigest,
     candidate, researchReview: row.review, qaArtifactDigest: qa.artifact_digest,
     ...(assessment != null ? { leadVerification: assessment, leadVerificationCohort: {
-      candidates: leadPacketCandidates(row.packet), assessments: Object.fromEntries(qaResult.checks.map((check: any) => [check.candidate_key, check.lead_verification ?? null])), duplicateChecks } } : {}),
+      candidates: leadPacketCandidates(row.packet), assessments: Object.fromEntries(qaResult.checks.map((check: any) => [check.candidate_key, check.lead_verification ?? null])), duplicateChecks,
+      // Only pinned (v2) rows gain this field, so earlier publications keep their digest shape.
+      ...(row.packet.lead_verification_result_version ? { resultVersion: row.packet.lead_verification_result_version } : {}) } } : {}),
     sheetsId: row.packet.destinations.sheet_id,
     sheetsProspectId: ids[selected.findIndex((item: any) => item.candidate_key === origin.candidateKey)],
     sheetsReceipt, notionReceipt, sheetsPlanDigest: researchDigest(plan),
