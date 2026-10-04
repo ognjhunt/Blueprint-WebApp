@@ -8,11 +8,11 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 4 package pins reviewed Pipeline head
-`6a45da1ef41be5c91f3ddb6c9bc3ecf84a14a800` (PR2575), based on the controlled
+`88740626ccf087639f13ef5cebd669aec2087b81` (PR2576), based on the controlled
 research lineage. Its 942,080-byte archive SHA256 is
-`909780b0586fdba8f8b7f43d0c4288305a601a86ee2ac210fcebbf770e1aab75`,
+`4b3b3c9c041961431f6ec41a1886922c9c931b7db1d27c58e11d2ab01c89e5b6`,
 with 53 manifested source files. The manifest SHA256 is
-`1eaac7fa1099e023f7fbaafcc4b7c3db162c866455fef4e7db99fc9e2db1a426`.
+`013732d0e68b4c21b76ef122ee0880bd5385dbccd739344c1f2d7d4cc7a3707d`.
 It preserves the existing owner MCP, history,
 QA, publication, capability-integrity repair and cleanup source from
 `8f2135479e6f3187b725ac47d2bfd596809a6879`.
@@ -23,7 +23,13 @@ to the same daily research session before final QA. It shares the existing $5
 research authority and requires actual authentication, supported native cost-cap
 schema and verified remaining all-in allocation before any Exa start. One
 immutable daily intent precedes the native POST; uncertain writes are never
-replayed. Exact original-ID reads and complete private HTTP/native JSON receipts
+replayed. New starts explicitly select `effort: "ultra"` and require the actual
+authenticated schema to advertise Ultra and numeric `budget.maxCostDollars`.
+The cap must satisfy that schema and Exa's documented $1 Ultra minimum through
+the existing $5 research ceiling. Pre-existing claims retain their original
+request bytes and may only recover their ACK or read their original ID; this
+change authorizes no replacement start. Exact original-ID reads and complete
+private HTTP/native JSON receipts
 are retained in company storage and portable exports. A retained original ACK
 can be recovered without credentials, network access or an active deadline.
 
