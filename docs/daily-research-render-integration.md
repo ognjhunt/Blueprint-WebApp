@@ -8,11 +8,11 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 4 package pins reviewed Pipeline head
-`35e43153587b929828f05ad46eb1b1ea05372131` (PR2579), based on the controlled
+`d8a9c62963c13e9b3eabd9a926501680a03a6a9e` (PR2579), based on the controlled
 research lineage. Its 962,560-byte archive SHA256 is
-`fa6fa0428db1f99e7677506fef27403359751e9186f62d450af186f3a2f8f270`,
+`80504d362a51abd30396846d4bbd900901b88c9c711a28099df87aaa4b383704`,
 with 54 manifested source files. The manifest SHA256 is
-`c78a8a8a2ef521ff85b1f3b8329299c3bfc5e4ee8cdf2b775b80ccab2750a215`.
+`0c81b9dc9fdeef389385d3329da5860e64558349c45f7d48eb302b77678bfcd0`.
 It preserves the existing owner MCP, history,
 QA, publication, capability-integrity repair and cleanup source from
 `8f2135479e6f3187b725ac47d2bfd596809a6879`.
