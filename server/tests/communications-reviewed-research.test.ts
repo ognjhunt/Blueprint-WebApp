@@ -104,7 +104,7 @@ describe("truthful authenticated report admission (offline, no paid calls or sen
   it("preserves honest rendered retrieval when raw Wix HTML cannot be statically verified", async () => {
     const body = "<html><style>p{display:none}</style><body><p>Contact info@debourgh.com</p></body></html>";
     expect(contactPageText({ requestedUrl: "https://www.debourgh.com/", finalUrl: "https://www.debourgh.com/", redirects: [],
-      status: 200, checkedAt: new Date(now).toISOString(), contentType: "text/html", bodyBase64: Buffer.from(body).toString("base64") }).visibilityUnverified).toBe(true);
+      status: 200, checkedAt: new Date(now).toISOString(), contentType: "text/html", bodyBase64: Buffer.from(body).toString("base64") }).segments.join(" ")).not.toContain("info@debourgh.com");
     const f = await admit(syntheticReviewedResearchInput());
     expect(f.outcome.state).toBe("admitted");
     expect(f.snapshot.row.packet.candidate.evidence[1].retrieval).toBe("rendered");

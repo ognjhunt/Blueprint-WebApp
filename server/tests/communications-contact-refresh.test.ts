@@ -305,14 +305,35 @@ describe("contact-free pinned producer → communications contact fulfillment (o
     g.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<p>NotAcme: business inquiries: ${g.prospect.contactEmail}</p>`));
     await g.request(); await g.refresh(); expect(g.records("jobs")).toHaveLength(0);
   });
-  it.each(["<style>.secret {display:none}</style>", '<link rel="stylesheet" href="/site.css">',
-    '<link rel=stylesheet href="/site.css">', '<link rel="style&#115;heet" href="/site.css">',
-    '<link rel=style&#115;heet href="/site.css">', '<link rel="style&#115heet" href="/site.css">',
-    '<link href="/site>css" rel="stylesheet">', '<link rel="&Tab;stylesheet" href="/site.css">',
-    '<link title=" rel=icon " rel=stylesheet href=/site.css>'])("refuses stylesheet-dependent contact visibility: %s", async stylesheet => {
-    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, stylesheet + `<h1>${f.candidate.organization}</h1><p class="secret">Business inquiries: hidden@facility.example</p>`));
+  // Owner decision 2026-10-04: page-level presentation no longer disqualifies a page; only
+  // detectably hidden content is excluded, and every proof records that CSS was not rendered.
+  it.each(['<link rel="stylesheet" href="/site.css">', '<link rel=stylesheet href="/site.css">',
+    '<link title=" rel=icon " rel=stylesheet href=/site.css>', "<style>p { color: #222 }</style>",
+    "<script>if (a < b && c > d) { load(); }</script>", '<body onload="init()">', '<body text="white">'])(
+    "accepts a literal business email on a page with %s and records that CSS was not rendered", async presentation => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, presentation + `<h1>${f.candidate.organization}</h1>` + f.business
+      + (presentation.startsWith("<body") ? "</body>" : "")));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(1);
+    expect(f.records("contactProofs")[0].extraction).toMatchObject({ version: "blueprint.public-contact-text.v2",
+      visibilityBasis: "static_text_css_not_rendered" });
+  });
+  it("excludes an email hidden by a detectable embedded style rule", async () => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<style>.secret { display: none }</style><h1>${f.candidate.organization}</h1><p class="secret">Business inquiries: hidden@facility.example</p>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
-    expect(f.records("refreshRequests")[0]).toMatchObject({ state: "terminal", reason: "contact_resolution_visibility_unverified" });
+  });
+  it.each(["hidden", 'aria-hidden="true"', "inert", "popover"])("excludes an email inside an element marked %s", async marker => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><div ${marker}><p>Business inquiries: hidden@facility.example</p></div>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
+  it.each(["display:none", "visibility: hidden", "opacity:0", "font-size:0", "width:0;height:0", "height:0;overflow:hidden",
+    "position:absolute;left:-9999px", "text-indent:-9999px", "clip: rect(0, 0, 0, 0)", "clip-path: inset(50%)", "transform: scale(0)"])(
+    "excludes an email inside a hiding inline style: %s", async style => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><div style="${style}"><p>Business inquiries: hidden@facility.example</p></div>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
+  it.each(["script", "style", "template", "noscript", "svg"])("never reads an email from inside %s", tag => {
+    const page = htmlPage("https://facility.example/contact", `<p>Org.</p><${tag}>Business inquiries: hidden@facility.example</${tag}>`);
+    expect(contactPageText(page).segments.join(" ")).not.toContain("hidden@facility.example");
   });
   it("allows a styled discovery page to lead to independently verifiable static/plain-text contact evidence", async () => {
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, new URL(url).pathname === "/contact" ? f.business
@@ -328,43 +349,86 @@ describe("contact-free pinned producer → communications contact fulfillment (o
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><p>Business inquiries: business<span style="color:red">-support</span>@facility.example</p>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
   });
+  it.each(['<span style="display:none">-support</span>', "<span hidden>-support</span>", '<span class="x">-support</span>'])(
+    "never splices an address across an element boundary: %s", async fragment => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<style>.x{display:none}</style><h1>${f.candidate.organization}</h1><p>Business inquiries: business${fragment}@facility.example</p>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+  });
+  it("replays real-shape pages with stylesheets, scripts, inline SVG and mis-nesting without markup errors", async () => {
+    const f = setup();
+    const shell = (main: string) => `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Contact</title>
+<link rel="stylesheet" href="/assets/site.css"><link rel="preload" href="/f.woff2" as="font">
+<style>.sr-only{position:absolute;left:-10000px}.icon{width:1em}</style>
+<script>window.dataLayer=[];if (a < b && b > c) { track('<x>'); }</script></head>
+<body onload="init()"><header><nav><a href="/"><svg class="icon" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="4"/></svg>Home</a>
+<a href="/contact">Contact</a></nav></header><main><section><h1>${f.candidate.organization}</h1>
+<p>We run <b>recurring packing</i> work at ${f.candidate.site}.</p><ul><li>Item one<li>Item two</ul>
+${main}</section></main><footer>Careers: careers@facility.example</footer>
+<script src="/app.js"></script></body></html>`;
+    const visible = shell(`<p>Business inquiries: <a href="mailto:${f.prospect.contactEmail}">${f.prospect.contactEmail}</a></p>`);
+    expect(() => contactPageText(htmlPage("https://facility.example/contact", visible))).not.toThrow();
+    f.deps.readContactPage.mockImplementation(async url => htmlPage(url, new URL(url).pathname === "/contact" ? visible : shell("<p>Operator tasks.</p>")));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(1);
+    expect(f.records("contactProofs")[0].extraction.visibilityBasis).toBe("static_text_css_not_rendered");
+    const g = setup(); g.deps.readContactPage.mockImplementation(async url => htmlPage(url, shell(`<p class="sr-only">Business inquiries: hidden@facility.example</p>`)));
+    await g.request(); await g.refresh(); expect(g.records("jobs")).toHaveLength(0);
+  });
   it.each(["dialog", "details", "canvas", "object", "iframe", "select", "form", "title", "datalist", "audio", "video", "font", "code", "pre"])("refuses contact inference from unsupported %s containers", async tag => {
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><${tag}><p>Business inquiries: hidden@facility.example</p></${tag}>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
   });
-  it.each(['<script>document.querySelector(".secret").hidden=true;</script>', '<body onload="hideContact()">',
-    '<meta http-equiv="refresh" content="0;url=/other">'])("refuses script/event/navigation-dependent positive evidence: %s", async active => {
-    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, active + f.business + (active.startsWith("<body") ? "</body>" : "")));
+  it("refuses a page that navigates away before it is seen", async () => {
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, '<meta http-equiv="refresh" content="0;url=/other">' + f.business));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
     expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_visibility_unverified");
   });
-  it("rejects unresolved legacy presentation without implementing browser rendering", async () => {
-    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<body text="white"><h1>${f.candidate.organization}</h1>${f.business}</body>`));
-    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
-    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_visibility_unverified");
-  });
-  it("does not approve outside text on a page with an active embedded document", async () => {
+  it("reads only outside static text on a page with an embedded document, recording that CSS was not rendered", async () => {
+    // Owner decision 2026-10-04: an embedded document no longer disqualifies the page; its own content is never read.
+    const inside = contactPageText(htmlPage("https://facility.example/contact", '<iframe src="/active.html"><p>Business inquiries: hidden@facility.example</p></iframe><p>Org.</p>'));
+    expect(inside.segments.join(" ")).not.toContain("hidden@facility.example");
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<iframe src="/active.html"></iframe>${f.business}`));
-    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
-    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_visibility_unverified");
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(1);
+    expect(f.records("contactProofs")[0].extraction.visibilityBasis).toBe("static_text_css_not_rendered");
   });
   it.each(['<div hidden></body>Business inquiries: hidden@facility.example</div>',
     '<div hidden>Business inquiries: hidden@facility.example', '<div hidden></p>Business inquiries: hidden@facility.example</div>'])("refuses malformed or unfinished hidden nesting: %s", async markup => {
+    // Tolerant parsing (owner decision 2026-10-04): stray or missing closing tags never
+    // release hidden content; the page simply has no visible contact.
+    const page = htmlPage("https://facility.example/contact", `<h1>Org</h1>${markup}`);
+    expect(contactPageText(page).segments.join(" ")).not.toContain("hidden@facility.example");
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1>${markup}`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
-    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_markup_unsupported");
+    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_missing_or_ambiguous");
   });
   it.each(["popover", "inert", 'aria-hidden="tru&#101;"'])("excludes hidden/ineligible contact attributes %s", async attr => {
     const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><div ${attr}>${f.business}</div>`));
     await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
   });
   it("refuses malformed/self-closing non-void and duplicate attributes, and does not read hrefs from quoted values", async () => {
-    for (const body of ['<div hidden />Business inquiries: hidden@facility.example</div>', '<link rel=icon rel=stylesheet href=/site.css>']) {
-      const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1>${body}`));
-      await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
-      expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_markup_unsupported");
-    }
+    // A self-closing slash on an HTML element is ignored, as browsers do, so the hidden div still contains the text.
+    const selfClosing = setup(); selfClosing.deps.readContactPage.mockImplementation(async url => htmlPage(url,
+      `<h1>${selfClosing.candidate.organization}</h1><div hidden />Business inquiries: hidden@facility.example</div>`));
+    await selfClosing.request(); await selfClosing.refresh(); expect(selfClosing.records("jobs")).toHaveLength(0);
+    expect(selfClosing.records("refreshRequests")[0].reason).toBe("contact_resolution_missing_or_ambiguous");
+    // Duplicate attributes remain refused (unchanged by the 2026-10-04 decision).
+    const f = setup(); f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `<h1>${f.candidate.organization}</h1><link rel=icon rel=stylesheet href=/site.css>`));
+    await f.request(); await f.refresh(); expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("refreshRequests")[0].reason).toBe("contact_resolution_markup_unsupported");
     const parsed = contactPageText(htmlPage("https://facility.example/", '<a title=" href=/contact " href="https://attacker.example/contact">Contact</a>'));
     expect(parsed.links).toEqual(["https://attacker.example/contact"]);
+  });
+});
+
+describe("element-level contact visibility (owner decision 2026-10-04)", () => {
+  const page = (body: string) => htmlPage("https://facility.example/contact", body);
+  it.each(["p { display: none }", "* { visibility: hidden }", "div#c { opacity: 0 }", "p.x, .c { display:none }"])(
+    "detectable embedded rule %s excludes the matching element", rule => {
+    const parsed = contactPageText(page(`<style>${rule}</style><div id="c" class="c"><p class="x">Business inquiries: hidden@facility.example</p></div>`));
+    expect(parsed.segments.join(" ")).not.toContain("hidden@facility.example");
+  });
+  it("records element boundaries so an address cannot be stitched from separate runs", () => {
+    const parsed = contactPageText(page('<p>Business inquiries: <a href="mailto:a@facility.example">a@facility.example</a>.</p><p>x<b>y</b>@facility.example</p>'));
+    expect(parsed.segments).toEqual(["Business inquiries: a@facility.example.", "xy@facility.example"]);
+    expect(parsed.joins[1]).toEqual([1, 2]);
   });
 });
