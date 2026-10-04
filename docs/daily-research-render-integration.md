@@ -8,11 +8,11 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 4 package pins reviewed Pipeline head
-`88740626ccf087639f13ef5cebd669aec2087b81` (PR2576), based on the controlled
+`b375c8fdf446376f20660512e6283ab7062db34c` (PR2578), based on the controlled
 research lineage. Its 942,080-byte archive SHA256 is
-`4b3b3c9c041961431f6ec41a1886922c9c931b7db1d27c58e11d2ab01c89e5b6`,
+`a78efa3dcd056d36df787ae9a507492593389e9161458f9dab77f75be8a610f9`,
 with 53 manifested source files. The manifest SHA256 is
-`013732d0e68b4c21b76ef122ee0880bd5385dbccd739344c1f2d7d4cc7a3707d`.
+`053c0b279f222f3aeb9a62b644825b0a36a5e5757c2ca58cbe77b9816647654b`.
 It preserves the existing owner MCP, history,
 QA, publication, capability-integrity repair and cleanup source from
 `8f2135479e6f3187b725ac47d2bfd596809a6879`.
@@ -34,9 +34,12 @@ are retained in company storage and portable exports. A retained original ACK
 can be recovered without credentials, network access or an active deadline.
 
 Installing this package does not activate paid expansion. The worker requires
-its own `EXA_API_KEY`; saved OpenAI OAuth vault credentials are not extracted or
-copied. This release creates no all-in accounting producer. The trusted company
-control's `exa_expansion_allocation` must have reliable usage/reservation evidence;
+its own `EXA_API_KEY`; the child environment allowlist passes this approved
+in-place worker binding to its existing daily-research child, without moving
+credentials to another host or environment. Saved OpenAI OAuth vault credentials
+are not extracted or copied. This release creates no all-in accounting producer.
+The trusted company control's `exa_expansion_allocation` must have reliable
+usage/reservation evidence;
 otherwise the optional stage records an actionable skip and ordinary research
 continues. Actual authenticated cap support remains a separate live check. The
 generic paid multi-provider MCP profile cannot be combined with this path.
