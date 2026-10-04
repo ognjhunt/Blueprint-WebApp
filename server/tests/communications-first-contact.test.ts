@@ -146,6 +146,21 @@ describe("bounded first-contact authority (all providers mocked)", () => {
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/firstContactDailyUsage/2026-09-30`).attempts).toBe(2);
     expect(hasFounderPriorContact).not.toHaveBeenCalled(); // Prior contact is required for a reply.
   });
+  it("never mints automatic reply authority for a founder-authored parent thread", async () => {
+    const f = await setupAutomaticReply();
+    expect(await processCommunicationsJob(f.jobId, f.workerDeps)).toMatchObject({ state: "auto_approved" });
+    const payload = f.db.records.get(`action_ledger/${f.replyLedgerId}`).action_payload;
+    expect(firstContactAuthority(payload, Date.now())).not.toBeNull();
+    // Identical qualifying reply, but anchored on an observed founder send.
+    const founder = structuredClone(payload), origin = founder.communications.brief.replyOrigin;
+    founder.communications.brief.replyOrigin = { origin: "founder_send_observed", parentBriefId: origin.parentBriefId,
+      parentBriefDigest: origin.parentBriefDigest, founderSendObservationId: "a".repeat(64), founderSendObservationDigest: "b".repeat(64) };
+    // Re-seal the job's brief digest so only the parent origin differs.
+    founder.communications.job.briefDigest = communicationsDigest(founder.communications.brief);
+    expect(firstContactAuthority(founder, Date.now())).toBeNull();
+    expect(() => verifyFirstContactAuthority(f.db.records.get(`action_ledger/${f.replyLedgerId}`).first_contact_authority, founder, Date.now()))
+      .toThrow("first_contact_authority_missing_or_changed");
+  });
   it("retains an unknown automatic reply acknowledgment across restart without repeating the write", async () => {
     const f = await setupAutomaticReply();
     await processCommunicationsJob(f.jobId, f.workerDeps);

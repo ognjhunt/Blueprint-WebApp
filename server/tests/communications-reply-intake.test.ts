@@ -155,12 +155,25 @@ describe("bound founder-thread reply intake (all providers mocked)", () => {
     else expect(f.db.records.get(source.path)).toMatchObject({ stage: "closed", closedReason: "recipient_opt_out" });
   });
 
-  it("never polls a draft-only record or an unknown send acknowledgement", async () => {
+  it("never polls a draft-only record or an unknown send acknowledgement, and a founder send never becomes a receipt", async () => {
     const f = await setup();
     await f.db.doc(`${COMMUNICATIONS_ROOT}/sendReceipts/${f.receiptKey}`).update({ state: "unknown" });
     await f.db.doc(`${COMMUNICATIONS_ROOT}/gmailDrafts/tony-preserved`).set({ state: "copy_verified", threadId: "draft-thread" });
-    expect(await runCommunicationsReplyIntake(f.deps)).toEqual([]); expect(f.deps.readThread).not.toHaveBeenCalled();
-    expect(f.replyJobs()).toHaveLength(0);
+    // A verified Gmail copy alone is not send evidence, even with the founder
+    // gate open: only an owner-gated founder-send observation is read.
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/gmailDraftBindings/${f.job.jobId}`).set({ version: "blueprint.communications-gmail-draft-binding.v1",
+      jobId: f.job.jobId, state: "verified", receipt: { threadId: "draft-thread", messageId: "draft-message" } });
+    const gated = { ...f.deps, founderSentRepliesAllowed: vi.fn(async () => true) };
+    expect(await runCommunicationsReplyIntake(f.deps)).toEqual([]);
+    expect(await runCommunicationsReplyIntake(gated)).toEqual([]);
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/founderSendObservations/${f.job.jobId}`).set({ state: "observed", sent: { threadId: "draft-thread" } });
+    expect(await runCommunicationsReplyIntake(f.deps)).toEqual([]);
+    expect(await runCommunicationsReplyIntake({ ...f.deps, founderSentRepliesAllowed: async () => false })).toEqual([]);
+    // With the gate open, an unverifiable observation is refused before any read.
+    expect(await runCommunicationsReplyIntake(gated)).toMatchObject([{ observationId: f.job.jobId, state: "blocked", reason: "reply_founder_observation_invalid" }]);
+    expect(f.deps.readThread).not.toHaveBeenCalled(); expect(f.replyJobs()).toHaveLength(0);
+    // The founder path never writes the system receipt that send authority depends on.
+    expect([...f.db.records.entries()].filter(([path, value]) => path.includes("/sendReceipts/") && value.state === "sent")).toEqual([]);
   });
 
   it("does not refresh expired research when a new reply arrives", async () => {

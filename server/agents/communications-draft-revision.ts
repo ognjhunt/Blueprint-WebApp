@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   communicationsBriefSchema, communicationsDigest, communicationsDeliveryKey,
-  communicationsEnvelopeSchema, communicationsJobSchema, verifyCommunicationsHandoff,
+  communicationsEnvelopeSchema, communicationsJobSchema, isFounderReplyOrigin, verifyCommunicationsHandoff,
 } from "./communications-contract";
 import { parseCommunicationsOutput, CommunicationsOutputValidationError } from "./communications-output";
 import { reviewCommunicationsPayload } from "./communications-review";
@@ -55,13 +55,23 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
       expectedReviewDigest: request.data.expectedReviewDigest, output, requestedBy });
     const revisionRef = root.collection("draftRevisions").doc(revisionId);
     const jobRef = root.collection("jobs").doc(job.jobId), sourceRef = db.collection("outboundProspects").doc(job.prospectId);
-    const [savedJob, source, savedBrief, handoff, receipt, firstTouch, previousRevision, proposedRevision] = await Promise.all([
+    const [savedJob, source, savedBrief, handoff, receipt, firstTouch, previousRevision, proposedRevision, founderSend, founderCheck] = await Promise.all([
       tx.get(jobRef), tx.get(sourceRef), tx.get(root.collection("briefs").doc(job.briefId)),
       tx.get(root.collection("handoffs").doc(job.briefDigest)),
       tx.get(root.collection("sendReceipts").doc(communicationsDeliveryKey(job))),
       tx.get(root.collection("firstTouches").doc(communicationsDeliveryKey(job))),
       previousRevisionId ? tx.get(root.collection("draftRevisions").doc(previousRevisionId)) : Promise.resolve(null), tx.get(revisionRef),
+      tx.get(root.collection("founderSendObservations").doc(job.jobId)), tx.get(root.collection("founderSendChecks").doc(job.jobId)),
     ]);
+    if (isFounderReplyOrigin(brief.replyOrigin)) {
+      throw new CommunicationsDraftRevisionError("Replies on threads the founder sent are recorded for learning only and cannot be drafted or revised.");
+    }
+    if (founderSend.exists) {
+      throw new CommunicationsDraftRevisionError("This draft was already sent from the founder mailbox. Its sent copy is recorded and it cannot be revised.");
+    }
+    if (founderCheck.data()?.state === "requires_reconciliation") {
+      throw new CommunicationsDraftRevisionError("The founder mailbox may already hold a sent copy of this draft. Reconcile it in Gmail before revising.");
+    }
     const record = savedJob.data(), prospect = source.data();
     const identity = communicationsJobSchema.safeParse(record && Object.fromEntries(
       Object.keys(job).map(key => [key, record[key]])));

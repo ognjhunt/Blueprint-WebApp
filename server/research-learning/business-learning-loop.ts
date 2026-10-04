@@ -38,7 +38,8 @@ export async function recordTerminalRun(db: FirebaseFirestore.Firestore, value: 
   const record = await db.doc(input.receipt.recordRef).get(), data = record.data();
   if (!record.exists || digest(data) !== input.receipt.sourceHash) throw new Error("business_run_receipt_missing_or_changed");
   const communications = input.receipt.recordRef.startsWith("blueprintCommunications/");
-  const allowed = communications ? ["sent", "no_reply", "opted_out", "failed", "superseded", "pending_approval", "awaiting_research", "blocked", "auto_approved"] : ["completed", "awaiting_review", "reviewed", "failed", "cancelled"];
+  // learning_only: a founder-thread reply, recorded for learning and never drafted.
+  const allowed = communications ? ["sent", "no_reply", "opted_out", "failed", "superseded", "pending_approval", "awaiting_research", "blocked", "auto_approved", "learning_only"] : ["completed", "awaiting_review", "reviewed", "failed", "cancelled"];
   if (!allowed.includes(data?.state)) throw new Error("business_run_not_terminal");
   if (communications && data?.jobId !== input.runId) throw new Error("business_run_identity_changed");
   // Native communications updatedAt uses epoch milliseconds. Research remote

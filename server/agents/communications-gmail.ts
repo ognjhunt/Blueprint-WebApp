@@ -1,6 +1,6 @@
 import { google, type gmail_v1 } from "googleapis";
 import { extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
-import { FOUNDER_MAILBOX, type VerifiedThread, type ThreadMessage } from "./communications-contract";
+import { FOUNDER_MAILBOX, type VerifiedThread, type ThreadMessage, FOUNDER_THREAD_MESSAGE_LIMIT } from "./communications-contract";
 import { readFounderCredential, requireFounderSendCapability } from "./communications-oauth-store";
 import { FOUNDER_GMAIL_BINDING_KEYS } from "./communications-connection";
 
@@ -32,7 +32,7 @@ export async function verifyFounderMailbox(gmail?: gmail_v1.Gmail) {
   return { mailbox: FOUNDER_MAILBOX, sender: FOUNDER_MAILBOX };
 }
 
-function addresses(value: string | null): string[] {
+export function addresses(value: string | null): string[] {
   return (value?.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []).map((address) => address.toLowerCase());
 }
 
@@ -55,8 +55,9 @@ export async function hasFounderPriorContact(email: string, gmail?: gmail_v1.Gma
   return true;
 }
 
-/** Our outbound subject is UTF-8 RFC2047 B; Gmail may return that raw header. */
-function subjectText(value: string | null) {
+/** Our outbound subject is UTF-8 RFC2047 B; Gmail may return that raw header.
+ * Shared with founder-sent observation so subject hashes match thread reads. */
+export function subjectText(value: string | null) {
   return (value ?? "").replace(/=\?UTF-8\?B\?([A-Za-z0-9+/=]+)\?=/gi,
     (_, encoded: string) => Buffer.from(encoded, "base64").toString("utf8"));
 }
@@ -65,7 +66,7 @@ export async function readFounderThread(threadId: string, gmail?: gmail_v1.Gmail
   gmail ??= await existingFounderGmail();
   await verifyFounderMailbox(gmail);
   const response = await gmail.users.threads.get({ userId: "me", id: threadId, format: "full" });
-  if (response.data.id !== threadId || !response.data.messages?.length || response.data.messages.length > 20) {
+  if (response.data.id !== threadId || !response.data.messages?.length || response.data.messages.length > FOUNDER_THREAD_MESSAGE_LIMIT) {
     throw new Error("thread_missing_or_context_limit_exceeded");
   }
   const messages: ThreadMessage[] = response.data.messages.map((message) => {

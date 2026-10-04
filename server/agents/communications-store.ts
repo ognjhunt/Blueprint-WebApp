@@ -5,6 +5,7 @@ import {
   verifyCommunicationsHandoff, communicationsDeliveryKey,
   verifyCommunicationsReplyBinding,
   communicationsSentReceiptIdentity,
+  isFounderReplyOrigin, verifyCommunicationsFounderReplyBinding, verifyFounderReplyAnchor,
   type ThreadMessage,
 } from "./communications-contract";
 import { communicationsContinuationDeadline, communicationsContinuationSessionBinding } from "./communications-api";
@@ -17,8 +18,10 @@ import { firstContactPostalLine } from "./communications-first-contact-footer";
 import { reviewCommunicationsPayload } from "./communications-review";
 
 export const COMMUNICATIONS_ROOT = "blueprintCommunications/default";
+// learning_only: a reply on a founder-sent thread. It is recorded for learning
+// and never drafted, approved or sent; no path moves it back to queued.
 export const COMMUNICATIONS_JOB_STATES = Object.freeze(["queued", "running", "retry", "blocked", "awaiting_research",
-  "pending_approval", "auto_approved", "sent", "failed", "no_reply", "opted_out", "superseded"] as const);
+  "pending_approval", "auto_approved", "sent", "failed", "no_reply", "opted_out", "superseded", "learning_only"] as const);
 export type CommunicationsJobRecord = CommunicationsJob & {
   state: typeof COMMUNICATIONS_JOB_STATES[number];
   attempts: number; checkpoint: CommunicationsCheckpoint; output?: CommunicationsOutput;
@@ -91,7 +94,20 @@ export class CommunicationsStore {
     lineage.add(digest);
     const snapshot = await root.collection("handoffs").doc(digest).get();
     const handoff = verifyCommunicationsHandoff(snapshot.data(), brief);
-    if (brief.replyOrigin) {
+    if (brief.replyOrigin && isFounderReplyOrigin(brief.replyOrigin)) {
+      // Founder-authored anchor: no system receipt or approval exists. The
+      // immutable observation and its draft-copy binding must be unchanged.
+      const parent = communicationsBriefSchema.parse((await root.collection("briefs").doc(brief.replyOrigin.parentBriefId).get()).data());
+      const binding = verifyCommunicationsFounderReplyBinding((await root.collection("replyBindings").doc(digest).get()).data(), brief, parent);
+      const parentHandoff = await this.handoff(parent, lineage);
+      const [observation, draftBinding] = await Promise.all([
+        root.collection("founderSendObservations").doc(binding.founderSendObservationId).get(),
+        root.collection("gmailDraftBindings").doc(binding.founderSendObservationId).get()]);
+      verifyFounderReplyAnchor(binding, observation.data(), draftBinding.data(), brief);
+      if (communicationsDigest(handoff) !== communicationsDigest({ ...parentHandoff, briefDigest: digest })) {
+        throw new Error("reply_parent_observation_or_handoff_changed");
+      }
+    } else if (brief.replyOrigin) {
       const parent = communicationsBriefSchema.parse((await root.collection("briefs").doc(brief.replyOrigin.parentBriefId).get()).data());
       const binding = verifyCommunicationsReplyBinding((await root.collection("replyBindings").doc(digest).get()).data(), brief, parent);
       const parentHandoff = await this.handoff(parent, lineage);
@@ -419,6 +435,11 @@ export class CommunicationsStore {
       if (!source.exists || source.data()?.contactEmail?.toLowerCase() !== payload.to
         || source.data()?.stage === "closed" || (job.intent === "outreach" && source.data()?.stage !== "drafted")
         || communicationsDigest(communicationsBriefSchema.parse(brief.data())) !== job.briefDigest) throw new Error("canonical_context_changed");
+      // Founder-sent threads are learning-only: no approval row is ever created for them.
+      if (isFounderReplyOrigin(communicationsBriefSchema.parse(brief.data()).replyOrigin)
+        || isFounderReplyOrigin(communicationsBriefSchema.safeParse((payload.communications as any)?.brief).data?.replyOrigin)) {
+        throw new Error("founder_origin_reply_learning_only");
+      }
       if (existing.exists && communicationsDigest(existing.data()?.action_payload) !== communicationsDigest(payload)) throw new Error("draft_idempotency_conflict");
       let authority = proposedAuthority;
       if (record.automationPolicyVersion !== ROUTINE_COMMUNICATIONS_POLICY.version || record.cancelledContinuation) authority = null;
@@ -442,7 +463,7 @@ export class CommunicationsStore {
         try {
           verifyCommunicationsHandoff(handoff, approvedBrief);
           if (job.intent === "reply") {
-            if (!approvedBrief.replyOrigin) throw new Error("reply_parent_context_changed");
+            if (!approvedBrief.replyOrigin || isFounderReplyOrigin(approvedBrief.replyOrigin)) throw new Error("reply_parent_context_changed");
             const parent = communicationsBriefSchema.parse((await tx.get(root.collection("briefs").doc(approvedBrief.replyOrigin.parentBriefId))).data());
             const binding = verifyCommunicationsReplyBinding((await tx.get(root.collection("replyBindings").doc(job.briefDigest))).data(), approvedBrief, parent);
             const receipt = (await tx.get(root.collection("sendReceipts").doc(binding.sendReceiptKey))).data();

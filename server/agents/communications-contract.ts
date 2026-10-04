@@ -49,10 +49,18 @@ export const communicationsBriefSchema = z.object({
   priorConversation: z.object({
     gmailThreadId: id, gmailMessageIds: z.array(id).min(1).max(20),
   }).strict().nullable(),
-  // Backend-only lineage for an attachment to an already approved sent thread.
-  // It carries no permission grant and does not change the original QA dates.
-  replyOrigin: z.object({ parentBriefId: id, parentBriefDigest: z.string().regex(/^[a-f0-9]{64}$/),
-    sendReceiptKey: z.string().regex(/^[a-f0-9]{64}$/) }).strict().optional(),
+  // Backend-only lineage for an attachment to an already approved sent thread,
+  // or to a founder-authored send observed in the founder mailbox. It carries
+  // no permission grant and does not change the original QA dates. The legacy
+  // system-send shape is unchanged so existing brief digests stay stable.
+  replyOrigin: z.union([
+    z.object({ parentBriefId: id, parentBriefDigest: z.string().regex(/^[a-f0-9]{64}$/),
+      sendReceiptKey: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
+    z.object({ origin: z.literal("founder_send_observed"), parentBriefId: id,
+      parentBriefDigest: z.string().regex(/^[a-f0-9]{64}$/),
+      founderSendObservationId: z.string().regex(/^[a-f0-9]{64}$/),
+      founderSendObservationDigest: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
+  ]).optional(),
   outreachContext: outreachContextSchema,
   qualityReview: z.object({
     state: z.literal("approved"), reviewedBy: text, reviewedAt: date, sourceRecordUrl: publicUrl,
@@ -70,6 +78,11 @@ export const communicationsBriefSchema = z.object({
   }).strict(),
 }).strict();
 export type CommunicationsBrief = z.infer<typeof communicationsBriefSchema>;
+export type CommunicationsFounderReplyOrigin = Extract<NonNullable<CommunicationsBrief["replyOrigin"]>, { origin: "founder_send_observed" }>;
+/** Founder-authored threads never carry system send approval or first-contact authority. */
+export function isFounderReplyOrigin(origin: CommunicationsBrief["replyOrigin"]): origin is CommunicationsFounderReplyOrigin {
+  return !!origin && "origin" in origin && origin.origin === "founder_send_observed";
+}
 
 /** Separate immutable record written by research QA/publication or the verified
  * publication adapter after verified agent context or optional operator review, never by the
@@ -119,6 +132,95 @@ export function verifyCommunicationsReplyBinding(value: unknown, brief: Communic
     || binding.parentBriefId !== parent.briefId || binding.parentBriefDigest !== communicationsDigest(parent)
     || communicationsDigest(expected) !== communicationsDigest(brief)) throw new Error("reply_parent_context_changed");
   return binding;
+}
+
+/** Reply attachment to a founder-authored send. The observation, its Gmail
+ * draft-copy binding and the owner observation direction replace the system
+ * approval/receipt chain; nothing here grants send or approval authority. */
+export const communicationsFounderReplyBindingSchema = z.object({
+  version: z.literal("blueprint.communications-reply-binding.v2"),
+  replyOrigin: z.literal("founder_send_observed"),
+  briefDigest: hash, parentBriefId: id, parentBriefDigest: hash,
+  founderSendObservationId: hash, founderSendObservationDigest: hash,
+  gmailDraftBindingDigest: hash, directionDigest: hash, ledgerId: id,
+  outgoingMessageId: id, outgoingRfcMessageId: z.string().min(1).max(500), outgoingBodySha256: hash,
+  sendsAuthorized: z.literal(false), approvalGranted: z.literal(false),
+}).strict();
+export type CommunicationsFounderReplyBinding = z.infer<typeof communicationsFounderReplyBindingSchema>;
+export function verifyCommunicationsFounderReplyBinding(value: unknown, brief: CommunicationsBrief, parent: CommunicationsBrief) {
+  const binding = communicationsFounderReplyBindingSchema.parse(value);
+  const expected = { ...parent, briefId: brief.briefId,
+    replyOrigin: { origin: "founder_send_observed", parentBriefId: parent.briefId, parentBriefDigest: communicationsDigest(parent),
+      founderSendObservationId: binding.founderSendObservationId, founderSendObservationDigest: binding.founderSendObservationDigest },
+    priorConversation: { gmailThreadId: brief.priorConversation?.gmailThreadId, gmailMessageIds: [binding.outgoingMessageId] } };
+  if (brief.briefId === parent.briefId || binding.briefDigest !== communicationsDigest(brief)
+    || binding.parentBriefId !== parent.briefId || binding.parentBriefDigest !== communicationsDigest(parent)
+    || communicationsDigest(expected) !== communicationsDigest(brief)) throw new Error("reply_parent_context_changed");
+  return binding;
+}
+
+/** Same plain-text normalization as reply intake's outgoing-body comparison. */
+export function founderSentContentSha256(value: string) {
+  return createHash("sha256").update(value.replace(/\r\n/g, "\n")).digest("hex");
+}
+/** Consequential fields of a verified Gmail draft-copy binding. */
+export function founderDraftBindingIdentity(value: unknown) {
+  const row = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  return Object.fromEntries(["version", "jobId", "ledgerId", "prospectId", "deliveryKey", "state", "draftId",
+    "content", "receipt", "verifiedAt", "revisionId"].map(key => [key, row[key] ?? null]));
+}
+export const FOUNDER_SEND_OBSERVATION_VERSION = "blueprint.communications-founder-send-observation.v1" as const;
+/** Evidence that the founder sent a Blueprint-copied Gmail draft. Message
+ * bodies are never stored; only their hashes and Gmail/RFC identifiers. */
+export const founderSendObservationSchema = z.object({
+  version: z.literal(FOUNDER_SEND_OBSERVATION_VERSION), state: z.literal("observed"),
+  jobId: hash, prospectId: id, briefId: id, briefDigest: hash,
+  intent: z.enum(["outreach", "reply"]), inboundMessageId: id.nullable(),
+  ledgerId: z.string().regex(/^communications_[a-f0-9]{64}$/), deliveryKey: hash,
+  payloadDigest: hash, reviewDigest: hash, recipient: z.string().email().max(254),
+  gmailDraftBindingDigest: hash, directionDigest: hash,
+  direction: z.object({ uri: z.string().min(1).max(1000), generation: z.string().regex(/^[0-9]+$/), sha256: hash }).strict(),
+  draft: z.object({ draftId: id, messageId: id, threadId: id, verifiedAt: z.number().finite() }).strict(),
+  sent: z.object({ gmailMessageId: id, threadId: id, rfcMessageId: z.string().min(1).max(500), sentAt: date,
+    subjectSha256: hash, bodySha256: hash,
+    // thread_origin: the earliest send in an outreach copy's own new thread.
+    // A reply copy shares an existing thread, so it needs the job header, the
+    // draft's Message-ID or exact content. Cc/Bcc are recorded only as a flag.
+    jobHeaderMatched: z.boolean(), rfcMatchesDraft: z.boolean(), additionalRecipients: z.boolean(),
+    matchBasis: z.enum(["thread_origin", "job_header", "rfc_message_id", "exact_content"]) }).strict(),
+  contentMatch: z.enum(["exact", "differs_from_draft"]),
+  sendsAuthorized: z.literal(false), approvalGranted: z.literal(false),
+  evidenceDigest: hash, recipientSuppressedAtObservation: z.boolean(),
+  observedAt: date, recordedAt: z.number().finite(),
+}).strict();
+export type FounderSendObservation = z.infer<typeof founderSendObservationSchema>;
+/** Replays compare this digest; observation-time context is excluded. */
+export function founderSendEvidenceDigest(value: Omit<FounderSendObservation, "evidenceDigest" | "recipientSuppressedAtObservation" | "observedAt" | "recordedAt">
+  | FounderSendObservation) {
+  const { evidenceDigest: _digest, recipientSuppressedAtObservation: _suppressed, observedAt: _observed, recordedAt: _recorded, ...evidence } = value as FounderSendObservation;
+  return communicationsDigest(evidence);
+}
+export function verifyFounderSendObservation(value: unknown): FounderSendObservation {
+  const observation = founderSendObservationSchema.parse(value);
+  if (founderSendEvidenceDigest(observation) !== observation.evidenceDigest
+    || observation.ledgerId !== `communications_${observation.jobId}`) throw new Error("founder_send_observation_digest_mismatch");
+  return observation;
+}
+/** Bind a founder-origin reply to the immutable observation and draft copy. */
+export function verifyFounderReplyAnchor(binding: CommunicationsFounderReplyBinding, observationValue: unknown,
+  draftBindingValue: unknown, brief: CommunicationsBrief) {
+  let observation: FounderSendObservation;
+  try { observation = verifyFounderSendObservation(observationValue); }
+  catch { throw new Error("reply_parent_observation_or_handoff_changed"); }
+  if (observation.jobId !== binding.founderSendObservationId || observation.evidenceDigest !== binding.founderSendObservationDigest
+    || observation.gmailDraftBindingDigest !== binding.gmailDraftBindingDigest || observation.directionDigest !== binding.directionDigest
+    || observation.ledgerId !== binding.ledgerId || observation.briefDigest !== binding.parentBriefDigest
+    || observation.sent.gmailMessageId !== binding.outgoingMessageId || observation.sent.rfcMessageId !== binding.outgoingRfcMessageId
+    || observation.sent.bodySha256 !== binding.outgoingBodySha256 || observation.sent.threadId !== brief.priorConversation?.gmailThreadId
+    || communicationsDigest(founderDraftBindingIdentity(draftBindingValue)) !== observation.gmailDraftBindingDigest) {
+    throw new Error("reply_parent_observation_or_handoff_changed");
+  }
+  return observation;
 }
 
 export const communicationsJobSchema = z.object({
@@ -217,10 +319,18 @@ export function authorText(body: string) {
   const end = lines.findIndex((line) => /^(?:On .{1,500}wrote:|[- ]*Original Message[- ]*|From:.*@)/i.test(line));
   return lines.slice(0, end < 0 ? lines.length : end).filter((line) => !/^\s*>/.test(line)).join("\n").trim();
 }
-export function isOptOut(message: ThreadMessage) {
+/** Plain-text form for founder-thread scans that hold no ThreadMessage. */
+export function isOptOutText(body: string) {
   return /\b(?:unsubscribe|remove (?:me|us) from|take (?:me|us) off|(?:do not|don't) (?:contact|email|message|follow[ -]?up)|stop (?:emailing|contacting|sending|messaging|following[ -]?up)|no (?:more |further )?(?:follow[ -]?ups?)|no more (?:emails|messages))\b/i
-    .test(authorText(message.body).replace(/[’‘]/g, "'"));
+    .test(authorText(body).replace(/[’‘]/g, "'"));
 }
+
+export function isOptOut(message: ThreadMessage) {
+  return isOptOutText(message.body);
+}
+
+/** Largest thread reply intake reads; founder-send observation uses the same bound. */
+export const FOUNDER_THREAD_MESSAGE_LIMIT = 20;
 
 export function correlatedReplies(brief: CommunicationsBrief, thread: VerifiedThread) {
   return thread.messages.filter((message) => correlateReply(brief, thread, message.gmailMessageId))

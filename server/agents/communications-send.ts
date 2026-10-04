@@ -1,7 +1,7 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { isEmailSuppressed } from "../utils/email-suppression";
 import { communicationsEnvelopeSchema, communicationsBriefSchema, verifyCommunicationsHandoff, communicationsDigest, communicationsDeliveryKey, correlateReply, correlatedReplies, isOptOut,
-  verifyCommunicationsReplyBinding, communicationsSentReceiptIdentity } from "./communications-contract";
+  verifyCommunicationsReplyBinding, communicationsSentReceiptIdentity, isFounderReplyOrigin } from "./communications-contract";
 import { COMMUNICATIONS_ROOT, CommunicationsStore } from "./communications-store";
 import { readExistingResearchSnapshot, verifyPublishedResearch } from "./communications-research";
 import { verifyFounderMailbox, readFounderThread, findFounderSentMessage, sendFounderMessage, hasFounderPriorContact } from "./communications-gmail";
@@ -34,9 +34,20 @@ export async function communicationsSendBlocker(payload: ActionPayload, ledgerId
   if (!communicationsSendingEnabled()) return "communications_sending_disabled";
   if (!dbAdmin) return "communications_store_unavailable";
   try {
+    // Founder-sent threads are learning-only; no system send ever answers one,
+    // whatever the payload's quality or approval state.
+    if (isFounderReplyOrigin(communicationsBriefSchema.safeParse((payload.communications as any)?.brief).data?.replyOrigin)) {
+      return "founder_origin_reply_learning_only";
+    }
     const review = reviewCommunicationsPayload(payload);
     if (!review.hardChecksPassed) return review.blockers.join(",");
     const { job, brief, thread } = communicationsEnvelopeSchema.parse(payload.communications);
+    // The founder already sent, or may have sent, this job from Gmail; a system send could repeat it.
+    const founderRoot = dbAdmin.doc(COMMUNICATIONS_ROOT);
+    const [founderSend, founderCheck] = await Promise.all([founderRoot.collection("founderSendObservations").doc(job.jobId).get(),
+      founderRoot.collection("founderSendChecks").doc(job.jobId).get()]);
+    if (founderSend.exists) return "founder_send_already_observed";
+    if (founderCheck.data()?.state === "requires_reconciliation") return "founder_send_requires_reconciliation";
     const store = new CommunicationsStore(dbAdmin);
     const [source, currentBrief] = await Promise.all([
       dbAdmin.collection("outboundProspects").doc(job.prospectId).get(), store.brief(job.briefId),
@@ -138,9 +149,17 @@ export async function executeCommunicationsSend(payload: ActionPayload) {
     const handoffRef = dbAdmin!.doc(COMMUNICATIONS_ROOT).collection("handoffs").doc(job.briefDigest);
     const suppressionRef = dbAdmin!.collection("email_suppressions").doc(brief.contact.email.toLowerCase());
     const recipientRef = dbAdmin!.doc(COMMUNICATIONS_ROOT).collection("recipientFirstTouches").doc(firstContactRecipientKey(brief.contact.email));
-    const [previous, ledger, source, currentBrief, handoff, suppression] = await Promise.all([
-      tx.get(ref), tx.get(ledgerRef), tx.get(sourceRef), tx.get(briefRef), tx.get(handoffRef), tx.get(suppressionRef),
+    const observationRef = dbAdmin!.doc(COMMUNICATIONS_ROOT).collection("founderSendObservations").doc(job.jobId);
+    const checkRef = dbAdmin!.doc(COMMUNICATIONS_ROOT).collection("founderSendChecks").doc(job.jobId);
+    const [previous, ledger, source, currentBrief, handoff, suppression, founderSend, founderCheck] = await Promise.all([
+      tx.get(ref), tx.get(ledgerRef), tx.get(sourceRef), tx.get(briefRef), tx.get(handoffRef), tx.get(suppressionRef), tx.get(observationRef),
+      tx.get(checkRef),
     ]);
+    if (isFounderReplyOrigin(brief.replyOrigin)) throw new Error("founder_origin_reply_learning_only");
+    // Read in the same transaction as the receipt reservation, so a concurrent
+    // founder-send observation and a system claim cannot both commit.
+    if (founderSend.exists) throw new Error("founder_send_already_observed");
+    if (founderCheck.data()?.state === "requires_reconciliation") throw new Error("founder_send_requires_reconciliation");
     if (previous.exists) return false;
     const approval = ledger.data();
     if (!approval) throw new Error("communications_exact_human_approval_required");
@@ -156,7 +175,7 @@ export async function executeCommunicationsSend(payload: ActionPayload) {
         ? (await tx.get(root.collection("contactProofs").doc(brief.researchOrigin.contactEvidenceDigest!))).data() : undefined;
       if (approval.first_contact_authority_digest !== authorityDigest || communicationsDigest(savedAuthority ?? null) !== authorityDigest) throw new Error("first_contact_authority_missing_or_changed");
       if (job.intent === "reply") {
-        if (!brief.replyOrigin) throw new Error("reply_parent_context_changed");
+        if (!brief.replyOrigin || isFounderReplyOrigin(brief.replyOrigin)) throw new Error("reply_parent_context_changed");
         const parent = communicationsBriefSchema.parse((await tx.get(root.collection("briefs").doc(brief.replyOrigin.parentBriefId))).data());
         const binding = verifyCommunicationsReplyBinding((await tx.get(root.collection("replyBindings").doc(job.briefDigest))).data(), brief, parent);
         const receipt = (await tx.get(root.collection("sendReceipts").doc(binding.sendReceiptKey))).data();

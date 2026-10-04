@@ -400,6 +400,113 @@ Flags default off; this change writes no environment values:
 - `BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED=true` permits the queue loop.
 - `BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE=true` separately permits inference.
 - `BLUEPRINT_COMMUNICATIONS_SEND_ENABLED=true` separately permits approved sending.
+- `BLUEPRINT_COMMUNICATIONS_FOUNDER_SENT_OBSERVER_ENABLED=true` separately permits
+  read-only founder-sent draft observation (below).
+
+### Founder-sent draft observation (default off)
+
+Owner decision 2026-10-04: reply learning may read drafts the founder sent from
+Gmail. System sending and automatic first contact stay off. When the founder
+sends a Blueprint-copied Gmail draft, `gmailDraftBindings` stays `verified` and
+no `sendReceipts` row exists. `server/agents/communications-founder-sent-observer.ts`
+records that send so that replies on the thread can be learned from. The scope is
+reading and learning only: nothing here drafts, approves or sends.
+
+The observer runs in each worker tick after bound-thread reply intake, in its own
+failure boundary. It makes no Gmail call unless all of these hold: the flag
+above; `..._SEND_ENABLED` and `..._AUTOMATIC_FIRST_CONTACT_ENABLED` are not
+`true`; a current owner direction file (below); and `requireFounderReadCapability()`,
+which requires `gmail.readonly` in the decrypted durable binding and refuses
+`BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN`. Gmail calls are read-only
+(`users.getProfile`, `settings.sendAs.list`, `drafts.get` and `threads.get`), and
+each one times out after 30 seconds.
+
+- At most five verified copies per tick, on a rotating cursor
+  (`intakeState/founderSentObserver`). `founderSendChecks/{jobId}` holds
+  `nextCheckAt`. Backoff starts at 15 minutes and is capped at 24 hours.
+- A copy whose draft still exists is rescheduled; its thread is not read.
+- If `drafts.get` returns 404, the copy's thread is read. A candidate is SENT, not
+  DRAFT, and dated after the copy's `verifiedAt`.
+  - An outreach copy opens its own new thread, so its earliest candidate is the
+    sent copy, however the founder edited it. Later candidates are follow-ups.
+  - A reply copy shares an existing conversation. Exactly one candidate must carry
+    the `X-Blueprint-Job-ID` header, the draft's Message-ID or the draft's exact
+    subject and body. A founder-written reply without that link is not an anchor.
+  - The anchor must be from `nijel@tryblueprint.io` to exactly the bound recipient.
+    Cc/Bcc are allowed and recorded only as the flag `additionalRecipients`.
+  - A thread longer than reply intake's 20-message limit is not an anchor.
+- One match: observed. No candidate after three checks spanning 24 hours:
+  `draft_absent_unsent`. An existing system receipt: `system_send_owned`. Anything
+  ambiguous is `requires_reconciliation`: an unlinked reply, several linked
+  replies, a changed sender or recipient, an oversized thread, or a Gmail message
+  that already anchors another copy.
+- `requires_reconciliation` never anchors a send. The send blocker, the receipt
+  claim, the Gmail draft-copy claim and draft revision refuse that job, because the
+  founder may already have sent it. Its verified copy thread is re-read once a day
+  only for a recipient opt-out. A found opt-out is persisted as an `all`-scope
+  suppression, and the watch then ends.
+- A 401/403 stops the tick and writes only `intakeState/founderSentObserver
+  {blocked, reason, blockedAt, directionDigest}`. Gmail reads then pause for an
+  hour, unless the owner direction changes.
+
+One create-only transaction writes `founderSendObservations/{jobId}` and the
+claim `founderSentMessages/{gmailMessageId}`, so one Gmail message anchors at most
+one copy. The observation holds Gmail/RFC ids, sent subject/body SHA-256 (never
+bodies), binding and direction digests, `matchBasis`, `contentMatch` (`exact` or
+`differs_from_draft`; a difference can be an edit or Gmail re-encoding),
+`recipientSuppressedAtObservation`, and the fixed values `sendsAuthorized: false`
+and `approvalGranted: false`. The same transaction writes
+`outboundProspects/{id}/communicationsEvents/founder_sent_{jobId}`
+(`trust: "founder_authored"`). For an outreach job it also moves the prospect from
+`drafted` to `contacted` and creates a `recipientFirstTouches` row if none exists. A replay
+with the same evidence digest is a no-op; different evidence is refused. It never
+writes `sendReceipts` or any approval field. The send blocker, the receipt
+claim, the Gmail draft-copy claim and draft revision refuse an observed job.
+
+Reply intake reads up to five observations per tick through a second cursor
+(`intakeState/founderSentReplies`). It uses the same gate as observation and has
+no inbox search. While the gate is closed, that state records
+`{paused: true, reason: "founder_sent_reply_gate_closed"}`. A v2 reply binding
+(`blueprint.communications-reply-binding.v2`) and the brief `replyOrigin`
+`{origin: "founder_send_observed", ...}` replace the system approval/receipt
+chain with the observation, draft-copy binding and direction digests. Founder
+edits are allowed: the outgoing message must match the observed ids and body
+SHA-256. The recipient's reply is stored as untrusted `reply_received` evidence,
+and its job is created in the terminal state `learning_only`. A `learning_only`
+job is never drafted, approved, copied to Gmail or sent: the worker finishes a
+founder-origin job without a thread read or model call, and approval creation,
+the Gmail copier, draft revision, the send blocker and the receipt claim all
+refuse founder origin. Opt-outs persist an `all`-scope suppression before the
+claim. Learning emits `outreach_observed` with status `founder_sent`, evidence
+basis `founder_send_observed` and `approvalLedgerId: null`, because nothing was
+approved.
+
+To enable, the owner (1) uploads a direction JSON file to
+`gs://blueprint-8c1ca.appspot.com/operations/recovery/<path>/founder-sent-draft-observation-owner-direction.json`
+(at most 32,000 bytes); (2) records its object `generation` and the SHA-256 of its
+exact bytes in field `founderSentObservationDirection: {uri, generation, sha256}`
+of `blueprintCommunications/default`; (3) sets the flag on the worker service,
+where `BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED=true` is already required. The file
+must contain exactly these fields:
+
+```json
+{
+  "version": "blueprint.communications-founder-sent-observation-direction.v1",
+  "owner": "Nijel Hunt",
+  "approvedAt": "<ISO time, not in the future>",
+  "expiresAt": "<ISO time; observation stops at this time>",
+  "direction": { "kind": "founder-sent-draft-observation", "text": "<owner's words>",
+    "sourceRef": "gs://blueprint-8c1ca.appspot.com/operations/recovery/<source record>" },
+  "binding": { "mailbox": "nijel@tryblueprint.io", "readScope": "https://www.googleapis.com/auth/gmail.readonly" },
+  "scope": { "readOnly": true, "observeFounderSentDrafts": true, "replyIntakeAuthorized": true,
+    "sendsAuthorized": false, "automaticFirstContactAuthorized": false, "approvalsAuthorized": false,
+    "newInferenceAuthorized": false, "accessChangesAuthorized": false }
+}
+```
+
+The file must have exactly these fields at every level, and `expiresAt` must be at most
+366 days after `approvedAt`. Any change to the file needs a new generation and SHA-256 in the root field.
+To stop, unset the flag, remove the root field, or let `expiresAt` pass.
 
 `startCommunicationsWorker()` is an additive exported hook with no startup catch-up.
 After PR773 merged at `614780173940f9a35cbdbca5f683b2b1f531f5e0`, the isolated

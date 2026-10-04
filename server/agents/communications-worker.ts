@@ -4,7 +4,7 @@ import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "
 import { COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest, briefRefreshReasons,
-  correlateReply, correlatedReplies, isOptOut, FOUNDER_MAILBOX, type CommunicationsBrief, type VerifiedThread,
+  correlateReply, correlatedReplies, isOptOut, isFounderReplyOrigin, FOUNDER_MAILBOX, type CommunicationsBrief, type VerifiedThread,
   type CommunicationsJob, type CommunicationsOutput,
 } from "./communications-contract";
 import { CommunicationsAgentsAPI, CommunicationsRuntimeError, type CommunicationsCheckpoint,
@@ -31,6 +31,7 @@ import { CommunicationsDraftBudgetError, reserveCommunicationsDraft, recordCommu
 import { createNativeLearningHooks, REVIEWED_NATIVE_LEARNING_CONFIG } from "../research-learning/native-hooks";
 import { getCompanyHistoryAccess } from "./operator-tools";
 import { runCommunicationsGmailDraftCopies } from "./communications-gmail-draft";
+import { founderSentRepliesAllowed, runCommunicationsFounderSentObserver } from "./communications-founder-sent-observer";
 
 type CommunicationsLearningHooks = Pick<ReturnType<typeof createNativeLearningHooks>, "prepareNativeJob" | "afterNativeWork">;
 type PreparedLearning = Awaited<ReturnType<CommunicationsLearningHooks["prepareNativeJob"]>>;
@@ -157,6 +158,12 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
   try {
     const brief = communicationsBriefSchema.parse(await deps.store.brief(job.briefId));
     if (brief.prospectId !== job.prospectId || job.briefDigest !== communicationsDigest(brief)) throw new Error("research_brief_changed");
+    // The owner direction for founder-sent threads authorizes reading and
+    // learning only: no thread read, inference, approval row or send follows.
+    if (isFounderReplyOrigin(brief.replyOrigin)) {
+      await deps.store.finish(job, "learning_only", "founder_thread_reply_learning_only");
+      return { state: "learning_only" };
+    }
     const source = await deps.store.db.collection("outboundProspects").doc(job.prospectId).get();
     const prospect = source.data();
     if (!source.exists || prospect?.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
@@ -494,10 +501,22 @@ export function startCommunicationsWorker(): () => Promise<void> {
     now: () => Date.now(),
     sendAutomatic: executeAutomaticFirstContact,
   };
-  return startCommunicationsQueueLoop(deps, { intake: async () => {
+  return startCommunicationsQueueLoop(deps, { observeFounderSends: async canContinue => {
+    // Read-only and default off: flag, send-off state, owner direction and
+    // durable read capability all gate it before any Gmail call.
+    try {
+      const result = await runCommunicationsFounderSentObserver(db, { canContinue });
+      if (result.state === "blocked") logger.warn({ code: result.reason ?? "founder_sent_observer_blocked" }, "Founder-sent observation stopped before completing");
+    } catch (error) {
+      // Codes only; provider and mailbox details are never logged.
+      const code = error instanceof Error && /^[a-z_][a-z0-9_]*$/.test(error.message) ? error.message : "founder_sent_observer_unavailable";
+      logger.warn({ code }, "Founder-sent observation waits for its owner direction and read capability");
+    }
+  }, intake: async () => {
     // Bound-thread opt-outs run before unrelated intake and the paid gate.
     await runCommunicationsReplyIntake({ db, readResearch: deps.readResearch, readThread: deps.readThread,
-      isSuppressed: deps.isSuppressed, suppress: deps.suppress, now: deps.now });
+      isSuppressed: deps.isSuppressed, suppress: deps.suppress, now: deps.now,
+      founderSentRepliesAllowed: () => founderSentRepliesAllowed(db) });
     await runCommunicationsIntake({ db, readResearch: deps.readResearch,
       isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readResearchContactPage,
       requestContactResearch: (source, prospectId, reason) => requestNativeContactResearch(db, source, prospectId, reason, deps.now()),
@@ -507,12 +526,19 @@ export function startCommunicationsWorker(): () => Promise<void> {
 
 /** Stop admission immediately, then await the active job and its durable writes. */
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
-  options: { intake?: () => Promise<void>; copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
+  options: { observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: () => Promise<void>;
+    copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
   let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
   let automaticCursor: string | undefined;
   const tick = async () => {
     try {
+      // Bound-thread opt-out intake runs first. Founder-send observation follows
+      // in its own failure boundary, so a slow or failing Gmail read never
+      // delays opt-outs; a new observation feeds the next tick's intake.
       if (options.intake) await options.intake();
+      if (stopped) return;
+      try { await options.observeFounderSends?.(() => !stopped); }
+      catch { logger.warn({ code: "communications_founder_sent_observer_unavailable" }, "Founder-sent observation waits for its owner direction and read capability"); }
       if (stopped) return;
       try { await options.copyDrafts?.(() => !stopped); }
       catch { logger.warn({ code: "communications_gmail_draft_copy_direction_unavailable" }, "Gmail staging waits for its retained copy direction"); }

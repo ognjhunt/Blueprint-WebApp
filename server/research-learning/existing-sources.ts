@@ -4,6 +4,7 @@ import {
   communicationsDeliveryKey, verifyCommunicationsHandoff,
   communicationsEnvelopeSchema,
   isOptOut,
+  verifyFounderSendObservation,
 } from "../agents/communications-contract";
 import { authorize, cohortLabel, entitiesSchema, instant, makeEvent, type LearningEvent, type LearningGrant, type SnapshotRequest } from "./contract";
 import { eventSection } from "./snapshot";
@@ -12,7 +13,9 @@ import { REVIEWED_RESEARCH_ROOT } from "../agents/communications-reviewed-resear
 import { projectBriefResearch } from "./brief-projection";
 
 const ROOT = "blueprintCommunications/default";
-export type ExistingJob = { id: string; record: unknown; brief?: unknown; handoff?: unknown; researchSource?: any; reviewedSnapshot?: unknown; contactProof?: unknown; receipt?: any; ledger?: any };
+export type ExistingJob = { id: string; record: unknown; brief?: unknown; handoff?: unknown; researchSource?: any; reviewedSnapshot?: unknown; contactProof?: unknown; receipt?: any; ledger?: any;
+  /** Founder-authored send of this job's Blueprint-copied Gmail draft. */
+  founderSend?: any };
 export type ExistingProspectSources = {
   prospectId: string; prospect: any; jobs: ExistingJob[];
   communicationsEvents: { id: string; record: any }[];
@@ -183,6 +186,38 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
               reason: "receipt_evidence_invalid_reconcile_exact_job_payload_and_gmail_refs" });
           }
         }
+        if (bundle.founderSend) {
+          const founderStart = events.length, ref = `${ROOT}/founderSendObservations/${job.jobId}`;
+          observedSourceRefs.push(ref);
+          try {
+            const observation = verifyFounderSendObservation(bundle.founderSend);
+            // A job has one delivery path. A system receipt and a founder
+            // observation for the same job require reconciliation.
+            if (bundle.receipt || observation.jobId !== job.jobId || observation.prospectId !== input.prospectId
+              || observation.briefId !== job.briefId || observation.briefDigest !== job.briefDigest || observation.intent !== job.intent
+              || observation.inboundMessageId !== job.inboundMessageId || observation.deliveryKey !== communicationsDeliveryKey(job)
+              || observation.recipient !== brief.contact.email.toLowerCase()) throw new Error("founder_send_join_invalid");
+            // An exact copy groups with the Blueprint draft's pre-footer copy,
+            // like system sends. A changed copy keeps its own sent-content digest.
+            const ledger = bundle.ledger, envelope = ledger ? communicationsEnvelopeSchema.safeParse(ledger.action_payload?.communications) : undefined;
+            const exactDraft = observation.contentMatch === "exact" && envelope?.success === true
+              && communicationsDigest(ledger.action_payload) === observation.payloadDigest
+              && communicationsDigest(envelope.data.job) === communicationsDigest(job);
+            const messageDigest = exactDraft && envelope?.success
+              ? communicationsDigest({ subject: envelope.data.output.subject, body: envelope.data.output.body })
+              : communicationsDigest({ founderSentSubjectSha256: observation.sent.subjectSha256, founderSentBodySha256: observation.sent.bodySha256 });
+            events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "outreach_observed", occurredAt: observation.sent.sentAt,
+              data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", intent: job.intent,
+                payloadDigest: observation.payloadDigest, approvalLedgerId: null, messageDigest, messageVariant: null,
+                messageId: observation.sent.gmailMessageId, threadId: observation.sent.threadId,
+                status: "founder_sent", campaignId: null, timingWindow: null },
+              evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(bundle.founderSend),
+                checkedAt: observation.observedAt, basis: "founder_send_observed" }] }));
+          } catch {
+            events.splice(founderStart);
+            quarantine.push({ recordRef: ref, reason: "founder_send_observation_invalid_reconcile_exact_job_binding_and_gmail_refs" });
+          }
+        }
         for (const item of communicationsEvents.filter(e => e.record.type === "reply_received" && e.record.jobId === job.jobId)) {
           const ref = `${sourceRef}/communicationsEvents/${item.id}`;
           observedSourceRefs.push(ref);
@@ -193,16 +228,21 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
               && (item.record.prospectId !== input.prospectId || item.record.briefId !== job.briefId
                 || item.record.briefDigest !== job.briefDigest || item.record.messageHash !== communicationsDigest(reply)
                 || Date.parse(observedAt) < Date.parse(reply?.receivedAt))) throw new Error("reply_receipt_changed");
-            const sentRefs = communicationsEvents.filter(e => e.record.type === "sent"
+            const sentRfcIds = [...communicationsEvents.filter(e => e.record.type === "sent"
               && e.record.job?.prospectId === input.prospectId && brief.priorConversation?.gmailMessageIds.includes(e.record.receipt?.messageId)
-              && e.record.receipt?.threadId === reply?.gmailThreadId);
+              && e.record.receipt?.threadId === reply?.gmailThreadId).map(e => e.record.receipt.rfcMessageId),
+            // Founder-authored anchors carry no approval; they bind replies only.
+            ...communicationsEvents.filter(e => e.record.type === "founder_sent" && e.record.trust === "founder_authored"
+              && e.record.sendsAuthorized === false && e.record.approvalGranted === false && e.record.prospectId === input.prospectId
+              && brief.priorConversation?.gmailMessageIds.includes(e.record.founderSentMessage?.gmailMessageId)
+              && e.record.founderSentMessage?.threadId === reply?.gmailThreadId).map(e => e.record.founderSentMessage.rfcMessageId)];
             // The worker also records an earlier correlated opt-out under this
             // job. Its own immutable Gmail identity need not be the job trigger.
             if (item.record.untrusted !== true || job.intent !== "reply" || !job.inboundMessageId || !reply
               || item.id !== `reply_${reply.gmailMessageId}` || !brief.priorConversation
               || reply.gmailThreadId !== brief.priorConversation.gmailThreadId
               || reply.from?.toLowerCase() !== brief.contact.email.toLowerCase()
-              || !sentRefs.some(e => e.record.receipt.rfcMessageId && (reply.inReplyTo === e.record.receipt.rfcMessageId || reply.references?.includes(e.record.receipt.rfcMessageId)))
+              || !sentRfcIds.some(rfcMessageId => rfcMessageId && (reply.inReplyTo === rfcMessageId || reply.references?.includes(rfcMessageId)))
               || !reply.to?.some((to: string) => ["nijel@tryblueprint.io", "hello@tryblueprint.io"].includes(to.toLowerCase()))) throw new Error("reply_join_invalid");
             events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "reply_observed", occurredAt: reply.receivedAt,
               data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", messageId: reply.gmailMessageId, threadId: reply.gmailThreadId,
@@ -314,10 +354,20 @@ export async function readExistingSources(db: FirebaseFirestore.Firestore, grant
           receipt = undefined; ledger = undefined;
           readQuarantine.push({ recordRef: receiptRef, reason: "receipt_read_unavailable_retry_exact_receipt_and_ledger" });
         }
+        let founderSend: FirebaseFirestore.DocumentSnapshot | undefined;
+        const founderRef = `${ROOT}/founderSendObservations/${identity.jobId}`;
+        try {
+          const founderRead = authorized.sections.includes("outreach") ? await db.doc(founderRef).get() : undefined;
+          founderSend = founderRead?.exists && admit(founderRead, founderRef) ? founderRead : undefined;
+        } catch {
+          founderSend = undefined;
+          readQuarantine.push({ recordRef: founderRef, reason: "founder_send_read_unavailable_retry_exact_observation" });
+        }
         bundles.push({ id: job.id, record, brief: brief.data(), handoff: handoff.data(), researchSource: source.data(),
           reviewedSnapshot: reviewed?.data(), contactProof: contact?.data(),
           receipt: receipt?.data()?.jobId === identity.jobId && ledgerEligible ? receipt?.data() : undefined,
-          ledger: ledgerEligible ? ledger?.data() : undefined });
+          ledger: ledgerEligible ? ledger?.data() : undefined,
+          founderSend: founderSend?.data()?.jobId === identity.jobId ? founderSend?.data() : undefined });
       } catch {
         // A stale or malformed job must not suppress valid sibling history.
         // Retain only the exact record reference, never private parse errors.

@@ -89,7 +89,7 @@ export function buildSnapshot(values: unknown[], grant: LearningGrant, input: Sn
     if (!active.some(e => e.kind === "research_observed")) unknowns.push("research_missing_or_not_authorized");
     if (!active.some(e => e.kind === "contact_observed")) unknowns.push("contact_missing_or_not_authorized");
     if (active.some(e => e.entities.siteId === null || e.entities.taskId === null)) unknowns.push("exact_site_or_task_join_missing");
-    if (active.some(e => e.kind === "outreach_observed" && e.data.status === "accepted"
+    if (active.some(e => e.kind === "outreach_observed" && (e.data.status === "accepted" || e.data.status === "founder_sent")
       && !active.some(d => d.kind === "delivery_observed" && d.data.jobId === e.data.jobId
         && d.data.messageId === e.data.messageId && d.data.threadId === e.data.threadId))) unknowns.push("delivery_unknown");
     if (active.some(e => e.kind === "reply_observed" && e.data.classification.uncertain)) unknowns.push("reply_classification_uncertain");
