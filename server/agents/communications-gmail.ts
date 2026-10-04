@@ -1,6 +1,6 @@
 import { google, type gmail_v1 } from "googleapis";
 import { extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
-import { FOUNDER_MAILBOX, type VerifiedThread, type ThreadMessage } from "./communications-contract";
+import { FOUNDER_MAILBOX, type VerifiedThread, type ThreadMessage, FOUNDER_THREAD_MESSAGE_LIMIT } from "./communications-contract";
 import { readFounderCredential, requireFounderSendCapability } from "./communications-oauth-store";
 import { FOUNDER_GMAIL_BINDING_KEYS } from "./communications-connection";
 
@@ -66,7 +66,7 @@ export async function readFounderThread(threadId: string, gmail?: gmail_v1.Gmail
   gmail ??= await existingFounderGmail();
   await verifyFounderMailbox(gmail);
   const response = await gmail.users.threads.get({ userId: "me", id: threadId, format: "full" });
-  if (response.data.id !== threadId || !response.data.messages?.length || response.data.messages.length > 20) {
+  if (response.data.id !== threadId || !response.data.messages?.length || response.data.messages.length > FOUNDER_THREAD_MESSAGE_LIMIT) {
     throw new Error("thread_missing_or_context_limit_exceeded");
   }
   const messages: ThreadMessage[] = response.data.messages.map((message) => {

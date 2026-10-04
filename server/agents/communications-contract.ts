@@ -183,8 +183,11 @@ export const founderSendObservationSchema = z.object({
   draft: z.object({ draftId: id, messageId: id, threadId: id, verifiedAt: z.number().finite() }).strict(),
   sent: z.object({ gmailMessageId: id, threadId: id, rfcMessageId: z.string().min(1).max(500), sentAt: date,
     subjectSha256: hash, bodySha256: hash,
-    // Evidence only: matching never depends on Gmail preserving these headers.
-    jobHeaderMatched: z.boolean(), rfcMatchesDraft: z.boolean() }).strict(),
+    // thread_origin: the earliest send in an outreach copy's own new thread.
+    // A reply copy shares an existing thread, so it needs the job header, the
+    // draft's Message-ID or exact content. Cc/Bcc are recorded only as a flag.
+    jobHeaderMatched: z.boolean(), rfcMatchesDraft: z.boolean(), additionalRecipients: z.boolean(),
+    matchBasis: z.enum(["thread_origin", "job_header", "rfc_message_id", "exact_content"]) }).strict(),
   contentMatch: z.enum(["exact", "differs_from_draft"]),
   sendsAuthorized: z.literal(false), approvalGranted: z.literal(false),
   evidenceDigest: hash, recipientSuppressedAtObservation: z.boolean(),
@@ -316,10 +319,18 @@ export function authorText(body: string) {
   const end = lines.findIndex((line) => /^(?:On .{1,500}wrote:|[- ]*Original Message[- ]*|From:.*@)/i.test(line));
   return lines.slice(0, end < 0 ? lines.length : end).filter((line) => !/^\s*>/.test(line)).join("\n").trim();
 }
-export function isOptOut(message: ThreadMessage) {
+/** Plain-text form for founder-thread scans that hold no ThreadMessage. */
+export function isOptOutText(body: string) {
   return /\b(?:unsubscribe|remove (?:me|us) from|take (?:me|us) off|(?:do not|don't) (?:contact|email|message|follow[ -]?up)|stop (?:emailing|contacting|sending|messaging|following[ -]?up)|no (?:more |further )?(?:follow[ -]?ups?)|no more (?:emails|messages))\b/i
-    .test(authorText(message.body).replace(/[’‘]/g, "'"));
+    .test(authorText(body).replace(/[’‘]/g, "'"));
 }
+
+export function isOptOut(message: ThreadMessage) {
+  return isOptOutText(message.body);
+}
+
+/** Largest thread reply intake reads; founder-send observation uses the same bound. */
+export const FOUNDER_THREAD_MESSAGE_LIMIT = 20;
 
 export function correlatedReplies(brief: CommunicationsBrief, thread: VerifiedThread) {
   return thread.messages.filter((message) => correlateReply(brief, thread, message.gmailMessageId))

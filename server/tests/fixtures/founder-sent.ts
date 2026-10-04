@@ -72,8 +72,10 @@ export function founderDraftFixture(db = memoryFirestore()) {
 /** Additional verified copies used only to exercise bounded paging. */
 export function extraVerifiedBinding(index: number) {
   const jobId = createHash("sha256").update(`synthetic-job-${index}`).digest("hex");
-  return { jobId, binding: { version: "blueprint.communications-gmail-draft-binding.v1", jobId, ledgerId: `communications_${jobId}`,
-    prospectId: `synthetic-prospect-${index}`, state: "verified", deliveryKey: createHash("sha256").update(`synthetic-delivery-${index}`).digest("hex"),
+  const job = { jobId, prospectId: `synthetic-prospect-${index}`, briefId: `synthetic-brief-${index}`,
+    briefDigest: createHash("sha256").update(`synthetic-brief-${index}`).digest("hex"), intent: "outreach" as const, inboundMessageId: null };
+  return { jobId, job: { ...job, state: "pending_approval", ledgerId: `communications_${jobId}` }, binding: { version: "blueprint.communications-gmail-draft-binding.v1", jobId, ledgerId: `communications_${jobId}`,
+    prospectId: job.prospectId, state: "verified", deliveryKey: communicationsDeliveryKey(job),
     draftId: `r-synthetic-draft-${index}`, revisionId: null, verifiedAt: communicationsNow - 3600000,
     content: { jobId, reviewDigest: "a".repeat(64), payloadDigest: "b".repeat(64), to: `synthetic-${index}@facility.example`, subject: "Synthetic", body: "Synthetic body" },
     receipt: { draftId: `r-synthetic-draft-${index}`, messageId: `synthetic-draft-message-${index}`, threadId: `synthetic-thread-${index}` } } };

@@ -14,7 +14,7 @@ import { communicationsFixture, communicationsNow } from "./fixtures/communicati
 import { extraVerifiedBinding, founderDirectionFixture, founderDirectionRef, founderDraftFixture } from "./fixtures/founder-sent";
 import { communicationsDigest, communicationsDeliveryKey, founderDraftBindingIdentity, founderSentContentSha256,
   verifyFounderSendObservation } from "../agents/communications-contract";
-import { configuredFounderSentObserverPorts, founderSentRepliesAllowed, runCommunicationsFounderSentObserver,
+import { configuredFounderSentObserverPorts, evaluateFounderSentThread, founderSentRepliesAllowed, runCommunicationsFounderSentObserver,
   FOUNDER_SENT_OBSERVER_FLAG, type FounderSentThread } from "../agents/communications-founder-sent-observer";
 import { admitFounderSentCommunicationsReplies, runCommunicationsReplyIntake } from "../agents/communications-reply-intake";
 import { communicationsSendBlocker, executeCommunicationsSend } from "../agents/communications-send";
@@ -98,7 +98,8 @@ describe("founder-sent draft observation (all providers faked)", () => {
       gmailDraftBindingDigest: communicationsDigest(founderDraftBindingIdentity(f.binding)),
       sent: { gmailMessageId: "founder-sent-1", threadId: f.threadId, rfcMessageId: "<founder-sent-1@mail.gmail.example>",
         sentAt: new Date(f.sentAt).toISOString(), subjectSha256: founderSentContentSha256(f.payload.subject),
-        bodySha256: founderSentContentSha256(sent.body), jobHeaderMatched: true, rfcMatchesDraft: false } });
+        bodySha256: founderSentContentSha256(sent.body), jobHeaderMatched: true, rfcMatchesDraft: false,
+        additionalRecipients: false, matchBasis: "thread_origin" } });
     // Mailbox content stays in Gmail; only its hashes are retained.
     expect(JSON.stringify(saved)).not.toContain("relevant job to discuss"); expect(JSON.stringify(saved)).not.toContain("short call");
     expect(f.db.records.get(f.paths.prospect)).toMatchObject({ stage: "contacted", contactedAtIso: new Date(f.sentAt).toISOString() });
@@ -112,18 +113,72 @@ describe("founder-sent draft observation (all providers faked)", () => {
   });
 
   it.each([
-    ["ambiguous", (f: ReturnType<typeof setup>) => { f.thread.messages.push({ ...f.sentMessage, gmailMessageId: "founder-sent-2", internalDate: f.sentAt + 1000,
-      rfcMessageIds: ["<founder-sent-2@mail.gmail.example>"] }); }, "founder_sent_multiple_matches"],
     ["redirected", (f: ReturnType<typeof setup>) => { f.thread.messages[0].to = ["someone-else@facility.example"]; }, "founder_sent_recipient_or_sender_changed"],
-    ["copied", (f: ReturnType<typeof setup>) => { f.thread.messages[0].cc = ["colleague@facility.example"]; }, "founder_sent_recipient_or_sender_changed"],
     ["alias-sent", (f: ReturnType<typeof setup>) => { f.thread.messages[0].from = ["hello@tryblueprint.io"]; }, "founder_sent_recipient_or_sender_changed"],
-  ])("does not anchor an %s send and stops reading it", async (_kind, change, reason) => {
+    ["oversized", (f: ReturnType<typeof setup>) => { for (let index = 0; index < 20; index++) f.thread.messages.unshift({ ...f.sentMessage,
+      gmailMessageId: `older-${index}`, internalDate: f.verifiedAt - (index + 1) * 60000, rfcMessageIds: [`<older-${index}@mail.gmail.example>`] }); },
+    "founder_sent_thread_context_limit_exceeded"],
+  ])("never anchors a %s send and re-reads its thread only for opt-outs", async (_kind, change, reason) => {
     const f = setup(); change(f);
     expect(await f.run()).toMatchObject({ outcomes: [{ jobId: f.job.jobId, state: "requires_reconciliation", reason }] });
     expect(f.db.records.has(f.paths.observation)).toBe(false); expect(f.db.records.has(f.paths.event)).toBe(false);
     expect(f.db.records.has(f.paths.firstTouch)).toBe(false); expect(f.db.records.get(f.paths.prospect).stage).toBe("drafted");
-    f.advance(48 * HOUR); await f.run();
-    expect(f.ports.draftExists).toHaveBeenCalledTimes(1); expect(f.ports.readThread).toHaveBeenCalledTimes(1);
+    expect(f.db.records.get(f.paths.check)).toMatchObject({ state: "requires_reconciliation", reason, optOutWatch: true, nextCheckAt: communicationsNow + 24 * HOUR });
+    await f.run(); expect(f.ports.readThread).toHaveBeenCalledTimes(1);
+    f.advance(24 * HOUR); expect(await f.run()).toMatchObject({ outcomes: [{ state: "requires_reconciliation", reason }] });
+    expect(f.ports.draftExists).toHaveBeenCalledTimes(1); expect(f.ports.readThread).toHaveBeenCalledTimes(2);
+    expect(f.db.records.has(f.paths.observation)).toBe(false);
+  });
+
+  it("anchors the earliest send in an outreach copy's own thread, allowing Cc/Bcc and later follow-ups", async () => {
+    const f = setup();
+    Object.assign(f.thread.messages[0], { cc: ["colleague@facility.example"], bcc: ["crm-dropbox@crm.example"] });
+    f.thread.messages.push({ ...f.sentMessage, gmailMessageId: "founder-follow-up", internalDate: f.sentAt + HOUR, blueprintJobIds: [],
+      rfcMessageIds: ["<founder-follow-up@mail.gmail.example>"], subject: "Re: Packing", body: "Following up on my note." });
+    expect(await f.run()).toMatchObject({ outcomes: [{ jobId: f.job.jobId, state: "observed" }] });
+    expect(verifyFounderSendObservation(f.db.records.get(f.paths.observation)).sent).toMatchObject({ gmailMessageId: "founder-sent-1",
+      matchBasis: "thread_origin", additionalRecipients: true });
+    // Copy addresses are a flag only; they are never retained.
+    expect(JSON.stringify([...f.db.records.values()])).not.toContain("crm-dropbox@crm.example");
+    expect(f.db.records.get(`${f.root}/founderSentMessages/founder-sent-1`)).toMatchObject({ jobId: f.job.jobId });
+  });
+
+  it("lets one Gmail message anchor only one Blueprint copy", async () => {
+    const f = setup();
+    expect(await f.run()).toMatchObject({ outcomes: [{ state: "observed" }] });
+    const secondId = "9".repeat(64), second = structuredClone(f.binding);
+    Object.assign(second, { jobId: secondId, ledgerId: `communications_${secondId}`, draftId: "r-synthetic-draft-2",
+      content: { ...second.content, jobId: secondId }, receipt: { ...second.receipt, draftId: "r-synthetic-draft-2" } });
+    f.db.records.set(`${f.root}/gmailDraftBindings/${secondId}`, second);
+    f.db.records.set(`${f.root}/jobs/${secondId}`, { ...f.db.records.get(`${f.root}/jobs/${f.job.jobId}`), jobId: secondId, ledgerId: `communications_${secondId}` });
+    expect((await f.run()).outcomes).toContainEqual({ jobId: secondId, state: "requires_reconciliation", reason: "founder_sent_message_already_anchored" });
+    expect(f.db.records.has(`${f.root}/founderSendObservations/${secondId}`)).toBe(false);
+    expect(f.db.records.get(`${f.root}/founderSentMessages/founder-sent-1`)).toMatchObject({ jobId: f.job.jobId });
+  });
+
+  it("persists a recipient opt-out from a copy thread that cannot anchor, then ends the watch", async () => {
+    const f = setup(), suppress = vi.fn(async (_email: string, _reason: string) => ({ persisted: true }));
+    const run = () => runCommunicationsFounderSentObserver(f.db, { now: f.now, ports: f.ports, suppress });
+    f.thread.messages[0].from = ["hello@tryblueprint.io"];
+    expect(await run()).toMatchObject({ outcomes: [{ state: "requires_reconciliation", reason: "founder_sent_recipient_or_sender_changed" }] });
+    expect(suppress).not.toHaveBeenCalled();
+    f.thread.messages.push({ ...f.sentMessage, gmailMessageId: "recipient-opt-out", labelIds: ["INBOX"], from: [f.payload.to],
+      to: ["hello@tryblueprint.io"], internalDate: f.sentAt + HOUR, rfcMessageIds: ["<opt-out@facility.example>"], blueprintJobIds: [],
+      subject: "Re: Packing", body: "Please remove me from your list." });
+    f.advance(24 * HOUR); await run();
+    expect(suppress).toHaveBeenCalledWith(f.payload.to, "Founder-thread opt-out recipient-opt-out");
+    expect(f.db.records.get(f.paths.check)).toMatchObject({ state: "requires_reconciliation", optOutWatch: false, optOutSuppressedAt: f.now(), nextCheckAt: null });
+    f.advance(48 * HOUR); await run(); expect(f.ports.readThread).toHaveBeenCalledTimes(2); expect(suppress).toHaveBeenCalledOnce();
+  });
+
+  it("retries a copy-thread opt-out until its suppression is durable", async () => {
+    const f = setup(), suppress = vi.fn(async (_email: string, _reason: string) => ({ persisted: false }));
+    f.thread.messages[0].from = ["hello@tryblueprint.io"];
+    f.thread.messages.push({ ...f.sentMessage, gmailMessageId: "recipient-opt-out", labelIds: ["INBOX"], from: [f.payload.to],
+      to: ["hello@tryblueprint.io"], internalDate: f.sentAt + HOUR, rfcMessageIds: ["<opt-out@facility.example>"], blueprintJobIds: [], body: "Unsubscribe" });
+    expect(await runCommunicationsFounderSentObserver(f.db, { now: f.now, ports: f.ports, suppress }))
+      .toMatchObject({ outcomes: [{ state: "error", reason: "opt_out_suppression_not_persisted" }] });
+    expect(f.db.records.get(f.paths.check)).toMatchObject({ state: "pending", lastError: "opt_out_suppression_not_persisted" });
   });
 
   it.each([["system receipt", "system_send_owned", "founder_sent_system_receipt_exists"], ["malformed copy", "requires_reconciliation", "founder_sent_binding_invalid"]])(
@@ -175,7 +230,8 @@ describe("founder-sent draft observation (all providers faked)", () => {
     expect(f.db.records.get(f.paths.event).founderSentMessage.gmailMessageId).toBe("founder-sent-1");
   });
 
-  it.each(["flag_off", "send_on", "automatic_on", "no_direction", "expired", "hash", "generation", "send_scope", "wrong_kind", "wrong_scope"])(
+  it.each(["flag_off", "send_on", "automatic_on", "no_direction", "expired", "hash", "generation", "send_scope", "wrong_kind", "wrong_scope",
+    "extra_field", "extra_binding_field", "lifetime"])(
     "fails closed before any Gmail call or write: %s", async gate => {
       const f = setup();
       if (gate === "flag_off") vi.stubEnv(FOUNDER_SENT_OBSERVER_FLAG, "false");
@@ -188,6 +244,10 @@ describe("founder-sent draft observation (all providers faked)", () => {
       if (gate === "send_scope") f.publish({ ...f.direction, scope: { ...f.direction.scope, sendsAuthorized: true } });
       if (gate === "wrong_kind") f.publish({ ...f.direction, direction: { ...f.direction.direction, kind: "direct_current_chat_human_reply" } });
       if (gate === "wrong_scope") f.publish({ ...f.direction, binding: { ...f.direction.binding, readScope: FOUNDER_GMAIL_DRAFT_SCOPE } });
+      // A grant-shaped extra field is refused, not ignored, and so is an unbounded term.
+      if (gate === "extra_field") f.publish({ ...f.direction, sendsAuthorized: true });
+      if (gate === "extra_binding_field") f.publish({ ...f.direction, binding: { ...f.direction.binding, composeScope: FOUNDER_GMAIL_DRAFT_SCOPE } });
+      if (gate === "lifetime") f.publish({ ...f.direction, expiresAt: "9999-12-31T00:00:00.000Z" });
       const before = structuredClone([...f.db.records]);
       const result = await f.run().catch((error: Error) => ({ state: "threw", reason: error.message }));
       expect(result).toMatchObject(["flag_off", "send_on", "automatic_on", "no_direction"].includes(gate)
@@ -201,6 +261,7 @@ describe("founder-sent draft observation (all providers faked)", () => {
     const f = setup(); f.ports.draftExists.mockResolvedValue(true);
     for (let index = 0; index < 11; index++) {
       const extra = extraVerifiedBinding(index); f.db.records.set(`${f.root}/gmailDraftBindings/${extra.jobId}`, extra.binding);
+      f.db.records.set(`${f.root}/jobs/${extra.jobId}`, extra.job);
     }
     const visited = new Set<string>(), perTick: number[] = [];
     for (let tick = 0; tick < 3; tick++) {
@@ -213,13 +274,13 @@ describe("founder-sent draft observation (all providers faked)", () => {
     expect(f.ports.readThread).not.toHaveBeenCalled();
   });
 
-  it("runs first in the worker tick, inside its own failure boundary", async () => {
+  it("runs after bound-thread opt-out intake, inside its own failure boundary", async () => {
     const order: string[] = [];
     const deps: any = { store: { automaticJobs: vi.fn(async () => []), dueJobIds: vi.fn(async () => []) } };
     const stop = startCommunicationsQueueLoop(deps, { observeFounderSends: async () => { order.push("observe"); throw new Error("founder_sent_direction_invalid"); },
       intake: async () => { order.push("intake"); }, copyDrafts: async () => { order.push("copy"); }, processJobs: false });
     await vi.advanceTimersByTimeAsync(60000); await stop();
-    expect(order).toEqual(["observe", "intake", "copy"]);
+    expect(order).toEqual(["intake", "observe", "copy"]);
   });
 });
 
@@ -308,8 +369,88 @@ describe("durable founder read capability and the read-only Gmail adapter", () =
     expect(await runCommunicationsFounderSentObserver(f.db, { now: f.now, ports: configuredFounderSentObserverPorts(gmail.api) }))
       .toMatchObject({ state: "blocked", reason: `founder_sent_gmail_http_${status}` });
     const changed = [...f.db.records.keys()].filter(path => JSON.stringify(f.db.records.get(path)) !== JSON.stringify(before.get(path)));
-    expect(changed).toEqual([f.paths.state]); expect(f.db.records.get(f.paths.state)).toEqual({ blocked: true, reason: `founder_sent_gmail_http_${status}` });
+    expect(changed).toEqual([f.paths.state]);
+    expect(f.db.records.get(f.paths.state)).toEqual({ blocked: true, reason: `founder_sent_gmail_http_${status}`, blockedAt: communicationsNow,
+      directionDigest: communicationsDigest(f.direction) });
     for (const mutation of gmail.mutations()) expect(mutation).not.toHaveBeenCalled();
+  });
+
+  it("pauses Gmail reads for an hour after an access denial, unless the owner direction changes", async () => {
+    const f = setup(); configureBinding(); await saveFounderCredential(readonlyCredential, "flow-1");
+    const gmail = fakeGmail(f), denied = Object.assign(new Error("synthetic provider refusal"), { code: 401, response: { status: 401 } });
+    gmail.api.users.getProfile.mockRejectedValueOnce(denied);
+    const run = () => runCommunicationsFounderSentObserver(f.db, { now: f.now, ports: configuredFounderSentObserverPorts(gmail.api) });
+    expect(await run()).toMatchObject({ state: "blocked", reason: "founder_sent_gmail_http_401" });
+    f.advance(30 * 60000);
+    expect(await run()).toEqual({ state: "blocked", reason: "founder_sent_gmail_http_401", outcomes: [] });
+    expect(gmail.api.users.getProfile).toHaveBeenCalledOnce();
+    f.publish({ ...f.direction, direction: { ...f.direction.direction, text: `${f.direction.direction.text} Renewed.` } }, "2");
+    expect(await run()).toMatchObject({ state: "completed", outcomes: [{ state: "observed" }] });
+    expect(f.db.records.get(f.paths.state)).toMatchObject({ blocked: false, reason: null, blockedAt: null });
+  });
+
+  it("times out a hung Gmail read without holding the tick", async () => {
+    const f = setup(); configureBinding(); await saveFounderCredential(readonlyCredential, "flow-1");
+    const gmail = fakeGmail(f); gmail.api.users.threads.get.mockImplementation(() => new Promise(() => undefined));
+    const pending = runCommunicationsFounderSentObserver(f.db, { now: f.now, ports: configuredFounderSentObserverPorts(gmail.api) });
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(await pending).toMatchObject({ state: "completed", outcomes: [{ state: "error", reason: "founder_sent_gmail_timeout" }] });
+    expect(f.db.records.get(f.paths.check)).toMatchObject({ state: "pending", lastError: "founder_sent_gmail_timeout" });
+  });
+});
+
+describe("reply-copy matching in a shared conversation thread", () => {
+  function replyCase() {
+    const f = setup();
+    const own = { ...f.sentMessage, gmailMessageId: "founder-own-reply", subject: "Re: Packing", body: "My own words, not the copy.",
+      blueprintJobIds: [], rfcMessageIds: ["<founder-own-reply@mail.gmail.example>"] };
+    return { f, own, thread: (...messages: typeof own[]) => ({ threadId: f.threadId, messages }) };
+  }
+  it("refuses a founder-written reply that carries no link to the Blueprint copy", () => {
+    const { f, own, thread } = replyCase();
+    expect(evaluateFounderSentThread(thread(own), f.binding, "reply")).toEqual({ kind: "reconcile", reason: "founder_sent_reply_unlinked", threadVerified: true });
+    // The same message in an outreach copy's own new thread is that copy, however edited.
+    expect(evaluateFounderSentThread(thread(own), f.binding, "outreach")).toMatchObject({ kind: "match", basis: "thread_origin" });
+  });
+  it.each([
+    ["job_header", (f: ReturnType<typeof setup>, own: any) => ({ ...own, blueprintJobIds: [f.job.jobId] })],
+    ["rfc_message_id", (f: ReturnType<typeof setup>, own: any) => ({ ...own, rfcMessageIds: [f.binding.receipt.observedRfcMessageId] })],
+    ["exact_content", (f: ReturnType<typeof setup>, own: any) => ({ ...own, subject: f.binding.content.subject, body: f.binding.content.body })],
+  ])("anchors the one reply linked by %s among the founder's own replies", (basis, link) => {
+    const { f, own, thread } = replyCase(), linked = { ...link(f, own), gmailMessageId: "linked-copy", internalDate: f.sentAt + HOUR };
+    expect(evaluateFounderSentThread(thread(own, linked), f.binding, "reply")).toEqual({ kind: "match", message: linked, basis });
+  });
+  it("refuses two linked replies and a linked reply from another sender", () => {
+    const { f, own, thread } = replyCase();
+    const first = { ...own, blueprintJobIds: [f.job.jobId] }, second = { ...first, gmailMessageId: "second-copy", internalDate: f.sentAt + HOUR };
+    expect(evaluateFounderSentThread(thread(first, second), f.binding, "reply")).toMatchObject({ kind: "reconcile", reason: "founder_sent_multiple_matches" });
+    expect(evaluateFounderSentThread(thread({ ...first, from: ["hello@tryblueprint.io"] }), f.binding, "reply"))
+      .toMatchObject({ kind: "reconcile", reason: "founder_sent_recipient_or_sender_changed" });
+  });
+});
+
+describe("a reconciliation verdict fences every system send, Gmail copy and revision path", () => {
+  async function reconciled() {
+    const f = setup(); f.thread.messages[0].from = ["hello@tryblueprint.io"];
+    expect(await f.run()).toMatchObject({ outcomes: [{ state: "requires_reconciliation" }] });
+    return f;
+  }
+  it("refuses the send blocker and send execution even after sending is enabled", async () => {
+    const f = await reconciled(); vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+    expect(await communicationsSendBlocker(f.payload, f.ledgerId)).toBe("founder_send_requires_reconciliation");
+    await expect(executeCommunicationsSend(f.payload)).rejects.toThrow("founder_send_requires_reconciliation");
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(f.receipts()).toEqual([]);
+  });
+  it("refuses a new Gmail copy and a revision", async () => {
+    const f = await reconciled(), binding = structuredClone(f.db.records.get(f.paths.binding)), ledger = structuredClone(f.db.records.get(f.paths.ledger));
+    const ports = { enabled: () => true, allowsRevision: () => true, requireCapability: vi.fn(async () => undefined), verifyMailbox: vi.fn(async () => ({})),
+      priorContact: vi.fn(async () => false), find: vi.fn(async () => null), write: vi.fn(async () => ({ draftId: "never" })) };
+    await expect(mirrorCommunicationsGmailDraft(f.db, f.ledgerId, "owner", { expectedReviewDigest: f.reviewDigest, expectedRevisionId: null, mode: "write" },
+      ports, communicationsNow)).rejects.toThrow("gmail_draft_founder_send_requires_reconciliation");
+    expect(ports.write).not.toHaveBeenCalled(); expect(f.db.records.get(f.paths.binding)).toEqual(binding);
+    await expect(reviseCommunicationsDraft(f.db, f.ledgerId, "owner@tryblueprint.io", { expectedReviewDigest: f.reviewDigest, output: f.output },
+      communicationsNow)).rejects.toThrow("may already hold a sent copy");
+    expect(f.db.records.get(f.paths.ledger)).toEqual(ledger);
   });
 });
 
@@ -360,9 +501,9 @@ describe("founder-sent thread reply intake", () => {
     return { ...f, verified: thread, readThread, suppress, deps, replyJobs, suppressionPath };
   }
 
-  it("queues a reply on a founder-sent thread and drafts it for human review only", async () => {
+  it("records a founder-thread reply for learning only: never drafted, approved or sent", async () => {
     const f = await observedThread();
-    expect(await runCommunicationsReplyIntake(f.deps)).toEqual([{ observationId: f.job.jobId, state: "queued", jobId: expect.any(String) }]);
+    expect(await runCommunicationsReplyIntake(f.deps)).toEqual([{ observationId: f.job.jobId, state: "learning_only", jobId: expect.any(String) }]);
     const [job] = f.replyJobs(), observation = f.db.records.get(f.paths.observation);
     const brief = f.db.records.get(`${f.root}/briefs/${job.briefId}`);
     expect(brief).toMatchObject({ replyOrigin: { origin: "founder_send_observed", parentBriefId: f.brief.briefId, parentBriefDigest: f.job.briefDigest,
@@ -373,27 +514,55 @@ describe("founder-sent thread reply intake", () => {
       replyOrigin: "founder_send_observed", gmailDraftBindingDigest: observation.gmailDraftBindingDigest, directionDigest: observation.directionDigest,
       outgoingBodySha256: observation.sent.bodySha256, sendsAuthorized: false, approvalGranted: false });
     expect(f.db.records.get(`${f.root}/replyIntake/${communicationsDeliveryKey(job)}`)).toMatchObject({ version: "blueprint.communications-reply-intake.v2",
-      replyOrigin: "founder_send_observed", founderSendObservationId: f.job.jobId, state: "queued" });
+      replyOrigin: "founder_send_observed", founderSendObservationId: f.job.jobId, state: "learning_only" });
+    expect(job).toMatchObject({ state: "learning_only", reason: "founder_thread_reply_learning_only" });
+    // The reply itself is retained as untrusted evidence for learning.
+    expect(f.db.records.get(`${f.paths.prospect}/communicationsEvents/reply_founder-reply-in-1`))
+      .toMatchObject({ type: "reply_received", untrusted: true, jobId: job.jobId });
+    // Even a job forced back to queued finishes as learning-only, with no thread read, model call or approval row.
+    const jobPath = `${f.root}/jobs/${job.jobId}`, reads = f.readThread.mock.calls.length;
+    f.db.records.set(jobPath, { ...f.db.records.get(jobPath), state: "queued" });
+    const api = { run: vi.fn(), cancel: vi.fn(async () => true), reconcileSaved: vi.fn(async () => null) };
     const store = new CommunicationsStore(f.db, () => communicationsNow, "founder-reply-test");
-    const api = { run: vi.fn(async () => ({ output: communicationsFixture("reply").output,
-      checkpoint: { createClaimedAt: null, sessionId: "mock-session", turnId: "mock-turn" }, usage: { input_tokens: 10 } })),
-      cancel: vi.fn(async () => true), reconcileSaved: vi.fn(async () => null) };
-    expect(await processCommunicationsJob(job.jobId, { ...f.deps, store, api, verifyMailbox: vi.fn(async () => ({})) }))
-      .toMatchObject({ state: "pending_approval", sent: false, gmailDraftCreated: false });
+    expect(await processCommunicationsJob(job.jobId, { ...f.deps, store, api, verifyMailbox: vi.fn(async () => ({})) } as any)).toMatchObject({ state: "learning_only" });
+    expect(api.run).not.toHaveBeenCalled(); expect(f.readThread.mock.calls.length).toBe(reads);
+    expect(f.db.records.get(jobPath)).toMatchObject({ state: "learning_only" });
+    expect(f.db.records.has(`action_ledger/communications_${job.jobId}`)).toBe(false);
     expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "existing", jobId: job.jobId }]);
-    expect(f.replyJobs()).toHaveLength(1); expect(api.run).toHaveBeenCalledOnce(); expect(f.receipts()).toEqual([]);
-    // Automatic sending stays bounded to system-sent parent threads.
-    const replyLedgerId = `communications_${job.jobId}`, ledger = f.db.records.get(`action_ledger/${replyLedgerId}`);
-    expect(ledger).toMatchObject({ status: "pending_approval", approved_by: null });
+    expect(f.replyJobs()).toHaveLength(1); expect(f.receipts()).toEqual([]);
+  });
+
+  it("refuses a founder-origin reply at every approval, copy, revision and send step", async () => {
+    const f = await observedThread();
+    await runCommunicationsReplyIntake(f.deps);
+    const [job] = f.replyJobs(), brief = f.db.records.get(`${f.root}/briefs/${job.briefId}`), output = communicationsFixture("reply").output;
+    const identity = { jobId: job.jobId, prospectId: job.prospectId, briefId: job.briefId, briefDigest: job.briefDigest, intent: "reply" as const,
+      inboundMessageId: job.inboundMessageId };
+    // A synthetic approved row, as if one had been created by older code.
+    const payload = structuredClone(f.payload), ledgerId = `communications_${job.jobId}`;
+    payload.communications = { ...payload.communications, job: identity, brief, thread: f.verified, output };
+    f.db.records.set(`action_ledger/${ledgerId}`, { ...f.db.records.get(f.paths.ledger), action_payload: payload, idempotency_key: `communications:${job.jobId}`,
+      status: "operator_approved", approved_by: "owner@x.example" });
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
-    f.db.records.set(`action_ledger/${replyLedgerId}`, { ...ledger, first_contact_authority: { version: "blueprint.first-contact-authority.v2" } });
-    expect(await communicationsSendBlocker(ledger.action_payload, replyLedgerId)).toBe("founder_origin_reply_requires_human_approval");
-    expect(sendFounderMessage).not.toHaveBeenCalled();
+    expect(await communicationsSendBlocker(payload, ledgerId)).toBe("founder_origin_reply_learning_only");
+    await expect(executeCommunicationsSend(payload)).rejects.toThrow("founder_origin_reply_learning_only");
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(f.receipts()).toEqual([]);
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
+    const ports = { enabled: () => true, allowsRevision: () => true, requireCapability: vi.fn(async () => undefined), verifyMailbox: vi.fn(async () => ({})),
+      priorContact: vi.fn(async () => false), find: vi.fn(async () => null), write: vi.fn(async () => ({ draftId: "never" })) };
+    await expect(mirrorCommunicationsGmailDraft(f.db, ledgerId, "owner", { expectedReviewDigest: "a".repeat(64), expectedRevisionId: null, mode: "write" },
+      ports, communicationsNow)).rejects.toThrow("gmail_draft_founder_origin_reply_learning_only");
+    expect(ports.write).not.toHaveBeenCalled();
+    await expect(reviseCommunicationsDraft(f.db, ledgerId, "owner@tryblueprint.io", { expectedReviewDigest: "a".repeat(64), output },
+      communicationsNow)).rejects.toThrow("recorded for learning only");
+    const store = new CommunicationsStore(f.db, () => communicationsNow, "founder-commit-test"), jobPath = `${f.root}/jobs/${job.jobId}`;
+    f.db.records.set(jobPath, { ...f.db.records.get(jobPath), lease: { owner: "founder-commit-test", until: communicationsNow + 60000 } });
+    await expect(store.commitDraft(identity, output, payload as any, "a".repeat(64), null)).rejects.toThrow("founder_origin_reply_learning_only");
   });
 
   it("keeps the reply brief bound to the unchanged observation and draft copy", async () => {
     const f = await observedThread();
-    expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "queued" }]);
+    expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "learning_only" }]);
     const [job] = f.replyJobs(), store = new CommunicationsStore(f.db, () => communicationsNow, "founder-binding-test");
     const observation = structuredClone(f.db.records.get(f.paths.observation)), binding = structuredClone(f.db.records.get(f.paths.binding));
     await expect(store.brief(job.briefId)).resolves.toMatchObject({ briefId: job.briefId });
@@ -410,7 +579,7 @@ describe("founder-sent thread reply intake", () => {
   it("accepts the founder's edited sent copy as the anchor", async () => {
     const f = await observedThread({ edited: true });
     expect(verifyFounderSendObservation(f.db.records.get(f.paths.observation)).contentMatch).toBe("differs_from_draft");
-    expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "queued" }]);
+    expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "learning_only" }]);
   });
 
   it("refuses a thread whose sent bytes no longer match the observation", async () => {
@@ -443,7 +612,7 @@ describe("founder-sent thread reply intake", () => {
 
   it("ignores quoted opt-out text", async () => {
     const f = await observedThread({ replyBody: "Thanks for the explanation.\nOn Tuesday someone wrote:\n> Unsubscribe" });
-    expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "queued" }]);
+    expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "learning_only" }]);
     expect(f.suppress).not.toHaveBeenCalled(); expect(f.db.records.has(f.suppressionPath)).toBe(false);
   });
 
@@ -454,27 +623,13 @@ describe("founder-sent thread reply intake", () => {
     expect(f.replyJobs()).toHaveLength(0);
   });
 
-  it("does not re-read a founder-sent thread for drafting after the owner gate closes", async () => {
-    const f = await observedThread();
-    expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "queued" }]);
-    const [job] = f.replyJobs(), reads = f.readThread.mock.calls.length;
-    const api = { run: vi.fn(), cancel: vi.fn(async () => true), reconcileSaved: vi.fn(async () => null) };
-    const worker = { ...f.deps, store: new CommunicationsStore(f.db, () => communicationsNow, "founder-gate-test"), api, verifyMailbox: vi.fn(async () => ({})) };
-    f.publish({ ...f.direction, expiresAt: new Date(communicationsNow).toISOString() });
-    expect(await processCommunicationsJob(job.jobId, worker)).toMatchObject({ state: "blocked", reason: "founder_sent_reply_intake_not_authorized" });
-    // A worker without the gate never reads founder-sent threads either.
-    const jobPath = `${f.root}/jobs/${job.jobId}`;
-    f.db.records.set(jobPath, { ...f.db.records.get(jobPath), state: "queued", lease: { owner: "expired-test-lease", until: 0 } });
-    expect(await processCommunicationsJob(job.jobId, { ...worker, founderSentRepliesAllowed: undefined }))
-      .toMatchObject({ state: "blocked", reason: "founder_sent_reply_intake_not_authorized" });
-    expect(f.readThread.mock.calls.length).toBe(reads); expect(api.run).not.toHaveBeenCalled();
-  });
-
   it("never reads a founder-sent thread while the owner gate is closed", async () => {
     const f = await observedThread(); vi.stubEnv(FOUNDER_SENT_OBSERVER_FLAG, "false");
     expect(await runCommunicationsReplyIntake(f.deps)).toEqual([]);
     await expect(admitFounderSentCommunicationsReplies(f.job.jobId, f.deps)).rejects.toThrow("founder_sent_reply_intake_not_authorized");
     expect(await runCommunicationsReplyIntake({ ...f.deps, founderSentRepliesAllowed: undefined })).toEqual([]);
     expect(f.readThread).not.toHaveBeenCalled(); expect(f.replyJobs()).toHaveLength(0);
+    // The pause is visible rather than silent.
+    expect(f.db.records.get(`${f.root}/intakeState/founderSentReplies`)).toMatchObject({ paused: true, reason: "founder_sent_reply_gate_closed" });
   });
 });

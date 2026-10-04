@@ -406,7 +406,7 @@ function founderSendSourceFixture(contentMatch: "exact" | "differs_from_draft" =
     sent: { gmailMessageId: "founder-out-1", threadId: "thread-1", rfcMessageId: "<founder-out-1@mail.gmail.example>", sentAt: "2026-09-30T23:20:00.000Z",
       subjectSha256: founderSentContentSha256(payload.subject),
       bodySha256: founderSentContentSha256(contentMatch === "exact" ? payload.transportBody : `${payload.transportBody}\nFounder edit`),
-      jobHeaderMatched: false, rfcMatchesDraft: false },
+      jobHeaderMatched: false, rfcMatchesDraft: false, additionalRecipients: false, matchBasis: "thread_origin" },
     contentMatch, sendsAuthorized: false, approvalGranted: false };
   const reseal = (value: any) => ({ ...value, evidenceDigest: founderSendEvidenceDigest(value), recipientSuppressedAtObservation: false,
     observedAt: "2026-09-30T23:30:00.000Z", recordedAt: Date.parse("2026-09-30T23:30:00Z") });
@@ -421,8 +421,9 @@ describe("founder-sent observations in existing-source learning", () => {
     const f = founderSendSourceFixture(), result = normalizeExistingSources([f.input], learningNow);
     expect(result.quarantine).toEqual([]);
     const [event] = founderOutreach(result.events);
+    // The founder's send was never approved in Blueprint, so no approval ledger is named.
     expect(event.data).toMatchObject({ jobId: f.bundle.id, messageId: "founder-out-1", threadId: "thread-1",
-      approvalLedgerId: `communications_${f.bundle.id}`, payloadDigest: f.evidence.payloadDigest });
+      approvalLedgerId: null, payloadDigest: f.evidence.payloadDigest });
     expect(event.occurredAt).toBe("2026-09-30T23:20:00.000Z");
     expect(event.evidence).toEqual([{ sourceSystem: "firestore", recordRef: f.founderRef, sourceHash: communicationsDigest(f.bundle.founderSend),
       checkedAt: "2026-09-30T23:30:00.000Z", basis: "founder_send_observed" }]);
@@ -476,9 +477,12 @@ describe("founder-sent observations in existing-source learning", () => {
     expect(() => remake(base, { evidence: [...base.evidence, { ...base.evidence[0], basis: "founder_send_observed" }] })).toThrow("learning_founder_send_basis_mismatch");
     const reply = learningEvent("reply_observed");
     expect(() => remake(reply, { evidence: [...reply.evidence, { ...reply.evidence[0], basis: "founder_send_observed" }] })).toThrow("learning_founder_send_basis_mismatch");
-    const founder = remake(base, { data: { ...base.data, status: "founder_sent" }, evidence: [{ ...base.evidence[0], basis: "founder_send_observed" }] });
+    const founder = remake(base, { data: { ...base.data, status: "founder_sent", approvalLedgerId: null }, evidence: [{ ...base.evidence[0], basis: "founder_send_observed" }] });
     expect(validateEvent(founder)).toEqual(founder);
-    expect(() => remake(founder, { data: { ...base.data, status: "founder_sent", messageId: null } })).toThrow("learning_acceptance_receipt_missing");
+    expect(() => remake(founder, { data: { ...base.data, status: "founder_sent", approvalLedgerId: null, messageId: null } })).toThrow("learning_acceptance_receipt_missing");
+    // Only a founder send lacks an approval ledger; a founder send never names one.
+    expect(() => remake(founder, { data: { ...founder.data, approvalLedgerId: "communications_job-1" } })).toThrow("learning_founder_send_approval_mismatch");
+    expect(() => remake(base, { data: { ...base.data, approvalLedgerId: null } })).toThrow("learning_founder_send_approval_mismatch");
   });
   it("reads a founder observation through the existing read-only binding only for the outreach section", async () => {
     const memory = learningMemoryFirestore(), { grant, request } = learningScope(), f = founderSendSourceFixture(), identity = f.bundle.record as any;

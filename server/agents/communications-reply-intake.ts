@@ -160,17 +160,21 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
       || communicationsDigest(parent.provenance.source ?? null) !== parent.brief.researchOrigin.sourceDigest)) throw new Error("reply_parent_research_source_changed");
     if (!parent.prospect || parent.prospect.contactEmail?.toLowerCase() !== parent.brief.contact.email.toLowerCase()
       || parent.prospect.siteId !== parent.brief.siteId || parent.prospect.taskId !== parent.brief.taskId) throw new Error("reply_canonical_context_changed");
-    const proof = parent.brief.researchOrigin.contactEvidenceKind === "public_operator_resolution"
-      ? (await root.collection("contactProofs").doc(parent.brief.researchOrigin.contactEvidenceDigest!).get()).data() : undefined;
-    try {
-      verifyPublishedResearch(await deps.readResearch(parent.brief.researchOrigin.date, parent.brief.researchOrigin.admissionId),
-        parent.brief, parent.handoff, proof, deps.now());
-    } catch (error) {
-      if (!(error instanceof LeadVerificationRequired)) throw error;
-      // A correlated observed reply is durable untrusted evidence. Current
-      // qualification gates new inference/outreach, without erasing the reply
-      // or pretending that reception refreshed the original source dates.
-      verificationGap = error.verification;
+    // A founder-thread reply is learning-only: no drafting follows, so it
+    // needs no current research verification.
+    if (!founder) {
+      const proof = parent.brief.researchOrigin.contactEvidenceKind === "public_operator_resolution"
+        ? (await root.collection("contactProofs").doc(parent.brief.researchOrigin.contactEvidenceDigest!).get()).data() : undefined;
+      try {
+        verifyPublishedResearch(await deps.readResearch(parent.brief.researchOrigin.date, parent.brief.researchOrigin.admissionId),
+          parent.brief, parent.handoff, proof, deps.now());
+      } catch (error) {
+        if (!(error instanceof LeadVerificationRequired)) throw error;
+        // A correlated observed reply is durable untrusted evidence. Current
+        // qualification gates new inference/outreach, without erasing the reply
+        // or pretending that reception refreshed the original source dates.
+        verificationGap = error.verification;
+      }
     }
   }
   const input = { prospectId: brief.prospectId, briefId: brief.briefId, briefDigest: communicationsDigest(brief),
@@ -273,6 +277,10 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
     if (!savedHandoff.exists) tx.create(root.collection("handoffs").doc(job.briefDigest), derivedHandoff);
     if (derivedProvenance && !savedProvenance.exists) tx.create(root.collection("researchSources").doc(job.briefDigest), derivedProvenance);
     queued.commit();
+    // The owner direction authorizes reading and learning only: a founder-thread
+    // reply job is terminal at creation and is never drafted, approved or sent.
+    if (founder && !optOut) tx.update(root.collection("jobs").doc(job.jobId), { state: "learning_only",
+      reason: "founder_thread_reply_learning_only", updatedAt: deps.now() });
     if (verificationGap) tx.update(root.collection("jobs").doc(job.jobId), { state: "awaiting_research",
       reason: "lead_verification_required", leadVerification: verificationGap, updatedAt: deps.now() });
     if (optOut) {
@@ -282,7 +290,8 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
           closedAtIso: source.data()?.closedAtIso ?? new Date(deps.now()).toISOString() }, { merge: true });
       }
     }
-    const state = optOut ? "opted_out" as const : verificationGap ? "awaiting_research" as const : "queued" as const;
+    const state = optOut ? "opted_out" as const : founder ? "learning_only" as const
+      : verificationGap ? "awaiting_research" as const : "queued" as const;
     tx.create(claimRef, founder
       ? { version: "blueprint.communications-reply-intake.v2", replyOrigin: "founder_send_observed", jobId: job.jobId,
         messageHash: communicationsDigest(incoming), parentBriefDigest: parent.job.briefDigest,
@@ -318,8 +327,15 @@ export async function runCommunicationsReplyIntake(deps: CommunicationsReplyInta
   let founderAllowed = false;
   try { founderAllowed = !!deps.founderSentRepliesAllowed && await deps.founderSentRepliesAllowed(); }
   catch { founderAllowed = false; }
-  if (!founderAllowed) return outcomes;
   const founderCursorRef = root.collection("intakeState").doc("founderSentReplies");
+  if (!founderAllowed) {
+    // Founder-thread opt-out intake stops with the owner gate; say so visibly.
+    if (!(await root.collection("founderSendObservations").limit(1).get()).empty) {
+      await founderCursorRef.set({ paused: true, reason: "founder_sent_reply_gate_closed", pausedAt: deps.now() }, { merge: true });
+    }
+    return outcomes;
+  }
+  await founderCursorRef.set({ paused: false, reason: null }, { merge: true });
   const founderCursor = (await founderCursorRef.get()).data()?.cursor;
   let founderQuery = root.collection("founderSendObservations").where("state", "==", "observed").orderBy("__name__").limit(5);
   if (typeof founderCursor === "string") founderQuery = founderQuery.startAfter(founderCursor);

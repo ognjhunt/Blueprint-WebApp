@@ -48,9 +48,6 @@ export type CommunicationsDependencies = {
   now: () => number;
   learningHooks?: CommunicationsLearningHooks;
   sendAutomatic?: (ledgerId: string) => Promise<{ state: "sent" | "auto_approved" | "failed"; reason?: string }>;
-  /** Owner observation direction + read capability. A founder-sent thread is
-   * never read for drafting without it; absent means never. */
-  founderSentRepliesAllowed?: () => Promise<boolean>;
 };
 
 /** Existing authenticated operator only. A generation/hash-bound company
@@ -161,6 +158,12 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
   try {
     const brief = communicationsBriefSchema.parse(await deps.store.brief(job.briefId));
     if (brief.prospectId !== job.prospectId || job.briefDigest !== communicationsDigest(brief)) throw new Error("research_brief_changed");
+    // The owner direction for founder-sent threads authorizes reading and
+    // learning only: no thread read, inference, approval row or send follows.
+    if (isFounderReplyOrigin(brief.replyOrigin)) {
+      await deps.store.finish(job, "learning_only", "founder_thread_reply_learning_only");
+      return { state: "learning_only" };
+    }
     const source = await deps.store.db.collection("outboundProspects").doc(job.prospectId).get();
     const prospect = source.data();
     if (!source.exists || prospect?.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
@@ -168,11 +171,6 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     let thread: VerifiedThread | null = null;
     if (job.intent === "reply") {
       if (!brief.priorConversation || !job.inboundMessageId) throw new Error("real_reply_context_missing");
-      // The same owner gate that admitted a founder-thread reply must still hold
-      // before that founder-sent thread is read again for drafting.
-      if (isFounderReplyOrigin(brief.replyOrigin) && !(deps.founderSentRepliesAllowed && await deps.founderSentRepliesAllowed())) {
-        throw new Error("founder_sent_reply_intake_not_authorized");
-      }
       thread = await deps.readThread(brief.priorConversation.gmailThreadId);
       const incoming = correlateReply(brief, thread, job.inboundMessageId);
       if (!incoming) throw new Error("reply_correlation_missing");
@@ -502,7 +500,6 @@ export function startCommunicationsWorker(): () => Promise<void> {
     suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "all", source: "communications_reply" }),
     now: () => Date.now(),
     sendAutomatic: executeAutomaticFirstContact,
-    founderSentRepliesAllowed: () => founderSentRepliesAllowed(db),
   };
   return startCommunicationsQueueLoop(deps, { observeFounderSends: async canContinue => {
     // Read-only and default off: flag, send-off state, owner direction and
@@ -519,7 +516,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
     // Bound-thread opt-outs run before unrelated intake and the paid gate.
     await runCommunicationsReplyIntake({ db, readResearch: deps.readResearch, readThread: deps.readThread,
       isSuppressed: deps.isSuppressed, suppress: deps.suppress, now: deps.now,
-      founderSentRepliesAllowed: deps.founderSentRepliesAllowed });
+      founderSentRepliesAllowed: () => founderSentRepliesAllowed(db) });
     await runCommunicationsIntake({ db, readResearch: deps.readResearch,
       isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readResearchContactPage,
       requestContactResearch: (source, prospectId, reason) => requestNativeContactResearch(db, source, prospectId, reason, deps.now()),
@@ -535,12 +532,13 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
   let automaticCursor: string | undefined;
   const tick = async () => {
     try {
-      // First, so a newly observed founder send feeds this tick's reply intake.
-      // Its own failures never block opt-out intake or later steps.
+      // Bound-thread opt-out intake runs first. Founder-send observation follows
+      // in its own failure boundary, so a slow or failing Gmail read never
+      // delays opt-outs; a new observation feeds the next tick's intake.
+      if (options.intake) await options.intake();
+      if (stopped) return;
       try { await options.observeFounderSends?.(() => !stopped); }
       catch { logger.warn({ code: "communications_founder_sent_observer_unavailable" }, "Founder-sent observation waits for its owner direction and read capability"); }
-      if (stopped) return;
-      if (options.intake) await options.intake();
       if (stopped) return;
       try { await options.copyDrafts?.(() => !stopped); }
       catch { logger.warn({ code: "communications_gmail_draft_copy_direction_unavailable" }, "Gmail staging waits for its retained copy direction"); }

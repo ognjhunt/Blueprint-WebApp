@@ -208,7 +208,7 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
               : communicationsDigest({ founderSentSubjectSha256: observation.sent.subjectSha256, founderSentBodySha256: observation.sent.bodySha256 });
             events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "outreach_observed", occurredAt: observation.sent.sentAt,
               data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", intent: job.intent,
-                payloadDigest: observation.payloadDigest, approvalLedgerId: observation.ledgerId, messageDigest, messageVariant: null,
+                payloadDigest: observation.payloadDigest, approvalLedgerId: null, messageDigest, messageVariant: null,
                 messageId: observation.sent.gmailMessageId, threadId: observation.sent.threadId,
                 status: "founder_sent", campaignId: null, timingWindow: null },
               evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(bundle.founderSend),

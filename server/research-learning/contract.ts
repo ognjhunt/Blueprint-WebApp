@@ -69,7 +69,8 @@ export const eventSchema = z.discriminatedUnion("kind", [
   }).strict() }).strict(),
   z.object({ ...base, kind: z.literal("outreach_observed"), data: z.object({
     messageId: id.nullable(), threadId: id.nullable(), jobId: id, outreachVersion: id,
-    intent: z.enum(["outreach", "reply"]), payloadDigest: hash, approvalLedgerId: id,
+    // Null only for a founder send: its ledger row was never approved.
+    intent: z.enum(["outreach", "reply"]), payloadDigest: hash, approvalLedgerId: id.nullable(),
     messageDigest: hash, messageVariant: id.nullable(),
     status: z.enum(["attempted", "accepted", "founder_sent", "unknown"]),
     campaignId: id.nullable(), timingWindow: label.nullable(),
@@ -125,6 +126,9 @@ export function validateEvent(value: unknown): LearningEvent {
   }
   if (event.kind === "outreach_observed" && ["accepted", "founder_sent"].includes(event.data.status)
     && (!event.data.messageId || !event.data.threadId)) throw new Error("learning_acceptance_receipt_missing");
+  if (event.kind === "outreach_observed" && (event.data.approvalLedgerId === null) !== (event.data.status === "founder_sent")) {
+    throw new Error("learning_founder_send_approval_mismatch");
+  }
   // The founder-send basis appears only on founder-sent outreach, and a
   // founder send is never relabeled as a system acceptance or attempt.
   if (event.evidence.some(e => e.basis === "founder_send_observed") !== (event.kind === "outreach_observed" && event.data.status === "founder_sent")) {
