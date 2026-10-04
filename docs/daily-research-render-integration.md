@@ -8,17 +8,19 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 4 package pins reviewed Pipeline commit
-`aae6c5ad8d8b035682a1190eeedcebb7705cffcb` (Pipeline main via PR2549, containing PR2584 and PR2585), whose lineage already contains
+`0fea06f1404e3537c0920f99b8013efce373b9a3` (exact Pipeline main after PR2549 and PR2586, containing PR2584 and PR2585), whose lineage already contains
 PR2579, PR2580 and PR2581. Its 1,013,760-byte archive SHA256 is
-`cf7f5086f580e49f81934e466f063536002dc2246bac368568748f47c98fd7b8`,
+`5db23e9722534183b69117d8eba6be30379138f2a240a919e8316ccd1b9a3e35`,
 with 54 manifested source files. The manifest SHA256 is
-`c869553058e740aac200bcfd6ad8f844cf365f7f99a9a532385c17f3b36d7410`.
+`307ab9d3e2efc6fc69bad7f0981ada631048e1038872c10ea972aed6f273ed45`.
 It preserves the existing owner MCP, history, QA, publication, capability-integrity
 repair and cleanup source, and adds versioned lead-verification diagnostics (v2 for
 new rows; stored v1 results unchanged), a paged discovery inventory, packet-budget
 repair feedback, the Exa Ultra cap contract and contact-research recovery.
-This is the first package whose source commit is on Pipeline `main` (merged by
-PR2549); it also keeps reviewed QA placeholders blocking (PR2585).
+This package is built from the exact published Pipeline `main` after
+PR2549 and PR2586. Copied QA placeholders remain hard refusals even when
+case, punctuation, whitespace or deleted separators change their spelling;
+deferred assessment handling cannot bypass that refusal.
 This is a research-only controlled release from Pipeline `main`.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
@@ -70,6 +72,15 @@ generic paid multi-provider MCP profile cannot be combined with this path.
 Sending, access, schedules, spending authority and existing frozen rows are
 unchanged by the package. Source and consumer exact-head CI must both pass before
 release, and live installation/readback remain separate from source review.
+
+Deployment and source repinning require a fresh atomic read with zero active
+research, QA, repair or publication rows. The existing bounded renewable lease
+holds that drained state across deployment; time until the next scheduled wake
+alone is insufficient. The source-only compare-and-set preserves historical
+rows and every authority, flag, grant and saved instruction pin. Final readback
+must show installed manifest source equal to the company control source.
+Older frozen create payloads retain their admitted bindings; this release does
+not perform the separate managed-harness or contact-agent design migrations.
 
 Prospective known tool failures retain stable JSON codes in the error and output
 fields. An optional Exa skip preserves its specific reason and next-step guidance
