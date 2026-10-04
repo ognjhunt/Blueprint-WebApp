@@ -52,6 +52,13 @@ describe("zero-model per-run and daily learning handlers", () => {
     await expect(recordTerminalRun(memory.db, { ...input, principalId: "another" }, () => now)).rejects.toThrow("retry_identity_changed");
     await expect(recordTerminalRun(memory.db, { ...input, receipt: { ...input.receipt, sourceHash: digest("wrong") } }, () => now)).rejects.toThrow("retry_identity_changed");
   });
+  it("summarizes a learning-only founder-thread reply job as a terminal communications run", async () => {
+    const memory = learningMemoryFirestore(), ref = "blueprintCommunications/default/jobs/job-2";
+    const source = { jobId: "job-2", prospectId: "actual-prospect", state: "learning_only", reason: "founder_thread_reply_learning_only", updatedAt: Date.parse(now) };
+    memory.records.set(ref, source);
+    const input = { recordId: "BP-RUN-job-2", subjectKey, principalId: businessScope.principalId, runId: "job-2", receipt: { recordRef: ref, sourceHash: digest(source), checkedAt: now } };
+    expect((await recordTerminalRun(memory.db, input, () => now)).event).toMatchObject({ kind: "run_summary", state: "learning_only", prospectIds: ["actual-prospect"] });
+  });
   it("retains explicit missing-time/research-join uncertainty and rejects nonterminal or future native records", async () => {
     const memory = learningMemoryFirestore(), ref = "blueprintDailyResearch/sites-first/runs/run-1";
     const source = { state: "awaiting_review", date: "2026-10-02", privateBody: "PRIVATE_SENTINEL" }; memory.records.set(ref, source);

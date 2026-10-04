@@ -27,7 +27,7 @@ export const businessHistoryEventSchema = z.discriminatedUnion("kind", [
     whatWouldChangeBelief: z.array(safeText(600)).min(1).max(10), nextQuestion: safeText(600), nextTest: safeText(600),
     causalProof: z.literal(false), hardFilterProspects: z.literal(false), unexpectedExplorationRequired: z.literal(true) }).strict(),
   z.object({ ...base, kind: z.literal("run_summary"), runId: id,
-    state: z.enum(["completed", "failed", "cancelled", "sent", "no_reply", "opted_out", "awaiting_review", "reviewed", "superseded", "pending_approval", "awaiting_research", "blocked", "auto_approved"]),
+    state: z.enum(["completed", "failed", "cancelled", "sent", "no_reply", "opted_out", "awaiting_review", "reviewed", "superseded", "pending_approval", "awaiting_research", "blocked", "auto_approved", "learning_only"]),
     requestDigest: hash, nativeTimestamp: instant.nullable(), timeBasis: z.enum(["native_update", "remote_completion", "terminal_observation"]),
     contextHash: hash.nullable(), sourceSnapshotId: hash.nullable(),
     counts: z.record(id, z.number().int().nonnegative().nullable()).refine(value => Object.keys(value).length <= 30),
