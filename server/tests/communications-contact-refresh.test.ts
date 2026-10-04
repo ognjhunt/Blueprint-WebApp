@@ -538,11 +538,18 @@ describe("browser-equivalent markup parsing for contact proof", () => {
     expect(visibleText(table)).toContain("Business inquiries: ok@facility.example");
     expect(visibleText(list)).toContain("Business inquiries: ok@facility.example");
   });
-  it("strips the internal boundary marker from page text and keeps join offsets on code points", () => {
+  it("preserves page-origin controls as address barriers and keeps join offsets on code points", () => {
     const parsed = contactPageText(page("<p>Business \u{1F600}\u{1F600} inquiries: in<b>fo</b>@facility.example and in\u0001fo@facility.example and x&#1;y@facility.example</p>"));
     expect(parsed.segments.some(segment => segment.includes("\u0001"))).toBe(false);
-    expect(parsed.segments[0]).toContain("info@facility.example and info@facility.example and xy@facility.example");
+    expect(parsed.segments[0]).toContain("info@facility.example and in\u2060fo@facility.example and x\u2060y@facility.example");
     expect(parsed.joins[0]).toHaveLength(2);
+  });
+  it.each(["sales@facility.co&#1;m", "sal\u0001es@facility.example"])("never creates a literal contact by deleting a page control: %s", async address => {
+    const f = setup();
+    f.deps.readContactPage.mockImplementation(async url => htmlPage(url, `${DOC}<h1>${f.candidate.organization}</h1><p>${f.candidate.organization}, ${f.candidate.site}. Business inquiries: ${address}</p>`));
+    await f.request(); await f.refresh();
+    expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("contactProofs")).toHaveLength(0);
   });
   it("refuses nesting deeper than a browser's tree builder keeps, without quadratic parsing", () => {
     const started = performance.now();
@@ -647,6 +654,15 @@ describe("browser-equivalent markup parsing for contact proof", () => {
     const css = `.a{${"&&&&&&&&&&{".repeat(8)}display:none${"}".repeat(9)}`;
     expect(() => contactPageText(page(`${DOC}<style>${css}</style><h1>Org</h1><p>Business inquiries: ok@facility.example</p>`))).toThrow("contact_resolution_markup_limit");
     expect(performance.now() - started).toBeLessThan(3000);
+  });
+  it("refuses a single nested selector before an invalid string allocation", () => {
+    const css = `.${"a".repeat(3000)}{${"&".repeat(200000)}{display:none}}`;
+    expect(() => contactPageText(page(`${DOC}<style>${css}</style><h1>Org</h1>`))).toThrow("contact_resolution_markup_limit");
+  });
+  it("refuses the projected nested selector count before constructing the product", () => {
+    const selectors = Array.from({ length: 1024 }, (_, i) => `.c${i}`).join(",");
+    const css = `${selectors}{${selectors}{display:none}}`;
+    expect(() => contactPageText(page(`${DOC}<style>${css}</style><h1>Org</h1>`))).toThrow("contact_resolution_markup_limit");
   });
   it.each([["a soft hyphen", "info@facility.exa&shy;mple", "info@facility.exa\""], ["a zero-width space", "sales@facility.co&#8203;m", "sales@facility.co\""],
     ["a word joiner", "sales@facility.co&#8288;m", "sales@facility.co\""], ["a control character", "sales@facility.co&#8;m", "sales@facility.co\""]])(

@@ -284,6 +284,19 @@ function forEachHidingSelector(css: string, visit: (selector: string) => void) {
     let selectors = block.selectors;
     if (atRule === undefined) {
       const own = splitTopLevel(prelude, c => c === ",").map(s => s.trim()).filter(Boolean);
+      // Refuse projected nesting before allocating expanded selectors. A single
+      // bounded sheet can otherwise replace thousands of ampersands with a long parent.
+      if (own.length > 1024 || own.some(selector => selector.length > MAX_SELECTOR_LENGTH)
+        || (block.selectors && block.selectors.length * own.length > 1024)) limit();
+      if (block.selectors?.length) {
+        const parentLength = Math.max(...block.selectors.map(parent => parent.length));
+        for (const child of own) {
+          let ampersands = 0;
+          for (const ch of child) if (ch === "&") ampersands++;
+          const expandedLength = ampersands ? child.length + ampersands * (parentLength - 1) : parentLength + 1 + child.length;
+          if (expandedLength > MAX_SELECTOR_LENGTH) limit();
+        }
+      }
       selectors = block.selectors ? block.selectors.flatMap(parent => own.map(child => child.includes("&") ? child.replaceAll("&", parent) : `${parent} ${child}`)) : own;
       // Nesting can multiply selector length at every level ("&&&&" expands each parent copy).
       if (selectors.length > 1024 || selectors.some(selector => selector.length > MAX_SELECTOR_LENGTH)) limit();

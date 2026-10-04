@@ -199,7 +199,7 @@ export function contactPageText(page: ContactPage) {
   };
   const appendText = (raw: string) => {
     // A zero-width no-break space is whitespace to JavaScript but invisible on the page.
-    const value = raw.replaceAll(JOIN, "").replaceAll(ZERO_WIDTH_NO_BREAK_SPACE, WORD_JOINER), frame = frames.at(-1);
+    const value = raw.replaceAll(JOIN, WORD_JOINER).replaceAll(ZERO_WIDTH_NO_BREAK_SPACE, WORD_JOINER), frame = frames.at(-1);
     if (frame?.hidden) return;
     restriction.push(value);
     if (frame?.styleHidden) return;
