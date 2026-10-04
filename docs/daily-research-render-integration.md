@@ -7,16 +7,42 @@ qualification, publication or deployment outcome.
 
 ## Current reviewed repair package
 
-The October 4 package pins reviewed Pipeline head
-`42ca18ec568f64b2dde0895a77c5d982e8a1bf6e` (PR2580), based on the controlled
-research lineage. Its 942,080-byte archive SHA256 is
-`b546ed80f9364203e70b76386ea646e7d3f255362fcb1f725d4849d95ebecc2d`,
-with 53 manifested source files. The manifest SHA256 is
-`316b5d4739eb5035db5e1f28ed3eac1825fc8e86d3c00d090fd44c2b189e5df8`.
-It preserves the existing owner MCP, history,
-QA, publication, capability-integrity repair and cleanup source from
-`8f2135479e6f3187b725ac47d2bfd596809a6879`.
-This is a research-only controlled release; Pipeline main is a separate lineage.
+The October 4 package pins reviewed Pipeline commit
+`0fea06f1404e3537c0920f99b8013efce373b9a3` (exact Pipeline main after PR2549 and PR2586, containing PR2584 and PR2585), whose lineage already contains
+PR2579, PR2580 and PR2581. Its 1,013,760-byte archive SHA256 is
+`5db23e9722534183b69117d8eba6be30379138f2a240a919e8316ccd1b9a3e35`,
+with 54 manifested source files. The manifest SHA256 is
+`307ab9d3e2efc6fc69bad7f0981ada631048e1038872c10ea972aed6f273ed45`.
+It preserves the existing owner MCP, history, QA, publication, capability-integrity
+repair and cleanup source, and adds versioned lead-verification diagnostics (v2 for
+new rows; stored v1 results unchanged), a paged discovery inventory, packet-budget
+repair feedback, the Exa Ultra cap contract and contact-research recovery.
+This package is built from the exact published Pipeline `main` after
+PR2549 and PR2586. Copied QA placeholders remain hard refusals even when
+case, punctuation, whitespace or deleted separators change their spelling;
+deferred assessment handling cannot bypass that refusal.
+This is a research-only controlled release from Pipeline `main`.
+
+Unresolved eligible contact gaps now return to the existing daily research agent
+through a frozen, publication-bound input. At most three tasks join a daily
+input and each original publication gets at most two recovery attempts. The
+agent researches current workflow owners and routing roles through its existing
+Perplexity and public-source tools; optional Exa expansion remains separately
+gated. Recipient preference is a relevant current professional person, an
+appropriate task team, then a general business inbox. Titles alone do not prove
+remit. Only complete official operator-page evidence can admit the recovered
+contact; native tool acknowledgements, retained source bytes and QA are verified
+before resuming communications. Integrity failures quarantine the original
+claim without undoing research publication.
+
+Authenticated reviewed staging may retain a verified site/task with no resolved
+contact. That record creates a research gap and zero draft jobs. Stable CRM
+refreshes require the original row digest and matching site/task identity. No
+separate agent create, spending authority or send permission is added. The
+static contact reader retains bounded fetching and one complete-body oversized
+page retry. Generated messages still require current qualification, suppression
+and budget admission before inference. Founder Gmail draft copying retains
+its separate protected direction and current-ledger checks.
 
 The optional `exa-guarded-v1` profile adds host-controlled start/read functions
 to the same daily research session before final QA. It shares the existing $5
@@ -46,6 +72,15 @@ generic paid multi-provider MCP profile cannot be combined with this path.
 Sending, access, schedules, spending authority and existing frozen rows are
 unchanged by the package. Source and consumer exact-head CI must both pass before
 release, and live installation/readback remain separate from source review.
+
+Deployment and source repinning require a fresh atomic read with zero active
+research, QA, repair or publication rows. The existing bounded renewable lease
+holds that drained state across deployment; time until the next scheduled wake
+alone is insufficient. The source-only compare-and-set preserves historical
+rows and every authority, flag, grant and saved instruction pin. Final readback
+must show installed manifest source equal to the company control source.
+Older frozen create payloads retain their admitted bindings; this release does
+not perform the separate managed-harness or contact-agent design migrations.
 
 Prospective known tool failures retain stable JSON codes in the error and output
 fields. An optional Exa skip preserves its specific reason and next-step guidance

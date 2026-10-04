@@ -25,6 +25,41 @@ async function admit(input = syntheticReviewedResearchInput(), db = memoryFirest
 }
 afterEach(() => vi.unstubAllEnvs());
 describe("truthful authenticated report admission (offline, no paid calls or sends)", () => {
+  it("stages an exactly bound contact-free stable CRM refresh and queues research without briefs/jobs",async()=>{
+    const input=syntheticReviewedResearchInput(),row=Array(19).fill("");
+    Object.assign(row,{0:"BP-000015",1:input.candidate.organization,3:input.candidate.site,14:input.candidate.task,17:input.candidate.location});
+    const value={...input,assessment:{...input.assessment,contact:null,resolvedGaps:[]},crm:{...input.crm,rows:[row]},
+      refresh:{sheetsProspectId:"BP-000015",previousRowDigest:communicationsDigest(row)}};
+    const db=memoryFirestore(),snapshot=await stageReviewedResearch(db,value,"authenticated-fixture",now);
+    expect(snapshot.row.source_record_id).toBe("BP-000015");
+    const outcome=await admitPublishedResearch(snapshot,input.candidate.candidate_key,{db,now:()=>now,
+      readResearch:(date,id)=>readExistingResearchSnapshot(db,date,id),isSuppressed:async()=>false});
+    expect(outcome).toMatchObject({state:"needs_research",reasons:["verified_public_business_contact_missing"],sent:false,sessionCreated:false});
+    expect([...db.records.keys()].filter(key=>/\/(?:briefs|jobs)\//.test(key))).toEqual([]);
+    const request=[...db.records.values()].find(value=>value.kind==="public_contact_resolution");
+    expect(request).toMatchObject({admissionId:snapshot.row.admission_id,owner:"blueprint-communications-agent",state:"pending"});
+    const source=researchPublicationSource(snapshot,{date:snapshot.row.date,candidateKey:input.candidate.candidate_key,
+      admissionId:snapshot.row.admission_id,packetDigest:snapshot.row.packet_digest,rawArtifactDigest:snapshot.row.raw_output_digest});
+    expect(source).toMatchObject({sheetsProspectId:"BP-000015",assessment:{contact:null},sheetsReceipt:null,notionReceipt:null});
+  });
+  it.each(["digest","site","task","duplicate"])("rejects an incorrect stable CRM refresh %s",kind=>{
+    const input=syntheticReviewedResearchInput(),row=Array(19).fill("");
+    Object.assign(row,{0:"BP-000015",1:input.candidate.organization,3:input.candidate.site,14:input.candidate.task,17:input.candidate.location});
+    const value={...input,crm:{...input.crm,rows:[row]},refresh:{sheetsProspectId:"BP-000015",previousRowDigest:communicationsDigest(row)}};
+    if(kind==="digest") value.refresh.previousRowDigest="a".repeat(64);
+    if(kind==="site") row[3]="other facility";if(kind==="task") row[14]="other task";
+    if(kind==="duplicate") value.crm.rows.push([...row]);
+    expect(()=>validateReviewedResearch(value,now)).toThrow("reviewed_research_refresh_identity_changed");
+  });
+  it.each(["resolved","conflict","restriction","unqualified"])("rejects a contact-free stage with unsupported %s",async kind=>{
+    const input=syntheticReviewedResearchInput(),value:any={...input,assessment:{...input.assessment,contact:null,resolvedGaps:[]}};
+    if(kind==="resolved") value.assessment.resolvedGaps=input.assessment.resolvedGaps;
+    if(kind==="conflict") value.assessment.conflicts=["Recipient route is disputed"];
+    if(kind==="restriction") value.candidate.unknowns=["No unsolicited outreach."];
+    if(kind==="unqualified") value.leadVerification=null;
+    const db=memoryFirestore();await expect(stageReviewedResearch(db,value,"authenticated-fixture",now)).rejects.toThrow();
+    expect(db.records.size).toBe(0);
+  });
   it.each(officialContactCases)("keeps $organization's retained contact fixture readable without inventing human/site-task verification", async c => {
     const input = officialResearchInput(c.key);
     expect(() => validateReviewedResearch(input, now)).not.toThrow();
@@ -69,7 +104,7 @@ describe("truthful authenticated report admission (offline, no paid calls or sen
   it("preserves honest rendered retrieval when raw Wix HTML cannot be statically verified", async () => {
     const body = "<html><style>p{display:none}</style><body><p>Contact info@debourgh.com</p></body></html>";
     expect(contactPageText({ requestedUrl: "https://www.debourgh.com/", finalUrl: "https://www.debourgh.com/", redirects: [],
-      status: 200, checkedAt: new Date(now).toISOString(), contentType: "text/html", bodyBase64: Buffer.from(body).toString("base64") }).visibilityUnverified).toBe(true);
+      status: 200, checkedAt: new Date(now).toISOString(), contentType: "text/html", bodyBase64: Buffer.from(body).toString("base64") }).segments.join(" ")).not.toContain("info@debourgh.com");
     const f = await admit(syntheticReviewedResearchInput());
     expect(f.outcome.state).toBe("admitted");
     expect(f.snapshot.row.packet.candidate.evidence[1].retrieval).toBe("rendered");

@@ -2,7 +2,7 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { contactFetchUrl, contactHttpRequest, isPublicContactAddress, readPublicContactPage, CONTACT_PAGE_LIMIT } from "../agents/communications-contact-fetch";
+import { contactFetchUrl, contactHttpRequest, isPublicContactAddress, readPublicContactPage, CONTACT_PAGE_LIMIT, CONTACT_RESEARCH_PAGE_LIMIT } from "../agents/communications-contact-fetch";
 
 function transport(options: { addresses?: { address: string; family: number }[]; status?: number; headers?: Record<string, string>; body?: string;
   prematureAbort?: boolean; pending?: boolean } = {}) {
@@ -54,9 +54,15 @@ describe("bounded public contact retrieval (offline transport)", () => {
     const deps = transport({ addresses: [{ address: "8.8.8.8", family: 4 }, { address: "127.0.0.1", family: 4 }] });
     await expect(contactHttpRequest(new URL("https://facility.example"), 1000, deps as any)).rejects.toThrow("private_dns"); expect(deps.request).not.toHaveBeenCalled();
   });
-  it.each([{ "content-type": "application/pdf" }, { "content-type": "text/html", "content-encoding": "gzip" },
-    { "content-type": "text/plain", "content-length": String(CONTACT_PAGE_LIMIT + 1) }])("refuses unsafe response headers %j", async headers => {
+  it.each([{ "content-type": "application/pdf" }, { "content-type": "text/html", "content-encoding": "gzip" }])("refuses unsafe response headers %j", async headers => {
     await expect(contactHttpRequest(new URL("https://facility.example"), 1000, transport({ headers }) as any)).rejects.toThrow("response_forbidden");
+  });
+  it("retries a declared oversized page only within the explicit recovery limit and retains its entire body", async () => {
+    const body = "x".repeat(CONTACT_PAGE_LIMIT + 1), deps = transport({ body, headers: { "content-type": "text/plain", "content-length": String(body.length) } });
+    await expect(contactHttpRequest(new URL("https://facility.example"), 1000, deps as any)).rejects.toThrow("size_limit");
+    const response = await contactHttpRequest(new URL("https://facility.example"), 1000, deps as any, CONTACT_RESEARCH_PAGE_LIMIT);
+    expect(response.body.toString()).toBe(body);
+    await expect(contactHttpRequest(new URL("https://facility.example"), 1000, deps as any, 10_000_000)).rejects.toThrow("limit_invalid");
   });
   it("retains the streaming size limit when local destruction synchronously aborts the response", async () => {
     await expect(contactHttpRequest(new URL("https://facility.example"), 1000, transport({ body: "x".repeat(CONTACT_PAGE_LIMIT + 1) }) as any)).rejects.toThrow("size_limit");

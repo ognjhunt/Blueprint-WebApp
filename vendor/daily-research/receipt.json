@@ -1,6 +1,6 @@
 {
   "archive": "blueprint-research.tar",
-  "bytes": 942080,
-  "sha256": "b546ed80f9364203e70b76386ea646e7d3f255362fcb1f725d4849d95ebecc2d",
-  "source_commit": "42ca18ec568f64b2dde0895a77c5d982e8a1bf6e"
+  "bytes": 1013760,
+  "sha256": "5db23e9722534183b69117d8eba6be30379138f2a240a919e8316ccd1b9a3e35",
+  "source_commit": "0fea06f1404e3537c0920f99b8013efce373b9a3"
 }

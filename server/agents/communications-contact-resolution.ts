@@ -1,15 +1,18 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { communicationsDigest } from "./communications-contract";
-import { assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, extractBusinessContact, restrictedContact, sameOperatorUrl, supportedBusinessRoute } from "./communications-contact-evidence";
-import { CONTACT_PAGE_LIMIT, contactFetchUrl, type ContactPage, type ContactPageReader } from "./communications-contact-fetch";
+import { defaultTreeAdapter, parse, type DefaultTreeAdapterMap } from "parse5";
+import { assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, EMAIL, extractBusinessContact, restrictedContact, sameOperatorUrl, supportedBusinessRoute } from "./communications-contact-evidence";
+import { CONTACT_RESEARCH_PAGE_LIMIT, contactFetchUrl, type ContactPage, type ContactPageReader } from "./communications-contact-fetch";
+import { contactDiscoverySchema, type ContactDiscovery } from "./communications-contact-research";
+import { elementFacts, hidingRules, hidingStyle, matchesHidingRule } from "./communications-contact-visibility";
 
-const EXTRACTOR = "blueprint.public-contact-text.v1" as const;
+const EXTRACTOR = "blueprint.public-contact-text.v2" as const;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const pageSchema = z.object({ requestedUrl: z.string().url(), finalUrl: z.string().url(), redirects: z.array(z.string().url()).max(2),
   checkedAt: z.string().datetime(), status: z.literal(200), contentType: z.string().max(200),
-  bodyBase64: z.string().max(Math.ceil(CONTACT_PAGE_LIMIT / 3) * 4), bodyDigest: digest, byteCount: z.number().int().positive().max(CONTACT_PAGE_LIMIT),
+  bodyBase64: z.string().max(Math.ceil(CONTACT_RESEARCH_PAGE_LIMIT / 3) * 4), bodyDigest: digest, byteCount: z.number().int().positive().max(CONTACT_RESEARCH_PAGE_LIMIT),
 }).strict();
 const resolutionBaseSchema = z.object({
   version: z.literal("blueprint.contact-resolution.v1"),
@@ -18,11 +21,12 @@ const resolutionBaseSchema = z.object({
     qaArtifactDigest: digest, researchQaReference: z.string().min(1),
     sheetsId: z.string().min(1), sheetsProspectId: z.string().min(1), prospectId: z.string().min(1) }).strict(),
   pages: z.array(pageSchema).min(1).max(3),
+  discovery: contactDiscoverySchema.optional(),
   contact: z.object({ email: z.string().email(), scope: z.enum(["site", "organization_business_route"]),
     organization: z.string().min(1), site: z.string().nullable(), purpose: z.literal("business_inquiries"),
     status: z.literal("public_business_contact"), sourceUrl: z.string().url(), sourceCheckedAt: z.string().datetime() }).strict(),
   extraction: z.object({ version: z.literal(EXTRACTOR), pageIndex: z.number().int().nonnegative(), segmentIndex: z.number().int().nonnegative(),
-    quote: z.string().min(1).max(1200), visibleTextDigest: digest }).strict(),
+    quote: z.string().min(1).max(1200), visibleTextDigest: digest, visibilityBasis: z.literal("static_text_css_not_rendered") }).strict(),
   resolvedGaps: z.array(z.string().min(1).max(1200)).max(16),
 }).strict();
 export const contactResolutionSchema = resolutionBaseSchema.extend({
@@ -31,95 +35,208 @@ export const contactResolutionSchema = resolutionBaseSchema.extend({
 });
 export type ContactResolution = z.infer<typeof contactResolutionSchema>;
 
-const decode = (value: string) => value.replace(/&(?:#(x[\da-f]+|\d+);?|(?:amp|lt|gt|quot|apos|nbsp|Tab|NewLine);)/gi, (all, number: string) => {
-  if (number) { const code = number[0].toLowerCase() === "x" ? parseInt(number.slice(1), 16) : Number(number);
-    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : " "; }
-  return ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'", "&nbsp;": " ", "&tab;": "\t", "&newline;": "\n" } as Record<string, string>)[all.toLowerCase()] ?? " ";
-});
-function htmlAttributes(value: string): Record<string, string> {
-  let rest = value.startsWith("<") ? value.replace(/^<\s*\/?\s*[a-z][a-z\d-]*/i, "").replace(/>$/, "") : value;
-  const result: Record<string, string> = Object.create(null);
-  while (rest.trim()) {
-    rest = rest.trimStart(); if (rest === "/") break;
-    const name = rest.match(/^[^\s=<>\/"'\x60]+/)?.[0];
-    if (!name || Object.hasOwn(result, name.toLowerCase())) throw new Error("contact_resolution_markup_unsupported");
-    rest = rest.slice(name.length).trimStart(); let raw = "";
-    if (rest.startsWith("=")) {
-      rest = rest.slice(1).trimStart();
-      if (rest[0] === '"' || rest[0] === "'") {
-        const end = rest.indexOf(rest[0], 1);
-        if (end < 0) throw new Error("contact_resolution_markup_unsupported");
-        raw = rest.slice(1, end); rest = rest.slice(end + 1);
-      } else {
-        const token = rest.match(/^[^\s"'=<>\x60]+/)?.[0];
-        if (!token) throw new Error("contact_resolution_markup_unsupported");
-        raw = token; rest = rest.slice(token.length);
-      }
-      if (rest && !/^[\s/]/.test(rest)) throw new Error("contact_resolution_markup_unsupported");
+/** Owner decision 2026-10-04: element-level visibility. Page-level presentation (stylesheets,
+ * scripts, event handlers, embedded documents, legacy presentation attributes) no longer
+ * disqualifies a page. Markup is parsed with browser-equivalent (WHATWG) tree construction,
+ * detectably hidden content is excluded, CSS is never rendered, and every proof records that
+ * basis. A page that navigates away on load remains unverified. */
+export const VISIBILITY_BASIS = "static_text_css_not_rendered" as const;
+type HtmlNode = DefaultTreeAdapterMap["node"];
+type HtmlElement = DefaultTreeAdapterMap["element"];
+const HTML_NS = "http://www.w3.org/1999/xhtml";
+// Parser budgets. Real pages nest far less than 256 open elements and create far fewer than
+// 60k elements; adversarial nesting and formatting-element rebuilds otherwise cost quadratic
+// time and unbounded memory. parse5 also checks each attribute against the tag's earlier ones.
+const MAX_OPEN_ELEMENTS = 256, MAX_ELEMENTS = 60_000, MAX_TAG_ATTRIBUTES = 512;
+const markupLimit = () => { throw new Error("contact_resolution_markup_limit"); };
+/** Linear upper bound on attributes per start tag (separators and assignments outside quoted values). */
+function tagAttributesExceeded(markup: string) {
+  for (let at = markup.indexOf("<"); at >= 0; at = markup.indexOf("<", at + 1)) {
+    if (!/[a-z]/i.test(markup[at + 1] ?? "")) continue;
+    let count = 0, i = at + 1;
+    while (i < markup.length && markup[i] !== ">") {
+      if (markup[i] === "=") {
+        count++; i++;
+        while (i < markup.length && markup.charCodeAt(i) <= 32) i++;
+        if (markup[i] === '"' || markup[i] === "'") { const close = markup.indexOf(markup[i], i + 1); i = close < 0 ? markup.length : close + 1; }
+      } else if (markup.charCodeAt(i) <= 32 || markup[i] === "/") {
+        count++;
+        while (i < markup.length && (markup.charCodeAt(i) <= 32 || markup[i] === "/")) i++;
+      } else i++;
+      if (count > MAX_TAG_ATTRIBUTES) return true;
     }
-    result[name.toLowerCase()] = decode(raw);
+    at = i;
   }
+  return false;
+}
+function parseHtml(markup: string) {
+  if (tagAttributesExceeded(markup)) markupLimit();
+  let open = 0, created = 0;
+  return parse(markup, { treeAdapter: { ...defaultTreeAdapter,
+    createElement: (tagName, namespaceURI, attrs) => {
+      if (++created > MAX_ELEMENTS) markupLimit();
+      return defaultTreeAdapter.createElement(tagName, namespaceURI, attrs);
+    },
+    onItemPush: () => { if (++open > MAX_OPEN_ELEMENTS) markupLimit(); },
+    onItemPop: () => { open -= 1; } } });
+}
+const isElement = (node: HtmlNode): node is HtmlElement => "tagName" in node;
+const childNodes = (node: HtmlNode): HtmlNode[] => "childNodes" in node ? node.childNodes : [];
+function attributes(element: HtmlElement) {
+  const result: Record<string, string> = Object.create(null);
+  for (const { name, value } of element.attrs) if (!(name in result)) result[name] = value;
   return result;
 }
-/** Conservative static text extraction; no script execution or hidden/raw markup
- * contact inference. Separate blocks never supply each other's business labels. */
+/** Every element in document order, iteratively. Template contents are a separate inert
+ * fragment and are never visited. */
+function forEachElement(root: HtmlNode, visit: (element: HtmlElement) => void) {
+  const work = [root];
+  while (work.length) {
+    const node = work.pop()!, children = childNodes(node);
+    if (isElement(node)) visit(node);
+    for (let i = children.length - 1; i >= 0; i--) work.push(children[i]);
+  }
+}
+function textContent(element: HtmlElement) {
+  let text = ""; const work: HtmlNode[] = [element];
+  while (work.length) {
+    const node = work.pop()!, children = childNodes(node);
+    if (node.nodeName === "#text") text += (node as DefaultTreeAdapterMap["textNode"]).value;
+    for (let i = children.length - 1; i >= 0; i--) work.push(children[i]);
+  }
+  return text;
+}
+// Raw-text, non-rendered and foreign-content containers: their contents are never text.
+const CONTAINERS = new Set(["script", "style", "template", "noscript", "noembed", "noframes", "iframe", "object", "canvas",
+  "video", "audio", "select", "textarea", "title", "xmp", "plaintext", "datalist", "svg", "math"]);
+const STATIC = new Set(["html", "body", "main", "article", "section", "header", "footer", "nav", "div", "p", "span", "address", "a",
+  "h1", "h2", "h3", "h4", "h5", "h6", "strong", "em", "b", "i", "u", "s", "small", "abbr", "cite", "q", "blockquote", "ul", "ol", "li",
+  "dl", "dt", "dd", "table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption", "figure", "figcaption", "time", "br", "hr"]);
+const BLOCKS = new Set(["p", "div", "section", "article", "li", "address", "h1", "h2", "h3", "h4", "h5", "h6", "br", "hr", "footer",
+  "header", "nav", "table", "tr", "td"]);
+const JOIN = "\u0001", ZERO_WIDTH_NO_BREAK_SPACE = String.fromCharCode(0xfeff), WORD_JOINER = String.fromCharCode(0x2060);
+/** True when an address in the quote would have to be stitched across an element boundary.
+ * Boundary offsets are ascending, so each address needs one binary search. */
+export function crossesElementBoundary(quote: string, joins: readonly number[] = []) {
+  if (!joins.length) return false;
+  for (const match of quote.matchAll(EMAIL)) {
+    const start = match.index ?? 0, end = start + match[0].length;
+    let low = 0, high = joins.length;
+    while (low < high) { const mid = (low + high) >> 1; if (joins[mid] <= start) low = mid + 1; else high = mid; }
+    if (low < joins.length && joins[low] < end) return true;
+  }
+  return false;
+}
+// Bidirectional controls and marks can display an address in a different order than its text.
+const BIDI_CONTROL = /[\u202a-\u202e\u2066-\u2069\u200e\u200f\u061c]/;
+/** Visible text glued to a segment across its block boundaries (no whitespace between): `tail`
+ * ends the preceding visible text and `lead` starts the following one. */
+export type SegmentEdge = { tail?: string; lead?: string };
+/** True when no address in the quote can be read as one literal, left-to-right run of visible text.
+ * CSS can lay blocks out inline, so an address at a block edge is unsafe when the glued text
+ * would continue it into a different address (a lowercase domain continuation, or a preceding
+ * local-part fragment); a new word such as "Phone" or a phone number does not. */
+export function literalAddressUnsafe(quote: string, joins: readonly number[] = [], edge: SegmentEdge = {}) {
+  if (crossesElementBoundary(quote, joins) || (BIDI_CONTROL.test(quote) && quote.match(EMAIL) !== null)) return true;
+  for (const match of quote.matchAll(EMAIL)) {
+    const start = match.index ?? 0, end = start + match[0].length;
+    if (end === quote.length && edge.lead && /^[a-z.-]/.test(edge.lead)
+      && ((match[0] + edge.lead).match(EMAIL)?.[0].length ?? 0) > match[0].length) return true;
+    if (start === 0 && edge.tail) {
+      const combined = edge.tail + match[0];
+      if ([...combined.matchAll(EMAIL)].some(m => (m.index ?? 0) < edge.tail!.length && (m.index ?? 0) + m[0].length === combined.length)) return true;
+    }
+  }
+  return false;
+}
+
+/** Static text extraction; no script execution, CSS rendering or hidden/raw markup contact
+ * inference. Separate blocks never supply each other's business labels, and an address must
+ * be one literal run of text, never spliced across an element boundary. */
 export function contactPageText(page: ContactPage) {
   const bytes = Buffer.from(page.bodyBase64, "base64");
-  if (!bytes.length || bytes.length > CONTACT_PAGE_LIMIT || bytes.toString("base64") !== page.bodyBase64
+  if (!bytes.length || bytes.length > CONTACT_RESEARCH_PAGE_LIMIT || bytes.toString("base64") !== page.bodyBase64
     || !/^(?:text\/html|text\/plain)(?:;|$)/.test(page.contentType)) throw new Error("contact_resolution_body_invalid");
-  const body = new TextDecoder("utf-8", { fatal: true }).decode(bytes), segments: string[] = [], links: string[] = [];
-  if (/^text\/plain(?:;|$)/.test(page.contentType)) return { segments: body.split(/\n\s*\n/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean), links, restrictionText: body, visibilityUnverified: false };
-  const markup = body;
-  const tokens = markup.match(/<!--[\s\S]*?-->|<(?:[^"'<>]|"[^"]*"|'[^']*')*>|[^<]+/g) ?? [];
-  if (tokens.join("") !== markup) throw new Error("contact_resolution_markup_unsupported");
-  // Static extraction cannot establish stylesheet visibility. Such pages may
-  // supply links/restrictions, but never positive contact proof. No CSS/browser runtime.
-  const opening = tokens.filter(tag => /^<[a-z]/i.test(tag));
-  const visibilityUnverified = /<style\b[^>]*>[\s\S]*?\S[\s\S]*?<\/style\s*>/i.test(markup)
-    || opening.some(tag => {
-      const attrs = htmlAttributes(tag);
-      return /^<(?:script|iframe|object|embed|frameset)\b/i.test(tag) || Object.keys(attrs).some(key => key.startsWith("on"))
-        || Object.keys(attrs).some(key => ["text", "color", "bgcolor", "background"].includes(key))
-        || (/^<link\b/i.test(tag) && attrs.rel?.toLowerCase().split(/\s+/).includes("stylesheet"))
-        || (/^<meta\b/i.test(tag) && attrs["http-equiv"]?.toLowerCase() === "refresh");
-    });
-  const baseHref = tokens.filter(tag => /^<base\b/i.test(tag)).map(tag => htmlAttributes(tag).href).find(Boolean);
-  const linkBase = baseHref ? new URL(baseHref, page.finalUrl).href : page.finalUrl;
-  const stack: { tag: string; hidden: boolean; inlineStyle: boolean }[] = [];
-  let text = "", restrictionText = "", blockVisibilityUnverified = false;
-  const flush = () => { const value = text.replace(/\s+/g, " ").trim(); if (value && !blockVisibilityUnverified) segments.push(value);
-    text = ""; blockVisibilityUnverified = false; };
-  const blocks = /^(?:p|div|section|article|li|address|h[1-6]|br|hr|footer|header|nav|table|tr|td)$/;
-  for (const token of tokens) {
-    if (token.startsWith("<!--")) continue;
-    if (!token.startsWith("<")) {
-      if (stack.some(x => x.inlineStyle)) blockVisibilityUnverified = true;
-      if (!stack.some(x => x.hidden)) restrictionText += ` ${decode(token)}`;
-      if (!stack.some(x => x.hidden || x.inlineStyle || ["footer", "nav"].includes(x.tag))) text += decode(token); continue;
-    }
-    const match = token.match(/^<\s*(\/?)\s*([a-z][a-z\d-]*)\b([\s\S]*)>$/i);
-    if (!match) { if (!/^<!doctype/i.test(token)) throw new Error("contact_resolution_markup_unsupported"); continue; }
-    const [, closing, rawTag, attributes] = match, tag = rawTag.toLowerCase();
-    if (blocks.test(tag)) flush();
-    if (closing) {
-      if (stack.at(-1)?.tag !== tag) throw new Error("contact_resolution_markup_unsupported");
-      stack.pop(); continue;
-    }
-    const attrs = htmlAttributes(attributes), voidTag = /^(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/.test(tag);
-    if (!voidTag && /\/\s*>$/.test(token)) throw new Error("contact_resolution_markup_unsupported");
-    const staticTag = /^(?:html|body|main|article|section|header|footer|nav|div|p|span|address|a|h[1-6]|strong|em|b|i|u|s|small|abbr|cite|q|blockquote|ul|ol|li|dl|dt|dd|table|thead|tbody|tfoot|tr|td|th|caption|figure|figcaption|time|br|hr)$/;
-    const hidden = stack.some(x => x.hidden) || !staticTag.test(tag)
-      || Object.hasOwn(attrs, "hidden") || Object.hasOwn(attrs, "popover") || Object.hasOwn(attrs, "inert") || attrs["aria-hidden"]?.toLowerCase() === "true";
-    if (Object.hasOwn(attrs, "style")) blockVisibilityUnverified = true;
-    if (tag === "a" && !hidden) {
-      const href = attrs.href;
-      if (href) { try { const url = new URL(href, linkBase); if (/contact|inquir|enquir|partnership/i.test(url.pathname)) links.push(url.href); } catch { /* untrusted link */ } }
-    }
-    if (!voidTag) stack.push({ tag, hidden, inlineStyle: Object.hasOwn(attrs, "style") });
-    if (stack.length > 128 || segments.length > 4000) throw new Error("contact_resolution_markup_limit");
+  const body = new TextDecoder("utf-8", { fatal: true }).decode(bytes), segments: string[] = [], joins: number[][] = [], links: string[] = [];
+  if (/^text\/plain(?:;|$)/.test(page.contentType)) {
+    const plain = body.split(/\n\s*\n/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean);
+    return { segments: plain, joins: plain.map(() => [] as number[]), edges: plain.map((): SegmentEdge => ({})), links, restrictionText: body, visibilityUnverified: false };
   }
-  if (stack.length) throw new Error("contact_resolution_markup_unsupported");
-  flush(); return { segments, links: [...new Set(links)], restrictionText: restrictionText.replace(/\s+/g, " ").trim(), visibilityUnverified };
+  const document = parseHtml(body), sheets: string[] = [];
+  let baseHref: string | undefined, visibilityUnverified = false;
+  forEachElement(document, element => {
+    const attrs = attributes(element), html = element.namespaceURI === HTML_NS;
+    if (element.tagName === "style") sheets.push(textContent(element));
+    if (html && element.tagName === "base" && attrs.href && baseHref === undefined) baseHref = attrs.href;
+    if (html && element.tagName === "meta" && attrs["http-equiv"]?.trim().toLowerCase() === "refresh") visibilityUnverified = true;
+  });
+  const sheet = hidingRules(sheets);
+  const linkBase = baseHref ? new URL(baseHref, page.finalUrl).href : page.finalUrl;
+  const frames: { hidden: boolean; styleHidden: boolean; muted: boolean }[] = [];
+  // Text is assembled from parts, tracking only its last character: re-testing a growing
+  // string on every append costs quadratic time on pages with many inline elements.
+  let parts: string[] = [], textLength = 0, endsWithSpace = false, boundary = false;
+  const restriction: string[] = [], edges: SegmentEdge[] = [];
+  // Block-boundary glue: the last flushed segment ended without whitespace and nothing visible
+  // has followed yet; `start` is the glued tail for the segment now being built.
+  let glue: { segment: number; tail: string } | null = null, start: string | undefined;
+  const flush = () => {
+    const glued = textLength > 0 && !endsWithSpace;
+    const value = parts.join("").replace(/\s+/g, " ").trim(); parts = []; textLength = 0; boundary = false;
+    const at: number[] = []; let clean = "";
+    for (const ch of value) { if (ch === JOIN) at.push(clean.length); else clean += ch; }
+    if (clean.trim()) {
+      segments.push(clean); joins.push(at); edges.push(start ? { tail: start } : {});
+      glue = glued ? { segment: segments.length - 1, tail: /\S{1,64}$/.exec(clean)?.[0] ?? "" } : null;
+    } else if (value) glue = null;
+    start = undefined;
+    if (segments.length > 4000) throw new Error("contact_resolution_markup_limit");
+  };
+  const link = (value: string) => {
+    if (!glue || !value) return;
+    if (!/^\s/.test(value)) { edges[glue.segment].lead = /^\S{1,64}/.exec(value)?.[0]; start = glue.tail; }
+    glue = null;
+  };
+  const appendText = (raw: string) => {
+    // A zero-width no-break space is whitespace to JavaScript but invisible on the page.
+    const value = raw.replaceAll(JOIN, WORD_JOINER).replaceAll(ZERO_WIDTH_NO_BREAK_SPACE, WORD_JOINER), frame = frames.at(-1);
+    if (frame?.hidden) return;
+    restriction.push(value);
+    if (frame?.styleHidden) return;
+    if (frame?.muted) { link(value); start = undefined; return; }
+    link(value);
+    if (boundary && textLength && !endsWithSpace && !/^\s/.test(value)) { parts.push(JOIN); textLength += 1; endsWithSpace = false; }
+    if (value) { parts.push(value); textLength += value.length; endsWithSpace = /\s$/.test(value); }
+    boundary = false;
+  };
+  // Document-order open/text/close events over the browser-equivalent tree.
+  const work: (HtmlNode | { close: string })[] = [document];
+  while (work.length) {
+    const item = work.pop()!;
+    if ("close" in item) { boundary = true; if (BLOCKS.has(item.close)) flush(); frames.pop(); continue; }
+    if (item.nodeName === "#text") { appendText((item as DefaultTreeAdapterMap["textNode"]).value); continue; }
+    const children = childNodes(item);
+    if (!isElement(item)) { for (let i = children.length - 1; i >= 0; i--) work.push(children[i]); continue; }
+    const tag = item.tagName, attrs = attributes(item), parent = frames.at(-1);
+    const container = item.namespaceURI !== HTML_NS || CONTAINERS.has(tag);
+    boundary = true;
+    if (BLOCKS.has(tag)) flush();
+    // A declarative shadow root replaces what the host renders; its light DOM shows only through
+    // slots, which static text cannot resolve, so the host's own children are never read.
+    const shadowHost = children.some(child => isElement(child) && child.tagName === "template" && child.namespaceURI === HTML_NS
+      && child.attrs.some(({ name }) => name === "shadowrootmode" || name === "shadowroot"));
+    const hidden = !!parent?.hidden || container || shadowHost || !STATIC.has(tag)
+      || "hidden" in attrs || "popover" in attrs || "inert" in attrs || attrs["aria-hidden"]?.trim().toLowerCase() === "true";
+    const styleHidden = !!parent?.styleHidden || hidingStyle(attrs.style ?? "") || matchesHidingRule(sheet, elementFacts(tag, attrs));
+    if (tag === "a" && !hidden && !styleHidden) {
+      const href = attrs.href;
+      if (href) { try { const url = new URL(href, linkBase); if (/contact|inquir|enquir|partnership|leadership|management|teams?|people|operations|technology|about/i.test(url.pathname)) links.push(url.href); } catch { /* untrusted link */ } }
+    }
+    frames.push({ hidden, styleHidden, muted: !!parent?.muted || tag === "footer" || tag === "nav" });
+    work.push({ close: tag });
+    if (!container) for (let i = children.length - 1; i >= 0; i--) work.push(children[i]);
+  }
+  flush(); return { segments, joins, edges, links: [...new Set(links)], restrictionText: restriction.join(" ").replace(/\s+/g, " ").trim(), visibilityUnverified };
 }
 
 export function contactPublication(source: any, prospectId: string) {
@@ -127,6 +244,29 @@ export function contactPublication(source: any, prospectId: string) {
     packetDigest: source.packetDigest, rawArtifactDigest: source.rawArtifactDigest, sourceDigest: communicationsDigest(source),
     qaArtifactDigest: source.qaArtifactDigest, researchQaReference: source.researchReview.reviewer_reference,
     sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId, prospectId };
+}
+
+/** Rank only contacts that already pass literal public business-route proof.
+ * A title or email local part cannot establish a relevant decision maker. */
+export function publicContactPriority(quote: string, candidate: any) {
+  if (/\b(?:former|formerly|previously|retired|no longer|not responsible|does not (?:lead|manage|oversee)|left (?:the )?company)\b/i.test(quote)) return 3;
+  const taskWords = String(candidate.task).normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? [];
+  const remit = /\b(?:responsible for|oversees|leads|manages|evaluates)\b/i.test(quote)
+    && taskWords.some(word => containsContactName(quote, word));
+  const role = /\b(?:director|manager|head|vice president|chief)\b/i.test(quote);
+  const named = /\b[\p{Lu}][\p{Ll}]+(?:[-’'][\p{L}]+)?\s+[\p{Lu}][\p{Ll}]+(?:[-’'][\p{L}]+)?\s*,\s*(?:[Dd]irector|[Mm]anager|[Hh]ead|[Vv]ice [Pp]resident|[Cc]hief)\b/u.test(quote);
+  if (named && role && remit && containsContactName(quote, candidate.site)) return 0;
+  if (/\b(?:operations|technology|automation|robotics|procurement|engineering)\s+(?:team|inquiries|enquiries|department)\b/i.test(quote)
+    && taskWords.some(word => containsContactName(quote, word))) return 1;
+  return 2;
+}
+function preferredContact<T extends { email: string; quote: string }>(contacts: T[], candidate: any): T {
+  contacts = contacts.filter(contact => publicContactPriority(contact.quote, candidate) < 3);
+  if (!contacts.length) throw new Error("contact_resolution_missing_or_ambiguous");
+  const priority = Math.min(...contacts.map(contact => publicContactPriority(contact.quote, candidate)));
+  const preferred = contacts.filter(contact => publicContactPriority(contact.quote, candidate) === priority);
+  if (new Set(preferred.map(contact => contact.email)).size !== 1) throw new Error("contact_resolution_missing_or_ambiguous");
+  return preferred[0];
 }
 
 function checkResolution(value: unknown, source: any, prospectId: string) {
@@ -137,6 +277,12 @@ function checkResolution(value: unknown, source: any, prospectId: string) {
   const found: { email: string; scope: "site" | "organization_business_route"; pageIndex: number; segmentIndex: number; quote: string; visibleTextDigest: string }[] = [];
   const reachable = new Set([source.candidate.organization_url, ...source.candidate.evidence.filter((x: any) => x.classification === "operator").map((x: any) => x.url)]
     .filter((x: string) => sameOperatorUrl(x, source.candidate.organization_url)).map((x: string) => { try { return contactFetchUrl(x, source.candidate.organization_url).href; } catch { return ""; } }));
+  if (base.pages.reduce((total, page) => total + page.byteCount, 0) > 512 * 1024) throw new Error("contact_resolution_total_size_limit");
+  if (base.discovery) {
+    if (base.discovery.sourceDigest !== communicationsDigest(source)
+      || base.discovery.requestId !== communicationsDigest({ publication: contactPublication(source, prospectId), sourceDigest: communicationsDigest(source) })) throw new Error("contact_research_source_changed");
+    for (const s of base.discovery.sources) reachable.add(contactFetchUrl(s.url, source.candidate.organization_url).href);
+  }
   for (const [pageIndex, page] of base.pages.entries()) {
     const bytes = Buffer.from(page.bodyBase64, "base64"), requested = contactFetchUrl(page.requestedUrl, source.candidate.organization_url).href;
     if (!reachable.has(requested) || page.byteCount !== bytes.length || page.bodyDigest !== hash(bytes)
@@ -150,15 +296,17 @@ function checkResolution(value: unknown, source: any, prospectId: string) {
     if (parsed.visibilityUnverified) continue;
     for (const [segmentIndex, quote] of parsed.segments.entries()) {
       if (quote.length > 1200) continue;
-      try { found.push({ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex, segmentIndex, quote, visibleTextDigest }); }
-      catch { if (supportedBusinessRoute(quote) && quote.includes("@")
+      try {
+        // A business route whose address only exists across element boundaries is ambiguous, not absent.
+        if (literalAddressUnsafe(quote, parsed.joins[segmentIndex], parsed.edges[segmentIndex])) throw new Error("contact_resolution_spliced_address");
+        found.push({ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex, segmentIndex, quote, visibleTextDigest });
+      } catch { if (supportedBusinessRoute(quote) && quote.includes("@")
         && !restrictedContact.test(quote)) throw new Error("contact_resolution_ambiguous_segment"); }
     }
   }
-  if (!found.length || new Set(found.map(x => x.email)).size !== 1) throw new Error("contact_resolution_missing_or_ambiguous");
-  const selected = found[0], page = base.pages[selected.pageIndex];
+  const selected = preferredContact(found, source.candidate), page = base.pages[selected.pageIndex];
   if (communicationsDigest(base.extraction) !== communicationsDigest({ version: EXTRACTOR, pageIndex: selected.pageIndex,
-    segmentIndex: selected.segmentIndex, quote: selected.quote, visibleTextDigest: selected.visibleTextDigest })
+    segmentIndex: selected.segmentIndex, quote: selected.quote, visibleTextDigest: selected.visibleTextDigest, visibilityBasis: VISIBILITY_BASIS })
     || base.contact.email !== selected.email || base.contact.scope !== selected.scope
     || base.contact.organization !== source.candidate.organization || base.contact.site !== (selected.scope === "site" ? source.candidate.site : null)
     || base.contact.sourceUrl !== page.finalUrl || base.contact.sourceCheckedAt !== page.checkedAt) throw new Error("contact_resolution_extraction_changed");
@@ -179,9 +327,11 @@ export function verifyContactResolution(value: unknown, source: any, prospectId:
 
 /** Bounded communications-owned research. Only cited pages and discovered operator
  * contact links, three pages/24 seconds; no guessed path/address, model or Gmail. */
-export async function resolvePublicContact(source: any, prospectId: string, readPage: ContactPageReader, now: () => number) {
+export async function resolvePublicContact(source: any, prospectId: string, readPage: ContactPageReader, now: () => number,
+  discovery?: ContactDiscovery) {
   assertContactUnknowns(source.candidate, true);
-  const queue = [source.candidate.organization_url, ...source.candidate.evidence.filter((x: any) => x.classification === "operator").map((x: any) => x.url)];
+  const queue = [...(discovery?.sources.map(s => s.url) ?? []), source.candidate.organization_url,
+    ...source.candidate.evidence.filter((x: any) => x.classification === "operator").map((x: any) => x.url)];
   const visited = new Set<string>(), pages: z.infer<typeof pageSchema>[] = [], deadline = now() + 24000;
   while (queue.length && pages.length < 3 && visited.size < 6 && now() < deadline) {
     let url: string;
@@ -189,9 +339,16 @@ export async function resolvePublicContact(source: any, prospectId: string, read
     if (visited.has(url)) continue; visited.add(url);
     let page: ContactPage;
     try { page = await readPage(url, source.candidate.organization_url, deadline); }
-    catch (error) { if (error instanceof Error && error.message === "contact_fetch_page_unavailable") continue; throw error; }
+    catch (error) {
+      if (error instanceof Error && error.message === "contact_fetch_size_limit") {
+        try { page = await readPage(url, source.candidate.organization_url, deadline, { maxBytes: CONTACT_RESEARCH_PAGE_LIMIT }); }
+        catch (larger) { if (larger instanceof Error && ["contact_fetch_size_limit", "contact_fetch_page_unavailable"].includes(larger.message)) continue; throw larger; }
+      } else if (error instanceof Error && error.message === "contact_fetch_page_unavailable") continue;
+      else throw error;
+    }
     if (page.requestedUrl !== url || Date.parse(page.checkedAt) > now() || now() - Date.parse(page.checkedAt) > 60000) throw new Error("contact_resolution_check_date_invalid");
     const parsed = contactPageText(page), bytes = Buffer.from(page.bodyBase64, "base64");
+    if (bytes.length + pages.reduce((total, p) => total + p.byteCount, 0) > 512 * 1024) continue;
     pages.push({ ...page, byteCount: bytes.length, bodyDigest: hash(bytes) });
     // Discovered contact links take precedence over another general source page.
     queue.unshift(...parsed.links);
@@ -200,19 +357,22 @@ export async function resolvePublicContact(source: any, prospectId: string, read
     const parsed = contactPageText(page);
     if (parsed.visibilityUnverified) return [];
     const organizationIdentified = parsed.segments.some(segment => containsContactName(segment, source.candidate.organization));
-    return parsed.segments.flatMap((quote, segmentIndex) => { try { return [{ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex,
+    return parsed.segments.flatMap((quote, segmentIndex) => { if (quote.length > 1200 || literalAddressUnsafe(quote, parsed.joins[segmentIndex], parsed.edges[segmentIndex])) return [];
+      try { return [{ ...extractBusinessContact(quote, source.candidate, false, organizationIdentified), pageIndex,
       segmentIndex, quote, visibleTextDigest: communicationsDigest({ segments: parsed.segments,
         restrictionText: parsed.restrictionText, visibilityUnverified: parsed.visibilityUnverified }) }]; } catch { return []; } });
   });
   if (!candidates.length) throw new Error(pages.some(page => contactPageText(page).visibilityUnverified)
     ? "contact_resolution_visibility_unverified" : "contact_resolution_missing_or_ambiguous");
-  const selected = candidates[0], page = pages[selected.pageIndex];
+  const selected = preferredContact(candidates, source.candidate), page = pages[selected.pageIndex];
   const base = checkResolution({ version: "blueprint.contact-resolution.v1", publication: contactPublication(source, prospectId), pages,
+    ...(discovery ? { discovery } : {}),
     contact: { email: selected.email, scope: selected.scope, organization: source.candidate.organization,
       site: selected.scope === "site" ? source.candidate.site : null, purpose: "business_inquiries", status: "public_business_contact",
       sourceUrl: page.finalUrl, sourceCheckedAt: page.checkedAt },
     extraction: { version: EXTRACTOR, pageIndex: selected.pageIndex, segmentIndex: selected.segmentIndex,
-      quote: selected.quote, visibleTextDigest: selected.visibleTextDigest }, resolvedGaps: contactUnknowns(source.candidate).gaps }, source, prospectId);
+      quote: selected.quote, visibleTextDigest: selected.visibleTextDigest, visibilityBasis: VISIBILITY_BASIS },
+    resolvedGaps: contactUnknowns(source.candidate).gaps }, source, prospectId);
   return contactResolutionSchema.parse({ ...base, qa: { version: "blueprint.contact-qa.v1", state: "approved",
     reviewedBy: "blueprint-communications-contact-verifier", reviewedAt: new Date(now()).toISOString(), inputDigest: communicationsDigest(base) } });
 }

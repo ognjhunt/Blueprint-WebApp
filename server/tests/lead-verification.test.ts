@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { evaluateLeadCohort, evaluateLeadVerification, leadIdentityKey, leadPacketCandidates, requireVerifiedLead } from "../agents/lead-verification";
+import { evaluateLeadCohort, evaluateLeadVerification, LEAD_DIAGNOSTIC_RESULT_VERSION, leadIdentityKey, leadPacketCandidates, requireVerifiedLead } from "../agents/lead-verification";
 import { verificationDigest } from "../agents/research-digest";
 import { syntheticLeadVerification } from "./fixtures/lead-verification";
 
@@ -9,6 +9,15 @@ const now = Date.parse("2026-10-01T12:00:00Z");
 const candidate = { candidate_key: "synthetic", organization: "Synthetic Operator", site: "Invented packing site",
   location: "10 Test Road, Test City", task: "packing" };
 describe("evidence-bound lead verification (hermetic invented evidence)", () => {
+  it("matches every Pipeline v2 diagnostic fixture, including lossless aliases and unknown expiry", () => {
+    const cases = JSON.parse(readFileSync(new URL("./fixtures/lead-verification-diagnostics.json", import.meta.url), "utf8"));
+    for (const item of cases) {
+      const original = structuredClone(item.assessment);
+      expect(evaluateLeadVerification(item.candidate, item.assessment, Date.parse(item.now)), item.name).toMatchObject(item.expected);
+      expect(item.assessment).toEqual(original);
+    }
+  });
+
   it("matches Pipeline's retained cross-language digest/status fixture including Unicode and inert floats", () => {
     const fixture = JSON.parse(readFileSync(new URL("./fixtures/lead-verification.json", import.meta.url), "utf8"));
     expect(evaluateLeadVerification(fixture.candidate, fixture.assessment, Date.parse(fixture.now))).toMatchObject(fixture.expected);
@@ -131,5 +140,19 @@ describe("evidence-bound lead verification (hermetic invented evidence)", () => 
     const cyclic = evaluateLeadCohort(rows, assessments, now, { alias: checks.alias,
       synthetic: { duplicate: true, duplicate_of: "alias", reason: "Synthetic cyclic identity." } });
     expect(cyclic.every(row => !row.eligible_for_qualified_promotion)).toBe(true);
+  });
+});
+
+describe("result-version pinning (independent review S7)", () => {
+  it("re-verifies an unpinned historical row with the original v1 evaluator and a pinned row with v2", () => {
+    const cases = JSON.parse(readFileSync(new URL("./fixtures/lead-verification-diagnostics.json", import.meta.url), "utf8"));
+    const alias = cases.find((c: any) => c.name === "schema_alias");
+    const now = Date.parse(alias.now);
+    const source = (resultVersion?: string) => ({ candidate: alias.candidate, leadVerification: alias.assessment,
+      leadVerificationCohort: { candidates: [alias.candidate], assessments: { [alias.candidate.candidate_key]: alias.assessment },
+        duplicateChecks: {}, ...(resultVersion ? { resultVersion } : {}) } });
+    // v1 (unpinned) never accepted the schema_version alias; v2 accepts it losslessly.
+    expect(() => requireVerifiedLead(source(), now)).toThrow();
+    expect(requireVerifiedLead(source(LEAD_DIAGNOSTIC_RESULT_VERSION), now).status).toBe("verified");
   });
 });
