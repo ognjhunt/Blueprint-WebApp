@@ -7,16 +7,36 @@ qualification, publication or deployment outcome.
 
 ## Current reviewed repair package
 
-The October 3 release carries controlled Pipeline source
-`8f2135479e6f3187b725ac47d2bfd596809a6879` (PR2572; reviewed head
-`a0e9ddbfb560bab4cd666825610b8d1a4afc3712`). Its 890,880-byte archive
-SHA256 is `7448ea4bf6e96db925603bc88389a4599edb9540a12ddb1f6240451d6f21886e`,
-with 51 manifested source files. The manifest SHA256 is
-`0da7a46ab3fa00676da99e4c41f487d563a4cd6b85a3863eae34f630aaccda1b`.
-It preserves the employer-posting discovery policy and existing owner MCP,
-history, QA, publication and cleanup source from
-`f528368c67a9172946f5696d61784b15a6b5d452`.
+The October 4 package pins reviewed Pipeline head
+`6a45da1ef41be5c91f3ddb6c9bc3ecf84a14a800` (PR2575), based on the controlled
+research lineage. Its 942,080-byte archive SHA256 is
+`909780b0586fdba8f8b7f43d0c4288305a601a86ee2ac210fcebbf770e1aab75`,
+with 53 manifested source files. The manifest SHA256 is
+`1eaac7fa1099e023f7fbaafcc4b7c3db162c866455fef4e7db99fc9e2db1a426`.
+It preserves the existing owner MCP, history,
+QA, publication, capability-integrity repair and cleanup source from
+`8f2135479e6f3187b725ac47d2bfd596809a6879`.
 This is a research-only controlled release; Pipeline main is a separate lineage.
+
+The optional `exa-guarded-v1` profile adds host-controlled start/read functions
+to the same daily research session before final QA. It shares the existing $5
+research authority and requires actual authentication, supported native cost-cap
+schema and verified remaining all-in allocation before any Exa start. One
+immutable daily intent precedes the native POST; uncertain writes are never
+replayed. Exact original-ID reads and complete private HTTP/native JSON receipts
+are retained in company storage and portable exports. A retained original ACK
+can be recovered without credentials, network access or an active deadline.
+
+Installing this package does not activate paid expansion. The worker requires
+its own `EXA_API_KEY`; saved OpenAI OAuth vault credentials are not extracted or
+copied. This release creates no all-in accounting producer. The trusted company
+control's `exa_expansion_allocation` must have reliable usage/reservation evidence;
+otherwise the optional stage records an actionable skip and ordinary research
+continues. Actual authenticated cap support remains a separate live check. The
+generic paid multi-provider MCP profile cannot be combined with this path.
+Sending, access, schedules, spending authority and existing frozen rows are
+unchanged by the package. Source and consumer exact-head CI must both pass before
+release, and live installation/readback remain separate from source review.
 
 New research sessions explicitly supply a setup command generated from the same
 reviewed capability manifest as their inline files. Python standard-library
