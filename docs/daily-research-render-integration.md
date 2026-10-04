@@ -8,12 +8,22 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 3 release carries controlled Pipeline source
-`f528368c67a9172946f5696d61784b15a6b5d452` (PR2571; reviewed head
-`e50b3eac4d18d8ece7cd020791fe07d77e227111`). Its 890,880-byte archive
-SHA256 is `28906155d2eaff1d4aaeacfe088f9e7e89d78e41327b653a48cc798114bbde71`,
-with 51 manifested source files. It preserves the deployed owner MCP, history,
-QA, publication and cleanup source from `afd48200168df2ac07e0d676d78cc7e745915a2c`.
+`8f2135479e6f3187b725ac47d2bfd596809a6879` (PR2572; reviewed head
+`a0e9ddbfb560bab4cd666825610b8d1a4afc3712`). Its 890,880-byte archive
+SHA256 is `7448ea4bf6e96db925603bc88389a4599edb9540a12ddb1f6240451d6f21886e`,
+with 51 manifested source files. The manifest SHA256 is
+`0da7a46ab3fa00676da99e4c41f487d563a4cd6b85a3863eae34f630aaccda1b`.
+It preserves the employer-posting discovery policy and existing owner MCP,
+history, QA, publication and cleanup source from
+`f528368c67a9172946f5696d61784b15a6b5d452`.
 This is a research-only controlled release; Pipeline main is a separate lineage.
+
+New research sessions explicitly supply a setup command generated from the same
+reviewed capability manifest as their inline files. Python standard-library
+checks verify all four files' paths, sizes and raw SHA256 hashes, rejecting
+missing files and symlinks before the agent starts. The saved environment
+template and previously charged create payloads retain their original bindings;
+the saved-agent discovery policy does not change.
 
 Employer job postings are an optional source of site-linked physical-duty
 evidence alongside operator pages and other primary sources. The agent retains
