@@ -36,7 +36,9 @@ export const evidenceSchema = z.object({
   // A pointer, never subject/body/email/token or a mailbox-wide query.
   recordRef: z.string().min(1).max(500).regex(/^[A-Za-z0-9_.:/-]+$/),
   sourceHash: hash, checkedAt: instant,
-  basis: z.enum(["public_research", "contact_proof", "send_attempt", "provider_acceptance", "delivery_notification", "correlated_reply", "human_attestation"]),
+  // founder_send_observed: a SENT founder-mailbox message matching a
+  // Blueprint-copied draft. It is not a system send, approval or delivery.
+  basis: z.enum(["public_research", "contact_proof", "send_attempt", "provider_acceptance", "founder_send_observed", "delivery_notification", "correlated_reply", "human_attestation"]),
 }).strict();
 export const gmailRefsSchema = z.object({
   messageId: id, threadId: id, jobId: id, outreachVersion: id,
@@ -69,7 +71,7 @@ export const eventSchema = z.discriminatedUnion("kind", [
     messageId: id.nullable(), threadId: id.nullable(), jobId: id, outreachVersion: id,
     intent: z.enum(["outreach", "reply"]), payloadDigest: hash, approvalLedgerId: id,
     messageDigest: hash, messageVariant: id.nullable(),
-    status: z.enum(["attempted", "accepted", "unknown"]),
+    status: z.enum(["attempted", "accepted", "founder_sent", "unknown"]),
     campaignId: id.nullable(), timingWindow: label.nullable(),
   }).strict() }).strict(),
   z.object({ ...base, kind: z.literal("delivery_observed"), data: z.object({
@@ -107,7 +109,8 @@ export function validateEvent(value: unknown): LearningEvent {
     || event.evidence.some(e => Date.parse(e.checkedAt) > Date.parse(event.recordedAt))) throw new Error("learning_future_evidence");
   const requiredBasis = event.kind === "research_observed" ? "public_research"
     : event.kind === "contact_observed" ? "contact_proof"
-    : event.kind === "outreach_observed" ? event.data.status === "accepted" ? "provider_acceptance" : "send_attempt"
+    : event.kind === "outreach_observed" ? event.data.status === "accepted" ? "provider_acceptance"
+      : event.data.status === "founder_sent" ? "founder_send_observed" : "send_attempt"
     : event.kind === "delivery_observed" ? "delivery_notification"
     : event.kind === "reply_observed" ? "correlated_reply" : "human_attestation";
   if (!event.evidence.some(e => e.basis === requiredBasis)) throw new Error("learning_evidence_basis_missing");
@@ -120,8 +123,13 @@ export function validateEvent(value: unknown): LearningEvent {
       || (["unknown", "ambiguous", "automatic", "rejection", "opt_out"].includes(c.label) && c.interest !== "unknown")
       || (c.method === "legacy_unknown" && (c.label !== "unknown" || !c.uncertain))) throw new Error("learning_classification_inconsistent");
   }
-  if (event.kind === "outreach_observed" && event.data.status === "accepted"
+  if (event.kind === "outreach_observed" && ["accepted", "founder_sent"].includes(event.data.status)
     && (!event.data.messageId || !event.data.threadId)) throw new Error("learning_acceptance_receipt_missing");
+  // The founder-send basis appears only on founder-sent outreach, and a
+  // founder send is never relabeled as a system acceptance or attempt.
+  if (event.evidence.some(e => e.basis === "founder_send_observed") !== (event.kind === "outreach_observed" && event.data.status === "founder_sent")) {
+    throw new Error("learning_founder_send_basis_mismatch");
+  }
   if (event.kind === "research_observed" && (event.data.factChecks.length !== event.data.factIds.length || event.data.factChecks.some(f => !event.data.factIds.includes(f.factId)
     || Date.parse(f.sourceCheckedAt) > Date.parse(event.recordedAt))
     || new Set(event.data.factChecks.map(f => f.factId)).size !== event.data.factChecks.length)) throw new Error("learning_fact_provenance_invalid");

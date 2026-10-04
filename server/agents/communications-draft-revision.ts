@@ -55,13 +55,17 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
       expectedReviewDigest: request.data.expectedReviewDigest, output, requestedBy });
     const revisionRef = root.collection("draftRevisions").doc(revisionId);
     const jobRef = root.collection("jobs").doc(job.jobId), sourceRef = db.collection("outboundProspects").doc(job.prospectId);
-    const [savedJob, source, savedBrief, handoff, receipt, firstTouch, previousRevision, proposedRevision] = await Promise.all([
+    const [savedJob, source, savedBrief, handoff, receipt, firstTouch, previousRevision, proposedRevision, founderSend] = await Promise.all([
       tx.get(jobRef), tx.get(sourceRef), tx.get(root.collection("briefs").doc(job.briefId)),
       tx.get(root.collection("handoffs").doc(job.briefDigest)),
       tx.get(root.collection("sendReceipts").doc(communicationsDeliveryKey(job))),
       tx.get(root.collection("firstTouches").doc(communicationsDeliveryKey(job))),
       previousRevisionId ? tx.get(root.collection("draftRevisions").doc(previousRevisionId)) : Promise.resolve(null), tx.get(revisionRef),
+      tx.get(root.collection("founderSendObservations").doc(job.jobId)),
     ]);
+    if (founderSend.exists) {
+      throw new CommunicationsDraftRevisionError("This draft was already sent from the founder mailbox. Its sent copy is recorded and it cannot be revised.");
+    }
     const record = savedJob.data(), prospect = source.data();
     const identity = communicationsJobSchema.safeParse(record && Object.fromEntries(
       Object.keys(job).map(key => [key, record[key]])));

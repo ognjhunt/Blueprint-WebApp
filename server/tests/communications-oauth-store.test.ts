@@ -4,7 +4,8 @@ const bindings = vi.hoisted(() => ({ db: null as any }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return bindings.db; }, authAdmin: null }));
 vi.mock("../utils/blueprintWorkStore", () => ({ checkWorkOperator: vi.fn(async () => true) }));
 import { configuredFounderConsent, saveFounderCredential, readFounderCredential, FOUNDER_STORAGE,
-  FOUNDER_CREDENTIAL_COLLECTION, FOUNDER_OAUTH_FLOW_COLLECTION, saveFounderUpgrade, requireFounderSendCapability, requireFounderDraftCapability } from "../agents/communications-oauth-store";
+  FOUNDER_CREDENTIAL_COLLECTION, FOUNDER_OAUTH_FLOW_COLLECTION, saveFounderUpgrade, requireFounderSendCapability, requireFounderDraftCapability,
+  requireFounderReadCapability } from "../agents/communications-oauth-store";
 import { encryptBoundFieldValue } from "../utils/field-encryption";
 import { FOUNDER_CONNECTION_ID, FOUNDER_OAUTH_CALLBACK, type FounderCredential } from "../agents/communications-oauth";
 import { FOUNDER_GMAIL_READ_SCOPE, FOUNDER_GMAIL_SEND_SCOPE, FOUNDER_GMAIL_DRAFT_SCOPE } from "../agents/communications-connection";
@@ -135,6 +136,14 @@ describe("private founder binding uses existing bound encryption and Firestore",
     expect(JSON.stringify(bindings.db.records.get(`${FOUNDER_CREDENTIAL_COLLECTION}/${FOUNDER_CONNECTION_ID}`))).toBe(old);
     expect(await readFounderCredential()).toEqual(credential);
     await expect(requireFounderSendCapability()).rejects.toThrow("founder_send_scope_unverified");
+  });
+  it("founder read capability requires the decrypted readonly binding and refuses an environment token", async () => {
+    configured();
+    await expect(requireFounderReadCapability()).rejects.toThrow("founder_gmail_binding_missing");
+    await saveFounderCredential(credential, "readonly-flow");
+    await expect(requireFounderReadCapability()).resolves.toBeUndefined();
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN", "MOCK_ENVIRONMENT_TOKEN");
+    await expect(requireFounderReadCapability()).rejects.toThrow("founder_read_scope_unverified");
   });
   it("does not accept a v2 grant through the initial-save path or an environment-token send fallback", async () => {
     configured();

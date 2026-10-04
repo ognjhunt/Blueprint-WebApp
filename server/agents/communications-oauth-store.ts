@@ -171,6 +171,14 @@ export async function requireFounderSendCapability(): Promise<void> {
   if (!(credential.scopes as readonly string[]).includes(FOUNDER_GMAIL_SEND_SCOPE)) throw new Error("founder_send_scope_unverified");
 }
 
+/** Founder-sent observation reads only through the owner's decrypted durable
+ * binding. An environment refresh token has no recorded scope, so it is refused. */
+export async function requireFounderReadCapability(): Promise<void> {
+  if (process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN?.trim()) throw new Error("founder_read_scope_unverified");
+  const credential = await readFounderCredential();
+  if (!(credential.scopes as readonly string[]).includes(FOUNDER_GMAIL_READ_SCOPE)) throw new Error("founder_read_scope_unverified");
+}
+
 /** Separate compose consent never substitutes for draft-write authorization. */
 export async function requireFounderDraftCapability(): Promise<void> {
   if (process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN?.trim()) throw new Error("founder_draft_scope_unverified");

@@ -1,6 +1,6 @@
 import { requireVerifiedLead } from "./lead-verification";
 import { communicationsBriefSchema, communicationsDigest, communicationsEnvelopeSchema,
-  briefRefreshReasons, correlateReply, correlatedReplies, isOptOut, type CommunicationsBrief, type CommunicationsOutput } from "./communications-contract";
+  briefRefreshReasons, correlateReply, correlatedReplies, isOptOut, isFounderReplyOrigin, type CommunicationsBrief, type CommunicationsOutput } from "./communications-contract";
 import { publishedPublicContact, contactProhibition, PUBLIC_CONTACT_PREFIX, containsContactName } from "./communications-contact-evidence";
 import { verifyContactResolution } from "./communications-contact-resolution";
 import { reviewCommunicationsPayload } from "./communications-review";
@@ -202,7 +202,10 @@ export function firstContactAuthority(payload: ActionPayload, now: number, saved
     if (job.intent === "outreach") {
       if (job.inboundMessageId || thread || brief.priorConversation || payload.gmailThreadId || payload.inReplyTo) return null;
     } else {
-      if (!brief.replyOrigin || !thread || !job.inboundMessageId || !correlateReply(brief, thread, job.inboundMessageId)) return null;
+      // A founder-authored parent thread was never system-approved or sent;
+      // automatic replies stay bounded to system-sent threads.
+      if (!brief.replyOrigin || isFounderReplyOrigin(brief.replyOrigin) || !thread || !job.inboundMessageId
+        || !correlateReply(brief, thread, job.inboundMessageId)) return null;
       const replies = correlatedReplies(brief, thread);
       if (replies.some(isOptOut) || replies.at(-1)?.gmailMessageId !== job.inboundMessageId) return null;
     }

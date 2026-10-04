@@ -94,6 +94,17 @@ describe("approved founder send and acknowledgement recovery (all mocked)", () =
     await expect(executeCommunicationsSend(f.payload)).rejects.toThrow("canonical_context_changed");
     expect(sendFounderMessage).not.toHaveBeenCalled();
   });
+  it("refuses a send once the founder sent the same job from Gmail, including inside the final claim", async () => {
+    const f = await setup(), observation = `${COMMUNICATIONS_ROOT}/founderSendObservations/${f.job.jobId}`;
+    // The observation lands after the blocker read but before the receipt claim.
+    vi.mocked(verifyFounderMailbox).mockImplementationOnce(async () => {
+      await f.db.doc(observation).set({ state: "observed", jobId: f.job.jobId }); return {} as any;
+    });
+    await expect(executeCommunicationsSend(f.payload)).rejects.toThrow("founder_send_already_observed");
+    expect(await communicationsSendBlocker(f.payload, f.ledgerId)).toBe("founder_send_already_observed");
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(f.db.records.has(f.receiptPath)).toBe(false);
+    expect([...f.db.records.keys()].some(path => path.includes("/recipientFirstTouches/"))).toBe(false);
+  });
   it("cannot answer the same incoming message twice by revising its brief/job", async () => {
     const f = await setup("reply"); await executeCommunicationsSend(f.payload);
     const revised = structuredClone(f.payload); revised.communications.job.jobId = "new-job"; revised.communications.brief.revision = 2;

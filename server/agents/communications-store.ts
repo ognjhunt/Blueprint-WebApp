@@ -5,6 +5,7 @@ import {
   verifyCommunicationsHandoff, communicationsDeliveryKey,
   verifyCommunicationsReplyBinding,
   communicationsSentReceiptIdentity,
+  isFounderReplyOrigin, verifyCommunicationsFounderReplyBinding, verifyFounderReplyAnchor,
   type ThreadMessage,
 } from "./communications-contract";
 import { communicationsContinuationDeadline, communicationsContinuationSessionBinding } from "./communications-api";
@@ -91,7 +92,20 @@ export class CommunicationsStore {
     lineage.add(digest);
     const snapshot = await root.collection("handoffs").doc(digest).get();
     const handoff = verifyCommunicationsHandoff(snapshot.data(), brief);
-    if (brief.replyOrigin) {
+    if (brief.replyOrigin && isFounderReplyOrigin(brief.replyOrigin)) {
+      // Founder-authored anchor: no system receipt or approval exists. The
+      // immutable observation and its draft-copy binding must be unchanged.
+      const parent = communicationsBriefSchema.parse((await root.collection("briefs").doc(brief.replyOrigin.parentBriefId).get()).data());
+      const binding = verifyCommunicationsFounderReplyBinding((await root.collection("replyBindings").doc(digest).get()).data(), brief, parent);
+      const parentHandoff = await this.handoff(parent, lineage);
+      const [observation, draftBinding] = await Promise.all([
+        root.collection("founderSendObservations").doc(binding.founderSendObservationId).get(),
+        root.collection("gmailDraftBindings").doc(binding.founderSendObservationId).get()]);
+      verifyFounderReplyAnchor(binding, observation.data(), draftBinding.data(), brief);
+      if (communicationsDigest(handoff) !== communicationsDigest({ ...parentHandoff, briefDigest: digest })) {
+        throw new Error("reply_parent_observation_or_handoff_changed");
+      }
+    } else if (brief.replyOrigin) {
       const parent = communicationsBriefSchema.parse((await root.collection("briefs").doc(brief.replyOrigin.parentBriefId).get()).data());
       const binding = verifyCommunicationsReplyBinding((await root.collection("replyBindings").doc(digest).get()).data(), brief, parent);
       const parentHandoff = await this.handoff(parent, lineage);
@@ -424,9 +438,11 @@ export class CommunicationsStore {
       if (record.automationPolicyVersion !== ROUTINE_COMMUNICATIONS_POLICY.version || record.cancelledContinuation) authority = null;
       const prospective = !record.cancelledContinuation && record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
       let refusal: string | null = null;
+      const founderOrigin = isFounderReplyOrigin(communicationsBriefSchema.safeParse((payload.communications as any)?.brief).data?.replyOrigin);
       if (prospective && !authority) {
         const quality = reviewCommunicationsPayload(payload, this.now());
-        refusal = !automaticFirstContactEnabled() ? "automatic_first_contact_disabled"
+        refusal = founderOrigin ? "founder_origin_reply_requires_human_approval"
+          : !automaticFirstContactEnabled() ? "automatic_first_contact_disabled"
           : !firstContactPostalLine() ? "first_contact_postal_footer_unavailable"
           : !quality.hardChecksPassed ? `draft_quality_failed:${quality.blockers.join(",")}`
           : (payload.recipientGeography as any)?.countryCode !== "US" ? "routine_recipient_geography_not_authorized"
@@ -443,6 +459,8 @@ export class CommunicationsStore {
           verifyCommunicationsHandoff(handoff, approvedBrief);
           if (job.intent === "reply") {
             if (!approvedBrief.replyOrigin) throw new Error("reply_parent_context_changed");
+            // Automatic replies require a system-sent parent thread.
+            if (isFounderReplyOrigin(approvedBrief.replyOrigin)) throw new Error("founder_origin_reply_requires_human_approval");
             const parent = communicationsBriefSchema.parse((await tx.get(root.collection("briefs").doc(approvedBrief.replyOrigin.parentBriefId))).data());
             const binding = verifyCommunicationsReplyBinding((await tx.get(root.collection("replyBindings").doc(job.briefDigest))).data(), approvedBrief, parent);
             const receipt = (await tx.get(root.collection("sendReceipts").doc(binding.sendReceiptKey))).data();

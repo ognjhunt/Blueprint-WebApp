@@ -10,7 +10,8 @@ import { researchLearningContext, sheetsLearningView, notionLearningSummary } fr
 import { learningNow, learningEvent, learningScope, learningCorrection, learningScenario, learningMemoryFirestore } from "./fixtures/research-learning";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { previewResearchCommunications } from "../agents/communications-producer";
-import { communicationsBriefSchema, communicationsDigest, communicationsDeliveryKey } from "../agents/communications-contract";
+import { communicationsBriefSchema, communicationsDigest, communicationsDeliveryKey, founderSendEvidenceDigest,
+  founderSentContentSha256 } from "../agents/communications-contract";
 
 const focus = { city: "Sacramento", industry: "Laundromats" };
 function snapshot(events: LearningEvent[], ids = ["prospect-1"]) {
@@ -384,6 +385,115 @@ describe("read-only existing-source joins and staged migration", () => {
     expect(dryRunMigration({ ...input, expectedEvidenceRefs: [...input.expectedEvidenceRefs, "missing"] }).errors).toContain("evidence_manifest_not_reconciled");
     expect(dryRunMigration({ ...input, quarantine: [{ recordRef: "legacy", reason: "join_missing" }] }).readyForStagedAppend).toBe(false);
     expect(dryRunMigration({ ...input, expectedProspectIds: [] }).readyForStagedAppend).toBe(false);
+  });
+});
+
+/** Synthetic founder-send observation for the existing-source fixture's draft. */
+function founderSendSourceFixture(contentMatch: "exact" | "differs_from_draft" = "exact") {
+  const input = existingSourceFixture(), bundle = input.jobs[0], brief = bundle.brief as any, record = bundle.record as any;
+  const jobId = communicationsDigest({ synthetic: "founder-sent-job" });
+  const identity = { jobId, prospectId: record.prospectId, briefId: record.briefId, briefDigest: record.briefDigest,
+    intent: "outreach" as const, inboundMessageId: null };
+  bundle.id = jobId; bundle.record = { ...record, jobId }; bundle.receipt = undefined;
+  bundle.ledger.action_payload.communications.job = identity;
+  const payload = bundle.ledger.action_payload;
+  const evidence: any = { version: "blueprint.communications-founder-send-observation.v1", state: "observed", ...identity,
+    ledgerId: `communications_${jobId}`, deliveryKey: communicationsDeliveryKey(identity), payloadDigest: communicationsDigest(payload),
+    reviewDigest: "c".repeat(64), recipient: brief.contact.email.toLowerCase(), gmailDraftBindingDigest: "d".repeat(64), directionDigest: "e".repeat(64),
+    direction: { uri: "gs://blueprint-8c1ca.appspot.com/operations/recovery/synthetic/founder-sent-draft-observation-owner-direction.json",
+      generation: "1", sha256: "f".repeat(64) },
+    draft: { draftId: "r-synthetic-draft", messageId: "synthetic-draft-message", threadId: "thread-1", verifiedAt: Date.parse("2026-09-30T23:05:00Z") },
+    sent: { gmailMessageId: "founder-out-1", threadId: "thread-1", rfcMessageId: "<founder-out-1@mail.gmail.example>", sentAt: "2026-09-30T23:20:00.000Z",
+      subjectSha256: founderSentContentSha256(payload.subject),
+      bodySha256: founderSentContentSha256(contentMatch === "exact" ? payload.transportBody : `${payload.transportBody}\nFounder edit`),
+      jobHeaderMatched: false, rfcMatchesDraft: false },
+    contentMatch, sendsAuthorized: false, approvalGranted: false };
+  const reseal = (value: any) => ({ ...value, evidenceDigest: founderSendEvidenceDigest(value), recipientSuppressedAtObservation: false,
+    observedAt: "2026-09-30T23:30:00.000Z", recordedAt: Date.parse("2026-09-30T23:30:00Z") });
+  bundle.founderSend = reseal(evidence);
+  return { input, bundle, payload, evidence, reseal, founderRef: `blueprintCommunications/default/founderSendObservations/${jobId}` };
+}
+const founderOutreach = (events: LearningEvent[]) => events.filter((event): event is Extract<LearningEvent, { kind: "outreach_observed" }> =>
+  event.kind === "outreach_observed" && event.data.status === "founder_sent");
+
+describe("founder-sent observations in existing-source learning", () => {
+  it("projects a founder send as founder_sent outreach with its own basis, counted as Gmail-accepted but never delivered", () => {
+    const f = founderSendSourceFixture(), result = normalizeExistingSources([f.input], learningNow);
+    expect(result.quarantine).toEqual([]);
+    const [event] = founderOutreach(result.events);
+    expect(event.data).toMatchObject({ jobId: f.bundle.id, messageId: "founder-out-1", threadId: "thread-1",
+      approvalLedgerId: `communications_${f.bundle.id}`, payloadDigest: f.evidence.payloadDigest });
+    expect(event.occurredAt).toBe("2026-09-30T23:20:00.000Z");
+    expect(event.evidence).toEqual([{ sourceSystem: "firestore", recordRef: f.founderRef, sourceHash: communicationsDigest(f.bundle.founderSend),
+      checkedAt: "2026-09-30T23:30:00.000Z", basis: "founder_send_observed" }]);
+    expect(validateEvent(event)).toEqual(event);
+    // An exact copy groups with the Blueprint draft's canonical pre-footer copy.
+    expect(event.data.messageDigest).toBe(communicationsDigest({ subject: f.payload.communications.output.subject, body: f.payload.communications.output.body }));
+    expect(result.observedSourceRefs).toContain(f.founderRef);
+    expect(JSON.stringify(result.events)).not.toContain(f.input.prospect.contactEmail);
+    const view = snapshot(result.events);
+    expect(view.rows[0].unknowns).toContain("delivery_unknown");
+    expect(planResearchLearning(view, focus).scopeCounts).toMatchObject({ attemptedTouches: 1, acceptedTouches: 1, unknownAcknowledgementTouches: 0 });
+  });
+  it("keeps a changed founder copy distinct from the Blueprint draft copy", () => {
+    const exact = founderOutreach(normalizeExistingSources([founderSendSourceFixture().input], learningNow).events)[0];
+    const changed = founderSendSourceFixture("differs_from_draft"), [event] = founderOutreach(normalizeExistingSources([changed.input], learningNow).events);
+    expect(event.data.messageDigest).not.toBe(exact.data.messageDigest);
+    expect(event.data.messageDigest).toBe(communicationsDigest({ founderSentSubjectSha256: changed.evidence.sent.subjectSha256,
+      founderSentBodySha256: changed.evidence.sent.bodySha256 }));
+  });
+  it.each(["receipt_conflict", "tampered", "recipient", "job", "approval"])("quarantines an invalid founder observation: %s", kind => {
+    const f = founderSendSourceFixture();
+    if (kind === "receipt_conflict") f.bundle.receipt = { jobId: f.bundle.id, state: "sent", payloadDigest: communicationsDigest(f.payload),
+      approvalLedgerId: `communications_${f.bundle.id}`, sentAt: "2026-09-30T23:11:00.000Z", receipt: { messageId: "out-1", threadId: "thread-1" } };
+    if (kind === "tampered") f.bundle.founderSend.sent.gmailMessageId = "other-sent-message";
+    if (kind === "recipient") f.bundle.founderSend = f.reseal({ ...f.evidence, recipient: "different@facility.example" });
+    if (kind === "job") f.bundle.founderSend = f.reseal({ ...f.evidence, briefDigest: "0".repeat(64) });
+    if (kind === "approval") f.bundle.founderSend = f.reseal({ ...f.evidence, approvalGranted: true });
+    const result = normalizeExistingSources([f.input], learningNow);
+    expect(founderOutreach(result.events)).toEqual([]);
+    expect(result.quarantine).toContainEqual({ recordRef: f.founderRef, reason: "founder_send_observation_invalid_reconcile_exact_job_binding_and_gmail_refs" });
+    if (kind === "receipt_conflict") expect(result.events.some(event => event.kind === "outreach_observed" && event.data.status === "accepted")).toBe(true);
+  });
+  it("binds a correlated reply to a founder_sent event without any system send event", () => {
+    const input = existingReplySourceFixture();
+    input.communicationsEvents[0] = { id: "founder_sent_job-1", record: { version: "blueprint.communications-founder-sent-event.v1",
+      type: "founder_sent", trust: "founder_authored", jobId: "job-1", prospectId: input.prospectId, sendsAuthorized: false, approvalGranted: false,
+      founderSentMessage: { gmailMessageId: "out-1", threadId: "thread-1", rfcMessageId: "<out-1@tryblueprint.io>", sentAt: "2026-09-30T23:20:00.000Z" } } };
+    const result = normalizeExistingSources([input], learningNow);
+    expect(result.quarantine).toEqual([]); expect(result.events.filter(event => event.kind === "reply_observed")).toHaveLength(1);
+    for (const change of [{ approvalGranted: true }, { trust: "untrusted" }, { founderSentMessage: { gmailMessageId: "out-1", threadId: "thread-1", rfcMessageId: "<other@x.example>" } }]) {
+      const altered = structuredClone(input); Object.assign(altered.communicationsEvents[0].record, change);
+      const rejected = normalizeExistingSources([altered], learningNow);
+      expect(rejected.events.some(event => event.kind === "reply_observed")).toBe(false);
+      expect(rejected.quarantine.map(row => row.reason)).toEqual(["reply_evidence_invalid_reconcile_exact_message_thread_and_rfc_refs"]);
+    }
+  });
+  it("keeps the founder-send basis exclusive to founder_sent outreach with Gmail ids", () => {
+    const base = learningEvent("outreach_observed");
+    if (base.kind !== "outreach_observed") throw new Error("outreach_missing");
+    expect(() => remake(base, { data: { ...base.data, status: "founder_sent" } })).toThrow("learning_evidence_basis_missing");
+    expect(() => remake(base, { evidence: [...base.evidence, { ...base.evidence[0], basis: "founder_send_observed" }] })).toThrow("learning_founder_send_basis_mismatch");
+    const reply = learningEvent("reply_observed");
+    expect(() => remake(reply, { evidence: [...reply.evidence, { ...reply.evidence[0], basis: "founder_send_observed" }] })).toThrow("learning_founder_send_basis_mismatch");
+    const founder = remake(base, { data: { ...base.data, status: "founder_sent" }, evidence: [{ ...base.evidence[0], basis: "founder_send_observed" }] });
+    expect(validateEvent(founder)).toEqual(founder);
+    expect(() => remake(founder, { data: { ...base.data, status: "founder_sent", messageId: null } })).toThrow("learning_acceptance_receipt_missing");
+  });
+  it("reads a founder observation through the existing read-only binding only for the outreach section", async () => {
+    const memory = learningMemoryFirestore(), { grant, request } = learningScope(), f = founderSendSourceFixture(), identity = f.bundle.record as any;
+    const root = "blueprintCommunications/default";
+    memory.records.set("outboundProspects/prospect-1", f.input.prospect);
+    for (const [path, value] of [[`jobs/${f.bundle.id}`, f.bundle.record], [`briefs/${identity.briefId}`, f.bundle.brief],
+      [`handoffs/${identity.briefDigest}`, f.bundle.handoff], [`researchSources/${identity.briefDigest}`, f.bundle.researchSource],
+      [`founderSendObservations/${f.bundle.id}`, f.bundle.founderSend]] as [string, unknown][]) memory.records.set(`${root}/${path}`, value);
+    memory.records.set(`action_ledger/communications_${f.bundle.id}`, f.bundle.ledger);
+    const result = await readExistingSources(memory.db, grant, request, learningNow);
+    expect(result.quarantine).toEqual([]); expect(founderOutreach(result.events)).toHaveLength(1);
+    expect(memory.writes).toEqual([]); expect(memory.reads.some(path => /oauth|mailbox|gmailDraft/i.test(path))).toBe(false);
+    const reads = memory.reads.length;
+    await readExistingSources(memory.db, { ...grant, sections: ["research"] }, { ...request, sections: ["research"] }, learningNow);
+    expect(memory.reads.slice(reads).some(path => path.includes("founderSendObservations"))).toBe(false);
   });
 });
 

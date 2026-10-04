@@ -88,13 +88,16 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
     const ledger = (await tx.get(ledgerRef)).data(); if (!ledger) fail("gmail_draft_canonical_ledger_missing");
     const envelope = communicationsEnvelopeSchema.parse(ledger!.action_payload?.communications), { job, brief, output } = envelope;
     const payload = ledger!.action_payload;
-    const [native, prospect, handoff, receipt, prior, suppression, canonicalBrief, revision, firstTouch] = await Promise.all([
+    const [native, prospect, handoff, receipt, prior, suppression, canonicalBrief, revision, firstTouch, founderSend] = await Promise.all([
       tx.get(root.collection("jobs").doc(job.jobId)), tx.get(db.collection("outboundProspects").doc(job.prospectId)),
       tx.get(root.collection("handoffs").doc(job.briefDigest)), tx.get(root.collection("sendReceipts").doc(communicationsDeliveryKey(job))),
       tx.get(draftRef), tx.get(db.collection("email_suppressions").doc(brief.contact.email.toLowerCase())),
       tx.get(root.collection("briefs").doc(job.briefId)), request.expectedRevisionId ? tx.get(root.collection("draftRevisions").doc(request.expectedRevisionId)) : Promise.resolve(null),
       tx.get(root.collection("firstTouches").doc(communicationsDeliveryKey(job))),
+      tx.get(root.collection("founderSendObservations").doc(job.jobId)),
     ]);
+    // A founder-sent copy is history: never write, update or re-verify it.
+    if (founderSend.exists) fail("gmail_draft_founder_send_observed");
     const saved = native.data(), source = prospect.data(), suppressed = suppression.data();
     if (ledger!.action_type !== "send_email" || ledger!.action_tier !== 3 || ledger!.lane !== "outbound_prospect"
       || ledger!.source_collection !== "outboundProspects" || ledger!.source_doc_id !== job.prospectId
@@ -154,13 +157,15 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
       if (!planned.content.threadId && await ports.priorContact(planned.content.to)) fail("gmail_draft_prior_contact_requires_reply_context");
       if (!ports.enabled() || !ports.allowsRevision(planned.content.jobId, planned.old.revisionId, planned.content.reviewDigest)) fail("gmail_draft_writes_disabled_or_window_changed");
       await ports.requireCapability();
-      const [liveLedger, liveJob, liveReceipt, liveSource, liveSuppression] = await Promise.all([
+      const [liveLedger, liveJob, liveReceipt, liveSource, liveSuppression, liveFounderSend] = await Promise.all([
         ledgerRef.get(), root.collection("jobs").doc(planned.content.jobId).get(),
         root.collection("sendReceipts").doc(planned.old.deliveryKey).get(),
         db.collection("outboundProspects").doc(planned.old.prospectId).get(), db.collection("email_suppressions").doc(planned.content.to).get(),
+        root.collection("founderSendObservations").doc(planned.content.jobId).get(),
       ]);
       const currentLedger=liveLedger.data(), currentSource=liveSource.data(), currentSuppression=liveSuppression.data();
       if (!ports.enabled() || !ports.allowsRevision(planned.content.jobId, planned.old.revisionId, planned.content.reviewDigest)
+        || liveFounderSend.exists
         || currentLedger?.status!=="pending_approval" || currentLedger.approved_by || currentLedger.approved_at
         || currentLedger.sent_at || currentLedger.execution_attempts>0 || currentLedger.last_execution_at
         || communicationsDigest(currentLedger.action_payload)!==planned.content.payloadDigest

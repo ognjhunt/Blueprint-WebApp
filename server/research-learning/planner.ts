@@ -2,6 +2,9 @@ import { digest, type LearningEvent } from "./contract";
 import type { LearningSnapshot, SnapshotRow } from "./snapshot";
 
 function active(row: SnapshotRow) { return row.history.filter(e => row.currentEventIds.includes(e.eventId)); }
+/** Gmail accepted the message: a system send receipt, or an observed SENT
+ * founder-mailbox copy of a Blueprint draft. Neither proves delivery. */
+const gmailAccepted = (status: string) => status === "accepted" || status === "founder_sent";
 function last<T extends LearningEvent["kind"]>(events: LearningEvent[], kind: T) {
   return events.filter((e): e is Extract<LearningEvent, { kind: T }> => e.kind === kind).at(-1);
 }
@@ -12,7 +15,7 @@ export function describeRow(row: SnapshotRow, snapshot: LearningSnapshot) {
   const firstTouch = touches[0];
   const research = last(firstTouch ? events.filter(e => e.occurredAt <= firstTouch.occurredAt) : events, "research_observed");
   const contactAtTouch = last(firstTouch ? events.filter(e => e.occurredAt <= firstTouch.occurredAt) : events, "contact_observed");
-  const accepted = jobs.filter(job => touches.some(e => e.data.jobId === job && e.data.status === "accepted"));
+  const accepted = jobs.filter(job => touches.some(e => e.data.jobId === job && gmailAccepted(e.data.status)));
   const delivery = (job: string) => last(events.filter(e => e.kind !== "delivery_observed" || (e.data.jobId === job
     && touches.some(t => t.data.jobId === job && (!t.data.messageId || (t.data.messageId === e.data.messageId && t.data.threadId === e.data.threadId))))), "delivery_observed");
   const delivered = jobs.filter(job => delivery(job)?.data.status === "verified_delivered");
@@ -21,7 +24,7 @@ export function describeRow(row: SnapshotRow, snapshot: LearningSnapshot) {
     t.data.threadId !== null && t.data.threadId === e.data.threadId
     && t.data.outreachVersion === e.data.outreachVersion && t.occurredAt <= e.occurredAt;
   const acceptedReply = (e: Extract<LearningEvent, { kind: "reply_observed" }>) =>
-    touches.some(t => t.data.status === "accepted" && matchesReply(t, e));
+    touches.some(t => gmailAccepted(t.data.status) && matchesReply(t, e));
   // Trusted ingestion already established correlated_reply evidence. Missing
   // legacy touches or unknown-ACK Gmail refs cannot erase that observation.
   // Accepted-thread eligibility is separate from whether a response occurred.
@@ -29,7 +32,7 @@ export function describeRow(row: SnapshotRow, snapshot: LearningSnapshot) {
     && e.data.classification.label !== "automatic");
   // The first accepted touch defines a prospect-level observation window;
   // attempts with unknown acknowledgement never enter the mature denominator.
-  const firstAccepted = touches.find(e => e.data.status === "accepted");
+  const firstAccepted = touches.find(e => gmailAccepted(e.data.status));
   const mature = Boolean(firstAccepted && Date.parse(snapshot.asOf) - Date.parse(firstAccepted.occurredAt) >= snapshot.maturityDays * 86400000);
   const windowReplies = replies.filter(e => !firstAccepted || e.occurredAt >= firstAccepted.occurredAt);
   const acceptedWindowReplies = windowReplies.filter(acceptedReply);
