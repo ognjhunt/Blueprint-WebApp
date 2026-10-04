@@ -8,12 +8,26 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 3 release carries controlled Pipeline source
-`3bd4c9ba143e0789fc20f696c8a4ef311b7b82e9` (PR2560; reviewed head
-`a08f2e130254b74ca3b94d8062d33b42700294f0`). Its 839,680-byte archive
-SHA256 is `09b92cf66a4c8b050ef9d7482f69fc7851ca4519def057bfdb388eefdd08c0f1`,
-with 49 manifested source files. It preserves the deployed owner MCP, history,
-QA and publication source from `e863c2823bfc8a6b604609e8fb85daa31ae5552b`.
+`f528368c67a9172946f5696d61784b15a6b5d452` (PR2571; reviewed head
+`e50b3eac4d18d8ece7cd020791fe07d77e227111`). Its 890,880-byte archive
+SHA256 is `28906155d2eaff1d4aaeacfe088f9e7e89d78e41327b653a48cc798114bbde71`,
+with 51 manifested source files. It preserves the deployed owner MCP, history,
+QA, publication and cleanup source from `afd48200168df2ac07e0d676d78cc7e745915a2c`.
 This is a research-only controlled release; Pipeline main is a separate lineage.
+
+Employer job postings are an optional source of site-linked physical-duty
+evidence alongside operator pages and other primary sources. The agent retains
+quoted duties, employer/site/requisition identity, original URLs and supported
+dates/status; unknown currentness stays unknown. A job title, repost or open
+application link does not prove a new vacancy, manual work, automation interest
+or robot fit. Posting identities and facility/task duplicates are assessed
+separately without discarding original evidence. Hiring-led conversation or
+evaluation improvement remains a hypothesis until actual outcomes support it.
+The canonical saved-agent policy remains in Pipeline's versioned
+`tools/daily_research/saved-agent-discovery-policy.md`; packaging changes only
+prospective runtime instructions, never frozen comparison questions, admitted
+run inputs or existing business controls. Publishing a saved-agent definition
+remains a separate owner action.
 
 The founder approved automatic cleanup of completed research runs on October 3:
 save and verify complete company-owned backups, confirm the run has finished,
