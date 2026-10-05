@@ -28,8 +28,9 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
-  const reference = (id: string) => ({
+  const reference = (id: string): any => ({
     id,
+    collection: (name: string) => ({ doc: (child: string) => reference(`${id}/${name}/${child}`) }),
     get: async () => {
       const record = state.records.get(id);
       return { exists: Boolean(record), data: () => record && structuredClone(record) };

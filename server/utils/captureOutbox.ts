@@ -171,6 +171,14 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileSceneReadyNotifications } = await import("./taskLifecycleNotifications");
     await reconcileSceneReadyNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile scene-ready notices"); }
+  try {
+    const { reconcileAgentRunResultNotifications } = await import("./agentRunResultNotifications");
+    await reconcileAgentRunResultNotifications(limit);
+  } catch (error) { logger.warn({ error }, "Could not reconcile evaluation-result notices"); }
+  try {
+    const { reconcileTaskEvaluationNotificationRetries } = await import("./taskEvaluationNotificationRetry");
+    await reconcileTaskEvaluationNotificationRetries(db, limit);
+  } catch (error) { logger.warn({ error }, "Could not reconcile notification acknowledgements"); }
   const snapshot = await db
     .collection(CAPTURE_OUTBOX_COLLECTION)
     .where("status", "==", "pending")
@@ -243,6 +251,7 @@ export function startOutboxPump(intervalMs = 60_000): () => void {
   let running = false;
   const timer = setInterval(() => {
     if (running || !lease.isLeader()) return;
+    void import("./captureCoverageQueue").then(module => module.tickCoverageReviews());
     running = true;
     void deliverOutbox({ limit: 25 })
       .catch((error) => logger.warn({ error }, "Outbox pump pass failed"))

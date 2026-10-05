@@ -14,6 +14,7 @@
  */
 
 import { Router, type Request, type Response } from "express";
+import { issueCaptureSupplement, validateCaptureSupplement } from "../utils/captureSupplement";
 import { createReadStream } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import os from "node:os";
@@ -44,7 +45,7 @@ import {
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
-import { reviewCaptureCoverage } from "../utils/captureCoverageReview";
+import { enqueueCoverageReview } from "../utils/captureCoverageQueue";
 import { claimCapturePrivacyScreen, recordCapturePrivacyScreen,
   releaseCapturePrivacyScreenClaim } from "../utils/capturePrivacyRecord";
 import { getBrief, switchSiteToSelfCapture } from "../utils/siteTaskBrief";
@@ -388,6 +389,7 @@ async function writeCompletionMarker(pending: BrowserPending): Promise<void> {
     captureId: pending.capture_id, rawPrefix, video: pending.video,
     manifest: pending.manifest, completedAtIso: pending.completed_at_iso,
   });
+  await enqueueCoverageReview({ requestId: pending.request_id, sceneId: pending.scene_id, captureId: pending.capture_id });
   await publishBrowserDelivery(storageAdmin.bucket(storageBucketName()), delivery);
   await publishBrowserPending(pending);
 }
@@ -590,19 +592,7 @@ async function finishStoredCapture(params: {
   // footage and privacy is a question about whether we may read the footage at
   // all -- asking the second one second would be the ordering mistake Tier 3
   // exists to fix.
-  void reviewCaptureCoverage({
-    requestId: payload.requestId,
-    sceneId: payload.sceneId,
-    captureId: payload.captureId,
-  }).catch((error) => {
-    // Never fails the upload. A missing coverage finding means we do not know
-    // which views are short, which is worse than knowing and much better than
-    // telling somebody their capture failed when it did not.
-    logger.warn(
-      { error, captureId: payload.captureId },
-      "Coverage review could not be started for a stored capture",
-    );
-  });
+  await enqueueCoverageReview({ requestId: payload.requestId, sceneId: payload.sceneId, captureId: payload.captureId });
 
   return {
     status: 201,
@@ -655,11 +645,7 @@ export function bundleServiceDeps(storage: BundleStorage): BundleServiceDeps {
     },
     recordUploadIdentity: (params) => recordSiteCaptureUploadIdentity(params),
     claimBundle: (params) => claimSiteCaptureBundle(params),
-    startCoverageReview(params) {
-      void reviewCaptureCoverage(params).catch((error) => {
-        logger.warn({ error, captureId: params.captureId }, "Coverage review could not be started for a stored capture");
-      });
-    },
+    startCoverageReview: enqueueCoverageReview,
     now: () => new Date(),
   };
 }
@@ -670,9 +656,13 @@ export function bundleServiceDeps(storage: BundleStorage): BundleServiceDeps {
  * the browser routes stand aside rather than write over it.
  */
 async function refuseIfAppBundle(
-  payload: { requestId: string; sceneId: string; captureId: string },
+  payload: { requestId: string; sceneId: string; captureId: string; supplement?: unknown },
   res: Response,
 ): Promise<boolean> {
+  if (payload.supplement) {
+    res.status(409).json({ error: "Open this supplementary capture in the Blueprint app.", code: "supplement_requires_app" });
+    return true;
+  }
   let occupied = false;
   try {
     occupied = await siteCaptureBundleClaimed(payload.captureId);
@@ -1190,6 +1180,8 @@ async function bundleGate(req: Request, res: Response) {
     return null;
   }
   const authorization = await authorizeCaptureUpload(payload.requestId);
+  try { await validateCaptureSupplement(payload); }
+  catch { res.status(409).json({ error: "The original capture could not be verified.", code: "supplement_parent_changed" }); return null; }
   if (!authorization.allowed) {
     res.status(409).json({
       error: authorization.detail || "This capture cannot start yet.",
@@ -1206,6 +1198,17 @@ async function bundleGate(req: Request, res: Response) {
   return { payload, deps: bundleServiceDeps(storage) };
 }
 
+router.post("/:token/supplement", async (req, res) => {
+  const gate = await bundleGate(req, res);
+  if (!gate) return;
+  try {
+    const result = await issueCaptureSupplement(gate.payload);
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    return res.status(error instanceof Error && error.message.startsWith("supplement_") ? 409 : 503)
+      .json({ error: "Additional footage could not be started. Please retry from your job page." });
+  }
+});
 router.post("/:token/bundle", async (req: Request, res: Response) => {
   const gate = await bundleGate(req, res);
   if (!gate) return;

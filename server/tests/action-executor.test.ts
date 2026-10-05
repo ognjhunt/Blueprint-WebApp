@@ -26,6 +26,9 @@ const mockSubcollectionAdd = vi.hoisted(() => vi.fn().mockResolvedValue({ id: "o
 const mockQueryGet = vi.hoisted(() => vi.fn());
 
 let docIdCounter = vi.hoisted(() => ({ value: 0 }));
+const transactionState = vi.hoisted(() => new Map<string, Record<string, unknown>>());
+const transactionSnapshots = vi.hoisted(() => new Map<string, any>());
+const releaseSnapshots = vi.hoisted(() => new Map<string, any>());
 
 const fakeDb = vi.hoisted(() => {
   const makeQuery = () => ({
@@ -35,6 +38,24 @@ const fakeDb = vi.hoisted(() => {
   });
 
   return {
+    runTransaction: async (callback: (tx: any) => Promise<unknown>) => {
+      const writes: Array<() => Promise<unknown>> = [];
+      const result = await callback({ get: async (ref: any) => {
+        const prior = transactionSnapshots.get(ref.id);
+        if (releaseSnapshots.has(ref.id) && (ref.id === "prospect-1"
+          || transactionState.get(ref.id)?.status === "operator_approved" || prior?.data()?.status === "failed")) {
+          const source = releaseSnapshots.get(ref.id); releaseSnapshots.delete(ref.id);
+          return source;
+        }
+        const snap = prior || await ref.get();
+        return { ...snap, data: () => ({ ...snap.data(), ...transactionState.get(ref.id) }) };
+      }, update: (ref: any, value: any) => { writes.push(async () => {
+        transactionState.set(ref.id, { ...transactionState.get(ref.id), ...value });
+        await ref.update(value);
+      }); } });
+      for (const write of writes) await write();
+      return result;
+    },
     collection: vi.fn(() => ({
       doc: vi.fn((id?: string) => {
         const docId = id ?? `auto-doc-${++docIdCounter.value}`;
@@ -42,18 +63,17 @@ const fakeDb = vi.hoisted(() => {
           id: docId,
           set: mockDocSet,
           update: mockDocUpdate,
-          get: mockDocGet,
+          get: async () => {
+            const snapshot = await mockDocGet();
+            if (snapshot) transactionSnapshots.set(docId, snapshot);
+            return snapshot;
+          },
           collection: vi.fn(() => ({
             add: mockSubcollectionAdd,
           })),
         };
       }),
       where: vi.fn(() => makeQuery()),
-    })),
-    // Reads and writes go through the same document mocks, in call order.
-    runTransaction: vi.fn(async (fn: (tx: any) => unknown) => fn({
-      get: (ref: any) => ref.get(),
-      update: (ref: any, data: unknown) => ref.update(data),
     })),
   };
 });
@@ -185,6 +205,9 @@ function makeParams(overrides?: Partial<ExecuteActionParams>): ExecuteActionPara
 // ---------------------------------------------------------------------------
 
 afterEach(() => {
+  transactionState.clear();
+  transactionSnapshots.clear();
+  releaseSnapshots.clear();
   vi.clearAllMocks();
   vi.unstubAllEnvs();
   docIdCounter.value = 0;
@@ -211,8 +234,10 @@ describe("prospect outreach quality enforcement", () => {
     outreach_semantic_review: review };
   const approvedLedger = { ...ledger, status: "operator_approved", approved_by: "admin@blueprint.test" };
   // The release claim reads the ledger and the prospect again, inside its transaction.
-  const claimReads = (claimLedger: Record<string, unknown>, prospect = prospectDoc()) =>
-    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => claimLedger }).mockResolvedValueOnce(prospect);
+  const claimReads = (claimLedger: Record<string, unknown>, prospect = prospectDoc()) => {
+    releaseSnapshots.set("outreach-1", { exists: true, data: () => claimLedger });
+    releaseSnapshots.set("prospect-1", prospect);
+  };
   // The recipient check: no other prospect record carries the address.
   const noOtherRecords = () => mockQueryGet.mockResolvedValueOnce({ size: 0, docs: [] });
 
@@ -842,6 +867,25 @@ describe("executeAction", () => {
 // ---------------------------------------------------------------------------
 
 describe("approveAction", () => {
+  it("retains a successful send when its audit log write fails", async () => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ status: "pending_approval",
+      action_type: "send_email", action_payload: validEmailPayload, action_tier: 3 }) });
+    mockSubcollectionAdd.mockRejectedValueOnce(new Error("audit log unavailable"));
+    expect(await approveAction("ledger-observed", "ops@blueprint.io")).toMatchObject({ state: "sent" });
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
+  });
+
+  it("keeps a lost send acknowledgement unknown instead of retryable", async () => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ status: "pending_approval",
+      action_type: "send_email", action_payload: validEmailPayload, action_tier: 3 }) });
+    mockSendEmail.mockRejectedValueOnce(new Error("connection lost after send"));
+    expect(await approveAction("ledger-unknown", "ops@blueprint.io"))
+      .toMatchObject({ state: "executing", error: "action_outcome_unknown" });
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
+  });
+
   it("transitions pending_approval to sent on success", async () => {
     mockDocGet.mockResolvedValueOnce({
       exists: true,

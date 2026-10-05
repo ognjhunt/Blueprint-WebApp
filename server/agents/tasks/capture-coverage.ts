@@ -55,6 +55,7 @@ import { buildCacheFriendlyPrompt } from "./prompt-cache";
 export interface CaptureCoverageInput {
   /** A short-lived signed read URL for the stored walkthrough. */
   videoUrl: string;
+  supplementaryViewsOnly?: boolean;
   /** What the operator said the job is, so "the work area" means something. */
   taskSummary: string;
   /**
@@ -154,6 +155,7 @@ export const captureCoverageTask: StructuredTaskDefinition<
   build_prompt(input) {
     return buildCacheFriendlyPrompt({
       instructions: `You are checking whether a walkthrough of a work area contains enough views to rebuild that area as a 3D scene.
+${input.supplementaryViewsOnly ? "This is a linked supplementary recording. A retained, source-bound parent review already covers the other views. Judge only the requested additional views. covers_scene means ALL requested additional views are clearly shown; it does not claim that this clip alone depicts the entire area or that coordinate frames are registered." : ""}
 
 Output JSON only. No markdown.
 

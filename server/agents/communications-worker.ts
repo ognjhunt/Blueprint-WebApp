@@ -2,6 +2,7 @@ import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "../utils/email-suppression";
 import { COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
+import { runCommunicationsFactRefresh } from "./communications-fact-refresh";
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest, briefRefreshReasons,
   correlateReply, correlatedReplies, isOptOut, isFounderReplyOrigin, FOUNDER_MAILBOX, type CommunicationsBrief, type VerifiedThread,
@@ -513,6 +514,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
       logger.warn({ code }, "Founder-sent observation waits for its owner direction and read capability");
     }
   }, intake: async () => {
+    await runCommunicationsFactRefresh(db);
     // Bound-thread opt-outs run before unrelated intake and the paid gate.
     await runCommunicationsReplyIntake({ db, readResearch: deps.readResearch, readThread: deps.readThread,
       isSuppressed: deps.isSuppressed, suppress: deps.suppress, now: deps.now,
