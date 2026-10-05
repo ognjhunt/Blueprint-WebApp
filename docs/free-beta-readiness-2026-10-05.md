@@ -62,6 +62,9 @@ Repeated identical approval returns the same run; changed approval conflicts.
   run appears on its original request, is shown once to the site, and cannot
   expose another owner's run. Admission rechecks scene and team revisions in
   the committing transaction, preventing withdrawal/ownership races. Development simulations do not assert target qualification.
+- Isolated local production launch smoke passed after adding an explicit synthetic
+  recording grant and an ephemeral signing key; 16 smoke/build-output tests passed.
+  Live smoke callers must separately supply recording authority.
 - Graphify architecture refresh, asset audit, and portable-storage static audit passed.
 - Pipeline impacted selection: 206 passed, 5 skipped. Changed Python Ruff
   checks passed. No paid provider execution was performed.
