@@ -275,21 +275,19 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
       agentSpendEnabled: false,
       accountBound: false,
       note:
-        "This key can plan and dry-run. Paying and running need the team connected to a verified "
-        + "Blueprint account; after that, fund a balance and set a policy before an agent can spend.",
+        "This beta offers free invited evaluations only. This key supports capability registration; "
+        + "registration does not authorize execution or spending. Connect the team to a verified Blueprint account to manage access.",
     },
     next: parsed.data.checkpoint
       ? [
-          "POST /api/agent-team/plan to see what your checkpoint should run against. Free.",
-          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team) before paying.",
-          "POST /api/agent-team/funding to add balance (Stripe, face value).",
-          "PUT /api/agent-team/policy to set a daily limit and switch the agent on.",
+          "GET /api/agent-team/checkpoints to review your registered policy capabilities; registration does not start an evaluation.",
+          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage access at /settings?tab=agent.",
+          "Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
         ]
       : [
-          "POST /api/agent-team/checkpoints with something we can run.",
-          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team) before paying.",
-          "POST /api/agent-team/funding to add balance (Stripe, face value).",
-          "PUT /api/agent-team/policy to set a daily limit and switch the agent on.",
+          "POST /api/agent-team/checkpoints to register your policy capability; registration does not start an evaluation.",
+          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage access at /settings?tab=agent.",
+          "Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
         ],
   });
 });
@@ -603,7 +601,7 @@ router.post("/checkpoints", async (req: Request, res: Response) => {
   return res.status(201).json({
     ok: true,
     checkpoint: result.checkpoint,
-    next: "POST /api/agent-team/plan to see which evaluations would teach you the most.",
+    next: "Registration does not start an evaluation. Connect the team to a verified Blueprint account and manage access at /settings?tab=agent. Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
   });
 });
 

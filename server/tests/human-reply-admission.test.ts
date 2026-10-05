@@ -10,6 +10,21 @@ const thread = { blocker_id: "one", approved_identity: "owner@example.com", stat
 const message = { sender: "Owner <owner@example.com>", external_message_id: "reply", received_at: "2026-10-05T11:00:00Z" };
 describe("blocker-specific decision admission", () => {
   it("accepts the intended principal", () => expect(humanReplyAdmissionError(thread, message, now)).toBeNull());
+  it.each(["D123:123.456", "123.456"])("admits a verified principal on the exact Slack mirror (%s)", external_thread_id => {
+    const mirrored = { ...thread, channel: "email" as const, correlation: { ...thread.correlation, slack_thread_id: "D123:123.456" } };
+    expect(humanReplyAdmissionError(mirrored, { ...message, sender: "owner@example.com", channel: "slack", recipient: "D123", external_thread_id }, now)).toBeNull();
+  });
+  it.each([undefined, "D999:123.456", "D123:999.999"])("refuses an uncorrelated Slack reply (%s)", external_thread_id => {
+    const mirrored = { ...thread, channel: "email" as const, correlation: { ...thread.correlation, slack_thread_id: "D123:123.456" } };
+    expect(humanReplyAdmissionError(mirrored, { ...message, channel: "slack", external_thread_id }, now)).toBe("wrong_channel");
+  });
+  it("keeps mirror authority principal-specific and revocable", () => {
+    const mirrored = { ...thread, channel: "email" as const, correlation: { ...thread.correlation, slack_thread_id: "D123:123.456" } };
+    const reply = { ...message, channel: "slack", external_thread_id: "D123:123.456" };
+    expect(humanReplyAdmissionError(mirrored, { ...reply, sender: "other@example.com" }, now)).toBe("wrong_principal");
+    expect(humanReplyAdmissionError({ ...mirrored, correlation: thread.correlation }, reply, now)).toBe("wrong_channel");
+    expect(humanReplyAdmissionError(mirrored, reply, now + 7 * 86400_000)).toBe("expired_decision");
+  });
   it.each([null, "attacker@example.com", 'owner@example.com, attacker@example.com'])('refuses %s', sender =>
     expect(humanReplyAdmissionError(thread, { ...message, sender }, now)).toBe("wrong_principal"));
   it("rejects outgoing packets", () => expect(humanReplyAdmissionError(thread, { ...message, external_message_id: "outgoing" }, now)).toBe("outgoing_message"));

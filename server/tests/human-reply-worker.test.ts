@@ -100,6 +100,39 @@ afterEach(() => {
 });
 
 describe("human reply worker", () => {
+  it.each(["mirrored", "wrong_thread", "wrong_principal", "duplicate"])("handles an email blocker's Slack reply without weakening authority (%s)", async variant => {
+    listOpenHumanBlockerThreads.mockResolvedValue([{
+      blocker_id: "blocker-mirror", title: "Bound action", blocker_kind: "ops_commercial",
+      approved_identity: "owner@example.com", channel: "email", status: "awaiting_reply",
+      decision_issued_at: "2026-01-01T00:00:00Z", decision_expires_at: "2099-01-01T00:00:00Z",
+      routing_owner: "blueprint-chief-of-staff", execution_owner: "ops-lead", escalation_owner: null,
+      action_digest: "bound-action", record_of_truth: { report_paths: [], paperclip_issue_id: null, ops_work_item_id: "ledger-mirror" },
+      correlation: { blocker_id: "blocker-mirror", slack_thread_id: "D123:123.456" },
+      resume_action: { kind: "manual_followup", description: "Resume exact action", metadata: {} },
+    }]);
+    getHumanReplyEvent.mockResolvedValue(variant === "duplicate" ? { resume_state: "completed" } : null);
+    recordHumanReplyEvent.mockResolvedValue({ id: "slack:reply-mirror" });
+    recordExternalGapReport.mockResolvedValue({ stable_id: "human_reply:blocker-mirror" });
+    approveAction.mockResolvedValue({ state: "sent", ledgerDocId: "ledger-mirror" });
+    resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
+    const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
+    const result = await ingestHumanReplyPayload({ channel: "slack", external_message_id: "reply-mirror",
+      external_thread_id: variant === "wrong_thread" ? "D999:123.456" : "D123:123.456",
+      sender: variant === "wrong_principal" ? "other@example.com" : "owner@example.com", recipient: "D123",
+      body: variant === "wrong_thread" ? "[Blueprint Blocker ID: blocker-mirror] Approved. Go ahead." : "Approved. Go ahead.",
+    });
+    if (variant === "mirrored") {
+      expect(result).toMatchObject({ processed: true, resolution: "resolved_input" });
+      expect(approveAction).toHaveBeenCalledWith("ledger-mirror", "owner@example.com", undefined, "bound-action",
+        expect.objectContaining({ eventId: "slack:reply-mirror", claim: "claim" }));
+      expect(resolveHumanBlockerAwaitingReply).toHaveBeenCalledWith("blocker-mirror");
+    } else {
+      expect(result).toMatchObject({ processed: false, reason: variant === "wrong_thread" ? "wrong_channel" : variant === "wrong_principal" ? "untrusted_sender" : "duplicate" });
+      expect(recordHumanReplyEvent).not.toHaveBeenCalled();
+      expect(approveAction).not.toHaveBeenCalled();
+      expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
+    }
+  });
   it.each([true, false])("executes an authenticated ledger approval only with an action digest (%s)", async bound => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
