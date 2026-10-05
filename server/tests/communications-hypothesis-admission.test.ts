@@ -321,6 +321,28 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     expect(f.hypothesisIntake()).toMatchObject({ state: "needs_research", reasons: [expect.stringMatching(/^research_adapter_review_required:stale_fact:/)] });
   });
 
+  it("asks for no contact research when another pass takes a hypothesis request over while contact research works on it", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup();
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps)).toMatchObject({ reasons: ["hypothesis_public_contact_missing"] });
+    const [path] = [...f.db.records.keys()].filter(key => key.includes("/refreshRequests/"));
+    const read = f.deps.readContactPage.getMockImplementation()!;
+    let taken = false;
+    f.deps.readContactPage.mockImplementation(async (...args) => {
+      if (!taken) {
+        taken = true;
+        await f.db.doc(path).set({ owner: "blueprint-research-agent", kind: "research_owner_refresh", state: "pending",
+          reasons: ["outreach_ready_crm_check_incomplete"], lease: { owner: null, until: 0 } }, { merge: true });
+      }
+      return read(...args);
+    });
+    const requestContactResearch = vi.fn(async () => true);
+    await runCommunicationsContactRefresh({ ...f.deps, requestContactResearch });
+    expect(requestContactResearch).not.toHaveBeenCalled();
+    expect(f.db.records.get(path)).toMatchObject({ owner: "blueprint-research-agent", kind: "research_owner_refresh", state: "pending" });
+    for (const name of ["briefs", "jobs"]) expect(f.records(name)).toHaveLength(0);
+  });
+
   it("moves a terminal contact request to the research owner when a later pass finds a research problem", async () => {
     vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
     const f = setup({ mutateHypothesisAssessment: assessment => { assessment.valid_until = null; } });

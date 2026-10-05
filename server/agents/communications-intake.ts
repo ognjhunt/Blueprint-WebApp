@@ -583,6 +583,9 @@ export async function runCommunicationsContactRefresh(deps: IntakeDependencies) 
           });
           break;
         }
+        // Another pass settled this hypothesis request, or handed it to the research owner, while this worker
+        // read pages. It is no longer this worker's: no contact research is asked for and nothing is written.
+        if (claim.label === "hypothesis" && reason === CONTACT_CLAIM_CHANGED) break;
         const transient = /contact_fetch_(?:timeout|dns_timeout|incomplete|failed)|ECONN|ENOTFOUND|EAI_AGAIN/.test(reason) && claim.attempts < 2;
         const researchQueued = !transient && source && prospectId && await deps.requestContactResearch?.(source, prospectId, reason);
         await deps.db.runTransaction(async tx => {
