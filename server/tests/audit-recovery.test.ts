@@ -73,6 +73,16 @@ describe("durable human decisions", () => {
     read("action_ledger/action").action_payload.subject = "Different action";
     expect(await claimHumanReplyResume(row.id)).toBeNull();
   });
+  it.each([true, false])("recovers approval-before-execution only for the same claim (%s)", async sameClaim => {
+    thread(); const row = await recordHumanReplyEvent(event("approved-before-crash"));
+    const claim = await claimHumanReplyResume(row.id);
+    read(`humanReplyEvents/${row.id}`).resume_started_at = Date.now() - 600000;
+    Object.assign(read("action_ledger/action"), { status: "operator_approved", human_reply_event_id: row.id,
+      human_reply_claim: sameClaim ? claim : "another-claim" });
+    await reconcileHumanReplyResumes();
+    expect(read(`humanReplyEvents/${row.id}`).resume_state).toBe(sameClaim ? "pending" : "unknown");
+    expect(read("action_ledger/action").status).toBe(sameClaim ? "pending_approval" : "operator_approved");
+  });
   it.each(["executing", "sent"])("reconciles a lost %s acknowledgement without executing again", async status => {
     thread(); const row = await recordHumanReplyEvent(event("yes")); await claimHumanReplyResume(row.id);
     read(`humanReplyEvents/${row.id}`).resume_started_at = Date.now() - 600000;
@@ -97,7 +107,11 @@ describe("cost receipts", () => {
   });
   it("does not add policy cost to shared preparation", async () => {
     await recordCohortCostReceipt({ ...base, allocation: "incremental_policy", status: "settled", amountUsd: 3 });
-    expect(await getCohort("scene")).toMatchObject({ siteCostUsd: 0, incrementalPolicyCostUsd: 3 });
+    const value = (await getCohort("scene"))!;
+    expect(value).toMatchObject({ siteCostUsd: 0, incrementalPolicyCostUsd: 3 });
+    expect(cohortContribution({ cohort: value, screeningEpisodeCostUsd: 0, finalistEpisodeCostUsd: 0 }).contributionUsd).toBe(-3);
+    expect(cohortContribution({ cohort: value, screeningEpisodeCostUsd: 0, finalistEpisodeCostUsd: 0,
+      episodeCostsIncludePolicyReceipts: true }).additionalPolicyCostUsd).toBe(0);
   });
 });
 

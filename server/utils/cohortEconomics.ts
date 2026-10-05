@@ -214,6 +214,8 @@ export interface ContributionInput {
   screeningEpisodeCostUsd: number;
   /** Our real cost per finalist episode. Often the same; not necessarily. */
   finalistEpisodeCostUsd: number;
+  /** Set only when measured episode unit costs already include these exact policy receipts. */
+  episodeCostsIncludePolicyReceipts?: boolean;
 }
 
 export interface ContributionResult {
@@ -221,6 +223,7 @@ export interface ContributionResult {
   screeningCostUsd: number;
   finalistCostUsd: number;
   siteCostUsd: number;
+  additionalPolicyCostUsd: number;
   contributionUsd: number | null;
   costCompleteness: "known_inputs" | "incomplete";
   /** Final-comparison episodes per screening episode is the thing to watch. */
@@ -237,6 +240,7 @@ export function cohortContribution(input: ContributionInput): ContributionResult
   const { cohort } = input;
   const screeningCostUsd = round2(cohort.screeningEpisodes * input.screeningEpisodeCostUsd);
   const finalistCostUsd = round2(cohort.finalistEpisodes * input.finalistEpisodeCostUsd);
+  const additionalPolicyCostUsd = input.episodeCostsIncludePolicyReceipts ? 0 : round2(cohort.incrementalPolicyCostUsd || 0);
   const incomplete = (cohort.unknownCostReceipts || 0) > 0 || (cohort.estimatedCostReceipts || 0) > 0;
 
   return {
@@ -244,9 +248,10 @@ export function cohortContribution(input: ContributionInput): ContributionResult
     screeningCostUsd,
     finalistCostUsd,
     siteCostUsd: round2(cohort.siteCostUsd),
+    additionalPolicyCostUsd,
     costCompleteness: incomplete ? "incomplete" : "known_inputs",
     contributionUsd: incomplete ? null : round2(
-      cohort.revenueUsd - screeningCostUsd - finalistCostUsd - cohort.siteCostUsd,
+      cohort.revenueUsd - screeningCostUsd - finalistCostUsd - cohort.siteCostUsd - additionalPolicyCostUsd,
     ),
     unpaidEpisodesPerPaidEpisode:
       cohort.screeningEpisodes > 0

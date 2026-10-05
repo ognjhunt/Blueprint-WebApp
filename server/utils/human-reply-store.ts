@@ -582,6 +582,12 @@ export async function reconcileHumanReplyResumes(limit = 50) {
     }
     if (action.status === "sent") {
       tx.update(row.ref, { resume_state: "completed", resume_projection_pending: true, resume_reason: null });
+    } else if (action.status === "operator_approved" && action.human_reply_event_id === event.id
+      && action.human_reply_claim === event.resume_claim && !humanReplyAdmissionError(thread, event)) {
+      // This exact reply won approval but never won the executing claim. Reset
+      // both states atomically; a delayed worker must compete for the new claim.
+      tx.update(db!.collection("action_ledger").doc(ledgerId), { status: "pending_approval" });
+      tx.update(row.ref, { resume_state: "pending", resume_reason: null });
     } else if (action.status === "pending_approval" && !humanReplyAdmissionError(thread, event)) {
       // The executor's compare-and-set proves that no execution was claimed.
       tx.update(row.ref, { resume_state: "pending", resume_reason: null });
@@ -593,7 +599,7 @@ export async function reconcileHumanReplyResumes(limit = 50) {
 
 export async function projectCompletedHumanReplies(resolve: (blockerId: string) => Promise<unknown>, limit = 50) {
   if (!db) return;
-  const rows = await db.collection(EVENT_COLLECTION).where("resume_projection_pending", "==", true).limit(limit).get();
+  const rows = await automationBatch(db, db.collection(EVENT_COLLECTION).where("resume_projection_pending", "==", true), "human_reply_projection", limit);
   for (const row of rows.docs) {
     const event = row.data() as HumanReplyEventRecord;
     const thread = await getHumanBlockerThread(event.blocker_id);

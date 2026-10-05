@@ -747,6 +747,7 @@ export async function approveAction(
     status: "operator_approved",
     approved_by: operatorEmail,
     approved_at: new Date(),
+    ...(replyAuthority ? { human_reply_event_id: replyAuthority.eventId, human_reply_claim: replyAuthority.claim } : {}),
     ...(isProspectOutreach(data) ? {
       outreach_semantic_review: outreachSemanticReviewSchema.parse(outreachSemanticReview),
       outreach_reviewed_by: operatorEmail,
