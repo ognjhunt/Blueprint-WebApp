@@ -8,8 +8,8 @@ test("homepage leads with the site decision and separates supplier participation
   await expect(nav.getByRole("link", { name: "Robot teams" })).toHaveAttribute("href", "/contact/robot-team");
   await expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
   await expect(page.getByRole("link", { name: "Apply for early access" })).toBeVisible();
-  await page.getByText("Meet your match", { exact: true }).click();
-  await expect(page.getByText(/we introduce you right away\. No match, no fee\./)).toBeVisible();
+  await page.getByText("Check robot fit", { exact: true }).click();
+  await expect(page.getByText(/evaluate your actual job for free before an introduction/)).toBeVisible();
   await page.getByText("Run the pilot", { exact: true }).click();
   await expect(page.getByText(/Blueprint takes no cut/)).toBeVisible();
   await expect(page.getByText("Illustrative scenes", { exact: true })).toBeVisible();
