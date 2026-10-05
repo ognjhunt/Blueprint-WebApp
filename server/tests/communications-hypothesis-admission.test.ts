@@ -8,13 +8,14 @@ import { COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { communicationsBriefSchema, communicationsDigest, OUTREACH_READY_OWNER_DECISION_REFERENCE, OUTREACH_READY_SEND_REFUSAL,
   verifyCommunicationsHandoff } from "../agents/communications-contract";
 import { prospectResearchTier } from "../utils/outboundProspects";
-import { leadIdentityKey } from "../agents/lead-verification";
+import { leadIdentityKey, verificationDigest } from "../agents/lead-verification";
 import { communicationsNow } from "./fixtures/communications";
 import { publishedResearchFixture, TIER_SOURCES } from "./fixtures/published-research";
 import { ADDRESS, hypothesisSetup as setup, prospects, QUESTION } from "./fixtures/hypothesis";
 
 // Invented operators, *.example hosts and synthetic evidence only. No network, model or mailbox.
 afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
+const HYPOTHESIS_KEY = publishedResearchFixture({ outreachReady: "published" }).hypothesis.candidate_key;
 
 describe("outreach-ready hypothesis admission for drafting (offline, synthetic)", () => {
   it("records hypotheses only, with no contact research or prospect, while hypothesis drafts are off", async () => {
@@ -214,6 +215,19 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     ["a direction that authorizes sends", { mutateRow: row => { row.outreach_ready.sends_authorized = true; } }, "outreach_ready_direction_unusable"],
     ["a direction for another path", { mutateRow: row => { row.outreach_ready.paths = ["site_screen"]; } }, "outreach_ready_direction_unusable"],
     ["an expired direction", { mutateRow: row => { row.outreach_ready.valid_until = "2026-09-30T00:00:00+00:00"; } }, "outreach_ready_direction_expired"],
+    // The tier is recomputed from the review's retained results and duplicate checks; both must be QA's own.
+    ["a cohort member's retained assessment that QA did not record, re-sealed", { mutateRow: row => {
+      const result = row.review.lead_verification.results.find((item: any) => item.candidate_key !== HYPOTHESIS_KEY);
+      result.assessment = structuredClone(result.assessment);
+      result.assessment.sources[0].publisher = "Synthetic publisher changed after QA";
+      result.assessment_digest = verificationDigest(result.assessment);
+    } }, "research_adapter_lead_verification_binding_missing"],
+    ["duplicate checks that QA did not record", { mutateRow: row => {
+      for (const check of Object.values<any>(row.review.lead_verification.duplicate_checks)) check.reason = "Synthetic reason changed after QA";
+    } }, "research_adapter_lead_verification_binding_missing"],
+    ["duplicate checks with a member missing", { mutateRow: row => {
+      for (const key of Object.keys(row.review.lead_verification.duplicate_checks)) if (key !== HYPOTHESIS_KEY) delete row.review.lead_verification.duplicate_checks[key];
+    } }, "research_adapter_lead_verification_binding_missing"],
   ])("sends %s to the research owner as needs_research, never a draft", async (_name, options, reason) => {
     vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
     const f = setup(options);

@@ -405,12 +405,19 @@ export function hypothesisPublicationSource(snapshot: any, candidateKey: string,
   const row = snapshot.row, direction = frozenOutreachDirection(row, now), lead = row.review.lead_verification;
   if (lead?.result_version !== LEAD_OUTREACH_RESULT_VERSION || lead.outreach_rule_version !== OUTREACH_RULE_VERSION) throw new Error("outreach_ready_rule_version_mismatch");
   const results: any[] = lead.results, candidates = leadPacketCandidates(row.packet);
-  // Every member's retained result binds its candidate and assessment, as for a verified row.
+  // The tier is recomputed from these retained results and duplicate checks, so each must be QA's own, as
+  // for a verified row (researchPublicationSource): every member's result binds its candidate and QA's
+  // assessment, and the duplicate checks are exactly QA's.
+  const qaResult = publishedQaResult(snapshot, row, { date: row.date, packetDigest: row.packet_digest, rawArtifactDigest: row.raw_output_digest }, null);
   for (const member of candidates) {
     const result = results.filter(item => item?.candidate_key === member.candidate_key);
-    if (result.length !== 1 || result[0].candidate_digest !== verificationDigest(member)
-      || result[0].assessment_digest !== verificationDigest(result[0].assessment ?? null)) throw new Error("research_adapter_lead_verification_binding_missing");
+    const raw = qaResult.checks.find((check: any) => check.candidate_key === member.candidate_key)?.lead_verification ?? null;
+    if (result.length !== 1 || result[0].candidate_digest !== verificationDigest(member) || result[0].assessment_digest !== verificationDigest(raw)
+      || verificationDigest(result[0].assessment ?? null) !== verificationDigest(raw)) throw new Error("research_adapter_lead_verification_binding_missing");
   }
+  const duplicateChecks = Object.fromEntries(qaResult.checks.map((check: any) => [check.candidate_key,
+    { duplicate: check.duplicate, duplicate_of: check.duplicate_of ?? null, reason: check.reason }]));
+  if (communicationsDigest(duplicateChecks) !== communicationsDigest(lead.duplicate_checks ?? null)) throw new Error("research_adapter_lead_verification_binding_missing");
   let evidence: ReturnType<typeof retainedOutreachEvidence>;
   try { evidence = retainedOutreachEvidence(row, name => snapshotFile(snapshot, row.date, name)); }
   catch { throw new Error("outreach_ready_evidence_unavailable"); }
