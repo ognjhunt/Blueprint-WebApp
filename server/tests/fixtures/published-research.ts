@@ -9,7 +9,7 @@ import { evaluateLeadVerification, LEAD_OUTREACH_RESULT_VERSION } from "../../ag
 /** The outreach-ready block of a synthetic day, editable before the day is sealed.
  * An `undefined` key or payload value leaves that field out of the day. */
 export type OutreachReadyBlock = { reviewKeys?: unknown; qaKeys?: unknown; sheets?: unknown; notion?: unknown;
-  retained: any; status: string; maturity: string };
+  retained: any; qaCheck: any; status: string; maturity: string };
 
 /** Invented second candidate: operator, site and task proven, manual workflow unresolved. */
 function outreachReadyCandidate() {
@@ -31,10 +31,12 @@ function outreachReadyCandidate() {
 /** Synthetic records shaped like the pinned v3 runner/consumer/publisher output.
  * Unlike the original consumer fixture, this includes full QA and publication plans.
  * `outreachReady` adds an invented outreach-ready candidate on a v3-pinned day:
- * "shadow" records its tier only, "published" also publishes it as a hypothesis. */
+ * "shadow" records its tier only, "published" also publishes it as a hypothesis.
+ * `pin` sets the packet's lead-verification result version, replacing the v3 pin. */
 export function publishedResearchFixture(options: { unknowns?: string[]; taskClaim?: string;
   verificationAssessedAt?: string; leadVerification?: boolean; publicContact?: boolean; naturalContact?: boolean; actualProducer?: boolean; date?: string; mutateCandidate?: (candidate: any) => void;
-  outreachReady?: "shadow" | "published"; mutateOutreachReady?: (block: OutreachReadyBlock) => void; acceptVerified?: boolean } = {}) {
+  outreachReady?: "shadow" | "published"; mutateOutreachReady?: (block: OutreachReadyBlock) => void; acceptVerified?: boolean;
+  pin?: string; mutateHypothesisCandidate?: (candidate: any) => void; mutateHypothesisAssessment?: (assessment: any) => void } = {}) {
   const { snapshot, brief, output } = communicationsFixture();
   const candidate = {
     candidate_key: "candidate-1", identity_keys: ["candidate-1"],
@@ -75,6 +77,7 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
     quote: `${candidate.organization}, ${candidate.site}: business inquiries: ${brief.contact.email}` });
   options.mutateCandidate?.(candidate);
   const hypothesis: any = options.outreachReady ? outreachReadyCandidate() : null;
+  if (hypothesis) options.mutateHypothesisCandidate?.(hypothesis);
   const row: any = snapshot.row;
   if (options.date) { row.date = options.date; row.run_key = `blueprint-researcher:${options.date}`; }
   const producerContext: any = { content_hash: "a".repeat(64), snapshot_loaded_at: "2026-09-30T19:00:00Z", records: [] };
@@ -100,7 +103,8 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
     duplicates: [], scope: "proposals_only_no_outreach", budget_is_hard_cap: false,
     destinations: { sheet_id: "1n95Ih0Swc-q-kZyUaDHoZh6SVzxvf_zt-CRR7i39bWY", sheet_tab: "Prospects",
       notion_parent: "3eb80154161d8116858ed5f376b4b7a9" },
-    ...(hypothesis ? { lead_verification_result_version: LEAD_OUTREACH_RESULT_VERSION } : {}) };
+    ...(options.pin ? { lead_verification_result_version: options.pin }
+      : hypothesis ? { lead_verification_result_version: LEAD_OUTREACH_RESULT_VERSION } : {}) };
   row.packet_digest = researchDigest(row.packet);
   // Representative actual runner output, before collect adds candidate/run identity.
   // The producer deliberately has no contact field or magic contact claim.
@@ -118,13 +122,24 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
   const hypothesisAssessment: any = hypothesis ? syntheticLeadVerification(hypothesis, options.verificationAssessedAt) : null;
   if (hypothesisAssessment) hypothesisAssessment.claims.human_workflow = { status: "unresolved",
     reason: "Synthetic sources do not say whether the sorting is still done by hand.", source_refs: [] };
+  if (hypothesisAssessment) options.mutateHypothesisAssessment?.(hypothesisAssessment);
   const v3 = (item: any, assessment: any, tier: string) => ({ ...evaluateLeadVerification(item, assessment, Date.parse("2026-09-30T23:00:00Z")),
     version: LEAD_OUTREACH_RESULT_VERSION, tier, eligible_for_outreach_ready: tier === "outreach_ready" });
-  const entries = hypothesis ? [{ candidate: structuredClone(hypothesis), open_checks: ["manual_workflow", "existing_automation", "fit", "interest"],
-    open_questions: [`Is ${hypothesis.task} at ${hypothesis.site} still done mostly by hand?`, "Do you already use or plan automation for it?",
-      "Would a short look at whether a robot could take on part of it be useful?"] }] : [];
+  // Design v1.1, as the Pipeline derives it: open checks in rule order, then exactly one
+  // question, S while the site link is open, else M while the manual workflow is open, else A.
+  const openChecks = (assessment: any) => [...(assessment.claims.site_task.status !== "verified_fact" ? ["site_link"] : []),
+    ...(assessment.claims.human_workflow.status !== "verified_fact" ? ["manual_workflow"] : []),
+    ...(assessment.valid_until === null ? ["freshness"] : []), "existing_automation", "fit", "interest"];
+  const question = (open: string[], task: string, site: string) => open.includes("site_link")
+    ? `Is ${task} done at your ${site} site, or somewhere else in the company?`
+    : open.includes("manual_workflow") ? `Which parts of ${task} at ${site} still need people, and what has kept them from being automated?`
+      : `What has kept the remaining ${task} work at ${site} from being automated so far?`;
+  const entries = hypothesis ? [{ candidate: structuredClone(hypothesis), open_checks: openChecks(hypothesisAssessment),
+    open_questions: [question(openChecks(hypothesisAssessment), hypothesis.task, hypothesis.site)] }] : [];
   const block: OutreachReadyBlock | null = hypothesis ? { status: "Hypothesis", maturity: "Outreach-ready: operator, site, task proven",
     retained: v3(hypothesis, hypothesisAssessment, "outreach_ready"),
+    qaCheck: { candidate_key: hypothesis.candidate_key, source_support_verified: true, duplicate: false,
+      reason: "Synthetic operator, site and task quotes", lead_verification: hypothesisAssessment },
     ...(options.outreachReady === "published" ? { reviewKeys: [hypothesis.candidate_key], qaKeys: [hypothesis.candidate_key],
       sheets: entries, notion: structuredClone(entries) } : {}) } : null;
   if (block) options.mutateOutreachReady?.(block);
@@ -135,15 +150,17 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
     summary: "Reviewed synthetic site/job/team evidence; contact requires separate verification",
     checks: [{ candidate_key: candidate.candidate_key, source_support_verified: true, duplicate: false, reason: "Synthetic reviewed sources",
       ...(leadVerification ? { lead_verification: leadVerification } : {}) },
-    ...(hypothesis ? [{ candidate_key: hypothesis.candidate_key, source_support_verified: true, duplicate: false,
-      reason: "Synthetic operator, site and task quotes", lead_verification: hypothesisAssessment }] : [])],
+    ...(block ? [block.qaCheck] : [])],
     ...(block?.qaKeys !== undefined ? { outreach_ready_keys: block.qaKeys } : {}) };
   const qaBytes = Buffer.from(JSON.stringify(qaResult));
   const artifact_digest = createHash("sha256").update(qaBytes).digest("hex");
   row.review = { packet_digest: row.packet_digest, reviewer_reference: `agent-turn:${row.session_id}:qa-turn-1`,
     source_support_verified: true, crm_rechecked: true, accepted_keys: accepted.map(item => item.candidate_key),
     summary: qaResult.summary, qa_artifact_digest: artifact_digest,
+    // The v3 cohort keeps QA's duplicate checks for every member, the hypothesis included.
     ...(leadVerification ? { lead_verification: block ? { result_version: LEAD_OUTREACH_RESULT_VERSION,
+      duplicate_checks: Object.fromEntries(qaResult.checks.map((check: any) => [check.candidate_key,
+        { duplicate: check.duplicate, duplicate_of: check.duplicate_of ?? null, reason: check.reason }])),
       results: [v3(candidate, leadVerification, "verified"), block.retained] }
       : syntheticVerificationCohort(candidate, leadVerification, Date.parse("2026-09-30T23:00:00Z")) } : {}),
     ...(block?.reviewKeys !== undefined ? { outreach_ready_keys: block.reviewKeys } : {}) };

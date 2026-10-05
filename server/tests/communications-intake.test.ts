@@ -6,6 +6,7 @@ import { admitPublishedResearch, recordPublishedHypotheses, runCommunicationsInt
 import { publishedPublicContact, PUBLIC_CONTACT_PREFIX } from "../agents/communications-contact-evidence";
 import { previewResearchCommunications, approveResearchCommunications } from "../agents/communications-producer";
 import { researchDigest, researchPublicationHypotheses, researchPublicationSource, verifyPublishedResearch } from "../agents/communications-research";
+import * as research from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { communicationsDigest } from "../agents/communications-contract";
 import { processCommunicationsJob, startCommunicationsQueueLoop } from "../agents/communications-worker";
@@ -252,7 +253,14 @@ describe("published research days that carry outreach-ready hypotheses (offline,
     const { briefId: _briefId, researchOrigin: { sourceDigest: _sourceDigest, ...researchOrigin }, ...rest } = brief;
     return { ...rest, researchOrigin };
   };
-  const questions = ["Is sorting returned parcels at Synthetic sorting site still done mostly by hand?",
+  // Design v1.1 wording, word for word, for the synthetic sorting candidate.
+  const ask = {
+    S: "Is sorting returned parcels done at your Synthetic sorting site site, or somewhere else in the company?",
+    M: "Which parts of sorting returned parcels at Synthetic sorting site still need people, and what has kept them from being automated?",
+    A: "What has kept the remaining sorting returned parcels work at Synthetic sorting site from being automated so far?",
+  };
+  const questions = [ask.M];
+  const designV1Questions = ["Is sorting returned parcels at Synthetic sorting site still done mostly by hand?",
     "Do you already use or plan automation for it?", "Would a short look at whether a robot could take on part of it be useful?"];
 
   it("admits verified rows on a v3-pinned day that records the tier in shadow mode", async () => {
@@ -284,6 +292,7 @@ describe("published research days that carry outreach-ready hypotheses (offline,
       intakeId: expect.stringMatching(/^[a-f0-9]{64}$/), state: "hypothesis_recorded", publishedTier: "outreach_ready", label: "hypothesis",
       sheetsProspectId: "BP-000043", candidateDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
       openChecks: ["manual_workflow", "existing_automation", "fit", "interest"], openQuestions: questions,
+      validUntil: "2026-10-08T21:00:00.000Z",
       owner: "blueprint-communications-agent", recordedAt: communicationsNow, eligibleForOutreach: false, draftJobCreated: false,
       sendsAuthorized: false, humanContextApprovalRequired: false, sent: false, sessionCreated: false }]);
     expect(prospects(both)).toHaveLength(1);
@@ -293,31 +302,157 @@ describe("published research days that carry outreach-ready hypotheses (offline,
     expect([...both.db.records.entries()]).toEqual(before);
   });
 
-  it.each<[string, (block: OutreachReadyBlock) => void]>([
-    ["an invented question", eachEntry(entry => { entry.open_questions = [...entry.open_questions, "Could we schedule a call?"]; })],
-    ["a candidate that differs from the packet", eachEntry(entry => { entry.candidate.task = "sorting outbound parcels"; })],
-    ["a closed fit check", eachEntry(entry => { entry.open_checks = ["manual_workflow", "existing_automation", "interest"]; })],
-    ["an unknown entry field", eachEntry(entry => { entry.approved = true; })],
-    ["Notion and Sheets blocks that differ", block => { block.notion = []; }],
-    ["a block that is not a list", block => { block.sheets = "hypotheses"; block.notion = "hypotheses"; }],
-    ["no QA list", block => { block.reviewKeys = undefined; block.qaKeys = undefined; }],
-    ["a key QA did not list", block => { block.qaKeys = []; }],
-    ["a key that is also a verified row", block => { block.reviewKeys = block.qaKeys = ["candidate-2", "candidate-1"]; }],
-    ["a Sheets row marked like a verified row", block => { block.status = "Needs recheck"; }],
-    ["a retained result without the outreach-ready tier", block => { block.retained = { ...block.retained, tier: "none" }; }],
-  ])("turns a block with %s into needs_research and still admits the verified row", async (_name, mutate) => {
-    const f = setup({ publicContact: true, outreachReady: "published", mutateOutreachReady: mutate }); await f.workItem();
-    await runCommunicationsIntake(f.deps);
+  // Each case names the one check that refuses it, so a removed or reordered check fails here.
+  const expectBlockRefused = async (f: ReturnType<typeof setup>, reason: string) => {
     expect(f.records("intake").find(item => item.candidateKey === "candidate-1")).toMatchObject({ state: "admitted" });
     expect(f.records("jobs")).toHaveLength(1); expect(f.records("briefs")).toHaveLength(1); expect(prospects(f)).toHaveLength(1);
     // The strict send-path check still verifies the verified row's publication.
     const [brief] = f.records("briefs");
     expect(verifyPublishedResearch(f.snapshot, brief, f.records("handoffs")[0]).briefDigest).toBe(communicationsDigest(brief));
     expect(f.records("intake").find(item => item.candidateKey === "hypotheses")).toMatchObject({ state: "needs_research",
-      reasons: [expect.stringMatching(/^research_hypothesis_block_invalid:[a-z_0-9]+$/)], sent: false });
+      reasons: [`research_hypothesis_block_invalid:${reason}`], sent: false });
     expect(f.records("intake").some(item => item.state === "hypothesis_recorded")).toBe(false);
     expect(f.records("refreshRequests").filter(request => request.state === "pending")).toEqual([
       expect.objectContaining({ candidateKey: "hypotheses", owner: "blueprint-research-agent", kind: "research_owner_refresh" })]);
+  };
+  it.each<[string, Parameters<typeof publishedResearchFixture>[0], string]>([
+    ["an invented question", { mutateOutreachReady: eachEntry(entry => { entry.open_questions = [...entry.open_questions, "Could we schedule a call?"]; }) }, "open_questions_0"],
+    ["the design v1 form of up to three fixed questions", { mutateOutreachReady: eachEntry(entry => { entry.open_questions = designV1Questions; }) },
+      "open_questions_0"],
+    ["only the first design v1 question", { mutateOutreachReady: eachEntry(entry => { entry.open_questions = designV1Questions.slice(0, 1); }) },
+      "open_questions_0"],
+    ["no question", { mutateOutreachReady: eachEntry(entry => { entry.open_questions = []; }) }, "open_questions_0"],
+    ["a question that is not a list", { mutateOutreachReady: eachEntry(entry => { entry.open_questions = ask.M; }) }, "open_questions_0"],
+    ["a later template while the manual workflow is open", { mutateOutreachReady: eachEntry(entry => { entry.open_questions = [ask.A]; }) },
+      "open_questions_0"],
+    ["the site template while the site link is proven", { mutateOutreachReady: eachEntry(entry => { entry.open_questions = [ask.S]; }) },
+      "open_questions_0"],
+    ["a site link check the assessment does not support", { mutateOutreachReady: eachEntry(entry => {
+      entry.open_checks = ["site_link", ...entry.open_checks]; entry.open_questions = [ask.S]; }) }, "open_checks_0"],
+    ["the M template with an open site link", { mutateHypothesisAssessment: assessment => { assessment.claims.site_task.status = "inference"; },
+      mutateOutreachReady: eachEntry(entry => { entry.open_questions = [ask.M]; }) }, "open_questions_0"],
+    ["the M template once the manual workflow is verified", { mutateHypothesisAssessment: assessment => {
+      assessment.claims.human_workflow = { ...assessment.claims.site_task }; assessment.claims.plausible_fit.status = "unresolved"; },
+      mutateOutreachReady: eachEntry(entry => { entry.open_questions = [ask.M]; }) }, "open_questions_0"],
+    ["a malformed published expiry", { mutateHypothesisAssessment: assessment => { assessment.valid_until = "next week"; } }, "valid_until_0"],
+    ["a candidate that differs from the packet", { mutateOutreachReady: eachEntry(entry => { entry.candidate.task = "sorting outbound parcels"; }) }, "candidate_0"],
+    ["a closed fit check", { mutateOutreachReady: eachEntry(entry => { entry.open_checks = ["manual_workflow", "existing_automation", "interest"]; }) }, "open_checks_0"],
+    ["an unknown entry field", { mutateOutreachReady: eachEntry(entry => { entry.approved = true; }) }, "entry_0"],
+    ["Notion and Sheets blocks that differ", { mutateOutreachReady: block => { block.notion = []; } }, "notion_payload"],
+    ["a block that is not a list", { mutateOutreachReady: block => { block.sheets = "hypotheses"; block.notion = "hypotheses"; } }, "sheets_payload"],
+    ["no QA list", { mutateOutreachReady: block => { block.reviewKeys = undefined; block.qaKeys = undefined; } }, "outreach_ready_keys"],
+    ["a key QA did not list", { mutateOutreachReady: block => { block.qaKeys = []; } }, "outreach_ready_keys_not_listed_by_qa"],
+    ["a key that is also a verified row", { mutateOutreachReady: block => { block.reviewKeys = block.qaKeys = ["candidate-2", "candidate-1"]; } },
+      "outreach_ready_keys_overlap_accepted_keys"],
+    ["a Sheets row marked like a verified row", { mutateOutreachReady: block => { block.status = "Needs recheck"; } }, "sheet_row_0"],
+    ["a retained result without the outreach-ready tier", { mutateOutreachReady: block => { block.retained = { ...block.retained, tier: "none" }; } },
+      "lead_verification_0"],
+    ["a retained result that claims qualified promotion",
+      { mutateOutreachReady: block => { block.retained = { ...block.retained, eligible_for_qualified_promotion: true }; } }, "lead_verification_0"],
+    ["a QA check that marks the hypothesis a duplicate",
+      { mutateOutreachReady: block => { block.qaCheck = { ...block.qaCheck, duplicate: true, duplicate_of: "candidate-0-unpublished" }; } }, "qa_check_0"],
+    ["a v2 result-version pin", { pin: "blueprint.lead-verification-result.v2" }, "lead_verification_result_version"],
+    ["a candidate outside the publication scope", { mutateHypothesisCandidate: candidate => { candidate.qualification_status = "qualified"; } },
+      "candidate_scope_0"],
+    // Declared by the QA list alone: the review keys name a hypothesis that no payload publishes.
+    ["review keys and no published block", { mutateOutreachReady: block => { block.sheets = undefined; block.notion = undefined; } }, "sheets_payload"],
+  ])("turns a block with %s into needs_research and still admits the verified row", async (_name, options, reason) => {
+    const f = setup({ publicContact: true, outreachReady: "published", ...options }); await f.workItem();
+    await runCommunicationsIntake(f.deps);
+    await expectBlockRefused(f, reason);
+  });
+
+  // Reviewer probes: a hypothesis Sheets row never decides the verified row. The receipt is
+  // resealed each time, so only the hypothesis row's identity or position is wrong.
+  const reseal = (f: ReturnType<typeof setup>) => {
+    const sheets = f.snapshot.row.delivery.sheets, plan = sheets.plan;
+    plan.body_json = JSON.stringify({ majorDimension: "ROWS", values: plan.sheet_rows });
+    plan.request_digest = createHash("sha256").update(plan.body_json).digest("hex");
+    sheets.receipt.reference = `sheets:${f.snapshot.row.packet.destinations.sheet_id}:Prospects:${plan.sheet_rows.map((entry: any) => entry[0]).join(",")}`;
+  };
+  it.each<[string, (f: ReturnType<typeof setup>) => void, string]>([
+    ["a malformed hypothesis row ID", f => { f.snapshot.row.delivery.sheets.plan.sheet_rows[1][0] = "BP-43"; reseal(f); }, "sheet_row_id_0"],
+    ["hypothesis rows written before the verified rows", f => { f.snapshot.row.delivery.sheets.plan.sheet_rows.reverse(); reseal(f); }, "sheet_rows_order"],
+    ["a Sheets payload without the block while the plan keeps its row", f => {
+      const sheets = f.snapshot.row.delivery.sheets;
+      delete sheets.payload.hypotheses;
+      sheets.payload_digest = sheets.receipt.payload_digest = sheets.plan.payload_digest = researchDigest(sheets.payload);
+      sheets.plan.marker = `[${sheets.key};${sheets.payload_digest}]`;
+      for (const entry of sheets.plan.sheet_rows) entry[12] = String(entry[12]).replace(/\n\[.*\]$/, `\n${sheets.plan.marker}`);
+      reseal(f);
+    }, "sheets_payload"],
+  ])("keeps the verified row admitted with %s; only the hypothesis block needs research", async (_name, mutate, reason) => {
+    const f = setup({ publicContact: true, outreachReady: "published" });
+    mutate(f); await f.workItem();
+    await runCommunicationsIntake(f.deps);
+    await expectBlockRefused(f, reason);
+    expect(f.records("researchSources")[0].source.sheetsProspectId).toBe("BP-000042");
+  });
+
+  it("still rejects the day when a hypothesis row reuses a verified row's Sheets ID", async () => {
+    // Two rows with one prospect ID make the verified row's CRM identity ambiguous, so this
+    // stays a day-level failure, exactly as before hypotheses existed.
+    const f = setup({ publicContact: true, outreachReady: "published" });
+    f.snapshot.row.delivery.sheets.plan.sheet_rows[1][0] = "BP-000042"; reseal(f); await f.workItem();
+    await runCommunicationsIntake(f.deps);
+    expect(f.records("intake").find(item => item.candidateKey === "candidate-1")).toMatchObject({ state: "needs_research",
+      reasons: ["research_adapter_sheet_identity_missing"] });
+    expect(f.records("intake").find(item => item.candidateKey === "publication")).toMatchObject({ state: "needs_research",
+      reasons: ["research_adapter_sheet_identity_missing"] });
+    expect(f.records("jobs")).toHaveLength(0); expect(f.records("intake").some(item => item.state === "hypothesis_recorded")).toBe(false);
+  });
+
+  it("still rejects the day when no Sheets row matches the verified candidate, even with hypotheses declared", async () => {
+    // The hypothesis row must never stand in for a verified row it does not match.
+    const f = setup({ publicContact: true, outreachReady: "published" });
+    f.snapshot.row.delivery.sheets.plan.sheet_rows[0][1] = "Another synthetic organization"; reseal(f); await f.workItem();
+    await runCommunicationsIntake(f.deps);
+    expect(f.records("intake").find(item => item.candidateKey === "candidate-1")).toMatchObject({ state: "needs_research",
+      reasons: ["research_adapter_sheet_identity_missing"] });
+    expect(f.records("intake").find(item => item.candidateKey === "publication")).toMatchObject({ state: "needs_research",
+      reasons: ["research_adapter_sheet_identity_missing"] });
+    expect(f.records("jobs")).toHaveLength(0); expect(prospects(f)).toHaveLength(0);
+  });
+
+  it("admits the verified rows before recording hypotheses, so a recording failure never holds them", async () => {
+    const f = setup({ publicContact: true, outreachReady: "published" }); await f.workItem();
+    const recording = vi.spyOn(research, "researchPublicationHypotheses").mockImplementation(() => {
+      throw new Error("research_hypothesis_store_unavailable");
+    });
+    try {
+      await runCommunicationsIntake(f.deps);
+      expect(recording).toHaveBeenCalledOnce();
+      expect(f.records("intake").find(item => item.candidateKey === "candidate-1")).toMatchObject({ state: "admitted" });
+      expect(f.records("jobs")).toHaveLength(1);
+      expect(f.records("intake").find(item => item.candidateKey === "publication")).toMatchObject({ state: "needs_research",
+        reasons: ["research_hypothesis_store_unavailable"] });
+    } finally { recording.mockRestore(); }
+  });
+
+  it.each<[string, Parameters<typeof publishedResearchFixture>[0], string[], string]>([
+    ["S while the site link is open", { mutateHypothesisAssessment: assessment => { assessment.claims.site_task.status = "inference"; } },
+      ["site_link", "manual_workflow", "existing_automation", "fit", "interest"], ask.S],
+    ["M while the manual workflow is open", {}, ["manual_workflow", "existing_automation", "fit", "interest"], ask.M],
+    ["A once the manual workflow is verified", { mutateHypothesisAssessment: assessment => {
+      assessment.claims.human_workflow = { ...assessment.claims.site_task }; assessment.claims.plausible_fit.status = "unresolved"; } },
+      ["existing_automation", "fit", "interest"], ask.A],
+  ])("records exactly one question: %s", async (_name, options, openChecks, question) => {
+    const f = setup({ publicContact: true, outreachReady: "published", ...options }); await f.workItem();
+    await runCommunicationsIntake(f.deps);
+    expect(f.records("intake").find(item => item.candidateKey === "candidate-1")).toMatchObject({ state: "admitted" });
+    expect(f.records("intake").find(item => item.candidateKey === "candidate-2")).toMatchObject({ state: "hypothesis_recorded",
+      openChecks, openQuestions: [question] });
+    const plan = f.snapshot.row.delivery.sheets.plan;
+    expect(plan.sheet_rows[1][12]).toBe(`First email asks: ${question}\n${plan.marker}`);
+  });
+
+  it("records an unknown expiry as null beside the freshness check", async () => {
+    const f = setup({ publicContact: true, outreachReady: "published",
+      mutateHypothesisAssessment: assessment => { assessment.valid_until = null; },
+      mutateOutreachReady: eachEntry(entry => { entry.open_checks = ["manual_workflow", "freshness", "existing_automation", "fit", "interest"]; }) });
+    await f.workItem(); await runCommunicationsIntake(f.deps);
+    expect(f.records("intake").find(item => item.candidateKey === "candidate-2")).toMatchObject({ state: "hypothesis_recorded",
+      validUntil: null, openChecks: ["manual_workflow", "freshness", "existing_automation", "fit", "interest"] });
   });
 
   it("records a day of hypotheses only, without a publication failure or any job", async () => {

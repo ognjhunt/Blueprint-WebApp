@@ -7,7 +7,7 @@ vi.mock("../agents/operator-tools", async importOriginal => ({ ...await importOr
   getCompanyHistoryAccess: async () => continuationMocks.access }));
 import { communicationsFixture, communicationsNow, memoryFirestore, cancelledContinuationFixture, syntheticQualification } from "./fixtures/communications";
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema,
-  outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL } from "../agents/communications-contract";
+  outreachReadyQuestion, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { buildCommunicationsInput, processCommunicationsJob, recoverRejectedCommunicationsCreate, continueCancelledCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
@@ -254,15 +254,36 @@ describe("outreach-ready brief contract (optional, draft-only qualification bloc
     ["a repeated check", q => { q.openChecks = ["existing_automation", "existing_automation", "fit", "interest"]; }],
     ["an unknown check", q => { q.openChecks = ["robot_fit", "existing_automation", "fit", "interest"]; }],
     ["no question", q => { q.openQuestions = []; }],
-    ["four questions", q => { q.openQuestions = [...q.openQuestions, "Is there anything else?"]; }],
+    ["two questions", q => { q.openQuestions = [...q.openQuestions, "Is there anything else?"]; }],
+    ["the design v1 form of three fixed questions", q => { q.openQuestions = ["Is Packing at Synthetic packing site still done mostly by hand?",
+      "Do you already use or plan automation for it?", "Would a short look at whether a robot could take on part of it be useful?"]; }],
     ["a statement", q => { q.openQuestions = ["The task is done by hand."]; }],
     ["two questions in one", q => { q.openQuestions = ["Is it manual? Is it automated?"]; }],
-    ["a repeated question", q => { q.openQuestions = [q.openQuestions[1], q.openQuestions[1]]; }],
+    ["a repeated question", q => { q.openQuestions = [q.openQuestions[0], q.openQuestions[0]]; }],
+    ["a question outside the templates", q => { q.openQuestions = ["Is Packing still done mostly by hand at Synthetic packing site?"]; }],
+    ["the A template while the manual workflow is open", q => {
+      q.openQuestions = ["What has kept the remaining Packing work at Synthetic packing site from being automated so far?"]; }],
+    ["the M template while the site link is open", q => { q.openChecks = ["site_link", ...q.openChecks]; }],
+    ["the M template once the manual workflow is verified", q => { q.openChecks = ["existing_automation", "fit", "interest"]; }],
+    ["the site link check after the manual workflow check", q => { q.openChecks = ["manual_workflow", "site_link", "existing_automation", "fit", "interest"];
+      q.openQuestions = ["Is Packing done at your Synthetic packing site site, or somewhere else in the company?"]; }],
     ["an unpinned direction", q => { delete q.ownerDecision.direction; }],
     ["a malformed direction digest", q => { q.ownerDecision.direction.sha256 = "not-a-digest"; }],
   ])("refuses a hypothesis block with %s", (_name, mutate) => {
     const brief = hypothesisBrief(value => mutate(value.qualification));
     expect(communicationsBriefSchema.safeParse(brief).success).toBe(false);
+  });
+  it.each<[string, string[], string]>([
+    ["S while the site link is open", ["site_link", "manual_workflow", "freshness", "existing_automation", "fit", "interest"],
+      "Is Packing done at your Synthetic packing site site, or somewhere else in the company?"],
+    ["M while the manual workflow is open", ["manual_workflow", "existing_automation", "fit", "interest"],
+      "Which parts of Packing at Synthetic packing site still need people, and what has kept them from being automated?"],
+    ["A once the manual workflow is verified", ["freshness", "existing_automation", "fit", "interest"],
+      "What has kept the remaining Packing work at Synthetic packing site from being automated so far?"],
+  ])("parses exactly one question, %s", (_name, openChecks, question) => {
+    const brief = hypothesisBrief(value => { value.qualification.openChecks = openChecks; value.qualification.openQuestions = [question]; });
+    expect(communicationsBriefSchema.parse(brief)).toEqual(brief);
+    expect(outreachReadyQuestion(openChecks, "Packing", "Synthetic packing site")).toBe(question);
   });
   it.each<[string, (brief: any) => void]>([
     ["a qualification block", () => undefined],

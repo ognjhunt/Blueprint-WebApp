@@ -66,6 +66,71 @@ describe("approved founder send and acknowledgement recovery (all mocked)", () =
     expect(f.db.records.has(f.receiptPath)).toBe(false);
     expect([...f.db.records.keys()].some(path => path.includes("/recipientFirstTouches/"))).toBe(false);
   });
+  it.each<[string, Record<string, unknown>]>([
+    ["an outreach-ready tier", { researchPublicationId: "BP-000043", qualificationTier: "outreach_ready" }],
+    ["a site-screen admission", { screenAdmissionId: "d".repeat(64) }],
+    ["an unrecognised research admission", { researchPublicationId: "BP-000044", entityAdmission: "research_unrecognised" }],
+    ["an unrecognised tier", { researchPublicationId: "BP-000045", qualificationTier: "verified_later" }],
+  ])("refuses a prospect record with %s before any send flag, the same way with flags on or off", async (_name, marker) => {
+    const f = await setup();
+    await f.db.doc(`outboundProspects/${f.job.prospectId}`).update(marker);
+    for (const enabled of ["false", "true"]) {
+      vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", enabled);
+      expect(await communicationsSendBlocker(f.payload, f.ledgerId), enabled).toBe("outreach_ready_hypothesis_draft_only");
+      await expect(executeCommunicationsSend(f.payload), enabled).rejects.toThrow("outreach_ready_hypothesis_draft_only");
+    }
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(verifyFounderMailbox).not.toHaveBeenCalled();
+    expect(f.db.records.has(f.receiptPath)).toBe(false);
+  });
+  it("checks the job's own prospect record by its ID, even when the record no longer carries the recipient address", async () => {
+    const f = await setup();
+    await f.db.doc(`outboundProspects/${f.job.prospectId}`).update({ contactEmail: "renamed@facility.example", screenAdmissionId: "d".repeat(64) });
+    for (const enabled of ["false", "true"]) {
+      vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", enabled);
+      expect(await communicationsSendBlocker(f.payload, f.ledgerId), enabled).toBe("outreach_ready_hypothesis_draft_only");
+      await expect(executeCommunicationsSend(f.payload), enabled).rejects.toThrow("outreach_ready_hypothesis_draft_only");
+    }
+    expect(sendFounderMessage).not.toHaveBeenCalled();
+  });
+  it("refuses a hypothesis brief in executeCommunicationsSend itself while sending is off", async () => {
+    const f = await setup(); vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
+    f.payload.communications = { ...f.payload.communications, brief: { ...f.brief, qualification: syntheticQualification() } };
+    await expect(executeCommunicationsSend(f.payload)).rejects.toThrow("outreach_ready_hypothesis_draft_only");
+    expect(sendFounderMessage).not.toHaveBeenCalled();
+  });
+  it("refuses an address that another prospect record holds as a hypothesis, before any flag", async () => {
+    const f = await setup();
+    expect(await communicationsSendBlocker(f.payload, f.ledgerId)).toBeNull();
+    // The same address on a separate record that research marked as a hypothesis.
+    await f.db.doc("outboundProspects/other-record").set({ contactEmail: f.brief.contact.email,
+      researchPublicationId: "BP-000043", qualificationTier: "outreach_ready" });
+    for (const enabled of ["false", "true"]) {
+      vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", enabled);
+      expect(await communicationsSendBlocker(f.payload, f.ledgerId), enabled).toBe("outreach_ready_hypothesis_draft_only");
+      await expect(executeCommunicationsSend(f.payload), enabled).rejects.toThrow("outreach_ready_hypothesis_draft_only");
+    }
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(f.db.records.has(f.receiptPath)).toBe(false);
+  });
+  it("fails closed when the prospect records for the address cannot be read", async () => {
+    const f = await setup(), collection = f.db.collection.bind(f.db);
+    vi.spyOn(f.db, "collection").mockImplementation((name: string) => name !== "outboundProspects" ? collection(name)
+      : { ...collection(name), where: () => { throw new Error("firestore unavailable"); } });
+    expect(await communicationsSendBlocker(f.payload, f.ledgerId)).toBe("recipient_research_origin_unavailable");
+    await expect(executeCommunicationsSend(f.payload)).rejects.toThrow("recipient_research_origin_unavailable");
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(f.db.records.has(f.receiptPath)).toBe(false);
+  });
+  it("re-reads the address inside the claim, so a hypothesis record written after the checks still refuses", async () => {
+    const f = await setup(), run = f.db.runTransaction.bind(f.db);
+    // The first transaction is the claim: research writes the record just before it.
+    vi.spyOn(f.db, "runTransaction").mockImplementationOnce(async (fn: any) => {
+      await f.db.doc("outboundProspects/other-record").set({ contactEmail: f.brief.contact.email,
+        screenAdmissionId: "d".repeat(64) });
+      return run(fn);
+    });
+    await expect(executeCommunicationsSend(f.payload)).rejects.toThrow("outreach_ready_hypothesis_draft_only");
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(f.db.records.has(f.receiptPath)).toBe(false);
+    expect([...f.db.records.keys()].some(path => path.includes("/recipientFirstTouches/"))).toBe(false);
+  });
   it("refuses a send when the canonical prospect record is an outreach-ready hypothesis, including inside the final claim", async () => {
     const f = await setup(), prospect = `outboundProspects/${f.job.prospectId}`;
     await f.db.doc(prospect).update({ researchPublicationId: "BP-000043", qualificationTier: "outreach_ready" });

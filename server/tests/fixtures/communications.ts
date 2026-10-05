@@ -69,9 +69,9 @@ function requireHash(bytes: Buffer) { return createHash("sha256").update(bytes).
 
 /** Invented outreach-ready block for hermetic tests. It names no real owner record or direction. */
 export function syntheticQualification(task = "Packing", site = "Synthetic packing site"): NonNullable<CommunicationsBrief["qualification"]> {
+  // Design v1.1: one question, template M while the manual workflow is open.
   return { tier: "outreach_ready", label: "hypothesis", openChecks: ["manual_workflow", "existing_automation", "fit", "interest"],
-    openQuestions: [`Is ${task} at ${site} still done mostly by hand?`, "Do you already use or plan automation for it?",
-      "Would a short look at whether a robot could take on part of it be useful?"],
+    openQuestions: [`Which parts of ${task} at ${site} still need people, and what has kept them from being automated?`],
     ownerDecision: { reference: "synthetic://owner-decision/outreach-ready",
       direction: { uri: "synthetic://direction/outreach-ready", generation: "1", sha256: "c".repeat(64) } },
     sendsAuthorized: false };

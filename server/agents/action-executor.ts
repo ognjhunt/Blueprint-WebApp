@@ -29,7 +29,7 @@ import { reviewOutreachDraft, validateOutreachSemanticReview, outreachSemanticRe
 import { isCommunicationsPayload, reviewCommunicationsPayload } from "./communications-review";
 import { communicationsSendBlocker, communicationsSendingEnabled, executeCommunicationsSend, reconcileCommunicationsSend } from "./communications-send";
 import { communicationsDigest, outreachReadySendRefusal } from "./communications-contract";
-import { researchProspectSendBlocker } from "../utils/outboundProspects";
+import { assertNotHypothesisRecipient, prospectResearchTier, researchProspectSendBlocker } from "../utils/outboundProspects";
 
 function getDb() {
   if (!dbAdmin) throw new Error("Firestore is not initialized");
@@ -263,17 +263,79 @@ function communicationsHypothesisRefusal(payload: ActionPayload) {
 
 /** Research-origin refusal for the legacy mailer at the release point. The queued
  * payload does not say where the prospect came from, so this reads the canonical
- * prospect record; a record that cannot be read refuses. */
+ * prospect record; a record that cannot be read refuses. The address is checked
+ * too: another record may hold it as a hypothesis. */
 async function legacyProspectResearchBlocker(data: Record<string, any>): Promise<string | null> {
   const prospectId = typeof data.source_doc_id === "string" ? data.source_doc_id.trim() : "";
   if (data.source_collection !== "outboundProspects" || !prospectId) return "prospect_research_origin_unavailable";
+  let record: Record<string, any> | undefined;
   try {
     const prospect = await getDb().collection("outboundProspects").doc(prospectId).get();
     if (!prospect?.exists) return "prospect_research_origin_unavailable";
-    return researchProspectSendBlocker(prospect.data(), communicationsSendingEnabled())?.blocker ?? null;
+    record = prospect.data();
   } catch {
     return "prospect_research_origin_unavailable";
   }
+  const blocker = researchProspectSendBlocker(record, communicationsSendingEnabled())?.blocker;
+  if (blocker) return blocker;
+  try {
+    await assertNotHypothesisRecipient([data.action_payload?.to, record?.contactEmail],
+      { researchBacked: prospectResearchTier(record) !== "none" });
+    return null;
+  } catch (error) {
+    return error instanceof Error && error.message === "outreach_ready_hypothesis_draft_only"
+      ? error.message : "recipient_research_origin_unavailable";
+  }
+}
+
+const LEGACY_RELEASE_STATE_CHANGED = "legacy_release_state_or_payload_changed";
+
+/** Claims a legacy prospect release. The prospect record is read again in the same
+ * transaction that moves the ledger to executing, so a research marker written after
+ * the release check above still refuses. The ledger must still be in the state that
+ * was checked, with the same payload, so two releases cannot both send.
+ *
+ * Returns null once claimed, or the refusal, with the ledger already back at
+ * pending_approval. Throws `LEGACY_RELEASE_STATE_CHANGED` with nothing written when
+ * another release owns the ledger. */
+async function claimLegacyProspectRelease(
+  ledgerRef: FirebaseFirestore.DocumentReference,
+  data: Record<string, any>,
+  check: (current: Record<string, any>) => boolean,
+  verifyAuthority?: (tx: FirebaseFirestore.Transaction) => Promise<boolean>,
+): Promise<string | null> {
+  const prospectRef = getDb().collection("outboundProspects").doc(String(data.source_doc_id).trim());
+  const claim = await getDb().runTransaction(async (tx) => {
+    const [ledger, prospect] = await Promise.all([tx.get(ledgerRef), tx.get(prospectRef)]);
+    const current = ledger.data();
+    if (!current || !check(current) || current.action_type !== data.action_type
+      || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)
+      || (verifyAuthority && !await verifyAuthority(tx))) {
+      return { changed: true, blocker: null };
+    }
+    const blocker = !prospect?.exists ? "prospect_research_origin_unavailable"
+      : researchProspectSendBlocker(prospect.data(), communicationsSendingEnabled())?.blocker ?? null;
+    tx.update(ledgerRef, blocker
+      ? { status: "pending_approval", approval_reason: `content_validation_failed: ${blocker}`, updated_at: new Date() }
+      : { status: "executing", updated_at: new Date() });
+    return { changed: false, blocker };
+  });
+  if (claim.changed) throw new Error(LEGACY_RELEASE_STATE_CHANGED);
+  return claim.blocker;
+}
+
+/** The release claim refused: the ledger is already back at pending_approval. */
+async function legacyReleaseRefused(data: Record<string, any>, ledgerDocId: string, reason: string): Promise<ActionResult> {
+  await syncSourceDocumentState({
+    sourceCollection: data.source_collection,
+    sourceDocId: data.source_doc_id,
+    actionType: data.action_type,
+    actionPayload: data.action_payload,
+    ledgerDocId,
+    state: "pending_approval",
+    approvalReason: `content_validation_failed: ${reason}`,
+  });
+  return { state: "pending_approval", tier: data.action_tier, ledgerDocId, error: reason };
 }
 
 function prospectOutreachReview(payload: ActionPayload) {
@@ -712,8 +774,11 @@ export async function approveAction(
     approvedBy: operatorEmail,
   });
 
+  // The legacy prospect release also reads the current research admission in
+  // its execution transaction, alongside the human decision authority.
+  const legacyProspect = isProspectOutreach(data) && !isCommunicationsPayload(data.action_payload);
   // Now execute
-  {
+  if (!legacyProspect) {
     const acquired = await getDb().runTransaction(async (tx) => {
       const current = (await tx.get(ledgerRef)).data();
       if (!await verifyReply(tx)) return false;
@@ -727,6 +792,11 @@ export async function approveAction(
   let effectStarted = false;
   let effectAcknowledged = false;
   try {
+    if (legacyProspect) {
+      const refusal = await claimLegacyProspectRelease(ledgerRef, data,
+        (current) => current.status === "operator_approved" && current.approved_by === operatorEmail, verifyReply);
+      if (refusal) return await legacyReleaseRefused(data, ledgerDocId, refusal);
+    }
     await syncSourceDocumentState({
       sourceCollection: data.source_collection,
       sourceDocId: data.source_doc_id,
@@ -777,6 +847,8 @@ export async function approveAction(
       return { state, tier: data.action_tier, ledgerDocId,
         error: effectAcknowledged ? undefined : "action_outcome_unknown" };
     }
+    // Another release owns the ledger now: leave it exactly as it is.
+    if (err instanceof Error && err.message === LEGACY_RELEASE_STATE_CHANGED) throw err;
     const attempts = (data.execution_attempts ?? 0) + 1;
     await ledgerRef.update({
       status: "failed",
@@ -939,7 +1011,11 @@ export async function retryFailedAction(
       if (!acquired) throw new Error("communications_retry_state_or_payload_changed");
   }
   try {
-    if (!isCommunicationsPayload(data.action_payload)) await ledgerRef.update({ status: "executing", updated_at: new Date() });
+    if (isProspectOutreach(data) && !isCommunicationsPayload(data.action_payload)) {
+      const refusal = await claimLegacyProspectRelease(ledgerRef, data, (current) => current.status === "failed"
+        && current.approved_by === data.approved_by && (current.execution_attempts ?? 0) === (data.execution_attempts ?? 0));
+      if (refusal) return await legacyReleaseRefused(data, ledgerDocId, refusal);
+    } else if (!isCommunicationsPayload(data.action_payload)) await ledgerRef.update({ status: "executing", updated_at: new Date() });
     await syncSourceDocumentState({
       sourceCollection: data.source_collection,
       sourceDocId: data.source_doc_id,
@@ -967,6 +1043,8 @@ export async function retryFailedAction(
     });
     return { state: "sent", tier: data.action_tier, ledgerDocId };
   } catch (err) {
+    // Another release owns the ledger now: leave it exactly as it is.
+    if (err instanceof Error && err.message === LEGACY_RELEASE_STATE_CHANGED) throw err;
     const attempts = (data.execution_attempts ?? 0) + 1;
     await ledgerRef.update({
       status: "failed",
