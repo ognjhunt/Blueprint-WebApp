@@ -7,7 +7,7 @@ vi.mock("../agents/operator-tools", async importOriginal => ({ ...await importOr
   getCompanyHistoryAccess: async () => continuationMocks.access }));
 import { communicationsFixture, communicationsNow, memoryFirestore, cancelledContinuationFixture, syntheticQualification } from "./fixtures/communications";
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema,
-  outreachReadyQuestion, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL, communicationsHandoffSchema,
+  outreachReadyQuestion, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL, OUTREACH_READY_OWNER_DECISION_REFERENCE, communicationsHandoffSchema,
   SHEETS_RECEIPT_MAX_LENGTH } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
@@ -318,6 +318,32 @@ describe("outreach-ready brief contract (optional, draft-only qualification bloc
     const brief = hypothesisBrief(value => { value.researchOrigin = { ...value.researchOrigin }; mutate(value); });
     const handoff = { ...f.handoff, briefDigest: communicationsDigest(brief) };
     expect(() => verifyPublishedResearch(f.snapshot, brief, handoff)).toThrow(OUTREACH_READY_SEND_REFUSAL);
+  });
+  it("binds the 2026-10-05 owner decision record as the qualification reference", () => {
+    expect(OUTREACH_READY_OWNER_DECISION_REFERENCE).toBe(
+      "gs://blueprint-8c1ca.appspot.com/operations/recovery/2026-10-05/owner-decisions/owner-decision-outreach-ready-and-screen-20261005.json");
+    const brief = hypothesisBrief(value => { value.qualification.ownerDecision.reference = OUTREACH_READY_OWNER_DECISION_REFERENCE; });
+    expect(communicationsBriefSchema.parse(brief).qualification?.ownerDecision.reference).toBe(OUTREACH_READY_OWNER_DECISION_REFERENCE);
+  });
+  it.each<[string, unknown]>([
+    ["a named person greeted by name", { kind: "named_person", name: "Synthetic Person", role: "Operations Manager",
+      sourceUrl: "https://facility.example/team" }],
+    ["an inbox addressed to whoever runs the task", { kind: "inbox", addressee: "whoever runs Packing at Synthetic packing site", person: null }],
+    ["an inbox with a published person behind the role", { kind: "inbox", addressee: "whoever runs Packing at Synthetic packing site",
+      person: { name: "Synthetic Person", role: "operations manager", sourceUrl: "https://news.example/synthetic-story" } }],
+  ])("parses a hypothesis contact recipient: %s", (_name, recipient) => {
+    const brief = hypothesisBrief(value => { value.contact = { ...value.contact, recipient }; });
+    expect(communicationsBriefSchema.parse(brief)).toEqual(brief);
+  });
+  it.each<[string, unknown]>([
+    ["an unknown kind", { kind: "team", addressee: "whoever runs Packing at Synthetic packing site", person: null }],
+    ["a named person without a role", { kind: "named_person", name: "Synthetic Person", sourceUrl: "https://facility.example/team" }],
+    ["an extra field", { kind: "inbox", addressee: "whoever runs Packing at Synthetic packing site", person: null, greeting: "Hi" }],
+    ["a source that is not a public web page", { kind: "named_person", name: "Synthetic Person", role: "Operations Manager",
+      sourceUrl: "mailto:person@facility.example" }],
+  ])("refuses a contact recipient with %s", (_name, recipient) => {
+    const brief = hypothesisBrief(value => { value.contact = { ...value.contact, recipient }; });
+    expect(communicationsBriefSchema.safeParse(brief).success).toBe(false);
   });
   it("reads the raw brief, so a partial or malformed block still refuses", () => {
     const { brief } = communicationsFixture();

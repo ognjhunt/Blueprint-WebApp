@@ -55,6 +55,21 @@ const TEMPLATE_SHAPES = Object.fromEntries(Object.entries(OUTREACH_READY_QUESTIO
   return [name, new RegExp(`^${pattern}$`)];
 })) as Record<OutreachReadyQuestionTemplate, RegExp>;
 
+/** The owner record behind the outreach-ready tier and its draft-only scope. */
+export const OUTREACH_READY_OWNER_DECISION_REFERENCE =
+  "gs://blueprint-8c1ca.appspot.com/operations/recovery/2026-10-05/owner-decisions/owner-decision-outreach-ready-and-screen-20261005.json";
+
+/** Who a hypothesis draft addresses (owner decision 2026-10-05, contact sources). A named person
+ * is greeted by name only when the address is their own published address; their role is quoted
+ * exactly as published. Otherwise the draft writes to an inbox and addresses "whoever runs <task>
+ * at <site>"; a published person behind the role is kept for reference, never greeted. */
+const publishedPerson = z.object({ name: text, role: text, sourceUrl: publicUrl }).strict();
+export const communicationsRecipientSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("named_person"), name: text, role: text, sourceUrl: publicUrl }).strict(),
+  z.object({ kind: z.literal("inbox"), addressee: text, person: publishedPerson.nullable() }).strict(),
+]);
+export type CommunicationsRecipient = z.infer<typeof communicationsRecipientSchema>;
+
 /** An outreach-ready hypothesis (owner decision 2026-10-05, design v1.1): operator, site and
  * task are proven; the one missing fact that would change the decision is the open question.
  * Draft only. */
@@ -93,6 +108,8 @@ export const communicationsBriefSchema = z.object({
     scope: z.enum(["site", "organization_business_route"]).optional(),
     // Original unknowns remain in the brief; this overlays only a proved contact gap.
     resolvedMissingContactGaps: z.array(text).max(16).optional(),
+    // Hypothesis drafts only; verified briefs omit it, so their digests are unchanged.
+    recipient: communicationsRecipientSchema.optional(),
   }).strict(),
   consent: z.object({
     status: z.enum(["unknown", "public_business_contact", "reply_requested", "opted_out"]),
