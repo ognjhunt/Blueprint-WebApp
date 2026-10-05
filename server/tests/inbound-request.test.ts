@@ -53,6 +53,7 @@ function buildPayload(requestId: string, email: string) {
     budgetBucket: "$50K-$300K",
     requestedLanes: ["qualification"],
     buyerType: "site_operator",
+    consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" },
     commercialRequestPath: "site_claim",
     siteName: "Durham Facility",
     siteLocation: "Durham, NC",

@@ -18,7 +18,7 @@ test("prerendered intake stays inactive while its scripts are unavailable", asyn
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("form", { name: "Start a site capture" })).toHaveAttribute("method", "post");
   await expect(page.locator("#start-email")).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Start", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Start free assessment", exact: true })).toBeDisabled();
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
 });
 
@@ -53,12 +53,12 @@ test("capture takes the country from the address, asks only when it cannot, and 
   await expect(page.locator("#start-region")).toHaveCount(0);
   await page.locator("#start-rights").check();
   // A typed address never resolved to a country, so Start asks for it once.
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect(page.locator("#start-region")).toBeFocused();
   await expect(page.locator("#start-region")).toHaveValue("");
   expect(submissions).toHaveLength(0);
   await page.locator("#start-region").selectOption("non_us");
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ buyerType: "site_operator", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" } });
   await expect(page.getByText(/We are not sending a camera link yet/)).toBeVisible();

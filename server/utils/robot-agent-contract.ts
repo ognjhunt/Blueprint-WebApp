@@ -104,13 +104,10 @@ export function buildRobotAgentAccessManifest() {
         attachPolicyCredentials: "POST /api/agent-team/checkpoints/:checkpointId/credentials",
         revokePolicyCredentials: "DELETE /api/agent-team/checkpoints/:checkpointId/credentials",
         listCheckpoints: "GET /api/agent-team/checkpoints",
-        plan: "POST /api/agent-team/plan",
-        startRuns: "POST /api/agent-team/runs",
         listRuns: "GET /api/agent-team/runs",
         listResults: "GET /api/agent-team/results",
         getResult: "GET /api/agent-team/results/:runId",
         releaseReservation: "POST /api/agent-team/runs/:reservationId/release",
-        startFunding: "POST /api/agent-team/funding",
         getPolicy: "GET /api/agent-team/policy",
         setPolicy: "PUT /api/agent-team/policy",
       },
@@ -118,7 +115,7 @@ export function buildRobotAgentAccessManifest() {
         runtimes: ["policy_endpoint", "customer_hosted", "container_image", "controller_adapter", "model_artifact", "skill_trace"],
         modelUpload: "Multipart model, interface JSON, and optional label. The approved ONNX runner is onnx_state_mlp_cpu_v1; upload requires a verified account bound to the team.",
         privateCredentials: "After registering a checkpoint, attach {kind:registry,username,secret} for a private container/controller image or {kind:bearer,token} for an HTTPS policy. Account-bound team ownership is required. Responses contain a version reference only. DELETE revokes that version.",
-        newEvaluation: "Default planning skips completed checkpoint/task pairs. To request another evaluation, POST /plan with sceneId and repeatCompleted:true. Its new signed plan prepares a separate execution. Confirm its planToken; retry that same token to recover the same reservation without another charge. Use a new request key for a different plan.",
+        newEvaluation: "Submit a free evaluation request from the workspace. Execution requires an approved invitation binding the team, policy, task and sponsor limits.",
         observationAccess: "Blueprint retains scene files and the scoring harness. Controlled policies receive the permitted observations and return actions. Compatible task, robot, and runner profiles are required; a skill trace alone is not execution evidence.",
       },
       /**
@@ -134,38 +131,19 @@ export function buildRobotAgentAccessManifest() {
         // Early access: a team is approved before it sees sites.
         noOperatorRequired: false,
         earlyAccess:
-          "Blueprint is in early access for robot teams. Apply at https://tryblueprint.io/contact/robot-team; Blueprint approves the team's email. Until the key's team is connected to that approved, verified account, plan, runs and funding answer 403 early_access_required.",
+          "Blueprint is in early access for robot teams. Apply at https://tryblueprint.io/contact/robot-team; Blueprint approves the team's email. An approved, verified account is required; approval alone does not authorize execution.",
         sequence: [
-          "Apply at /contact/robot-team, then create or sign in to the Blueprint account with the approved email and verify it.",
-          "POST /api/agent-team/register — no credential, no questions. Returns a team id and a key, once. Connect it to the approved account (Settings → Agent access), or issue the key there.",
-          "POST /api/agent-team/checkpoints — something we can run. Or send it inline with register.",
-          "POST /api/agent-team/plan — free. What to run against, ranked, with a reason per row.",
-          "POST /api/agent-team/funding — a Stripe link at face value. Balance lands on payment.",
-          "PUT /api/agent-team/policy — the team's own daily and per-run limits, then switch the agent on.",
-          "POST /api/agent-team/runs with confirm:true — reserves and starts.",
-          "GET /api/agent-team/runs — open holds and when each expires if nothing reports.",
-          "GET /api/agent-team/results — what each run showed, once it has been reported.",
+          "Apply at /contact/robot-team and verify the approved account.",
+          "Register a compatible robot policy and request a free evaluation from the workspace.",
+          "Blueprint reviews the invitation and authorized scope before execution.",
+          "Read permitted results in the workspace or GET /api/agent-team/results.",
         ],
         noGates:
           "Registration asks no qualifying questions, and approval is about fit and capacity during early access, not a screen. The intake's four gates are deployment facts and are asked when a pilot is on the table, not to unlock an evaluation.",
-        blankIsFine:
-          "A team that has answered nothing gets the most informative plan, not the worst one: an unknown hard constraint is ranked above every other kind of run, because a private result helps the team learn without changing its shared matching profile.",
+
       },
       spendModel: {
-        summary:
-          "Fund a balance, set a daily limit, switch the agent on. The agent plans against what is left today and reserves before it runs.",
-        dryRunByDefault:
-          "POST /runs without confirm:true returns the plan and spends nothing.",
-        idempotency:
-          "Confirming requires an idempotencyKey, so a retried call cannot pay twice.",
-        ranking:
-          "Runs are ranked by expected information gain per dollar, not by likelihood of passing. A run that confirms what the team already knows is deliberately ranked last.",
-        ceiling:
-          "The balance is the hard ceiling and only a real payment raises it. The policy is the team pacing itself, and the same key can change it.",
-        holds:
-          "A private run reserves its flat $99 quote up front and charges it once any policy episodes execute; zero if none execute. A hold nothing reports on is released when it expires; no team's money stays locked waiting on us.",
-        results:
-          "Paid evaluations are private internal tests on reconstructed site jobs. Results stay with the team and Blueprint: no site results, notifications, or pilot matching effects. Pilot consideration requires a separate free invited evaluation. A result carries what was observed and, separately, what the evidence supports. The claim is the lower bound of the observation, not the observation: fifty successes in fifty episodes establishes roughly 90%, not better than 99%, because nothing outranks a measured figure once it is written.",
+        summary: "Free invited evaluations only. Paid/private runs and top-ups are disabled. Blueprint-funded execution requires separately authorized limits.",
       },
     },
     siteWorldSearch: {
@@ -320,7 +298,7 @@ const errorResponses = {
 const bearerSecurity = [{ BlueprintBearer: [] }];
 
 export function buildRobotAgentOpenApiContract() {
-  return {
+  const contract = {
     openapi: "3.1.0",
     info: {
       title: "Blueprint Robot-Team Agent API",
@@ -954,6 +932,19 @@ export function buildRobotAgentOpenApiContract() {
     },
     "x-blueprint-truth-labels": ROBOT_AGENT_TRUTH_LABELS,
   } as const;
+  const paths = contract.paths as Record<string, Record<string, unknown>>;
+  for (const path of ["/api/agent-team/plan", "/api/agent-team/funding", "/api/agent-team/runs"]) {
+    if (paths[path]) {
+      delete paths[path].post;
+      if (!Object.keys(paths[path]).length) delete paths[path];
+    }
+  }
+  if (paths["/api/agent-team/policy"]?.put) {
+    const put = paths["/api/agent-team/policy"].put as Record<string, unknown>;
+    put.summary = "Disable autonomous customer spending";
+    put.description = "The free beta rejects agentSpendEnabled:true. Existing balances and settlement records are preserved.";
+  }
+  return contract;
 }
 
 function sessionMutationOperation(operationId: string, summary: string, requestSchemaRef: string) {

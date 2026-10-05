@@ -46,6 +46,7 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 
 import { logger } from "../logger";
+import { isBlueprintFundedRun } from "../utils/freeBeta";
 import {
   createPipelineSyncRateLimiter,
   verifyPipelineSyncRequest,
@@ -253,6 +254,11 @@ router.post(
         episodesRun,
         note: parsed.data.reason || `Pipeline run ${runId}`,
       });
+      if (isBlueprintFundedRun(priorRun)) {
+        await markResolved(recordId, episodesRun > 0 ? "completed" : "blocked",
+          "Free evaluation: no customer charge. Pipeline retains sponsor usage and holds.");
+        return res.status(200).json({ ok: true, settled: true, amountUsd: 0, reconciled: recorded });
+      }
 
       // A run that never executed an episode is our failure, not a result.
       // Release the whole hold rather than settling it at zero, so the ledger
@@ -460,6 +466,7 @@ router.get("/agent-runs/:runId", createPipelineSyncRateLimiter(), guard, async (
   const run = await getRun(String(req.params.runId));
   if (!run) return res.status(404).json({ code: "agent_run_not_found" });
   return res.json({ run_id: run.runId, evaluation_purpose: run.evaluationPurpose ?? "pilot", state: run.state, money_resolved: run.moneyResolved,
+    cancellation_requested: run.cancellationRequested === true,
     execution_admission: run.executionAdmission?.envelope ?? null,
           execution_admission_canonical_json: run.executionAdmission?.canonicalJson ?? null,
     execution_admission_digest: run.executionAdmission?.digestSha256 ?? null,

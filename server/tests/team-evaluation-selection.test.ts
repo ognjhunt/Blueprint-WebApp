@@ -6,7 +6,7 @@ vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{collection:()=>({doc
 import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, loadRobotSetups, teamEvaluationTaskDetails, type TeamEvaluationContext } from "../utils/teamEvaluationSelection";
 import { sceneDigest } from "../utils/taskEvaluationSceneIntake";
 import { TEAM_EVALUATION_PRICE_CENTS } from "../utils/teamEvaluationSelection";
-import { entryPrice } from "../../client/src/lib/evaluationPricing";
+
 const sha=(c:string)=>`sha256:${c.repeat(64)}`;
 const owner={user_id:"owner",organization_id:"user:owner"};
 const policies=[{id:"pi05_droid",artifact_digest:sha("a")},{id:"groot_n17_droid",artifact_digest:sha("b")}];
@@ -29,9 +29,9 @@ function fixture() {
 }
 afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();});
 describe("team evaluation selection",()=>{
-  it("quotes the same $99 private-entry price as the public pricing contract",()=>{
-    expect(TEAM_EVALUATION_PRICE_CENTS).toBe(9900);
-    expect(TEAM_EVALUATION_PRICE_CENTS / 100).toBe(entryPrice);
+  it("quotes zero customer cost for the free beta",()=>{
+    expect(TEAM_EVALUATION_PRICE_CENTS).toBe(0);
+
   });
   it("reuses retained scene inputs under a new independent request and exact selected binding",()=>{
     const {context,command,setup}=fixture();

@@ -8,6 +8,14 @@
  * who is being screened against it and the best result so far.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+// Exercise retained pre-beta ledger/lifecycle behavior; free-beta-guards tests
+// the real release gate independently. This override is test-only.
+vi.mock("../utils/freeBeta", async importOriginal => ({
+  ...await importOriginal<typeof import("../utils/freeBeta")>(),
+  FREE_BETA_ONLY: false,
+  canDispatchFreeBetaRun: () => true,
+}));
+
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 

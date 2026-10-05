@@ -308,13 +308,12 @@ describe("the plan is checked against the Raw V3.2 layout before any bytes move"
     expect(missing.body.errors).toContain("required_file_missing:motion.jsonl");
   });
 
-  it("asks the phone to re-bind when the rights changed before anything was stored", async () => {
+  it("refuses absent recording consent before issuing upload targets", async () => {
     const { device, bindingDigest } = await bundleFor();
     sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST_ID}`, { requestId: REQUEST_ID, request: {} });
     const response = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
     expect(response.status).toBe(409);
-    expect(response.body.code).toBe("capture_binding_changed");
-    expect(response.body.binding.capture_rights.derived_scene_generation_allowed).toBe(false);
+    expect(response.body.code).toBe("recording_consent_required");
     expect(state.bucket.names()).toEqual([]);
   });
 });

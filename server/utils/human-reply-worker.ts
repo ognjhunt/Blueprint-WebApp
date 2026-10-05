@@ -128,6 +128,14 @@ async function ingestHumanReplyMessage(params: {
   received_at: string;
   thread: HumanBlockerThreadRecord;
 }) {
+  const normalizeSender = (value: string | null) => {
+    const sender = String(value || "").trim();
+    return params.channel === "email" ? (sender.match(/<([^<>]+)>$/)?.[1] || sender).toLowerCase() : sender;
+  };
+  if (params.channel !== params.thread.channel || !params.thread.approved_identity
+      || normalizeSender(params.sender) !== normalizeSender(params.thread.approved_identity)) {
+    return { processed: false, reason: "untrusted_sender" as const };
+  }
   const existing = await getHumanReplyEvent(`${params.channel}:${params.external_message_id}`);
   if (existing && existing.resume_state !== "pending") {
     return { processed: false, reason: "duplicate" as const };
@@ -141,6 +149,21 @@ async function ingestHumanReplyMessage(params: {
     execution_owner: params.thread.execution_owner,
     escalation_owner: params.thread.escalation_owner,
   });
+  if (["city_launch_plan", "city_launch_activate"].includes(params.thread.resume_action.kind)) {
+    decision.should_resume_now = false;
+    decision.resolution = "ambiguous_input";
+    decision.reason = "This action requires authenticated approval bound to its current payload; incoming reply text cannot execute it.";
+  }
+
+  // The transport admitted the principal and decision window above. Execution
+  // still requires the durable claim to verify this exact ledger payload.
+  if (decision.classification === "approval" && params.thread.record_of_truth.ops_work_item_id
+      && params.thread.action_digest
+      && !["city_launch_plan", "city_launch_activate"].includes(params.thread.resume_action.kind)) {
+    decision.resolution = "resolved_input";
+    decision.should_resume_now = true;
+    decision.reason = "Authenticated reply requests the bound action; a durable claim must verify the current payload before execution.";
+  }
 
   const bodyExcerpt = truncate(params.body);
   const replyEvent = existing || await recordHumanReplyEvent({

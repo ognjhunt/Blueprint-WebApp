@@ -233,12 +233,12 @@ export function classifyHumanReply(
   if (approval) {
     return {
       classification: "approval",
-      resolution: "resolved_input",
+      resolution: "ambiguous_input",
       routing_owner: routingOwner,
       execution_owner: executionOwner,
       escalation_owner: escalationOwner,
-      should_resume_now: true,
-      reason: "Reply gives direct approval for the named next action.",
+      should_resume_now: false,
+      reason: "Approval needs authenticated confirmation bound to the exact action and payload; reply text alone grants no execution authority.",
     };
   }
 

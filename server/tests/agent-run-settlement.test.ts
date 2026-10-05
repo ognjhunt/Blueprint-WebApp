@@ -15,6 +15,13 @@
  * is the only place the failure was visible.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+// Exercise retained pre-beta ledger/lifecycle behavior; free-beta-guards tests
+// the real release gate independently. This override is test-only.
+vi.mock("../utils/freeBeta", async importOriginal => ({
+  ...await importOriginal<typeof import("../utils/freeBeta")>(),
+  FREE_BETA_ONLY: false,
+}));
+
 
 /* ------------------------------------------------ an in-memory firestore */
 
@@ -420,7 +427,7 @@ describe("a reported run settles for what it ran", () => {
     expect(balance.availableUsd).toBe(1_000);
   });
 
-  it("tells the site when a historical shared run ends with nothing to show, once", async () => {
+  it("retries the deterministic site outbox intent on a repeated no-result receipt", async () => {
     const { run } = await fundedTeamWithOneHold();
     const runs = collectionStore("evaluationRuns");
     runs.set(run.runId, { ...runs.get(run.runId), evaluationPurpose: "pilot" });
@@ -429,7 +436,7 @@ describe("a reported run settles for what it ran", () => {
     await reportRunOutcome({ runId: run.runId, state: "blocked", episodesRun: 0, note: "scene would not load" });
     await reportRunOutcome({ runId: run.runId, state: "blocked", episodesRun: 0, note: "scene would not load" });
 
-    expect(lifecycleNotice).toHaveBeenCalledTimes(1);
+    expect(lifecycleNotice).toHaveBeenCalledTimes(2);
     expect(lifecycleNotice).toHaveBeenCalledWith({ requestId: "scene-1", milestone: "run_no_result", eventId: run.runId });
   });
 
