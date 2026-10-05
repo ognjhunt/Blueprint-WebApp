@@ -64,6 +64,25 @@ export const outreachReviewContractSchema = z.object({
   capabilityClaims: z.array(z.object({ name: z.enum(["Atlas", "pipeline"]), claim: text, source }).strict()).max(8),
 }).strict();
 
+const OPEN_CHECKS = ["site_link", "manual_workflow", "freshness", "existing_automation", "fit", "interest"] as const;
+export const OUTREACH_HYPOTHESIS_CONTRACT_VERSION = "blueprint.outreach.v2" as const;
+/** Draft metadata for an outreach-ready hypothesis (design v1.1): a cold opening from a recorded
+ * observation, exactly one question (the published one, asked verbatim, with the open check it
+ * answers) and the recipient's choice. No offer, workflow or capability claim. Anchors only. */
+export const outreachHypothesisContractSchema = z.object({
+  version: z.literal(OUTREACH_HYPOTHESIS_CONTRACT_VERSION),
+  senderIdentity: text,
+  opening: z.object({
+    kind: z.literal("cold"),
+    noVerifiedConnectionReason: text,
+    publicDetail: observation.extend({ sourceClaim: text.optional() }).strict(),
+    relevance: text,
+  }).strict(),
+  questions: z.array(z.object({ question: text, checks: z.array(z.enum(OPEN_CHECKS)).min(1).max(OPEN_CHECKS.length) }).strict()).length(1),
+  recipientChoice: text,
+}).strict();
+export type OutreachHypothesisContract = z.infer<typeof outreachHypothesisContractSchema>;
+
 export const OUTREACH_SEMANTIC_CHECKS = {
   connection: "Use a known verified connection/introduction/community where possible; only claimed relationships require proof. Web research and verified business contact routes lead discovery; no network mining or exhaustive network search is required for legitimate cold contact. LinkedIn is optional role verification. Check the source and recipient identity; a shared community implies no endorsement.",
   evidence: "Verify every factual claim against its source. For cold contact verify the public detail and its relevance; reject invented connections and unsupported claims.",
@@ -91,7 +110,9 @@ export type OutreachCapabilityEvidence = z.infer<typeof outreachCapabilityEviden
 export type OutreachContext = z.infer<typeof outreachContextSchema>;
 export type OutreachReviewContract = z.infer<typeof outreachReviewContractSchema>;
 export type OutreachSemanticReview = z.infer<typeof outreachSemanticReviewSchema>;
-export type OutreachDraft = { to: string; subject: string; body: string; contract: unknown; context: unknown };
+/** `qualification` and `recipient` are present only for an outreach-ready hypothesis brief. */
+export type OutreachDraft = { to: string; subject: string; body: string; contract: unknown; context: unknown;
+  qualification?: unknown; recipient?: unknown };
 export type OutreachReviewResult = {
   hardChecksPassed: boolean;
   blockers: string[];
@@ -106,7 +127,85 @@ const prohibitedPatterns: [string, RegExp][] = [
   ["pressure_or_guarantee", /\b(?:last chance|act now|limited time|guaranteed|we guarantee|you must|you owe)\b/i],
 ];
 
+const connectionClaim = /\b(?:we (?:met|know)|introduced (?:me|us)|our mutual|referred (?:me|us)|fellow member)\b/i;
+const matchPromise = /\b(?:we (?:have|found)|already)\b.{0,30}\b(?:matched|a match|qualified team)\b|\b(?:guaranteed match|deployment.ready|ready to deploy)\b/i;
+const sharingClaim = /\b(?:shared|forwarded|sent)\b.{0,40}\b(?:with|to)\b.{0,20}\b(?:robot teams|teams)\b/i;
+/** A name, as whole words, in any letter case. */
+function namedIn(value: string, name: string) {
+  const normalized = (text: string) => text.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
+  const haystack = normalized(value), needle = normalized(name);
+  for (let at = needle ? haystack.indexOf(needle) : -1; at >= 0; at = haystack.indexOf(needle, at + 1)) {
+    if (!/[\p{L}\p{N}]/u.test(haystack[at - 1] ?? "") && !/[\p{L}\p{N}]/u.test(haystack[at + needle.length] ?? "")) return true;
+  }
+  return false;
+}
+
+/** blueprint.outreach.v2: exactly one question, the published one, verbatim in the body, and the
+ * body's only question mark. The recipient is addressed as the brief records: a named person by
+ * name only for their own address, otherwise whoever runs the task, with no one named. */
+function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResult {
+  const blockers: string[] = [];
+  const result = (digest: string | null): OutreachReviewResult => ({ hardChecksPassed: blockers.length === 0, blockers, digest,
+    semanticReviewRequired: OUTREACH_SEMANTIC_CHECKS });
+  const qualification = draft.qualification as { openChecks?: unknown; openQuestions?: unknown } | undefined;
+  const open = Array.isArray(qualification?.openChecks) && qualification!.openChecks.every(check => typeof check === "string")
+    ? qualification!.openChecks as string[] : null;
+  const published = Array.isArray(qualification?.openQuestions) && qualification!.openQuestions.length === 1
+    && typeof qualification!.openQuestions[0] === "string" ? qualification!.openQuestions[0] as string : null;
+  if (!open || !published) blockers.push("outreach_hypothesis_qualification_missing");
+  const parsed = outreachHypothesisContractSchema.safeParse(draft.contract);
+  const context = outreachContextSchema.safeParse(draft.context);
+  if (!parsed.success) blockers.push((draft.contract as any)?.version === "blueprint.outreach.v1"
+    ? "outreach_hypothesis_contract_required" : "outreach_contract_missing_or_invalid");
+  if (!context.success) blockers.push("outreach_evidence_missing_or_invalid");
+  if (!parsed.success || !context.success || !open || !published) return result(null);
+  const contract = parsed.data, opening = contract.opening, asked = contract.questions[0], text = draft.subject + " " + draft.body;
+  // The question answers the open check that chose its template: S, then M, then A.
+  const answered = open.includes("site_link") ? "site_link" : open.includes("manual_workflow") ? "manual_workflow" : "existing_automation";
+  if (asked.question !== published) blockers.push("hypothesis_question_not_published");
+  if (asked.checks.length !== 1 || asked.checks[0] !== answered) blockers.push("hypothesis_question_checks_mismatch");
+  if (!draft.body.includes(published)) blockers.push("hypothesis_question_missing_from_body");
+  if ((draft.body.match(/\?/g) || []).length !== 1) blockers.push("exactly_one_initial_question_required");
+  if (draft.subject.includes("?")) blockers.push("hypothesis_subject_has_question");
+  if (!/\bBlueprint\b/.test(contract.senderIdentity)) blockers.push("blueprint_identity_required");
+  if (draft.body.indexOf(contract.senderIdentity) > draft.body.indexOf(asked.question)) blockers.push("blueprint_identity_required_before_question");
+  if (!context.data.observations.some(item => item.claim === (opening.publicDetail.sourceClaim ?? opening.publicDetail.claim)
+    && item.source === opening.publicDetail.source)) blockers.push("cold_detail_not_in_recorded_evidence");
+  try {
+    const url = new URL(opening.publicDetail.source);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) blockers.push("cold_detail_requires_public_url");
+  } catch { blockers.push("cold_detail_requires_public_url"); }
+  if (connectionClaim.test(text)) blockers.push("unverified_connection_claim");
+  for (const anchor of [contract.senderIdentity, opening.publicDetail.claim, opening.relevance, asked.question, contract.recipientChoice]) {
+    if (!draft.body.includes(anchor)) blockers.push("review_anchor_missing_from_body");
+  }
+  if (draft.body.indexOf(opening.publicDetail.claim) > draft.body.indexOf(asked.question)) blockers.push("verified_or_public_opening_must_come_first");
+  for (const name of ["Atlas", "pipeline"]) if (new RegExp(`\\b${name}\\b`, "i").test(text)) blockers.push("capability_claim_not_verified_in_record");
+  if (matchPromise.test(text)) blockers.push("discovery_cannot_promise_qualified_match_or_capacity");
+  if (sharingClaim.test(text)) blockers.push("discovery_cannot_claim_site_sharing_permission");
+  const recipient = draft.recipient as any, opener = draft.body.trim().split(/\n\s*\n/)[0] ?? "";
+  if (recipient?.kind === "named_person" && typeof recipient.name === "string") {
+    // A salutation that names them: "Hi Jane", "Hello Jane Doe", "Dear Ms. Doe".
+    const parts = recipient.name.trim().split(/\s+/), escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const names = [recipient.name.trim(), parts[0], parts.at(-1)].map(escape).join("|");
+    if (!new RegExp(`^(?:hi|hello|dear|hey|good (?:morning|afternoon|evening))\\s+(?:(?:mr|ms|mrs|mx|dr)\\.?\\s+)?(?:${names})(?![\\p{L}\\p{N}])`, "iu")
+      .test(draft.body.trim())) blockers.push("hypothesis_recipient_greeting_mismatch");
+  } else if (recipient?.kind === "inbox" && typeof recipient.addressee === "string") {
+    // Addressed in the opening paragraph to whoever runs the task; no one is named anywhere.
+    if (!opener.includes(recipient.addressee) || (typeof recipient.person?.name === "string" && namedIn(draft.body, recipient.person.name))) {
+      blockers.push("hypothesis_recipient_greeting_mismatch");
+    }
+  } else blockers.push("hypothesis_recipient_greeting_mismatch");
+  for (const [code, pattern] of prohibitedPatterns) if (pattern.test(text)) blockers.push(code);
+  return result(createHash("sha256").update(JSON.stringify({ to: draft.to, subject: draft.subject, body: draft.body, contract,
+    context: context.data, qualification: { openChecks: open, openQuestions: [published] }, recipient: recipient ?? null })).digest("hex"));
+}
+
 export function reviewOutreachDraft(draft: OutreachDraft): OutreachReviewResult {
+  // A hypothesis brief, or any v2 contract, is reviewed only by the v2 rules.
+  if (draft.qualification !== undefined || (draft.contract as any)?.version === OUTREACH_HYPOTHESIS_CONTRACT_VERSION) {
+    return reviewHypothesisOutreachDraft(draft);
+  }
   const blockers: string[] = [];
   const parsed = outreachReviewContractSchema.safeParse(draft.contract);
   const context = outreachContextSchema.safeParse(draft.context);

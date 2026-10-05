@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { outreachContextSchema, outreachReviewContractSchema } from "./outreach-review";
+import { OUTREACH_HYPOTHESIS_CONTRACT_VERSION, outreachContextSchema, outreachHypothesisContractSchema, outreachReviewContractSchema,
+  type OutreachHypothesisContract, type OutreachReviewContract } from "./outreach-review";
 
 export const COMMUNICATIONS_MODEL = "gpt-6-luna";
 export const COMMUNICATIONS_PROJECT = "proj_F2tFJuxLaovJru8RrtXRaqNj";
@@ -330,6 +331,19 @@ export type VerifiedThread = {
   mailbox: typeof FOUNDER_MAILBOX; threadId: string; messages: ThreadMessage[]; fetchedAt: string;
 };
 
+/** The draft's outreach contract: blueprint.outreach.v2 when it says so, otherwise exactly the v1
+ * schema, so a verified-lead draft parses, fails and is repaired with the same issues as before. */
+const outreachContractField = z.unknown().transform((value, context): OutreachReviewContract | OutreachHypothesisContract => {
+  const schema = value && typeof value === "object" && (value as { version?: unknown }).version === OUTREACH_HYPOTHESIS_CONTRACT_VERSION
+    ? outreachHypothesisContractSchema : outreachReviewContractSchema;
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) context.addIssue(issue);
+    return z.NEVER;
+  }
+  return parsed.data;
+});
+
 export const communicationsOutputSchema = z.object({
   disposition: z.enum(["draft", "research_refresh", "no_reply"]),
   subject: z.string().trim().max(1000), body: z.string().trim().max(20000),
@@ -337,7 +351,8 @@ export const communicationsOutputSchema = z.object({
   // the existing bounded provider response; send and review authority stay separate.
   reason: z.string().trim().min(1), usedFactIds: z.array(id).max(16),
   refreshFactIds: z.array(id).max(16),
-  outreachContract: outreachReviewContractSchema.nullable(),
+  // v1 for verified leads; v2 only for an outreach-ready hypothesis (the review refuses any other pairing).
+  outreachContract: outreachContractField.nullable(),
   requiresHumanReview: z.literal(true),
 }).strict();
 export type CommunicationsOutput = z.infer<typeof communicationsOutputSchema>;

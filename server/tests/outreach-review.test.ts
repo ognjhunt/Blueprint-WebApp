@@ -196,3 +196,80 @@ describe("first-contact outreach review", () => {
     expect(reviewOutreachDraft({ ...outreachDraft, body, contract, context: { ...outreachContext, verifiedCapabilities: [evidence] } }).hardChecksPassed).toBe(true);
   });
 });
+
+// Design v1.1: an outreach-ready hypothesis asks exactly one question, the published one, verbatim.
+describe("blueprint.outreach.v2 for outreach-ready hypothesis drafts (synthetic)", () => {
+  const QUESTION = "Which parts of sorting returned parcels at Synthetic sorting site still need people, and what has kept them from being automated?";
+  const ADDRESSEE = "whoever runs sorting returned parcels at Synthetic sorting site";
+  const context = { observations: [
+    { claim: "Synthetic hypothesis operator runs the Synthetic sorting site", source: "https://hypothesis-operator.example/locations/sorting" },
+    { claim: "Associates sort returned parcels at the Synthetic sorting site", source: "https://hypothesis-operator.example/careers/sorting-associate" }],
+  connectionEvidence: null, teamObservations: [], verifiedCapabilities: [] };
+  const qualification = { tier: "outreach_ready", label: "hypothesis", openChecks: ["manual_workflow", "existing_automation", "fit", "interest"],
+    openQuestions: [QUESTION], ownerDecision: { reference: "synthetic://owner-decision", direction: { uri: "synthetic://direction", generation: "1", sha256: "c".repeat(64) } },
+    sendsAuthorized: false };
+  const contract = { version: "blueprint.outreach.v2", senderIdentity: "I'm building Blueprint.",
+    opening: { kind: "cold", noVerifiedConnectionReason: "No verified relationship is recorded.",
+      publicDetail: { claim: "Your job post says associates sort returned parcels at the Synthetic sorting site.",
+        source: "https://hypothesis-operator.example/careers/sorting-associate", sourceClaim: "Associates sort returned parcels at the Synthetic sorting site" },
+      relevance: "I'm trying to learn how that work is done today." },
+    questions: [{ question: QUESTION, checks: ["manual_workflow"] }],
+    recipientChoice: "Whether to answer is entirely up to you." };
+  const body = [`Hello, I'm hoping this reaches ${ADDRESSEE}.`, contract.senderIdentity, contract.opening.publicDetail.claim,
+    contract.opening.relevance, QUESTION, contract.recipientChoice, "Nijel"].join("\n\n");
+  const draft = (change: (value: any) => void = () => undefined) => {
+    const value: any = { to: "sortingops@hypothesis-operator.example", subject: "Sorting returned parcels at Synthetic sorting site", body,
+      contract: structuredClone(contract), context: structuredClone(context), qualification: structuredClone(qualification),
+      recipient: { kind: "inbox", addressee: ADDRESSEE, person: { name: "Synthetic Person", role: "operations manager", sourceUrl: "https://news.example/story" } } };
+    change(value);
+    return value;
+  };
+
+  it("passes a draft that asks only the published question, verbatim, with one question mark", () => {
+    const result = reviewOutreachDraft(draft());
+    expect(result).toMatchObject({ hardChecksPassed: true, blockers: [] });
+    expect(result.digest).toMatch(/^[a-f0-9]{64}$/);
+    // The digest binds the published question and the recipient too.
+    expect(reviewOutreachDraft(draft(value => { value.recipient.person = null; })).digest).not.toBe(result.digest);
+  });
+  it("greets a named person whose own address this is, by name", () => {
+    const named = draft(value => { value.recipient = { kind: "named_person", name: "Synthetic Person", role: "Manager",
+      sourceUrl: "https://hypothesis-operator.example/team" }; value.body = value.body.replace(`Hello, I'm hoping this reaches ${ADDRESSEE}.`, "Hi Synthetic,"); });
+    expect(reviewOutreachDraft(named)).toMatchObject({ hardChecksPassed: true });
+  });
+  it.each<[string, (value: any) => void, string]>([
+    ["a question that is not the published one", value => { value.contract.questions[0].question = "Is sorting returned parcels still done by hand?";
+      value.body = value.body.replace(QUESTION, "Is sorting returned parcels still done by hand?"); }, "hypothesis_question_not_published"],
+    ["the published question missing from the body", value => { value.body = value.body.replace(QUESTION, "Tell me about the work."); },
+      "hypothesis_question_missing_from_body"],
+    ["a second question in the body", value => { value.body += "\n\nP.S. Is this useful?"; }, "exactly_one_initial_question_required"],
+    ["a question mark in the subject", value => { value.subject = "A question about sorting?"; }, "hypothesis_subject_has_question"],
+    ["two questions in the contract", value => { value.contract.questions.push({ question: "Is this useful?", checks: ["interest"] }); },
+      "outreach_contract_missing_or_invalid"],
+    ["no question in the contract", value => { value.contract.questions = []; }, "outreach_contract_missing_or_invalid"],
+    ["the wrong open check for the question", value => { value.contract.questions[0].checks = ["interest"]; }, "hypothesis_question_checks_mismatch"],
+    ["the verified-lead v1 contract", value => { value.contract = { ...outreachContract }; }, "outreach_hypothesis_contract_required"],
+    ["no qualification block", value => { delete value.qualification; }, "outreach_hypothesis_qualification_missing"],
+    ["an opening detail not in the recorded evidence", value => { value.contract.opening.publicDetail.sourceClaim = "Invented claim"; },
+      "cold_detail_not_in_recorded_evidence"],
+    ["a capability claim", value => { value.body = value.body.replace("Nijel", "Our Atlas system could help.\n\nNijel"); },
+      "capability_claim_not_verified_in_record"],
+    ["an inbox draft that does not address whoever runs the task", value => { value.body = value.body.replace(` ${ADDRESSEE}`, " the team"); },
+      "hypothesis_recipient_greeting_mismatch"],
+    ["an inbox draft that names the person behind the role", value => { value.body = value.body.replace("Hello,", "Hello Synthetic Person,"); },
+      "hypothesis_recipient_greeting_mismatch"],
+    ["a named person who is not greeted", value => { value.recipient = { kind: "named_person", name: "Synthetic Person", role: "Manager",
+      sourceUrl: "https://hypothesis-operator.example/team" }; }, "hypothesis_recipient_greeting_mismatch"],
+    ["no recipient", value => { delete value.recipient; }, "hypothesis_recipient_greeting_mismatch"],
+    ["a meeting request", value => { value.body = value.body.replace("Nijel", "Can we book a call to discuss.\n\nNijel"); }, "default_meeting_or_questionnaire"],
+  ])("rejects %s", (_name, change, blocker) => {
+    const result = reviewOutreachDraft(draft(change));
+    expect(result.hardChecksPassed).toBe(false);
+    expect(result.blockers).toContain(blocker);
+  });
+  it("never reviews a v2 contract as a verified-lead draft, and keeps the v1 review unchanged", () => {
+    const { qualification: _q, recipient: _r, ...plain } = draft();
+    expect(reviewOutreachDraft(plain).blockers).toContain("outreach_hypothesis_qualification_missing");
+    expect(reviewOutreachDraft(outreachDraft)).toMatchObject({ hardChecksPassed: true, blockers: [] });
+  });
+});
