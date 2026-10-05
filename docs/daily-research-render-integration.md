@@ -8,19 +8,26 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 4 package pins reviewed Pipeline commit
-`0fea06f1404e3537c0920f99b8013efce373b9a3` (exact Pipeline main after PR2549 and PR2586, containing PR2584 and PR2585), whose lineage already contains
-PR2579, PR2580 and PR2581. Its 1,013,760-byte archive SHA256 is
-`5db23e9722534183b69117d8eba6be30379138f2a240a919e8316ccd1b9a3e35`,
-with 54 manifested source files. The manifest SHA256 is
-`307ab9d3e2efc6fc69bad7f0981ada631048e1038872c10ea972aed6f273ed45`.
-It preserves the existing owner MCP, history, QA, publication, capability-integrity
-repair and cleanup source, and adds versioned lead-verification diagnostics (v2 for
-new rows; stored v1 results unchanged), a paged discovery inventory, packet-budget
-repair feedback, the Exa Ultra cap contract and contact-research recovery.
-This package is built from the exact published Pipeline `main` after
-PR2549 and PR2586. Copied QA placeholders remain hard refusals even when
-case, punctuation, whitespace or deleted separators change their spelling;
-deferred assessment handling cannot bypass that refusal.
+`94c8fe3e1ebccc5cdd117b62188ffa88f4186d03` (merges ognjhunt/BlueprintCapturePipeline#2591), whose lineage contains the previous
+package source `0fea06f1404e3537c0920f99b8013efce373b9a3`. Its
+1,228,800-byte archive SHA256 is
+`7670b7da67441af30a9961daa71c181b70013308f922b87fe61c30dd07fbbd3f`,
+with 64 manifested source files. The manifest SHA256 is
+`bbfda1b99e0226e3d2262af02429e12344dd83ffd3eba8c168d4f6ca777756ea`.
+It keeps everything in the previous package and adds:
+- the owner-directed paid expansion allowance: one combined per-run limit for paid
+  sources (Exa and Parallel FindAll), with the sources the owner names. It is set and
+  changed with `operators/paid-expansion-direction.py` (`--per-run-usd`, `--sources`)
+  and needs no code change or redeploy. Each run freezes one grant, and each paid start
+  fits half the limit and the remaining allowance;
+- optional FindAll list-building tools, installed only when the worker holds
+  `PARALLEL_API_KEY` (presence only) and admitted only by the shared grant;
+- an owner-adjustable run duration (`render set-runtime --minutes N`, up to 4 hours;
+  the approved setting is 60 minutes with 15 reserved for QA);
+- broad-enumeration discovery instructions, a retained backlog and separate funnel
+  counts.
+Until the owner applies a direction, runs record a refused grant and paid sources stay
+skipped.
 This is a research-only controlled release from Pipeline `main`.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
