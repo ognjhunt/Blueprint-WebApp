@@ -402,6 +402,35 @@ Flags default off; this change writes no environment values:
 - `BLUEPRINT_COMMUNICATIONS_SEND_ENABLED=true` separately permits approved sending.
 - `BLUEPRINT_COMMUNICATIONS_FOUNDER_SENT_OBSERVER_ENABLED=true` separately permits
   read-only founder-sent draft observation (below).
+- `BLUEPRINT_COMMUNICATIONS_HYPOTHESIS_DRAFTS_ENABLED=true` separately permits
+  drafting outreach-ready hypotheses (below). They stay draft only.
+
+### Outreach-ready hypothesis drafts (default off)
+
+Owner decision 2026-10-05: a published outreach-ready hypothesis may become a
+draft. While the flag is off, intake only records each hypothesis
+(`hypothesis_recorded`). While it is on, `admitPublishedHypothesis` gives a
+hypothesis one draft job only when every check holds:
+
+- the published day still verifies from a fresh snapshot, including the run's
+  frozen owner direction and the retained tool evidence;
+- `evaluateOutreachTier` (the TypeScript copy of Pipeline's
+  `blueprint.outreach-ready-rule.v1.1`) recomputes exactly the published tier;
+- the assessment is unexpired and its proven facts are at most 7 days old;
+- no canonical prospect already holds the same Sheets row, operator, site and
+  task, or contact address, and no verified row covers it;
+- the contact passes `blueprint.contact-resolution.v2`: the address is published
+  verbatim on the operator's own domain and is at that domain; free-mail,
+  careers, jobs, legal, privacy and support addresses are refused; LinkedIn is
+  never evidence.
+
+A missing contact goes to communications contact research. A known candidate is
+blocked. Anything else becomes `needs_research` for the research owner.
+
+The draft asks exactly the one published question (`blueprint.outreach.v2`).
+Approvals shows it as "Hypothesis · draft only", with no approve control.
+Every send, approval and first-contact path refuses it. The existing Gmail
+draft copy is unchanged and can copy it.
 
 ### Founder-sent draft observation (default off)
 
