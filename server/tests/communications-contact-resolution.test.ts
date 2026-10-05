@@ -71,13 +71,13 @@ describe("hypothesis contacts follow the owner's 2026-10-05 contact rules (synth
   });
   it.each<[string, string, string]>([
     ["guessed from a name pattern (never published)", "<p>Synthetic Person, Director of Operations</p>", "contact_resolution_missing_or_ambiguous"],
-    ["on a free-mail domain", "<p>Synthetic Person, Director of Operations: synthetic.person@gmail.com</p>", "contact_resolution_missing_or_ambiguous"],
+    ["on a free-mail domain", "<p>Synthetic Person, Director of Operations: synthetic_person_fixture@gmail.com</p>", "contact_resolution_missing_or_ambiguous"],
     ["on another organization's domain", "<p>Operations team for sorting returned parcels: ops@another-operator.example</p>", "contact_resolution_missing_or_ambiguous"],
   ])("refuses an address %s", async (_name, body, code) => {
     await expect(resolve(body)).rejects.toThrow(code);
   });
   it.each<[string, string, string]>([
-    ["a free-mail address", "Synthetic Person, Director of Operations: synthetic.person@gmail.com", "contact_address_free_mail_refused"],
+    ["a free-mail address", "Synthetic Person, Director of Operations: synthetic_person_fixture@gmail.com", "contact_address_free_mail_refused"],
     ["another domain", "Operations team: ops@another-operator.example", "contact_address_other_domain_refused"],
     ["a lookalike domain", "Operations team: ops@sorting-operator.example.evil.example", "contact_address_other_domain_refused"],
     ["two addresses in one segment", "Write to ops@sorting-operator.example or sales@sorting-operator.example", "contact_address_not_published_once"],
