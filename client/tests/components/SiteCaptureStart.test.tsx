@@ -19,10 +19,11 @@ vi.mock("@/lib/analytics", () => ({ analyticsEvents: { contactFormSubmit: vi.fn(
 vi.mock("@/lib/csrf", () => ({
   withCsrfHeader: async (headers: Record<string, string>) => headers,
 }));
-const upload = vi.hoisted(() => ({ send: vi.fn() }));
+const upload = vi.hoisted(() => ({ send: vi.fn(), retry: vi.fn() }));
 vi.mock("@/lib/selfCaptureVideo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/selfCaptureVideo")>()),
   uploadSelfCaptureVideo: upload.send,
+  retrySelfCaptureProcessing: upload.retry,
 }));
 
 const account = vi.hoisted(() => ({ user: null as any }));
@@ -36,6 +37,7 @@ beforeEach(() => {
   account.user = null;
   fetchMock.mockReset();
   upload.send.mockReset();
+  upload.retry.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("FormData", window.FormData);
 });
@@ -245,8 +247,11 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
   const captureUrl = "https://tryblueprint.io/capture-upload/tok.signed";
   let received = false;
   fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
-    if (String(url).includes("/status")) {
+    if (String(url).startsWith("/api/site-task-brief/") && String(url).endsWith("/status")) {
       return { ok: true, json: async () => ({ status: { headline: received ? "We have your recording." : "Film the work area.", stage: null }, captureReceived: received }) };
+    }
+    if (String(url).endsWith("/api/self-capture/uploads/tok.signed/status")) {
+      return { ok: true, json: async () => ({ state: "ready", captureReceived: received, uploadState: received ? "processing_ready" : "not_received" }) };
     }
     if (init?.method === "POST") return { ok: true, status: 200, json: async () => ({ captureUrl }) };
     return photon([]);
@@ -266,6 +271,8 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
 
   received = true;
   await screen.findByText("Your recording is in.", { selector: "h2" }, { timeout: 10_000 });
+  expect(fetchMock).toHaveBeenCalledWith("/api/self-capture/uploads/tok.signed/status");
+  expect(fetchMock).not.toHaveBeenCalledWith("/api/self-capture/uploads/tok.signed");
   expect(screen.getByRole("link", { name: "Review your job brief" })).toHaveAttribute("href", captureUrl);
   expect(screen.queryByRole("link", { name: "Open your job page" })).toBeNull();
   expect(screen.queryByRole("img", { name: "Point your phone at this to film" })).toBeNull();
@@ -277,7 +284,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
 
   function answerPosts(body: Record<string, unknown>) {
     fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
-      if (String(url).includes("/status")) return { ok: true, json: async () => ({ status: { headline: "", stage: null }, captureReceived: false }) };
+      if (String(url).startsWith("/api/site-task-brief/") && String(url).endsWith("/status")) return { ok: true, json: async () => ({ status: { headline: "", stage: null }, captureReceived: false }) };
       if (init?.method === "POST") return { ok: true, status: 200, json: async () => body };
       return photon([]);
     });
@@ -359,9 +366,72 @@ describe("SiteCaptureStart and a video that already exists", () => {
     render(<SiteCaptureStart />);
     fillFor(video());
 
-    await screen.findByText("Your job is saved. The video did not send.", { selector: "h2" });
-    expect(screen.getByText(/The connection dropped before the video finished\. Nothing was lost/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open the uploader" })).toHaveAttribute("href", captureUrl);
+    await screen.findByText("Your job is saved. Check your video upload.", { selector: "h2" });
+    expect(screen.getByText(/Keep your original video and open your job page/)).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing was lost|Film the work, not the worker/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open the uploader" })).toHaveAttribute("href", `${captureUrl}?video=existing`);
+    expect(screen.queryByRole("img", { name: "Point your phone at this to film" })).not.toBeInTheDocument();
+    expect(screen.getByText("Open this job on another device (optional)").closest("details")).not.toHaveAttribute("open");
+  });
+
+  it("retries the selected original file without creating a second job after metadata failure", async () => {
+    answerPosts({ captureUrl });
+    upload.send.mockResolvedValueOnce({ status: "failed", message: "This browser could not read the video's frame rate. Keep your original video." })
+      .mockResolvedValueOnce({ status: "done" });
+    render(<SiteCaptureStart />); const original = video(); fillFor(original);
+    fireEvent.click(await screen.findByRole("button", { name: "Try the selected video again" }));
+    await screen.findByRole("heading", { name: "Your recording is in." });
+    expect(upload.send.mock.calls[1][1]).toBe(original);
+    expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
+  });
+
+  it("shows a retained processing failure and retries without another file upload", async () => {
+    answerPosts({ captureUrl });
+    upload.send.mockResolvedValue({ status: "processing_pending", message: "Your video is saved. We could not confirm that processing started.", processingRetryAvailable: true });
+    let finishRetry!: (result: { status: "done" }) => void;
+    upload.retry.mockImplementation(() => new Promise((resolve) => { finishRetry = resolve; }));
+    render(<SiteCaptureStart />);
+    fillFor(video());
+    await screen.findByRole("heading", { name: "Video received. Processing is not confirmed." });
+    expect(screen.queryByText(/The video did not send|Nothing was lost/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /film/i })).not.toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "Retry processing" });
+    fireEvent.click(button); fireEvent.click(button);
+    expect(upload.retry).toHaveBeenCalledTimes(1);
+    expect(upload.retry).toHaveBeenCalledWith("tok.signed");
+    finishRetry({ status: "done" });
+    await screen.findByRole("heading", { name: "Your recording is in." });
+    expect(upload.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no processing retry for a current consent or authorization hold", async () => {
+    answerPosts({ captureUrl });
+    upload.send.mockResolvedValue({ status: "held", message: "Processing is on hold until current consent is confirmed." });
+    render(<SiteCaptureStart />); fillFor(video());
+    await screen.findByText(/current consent is confirmed/);
+    expect(screen.queryByRole("button", { name: "Retry processing" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /film/i })).not.toBeInTheDocument();
+  });
+
+  it("does not create a job or upload existing footage without rights consent", async () => {
+    answerPosts({ captureUrl }); render(<SiteCaptureStart />);
+    fireEvent.click(document.querySelector("#start-existing-footage")!);
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
+    fireEvent.submit(screen.getByRole("form"));
+    expect(upload.send).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+  });
+
+  it("guards a repeated Start while the first intake is still saving", async () => {
+    let intakeCalls = 0;
+    fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => {
+      if (init?.method === "POST") { intakeCalls++; return new Promise(() => undefined); }
+      return photon([]);
+    });
+    render(<SiteCaptureStart />); fillFor(video());
+    fireEvent.submit(screen.getByRole("form"));
+    await vi.waitFor(() => expect(intakeCalls).toBe(1));
+    expect(upload.send).not.toHaveBeenCalled();
   });
 
   it("does not send the video when no camera link comes back", async () => {

@@ -97,6 +97,20 @@ export interface BundleServiceDeps {
   now(): Date;
 }
 
+function bundleProcessingHold(
+  authority: Awaited<ReturnType<BundleServiceDeps["loadAuthority"]>>,
+  recordingDetail = "Recording permission changed before completion.",
+): ServiceResponse | null {
+  if (!hasCurrentRecordingConsent(authority.consentAttestation)) {
+    return { status: 409, body: { code: "recording_consent_required", error: recordingDetail } };
+  }
+  if (authority.captureRights.derived_scene_generation_allowed !== true) {
+    return { status: 409, body: { code: "capture_processing_not_authorized",
+      error: "Processing is on hold until the existing capture rights can be verified." } };
+  }
+  return null;
+}
+
 export interface TokenPayload {
   supplement?: import("./captureUploadToken").CaptureSupplementBinding;
   requestId: string;
@@ -586,9 +600,8 @@ export async function completeBundle(
   body: unknown,
   deps: BundleServiceDeps,
 ): Promise<ServiceResponse> {
-  if (!hasCurrentRecordingConsent((await deps.loadAuthority(payload.requestId)).consentAttestation)) {
-    return { status: 409, body: { code: "recording_consent_required", error: "Current recording permission is required." } };
-  }
+  const admissionHold = bundleProcessingHold(await deps.loadAuthority(payload.requestId), "Current recording permission is required.");
+  if (admissionHold) return admissionHold;
   const target = targetFor(payload);
   const record = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const plan = await readJson<BundlePlanRecord>(deps.storage, planObjectName(target));
@@ -776,13 +789,12 @@ export async function completeBundle(
     if (!proceed) return heldResponse(target, result);
   }
 
-  if (!hasCurrentRecordingConsent((await deps.loadAuthority(payload.requestId)).consentAttestation)) {
-    return { status: 409, body: { code: "recording_consent_required", error: "Recording permission changed before completion." } };
-  }
   const currentSource = await appBundlePrivacySource(payload, deps.storage);
   if (currentSource?.kind !== producerSource.kind || currentSource.key !== producerSource.key) {
     return { status: 409, body: { error: "The capture source changed before completion.", code: "bundle_marker_conflict" } };
   }
+  const publicationHold = bundleProcessingHold(await deps.loadAuthority(payload.requestId));
+  if (publicationHold) return publicationHold;
   await deps.startCoverageReview({ requestId: payload.requestId, sceneId: target.sceneId, captureId: target.captureId });
   if ((await finishBundle(target, completion, deps.storage)) === "conflict") {
     logger.error({ captureId: target.captureId }, "Bundle hash manifest or marker differs from its completion record");
@@ -802,7 +814,7 @@ export async function finishClearedBundle(
   deps: BundleServiceDeps,
   expectedSource: CapturePrivacyProducerSource,
 ): Promise<"finished" | "not_a_bundle" | "conflict"> {
-  if (!hasCurrentRecordingConsent((await deps.loadAuthority(payload.requestId)).consentAttestation)) return "conflict";
+  if (bundleProcessingHold(await deps.loadAuthority(payload.requestId))) return "conflict";
   const target = targetFor(payload);
   const storage = deps.storage;
   const completion = await readJson<BundleCompletionRecord>(storage, completionObjectName(target));
@@ -819,7 +831,7 @@ export async function finishClearedBundle(
     identity: completion.identity, planDigest: plan.plan_digest, client: plan.client }) === "conflict") return "conflict";
   const currentSource = await appBundlePrivacySource(payload, storage);
   if (currentSource?.kind !== expectedSource.kind || currentSource.key !== expectedSource.key) return "conflict";
-  if (!hasCurrentRecordingConsent((await deps.loadAuthority(payload.requestId)).consentAttestation)) return "conflict";
+  if (bundleProcessingHold(await deps.loadAuthority(payload.requestId))) return "conflict";
   await deps.startCoverageReview({ requestId: payload.requestId, sceneId: target.sceneId, captureId: target.captureId });
   return finishBundle(target, completion, storage);
 }

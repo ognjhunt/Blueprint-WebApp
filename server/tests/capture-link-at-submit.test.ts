@@ -21,6 +21,7 @@
  */
 import express from "express";
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 import type { Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -32,13 +33,18 @@ const screenCaptureForPrivacy = vi.hoisted(() =>
   vi.fn(async () => ({ proceed: true, outcome: "cleared", detail: null, evidence: null })),
 );
 vi.mock("../utils/capturePrivacyScreen", () => ({ screenCaptureForPrivacy }));
+vi.mock("../utils/slack", async importOriginal => ({
+  ...await importOriginal<typeof import("../utils/slack")>(),
+  notifySlackFootageNeedsReview: vi.fn(async () => false),
+}));
 
 /** Every object written to the bucket, by path, so the marker can be asserted. */
 const written = vi.hoisted(() => new Map<string, string>());
 const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
 const generations = vi.hoisted(() => ({ next: 1 }));
 const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
-const writeFault = vi.hoisted(() => ({ manifestOnce: false, markerOnce: false }));
+const writeFault = vi.hoisted(() => ({ manifestOnce: false, markerOnce: false, readUnavailable: false,
+  beforeManifestExists: null as null | (() => void) }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -55,7 +61,25 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
     dbAdmin: sharedFakeFirestore,
     storageAdmin: {
       bucket: () => ({
-        combine: async () => { throw new Error("unexpected_compose"); },
+        getFiles: async ({ prefix }: { prefix: string }) => [[...written.keys()]
+          .filter(name => name.startsWith(prefix)).map(name => ({ name }))],
+        combine: async (sources: string[], destination: string, options?: { ifGenerationMatch?: number | string }) => {
+          const latest = (name: string) => [...storedVersions.entries()].reverse()
+            .find(([key]) => key.startsWith(`${name}@`))?.[1];
+          if (options?.ifGenerationMatch !== undefined
+              && String(options.ifGenerationMatch) !== String(latest(destination)?.metadata.generation ?? 0))
+            throw Object.assign(new Error("compose precondition failed"), { code: 412 });
+          const body = Buffer.concat(sources.map(name => {
+            const stored = latest(name);
+            if (!stored) throw new Error("missing_compose_source");
+            return stored.body;
+          }));
+          const metadata = { name: destination, generation: String(generations.next++),
+            size: String(body.length), crc32c: "AAAAAA==" };
+          storedVersions.set(`${destination}@${metadata.generation}`, { body, metadata });
+          written.set(destination, "<binary>");
+          return [null, metadata];
+        },
         file: (path: string, options?: { generation?: string }) => {
           let responseMetadata: Record<string, string> | undefined;
           const current = () => options?.generation
@@ -90,11 +114,19 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
             write(Buffer.isBuffer(body) ? body : Buffer.from(String(body)));
           },
           getMetadata: async () => {
+            if (writeFault.readUnavailable) throw new Error("injected_storage_read_failure");
             const value = current();
             if (!value) throw Object.assign(new Error("missing"), { code: 404 });
             return [value.metadata];
           },
-          exists: async () => [Boolean(current())],
+          exists: async () => {
+            if (path.endsWith("/manifest.json") && writeFault.beforeManifestExists) {
+              const inspect = writeFault.beforeManifestExists;
+              writeFault.beforeManifestExists = null;
+              inspect();
+            }
+            return [Boolean(current())];
+          },
           download: async () => {
             const value = current();
             if (!value) throw Object.assign(new Error("missing"), { code: 404 });
@@ -177,7 +209,9 @@ function seedRequest(
   sharedFakeFirestoreState.docs.set(`inboundRequests/${requestId}`, {
     requestId,
     contact: { email: "owner@example.com" },
-    request: { buyerType: "site_operator", capture_mode: captureMode, capture_region: "us", consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z" } },
+    request: { buyerType: "site_operator", capture_mode: captureMode, capture_region: "us",
+      consent_attestation: { granted: true, statement_version: "2026-09-18.v1",
+        recorded_at_iso: "2026-09-18T12:00:00.000Z" } },
     site_task_triage: {
       blocking_field_ids: [],
       blockers: [],
@@ -198,6 +232,8 @@ beforeEach(() => {
   writeGate.current = null;
   writeFault.manifestOnce = false;
   writeFault.markerOnce = false;
+  writeFault.readUnavailable = false;
+  writeFault.beforeManifestExists = null;
   screenCaptureForPrivacy.mockClear();
   screenCaptureForPrivacy.mockResolvedValue({
     proceed: true,
@@ -228,6 +264,279 @@ async function uploadFor(baseUrl: string, requestId: string, bytes = "x") {
   });
   return { status: response.status, body: (await response.json()) as Record<string, unknown> };
 }
+
+async function uploadStatus(baseUrl: string, requestId: string) {
+  const token = tokenFrom(captureUploadUrlFor(requestId));
+  const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+  return { status: response.status, body: await response.json() as Record<string, any> };
+}
+
+async function retryProcessing(baseUrl: string, requestId: string) {
+  const token = tokenFrom(captureUploadUrlFor(requestId));
+  const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
+  return { status: response.status, body: await response.json() as Record<string, any> };
+}
+
+describe("saved footage and processing are separate receipts", () => {
+  it("recovers an interrupted manifest from the original measured draft without replacing the video", async () => {
+    seedRequest("req-manifest-recovery", { disposition: "qualified" });
+    writeFault.manifestOnce = true;
+    await withRoutes(async baseUrl => {
+      const first = await uploadFor(baseUrl, "req-manifest-recovery", "original video");
+      expect(first).toMatchObject({ status: 502, body: { state: "processing_pending",
+        captureReceived: true, processingRetryAvailable: true } });
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-manifest-recovery") as Record<string, any>;
+      const original = structuredClone(session.browser_stored_upload);
+      expect(original.manifest_json).toContain('"fps_source": 30');
+      const videoBefore = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
+      const markerName = "scenes/site-req-manifest-recovery/captures/walkthrough-req-manifest-recovery/raw/capture_upload_complete.json";
+      // Refresh and Back only ask a question; they cannot enqueue processing.
+      for (let i = 0; i < 2; i++) expect((await uploadStatus(baseUrl, "req-manifest-recovery")).body)
+        .toMatchObject({ state: "ready", uploadState: "processing_pending", captureReceived: true,
+          processingRetryAvailable: true });
+      expect(written.has(markerName)).toBe(false);
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+      expect((await uploadFor(baseUrl, "req-manifest-recovery", "replacement")).status).toBe(409);
+      expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(videoBefore);
+      sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-manifest-recovery", { summary: "Changed later", confirmedAtIso: null });
+      expect(await retryProcessing(baseUrl, "req-manifest-recovery")).toMatchObject({ status: 200,
+        body: { state: "processing_ready", captureReceived: true, processingRetryAvailable: false } });
+      const manifestName = original.video.object_name.replace("walkthrough.mov", "manifest.json");
+      expect(written.get(manifestName)).toBe(original.manifest_json);
+      const finished = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-manifest-recovery") as Record<string, any>;
+      expect(finished.browser_stored_upload).toBeNull();
+      expect(finished.browser_pending_delivery).toMatchObject({ state: "published", video: original.video,
+        completed_at_iso: original.completed_at_iso });
+      const versionsBefore = [...storedVersions.keys()];
+      expect((await retryProcessing(baseUrl, "req-manifest-recovery")).status).toBe(200);
+      expect([...storedVersions.keys()]).toEqual(versionsBefore);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("serializes repeated processing retries of an interrupted manifest", async () => {
+    seedRequest("req-retry-concurrent", { disposition: "qualified" });
+    writeFault.manifestOnce = true;
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-retry-concurrent", "original")).status).toBe(502);
+      const results = await Promise.all([retryProcessing(baseUrl, "req-retry-concurrent"), retryProcessing(baseUrl, "req-retry-concurrent")]);
+      expect(results.some(result => result.status === 200)).toBe(true);
+      expect(results.every(result => [200, 409].includes(result.status))).toBe(true);
+      expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toHaveLength(1);
+      expect([...storedVersions.keys()].filter(name => name.includes("/capture_upload_complete.json@"))).toHaveLength(1);
+      expect((await uploadStatus(baseUrl, "req-retry-concurrent")).body.uploadState).toBe("processing_ready");
+    });
+  });
+
+  it("keeps composed footage and reports processing failure when the privacy record is interrupted", async () => {
+    seedRequest("req-parts-recovery", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockImplementationOnce(async () => {
+      const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-parts-recovery") as Record<string, any>;
+      request.capture_privacy_screening_claim.id = "interrupted-claim";
+      return { proceed: true, eligibility: "unscreened", outcome: "not_reviewed", detail: null, evidence: null };
+    });
+    await withRoutes(async baseUrl => {
+      const token = tokenFrom(captureUploadUrlFor("req-parts-recovery"));
+      const part = new FormData();
+      part.append("part", new Blob(["original video"]), "part.bin");
+      expect((await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/0?extension=mov`, {
+        method: "PUT", body: part,
+      })).status).toBe(200);
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/complete`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ parts: 1, extension: "mov", sizeBytes: 14,
+          metadata: { widthPx: 1920, heightPx: 1080, fps: 30, durationSeconds: 61,
+            recordedAtEpochMs: 1_758_000_000_000 } }),
+      });
+      expect(response.status).toBe(502);
+      expect(await response.json()).toMatchObject({ state: "processing_pending", captureReceived: true,
+        processingRetryAvailable: true });
+      const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-parts-recovery") as Record<string, any>;
+      request.capture_privacy_screening_claim.expires_at_ms = Date.now() - 1;
+      screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+        outcome: "not_reviewed", detail: null, evidence: null });
+      expect((await retryProcessing(baseUrl, "req-parts-recovery")).status).toBe(200);
+      expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toHaveLength(1);
+      expect([...storedVersions.keys()].filter(name => name.includes("/capture_upload_complete.json@"))).toHaveLength(1);
+    });
+  });
+
+  it("keeps a failed processing signal read-only on status and respects revoked consent on explicit retry", async () => {
+    seedRequest("req-revoked-retry", { disposition: "qualified" });
+    writeFault.markerOnce = true;
+    screenCaptureForPrivacy.mockResolvedValue({ proceed: true, eligibility: "unscreened",
+      outcome: "not_reviewed", detail: null, evidence: null });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-revoked-retry", "original")).body).toMatchObject({
+        state: "processing_pending", captureReceived: true, processingRetryAvailable: true });
+      const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-revoked-retry") as Record<string, any>;
+      request.request.consent_revoked = true;
+      const before = [...storedVersions.keys()];
+      expect((await uploadStatus(baseUrl, "req-revoked-retry")).body).toMatchObject({ captureReceived: true,
+        state: "held", holdReason: "capture_processing_not_authorized",
+        uploadState: "processing_pending", processingRetryAvailable: false });
+      expect(await retryProcessing(baseUrl, "req-revoked-retry")).toMatchObject({ status: 409,
+        body: { state: "held", code: "capture_processing_not_authorized", processingRetryAvailable: false } });
+      expect([...storedVersions.keys()]).toEqual(before);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not upgrade a retained draft missing original consent even if current consent exists", async () => {
+    seedRequest("req-no-original-consent", { disposition: "qualified" });
+    writeFault.manifestOnce = true;
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-no-original-consent", "original")).status).toBe(502);
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-no-original-consent") as Record<string, any>;
+      const originalManifest = JSON.parse(session.browser_stored_upload.manifest_json);
+      originalManifest.capture_rights.derived_scene_generation_allowed = false;
+      originalManifest.capture_rights.consent_status = "missing";
+      session.browser_stored_upload.manifest_json = JSON.stringify(originalManifest, null, 2);
+      session.browser_stored_upload.manifest_sha256 = `sha256:${createHash("sha256")
+        .update(session.browser_stored_upload.manifest_json).digest("hex")}`;
+      const before = [...storedVersions.keys()];
+      expect((await uploadStatus(baseUrl, "req-no-original-consent")).body).toMatchObject({
+        state: "held", holdReason: "capture_processing_not_authorized", captureReceived: true,
+        processingRetryAvailable: false });
+      expect((await retryProcessing(baseUrl, "req-no-original-consent")).status).toBe(409);
+      expect([...storedVersions.keys()]).toEqual(before);
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+    });
+  });
+
+  it("keeps the retained original when recording consent is withdrawn after retry admission", async () => {
+    seedRequest("req-retry-withdrawal", { disposition: "qualified" });
+    writeFault.manifestOnce = true;
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-retry-withdrawal", "original")).status).toBe(502);
+      const before = [...storedVersions.keys()];
+      const transaction = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+      const withdrawal = vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementation(async callback => {
+        const result = await transaction(callback);
+        // The original handler may still be releasing its reservation after
+        // sending the response; withdraw only once this retry owns a new lease.
+        if (result && typeof result === "object" && "schema_version" in result
+            && result.schema_version === "website_browser_write_reservation.v1") {
+          sharedFakeFirestoreState.docs.get("inboundRequests/req-retry-withdrawal")!.request.consent_attestation.granted = false;
+        }
+        return result;
+      });
+      try {
+        expect(await retryProcessing(baseUrl, "req-retry-withdrawal")).toMatchObject({ status: 409,
+          body: { state: "held", code: "recording_consent_required", captureReceived: true,
+            processingRetryAvailable: false } });
+        expect([...storedVersions.keys()]).toEqual(before);
+        expect((await uploadStatus(baseUrl, "req-retry-withdrawal")).body).toMatchObject({
+          state: "held", captureReceived: true, processingRetryAvailable: false });
+        expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+      } finally { withdrawal.mockRestore(); }
+    });
+  });
+
+  it.each(["consent", "region"])("reports the real %s hold after admission but before processing publication", async kind => {
+    const requestId = `req-late-${kind}`;
+    const expectedCode = kind === "consent" ? "capture_processing_not_authorized" : "capture_region_unapproved";
+    seedRequest(requestId, { disposition: "qualified" });
+    screenCaptureForPrivacy.mockImplementationOnce(async () => {
+      const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`) as Record<string, any>;
+      if (kind === "consent") request.request.consent_revoked = true;
+      else request.request.capture_region = "non_us";
+      return { proceed: true, eligibility: "unscreened", outcome: "not_reviewed", detail: null, evidence: null };
+    });
+    await withRoutes(async baseUrl => {
+      expect(await uploadFor(baseUrl, requestId, "original")).toMatchObject({ status: 409,
+        body: { state: "held", captureReceived: true, code: expectedCode,
+          processingRetryAvailable: false } });
+      expect([...storedVersions.keys()].filter(name => name.includes("/capture_upload_complete.json@"))).toHaveLength(0);
+      expect((await uploadStatus(baseUrl, requestId)).body).toMatchObject({ state: "held",
+        captureReceived: true, holdReason: expectedCode, processingRetryAvailable: false });
+    });
+  });
+
+  it("does not retry when current upload authority is withdrawn or the stored source changes", async () => {
+    seedRequest("req-source-retry", { disposition: "qualified" });
+    writeFault.manifestOnce = true;
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-source-retry", "original")).status).toBe(502);
+      const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-source-retry") as Record<string, any>;
+      request.request.capture_region = "non_us";
+      expect((await uploadStatus(baseUrl, "req-source-retry")).body).toMatchObject({ state: "held",
+        captureReceived: true, processingRetryAvailable: false });
+      expect((await retryProcessing(baseUrl, "req-source-retry")).status).toBe(409);
+      request.request.capture_region = "us";
+      const receipt = (sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-source-retry") as Record<string, any>).browser_stored_upload;
+      const changed = Buffer.from("changed");
+      storedVersions.set(`${receipt.video.object_name}@999`, { body: changed,
+        metadata: { name: receipt.video.object_name, generation: "999", size: String(changed.length), crc32c: "AAAAAA==" } });
+      expect((await uploadStatus(baseUrl, "req-source-retry")).body).toMatchObject({ captureReceived: false,
+        uploadState: "status_unavailable", processingRetryAvailable: false });
+      expect(await retryProcessing(baseUrl, "req-source-retry")).toMatchObject({ status: 409,
+        body: { code: "capture_source_unverified", processingRetryAvailable: false } });
+      expect([...storedVersions.keys()].filter(name => name.includes("/capture_upload_complete.json@"))).toHaveLength(0);
+    });
+  });
+
+  it("reports unavailable storage as unknown retention rather than claiming nothing was saved", async () => {
+    seedRequest("req-read-failure", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-read-failure", "original")).status).toBe(201);
+      writeFault.readUnavailable = true;
+      expect((await uploadStatus(baseUrl, "req-read-failure")).body).toMatchObject({ captureReceived: false,
+        uploadState: "status_unavailable", processingRetryAvailable: false });
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not trust a published row when its exact processing signal changed or republish it as another attempt", async () => {
+    seedRequest("req-published-proof", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-published-proof", "original")).status).toBe(201);
+      const name = "scenes/site-req-published-proof/captures/walkthrough-req-published-proof/raw/capture_upload_complete.json";
+      const changed = Buffer.from('{"different":"processing signal"}');
+      storedVersions.set(`${name}@999`, { body: changed, metadata: { name, generation: "999",
+        size: String(changed.length), crc32c: "AAAAAA==" } });
+      const before = [...storedVersions.keys()];
+      expect((await uploadStatus(baseUrl, "req-published-proof")).body).toMatchObject({ state: "held",
+        holdReason: "capture_handoff_unverified", captureReceived: true, uploadState: "retained",
+        processingRetryAvailable: false });
+      expect(await retryProcessing(baseUrl, "req-published-proof")).toMatchObject({ status: 409,
+        body: { code: "capture_handoff_unverified", processingRetryAvailable: false } });
+      expect([...storedVersions.keys()]).toEqual(before);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("provides a read-only legacy status route without screening or publishing its retained capture", async () => {
+    seedRequest("req-readonly-legacy", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Held", evidence: null });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-readonly-legacy", "original")).body.state).toBe("held");
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-readonly-legacy") as Record<string, any>;
+      delete session.browser_pending_delivery;
+      delete session.browser_modern_attempt;
+      const before = structuredClone([...sharedFakeFirestoreState.docs]);
+      const versionsBefore = [...storedVersions.keys()];
+      const token = tokenFrom(captureUploadUrlFor("req-readonly-legacy"));
+      screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+        outcome: "not_reviewed", detail: null, evidence: null });
+      for (let i = 0; i < 2; i++) {
+        const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/status`);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "retained",
+          processingRetryAvailable: false });
+      }
+      expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+      expect([...storedVersions.keys()]).toEqual(versionsBefore);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+      // Existing clients retain their authorized recovery contract.
+      await uploadStatus(baseUrl, "req-readonly-legacy");
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(2);
+      expect([...storedVersions.keys()].filter(name => name.includes("/capture_upload_complete.json@"))).toHaveLength(1);
+    });
+  });
+});
 
 /* -------------------------------------------- looking before we copy */
 
@@ -382,6 +691,69 @@ describe("the privacy question is asked before anything is derived", () => {
     });
   });
 
+  it.each(["root", "request", "capture_rights", "future_processing"])(
+    "does not publish a legacy marker when %s authority is withdrawn during screening", async location => {
+      const requestId = `req-legacy-withdrawn-${location}`;
+      seedRequest(requestId, { disposition: "qualified" });
+      screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+        outcome: "review_unavailable", detail: "Hold", evidence: null });
+      await withRoutes(async baseUrl => {
+        expect((await uploadFor(baseUrl, requestId, "original")).body.state).toBe("held");
+        const session = sharedFakeFirestoreState.docs.get(`captureUploadSessions/walkthrough-${requestId}`) as Record<string, any>;
+        delete session.browser_pending_delivery;
+        delete session.browser_modern_attempt;
+        const before = [...storedVersions.keys()];
+        screenCaptureForPrivacy.mockImplementationOnce(async () => {
+          const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`) as Record<string, any>;
+          if (location === "root") request.consent_revoked = true;
+          else if (location === "request") request.request.consent_revoked = true;
+          else if (location === "capture_rights") request.capture_rights = { consent_revoked: true };
+          else request.request.future_processing_allowed = false;
+          return { proceed: true, eligibility: "unscreened", outcome: "not_reviewed", detail: null, evidence: null };
+        });
+        const token = tokenFrom(captureUploadUrlFor(requestId));
+        await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+        expect([...storedVersions.keys()]).toEqual(before);
+        expect([...written.keys()].some(name => name.endsWith("/capture_upload_complete.json"))).toBe(false);
+        expect((await authorizeCaptureUpload(requestId)).allowed).toBe(true);
+        const status = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/status`);
+        expect(await status.json()).toMatchObject({ state: "held", captureReceived: true,
+          uploadState: "retained", holdReason: "capture_processing_not_authorized",
+          processingRetryAvailable: false });
+        // Current recording attestation still exists; the independent rights
+        // withdrawal must stop replay of the now-saved privacy clearance too.
+        await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+        expect([...storedVersions.keys()]).toEqual(before);
+        expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(2);
+      });
+    },
+  );
+
+  it("rechecks legacy rights after the final asynchronous manifest-presence read", async () => {
+    seedRequest("req-legacy-final-rights", { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
+      outcome: "review_unavailable", detail: "Hold", evidence: null });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-legacy-final-rights", "original")).body.state).toBe("held");
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-final-rights") as Record<string, any>;
+      delete session.browser_pending_delivery;
+      delete session.browser_modern_attempt;
+      const before = [...storedVersions.keys()];
+      writeFault.beforeManifestExists = () => {
+        sharedFakeFirestoreState.docs.get("inboundRequests/req-legacy-final-rights")!.capture_rights = { consent_revoked: true };
+      };
+      screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+        outcome: "not_reviewed", detail: null, evidence: null });
+      const token = tokenFrom(captureUploadUrlFor("req-legacy-final-rights"));
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect(writeFault.beforeManifestExists).toBeNull();
+      expect([...storedVersions.keys()]).toEqual(before);
+      expect([...written.keys()].some(name => name.endsWith("/capture_upload_complete.json"))).toBe(false);
+      expect((await uploadStatus(baseUrl, "req-legacy-final-rights")).body).toMatchObject({ state: "held",
+        captureReceived: true, holdReason: "capture_processing_not_authorized", processingRetryAvailable: false });
+    });
+  });
+
   it("does not clear a legacy hold while a modern writer has reserved its canonical source", async () => {
     seedRequest("req-legacy-writing", { disposition: "qualified" });
     screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
@@ -440,7 +812,7 @@ describe("the privacy question is asked before anything is derived", () => {
       const markerName = "scenes/site-req-marker-retry/captures/walkthrough-req-marker-retry/raw/capture_upload_complete.json";
       expect(written.has(markerName)).toBe(false);
       const token = tokenFrom(captureUploadUrlFor("req-marker-retry"));
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
       expect((sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-marker-retry") as
         Record<string, any>).browser_pending_delivery.state).toBe("published");
       const marker = JSON.parse(written.get(markerName) ?? "null");
@@ -463,20 +835,20 @@ describe("the privacy question is asked before anything is derived", () => {
       const originalKey = bound.producer_source.key;
       expect(originalKey).toMatch(/^sha256:[a-f0-9]{64}$/);
       bound.producer_source.key = `sha256:${"0".repeat(64)}`;
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
       expect(written.has(markerName)).toBe(false);
       bound.producer_source.key = originalKey;
       bound.proceeded = false;
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
       expect(written.has(markerName)).toBe(false);
       bound.proceeded = true;
       bound.capture_id = "walkthrough-other";
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
       expect(written.has(markerName)).toBe(false);
       bound.capture_id = "walkthrough-req-marker-guard";
       const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-marker-guard") as Record<string, any>;
       session.browser_pending_delivery.scene_id = "site-other";
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
       expect(written.has(markerName)).toBe(false);
       expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
     });
@@ -495,7 +867,7 @@ describe("the privacy question is asked before anything is derived", () => {
       const markerBefore = written.get(markerName);
       const markerVersionsBefore = [...storedVersions.keys()].filter((name) => name.startsWith(`${markerName}@`));
       const token = tokenFrom(captureUploadUrlFor("req-pending-retry"));
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
       expect((sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-pending-retry") as
         Record<string, any>).browser_pending_delivery.state).toBe("published");
       expect(written.get(markerName)).toBe(markerBefore);
@@ -567,7 +939,7 @@ describe("the privacy question is asked before anything is derived", () => {
       screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "approved",
         outcome: "cleared", detail: null, evidence: null });
       const token = tokenFrom(captureUploadUrlFor("req-privacy-record-fault"));
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
       expect(JSON.parse(written.get(markerName) ?? "null").producer_delivery.raw_video_generation).toMatch(/^\d+$/);
       expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-privacy-record-fault") as Record<string, any>)
         .capture_privacy_screen.producer_source.kind).toBe("browser_pending");
@@ -589,7 +961,7 @@ describe("the privacy question is asked before anything is derived", () => {
       screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
         outcome: "review_unavailable", detail: "Hold", evidence: null });
       const token = tokenFrom(captureUploadUrlFor("req-old-worker-merge"));
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
       const markerName = "scenes/site-req-old-worker-merge/captures/walkthrough-req-old-worker-merge/raw/capture_upload_complete.json";
       expect(written.has(markerName)).toBe(false);
     });
@@ -641,7 +1013,7 @@ describe("the privacy question is asked before anything is derived", () => {
           key: browserPendingDecisionKey(session.browser_pending_delivery) },
         screened_at_iso: new Date().toISOString() };
       const token = tokenFrom(captureUploadUrlFor("req-app-to-browser"));
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      await fetch(`${baseUrl}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
       const markerName = "scenes/site-req-app-to-browser/captures/walkthrough-req-app-to-browser/raw/capture_upload_complete.json";
       expect(written.has(markerName)).toBe(false);
       expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
@@ -760,7 +1132,8 @@ describe("the privacy question is asked before anything is derived", () => {
 
     expect([...written.keys()].some((p) => p.endsWith("capture_upload_complete.json"))).toBe(true);
     expect(result.status).toBe(201);
-    expect(result.body.state).toBeUndefined();
+    expect(result.body).toMatchObject({ state: "processing_ready", uploadState: "processing_ready",
+      captureReceived: true, processingRetryAvailable: false });
   });
 
   it("writes the manifest before the marker, because extraction reads it", async () => {
@@ -1030,6 +1403,18 @@ describe("one link, two pages", () => {
 });
 
 describe("failing closed", () => {
+  it("does not promise retention when the authority store cannot be read", async () => {
+    const read = vi.spyOn(sharedFakeFirestore, "collection").mockImplementationOnce(() => {
+      throw new Error("injected_authority_read_failure");
+    });
+    try {
+      const result = await authorizeCaptureUpload("req-unreadable-authority");
+      expect(result).toMatchObject({ allowed: false, holdReason: "store_unavailable" });
+      expect(result.detail).toContain("Keep your original video");
+      expect(result.detail).not.toMatch(/nothing.*lost|nothing.*saved/i);
+    } finally { read.mockRestore(); }
+  });
+
   it("holds rather than allows when the store cannot be read", async () => {
     const collection = sharedFakeFirestoreState.docs;
     seedRequest("req-throw", { disposition: "qualified" });

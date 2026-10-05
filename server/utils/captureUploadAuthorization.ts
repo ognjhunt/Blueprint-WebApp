@@ -87,7 +87,7 @@ export async function authorizeCaptureUpload(
   if (!db) {
     return held(
       "store_unavailable",
-      "We cannot check this link right now. Try again shortly — nothing is lost.",
+      "We cannot check this link right now. Keep your original video and try again shortly.",
     );
   }
 
@@ -98,7 +98,7 @@ export async function authorizeCaptureUpload(
   } catch {
     return held(
       "store_unavailable",
-      "We cannot check this link right now. Try again shortly — nothing is lost.",
+      "We cannot check this link right now. Keep your original video and try again shortly.",
     );
   }
 
