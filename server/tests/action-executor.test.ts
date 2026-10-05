@@ -458,10 +458,12 @@ describe("prospect outreach quality enforcement", () => {
     mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger })
       .mockResolvedValueOnce(prospectDoc({ ...handChosen, contactEmail: "renamed@facility.example" }));
     otherRecords([hypothesisAt(outreachDraft.to)]);
+    const claims = vi.spyOn(fakeDb, "runTransaction");
     expect(await approveAction("outreach-1", "admin@blueprint.test", review))
       .toMatchObject({ state: "pending_approval", error: "outreach_ready_hypothesis_draft_only" });
     // Refused at the release check itself: never approved, never claimed.
-    expect(fakeDb.runTransaction).not.toHaveBeenCalled();
+    expect(claims).not.toHaveBeenCalled();
+    claims.mockRestore();
     expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "operator_approved" }));
     expect(mockSendEmail).not.toHaveBeenCalled();
   });

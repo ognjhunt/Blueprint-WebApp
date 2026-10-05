@@ -134,7 +134,8 @@ export function SiteCaptureStart() {
   const footageWanted = hasFootage && region !== "non_us";
   // When the submitter is not the one who will film — common when outreach
   // reaches an ops lead at a desk — we send the record-only link straight to
-  // whoever is on the floor. Blank means the submitter is filming.
+  // whoever is on the floor, only when the submitter chooses to delegate.
+  const [delegatedFilming, setDelegatedFilming] = useState(false);
   const [filmerContact, setFilmerContact] = useState("");
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
@@ -199,7 +200,7 @@ export function SiteCaptureStart() {
           captureMode: hasFootage || selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
           hasExistingFootage: hasFootage,
-          filmerContact: !hasFootage && selfRecording ? filmerContact.trim() || undefined : undefined,
+          filmerContact: !hasFootage && selfRecording && delegatedFilming ? filmerContact.trim() || undefined : undefined,
           // The grant, not just the ticked box: recorded server-side with the
           // sentence version, or the submission is refused.
           consentAttestation: {
@@ -503,13 +504,26 @@ export function SiteCaptureStart() {
           </label>
 
           {selfRecording && (
-            <label htmlFor="start-filmer">
+            <label htmlFor="start-delegated-filming" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
+              <input
+                id="start-delegated-filming"
+                type="checkbox"
+                checked={delegatedFilming}
+                onChange={(event) => setDelegatedFilming(event.target.checked)}
+                aria-controls="start-filmer-details"
+                style={{ width: "auto", minHeight: 0 }}
+              />
+              <span>Someone else will record it</span>
+            </label>
+          )}
+
+          {selfRecording && delegatedFilming && (
+            <label id="start-filmer-details" htmlFor="start-filmer">
               <span>
-                Who is doing the filming? <span className="ms-optional">(optional)</span>
+                Their email <span className="ms-optional">(optional)</span>
               </span>
               <span className="ms-field-hint">
-                Filming it yourself? Leave this blank. If someone else on-site will do it, put their
-                email here and we will send them a record-only link — they can film and upload,
+                Add their email and we will send them a record-only link — they can film and upload,
                 and only you can confirm the job brief.
               </span>
               <input
