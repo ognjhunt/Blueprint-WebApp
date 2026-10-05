@@ -1,5 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
+// GOOGLE_APPLICATION_CREDENTIALS may be set where tests run: no default reader may reach a real Firestore.
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 
 import {
   auditInferredGates,
@@ -10,14 +12,19 @@ import { decideCaptureDispatch } from "../utils/captureDispatch";
 import { bindingGateFieldIds } from "../../client/src/data/siteTaskQualification";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import {
+  assertNotHypothesisRecipient,
   convertProspectToRequestPayload,
   guardProspectSend,
   prospectResearchTier,
   type OutboundProspect,
+  type RecipientProspectReader,
 } from "../utils/outboundProspects";
 import { communicationsSendingEnabled } from "../agents/communications-send";
 
 afterEach(() => vi.unstubAllEnvs());
+
+/** Injected recipient reader: no other prospect record carries the address. */
+const noRecords = async () => [];
 
 const BINDING = ["sceneStability", "taskShape", "objectVariety", "accessWindow"];
 
@@ -115,19 +122,19 @@ describe("a guess can never qualify a site", () => {
 
 describe("nothing leaves the building unsourced or unwanted", () => {
   it("sends when the hypothesis is specific and sourced", async () => {
-    const result = await guardProspectSend(prospect(), { isSuppressed: async () => false });
+    const result = await guardProspectSend(prospect(), { readRecipientProspects: noRecords, isSuppressed: async () => false });
     expect(result).toEqual({ send: true, email: "ops@example.com" });
   });
 
   it("refuses a recipient who opted out", async () => {
-    const result = await guardProspectSend(prospect(), { isSuppressed: async () => true });
+    const result = await guardProspectSend(prospect(), { readRecipientProspects: noRecords, isSuppressed: async () => true });
     expect(result).toMatchObject({ send: false, blocker: "email_suppressed" });
   });
 
   it("treats an unreadable suppression list as suppressed", async () => {
     // Not knowing whether someone opted out is not permission.
     const result = await guardProspectSend(prospect(), {
-      isSuppressed: async () => {
+      readRecipientProspects: noRecords, isSuppressed: async () => {
         throw new Error("firestore unavailable");
       },
     });
@@ -140,7 +147,7 @@ describe("nothing leaves the building unsourced or unwanted", () => {
     // second and unforgettable.
     const result = await guardProspectSend(
       prospect({ observations: [{ claim: "Runs three shifts", source: "  " }] }),
-      { isSuppressed: async () => false },
+      { readRecipientProspects: noRecords, isSuppressed: async () => false },
     );
 
     expect(result).toMatchObject({ send: false, blocker: "unsourced_observation" });
@@ -149,21 +156,21 @@ describe("nothing leaves the building unsourced or unwanted", () => {
 
   it("refuses to send with nothing checkable behind the claim", async () => {
     const result = await guardProspectSend(prospect({ observations: [] }), {
-      isSuppressed: async () => false,
+      readRecipientProspects: noRecords, isSuppressed: async () => false,
     });
     expect(result).toMatchObject({ send: false, blocker: "no_sourced_observations" });
   });
 
   it("refuses a generic send with no specific hypothesis", async () => {
     const result = await guardProspectSend(prospect({ hypothesisedTask: "   " }), {
-      isSuppressed: async () => false,
+      readRecipientProspects: noRecords, isSuppressed: async () => false,
     });
     expect(result).toMatchObject({ send: false, blocker: "hypothesis_missing" });
   });
 
   it("does not contact the same prospect twice in a beta", async () => {
     const result = await guardProspectSend(prospect({ stage: "contacted" }), {
-      isSuppressed: async () => false,
+      readRecipientProspects: noRecords, isSuppressed: async () => false,
     });
     expect(result).toMatchObject({ send: false, blocker: "already_contacted" });
   });
@@ -174,7 +181,7 @@ describe("nothing leaves the building unsourced or unwanted", () => {
     // on that allowance, so the blocker has to be distinguishable.
     const result = await guardProspectSend(
       prospect({ stage: "closed", closedReason: "Asked not to be contacted." }),
-      { isSuppressed: async () => false },
+      { readRecipientProspects: noRecords, isSuppressed: async () => false },
     );
 
     expect(result).toMatchObject({ send: false, blocker: "prospect_closed" });
@@ -185,7 +192,7 @@ describe("nothing leaves the building unsourced or unwanted", () => {
     // Closing writes a suppression entry, but the stage is the local fact and
     // must stand on its own rather than depending on a second read succeeding.
     const result = await guardProspectSend(prospect({ stage: "closed" }), {
-      isSuppressed: async () => false,
+      readRecipientProspects: noRecords, isSuppressed: async () => false,
     });
     expect(result).toMatchObject({ send: false, blocker: "prospect_closed" });
   });
@@ -201,7 +208,7 @@ describe("the legacy mailer route and research-derived prospects", () => {
 
   it("refuses an outreach-ready hypothesis with sending enabled, before the suppression lookup", async () => {
     const isSuppressed = vi.fn(async () => false);
-    const result = await guardProspectSend(research(hypothesis), { isSuppressed, sendingEnabled: () => true });
+    const result = await guardProspectSend(research(hypothesis), { readRecipientProspects: noRecords, isSuppressed, sendingEnabled: () => true });
     expect(result).toMatchObject({ send: false, blocker: "outreach_ready_hypothesis_draft_only" });
     expect(isSuppressed).not.toHaveBeenCalled();
   });
@@ -213,44 +220,111 @@ describe("the legacy mailer route and research-derived prospects", () => {
     ["a hypothesis tier without other research fields", { qualificationTier: "outreach_ready" }],
   ])("fails closed on %s as a hypothesis", async (_name, fields) => {
     expect(prospectResearchTier(research(fields))).toBe("hypothesis");
-    expect(await guardProspectSend(research(fields), { isSuppressed: async () => false, sendingEnabled: () => true }))
+    expect(await guardProspectSend(research(fields), { readRecipientProspects: noRecords, isSuppressed: async () => false, sendingEnabled: () => true }))
       .toMatchObject({ send: false, blocker: "outreach_ready_hypothesis_draft_only" });
   });
 
   it("refuses a verified research prospect while the communications send flag is off", async () => {
     expect(prospectResearchTier(research(verifiedResearch))).toBe("verified");
-    expect(await guardProspectSend(research(verifiedResearch), { isSuppressed: async () => false, sendingEnabled: () => false }))
+    expect(await guardProspectSend(research(verifiedResearch), { readRecipientProspects: noRecords, isSuppressed: async () => false, sendingEnabled: () => false }))
       .toMatchObject({ send: false, blocker: "communications_sending_disabled" });
-    expect(await guardProspectSend(research({ researchPublicationId: "BP-000042" }), { isSuppressed: async () => false, sendingEnabled: () => false }))
+    expect(await guardProspectSend(research({ researchPublicationId: "BP-000042" }), { readRecipientProspects: noRecords, isSuppressed: async () => false, sendingEnabled: () => false }))
       .toMatchObject({ send: false, blocker: "communications_sending_disabled" });
   });
 
   it("passes a verified research prospect only once the send flag is on", async () => {
-    expect(await guardProspectSend(research(verifiedResearch), { isSuppressed: async () => false, sendingEnabled: () => true }))
+    expect(await guardProspectSend(research(verifiedResearch), { readRecipientProspects: noRecords, isSuppressed: async () => false, sendingEnabled: () => true }))
       .toEqual({ send: true, email: "ops@example.com" });
   });
 
   it("leaves hand-chosen prospects unchanged while the send flag is off", async () => {
     expect(prospectResearchTier(prospect())).toBe("none");
-    expect(await guardProspectSend(prospect(), { isSuppressed: async () => false, sendingEnabled: () => false }))
+    expect(await guardProspectSend(prospect(), { readRecipientProspects: noRecords, isSuppressed: async () => false, sendingEnabled: () => false }))
       .toEqual({ send: true, email: "ops@example.com" });
   });
 
   it("reports every other refusal first, so the draft route cannot pass a closed or suppressed research prospect", async () => {
     const off = { sendingEnabled: () => false };
-    expect(await guardProspectSend(research(verifiedResearch, { stage: "closed" }), { ...off, isSuppressed: async () => false }))
+    expect(await guardProspectSend(research(verifiedResearch, { stage: "closed" }), { ...off, readRecipientProspects: noRecords, isSuppressed: async () => false }))
       .toMatchObject({ blocker: "prospect_closed" });
-    expect(await guardProspectSend(research(verifiedResearch), { ...off, isSuppressed: async () => true }))
+    expect(await guardProspectSend(research(verifiedResearch), { ...off, readRecipientProspects: noRecords, isSuppressed: async () => true }))
       .toMatchObject({ blocker: "email_suppressed" });
-    expect(await guardProspectSend(research(verifiedResearch, { observations: [] }), { ...off, isSuppressed: async () => false }))
+    expect(await guardProspectSend(research(verifiedResearch, { observations: [] }), { ...off, readRecipientProspects: noRecords, isSuppressed: async () => false }))
       .toMatchObject({ blocker: "no_sourced_observations" });
+  });
+
+  it("refuses an address that another record holds as a hypothesis, before any other refusal or lookup", async () => {
+    const isSuppressed = vi.fn(async () => false);
+    const readRecipientProspects = vi.fn(async () => [prospect(), research(hypothesis)]);
+    // A hand-chosen prospect, already contacted: the draft route would let that blocker through.
+    expect(await guardProspectSend(prospect({ contactEmail: " Ops@Example.com ", stage: "contacted" }),
+      { isSuppressed, sendingEnabled: () => true, readRecipientProspects }))
+      .toMatchObject({ send: false, blocker: "outreach_ready_hypothesis_draft_only" });
+    expect(readRecipientProspects).toHaveBeenCalledWith(["Ops@Example.com", "ops@example.com"]);
+    expect(isSuppressed).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ["a site-screen admission", { screenAdmissionId: "d".repeat(64) }],
+    ["an unrecognised tier", { ...verifiedResearch, qualificationTier: "verified_later" }],
+  ])("treats another record with %s as a hypothesis recipient", async (_name, fields) => {
+    expect(await guardProspectSend(prospect(), { isSuppressed: async () => false, readRecipientProspects: async () => [research(fields)] }))
+      .toMatchObject({ send: false, blocker: "outreach_ready_hypothesis_draft_only" });
+  });
+
+  it("passes an address whose other records are hand-chosen or verified", async () => {
+    expect(await guardProspectSend(prospect(), { isSuppressed: async () => false,
+      readRecipientProspects: async () => [prospect(), research(verifiedResearch)] })).toEqual({ send: true, email: "ops@example.com" });
+  });
+
+  it("fails closed on unreadable recipient records only for a research-backed prospect", async () => {
+    const unreadable = async () => { throw new Error("firestore unavailable"); };
+    expect(await guardProspectSend(research(verifiedResearch), { isSuppressed: async () => false, sendingEnabled: () => true,
+      readRecipientProspects: unreadable })).toMatchObject({ send: false, blocker: "recipient_research_origin_unavailable" });
+    expect(await guardProspectSend(prospect(), { isSuppressed: async () => false, sendingEnabled: () => true,
+      readRecipientProspects: unreadable })).toEqual({ send: true, email: "ops@example.com" });
   });
 
   it.each(["", "false", "TRUE", "1", "yes", "true"])("reads BLUEPRINT_COMMUNICATIONS_SEND_ENABLED=%j exactly as the send path does", async (value) => {
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", value);
-    const result = await guardProspectSend(research(verifiedResearch), { isSuppressed: async () => false });
+    const result = await guardProspectSend(research(verifiedResearch), { readRecipientProspects: noRecords, isSuppressed: async () => false });
     expect(result.send).toBe(communicationsSendingEnabled());
     expect(result.send).toBe(value === "true");
+  });
+});
+
+describe("assertNotHypothesisRecipient (injected reader; Firestore mocked out)", () => {
+  const hypothesisRecord = { contactEmail: "ops@example.com", researchPublicationId: "BP-000043", qualificationTier: "outreach_ready" };
+
+  it("refuses when any record for the address is a hypothesis, research-backed or not", async () => {
+    for (const researchBacked of [true, false]) {
+      await expect(assertNotHypothesisRecipient(["ops@example.com"], { researchBacked,
+        readProspects: async () => [{ contactEmail: "ops@example.com" }, hypothesisRecord] })).rejects.toThrow("outreach_ready_hypothesis_draft_only");
+    }
+  });
+
+  it("reads each address once, as written and normalized, and skips non-strings", async () => {
+    const readProspects = vi.fn(async () => []);
+    await assertNotHypothesisRecipient([" Ops@Example.com", "ops@example.com", null, 7], { researchBacked: true, readProspects });
+    expect(readProspects).toHaveBeenCalledOnce();
+    expect(readProspects).toHaveBeenCalledWith(["Ops@Example.com", "ops@example.com"]);
+  });
+
+  it.each<[string, RecipientProspectReader | undefined, unknown[]]>([
+    ["the reader throws", async () => { throw new Error("firestore unavailable"); }, ["ops@example.com"]],
+    ["the reader returns no list", async () => ({ docs: [] }) as never, ["ops@example.com"]],
+    ["there is no address to read", async () => [], [" ", undefined]],
+    ["the default reader has no store", undefined, ["ops@example.com"]],
+  ])("fails closed when %s, only for a research-backed send", async (_name, readProspects, recipients) => {
+    await expect(assertNotHypothesisRecipient(recipients, { researchBacked: true, readProspects }))
+      .rejects.toThrow("recipient_research_origin_unavailable");
+    await expect(assertNotHypothesisRecipient(recipients, { researchBacked: false, readProspects })).resolves.toBeUndefined();
+  });
+
+  it("passes hand-chosen and verified records", async () => {
+    await expect(assertNotHypothesisRecipient(["ops@example.com"], { researchBacked: true, readProspects: async () => [
+      { contactEmail: "ops@example.com" }, { contactEmail: "ops@example.com", researchPublicationId: "BP-000042", entityAdmission: "research_provisional" },
+    ] })).resolves.toBeUndefined();
   });
 });
 

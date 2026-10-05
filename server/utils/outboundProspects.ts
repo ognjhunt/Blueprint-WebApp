@@ -32,6 +32,7 @@ import {
   isEmailSuppressed,
   normalizeSuppressionEmail,
 } from "./email-suppression";
+import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 import type { OutreachConnectionEvidence, OutreachCapabilityEvidence } from "../agents/outreach-review";
 
@@ -105,7 +106,8 @@ export type SendBlocker =
   | "already_contacted"
   | ResearchSendBlocker;
 
-export type ResearchSendBlocker = "outreach_ready_hypothesis_draft_only" | "communications_sending_disabled";
+export type ResearchSendBlocker = "outreach_ready_hypothesis_draft_only" | "communications_sending_disabled"
+  | "recipient_research_origin_unavailable";
 
 /**
  * Where a canonical prospect record came from.
@@ -129,6 +131,64 @@ export function prospectResearchTier(prospect: unknown): ProspectResearchTier {
     && !Object.hasOwn(record, "screenAdmissionId")
     && (!Object.hasOwn(record, "entityAdmission") || record.entityAdmission === "research_provisional");
   return verified ? "verified" : "hypothesis";
+}
+
+/** Reads every canonical prospect record whose `contactEmail` is one of these spellings. */
+export type RecipientProspectReader = (addresses: string[]) => Promise<unknown[]>;
+
+/** The production reader. Tests inject their own: a real Firestore must never be read. */
+export const readRecipientProspects: RecipientProspectReader = async (addresses) => {
+  if (!dbAdmin) throw new Error("prospect_store_unavailable");
+  const snapshot = await dbAdmin.collection("outboundProspects").where("contactEmail", "in", addresses).limit(101).get();
+  if (snapshot.size > 100) throw new Error("recipient_prospect_records_overflow");
+  return snapshot.docs.map((doc) => doc.data());
+};
+
+/**
+ * Recipient-level backstop: an address that belongs to an outreach-ready
+ * hypothesis is never sent to, whichever prospect record or route the send
+ * started from. Every canonical prospect record that carries the address, as
+ * written or normalized, is read, and any research tier other than verified
+ * refuses (`prospectResearchTier`, so unknown markers refuse too).
+ *
+ * It fails closed only for a research-backed send. When the records cannot be
+ * read, a send whose own prospect is research-derived refuses, and a send to a
+ * hand-chosen prospect keeps the gates it already had.
+ */
+export async function assertNotHypothesisRecipient(
+  recipients: readonly unknown[],
+  options: { researchBacked: boolean; readProspects?: RecipientProspectReader },
+): Promise<void> {
+  const addresses = [...new Set(recipients.flatMap((value) => typeof value === "string" && value.trim()
+    ? [value.trim(), normalizeSuppressionEmail(value)] : []).filter(Boolean))];
+  let records: unknown[];
+  try {
+    if (!addresses.length) throw new Error("recipient_missing");
+    records = await (options.readProspects ?? readRecipientProspects)(addresses);
+    if (!Array.isArray(records)) throw new Error("recipient_prospect_records_unreadable");
+  } catch {
+    if (options.researchBacked) throw new Error("recipient_research_origin_unavailable");
+    return;
+  }
+  if (records.some((record) => prospectResearchTier(record) === "hypothesis")) {
+    throw new Error("outreach_ready_hypothesis_draft_only");
+  }
+}
+
+/** `assertNotHypothesisRecipient` as a send-guard result. */
+async function recipientResearchBlocker(
+  recipients: readonly unknown[],
+  researchBacked: boolean,
+  readProspects?: RecipientProspectReader,
+): Promise<{ blocker: ResearchSendBlocker; detail: string } | null> {
+  try {
+    await assertNotHypothesisRecipient(recipients, { researchBacked, readProspects });
+    return null;
+  } catch (error) {
+    return error instanceof Error && error.message === "outreach_ready_hypothesis_draft_only"
+      ? { blocker: "outreach_ready_hypothesis_draft_only", detail: "This address belongs to an outreach-ready hypothesis, which is draft only." }
+      : { blocker: "recipient_research_origin_unavailable", detail: "The prospect records for this research-derived address could not be read." };
+  }
 }
 
 /** Same flag as `communicationsSendingEnabled`, read here because communications-send imports this module. */
@@ -171,12 +231,14 @@ export function researchProspectSendBlocker(
  * and asserting facts that turn out to be invented — and both are checked here
  * rather than trusted to whatever composed the message.
  *
- * Research-derived prospects also pass `researchProspectSendBlocker`. The action
- * executor applies the same rule again when an approval releases the message.
+ * Research-derived prospects also pass `researchProspectSendBlocker`, and every
+ * address passes `assertNotHypothesisRecipient`. The action executor applies the
+ * same rules again when an approval releases the message.
  */
 export async function guardProspectSend(
   prospect: OutboundProspect,
-  deps: { isSuppressed?: typeof isEmailSuppressed; sendingEnabled?: () => boolean } = {},
+  deps: { isSuppressed?: typeof isEmailSuppressed; sendingEnabled?: () => boolean;
+    readRecipientProspects?: RecipientProspectReader } = {},
 ): Promise<SendGuardResult> {
   // First, before any flag or lookup: a hypothesis is draft only. With sending
   // treated as enabled, only the hypothesis refusal can apply here.
@@ -187,6 +249,12 @@ export async function guardProspectSend(
   if (!email || !email.includes("@")) {
     return { send: false, blocker: "email_missing", detail: "No usable contact address." };
   }
+
+  // Then the address itself, before any other refusal: another canonical record
+  // may hold it as a hypothesis.
+  const recipient = await recipientResearchBlocker([prospect.contactEmail],
+    prospectResearchTier(prospect) !== "none", deps.readRecipientProspects);
+  if (recipient) return { send: false, ...recipient };
 
   // Checked before `already_contacted` and kept separate from it on purpose:
   // drafting a second version of a message nobody approved is fine, and the

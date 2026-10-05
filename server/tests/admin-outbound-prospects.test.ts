@@ -9,14 +9,16 @@ import { communicationsNow } from "./fixtures/communications";
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), set: vi.fn(), hasAnyRole: vi.fn(), runAgentTask: vi.fn(), executeAction: vi.fn(),
-  isEmailSuppressed: vi.fn(), readResearch: vi.fn(),
+  isEmailSuppressed: vi.fn(), readResearch: vi.fn(), recipientQuery: vi.fn(), where: vi.fn(),
 }));
 vi.mock("../agents/communications-research", async (original) => ({
   ...await original<typeof import("../agents/communications-research")>(), readExistingResearchSnapshot: mocks.readResearch,
 }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: { firestore: { FieldValue: { serverTimestamp: () => "timestamp" } } },
-  dbAdmin: { collection: () => ({ doc: () => ({ get: mocks.get, set: mocks.set }) }) },
+  // The recipient lookup is a mocked query too: no test here reaches a real Firestore.
+  dbAdmin: { collection: () => ({ doc: () => ({ get: mocks.get, set: mocks.set }),
+    where: (...args: unknown[]) => { mocks.where(...args); return { limit: () => ({ get: mocks.recipientQuery }) }; } }) },
 }));
 vi.mock("../utils/access-control", () => ({ hasAnyRole: mocks.hasAnyRole }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: mocks.runAgentTask }));
@@ -52,6 +54,7 @@ beforeEach(() => {
   mocks.get.mockResolvedValue({ exists: true, data: () => prospect });
   mocks.set.mockResolvedValue(undefined);
   mocks.isEmailSuppressed.mockResolvedValue(false);
+  mocks.recipientQuery.mockResolvedValue({ size: 0, docs: [] });
   mocks.executeAction.mockResolvedValue({ state: "pending_approval", tier: 3, ledgerDocId: "ledger-1" });
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
@@ -249,6 +252,18 @@ describe("outbound prospect review routes (no provider, Firestore, or transport 
         expect(await invoke(path, path.endsWith("send") ? send : {}))
           .toMatchObject({ status: 409, body: { ok: false, blocker: "outreach_ready_hypothesis_draft_only" } });
       }
+      expect(mocks.isEmailSuppressed).not.toHaveBeenCalled();
+      expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled(); expect(mocks.set).not.toHaveBeenCalled();
+    });
+
+    it("refuses /send and /draft for an address that another record holds as a hypothesis", async () => {
+      vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+      mocks.recipientQuery.mockResolvedValue({ size: 2, docs: [{ data: () => prospect }, { data: () => ({ ...hypothesis, prospectId: "prospect-2" }) }] });
+      for (const path of ["/:prospectId/send", "/:prospectId/draft"]) {
+        expect(await invoke(path, path.endsWith("send") ? send : {}))
+          .toMatchObject({ status: 409, body: { ok: false, blocker: "outreach_ready_hypothesis_draft_only" } });
+      }
+      expect(mocks.where).toHaveBeenCalledWith("contactEmail", "in", [outreachDraft.to]);
       expect(mocks.isEmailSuppressed).not.toHaveBeenCalled();
       expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled(); expect(mocks.set).not.toHaveBeenCalled();
     });
