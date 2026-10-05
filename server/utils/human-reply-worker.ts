@@ -1,4 +1,4 @@
-import { humanReplyAdmissionError } from "./human-reply-admission";
+import { humanReplyAdmissionError, replyPrincipal } from "./human-reply-admission";
 import { recordExternalGapReport } from "./gap-closure";
 import { resolveHumanBlockerAwaitingReply } from "./human-blocker-dispatch";
 import { approveAction } from "../agents/action-executor";
@@ -128,12 +128,8 @@ async function ingestHumanReplyMessage(params: {
   received_at: string;
   thread: HumanBlockerThreadRecord;
 }) {
-  const normalizeSender = (value: string | null) => {
-    const sender = String(value || "").trim();
-    return params.channel === "email" ? (sender.match(/<([^<>]+)>$/)?.[1] || sender).toLowerCase() : sender;
-  };
-  if (params.channel !== params.thread.channel || !params.thread.approved_identity
-      || normalizeSender(params.sender) !== normalizeSender(params.thread.approved_identity)) {
+  if (!params.thread.approved_identity
+      || replyPrincipal(params.sender) !== replyPrincipal(params.thread.approved_identity)) {
     return { processed: false, reason: "untrusted_sender" as const };
   }
   const existing = await getHumanReplyEvent(`${params.channel}:${params.external_message_id}`);

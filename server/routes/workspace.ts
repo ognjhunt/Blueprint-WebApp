@@ -388,7 +388,7 @@ async function linkedFreeWorkspaceRun(applicationId: string, application: Record
     || await teamAccountUid(run.teamId) !== application.account_owner_uid) return null;
   return run as Parameters<typeof projectAgentRunResult>[0];
 }
-async function applicationResults(task: WorkspaceTask) {
+async function applicationResults(task: WorkspaceTask, projectedRunIds: ReadonlySet<string>) {
   const applications = await db!
     .collection("inboundRequests")
     .where("workspace_evaluation.opportunityId", "==", task.id)
@@ -397,8 +397,10 @@ async function applicationResults(task: WorkspaceTask) {
   return (await Promise.all(
     applications.docs.map(async (doc) => {
       const application = object(doc.data());
-      // Its actual free run is projected once by listRunsForScene below.
-      if (await linkedFreeWorkspaceRun(doc.id, application)) return null;
+      // Suppress the application only when its actual run is in this response.
+      // Cancelled/expired runs and failed run reads must not erase its history.
+      const freeRun = await linkedFreeWorkspaceRun(doc.id, application);
+      if (freeRun && projectedRunIds.has(freeRun.runId)) return null;
       const runs = await db!
         .collection("robotEvalJobRequests")
         .where("site_submission_id", "==", doc.id)
@@ -430,7 +432,9 @@ async function applicationResults(task: WorkspaceTask) {
       };
       const result = projectWorkspaceResult(
         doc.id,
-        latest
+        freeRun?.state === "abandoned"
+          ? { status: "abandoned", buyer_user_id: application.account_owner_uid }
+          : latest
           ? object(latest.data())
           : {
               status: "requested",
@@ -483,15 +487,16 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       canMessage: Boolean(assignment.creator_id),
     };
   }
-  task.results = await applicationResults(task);
-  // Agent screening runs against this scene, as anonymised rows beside the
-  // legacy applications. This is what "No team results yet" used to hide.
+  // Read the runs once so application de-duplication uses the exact rows
+  // this response will show, including when the optional run read fails.
+  let runs: Awaited<ReturnType<typeof listRunsForScene>> = [];
   try {
-    const runs = await listRunsForScene(requestId);
-    task.results.push(...runs.map((run) => projectAgentRunResult(run, task.id, task.terms)));
+    runs = await listRunsForScene(requestId);
   } catch {
-    // A missing run list is missing rows, not a failed task load.
+    // Preserve application history when the optional run list is unavailable.
   }
+  task.results = await applicationResults(task, new Set(runs.map((run) => run.runId)));
+  task.results.push(...runs.map((run) => projectAgentRunResult(run, task.id, task.terms)));
   if (
     task.results.some((result) => result.successRate !== null) &&
     !task.pilot.selectedResultId &&

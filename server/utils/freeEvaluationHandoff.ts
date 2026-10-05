@@ -5,6 +5,7 @@ import { decryptFieldValue } from "./field-encryption";
 import { teamAccountUid } from "./robotTeamAccounts";
 import { discoverAgentExecutionAdmission, agentExecutionAdmissionDigest, canonicalJson } from "./agentExecutionAdmission";
 import { reservationTtlMs, runIdForReservation, type EvalRunRecord } from "./agentRunRecord";
+import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -32,7 +33,7 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const owner = application.account_owner_uid;
   const sceneRef = db.collection("inboundRequests").doc(selection.opportunityId);
   const scene = (await sceneRef.get()).data();
-  if (!scene || scene.consent_revoked === true || scene.future_processing_allowed === false)
+  if (!scene || !projectWebsiteCaptureRights(scene).derived_scene_generation_allowed)
     throw new Error("free_evaluation_scene_authority_unavailable");
   const teamRef = db.collection("robotTeams").doc(approval.teamId);
   const team = (await teamRef.get()).data();
@@ -87,11 +88,6 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
       transaction.get(requestRef), transaction.get(setupRef), transaction.get(checkpointRef),
       transaction.get(decisionRef), transaction.get(runRef), transaction.get(sceneRef), transaction.get(teamRef),
     ]);
-    if (currentRun.exists) {
-      if ((currentRun.data()?.executionAdmission?.envelope?.funding?.approval_digest) !== approvalDigest)
-        throw new Error("free_evaluation_approval_conflict");
-      return { runId, created: false };
-    }
     if (agentExecutionAdmissionDigest(currentScene.data()) !== agentExecutionAdmissionDigest(scene)
       || agentExecutionAdmissionDigest(currentTeam.data()) !== agentExecutionAdmissionDigest(team)
       || agentExecutionAdmissionDigest(currentRequest.data()) !== agentExecutionAdmissionDigest(application)
@@ -99,6 +95,11 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
       || agentExecutionAdmissionDigest(currentCheckpoint.data()) !== agentExecutionAdmissionDigest(checkpoint)
       || agentExecutionAdmissionDigest(currentDecision.data()) !== agentExecutionAdmissionDigest(decision))
       throw new Error("free_evaluation_source_changed");
+    if (currentRun.exists) {
+      if ((currentRun.data()?.executionAdmission?.envelope?.funding?.approval_digest) !== approvalDigest)
+        throw new Error("free_evaluation_approval_conflict");
+      return { runId, created: false };
+    }
     transaction.set(runRef, { ...run, settlementDueAtMs: expiry });
     transaction.set(requestRef, { free_evaluation_handoff: { runId, approvalDigest,
       approvedBy, approval, executionRequestId } }, { merge: true });
