@@ -22,18 +22,48 @@ const evidence = z.object({
   consequential: z.boolean(),
 }).strict();
 
-/** Open checks of blueprint.outreach-ready-rule.v1, in rule order. The last three are always open. */
-export const OUTREACH_READY_OPEN_CHECKS = ["manual_workflow", "freshness", "existing_automation", "fit", "interest"] as const;
+/** Open checks of blueprint.outreach-ready-rule.v1.1, in rule order. The last three are always open.
+ * `site_link` is open while the site_task proof is not tied to this facility. */
+export const OUTREACH_READY_OPEN_CHECKS = ["site_link", "manual_workflow", "freshness", "existing_automation", "fit", "interest"] as const;
 const ALWAYS_OPEN_CHECKS: readonly (typeof OUTREACH_READY_OPEN_CHECKS)[number][] = ["existing_automation", "fit", "interest"];
 const singleQuestion = text.refine(value => value.indexOf("?") === value.length - 1, "exactly one question, ending in ?");
-/** An outreach-ready hypothesis (owner decision 2026-10-05): operator, site and task are
- * proven; workflow, automation, fit and interest stay open questions. Draft only. */
+
+/** The v1.1 question templates, word for word. <task> and <site> are the candidate's
+ * `task` and `site`. */
+export const OUTREACH_READY_QUESTION_TEMPLATES = {
+  /** Site link open. */
+  S: (task: string, site: string) => `Is ${task} done at your ${site} site, or somewhere else in the company?`,
+  /** Manual workflow open. */
+  M: (task: string, site: string) => `Which parts of ${task} at ${site} still need people, and what has kept them from being automated?`,
+  /** Manual workflow verified; automation partial or elsewhere. */
+  A: (task: string, site: string) => `What has kept the remaining ${task} work at ${site} from being automated so far?`,
+} as const;
+export type OutreachReadyQuestionTemplate = keyof typeof OUTREACH_READY_QUESTION_TEMPLATES;
+/** Exactly one question is asked, by precedence S, then M, then A. The other open
+ * checks are recorded and stay unasked. */
+export function outreachReadyQuestionTemplate(openChecks: readonly string[]): OutreachReadyQuestionTemplate {
+  return openChecks.includes("site_link") ? "S" : openChecks.includes("manual_workflow") ? "M" : "A";
+}
+/** The one question a hypothesis with these open checks asks. */
+export function outreachReadyQuestion(openChecks: readonly string[], task: string, site: string) {
+  return OUTREACH_READY_QUESTION_TEMPLATES[outreachReadyQuestionTemplate(openChecks)](task, site);
+}
+// Each template with <task> and <site> left open, for a block that does not carry them.
+const TEMPLATE_SHAPES = Object.fromEntries(Object.entries(OUTREACH_READY_QUESTION_TEMPLATES).map(([name, template]) => {
+  const [task, site] = ["\u0000", "\u0001"];
+  const pattern = template(task, site).replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(task, "(.+)").replace(site, "(.+)");
+  return [name, new RegExp(`^${pattern}$`)];
+})) as Record<OutreachReadyQuestionTemplate, RegExp>;
+
+/** An outreach-ready hypothesis (owner decision 2026-10-05, design v1.1): operator, site and
+ * task are proven; the one missing fact that would change the decision is the open question.
+ * Draft only. */
 export const outreachReadyQualificationSchema = z.object({
   tier: z.literal("outreach_ready"), label: z.literal("hypothesis"),
   openChecks: z.array(z.enum(OUTREACH_READY_OPEN_CHECKS)).min(ALWAYS_OPEN_CHECKS.length).max(OUTREACH_READY_OPEN_CHECKS.length)
     .refine(checks => checks.join() === OUTREACH_READY_OPEN_CHECKS.filter(check => checks.includes(check)).join()
       && ALWAYS_OPEN_CHECKS.every(check => checks.includes(check)), "unique, in rule order, with existing_automation, fit and interest open"),
-  openQuestions: z.array(singleQuestion).min(1).max(3).refine(questions => new Set(questions).size === questions.length, "unique questions"),
+  openQuestions: z.array(singleQuestion).length(1),
   // The owner record, and the pinned direction that carries it.
   ownerDecision: z.object({
     reference: z.string().trim().min(1).max(1000),
@@ -41,7 +71,8 @@ export const outreachReadyQualificationSchema = z.object({
       sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
   }).strict(),
   sendsAuthorized: z.literal(false),
-}).strict();
+}).strict().refine(block => TEMPLATE_SHAPES[outreachReadyQuestionTemplate(block.openChecks)].test(block.openQuestions[0]),
+  { message: "the one question follows the template its open checks choose (S, then M, then A)", path: ["openQuestions", 0] });
 
 /** Immutable, quality-reviewed research handoff. Load time never refreshes evidence. */
 export const communicationsBriefSchema = z.object({

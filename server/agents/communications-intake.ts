@@ -229,6 +229,8 @@ export async function recordPublishedHypotheses(snapshot: any, deps: IntakeDepen
       const outcome = { ...identity, intakeId, state: "hypothesis_recorded", publishedTier: "outreach_ready", label: "hypothesis",
         sheetsProspectId: entry.sheetsProspectId, candidateDigest: entry.candidateDigest,
         openChecks: entry.openChecks, openQuestions: entry.openQuestions,
+        // The published expiry, null when freshness is unknown; phase-2 admission judges it.
+        validUntil: entry.validUntil,
         owner: "blueprint-communications-agent", recordedAt: deps.now(), eligibleForOutreach: false, draftJobCreated: false,
         sendsAuthorized: false, humanContextApprovalRequired: false, sent: false, sessionCreated: false };
       tx.set(ref, outcome);
