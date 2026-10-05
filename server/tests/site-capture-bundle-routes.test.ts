@@ -71,8 +71,8 @@ vi.mock("../utils/capturePrivacyScreen", () => ({
   }),
 }));
 
-vi.mock("../utils/captureCoverageReview", () => ({
-  reviewCaptureCoverage: vi.fn(async (input: { captureId: string }) => {
+vi.mock("../utils/captureCoverageQueue", () => ({
+  enqueueCoverageReview: vi.fn(async (input: { captureId: string }) => {
     state.coverage.push(input.captureId);
   }),
 }));
@@ -572,9 +572,7 @@ describe("completion keeps the web path's order and authority", () => {
     expect(writes[1]).toBe("manifest.json");
     expect(writes.slice(-2)).toEqual(["hashes.json", "capture_upload_complete.json"]);
     expect(state.notices).toEqual([`${REQUEST_ID}:video_received`]);
-    expect(state.coverage).toEqual([]);
-    expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`)?.coverageReviewPending).toBe(true);
-    expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`)?.coverageReviewWork.captureId).toBe(CAPTURE_ID);
+    expect(state.coverage).toEqual([CAPTURE_ID]);
 
     const manifest = JSON.parse(state.bucket.text(`${RAW}/manifest.json`)!);
     expect(manifest.capture_source).toBe("iphone");

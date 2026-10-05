@@ -1,5 +1,6 @@
 import { successRateBand, CONFIDENCE_POLICY_VERSION, measurementContradictsBand } from "./successRateConfidence";
 export { successRateBand, wilsonLowerBound, wilsonUpperBound, measurementContradictsBand, SUCCESS_RATE_BAND_CLAIM } from "./successRateConfidence";
+import { resultNotificationIntent, reconcileAgentRunResultNotifications } from "./agentRunResultNotifications";
 /**
  * What a run showed, and what that entitles us to claim.
  *
@@ -55,8 +56,6 @@ import type { RobotCapabilityField } from "../types/robot-team-registry";
 import { recordCohortEpisodes } from "./cohortEconomics";
 import { settlementAmountUsd } from "./agentEvalRuns";
 import { recordEvaluationOutcome } from "./robotTeamRegistry";
-import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
-import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
 import type { EvalRunRecord } from "./agentEvalRuns";
 import type { ControlledNativePrivateResult } from "./controlledNativeResult";
 
@@ -195,12 +194,13 @@ export async function recordRunResult(params: {
       const { reportedAtIso: _newTime, confidencePolicyVersion: _newVersion, ...newEvidence } = result;
       if (!isDeepStrictEqual(priorEvidence, newEvidence)) throw new Error("Run result conflicts with the recorded evidence");
       result.reportedAtIso = prior.reportedAtIso;
-      if (!current.data()?.notificationIntent) transaction.set(ref, {
-        notificationPending: true, notificationIntent: { kind: "result", episodesRun, episodesSucceeded },
+      // Backfill historical results whose notification enqueue could have been lost.
+      if (!current.data()?.result_notification_intent) transaction.set(ref, {
+        result_notification_intent: resultNotificationIntent(run, prior), result_notification_pending: true,
       }, { merge: true });
       return;
     }
-    transaction.set(ref, { result, notificationPending: true, notificationIntent: { kind: "result", episodesRun, episodesSucceeded }, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    transaction.set(ref, { result, result_notification_intent: resultNotificationIntent(run, result), result_notification_pending: true, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   });
 
   // Only a signed Pipeline result with an executed native episode proves that
@@ -214,30 +214,9 @@ export async function recordRunResult(params: {
     }
   }
 
-  // Official results notify the site; private results notify only their team.
-  {
-    // Deterministic outbox IDs repair an enqueue lost after result persistence.
-    try {
-      if (isSiteEvaluation(run)) await enqueueTaskLifecycleNotification({
-        requestId: run.sceneId,
-        milestone: "results_ready",
-        eventId: run.runId,
-        detail: `${episodesSucceeded} of ${episodesRun} simulated episodes succeeded`,
-      });
-    } catch (error) {
-      logger.warn({ error, runId: run.runId }, "Could not enqueue a results notice");
-    }
-    // And the team that paid for it.
-    try {
-      await notifyTeamOfRunOutcome({
-        teamId: run.teamId,
-        runId: run.runId,
-        outcome: { kind: "result", episodesSucceeded, episodesRun },
-      });
-    } catch (error) {
-      logger.warn({ error, runId: run.runId }, "Could not enqueue the team's result notice");
-    }
-  }
+  await reconcileAgentRunResultNotifications().catch(error => {
+    logger.warn({ error, runId: run.runId }, "Result notification remains pending for reconciliation");
+  });
 
   // Keep internal cost/revenue accounting for private runs without changing
   // any site progress or matching evidence. This ledger has no customer route.

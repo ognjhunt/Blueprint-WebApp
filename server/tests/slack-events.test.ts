@@ -15,6 +15,7 @@ vi.mock("../utils/human-reply-worker", () => ({
 
 vi.mock("../utils/human-reply-slack", () => ({
   evaluateSlackHumanReplySurface,
+  slackReplyPrincipal: vi.fn(async () => "owner@example.com"),
 }));
 
 async function startServer(): Promise<{ server: Server; baseUrl: string }> {
@@ -117,6 +118,7 @@ describe("slack events route", () => {
         body: JSON.stringify({
           type: "event_callback",
           event_id: "Ev123",
+          team_id: "T123",
           event_time: 1712960000,
           event: {
             type: "message",
@@ -132,9 +134,9 @@ describe("slack events route", () => {
       expect(response.status).toBe(200);
       expect(ingestHumanReplyPayload).toHaveBeenCalledWith({
         channel: "slack",
-        external_message_id: "1712960000.000200",
+        external_message_id: "T123:D123:1712960000.000200",
         external_thread_id: "D123:1712960000.000100",
-        sender: "U123",
+        sender: "owner@example.com",
         recipient: "D123",
         subject: null,
         body: "I added FIELD_ENCRYPTION_MASTER_KEY",

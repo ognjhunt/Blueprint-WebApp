@@ -107,13 +107,14 @@ const clearAnswers = () =>
   );
 
 describe("the confirmation says what our screen decided", () => {
-  it("asks for a call, rings ops, and promises no scene yet", async () => {
+  it("offers written clarification or a call without clearing the preparation gate", async () => {
     const response = await confirm();
     expect(response.status).toBe(200);
     const body = (await response.json()) as { disposition: string; screening: any };
     expect(body.disposition).toBe("needs_conversation");
-    expect(body.screening.headline).toMatch(/call/i);
-    expect(body.screening.detail).toMatch(/build your scene once the call/i);
+    expect(body.screening.headline).toMatch(/questions remain/i);
+    expect(body.screening.detail).toMatch(/in writing.*or book a call/i);
+    expect(body.screening.detail).toMatch(/review your answers.*before clearing/i);
     expect(body.screening.bookingUrl).toMatch(/^https:\/\//);
     expect(enqueueOutbox).toHaveBeenCalledWith(expect.objectContaining({
       to: "ops@acme.example", subject: expect.stringMatching(/call/i),

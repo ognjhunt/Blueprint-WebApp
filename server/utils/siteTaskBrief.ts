@@ -1,3 +1,4 @@
+import { humanDecisionDigest } from "./human-reply-admission";
 /**
  * We write the brief. The operator corrects it. That correction is the gate.
  *
@@ -251,6 +252,7 @@ export function mergeProposals(
 export async function mergeBriefProposals(params: {
   requestId: string;
   proposals: readonly ProposedGateAnswer[];
+  source?: { capture_id: string; evidence_digest: string; brief_digest: string };
 }): Promise<SiteTaskBriefRecord | null> {
   if (!db) return null;
   const ref = db.collection(TASK_BRIEFS_COLLECTION).doc(params.requestId);
@@ -259,6 +261,12 @@ export async function mergeBriefProposals(params: {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) return null;
     const brief = snapshot.data() as SiteTaskBriefRecord;
+    if (params.source) {
+      const sourceRef = ref.collection("footageProposals").doc(humanDecisionDigest(params.source));
+      transaction.set(sourceRef, { source: params.source, proposals: params.proposals,
+        state: brief.confirmedAtIso ? "owner_review_required" : humanDecisionDigest(brief) !== params.source.brief_digest ? "stale_revision" : "proposed" });
+      if (humanDecisionDigest(brief) !== params.source.brief_digest) return null;
+    }
     if (brief.confirmedAtIso) return null;
 
     const binding = bindingGates(brief.captureMode);
@@ -273,6 +281,7 @@ export async function mergeBriefProposals(params: {
       draftedFrom: [...new Set([...brief.draftedFrom, ...proposed.map((answer) => answer.basis)])],
     };
     transaction.set(ref, next);
+    transaction.set(db!.collection("inboundRequests").doc(params.requestId), { capture_coverage_pending: true }, { merge: true });
     return next;
   });
   if (!merged) return null;
@@ -378,16 +387,14 @@ export async function confirmBrief(params: {
   };
 
   if (db) {
-    await db
-      .collection(TASK_BRIEFS_COLLECTION)
-      .doc(params.requestId)
-      .set(confirmed, { merge: true });
-
-    await db
-      .collection("inboundRequests")
-      .doc(params.requestId)
-      .set(
+    await db.runTransaction(async tx => {
+      const briefRef = db!.collection(TASK_BRIEFS_COLLECTION).doc(params.requestId);
+      const current = await tx.get(briefRef);
+      if (humanDecisionDigest(current.data()) !== humanDecisionDigest(brief)) throw new Error("brief_changed_before_confirmation");
+      tx.set(briefRef, confirmed, { merge: true });
+      tx.set(db!.collection("inboundRequests").doc(params.requestId),
         {
+          capture_coverage_pending: true,
           siteTaskGates: answers,
           site_task_gate_sources: sources,
           site_task_triage: {
@@ -418,6 +425,7 @@ export async function confirmBrief(params: {
         },
         { merge: true },
       );
+    });
   }
 
   const readiness = assessReadiness({
@@ -485,6 +493,7 @@ export async function recordSiteTaskCallOutcome(params: {
   clearedFieldIds?: readonly string[];
   note: string;
   resolvedBy: string;
+  clarificationId?: string;
 }): Promise<CallOutcomeResult> {
   if (!db) throw new CallOutcomeError("Database not available");
   const ref = db.collection("inboundRequests").doc(params.requestId);
@@ -529,8 +538,22 @@ export async function recordSiteTaskCallOutcome(params: {
       ? "needs_conversation"
       : "qualified";
 
-  await ref.set(
+  await db.runTransaction(async tx => {
+    const current = (await tx.get(ref)).data();
+    const brief = params.clarificationId ? (await tx.get(db!.collection(TASK_BRIEFS_COLLECTION).doc(params.requestId))).data() : null;
+    if (humanDecisionDigest(current) !== humanDecisionDigest(record)) throw new CallOutcomeError("The submission changed. Reload before recording the outcome.");
+    if (params.clarificationId) {
+      const { clarificationRevision } = await import("./siteTaskClarifications");
+      if (current?.site_task_clarification?.id !== params.clarificationId
+        || current.site_task_clarification.state !== "review_required"
+        || current.site_task_clarification.revision !== clarificationRevision(brief, current)) {
+        throw new CallOutcomeError("The written clarification no longer matches this brief.");
+      }
+    }
+    tx.set(ref,
     {
+      ...(params.clarificationId ? { site_task_clarification: { state: "reviewed", resolved_by: params.resolvedBy,
+        resolved_at: nowIso(), disposition }, } : {}),
       siteTaskGates: answers,
       site_task_gate_sources: { ...(record.site_task_gate_sources ?? {}), ...sources },
       site_task_triage: {
@@ -543,6 +566,8 @@ export async function recordSiteTaskCallOutcome(params: {
         incomplete: verdict.incomplete,
         evaluated_at: nowIso(),
         call_resolution: {
+          channel: params.clarificationId ? "written_clarification" : "call",
+          clarification_id: params.clarificationId || null,
           cleared_field_ids: [...cleared],
           answered_field_ids: Object.keys(sources),
           resolved_by: params.resolvedBy,
@@ -553,6 +578,7 @@ export async function recordSiteTaskCallOutcome(params: {
     },
     { merge: true },
   );
+  });
 
   logger.info(
     { requestId: params.requestId, disposition, cleared: [...cleared], answered: Object.keys(sources) },

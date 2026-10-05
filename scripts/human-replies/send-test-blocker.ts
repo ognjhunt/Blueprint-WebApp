@@ -18,7 +18,7 @@ async function main() {
     argValue("--id")
     || new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15);
   const blockerId = `founder-inbox-production-smoke-${suffix}`;
-  const replyPhrase = `APPROVE ${blockerId}`;
+  const replyPhrase = "Approved";
 
   const result = await dispatchHumanBlocker({
     blocker_kind: "technical",

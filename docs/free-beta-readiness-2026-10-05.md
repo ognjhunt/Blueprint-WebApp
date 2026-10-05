@@ -36,6 +36,10 @@ bounded execution, and inspectable evidence; existing scenes remain
   unresolved rather than being blindly resent.
 - Unauthenticated/mismatched reply identities cannot resume work. Natural
   language approval alone cannot authorize an action ledger or city spending.
+  The merged upstream implementation owns authenticated, action-bound, durable
+  resume and native supplemental captures; coverage uses its existing queue,
+  and result notifications use its cursor-based projector. No duplicate coverage
+  consumer is installed by this change.
 
 The companion Pipeline change retains unresolved terminal sponsor exposure and
 refuses paid, expired, or cancelled work when claiming or resuming journals.
@@ -74,6 +78,9 @@ Repeated identical approval returns the same run; changed approval conflicts.
 - Machine-readable agent interface checks: 11 passed. Notification provider
   receipt, duplicate, binding and interrupted-response checks passed with the
   signed webhook route's existing suite (12 tests).
+- Merge integration checks: 104 recovery/admission tests and 122 workspace,
+  result, dispatch, settlement and consent-race tests passed. The final source
+  rechecks consent while committing coverage findings after a model review.
 - Graphify architecture refresh, asset audit, and portable-storage static audit passed.
 - Pipeline impacted selection: 206 passed, 5 skipped. Changed Python Ruff
   checks passed. No paid provider execution was performed.
@@ -109,13 +116,19 @@ Free-beta guard and account route suites test the actual refusal behavior.
    `pipelineAcknowledged: false`, `deletionConfirmed: false`. Its pending marker
    is not yet a deletion worker. Previously issued native storage targets also
    need expiry/cleanup proof.
-6. Native `add_views` cannot append to an existing bundle. The current email
-   directs an app capturer to arrange a new link; a named support owner and a
-   rehearsed closure receipt are still needed for that manual path.
-7. Reconcile legacy or push notices without correlated provider receipts and interrupted human-resume handoffs
-   through an owned, auditable process. Generic payload-bound approval/resume
-   and Operator Door caller idempotency/accepted-versus-completed repairs are
-   not complete in this branch.
+6. Deploy and exercise the merged native supplemental-capture path and bridge
+   from Capture PR #81 with the corresponding WebApp endpoints. Its hosted
+   source checks do not replace device interruption/relaunch and live closure
+   receipts. See `docs/audit-remediation-2026-10-05.md` for the upstream evidence.
+7. Install and verify authenticated durable human resume. The implementation is
+   now included from upstream; legacy packets lacking action/expiry bindings
+   must be reissued. Reconcile legacy or push notices without correlated
+   provider receipts through the owned process, never a blind resend.
+8. Review/merge/install the compatible Operator Door changes in Pipeline PR
+   #2601. They provide caller operation identity and observed completion, but
+   were not on Pipeline main at this branch's last read. The protected-runtime
+   deployment prerequisite remains a separate live release gate.
+
 
 Atlas integration, actual provider outputs and captured-room/physical
 qualification remain distinct from these beta release requirements.

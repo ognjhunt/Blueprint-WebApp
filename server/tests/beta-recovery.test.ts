@@ -5,19 +5,24 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await imp
 vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: async (value: string) => value }));
 vi.mock("../logger", () => ({ logger: { warn: vi.fn() } }));
 const mocks = vi.hoisted(() => ({ brief: vi.fn(), coverage: vi.fn(), site: vi.fn(), team: vi.fn(), save: vi.fn() }));
-vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async () => null, saveBrief: mocks.save, draftBrief: (value: unknown) => value }));
-vi.mock("../utils/siteTaskBriefReading", () => ({ readBriefFromDescription: mocks.brief }));
+vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async (id: string) => state.docs.get(`siteTaskBriefs/${id}`) || null, saveBrief: mocks.save, draftBrief: (value: unknown) => value }));
+vi.mock("../utils/siteTaskBriefReading", () => ({ readBriefFromDescription: mocks.brief, mergeFootageIntoBrief: vi.fn() }));
+vi.mock("../utils/captureFootageReview", () => ({ findPriorFootageReview: async () => ({ state: "none" }) }));
+vi.mock("../utils/captureUploadAuthorization", () => ({ authorizeCaptureUpload: async () => ({ allowed: true }) }));
+vi.mock("../utils/captureOutbox", () => ({ CAPTURE_OUTBOX_COLLECTION: "captureOutbox" }));
 vi.mock("../utils/captureCoverageReview", () => ({ reviewCaptureCoverage: mocks.coverage }));
 vi.mock("../config/env", () => ({ isSiteTaskBriefReadingEnabled: () => true, isSiteVideoEvidenceEnabled: () => true }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: mocks.site }));
 vi.mock("../utils/robotTeamNotifications", () => ({ notifyTeamOfRunOutcome: mocks.team }));
+import { reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 import { recoverCaptureReviews, queueCoverageReview } from "../utils/captureReviewRecovery";
 import { reconcileAgentRunNotifications } from "../utils/agentRunNotificationRecovery";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 beforeEach(() => {
   state.docs.clear(); Object.values(mocks).forEach(mock => mock.mockReset());
   mocks.brief.mockResolvedValue(true); mocks.coverage.mockResolvedValue({ coversScene: true });
-  mocks.site.mockResolvedValue({ enqueued: true }); mocks.team.mockResolvedValue({ enqueued: true });
+  mocks.site.mockImplementation(async () => { state.docs.set("captureOutbox/scene:results_ready:run", {}); return { enqueued: true }; });
+  mocks.team.mockImplementation(async () => { state.docs.set("captureOutbox/team:team:result:run", {}); return { enqueued: true }; });
 });
 describe("bounded capture recovery", () => {
   it("recovers an interrupted description read after its persisted lease", async () => {
@@ -44,31 +49,34 @@ describe("bounded capture recovery", () => {
     state.docs.set("inboundRequests/request", { request: { consent_attestation: { granted: true,
       statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-10-01T00:00:00Z" } },
       capture_privacy_source_bound_decision: { capture_id: "capture", proceeded: true, producer_source: { key: "source-1" } } });
+    state.docs.set("siteTaskBriefs/request", { summary: "Move boxes" });
     const input = { requestId: "request", sceneId: "scene", captureId: "capture" };
     await queueCoverageReview(input); await queueCoverageReview(input);
-    expect((await recoverCaptureReviews()).processedCount).toBe(1);
-    await queueCoverageReview(input); await recoverCaptureReviews();
+    await reconcileCoverageReviews();
+    await queueCoverageReview(input); await reconcileCoverageReviews(); await reconcileCoverageReviews();
     expect(mocks.coverage).toHaveBeenCalledTimes(1);
-    expect(mocks.coverage).toHaveBeenCalledWith({ ...input, expectedSourceKey: "source-1" });
+    expect(mocks.coverage).toHaveBeenCalledWith(expect.objectContaining({ ...input, binding: expect.objectContaining({ source: { key: "source-1" } }) }));
     const record = state.docs.get("inboundRequests/request")!;
     record.capture_privacy_source_bound_decision.producer_source.key = "source-2";
     await queueCoverageReview(input);
     state.docs.get("inboundRequests/request")!.request.consent_attestation.granted = false;
-    await recoverCaptureReviews();
+    await reconcileCoverageReviews();
     expect(mocks.coverage).toHaveBeenCalledTimes(1);
-    expect(state.docs.get("inboundRequests/request")?.coverageReviewWork.state).toBe("needs_review");
+    expect(state.docs.get("inboundRequests/request")?.capture_coverage_pending).toBe(true);
     await expect(queueCoverageReview(input)).rejects.toThrow("current_clearance_required");
   });
 });
 describe("result notification intent recovery", () => {
   it("keeps an intent pending until both audience outboxes accept it", async () => {
     state.docs.set("evaluationRuns/run", { runId: "run", teamId: "team", sceneId: "scene", evaluationPurpose: "pilot",
+      result: { observed: { episodesRun: 1, episodesSucceeded: 0 } },
       notificationPending: true, notificationIntent: { kind: "result", episodesRun: 1, episodesSucceeded: 0 } });
     mocks.team.mockResolvedValueOnce({ enqueued: false, reason: "contact_missing" });
     await reconcileAgentRunNotifications();
-    expect(state.docs.get("evaluationRuns/run")?.notificationPending).toBe(true);
-    await reconcileAgentRunNotifications();
     expect(state.docs.get("evaluationRuns/run")?.notificationPending).toBe(false);
+    expect(state.docs.get("evaluationRuns/run")?.result_notification_pending).toBe(true);
+    await reconcileAgentRunNotifications(); await reconcileAgentRunNotifications();
+    expect(state.docs.get("evaluationRuns/run")?.result_notification_pending).toBe(false);
     expect(mocks.site.mock.calls[0]).toEqual(mocks.site.mock.calls[1]);
     await reconcileAgentRunNotifications(); expect(mocks.team).toHaveBeenCalledTimes(2);
   });

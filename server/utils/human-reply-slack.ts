@@ -109,3 +109,19 @@ export function evaluateSlackHumanReplySurface(params: {
     reason: "channel_thread_allowed",
   };
 }
+
+/** Resolve the principal through Slack, never from message text or display names. */
+export async function slackReplyPrincipal(userId: string, teamId: string): Promise<string | null> {
+  const token = normalizeString(process.env.SLACK_BOT_TOKEN);
+  if (!token || !/^U[A-Z0-9]+$/.test(userId) || !teamId) return null;
+  const response = await fetch(`https://slack.com/api/users.info?user=${encodeURIComponent(userId)}`, {
+    headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) return null;
+  const data = await response.json() as { ok?: boolean; user?: {
+    id?: string; team_id?: string; deleted?: boolean; is_bot?: boolean; profile?: { email?: string };
+  } };
+  const user = data.user;
+  if (!data.ok || user?.id !== userId || user.team_id !== teamId || user.deleted || user.is_bot) return null;
+  return user.profile?.email?.trim().toLowerCase() || null;
+}

@@ -186,6 +186,7 @@ export const operatorQaApiFixtures: OperatorQaFixtureMetadata[] = [
       "GET /api/admin/leads",
       "GET /api/admin/leads/stats/summary",
       "GET /api/admin/leads/op-qa-ready",
+      "GET /api/admin/leads/op-qa-ready/site-task-clarification",
       "GET /api/admin/leads/op-qa-ready/pipeline/dashboard",
     ],
     proves: "The admin queue and scene readiness detail render from local operator fixtures.",
@@ -1047,6 +1048,11 @@ export function getOperatorQaFixtureForRequest(
       status: 200,
       body: adminLeadSceneDashboardFixture,
     };
+  }
+
+  if (normalizedMethod === "GET" && pathname === "/api/admin/leads/op-qa-ready/site-task-clarification") {
+    return { fixtureId: "admin-leads", status: 200,
+      body: { revision: "a".repeat(64), questions: [], needed: false, response: null } };
   }
 
   if (normalizedMethod === "GET" && pathname === "/api/admin/leads/op-qa-ready") {

@@ -267,7 +267,7 @@ async function api(
 }
 describe("workspace access and projections", () => {
   it("records only the owner's withdrawal, cancels queued work, and never claims deletion", async () => {
-    state.records.set("inboundRequests/task-1", task());
+    state.records.set("inboundRequests/task-1", { ...task(), capture_coverage_pending: true, coverageReviewPending: true });
     state.records.set("evaluationRuns/run", { runId: "run", sceneId: "task-1", state: "requested", dispatchPending: true });
     expect((await api("/tasks/task-1/recording-consent/withdraw", "site-2", {})).status).toBe(404);
     const first = await api("/tasks/task-1/recording-consent/withdraw", "site-1", {});
@@ -277,6 +277,8 @@ describe("workspace access and projections", () => {
     expect(receipt.pipelineAcknowledged).toBe(false);
     expect(state.records.get("inboundRequests/task-1").account_owner_uid).toBe("site-1");
     expect(state.records.get("inboundRequests/task-1").request.consent_attestation.granted).toBe(false);
+    expect(state.records.get("inboundRequests/task-1").capture_coverage_pending).toBe(false);
+    expect(state.records.get("inboundRequests/task-1").coverageReviewPending).toBe(false);
     expect(state.records.get("evaluationRuns/run").cancellationRequested).toBe(true);
     expect(state.records.get("evaluationRuns/run").dispatchPending).toBe(false);
     expect((await (await api("/tasks/task-1/recording-consent/withdraw", "site-1", {})).json()).receipt).toEqual(receipt);

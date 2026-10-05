@@ -145,9 +145,9 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: intak
   await form.locator("#start-company").fill("Acme Foods");
   await form.locator("#start-rights").check();
   // A typed address has no country yet: the first Start asks for it.
-  await form.getByRole("button", { name: "Start", exact: true }).click();
+  await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await form.locator("#start-region").selectOption("us");
-  await form.getByRole("button", { name: "Start", exact: true }).click();
+  await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
   if (mobile) {
     await expect(page.getByRole("link", { name: "Open the camera" })).toBeVisible();
     await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(0);

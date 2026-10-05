@@ -7,7 +7,8 @@ vi.mock("../agents/operator-tools", async importOriginal => ({ ...await importOr
   getCompanyHistoryAccess: async () => continuationMocks.access }));
 import { communicationsFixture, communicationsNow, memoryFirestore, cancelledContinuationFixture, syntheticQualification } from "./fixtures/communications";
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema,
-  outreachReadyQuestion, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL } from "../agents/communications-contract";
+  outreachReadyQuestion, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL, communicationsHandoffSchema,
+  SHEETS_RECEIPT_MAX_LENGTH } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { buildCommunicationsInput, processCommunicationsJob, recoverRejectedCommunicationsCreate, continueCancelledCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
@@ -218,6 +219,28 @@ describe("research handoff and publication integrity", () => {
     const f = communicationsFixture(); f.brief.facts[0].sourceCheckedAt = "2026-09-30";
     expect(communicationsBriefSchema.parse(f.brief).facts[0].sourceCheckedAt).toBe("2026-09-30");
     expect(() => researchDigest({ confidence: .5 })).toThrow("research_number_contract_unsupported");
+  });
+});
+
+describe("research handoff Sheets receipt limit", () => {
+  const receipt = (sheetId: string, rows: number) => `sheets:${sheetId}:Prospects:${Array.from({ length: rows },
+    (_, index) => `BP-${String(index + 1).padStart(6, "0")}`).join(",")}`;
+  it("holds the 200-row daily maximum (100 verified rows and 100 hypotheses) on a sheet ID of up to 128 characters", () => {
+    const { handoff } = communicationsFixture();
+    const longest = receipt("s".repeat(128), 200);
+    expect(SHEETS_RECEIPT_MAX_LENGTH).toBe(2145);
+    expect(longest).toHaveLength(SHEETS_RECEIPT_MAX_LENGTH);
+    expect(communicationsHandoffSchema.parse({ ...handoff, sheetsReceipt: longest }).sheetsReceipt).toBe(longest);
+    expect(communicationsHandoffSchema.safeParse({ ...handoff, sheetsReceipt: `${longest}0` }).success).toBe(false);
+    // The old 1200-character limit held about 113 rows on the CRM's 44-character sheet ID.
+    const crm = receipt("1n95Ih0Swc-q-kZyUaDHoZh6SVzxvf_zt-CRR7i39bWY", 200);
+    expect(crm.length).toBeGreaterThan(1200);
+    expect(communicationsHandoffSchema.parse({ ...handoff, sheetsReceipt: crm }).sheetsReceipt).toBe(crm);
+  });
+  it("keeps the other handoff text fields at their limit", () => {
+    const { handoff } = communicationsFixture();
+    expect(communicationsHandoffSchema.safeParse({ ...handoff, notionReceipt: "n".repeat(1201) }).success).toBe(false);
+    expect(communicationsHandoffSchema.safeParse({ ...handoff, recordReceipt: "r".repeat(1201) }).success).toBe(false);
   });
 });
 

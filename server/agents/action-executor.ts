@@ -1,3 +1,5 @@
+import { humanDecisionBinding, humanDecisionDigest, humanReplyAdmissionError } from "../utils/human-reply-admission";
+import type { HumanBlockerThreadRecord, HumanReplyEventRecord } from "../utils/human-reply-store";
 // Phase 2 — Action Ledger & Executor
 //
 // Evaluates a lane agent's draft output against the lane's safety policy,
@@ -27,7 +29,7 @@ import { reviewOutreachDraft, validateOutreachSemanticReview, outreachSemanticRe
 import { isCommunicationsPayload, reviewCommunicationsPayload } from "./communications-review";
 import { communicationsSendBlocker, communicationsSendingEnabled, executeCommunicationsSend, reconcileCommunicationsSend } from "./communications-send";
 import { communicationsDigest, outreachReadySendRefusal } from "./communications-contract";
-import { assertNotHypothesisRecipient, prospectResearchTier, researchProspectSendBlocker } from "../utils/outboundProspects";
+import { assertNotHypothesisRecipient, prospectResearchTier, recipientLookupAddresses, researchProspectSendBlocker } from "../utils/outboundProspects";
 
 function getDb() {
   if (!dbAdmin) throw new Error("Firestore is not initialized");
@@ -290,26 +292,40 @@ const LEGACY_RELEASE_STATE_CHANGED = "legacy_release_state_or_payload_changed";
 
 /** Claims a legacy prospect release. The prospect record is read again in the same
  * transaction that moves the ledger to executing, so a research marker written after
- * the release check above still refuses. The ledger must still be in the state that
- * was checked, with the same payload, so two releases cannot both send.
+ * the release check above still refuses. So are the other prospect records that carry
+ * the recipient address, as the communications claim does: a hypothesis record written
+ * for that address since the check refuses too. The ledger must still be in the state
+ * that was checked, with the same payload, so two releases cannot both send.
  *
  * Returns null once claimed, or the refusal, with the ledger already back at
  * pending_approval. Throws `LEGACY_RELEASE_STATE_CHANGED` with nothing written when
- * another release owns the ledger. */
+ * another release owns the ledger. A failed read throws, so nothing is sent. */
 async function claimLegacyProspectRelease(
   ledgerRef: FirebaseFirestore.DocumentReference,
   data: Record<string, any>,
   check: (current: Record<string, any>) => boolean,
+  verifyAuthority?: (tx: FirebaseFirestore.Transaction) => Promise<boolean>,
 ): Promise<string | null> {
   const prospectRef = getDb().collection("outboundProspects").doc(String(data.source_doc_id).trim());
   const claim = await getDb().runTransaction(async (tx) => {
     const [ledger, prospect] = await Promise.all([tx.get(ledgerRef), tx.get(prospectRef)]);
     const current = ledger.data();
-    if (!current || !check(current) || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) {
+    if (!current || !check(current) || current.action_type !== data.action_type
+      || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)
+      || (verifyAuthority && !await verifyAuthority(tx))) {
       return { changed: true, blocker: null };
     }
-    const blocker = !prospect?.exists ? "prospect_research_origin_unavailable"
+    let blocker: string | null = !prospect?.exists ? "prospect_research_origin_unavailable"
       : researchProspectSendBlocker(prospect.data(), communicationsSendingEnabled())?.blocker ?? null;
+    if (!blocker) {
+      // Same rule as assertNotHypothesisRecipient: a hypothesis always refuses; records
+      // that cannot all be read refuse only a research-backed release.
+      const addresses = recipientLookupAddresses([data.action_payload?.to, prospect.data()?.contactEmail]);
+      const records = addresses.length
+        ? await tx.get(getDb().collection("outboundProspects").where("contactEmail", "in", addresses).limit(101)) : null;
+      if (records?.docs.some((doc) => prospectResearchTier(doc.data()) === "hypothesis")) blocker = "outreach_ready_hypothesis_draft_only";
+      else if (prospectResearchTier(prospect.data()) !== "none" && (!records || records.size > 100)) blocker = "recipient_research_origin_unavailable";
+    }
     tx.update(ledgerRef, blocker
       ? { status: "pending_approval", approval_reason: `content_validation_failed: ${blocker}`, updated_at: new Date() }
       : { status: "executing", updated_at: new Date() });
@@ -673,12 +689,27 @@ export async function approveAction(
   ledgerDocId: string,
   operatorEmail: string,
   outreachSemanticReview?: unknown,
+  expectedActionDigest?: string,
+  replyAuthority?: { eventId: string; claim: string },
 ): Promise<ActionResult> {
+  const verifyReply = async (tx: FirebaseFirestore.Transaction) => {
+    if (!replyAuthority) return true;
+    const event = (await tx.get(getDb().collection("humanReplyEvents").doc(replyAuthority.eventId))).data() as HumanReplyEventRecord | undefined;
+    if (!event || event.resume_claim !== replyAuthority.claim || event.resume_state !== "running"
+      || event.classification !== "approval") return false;
+    const thread = (await tx.get(getDb().collection("humanBlockerThreads").doc(event.blocker_id))).data() as HumanBlockerThreadRecord | undefined;
+    return Boolean(thread && thread.record_of_truth.ops_work_item_id === ledgerDocId
+      && thread.last_human_reply_event_id === event.id && thread.action_digest === expectedActionDigest
+      && event.binding === humanDecisionBinding(thread) && !humanReplyAdmissionError(thread, event));
+  };
   const ledgerRef = getDb().collection("action_ledger").doc(ledgerDocId);
   const ledgerDoc = await ledgerRef.get();
   if (!ledgerDoc.exists) throw new Error(`Ledger doc ${ledgerDocId} not found`);
 
   const data = ledgerDoc.data()!;
+  if (expectedActionDigest && expectedActionDigest !== humanDecisionDigest({ type: data.action_type, payload: data.action_payload })) {
+    throw new Error("action_changed");
+  }
   if (data.status !== "pending_approval") {
     throw new Error(`Cannot approve action in state: ${data.status}`);
   }
@@ -727,6 +758,7 @@ export async function approveAction(
     status: "operator_approved",
     approved_by: operatorEmail,
     approved_at: new Date(),
+    ...(replyAuthority ? { human_reply_event_id: replyAuthority.eventId, human_reply_claim: replyAuthority.claim } : {}),
     ...(isProspectOutreach(data) ? {
       outreach_semantic_review: outreachSemanticReviewSchema.parse(outreachSemanticReview),
       outreach_reviewed_by: operatorEmail,
@@ -734,15 +766,16 @@ export async function approveAction(
     } : {}),
     updated_at: new Date(),
   };
-  if (isCommunicationsPayload(data.action_payload)) {
+  {
     const acquired = await getDb().runTransaction(async (tx) => {
       const current = (await tx.get(ledgerRef)).data();
-      if (current?.status !== "pending_approval" || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
+      if (!await verifyReply(tx)) return false;
+      if (current?.status !== "pending_approval" || current.action_type !== data.action_type || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
       tx.update(ledgerRef, approvalUpdate);
       return true;
     });
     if (!acquired) throw new Error("communications_approval_state_or_payload_changed");
-  } else await ledgerRef.update(approvalUpdate);
+  }
   await syncSourceDocumentState({
     sourceCollection: data.source_collection,
     sourceDocId: data.source_doc_id,
@@ -753,23 +786,29 @@ export async function approveAction(
     approvedBy: operatorEmail,
   });
 
+  // The legacy prospect release also reads the current research admission in
+  // its execution transaction, alongside the human decision authority.
+  const legacyProspect = isProspectOutreach(data) && !isCommunicationsPayload(data.action_payload);
   // Now execute
-  if (isCommunicationsPayload(data.action_payload)) {
+  if (!legacyProspect) {
     const acquired = await getDb().runTransaction(async (tx) => {
       const current = (await tx.get(ledgerRef)).data();
-      if (current?.status !== "operator_approved" || current.approved_by !== operatorEmail
+      if (!await verifyReply(tx)) return false;
+      if (current?.status !== "operator_approved" || current.action_type !== data.action_type || current.approved_by !== operatorEmail
         || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
       tx.update(ledgerRef, { status: "executing", updated_at: new Date() });
       return true;
     });
     if (!acquired) throw new Error("communications_execution_state_or_payload_changed");
   }
+  let effectStarted = false;
+  let effectAcknowledged = false;
   try {
-    if (isProspectOutreach(data) && !isCommunicationsPayload(data.action_payload)) {
+    if (legacyProspect) {
       const refusal = await claimLegacyProspectRelease(ledgerRef, data,
-        (current) => current.status === "operator_approved" && current.approved_by === operatorEmail);
+        (current) => current.status === "operator_approved" && current.approved_by === operatorEmail, verifyReply);
       if (refusal) return await legacyReleaseRefused(data, ledgerDocId, refusal);
-    } else if (!isCommunicationsPayload(data.action_payload)) await ledgerRef.update({ status: "executing", updated_at: new Date() });
+    }
     await syncSourceDocumentState({
       sourceCollection: data.source_collection,
       sourceDocId: data.source_doc_id,
@@ -779,7 +818,9 @@ export async function approveAction(
       state: "executing",
       approvedBy: operatorEmail,
     });
+    effectStarted = true;
     await performAction(data.action_type, data.action_payload);
+    effectAcknowledged = true;
     const sentAt = new Date();
     await ledgerRef.update({
       status: "sent",
@@ -809,6 +850,15 @@ export async function approveAction(
 
     return { state: "sent", tier: data.action_tier, ledgerDocId };
   } catch (err) {
+    if (effectStarted) {
+      // An external acknowledgement or its loss must never be turned into an
+      // automatically retryable failure by a later projection/log write.
+      const state = effectAcknowledged ? "sent" : "executing";
+      await ledgerRef.update({ status: state, outcome_observation: effectAcknowledged ? "acknowledged" : "unknown",
+        last_execution_error: err instanceof Error ? err.message : String(err), updated_at: new Date() });
+      return { state, tier: data.action_tier, ledgerDocId,
+        error: effectAcknowledged ? undefined : "action_outcome_unknown" };
+    }
     // Another release owns the ledger now: leave it exactly as it is.
     if (err instanceof Error && err.message === LEGACY_RELEASE_STATE_CHANGED) throw err;
     const attempts = (data.execution_attempts ?? 0) + 1;
@@ -862,7 +912,7 @@ export async function rejectAction(
   if (isCommunicationsPayload(data.action_payload)) {
     const acquired = await getDb().runTransaction(async (tx) => {
       const current = (await tx.get(ledgerRef)).data();
-      if (current?.status !== "pending_approval" || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
+      if (current?.status !== "pending_approval" || current.action_type !== data.action_type || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
       tx.update(ledgerRef, rejectionUpdate);
       return true;
     });

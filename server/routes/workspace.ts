@@ -1278,7 +1278,8 @@ router.post("/tasks/:taskId/recording-consent/withdraw", handle(async (req, res)
       deletionConfirmed: false, pipelineAcknowledged: false };
     transaction.set(ref, { consent_revoked: true, future_processing_allowed: false,
       request: { consent_attestation: { granted: false, revoked_at_iso: withdrawal.requestedAtIso } },
-      workspace_task: { paused: true }, briefReviewPending: false, coverageReviewPending: false,
+      workspace_task: { paused: true }, briefReviewPending: false,
+      capture_coverage_pending: false, coverageReviewPending: false,
       capture_withdrawal: withdrawal, captureWithdrawalPending: true }, { merge: true });
     for (const run of runs.docs) if (run.data().state === "requested") transaction.set(run.ref, {
       cancellationRequested: true, dispatchPending: false,
