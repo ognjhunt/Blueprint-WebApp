@@ -1,3 +1,5 @@
+import { humanDecisionBinding, humanDecisionDigest, humanReplyAdmissionError } from "../utils/human-reply-admission";
+import type { HumanBlockerThreadRecord, HumanReplyEventRecord } from "../utils/human-reply-store";
 // Phase 2 — Action Ledger & Executor
 //
 // Evaluates a lane agent's draft output against the lane's safety policy,
@@ -614,12 +616,27 @@ export async function approveAction(
   ledgerDocId: string,
   operatorEmail: string,
   outreachSemanticReview?: unknown,
+  expectedActionDigest?: string,
+  replyAuthority?: { eventId: string; claim: string },
 ): Promise<ActionResult> {
+  const verifyReply = async (tx: FirebaseFirestore.Transaction) => {
+    if (!replyAuthority) return true;
+    const event = (await tx.get(getDb().collection("humanReplyEvents").doc(replyAuthority.eventId))).data() as HumanReplyEventRecord | undefined;
+    if (!event || event.resume_claim !== replyAuthority.claim || event.resume_state !== "running"
+      || event.classification !== "approval") return false;
+    const thread = (await tx.get(getDb().collection("humanBlockerThreads").doc(event.blocker_id))).data() as HumanBlockerThreadRecord | undefined;
+    return Boolean(thread && thread.record_of_truth.ops_work_item_id === ledgerDocId
+      && thread.last_human_reply_event_id === event.id && thread.action_digest === expectedActionDigest
+      && event.binding === humanDecisionBinding(thread) && !humanReplyAdmissionError(thread, event));
+  };
   const ledgerRef = getDb().collection("action_ledger").doc(ledgerDocId);
   const ledgerDoc = await ledgerRef.get();
   if (!ledgerDoc.exists) throw new Error(`Ledger doc ${ledgerDocId} not found`);
 
   const data = ledgerDoc.data()!;
+  if (expectedActionDigest && expectedActionDigest !== humanDecisionDigest({ type: data.action_type, payload: data.action_payload })) {
+    throw new Error("action_changed");
+  }
   if (data.status !== "pending_approval") {
     throw new Error(`Cannot approve action in state: ${data.status}`);
   }
@@ -675,15 +692,16 @@ export async function approveAction(
     } : {}),
     updated_at: new Date(),
   };
-  if (isCommunicationsPayload(data.action_payload)) {
+  {
     const acquired = await getDb().runTransaction(async (tx) => {
       const current = (await tx.get(ledgerRef)).data();
-      if (current?.status !== "pending_approval" || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
+      if (!await verifyReply(tx)) return false;
+      if (current?.status !== "pending_approval" || current.action_type !== data.action_type || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
       tx.update(ledgerRef, approvalUpdate);
       return true;
     });
     if (!acquired) throw new Error("communications_approval_state_or_payload_changed");
-  } else await ledgerRef.update(approvalUpdate);
+  }
   await syncSourceDocumentState({
     sourceCollection: data.source_collection,
     sourceDocId: data.source_doc_id,
@@ -695,18 +713,20 @@ export async function approveAction(
   });
 
   // Now execute
-  if (isCommunicationsPayload(data.action_payload)) {
+  {
     const acquired = await getDb().runTransaction(async (tx) => {
       const current = (await tx.get(ledgerRef)).data();
-      if (current?.status !== "operator_approved" || current.approved_by !== operatorEmail
+      if (!await verifyReply(tx)) return false;
+      if (current?.status !== "operator_approved" || current.action_type !== data.action_type || current.approved_by !== operatorEmail
         || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
       tx.update(ledgerRef, { status: "executing", updated_at: new Date() });
       return true;
     });
     if (!acquired) throw new Error("communications_execution_state_or_payload_changed");
   }
+  let effectStarted = false;
+  let effectAcknowledged = false;
   try {
-    if (!isCommunicationsPayload(data.action_payload)) await ledgerRef.update({ status: "executing", updated_at: new Date() });
     await syncSourceDocumentState({
       sourceCollection: data.source_collection,
       sourceDocId: data.source_doc_id,
@@ -716,7 +736,9 @@ export async function approveAction(
       state: "executing",
       approvedBy: operatorEmail,
     });
+    effectStarted = true;
     await performAction(data.action_type, data.action_payload);
+    effectAcknowledged = true;
     const sentAt = new Date();
     await ledgerRef.update({
       status: "sent",
@@ -746,6 +768,15 @@ export async function approveAction(
 
     return { state: "sent", tier: data.action_tier, ledgerDocId };
   } catch (err) {
+    if (effectStarted) {
+      // An external acknowledgement or its loss must never be turned into an
+      // automatically retryable failure by a later projection/log write.
+      const state = effectAcknowledged ? "sent" : "executing";
+      await ledgerRef.update({ status: state, outcome_observation: effectAcknowledged ? "acknowledged" : "unknown",
+        last_execution_error: err instanceof Error ? err.message : String(err), updated_at: new Date() });
+      return { state, tier: data.action_tier, ledgerDocId,
+        error: effectAcknowledged ? undefined : "action_outcome_unknown" };
+    }
     const attempts = (data.execution_attempts ?? 0) + 1;
     await ledgerRef.update({
       status: "failed",
@@ -797,7 +828,7 @@ export async function rejectAction(
   if (isCommunicationsPayload(data.action_payload)) {
     const acquired = await getDb().runTransaction(async (tx) => {
       const current = (await tx.get(ledgerRef)).data();
-      if (current?.status !== "pending_approval" || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
+      if (current?.status !== "pending_approval" || current.action_type !== data.action_type || communicationsDigest(current.action_payload) !== communicationsDigest(data.action_payload)) return false;
       tx.update(ledgerRef, rejectionUpdate);
       return true;
     });

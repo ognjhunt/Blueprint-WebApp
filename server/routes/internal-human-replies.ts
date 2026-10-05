@@ -3,6 +3,7 @@ import { Request, Response, Router } from "express";
 import { z } from "zod";
 
 import { ingestHumanReplyPayload } from "../utils/human-reply-worker";
+import { listHumanReplyGmailMessages } from "../utils/human-reply-gmail";
 
 const router = Router();
 
@@ -46,7 +47,14 @@ router.post("/ingest", async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await ingestHumanReplyPayload(parsed.data);
+    // The intake credential authenticates the forwarding service, not a human.
+    // Reopen the original in the approved mailbox; ignore caller-supplied From,
+    // body and timestamps. Slack decisions enter through signed Events API.
+    if (parsed.data.channel !== "email") return res.status(409).json({ error: "Slack replies require the signed Slack events endpoint." });
+    const messages = await listHumanReplyGmailMessages({ messageId: parsed.data.external_message_id });
+    const source = messages.find(message => message.external_message_id === parsed.data.external_message_id);
+    if (!source) return res.status(409).json({ error: "The original human-authored reply could not be verified." });
+    const result = await ingestHumanReplyPayload(source);
     return res.status(200).json({ ok: true, result });
   } catch (error) {
     return res.status(500).json({

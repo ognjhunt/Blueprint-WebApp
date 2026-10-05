@@ -74,3 +74,15 @@ describe("human reply routing helpers", () => {
     expect(decision.should_resume_now).toBe(false);
   });
 });
+
+
+describe("complete decision parsing", () => {
+  it.each(["Approved. Go ahead.", "yes", "I approve", "Proceed!"])("admits %s", body => {
+    expect(classifyHumanReply(body, { blocker_kind: "technical" }).classification).toBe("approval");
+  });
+  it.each(["do not approve", "yes if the cost is lower", '> approve', '"approve"',
+    "She said approved", "not approved", "approve?", "yesterday", "approve all", "yes, but wait",
+    "Approval packet: approve", "Please reply yes", "go ahead unless it costs money"])("does not grant authority for %s", body => {
+    expect(classifyHumanReply(body, { blocker_kind: "technical" }).classification).not.toBe("approval");
+  });
+});

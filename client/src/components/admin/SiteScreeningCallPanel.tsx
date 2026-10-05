@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { withCsrfHeader } from "@/lib/csrf";
 import { gateFields } from "@/data/siteTaskQualification";
 import type { SiteScreeningSummary } from "@/types/inbound-request";
@@ -27,13 +27,20 @@ export function SiteScreeningCallPanel({
   const [cleared, setCleared] = useState<string[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
+  const clarification = useQuery({ queryKey: ["site-task-clarification", requestId], queryFn: async () => {
+    const response = await fetch(`/api/admin/leads/${requestId}/site-task-clarification`);
+    if (!response.ok) throw new Error("Could not load the owner's written clarification.");
+    return response.json() as Promise<{ revision: string; response?: { id: string; revision: string; state: string; explanation: string } }>;
+  } });
+  const written = clarification.data?.response;
+  const currentWritten = written?.state === "review_required" && written.revision === clarification.data?.revision;
 
   const record = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/admin/leads/${requestId}/site-task-call`, {
         method: "POST",
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ note, answers, clearedFieldIds: cleared }),
+        body: JSON.stringify({ note, answers, clearedFieldIds: cleared, clarificationId: currentWritten ? written.id : undefined }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "Could not record the call");
@@ -44,6 +51,7 @@ export function SiteScreeningCallPanel({
       setAnswers({});
       setNote("");
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["site-task-clarification", requestId] });
     },
   });
 
@@ -62,9 +70,11 @@ export function SiteScreeningCallPanel({
         {triage.disposition === "qualified"
           ? " — Blueprint funds the scene."
           : triage.disposition === "needs_conversation"
-            ? " — no scene until the call clears it."
+            ? " — no scene until a reviewer clears the open questions."
             : " — no scene; an answer only the site can change blocks it."}
       </p>
+      {written && <div className="mt-3 text-sm"><strong>Owner's written clarification{!currentWritten ? " (previous revision)" : ""}</strong><p className="whitespace-pre-wrap">{written.explanation}</p></div>}
+      {clarification.error && <p role="alert">{clarification.error.message}</p>}
       {triage.call_resolution ? (
         <p className="mt-2 text-sm text-runway-mute">
           Last call recorded by {triage.call_resolution.resolved_by}: {triage.call_resolution.note}
@@ -98,7 +108,7 @@ export function SiteScreeningCallPanel({
                         )
                       }
                     />
-                    Settled on the call, answer stands
+                    Reviewed and settled, answer stands
                   </label>
                 ) : null}
                 <select
@@ -118,7 +128,7 @@ export function SiteScreeningCallPanel({
             );
           })}
           <label className="grid gap-2 text-sm">
-            What the call settled
+            What the review settled
             <textarea
               value={note}
               onChange={(event) => setNote(event.target.value)}
@@ -132,7 +142,7 @@ export function SiteScreeningCallPanel({
             disabled={record.isPending || note.trim().length < 10}
             className="runway-cta-ghost min-h-0 justify-self-start px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {record.isPending ? "Recording…" : "Record call outcome"}
+            {record.isPending ? "Recording…" : "Record screening outcome"}
           </button>
         </form>
       ) : null}

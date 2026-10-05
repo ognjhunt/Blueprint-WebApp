@@ -33,6 +33,12 @@ import crypto from "node:crypto";
  * - `film`    -- a colleague's link: film, upload, see status. Cannot attest.
  */
 export type CaptureTokenScope = "owner" | "film";
+export interface CaptureSupplementBinding {
+  parent_capture_id: string;
+  parent_bundle_digest: string;
+  parent_manifest_uri: string;
+  coverage_digest: string;
+}
 
 interface CaptureUploadTokenPayload {
   kind: "capture_upload";
@@ -46,6 +52,7 @@ interface CaptureUploadTokenPayload {
    * already-issued link loses a capability it had.
    */
   scope?: CaptureTokenScope;
+  supplement?: CaptureSupplementBinding;
   exp: number;
 }
 
@@ -109,6 +116,7 @@ export function createCaptureUploadToken(params: {
   sceneId: string;
   scope?: CaptureTokenScope;
   ttlSeconds?: number;
+  supplement?: CaptureSupplementBinding;
 }) {
   const payload: CaptureUploadTokenPayload = {
     kind: "capture_upload",
@@ -116,6 +124,7 @@ export function createCaptureUploadToken(params: {
     captureId: params.captureId,
     sceneId: params.sceneId,
     scope: params.scope ?? "owner",
+    ...(params.supplement ? { supplement: params.supplement } : {}),
     exp: Math.floor(Date.now() / 1000) + (params.ttlSeconds ?? CAPTURE_UPLOAD_TOKEN_TTL_SECONDS),
   };
   const serialized = JSON.stringify(payload);

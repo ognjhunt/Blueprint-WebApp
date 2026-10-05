@@ -71,8 +71,8 @@ vi.mock("../utils/capturePrivacyScreen", () => ({
   }),
 }));
 
-vi.mock("../utils/captureCoverageReview", () => ({
-  reviewCaptureCoverage: vi.fn(async (input: { captureId: string }) => {
+vi.mock("../utils/captureCoverageQueue", () => ({
+  enqueueCoverageReview: vi.fn(async (input: { captureId: string }) => {
     state.coverage.push(input.captureId);
   }),
 }));

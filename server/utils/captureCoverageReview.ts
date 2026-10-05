@@ -1,3 +1,7 @@
+import { humanDecisionDigest } from "./human-reply-admission";
+import { validateCaptureSupplement } from "./captureSupplement";
+import { browserPendingDecisionKey, loadBrowserPending } from "./websiteBrowserPending";
+import { hydrateAgentEvidence } from "../agents/private-evidence";
 /**
  * Running the coverage read, and writing what it found where readers look.
  *
@@ -35,6 +39,7 @@ import { logger } from "../logger";
 import { runAgentTask } from "../agents/runtime";
 import {
   captureCoverageTask,
+  captureCoverageOutputSchema,
   type CaptureCoverageInput,
   type CaptureCoverageOutput,
 } from "../agents/tasks/capture-coverage";
@@ -42,7 +47,6 @@ import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { selfCaptureObjectPath } from "./captureUploadToken";
 import { getBrief } from "./siteTaskBrief";
 import { commitTaskUpdate } from "./taskUpdateCommitment";
-import { deliverOutbox } from "./captureOutbox";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
 
 /** Long enough for a model to fetch the video, short enough not to be a handle. */
@@ -61,9 +65,19 @@ function storageBucketName(): string {
 async function signWalkthroughUrl(params: {
   sceneId: string;
   captureId: string;
+  binding?: { source: unknown };
 }): Promise<string | null> {
   if (!storageAdmin) return null;
   const bucket = storageAdmin.bucket(storageBucketName());
+  const source = params.binding?.source as { kind?: string; key?: string } | undefined;
+  if (source?.kind === "browser_pending") {
+    const pending = await loadBrowserPending(params.captureId);
+    if (!pending || pending.scene_id !== params.sceneId || browserPendingDecisionKey(pending) !== source.key) throw new Error("coverage_source_changed");
+    const file = bucket.file(pending.video.object_name, { generation: pending.video.generation });
+    const [url] = await file.getSignedUrl({ action: "read", expires: Date.now() + SIGNED_URL_TTL_MS,
+      queryParams: { generation: pending.video.generation } });
+    return url;
+  }
 
   for (const extension of WALKTHROUGH_EXTENSIONS) {
     const objectPath = selfCaptureObjectPath({
@@ -84,6 +98,7 @@ async function signWalkthroughUrl(params: {
 }
 
 export interface CoverageFinding {
+  sourceCaptures?: Array<{ capture_id: string; bundle_digest: string | null }>;
   coversScene: boolean;
   /** Phrased so somebody in the room could act on them. */
   missingCoverage: string[];
@@ -102,6 +117,8 @@ export interface CoverageFinding {
  * does".
  */
 export async function reviewCaptureCoverage(params: {
+  binding?: { source: unknown; brief_digest: string; capture_id: string };
+  reviewId?: string;
   requestId: string;
   sceneId: string;
   captureId: string;
@@ -126,22 +143,46 @@ export async function reviewCaptureCoverage(params: {
     return null;
   }
 
-  const requestedViews = [
+  if (params.binding && humanDecisionDigest(brief) !== params.binding.brief_digest) throw new Error("coverage_brief_changed");
+
+  const supplement = db ? (await db.collection("captureSupplements").doc(params.captureId).get()).data() : null;
+  if (supplement) await validateCaptureSupplement({ ...params, supplement: supplement.supplement });
+  const additive = supplement?.parent_coverage?.supplement_would_finish === true
+    && supplement?.parent_coverage?.binding?.brief_digest === humanDecisionDigest(brief);
+  const requestedViews = additive ? supplement.parent_coverage.missing_coverage.map((label: string, index: number) => ({ id: `additional-${index}`, label })) : [
     { id: "work-area", label: "The whole work area, from a few steps back" },
     ...brief.proposed.map((answer) => ({ id: answer.fieldId, label: answer.reading })),
   ];
 
   let output: CaptureCoverageOutput | null = null;
   try {
+    if (params.reviewId && db) {
+      const retained = await db.collection("agentRuns").where("session_key", "==", `capture_coverage:${params.reviewId}`).get();
+      // Prefer any completed result over starting another paid video traversal.
+      for (const row of retained.docs) {
+        if (row.data().task_kind !== "capture_coverage") continue;
+        if (row.data().status === "completed") {
+          const evidence = await hydrateAgentEvidence(row.data(), { collection: "agentRuns", id: row.id });
+          const parsed = captureCoverageOutputSchema.safeParse(evidence.output);
+          if (parsed.success) { output = parsed.data; break; }
+        }
+      }
+      if (!output && retained.docs.some(row => row.data().task_kind === "capture_coverage" && row.data().status === "running")) return null;
+    }
+    if (!output) {
     const result = await runAgentTask<CaptureCoverageInput, CaptureCoverageOutput>({
       ...captureCoverageTask,
+      session_key: `capture_coverage:${params.reviewId || params.captureId}`,
+      metadata: { capture_id: params.captureId, review_id: params.reviewId || null },
       input: {
         videoUrl,
+        supplementaryViewsOnly: additive,
         taskSummary: brief.summary,
         requestedViews,
       },
     } as never);
     output = (result?.output as CaptureCoverageOutput) ?? null;
+    }
   } catch (error) {
     logger.warn({ error, ...params }, "Coverage review failed");
     return null;
@@ -150,6 +191,8 @@ export async function reviewCaptureCoverage(params: {
   if (!output) return null;
 
   const finding: CoverageFinding = {
+    ...(additive ? { sourceCaptures: [{ capture_id: params.captureId, bundle_digest: null },
+      { capture_id: supplement.supplement.parent_capture_id, bundle_digest: supplement.supplement.parent_bundle_digest }] } : {}),
     coversScene: Boolean(output.covers_scene),
     missingCoverage: output.missing_views ?? [],
     supplementWouldFinish: Boolean(output.supplement_would_finish),
@@ -167,8 +210,11 @@ export async function reviewCaptureCoverage(params: {
     );
     finding.coversScene = false;
   }
+  if (finding.coversScene && (finding.unreadableReasons.length || finding.confidence < 0.6
+    || requestedViews.some((view: { id: string }) => !output!.views.some(observed => observed.id === view.id
+      && observed.status === "seen" && observed.timestamp_seconds != null)))) finding.coversScene = false;
 
-  await recordCoverageFinding(params.requestId, params.captureId, finding);
+  await recordCoverageFinding(params.requestId, params.captureId, finding, params.binding);
 
   // A named shortfall is the one coverage outcome worth an email: it is a
   // specific, cheap thing the operator can do. "Covers the scene" needs no
@@ -193,7 +239,6 @@ export async function reviewCaptureCoverage(params: {
             + "\n\nYou can add these from the same capture link — no need to film it all again.\n\n"
             + EMAIL_SIGN_OFF,
         });
-        await deliverOutbox({ limit: 5 }).catch(() => undefined);
       }
     } catch (error) {
       logger.warn({ error, requestId: params.requestId }, "Could not queue a coverage-shortfall email");
@@ -214,30 +259,25 @@ export async function recordCoverageFinding(
   requestId: string,
   captureId: string,
   finding: CoverageFinding,
+  binding?: { source: unknown; brief_digest: string; capture_id: string },
 ): Promise<void> {
-  if (!db) return;
-  try {
-    await db
-      .collection("inboundRequests")
-      .doc(requestId)
-      .set(
-        {
-          capture_coverage: {
-            capture_id: captureId,
-            covers_scene: finding.coversScene,
-            missing_coverage: finding.missingCoverage,
-            supplement_would_finish: finding.supplementWouldFinish,
-            unreadable_reasons: finding.unreadableReasons,
-            confidence: finding.confidence,
-            reviewed_at_iso: new Date().toISOString(),
-            reviewed_at: admin.firestore.FieldValue.serverTimestamp(),
-          },
-        },
-        { merge: true },
-      );
-  } catch (error) {
-    logger.warn({ error, requestId }, "Could not record a coverage finding");
-  }
+  if (!db) throw new Error("coverage_store_unavailable");
+  const ref = db.collection("inboundRequests").doc(requestId);
+  await db.runTransaction(async tx => {
+    const [request, brief] = await Promise.all([tx.get(ref), tx.get(db!.collection("siteTaskBriefs").doc(requestId))]);
+    const value = request.data();
+    const privacy = value?.capture_privacy_source_bound_decision || value?.capture_privacy_screen;
+    if (binding && (humanDecisionDigest(brief.data()) !== binding.brief_digest
+      || humanDecisionDigest(privacy?.producer_source || null) !== humanDecisionDigest(binding.source)
+      || privacy?.capture_id !== captureId || !privacy?.proceeded)) throw new Error("coverage_source_changed");
+    tx.set(ref, { capture_coverage: {
+      capture_id: captureId, covers_scene: finding.coversScene, missing_coverage: finding.missingCoverage,
+      supplement_would_finish: finding.supplementWouldFinish, unreadable_reasons: finding.unreadableReasons,
+      confidence: finding.confidence, reviewed_at_iso: new Date().toISOString(),
+      ...(finding.sourceCaptures ? { source_captures: finding.sourceCaptures } : {}),
+      reviewed_at: admin.firestore.FieldValue.serverTimestamp(), ...(binding ? { binding } : {}),
+    } }, { merge: true });
+  });
 }
 
 /**

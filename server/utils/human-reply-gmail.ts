@@ -274,6 +274,7 @@ export async function getHumanReplyGmailDurabilityStatus(): Promise<GmailOAuthDu
 export async function listHumanReplyGmailMessages(params?: {
   limit?: number;
   query?: string;
+  messageId?: string;
 }) {
   const status = await getHumanReplyGmailStatus();
   if (!status.configured) {
@@ -286,7 +287,7 @@ export async function listHumanReplyGmailMessages(params?: {
   }
 
   const gmail = google.gmail({ version: "v1", auth: client });
-  const result = await gmail.users.messages.list({
+  const result = params?.messageId ? { data: { messages: [{ id: params.messageId }] } } : await gmail.users.messages.list({
     userId: "me",
     q:
       trimValue(params?.query)
@@ -303,6 +304,10 @@ export async function listHumanReplyGmailMessages(params?: {
         id: message.id || "",
         format: "full",
       });
+      // OAuth profile above proves mailbox ownership. Its SENT copy proves
+      // authorship; an inbound From header alone can be forged. Outbound
+      // request packets are excluded by correlation and strict reply parsing.
+      if (!full.data.labelIds?.includes("SENT") || full.data.labelIds.includes("DRAFT")) return null;
       const payload = full.data.payload || null;
       const headers = payload?.headers || [];
       return {
@@ -320,5 +325,5 @@ export async function listHumanReplyGmailMessages(params?: {
     }),
   );
 
-  return details.filter((message) => message.external_message_id);
+  return details.filter((message): message is NonNullable<typeof message> => Boolean(message?.external_message_id));
 }

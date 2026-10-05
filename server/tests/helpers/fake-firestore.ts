@@ -134,6 +134,7 @@ function queryMatches(data: StoredDoc, filter: QueryFilter): boolean {
 }
 
 export function createFakeFirestore(state: FakeFirestoreState) {
+  let transactionTail: Promise<unknown> = Promise.resolve();
   const docKey = (collection: string, id: string) => `${collection}/${id}`;
 
   const readDoc = (collection: string, id: string): StoredDoc | undefined => {
@@ -141,9 +142,11 @@ export function createFakeFirestore(state: FakeFirestoreState) {
     return stored ? clone(stored) : undefined;
   };
 
-  function makeDocRef(collectionName: string, id: string) {
+  function makeDocRef(collectionName: string, id: string): any {
     return {
       id,
+      path: docKey(collectionName, id),
+      collection: (name: string) => makeCollection(`${collectionName}/${id}/${name}`),
       __collection: collectionName,
       get: async () => ({
         id,
@@ -183,17 +186,19 @@ export function createFakeFirestore(state: FakeFirestoreState) {
     filters: QueryFilter[],
     orders: QueryOrder[] = [],
     limitCount: number | null = null,
-  ) {
+    afterId: string | null = null,
+  ): any {
     return {
       where: (field: string, op: string, value: unknown) =>
-        makeQuery(collectionName, [...filters, { field, op, value }], orders, limitCount),
+        makeQuery(collectionName, [...filters, { field, op, value }], orders, limitCount, afterId),
       orderBy: (field: string, direction: "asc" | "desc" = "asc") =>
-        makeQuery(collectionName, filters, [...orders, { field, direction }], limitCount),
-      limit: (count: number) => makeQuery(collectionName, filters, orders, count),
+        makeQuery(collectionName, filters, [...orders, { field, direction }], limitCount, afterId),
+      limit: (count: number) => makeQuery(collectionName, filters, orders, count, afterId),
+      startAfter: (id: string) => makeQuery(collectionName, filters, orders, limitCount, id),
       get: async () => {
         let entries = Array.from(state.docs.entries())
           .filter(([key, data]) => {
-            if (!key.startsWith(`${collectionName}/`)) {
+            if (!key.startsWith(`${collectionName}/`) || key.slice(collectionName.length + 1).includes("/")) {
               return false;
             }
             return filters.every((filter) => queryMatches(data, filter));
@@ -204,10 +209,11 @@ export function createFakeFirestore(state: FakeFirestoreState) {
           }));
         for (const order of [...orders].reverse()) {
           entries = entries.sort((a, b) => {
-            const comparison = compareValues(a.data[order.field], b.data[order.field]);
+            const comparison = compareValues(order.field === "__name__" ? a.id : fieldAt(a.data, order.field), order.field === "__name__" ? b.id : fieldAt(b.data, order.field));
             return order.direction === "desc" ? -comparison : comparison;
           });
         }
+        if (afterId) entries = entries.filter(entry => entry.id > afterId);
         if (limitCount !== null) {
           entries = entries.slice(0, limitCount);
         }
@@ -227,15 +233,17 @@ export function createFakeFirestore(state: FakeFirestoreState) {
     };
   }
 
-  return {
-    collection: (collectionName: string) => ({
+  function makeCollection(collectionName: string): any { return {
       doc: (id: string) => makeDocRef(collectionName, id),
       where: (field: string, op: string, value: unknown) =>
         makeQuery(collectionName, [{ field, op, value }]),
       orderBy: (field: string, direction: "asc" | "desc" = "asc") =>
         makeQuery(collectionName, [], [{ field, direction }]),
       limit: (count: number) => makeQuery(collectionName, [], [], count),
-    }),
+    }; }
+  return {
+    doc: (path: string) => makeDocRef(path.slice(0, path.lastIndexOf("/")), path.slice(path.lastIndexOf("/") + 1)),
+    collection: makeCollection,
     runTransaction: async <T>(
       updateFn: (tx: {
         get: (ref: MockDocRef) => Promise<{
@@ -244,12 +252,22 @@ export function createFakeFirestore(state: FakeFirestoreState) {
           data: () => StoredDoc | undefined;
         }>;
         set: (ref: MockDocRef, payload: StoredDoc, options?: { merge?: boolean }) => void;
+        create: (ref: MockDocRef, payload: StoredDoc) => void;
         update: (ref: MockDocRef, payload: StoredDoc) => void;
         delete: (ref: MockDocRef) => void;
       }) => Promise<T>,
     ): Promise<T> => {
+      const previous = transactionTail;
+      let release!: () => void;
+      transactionTail = new Promise<void>(resolve => { release = resolve; });
+      await previous;
+      try {
       const writes: Array<() => void> = [];
       const tx = {
+        create: (ref: MockDocRef, payload: StoredDoc) => {
+          if (readDoc(ref.__collection, ref.id)) throw new Error("already-exists");
+          writes.push(() => { state.docs.set(docKey(ref.__collection, ref.id), clone(payload)); });
+        },
         delete: (ref: MockDocRef) => { writes.push(() => { state.docs.delete(docKey(ref.__collection, ref.id)); }); },
         // Accepts doc refs and query objects (Firestore transactions allow
         // tx.get(query), used by the earnings-aggregate lazy backfill).
@@ -285,6 +303,7 @@ export function createFakeFirestore(state: FakeFirestoreState) {
         write();
       }
       return result;
+      } finally { release(); }
     },
   };
 }

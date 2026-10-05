@@ -13,7 +13,10 @@ const launches = vi.hoisted(() => new Map<string, Record<string, any>>());
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   dbAdmin: {
     collection: (collection: string) => ({
-      doc: (id: string) => ({ collection, id }),
+      doc: (id: string) => ({ collection, id,
+        get: async () => ({ data: () => collection === "taskEvaluationLaunches" ? launches.get(id) : documents.get(id) }),
+        set: async () => undefined,
+      }),
     }),
     runTransaction: async (callback: (transaction: any) => Promise<unknown>) => callback({
       get: async (ref: { collection: string; id: string }) => {

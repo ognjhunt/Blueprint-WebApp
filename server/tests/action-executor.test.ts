@@ -26,6 +26,8 @@ const mockSubcollectionAdd = vi.hoisted(() => vi.fn().mockResolvedValue({ id: "o
 const mockQueryGet = vi.hoisted(() => vi.fn());
 
 let docIdCounter = vi.hoisted(() => ({ value: 0 }));
+const transactionState = vi.hoisted(() => new Map<string, Record<string, unknown>>());
+const transactionSnapshots = vi.hoisted(() => new Map<string, any>());
 
 const fakeDb = vi.hoisted(() => {
   const makeQuery = () => ({
@@ -35,6 +37,18 @@ const fakeDb = vi.hoisted(() => {
   });
 
   return {
+    runTransaction: async (callback: (tx: any) => Promise<unknown>) => {
+      const writes: Array<() => Promise<unknown>> = [];
+      const result = await callback({ get: async (ref: any) => {
+        const snap = transactionSnapshots.get(ref.id) || await ref.get();
+        return { ...snap, data: () => ({ ...snap.data(), ...transactionState.get(ref.id) }) };
+      }, update: (ref: any, value: any) => { writes.push(async () => {
+        transactionState.set(ref.id, { ...transactionState.get(ref.id), ...value });
+        await ref.update(value);
+      }); } });
+      for (const write of writes) await write();
+      return result;
+    },
     collection: vi.fn(() => ({
       doc: vi.fn((id?: string) => {
         const docId = id ?? `auto-doc-${++docIdCounter.value}`;
@@ -42,7 +56,11 @@ const fakeDb = vi.hoisted(() => {
           id: docId,
           set: mockDocSet,
           update: mockDocUpdate,
-          get: mockDocGet,
+          get: async () => {
+            const snapshot = await mockDocGet();
+            if (snapshot) transactionSnapshots.set(docId, snapshot);
+            return snapshot;
+          },
           collection: vi.fn(() => ({
             add: mockSubcollectionAdd,
           })),
@@ -180,6 +198,8 @@ function makeParams(overrides?: Partial<ExecuteActionParams>): ExecuteActionPara
 // ---------------------------------------------------------------------------
 
 afterEach(() => {
+  transactionState.clear();
+  transactionSnapshots.clear();
   vi.clearAllMocks();
   vi.unstubAllEnvs();
   docIdCounter.value = 0;
@@ -762,6 +782,25 @@ describe("executeAction", () => {
 // ---------------------------------------------------------------------------
 
 describe("approveAction", () => {
+  it("retains a successful send when its audit log write fails", async () => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ status: "pending_approval",
+      action_type: "send_email", action_payload: validEmailPayload, action_tier: 3 }) });
+    mockSubcollectionAdd.mockRejectedValueOnce(new Error("audit log unavailable"));
+    expect(await approveAction("ledger-observed", "ops@blueprint.io")).toMatchObject({ state: "sent" });
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
+  });
+
+  it("keeps a lost send acknowledgement unknown instead of retryable", async () => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ status: "pending_approval",
+      action_type: "send_email", action_payload: validEmailPayload, action_tier: 3 }) });
+    mockSendEmail.mockRejectedValueOnce(new Error("connection lost after send"));
+    expect(await approveAction("ledger-unknown", "ops@blueprint.io"))
+      .toMatchObject({ state: "executing", error: "action_outcome_unknown" });
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
+  });
+
   it("transitions pending_approval to sent on success", async () => {
     mockDocGet.mockResolvedValueOnce({
       exists: true,

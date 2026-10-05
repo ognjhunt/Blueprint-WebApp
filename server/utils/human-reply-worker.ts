@@ -1,3 +1,4 @@
+import { humanReplyAdmissionError } from "./human-reply-admission";
 import { recordExternalGapReport } from "./gap-closure";
 import { resolveHumanBlockerAwaitingReply } from "./human-blocker-dispatch";
 import { approveAction } from "../agents/action-executor";
@@ -14,8 +15,6 @@ import {
   buildSlackThreadCorrelationId,
   classifyHumanReply,
   extractHumanBlockerIdFromText,
-  normalizeCorrelationSubject,
-  subjectsMatchForCorrelation,
   type HumanReplyChannel,
 } from "./human-reply-routing";
 import {
@@ -25,6 +24,12 @@ import {
 import {
   applyHumanReplyThreadUpdate,
   getHumanReplyEvent,
+  getHumanBlockerThread,
+  claimHumanReplyResume,
+  finishHumanReplyResume,
+  listPendingHumanReplyEvents,
+  reconcileHumanReplyResumes,
+  projectCompletedHumanReplies,
   listOpenHumanBlockerThreads,
   noteHumanReplyThreadBlocker,
   recordHumanReplyEvent,
@@ -88,13 +93,11 @@ function findMatchingThread(
     return threads.find((thread) => thread.blocker_id === blockerId) || null;
   }
 
-  const normalizedSubject = normalizeCorrelationSubject(message.subject);
   const slackThreadIds = [
     message.external_thread_id,
     buildSlackThreadCorrelationId(message.recipient, message.external_thread_id),
   ].filter(Boolean);
-  return (
-    threads.find((thread) => {
+  const matches = threads.filter((thread) => {
       if (
         message.external_thread_id
         && thread.correlation.gmail_thread_id
@@ -109,11 +112,9 @@ function findMatchingThread(
       ) {
         return true;
       }
-      return normalizedSubject
-        ? subjectsMatchForCorrelation(thread.correlation.outbound_subject, normalizedSubject)
-        : false;
-    }) || null
-  );
+      return false;
+    });
+  return matches.length === 1 ? matches[0] : null;
 }
 
 async function ingestHumanReplyMessage(params: {
@@ -128,9 +129,11 @@ async function ingestHumanReplyMessage(params: {
   thread: HumanBlockerThreadRecord;
 }) {
   const existing = await getHumanReplyEvent(`${params.channel}:${params.external_message_id}`);
-  if (existing) {
+  if (existing && existing.resume_state !== "pending") {
     return { processed: false, reason: "duplicate" as const };
   }
+  const refusal = humanReplyAdmissionError(params.thread, params);
+  if (refusal) return { processed: false, reason: refusal };
 
   const decision = classifyHumanReply(params.body, {
     blocker_kind: params.thread.blocker_kind,
@@ -140,7 +143,7 @@ async function ingestHumanReplyMessage(params: {
   });
 
   const bodyExcerpt = truncate(params.body);
-  const replyEvent = await recordHumanReplyEvent({
+  const replyEvent = existing || await recordHumanReplyEvent({
     blocker_id: params.thread.blocker_id,
     channel: params.channel,
     sender: params.sender,
@@ -160,17 +163,14 @@ async function ingestHumanReplyMessage(params: {
     reason: decision.reason,
   });
 
-  await applyHumanReplyThreadUpdate({
+  if (decision.resolution !== "resolved_input") await applyHumanReplyThreadUpdate({
     blocker_id: params.thread.blocker_id,
     event_id: replyEvent.id,
     received_at: params.received_at,
     body_excerpt: bodyExcerpt,
     classification: decision.classification,
     resolution: decision.resolution,
-    routed_owner:
-      decision.resolution === "resolved_input"
-        ? decision.execution_owner
-        : decision.routing_owner,
+    routed_owner: decision.routing_owner,
     should_resume_now: decision.should_resume_now,
     blocked_reason:
       decision.resolution === "ambiguous_input"
@@ -214,11 +214,15 @@ async function ingestHumanReplyMessage(params: {
   });
 
   if (decision.resolution === "resolved_input") {
+    const claim = await claimHumanReplyResume(replyEvent.id);
+    if (!claim) return { processed: false, reason: "resume_not_claimed" };
+    let completed = false;
     try {
-      const operatorEmail = params.thread.approved_identity || "ohstnhunt@gmail.com";
+      const operatorEmail = params.thread.approved_identity!;
       const replySummary = bodyExcerpt || "(empty reply)";
       if (
-        params.thread.resume_action.kind === "city_launch_plan"
+        decision.classification === "approval"
+        && params.thread.resume_action.kind === "city_launch_plan"
       ) {
         const planningMetadata = params.thread.resume_action.metadata || {};
         const city = asTrimmedString(planningMetadata.city);
@@ -285,7 +289,10 @@ async function ingestHumanReplyMessage(params: {
         decision.classification === "approval"
         && params.thread.record_of_truth.ops_work_item_id
       ) {
-        await approveAction(params.thread.record_of_truth.ops_work_item_id, operatorEmail);
+        const action = await approveAction(params.thread.record_of_truth.ops_work_item_id, operatorEmail,
+          undefined, params.thread.action_digest || undefined, { eventId: replyEvent.id, claim });
+        completed = action.state === "sent";
+        if (!completed) throw new Error(`action_outcome_${action.state}`);
       } else if (params.thread.record_of_truth.paperclip_issue_id) {
         const companyId = await resolvePaperclipCompanyId();
         const issueId = params.thread.record_of_truth.paperclip_issue_id;
@@ -297,6 +304,9 @@ async function ingestHumanReplyMessage(params: {
         if (!existingIssue) {
           throw new Error(`Paperclip issue ${issueId} could not be loaded for human-reply resume.`);
         }
+        if (existingIssue.status === "done") {
+          completed = true;
+        } else {
         if (existingIssue.assigneeAgentId !== executionAgentId) {
           await updatePaperclipIssue(issueId, {
             assigneeAgentId: executionAgentId,
@@ -326,10 +336,18 @@ async function ingestHumanReplyMessage(params: {
             classification: decision.classification,
             resolution: decision.resolution,
             receivedAt: params.received_at,
+            authority: decision.classification === "approval" ? "bound_action_only" : "verify_prerequisites_only",
           },
         });
+        }
       }
+      // A wake-up, planner result, or accepted activation is not the objective.
+      await finishHumanReplyResume(replyEvent.id, claim, completed ? "completed" : "unknown",
+        completed ? null : "action_outcome_pending");
+      if (completed) await resolveHumanBlockerAwaitingReply(params.thread.blocker_id);
     } catch (error) {
+      await finishHumanReplyResume(replyEvent.id, claim, "unknown",
+        error instanceof Error ? error.message : "action_outcome_unknown");
       await noteHumanReplyThreadBlocker({
         blocker_id: params.thread.blocker_id,
         reason: error instanceof Error ? error.message : "Human reply auto-resume failed.",
@@ -346,9 +364,7 @@ async function ingestHumanReplyMessage(params: {
     }
   }
 
-  if (decision.resolution === "resolved_input") {
-    await resolveHumanBlockerAwaitingReply(params.thread.blocker_id).catch(() => false);
-  }
+
 
   return {
     processed: true,
@@ -399,6 +415,14 @@ export async function ingestHumanReplyPayload(params: {
 }
 
 export async function runHumanReplyEmailWatcher(params?: { limit?: number }) {
+  await reconcileHumanReplyResumes(params?.limit ?? 25);
+  await projectCompletedHumanReplies(resolveHumanBlockerAwaitingReply, params?.limit ?? 25);
+  // Durable pending replies survive a crash even if the message is no longer
+  // in the mailbox query window. Recheck current authority before every claim.
+  for (const event of await listPendingHumanReplyEvents(params?.limit ?? 25)) {
+    const thread = await getHumanBlockerThread(event.blocker_id);
+    if (thread) await ingestHumanReplyMessage({ ...event, thread });
+  }
   const status = await getHumanReplyGmailDurabilityStatus();
   if (!status.production_ready) {
     const openThreads = await listOpenHumanBlockerThreads(250);

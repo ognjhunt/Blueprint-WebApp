@@ -120,3 +120,45 @@ export async function retryTaskEvaluationResultNotification(params: {
   });
   return receipt;
 }
+
+/** Repair the send/receipt crash gap from retained provider acknowledgements.
+ * No send occurs here. Without a bound provider id the outcome stays unknown. */
+export async function reconcileTaskEvaluationNotificationRetries(db: FirebaseFirestore.Firestore, limit = 20) {
+  const { automationBatch } = await import("./automationBatch");
+  const rows = await automationBatch(db, db.collection(RETRIES).where("receipt.status", "in", ["dispatching", "unknown"]), "result_notification_reconciliation", limit);
+  for (const row of rows.docs) {
+    const saved = row.data();
+    const receipt = saved.receipt as ResultNotificationRetryReceipt;
+    const candidates = await db.collection("transactionalNotifications")
+      .where("source_doc_id", "==", row.id).get();
+    const acknowledgements = candidates.docs.map(doc => doc.data()).filter(record =>
+      record.source_collection === RETRIES && record.source_event_id === `result-email-retry:${row.id}`
+      && record.subject_id === receipt.run_id && record.channel === "email"
+      && record.event_type === "evaluation_results_ready" && record.status === "sent"
+      && record.recipient_user_id === saved.owner_user_id && record.delivery_provider === "resend"
+      && typeof record.provider_message_id === "string" && record.provider_message_id.length > 0
+      && record.data?.run_result_digest === receipt.run_result_digest);
+    if (acknowledgements.length !== 1) continue;
+    const evidence = acknowledgements[0];
+    await db.runTransaction(async tx => {
+      const runRef = db.collection("taskEvaluationPolicyRuns").doc(receipt.run_id);
+      const resultRef = db.collection("captureTaskEvaluationRuns").doc(receipt.record_id);
+      const [retry, runSnapshot, resultSnapshot] = await Promise.all([tx.get(row.ref), tx.get(runRef), tx.get(resultRef)]);
+      const current = retry.data(), run = runSnapshot.data(), result = resultSnapshot.data();
+      if (!current || !["dispatching", "unknown"].includes(current.receipt?.status)
+        || current.receipt.run_result_digest !== receipt.run_result_digest
+        || run?.notification_retry?.retry_id !== row.id || run.owner_user_id !== saved.owner_user_id
+        || !result || result.owner_user_id !== saved.owner_user_id
+        || (publicationFromResultRecord(result)?.policy_canary_result as Record<string, unknown> | undefined)?.projection_digest !== receipt.run_result_digest) return;
+      const notification = { ...saved.prior_notification, status: "accepted", attempts: receipt.attempt,
+        provider: "website_transactional_email", message_id: evidence.provider_message_id,
+        accepted_at: evidence.sent_at, delivered_at: null, failure_reason: null,
+        run_result_digest: receipt.run_result_digest };
+      tx.set(row.ref, { receipt: { ...receipt, status: "accepted" }, notification,
+        reconciliation: { source_event_id: evidence.source_event_id, provider_message_id: evidence.provider_message_id,
+          observed_at_iso: new Date().toISOString() } }, { merge: true });
+      tx.set(runRef, { notification_delivery: notification,
+        notification_retry: { ...run.notification_retry, status: "accepted" } }, { merge: true });
+    });
+  }
+}

@@ -25,6 +25,7 @@
  */
 
 import { createHash } from "node:crypto";
+import type { CaptureSupplementBinding } from "./captureUploadToken";
 
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
@@ -489,6 +490,7 @@ export function validateBundlePlan(input: {
  * same binding. Anything else is a different upload and is refused.
  */
 export function buildPlanRecord(input: {
+  supplement?: CaptureSupplementBinding;
   requestId: string;
   target: BundleTarget;
   client: BundleClient;
@@ -520,6 +522,7 @@ export function buildPlanRecord(input: {
     device_manifest: input.deviceManifest,
     binding: input.binding,
     binding_digest: input.bindingDigest,
+    ...(input.supplement ? { supplement: input.supplement } : {}),
   };
   const planDigest = crossRuntimeDigest(plan);
   return {
@@ -729,6 +732,7 @@ export function composeServerFiles(input: CompletionInput) {
   };
 
   const manifest = {
+    ...(plan.supplement ? { linked_supplement: plan.supplement } : {}),
     ...device,
     site_submission_id: requestId,
     request_id: requestId,

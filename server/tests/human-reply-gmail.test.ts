@@ -198,4 +198,23 @@ describe("human reply gmail status", () => {
     );
     expect(listMessagesMock).not.toHaveBeenCalled();
   });
+  it.each([
+    ["sent", ["SENT"], 1],
+    ["forged inbound From", ["INBOX"], 0],
+    ["draft", ["SENT", "DRAFT"], 0],
+  ])("requires mailbox authorship for %s", async (_name, labels, count) => {
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "client-id");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN", "refresh-token");
+    getProfileMock.mockResolvedValue({ data: { emailAddress: "ohstnhunt@gmail.com" } });
+    getMessageMock.mockResolvedValue({ data: { id: "original", threadId: "thread", labelIds: labels,
+      internalDate: "1791220000000", payload: { headers: [{ name: "From", value: "ohstnhunt@gmail.com" }],
+        mimeType: "text/plain", body: { data: Buffer.from("Approved").toString("base64url") } } } });
+    const { listHumanReplyGmailMessages } = await import("../utils/human-reply-gmail");
+    const replies = await listHumanReplyGmailMessages({ messageId: "original" });
+    expect(replies).toHaveLength(count);
+    expect(listMessagesMock).not.toHaveBeenCalled();
+    expect(getMessageMock).toHaveBeenCalledWith({ userId: "me", id: "original", format: "full" });
+  });
+
 });

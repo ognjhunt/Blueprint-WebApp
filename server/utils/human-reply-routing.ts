@@ -9,6 +9,7 @@ export const DEFAULT_OPS_EXECUTION_OWNER = "ops-lead";
 export type HumanReplyChannel = "email" | "slack";
 export type HumanBlockerKind = "technical" | "ops_commercial";
 export type HumanReplyClassification =
+  | "rejection"
   | "approval"
   | "clarification"
   | "credential_env_confirmation"
@@ -133,7 +134,14 @@ export function classifyHumanReply(
   body: string | null | undefined,
   context: HumanBlockerRoutingContext,
 ): HumanReplyRouteDecision {
-  const normalized = trimLower(body);
+  // Only the newly authored text can express a decision. Quoted packets and
+  // previous approvals never count as the sender's current instruction.
+  const authored: string[] = [];
+  for (const line of String(body || "").split(/\r?\n/)) {
+    if (/^\s*>/.test(line) || /^On .{1,250}wrote:\s*$/i.test(line.trim())) break;
+    authored.push(line);
+  }
+  const normalized = trimLower(authored.join("\n"));
   const executionOwner =
     context.execution_owner?.trim()
     || (context.blocker_kind === "technical"
@@ -209,19 +217,18 @@ export function classifyHumanReply(
     };
   }
 
-  const approval = includesAny(normalized, [
-    "approve",
-    "approve all",
-    "approved",
-    "go ahead",
-    "proceed",
-    "yes",
-    "looks good",
-    "ship it",
-    "do it",
-    "ok to",
-    "okay to",
-  ]);
+  // Decisions must be the complete authored reply, never a substring of a
+  // quote, condition, denial, or outgoing approval packet. Transport adapters
+  // may remove a clearly delimited reply history; arbitrary prose stays here.
+  const approval = /^(?:(?:i )?approve(?:d)?|yes|go ahead|proceed|looks good|ship it|do it)(?:[.!\s]+(?:(?:i )?approve(?:d)?|yes|go ahead|proceed|looks good|ship it|do it))*[.!\s]*$/.test(normalized);
+  if (/^(?:no|reject(?:ed)?|(?:i )?do not approve|don't approve|stop|cancel)[.!\s]*$/.test(normalized)) {
+    return {
+      classification: "rejection", resolution: "ambiguous_input",
+      routing_owner: routingOwner, execution_owner: executionOwner,
+      escalation_owner: escalationOwner, should_resume_now: false,
+      reason: "Human rejected the named action; any previous approval is superseded.",
+    };
+  }
 
   if (approval) {
     return {

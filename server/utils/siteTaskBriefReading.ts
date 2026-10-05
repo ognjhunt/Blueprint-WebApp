@@ -1,3 +1,4 @@
+import { humanDecisionDigest } from "./human-reply-admission";
 /**
  * Reading what the operator sent into the brief, instead of echoing it.
  *
@@ -208,10 +209,15 @@ export async function readBriefFromDescription(params: {
 export async function mergeFootageIntoBrief(params: {
   requestId: string;
   evidence: SiteVideoEvidenceOutput;
+  captureId?: string;
+  briefDigest?: string;
 }): Promise<void> {
   const brief = await getBrief(params.requestId);
   if (!brief) return;
   const proposals = proposalsFromFootage(params.evidence, brief.captureMode);
   if (!proposals.length) return;
-  await mergeBriefProposals({ requestId: params.requestId, proposals });
+  await mergeBriefProposals({ requestId: params.requestId, proposals,
+    ...(params.captureId && params.briefDigest ? { source: { capture_id: params.captureId,
+      evidence_digest: humanDecisionDigest(params.evidence), brief_digest: params.briefDigest } } : {}),
+  });
 }

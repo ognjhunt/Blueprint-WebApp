@@ -21,6 +21,7 @@
  */
 
 import { Router, type Request, type Response } from "express";
+import { readSiteClarification, submitSiteClarification } from "../utils/siteTaskClarifications";
 import { z } from "zod";
 
 import { logger } from "../logger";
@@ -64,6 +65,24 @@ import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
 
 const router = Router();
+
+router.get("/:token/clarification", async (req, res) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token));
+  if (!payload) return res.status(404).json({ error: "This link has expired." });
+  if (payload.scope !== "owner") return res.status(403).json({ error: "Use the owner's link to answer questions." });
+  try { return res.json(await readSiteClarification(payload.requestId)); }
+  catch { return res.status(503).json({ error: "Questions could not be loaded. Please retry." }); }
+});
+router.post("/:token/clarification", async (req, res) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token));
+  if (!payload) return res.status(404).json({ error: "This link has expired." });
+  if (payload.scope !== "owner") return res.status(403).json({ error: "Use the owner's link to answer questions." });
+  const parsed = z.object({ revision: z.string().regex(/^[a-f0-9]{64}$/), explanation: z.string().trim().min(10).max(4000) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Please write a short explanation (10–4000 characters)." });
+  try { return res.json(await submitSiteClarification(payload.requestId, parsed.data.revision, parsed.data.explanation)); }
+  catch (error) { return res.status(error instanceof Error && error.message === "clarification_revision_changed" ? 409 : 503)
+    .json({ error: "The questions may have changed. Reload this page and try again." }); }
+});
 
 function safeSceneViewUrl(value: unknown): string | null {
   try {
@@ -145,10 +164,10 @@ function screeningOutcome(disposition: string): {
   }
   if (disposition === "needs_conversation") {
     return {
-      headline: "Close. A short call settles the last questions.",
+      headline: "A few questions remain before we build your scene.",
       detail:
-        "We build your scene once the call clears them. It takes about thirty minutes and the "
-        + "agenda is already written.",
+        "Answer the questions in writing below or book a call. We will review your answers "
+        + "before clearing the scene for preparation.",
       bookingUrl: bookingUrl(),
     };
   }
@@ -320,11 +339,16 @@ router.get("/:token", async (req: Request, res: Response) => {
     // for an owner link -- a film-only colleague sees the shot list to record
     // against, not a button that would 403. The film payload is also filtered:
     // our reading of the operator's answers stays with the owner's link.
+    const presented = payload.scope === "owner" ? presentBrief(brief) : presentBriefForFilming(brief);
+    if (payload.supplement && db) {
+      const supplement = (await db.collection("captureSupplements").doc(payload.captureId).get()).data();
+      const views = supplement?.parent_coverage?.missing_coverage;
+      if (Array.isArray(views) && views.length) presented.summary = `Additional views: ${views.join("; ")}. ${presented.summary}`;
+    }
     return res.status(200).json({
       ready: true,
       scope: payload.scope,
-      brief:
-        payload.scope === "owner" ? presentBrief(brief) : presentBriefForFilming(brief),
+      brief: presented,
       account: payload.scope === "owner" ? await siteAccountFor(payload.requestId) : null,
     });
   } catch (error) {
@@ -738,7 +762,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
         .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
         .catch(() => []);
       void db.collection("inboundRequests").doc(payload.requestId)
-        .set({ ops: { next_step: "Book the screening call, then record its outcome under Screening." } }, { merge: true })
+        .set({ ops: { next_step: "Review the owner’s written clarification or book a screening call, then record the outcome under Screening." } }, { merge: true })
         .catch((error) => logger.warn({ error, requestId: payload.requestId }, "Could not set screening call next step"));
       void notifySlackScreeningCallNeeded({ requestId: payload.requestId, openQuestions: agenda })
         .catch(() => undefined);

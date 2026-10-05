@@ -458,6 +458,8 @@ const workers: WorkerDefinition[] = [
     defaultEnabled: true,
     run: async ({ limit }) => {
       const summary = await deliverOutbox({ limit });
+      const { tickCoverageReviews } = await import("./captureCoverageQueue");
+      tickCoverageReviews(Math.min(limit, 10));
       return {
         processedCount: summary.sent,
         failedCount: summary.failed + summary.exhausted,
