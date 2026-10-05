@@ -179,6 +179,24 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     expect(prospects(f).map(item => item.id)).toEqual(["existing-prospect"]);
   });
 
+  it("rechecks the CRM inside the claiming transaction, so a prospect created after the first check still blocks", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup();
+    const resolution = await f.resolution();
+    // Another writer adds a prospect for the same address while this admission is between its checks and its claim.
+    const original = f.db.runTransaction;
+    f.db.runTransaction = async (fn: any) => {
+      if (!f.db.records.has("outboundProspects/racing-prospect")) {
+        await f.db.doc("outboundProspects/racing-prospect").set({ facilityName: "Synthetic unrelated operator", contactEmail: ADDRESS, stage: "drafted" });
+      }
+      return original(fn);
+    };
+    await expect(admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, resolution)).rejects.toThrow("outreach_ready_recipient_already_known");
+    f.db.runTransaction = original;
+    expect(f.records("jobs")).toHaveLength(0);
+    expect(prospects(f).map(item => item.id)).toEqual(["racing-prospect"]);
+  });
+
   it("blocks a suppressed recipient and stops at the draft-only verification when the brief or its proof changes", async () => {
     vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
     const suppressed = setup();

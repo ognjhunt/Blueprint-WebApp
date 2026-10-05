@@ -277,20 +277,32 @@ async function hypothesisNeedsAttention(deps: IntakeDependencies, identity: Retu
   });
 }
 
-/** Already in the CRM: another canonical prospect holds this Sheets row, or the same operator, site
- * and task. Pipeline QA rechecked the Sheets CRM at publication; this checks the WebApp's own store. */
-async function hypothesisCrmConflict(deps: IntakeDependencies, source: HypothesisSource, prospectId: string) {
-  const root = deps.db.doc(COMMUNICATIONS_ROOT);
-  const binding = (await root.collection("researchBindings").doc(bindingKey(source)).get()).data();
-  if (binding && binding.prospectId !== prospectId) return "outreach_ready_candidate_already_known";
-  const bound = await deps.db.collection("outboundProspects").where("researchPublicationId", "==", source.sheetsProspectId).limit(3).get();
+/** The canonical prospect queries the CRM checks read: this Sheets row, this operator, this address. */
+function hypothesisCrmQueries(deps: IntakeDependencies, source: HypothesisSource, email?: string) {
+  const prospects = deps.db.collection("outboundProspects");
+  return { bound: prospects.where("researchPublicationId", "==", source.sheetsProspectId).limit(3),
+    named: prospects.where("facilityName", "==", source.candidate.organization).limit(101),
+    ...(email ? { holders: prospects.where("contactEmail", "in", recipientLookupAddresses([email])).limit(3) } : {}) };
+}
+/** Already in the CRM: another canonical prospect holds this Sheets row, the same operator, site and
+ * task, or the contact address. Pipeline QA rechecked the Sheets CRM at publication; this checks the
+ * WebApp's own store. Run before contact work, then again inside the claiming transaction. */
+function hypothesisCrmConflictIn(source: HypothesisSource, prospectId: string, bindingProspectId: unknown,
+  bound: FirebaseFirestore.QuerySnapshot, named: FirebaseFirestore.QuerySnapshot, holders?: FirebaseFirestore.QuerySnapshot) {
+  if (bindingProspectId !== undefined && bindingProspectId !== prospectId) return "outreach_ready_candidate_already_known";
   if (bound.docs.some(doc => doc.id !== prospectId)) return "outreach_ready_candidate_already_known";
-  const named = await deps.db.collection("outboundProspects").where("facilityName", "==", source.candidate.organization).limit(101).get();
   if (named.size > 100) return "outreach_ready_crm_check_incomplete";
   const identity = leadIdentityKey(source.candidate);
   if (named.docs.some(doc => doc.id !== prospectId && leadIdentityKey({ organization: doc.data().facilityName, site: doc.data().facilitySite,
     location: doc.data().facilityAddress, task: doc.data().hypothesisedTask }) === identity)) return "outreach_ready_candidate_already_known";
+  if (holders?.docs.some(doc => doc.id !== prospectId)) return "outreach_ready_recipient_already_known";
   return null;
+}
+async function hypothesisCrmConflict(deps: IntakeDependencies, source: HypothesisSource, prospectId: string, email?: string) {
+  const queries = hypothesisCrmQueries(deps, source, email);
+  const binding = (await deps.db.doc(COMMUNICATIONS_ROOT).collection("researchBindings").doc(bindingKey(source)).get()).data();
+  const [bound, named, holders] = await Promise.all([queries.bound.get(), queries.named.get(), queries.holders?.get()]);
+  return hypothesisCrmConflictIn(source, prospectId, binding?.prospectId, bound, named, holders);
 }
 
 /** The hypothesis brief before review metadata: published facts, the one question, the owner direction. */
@@ -337,8 +349,8 @@ export async function admitPublishedHypothesis(snapshot: any, candidateKey: stri
     if (!resolution) throw new Error(HYPOTHESIS_CONTACT_GAP);
     const contact = verifyHypothesisContactResolution(resolution.proof, source, prospectId, personEvidence);
     if (await deps.isSuppressed(contact.email)) throw new Error("recipient_suppressed");
-    const holders = await deps.db.collection("outboundProspects").where("contactEmail", "in", recipientLookupAddresses([contact.email])).limit(3).get();
-    if (holders.docs.some(doc => doc.id !== prospectId)) throw new Error("outreach_ready_recipient_already_known");
+    const holder = await hypothesisCrmConflict(deps, source, prospectId, contact.email);
+    if (holder) throw new Error(holder);
     const proposal = hypothesisBriefProposal(source, contact, prospectId, key);
     const briefId = `hypothesis-${communicationsDigest({ proposal, sourceDigest: communicationsDigest(source) })}`;
     const sourceRecordUrl = source.sourceRecordUrl ?? `https://www.notion.so/${String(source.notionReceipt).slice(7).replaceAll("-", "")}`;
@@ -351,9 +363,11 @@ export async function admitPublishedHypothesis(snapshot: any, candidateKey: stri
     const digest = communicationsDigest(brief);
     const prospectRef = deps.db.collection("outboundProspects").doc(prospectId), bindingRef = root.collection("researchBindings").doc(key);
     const proofRef = root.collection("contactProofs").doc(contact.evidenceDigest);
+    const queries = hypothesisCrmQueries(deps, source, contact.email);
     return await deps.db.runTransaction(async tx => {
-      const [intake, prospect, binding, existing, proof, request] = await Promise.all([tx.get(intakeRef), tx.get(prospectRef), tx.get(bindingRef),
-        tx.get(root.collection("briefs").doc(brief.briefId)), tx.get(proofRef), tx.get(root.collection("refreshRequests").doc(resolution.requestId))]);
+      const [intake, prospect, binding, existing, proof, request, bound, named, holders] = await Promise.all([tx.get(intakeRef), tx.get(prospectRef),
+        tx.get(bindingRef), tx.get(root.collection("briefs").doc(brief.briefId)), tx.get(proofRef),
+        tx.get(root.collection("refreshRequests").doc(resolution.requestId)), tx.get(queries.bound), tx.get(queries.named), tx.get(queries.holders!)]);
       const claimed = intake.data();
       // Claimed once: another admission that committed first owns this hypothesis.
       if (claimed && ["admitted", "blocked"].includes(claimed.state)) return claimed;
@@ -362,6 +376,9 @@ export async function admitPublishedHypothesis(snapshot: any, candidateKey: stri
       if (lease?.lease?.owner !== resolution.leaseOwner || lease.lease.until <= deps.now() || lease.state !== "running"
         || communicationsDigest(sourceIdentity(lease, candidateKey)) !== communicationsDigest(identity)) throw new Error("contact_refresh_lease_or_source_changed");
       if (proof.exists && communicationsDigest(proof.data()) !== contact.evidenceDigest) throw new Error("contact_resolution_immutable_conflict");
+      // The same CRM checks, read in this transaction: a prospect written since the first check still blocks.
+      const conflict = hypothesisCrmConflictIn(source, prospectId, binding.data()?.prospectId, bound, named, holders);
+      if (conflict) throw new Error(conflict);
       if (prospect.exists || binding.exists) throw new Error("outreach_ready_candidate_already_known");
       if (existing.exists) throw new Error("research_adapter_immutable_conflict");
       const queued = await prepareCommunicationsEnqueue(tx, deps.db, { prospectId, briefId: brief.briefId, briefDigest: digest,
