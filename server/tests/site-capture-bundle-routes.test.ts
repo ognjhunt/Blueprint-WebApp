@@ -425,6 +425,25 @@ describe("uploads are create-only and verified before completion", () => {
 });
 
 describe("completion keeps the web path's order and authority", () => {
+  it("reads a held app's status without retrying its screen or writing completion artifacts", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const writesBefore = [...state.bucket.writeLog];
+    const recordsBefore = structuredClone([...sharedFakeFirestoreState.docs]);
+    state.privacy.push(APPROVED);
+    const status = await api("GET", `${token()}/status`);
+    expect(status.status).toBe(200);
+    expect(status.body.bundle.state).toBe("held");
+    expect(state.privacy).toHaveLength(1);
+    expect(state.bucket.writeLog).toEqual(writesBefore);
+    expect([...sharedFakeFirestoreState.docs]).toEqual(recordsBefore);
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect((await linkCheck()).body.bundle.state).toBe("complete");
+    expect(state.privacy).toHaveLength(0);
+  });
+
   it("refuses a pre-change browser marker instead of calling an app bundle complete", async () => {
     const { device, bindingDigest } = await bundleFor();
     const planDigest = await uploadEverything(device, bindingDigest);
