@@ -181,6 +181,7 @@ function makeParams(overrides?: Partial<ExecuteActionParams>): ExecuteActionPara
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
   docIdCounter.value = 0;
 });
 
@@ -198,6 +199,11 @@ describe("prospect outreach quality enforcement", () => {
     status: "pending_approval", lane: "outbound_prospect", source_collection: "outboundProspects", source_doc_id: "prospect-1",
     action_type: "send_email", action_payload: payload, action_tier: 3, execution_attempts: 0,
   };
+  // The canonical record the release point reads: chosen by hand, with no research admission.
+  const handChosen = { facilityName: "Synthetic hand-chosen facility", contactEmail: outreachDraft.to, stage: "contacted" };
+  const prospectDoc = (data: Record<string, unknown> = handChosen) => ({ exists: true, data: () => data });
+  const failedLedger = { ...ledger, status: "failed", approved_by: "admin@blueprint.test", outreach_reviewed_by: "admin@blueprint.test",
+    outreach_semantic_review: review };
 
   it("rejects prospect-scoped campaign recipients at queue, approval, and retry", async () => {
     const campaignPayload = { ...payload, recipients: ["unreviewed@other-facility.co"] };
@@ -277,7 +283,7 @@ describe("prospect outreach quality enforcement", () => {
   });
 
   it("allows existing manual approval only with all required checks bound to the draft", async () => {
-    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger });
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger }).mockResolvedValueOnce(prospectDoc());
     const result = await approveAction("outreach-1", "admin@blueprint.test", review);
     expect(result.state).toBe("sent");
     expect(mockSendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: outreachDraft.to, text: outreachDraft.body }));
@@ -302,12 +308,64 @@ describe("prospect outreach quality enforcement", () => {
   });
 
   it("retains approval on retry for an unchanged failed send", async () => {
-    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({
-      ...ledger, status: "failed", approved_by: "admin@blueprint.test", outreach_reviewed_by: "admin@blueprint.test", outreach_semantic_review: review,
-    }) });
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => failedLedger }).mockResolvedValueOnce(prospectDoc());
     const result = await retryFailedAction("outreach-1");
     expect(result.state).toBe("sent");
     expect(mockSendEmail).toHaveBeenCalledOnce();
+  });
+
+  it.each<[string, Record<string, unknown>, "true" | "false", string]>([
+    ["a verified research prospect while the send flag is off",
+      { researchPublicationId: "BP-000042", entityAdmission: "research_provisional" }, "false", "communications_sending_disabled"],
+    ["an outreach-ready hypothesis with the send flag on",
+      { researchPublicationId: "BP-000043", entityAdmission: "research_provisional", qualificationTier: "outreach_ready" }, "true",
+      "outreach_ready_hypothesis_draft_only"],
+    ["a site-screen admission with the send flag on", { screenAdmissionId: "d".repeat(64) }, "true", "outreach_ready_hypothesis_draft_only"],
+    ["an unknown research admission with the send flag on",
+      { researchPublicationId: "BP-000044", entityAdmission: "research_unrecognised" }, "true", "outreach_ready_hypothesis_draft_only"],
+  ])("does not release the legacy mailer for %s, at approval or retry", async (_name, research, flag, expected) => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", flag);
+    const prospect = prospectDoc({ ...handChosen, ...research });
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger }).mockResolvedValueOnce(prospect);
+    expect(await approveAction("outreach-1", "admin@blueprint.test", review)).toMatchObject({ state: "pending_approval", error: expected });
+    expect(mockDocUpdate).toHaveBeenCalledWith(expect.objectContaining({ approval_reason: `content_validation_failed: ${expected}` }));
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => failedLedger }).mockResolvedValueOnce(prospect);
+    expect(await retryFailedAction("outreach-1")).toMatchObject({ state: "pending_approval", error: expected });
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "operator_approved" }));
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "executing" }));
+  });
+
+  it("keeps a verified research prospect on the legacy mailer only while the send flag is on", async () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger })
+      .mockResolvedValueOnce(prospectDoc({ ...handChosen, researchPublicationId: "BP-000042", entityAdmission: "research_provisional" }));
+    expect((await approveAction("outreach-1", "admin@blueprint.test", review)).state).toBe("sent");
+    expect(mockSendEmail).toHaveBeenCalledOnce();
+  });
+
+  it.each<[string, () => void]>([
+    ["missing", () => mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger }).mockResolvedValueOnce({ exists: false, data: () => undefined })],
+    ["unreadable", () => mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger }).mockRejectedValueOnce(new Error("firestore unavailable"))],
+    ["unaddressed", () => mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ ...ledger, source_doc_id: " " }) })],
+  ])("fails closed when the canonical prospect record is %s", async (_name, arrange) => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+    arrange();
+    expect(await approveAction("outreach-1", "admin@blueprint.test", review))
+      .toMatchObject({ state: "pending_approval", error: "prospect_research_origin_unavailable" });
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("refuses a hypothesis communications payload before content review", async () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+    // Deliberately incomplete: the refusal reads the raw brief and needs nothing else.
+    const hypothesis = { ...payload, emailTransport: "founder_gmail", communications: { brief: { qualification: { tier: "outreach_ready" } } } };
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ({ ...ledger, action_payload: hypothesis }) });
+    expect(await approveAction("outreach-1", "admin@blueprint.test", review))
+      .toMatchObject({ state: "pending_approval", error: "outreach_ready_hypothesis_draft_only" });
+    expect(mockDocGet).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "operator_approved" }));
   });
 });
 

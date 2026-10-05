@@ -25,8 +25,9 @@ import { sendSlackMessage } from "../utils/slack";
 import { logger } from "../logger";
 import { reviewOutreachDraft, validateOutreachSemanticReview, outreachSemanticReviewSchema } from "./outreach-review";
 import { isCommunicationsPayload, reviewCommunicationsPayload } from "./communications-review";
-import { communicationsSendBlocker, executeCommunicationsSend, reconcileCommunicationsSend } from "./communications-send";
-import { communicationsDigest } from "./communications-contract";
+import { communicationsSendBlocker, communicationsSendingEnabled, executeCommunicationsSend, reconcileCommunicationsSend } from "./communications-send";
+import { communicationsDigest, outreachReadySendRefusal } from "./communications-contract";
+import { researchProspectSendBlocker } from "../utils/outboundProspects";
 
 function getDb() {
   if (!dbAdmin) throw new Error("Firestore is not initialized");
@@ -251,6 +252,26 @@ function validateActionPayloadBeforeExecution(
 function isProspectOutreach(scope?: { lane?: string; source_collection?: string; action_payload?: ActionPayload }): boolean {
   return scope?.lane === "outbound_prospect" || scope?.source_collection === "outboundProspects"
     || isCommunicationsPayload(scope?.action_payload ?? {});
+}
+
+/** A hypothesis brief is draft only; refused before content review or any flag. */
+function communicationsHypothesisRefusal(payload: ActionPayload) {
+  return isCommunicationsPayload(payload) ? outreachReadySendRefusal((payload.communications as any)?.brief) : null;
+}
+
+/** Research-origin refusal for the legacy mailer at the release point. The queued
+ * payload does not say where the prospect came from, so this reads the canonical
+ * prospect record; a record that cannot be read refuses. */
+async function legacyProspectResearchBlocker(data: Record<string, any>): Promise<string | null> {
+  const prospectId = typeof data.source_doc_id === "string" ? data.source_doc_id.trim() : "";
+  if (data.source_collection !== "outboundProspects" || !prospectId) return "prospect_research_origin_unavailable";
+  try {
+    const prospect = await getDb().collection("outboundProspects").doc(prospectId).get();
+    if (!prospect?.exists) return "prospect_research_origin_unavailable";
+    return researchProspectSendBlocker(prospect.data(), communicationsSendingEnabled())?.blocker ?? null;
+  } catch {
+    return "prospect_research_origin_unavailable";
+  }
 }
 
 function prospectOutreachReview(payload: ActionPayload) {
@@ -604,10 +625,16 @@ export async function approveAction(
   }
 
   if (isProspectOutreach(data) || data.action_type === "send_email" || data.action_type === "send_campaign_emails") {
-    const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
+    const hypothesis = communicationsHypothesisRefusal(data.action_payload);
+    const validation: { valid: boolean; reason?: string } = hypothesis ? { valid: false, reason: hypothesis }
+      : validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
     if (validation.valid && isProspectOutreach(data)) {
       const reason = validateOutreachSemanticReview(prospectOutreachReview(data.action_payload), outreachSemanticReview);
       if (reason) { validation.valid = false; validation.reason = reason; }
+    }
+    if (validation.valid && isProspectOutreach(data) && !isCommunicationsPayload(data.action_payload)) {
+      const blocker = await legacyProspectResearchBlocker(data);
+      if (blocker) { validation.valid = false; validation.reason = blocker; }
     }
     if (validation.valid && isCommunicationsPayload(data.action_payload)) {
       const blocker = await communicationsSendBlocker(data.action_payload, ledgerDocId);
@@ -821,12 +848,18 @@ export async function retryFailedAction(
   if (data.status !== "failed") throw new Error(`Cannot retry action in state: ${data.status}`);
   if (data.execution_attempts >= 3) throw new Error("Max retries exceeded");
 
-  const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
+  const hypothesis = communicationsHypothesisRefusal(data.action_payload);
+  const validation: { valid: boolean; reason?: string } = hypothesis ? { valid: false, reason: hypothesis }
+    : validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
   if (validation.valid && isProspectOutreach(data)) {
     const reason = !data.outreach_reviewed_by || data.outreach_reviewed_by !== data.approved_by
       ? "outreach_semantic_review_required"
       : validateOutreachSemanticReview(prospectOutreachReview(data.action_payload), data.outreach_semantic_review);
     if (reason) { validation.valid = false; validation.reason = reason; }
+  }
+  if (validation.valid && isProspectOutreach(data) && !isCommunicationsPayload(data.action_payload)) {
+    const blocker = await legacyProspectResearchBlocker(data);
+    if (blocker) { validation.valid = false; validation.reason = blocker; }
   }
   if (validation.valid && isCommunicationsPayload(data.action_payload)) {
     const blocker = await communicationsSendBlocker(data.action_payload, ledgerDocId);

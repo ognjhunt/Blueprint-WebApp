@@ -64,10 +64,14 @@ import {
   convertProspectToRequestPayload,
   guardProspectSend,
   type OutboundProspect,
+  type SendBlocker,
 } from "../utils/outboundProspects";
 
 const router = Router();
 const COLLECTION = "outboundProspects";
+// Drafting is not sending. A redraft, or a research-derived prospect while the
+// send flag is off, may still be drafted; a hypothesis or a closed prospect may not.
+const DRAFTABLE_BLOCKERS = new Set<SendBlocker>(["already_contacted", "communications_sending_disabled"]);
 
 const observationSchema = z.object({
   claim: z.string().trim().min(1).max(240),
@@ -304,7 +308,7 @@ router.post("/:prospectId/draft", async (req: Request, res: Response) => {
   // observations has nothing specific to say, and a generic cold email is
   // worse than none -- it burns the address and teaches nothing.
   const guard = await guardProspectSend(prospect);
-  if (!guard.send && guard.blocker !== "already_contacted") {
+  if (!guard.send && !DRAFTABLE_BLOCKERS.has(guard.blocker)) {
     return res.status(409).json({ ok: false, blocker: guard.blocker, detail: guard.detail });
   }
 
@@ -364,6 +368,11 @@ router.post("/:prospectId/draft", async (req: Request, res: Response) => {
  * `/api/admin/leads/action-queue/:ledgerId/approve`. The response says so
  * outright, because an operator who reads a 202 as "sent" would conclude that
  * twenty facilities ignored them when in fact nothing was ever sent.
+ *
+ * This route is not gated by the communications send flag for hand-chosen
+ * prospects. It refuses outreach-ready hypotheses always, and research-derived
+ * prospects while BLUEPRINT_COMMUNICATIONS_SEND_ENABLED is off; approval
+ * re-applies both refusals before the mailer runs.
  */
 router.post("/:prospectId/send", async (req: Request, res: Response) => {
   if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });

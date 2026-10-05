@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   auditInferredGates,
@@ -12,8 +12,12 @@ import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import {
   convertProspectToRequestPayload,
   guardProspectSend,
+  prospectResearchTier,
   type OutboundProspect,
 } from "../utils/outboundProspects";
+import { communicationsSendingEnabled } from "../agents/communications-send";
+
+afterEach(() => vi.unstubAllEnvs());
 
 const BINDING = ["sceneStability", "taskShape", "objectVariety", "accessWindow"];
 
@@ -184,6 +188,69 @@ describe("nothing leaves the building unsourced or unwanted", () => {
       isSuppressed: async () => false,
     });
     expect(result).toMatchObject({ send: false, blocker: "prospect_closed" });
+  });
+});
+
+describe("the legacy mailer route and research-derived prospects", () => {
+  // Synthetic research admission fields, shaped like the ones intake writes.
+  const verifiedResearch = { researchPublicationId: "BP-000042", entityAdmission: "research_provisional",
+    communicationsContextReview: { briefId: "research-brief-1", briefDigest: "a".repeat(64) } };
+  const hypothesis = { ...verifiedResearch, researchPublicationId: "BP-000043", qualificationTier: "outreach_ready" };
+  const research = (fields: Record<string, unknown>, overrides: Partial<OutboundProspect> = {}) =>
+    ({ ...prospect(overrides), ...fields }) as OutboundProspect;
+
+  it("refuses an outreach-ready hypothesis with sending enabled, before the suppression lookup", async () => {
+    const isSuppressed = vi.fn(async () => false);
+    const result = await guardProspectSend(research(hypothesis), { isSuppressed, sendingEnabled: () => true });
+    expect(result).toMatchObject({ send: false, blocker: "outreach_ready_hypothesis_draft_only" });
+    expect(isSuppressed).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ["a site-screen admission", { screenAdmissionId: "d".repeat(64) }],
+    ["an unrecognised research admission", { ...verifiedResearch, entityAdmission: "research_unrecognised" }],
+    ["an unrecognised tier", { ...verifiedResearch, qualificationTier: "verified_later" }],
+    ["a hypothesis tier without other research fields", { qualificationTier: "outreach_ready" }],
+  ])("fails closed on %s as a hypothesis", async (_name, fields) => {
+    expect(prospectResearchTier(research(fields))).toBe("hypothesis");
+    expect(await guardProspectSend(research(fields), { isSuppressed: async () => false, sendingEnabled: () => true }))
+      .toMatchObject({ send: false, blocker: "outreach_ready_hypothesis_draft_only" });
+  });
+
+  it("refuses a verified research prospect while the communications send flag is off", async () => {
+    expect(prospectResearchTier(research(verifiedResearch))).toBe("verified");
+    expect(await guardProspectSend(research(verifiedResearch), { isSuppressed: async () => false, sendingEnabled: () => false }))
+      .toMatchObject({ send: false, blocker: "communications_sending_disabled" });
+    expect(await guardProspectSend(research({ researchPublicationId: "BP-000042" }), { isSuppressed: async () => false, sendingEnabled: () => false }))
+      .toMatchObject({ send: false, blocker: "communications_sending_disabled" });
+  });
+
+  it("passes a verified research prospect only once the send flag is on", async () => {
+    expect(await guardProspectSend(research(verifiedResearch), { isSuppressed: async () => false, sendingEnabled: () => true }))
+      .toEqual({ send: true, email: "ops@example.com" });
+  });
+
+  it("leaves hand-chosen prospects unchanged while the send flag is off", async () => {
+    expect(prospectResearchTier(prospect())).toBe("none");
+    expect(await guardProspectSend(prospect(), { isSuppressed: async () => false, sendingEnabled: () => false }))
+      .toEqual({ send: true, email: "ops@example.com" });
+  });
+
+  it("reports every other refusal first, so the draft route cannot pass a closed or suppressed research prospect", async () => {
+    const off = { sendingEnabled: () => false };
+    expect(await guardProspectSend(research(verifiedResearch, { stage: "closed" }), { ...off, isSuppressed: async () => false }))
+      .toMatchObject({ blocker: "prospect_closed" });
+    expect(await guardProspectSend(research(verifiedResearch), { ...off, isSuppressed: async () => true }))
+      .toMatchObject({ blocker: "email_suppressed" });
+    expect(await guardProspectSend(research(verifiedResearch, { observations: [] }), { ...off, isSuppressed: async () => false }))
+      .toMatchObject({ blocker: "no_sourced_observations" });
+  });
+
+  it.each(["", "false", "TRUE", "1", "yes", "true"])("reads BLUEPRINT_COMMUNICATIONS_SEND_ENABLED=%j exactly as the send path does", async (value) => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", value);
+    const result = await guardProspectSend(research(verifiedResearch), { isSuppressed: async () => false });
+    expect(result.send).toBe(communicationsSendingEnabled());
+    expect(result.send).toBe(value === "true");
   });
 });
 

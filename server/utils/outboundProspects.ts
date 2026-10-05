@@ -102,7 +102,65 @@ export type SendBlocker =
   | "no_sourced_observations"
   | "unsourced_observation"
   | "hypothesis_missing"
-  | "already_contacted";
+  | "already_contacted"
+  | ResearchSendBlocker;
+
+export type ResearchSendBlocker = "outreach_ready_hypothesis_draft_only" | "communications_sending_disabled";
+
+/**
+ * Where a canonical prospect record came from.
+ *
+ * - `none`: chosen by hand for the outbound beta; no research admission field.
+ * - `verified`: admitted from verified published research (intake or the
+ *   reviewed adapter), the only research tier that exists today.
+ * - `hypothesis`: an outreach-ready hypothesis, a site-screen admission, or a
+ *   research marker this code does not recognise. Unknown values fail closed.
+ *
+ * Research intake that admits a hypothesis must write `qualificationTier`
+ * (or `screenAdmissionId`) on the prospect, so this reads as `hypothesis`.
+ */
+export type ProspectResearchTier = "none" | "verified" | "hypothesis";
+const RESEARCH_ADMISSION_FIELDS = ["researchPublicationId", "communicationsContextReview", "entityAdmission",
+  "qualificationTier", "screenAdmissionId"];
+export function prospectResearchTier(prospect: unknown): ProspectResearchTier {
+  const record = prospect && typeof prospect === "object" ? prospect as Record<string, unknown> : {};
+  if (!RESEARCH_ADMISSION_FIELDS.some((field) => Object.hasOwn(record, field))) return "none";
+  const verified = (!Object.hasOwn(record, "qualificationTier") || record.qualificationTier === "verified")
+    && !Object.hasOwn(record, "screenAdmissionId")
+    && (!Object.hasOwn(record, "entityAdmission") || record.entityAdmission === "research_provisional");
+  return verified ? "verified" : "hypothesis";
+}
+
+/** Same flag as `communicationsSendingEnabled`, read here because communications-send imports this module. */
+const communicationsSendFlag = () => process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true";
+
+/**
+ * The research-origin rule for the legacy mailer route, shared by the queue
+ * guard and the action executor at release time.
+ *
+ * An outreach-ready hypothesis is draft only and is refused whatever the flags
+ * say. Any other research-derived prospect has its own send path; it stays off
+ * the legacy mailer while the communications send flag is off.
+ */
+export function researchProspectSendBlocker(
+  prospect: unknown,
+  sendingEnabled: boolean,
+): { blocker: ResearchSendBlocker; detail: string } | null {
+  const tier = prospectResearchTier(prospect);
+  if (tier === "hypothesis") {
+    return {
+      blocker: "outreach_ready_hypothesis_draft_only",
+      detail: "An outreach-ready hypothesis is draft only and is never sent by any route.",
+    };
+  }
+  if (tier === "verified" && !sendingEnabled) {
+    return {
+      blocker: "communications_sending_disabled",
+      detail: "Research-derived prospects are not sent by this route while BLUEPRINT_COMMUNICATIONS_SEND_ENABLED is off.",
+    };
+  }
+  return null;
+}
 
 /**
  * Everything that must be true before a cold email leaves the building.
@@ -112,11 +170,19 @@ export type SendBlocker =
  * program dies from exactly two things — contacting people who asked not to be,
  * and asserting facts that turn out to be invented — and both are checked here
  * rather than trusted to whatever composed the message.
+ *
+ * Research-derived prospects also pass `researchProspectSendBlocker`. The action
+ * executor applies the same rule again when an approval releases the message.
  */
 export async function guardProspectSend(
   prospect: OutboundProspect,
-  deps: { isSuppressed?: typeof isEmailSuppressed } = {},
+  deps: { isSuppressed?: typeof isEmailSuppressed; sendingEnabled?: () => boolean } = {},
 ): Promise<SendGuardResult> {
+  // First, before any flag or lookup: a hypothesis is draft only. With sending
+  // treated as enabled, only the hypothesis refusal can apply here.
+  const hypothesis = researchProspectSendBlocker(prospect, true);
+  if (hypothesis) return { send: false, ...hypothesis };
+
   const email = normalizeSuppressionEmail(prospect.contactEmail);
   if (!email || !email.includes("@")) {
     return { send: false, blocker: "email_missing", detail: "No usable contact address." };
@@ -186,6 +252,11 @@ export async function guardProspectSend(
   if (suppressed) {
     return { send: false, blocker: "email_suppressed", detail: "Recipient has opted out." };
   }
+
+  // Last on purpose: only a prospect that passes every other check reaches it,
+  // so the draft route can let it through without skipping another refusal.
+  const research = researchProspectSendBlocker(prospect, (deps.sendingEnabled ?? communicationsSendFlag)());
+  if (research) return { send: false, ...research };
 
   return { send: true, email };
 }

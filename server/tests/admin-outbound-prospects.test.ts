@@ -54,7 +54,7 @@ beforeEach(() => {
   mocks.isEmailSuppressed.mockResolvedValue(false);
   mocks.executeAction.mockResolvedValue({ state: "pending_approval", tier: 3, ledgerDocId: "ledger-1" });
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe("outbound prospect review routes (no provider, Firestore, or transport I/O)", () => {
   it("previews actual published research without writes and refuses caller-supplied facts, approval or credentials", async () => {
@@ -227,6 +227,49 @@ describe("outbound prospect review routes (no provider, Firestore, or transport 
     expect(Object.keys(response.body.outreachReview.semanticReviewRequired)).toHaveLength(6);
     expect(mocks.runAgentTask).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ connectionEvidence: null }) }));
     expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
+
+  describe("legacy mailer route and research-derived prospects", () => {
+    const send = { subject: outreachDraft.subject, body: outreachDraft.body, outreachContract };
+    const verifiedResearch = { ...prospect, researchPublicationId: "BP-000042", entityAdmission: "research_provisional" };
+    const hypothesis = { ...verifiedResearch, researchPublicationId: "BP-000043", qualificationTier: "outreach_ready" };
+
+    it("refuses a research-derived prospect at /send while the send flag is off, without queueing or marking it contacted", async () => {
+      vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
+      mocks.get.mockResolvedValue({ exists: true, data: () => verifiedResearch });
+      const response = await invoke("/:prospectId/send", send);
+      expect(response).toMatchObject({ status: 409, body: { ok: false, blocker: "communications_sending_disabled" } });
+      expect(mocks.executeAction).not.toHaveBeenCalled(); expect(mocks.set).not.toHaveBeenCalled();
+    });
+
+    it("refuses an outreach-ready hypothesis at /send and /draft even with the send flag on", async () => {
+      vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+      mocks.get.mockResolvedValue({ exists: true, data: () => hypothesis });
+      for (const path of ["/:prospectId/send", "/:prospectId/draft"]) {
+        expect(await invoke(path, path.endsWith("send") ? send : {}))
+          .toMatchObject({ status: 409, body: { ok: false, blocker: "outreach_ready_hypothesis_draft_only" } });
+      }
+      expect(mocks.isEmailSuppressed).not.toHaveBeenCalled();
+      expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled(); expect(mocks.set).not.toHaveBeenCalled();
+    });
+
+    it("still drafts a verified research prospect while the send flag is off: drafting is not sending", async () => {
+      vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
+      mocks.get.mockResolvedValue({ exists: true, data: () => verifiedResearch });
+      mocks.runAgentTask.mockResolvedValue({ status: "completed", output: {
+        subject: outreachDraft.subject, body: outreachDraft.body, outreach_contract: outreachContract,
+      } });
+      const response = await invoke("/:prospectId/draft");
+      expect(response.body.ok).toBe(true);
+      expect(mocks.runAgentTask).toHaveBeenCalledOnce(); expect(mocks.executeAction).not.toHaveBeenCalled();
+    });
+
+    it("keeps hand-chosen prospects queueable for human approval while the send flag is off", async () => {
+      vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
+      const response = await invoke("/:prospectId/send", send);
+      expect(response).toMatchObject({ status: 202, body: { sent: false } });
+      expect(mocks.executeAction).toHaveBeenCalledOnce();
+    });
   });
 
   it("still blocks a suppressed recipient before drafting", async () => {
