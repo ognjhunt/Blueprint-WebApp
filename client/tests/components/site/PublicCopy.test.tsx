@@ -36,7 +36,7 @@ describe("public managed-pilot copy", () => {
     expect(screen.getAllByRole("link", { name: /Start a job assessment/i }).length).toBeGreaterThan(0);
 
     expect(container).toHaveTextContent(/Show us the job/i);
-    expect(container).toHaveTextContent(/Meet your match/i);
+    expect(container).toHaveTextContent(/Check robot fit/i);
     expect(container).toHaveTextContent(/No match, no fee/i);
     expect(container).toHaveTextContent(/Run the pilot/i);
     expect(container).toHaveTextContent(/You and the team agree the pilot directly/i);

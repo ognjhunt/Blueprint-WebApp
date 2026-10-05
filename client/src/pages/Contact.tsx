@@ -8,7 +8,7 @@ import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { TaskBrowse } from "@/components/site/TaskBrowse";
-import { entryPrice, formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
+import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 
 const CONTACT_EMAIL = "hello@tryblueprint.io";
 
@@ -33,7 +33,7 @@ export default function Contact() {
             <summary>What happens after applying?</summary>
             <p>We review your robot's capabilities, the work you want and where you can support a pilot, then email the next step. Approved teams can see shared job details; applying does not commit you to an integration or a pilot.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. Executable submissions use a policy endpoint or container; compatibility must be checked for the specific task.</p>
-            <p>Evaluate for a pilot for free when invited; the site sees those results. For internal testing, a private evaluation costs {formatPrice(entryPrice)} for one robot policy on one reconstructed site job. Private results are not shared with the site or used for matching.</p>
+            <p>During the beta, evaluate for a pilot for free when invited; the site sees those results. A physical on-site trial is agreed separately with the site.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>

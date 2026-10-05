@@ -163,6 +163,42 @@ function postsTo(url: string) {
   return fetchMock.mock.calls.filter(c => c[0] === url && c[1]?.method === "POST");
 }
 
+it("shows delegated-filming instructions only when selected and keeps consent visible", () => {
+  render(<SiteCaptureStart />);
+  const delegate = screen.getByRole("checkbox", { name: "Someone else will record it" });
+  expect(delegate).not.toBeChecked();
+  expect(document.querySelector("#start-filmer")).toBeNull();
+  expect(screen.queryByText(/record-only link/)).toBeNull();
+  expect(document.querySelector("#start-rights")).toBeRequired();
+
+  fireEvent.click(delegate);
+  expect(screen.getByLabelText(/Their email/)).toBeVisible();
+  expect(screen.getByText(/only you can confirm the job brief/)).toBeVisible();
+  expect(document.querySelector("#start-rights")).toBeRequired();
+
+  fireEvent.click(delegate);
+  expect(document.querySelector("#start-filmer")).toBeNull();
+  expect(screen.queryByText(/record-only link/)).toBeNull();
+});
+
+it.each(["delegate", "self", "visit"])("sends the filming contact only for the selected delegate path (%s)", async (mode) => {
+  signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: null } }]);
+  render(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace as owner@example.com/);
+  const delegate = screen.getByRole("checkbox", { name: "Someone else will record it" });
+  fireEvent.click(delegate);
+  fireEvent.change(screen.getByLabelText(/Their email/), { target: { value: "filmer@example.com" } });
+  if (mode === "self") fireEvent.click(delegate);
+  if (mode === "visit") fireEvent.click(screen.getByRole("checkbox", { name: "We will film it ourselves" }));
+
+  fillAndSubmit();
+  await screen.findByRole("link", { name: "Saved in your workspace" });
+  const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
+  expect(payload.filmerContact).toBe(mode === "delegate" ? "filmer@example.com" : undefined);
+  expect(payload.captureMode).toBe(mode === "visit" ? "site_visit" : "self_capture");
+  expect(payload.consentAttestation.granted).toBe(true);
+});
+
 it("saves signed-in captures to the authenticated workspace and reuses the request on retry", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: false, body: { message: "Try again" } }, { ok: true, body: { captureUrl: null } }]);
   render(<SiteCaptureStart />);
