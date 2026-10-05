@@ -6,7 +6,8 @@ import { publishedPublicContact, contactUnknowns, PUBLIC_CONTACT_PREFIX } from "
 import { resolvePublicContact, verifyContactResolution, type ContactResolution } from "./communications-contact-resolution";
 import type { ContactPageReader } from "./communications-contact-fetch";
 import { previewResearchCommunications, type CommunicationsResearchInput } from "./communications-producer";
-import { researchPublicationSource, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
+import { publishedHypothesesDeclared, researchPublicationHypotheses, researchPublicationSource, verifyPublishedResearch,
+  type ResearchSnapshotReader } from "./communications-research";
 import { COMMUNICATIONS_ROOT, CommunicationsStore, prepareCommunicationsEnqueue } from "./communications-store";
 import { firstContactLearningQuestion } from "./communications-first-contact";
 import { qualifiedSourceContact } from "./communications-source-assessment";
@@ -210,6 +211,33 @@ export async function admitPublishedResearch(snapshot: any, candidateKey: string
   }
 }
 
+/** Outreach-ready hypotheses are recorded only: no brief, prospect, job, eligibility or
+ * send authority. A malformed block becomes one needs_research record for the research
+ * owner. Verified rows on the same day are admitted first and never wait on this. */
+export async function recordPublishedHypotheses(snapshot: any, deps: IntakeDependencies) {
+  const row = snapshot?.row, published = researchPublicationHypotheses(snapshot);
+  if (published.state === "absent") return [];
+  if (published.state === "invalid") return [await needsResearch(deps, sourceIdentity(row, "hypotheses"), published.reason.slice(0, 1200))];
+  const root = deps.db.doc(COMMUNICATIONS_ROOT), outcomes: FirebaseFirestore.DocumentData[] = [];
+  for (const entry of published.entries) {
+    const identity = sourceIdentity(row, entry.candidateKey), intakeId = communicationsDigest(identity);
+    const ref = root.collection("intake").doc(intakeId);
+    outcomes.push(await deps.db.runTransaction(async tx => {
+      const previous = await tx.get(ref);
+      // Recorded once; a later admission owns any change of state.
+      if (previous.exists) return previous.data()!;
+      const outcome = { ...identity, intakeId, state: "hypothesis_recorded", publishedTier: "outreach_ready", label: "hypothesis",
+        sheetsProspectId: entry.sheetsProspectId, candidateDigest: entry.candidateDigest,
+        openChecks: entry.openChecks, openQuestions: entry.openQuestions,
+        owner: "blueprint-communications-agent", recordedAt: deps.now(), eligibleForOutreach: false, draftJobCreated: false,
+        sendsAuthorized: false, humanContextApprovalRequired: false, sent: false, sessionCreated: false };
+      tx.set(ref, outcome);
+      return outcome;
+    }));
+  }
+  return outcomes;
+}
+
 /** Fulfill one communications-owned contact gap per tick. Retry survives restart;
  * terminal gaps are visible and never masquerade as fulfilled research. */
 export async function runCommunicationsContactRefresh(deps: IntakeDependencies) {
@@ -317,8 +345,11 @@ export async function runCommunicationsIntake(deps: IntakeDependencies) {
         if (snapshot?.row?.date !== item.date || snapshot?.row?.packet_digest !== item.packet_digest
           || snapshot?.row?.run_key !== item.run_key) throw new Error("communications_intake_work_item_changed");
         const keys = snapshot.row.review?.accepted_keys;
-        if (!Array.isArray(keys) || !keys.length || keys.length > 100) throw new Error("communications_intake_accepted_candidates_missing_or_overflow");
+        // A day may publish outreach-ready hypotheses only; they are recorded after any verified rows.
+        const hypotheses = publishedHypothesesDeclared(snapshot.row);
+        if (!Array.isArray(keys) || (!keys.length && !hypotheses) || keys.length > 100) throw new Error("communications_intake_accepted_candidates_missing_or_overflow");
         for (const key of keys) await admitPublishedResearch(snapshot, key, deps);
+        if (hypotheses) await recordPublishedHypotheses(snapshot, deps);
       } catch (error) {
         await needsResearch(deps, sourceIdentity(item, "publication"), error instanceof Error ? error.message.slice(0, 1200) : "research_publication_unavailable");
       }

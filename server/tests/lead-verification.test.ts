@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { evaluateLeadCohort, evaluateLeadVerification, LEAD_DIAGNOSTIC_RESULT_VERSION, leadIdentityKey, leadPacketCandidates, requireVerifiedLead } from "../agents/lead-verification";
+import { evaluateLeadCohort, evaluateLeadVerification, LEAD_DIAGNOSTIC_RESULT_VERSION, LEAD_OUTREACH_RESULT_VERSION, leadIdentityKey, leadPacketCandidates,
+  requireVerifiedLead } from "../agents/lead-verification";
 import { verificationDigest } from "../agents/research-digest";
 import { syntheticLeadVerification } from "./fixtures/lead-verification";
 
@@ -154,5 +155,25 @@ describe("result-version pinning (independent review S7)", () => {
     // v1 (unpinned) never accepted the schema_version alias; v2 accepts it losslessly.
     expect(() => requireVerifiedLead(source(), now)).toThrow();
     expect(requireVerifiedLead(source(LEAD_DIAGNOSTIC_RESULT_VERSION), now).status).toBe("verified");
+  });
+  it("decides a v3-pinned (outreach-ready) row's verified status by the v2 rules and derives no tier", () => {
+    const cases = JSON.parse(readFileSync(new URL("./fixtures/lead-verification-diagnostics.json", import.meta.url), "utf8"));
+    for (const item of cases) {
+      const v2 = evaluateLeadVerification(item.candidate, item.assessment, Date.parse(item.now), LEAD_DIAGNOSTIC_RESULT_VERSION);
+      expect(evaluateLeadVerification(item.candidate, item.assessment, Date.parse(item.now), LEAD_OUTREACH_RESULT_VERSION), item.name).toEqual(v2);
+    }
+    const alias = cases.find((c: any) => c.name === "schema_alias"), aliasNow = Date.parse(alias.now);
+    const verified = requireVerifiedLead({ candidate: alias.candidate, leadVerification: alias.assessment, leadVerificationCohort: {
+      candidates: [alias.candidate], assessments: { [alias.candidate.candidate_key]: alias.assessment }, duplicateChecks: {},
+      resultVersion: LEAD_OUTREACH_RESULT_VERSION } }, aliasNow);
+    expect(verified).toMatchObject({ status: "verified", version: LEAD_DIAGNOSTIC_RESULT_VERSION });
+    expect(verified).not.toHaveProperty("tier");
+    // An outreach-ready candidate (manual workflow unresolved) is never a verified lead under the pin.
+    const hypothesis = syntheticLeadVerification(candidate);
+    hypothesis.claims.human_workflow = { status: "unresolved", reason: "Invented: manual work is not stated.", source_refs: [] };
+    expect(evaluateLeadVerification(candidate, hypothesis, now, LEAD_OUTREACH_RESULT_VERSION))
+      .toMatchObject({ status: "unresolved", eligible_for_qualified_promotion: false });
+    expect(() => evaluateLeadVerification(candidate, hypothesis, now, "blueprint.lead-verification-result.v4"))
+      .toThrow("lead verification result version unsupported");
   });
 });

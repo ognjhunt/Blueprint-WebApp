@@ -4,6 +4,10 @@ export { verificationDigest } from "./research-digest";
 export const LEAD_VERIFICATION_VERSION = "blueprint.lead-verification.v1";
 export const LEAD_VERIFICATION_RESULT_VERSION = "blueprint.lead-verification-result.v1";
 export const LEAD_DIAGNOSTIC_RESULT_VERSION = "blueprint.lead-verification-result.v2";
+/** v3 is v2 plus the outreach-ready tier. Its status and eligible_for_qualified_promotion
+ * are v2's, so a v3-pinned row's verified decision uses the v2 rules here. This module
+ * does not derive the tier; a v3 pin never admits a hypothesis. */
+export const LEAD_OUTREACH_RESULT_VERSION = "blueprint.lead-verification-result.v3";
 export const LEAD_SEPARATE_GATES = ["buying_intent", "consent_rights", "commercial_qualification", "robot_compatibility", "deployment_readiness"];
 const facts = ["operator", "physical_site", "site_task", "human_workflow"];
 const claims = [...facts, "plausible_fit"];
@@ -145,6 +149,7 @@ export function leadAssessmentIssues(candidate: any, assessment: any) {
 }
 
 export function evaluateLeadVerification(candidate: any, assessment: any, now: number, resultVersion = LEAD_DIAGNOSTIC_RESULT_VERSION) {
+  if (resultVersion === LEAD_OUTREACH_RESULT_VERSION) resultVersion = LEAD_DIAGNOSTIC_RESULT_VERSION;
   if (resultVersion === LEAD_VERIFICATION_RESULT_VERSION) return evaluateLegacyLeadVerification(candidate, assessment, now) as ReturnType<typeof evaluateLegacyLeadVerification> & { validation_errors?: ReturnType<typeof leadAssessmentIssues> };
   if (resultVersion !== LEAD_DIAGNOSTIC_RESULT_VERSION) throw new Error("lead verification result version unsupported");
   const issues = leadAssessmentIssues(candidate, assessment);
