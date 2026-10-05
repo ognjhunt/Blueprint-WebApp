@@ -4,7 +4,7 @@ export { researchDigest } from "./research-digest";
 import { evaluateLeadCohort, evaluateLeadVerification, LEAD_VERIFICATION_RESULT_VERSION, leadPacketCandidates, requireVerifiedLead } from "./lead-verification";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { communicationsDigest, verifyCommunicationsHandoff, type CommunicationsBrief } from "./communications-contract";
+import { communicationsDigest, outreachReadySendRefusal, verifyCommunicationsHandoff, type CommunicationsBrief } from "./communications-contract";
 import { publishedPublicContact } from "./communications-contact-evidence";
 import { verifyContactResolution } from "./communications-contact-resolution";
 import { qualifiedSourceContact } from "./communications-source-assessment";
@@ -23,8 +23,11 @@ export async function readExistingResearchSnapshot(db: FirebaseFirestore.Firesto
   return new Store(db).snapshot(date);
 }
 
-/** A reviewed work item alone does not prove publication to either canonical hub. */
+/** A reviewed work item alone does not prove publication to either canonical hub.
+ * This stays the strict send-path check: an outreach-ready hypothesis never passes. */
 export function verifyPublishedResearch(snapshot: any, brief: CommunicationsBrief, approval: unknown, contactProof?: unknown, now = Date.now()) {
+  const hypothesis = outreachReadySendRefusal(brief);
+  if (hypothesis) throw new Error(hypothesis);
   const handoff = verifyCommunicationsHandoff(approval, brief);
   const verified = verifyResearchPublication(snapshot, brief.researchOrigin);
   const { row, candidate } = verified;

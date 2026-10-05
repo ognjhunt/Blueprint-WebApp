@@ -22,6 +22,27 @@ const evidence = z.object({
   consequential: z.boolean(),
 }).strict();
 
+/** Open checks of blueprint.outreach-ready-rule.v1, in rule order. The last three are always open. */
+export const OUTREACH_READY_OPEN_CHECKS = ["manual_workflow", "freshness", "existing_automation", "fit", "interest"] as const;
+const ALWAYS_OPEN_CHECKS: readonly (typeof OUTREACH_READY_OPEN_CHECKS)[number][] = ["existing_automation", "fit", "interest"];
+const singleQuestion = text.refine(value => value.indexOf("?") === value.length - 1, "exactly one question, ending in ?");
+/** An outreach-ready hypothesis (owner decision 2026-10-05): operator, site and task are
+ * proven; workflow, automation, fit and interest stay open questions. Draft only. */
+export const outreachReadyQualificationSchema = z.object({
+  tier: z.literal("outreach_ready"), label: z.literal("hypothesis"),
+  openChecks: z.array(z.enum(OUTREACH_READY_OPEN_CHECKS)).min(ALWAYS_OPEN_CHECKS.length).max(OUTREACH_READY_OPEN_CHECKS.length)
+    .refine(checks => checks.join() === OUTREACH_READY_OPEN_CHECKS.filter(check => checks.includes(check)).join()
+      && ALWAYS_OPEN_CHECKS.every(check => checks.includes(check)), "unique, in rule order, with existing_automation, fit and interest open"),
+  openQuestions: z.array(singleQuestion).min(1).max(3).refine(questions => new Set(questions).size === questions.length, "unique questions"),
+  // The owner record, and the pinned direction that carries it.
+  ownerDecision: z.object({
+    reference: z.string().trim().min(1).max(1000),
+    direction: z.object({ uri: z.string().min(1).max(1000), generation: z.string().regex(/^[0-9]+$/),
+      sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
+  }).strict(),
+  sendsAuthorized: z.literal(false),
+}).strict();
+
 /** Immutable, quality-reviewed research handoff. Load time never refreshes evidence. */
 export const communicationsBriefSchema = z.object({
   version: z.literal("blueprint.communications-brief.v1"),
@@ -65,16 +86,20 @@ export const communicationsBriefSchema = z.object({
   qualityReview: z.object({
     state: z.literal("approved"), reviewedBy: text, reviewedAt: date, sourceRecordUrl: publicUrl,
   }).strict(),
+  // Present only on an outreach-ready hypothesis. Verified briefs omit it, so their digests are unchanged.
+  qualification: outreachReadyQualificationSchema.optional(),
   researchOrigin: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), candidateKey: text,
     packetDigest: z.string().regex(/^[a-f0-9]{64}$/),
     rawArtifactDigest: z.string().regex(/^[a-f0-9]{64}$/),
     admissionId: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    // Host-owned site-screen admission; screen records are hypotheses only.
+    screenAdmissionId: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     // Communications adapter provenance; original candidate stays in an
     // immutable source record, including quotes, unknowns and cached fact IDs.
     sourceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     contactEvidenceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
-    contactEvidenceKind: z.enum(["published_evidence", "public_operator_resolution"]).optional(),
+    contactEvidenceKind: z.enum(["published_evidence", "public_operator_resolution", "public_source_resolution"]).optional(),
   }).strict(),
 }).strict();
 export type CommunicationsBrief = z.infer<typeof communicationsBriefSchema>;
@@ -82,6 +107,17 @@ export type CommunicationsFounderReplyOrigin = Extract<NonNullable<Communication
 /** Founder-authored threads never carry system send approval or first-contact authority. */
 export function isFounderReplyOrigin(origin: CommunicationsBrief["replyOrigin"]): origin is CommunicationsFounderReplyOrigin {
   return !!origin && "origin" in origin && origin.origin === "founder_send_observed";
+}
+
+export const OUTREACH_READY_SEND_REFUSAL = "outreach_ready_hypothesis_draft_only";
+/** Outreach-ready hypotheses are draft only. This reads the raw brief, so a partial
+ * or malformed block still refuses. No send, approval or first-contact path accepts
+ * a qualification block, a public-source contact or a site-screen admission. */
+export function outreachReadySendRefusal(brief: unknown): typeof OUTREACH_READY_SEND_REFUSAL | null {
+  const value = brief && typeof brief === "object" ? brief as Record<string, unknown> : null;
+  const origin = value?.researchOrigin && typeof value.researchOrigin === "object" ? value.researchOrigin as Record<string, unknown> : null;
+  return value && (Object.hasOwn(value, "qualification") || origin?.contactEvidenceKind === "public_source_resolution"
+    || (origin && Object.hasOwn(origin, "screenAdmissionId"))) ? OUTREACH_READY_SEND_REFUSAL : null;
 }
 
 /** Separate immutable record written by research QA/publication or the verified

@@ -6,6 +6,7 @@ import { publishedPublicContact, PUBLIC_CONTACT_PREFIX } from "../agents/communi
 import { previewResearchCommunications, approveResearchCommunications } from "../agents/communications-producer";
 import { verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
+import { communicationsDigest } from "../agents/communications-contract";
 import { processCommunicationsJob, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { publishedResearchFixture } from "./fixtures/published-research";
@@ -22,6 +23,16 @@ function setup(options: Parameters<typeof publishedResearchFixture>[0] = { publi
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("agent-owned published research intake (offline)", () => {
+  it("admits today's verified publication byte for byte", async () => {
+    // Recorded before outreach-ready hypotheses existed: the brief, its source and
+    // every admission record keep the same bytes.
+    const f = setup(), admitted: any = await f.admit();
+    expect(admitted).toMatchObject({ state: "admitted", briefDigest: "1301a0696e5c375f1a8cc7a22a899914491f46a11f817324da23da6172148825",
+      sourceDigest: "7a8a8a1fb0fdd0930bb38310a352f9a5d7c17617c9de5b906bb3cca8c4139c62",
+      briefId: "research-cdb8d02eccc3a67f8e943308cb87e0778bf0472b816d2268b1ab1cc74bc0c4fa" });
+    const records = [...f.db.records.entries()].filter(([key]) => key.startsWith(`${COMMUNICATIONS_ROOT}/`) || key.startsWith("outboundProspects/"));
+    expect(communicationsDigest(records)).toBe("b1151fe4470f01c5557ea8807640d32d32550d76d8f7033dff2baaef1e9221bf");
+  });
   it("does not report cached admission as eligible after its bound verification expires", async () => {
     const f = setup();
     const first: any = await f.admit();
