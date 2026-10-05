@@ -1,3 +1,4 @@
+import { CONFIDENCE_POLICY_VERSION } from "./successRateConfidence";
 /**
  * Reading and maintaining the robot-team registry.
  *
@@ -147,7 +148,7 @@ export function toMatchCandidate(
 export async function getRobotTeam(id: string): Promise<RobotTeamRecord | null> {
   if (!db) return null;
   const snapshot = await db.collection(ROBOT_TEAMS_COLLECTION).doc(id).get();
-  return snapshot.exists ? (snapshot.data() as RobotTeamRecord) : null;
+  return snapshot.exists ? currentConfidenceTeam(snapshot.data() as RobotTeamRecord) : null;
 }
 
 /**
@@ -169,7 +170,7 @@ export async function listMatchableRobotTeams(
     .where("status", "in", statuses)
     .limit(Math.max(1, Math.min(options.limit ?? 200, 500)))
     .get();
-  return snapshot.docs.map((doc) => doc.data() as RobotTeamRecord);
+  return snapshot.docs.map((doc) => currentConfidenceTeam(doc.data() as RobotTeamRecord));
 }
 
 async function writeRecord(record: RobotTeamRecord) {
@@ -440,7 +441,7 @@ export async function recordEvaluationOutcome(params: {
     },
     {
       grade: "measured",
-      source: `evaluationRun:${params.runId}`,
+      source: `evaluationRun:${params.runId}@${CONFIDENCE_POLICY_VERSION}`,
       observedAt: params.observedAt,
     },
   );
@@ -547,3 +548,14 @@ export async function applyProposal(params: {
 }
 
 export const __testing = { GRADE_RANK, admin };
+
+
+/** Historical measured labels cannot qualify a match until re-evaluated. */
+export function currentConfidenceTeam(record: RobotTeamRecord): RobotTeamRecord {
+  const provenance = record.fieldProvenance?.demonstratedSuccessRate;
+  if (provenance?.grade === "measured" && provenance.source?.startsWith("evaluationRun:")
+      && !provenance.source.endsWith(`@${CONFIDENCE_POLICY_VERSION}`)) {
+    return { ...record, capability: { ...record.capability, demonstratedSuccessRate: null } };
+  }
+  return record;
+}

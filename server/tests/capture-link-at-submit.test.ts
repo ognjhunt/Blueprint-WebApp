@@ -68,6 +68,11 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
             written.set(path, path.endsWith("walkthrough.mov") ? "<binary>" : body.toString("utf8"));
           };
           return {
+          delete: async () => {
+            if (!options?.generation) throw new Error("deletion must bind the exact generation");
+            storedVersions.delete(`${path}@${options.generation}`);
+            written.delete(path);
+          },
           get metadata() { return responseMetadata; },
           save: async (body: unknown, config?: { preconditionOpts?: { ifGenerationMatch?: string | number } }) => {
             if (path.endsWith("/manifest.json") && writeFault.manifestOnce) {
@@ -172,7 +177,7 @@ function seedRequest(
   sharedFakeFirestoreState.docs.set(`inboundRequests/${requestId}`, {
     requestId,
     contact: { email: "owner@example.com" },
-    request: { buyerType: "site_operator", capture_mode: captureMode, capture_region: "us" },
+    request: { buyerType: "site_operator", capture_mode: captureMode, capture_region: "us", consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z" } },
     site_task_triage: {
       blocking_field_ids: [],
       blockers: [],
@@ -818,7 +823,7 @@ describe("a link is a destination, not a permission", () => {
     // gates mean the operator never contacted us.
     sharedFakeFirestoreState.docs.set("inboundRequests/req-inferred", {
       requestId: "req-inferred",
-      request: { buyerType: "site_operator", capture_mode: "self_capture", capture_region: "us" },
+      request: { buyerType: "site_operator", consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z" }, capture_mode: "self_capture", capture_region: "us" },
       site_task_gate_sources: { sceneStability: "inferred", taskShape: "inferred" },
       site_task_triage: {
         disposition: "qualified",
@@ -866,6 +871,7 @@ describe("a link is a destination, not a permission", () => {
       requestId: "req-non-us",
       request: {
         buyerType: "site_operator",
+        consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z" },
         capture_mode: "self_capture",
         capture_region: "non_us",
       },
@@ -979,6 +985,7 @@ describe("one link, two pages", () => {
       requestId: "req-private",
       request: {
         buyerType: "site_operator",
+        consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z" },
         capture_mode: "self_capture",
         capture_region: "us",
         siteName: "Acme Cold Storage, 40 Mill Road",
@@ -1071,6 +1078,7 @@ describe("a site that asked for a visit can film it itself instead", () => {
       requestId: "req-far",
       request: {
         buyerType: "site_operator",
+        consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z" },
         capture_mode: "site_visit",
         capture_region: "us",
         siteTaskGates: { serviceArea: "outside_texas" },
@@ -1122,5 +1130,33 @@ describe("a site that asked for a visit can film it itself instead", () => {
     expect(codes.already).toMatchObject({ switched: false, state: "ready" });
     expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-own") as Record<string, any>).request.capture_mode)
       .toBe("site_visit");
+  });
+});
+
+it("refuses a missing recording grant before writing any uploaded bytes", async () => {
+  seedRequest("req-no-consent", { disposition: "qualified" });
+  delete sharedFakeFirestoreState.docs.get("inboundRequests/req-no-consent")!.request.consent_attestation;
+  const result = await withRoutes(base => uploadFor(base, "req-no-consent"));
+  expect(result.status).toBe(409);
+  expect(result.body.code).toBe("recording_consent_required");
+  expect(storedVersions.size).toBe(0);
+  expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+});
+it("removes the exact new video generation when consent is withdrawn during its write", async () => {
+  seedRequest("req-withdraw-during-write", { disposition: "qualified" });
+  let entered!: () => void, resume!: () => void;
+  const writing = new Promise<void>(resolve => { entered = resolve; });
+  const wait = new Promise<void>(resolve => { resume = resolve; });
+  writeGate.current = { entered, wait };
+  await withRoutes(async base => {
+    const upload = uploadFor(base, "req-withdraw-during-write");
+    await writing;
+    sharedFakeFirestoreState.docs.get("inboundRequests/req-withdraw-during-write")!.request.consent_attestation.granted = false;
+    resume();
+    const result = await upload;
+    expect(result.status).toBe(409);
+    expect(storedVersions.size).toBe(0);
+    expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+    expect([...written.keys()].some(key => key.endsWith("capture_upload_complete.json"))).toBe(false);
   });
 });

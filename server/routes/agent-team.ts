@@ -1,3 +1,4 @@
+import { FREE_BETA_ONLY, FREE_BETA_PAID_DISABLED, FREE_BETA_PAID_MESSAGE } from "../utils/freeBeta";
 /**
  * What a robot team's agent can do without a person in the loop.
  *
@@ -106,6 +107,10 @@ import { policyCredentialSchema, storeCheckpointPolicyCredential, revokeCheckpoi
 import { getCheckpoint } from "../utils/robotCheckpoints";
 
 const router = Router();
+
+const refusePaidBeta = (_req: Request, res: Response, next?: () => void) => FREE_BETA_ONLY ? res.status(403).json({
+  code: FREE_BETA_PAID_DISABLED, error: FREE_BETA_PAID_MESSAGE,
+}) : next?.();
 
 /**
  * What we need to run something. Declared here because registration can carry
@@ -552,7 +557,8 @@ router.get("/me", async (req: Request, res: Response) => {
       unrunnableReason: item.unrunnableReason,
     })),
     accountBound: Boolean(accountUid),
-    canSpendNow: Boolean(accountUid) && policy.agentSpendEnabled && remainingToday > 0 && balance.availableUsd > 0,
+    canSpendNow: false,
+    spendingDisabledReason: FREE_BETA_PAID_DISABLED,
   });
 });
 
@@ -688,7 +694,7 @@ const PLANNING_PREVIEW_RUNS = 10;
  * A ranking is not trustworthy because it is correct; it is trustworthy because
  * someone can read it and disagree.
  */
-router.post("/plan", async (req: Request, res: Response) => {
+router.post("/plan", refusePaidBeta, async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
   if (!(await requireEarlyAccess(teamId, res))) return;
@@ -796,7 +802,7 @@ const runsSchema = z
  * of an all-or-nothing refusal that tells the agent nothing about what to try
  * next.
  */
-router.post("/runs", async (req: Request, res: Response) => {
+router.post("/runs", refusePaidBeta, async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
   if (!(await requireEarlyAccess(teamId, res))) return;
@@ -1240,7 +1246,7 @@ const fundingSchema = z
  * to whoever holds the card, and watches `GET /me` for the balance to move —
  * which is the right shape for an agent in CI with nowhere to be redirected to.
  */
-router.post("/funding", async (req: Request, res: Response) => {
+router.post("/funding", refusePaidBeta, async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
   if (!(await requireAccountBoundTeam(teamId, res))) return;
@@ -1311,6 +1317,7 @@ router.put("/policy", async (req: Request, res: Response) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Policy is invalid", code: "policy_invalid" });
   }
+  if (FREE_BETA_ONLY && parsed.data.agentSpendEnabled) return refusePaidBeta(req, res);
   // Switching spend on is spend authority. Switching it off is always allowed,
   // so a team can stop its agent whatever state its account is in.
   if (parsed.data.agentSpendEnabled && !(await requireAccountBoundTeam(teamId, res))) return;

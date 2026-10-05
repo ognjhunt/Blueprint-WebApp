@@ -215,8 +215,8 @@ describe("build output", () => {
     expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
-    expect(llms).toContain("Private evaluations cost $99");
-    expect(llms).toContain("do not affect pilot matching");
+    expect(llms).toContain("free invited evaluations only");
+    expect(llms).toContain("paid_evaluations_disabled");
     expect(llmsFull).toMatch(/simulation is not physical proof or a deployment guarantee/i);
     expect(llmsFull).toContain("Robot teams join by early access");
     expect(llmsFull).toContain("early_access_required");

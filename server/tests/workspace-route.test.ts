@@ -25,7 +25,12 @@ function ref(path: string): any {
       data: () => state.records.get(path),
       ref: ref(path),
     }),
-    set: async (data: any) => state.records.set(path, data),
+    set: async (data: any, options?: { merge?: boolean }) => {
+      const merge = (a: any, b: any): any => Object.fromEntries(Object.entries({ ...a, ...b }).map(([key, value]) =>
+        [key, value && typeof value === "object" && !Array.isArray(value) && b[key] && a?.[key]
+          ? merge(a[key], b[key]) : value]));
+      state.records.set(path, options?.merge ? merge(state.records.get(path), data) : data);
+    },
     update: async (data: any) => {
       const current = structuredClone(state.records.get(path) || {});
       for (const [key, value] of Object.entries(data)) {
@@ -88,7 +93,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
       fn({
         get: (r: any) => r.get(),
         update: (r: any, data: any) => r.update(data),
-        set: (r: any, data: any) => r.set(data),
+        set: (r: any, data: any, options?: any) => r.set(data, options),
       }),
   },
 }));
@@ -261,6 +266,21 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it("records only the owner's withdrawal, cancels queued work, and never claims deletion", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    state.records.set("evaluationRuns/run", { runId: "run", sceneId: "task-1", state: "requested", dispatchPending: true });
+    expect((await api("/tasks/task-1/recording-consent/withdraw", "site-2", {})).status).toBe(404);
+    const first = await api("/tasks/task-1/recording-consent/withdraw", "site-1", {});
+    expect(first.status).toBe(202);
+    const receipt = (await first.json()).receipt;
+    expect(receipt.deletionConfirmed).toBe(false);
+    expect(receipt.pipelineAcknowledged).toBe(false);
+    expect(state.records.get("inboundRequests/task-1").account_owner_uid).toBe("site-1");
+    expect(state.records.get("inboundRequests/task-1").request.consent_attestation.granted).toBe(false);
+    expect(state.records.get("evaluationRuns/run").cancellationRequested).toBe(true);
+    expect(state.records.get("evaluationRuns/run").dispatchPending).toBe(false);
+    expect((await (await api("/tasks/task-1/recording-consent/withdraw", "site-1", {})).json()).receipt).toEqual(receipt);
+  });
   it("requires authentication and a supported account role", async () => {
     expect((await api("/", "")).status).toBe(401);
     state.records.set("users/admin", { role: "admin" });
@@ -1082,4 +1102,31 @@ describe("capture-first workspace intake", () => {
     expect((await api("/capture-start", "site-1", { ...capture, consentAttestation: { ...capture.consentAttestation, granted: false } })).status).toBe(400);
     expect(state.intakes).toHaveLength(0);
   });
+});
+
+it("joins the approved free run to its team request without another pending row or cross-owner access", async () => {
+  state.records.set("inboundRequests/task-1", task());
+  state.records.set("robotTeams/team-free", { accountUid: "robot-1" });
+  state.records.set("inboundRequests/application-free", { account_owner_uid: "robot-1",
+    workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms }, request: { taskStatement: "Packing" },
+    free_evaluation_handoff: { runId: "free-run", executionRequestId: "prepared-free" } });
+  state.records.set("robotEvalJobRequests/prepared-free", { buyer_user_id: "robot-1", status: "prepared_agent_execution" });
+  state.records.set("evaluationRuns/free-run", { runId: "free-run", teamId: "team-free", sceneId: "task-1",
+    evaluationPurpose: "pilot", quotedUsd: 0, state: "completed", requestedAtIso: new Date().toISOString(),
+    executionAdmission: { digestSha256: "sha256:" + "a".repeat(64), envelope: { funding: {
+      payer: "blueprint", customer_price_usd: 0, cap_usd: 10, max_attempts: 1, approved_by: "operator",
+      approval_digest: "sha256:" + "b".repeat(64), expires_at_iso: "2100-01-01T00:00:00Z", workspace_request_id: "application-free" } } },
+    result: { evidenceScope: "development_only", observed: { episodesRun: 1, episodesSucceeded: 1, successRate: 1, medianCycleSeconds: 20 } } });
+  const team = await (await api("/", "robot-1")).json();
+  expect(team.evaluations).toHaveLength(1);
+  expect(team.evaluations[0]).toMatchObject({ id: "application-free", runId: "free-run", status: "completed", successRate: 100,
+    evidenceLabel: "Development simulation", targetsMet: null });
+  expect(JSON.stringify(team)).not.toContain("Confidential Site");
+  const site = await (await api("/tasks/task-1", "site-1")).json();
+  expect(site.results).toHaveLength(1);
+  expect(site.results[0]).toMatchObject({ id: "free-run", evidenceLabel: "Development simulation", targetsMet: null });
+  state.records.get("robotTeams/team-free").accountUid = "robot-2";
+  const unlinked = await (await api("/", "robot-1")).json();
+  expect(unlinked.evaluations[0].successRate).toBeNull();
+  expect(unlinked.evaluations[0].runId).toBeNull();
 });

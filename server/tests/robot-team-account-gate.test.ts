@@ -119,7 +119,7 @@ async function register(): Promise<{ teamId: string; agentKey: string }> {
   return response.json();
 }
 
-describe("an unbound team can plan but cannot pay", () => {
+describe("free beta refuses paid entrypoints for every account", () => {
   it("refuses funding, switching spend on, and confirmed runs with the steps to fix it", async () => {
     const { agentKey } = await register();
 
@@ -129,7 +129,7 @@ describe("an unbound team can plan but cannot pay", () => {
 
     const funding = await agent("/funding", agentKey, { amountUsd: 100 });
     expect(funding.status).toBe(403);
-    expect((await funding.json()).code).toBe("team_account_required");
+    expect((await funding.json()).code).toBe("paid_evaluations_disabled");
 
     const enable = await agent("/policy", agentKey,
       { dailyLimitUsd: 100, perRunLimitUsd: 99, agentSpendEnabled: true }, "PUT");
@@ -138,20 +138,20 @@ describe("an unbound team can plan but cannot pay", () => {
     const run = await agent("/runs", agentKey,
       { checkpointId: "cp-1", confirm: true, idempotencyKey: "idem-12345678" });
     expect(run.status).toBe(403);
-    expect((await run.json()).code).toBe("team_account_required");
+    expect((await run.json()).code).toBe("paid_evaluations_disabled");
   });
 
-  it("still lets a team switch its agent off and dry-run", async () => {
+  it("lets a team switch its agent off but refuses the paid dry-run", async () => {
     const { agentKey } = await register();
     const disable = await agent("/policy", agentKey,
       { dailyLimitUsd: 0, perRunLimitUsd: 0, agentSpendEnabled: false }, "PUT");
     expect(disable.status).toBe(200);
     const dryRun = await agent("/runs", agentKey, { checkpointId: "cp-1" });
-    expect(dryRun.status).not.toBe(403);
+    expect(dryRun.status).toBe(403);
   });
 });
 
-describe("a verified account connects the team, and then it can pay", () => {
+describe("a verified account connects the team without enabling payments", () => {
   it("binds the team behind the key the plan page holds", async () => {
     const { teamId, agentKey } = await register();
 
@@ -162,9 +162,9 @@ describe("a verified account connects the team, and then it can pay", () => {
       accountEmail: "robot-owner@example.com",
     });
 
-    // Past the account gate: payments are simply not configured in tests.
+    // Account ownership does not override the release scope.
     const funding = await agent("/funding", agentKey, { amountUsd: 100 });
-    expect(funding.status).not.toBe(403);
+    expect(funding.status).toBe(403);
     expect((await (await agent("/me", agentKey)).json()).accountBound).toBe(true);
   });
 
@@ -180,7 +180,7 @@ describe("a verified account connects the team, and then it can pay", () => {
 });
 
 describe("the account issues and revokes the agent's keys", () => {
-  it("creates the team on first key, and the key can pay at once", async () => {
+  it("creates the team on first key without enabling payments", async () => {
     const issued = await account("/robot-team/agent-keys", "robot-owner", { label: "ci agent" });
     expect(issued.status).toBe(201);
     const { teamId, agentKey, keyId } = await issued.json();

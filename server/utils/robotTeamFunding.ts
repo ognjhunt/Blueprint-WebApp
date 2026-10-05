@@ -1,3 +1,4 @@
+import { FREE_BETA_ONLY, FREE_BETA_PAID_DISABLED, FREE_BETA_PAID_MESSAGE } from "./freeBeta";
 /**
  * A robot team funding its own balance, without an operator.
  *
@@ -52,6 +53,7 @@ export const MIN_TOPUP_USD = 99;
 export const MAX_TOPUP_USD = 25_000;
 
 export type TopupRefusal =
+  | "paid_evaluations_disabled"
   | "stripe_unavailable"
   | "amount_below_minimum"
   | "amount_above_maximum"
@@ -89,6 +91,7 @@ export async function startBalanceTopup(params: {
   // The amount first, deliberately. An agent asking for $5 has a bug in its own
   // code, and telling it "payments are not configured" would send it looking in
   // the wrong place — a refusal is only useful if it names the real problem.
+  if (FREE_BETA_ONLY) return { created: false as const, refusal: FREE_BETA_PAID_DISABLED, detail: FREE_BETA_PAID_MESSAGE };
   const amountUsd = Math.round(params.amountUsd * 100) / 100;
   if (amountUsd < MIN_TOPUP_USD) {
     return {

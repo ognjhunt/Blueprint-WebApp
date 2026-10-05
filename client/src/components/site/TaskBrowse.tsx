@@ -6,7 +6,6 @@ import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { LibraryAccess } from "@/lib/robotTeamAccess";
 import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
-import { RobotTeamPlanPreview } from "./RobotTeamPlanPreview";
 import { opportunityLabels, taskStageLabels, type TaskBrowseCard } from "@/types/taskBrowse";
 
 export function TaskBrowse() {
@@ -16,17 +15,9 @@ export function TaskBrowse() {
   const [family, setFamily] = useState("");
   const [region, setRegion] = useState("");
   const [availability, setAvailability] = useState("");
-  const [selected, setSelected] = useState<TaskBrowseCard | null>(null);
   const [access, setAccess] = useState<LibraryAccess | null>(null);
   const auth = useOptionalAuth();
   const currentUser = auth?.currentUser ?? null;
-  // Back from Stripe or a verification email for a plan that was not tied to
-  // one task: open that plan instead of leaving it in a closed section.
-  const [returning] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const params = new URLSearchParams(window.location.search);
-    return !params.get("sceneId") && (params.has("funded") || params.get("connect") === "1");
-  });
   useEffect(() => {
     const controller = new AbortController();
     setState("loading");
@@ -44,8 +35,6 @@ export function TaskBrowse() {
       if (!Array.isArray(data.items)) throw new Error("invalid library");
       setAccess(data.access ?? null);
       setItems(data.items); setState("ready");
-      const sceneId = new URLSearchParams(window.location.search).get("sceneId");
-      if (sceneId) setSelected(data.items.find((item: TaskBrowseCard) => item.id === sceneId && item.evaluationAvailable) || null);
     }).catch(() => { if (!controller.signal.aborted) setState("error"); })
       .finally(() => window.clearTimeout(timeout));
     return () => { window.clearTimeout(timeout); controller.abort(); };
@@ -53,12 +42,6 @@ export function TaskBrowse() {
   const filtered = items.filter(item => (!family || item.taskFamily === family)
     && (!region || item.region.toLowerCase().includes(region.toLowerCase()))
     && (!availability || (availability === "ready" ? item.evaluationAvailable : item.opportunity === availability)));
-  if (selected) return <section aria-label="Evaluate selected job">
-    <button className="ms-text-link" type="button" onClick={() => setSelected(null)}>← All jobs</button>
-    <div className="ms-task-heading"><h2>{selected.title}</h2><TaskThumbnail src={selected.thumbnailUrl} title={selected.title} taskFamily={selected.taskFamily} /></div><TaskFacts details={selected} />
-    <p className="ms-field-hint">Private testing on a reconstructed site job. Results stay with your team and Blueprint and do not enter pilot matching.</p>
-    <RobotTeamPlanPreview key={selected.id} sceneId={selected.id} />
-  </section>;
   // Nothing library-shaped renders until the server has said who may see it,
   // so a visitor outside early access never sees the library flash by.
   // The public application is useful without that lookup. Render the same
@@ -102,16 +85,10 @@ export function TaskBrowse() {
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
         <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
-        {item.evaluationAvailable ? <button className="ms-button" onClick={() => setSelected(item)}>Private evaluation · ${item.costUsd}</button>
-          : <p className="ms-field-hint">{item.stage === "capture" ? "Footage is the next step." : "The scene is being prepared for evaluation."} No runs available yet.</p>}
+        {item.evaluationAvailable ? <a className="ms-text-link" href="/app">Request a free invited evaluation</a> : <p className="ms-field-hint">No runs available yet.</p>}
       </li>)}</ul>
     </>}
-    <p className="ms-field-hint">Invited evaluations for pilot consideration are free and shared with the site. Paid evaluations are private: the site does not see or consider the results.</p>
-    <details className="ms-task-interest" open={returning || undefined}
-      ref={(element) => { if (element && returning) element.scrollIntoView({ block: "start" }); }}>
-      <summary>Already have a robot policy to evaluate? Register it and see a plan</summary>
-      <RobotTeamPlanPreview />
-    </details>
+    <p className="ms-field-hint">Invited evaluations are free within the approved scope and share results with the site.</p>
     <p className="ms-field-hint"><a href="/agent-access.openapi.json">Agent API (OpenAPI spec, JSON)</a> · <a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
   </section>;
 }

@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
-import { entryPrice, formatPrice, matchFeeUsd, matchReplacementPolicy } from "@/lib/evaluationPricing";
+import { formatPrice, matchFeeUsd, matchReplacementPolicy } from "@/lib/evaluationPricing";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
@@ -66,14 +66,7 @@ export default function Pricing() {
             <a className="ms-text-link" href="/contact/robot-team">
               Apply for early access <ArrowRight size={20} aria-hidden="true" />
             </a>
-          <details className="ms-task-interest ms-visitor-detail">
-            <summary>Private evaluation · $99</summary>
-            <p>
-              Test one robot policy on a reconstructed real site job for {formatPrice(entryPrice)}.
-              Results stay with your team and Blueprint; the site does not see or consider them.
-              To pursue a pilot afterward, enter a separate free invited evaluation.
-            </p>
-          </details>
+
           </section>
         </div>
 

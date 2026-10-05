@@ -1,3 +1,5 @@
+import type { WorkspaceResult } from "../../client/src/types/workspace";
+import { isBlueprintFundedRun } from "../utils/freeBeta";
 import { logger } from "../logger";
 import {
   Router,
@@ -49,7 +51,7 @@ import type {
 import { robotDescriptionSchema } from "../../client/src/types/robotDescription";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
-import { bindTeamToAccount, teamsForAccount } from "../utils/robotTeamAccounts";
+import { bindTeamToAccount, teamsForAccount, teamAccountUid } from "../utils/robotTeamAccounts";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import { getTeamBalance } from "../utils/robotTeamBalance";
 import { listRunsForTeam } from "../utils/agentRunResults";
@@ -376,15 +378,27 @@ async function listOwnedRequests(res: Response) {
     ),
   );
 }
+async function linkedFreeWorkspaceRun(applicationId: string, application: Record<string, any>) {
+  const runId = text(application.free_evaluation_handoff?.runId);
+  if (!runId) return null;
+  const run = (await db!.collection("evaluationRuns").doc(runId).get()).data();
+  if (!run || run.runId !== runId || !isBlueprintFundedRun(run)
+    || run.sceneId !== application.workspace_evaluation?.opportunityId
+    || run.executionAdmission?.envelope?.funding?.workspace_request_id !== applicationId
+    || await teamAccountUid(run.teamId) !== application.account_owner_uid) return null;
+  return run as Parameters<typeof projectAgentRunResult>[0];
+}
 async function applicationResults(task: WorkspaceTask) {
   const applications = await db!
     .collection("inboundRequests")
     .where("workspace_evaluation.opportunityId", "==", task.id)
     .limit(100)
     .get();
-  return Promise.all(
+  return (await Promise.all(
     applications.docs.map(async (doc) => {
       const application = object(doc.data());
+      // Its actual free run is projected once by listRunsForScene below.
+      if (await linkedFreeWorkspaceRun(doc.id, application)) return null;
       const runs = await db!
         .collection("robotEvalJobRequests")
         .where("site_submission_id", "==", doc.id)
@@ -435,7 +449,7 @@ async function applicationResults(task: WorkspaceTask) {
       result.selected = task.pilot.selectedResultId === doc.id;
       return result;
     }),
-  );
+  )).filter((result): result is WorkspaceResult => result !== null);
 }
 async function hydrateTask(requestId: string, record: Record<string, any>) {
   const task = projectWorkspaceTask(requestId, record);
@@ -619,15 +633,11 @@ router.get(
             ? snapshotTerms.cycleTimeSeconds
             : null,
       };
-      const result = projectWorkspaceResult(
-        item.id,
-        run
-          ? object(run.data())
-          : { status: "requested", buyer_user_id: caller.uid },
-        task?.id || item.id,
-        fixedTerms,
-      );
-      const selected = task?.pilot.selectedResultId === item.id;
+      const freeRun = await linkedFreeWorkspaceRun(item.id, item.record);
+      const result = freeRun
+        ? { ...projectAgentRunResult(freeRun, task?.id || item.id, fixedTerms), id: item.id }
+        : projectWorkspaceResult(item.id, run ? object(run.data()) : { status: "requested", buyer_user_id: caller.uid }, task?.id || item.id, fixedTerms);
+      const selected = task?.pilot.selectedResultId === (freeRun?.runId || item.id);
       const outcome = selected
         ? task?.pilot.state || "invited"
         : task?.pilot.selectedResultId
@@ -639,7 +649,7 @@ router.get(
       // never the source's confidential site identity or another applicant's data.
       evaluations.push({
         ...result,
-        runId: run?.id || null,
+        runId: freeRun?.runId || run?.id || null,
         taskId: text(application.opportunityId),
         title: text(object(item.record.request).taskStatement),
         siteType: text(object(item.record.request).targetSiteType),
@@ -661,7 +671,8 @@ router.get(
       });
     }
     for (const run of runs.docs.filter(
-      (run) => !evaluations.some((item) => item.runId === run.id),
+      (run) => !evaluations.some((item) => item.runId === run.id)
+        && !requests.some(item => item.record.free_evaluation_handoff?.executionRequestId === run.id),
     )) {
       const data = object(run.data()),
         request = object(data.decision_request || data.jobRequest);
@@ -1251,6 +1262,32 @@ router.post(
     });
   }),
 );
+/** Owner-only withdrawal. A durable tombstone is not a deletion receipt. */
+router.post("/tasks/:taskId/recording-consent/withdraw", handle(async (req, res) => {
+  await ownedTask(req.params.taskId, res);
+  const caller = identity(res);
+  const ref = db!.collection("inboundRequests").doc(req.params.taskId);
+  const receipt = await db!.runTransaction(async transaction => {
+    const record = (await transaction.get(ref)).data();
+    const runs = await transaction.get(db!.collection("evaluationRuns").where("sceneId", "==", req.params.taskId));
+    if (!record || record.account_owner_uid !== caller.uid) refuse(403, "Only the verified site owner can withdraw recording permission.");
+    if (record.capture_withdrawal) return record.capture_withdrawal;
+    const withdrawal = { state: "uploads_stopped_cleanup_pending", requestedAtIso: new Date().toISOString(),
+      requestedBy: caller.uid, requestId: req.params.taskId,
+      sceneId: `site-${req.params.taskId}`, captureId: `walkthrough-${req.params.taskId}`,
+      deletionConfirmed: false, pipelineAcknowledged: false };
+    transaction.set(ref, { consent_revoked: true, future_processing_allowed: false,
+      request: { consent_attestation: { granted: false, revoked_at_iso: withdrawal.requestedAtIso } },
+      workspace_task: { paused: true }, briefReviewPending: false, capture_coverage_pending: false,
+      capture_withdrawal: withdrawal, captureWithdrawalPending: true }, { merge: true });
+    for (const run of runs.docs) if (run.data().state === "requested") transaction.set(run.ref, {
+      cancellationRequested: true, dispatchPending: false,
+      cancellationReason: "site_recording_consent_withdrawn", settlementDueAtMs: 0,
+    }, { merge: true });
+    return withdrawal;
+  });
+  return res.status(202).json({ ok: true, receipt });
+}));
 router.post(
   "/tasks/:taskId/pilot",
   handle(async (req, res) => {

@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 /**
  * Environment construction for the isolated local launch smoke
  * (scripts/launch-smoke-local.mjs).
@@ -101,6 +103,8 @@ export function buildLocalSmokeEnv(processEnv, { port, baseUrl, fieldEncryptionK
     BLUEPRINT_LOCAL_LAUNCH_SMOKE: "1",
     ALPHA_SMOKE_TAG: "local-launch-smoke",
     FIELD_ENCRYPTION_MASTER_KEY: fieldEncryptionKey,
+    // An ephemeral local signing key; never inherit production capability keys.
+    BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET: randomBytes(32).toString("hex"),
     // Safe non-zero beta limits so /health/ready exercises the real cohort
     // policy instead of failing on zeroed caps inherited from a dev shell.
     BLUEPRINT_BETA_INVITE_CAP: "5",

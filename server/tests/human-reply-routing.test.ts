@@ -10,6 +10,11 @@ import {
 } from "../utils/human-reply-routing";
 
 describe("human reply routing helpers", () => {
+  it.each(["do not approve", "yesterday", "yes, but do not spend", "> approved"])(
+    "never treats unbound reply text as execution approval: %s", body => {
+      const decision = classifyHumanReply(body, { blocker_kind: "technical" });
+      expect(decision.should_resume_now).toBe(false);
+    });
   it("extracts blocker ids from reply tags", () => {
     const blockerId = "bpb-prod-live-smoke";
     expect(

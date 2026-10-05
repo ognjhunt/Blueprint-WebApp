@@ -29,6 +29,8 @@ import { runOperatingGraphProjectionLoop } from "./operatingGraphEvidenceProject
 import { runRobotCapabilityRefreshLoop } from "./robotCapabilityRefresh";
 import { reconcileAgentRunSettlements } from "./agentEvalRuns";
 import { deliverOutbox } from "./captureOutbox";
+import { recoverCaptureReviews } from "./captureReviewRecovery";
+import { reconcileAgentRunNotifications } from "./agentRunNotificationRecovery";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 import { runOpsIncidentReconciliation } from "./ops-incident-reconciliation";
 import { runSpendPublicationLoop } from "./spend-evidence-publication";
@@ -457,9 +459,12 @@ const workers: WorkerDefinition[] = [
     defaultStartupDelayMs: 30 * 1000,
     defaultEnabled: true,
     run: async ({ limit }) => {
+      await reconcileAgentRunNotifications(limit).catch(error => logger.warn({ error }, "Result notices will retry"));
       const summary = await deliverOutbox({ limit });
+      // Deliver waiting notices first; cap provider reviews independently of email batch size.
+      await recoverCaptureReviews({ limit: Math.min(limit, 2) }).catch(error => logger.warn({ error }, "Capture reviews will retry"));
       const { tickCoverageReviews } = await import("./captureCoverageQueue");
-      tickCoverageReviews(Math.min(limit, 10));
+      tickCoverageReviews(Math.min(limit, 2));
       return {
         processedCount: summary.sent,
         failedCount: summary.failed + summary.exhausted,

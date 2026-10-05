@@ -1,3 +1,4 @@
+import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { validateCaptureSupplement } from "./captureSupplement";
 import { browserPendingDecisionKey, loadBrowserPending } from "./websiteBrowserPending";
@@ -266,6 +267,7 @@ export async function recordCoverageFinding(
   await db.runTransaction(async tx => {
     const [request, brief] = await Promise.all([tx.get(ref), tx.get(db!.collection("siteTaskBriefs").doc(requestId))]);
     const value = request.data();
+    if (binding && !hasCurrentRecordingConsent(value?.request?.consent_attestation)) throw new Error("recording_consent_required");
     const privacy = value?.capture_privacy_source_bound_decision || value?.capture_privacy_screen;
     if (binding && (humanDecisionDigest(brief.data()) !== binding.brief_digest
       || humanDecisionDigest(privacy?.producer_source || null) !== humanDecisionDigest(binding.source)

@@ -174,3 +174,10 @@ describe("POST /api/internal/pipeline/agent-runs/:runId/started", () => {
     expect(status).toBe(409);
   });
 });
+
+// Historical paid lifecycle coverage only; production release refusal is tested in free-beta-guards and robot-team-account-gate.
+vi.mock("../utils/freeBeta", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/freeBeta")>()),
+  FREE_BETA_ONLY: false,
+  canDispatchFreeBetaRun: () => true,
+}));

@@ -42,6 +42,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     },
   },
   dbAdmin: {
+    runTransaction: async (callback: (tx: any) => Promise<unknown>) => {
+      const writes: Array<() => Promise<unknown>> = [];
+      const result = await callback({ get: (ref: any) => ref.get(),
+        set: (ref: any, value: any, options: any) => writes.push(() => ref.set(value, options)) });
+      for (const write of writes) await write();
+      return result;
+    },
     collection: (name: string) => {
       if (name === "inboundRequests") {
         return {

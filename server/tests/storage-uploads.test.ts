@@ -14,6 +14,13 @@ const state = vi.hoisted(() => ({
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {},
   dbAdmin: {
+    runTransaction: async (callback: (tx: any) => Promise<unknown>) => {
+      const writes: Array<() => Promise<unknown>> = [];
+      const result = await callback({ get: (ref: any) => ref.get(),
+        set: (ref: any, value: any, options: any) => writes.push(() => ref.set(value, options)) });
+      for (const write of writes) await write();
+      return result;
+    },
     collection: (name: string) => ({
       doc: (id: string) => ({
         get: async () => {

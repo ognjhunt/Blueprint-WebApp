@@ -122,6 +122,8 @@ export function projectWorkspaceTask(
     workspace.archived !== true;
   return {
     id,
+    recordingPermissionWithdrawn: record.consent_revoked === true,
+    recordingWithdrawalStatus: text(object(record.capture_withdrawal).state) || null,
     title: text(request.taskStatement) || "Untitled job",
     siteName: text(request.siteName) || "Your site",
     location: text(request.siteLocation),
@@ -181,6 +183,7 @@ export interface AgentRunForSite {
   teamId: string;
   state: string;
   result?: {
+    evidenceScope?: "development_only";
     observed: {
       episodesRun: number;
       episodesSucceeded: number;
@@ -225,10 +228,10 @@ export function projectAgentRunResult(
         ? observed!.medianCycleSeconds
         : null,
     sampleCount: hasSamples ? observed!.episodesRun : null,
-    evidenceLabel: "Simulation",
+    evidenceLabel: run.result?.evidenceScope === "development_only" ? "Development simulation" : "Simulation",
     targetsMet: null,
     selected: false,
   };
-  result.targetsMet = targetsMet(result, terms);
+  result.targetsMet = run.result?.evidenceScope === "development_only" ? null : targetsMet(result, terms);
   return result;
 }
