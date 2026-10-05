@@ -1,8 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { evaluateLeadCohort, evaluateLeadVerification, LEAD_DIAGNOSTIC_RESULT_VERSION, LEAD_OUTREACH_RESULT_VERSION, leadIdentityKey, leadPacketCandidates,
-  requireVerifiedLead } from "../agents/lead-verification";
+import { evaluateLeadCohort, evaluateLeadVerification, evaluateOutreachTier, LEAD_DIAGNOSTIC_RESULT_VERSION, LEAD_OUTREACH_RESULT_VERSION, leadIdentityKey, leadPacketCandidates,
+  OUTREACH_EVIDENCE_VERSION, OUTREACH_MIN_QUOTE_WORDS, OUTREACH_RULE_VERSION, requireVerifiedLead, retainedOutreachEvidence } from "../agents/lead-verification";
+import { OUTREACH_READY_OPEN_CHECKS, OUTREACH_READY_QUESTION_TEMPLATES } from "../agents/communications-contract";
 import { verificationDigest } from "../agents/research-digest";
 import { syntheticLeadVerification } from "./fixtures/lead-verification";
 
@@ -175,5 +176,85 @@ describe("result-version pinning (independent review S7)", () => {
       .toMatchObject({ status: "unresolved", eligible_for_qualified_promotion: false });
     expect(() => evaluateLeadVerification(candidate, hypothesis, now, "blueprint.lead-verification-result.v4"))
       .toThrow("lead verification result version unsupported");
+  });
+});
+
+// Vendored byte for byte from the Pipeline repo (tests/fixtures/daily_research/lead-verification-tier.json,
+// sha256 fb8fd02e320f7e4e1dc84a35f71cfdcc0e14f68fa0a64323a81180052effad40). Synthetic only.
+const tierDocument = JSON.parse(readFileSync(new URL("./fixtures/lead-verification-tier.json", import.meta.url), "utf8"));
+const tierCases = () => structuredClone(tierDocument.cases) as any[];
+/** A case's evidence. A case with raw retained tool results derives it, as Python's test does. */
+function caseEvidence(item: any) {
+  if (!("retained" in item)) return item.evidence;
+  const files = item.retained.files;
+  return retainedOutreachEvidence(item.retained, name => Object.hasOwn(files, name) ? Buffer.from(files[name], "utf8") : null);
+}
+const tiered = (item: any) => evaluateOutreachTier(item.candidates, item.assessments, Date.parse(item.now), item.duplicate_checks, caseEvidence(item));
+const pick = (value: any, keys: string[]) => Object.fromEntries(keys.map(key => [key, value[key]]));
+
+describe("outreach-ready tier mirror of blueprint.outreach-ready-rule.v1.1 (shared synthetic golden file)", () => {
+  it("pins the same rule, result and evidence versions, quote length, templates and open checks as Pipeline", () => {
+    expect(tierDocument).toMatchObject({ fixture_only: true, rule_version: OUTREACH_RULE_VERSION,
+      result_version: LEAD_OUTREACH_RESULT_VERSION, evidence_version: OUTREACH_EVIDENCE_VERSION, min_quote_words: OUTREACH_MIN_QUOTE_WORDS });
+    expect(Object.fromEntries(Object.entries(OUTREACH_READY_QUESTION_TEMPLATES).map(([name, template]) => [name, template("{task}", "{site}")])))
+      .toEqual(tierDocument.question_templates);
+    expect(tierDocument.open_checks).toEqual([...OUTREACH_READY_OPEN_CHECKS]);
+  });
+  it.each(tierCases().map(item => [item.name, item]))("recomputes %s exactly as Pipeline cohort(result v3) does", (_name, item) => {
+    const value = tiered(item);
+    expect(value.results.map(result => pick(result, Object.keys(item.expected[0])))).toEqual(item.expected);
+    expect(value.tier_evidence).toEqual(item.expected_tier_evidence);
+    expect(value.outreach_rule_version).toBe(OUTREACH_RULE_VERSION);
+    if ("retained" in item) expect([...new Set(caseEvidence(item).pages.map((page: any) => page.url))].sort()).toEqual(item.expected_credited_urls);
+  });
+  it("covers every v1.1 template and the named Pipeline probes", () => {
+    const names = new Set(tierCases().map(item => item.name));
+    for (const name of ["closed_site", "vendor_only_automation_evidence", "expired_assessment", "findall_citation_excerpt", "paraphrased_task_quote",
+      "conflicting_duplicates", "verified_full_proof_path", "company_level_task_inference", "company_level_task_marked_verified",
+      "task_page_names_the_city", "job_post_at_another_site", "automation_elsewhere_manual_verified", "task_fully_automated_at_site",
+      "office_or_mailing_only_facility", "office_claim_unproven", "contractor_operated_site", "facility_field_invalid", "cross_host_redirect",
+      "same_host_redirect", "two_words_after_punctuation", "missing_identity", "assessed_at_in_the_future", "question_mark_in_task"]) {
+      expect(names.has(name), name).toBe(true);
+    }
+    const prefixes = Object.entries(OUTREACH_READY_QUESTION_TEMPLATES).map(([name, template]) => [name, template("\u0000", "").split("\u0000")[0]]);
+    const used = new Set(tierCases().flatMap(item => item.expected.flatMap((result: any) => result.outreach_ready.open_questions))
+      .flatMap((question: string) => prefixes.filter(([, prefix]) => question.startsWith(prefix)).map(([name]) => name)));
+    expect([...used].sort()).toEqual(["A", "M", "S"]);
+  });
+  it.each(["operator", "physical_site", "site_task"].flatMap(fact => ["inference", "unresolved", "contradicted", "stale", "unreachable"]
+    .map(state => [fact, state])))("gives none when proven fact %s is %s, except company-level task inference (template S)", (fact, state) => {
+    const item = tierCases()[0];
+    item.assessments["golden-1"].claims[fact].status = state;
+    const result = tiered(item).results[0];
+    if (fact === "site_task" && state === "inference") {
+      expect(result).toMatchObject({ tier: "outreach_ready", eligible_for_outreach_ready: true });
+      expect(result.outreach_ready.open_checks[0]).toBe("site_link");
+      expect(result.outreach_ready.open_questions[0]).toMatch(/^Is Manual case picking for outbound orders done at your /);
+      return;
+    }
+    const blocker = fact + (state === "contradicted" ? "_contradicted" : fact === "site_task" ? "_not_verified_fact_or_inference" : "_not_verified_fact");
+    expect(result).toMatchObject({ tier: "none", eligible_for_outreach_ready: false });
+    expect(result.outreach_ready.blockers).toContain(blocker);
+    expect(result.outreach_ready.open_questions).toEqual([]);
+  });
+  it("lets a contradicted counterevidence change the question, never the eligibility; a contradicted workflow blocks", () => {
+    const item = tierCases()[0];
+    Object.assign(item.assessments["golden-1"].counterevidence, { status: "contradicted", reason: "Synthetic partial automation elsewhere" });
+    expect(tiered(item).results[0]).toMatchObject({ tier: "outreach_ready", outreach_ready: { blockers: [] } });
+    item.assessments["golden-1"].claims.human_workflow.status = "contradicted";
+    expect(tiered(item).results[0].outreach_ready.blockers).toEqual(["human_workflow_contradicted"]);
+  });
+  it("never reads a tool result it was not given, and refuses a result whose bytes or digest changed", () => {
+    const item = tierCases().find(entry => entry.name === "same_host_redirect");
+    const files = item.retained.files, name = Object.keys(files)[0];
+    const reads: string[] = [];
+    const evidence = retainedOutreachEvidence(item.retained, file => { reads.push(file); return Object.hasOwn(files, file) ? Buffer.from(files[file], "utf8") : null; });
+    expect(reads.sort()).toEqual(Object.keys(files).sort());
+    expect(evidence).toMatchObject({ state: "retained", refused: 0 });
+    const changed = retainedOutreachEvidence(item.retained, file => file === name ? Buffer.from(files[file] + " ", "utf8")
+      : Object.hasOwn(files, file) ? Buffer.from(files[file], "utf8") : null);
+    expect(changed).toMatchObject({ state: "retained", refused: 1 });
+    const missing = retainedOutreachEvidence(item.retained, () => null);
+    expect(missing).toMatchObject({ state: "retained", pages: [], excerpts: [], refused: Object.keys(files).length });
   });
 });

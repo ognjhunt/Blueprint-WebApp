@@ -1,4 +1,7 @@
-import { verificationDigest } from "./research-digest";
+import { createHash } from "node:crypto";
+import { isIP } from "node:net";
+import { researchDigest, verificationDigest } from "./research-digest";
+import { outreachReadyQuestion } from "./communications-contract";
 export { verificationDigest } from "./research-digest";
 
 export const LEAD_VERIFICATION_VERSION = "blueprint.lead-verification.v1";
@@ -257,4 +260,418 @@ export function requireVerifiedLead(source: any, now: number) {
     : evaluateLeadVerification(source?.candidate, source?.leadVerification ?? null, now);
   if (!result.eligible_for_qualified_promotion) throw new LeadVerificationRequired(result);
   return result;
+}
+
+// ---------------------------------------------------------------------------------------------
+// blueprint.outreach-ready-rule.v1.1: a TypeScript mirror of Pipeline tools/daily_research/
+// verification.py (retained_evidence, evidence_index, quote_level, outreach_gates, outreach_tier and
+// the result-v3 cohort pass). It is tested against the vendored shared golden file. Admission uses it
+// only to re-derive a published tier: any disagreement with Pipeline refuses, so a mirror defect can
+// withhold a hypothesis but never admit one. It grants no verification, send or approval authority.
+export const OUTREACH_RULE_VERSION = "blueprint.outreach-ready-rule.v1.1";
+export const OUTREACH_EVIDENCE_VERSION = "blueprint.outreach-ready-evidence.v1";
+export const OUTREACH_MIN_QUOTE_WORDS = 3;
+const PROVEN_FACTS = ["operator", "physical_site", "site_task"] as const;
+const SITE_TASK_STATES = new Set(["verified_fact", "inference"]);
+const TOOLS = new Set(["blueprint_read_source", "blueprint_search"]);
+const EVIDENCE_PHASES = new Set(["research", "repair", "qa"]);
+const FINDALL_OPERATIONS = new Set(["status", "result"]);
+const RETRIEVALS = new Set(["rendered", "static", "operator_document"]);
+const PRIMARY_CLASSES = new Set(["operator", "primary"]), ALL_CLASSES = new Set(["operator", "primary", "independent", "vendor"]);
+const FACILITY_FIELDS: Record<string, [Set<string>, Set<string>, string]> = {
+  facility_type: [new Set(["operations", "office", "mailing_only", "unknown"]), new Set(["office", "mailing_only"]), "facility_office_or_mailing_only"],
+  facility_operator: [new Set(["company", "contractor", "tenant", "unknown"]), new Set(["contractor", "tenant"]), "facility_operated_by_another_party"],
+};
+const JOB_PATH_SEGMENTS = new Set(["careers", "career", "jobs", "job", "job-posting", "job-postings", "openings", "vacancies"]);
+const JOB_HOSTS = ["greenhouse.io", "lever.co", "myworkdayjobs.com", "icims.com", "smartrecruiters.com", "jobvite.com",
+  "ashbyhq.com", "workable.com", "bamboohr.com", "taleo.net"];
+// A normalized address segment: a house number, then a name (Python \d is any decimal digit).
+const STREET = /^\p{Nd}[\p{L}\p{N}]* [\p{L}\p{Nl}\p{No}]/u;
+// Python str.split() and str.strip() whitespace (str.isspace), which differs from JavaScript's.
+const PY_SPACE = "\\t\\n\\v\\f\\r\\x1c-\\x1f \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
+const PY_SPACES = new RegExp(`[${PY_SPACE}]+`), PY_NON_SPACE = new RegExp(`[^${PY_SPACE}]`);
+const pyText = (value: unknown): value is string => typeof value === "string" && PY_NON_SPACE.test(value);
+const own = (value: any, key: unknown) => typeof key === "string" && object(value) && Object.hasOwn(value, key);
+/** Python `value in {...}` for a set of strings: an unhashable list or dict raises, as Python does. */
+function pyIn(value: unknown, set: Set<string>) {
+  if (value !== null && typeof value === "object") throw new TypeError("unhashable");
+  return typeof value === "string" && set.has(value);
+}
+/** Python truthiness of a parsed JSON value. */
+const pyTruthy = (value: unknown) => Array.isArray(value) ? value.length > 0
+  : object(value) ? Object.keys(value as object).length > 0 : Boolean(value);
+const codepointCompare = (a: string, b: string) => {
+  const left = Array.from(a), right = Array.from(b);
+  for (let index = 0; index < Math.min(left.length, right.length); index++) {
+    const difference = left[index].codePointAt(0)! - right[index].codePointAt(0)!;
+    if (difference) return difference;
+  }
+  return left.length - right.length;
+};
+const sha256 = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
+
+/** Python verification.normalized: NFKC, lower case, letter and digit runs joined by one space. */
+export function outreachNormalized(value: string) {
+  return (value.normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).join(" ");
+}
+/** Python verification.quote_words: whitespace-separated tokens that keep a letter or digit. */
+export function outreachQuoteWords(quote: string) {
+  return quote.normalize("NFKC").split(PY_SPACES).filter(token => /[\p{L}\p{N}]/u.test(token));
+}
+
+/** Python urllib.parse.urlsplit (3.11+): the parts url_key, source_usable and job_post read. */
+function pyUrlSplit(value: unknown) {
+  if (typeof value !== "string") throw new TypeError("url must be a string");
+  let url = value.replace(/^[\x00-\x20]+/, "").replace(/[\t\r\n]/g, ""), scheme = "", netloc = "", query = "";
+  const colon = url.indexOf(":");
+  if (colon > 0 && /^[A-Za-z]/.test(url) && /^[A-Za-z0-9+\-.]+$/.test(url.slice(0, colon))) {
+    scheme = url.slice(0, colon).toLowerCase(); url = url.slice(colon + 1);
+  }
+  if (url.startsWith("//")) {
+    let end = url.length;
+    for (const delimiter of "/?#") { const at = url.indexOf(delimiter, 2); if (at >= 0) end = Math.min(end, at); }
+    netloc = url.slice(2, end); url = url.slice(end);
+    if (netloc.includes("[") !== netloc.includes("]")) throw new Error("Invalid IPv6 URL");
+    if (netloc.includes("[")) {
+      const hostinfo = netloc.slice(netloc.lastIndexOf("@") + 1), open = hostinfo.indexOf("[");
+      const bracketed = hostinfo.slice(open + 1), close = bracketed.indexOf("]"), port = close >= 0 ? bracketed.slice(close + 1) : "";
+      const host = close >= 0 ? bracketed.slice(0, close) : bracketed;
+      if (open > 0 || (port && !port.startsWith(":")) || (host.startsWith("v") ? !/^v[a-fA-F0-9]+\..+$/.test(host) : isIP(host) !== 6)) {
+        throw new Error("Invalid IPv6 URL");
+      }
+    }
+  }
+  const hash = url.indexOf("#");
+  if (hash >= 0) url = url.slice(0, hash);
+  const question = url.indexOf("?");
+  if (question >= 0) { query = url.slice(question + 1); url = url.slice(0, question); }
+  if (netloc && !/^[\x00-\x7f]*$/.test(netloc)) {
+    const stripped = netloc.replace(/[@:#?]/g, ""), normalized = stripped.normalize("NFKC");
+    if (stripped !== normalized && /[/?#@:]/.test(normalized)) throw new Error("netloc contains invalid characters under NFKC normalization");
+  }
+  const at = netloc.lastIndexOf("@"), hostinfo = netloc.slice(at + 1), userinfo = at >= 0 ? netloc.slice(0, at) : null;
+  const open = hostinfo.indexOf("[");
+  let hostname = open >= 0 ? hostinfo.slice(open + 1).split("]")[0] : hostinfo.split(":")[0];
+  const zone = hostname.indexOf("%");
+  hostname = zone >= 0 ? hostname.slice(0, zone).toLowerCase() + hostname.slice(zone) : hostname.toLowerCase();
+  const separator = userinfo?.indexOf(":") ?? -1;
+  return { scheme, path: url, query, hostname: hostname || null,
+    username: userinfo === null ? null : separator >= 0 ? userinfo.slice(0, separator) : userinfo,
+    password: userinfo !== null && separator >= 0 ? userinfo.slice(separator + 1) : null };
+}
+/** Python verification.url_key: scheme, host case, www., a trailing slash and the fragment do not differ. */
+export function outreachUrlKey(value: unknown): string | null {
+  try {
+    const parts = pyUrlSplit(value), host = (parts.hostname ?? "").toLowerCase().replace(/^www\./, "");
+    if (!["http", "https"].includes(parts.scheme) || !host || parts.username || parts.password) return null;
+    return host + parts.path.replace(/\/+$/, "") + (parts.query ? `?${parts.query}` : "");
+  } catch { return null; }
+}
+const hostKey = (value: unknown) => outreachUrlKey(value)?.split("/", 1)[0].split("?", 1)[0] ?? null;
+
+/** Python verification.source_usable, with its urlsplit URL rule (the tier's own copy). */
+function outreachSourceUsable(source: any, assessedAt: bigint, primary = false) {
+  try {
+    const parts = pyUrlSplit(source.url);
+    return ["https", "http"].includes(parts.scheme) && !!parts.hostname && !parts.username && !parts.password
+      && pyText(source.id) && pyText(source.publisher) && pyText(source.quote) && pyText(source.freshness_reason)
+      && source.freshness === "current" && pyIn(source.retrieval, RETRIEVALS)
+      && pyIn(source.classification, primary ? PRIMARY_CLASSES : ALL_CLASSES) && moment(source.checked_at) <= assessedAt;
+  } catch { return false; }
+}
+
+export type OutreachEvidenceRecord = { url: unknown; text: unknown; tool_result_sha256: string; kind?: string };
+export type OutreachEvidence = { schema_version: string; state: "retained"; pages: OutreachEvidenceRecord[];
+  excerpts: OutreachEvidenceRecord[]; refused: number } | { schema_version: string; state: "unavailable" };
+export const OUTREACH_EVIDENCE_UNAVAILABLE = Object.freeze({ schema_version: OUTREACH_EVIDENCE_VERSION, state: "unavailable" as const });
+const utf8 = (bytes: Buffer) => new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+
+/** Python verification.retained_evidence over one row's retained tool results. `read` returns a
+ * file's bytes or null when it is missing; the only I/O. A result whose bytes, digest or shape
+ * differ is refused and counted; the others are kept. Page text is credited to the requested URL
+ * and its redirect hops only while every hop stays on the requested host. */
+export function retainedOutreachEvidence(row: any, read: (name: string) => Buffer | null): Extract<OutreachEvidence, { state: "retained" }> {
+  const pages: OutreachEvidenceRecord[] = [], excerpts: OutreachEvidenceRecord[] = [];
+  let refused = 0;
+  const calls = object(row) && object(row.application_tool_calls) ? row.application_tool_calls : {};
+  for (const [id, call] of Object.entries<any>(calls).sort(([a], [b]) => codepointCompare(a, b))) {
+    const request = object(call) ? call.request : null, name = object(request) ? request.name : null;
+    if (!pyIn(name, TOOLS) || !pyIn(call.phase, EVIDENCE_PHASES) || call.success !== true || typeof call.result_file !== "string") continue;
+    const raw = read(call.result_file);
+    let found: OutreachEvidenceRecord[];
+    try {
+      if (raw === null) throw new Error("tool result missing");
+      const event = JSON.parse(utf8(raw));
+      if (sha256(raw) !== call.result_sha256 || researchDigest(event) !== call.result_digest
+        || !object(event) || event.success !== true || event.call_id !== id || typeof event.output !== "string") throw new Error("tool result binding");
+      const output = JSON.parse(event.output), sha: string = call.result_sha256;
+      if (name === "blueprint_read_source") {
+        if (typeof output.text !== "string" || !own(output, "requested_url") || !own(output, "url")) throw new TypeError("page text");
+        const hops = pyTruthy(output.redirects) ? output.redirects : [];
+        if (!Array.isArray(hops) || hops.some((hop: any) => !own(hop, "url"))) throw new TypeError("redirects");
+        const chain: unknown[] = [output.requested_url, ...hops.map((hop: any) => hop.url), output.url];
+        const host = hostKey(chain[0]), sameHost = host !== null && chain.every(url => hostKey(url) === host);
+        found = sameHost ? [...new Set(chain as string[])].sort(codepointCompare).map(url => ({ url, text: output.text, tool_result_sha256: sha })) : [];
+      } else {
+        const results = output.response.results;
+        if (!Array.isArray(results) || results.some((item: any) => !own(item, "url") || !own(item, "snippet"))) throw new TypeError("results");
+        found = results.map((item: any) => ({ url: item.url, text: item.snippet, tool_result_sha256: sha, kind: "search_snippet" }));
+      }
+    } catch { refused += 1; continue; }
+    (name === "blueprint_read_source" ? pages : excerpts).push(...found);
+  }
+  const reads = object(row) && object(row.parallel_findall_reads) ? row.parallel_findall_reads : {};
+  for (const [id, receipt] of Object.entries<any>(reads).sort(([a], [b]) => codepointCompare(a, b))) {
+    const call = Object.hasOwn(calls, id) ? calls[id] : undefined;
+    if (!object(call) || !pyIn(call.phase, EVIDENCE_PHASES) || !object(receipt) || !pyIn(receipt.operation, FINDALL_OPERATIONS)
+      || typeof receipt.file !== "string") continue;
+    const raw = read(receipt.file);
+    let found: OutreachEvidenceRecord[];
+    try {
+      if (raw === null || sha256(raw) !== receipt.sha256 || raw.length !== receipt.bytes) throw new Error("snapshot binding");
+      found = findAllCitations(JSON.parse(utf8(raw))).map(([url, text]) => ({ url, text, tool_result_sha256: receipt.sha256, kind: "citation_excerpt" }));
+    } catch { refused += 1; continue; }
+    excerpts.push(...found);
+  }
+  return { schema_version: OUTREACH_EVIDENCE_VERSION, state: "retained", pages, excerpts, refused };
+}
+/** Python verification._citations: (url, excerpt) for every citation, in its stack order. */
+function findAllCitations(snapshot: unknown) {
+  const found: [string, string][] = [], stack: unknown[] = [snapshot];
+  while (stack.length) {
+    const item = stack.pop();
+    if (object(item)) {
+      const record = item as Record<string, unknown>;
+      if (typeof record.url === "string" && Array.isArray(record.excerpts)) {
+        for (const excerpt of record.excerpts) if (typeof excerpt === "string") found.push([record.url, excerpt]);
+      }
+      for (const value of Object.values(record)) stack.push(value);
+    } else if (Array.isArray(item)) for (const value of item) stack.push(value);
+  }
+  return found;
+}
+
+/** Python verification.evidence_summary: the bounded binding review recomputes against. */
+export function outreachEvidenceSummary(evidence: any) {
+  if (!object(evidence) || evidence.state !== "retained") return { ...OUTREACH_EVIDENCE_UNAVAILABLE };
+  const count = (kind: string) => Array.isArray(evidence[kind]) ? evidence[kind].length : 0;
+  const shas = [...new Set((["pages", "excerpts"] as const).flatMap(kind => Array.isArray(evidence[kind]) ? evidence[kind] : [])
+    .filter((record: any) => object(record) && typeof record.tool_result_sha256 === "string").map((record: any) => record.tool_result_sha256 as string))]
+    .sort(codepointCompare);
+  const refused = evidence.refused;
+  return { schema_version: OUTREACH_EVIDENCE_VERSION, state: "retained", pages: count("pages"), excerpts: count("excerpts"),
+    refused: Number.isSafeInteger(refused) && refused >= 0 ? refused : 0, sources_sha256: researchDigest(shas) };
+}
+
+type EvidenceIndex = { pages: Map<string, [string, string][]>; excerpts: Map<string, [string, string][]> };
+/** Python verification.evidence_index: normalized text by URL key; malformed records are skipped. */
+function outreachEvidenceIndex(evidence: any): EvidenceIndex {
+  const index: EvidenceIndex = { pages: new Map(), excerpts: new Map() }, memo = new Map<string, string>();
+  if (!object(evidence) || evidence.state !== "retained") return index;
+  for (const kind of ["pages", "excerpts"] as const) {
+    for (const record of Array.isArray(evidence[kind]) ? evidence[kind] : []) {
+      if (!object(record) || !Object.hasOwn(record, "url") || !Object.hasOwn(record, "text") || !Object.hasOwn(record, "tool_result_sha256")) continue;
+      const key = outreachUrlKey(record.url), raw = record.text, sha = record.tool_result_sha256;
+      if (key === null || typeof sha !== "string" || typeof raw !== "string") continue;
+      if (!memo.has(raw)) memo.set(raw, ` ${outreachNormalized(raw)} `);
+      index[kind].set(key, [...(index[kind].get(key) ?? []), [memo.get(raw)!, sha]]);
+    }
+  }
+  return index;
+}
+/** Python verification.quote_level: verified_on_page or in_citation_excerpt with its tool result. */
+function outreachQuoteLevel(quote: unknown, url: unknown, index: EvidenceIndex): [string | null, string | null] {
+  if (typeof quote !== "string") return [null, null];
+  const key = outreachUrlKey(url);
+  if (key === null || outreachQuoteWords(quote).length < OUTREACH_MIN_QUOTE_WORDS) return [null, null];
+  const needle = ` ${outreachNormalized(quote)} `;
+  for (const [level, kind] of [["verified_on_page", "pages"], ["in_citation_excerpt", "excerpts"]] as const) {
+    for (const [value, sha] of index[kind].get(key) ?? []) if (value.includes(needle)) return [level, sha];
+  }
+  return [null, null];
+}
+/** Python verification.site_terms: (places, names) that tie evidence to this facility. */
+function siteTerms(candidate: any) {
+  const parts = (value: unknown) => typeof value === "string" ? value.split(",").map(outreachNormalized) : [];
+  const site = parts(candidate?.site), location = parts(candidate?.location);
+  const places = new Set([...site, ...location].filter(part => STREET.test(part)));
+  if (location.filter(Boolean).length >= 2 && location[0]) places.add(location[0]);
+  const names = new Set([...places, ...(site.length && site[0] ? [site[0]] : [])]);
+  return { places, names };
+}
+/** Python verification.job_post: a careers or jobs page, or a hiring-system host. */
+function jobPost(url: unknown) {
+  let parts;
+  try { parts = pyUrlSplit(url); } catch { return false; }
+  const host = (parts.hostname ?? "").toLowerCase();
+  return parts.path.split("/").some(segment => segment && JOB_PATH_SEGMENTS.has(segment.toLowerCase()))
+    || ["careers", "jobs"].includes(host.split(".", 1)[0]) || JOB_HOSTS.some(name => host === name || host.endsWith(`.${name}`));
+}
+/** Python verification.names_site: the quote or its retained page names the city or street, or a job post names the site. */
+function namesSite(source: any, index: EvidenceIndex, places: Set<string>, names: Set<string>) {
+  if (typeof source.quote !== "string") return false;
+  const key = outreachUrlKey(source.url);
+  const texts = [` ${outreachNormalized(source.quote)} `, ...(["pages", "excerpts"] as const)
+    .flatMap(kind => (key === null ? [] : index[kind].get(key) ?? []).map(([value]) => value))];
+  const found = (terms: Set<string>) => [...terms].some(term => texts.some(value => value.includes(` ${term} `)));
+  return found(places) || (jobPost(source.url) && found(names));
+}
+/** Python verification.facility_gates; a malformed optional field is "invalid". */
+function facilityGates(assessment: any, indexed: Map<string, any>, index: EvidenceIndex) {
+  const value: Record<string, any> = { valid: true };
+  let assessedAt: bigint | null = null;
+  try { assessedAt = moment(assessment.assessed_at); } catch { assessedAt = null; }
+  for (const [field, [allowed]] of Object.entries(FACILITY_FIELDS)) {
+    const entry = Object.hasOwn(assessment, field) ? assessment[field] : undefined;
+    if (entry === undefined || entry === null) { value[field] = { value: null, proven: false }; continue; }
+    const refs = object(entry) ? entry.source_refs : null;
+    if (!object(entry) || !pyIn(entry.value, allowed) || !Array.isArray(refs)
+      || refs.some((ref: unknown) => typeof ref !== "string" || !indexed.has(ref))) {
+      value.valid = false; value[field] = { value: null, proven: false }; continue;
+    }
+    const proven = assessedAt !== null && refs.some((ref: string) => {
+      const source = indexed.get(ref);
+      return outreachSourceUsable(source, assessedAt!) && source.classification !== "vendor"
+        && outreachQuoteLevel(source.quote, source.url, index)[0] !== null;
+    });
+    value[field] = { value: entry.value, proven };
+  }
+  return value;
+}
+/** Python verification.outreach_gates: the inputs outreach_tier reads. */
+function outreachGates(result: any, candidate: any, index: EvidenceIndex, conflict: boolean) {
+  const assessment = object(result.assessment) ? result.assessment : {};
+  const claimed = object(assessment.claims) ? assessment.claims : {};
+  const sources: any[] = Array.isArray(assessment.sources) ? assessment.sources : [];
+  const indexed = new Map(sources.filter(source => object(source) && pyText(source.id)).map(source => [source.id as string, source]));
+  const counter = object(assessment.counterevidence) ? assessment.counterevidence : {};
+  const states: Record<string, unknown> = Object.fromEntries(claims.map(name => [name, object(claimed[name]) ? claimed[name].status : null]));
+  states.counterevidence = counter.status;
+  const { places, names } = siteTerms(candidate);
+  const facts: Record<string, { primary_sources_usable: boolean; proofs: any[]; site_specific: boolean }> = {};
+  for (const name of PROVEN_FACTS) {
+    const refs = object(claimed[name]) ? claimed[name].source_refs : null;
+    const linked = Array.isArray(refs) ? refs.filter((ref: unknown) => typeof ref === "string" && indexed.has(ref)).map((ref: string) => indexed.get(ref)) : [];
+    let usable = false;
+    try {
+      const assessedAt = moment(assessment.assessed_at);
+      usable = !!linked.length && linked.length === refs.length && linked.every(source => outreachSourceUsable(source, assessedAt, true));
+    } catch { usable = false; }
+    const proofs: any[] = [];
+    let siteSpecific = false;
+    for (const source of linked) {
+      const [level, sha] = outreachQuoteLevel(source.quote, source.url, index);
+      if (!level) continue;
+      // Python encodes the quote as strict UTF-8; a lone surrogate raises and gives tier none.
+      if (!(source.quote as string).isWellFormed()) throw new Error("quote is not valid UTF-8");
+      proofs.push({ claim: name, source_id: source.id, url: source.url, quote_sha256: sha256(Buffer.from(source.quote, "utf8")), level, tool_result_sha256: sha });
+      siteSpecific = siteSpecific || (name === "site_task" && namesSite(source, index, places, names));
+    }
+    facts[name] = { primary_sources_usable: usable, proofs, site_specific: siteSpecific };
+  }
+  const check = result.duplicate_check;
+  return { eligible_for_qualified_promotion: result.eligible_for_qualified_promotion === true,
+    assessment_valid: result.assessment_valid === true && !(Array.isArray(result.validation_errors) && result.validation_errors.length),
+    identity_present: !!result.identity_key, duplicate: !!result.duplicate_of || (!!object(check) && check.duplicate === true),
+    conflict, valid_until: Object.hasOwn(assessment, "valid_until") ? assessment.valid_until : null, states, facts,
+    facility: facilityGates(assessment, indexed, index), task: candidate?.task, site: candidate?.site };
+}
+/** Python verification.open_checks, in rule order. */
+export function outreachOpenChecks(states: Record<string, unknown>, validUntil: unknown) {
+  return [...(states.site_task !== "verified_fact" ? ["site_link"] : []), ...(states.human_workflow !== "verified_fact" ? ["manual_workflow"] : []),
+    ...(validUntil === null ? ["freshness"] : []), "existing_automation", "fit", "interest"];
+}
+/** Python verification.outreach_tier. Any defect here gives tier none, as in Python. */
+function outreachTier(gates: ReturnType<typeof outreachGates> | null, nowUs: bigint) {
+  const block: { rule_version: string; proving_sources: any[]; open_checks: string[]; open_questions: string[]; blockers: string[] } = {
+    rule_version: OUTREACH_RULE_VERSION, proving_sources: [], open_checks: [], open_questions: [], blockers: [] };
+  try {
+    if (!gates) throw new Error("gates unavailable");
+    const { facts, states } = gates;
+    block.proving_sources = PROVEN_FACTS.filter(name => facts[name].proofs.length).map(name => facts[name].proofs[0]);
+    if (gates.eligible_for_qualified_promotion) return { tier: "verified", eligible_for_outreach_ready: false, outreach_ready: block };
+    const blockers = claims.filter(name => states[name] === "contradicted").map(name => `${name}_contradicted`);
+    const validUntil = gates.valid_until;
+    for (const [failed, code] of [[gates.assessment_valid !== true, "assessment_invalid"], [gates.identity_present !== true, "identity_missing"],
+      [gates.duplicate !== false, "duplicate"], [gates.conflict !== false, "duplicate_conflict"]] as const) if (failed) blockers.push(code);
+    if (validUntil !== null && !(nowUs < moment(validUntil))) blockers.push("assessment_expired");
+    for (const name of PROVEN_FACTS) {
+      if (!pyIn(states[name], name === "site_task" ? SITE_TASK_STATES : new Set(["verified_fact"]))) {
+        blockers.push(name + (name === "site_task" ? "_not_verified_fact_or_inference" : "_not_verified_fact"));
+      } else if (facts[name].primary_sources_usable !== true) blockers.push(`${name}_primary_source_unusable`);
+      else if (!facts[name].proofs.length) blockers.push(`${name}_quote_unproven`);
+      else if (name === "site_task" && states[name] === "verified_fact" && facts[name].site_specific !== true) blockers.push("site_task_company_level");
+    }
+    if (gates.facility.valid !== true) blockers.push("facility_invalid");
+    for (const [field, [, blocking, code]] of Object.entries(FACILITY_FIELDS)) {
+      if (blocking.has(gates.facility[field].value) && gates.facility[field].proven === true) blockers.push(code);
+    }
+    const checks = outreachOpenChecks(states, validUntil);
+    if (!pyText(gates.task) || !pyText(gates.site)) blockers.push("question_task_or_site_missing");
+    let question: string | null = null;
+    if (pyText(gates.task) && pyText(gates.site)) {
+      question = outreachReadyQuestion(checks, gates.task, gates.site);
+      if ((question.match(/\?/g) ?? []).length !== 1) blockers.push("question_not_single");
+    }
+    if (blockers.length) return { tier: "none", eligible_for_outreach_ready: false, outreach_ready: { ...block, blockers: [...new Set(blockers)] } };
+    return { tier: "outreach_ready", eligible_for_outreach_ready: true, outreach_ready: { ...block, open_checks: checks, open_questions: [question!] } };
+  } catch {
+    return { tier: "none", eligible_for_outreach_ready: false, outreach_ready: { ...block, proving_sources: [], blockers: ["tier_computation_unavailable"] } };
+  }
+}
+
+/** Python verification.cohort(result_version=v3) for the fields the tier reads and decides: the
+ * v2 result of each candidate, Pipeline's duplicate and conflict pass, then each candidate's tier.
+ * `evidence` is retainedOutreachEvidence output; anything else proves no quote. The verified path
+ * (evaluateLeadCohort, requireVerifiedLead) is unchanged and never reads this. */
+export function evaluateOutreachTier(candidates: any[], assessments: Record<string, any>, now: number,
+  duplicateChecks: Record<string, any> | null | undefined, evidence: unknown) {
+  const results: any[] = candidates.map(candidate => evaluateLeadVerification(candidate,
+    own(assessments, candidate?.candidate_key) ? assessments[candidate.candidate_key] : null, now));
+  const checks = object(duplicateChecks) ? duplicateChecks! : {};
+  const indexed = new Map(results.map(result => [result.candidate_key, result]));
+  for (const result of results) {
+    const check = own(checks, result.candidate_key) ? checks[result.candidate_key] : undefined;
+    if (!object(check) || check.duplicate !== true) continue;
+    result.duplicate_check = check; result.eligible_for_qualified_promotion = false;
+    let target = check.duplicate_of, resolved = false;
+    const visited = new Set([result.candidate_key]);
+    while (pyText(check.reason) && typeof target === "string" && indexed.has(target) && !visited.has(target)) {
+      visited.add(target);
+      const next = Object.hasOwn(checks, target) ? checks[target] : {};
+      if (!object(next)) { target = null; continue; }
+      if (next.duplicate !== true) { result.identity_key = indexed.get(target).identity_key; result.duplicate_of = target; resolved = true; break; }
+      if (!pyText(next.reason)) { target = null; continue; }
+      target = next.duplicate_of;
+    }
+    if (!resolved) {
+      result.status = "unresolved"; result.eligible_for_qualified_promotion = false;
+      result.reasons.push("duplicate: retain referenced original candidate and equivalence reason; unresolved duplicate cannot inflate verified yield");
+    }
+  }
+  const groups = new Map<string, any[]>();
+  results.forEach((result, index) => {
+    const key = result.identity_key || `unresolved:${index}`;
+    groups.set(key, [...(groups.get(key) ?? []), result]);
+  });
+  const conflicted = new Set<any>();
+  for (const members of groups.values()) {
+    const group = [...members].sort((a, b) => Number(!!a.duplicate_check?.duplicate) - Number(!!b.duplicate_check?.duplicate));
+    const conflict = new Set(group.map(result => result.status)).size > 1;
+    group.forEach((result, index) => {
+      if (conflict) {
+        conflicted.add(result); result.status = "unresolved"; result.eligible_for_qualified_promotion = false;
+        result.reasons.push("duplicate assessments conflict: resolve the same operator/site/task before promotion");
+      }
+      if (index) { result.duplicate_of = group[0].candidate_key; result.eligible_for_qualified_promotion = false; }
+    });
+  }
+  const index = outreachEvidenceIndex(evidence), nowUs = BigInt(now) * BigInt(1000);
+  const tiered = results.map((result, position) => {
+    let gates: ReturnType<typeof outreachGates> | null = null;
+    try { gates = outreachGates(result, candidates[position], index, conflicted.has(result)); } catch { gates = null; }
+    return { ...result, version: LEAD_OUTREACH_RESULT_VERSION, ...outreachTier(gates, nowUs) };
+  });
+  return { outreach_rule_version: OUTREACH_RULE_VERSION, tier_evidence: outreachEvidenceSummary(evidence), results: tiered,
+    outreach_ready_count: tiered.filter(result => result.eligible_for_outreach_ready).length };
 }
