@@ -57,5 +57,7 @@ describe("local launch smoke environment", () => {
     expect(env.NODE_ENV).toBe("production");
     expect(env.BASE_URL).toBe("http://127.0.0.1:5055");
     expect(env.FIELD_ENCRYPTION_MASTER_KEY).toBe(smokeArgs.fieldEncryptionKey);
+    expect(env.BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET).toMatch(/^[0-9a-f]{64}$/);
+    expect(buildLocalSmokeEnv({}, smokeArgs).BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET).not.toBe(env.BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET);
   });
 });

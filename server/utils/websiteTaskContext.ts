@@ -1,6 +1,7 @@
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { hasCurrentRecordingConsent } from "./recordingConsent";
 
 /** The recorded site grant covers scene building/evaluation, never resale. */
 export function projectWebsiteCaptureRights(record: Record<string, any> | undefined) {
@@ -9,10 +10,7 @@ export function projectWebsiteCaptureRights(record: Record<string, any> | undefi
   const revoked = [record, request, record?.capture_rights].some(value =>
     value?.consent_revoked === true || Boolean(value?.consent_revoked_at)
     || value?.consent_status === "revoked" || value?.future_processing_allowed === false);
-  const granted = !revoked && attestation?.granted === true
-    && attestation.statement_version === "2026-09-18.v1"
-    && typeof attestation.recorded_at_iso === "string"
-    && Number.isFinite(Date.parse(attestation.recorded_at_iso));
+  const granted = !revoked && hasCurrentRecordingConsent(attestation);
   return {
     derived_scene_generation_allowed: granted,
     data_licensing_allowed: false,

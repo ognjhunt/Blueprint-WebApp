@@ -33,6 +33,7 @@ import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
 import agentAccessRouter from "./routes/agent-access";
 import agentTeamRouter from "./routes/agent-team";
+import adminFreeEvaluationsRouter from "./routes/admin-free-evaluations";
 import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
@@ -125,6 +126,7 @@ export function registerRoutes(app: Express) {
   // forms; a bearer-key API is not vulnerable to it, and applying it here would
   // break every non-browser client, which is all of them.
   app.use("/api/agent-team", agentTeamRouter);
+  app.use("/api/admin/free-evaluations", csrfProtection, verifyFirebaseToken, adminFreeEvaluationsRouter);
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);

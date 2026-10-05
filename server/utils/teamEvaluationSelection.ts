@@ -1,6 +1,7 @@
 /** ADP-009D/day-21: a saved team setup selects a separately authorized evaluation. */
 import { createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
+import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decryptFieldValue } from "./field-encryption";
 import { sceneDigest, sceneIntakeCommand, sceneOwner } from "./taskEvaluationSceneIntake";
@@ -94,9 +95,9 @@ export async function rebuildTeamEvaluation(record:Record<string,any>) {
   return buildTeamEvaluationRequest(command,context,setup,record.request.owner,record.request.consent.accepted_at_epoch);
 }
 
-/** Customer price is fixed; the provider budget is a separate internal limit. */
-export const TEAM_EVALUATION_PRICE_CENTS = 9900;
-export const TEAM_EVALUATION_PROVIDER_CAP_USD = 20;
+/** Free beta customer price; the provider budget remains a separate internal limit. */
+export const TEAM_EVALUATION_PRICE_CENTS = 0;
+export const TEAM_EVALUATION_PROVIDER_CAP_USD = MAX_FREE_SPONSOR_CAP_USD;
 
 export function teamEvaluationTaskDetails(context:TeamEvaluationContext) {
   const task=context.task;

@@ -165,10 +165,10 @@ export async function readBriefFromDescription(params: {
   taskStatement: string;
   whatGoesWrong?: string | null;
   captureMode?: string | null;
-}): Promise<void> {
-  if (!isSiteTaskBriefReadingEnabled()) return;
+}): Promise<boolean> {
+  if (!isSiteTaskBriefReadingEnabled()) return false;
   const taskStatement = params.taskStatement.trim();
-  if (!taskStatement) return;
+  if (!taskStatement) return false;
   const captureMode = normalizeMode(params.captureMode);
 
   const result = await runAgentTask<SiteTaskBriefReadingInput, SiteTaskBriefReadingOutput>({
@@ -187,7 +187,7 @@ export async function readBriefFromDescription(params: {
       { requestId: params.requestId, error: result.error },
       "Brief reading did not complete; the drafted brief stands",
     );
-    return;
+    return false;
   }
 
   await mergeBriefProposals({
@@ -197,6 +197,7 @@ export async function readBriefFromDescription(params: {
       whatGoesWrong: params.whatGoesWrong,
     }),
   });
+  return true;
 }
 
 /**

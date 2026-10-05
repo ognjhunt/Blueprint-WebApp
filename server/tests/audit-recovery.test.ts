@@ -14,6 +14,7 @@ vi.mock("../utils/siteTaskBriefReading", () => ({ mergeFootageIntoBrief: vi.fn()
 vi.mock("../utils/siteTaskBrief", async () => ({ getBrief: async (id: string) =>
   (await import("./helpers/fake-firestore")).sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${id}`) || null }));
 
+import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { recordHumanReplyEvent, claimHumanReplyResume, reconcileHumanReplyResumes } from "../utils/human-reply-store";
 import { recordCohortCostReceipt, getCohort, cohortContribution, type CohortCostReceipt } from "../utils/cohortEconomics";
@@ -117,9 +118,10 @@ describe("cost receipts", () => {
 
 describe("coverage continuation", () => {
   const params = { requestId: "req", sceneId: "scene", captureId: "capture" };
+  const request = { consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-01-01T00:00:00Z" } };
   function privacy() { return { capture_id: "capture", proceeded: true, producer_source: { kind: "app_bundle_completion", key: "source" } }; }
   it("waits for a late brief, then completes only once", async () => {
-    put("inboundRequests/req", { capture_privacy_source_bound_decision: privacy() });
+    put("inboundRequests/req", { request, capture_privacy_source_bound_decision: privacy() });
     await enqueueCoverageReview(params); await reconcileCoverageReviews(); expect(review).not.toHaveBeenCalled();
     put("siteTaskBriefs/req", { summary: "Task" }); review.mockResolvedValue({ coversScene: true });
     await reconcileCoverageReviews(); await reconcileCoverageReviews();
@@ -127,8 +129,30 @@ describe("coverage continuation", () => {
     await enqueueCoverageReview(params); await reconcileCoverageReviews(); await reconcileCoverageReviews();
     expect(review).toHaveBeenCalledTimes(1);
   });
+  it.each(["leased", "exhausted", "pending"])("adopts legacy coverage without resetting its %s budget", async mode => {
+    put("inboundRequests/req", { request, capture_privacy_source_bound_decision: privacy(),
+      coverageReviewPending: true, coverageReviewWork: { ...params, sourceKey: "source",
+        attempts: mode === "exhausted" ? 3 : 2, dueAtMs: mode === "leased" ? Date.now() + 60000 : 0 } });
+    put("siteTaskBriefs/req", { summary: "Task" }); review.mockResolvedValue({ coversScene: true });
+    await reconcileCoverageReviews();
+    expect(read("inboundRequests/req").coverageReviewPending).toBe(false);
+    expect(review).toHaveBeenCalledTimes(mode === "pending" ? 1 : 0);
+    if (mode === "exhausted") expect(read("inboundRequests/req").capture_coverage_review.state).toBe("review_required");
+    if (mode === "pending") {
+      const jobs = [...state.docs.entries()].filter(([key]) => key.startsWith("captureCoverageReviews/"));
+      expect(jobs).toHaveLength(1); expect(jobs[0][1].attempts).toBe(3);
+    }
+  });
+  it("does not let legacy work replace the current capture request", async () => {
+    put("inboundRequests/req", { request, capture_privacy_source_bound_decision: privacy(),
+      capture_coverage_pending: true, capture_coverage_request: params,
+      coverageReviewPending: true, coverageReviewWork: { ...params, captureId: "old", sourceKey: "old", attempts: 2 } });
+    await reconcileCoverageReviews();
+    expect(read("inboundRequests/req").capture_coverage_request).toEqual(params);
+    expect(read("inboundRequests/req").coverageReviewPending).toBe(false);
+  });
   it("never clears a newer source after an old review returns", async () => {
-    put("inboundRequests/req", { capture_privacy_source_bound_decision: privacy() }); put("siteTaskBriefs/req", { summary: "Task" });
+    put("inboundRequests/req", { request, capture_privacy_source_bound_decision: privacy() }); put("siteTaskBriefs/req", { summary: "Task" });
     review.mockImplementation(async () => { read("inboundRequests/req").capture_privacy_source_bound_decision.producer_source.key = "changed"; return { coversScene: true }; });
     await enqueueCoverageReview(params); await reconcileCoverageReviews();
     expect(read("inboundRequests/req").capture_coverage_pending).toBe(true);

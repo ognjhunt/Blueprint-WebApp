@@ -15,6 +15,7 @@ import {
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   CAPTURE_VIDEO_ACCEPT,
@@ -567,7 +568,7 @@ export function SiteCaptureStart() {
               }}
             />
             {footageError && <span role="alert" className="ms-field-hint" style={{ color: "var(--ms-alert, #b00)" }}>{footageError}</span>}
-            {footage && <span className="ms-field-hint">{formatBytes(footage.size)}. It uploads when you press Start.</span>}
+            {footage && <span className="ms-field-hint">{formatBytes(footage.size)}. It uploads when you select Start free assessment.</span>}
           </label>
         )
       ) : (
@@ -682,8 +683,7 @@ export function SiteCaptureStart() {
       <label htmlFor="start-email">
         <span>Work email</span>
         <span className="ms-field-hint">
-          Where we send the capture link and everything that follows — the scene, the plan, the
-          verdict on your footage.
+          Where we send your job link to add footage, follow progress and review the job brief.
         </span>
         <input id="start-email" name="startEmail" type="email" required maxLength={320} />
       </label>
@@ -740,6 +740,10 @@ export function SiteCaptureStart() {
         Share only footage you are authorized to use. Robot teams never receive your original recording.
         {" "}<a href={PRIVACY_URL}>How we process your footage</a>.
       </p>
+      <p className="ms-form-note">
+        Still arranging recording permission?{" "}
+        <a href="mailto:hello@tryblueprint.io">Talk to us about the job</a> before starting this capture.
+      </p>
 
       {state.status === "failed" && (
         <p role="alert" style={{ color: "var(--ms-alert, #b00)" }}>
@@ -747,14 +751,21 @@ export function SiteCaptureStart() {
         </p>
       )}
 
+      <p className="ms-field-hint">
+        Next, review and correct your job brief before approving it. Starting is free.
+        You separately authorize the {formatPrice(matchFeeUsd)} match fee if you open the job to pilot proposals.
+        It is due when we introduce a qualifying match, even if you do not buy the pilot. No match, no fee.
+        {" "}<a href="/pricing#match-fee">Fee and replacement policy</a>.
+      </p>
+
       <p className="ms-form-note">
-        By selecting Start, you agree to our{" "}
+        By selecting Start free assessment, you agree to our{" "}
         <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms of Service</a> and{" "}
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a>.
       </p>
 
       <button className="ms-button ms-button-large" type="submit" disabled={!interactive || state.status === "working" || loading}>
-        {state.status !== "working" ? "Start"
+        {state.status !== "working" ? "Start free assessment"
           : uploadPercent !== null ? `Uploading video… ${uploadPercent}%` : "Working…"}
       </button>
 

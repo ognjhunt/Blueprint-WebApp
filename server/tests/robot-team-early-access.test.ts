@@ -182,7 +182,7 @@ describe("who sees the job library", () => {
 describe("an agent key's team", () => {
   beforeEach(() => listedSite("site-1"));
 
-  it("is refused a plan until its verified, bound account is approved", async () => {
+  it("refuses the paid plan while preserving the account admission check", async () => {
     teamWithKey("team-1", "bpk_unbound", null, "ada@arm.example");
     approve("ada@arm.example");
     const refused = await fetch(`${base}/api/agent-team/plan`, {
@@ -192,7 +192,7 @@ describe("an agent key's team", () => {
     });
     // The registration contact email is approved, but proves nothing.
     expect(refused.status).toBe(403);
-    expect(await refused.json()).toMatchObject({ code: "early_access_required", apply: expect.stringContaining("/contact/robot-team") });
+    expect(await refused.json()).toMatchObject({ code: "paid_evaluations_disabled" });
     expect(await early.teamHasEarlyAccess("team-1")).toBe(false);
 
     teamWithKey("team-2", "bpk_bound", { uid: "u1", email: "ada@arm.example" });

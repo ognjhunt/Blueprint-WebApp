@@ -113,7 +113,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: exist
   await context.close();
 });
 for (const mobile of [false, true]) {
-  test(`${mobile ? "phone" : "desktop"}: browse before setup and evaluate only the selected task`, async ({ browser }) => {
+  test(`${mobile ? "phone" : "desktop"}: browse before setup and request a free invited evaluation`, async ({ browser }) => {
     const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, ...(mobile ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true } : {}) });
     const page = await context.newPage(); const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
     const mutations = await fixtures(page);
@@ -128,20 +128,14 @@ for (const mobile of [false, true]) {
     await expect(page.getByRole("heading", { name: "Sort small rigid parts into bins" })).toBeVisible();
     await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
     await page.getByLabel("Filter by availability").selectOption("open");
-    await page.getByRole("button", { name: "Private evaluation · $25" }).click();
-    await expect(page.getByText("Site's proposed pilot price")).toBeVisible();
-    await expect(page.getByText("Four weeks including setup and provider support")).toBeVisible();
-    await expect(page.getByText("$5,000 per month")).toBeVisible();
-    await expect(page.getByText(/Results stay with your team and Blueprint and do not enter pilot matching/)).toBeVisible();
-    await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
-    await page.locator("#plan-hardware").selectOption("prototype");
-  await page.locator("#plan-geography").selectOption("us_national");
-  await page.getByLabel("Team or company").fill("Local robot team");
-    await page.getByLabel("Where is it?").fill("https://example.test/policy");
-    await page.getByRole("button", { name: "See what we would run" }).click();
-    await expect(page.getByText("Payload needs confirmation before execution.")).toBeVisible();
-    expect(mutations.find(item => item.path.endsWith("/plan"))?.body).toMatchObject({ sceneId: "task-1", checkpointId: "cp-1" });
-    expect(mutations.some(item => item.path.endsWith("/runs"))).toBe(false);
+    const selected = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: card.title }) });
+    await expect(selected.getByRole("link", { name: "Request a free invited evaluation" })).toHaveAttribute("href", "/app");
+    await expect(selected.getByText("Site's proposed pilot price")).toBeVisible();
+    await expect(selected.getByText("Four weeks including setup and provider support")).toBeVisible();
+    await expect(selected.getByText("$5,000 per month")).toBeVisible();
+    await expect(page.getByText("Invited evaluations are free within the approved scope and share results with the site.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
+    expect(mutations).toEqual([]);
     expect(errors).toEqual([]); await context.close();
   });
 }
@@ -229,9 +223,9 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: intak
   await form.locator("#start-company").fill("Acme Foods");
   await form.locator("#start-rights").check();
   // A typed address has no country yet: the first Start asks for it.
-  await form.getByRole("button", { name: "Start", exact: true }).click();
+  await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await form.locator("#start-region").selectOption("us");
-  await form.getByRole("button", { name: "Start", exact: true }).click();
+  await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
   if (mobile) {
     await expect(page.getByRole("link", { name: "Open the camera" })).toBeVisible();
     await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(0);
@@ -255,37 +249,16 @@ test("public photos fall back to illustrations when removed", async ({ page }) =
 });
 
 
-test("a one-time paid plan keeps its receipt across reload and exposes results", async ({ page }) => {
+test("free beta does not restore paid checkout controls after a reload", async ({ page }) => {
   const mutations = await fixtures(page);
-  await page.route("**/api/agent-team/plan", route => route.fulfill({ json: {
-    selected: [{ sceneId: card.id, siteLabel: card.title, costUsd: 25, rationale: "Prepared execution", details: card }],
-    totalCostUsd: 25, planToken: "signed-fixture-plan", availableBalanceUsd: 50, fundingNeededUsd: 0,
-    // A team whose verified account is already connected: paying needs one.
-    accountBound: true,
-  } }));
-  let confirmations = 0;
-  await page.route("**/api/agent-team/runs", async route => {
-    confirmations += 1;
-    expect(route.request().postDataJSON()).toMatchObject({ checkpointId: "cp-1", spendMode: "one_time", planToken: "signed-fixture-plan", confirm: true });
-    await route.fulfill({ status: 202, json: { started: [{ runId: "local-run", sceneId: card.id, siteLabel: card.title, costUsd: 25 }], refused: [], reservedUsd: 25 } });
-  });
-  await page.route("**/api/agent-team/results", route => route.fulfill({ json: { runs: [{ runId: "local-run", state: "completed", result: { observed: { episodesRun: 50, episodesSucceeded: 41 } } }] } }));
   await page.goto("/contact/robot-team");
-  await page.getByRole("button", { name: "Private evaluation · $25" }).first().click();
-  await page.getByLabel("Work email", { exact: true }).fill("engineer@example.test");
-  await page.locator("#plan-hardware").selectOption("prototype");
-  await page.locator("#plan-geography").selectOption("us_national");
-  await page.getByLabel("Team or company").fill("Local robot team");
-  await page.getByLabel("Where is it?").fill("https://example.test/policy");
-  await page.getByRole("button", { name: "See what we would run" }).click();
-  await page.getByRole("button", { name: "Queue these runs from your balance" }).click();
-  await expect(page.getByRole("button", { name: "Check results" })).toBeVisible();
-  await page.reload();
-  await page.getByText("Already have a robot policy to evaluate? Register it and see a plan", { exact: true }).click();
-  await page.getByRole("button", { name: "Check results" }).click();
-  await expect(page.getByRole("list", { name: "Run results" })).toContainText("41 of 50 episodes");
-  expect(confirmations).toBe(1);
-  expect(mutations.some(item => item.path.endsWith("/policy") || item.path.endsWith("/funding"))).toBe(false);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await expect(page.getByRole("link", { name: "Request a free invited evaluation" }).first()).toHaveAttribute("href", "/app");
+    await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
+    await expect(page.locator("#plan-hardware")).toHaveCount(0);
+    expect(mutations).toEqual([]);
+    if (attempt === 0) await page.reload();
+  }
 });
 
 test("site owner receives a claim link alongside completed screening status", async ({ page }) => {

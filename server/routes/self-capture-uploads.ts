@@ -178,7 +178,7 @@ function saveStreamedFile(
 async function discardUploadedFile(file: { path: string } | undefined): Promise<void> {
   if (!file?.path) return;
   await unlink(file.path).catch((error) =>
-    logger.warn({ error, path: file.path }, "Could not remove the upload temp file"),
+    { if (error.code !== "ENOENT") logger.warn({ error, path: file.path }, "Could not remove the upload temp file"); },
   );
 }
 
@@ -484,8 +484,14 @@ async function describeBrowserUpload(payload: CaptureIdentity, allowed: boolean)
     // Older uploads have no generation-bound producer receipt. Presence proves
     // retention only; it cannot grant an automatic processing retry.
     const retained = await resolveStoredObjectPath(payload.sceneId, payload.captureId);
+    const rights = retained ? await loadWebsiteCaptureRights(payload.requestId) : null;
     return { captureReceived: Boolean(retained), uploadState: retained ? "retained" : "not_received",
-      processingRetryAvailable: false };
+      processingRetryAvailable: false,
+      ...(rights && !rights.derived_scene_generation_allowed ? {
+        processingHold: { code: "capture_processing_not_authorized",
+          detail: "Your video is saved. Processing is on hold until its existing consent can be verified." },
+      } : {}),
+    };
   } catch {
     return { captureReceived: false, uploadState: "status_unavailable", processingRetryAvailable: false };
   }
@@ -569,6 +575,10 @@ async function writeLegacyHeldMarker(requestId: string, sceneId: string, capture
   const bucket = storageAdmin.bucket(storageBucketName());
   const [manifestExists] = await bucket.file(`${stored.rawPrefix}/manifest.json`).exists();
   if (!manifestExists) return false;
+  const [authorization, rights] = await Promise.all([
+    authorizeCaptureUpload(requestId), loadWebsiteCaptureRights(requestId),
+  ]);
+  if (!authorization.allowed || !rights.derived_scene_generation_allowed) return false;
   const marker = {
     schema_version: "v1", scene_id: sceneId, capture_id: captureId,
     raw_prefix: stored.rawPrefix, capture_source: "browser_self_capture",
@@ -617,6 +627,18 @@ async function finishStoredCapture(params: {
   const bucket = storageAdmin.bucket(storageBucketName());
   if (params.video.object_name !== objectPath || params.video.size_bytes !== params.sizeBytes) {
     return { status: 409, body: { error: "The stored video does not match this upload.", code: "video_identity_mismatch" } };
+  }
+  const currentAuthority = await authorizeCaptureUpload(payload.requestId);
+  if (!currentAuthority.allowed) {
+    // A retry reuses an earlier retained source; withdrawn authority cannot
+    // turn that replay into deletion of the original upload.
+    if (params.storedUpload) return retainedProcessingFailure(params.video, false, payload);
+    if (currentAuthority.holdReason === "recording_consent_required") {
+      // Delete only the exact generation this request just wrote; never a replacement.
+      await bucket.file(objectPath, { generation: params.video.generation,
+        preconditionOpts: { ifGenerationMatch: params.video.generation } }).delete({ ignoreNotFound: true });
+    }
+    return { status: 409, body: { code: currentAuthority.holdReason, error: currentAuthority.detail } };
   }
 
   let pending: BrowserPending;
@@ -754,16 +776,6 @@ async function finishStoredCapture(params: {
     return retainedProcessingFailure(params.video, true, payload);
   }
 
-  // The coverage read, and the reason it is here rather than awaited: the
-  // operator is standing in a warehouse holding a phone, and a model
-  // traversing a two-minute video is not something to make them wait on. The
-  // finding is stored on the request, so the task page and the supply query
-  // both pick it up whenever it lands.
-  //
-  // Deliberately after the privacy screen. Coverage is a question about the
-  // footage and privacy is a question about whether we may read the footage at
-  // all -- asking the second one second would be the ordering mistake Tier 3
-  // exists to fix.
   return {
     status: 201,
     body: {
@@ -883,6 +895,13 @@ async function resumeStoredCapture(payload: NonNullable<ReturnType<typeof verify
           producerSource: screenedSource,
         });
       }
+      // Screening may have awaited an external result. Recording permission
+      // and canonical future-processing rights must still hold for every
+      // producer before its saved clearance can publish a processing signal.
+      const [currentAuthorization, currentRights] = await Promise.all([
+        authorizeCaptureUpload(payload.requestId), loadWebsiteCaptureRights(payload.requestId),
+      ]);
+      if (!currentAuthorization.allowed || !currentRights.derived_scene_generation_allowed) return;
       const freshlyCleared = resumed?.action === "cleared" && resumed.result.proceed;
       const pending = await loadBrowserPending(payload.captureId);
       if (pending) {
@@ -1105,7 +1124,19 @@ router.post("/:token/self-capture", async (req: Request, res: Response) => {
   });
 });
 
-router.post("/:token", upload.single("video"), async (req: UploadRequest, res: Response) => {
+/** Check before multipart middleware receives or spools any bytes. */
+async function authorizeBeforeCaptureBody(req: Request, res: Response, next: (error?: unknown) => void) {
+  try {
+    const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+    if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
+    const authorization = await authorizeCaptureUpload(payload.requestId);
+    if (!authorization.allowed) return res.status(409).json({ code: authorization.holdReason, error: authorization.detail });
+    res.once("finish", () => { void discardUploadedFile((req as UploadRequest).file); });
+    next();
+  } catch (error) { next(error); }
+}
+
+router.post("/:token", authorizeBeforeCaptureBody, upload.single("video"), async (req: UploadRequest, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "This upload link is not valid or has expired." });
@@ -1291,6 +1322,7 @@ router.get("/:token/parts", async (req: Request, res: Response) => {
 
 router.put(
   "/:token/parts/:index",
+  authorizeBeforeCaptureBody,
   partUpload.single("part"),
   async (req: PartUploadRequest, res: Response) => {
     const payload = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -1552,6 +1584,7 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "heic", "heif", 
  */
 router.post(
   "/:token/items/:itemId/image",
+  authorizeBeforeCaptureBody,
   upload.single("image"),
   async (req: UploadRequest, res: Response) => {
     const payload = verifyCaptureUploadToken(String(req.params.token || ""));

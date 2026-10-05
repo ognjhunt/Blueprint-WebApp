@@ -34,6 +34,7 @@
  * to drift apart.
  */
 
+import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decideDispatchForRequest } from "../agents/workflows";
 import type { InboundRequest } from "../types/inbound-request";
@@ -103,6 +104,10 @@ export async function authorizeCaptureUpload(
 
   if (!request) {
     return held("request_missing", "This link does not point at a submission we hold.");
+  }
+
+  if (!hasCurrentRecordingConsent(request.request?.consent_attestation)) {
+    return held("recording_consent_required", "The site owner must confirm the current recording permission before uploading.", request);
   }
 
   // `requiresHumanReview` is false here on purpose, and it is worth saying why:

@@ -36,6 +36,7 @@ import { hydrateAgentEvidence } from "../agents/private-evidence";
 
 import admin, { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { runAgentTask } from "../agents/runtime";
 import {
   captureCoverageTask,
@@ -236,7 +237,9 @@ export async function reviewCaptureCoverage(params: {
               ? "Your footage shows the job clearly. To finish the scene we just need a little more:\n\n"
               : "Your footage needs more coverage before we can build the scene:\n\n")
             + finding.missingCoverage.map((view) => `- ${view}`).join("\n")
-            + "\n\nYou can add these from the same capture link — no need to film it all again.\n\n"
+            + (snap?.data()?.capture_privacy_source_bound_decision?.producer_source?.kind === "app_bundle_completion"
+              ? "\n\nExtra views cannot be added to an app recording yet. Reply to this email so we can arrange a new capture link.\n\n"
+              : "\n\nYou can add these from the same capture link — no need to film it all again.\n\n")
             + EMAIL_SIGN_OFF,
         });
       }
@@ -267,6 +270,7 @@ export async function recordCoverageFinding(
     const [request, brief] = await Promise.all([tx.get(ref), tx.get(db!.collection("siteTaskBriefs").doc(requestId))]);
     const value = request.data();
     const privacy = value?.capture_privacy_source_bound_decision || value?.capture_privacy_screen;
+    if (!hasCurrentRecordingConsent(value?.request?.consent_attestation)) throw new Error("coverage_recording_consent_required");
     if (binding && (humanDecisionDigest(brief.data()) !== binding.brief_digest
       || humanDecisionDigest(privacy?.producer_source || null) !== humanDecisionDigest(binding.source)
       || privacy?.capture_id !== captureId || !privacy?.proceeded)) throw new Error("coverage_source_changed");

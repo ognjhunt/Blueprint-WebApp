@@ -14,6 +14,18 @@ const state = vi.hoisted(() => ({
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {},
   dbAdmin: {
+    runTransaction: async (callback: (transaction: {
+      get: (ref: { get: () => Promise<unknown> }) => Promise<unknown>;
+      set: (ref: { set: (payload: Record<string, unknown>, options?: Record<string, unknown>) => Promise<unknown> }, payload: Record<string, unknown>, options?: Record<string, unknown>) => void;
+    }) => Promise<unknown>) => {
+      const writes: Array<() => Promise<unknown>> = [];
+      const result = await callback({
+        get: (ref) => ref.get(),
+        set: (ref, payload, options) => { writes.push(() => ref.set(payload, options)); },
+      });
+      for (const write of writes) await write();
+      return result;
+    },
     collection: (name: string) => ({
       doc: (id: string) => ({
         get: async () => {
@@ -28,9 +40,11 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
             data: () => data,
           };
         },
-        set: async (payload: Record<string, unknown>) => {
+        set: async (payload: Record<string, unknown>, options?: Record<string, unknown>) => {
           if (name === "transactionalNotifications") {
-            state.transactionalNotifications.set(id, payload);
+            state.transactionalNotifications.set(id, options?.merge
+              ? { ...state.transactionalNotifications.get(id), ...payload }
+              : payload);
           }
         },
       }),

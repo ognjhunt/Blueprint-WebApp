@@ -1,3 +1,4 @@
+import { CONFIDENCE_POLICY_VERSION } from "./successRateConfidence";
 /**
  * A checkpoint is what a robot team should hand us, instead of a form.
  *
@@ -284,7 +285,7 @@ export async function invalidateMeasuredCapability(params: {
     (capability as Record<string, unknown>)[field] = null;
     fieldProvenance[field] = {
       grade: "measured",
-      source: `evaluationRun:${params.runId}#${params.checkpointId}`,
+      source: `evaluationRun:${params.runId}#${params.checkpointId}@${CONFIDENCE_POLICY_VERSION}`,
       observedAt: nowIso(),
     };
     withdrawn.push(field);
@@ -323,7 +324,7 @@ export async function recordMeasuredCapability(params: {
 
   const { capability, fieldProvenance, changed } = mergeCapability(existing, params.measured, {
     grade: "measured",
-    source: `evaluationRun:${params.runId}#${params.checkpointId}`,
+    source: `evaluationRun:${params.runId}#${params.checkpointId}@${CONFIDENCE_POLICY_VERSION}`,
   });
 
   if (!changed.length) return existing;

@@ -308,13 +308,12 @@ describe("the plan is checked against the Raw V3.2 layout before any bytes move"
     expect(missing.body.errors).toContain("required_file_missing:motion.jsonl");
   });
 
-  it("asks the phone to re-bind when the rights changed before anything was stored", async () => {
+  it("refuses absent recording consent before issuing upload targets", async () => {
     const { device, bindingDigest } = await bundleFor();
     sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST_ID}`, { requestId: REQUEST_ID, request: {} });
     const response = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
     expect(response.status).toBe(409);
-    expect(response.body.code).toBe("capture_binding_changed");
-    expect(response.body.binding.capture_rights.derived_scene_generation_allowed).toBe(false);
+    expect(response.body.code).toBe("recording_consent_required");
     expect(state.bucket.names()).toEqual([]);
   });
 });
@@ -425,6 +424,116 @@ describe("uploads are create-only and verified before completion", () => {
 });
 
 describe("completion keeps the web path's order and authority", () => {
+  it.each(["consent_revoked", "future_processing_withdrawn", "during_source_read"])(
+    "refuses direct app publication after %s without changing the retained video", async withdrawal => {
+      const { device, bindingDigest } = await bundleFor();
+      const planDigest = await uploadEverything(device, bindingDigest);
+      const videoBefore = state.bucket.objects.get(`${RAW}/walkthrough.mov`);
+      let entered!: () => void;
+      let resume!: () => void;
+      const screening = new Promise<void>(resolve => { entered = resolve; });
+      const continueScreen = new Promise<void>(resolve => { resume = resolve; });
+      state.privacyGate = { entered, wait: continueScreen, result: APPROVED };
+      const completing = api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest });
+      await screening;
+      const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+      let withdrew = withdrawal !== "during_source_read";
+      if (withdrawal === "consent_revoked") request.consent_revoked = true;
+      else if (withdrawal === "future_processing_withdrawn") request.request.future_processing_allowed = false;
+      else {
+        const originalFile = state.bucket.file.bind(state.bucket);
+        const completionName = `scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`;
+        state.bucket.file = ((name: string) => {
+          const file = originalFile(name);
+          if (name === completionName) {
+            const download = file.download.bind(file);
+            file.download = async () => {
+              const bytes = await download();
+              sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`)!.consent_revoked = true;
+              withdrew = true;
+              return bytes;
+            };
+          }
+          return file;
+        }) as typeof state.bucket.file;
+      }
+      resume();
+      const result = await completing;
+      expect(withdrew).toBe(true);
+      expect(result).toMatchObject({ status: 409, body: { code: "capture_processing_not_authorized" } });
+      expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+      expect(state.bucket.objects.get(`${RAW}/walkthrough.mov`)).toBe(videoBefore);
+      expect(state.coverage).toEqual([]);
+    },
+  );
+
+  it("refuses app recovery publication when rights change during its later server-file read", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    const planDigest = await uploadEverything(device, bindingDigest);
+    state.privacy.push(PENDING);
+    expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+    const writesBefore = [...state.bucket.writeLog];
+    let entered!: () => void;
+    let resume!: () => void;
+    const screening = new Promise<void>(resolve => { entered = resolve; });
+    const continueScreen = new Promise<void>(resolve => { resume = resolve; });
+    state.privacyGate = { entered, wait: continueScreen, result: APPROVED };
+    const polling = linkCheck();
+    await screening;
+    const originalFile = state.bucket.file.bind(state.bucket);
+    let withdrew = false;
+    state.bucket.file = ((name: string) => {
+      const file = originalFile(name);
+      if (name === `${RAW}/manifest.json`) {
+        const download = file.download.bind(file);
+        file.download = async () => {
+          const bytes = await download();
+          sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`)!.capture_rights = { future_processing_allowed: false };
+          withdrew = true;
+          return bytes;
+        };
+      }
+      return file;
+    }) as typeof state.bucket.file;
+    resume();
+    await polling;
+    expect(withdrew).toBe(true);
+    expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+    expect(state.bucket.writeLog).toEqual(writesBefore);
+    expect(state.coverage).toEqual([]);
+  });
+
+  it.each(["consent_revoked", "future_processing_withdrawn"])(
+    "does not publish a held app source after %s during status recovery screening", async withdrawal => {
+      const { device, bindingDigest } = await bundleFor();
+      const planDigest = await uploadEverything(device, bindingDigest);
+      state.privacy.push(PENDING);
+      expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).body.state).toBe("held");
+      const writesBefore = [...state.bucket.writeLog];
+      let entered!: () => void;
+      let resume!: () => void;
+      const screening = new Promise<void>(resolve => { entered = resolve; });
+      const continueScreen = new Promise<void>(resolve => { resume = resolve; });
+      state.privacyGate = { entered, wait: continueScreen, result: APPROVED };
+      const polling = linkCheck();
+      await screening;
+      const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`) as Record<string, any>;
+      if (withdrawal === "consent_revoked") request.consent_revoked = true;
+      else request.capture_rights = { future_processing_allowed: false };
+      expect(request.request.consent_attestation.granted).toBe(true);
+      resume();
+      await polling;
+      expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+      expect(state.bucket.writeLog).toEqual(writesBefore);
+      expect((await api("GET", `${token()}/status`)).body).toMatchObject({ state: "held",
+        captureReceived: true, uploadState: "retained", holdReason: "capture_processing_not_authorized",
+        processingRetryAvailable: false });
+      await linkCheck();
+      expect(state.bucket.text(`${RAW}/capture_upload_complete.json`)).toBeNull();
+      expect(state.bucket.writeLog).toEqual(writesBefore);
+    },
+  );
+
   it("reads a held app's status without retrying its screen or writing completion artifacts", async () => {
     const { device, bindingDigest } = await bundleFor();
     const planDigest = await uploadEverything(device, bindingDigest);

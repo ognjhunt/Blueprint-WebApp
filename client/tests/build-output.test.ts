@@ -215,8 +215,8 @@ describe("build output", () => {
     expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
-    expect(llms).toContain("Private evaluations cost $99");
-    expect(llms).toContain("do not affect pilot matching");
+    expect(llms).toContain("free invited evaluations only");
+    expect(llms).toContain("paid_evaluations_disabled");
     expect(llmsFull).toMatch(/simulation is not physical proof or a deployment guarantee/i);
     expect(llmsFull).toContain("Robot teams join by early access");
     expect(llmsFull).toContain("early_access_required");
@@ -245,7 +245,7 @@ describe("build output", () => {
     // The published site form keeps the task and consent, without the retired
     // screening interview. These assertions inspect actual prerendered HTML.
     expect(siteHtml).toContain("What is the job?");
-    expect(siteHtml).toContain("Describe the work. Add a phone video if you have one.");
+    expect(siteHtml).toContain("Describe the work and confirm recording permission. Add a phone video if you have one. Starting is free; you do not need an approved budget.");
     expect(siteHtml).toContain("How this works");
     expect(siteHtml).toContain('id="start-self-recording"');
     // The country comes from the address; its select opens only to correct it.
@@ -297,7 +297,7 @@ describe("build output", () => {
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
     expect(browserJavaScript).toContain("A measured robot pilot.");
-    expect(browserJavaScript).toContain("We draft a job brief for you to correct.");
+    expect(browserJavaScript).toContain("We draft a brief from the evidence for you to correct.");
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {

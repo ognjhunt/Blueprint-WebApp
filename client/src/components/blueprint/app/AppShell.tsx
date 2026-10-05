@@ -96,8 +96,7 @@ export function AppShell({
       : [
           ["overview", "Overview", "/app"],
           ...(hasOwnedSites ? [["tasks", "Owned sites", "/app/tasks"]] : []),
-          // The $99 task library, not the pilot-openings list the capture-first
-          // intake never fills; and the runs and balance a team paid for.
+          // Task discovery plus access to current and historical evaluation receipts.
           ["opportunities", "Job library", "/sites"],
           ["runs", "Runs & balance", "/settings?tab=agent"],
           ["history", "History", "/app/history"],
