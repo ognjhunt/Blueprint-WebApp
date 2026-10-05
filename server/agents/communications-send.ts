@@ -1,7 +1,8 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { isEmailSuppressed } from "../utils/email-suppression";
 import { communicationsEnvelopeSchema, communicationsBriefSchema, verifyCommunicationsHandoff, communicationsDigest, communicationsDeliveryKey, correlateReply, correlatedReplies, isOptOut,
-  verifyCommunicationsReplyBinding, communicationsSentReceiptIdentity, isFounderReplyOrigin } from "./communications-contract";
+  verifyCommunicationsReplyBinding, communicationsSentReceiptIdentity, isFounderReplyOrigin, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL } from "./communications-contract";
+import { prospectResearchTier } from "../utils/outboundProspects";
 import { COMMUNICATIONS_ROOT, CommunicationsStore } from "./communications-store";
 import { readExistingResearchSnapshot, verifyPublishedResearch } from "./communications-research";
 import { verifyFounderMailbox, readFounderThread, findFounderSentMessage, sendFounderMessage, hasFounderPriorContact } from "./communications-gmail";
@@ -31,6 +32,9 @@ export function communicationsSendingEnabled() {
 
 /** New-send authority is separate from read-only acknowledgement recovery. */
 export async function communicationsSendBlocker(payload: ActionPayload, ledgerId: string): Promise<string | null> {
+  // Outreach-ready hypotheses are draft only. Refused before any flag, approval or quality check.
+  const hypothesis = outreachReadySendRefusal((payload.communications as any)?.brief);
+  if (hypothesis) return hypothesis;
   if (!communicationsSendingEnabled()) return "communications_sending_disabled";
   if (!dbAdmin) return "communications_store_unavailable";
   try {
@@ -52,6 +56,7 @@ export async function communicationsSendBlocker(payload: ActionPayload, ledgerId
     const [source, currentBrief] = await Promise.all([
       dbAdmin.collection("outboundProspects").doc(job.prospectId).get(), store.brief(job.briefId),
     ]);
+    if (prospectResearchTier(source.data()) === "hypothesis") return OUTREACH_READY_SEND_REFUSAL;
     if (!source.exists || source.data()?.contactEmail?.toLowerCase() !== payload.to || source.data()?.stage === "closed"
       || (job.intent === "outreach" && source.data()?.stage !== "drafted")
       || source.data()?.siteId !== brief.siteId || source.data()?.taskId !== brief.taskId
@@ -134,6 +139,8 @@ export async function reconcileCommunicationsSend(payload: ActionPayload) {
 export async function executeCommunicationsSend(payload: ActionPayload) {
   const recovered = await reconcileCommunicationsSend(payload);
   if (recovered) return recovered;
+  const hypothesis = outreachReadySendRefusal((payload.communications as any)?.brief);
+  if (hypothesis) throw new Error(hypothesis);
   if (!communicationsSendingEnabled() || !dbAdmin) throw new Error("communications_sending_disabled");
   const { job, brief } = communicationsEnvelopeSchema.parse(payload.communications);
   const ledgerId = `communications_${job.jobId}`;
@@ -156,6 +163,7 @@ export async function executeCommunicationsSend(payload: ActionPayload) {
       tx.get(checkRef),
     ]);
     if (isFounderReplyOrigin(brief.replyOrigin)) throw new Error("founder_origin_reply_learning_only");
+    if (prospectResearchTier(source.data()) === "hypothesis") throw new Error(OUTREACH_READY_SEND_REFUSAL);
     // Read in the same transaction as the receipt reservation, so a concurrent
     // founder-send observation and a system claim cannot both commit.
     if (founderSend.exists) throw new Error("founder_send_already_observed");

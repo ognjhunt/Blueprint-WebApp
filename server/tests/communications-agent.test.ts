@@ -5,8 +5,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {
 const continuationMocks = vi.hoisted(() => ({ access: null as any }));
 vi.mock("../agents/operator-tools", async importOriginal => ({ ...await importOriginal<typeof import("../agents/operator-tools")>(),
   getCompanyHistoryAccess: async () => continuationMocks.access }));
-import { communicationsFixture, communicationsNow, memoryFirestore, cancelledContinuationFixture } from "./fixtures/communications";
-import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema } from "../agents/communications-contract";
+import { communicationsFixture, communicationsNow, memoryFirestore, cancelledContinuationFixture, syntheticQualification } from "./fixtures/communications";
+import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema,
+  outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL } from "../agents/communications-contract";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { buildCommunicationsInput, processCommunicationsJob, recoverRejectedCommunicationsCreate, continueCancelledCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
@@ -217,6 +218,71 @@ describe("research handoff and publication integrity", () => {
     const f = communicationsFixture(); f.brief.facts[0].sourceCheckedAt = "2026-09-30";
     expect(communicationsBriefSchema.parse(f.brief).facts[0].sourceCheckedAt).toBe("2026-09-30");
     expect(() => researchDigest({ confidence: .5 })).toThrow("research_number_contract_unsupported");
+  });
+});
+
+describe("outreach-ready brief contract (optional, draft-only qualification block)", () => {
+  const hypothesisBrief = (mutate: (brief: any) => void = () => undefined) => {
+    const brief: any = { ...communicationsFixture().brief, qualification: syntheticQualification() };
+    mutate(brief);
+    return brief;
+  };
+  // Digests recorded before the block existed. Every new field is optional, so a
+  // verified brief parses to the same object and keeps the same bytes.
+  it.each([["outreach", "8e8ab4f63fc6a913a244fd9ad56d3c17cbd81df614e9f7c20a932e77b53319a3"],
+    ["reply", "20722c28f15297f0ff45f535a8b7a2db6da73e8b9bd5bb0af598b947d10cea3c"]] as const)("keeps the %s brief digest byte for byte", (intent, digest) => {
+    const { brief } = communicationsFixture(intent);
+    const parsed = communicationsBriefSchema.parse(brief);
+    expect(parsed).toEqual(brief);
+    expect(Object.hasOwn(parsed, "qualification")).toBe(false);
+    expect(Object.hasOwn(parsed.researchOrigin, "screenAdmissionId")).toBe(false);
+    expect(communicationsDigest(parsed)).toBe(digest);
+  });
+  it("parses a draft-only hypothesis with a screen admission and the public-source contact kind", () => {
+    const brief = hypothesisBrief(value => { value.researchOrigin = { ...value.researchOrigin, screenAdmissionId: "d".repeat(64),
+      contactEvidenceKind: "public_source_resolution" }; });
+    expect(communicationsBriefSchema.parse(brief)).toEqual(brief);
+    expect(communicationsDigest(brief)).not.toBe(communicationsDigest(communicationsFixture().brief));
+  });
+  it.each<[string, (q: any) => void]>([
+    ["an unknown field", q => { q.approved = true; }],
+    ["a verified tier", q => { q.tier = "verified"; }],
+    ["another label", q => { q.label = "verified"; }],
+    ["send authority", q => { q.sendsAuthorized = true; }],
+    ["checks out of rule order", q => { q.openChecks = ["existing_automation", "manual_workflow", "fit", "interest"]; }],
+    ["a closed fit check", q => { q.openChecks = ["manual_workflow", "existing_automation", "interest"]; }],
+    ["a repeated check", q => { q.openChecks = ["existing_automation", "existing_automation", "fit", "interest"]; }],
+    ["an unknown check", q => { q.openChecks = ["robot_fit", "existing_automation", "fit", "interest"]; }],
+    ["no question", q => { q.openQuestions = []; }],
+    ["four questions", q => { q.openQuestions = [...q.openQuestions, "Is there anything else?"]; }],
+    ["a statement", q => { q.openQuestions = ["The task is done by hand."]; }],
+    ["two questions in one", q => { q.openQuestions = ["Is it manual? Is it automated?"]; }],
+    ["a repeated question", q => { q.openQuestions = [q.openQuestions[1], q.openQuestions[1]]; }],
+    ["an unpinned direction", q => { delete q.ownerDecision.direction; }],
+    ["a malformed direction digest", q => { q.ownerDecision.direction.sha256 = "not-a-digest"; }],
+  ])("refuses a hypothesis block with %s", (_name, mutate) => {
+    const brief = hypothesisBrief(value => mutate(value.qualification));
+    expect(communicationsBriefSchema.safeParse(brief).success).toBe(false);
+  });
+  it.each<[string, (brief: any) => void]>([
+    ["a qualification block", () => undefined],
+    ["a public-source contact", value => { delete value.qualification; value.researchOrigin.contactEvidenceKind = "public_source_resolution"; }],
+    ["a site-screen admission", value => { delete value.qualification; value.researchOrigin.screenAdmissionId = "d".repeat(64); }],
+  ])("keeps the strict send-path verification closed to %s", (_name, mutate) => {
+    const f = communicationsFixture();
+    expect(verifyPublishedResearch(f.snapshot, f.brief, f.handoff).briefDigest).toBe(communicationsDigest(f.brief));
+    const brief = hypothesisBrief(value => { value.researchOrigin = { ...value.researchOrigin }; mutate(value); });
+    const handoff = { ...f.handoff, briefDigest: communicationsDigest(brief) };
+    expect(() => verifyPublishedResearch(f.snapshot, brief, handoff)).toThrow(OUTREACH_READY_SEND_REFUSAL);
+  });
+  it("reads the raw brief, so a partial or malformed block still refuses", () => {
+    const { brief } = communicationsFixture();
+    expect(outreachReadySendRefusal(brief)).toBeNull();
+    for (const qualification of [null, {}, { tier: "verified" }, "hypothesis"]) {
+      expect(outreachReadySendRefusal({ ...brief, qualification })).toBe(OUTREACH_READY_SEND_REFUSAL);
+    }
+    expect(outreachReadySendRefusal({ ...brief, researchOrigin: { ...brief.researchOrigin, screenAdmissionId: null } })).toBe(OUTREACH_READY_SEND_REFUSAL);
+    for (const value of [null, undefined, "brief", 7, []]) expect(outreachReadySendRefusal(value)).toBeNull();
   });
 });
 

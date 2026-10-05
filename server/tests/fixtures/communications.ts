@@ -67,6 +67,16 @@ export function communicationsFixture(intent: "outreach" | "reply" = "outreach")
 import { createHash } from "node:crypto";
 function requireHash(bytes: Buffer) { return createHash("sha256").update(bytes).digest("hex"); }
 
+/** Invented outreach-ready block for hermetic tests. It names no real owner record or direction. */
+export function syntheticQualification(task = "Packing", site = "Synthetic packing site"): NonNullable<CommunicationsBrief["qualification"]> {
+  return { tier: "outreach_ready", label: "hypothesis", openChecks: ["manual_workflow", "existing_automation", "fit", "interest"],
+    openQuestions: [`Is ${task} at ${site} still done mostly by hand?`, "Do you already use or plan automation for it?",
+      "Would a short look at whether a robot could take on part of it be useful?"],
+    ownerDecision: { reference: "synthetic://owner-decision/outreach-ready",
+      direction: { uri: "synthetic://direction/outreach-ready", generation: "1", sha256: "c".repeat(64) } },
+    sendsAuthorized: false };
+}
+
 export function memoryFirestore(records = new Map<string, any>()) {
   const clone = (value: any) => value === undefined ? undefined : structuredClone(value);
   const merge = (a: any, b: any): any => {

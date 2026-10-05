@@ -1,14 +1,16 @@
 // @vitest-environment node
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
-import { admitPublishedResearch, runCommunicationsIntake, RESEARCH_WORK_ITEMS } from "../agents/communications-intake";
+import { admitPublishedResearch, recordPublishedHypotheses, runCommunicationsIntake, RESEARCH_WORK_ITEMS } from "../agents/communications-intake";
 import { publishedPublicContact, PUBLIC_CONTACT_PREFIX } from "../agents/communications-contact-evidence";
 import { previewResearchCommunications, approveResearchCommunications } from "../agents/communications-producer";
-import { verifyPublishedResearch } from "../agents/communications-research";
+import { researchDigest, researchPublicationHypotheses, researchPublicationSource, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
+import { communicationsDigest } from "../agents/communications-contract";
 import { processCommunicationsJob, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { communicationsNow, memoryFirestore } from "./fixtures/communications";
-import { publishedResearchFixture } from "./fixtures/published-research";
+import { publishedResearchFixture, type OutreachReadyBlock } from "./fixtures/published-research";
 
 function setup(options: Parameters<typeof publishedResearchFixture>[0] = { publicContact: true }) {
   const fixture = publishedResearchFixture(options), db = memoryFirestore();
@@ -22,6 +24,16 @@ function setup(options: Parameters<typeof publishedResearchFixture>[0] = { publi
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("agent-owned published research intake (offline)", () => {
+  it("admits today's verified publication byte for byte", async () => {
+    // Recorded before outreach-ready hypotheses existed: the brief, its source and
+    // every admission record keep the same bytes.
+    const f = setup(), admitted: any = await f.admit();
+    expect(admitted).toMatchObject({ state: "admitted", briefDigest: "1301a0696e5c375f1a8cc7a22a899914491f46a11f817324da23da6172148825",
+      sourceDigest: "7a8a8a1fb0fdd0930bb38310a352f9a5d7c17617c9de5b906bb3cca8c4139c62",
+      briefId: "research-cdb8d02eccc3a67f8e943308cb87e0778bf0472b816d2268b1ab1cc74bc0c4fa" });
+    const records = [...f.db.records.entries()].filter(([key]) => key.startsWith(`${COMMUNICATIONS_ROOT}/`) || key.startsWith("outboundProspects/"));
+    expect(communicationsDigest(records)).toBe("b1151fe4470f01c5557ea8807640d32d32550d76d8f7033dff2baaef1e9221bf");
+  });
   it("does not report cached admission as eligible after its bound verification expires", async () => {
     const f = setup();
     const first: any = await f.admit();
@@ -225,5 +237,124 @@ describe("agent-owned published research intake (offline)", () => {
     await vi.advanceTimersByTimeAsync(60000); await stop();
     expect(f.records("jobs")).toHaveLength(1); expect(api.run).not.toHaveBeenCalled(); expect(verifyMailbox).not.toHaveBeenCalled(); expect(readThread).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("published research days that carry outreach-ready hypotheses (offline, synthetic)", () => {
+  const prospects = (f: ReturnType<typeof setup>) => [...f.db.records.keys()].filter(key => key.startsWith("outboundProspects/") && key.split("/").length === 2);
+  const origin = (f: ReturnType<typeof setup>, candidateKey: string) => ({ date: f.snapshot.row.date, candidateKey,
+    packetDigest: f.snapshot.row.packet_digest, rawArtifactDigest: f.snapshot.row.raw_output_digest });
+  const eachEntry = (edit: (entry: any) => void) => (block: OutreachReadyBlock) => {
+    for (const entries of [block.sheets, block.notion]) (entries as any[]).forEach(edit);
+  };
+  // The verified brief may differ only in the provenance that names the whole day.
+  const verifiedContent = (brief: any) => {
+    const { briefId: _briefId, researchOrigin: { sourceDigest: _sourceDigest, ...researchOrigin }, ...rest } = brief;
+    return { ...rest, researchOrigin };
+  };
+  const questions = ["Is sorting returned parcels at Synthetic sorting site still done mostly by hand?",
+    "Do you already use or plan automation for it?", "Would a short look at whether a robot could take on part of it be useful?"];
+
+  it("admits verified rows on a v3-pinned day that records the tier in shadow mode", async () => {
+    const f = setup({ publicContact: true, outreachReady: "shadow" }); await f.workItem();
+    await runCommunicationsIntake(f.deps);
+    expect(f.records("jobs")).toHaveLength(1);
+    expect(f.records("intake")).toEqual([expect.objectContaining({ candidateKey: "candidate-1", state: "admitted" })]);
+    expect(researchPublicationHypotheses(f.snapshot)).toEqual({ state: "absent" });
+  });
+
+  it("accepts a day with both tiers: the verified row is admitted unchanged and the hypothesis is only recorded", async () => {
+    const shadow = setup({ publicContact: true, outreachReady: "shadow" }), both = setup({ publicContact: true, outreachReady: "published" });
+    for (const f of [shadow, both]) { await f.workItem(); await runCommunicationsIntake(f.deps); }
+    // Verified row: one brief and one job, with the same content as the same day without the hypothesis.
+    expect(both.records("briefs")).toHaveLength(1); expect(both.records("jobs")).toHaveLength(1);
+    const [brief] = both.records("briefs");
+    expect(verifiedContent(brief)).toEqual(verifiedContent(shadow.records("briefs")[0]));
+    expect(Object.hasOwn(brief, "qualification")).toBe(false);
+    const [{ source }] = both.records("researchSources"), [{ source: baseline }] = shadow.records("researchSources");
+    for (const field of ["candidate", "leadVerification", "leadVerificationCohort", "sheetsId", "sheetsProspectId", "notionReceipt"]) {
+      expect(source[field], field).toEqual(baseline[field]);
+    }
+    expect(source.sheetsReceipt).toBe(`sheets:${both.snapshot.row.packet.destinations.sheet_id}:Prospects:BP-000042,BP-000043`);
+    expect(verifyPublishedResearch(both.snapshot, brief, both.records("handoffs")[0]).briefDigest).toBe(communicationsDigest(brief));
+    // Hypothesis: recorded once, with no brief, prospect, job, research request or send authority.
+    const row = both.snapshot.row;
+    expect(both.records("intake").filter(item => item.candidateKey === "candidate-2")).toEqual([{
+      date: row.date, runKey: row.run_key, candidateKey: "candidate-2", packetDigest: row.packet_digest, rawArtifactDigest: row.raw_output_digest,
+      intakeId: expect.stringMatching(/^[a-f0-9]{64}$/), state: "hypothesis_recorded", publishedTier: "outreach_ready", label: "hypothesis",
+      sheetsProspectId: "BP-000043", candidateDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+      openChecks: ["manual_workflow", "existing_automation", "fit", "interest"], openQuestions: questions,
+      owner: "blueprint-communications-agent", recordedAt: communicationsNow, eligibleForOutreach: false, draftJobCreated: false,
+      sendsAuthorized: false, humanContextApprovalRequired: false, sent: false, sessionCreated: false }]);
+    expect(prospects(both)).toHaveLength(1);
+    expect(both.records("refreshRequests").every(request => request.state === "resolved")).toBe(true);
+    const before = structuredClone([...both.db.records.entries()]);
+    await recordPublishedHypotheses(both.snapshot, both.deps);
+    expect([...both.db.records.entries()]).toEqual(before);
+  });
+
+  it.each<[string, (block: OutreachReadyBlock) => void]>([
+    ["an invented question", eachEntry(entry => { entry.open_questions = [...entry.open_questions, "Could we schedule a call?"]; })],
+    ["a candidate that differs from the packet", eachEntry(entry => { entry.candidate.task = "sorting outbound parcels"; })],
+    ["a closed fit check", eachEntry(entry => { entry.open_checks = ["manual_workflow", "existing_automation", "interest"]; })],
+    ["an unknown entry field", eachEntry(entry => { entry.approved = true; })],
+    ["Notion and Sheets blocks that differ", block => { block.notion = []; }],
+    ["a block that is not a list", block => { block.sheets = "hypotheses"; block.notion = "hypotheses"; }],
+    ["no QA list", block => { block.reviewKeys = undefined; block.qaKeys = undefined; }],
+    ["a key QA did not list", block => { block.qaKeys = []; }],
+    ["a key that is also a verified row", block => { block.reviewKeys = block.qaKeys = ["candidate-2", "candidate-1"]; }],
+    ["a Sheets row marked like a verified row", block => { block.status = "Needs recheck"; }],
+    ["a retained result without the outreach-ready tier", block => { block.retained = { ...block.retained, tier: "none" }; }],
+  ])("turns a block with %s into needs_research and still admits the verified row", async (_name, mutate) => {
+    const f = setup({ publicContact: true, outreachReady: "published", mutateOutreachReady: mutate }); await f.workItem();
+    await runCommunicationsIntake(f.deps);
+    expect(f.records("intake").find(item => item.candidateKey === "candidate-1")).toMatchObject({ state: "admitted" });
+    expect(f.records("jobs")).toHaveLength(1); expect(f.records("briefs")).toHaveLength(1); expect(prospects(f)).toHaveLength(1);
+    // The strict send-path check still verifies the verified row's publication.
+    const [brief] = f.records("briefs");
+    expect(verifyPublishedResearch(f.snapshot, brief, f.records("handoffs")[0]).briefDigest).toBe(communicationsDigest(brief));
+    expect(f.records("intake").find(item => item.candidateKey === "hypotheses")).toMatchObject({ state: "needs_research",
+      reasons: [expect.stringMatching(/^research_hypothesis_block_invalid:[a-z_0-9]+$/)], sent: false });
+    expect(f.records("intake").some(item => item.state === "hypothesis_recorded")).toBe(false);
+    expect(f.records("refreshRequests").filter(request => request.state === "pending")).toEqual([
+      expect.objectContaining({ candidateKey: "hypotheses", owner: "blueprint-research-agent", kind: "research_owner_refresh" })]);
+  });
+
+  it("records a day of hypotheses only, without a publication failure or any job", async () => {
+    const f = setup({ publicContact: true, outreachReady: "published", acceptVerified: false }); await f.workItem();
+    await runCommunicationsIntake(f.deps);
+    expect(f.records("intake")).toEqual([expect.objectContaining({ candidateKey: "candidate-2", state: "hypothesis_recorded",
+      sheetsProspectId: "BP-000042", openQuestions: questions })]);
+    expect(f.records("jobs")).toHaveLength(0); expect(f.records("briefs")).toHaveLength(0);
+    expect(f.records("refreshRequests")).toHaveLength(0); expect(prospects(f)).toHaveLength(0);
+  });
+
+  it("never sources, admits or verifies a hypothesis as a verified row", async () => {
+    const f = setup({ publicContact: true, outreachReady: "published" });
+    expect(() => researchPublicationSource(f.snapshot, origin(f, "candidate-2"))).toThrow("research_quality_review_missing");
+    expect(await admitPublishedResearch(f.snapshot, "candidate-2", f.deps)).toMatchObject({ state: "needs_research" });
+    expect(f.records("briefs")).toHaveLength(0); expect(f.records("jobs")).toHaveLength(0); expect(prospects(f)).toHaveLength(0);
+  });
+
+  it.each<[string, (payload: any) => void]>([
+    ["a changed verified candidate list", payload => { payload.candidates = []; }],
+    ["an unknown key beside the block", payload => { payload.approved = true; }],
+  ])("still rejects %s next to a hypotheses block", (_name, tamper) => {
+    const f = setup({ publicContact: true, outreachReady: "published" });
+    expect(researchPublicationSource(f.snapshot, origin(f, "candidate-1")).sheetsProspectId).toBe("BP-000042");
+    const delivery = f.snapshot.row.delivery.sheets;
+    tamper(delivery.payload);
+    delivery.payload_digest = delivery.receipt.payload_digest = researchDigest(delivery.payload);
+    expect(() => researchPublicationSource(f.snapshot, origin(f, "candidate-1"))).toThrow("research_sheets_readback_missing");
+    expect(() => researchPublicationHypotheses(f.snapshot)).toThrow("research_sheets_readback_missing");
+  });
+
+  it("keeps the exact Sheets row count on a day that declares no hypotheses", () => {
+    const f = setup(), plan = f.snapshot.row.delivery.sheets.plan;
+    plan.sheet_rows.push(plan.sheet_rows[0].map((cell: string, index: number) => index === 0 ? "BP-000043" : cell));
+    plan.body_json = JSON.stringify({ majorDimension: "ROWS", values: plan.sheet_rows });
+    plan.request_digest = createHash("sha256").update(plan.body_json).digest("hex");
+    f.snapshot.row.delivery.sheets.receipt.reference += ",BP-000043";
+    expect(() => researchPublicationSource(f.snapshot, origin(f, f.candidate.candidate_key))).toThrow("research_adapter_sheet_identity_missing");
   });
 });

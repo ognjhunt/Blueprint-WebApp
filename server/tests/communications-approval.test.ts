@@ -11,7 +11,7 @@ import { approveAction, rejectAction, retryFailedAction } from "../agents/action
 import { executeCommunicationsSend, communicationsSendBlocker, reconcileCommunicationsSend } from "../agents/communications-send";
 import { appendCommercialEmailFooter } from "../utils/email-suppression";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
-import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
+import { communicationsFixture, communicationsNow, memoryFirestore, syntheticQualification } from "./fixtures/communications";
 async function setup(status = "pending_approval") {
   const f = communicationsFixture("reply"); const db = memoryFirestore(); bindings.db = db;
   const payload: any = { type: "send_email", to: f.brief.contact.email, from: "nijel@tryblueprint.io", replyTo: "nijel@tryblueprint.io", emailTransport: "founder_gmail",
@@ -86,6 +86,23 @@ describe("communications in existing Blueprint approval flow", () => {
     const f = await setup(); f.payload.from = "hello@tryblueprint.io";
     await f.db.doc("action_ledger/ledger-1").update({ action_payload: f.payload });
     expect((await approveAction("ledger-1", "owner@example.com", f.semantic)).state).toBe("pending_approval");
+    expect(executeCommunicationsSend).not.toHaveBeenCalled();
+  });
+  it.each<[string, (brief: any) => any]>([
+    ["a qualification block", brief => ({ ...brief, qualification: syntheticQualification() })],
+    ["a public-source contact", brief => ({ ...brief, researchOrigin: { ...brief.researchOrigin, contactEvidenceKind: "public_source_resolution" } })],
+    ["a site-screen admission", brief => ({ ...brief, researchOrigin: { ...brief.researchOrigin, screenAdmissionId: "d".repeat(64) } })],
+  ])("refuses %s at approval and retry, even when the send blocker would allow it", async (_name, hypothesis) => {
+    for (const status of ["pending_approval", "failed"]) {
+      const f = await setup(status);
+      f.payload.communications.brief = hypothesis(f.payload.communications.brief);
+      await f.db.doc("action_ledger/ledger-1").update({ action_payload: f.payload });
+      const result = status === "failed" ? await retryFailedAction("ledger-1") : await approveAction("ledger-1", "owner@example.com", f.semantic);
+      expect(result).toMatchObject({ state: "pending_approval", error: "outreach_ready_hypothesis_draft_only" });
+      expect(f.db.records.get("action_ledger/ledger-1")).toMatchObject({ status: "pending_approval",
+        approval_reason: "content_validation_failed: outreach_ready_hypothesis_draft_only" });
+    }
+    expect(communicationsSendBlocker).not.toHaveBeenCalled();
     expect(executeCommunicationsSend).not.toHaveBeenCalled();
   });
 });

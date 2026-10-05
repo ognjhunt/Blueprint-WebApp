@@ -8,7 +8,7 @@ vi.mock("../agents/communications-gmail", () => ({ verifyFounderMailbox: vi.fn(a
   hasFounderPriorContact: vi.fn(async () => false),
   findFounderSentMessage: vi.fn(async () => null), sendFounderMessage: vi.fn(async (params) => ({ messageId: "sent-message-1", threadId: params.threadId ?? "new-thread", rfcMessageId: params.messageId })) }));
 vi.mock("../agents/communications-oauth-store", () => ({ requireFounderSendCapability: vi.fn(async () => undefined) }));
-import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
+import { communicationsFixture, communicationsNow, memoryFirestore, syntheticQualification } from "./fixtures/communications";
 import { appendCommercialEmailFooter, isEmailSuppressed } from "../utils/email-suppression";
 import { verifyFounderMailbox, readFounderThread, sendFounderMessage, findFounderSentMessage } from "../agents/communications-gmail";
 import { communicationsSendBlocker, executeCommunicationsSend, reconcileCommunicationsSend } from "../agents/communications-send";
@@ -38,6 +38,46 @@ beforeEach(() => { vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(comm
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("approved founder send and acknowledgement recovery (all mocked)", () => {
+  it.each<[string, (brief: any) => any]>([
+    ["a qualification block", brief => ({ ...brief, qualification: syntheticQualification() })],
+    ["a public-source contact", brief => ({ ...brief, researchOrigin: { ...brief.researchOrigin, contactEvidenceKind: "public_source_resolution" } })],
+    ["a site-screen admission", brief => ({ ...brief, researchOrigin: { ...brief.researchOrigin, screenAdmissionId: "d".repeat(64) } })],
+  ])("refuses an outreach-ready hypothesis with %s even with every send flag on and exact approval", async (_name, hypothesis) => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_DAILY_LIMIT", "5");
+    const f = await setup();
+    // A consistent hypothesis job: stored brief, handoff, job, prospect binding and exact approval all match.
+    const brief = hypothesis(f.brief), briefDigest = communicationsDigest(brief);
+    const { jobId: _previous, ...input } = { ...f.job, briefDigest };
+    const job = { ...input, jobId: communicationsDigest(input) }, ledgerId = `communications_${job.jobId}`;
+    f.payload.communications = { ...f.payload.communications, brief, job };
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/briefs/${brief.briefId}`).set(brief);
+    await f.db.doc(`${COMMUNICATIONS_ROOT}/handoffs/${briefDigest}`).set({ ...f.handoff, briefDigest });
+    await f.db.doc(`outboundProspects/${job.prospectId}`).update({ communications: { jobId: job.jobId, ledgerId } });
+    await f.db.doc(`action_ledger/${ledgerId}`).set({ action_payload: f.payload, status: "executing", approved_by: "owner@blueprint.example",
+      outreach_reviewed_by: "owner@blueprint.example", outreach_semantic_review: { digest: reviewCommunicationsPayload(f.payload, communicationsNow).digest } });
+    expect(await communicationsSendBlocker(f.payload, ledgerId)).toBe("outreach_ready_hypothesis_draft_only");
+    // The refusal does not depend on any flag: it comes before the send-flag check.
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
+    expect(await communicationsSendBlocker(f.payload, ledgerId)).toBe("outreach_ready_hypothesis_draft_only");
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+    await expect(executeCommunicationsSend(f.payload)).rejects.toThrow("outreach_ready_hypothesis_draft_only");
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(verifyFounderMailbox).not.toHaveBeenCalled();
+    expect(f.db.records.has(f.receiptPath)).toBe(false);
+    expect([...f.db.records.keys()].some(path => path.includes("/recipientFirstTouches/"))).toBe(false);
+  });
+  it("refuses a send when the canonical prospect record is an outreach-ready hypothesis, including inside the final claim", async () => {
+    const f = await setup(), prospect = `outboundProspects/${f.job.prospectId}`;
+    await f.db.doc(prospect).update({ researchPublicationId: "BP-000043", qualificationTier: "outreach_ready" });
+    expect(await communicationsSendBlocker(f.payload, f.ledgerId)).toBe("outreach_ready_hypothesis_draft_only");
+    await f.db.doc(prospect).update({ qualificationTier: "verified" });
+    // The marker lands after the blocker read but before the receipt claim.
+    vi.mocked(verifyFounderMailbox).mockImplementationOnce(async () => {
+      await f.db.doc(prospect).update({ qualificationTier: "outreach_ready" }); return {} as any;
+    });
+    await expect(executeCommunicationsSend(f.payload)).rejects.toThrow("outreach_ready_hypothesis_draft_only");
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(f.db.records.has(f.receiptPath)).toBe(false);
+  });
   it("keeps sending disabled by default, with no Gmail calls", async () => {
     const f = await setup(); vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false");
     expect(await communicationsSendBlocker(f.payload, f.ledgerId)).toBe("communications_sending_disabled");

@@ -8,7 +8,7 @@ vi.mock("../agents/communications-oauth-store", () => ({ requireFounderSendCapab
 vi.mock("../agents/communications-gmail", () => ({ verifyFounderMailbox: vi.fn(async () => ({})), readFounderThread: vi.fn(),
   hasFounderPriorContact: vi.fn(async () => false),
   findFounderSentMessage: vi.fn(async () => null), sendFounderMessage: vi.fn(async params => ({ messageId: "mock-sent", threadId: "mock-thread", rfcMessageId: params.messageId })) }));
-import { communicationsNow, communicationsFixture, memoryFirestore } from "./fixtures/communications";
+import { communicationsNow, communicationsFixture, memoryFirestore, syntheticQualification } from "./fixtures/communications";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { admitPublishedResearch } from "../agents/communications-intake";
 import { admitBoundCommunicationsReplies } from "../agents/communications-reply-intake";
@@ -180,6 +180,26 @@ describe("bounded first-contact authority (all providers mocked)", () => {
     else f.db.records.get(f.receiptPath).receipt.messageId = "changed-parent-message";
     expect((await executeAutomaticFirstContact(f.replyLedgerId)).state).not.toBe("sent");
     expect(sendFounderMessage).toHaveBeenCalledTimes(1);
+  });
+  it.each<[string, (brief: any) => void]>([
+    ["a qualification block", brief => { brief.qualification = syntheticQualification(); }],
+    ["a public-source contact", brief => { brief.researchOrigin.contactEvidenceKind = "public_source_resolution"; }],
+    ["a site-screen admission", brief => { brief.researchOrigin.screenAdmissionId = "d".repeat(64); }],
+  ])("never mints or honours first-contact authority for an outreach-ready hypothesis with %s", async (_name, mark) => {
+    const f = await setup();
+    expect(f.ledger.first_contact_authority).toBeDefined();
+    expect(firstContactAuthority(f.payload, Date.now())).not.toBeNull();
+    expect(compileAutomaticFirstContact(f.brief, communicationsNow)).not.toBeNull();
+    // Identical qualifying draft and brief; only the hypothesis marker differs.
+    const hypothesis = structuredClone(f.payload);
+    mark(hypothesis.communications.brief);
+    hypothesis.communications.job.briefDigest = communicationsDigest(hypothesis.communications.brief);
+    expect(firstContactAuthority(hypothesis, Date.now())).toBeNull();
+    expect(firstContactAuthority(hypothesis, Date.now(), undefined, true)).toBeNull();
+    expect(compileAutomaticFirstContact(hypothesis.communications.brief, communicationsNow)).toBeNull();
+    expect(() => verifyFirstContactAuthority(f.ledger.first_contact_authority, hypothesis, Date.now(), true))
+      .toThrow("first_contact_authority_missing_or_changed");
+    expect(sendFounderMessage).not.toHaveBeenCalled();
   });
   it("continues verifying the original v1 compiler snapshot without upgrading its authority", async () => {
     const f = await setup();

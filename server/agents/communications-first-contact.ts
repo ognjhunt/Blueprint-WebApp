@@ -1,6 +1,6 @@
 import { requireVerifiedLead } from "./lead-verification";
 import { communicationsBriefSchema, communicationsDigest, communicationsEnvelopeSchema,
-  briefRefreshReasons, correlateReply, correlatedReplies, isOptOut, isFounderReplyOrigin, type CommunicationsBrief, type CommunicationsOutput } from "./communications-contract";
+  briefRefreshReasons, correlateReply, correlatedReplies, isOptOut, isFounderReplyOrigin, outreachReadySendRefusal, type CommunicationsBrief, type CommunicationsOutput } from "./communications-contract";
 import { publishedPublicContact, contactProhibition, PUBLIC_CONTACT_PREFIX, containsContactName } from "./communications-contact-evidence";
 import { verifyContactResolution } from "./communications-contact-resolution";
 import { reviewCommunicationsPayload } from "./communications-review";
@@ -91,6 +91,7 @@ export function firstContactLearningQuestion(task: string, state: Communications
 /** Compile only public quoted evidence and fixed bounded language. Richer model
  * wording remains a human-reviewed draft; regex alone cannot attest its meaning. */
 export function compileAutomaticFirstContact(briefValue: unknown, now: number): CommunicationsOutput | null {
+  if (outreachReadySendRefusal(briefValue)) return null;
   const parsed = communicationsBriefSchema.safeParse(briefValue);
   if (!parsed.success) return null;
   const brief = parsed.data;
@@ -176,6 +177,8 @@ export function firstContactGeography(provenance: any, brief: CommunicationsBrie
 
 /** This is a reproducible authority snapshot, not a fabricated human attestation. */
 export function firstContactAuthority(payload: ActionPayload, now: number, savedPostalLine?: string, legacy = false) {
+  // No standing policy covers an outreach-ready hypothesis: it is draft only.
+  if (outreachReadySendRefusal((payload.communications as any)?.brief)) return null;
   const parsed = communicationsEnvelopeSchema.safeParse(payload.communications);
   if (!parsed.success || payload.type !== "send_email" || Object.keys(payload).some(key => !payloadKeys.has(key))) return null;
   const { job, brief, output, thread } = parsed.data;
