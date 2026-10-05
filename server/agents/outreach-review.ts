@@ -130,6 +130,8 @@ const prohibitedPatterns: [string, RegExp][] = [
 const connectionClaim = /\b(?:we (?:met|know)|introduced (?:me|us)|our mutual|referred (?:me|us)|fellow member)\b/i;
 const matchPromise = /\b(?:we (?:have|found)|already)\b.{0,30}\b(?:matched|a match|qualified team)\b|\b(?:guaranteed match|deployment.ready|ready to deploy)\b/i;
 const sharingClaim = /\b(?:shared|forwarded|sent)\b.{0,40}\b(?:with|to)\b.{0,20}\b(?:robot teams|teams)\b/i;
+// Question marks in any script a draft might use: ASCII "?", full-width "？" and Arabic "؟".
+const QUESTION_MARKS = /[?\uFF1F\u061F]/g;
 /** A name, as whole words, in any letter case. */
 function namedIn(value: string, name: string) {
   const normalized = (text: string) => text.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
@@ -165,8 +167,8 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
   if (asked.question !== published) blockers.push("hypothesis_question_not_published");
   if (asked.checks.length !== 1 || asked.checks[0] !== answered) blockers.push("hypothesis_question_checks_mismatch");
   if (!draft.body.includes(published)) blockers.push("hypothesis_question_missing_from_body");
-  if ((draft.body.match(/\?/g) || []).length !== 1) blockers.push("exactly_one_initial_question_required");
-  if (draft.subject.includes("?")) blockers.push("hypothesis_subject_has_question");
+  if ((draft.body.match(QUESTION_MARKS) || []).length !== 1) blockers.push("exactly_one_initial_question_required");
+  if ((draft.subject.match(QUESTION_MARKS) || []).length) blockers.push("hypothesis_subject_has_question");
   if (!/\bBlueprint\b/.test(contract.senderIdentity)) blockers.push("blueprint_identity_required");
   if (draft.body.indexOf(contract.senderIdentity) > draft.body.indexOf(asked.question)) blockers.push("blueprint_identity_required_before_question");
   if (!context.data.observations.some(item => item.claim === (opening.publicDetail.sourceClaim ?? opening.publicDetail.claim)
