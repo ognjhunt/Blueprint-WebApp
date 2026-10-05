@@ -58,6 +58,12 @@ describe("durable human decisions", () => {
     expect(await claimHumanReplyResume(old.id)).toBeNull();
     expect(read("humanBlockerThreads/blocker").last_human_reply_event_id).toBe("email:no");
   });
+  it.each([true, false])("lets a simultaneous refusal dominate regardless of arrival order (%s)", async approvalFirst => {
+    thread(); const approval = event("tie-yes"), refusal = { ...event("tie-no", 0, false), received_at: approval.received_at };
+    for (const input of approvalFirst ? [approval, refusal] : [refusal, approval]) await recordHumanReplyEvent(input);
+    expect(read("humanBlockerThreads/blocker").last_human_reply_event_id).toBe("email:tie-no");
+    expect(await claimHumanReplyResume("email:tie-yes")).toBeNull();
+  });
   it("rejects a changed action and replays only a provably unclaimed action", async () => {
     thread(); const row = await recordHumanReplyEvent(event("yes"));
     await claimHumanReplyResume(row.id);

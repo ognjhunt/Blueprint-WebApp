@@ -408,7 +408,9 @@ export async function recordHumanReplyEvent(
     tx.create(ref, stripUndefinedDeep(record));
     // Arrival order is not decision order. Retain older messages, but never let
     // a delayed approval supersede a newer refusal.
-    if (!thread.last_human_reply_at || Date.parse(input.received_at) > Date.parse(thread.last_human_reply_at)) {
+    const received = Date.parse(input.received_at), previous = Date.parse(thread.last_human_reply_at || "");
+    if (!Number.isFinite(previous) || received > previous
+      || (received === previous && input.classification !== "approval")) {
       tx.set(threadRef, { last_human_reply_event_id: eventId, last_human_reply_at: input.received_at,
         updated_at: nowTimestamp() }, { merge: true });
     }
