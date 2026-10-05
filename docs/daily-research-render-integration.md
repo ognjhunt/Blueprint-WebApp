@@ -7,27 +7,23 @@ qualification, publication or deployment outcome.
 
 ## Current reviewed repair package
 
-The October 4 package pins reviewed Pipeline commit
-`94c8fe3e1ebccc5cdd117b62188ffa88f4186d03` (merges ognjhunt/BlueprintCapturePipeline#2591), whose lineage contains the previous
-package source `0fea06f1404e3537c0920f99b8013efce373b9a3`. Its
-1,228,800-byte archive SHA256 is
-`7670b7da67441af30a9961daa71c181b70013308f922b87fe61c30dd07fbbd3f`,
-with 64 manifested source files. The manifest SHA256 is
-`bbfda1b99e0226e3d2262af02429e12344dd83ffd3eba8c168d4f6ca777756ea`.
-It keeps everything in the previous package and adds:
-- the owner-directed paid expansion allowance: one combined per-run limit for paid
-  sources (Exa and Parallel FindAll), with the sources the owner names. It is set and
-  changed with `operators/paid-expansion-direction.py` (`--per-run-usd`, `--sources`)
-  and needs no code change or redeploy. Each run freezes one grant, and each paid start
-  fits half the limit and the remaining allowance;
-- optional FindAll list-building tools, installed only when the worker holds
-  `PARALLEL_API_KEY` (presence only) and admitted only by the shared grant;
-- an owner-adjustable run duration (`render set-runtime --minutes N`, up to 4 hours;
-  the approved setting is 60 minutes with 15 reserved for QA);
-- broad-enumeration discovery instructions, a retained backlog and separate funnel
-  counts.
-Until the owner applies a direction, runs record a refused grant and paid sources stay
-skipped.
+The October 5 package pins reviewed Pipeline commit
+`dd2d404fbcd914f7c371849d31b8a86fcc8e84a2` (merges ognjhunt/BlueprintCapturePipeline#2594), whose lineage contains the previous
+package source `94c8fe3e1ebccc5cdd117b62188ffa88f4186d03`. Its
+1,320,960-byte archive SHA256 is
+`895f0259d2a13709ddf2ce0a2509c42cdfcab561ea7a5a8dc88bb7d66160bb00`,
+with 66 manifested source files. The manifest SHA256 is
+`3c3e56781ff71d97af06b60b1943d9bcf194b3899c8f31f17ec048389085a5d5`.
+It keeps everything in the previous package (owner-directed paid expansion, optional
+FindAll list-building tools, the owner-adjustable run duration and broad enumeration) and adds:
+- an optional site-universe slice: when control holds an enabled, reviewed
+  `site_universe` pin, each run gives the agent a frozen list of the next best unresearched
+  sites from a ranked public-data export, as a read-only sandbox file, and carries
+  per-site outcomes forward. It is set and turned off with
+  `operators/site-universe-backlog.py`. With the pin absent or disabled, a run is unchanged,
+  and any slice failure leaves the run working without it;
+- refusals that end a FindAll-pinned row cleanly when its tool registry changes before QA or
+  repair starts.
 This is a research-only controlled release from Pipeline `main`.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
