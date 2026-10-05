@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ActionPayload,
@@ -28,10 +28,11 @@ const mockQueryGet = vi.hoisted(() => vi.fn());
 let docIdCounter = vi.hoisted(() => ({ value: 0 }));
 
 const fakeDb = vi.hoisted(() => {
-  const makeQuery = () => ({
-    where: vi.fn(() => makeQuery()),
-    limit: vi.fn(() => makeQuery()),
-    get: mockQueryGet,
+  // Each query passes its where-filters to mockQueryGet, so a test can answer by filter.
+  const makeQuery = (filters: unknown[][] = []): any => ({
+    where: vi.fn((...filter: unknown[]) => makeQuery([...filters, filter])),
+    limit: vi.fn(() => makeQuery(filters)),
+    get: () => mockQueryGet(filters),
   });
 
   return {
@@ -48,7 +49,7 @@ const fakeDb = vi.hoisted(() => {
           })),
         };
       }),
-      where: vi.fn(() => makeQuery()),
+      where: vi.fn((...filter: unknown[]) => makeQuery([filter])),
     })),
     // Reads and writes go through the same document mocks, in call order.
     runTransaction: vi.fn(async (fn: (tx: any) => unknown) => fn({
@@ -215,6 +216,17 @@ describe("prospect outreach quality enforcement", () => {
     mockDocGet.mockResolvedValueOnce({ exists: true, data: () => claimLedger }).mockResolvedValueOnce(prospect);
   // The recipient check: no other prospect record carries the address.
   const noOtherRecords = () => mockQueryGet.mockResolvedValueOnce({ size: 0, docs: [] });
+  // Other prospect records, found by address the way the recipient lookups ask for them:
+  // `where("contactEmail", "in", addresses)`. Without a call, no other record exists.
+  const otherRecords = (records: Record<string, unknown>[]) => mockQueryGet.mockImplementation(async (filters: unknown[][] = []) => {
+    const addresses = (filters.find(([field, op]) => field === "contactEmail" && op === "in")?.[2] ?? []) as unknown[];
+    const docs = records.filter(record => addresses.includes(record.contactEmail)).map(record => ({ data: () => record }));
+    return { size: docs.length, empty: !docs.length, docs };
+  });
+  beforeEach(() => { otherRecords([]); });
+  afterEach(() => { mockQueryGet.mockReset(); });
+  const hypothesisAt = (contactEmail: string) => ({ ...handChosen, contactEmail, researchPublicationId: "BP-000043",
+    qualificationTier: "outreach_ready" });
 
   it("rejects prospect-scoped campaign recipients at queue, approval, and retry", async () => {
     const campaignPayload = { ...payload, recipients: ["unreviewed@other-facility.co"] };
@@ -414,6 +426,63 @@ describe("prospect outreach quality enforcement", () => {
     claimReads(approvedLedger);
     expect((await approveAction("outreach-1", "admin@blueprint.test", review)).state).toBe("sent");
     expect(mockSendEmail).toHaveBeenCalledOnce();
+  });
+
+  it("checks the address the message goes to at the release check, even when the prospect record carries another", async () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger })
+      .mockResolvedValueOnce(prospectDoc({ ...handChosen, contactEmail: "renamed@facility.example" }));
+    otherRecords([hypothesisAt(outreachDraft.to)]);
+    expect(await approveAction("outreach-1", "admin@blueprint.test", review))
+      .toMatchObject({ state: "pending_approval", error: "outreach_ready_hypothesis_draft_only" });
+    // Refused at the release check itself: never approved, never claimed.
+    expect(fakeDb.runTransaction).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "operator_approved" }));
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, "approval" | "retry", string]>([
+    ["the address the message goes to", "approval", outreachDraft.to],
+    ["the address the prospect record now carries", "approval", "renamed@facility.example"],
+    ["the address the message goes to, on retry", "retry", outreachDraft.to],
+  ])("re-queries %s inside the release claim, so a hypothesis record written after the release check refuses", async (_name, path, held) => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+    const claimLedger = path === "approval" ? approvedLedger : failedLedger;
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => path === "approval" ? ledger : failedLedger }).mockResolvedValueOnce(prospectDoc());
+    // Research writes the hypothesis record after the release check; the job's own record
+    // stays hand-chosen but now carries another address.
+    noOtherRecords(); otherRecords([hypothesisAt(held)]);
+    claimReads(claimLedger, prospectDoc({ ...handChosen, contactEmail: "renamed@facility.example" }));
+    const result = path === "approval" ? await approveAction("outreach-1", "admin@blueprint.test", review) : await retryFailedAction("outreach-1");
+    expect(result).toMatchObject({ state: "pending_approval", error: "outreach_ready_hypothesis_draft_only" });
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "pending_approval",
+      approval_reason: "content_validation_failed: outreach_ready_hypothesis_draft_only" }));
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "executing" }));
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
+  });
+
+  it.each<[string, Record<string, unknown>, Record<string, unknown>]>([
+    ["refuses a research-backed release", { researchPublicationId: "BP-000042", entityAdmission: "research_provisional" },
+      { state: "pending_approval", error: "recipient_research_origin_unavailable" }],
+    ["sends a hand-chosen release", {}, { state: "sent" }],
+  ])("%s when more records carry the address than the claim can read", async (_name, research, expected) => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "true");
+    const prospect = prospectDoc({ ...handChosen, ...research });
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger }).mockResolvedValueOnce(prospect);
+    noOtherRecords(); claimReads(approvedLedger, prospect);
+    mockQueryGet.mockResolvedValueOnce({ size: 101, empty: false, docs: Array.from({ length: 101 }, () => ({ data: () => handChosen })) });
+    expect(await approveAction("outreach-1", "admin@blueprint.test", review)).toMatchObject(expected);
+    expect(mockSendEmail).toHaveBeenCalledTimes(expected.state === "sent" ? 1 : 0);
+  });
+
+  it("sends nothing when the recipient lookup inside the release claim fails", async () => {
+    mockDocGet.mockResolvedValueOnce({ exists: true, data: () => ledger }).mockResolvedValueOnce(prospectDoc());
+    noOtherRecords(); claimReads(approvedLedger);
+    mockQueryGet.mockRejectedValueOnce(new Error("firestore unavailable"));
+    expect(await approveAction("outreach-1", "admin@blueprint.test", review)).toMatchObject({ state: "failed" });
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: "executing" }));
   });
 
   it("refuses a legacy release whose ledger names another collection, without reading any prospect", async () => {

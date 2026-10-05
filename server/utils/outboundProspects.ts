@@ -155,12 +155,17 @@ export const readRecipientProspects: RecipientProspectReader = async (addresses)
  * read, a send whose own prospect is research-derived refuses, and a send to a
  * hand-chosen prospect keeps the gates it already had.
  */
+/** The spellings a recipient lookup asks for: each address as written and normalized. */
+export function recipientLookupAddresses(recipients: readonly unknown[]): string[] {
+  return [...new Set(recipients.flatMap((value) => typeof value === "string" && value.trim()
+    ? [value.trim(), normalizeSuppressionEmail(value)] : []).filter(Boolean))];
+}
+
 export async function assertNotHypothesisRecipient(
   recipients: readonly unknown[],
   options: { researchBacked: boolean; readProspects?: RecipientProspectReader },
 ): Promise<void> {
-  const addresses = [...new Set(recipients.flatMap((value) => typeof value === "string" && value.trim()
-    ? [value.trim(), normalizeSuppressionEmail(value)] : []).filter(Boolean))];
+  const addresses = recipientLookupAddresses(recipients);
   let records: unknown[];
   try {
     if (!addresses.length) throw new Error("recipient_missing");
