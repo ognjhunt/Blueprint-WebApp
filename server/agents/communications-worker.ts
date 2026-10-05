@@ -1,7 +1,8 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "../utils/email-suppression";
-import { COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
+import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
+import { COMMUNICATIONS_HYPOTHESIS_PROFILE } from "./communications-saved-agent";
 import { runCommunicationsFactRefresh } from "./communications-fact-refresh";
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest, briefRefreshReasons,
@@ -14,7 +15,8 @@ import { CommunicationsAgentsAPI, CommunicationsRuntimeError, type Communication
   type CommunicationsExecutionWindow, communicationsExecutionDeadline, effectiveCommunicationsCheckpoint } from "./communications-api";
 import { communicationsContinuationDeadline, type CommunicationsOwnerAuthorityRef, type CommunicationsCancelledContinuation } from "./communications-api";
 import { verifyFounderMailbox, readFounderThread } from "./communications-gmail";
-import { readExistingResearchSnapshot, researchPublicationSource, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
+import { hypothesisPublicationSource, readExistingResearchSnapshot, researchPublicationSource, verifyPublishedHypothesisForDraft, verifyPublishedResearch,
+  type ResearchSnapshotReader } from "./communications-research";
 import { reviewCommunicationsPayload } from "./communications-review";
 import { CommunicationsStore, type CommunicationsJobRecord } from "./communications-store";
 import type { ActionPayload } from "./action-policies";
@@ -159,6 +161,11 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
   try {
     const brief = communicationsBriefSchema.parse(await deps.store.brief(job.briefId));
     if (brief.prospectId !== job.prospectId || job.briefDigest !== communicationsDigest(brief)) throw new Error("research_brief_changed");
+    // An outreach-ready hypothesis is drafted under its own session profile and draft-only checks.
+    const hypothesis = !!brief.qualification;
+    if (hypothesis && (continuation || rejectedCreate)) throw new Error("communications_hypothesis_recovery_unsupported");
+    if ((claimed.checkpoint.createClaimedAt || claimed.checkpoint.sessionId)
+      && (claimed.checkpoint.draftProfile === COMMUNICATIONS_HYPOTHESIS_PROFILE) !== hypothesis) throw new Error("communications_draft_profile_mismatch");
     // The owner direction for founder-sent threads authorizes reading and
     // learning only: no thread read, inference, approval row or send follows.
     if (isFounderReplyOrigin(brief.replyOrigin)) {
@@ -207,9 +214,13 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const verifyCurrentResearch = async () => {
       const snapshot = await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId);
       const proof: any = await deps.store.contactProof(brief);
+      const source = () => hypothesis ? hypothesisPublicationSource(snapshot, brief.researchOrigin.candidateKey, deps.now()).source
+        : researchPublicationSource(snapshot, brief.researchOrigin);
       if (proof?.discovery) await verifyExistingContactDiscovery(deps.store.db,
-        contactResearchTask(researchPublicationSource(snapshot, brief.researchOrigin), job.prospectId), contactDiscoverySchema.parse(proof.discovery));
-      return verifyPublishedResearch(snapshot, brief, await deps.store.handoff(brief), proof, deps.now());
+        contactResearchTask(source(), job.prospectId), contactDiscoverySchema.parse(proof.discovery));
+      // A hypothesis is checked by the draft-only verification; verifyPublishedResearch refuses it.
+      return hypothesis ? verifyPublishedHypothesisForDraft(snapshot, brief, await deps.store.handoff(brief), proof, deps.now())
+        : verifyPublishedResearch(snapshot, brief, await deps.store.handoff(brief), proof, deps.now());
     };
     await verifyCurrentResearch();
     const approval = await deps.store.approvalState(job.prospectId);
@@ -230,18 +241,20 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       // Validate before persisting or reserving a paid create. Configuration
       // changes cannot extend a charged checkpoint's already frozen window.
       communicationsExecutionDeadline({ ...claimed.checkpoint, executionWindow });
-      claimed.checkpoint = { ...claimed.checkpoint, executionWindow, draftWritingGuidance: COMMUNICATIONS_WRITING_GUIDANCE };
+      claimed.checkpoint = { ...claimed.checkpoint, executionWindow, draftWritingGuidance: COMMUNICATIONS_WRITING_GUIDANCE,
+        ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) };
       await deps.store.update(jobId, { checkpoint: claimed.checkpoint });
     }
     const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning, claimed.checkpoint.executionWindow,
       claimed.checkpoint.draftWritingGuidance);
     // Bind only prospective work before its first paid create. Reconnected
     // sessions retain this decision; old charged/Tony sessions never acquire it.
-    if (!recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId && automaticFirstContactEnabled()) {
+    // No standing policy covers a hypothesis: it never enters automatic first contact.
+    if (!hypothesis && !recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId && automaticFirstContactEnabled()) {
       claimed.automationPolicyVersion = ROUTINE_COMMUNICATIONS_POLICY.version;
       await deps.store.update(jobId, { automationPolicyVersion: claimed.automationPolicyVersion });
     }
-    const automatic = !continuation && !recovery && claimed.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version
+    const automatic = !hypothesis && !continuation && !recovery && claimed.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version
       && automaticFirstContactEnabled() && !!firstContactPostalLine();
     const provenance = automatic ? (await deps.store.db.doc("blueprintCommunications/default").collection("researchSources").doc(job.briefDigest).get()).data() : null;
     const recipientGeography = automatic ? firstContactGeography(provenance, brief, deps.now()) : null;
@@ -320,7 +333,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
         const issues: CommunicationsOutputFeedback = output.disposition === "research_refresh"
           ? output.refreshFactIds.some(id => !brief.facts.some(fact => fact.id === id))
             ? [{ path: "refreshFactIds", code: "refresh_fact_unknown", message: "Select only fact IDs already present in researchBrief.facts; do not invent evidence." }] : []
-          : output.disposition === "no_reply" ? [] : communicationsDraftFeedback(assemble(output), output, job.intent, automatic, deps.now());
+          : output.disposition === "no_reply" ? [] : communicationsDraftFeedback(assemble(output), output, job.intent, automatic, deps.now(), hypothesis);
         if (!issues.length) return null;
         await assertRepairAllowed();
         return issues;
@@ -353,6 +366,9 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const payload = assemble(output);
     const review = reviewCommunicationsPayload(payload, deps.now());
     if (!review.digest) throw new Error(`draft_quality_failed:${review.blockers.join(",")}`);
+    // blueprint.outreach.v2 is a hard contract: a hypothesis draft that fails it is rejected, never
+    // saved for review, copied to Gmail or sent.
+    if (hypothesis && !review.hardChecksPassed) throw new Error(`hypothesis_draft_contract_failed:${review.blockers.join(",")}`);
     // Preserve useful drafts and isolate unresolved claims/style diagnostics in
     // the existing human-review ledger. Approval/send still revalidate them.
     if (!review.hardChecksPassed) payload.communicationsDraftDiagnostics = { blockers: review.blockers };
@@ -415,8 +431,23 @@ function buildCommunicationsPayload(job: CommunicationsJob, brief: Communication
   };
 }
 
+// blueprint.outreach.v2 repairs for an outreach-ready hypothesis draft; they replace the v1 wording.
+const HYPOTHESIS_FIXES: Record<string, [string, string]> = {
+  outreach_contract_missing_or_invalid: ["outreachContract", "Use exactly {version:\"blueprint.outreach.v2\",senderIdentity,opening,questions,recipientChoice} for this hypothesis brief."],
+  outreach_hypothesis_contract_required: ["outreachContract.version", "This brief is an outreach-ready hypothesis: use the blueprint.outreach.v2 contract, not v1."],
+  hypothesis_question_not_published: ["outreachContract.questions.0.question", "Ask researchBrief.qualification.openQuestions[0] word for word."],
+  hypothesis_question_checks_mismatch: ["outreachContract.questions.0.checks", "Use [site_link] when qualification.openChecks includes site_link, else [manual_workflow] when it includes manual_workflow, else [existing_automation]."],
+  hypothesis_question_missing_from_body: ["body", "Include researchBrief.qualification.openQuestions[0] in the body, word for word."],
+  exactly_one_initial_question_required: ["outreachContract.questions", "Ask only researchBrief.qualification.openQuestions[0]; it must be the only question mark in the email."],
+  learning_question_mismatch: ["body", "Ask only researchBrief.qualification.openQuestions[0]; it must be the only question mark in the email."],
+  hypothesis_subject_has_question: ["subject", "Remove the question mark from the subject; the one question belongs in the body."],
+  blueprint_identity_required_before_question: ["body", "Put the Blueprint identity before the question."],
+  hypothesis_recipient_greeting_mismatch: ["body", "Address the recipient as researchBrief.contact.recipient records: greet a named_person by name; for an inbox, address recipient.addressee in the opening paragraph and name no one."],
+};
+
 /** Field diagnostics only: this does not approve, publish, commit or send. */
-function communicationsDraftFeedback(payload: ActionPayload, output: CommunicationsOutput, intent: CommunicationsJob["intent"], automatic: boolean, now: number): CommunicationsOutputFeedback {
+function communicationsDraftFeedback(payload: ActionPayload, output: CommunicationsOutput, intent: CommunicationsJob["intent"], automatic: boolean, now: number,
+  hypothesis = false): CommunicationsOutputFeedback {
   const fixes: Record<string, [string, string]> = {
     used_fact_missing: ["usedFactIds", "Reference only existing researchBrief.facts IDs; remove unsupported claims and IDs. Outreach needs a sourced fact; a plain acknowledgment need not cite one."],
     learning_question_mismatch: ["body", "For first outreach, use one easy question fitting the verified site; replies may adapt to the actual incoming message."],
@@ -443,6 +474,7 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
     unsafe_reply_content: ["body", "Remove guarantees, pressure, credential or unapproved footage/private-data requests."],
     reply_subject_changed: ["subject", "Use the exact subject of the correlated incoming message already supplied in emailThread."],
     routine_public_scope_content_not_authorized: ["body", "Keep routine communications within the recorded public-business purpose; remove pricing, commitments, private/sensitive claims or requests. Do not invent additional authority."],
+    ...(hypothesis ? HYPOTHESIS_FIXES : {}),
   };
   const review = reviewCommunicationsPayload(payload, now);
   const blockers = [...new Set([...review.blockers, ...(automatic ? routineCommunicationsContentBlockers(output, intent) : [])])];
@@ -455,7 +487,7 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
 
 export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown,
   learning?: PreparedLearning, executionWindow?: CommunicationsExecutionWindow, draftWritingGuidance?: string) {
-  const policy = intent === "outreach" ? COMMUNICATIONS_OUTREACH_GUIDANCE
+  const policy = intent === "outreach" ? brief.qualification ? COMMUNICATIONS_HYPOTHESIS_GUIDANCE : COMMUNICATIONS_OUTREACH_GUIDANCE
     : "Use the actual correlated reply; first-touch drafting is not required for this reply.";
   const base = { intent, approvedSender: FOUNDER_MAILBOX, researchBrief: brief,
     currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy,

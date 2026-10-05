@@ -1,58 +1,19 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
-import { admitPublishedHypothesis, HYPOTHESIS_DRAFTS_FLAG, runCommunicationsIntake, RESEARCH_WORK_ITEMS } from "../agents/communications-intake";
+import { admitPublishedHypothesis, HYPOTHESIS_DRAFTS_FLAG, runCommunicationsIntake } from "../agents/communications-intake";
 import { hypothesisPublicationSource, verifyPublishedHypothesisForDraft, verifyPublishedResearch } from "../agents/communications-research";
-import { resolveHypothesisContact } from "../agents/communications-contact-resolution";
 import { COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { communicationsBriefSchema, communicationsDigest, OUTREACH_READY_OWNER_DECISION_REFERENCE, OUTREACH_READY_SEND_REFUSAL,
   verifyCommunicationsHandoff } from "../agents/communications-contract";
 import { prospectResearchTier } from "../utils/outboundProspects";
 import { leadIdentityKey } from "../agents/lead-verification";
-import type { ContactPage } from "../agents/communications-contact-fetch";
-import { communicationsNow, memoryFirestore } from "./fixtures/communications";
+import { communicationsNow } from "./fixtures/communications";
 import { publishedResearchFixture, TIER_SOURCES } from "./fixtures/published-research";
+import { ADDRESS, hypothesisSetup as setup, prospects, QUESTION } from "./fixtures/hypothesis";
 
 // Invented operators, *.example hosts and synthetic evidence only. No network, model or mailbox.
-const QUESTION = "Which parts of sorting returned parcels at Synthetic sorting site still need people, and what has kept them from being automated?";
-const ADDRESS = "sortingops@hypothesis-operator.example";
-const htmlPage = (url: string, body: string, checkedAt: string): ContactPage => ({ requestedUrl: url, finalUrl: url, redirects: [], checkedAt,
-  status: 200, contentType: "text/html; charset=utf-8", bodyBase64: Buffer.from(body).toString("base64") });
 afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
-
-function setup(options: Parameters<typeof publishedResearchFixture>[0] = {}) {
-  const f = publishedResearchFixture({ publicContact: true, outreachReady: "published", retainedTier: true, ...options });
-  const db = memoryFirestore();
-  let time = communicationsNow;
-  let contactBody = `<p>Synthetic hypothesis operator operations team for sorting returned parcels: ${ADDRESS}</p>`;
-  const readContactPage = vi.fn(async (url: string) => {
-    const host = new URL(url).hostname;
-    if (host !== "hypothesis-operator.example") throw new Error("contact_fetch_page_unavailable");
-    return htmlPage(url, new URL(url).pathname === "/contact" ? contactBody
-      : `<p>Synthetic hypothesis operator</p><a href="https://hypothesis-operator.example/contact">Contact</a>`, new Date(time).toISOString());
-  });
-  const deps = { db, readResearch: vi.fn(async (_date: string) => f.snapshot), isSuppressed: vi.fn(async (_email: string) => false),
-    now: () => time, readContactPage };
-  const records = (name: string) => [...db.records.entries()].filter(([key]) => key.startsWith(`${COMMUNICATIONS_ROOT}/${name}/`)).map(([, value]) => value);
-  const workItem = () => db.doc(`${RESEARCH_WORK_ITEMS}/${f.snapshot.row.date}`).set({ date: f.snapshot.row.date,
-    run_key: f.snapshot.row.run_key, packet_digest: f.snapshot.row.packet_digest, stage: "completed" });
-  const hypothesisIntake = () => records("intake").find(item => item.candidateKey === f.hypothesis.candidate_key);
-  const resolution = async () => {
-    const { source, personEvidence } = hypothesisPublicationSource(f.snapshot, f.hypothesis.candidate_key, time);
-    const proof = await resolveHypothesisContact(source, `research-${communicationsDigest({ sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId })}`,
-      readContactPage, () => time, personEvidence);
-    // The contact worker's own claim: a running request with its lease, for this hypothesis.
-    const row = f.snapshot.row;
-    await db.doc(`${COMMUNICATIONS_ROOT}/refreshRequests/synthetic-request`).set({ date: row.date, runKey: row.run_key,
-      candidateKey: f.hypothesis.candidate_key, packetDigest: row.packet_digest, rawArtifactDigest: row.raw_output_digest, label: "hypothesis",
-      kind: "public_contact_resolution", state: "running", lease: { owner: "synthetic-owner", until: time + 180000 } });
-    return { proof, requestId: "synthetic-request", leaseOwner: "synthetic-owner" };
-  };
-  return { ...f, db, deps, records, workItem, hypothesisIntake, resolution, setContactBody: (body: string) => { contactBody = body; },
-    advance: (ms: number) => { time += ms; } };
-}
-const prospects = (f: ReturnType<typeof setup>) => [...f.db.records.entries()]
-  .filter(([key]) => key.startsWith("outboundProspects/") && key.split("/").length === 2).map(([key, value]) => ({ id: key.split("/")[1], ...value }));
 
 describe("outreach-ready hypothesis admission for drafting (offline, synthetic)", () => {
   it("records hypotheses only, with no contact research or prospect, while hypothesis drafts are off", async () => {

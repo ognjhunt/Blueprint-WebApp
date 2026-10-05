@@ -4,6 +4,9 @@ import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest } from "../agents/communications-contract";
 import { communicationsFixture } from "./fixtures/communications";
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
+import { communicationsHypothesisConfiguration, communicationsHypothesisDefinition, COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION,
+  COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION, COMMUNICATIONS_GMAIL_READ_DEFINITION, COMMUNICATIONS_HISTORY_DEFINITION,
+  COMMUNICATIONS_HYPOTHESIS_PROFILE } from "../agents/communications-saved-agent";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
   COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } from "../agents/communications-saved-agent";
 
@@ -883,5 +886,96 @@ describe("new-session bounded communications final repair", () => {
       await expect(f.api.reconcileSaved(saved, "job-1")).rejects.toMatchObject({ code: "communications_output_invalid" });
       expect(f.fetchMock.mock.calls.slice(previousCalls).every(([, init]: any[]) => init.method !== "POST")).toBe(true);
     } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("outreach-ready hypothesis session definitions (hypothesis jobs only)", () => {
+  const hypothesisCheckpoint = () => ({ createClaimedAt: null, sessionId: null, turnId: null, draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE });
+  /** Replace what the provider reports for the created session's agent instructions. */
+  const reportInstructions = (f: ReturnType<typeof apiFixture>, rewrite: (instructions: string) => string) => {
+    const baseline = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await baseline(url, init);
+      if (!String(url).endsWith("/session-1")) return response;
+      const session = await response.json();
+      return Response.json({ ...session, agent: { ...session.agent, instructions: rewrite(session.agent.instructions) } });
+    });
+  };
+  it("creates a hypothesis session with today's history definition plus one paragraph, and reads it back", async () => {
+    const f = apiFixture();
+    const result = await f.api.run({ ...f.params, checkpoint: hypothesisCheckpoint() as any });
+    const body = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
+    const definition = communicationsHypothesisDefinition(COMMUNICATIONS_HISTORY_DEFINITION);
+    expect(definition.version).toBe("blueprint.communications-definition.v9");
+    expect(definition.instructions.startsWith(`${COMMUNICATIONS_HISTORY_DEFINITION.instructions}\n`)).toBe(true);
+    expect(definition.instructions).toContain("blueprint.outreach.v2");
+    expect(body.agent).toEqual(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION));
+    expect(body.metadata).toMatchObject({ blueprint_communications_definition: definition.version,
+      blueprint_communications_instructions_digest: definition.instructionsDigest,
+      blueprint_communications_draft_profile: COMMUNICATIONS_HYPOTHESIS_PROFILE,
+      blueprint_communications_history_configuration_digest: communicationsDigest(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION)),
+      blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST });
+    expect(Object.keys(body.metadata).length).toBeLessThanOrEqual(16);
+    expect(result.checkpoint).toMatchObject({ draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE, sessionId: "session-1" });
+    expect(result.outputSource).toMatchObject({ definitionVersion: definition.version, instructionsDigest: definition.instructionsDigest });
+    // The saved agent itself is untouched: the hypothesis paragraph exists only in this session's override.
+    expect(COMMUNICATIONS_SAVED_CONFIGURATION.instructions).not.toContain("blueprint.outreach.v2");
+  });
+  it("uses the Gmail-read definition plus the same paragraph when the saved agent carries the owner's Gmail connection", async () => {
+    const f = apiFixture();
+    (f.savedAgent as any).tools = [{ type: "mcp", server_label: "gmail", credential_id: "synthetic-owner-credential",
+      transport: { type: "http", server_url: "https://gmailmcp.googleapis.com/mcp/v1", headers: {} }, request_metadata: {},
+      allowed_tools: null, required: false, connection_origin: "service" }];
+    const baseline = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const path = new URL(String(url)).pathname + new URL(String(url)).search;
+      if (path.startsWith("/v1/vaults?")) return Response.json({ data: [{ id: "vault_mock_gmail", object: "vault" }], has_more: false });
+      if (path.startsWith("/v1/vaults/vault_mock_gmail/credentials?")) return Response.json({ data: [{
+        id: "synthetic-owner-credential", object: "vault.credential", vault_id: "vault_mock_gmail" }], has_more: false });
+      return baseline(url, init);
+    });
+    await f.api.run({ ...f.params, checkpoint: hypothesisCheckpoint() as any });
+    const body = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
+    const definition = communicationsHypothesisDefinition(COMMUNICATIONS_GMAIL_READ_DEFINITION);
+    expect(definition.version).toBe("blueprint.communications-definition.v10");
+    expect(body.agent.instructions).toBe(definition.instructions);
+    expect(body.metadata).toMatchObject({ blueprint_communications_definition: definition.version, blueprint_communications_mcp_profile: "mcp-vault-read-v1" });
+    expect(body.vault_ids).toEqual(["vault_mock_gmail"]);
+  });
+  it("maps every current base definition to its own hypothesis definition, and no archived one", () => {
+    expect([COMMUNICATIONS_HISTORY_DEFINITION, COMMUNICATIONS_GMAIL_READ_DEFINITION, COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION,
+      COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION].map(base => communicationsHypothesisDefinition(base).version))
+      .toEqual(["v9", "v10", "v11", "v12"].map(version => `blueprint.communications-definition.${version}`));
+    for (const archived of [LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_DEFINITION, COMMUNICATIONS_DEFINITION]) {
+      expect(() => communicationsHypothesisDefinition(archived)).toThrow("communications_hypothesis_definition_unavailable");
+    }
+  });
+  it.each<[string, boolean, (instructions: string) => string]>([
+    ["a hypothesis session reported without its paragraph", true, () => COMMUNICATIONS_HISTORY_DEFINITION.instructions],
+    ["a verified session reported with the hypothesis paragraph", false, instructions => communicationsHypothesisDefinition(COMMUNICATIONS_HISTORY_DEFINITION).instructions
+      .replace(COMMUNICATIONS_HISTORY_DEFINITION.instructions, instructions)],
+  ])("refuses %s", async (_name, hypothesis, rewrite) => {
+    const f = apiFixture();
+    reportInstructions(f, rewrite);
+    await expect(f.api.run({ ...f.params, checkpoint: (hypothesis ? hypothesisCheckpoint() : f.params.checkpoint) as any }))
+      .rejects.toMatchObject({ code: "agents_existing_session_history_binding_mismatch" });
+  });
+  it("refuses an unknown draft profile before reserving or creating a session", async () => {
+    const f = apiFixture();
+    await expect(f.api.run({ ...f.params, checkpoint: { createClaimedAt: null, sessionId: null, turnId: null, draftProfile: "send-capable-v1" } as any }))
+      .rejects.toMatchObject({ code: "communications_draft_profile_unsupported" });
+    expect(f.reservePaidDraft).not.toHaveBeenCalled();
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+  });
+  it("keeps the operator recovery lanes closed to hypothesis sessions", async () => {
+    const f = apiFixture();
+    const checkpoint = { createClaimedAt: "2026-09-30T23:00:00Z", sessionId: null, turnId: null, requestDigest: "a".repeat(64),
+      draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } as any;
+    await expect(f.api.recoverRejectedCreate({ ...f.params, checkpoint, intent: { ownerDirectionRef: "synthetic", briefDigest: "b".repeat(64),
+      deliveryKey: "synthetic" }, assertRepairAllowed: vi.fn() })).rejects.toMatchObject({ code: "communications_hypothesis_recovery_unsupported" });
+    await expect(f.api.prepareCancelledContinuation({ jobId: "job-1", prospectId: "prospect-1", briefDigest: "b".repeat(64),
+      checkpoint: { ...checkpoint, sessionId: "session-1", turnId: "turn-1" } }, { uri: "gs://synthetic", generation: "1", sha256: "c".repeat(64) } as any))
+      .rejects.toMatchObject({ code: "communications_hypothesis_recovery_unsupported" });
+    expect(f.calls).toEqual([]);
   });
 });
