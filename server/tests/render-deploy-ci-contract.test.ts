@@ -57,4 +57,18 @@ describe("Render deploy-on-green contract", () => {
     expect(deploymentDoc).toContain("RENDER_SERVICE_ID");
     expect(deploymentDoc).toContain("RENDER_WORKER_SERVICE_ID");
   });
+
+  it("deploys automatically only main's current head, so a late green CI re-run cannot roll production back", () => {
+    const repoRoot = process.cwd();
+    const deployWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/deploy.yml"), "utf-8");
+    const deploymentDoc = fs.readFileSync(path.join(repoRoot, "DEPLOYMENT.md"), "utf-8");
+
+    expect(deployWorkflow).toContain('main_head=$(gh api "repos/${REPO}/commits/main" --jq .sha)');
+    expect(deployWorkflow).toContain('if [ "${deploy_ref}" != "${main_head}" ]; then');
+    expect(deployWorkflow).toContain('echo "stale=true" >> "${GITHUB_OUTPUT}"');
+    // Both deploy steps and the evidence upload stand down for a stale completion.
+    expect(deployWorkflow.match(/if: steps\.ref\.outputs\.stale != 'true'/g)?.length).toBe(2);
+    expect(deployWorkflow).toContain("if: always() && steps.ref.outputs.stale != 'true'");
+    expect(deploymentDoc).toContain("Only main's current head deploys automatically");
+  });
 });
