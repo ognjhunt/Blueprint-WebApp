@@ -281,7 +281,7 @@ export default function SelfCaptureUpload() {
 
     (async () => {
       try {
-        const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}`);
+        const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/status`);
         const data = await response.json().catch(() => null);
         if (cancelled) return;
 

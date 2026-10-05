@@ -174,7 +174,7 @@ async function reconcileUpload(token: string, message: string): Promise<VideoUpl
   try {
     // This endpoint is read-only. An uncertain upload never starts processing
     // merely because the browser checks whether its bytes arrived.
-    const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}`);
+    const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/status`);
     const data = await response.json().catch(() => null);
     const received = receivedVideoResult(data);
     if (received) return received;

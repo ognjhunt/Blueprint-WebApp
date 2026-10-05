@@ -140,7 +140,7 @@ export function SiteCaptureStart() {
     const token = captureTokenFromUrl(captureUrl);
     if (!token) return;
     try {
-      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}`);
+      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/status`);
       const outcome = receivedVideoResult(await response.json().catch(() => null));
       if (!outcome) return;
       setCaptureReceived(true);

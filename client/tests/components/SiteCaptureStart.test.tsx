@@ -247,10 +247,10 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
   const captureUrl = "https://tryblueprint.io/capture-upload/tok.signed";
   let received = false;
   fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
-    if (String(url).includes("/status")) {
+    if (String(url).startsWith("/api/site-task-brief/") && String(url).endsWith("/status")) {
       return { ok: true, json: async () => ({ status: { headline: received ? "We have your recording." : "Film the work area.", stage: null }, captureReceived: received }) };
     }
-    if (String(url).includes("/api/self-capture/uploads/")) {
+    if (String(url).endsWith("/api/self-capture/uploads/tok.signed/status")) {
       return { ok: true, json: async () => ({ state: "ready", captureReceived: received, uploadState: received ? "processing_ready" : "not_received" }) };
     }
     if (init?.method === "POST") return { ok: true, status: 200, json: async () => ({ captureUrl }) };
@@ -271,6 +271,8 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
 
   received = true;
   await screen.findByText("Your recording is in.", { selector: "h2" }, { timeout: 10_000 });
+  expect(fetchMock).toHaveBeenCalledWith("/api/self-capture/uploads/tok.signed/status");
+  expect(fetchMock).not.toHaveBeenCalledWith("/api/self-capture/uploads/tok.signed");
   expect(screen.getByRole("link", { name: "Review your job brief" })).toHaveAttribute("href", captureUrl);
   expect(screen.queryByRole("link", { name: "Open your job page" })).toBeNull();
   expect(screen.queryByRole("img", { name: "Point your phone at this to film" })).toBeNull();
@@ -282,7 +284,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
 
   function answerPosts(body: Record<string, unknown>) {
     fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
-      if (String(url).includes("/status")) return { ok: true, json: async () => ({ status: { headline: "", stage: null }, captureReceived: false }) };
+      if (String(url).startsWith("/api/site-task-brief/") && String(url).endsWith("/status")) return { ok: true, json: async () => ({ status: { headline: "", stage: null }, captureReceived: false }) };
       if (init?.method === "POST") return { ok: true, status: 200, json: async () => body };
       return photon([]);
     });

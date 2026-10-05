@@ -21,8 +21,9 @@ async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, 
     else if (path === "/api/agent-team/register") data = { teamId: "team-1", agentKey: "local-fixture", checkpoint: { checkpointId: "cp-1" } };
     else if (path === "/api/agent-team/plan") data = { selected: [{ sceneId: card.id, siteLabel: card.title, costUsd: 25, rationale: "Payload needs confirmation before execution.", details: card }], totalCostUsd: 25 };
     else if (path === "/api/inbound-request") data = { ok: true, requestId: "task-1", captureUrl: "http://127.0.0.1:42931/capture-upload/owner-fixture" };
-    else if (path.startsWith("/api/self-capture/uploads/")) data = { ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
-    else if (path.endsWith("/status")) data = { ok: true, status: { decision: "received", headline: "We have your task and are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: "2099-09-21T12:00:00Z" } };
+    else if (path.startsWith("/api/self-capture/uploads/") && path.endsWith("/status")) data = { ok: true, state: "ready", uploadState: "not_received", captureReceived: false, accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
+    else if (/^\/api\/self-capture\/uploads\/[^/]+$/.test(path) && req.method() === "GET") throw new Error("Receipt checks must use the pure upload status endpoint.");
+    else if (path.startsWith("/api/site-task-brief/") && path.endsWith("/status")) data = { ok: true, status: { decision: "received", headline: "We have your task and are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: "2099-09-21T12:00:00Z" } };
     else if (path.endsWith("/items")) data = { items: [] };
     else if (path.startsWith("/api/site-task-brief/")) data = { ready: false, scope: "owner" };
     return route.fulfill({ json: data });
@@ -49,6 +50,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: retai
       await route.fulfill({ json: { ok: true, state: "processing_ready", uploadState: "processing_ready", captureReceived: true, processingRetryAvailable: false } });
     } else {
       expect(request.method()).toBe("GET");
+      expect(path).toBe("/api/self-capture/uploads/retained-fixture/status");
       await route.fulfill({ json: { ok: true, state: "ready", uploadState: ready ? "processing_ready" : "processing_pending", captureReceived: true, processingRetryAvailable: !ready } });
     }
   });
@@ -80,7 +82,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: retai
 
 test("a retained video with changed consent shows the current hold without processing or recording actions", async ({ page }) => {
   const mutations = await fixtures(page);
-  await page.route("**/api/self-capture/uploads/consent-fixture", route => route.fulfill({ json: {
+  await page.route("**/api/self-capture/uploads/consent-fixture/status", route => route.fulfill({ json: {
     ok: true, state: "held", detail: "Confirm current consent before this video can be processed.", captureReceived: true,
     uploadState: "processing_pending", processingRetryAvailable: false,
   } }));

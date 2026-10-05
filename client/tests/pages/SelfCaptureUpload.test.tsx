@@ -26,7 +26,7 @@ vi.mock("@/lib/selfCaptureVideo", async (importOriginal) => ({
 function mockFetch() {
   return vi.fn().mockImplementation((input: RequestInfo | URL) => {
     const url = String(input);
-    if (url.includes(`/api/self-capture/uploads/${TOKEN}`)) {
+    if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) {
       return Promise.resolve({
         ok: true,
         json: async () => ({
@@ -37,7 +37,7 @@ function mockFetch() {
         }),
       });
     }
-    if (url.includes("/status")) {
+    if (url.startsWith("/api/site-task-brief/") && url.endsWith("/status")) {
       return Promise.resolve({ ok: false, json: async () => ({}) });
     }
     if (url.includes("/items")) {
@@ -71,7 +71,7 @@ afterEach(() => {
 
 describe("retained video processing recovery", () => {
   function retainedFetch(data: Record<string, unknown>) {
-    return vi.fn((input: RequestInfo | URL) => String(input).endsWith(`/api/self-capture/uploads/${TOKEN}`)
+    return vi.fn((input: RequestInfo | URL) => String(input).endsWith(`/api/self-capture/uploads/${TOKEN}/status`)
       ? Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "ready", accepts: ["mov", "mp4"], ...data }) })
       : mockFetch()(input));
   }
@@ -131,7 +131,7 @@ describe("retained video processing recovery", () => {
   ])("does not imply footage checking before confirmed processing (%s)", async (captureReceived, uploadState, headline) => {
     window.history.replaceState(null, "", "/capture-upload/tok-e2e?video=existing");
     const read = retainedFetch({ captureReceived, uploadState, processingRetryAvailable: false });
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input).endsWith("/status")
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input).startsWith("/api/site-task-brief/") && String(input).endsWith("/status")
       ? Promise.resolve({ ok: true, json: async () => ({ captureReceived, status: {
         decision: "footage_received", headline: "We are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: null,
       } }) }) : read(input)));
@@ -185,6 +185,8 @@ describe("SelfCaptureUpload by device", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy the link" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload a video file" })).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(`/api/self-capture/uploads/${TOKEN}/status`);
+    expect(fetch).not.toHaveBeenCalledWith(`/api/self-capture/uploads/${TOKEN}`);
     // The one thing a desktop must never offer: a webcam pointed at the operator.
     expect(screen.queryByRole("button", { name: "Open the camera" })).not.toBeInTheDocument();
   });
@@ -219,7 +221,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes("/status")) {
+      if (url.startsWith("/api/site-task-brief/") && url.endsWith("/status")) {
         return Promise.resolve({ ok: true, json: async () => ({ ok: true, captureReceived: true, status: {
           decision: "confirm_brief", headline: "We drafted your task brief.", operatorAction: "Review and confirm the brief.", missingViews: [], nextUpdateIso: null,
         } }) });
@@ -237,7 +239,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
           summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null,
         } }) });
       }
-      if (url.includes(`/api/self-capture/uploads/${TOKEN}`)) {
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) {
         return Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" }) });
       }
       return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
@@ -262,10 +264,10 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
       if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", brief: {
         summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null,
       } }) });
-      if (url.includes(`/api/self-capture/uploads/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({
         ok: true, state: "held", captureReceived: true, detail: "Review is still in progress.", accepts: ["mov", "mp4"],
       }) });
-      if (url.includes("/status")) return Promise.resolve({ ok: false, json: async () => ({}) });
+      if (url.startsWith("/api/site-task-brief/") && url.endsWith("/status")) return Promise.resolve({ ok: false, json: async () => ({}) });
       if (url.includes("/items")) return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
       return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
     }));
@@ -284,13 +286,13 @@ describe("SelfCaptureUpload once robot teams have run", () => {
   function mockFetchWithStatus(status: Record<string, unknown>, claimUrl: string | null, sceneViewUrl: string | null = null) {
     return vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes(`/api/self-capture/uploads/${TOKEN}`)) {
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) {
         return Promise.resolve({
           ok: true,
           json: async () => ({ ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" }),
         });
       }
-      if (url.includes("/status")) {
+      if (url.startsWith("/api/site-task-brief/") && url.endsWith("/status")) {
         return Promise.resolve({ ok: true, json: async () => ({ ok: true, status, claimUrl, sceneViewUrl }) });
       }
       if (url.includes("/items")) {
@@ -375,7 +377,7 @@ describe("SelfCaptureUpload for a site that asked for a visit", () => {
         switched = true;
         return Promise.resolve({ ok: true, json: async () => ({ ...ready, switched: true }) });
       }
-      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}`)) {
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) {
         if (switched) return Promise.resolve({ ok: true, json: async () => ready });
         return Promise.resolve({ ok: true, json: async () => ({
           ok: true, state: "held", holdReason: "capturer_visit_scheduled",
@@ -400,7 +402,7 @@ describe("SelfCaptureUpload for a site that asked for a visit", () => {
   it("does not offer the switch unless the server does", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}`)) {
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) {
         return Promise.resolve({ ok: true, json: async () => ({
           ok: true, state: "held", holdReason: "not_qualified", detail: "Something is in the way.",
           blockers: [], openQuestions: [], selfCaptureSwitchAvailable: false,

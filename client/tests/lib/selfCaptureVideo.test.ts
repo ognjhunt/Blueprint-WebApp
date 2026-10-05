@@ -59,7 +59,7 @@ describe("verified receipt versus processing", () => {
     xhrOutcome.event = event;
     expect(await uploadSelfCaptureVideo(token, new File(["synthetic"], "original.mp4")))
       .toMatchObject({ status: "processing_pending" });
-    expect(fetch).toHaveBeenCalledExactlyOnceWith(`/api/self-capture/uploads/${token}`);
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(`/api/self-capture/uploads/${token}/status`);
   });
 
   it("keeps receipt uncertainty explicit when an interrupted upload cannot be checked", async () => {
@@ -89,6 +89,6 @@ describe("verified receipt versus processing", () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, json: async () => ({ state: "held", error: "Consent changed." }) } as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => ({ captureReceived: true, state: "held", detail: "Consent changed." }) } as Response);
     expect(await retrySelfCaptureProcessing(token)).toEqual({ status: "held", message: "Consent changed." });
-    expect(fetch).toHaveBeenLastCalledWith(`/api/self-capture/uploads/${token}`);
+    expect(fetch).toHaveBeenLastCalledWith(`/api/self-capture/uploads/${token}/status`);
   });
 });
