@@ -29,7 +29,7 @@ import { reviewOutreachDraft, validateOutreachSemanticReview, outreachSemanticRe
 import { isCommunicationsPayload, reviewCommunicationsPayload } from "./communications-review";
 import { communicationsSendBlocker, communicationsSendingEnabled, executeCommunicationsSend, reconcileCommunicationsSend } from "./communications-send";
 import { communicationsDigest, outreachReadySendRefusal } from "./communications-contract";
-import { assertNotHypothesisRecipient, prospectResearchTier, researchProspectSendBlocker } from "../utils/outboundProspects";
+import { assertNotHypothesisRecipient, prospectResearchTier, recipientLookupAddresses, researchProspectSendBlocker } from "../utils/outboundProspects";
 
 function getDb() {
   if (!dbAdmin) throw new Error("Firestore is not initialized");
@@ -292,12 +292,14 @@ const LEGACY_RELEASE_STATE_CHANGED = "legacy_release_state_or_payload_changed";
 
 /** Claims a legacy prospect release. The prospect record is read again in the same
  * transaction that moves the ledger to executing, so a research marker written after
- * the release check above still refuses. The ledger must still be in the state that
- * was checked, with the same payload, so two releases cannot both send.
+ * the release check above still refuses. So are the other prospect records that carry
+ * the recipient address, as the communications claim does: a hypothesis record written
+ * for that address since the check refuses too. The ledger must still be in the state
+ * that was checked, with the same payload, so two releases cannot both send.
  *
  * Returns null once claimed, or the refusal, with the ledger already back at
  * pending_approval. Throws `LEGACY_RELEASE_STATE_CHANGED` with nothing written when
- * another release owns the ledger. */
+ * another release owns the ledger. A failed read throws, so nothing is sent. */
 async function claimLegacyProspectRelease(
   ledgerRef: FirebaseFirestore.DocumentReference,
   data: Record<string, any>,
@@ -313,8 +315,17 @@ async function claimLegacyProspectRelease(
       || (verifyAuthority && !await verifyAuthority(tx))) {
       return { changed: true, blocker: null };
     }
-    const blocker = !prospect?.exists ? "prospect_research_origin_unavailable"
+    let blocker: string | null = !prospect?.exists ? "prospect_research_origin_unavailable"
       : researchProspectSendBlocker(prospect.data(), communicationsSendingEnabled())?.blocker ?? null;
+    if (!blocker) {
+      // Same rule as assertNotHypothesisRecipient: a hypothesis always refuses; records
+      // that cannot all be read refuse only a research-backed release.
+      const addresses = recipientLookupAddresses([data.action_payload?.to, prospect.data()?.contactEmail]);
+      const records = addresses.length
+        ? await tx.get(getDb().collection("outboundProspects").where("contactEmail", "in", addresses).limit(101)) : null;
+      if (records?.docs.some((doc) => prospectResearchTier(doc.data()) === "hypothesis")) blocker = "outreach_ready_hypothesis_draft_only";
+      else if (prospectResearchTier(prospect.data()) !== "none" && (!records || records.size > 100)) blocker = "recipient_research_origin_unavailable";
+    }
     tx.update(ledgerRef, blocker
       ? { status: "pending_approval", approval_reason: `content_validation_failed: ${blocker}`, updated_at: new Date() }
       : { status: "executing", updated_at: new Date() });

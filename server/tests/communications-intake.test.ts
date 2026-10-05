@@ -8,7 +8,7 @@ import { previewResearchCommunications, approveResearchCommunications } from "..
 import { researchDigest, researchPublicationHypotheses, researchPublicationSource, verifyPublishedResearch } from "../agents/communications-research";
 import * as research from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
-import { communicationsDigest } from "../agents/communications-contract";
+import { communicationsDigest, communicationsHandoffSchema, SHEETS_RECEIPT_MAX_LENGTH } from "../agents/communications-contract";
 import { processCommunicationsJob, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { publishedResearchFixture, type OutreachReadyBlock } from "./fixtures/published-research";
@@ -372,6 +372,8 @@ describe("published research days that carry outreach-ready hypotheses (offline,
   };
   it.each<[string, (f: ReturnType<typeof setup>) => void, string]>([
     ["a malformed hypothesis row ID", f => { f.snapshot.row.delivery.sheets.plan.sheet_rows[1][0] = "BP-43"; reseal(f); }, "sheet_row_id_0"],
+    // The receipt still ends trimmed, so the verified row's handoff keeps it byte for byte.
+    ["a leading space on the hypothesis row ID", f => { f.snapshot.row.delivery.sheets.plan.sheet_rows[1][0] = " BP-000043"; reseal(f); }, "sheet_row_id_0"],
     ["hypothesis rows written before the verified rows", f => { f.snapshot.row.delivery.sheets.plan.sheet_rows.reverse(); reseal(f); }, "sheet_rows_order"],
     ["a Sheets payload without the block while the plan keeps its row", f => {
       const sheets = f.snapshot.row.delivery.sheets;
@@ -400,6 +402,64 @@ describe("published research days that carry outreach-ready hypotheses (offline,
     expect(f.records("intake").find(item => item.candidateKey === "publication")).toMatchObject({ state: "needs_research",
       reasons: ["research_adapter_sheet_identity_missing"] });
     expect(f.records("jobs")).toHaveLength(0); expect(f.records("intake").some(item => item.state === "hypothesis_recorded")).toBe(false);
+  });
+
+  // The handoff schema trims its Sheets receipt and caps its length. A receipt it would
+  // change can never verify again on the send path, so such a day is refused at intake.
+  const expectDayRefused = (f: ReturnType<typeof setup>) => {
+    expect(f.records("intake").find(item => item.candidateKey === "candidate-1")).toMatchObject({ state: "needs_research",
+      reasons: ["research_adapter_sheet_identity_missing"] });
+    expect(f.records("intake").find(item => item.candidateKey === "publication")).toMatchObject({ state: "needs_research",
+      reasons: ["research_adapter_sheet_identity_missing"] });
+    expect(f.records("jobs")).toHaveLength(0); expect(f.records("briefs")).toHaveLength(0); expect(f.records("handoffs")).toHaveLength(0);
+    expect(prospects(f)).toHaveLength(0); expect(f.records("intake").some(item => item.state === "hypothesis_recorded")).toBe(false);
+  };
+  it.each<[string, number, string]>([
+    ["the last hypothesis row ID ends in a space", 1, "BP-000043 "],
+    ["the last hypothesis row ID ends in a newline", 1, "BP-000043\n"],
+    ["the last hypothesis row ID ends in a tab", 1, "BP-000043\t"],
+    ["the last hypothesis row ID ends in a no-break space", 1, "BP-000043 "],
+    ["the verified row ID ends in a space", 0, "BP-000042 "],
+    ["the verified row ID starts with a newline", 0, "\nBP-000042"],
+  ])("rejects the day when %s", async (_name, position, id) => {
+    const f = setup({ publicContact: true, outreachReady: "published" });
+    f.snapshot.row.delivery.sheets.plan.sheet_rows[position][0] = id; reseal(f); await f.workItem();
+    await runCommunicationsIntake(f.deps);
+    expectDayRefused(f);
+  });
+
+  const appendRows = (f: ReturnType<typeof setup>, until: (rows: any[][]) => boolean) => {
+    const rows = f.snapshot.row.delivery.sheets.plan.sheet_rows;
+    // Copies of the hypothesis row with fresh IDs: the hypotheses block's to check, not the day's.
+    while (!until(rows) && rows.length < 1000) rows.push(rows[1].map((cell: string, column: number) => column === 0 ? `BP-${String(42 + rows.length).padStart(6, "0")}` : cell));
+    expect(until(rows)).toBe(true);
+    reseal(f);
+  };
+  it("admits the verified row on a 200-row day, and its handoff keeps the whole receipt", async () => {
+    const f = setup({ publicContact: true, outreachReady: "published" });
+    appendRows(f, rows => rows.length === 200); await f.workItem();
+    const receipt = f.snapshot.row.delivery.sheets.receipt.reference;
+    expect(receipt.length).toBeGreaterThan(1200);
+    await runCommunicationsIntake(f.deps);
+    expect(f.records("intake").find(item => item.candidateKey === "candidate-1")).toMatchObject({ state: "admitted" });
+    const [brief] = f.records("briefs"), [handoff] = f.records("handoffs");
+    expect(handoff.sheetsReceipt).toBe(receipt);
+    expect(communicationsHandoffSchema.parse(handoff).sheetsReceipt).toBe(receipt);
+    expect(verifyPublishedResearch(f.snapshot, brief, handoff).briefDigest).toBe(communicationsDigest(brief));
+    expect(f.records("intake").find(item => item.candidateKey === "hypotheses")).toMatchObject({ state: "needs_research",
+      reasons: ["research_hypothesis_block_invalid:sheet_rows"] });
+  });
+
+  it("rejects the day when its Sheets receipt is longer than the handoff can hold", async () => {
+    const f = setup({ publicContact: true, outreachReady: "published" });
+    const sheetId = f.snapshot.row.packet.destinations.sheet_id;
+    appendRows(f, rows => `sheets:${sheetId}:Prospects:${rows.map(entry => entry[0]).join(",")}`.length > SHEETS_RECEIPT_MAX_LENGTH);
+    await f.workItem();
+    // One row past the limit: every row adds 10 characters.
+    const length = f.snapshot.row.delivery.sheets.receipt.reference.length;
+    expect(length).toBeGreaterThan(SHEETS_RECEIPT_MAX_LENGTH); expect(length).toBeLessThanOrEqual(SHEETS_RECEIPT_MAX_LENGTH + 10);
+    await runCommunicationsIntake(f.deps);
+    expectDayRefused(f);
   });
 
   it("still rejects the day when no Sheets row matches the verified candidate, even with hypotheses declared", async () => {
