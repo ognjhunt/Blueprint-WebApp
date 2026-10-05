@@ -1,3 +1,4 @@
+import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { Request, Response, Router } from "express";
 import crypto from "crypto";
@@ -15,7 +16,6 @@ import {
   type CaptureRegion,
 } from "../../client/src/data/captureResidency";
 import { draftBrief, saveBrief } from "../utils/siteTaskBrief";
-import { readBriefFromDescription } from "../utils/siteTaskBriefReading";
 import { notifySlackInboundRequest } from "../utils/slack";
 import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
@@ -1185,7 +1185,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // is stored as null, which is "never asked", and is a different thing
     // from a grant.
     const consentAttestation = buildConsentAttestation(payload.consentAttestation);
-    if (consentAttestation === "refused") {
+    if (consentAttestation === "refused" || (buyerType === "site_operator" && !hasCurrentRecordingConsent(consentAttestation))) {
       return res.status(400).json({
         ok: false,
         requestId: payload.requestId,
@@ -1796,7 +1796,10 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // owner's record. Firestore create carries the absence precondition.
     const requestRef = db.collection("inboundRequests").doc(payload.requestId);
     try {
-      await requestRef.create(encryptedInboundRequest);
+      await requestRef.create({ ...encryptedInboundRequest,
+        ...(buyerType === "site_operator" ? { briefReviewPending: true,
+          briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
+      });
     } catch (error) {
       const code = (error as { code?: number | string }).code;
       if (code !== 6 && code !== "already-exists") throw error;
@@ -1865,22 +1868,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
         );
       }
 
-      // 8b. Read the description, rather than echo it. Fire-and-forget: the
-      // operator has their link already, and the brief they open a minute
-      // later carries what the text actually stated, quoted, for them to
-      // confirm or correct. Off unless the lane is on; a failure leaves the
-      // drafted brief exactly as it was.
-      void readBriefFromDescription({
-        requestId: payload.requestId,
-        taskStatement,
-        whatGoesWrong: payload.whatGoesWrong?.trim() || null,
-        captureMode,
-      }).catch((error) => {
-        logger.warn(
-          { error, requestId: payload.requestId },
-          "Brief reading failed after submission; the drafted brief stands",
-        );
-      });
+      // The durable review intent is consumed by the capture outbox worker.
+
     }
 
     createLifecycleCadenceForInboundRequest({

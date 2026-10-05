@@ -61,9 +61,9 @@ describe("Tasks page (/app/packs)", () => {
     render(<SitePacks />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Jobs" })).toBeInTheDocument();
-    const paidLinks = await screen.findAllByRole("link", { name: /evaluate a job · \$99 per policy/i });
-    expect(paidLinks).toHaveLength(2);
-    paidLinks.forEach((link) => expect(link).toHaveAttribute("href", "/sites"));
+    const freeLinks = await screen.findAllByRole("link", { name: /request a free evaluation/i });
+    expect(freeLinks).toHaveLength(2);
+    freeLinks.forEach((link) => expect(link).toHaveAttribute("href", "/sites"));
     expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(screen.getByText("Scene checks pending")).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 2, name: "Rigid relocation" })).toHaveLength(2);
@@ -114,6 +114,6 @@ it("sends a generated-object preview to the team task page without implying revi
   vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ offerings: [value] }), { status: 200 }));
   render(<SitePacks />);
   expect(await screen.findByText("Scene appearance not reviewed yet.")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /evaluate a job · \$99 per policy/i })).toHaveAttribute("href", "/sites");
+  expect(screen.getByRole("link", { name: /request a free evaluation/i })).toHaveAttribute("href", "/sites");
   expect(screen.queryByRole("link", { name: /run a policy test/i })).not.toBeInTheDocument();
 });

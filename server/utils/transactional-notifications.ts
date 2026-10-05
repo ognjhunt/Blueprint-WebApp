@@ -18,7 +18,7 @@ export type TransactionalNotificationEventType =
 
 export type TransactionalNotificationRecipientType = "buyer" | "creator";
 export type TransactionalNotificationChannel = "email" | "push" | "in_app";
-export type TransactionalNotificationStatus = "sent" | "queued" | "skipped" | "failed";
+export type TransactionalNotificationStatus = "sent" | "queued" | "skipped" | "failed" | "delivery_unknown";
 
 export type TransactionalNotificationRecord = {
   id: string;
@@ -365,6 +365,18 @@ async function readRecipientProfile(input: TransactionalNotificationInput) {
   return merged;
 }
 
+/** Save uncertainty before the external side effect. A lost receipt is never a retry grant. */
+async function claimExternalDelivery(record: TransactionalNotificationRecord): Promise<TransactionalNotificationRecord | null> {
+  if (!db) return { ...record, status: "skipped", skip_reason: "notification_store_unavailable" };
+  const ref = db.collection(COLLECTION).doc(record.id);
+  return db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    if (snapshot.exists) return snapshot.data() as TransactionalNotificationRecord;
+    transaction.set(ref, { ...record, status: "delivery_unknown", updated_at: nowIso() });
+    return null;
+  });
+}
+
 async function dispatchEmail(input: TransactionalNotificationInput, profile: Record<string, unknown>) {
   const record = baseRecord(input, "email");
   const existing = await readRecord(record.id);
@@ -390,6 +402,8 @@ async function dispatchEmail(input: TransactionalNotificationInput, profile: Rec
     });
   }
 
+  const prior = await claimExternalDelivery(record);
+  if (prior) return prior;
   const copy = notificationCopy(input);
   try {
     const result = await sendEmail({
@@ -405,7 +419,7 @@ async function dispatchEmail(input: TransactionalNotificationInput, profile: Rec
     return writeRecord({
       ...record,
       recipient_email_domain: emailDomain(email),
-      status: result.sent ? "sent" : result.error ? "failed" : "skipped",
+      status: result.sent ? "sent" : result.error ? "delivery_unknown" : "skipped",
       sent_at: result.sent ? nowIso() : null,
       skip_reason: result.sent || result.error ? null : "email_transport_unavailable",
       failure_reason: result.error instanceof Error ? result.error.message.slice(0, 500) : null,
@@ -418,7 +432,7 @@ async function dispatchEmail(input: TransactionalNotificationInput, profile: Rec
     return writeRecord({
       ...record,
       recipient_email_domain: emailDomain(email),
-      status: "failed",
+      status: "delivery_unknown",
       failure_reason: error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500),
       updated_at: nowIso(),
     });
@@ -488,6 +502,8 @@ async function dispatchPush(input: TransactionalNotificationInput, profile: Reco
     });
   }
 
+  const prior = await claimExternalDelivery(record);
+  if (prior) return prior;
   try {
     const messageId = await admin.messaging().send({
       token: pushToken(profile),
@@ -513,7 +529,7 @@ async function dispatchPush(input: TransactionalNotificationInput, profile: Reco
     logger.warn({ error, eventType: input.eventType }, "Transactional push dispatch failed");
     return writeRecord({
       ...record,
-      status: "failed",
+      status: "delivery_unknown",
       failure_reason: error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500),
       updated_at: nowIso(),
     });

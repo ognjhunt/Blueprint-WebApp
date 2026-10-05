@@ -127,6 +127,14 @@ async function ingestHumanReplyMessage(params: {
   received_at: string;
   thread: HumanBlockerThreadRecord;
 }) {
+  const normalizeSender = (value: string | null) => {
+    const sender = String(value || "").trim();
+    return params.channel === "email" ? (sender.match(/<([^<>]+)>$/)?.[1] || sender).toLowerCase() : sender;
+  };
+  if (params.channel !== params.thread.channel || !params.thread.approved_identity
+      || normalizeSender(params.sender) !== normalizeSender(params.thread.approved_identity)) {
+    return { processed: false, reason: "untrusted_sender" as const };
+  }
   const existing = await getHumanReplyEvent(`${params.channel}:${params.external_message_id}`);
   if (existing) {
     return { processed: false, reason: "duplicate" as const };
@@ -138,6 +146,12 @@ async function ingestHumanReplyMessage(params: {
     execution_owner: params.thread.execution_owner,
     escalation_owner: params.thread.escalation_owner,
   });
+  if (params.thread.record_of_truth.ops_work_item_id
+      || ["city_launch_plan", "city_launch_activate"].includes(params.thread.resume_action.kind)) {
+    decision.should_resume_now = false;
+    decision.resolution = "ambiguous_input";
+    decision.reason = "This action requires authenticated approval bound to its current payload; incoming reply text cannot execute it.";
+  }
 
   const bodyExcerpt = truncate(params.body);
   const replyEvent = await recordHumanReplyEvent({
@@ -213,7 +227,7 @@ async function ingestHumanReplyMessage(params: {
     suggested_owner: suggestedOwner,
   });
 
-  if (decision.resolution === "resolved_input") {
+  if (decision.resolution === "resolved_input" && decision.should_resume_now) {
     try {
       const operatorEmail = params.thread.approved_identity || "ohstnhunt@gmail.com";
       const replySummary = bodyExcerpt || "(empty reply)";
@@ -346,7 +360,7 @@ async function ingestHumanReplyMessage(params: {
     }
   }
 
-  if (decision.resolution === "resolved_input") {
+  if (decision.resolution === "resolved_input" && decision.should_resume_now) {
     await resolveHumanBlockerAwaitingReply(params.thread.blocker_id).catch(() => false);
   }
 

@@ -122,6 +122,8 @@ export function projectWorkspaceTask(
     workspace.archived !== true;
   return {
     id,
+    recordingPermissionWithdrawn: record.consent_revoked === true,
+    recordingWithdrawalStatus: text(object(record.capture_withdrawal).state) || null,
     title: text(request.taskStatement) || "Untitled job",
     siteName: text(request.siteName) || "Your site",
     location: text(request.siteLocation),

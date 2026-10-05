@@ -32,6 +32,7 @@
 
 import admin, { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { runAgentTask } from "../agents/runtime";
 import {
   captureCoverageTask,
@@ -105,6 +106,7 @@ export async function reviewCaptureCoverage(params: {
   requestId: string;
   sceneId: string;
   captureId: string;
+  expectedSourceKey?: string;
 }): Promise<CoverageFinding | null> {
   if (!isSiteVideoEvidenceEnabled()) return null;
 
@@ -168,7 +170,7 @@ export async function reviewCaptureCoverage(params: {
     finding.coversScene = false;
   }
 
-  await recordCoverageFinding(params.requestId, params.captureId, finding);
+  if (!(await recordCoverageFinding(params.requestId, params.captureId, finding, params.expectedSourceKey))) return null;
 
   // A named shortfall is the one coverage outcome worth an email: it is a
   // specific, cheap thing the operator can do. "Covers the scene" needs no
@@ -190,7 +192,9 @@ export async function reviewCaptureCoverage(params: {
               ? "Your footage shows the job clearly. To finish the scene we just need a little more:\n\n"
               : "Your footage needs more coverage before we can build the scene:\n\n")
             + finding.missingCoverage.map((view) => `- ${view}`).join("\n")
-            + "\n\nYou can add these from the same capture link — no need to film it all again.\n\n"
+            + (snap?.data()?.capture_privacy_source_bound_decision?.producer_source?.kind === "app_bundle_completion"
+              ? "\n\nExtra views cannot be added to an app recording yet. Reply to this email so we can arrange a new capture link.\n\n"
+              : "\n\nYou can add these from the same capture link — no need to film it all again.\n\n")
             + EMAIL_SIGN_OFF,
         });
         await deliverOutbox({ limit: 5 }).catch(() => undefined);
@@ -214,13 +218,19 @@ export async function recordCoverageFinding(
   requestId: string,
   captureId: string,
   finding: CoverageFinding,
-): Promise<void> {
-  if (!db) return;
+  expectedSourceKey?: string,
+): Promise<boolean> {
+  if (!db) return false;
   try {
-    await db
-      .collection("inboundRequests")
-      .doc(requestId)
-      .set(
+    const ref = db.collection("inboundRequests").doc(requestId);
+    return await db.runTransaction(async transaction => {
+      if (expectedSourceKey) {
+        const current = (await transaction.get(ref)).data();
+        if (!hasCurrentRecordingConsent(current?.request?.consent_attestation)
+          || current?.capture_privacy_source_bound_decision?.producer_source?.key !== expectedSourceKey
+          || current?.capture_privacy_source_bound_decision?.proceeded !== true) return false;
+      }
+      transaction.set(ref,
         {
           capture_coverage: {
             capture_id: captureId,
@@ -235,8 +245,11 @@ export async function recordCoverageFinding(
         },
         { merge: true },
       );
+      return true;
+    });
   } catch (error) {
     logger.warn({ error, requestId }, "Could not record a coverage finding");
+    return false;
   }
 }
 

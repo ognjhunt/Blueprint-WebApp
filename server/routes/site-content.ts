@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { captureGroundedPublicCopy } from "../../client/src/lib/captureGroundedLanguage";
-import { entryPrice, formatPrice, matchFeeUsd, matchReplacementPolicy } from "../../client/src/lib/evaluationPricing";
+import { formatPrice, matchFeeUsd, matchReplacementPolicy } from "../../client/src/lib/evaluationPricing";
 
 const router = Router();
 
@@ -153,7 +153,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      `No match, no fee. Sites submit a job and get it screened and evaluated for free, and pay Blueprint ${formatPrice(matchFeeUsd)} per job only when it finds a robot team that passed the evaluation, fits the site's budget, and wants to run the pilot. Blueprint takes no percentage of the pilot or any deployment. The site explicitly authorizes the match fee when opening the job to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched jobs for free; private evaluations cost ${formatPrice(entryPrice)} for one robot policy on one reconstructed real site job. Private results are not shared with the site or used for pilot matching; pilot consideration requires a separate free invited evaluation.`,
+      `No match, no fee. Sites submit a job and get it screened and evaluated for free, and pay Blueprint ${formatPrice(matchFeeUsd)} per job only when it finds a robot team that passed the evaluation, fits the site's budget, and wants to run the pilot. Blueprint takes no percentage of the pilot or any deployment. The site explicitly authorizes the match fee when opening the job to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched jobs for free when invited. The beta offers no private paid evaluations or balance top-ups.`,
   },
   {
     path: "/contact",

@@ -1251,6 +1251,32 @@ router.post(
     });
   }),
 );
+/** Owner-only withdrawal. A durable tombstone is not a deletion receipt. */
+router.post("/tasks/:taskId/recording-consent/withdraw", handle(async (req, res) => {
+  await ownedTask(req.params.taskId, res);
+  const caller = identity(res);
+  const ref = db!.collection("inboundRequests").doc(req.params.taskId);
+  const receipt = await db!.runTransaction(async transaction => {
+    const record = (await transaction.get(ref)).data();
+    const runs = await transaction.get(db!.collection("evaluationRuns").where("sceneId", "==", req.params.taskId));
+    if (!record || record.account_owner_uid !== caller.uid) refuse(403, "Only the verified site owner can withdraw recording permission.");
+    if (record.capture_withdrawal) return record.capture_withdrawal;
+    const withdrawal = { state: "uploads_stopped_cleanup_pending", requestedAtIso: new Date().toISOString(),
+      requestedBy: caller.uid, requestId: req.params.taskId,
+      sceneId: `site-${req.params.taskId}`, captureId: `walkthrough-${req.params.taskId}`,
+      deletionConfirmed: false, pipelineAcknowledged: false };
+    transaction.set(ref, { consent_revoked: true, future_processing_allowed: false,
+      request: { consent_attestation: { granted: false, revoked_at_iso: withdrawal.requestedAtIso } },
+      workspace_task: { paused: true }, briefReviewPending: false, coverageReviewPending: false,
+      capture_withdrawal: withdrawal, captureWithdrawalPending: true }, { merge: true });
+    for (const run of runs.docs) if (run.data().state === "requested") transaction.set(run.ref, {
+      cancellationRequested: true, dispatchPending: false,
+      cancellationReason: "site_recording_consent_withdrawn", settlementDueAtMs: 0,
+    }, { merge: true });
+    return withdrawal;
+  });
+  return res.status(202).json({ ok: true, receipt });
+}));
 router.post(
   "/tasks/:taskId/pilot",
   handle(async (req, res) => {

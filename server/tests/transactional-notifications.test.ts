@@ -52,6 +52,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     }),
   },
   dbAdmin: {
+    runTransaction: async (fn: any) => fn({ get: (ref: any) => ref.get(), set: (ref: any, data: any, options: any) => ref.set(data, options) }),
     collection: (collectionName: string) => ({
       doc: (id: string) => makeDocRef(collectionName, id),
     }),
@@ -123,7 +124,7 @@ describe("transactional notifications", () => {
     ]));
   });
 
-  it("retries a failed terminal email but never resends an accepted replay", async () => {
+  it("retains an unknown provider outcome without blindly resending", async () => {
     state.sendEmail
       .mockReset()
       .mockResolvedValueOnce({
@@ -156,16 +157,16 @@ describe("transactional notifications", () => {
     const replay = await dispatchTransactionalNotification(event);
 
     expect(failed.find((record) => record.channel === "email")).toMatchObject({
-      status: "failed",
+      status: "delivery_unknown",
       delivery_provider: "resend",
     });
     expect(accepted.find((record) => record.channel === "email")).toMatchObject({
-      status: "sent",
-      delivery_provider: "smtp",
-      provider_message_id: "smtp-message-2",
+      status: "delivery_unknown",
+      delivery_provider: "resend",
+      provider_message_id: null,
     });
     expect(replay).toEqual(accepted);
-    expect(state.sendEmail).toHaveBeenCalledTimes(2);
+    expect(state.sendEmail).toHaveBeenCalledTimes(1);
   });
 
   it("sends email, queues in-app, and audits the order confirmation event", async () => {

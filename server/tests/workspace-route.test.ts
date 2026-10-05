@@ -25,7 +25,12 @@ function ref(path: string): any {
       data: () => state.records.get(path),
       ref: ref(path),
     }),
-    set: async (data: any) => state.records.set(path, data),
+    set: async (data: any, options?: { merge?: boolean }) => {
+      const merge = (a: any, b: any): any => Object.fromEntries(Object.entries({ ...a, ...b }).map(([key, value]) =>
+        [key, value && typeof value === "object" && !Array.isArray(value) && b[key] && a?.[key]
+          ? merge(a[key], b[key]) : value]));
+      state.records.set(path, options?.merge ? merge(state.records.get(path), data) : data);
+    },
     update: async (data: any) => {
       const current = structuredClone(state.records.get(path) || {});
       for (const [key, value] of Object.entries(data)) {
@@ -88,7 +93,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
       fn({
         get: (r: any) => r.get(),
         update: (r: any, data: any) => r.update(data),
-        set: (r: any, data: any) => r.set(data),
+        set: (r: any, data: any, options?: any) => r.set(data, options),
       }),
   },
 }));
@@ -261,6 +266,21 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it("records only the owner's withdrawal, cancels queued work, and never claims deletion", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    state.records.set("evaluationRuns/run", { runId: "run", sceneId: "task-1", state: "requested", dispatchPending: true });
+    expect((await api("/tasks/task-1/recording-consent/withdraw", "site-2", {})).status).toBe(404);
+    const first = await api("/tasks/task-1/recording-consent/withdraw", "site-1", {});
+    expect(first.status).toBe(202);
+    const receipt = (await first.json()).receipt;
+    expect(receipt.deletionConfirmed).toBe(false);
+    expect(receipt.pipelineAcknowledged).toBe(false);
+    expect(state.records.get("inboundRequests/task-1").account_owner_uid).toBe("site-1");
+    expect(state.records.get("inboundRequests/task-1").request.consent_attestation.granted).toBe(false);
+    expect(state.records.get("evaluationRuns/run").cancellationRequested).toBe(true);
+    expect(state.records.get("evaluationRuns/run").dispatchPending).toBe(false);
+    expect((await (await api("/tasks/task-1/recording-consent/withdraw", "site-1", {})).json()).receipt).toEqual(receipt);
+  });
   it("requires authentication and a supported account role", async () => {
     expect((await api("/", "")).status).toBe(401);
     state.records.set("users/admin", { role: "admin" });

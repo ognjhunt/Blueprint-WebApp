@@ -94,7 +94,7 @@ afterEach(() => {
 });
 
 describe("human reply worker", () => {
-  it("approves queued action ledgers from approval replies", async () => {
+  it("holds action ledgers until approval is authenticated and bound to the payload", async () => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
       {
@@ -105,6 +105,7 @@ describe("human reply worker", () => {
         execution_owner: "ops-lead",
         escalation_owner: null,
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         record_of_truth: {
           report_paths: [],
           paperclip_issue_id: null,
@@ -131,18 +132,18 @@ describe("human reply worker", () => {
     const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
     const result = await ingestHumanReplyPayload({
       channel: "email",
+      sender: "ohstnhunt@gmail.com",
       external_message_id: "msg-1",
       subject: "[Blueprint Blocker] [Blueprint Blocker ID: blocker-action] Queued action",
       body: "Approved. Go ahead.",
     });
 
-    expect(approveAction).toHaveBeenCalledWith("ledger-123", "ohstnhunt@gmail.com");
-    expect(resolveHumanBlockerAwaitingReply).toHaveBeenCalledWith("blocker-action");
-    expect(result).toMatchObject({
-      processed: true,
-      blocker_id: "blocker-action",
-      resolution: "resolved_input",
-    });
+    expect(approveAction).not.toHaveBeenCalled();
+    expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
+    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
+    expect(wakePaperclipAgent).not.toHaveBeenCalled();
+    expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
   });
 
   it("wakes the execution owner on linked Paperclip issues after a resolved reply", async () => {
@@ -156,6 +157,7 @@ describe("human reply worker", () => {
         execution_owner: "webapp-codex",
         escalation_owner: "blueprint-cto",
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         record_of_truth: {
           report_paths: [],
           paperclip_issue_id: "issue-123",
@@ -191,6 +193,7 @@ describe("human reply worker", () => {
     const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
     const result = await ingestHumanReplyPayload({
       channel: "email",
+      sender: "ohstnhunt@gmail.com",
       external_message_id: "msg-2",
       subject: "[Blueprint Blocker] [Blueprint Blocker ID: blocker-issue] Production blocker",
       body: "I added the key and redeployed.",
@@ -222,7 +225,7 @@ describe("human reply worker", () => {
     });
   });
 
-  it("correlates Slack thread replies and resumes the owning Paperclip issue", async () => {
+  it("rejects a Slack identity that is not the approved sender", async () => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
       {
@@ -233,6 +236,7 @@ describe("human reply worker", () => {
         execution_owner: "webapp-codex",
         escalation_owner: "blueprint-cto",
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "slack",
         record_of_truth: {
           report_paths: [],
           paperclip_issue_id: "issue-slack",
@@ -277,33 +281,12 @@ describe("human reply worker", () => {
       received_at: "2026-05-05T19:00:00.000Z",
     });
 
-    expect(recordHumanReplyEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        blocker_id: "blocker-slack",
-        channel: "slack",
-        external_thread_id: "D123:1712960000.000100",
-        should_resume_now: true,
-      }),
-    );
-    expect(createPaperclipIssueComment).toHaveBeenCalledWith(
-      "issue-slack",
-      expect.stringContaining("Human reply recorded for blocker blocker-slack."),
-    );
-    expect(wakePaperclipAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agentId: "agent-slack",
-        reason: "human_reply_resolved",
-        idempotencyKey: "human-reply:blocker-slack:slack:1712960000.000200",
-      }),
-    );
-    expect(result).toMatchObject({
-      processed: true,
-      blocker_id: "blocker-slack",
-      resolution: "resolved_input",
-    });
+    expect(recordHumanReplyEvent).not.toHaveBeenCalled();
+    expect(wakePaperclipAgent).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ processed: false, reason: "untrusted_sender" });
   });
 
-  it("auto-activates city launches from approval replies without a manual rerun", async () => {
+  it("holds city activation for a payload-bound approval", async () => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
       {
@@ -314,6 +297,7 @@ describe("human reply worker", () => {
         execution_owner: "city-launch-agent",
         escalation_owner: null,
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         record_of_truth: {
           report_paths: [],
           paperclip_issue_id: null,
@@ -363,6 +347,7 @@ describe("human reply worker", () => {
     const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
     const result = await ingestHumanReplyPayload({
       channel: "email",
+      sender: "ohstnhunt@gmail.com",
       external_message_id: "msg-3",
       subject:
         "[Blueprint Blocker] [Blueprint Blocker ID: city-launch-approval-chicago-il-123] Chicago, IL City Launch Approval",
@@ -370,36 +355,15 @@ describe("human reply worker", () => {
       received_at: "2026-04-17T16:30:00.000Z",
     });
 
-    expect(runCityLaunchExecutionHarness).toHaveBeenCalledWith({
-      city: "Chicago, IL",
-      founderApproved: true,
-      budgetTier: "low_budget",
-      budgetMaxUsd: 2500,
-      operatorAutoApproveUsd: 500,
-      windowHours: 72,
-    });
-    expect(writeCityLaunchCreativeAdsEvidence).toHaveBeenCalledWith({
-      city: "Chicago, IL",
-      budgetTier: "low_budget",
-      budgetMaxUsd: 2500,
-      windowHours: 72,
-      runMetaReadOnly: true,
-      founderApprovedPausedDraft: false,
-      launchId: "root-1",
-    });
     expect(approveAction).not.toHaveBeenCalled();
+    expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
+    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
     expect(wakePaperclipAgent).not.toHaveBeenCalled();
-    expect(resolveHumanBlockerAwaitingReply).toHaveBeenCalledWith(
-      "city-launch-approval-chicago-il-123",
-    );
-    expect(result).toMatchObject({
-      processed: true,
-      blocker_id: "city-launch-approval-chicago-il-123",
-      resolution: "resolved_input",
-    });
+    expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
   });
 
-  it("keeps city-launch approval resume blocked when creative/ad evidence cannot close", async () => {
+  it("keeps city activation held even when the reply is exactly APPROVE", async () => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
       {
@@ -410,6 +374,7 @@ describe("human reply worker", () => {
         execution_owner: "city-launch-agent",
         escalation_owner: null,
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         record_of_truth: {
           report_paths: [],
           paperclip_issue_id: null,
@@ -459,6 +424,7 @@ describe("human reply worker", () => {
     const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
     const result = await ingestHumanReplyPayload({
       channel: "email",
+      sender: "ohstnhunt@gmail.com",
       external_message_id: "msg-creative-blocked",
       subject:
         "[Blueprint Blocker] [Blueprint Blocker ID: city-launch-approval-durham-nc] Durham, NC City Launch Approval",
@@ -466,29 +432,15 @@ describe("human reply worker", () => {
       received_at: "2026-05-06T18:45:00.000Z",
     });
 
-    expect(runCityLaunchExecutionHarness).toHaveBeenCalledWith({
-      city: "Durham, NC",
-      founderApproved: true,
-      budgetTier: "lean",
-      budgetMaxUsd: 2500,
-      operatorAutoApproveUsd: 500,
-      windowHours: 72,
-    });
-    expect(noteHumanReplyThreadBlocker).toHaveBeenCalledWith({
-      blocker_id: "city-launch-approval-durham-nc",
-      reason: expect.stringContaining("City launch creative/ad evidence blocked"),
-    });
-    expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalledWith(
-      "city-launch-approval-durham-nc",
-    );
-    expect(result).toMatchObject({
-      processed: true,
-      blocker_id: "city-launch-approval-durham-nc",
-      auto_resume_error: expect.stringContaining("Meta Ads CLI env missing"),
-    });
+    expect(approveAction).not.toHaveBeenCalled();
+    expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
+    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
+    expect(wakePaperclipAgent).not.toHaveBeenCalled();
+    expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
   });
 
-  it("reruns city-launch planning when a Deep Research blocker reply confirms access", async () => {
+  it("does not treat credential diagnostics as city-launch approval", async () => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
       {
@@ -499,6 +451,7 @@ describe("human reply worker", () => {
         execution_owner: "city-launch-agent",
         escalation_owner: null,
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         record_of_truth: {
           report_paths: [
             "/tmp/city-launch-execution/boise-id/deep-research-blocker-packet.md",
@@ -537,6 +490,7 @@ describe("human reply worker", () => {
     const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
     const result = await ingestHumanReplyPayload({
       channel: "email",
+      sender: "ohstnhunt@gmail.com",
       external_message_id: "msg-4",
       subject:
         "[Blueprint Blocker] [Blueprint Blocker ID: city-launch-deep-research-boise-id] Boise, ID City Launch Deep Research Access",
@@ -544,22 +498,12 @@ describe("human reply worker", () => {
       received_at: "2026-05-06T16:30:00.000Z",
     });
 
-    expect(runCityLaunchPlanningHarness).toHaveBeenCalledWith({
-      city: "Boise, ID",
-      budgetTier: "lean",
-      budgetMaxUsd: 2500,
-      operatorAutoApproveUsd: 500,
-      windowHours: 72,
-    });
+    expect(approveAction).not.toHaveBeenCalled();
     expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
-    expect(resolveHumanBlockerAwaitingReply).toHaveBeenCalledWith(
-      "city-launch-deep-research-boise-id",
-    );
-    expect(result).toMatchObject({
-      processed: true,
-      blocker_id: "city-launch-deep-research-boise-id",
-      resolution: "resolved_input",
-    });
+    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
+    expect(wakePaperclipAgent).not.toHaveBeenCalled();
+    expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
   });
 
   it("blocks the email watcher when Gmail OAuth is not production-ready", async () => {

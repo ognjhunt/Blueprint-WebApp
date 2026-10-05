@@ -1,3 +1,5 @@
+import { successRateBand, CONFIDENCE_POLICY_VERSION, measurementContradictsBand } from "./successRateConfidence";
+export { successRateBand, wilsonLowerBound, wilsonUpperBound, measurementContradictsBand, SUCCESS_RATE_BAND_CLAIM } from "./successRateConfidence";
 /**
  * What a run showed, and what that entitles us to claim.
  *
@@ -77,6 +79,9 @@ export interface RunOutcomeReport {
 
 /** What we store and hand back, observation and claim kept apart. */
 export interface EvalRunResult {
+  evidenceScope?: "development_only";
+  confidencePolicyVersion?: string;
+  confidenceAnnotation?: string;
   privateExecutionResult?: ControlledNativePrivateResult;
   runId: string;
   teamId: string;
@@ -103,113 +108,6 @@ export interface EvalRunResult {
 
 function round2(value: number) {
   return Math.round(value * 100) / 100;
-}
-
-/**
- * The lower end of what this sample can support, at roughly 95% confidence.
- *
- * Wilson rather than the naive ratio, because the naive ratio is unbounded
- * nonsense at small n: ten-for-ten is not evidence of 99.9%, and a normal
- * approximation says the interval has zero width, which is worse than nonsense.
- */
-export function wilsonLowerBound(successes: number, trials: number): number {
-  if (trials <= 0) return 0;
-  const z = 1.96;
-  const p = successes / trials;
-  const z2 = z * z;
-  const denominator = 1 + z2 / trials;
-  const centre = p + z2 / (2 * trials);
-  const margin =
-    z * Math.sqrt((p * (1 - p)) / trials + z2 / (4 * trials * trials));
-  return Math.max(0, (centre - margin) / denominator);
-}
-
-/**
- * The upper end of the same interval.
- *
- * Needed for the opposite question. `wilsonLowerBound` answers "what can this
- * run claim"; this answers "what can this run rule out" -- and only the second
- * one justifies withdrawing somebody else's claim.
- */
-export function wilsonUpperBound(successes: number, trials: number): number {
-  if (trials <= 0) return 1;
-  const z = 1.96;
-  const p = successes / trials;
-  const z2 = z * z;
-  const denominator = 1 + z2 / trials;
-  const centre = p + z2 / (2 * trials);
-  const margin =
-    z * Math.sqrt((p * (1 - p)) / trials + z2 / (4 * trials * trials));
-  return Math.min(1, (centre + margin) / denominator);
-}
-
-/**
- * What each band asserts to whoever reads it.
- *
- * Deliberately the *name's* claim rather than the threshold the band is awarded
- * at. `successRateBand` hands out `ninety` at a lower bound of 0.85, so the two
- * numbers differ -- and when the question is "has this claim been disproved",
- * the honest reference is what a site is being told, which is 90%.
- *
- * (That gap between a band's name and its award threshold is a separate defect,
- * and it is not fixed here: changing the thresholds changes which bands get
- * written, and this change is about what happens to a claim that is already
- * written.)
- */
-export const SUCCESS_RATE_BAND_CLAIM: Record<string, number> = {
-  ninety: 0.9,
-  ninetyfive: 0.95,
-  ninetynine: 0.99,
-  ninetynine_plus: 0.99,
-};
-
-/**
- * Whether this run rules out a band somebody already claimed.
- *
- * ## Why "no band" is the wrong test
- *
- * My first attempt withdrew a claim whenever the run earned no band of its own.
- * That is wrong, and wrong in a way that punishes honesty: ten-for-ten earns no
- * band, because ten trials cannot separate 90% from 99% -- but it is a perfect
- * result, and it contradicts nothing. Withdrawing a claim on the strength of it
- * would mean a team's good short run cost it the claim its long run earned.
- *
- * So the test is contradiction, not silence. The claim goes only when the whole
- * interval this run supports sits below what the claim asserts -- 30 of 50 has
- * an upper bound near 73%, which rules out 95%, while 10 of 10 rules out
- * nothing. Same rule the footage review uses on a site: `contradicts` revokes,
- * and an absence of corroboration does not.
- */
-export function measurementContradictsBand(
-  successes: number,
-  trials: number,
-  heldBand: string | null | undefined,
-): boolean {
-  if (trials <= 0) return false;
-  const claimed = heldBand ? SUCCESS_RATE_BAND_CLAIM[heldBand] : undefined;
-  // Nothing recognisable is claimed, so there is nothing to disprove. An
-  // unknown band is left alone rather than guessed at.
-  if (claimed === undefined) return false;
-  return wilsonUpperBound(successes, trials) < claimed;
-}
-
-/**
- * The highest band this run can honestly claim, or null.
- *
- * Null is a real answer and the common one for a short run. It means the
- * registry keeps whatever it had rather than gaining a worse-founded claim that
- * nothing could later outrank.
- */
-export function successRateBand(successes: number, trials: number): string | null {
-  if (trials <= 0) return null;
-  const bound = wilsonLowerBound(successes, trials);
-  if (bound >= 0.99) return "ninetynine_plus";
-  if (bound >= 0.97) return "ninetynine";
-  if (bound >= 0.93) return "ninetyfive";
-  if (bound >= 0.85) return "ninety";
-  // Below the lowest band on the scale. `unsure` would be a lie -- it means
-  // "not measured" and this was measured -- so nothing is claimed.
-  return null;
 }
 
 /** Which cycle-time band a measured median falls in. */
@@ -263,6 +161,8 @@ export async function recordRunResult(params: {
       : null;
 
   const result: EvalRunResult = {
+    ...(run.executionAdmission?.envelope.evidence_scope === "development_only" ? { evidenceScope: "development_only" as const } : {}),
+    confidencePolicyVersion: CONFIDENCE_POLICY_VERSION,
     runId: run.runId,
     teamId: run.teamId,
     checkpointId: run.checkpointId,
@@ -287,19 +187,20 @@ export async function recordRunResult(params: {
     reportedAtIso: new Date().toISOString(),
   };
 
-  let firstReport = false;
   await db.runTransaction(async transaction => {
     const current = await transaction.get(ref);
     const prior = current.data()?.result as EvalRunResult | undefined;
-    firstReport = !prior;
     if (prior) {
-      const { reportedAtIso: _priorTime, ...priorEvidence } = prior;
-      const { reportedAtIso: _newTime, ...newEvidence } = result;
+      const { reportedAtIso: _priorTime, confidencePolicyVersion: _priorVersion, confidenceAnnotation: _annotation, ...priorEvidence } = projectCurrentConfidence(prior);
+      const { reportedAtIso: _newTime, confidencePolicyVersion: _newVersion, ...newEvidence } = result;
       if (!isDeepStrictEqual(priorEvidence, newEvidence)) throw new Error("Run result conflicts with the recorded evidence");
       result.reportedAtIso = prior.reportedAtIso;
+      if (!current.data()?.notificationIntent) transaction.set(ref, {
+        notificationPending: true, notificationIntent: { kind: "result", episodesRun, episodesSucceeded },
+      }, { merge: true });
       return;
     }
-    transaction.set(ref, { result, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    transaction.set(ref, { result, notificationPending: true, notificationIntent: { kind: "result", episodesRun, episodesSucceeded }, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   });
 
   // Only a signed Pipeline result with an executed native episode proves that
@@ -314,7 +215,8 @@ export async function recordRunResult(params: {
   }
 
   // Official results notify the site; private results notify only their team.
-  if (firstReport) {
+  {
+    // Deterministic outbox IDs repair an enqueue lost after result persistence.
     try {
       if (isSiteEvaluation(run)) await enqueueTaskLifecycleNotification({
         requestId: run.sceneId,
@@ -352,7 +254,7 @@ export async function recordRunResult(params: {
   // a self-registered team into the supply sites are shown, which is the only
   // path there is -- a team earns that place by being measured, never by
   // registering.
-  if (isSiteEvaluation(run)) {
+  if (isSiteEvaluation(run) && result.evidenceScope !== "development_only") {
     try {
       await recordEvaluationOutcome({
         robotTeamId: run.teamId,
@@ -444,7 +346,7 @@ export async function getRunForTeam(
   if (!snapshot.exists) return null;
   const run = snapshot.data() as EvalRunRecord & { result?: EvalRunResult };
   if (run.teamId !== teamId) return null;
-  return run;
+  return run.result ? { ...run, result: projectCurrentConfidence(run.result) } : run;
 }
 
 /** Every run this team has bought, newest first, resolved or not. */
@@ -461,6 +363,19 @@ export async function listRunsForTeam(
 
   return snapshot.docs
     .map((doc) => doc.data() as EvalRunRecord & { result?: EvalRunResult })
+    .map(run => run.result ? { ...run, result: projectCurrentConfidence(run.result) } : run)
     .sort((a, b) => (a.requestedAtIso < b.requestedAtIso ? 1 : -1))
     .slice(0, limit);
+}
+
+
+/** Annotate historical receipts on read without rewriting their evidence. */
+export function projectCurrentConfidence(result: EvalRunResult): EvalRunResult {
+  const band = successRateBand(result.observed.episodesSucceeded, result.observed.episodesRun);
+  return { ...result, claimed: { ...result.claimed, demonstratedSuccessRate: band },
+    confidencePolicyVersion: CONFIDENCE_POLICY_VERSION,
+    ...(result.confidencePolicyVersion !== CONFIDENCE_POLICY_VERSION ? {
+      confidenceAnnotation: "Historical confidence label recalculated using Wilson 95% lower bounds and 90%, 95%, 99% thresholds.",
+    } : {}),
+  };
 }

@@ -44,7 +44,7 @@ import {
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
-import { reviewCaptureCoverage } from "../utils/captureCoverageReview";
+import { queueCoverageReview } from "../utils/captureReviewRecovery";
 import { claimCapturePrivacyScreen, recordCapturePrivacyScreen,
   releaseCapturePrivacyScreenClaim } from "../utils/capturePrivacyRecord";
 import { getBrief, switchSiteToSelfCapture } from "../utils/siteTaskBrief";
@@ -175,7 +175,7 @@ function saveStreamedFile(
 async function discardUploadedFile(file: { path: string } | undefined): Promise<void> {
   if (!file?.path) return;
   await unlink(file.path).catch((error) =>
-    logger.warn({ error, path: file.path }, "Could not remove the upload temp file"),
+    { if (error.code !== "ENOENT") logger.warn({ error, path: file.path }, "Could not remove the upload temp file"); },
   );
 }
 
@@ -376,6 +376,7 @@ async function beginBrowserCanonicalWrite(
  */
 async function writeCompletionMarker(pending: BrowserPending): Promise<void> {
   if (!storageAdmin) throw new Error("Storage is unavailable");
+  if (!(await authorizeCaptureUpload(pending.request_id)).allowed) throw new Error("recording_consent_required");
   const current = await loadBrowserPending(pending.capture_id);
   if (!current || current.video.generation !== pending.video.generation
       || current.manifest.generation !== pending.manifest.generation
@@ -388,6 +389,7 @@ async function writeCompletionMarker(pending: BrowserPending): Promise<void> {
     captureId: pending.capture_id, rawPrefix, video: pending.video,
     manifest: pending.manifest, completedAtIso: pending.completed_at_iso,
   });
+  await queueCoverageReview({ requestId: pending.request_id, sceneId: pending.scene_id, captureId: pending.capture_id });
   await publishBrowserDelivery(storageAdmin.bucket(storageBucketName()), delivery);
   await publishBrowserPending(pending);
 }
@@ -397,6 +399,7 @@ async function writeLegacyHeldMarker(requestId: string, sceneId: string, capture
   if (!storageAdmin) throw new Error("Storage is unavailable");
   if (await prepareLegacyBrowserFinish({ request_id: requestId, scene_id: sceneId,
     capture_id: captureId }) !== "legacy") return false;
+  if (!(await authorizeCaptureUpload(requestId)).allowed) return false;
   const stored = await resolveStoredObjectPath(sceneId, captureId);
   if (!stored) return false;
   const bucket = storageAdmin.bucket(storageBucketName());
@@ -449,6 +452,15 @@ async function finishStoredCapture(params: {
   const bucket = storageAdmin.bucket(storageBucketName());
   if (params.video.object_name !== objectPath || params.video.size_bytes !== params.sizeBytes) {
     return { status: 409, body: { error: "The stored video does not match this upload.", code: "video_identity_mismatch" } };
+  }
+  const currentAuthority = await authorizeCaptureUpload(payload.requestId);
+  if (!currentAuthority.allowed) {
+    if (currentAuthority.holdReason === "recording_consent_required") {
+      // Delete only the exact generation this request just wrote; never a replacement.
+      await bucket.file(objectPath, { generation: params.video.generation,
+        preconditionOpts: { ifGenerationMatch: params.video.generation } }).delete({ ignoreNotFound: true });
+    }
+    return { status: 409, body: { code: currentAuthority.holdReason, error: currentAuthority.detail } };
   }
 
   // Preserve the owner's task alongside the original capture. Upload can finish
@@ -580,29 +592,6 @@ async function finishStoredCapture(params: {
     };
   }
 
-  // The coverage read, and the reason it is here rather than awaited: the
-  // operator is standing in a warehouse holding a phone, and a model
-  // traversing a two-minute video is not something to make them wait on. The
-  // finding is stored on the request, so the task page and the supply query
-  // both pick it up whenever it lands.
-  //
-  // Deliberately after the privacy screen. Coverage is a question about the
-  // footage and privacy is a question about whether we may read the footage at
-  // all -- asking the second one second would be the ordering mistake Tier 3
-  // exists to fix.
-  void reviewCaptureCoverage({
-    requestId: payload.requestId,
-    sceneId: payload.sceneId,
-    captureId: payload.captureId,
-  }).catch((error) => {
-    // Never fails the upload. A missing coverage finding means we do not know
-    // which views are short, which is worse than knowing and much better than
-    // telling somebody their capture failed when it did not.
-    logger.warn(
-      { error, captureId: payload.captureId },
-      "Coverage review could not be started for a stored capture",
-    );
-  });
 
   return {
     status: 201,
@@ -655,11 +644,8 @@ export function bundleServiceDeps(storage: BundleStorage): BundleServiceDeps {
     },
     recordUploadIdentity: (params) => recordSiteCaptureUploadIdentity(params),
     claimBundle: (params) => claimSiteCaptureBundle(params),
-    startCoverageReview(params) {
-      void reviewCaptureCoverage(params).catch((error) => {
-        logger.warn({ error, captureId: params.captureId }, "Coverage review could not be started for a stored capture");
-      });
-    },
+    startCoverageReview: queueCoverageReview,
+
     now: () => new Date(),
   };
 }
@@ -845,7 +831,19 @@ router.post("/:token/self-capture", async (req: Request, res: Response) => {
   });
 });
 
-router.post("/:token", upload.single("video"), async (req: UploadRequest, res: Response) => {
+/** Check before multipart middleware receives or spools any bytes. */
+async function authorizeBeforeCaptureBody(req: Request, res: Response, next: (error?: unknown) => void) {
+  try {
+    const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+    if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
+    const authorization = await authorizeCaptureUpload(payload.requestId);
+    if (!authorization.allowed) return res.status(409).json({ code: authorization.holdReason, error: authorization.detail });
+    res.once("finish", () => { void discardUploadedFile((req as UploadRequest).file); });
+    next();
+  } catch (error) { next(error); }
+}
+
+router.post("/:token", authorizeBeforeCaptureBody, upload.single("video"), async (req: UploadRequest, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "This upload link is not valid or has expired." });
@@ -1025,6 +1023,7 @@ router.get("/:token/parts", async (req: Request, res: Response) => {
 
 router.put(
   "/:token/parts/:index",
+  authorizeBeforeCaptureBody,
   partUpload.single("part"),
   async (req: PartUploadRequest, res: Response) => {
     const payload = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -1267,6 +1266,7 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "heic", "heif", 
  */
 router.post(
   "/:token/items/:itemId/image",
+  authorizeBeforeCaptureBody,
   upload.single("image"),
   async (req: UploadRequest, res: Response) => {
     const payload = verifyCaptureUploadToken(String(req.params.token || ""));

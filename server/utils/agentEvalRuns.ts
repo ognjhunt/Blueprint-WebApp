@@ -1,3 +1,5 @@
+import { reconcileAgentRunNotifications } from "./agentRunNotificationRecovery";
+import { canDispatchFreeBetaRun, isBlueprintFundedRun, FREE_BETA_ONLY, FREE_BETA_PAID_DISABLED } from "./freeBeta";
 /**
  * The record that connects money held to work done.
  *
@@ -84,6 +86,7 @@ function round2(value: number) {
  */
 export async function createRequestedRun(params: RequestedRunParams): Promise<EvalRunRecord | null> {
   if (!db) return null;
+  if (FREE_BETA_ONLY) throw new Error(FREE_BETA_PAID_DISABLED);
   const record = buildRequestedRunRecord(params);
   const ref = db.collection(RUNS_COLLECTION).doc(record.runId);
   return db.runTransaction(async transaction => {
@@ -147,6 +150,7 @@ export async function reportRunOutcome(params: {
       if (run.state !== params.state || run.episodesRun !== episodesRun) {
         throw new RunOutcomeConflictError("Settlement conflicts with the recorded run outcome");
       }
+      endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId, siteVisible: isSiteEvaluation(run) } : null;
       // An identical delivery is an idempotent acknowledgement. In particular,
       // do not put an already-resolved run back into the due queue.
       return true;
@@ -158,6 +162,7 @@ export async function reportRunOutcome(params: {
       throw new RunOutcomeConflictError("The run cannot accept a financial outcome in its current state");
     }
     transaction.set(ref, {
+      ...(!run.result && (params.state === "blocked" || episodesRun === 0) ? { notificationPending: true, notificationIntent: { kind: "no_result" } } : {}),
       state: params.state,
       dispatchPending: false,
       episodesRun,
@@ -231,6 +236,7 @@ export async function reconcileAgentRunSettlements(params?: {
   limit?: number;
 }): Promise<ReconciliationSummary> {
   if (!db) return emptySummary();
+  await reconcileAgentRunNotifications(params?.limit).catch(error => logger.warn({ error }, "Notification recovery will retry"));
 
   // Inequality and ordering on the same field, so this needs only the
   // single-field index Firestore maintains on its own.
@@ -296,6 +302,11 @@ async function resolveDueRuns(
     summary.examined += 1;
 
     try {
+      if (isBlueprintFundedRun(run) && ["completed", "blocked"].includes(run.state)) {
+        await markResolved(doc.id, run.state, "Free evaluation: customer charge is zero; sponsor usage reconciles in Pipeline.");
+        summary.settled += 1;
+        continue;
+      }
       if (run.state === "completed" && (run.episodesRun ?? 0) > 0) {
         const amountUsd = settlementAmountUsd(run);
         await settleReservation({
@@ -341,6 +352,11 @@ async function resolveDueRuns(
           return true;
         });
         if (!expired) continue;
+        if (isBlueprintFundedRun(run)) {
+          await markResolved(doc.id, "abandoned", "Free evaluation cancelled or expired: customer charge is zero; unresolved sponsor usage remains in Pipeline.");
+          summary.abandoned += 1;
+          continue;
+        }
         await releaseReservation({ teamId: run.teamId, reservationId: run.reservationId,
           reason: `Run ${run.runId} cancelled or expired before a billable report`,
           idempotencyKey: `release:${run.reservationId}` });
@@ -532,7 +548,7 @@ export async function listRequestedRuns(limit = 50, captureId?: string): Promise
     .get();
   return snapshot.docs
     .map((doc) => doc.data() as EvalRunRecord)
-    .filter(run => run.state === "requested" && !run.moneyResolved && !run.cancellationRequested && !run.dispatch?.startedAtIso && Date.parse(run.requestedAtIso) + reservationTtlMs() > Date.now());
+    .filter(run => canDispatchFreeBetaRun(run) && run.state === "requested" && !run.moneyResolved && !run.cancellationRequested && !run.dispatch?.startedAtIso && Date.parse(run.requestedAtIso) + reservationTtlMs() > Date.now());
 }
 
 /**
@@ -556,6 +572,7 @@ export async function markRunStarted(params: {
     const run = snapshot.data() as EvalRunRecord & { settlementDueAtMs?: number };
     if (run.executionAdmission && params.executionAdmissionDigest !== run.executionAdmission.digestSha256) return null;
     if (run.moneyResolved || run.cancellationRequested || run.state !== "requested" || run.episodesRun !== null) return null;
+    if (!canDispatchFreeBetaRun(run)) return null;
     const due = run.settlementDueAtMs ?? Date.parse(run.requestedAtIso) + reservationTtlMs();
     if (!Number.isFinite(due) || due <= Date.now()) return null;
     if (run.dispatch?.startedAtIso) {

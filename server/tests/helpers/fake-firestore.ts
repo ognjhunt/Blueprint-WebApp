@@ -145,6 +145,7 @@ export function createFakeFirestore(state: FakeFirestoreState) {
     return {
       id,
       __collection: collectionName,
+      collection: (name: string) => ({ doc: (childId: string) => makeDocRef(`${collectionName}/${id}/${name}`, childId) }),
       get: async () => ({
         id,
         exists: Boolean(readDoc(collectionName, id)),

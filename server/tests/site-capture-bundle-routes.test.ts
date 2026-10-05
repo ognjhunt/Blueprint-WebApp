@@ -308,13 +308,12 @@ describe("the plan is checked against the Raw V3.2 layout before any bytes move"
     expect(missing.body.errors).toContain("required_file_missing:motion.jsonl");
   });
 
-  it("asks the phone to re-bind when the rights changed before anything was stored", async () => {
+  it("refuses absent recording consent before issuing upload targets", async () => {
     const { device, bindingDigest } = await bundleFor();
     sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST_ID}`, { requestId: REQUEST_ID, request: {} });
     const response = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
     expect(response.status).toBe(409);
-    expect(response.body.code).toBe("capture_binding_changed");
-    expect(response.body.binding.capture_rights.derived_scene_generation_allowed).toBe(false);
+    expect(response.body.code).toBe("recording_consent_required");
     expect(state.bucket.names()).toEqual([]);
   });
 });
@@ -573,7 +572,9 @@ describe("completion keeps the web path's order and authority", () => {
     expect(writes[1]).toBe("manifest.json");
     expect(writes.slice(-2)).toEqual(["hashes.json", "capture_upload_complete.json"]);
     expect(state.notices).toEqual([`${REQUEST_ID}:video_received`]);
-    expect(state.coverage).toEqual([CAPTURE_ID]);
+    expect(state.coverage).toEqual([]);
+    expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`)?.coverageReviewPending).toBe(true);
+    expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`)?.coverageReviewWork.captureId).toBe(CAPTURE_ID);
 
     const manifest = JSON.parse(state.bucket.text(`${RAW}/manifest.json`)!);
     expect(manifest.capture_source).toBe("iphone");

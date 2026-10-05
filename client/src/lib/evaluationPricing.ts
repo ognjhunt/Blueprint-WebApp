@@ -21,7 +21,7 @@ export const entryBoundaries = [
   "A different embodiment running a different policy is one new entry, not two.",
 ] as const;
 
-/** A robot team's price, per entry. The only number a team has to read. */
+/** Historical paid-run planning price. Paid entrypoints are disabled for the free beta. */
 export const entryPrice = 99;
 
 /**
@@ -67,7 +67,7 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Robot teams pay for private internal evaluation runs. Invited teams evaluate a qualified job for free. A site pays Blueprint $2,500 per job only when we find a robot team that matches it. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Invited robot teams evaluate a qualified job for free during the beta. A site pays Blueprint $2,500 per job only when we find a robot team that matches it. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
     "The physical pilot, which the robot team prices and runs. Blueprint takes no cut of the pilot; its only site fee is $2,500 per job when it finds a match.",
 } as const;
