@@ -253,7 +253,7 @@ describe("blueprint.outreach.v2 for outreach-ready hypothesis drafts (synthetic)
     ["no question in the contract", value => { value.contract.questions = []; }, "outreach_contract_missing_or_invalid"],
     ["the wrong open check for the question", value => { value.contract.questions[0].checks = ["interest"]; }, "hypothesis_question_checks_mismatch"],
     ["the verified-lead v1 contract", value => { value.contract = { ...outreachContract }; }, "outreach_hypothesis_contract_required"],
-    ["no qualification block", value => { delete value.qualification; }, "outreach_hypothesis_qualification_missing"],
+    ["a malformed qualification block", value => { value.qualification.openQuestions = []; }, "outreach_hypothesis_qualification_missing"],
     ["an opening detail not in the recorded evidence", value => { value.contract.opening.publicDetail.sourceClaim = "Invented claim"; },
       "cold_detail_not_in_recorded_evidence"],
     ["a capability claim", value => { value.body = value.body.replace("Nijel", "Our Atlas system could help.\n\nNijel"); },
@@ -271,9 +271,9 @@ describe("blueprint.outreach.v2 for outreach-ready hypothesis drafts (synthetic)
     expect(result.hardChecksPassed).toBe(false);
     expect(result.blockers).toContain(blocker);
   });
-  it("never reviews a v2 contract as a verified-lead draft, and keeps the v1 review unchanged", () => {
+  it("reviews a verified-lead draft that carries a v2 contract by the v1 rules: one repairable contract error", () => {
     const { qualification: _q, recipient: _r, ...plain } = draft();
-    expect(reviewOutreachDraft(plain).blockers).toContain("outreach_hypothesis_qualification_missing");
+    expect(reviewOutreachDraft(plain)).toMatchObject({ hardChecksPassed: false, blockers: ["outreach_contract_missing_or_invalid"], digest: null });
     expect(reviewOutreachDraft(outreachDraft)).toMatchObject({ hardChecksPassed: true, blockers: [] });
   });
 });

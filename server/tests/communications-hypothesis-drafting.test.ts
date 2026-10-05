@@ -121,6 +121,16 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(ledger).not.toHaveProperty("send_authority");
   });
 
+  it("gives a verified draft that carries the v2 contract the v1 repair, never the v2 review", async () => {
+    const h = await admitted();
+    const output = verifiedOutput(h);
+    h.setOutput({ ...output, outreachContract: hypothesisDraft(h.brief).outreachContract });
+    const result: any = await processCommunicationsJob(h.verifiedJob.jobId, h.deps);
+    expect(result.state).not.toBe("blocked");
+    expect(h.seen[0].feedback).toEqual([{ code: "outreach_contract_missing_or_invalid", path: "outreachContract",
+      message: "For outreach, supply the recorded structured outreach contract matching this message; replies use null." }]);
+  });
+
   it("never applies automatic first contact to a hypothesis, even with every automation flag on", async () => {
     const h = await admitted();
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");

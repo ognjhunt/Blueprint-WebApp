@@ -204,10 +204,9 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
 }
 
 export function reviewOutreachDraft(draft: OutreachDraft): OutreachReviewResult {
-  // A hypothesis brief, or any v2 contract, is reviewed only by the v2 rules.
-  if (draft.qualification !== undefined || (draft.contract as any)?.version === OUTREACH_HYPOTHESIS_CONTRACT_VERSION) {
-    return reviewHypothesisOutreachDraft(draft);
-  }
+  // Only a hypothesis brief, which carries its qualification block, is reviewed by the v2 rules. Any other
+  // draft keeps the v1 review, so a v2 contract there fails as an invalid v1 contract, which the writer can repair.
+  if (draft.qualification !== undefined) return reviewHypothesisOutreachDraft(draft);
   const blockers: string[] = [];
   const parsed = outreachReviewContractSchema.safeParse(draft.contract);
   const context = outreachContextSchema.safeParse(draft.context);
