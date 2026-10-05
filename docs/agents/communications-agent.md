@@ -434,7 +434,12 @@ A missing contact goes to communications contact research. A known candidate is
 blocked, and its open contact request is closed (`terminal`), so no contact
 research follows. A contact request that finds its hypothesis already admitted
 or blocked is settled (`resolved` or `terminal`), never left `running`. Anything
-else becomes `needs_research` for the research owner.
+else becomes `needs_research` for the research owner. The publication, CRM and
+fact-freshness checks run before any contact work, and again at admission. A
+failure found by contact research, or at admission with a contact, is recorded
+the same way; it never asks for more contact research. A request handed from
+contact research to the research owner starts `pending` for it, even if contact
+research had already ended it as `terminal`.
 
 The draft asks exactly the one published question (`blueprint.outreach.v2`).
 Approvals shows it as "Hypothesis · draft only", with no approve control.

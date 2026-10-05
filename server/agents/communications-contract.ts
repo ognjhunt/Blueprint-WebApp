@@ -382,14 +382,17 @@ export function communicationsDigest(value: unknown) {
   return createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 }
 
+const checkedLongAgo = (time: string, days: number, now: number) => {
+  const age = now - Date.parse(time);
+  return !Number.isFinite(age) || age < 0 || age > days * 86400000;
+};
+/** briefRefreshReasons for the facts alone: a consequential fact checked over 7 days ago, any other over 30. */
+export function staleFactReasons(facts: CommunicationsBrief["facts"], now: number): string[] {
+  return facts.filter((fact) => checkedLongAgo(fact.sourceCheckedAt, fact.consequential ? 7 : 30, now)).map((fact) => `stale_fact:${fact.id}`);
+}
 export function briefRefreshReasons(brief: CommunicationsBrief, now: number): string[] {
-  const stale = (time: string, days: number) => {
-    const age = now - Date.parse(time);
-    return !Number.isFinite(age) || age < 0 || age > days * 86400000;
-  };
-  const reasons = brief.facts.filter((fact) => stale(fact.sourceCheckedAt, fact.consequential ? 7 : 30))
-    .map((fact) => `stale_fact:${fact.id}`);
-  if (stale(brief.contact.sourceCheckedAt, 30)) reasons.push("stale_contact");
+  const reasons = staleFactReasons(brief.facts, now);
+  if (checkedLongAgo(brief.contact.sourceCheckedAt, 30, now)) reasons.push("stale_contact");
   if (brief.conflicts.length) reasons.push("conflicting_evidence");
   if (brief.stage.interest !== "unknown" && (!brief.stage.evidenceIds.length
     || brief.stage.evidenceIds.some((ref) => !brief.facts.some((fact) => fact.id === ref && fact.evidenceClass !== "inference")))) {

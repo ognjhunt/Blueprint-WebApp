@@ -230,9 +230,13 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     const resolution = await f.resolution();
     // The hypothesis Sheets row no longer matches the published payload.
     f.snapshot.row.delivery.sheets.plan.sheet_rows[1][16] = "Verified";
-    await expect(admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, resolution)).rejects.toThrow("research_");
-    const outcome: any = await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps);
-    expect(outcome.state).toBe("needs_research");
+    // Found with a contact resolution, it is the research owner's, as it is without one.
+    for (const claim of [resolution, undefined]) {
+      expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, claim))
+        .toMatchObject({ state: "needs_research", reasons: [expect.stringMatching(/^research_/)] });
+    }
+    expect(f.records("refreshRequests").find(item => item.kind === "research_owner_refresh")).toMatchObject({ owner: "blueprint-research-agent",
+      state: "pending" });
     expect(f.records("jobs")).toHaveLength(0);
   });
 
@@ -249,9 +253,74 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     expect(admitted.state).toBe("admitted");
     const stale = setup({ mutateHypothesisAssessment: assessment => { assessment.valid_until = null; } });
     stale.advance(8 * 86400000);
-    const outcome: any = await admitPublishedHypothesis(stale.snapshot, stale.hypothesis.candidate_key, stale.deps, await stale.resolution()).catch(error => error);
-    expect(String(outcome?.message ?? "")).toMatch(/^research_adapter_review_required:stale_fact:/);
+    expect(await admitPublishedHypothesis(stale.snapshot, stale.hypothesis.candidate_key, stale.deps, await stale.resolution()))
+      .toMatchObject({ state: "needs_research", reasons: [expect.stringMatching(/^research_adapter_review_required:stale_fact:/)] });
     expect(stale.records("jobs")).toHaveLength(0);
+  });
+
+  it("checks the proven facts' freshness before asking for a contact: stale facts go to the research owner", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup({ mutateHypothesisAssessment: assessment => { assessment.valid_until = null; } });
+    f.advance(8 * 86400000);
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps)).toMatchObject({ state: "needs_research",
+      reasons: [expect.stringMatching(/^research_adapter_review_required:stale_fact:/)] });
+    expect(f.records("refreshRequests")).toEqual([expect.objectContaining({ owner: "blueprint-research-agent", kind: "research_owner_refresh",
+      state: "pending" })]);
+    expect(f.deps.readContactPage).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, (f: ReturnType<typeof setup>) => void]>([
+    ["before the contact worker runs", f => { f.advance(8 * 86400000); }],
+    ["between the contact worker's own check and its admission", f => {
+      // The proven facts were checked at 21:00 on Sep 30. Fresh by 30 seconds when the worker checks them, stale
+      // by 30 seconds when it re-reads the snapshot for admission, all within the worker's lease.
+      f.advance(7 * 86400000 - 2 * 3600000 - 30000);
+      const read = f.deps.readResearch.getMockImplementation()!;
+      let calls = 0;
+      f.deps.readResearch.mockImplementation(async (...args) => { if (++calls === 2) f.advance(60000); return read(...args); });
+    }],
+  ])("routes a research failure found at contact time to the research owner, end to end: facts go stale %s", async (_name, age) => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup({ mutateHypothesisAssessment: assessment => { assessment.valid_until = null; } });
+    await f.workItem();
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps)).toMatchObject({ reasons: ["hypothesis_public_contact_missing"] });
+    age(f);
+    const requestContactResearch = vi.fn(async () => true);
+    const deps = { ...f.deps, requestContactResearch };
+    await runCommunicationsContactRefresh(deps);
+    expect(requestContactResearch).not.toHaveBeenCalled();
+    expect(f.hypothesisIntake()).toMatchObject({ state: "needs_research", reasons: [expect.stringMatching(/^research_adapter_review_required:stale_fact:/)],
+      draftJobCreated: false });
+    const routed = { owner: "blueprint-research-agent", kind: "research_owner_refresh", state: "pending", lease: expect.objectContaining({ until: 0 }),
+      reasons: [expect.stringMatching(/^research_adapter_review_required:stale_fact:/)] };
+    const requests = () => f.records("refreshRequests").filter(item => item.candidateKey === f.hypothesis.candidate_key);
+    expect(requests()).toEqual([expect.objectContaining(routed)]);
+    for (const name of ["briefs", "jobs", "contactProofs"]) expect(f.records(name)).toHaveLength(0);
+    // It stays with the research owner: contact research and the stale-fact worker leave it, and intake keeps it there.
+    const reads = f.deps.readContactPage.mock.calls.length;
+    f.advance(300001);
+    await runCommunicationsContactRefresh(deps);
+    await runCommunicationsFactRefresh(f.db, f.deps.readContactPage, f.deps.now);
+    await runCommunicationsIntake(deps);
+    expect(f.deps.readContactPage.mock.calls).toHaveLength(reads);
+    expect(requests()).toEqual([expect.objectContaining(routed)]);
+    expect(f.hypothesisIntake()).toMatchObject({ state: "needs_research", reasons: [expect.stringMatching(/^research_adapter_review_required:stale_fact:/)] });
+  });
+
+  it("moves a terminal contact request to the research owner when a later pass finds a research problem", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup({ mutateHypothesisAssessment: assessment => { assessment.valid_until = null; } });
+    await f.workItem();
+    f.setContactBody("<p>Synthetic hypothesis operator: no address is published here.</p>");
+    await runCommunicationsIntake(f.deps);
+    expect(f.records("refreshRequests").find(item => item.candidateKey === f.hypothesis.candidate_key))
+      .toMatchObject({ kind: "public_contact_resolution", state: "terminal" });
+    f.advance(8 * 86400000);
+    // The intake cursor wraps after an empty page, so the second pass reads the day again.
+    await runCommunicationsIntake(f.deps); await runCommunicationsIntake(f.deps);
+    expect(f.hypothesisIntake()).toMatchObject({ state: "needs_research", reasons: [expect.stringMatching(/^research_adapter_review_required:stale_fact:/)] });
+    expect(f.records("refreshRequests").find(item => item.candidateKey === f.hypothesis.candidate_key)).toMatchObject({
+      owner: "blueprint-research-agent", kind: "research_owner_refresh", state: "pending" });
   });
 
   it.each<[string, (f: ReturnType<typeof setup>) => Promise<void>, string]>([
