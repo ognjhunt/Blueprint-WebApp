@@ -247,8 +247,10 @@ export async function recordPublishedHypotheses(snapshot: any, deps: IntakeDepen
 // every send, approval and first-contact path refuses the brief, the prospect and its address.
 
 export const HYPOTHESIS_DRAFTS_FLAG = "BLUEPRINT_COMMUNICATIONS_HYPOTHESIS_DRAFTS_ENABLED";
-/** Default off. While off, hypotheses are only recorded, exactly as in phase 1. */
+/** Default off. While off, hypotheses are only recorded, exactly as in phase 1: nothing is admitted, no
+ * contact request is claimed and no queued hypothesis job is drafted (processCommunicationsJob). */
 export const hypothesisDraftsEnabled = () => process.env[HYPOTHESIS_DRAFTS_FLAG] === "true";
+export const HYPOTHESIS_DRAFTS_DISABLED = "hypothesis_drafts_disabled";
 // The candidate is already known or may not be written to: terminal for this hypothesis.
 const HYPOTHESIS_BLOCKING = new Set(["recipient_suppressed", "outreach_ready_candidate_already_known",
   "outreach_ready_candidate_under_verified_row", "outreach_ready_recipient_already_known"]);
@@ -337,6 +339,13 @@ function hypothesisBriefProposal(source: HypothesisSource, contact: ReturnType<t
 export async function admitPublishedHypothesis(snapshot: any, candidateKey: string, deps: IntakeDependencies,
   resolution?: { proof: HypothesisContactResolution; requestId: string; leaseOwner: string }) {
   const row = snapshot?.row, identity = sourceIdentity(row ?? {}, candidateKey), intakeId = communicationsDigest(identity);
+  // Drafts off: nothing is read, admitted or written. A contact request claimed before the flag went off
+  // goes back to wait, unclaimed (runCommunicationsContactRefresh).
+  if (!hypothesisDraftsEnabled()) {
+    if (resolution) throw new Error(HYPOTHESIS_DRAFTS_DISABLED);
+    return { ...identity, intakeId, state: "not_admitted", reasons: [HYPOTHESIS_DRAFTS_DISABLED], label: "hypothesis", eligibleForOutreach: false,
+      draftJobCreated: false, sendsAuthorized: false, sent: false, sessionCreated: false };
+  }
   const root = deps.db.doc(COMMUNICATIONS_ROOT), intakeRef = root.collection("intake").doc(intakeId);
   const recorded = (await intakeRef.get()).data();
   if (recorded && ["admitted", "blocked"].includes(recorded.state)) return recorded;
@@ -514,6 +523,17 @@ export async function runCommunicationsContactRefresh(deps: IntakeDependencies) 
         }
       } catch (error) {
         const reason = error instanceof Error ? error.message.slice(0, 1200) : "contact_refresh_failed";
+        if (reason === HYPOTHESIS_DRAFTS_DISABLED) {
+          // Hypothesis drafts were turned off after this claim: the request waits again, unclaimed, as it
+          // was before it. No attempt is spent and no contact research is asked for.
+          await deps.db.runTransaction(async tx => {
+            const current = (await tx.get(doc.ref)).data();
+            if (current?.lease?.owner !== owner || current.state !== "running" || current.lease.until <= deps.now()) return;
+            tx.set(doc.ref, { state: claim.waitingForAgent ? "agent_research_wait" : "pending",
+              attempts: claim.attempts - (claim.waitingForAgent ? 0 : 1), lease: { owner, until: 0 } }, { merge: true });
+          });
+          break;
+        }
         const transient = /contact_fetch_(?:timeout|dns_timeout|incomplete|failed)|ECONN|ENOTFOUND|EAI_AGAIN/.test(reason) && claim.attempts < 2;
         const researchQueued = !transient && source && prospectId && await deps.requestContactResearch?.(source, prospectId, reason);
         await deps.db.runTransaction(async tx => {

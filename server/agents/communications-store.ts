@@ -351,6 +351,17 @@ export class CommunicationsStore {
         nextAttemptAt: this.now() + 15 * 60000, lease: { owner: this.owner, until: 0 }, updatedAt: this.now() });
     });
   }
+  /** Hypothesis drafts are off: the job waits, queued, with its attempt given back. Nothing else changes:
+   * a create claim, session or checkpoint made before the flag went off is kept for when it is on again. */
+  async deferHypothesisDraft(jobId: string, reason: string) {
+    const ref = this.jobs().doc(jobId);
+    await this.db.runTransaction(async tx => {
+      const row = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
+      if (!row || row.lease?.owner !== this.owner || row.lease.until <= this.now()) throw new Error("communications_lease_lost");
+      tx.update(ref, { state: "queued", reason, attempts: Math.max(0, row.attempts - 1),
+        nextAttemptAt: this.now() + 15 * 60000, lease: { owner: this.owner, until: 0 }, updatedAt: this.now() });
+    });
+  }
   async recordReply(job: CommunicationsJob, message: ThreadMessage, fetchedAt = new Date(this.now()).toISOString()) {
     const identity = communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"]
       .map(key => [key, (job as any)[key]]))), received = Date.parse(message.receivedAt), observed = Date.parse(fetchedAt);

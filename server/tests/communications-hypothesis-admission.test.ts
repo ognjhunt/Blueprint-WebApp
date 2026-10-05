@@ -26,6 +26,32 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     expect(f.deps.readContactPage).not.toHaveBeenCalled();
   });
 
+  it("admits nothing once hypothesis drafts are off, and puts a contact request claimed before that back to wait", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup();
+    const resolution = await f.resolution();
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+    const before = structuredClone([...f.db.records.entries()]);
+    await expect(admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, resolution)).rejects.toThrow("hypothesis_drafts_disabled");
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps))
+      .toMatchObject({ state: "not_admitted", reasons: ["hypothesis_drafts_disabled"], draftJobCreated: false, sendsAuthorized: false });
+    expect([...f.db.records.entries()]).toEqual(before);
+    // The contact worker claimed a hypothesis request; drafts are turned off while it reads the operator's pages.
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const g = setup();
+    expect(await admitPublishedHypothesis(g.snapshot, g.hypothesis.candidate_key, g.deps)).toMatchObject({ reasons: ["hypothesis_public_contact_missing"] });
+    const read = g.deps.readContactPage.getMockImplementation()!;
+    g.deps.readContactPage.mockImplementation(async (...args) => { vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false"); return read(...args); });
+    const requestContactResearch = vi.fn(async () => true);
+    await runCommunicationsContactRefresh({ ...g.deps, requestContactResearch });
+    expect(g.deps.readContactPage).toHaveBeenCalled();
+    expect(requestContactResearch).not.toHaveBeenCalled();
+    expect(g.records("refreshRequests")).toEqual([expect.objectContaining({ kind: "public_contact_resolution", state: "pending", attempts: 0,
+      lease: expect.objectContaining({ until: 0 }) })]);
+    expect(g.hypothesisIntake()).toMatchObject({ state: "needs_research", reasons: ["hypothesis_public_contact_missing"] });
+    for (const name of ["briefs", "jobs", "contactProofs"]) expect(g.records(name)).toHaveLength(0);
+  });
+
   it("hands a missing contact to communications-owned contact research and never drafts without one", async () => {
     vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
     const f = setup();

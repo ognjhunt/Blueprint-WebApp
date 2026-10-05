@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { HYPOTHESIS_DRAFTS_FLAG, runCommunicationsIntake } from "../agents/communications-intake";
-import { processCommunicationsJob } from "../agents/communications-worker";
+import { processCommunicationsJob, recoverSavedCommunicationsDraft } from "../agents/communications-worker";
 import { reviseCommunicationsDraft } from "../agents/communications-draft-revision";
 import { CommunicationsStore } from "../agents/communications-store";
 import { communicationsBriefSchema } from "../agents/communications-contract";
@@ -29,6 +29,15 @@ async function admitted(options: Parameters<typeof hypothesisSetup>[0] = {}) {
   }), cancel: vi.fn(async () => true), reconcileSaved: vi.fn(async () => null as any) };
   const deps = { ...f.deps, store, api, verifyMailbox: vi.fn(), readThread: vi.fn(), suppress: vi.fn(async () => ({ persisted: true })) };
   return { f, intake, brief, verifiedJob, store, api, deps, seen, setOutput: (value: typeof output) => { output = value; } };
+}
+/** The verified row's own v1 draft, as the phase-1 intake test writes it. */
+function verifiedOutput(h: Awaited<ReturnType<typeof admitted>>) {
+  const verifiedBrief = communicationsBriefSchema.parse(h.f.records("briefs").find(item => item.briefId === h.verifiedJob.briefId));
+  const output = structuredClone(h.f.output);
+  output.usedFactIds = [verifiedBrief.facts[0].id];
+  output.body = output.body.replace((output.outreachContract as any).question, verifiedBrief.contact.learningQuestion);
+  (output.outreachContract as any).question = verifiedBrief.contact.learningQuestion;
+  return output;
 }
 
 describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
@@ -70,15 +79,36 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
       send_authority: "none" });
   });
 
+  it("drafts nothing once hypothesis drafts are turned off: the queued job waits, with no session or paid create", async () => {
+    const h = await admitted();
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+    const job = () => h.f.records("jobs").find(item => item.jobId === h.intake.jobId);
+    expect(await processCommunicationsJob(h.intake.jobId, h.deps)).toEqual({ state: "queued", reason: "hypothesis_drafts_disabled", sent: false });
+    expect(job()).toMatchObject({ state: "queued", reason: "hypothesis_drafts_disabled", attempts: 0,
+      checkpoint: { createClaimedAt: null, sessionId: null, turnId: null }, lease: { until: 0 } });
+    expect(job().checkpoint).not.toHaveProperty("executionWindow");
+    expect(await h.store.dueJobIds()).not.toContain(h.intake.jobId);
+    // The operator's saved-output recovery waits too, and reads nothing from the provider.
+    h.f.advance(15 * 60000 + 1);
+    expect(await recoverSavedCommunicationsDraft(h.intake.jobId, "a".repeat(64), h.deps)).toMatchObject({ state: "queued", reason: "hypothesis_drafts_disabled" });
+    for (const call of [h.api.run, h.api.reconcileSaved, h.api.cancel]) expect(call).not.toHaveBeenCalled();
+    expect([...h.f.db.records.keys()].some(key => key.startsWith("action_ledger/"))).toBe(false);
+    // The verified row's job on the same day still drafts with the flag off.
+    h.setOutput(verifiedOutput(h));
+    expect(await processCommunicationsJob(h.verifiedJob.jobId, h.deps)).toMatchObject({ state: "pending_approval" });
+    expect(h.api.run).toHaveBeenCalledOnce();
+    // Turned on again, the same job drafts once its wait ends.
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    h.setOutput(hypothesisDraft(h.brief));
+    h.f.advance(15 * 60000 + 1);
+    expect(await processCommunicationsJob(h.intake.jobId, h.deps)).toMatchObject({ state: "pending_approval", sent: false });
+    expect(h.api.run).toHaveBeenCalledTimes(2);
+    expect(h.seen[1].checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
+  });
+
   it("keeps verified drafting unchanged on the same day", async () => {
     const h = await admitted();
-    // The verified row's own v1 draft, as the phase-1 intake test writes it.
-    const verifiedBrief = communicationsBriefSchema.parse(h.f.records("briefs").find(item => item.briefId === h.verifiedJob.briefId));
-    const output = structuredClone(h.f.output);
-    output.usedFactIds = [verifiedBrief.facts[0].id];
-    output.body = output.body.replace((output.outreachContract as any).question, verifiedBrief.contact.learningQuestion);
-    (output.outreachContract as any).question = verifiedBrief.contact.learningQuestion;
-    h.setOutput(output);
+    h.setOutput(verifiedOutput(h));
     const outcome = await processCommunicationsJob(h.verifiedJob.jobId, h.deps);
     expect(outcome).toMatchObject({ state: "pending_approval" });
     const [{ input, checkpoint }] = h.seen;

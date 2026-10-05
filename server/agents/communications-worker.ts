@@ -20,7 +20,7 @@ import { hypothesisPublicationSource, readExistingResearchSnapshot, researchPubl
 import { reviewCommunicationsPayload } from "./communications-review";
 import { CommunicationsStore, type CommunicationsJobRecord } from "./communications-store";
 import type { ActionPayload } from "./action-policies";
-import { runCommunicationsIntake } from "./communications-intake";
+import { HYPOTHESIS_DRAFTS_DISABLED, hypothesisDraftsEnabled, runCommunicationsIntake } from "./communications-intake";
 import { runCommunicationsReplyIntake } from "./communications-reply-intake";
 import { readResearchContactPage } from "./communications-contact-fetch";
 import { requestNativeContactResearch, readNativeContactDiscovery, verifyExistingContactDiscovery, contactDiscoverySchema, contactResearchTask } from "./communications-contact-research";
@@ -164,6 +164,11 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     // An outreach-ready hypothesis is drafted under its own session profile and draft-only checks.
     const hypothesis = !!brief.qualification;
     if (hypothesis && (continuation || rejectedCreate)) throw new Error("communications_hypothesis_recovery_unsupported");
+    // Hypothesis drafts off: the job waits, queued, before any further read, inference or paid create.
+    if (hypothesis && !hypothesisDraftsEnabled()) {
+      await deps.store.deferHypothesisDraft(jobId, HYPOTHESIS_DRAFTS_DISABLED);
+      return { state: "queued", reason: HYPOTHESIS_DRAFTS_DISABLED, sent: false };
+    }
     if ((claimed.checkpoint.createClaimedAt || claimed.checkpoint.sessionId)
       && (claimed.checkpoint.draftProfile === COMMUNICATIONS_HYPOTHESIS_PROFILE) !== hypothesis) throw new Error("communications_draft_profile_mismatch");
     // The owner direction for founder-sent threads authorizes reading and

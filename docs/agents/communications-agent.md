@@ -409,8 +409,11 @@ Flags default off; this change writes no environment values:
 
 Owner decision 2026-10-05: a published outreach-ready hypothesis may become a
 draft. While the flag is off, intake only records each hypothesis
-(`hypothesis_recorded`). While it is on, `admitPublishedHypothesis` gives a
-hypothesis one draft job only when every check holds:
+(`hypothesis_recorded`). Turning the flag off also stops hypothesis work already
+queued: a hypothesis draft job waits as `queued` (`hypothesis_drafts_disabled`)
+before any session or paid create, and a hypothesis contact request waits
+unclaimed, until the flag is on again. While it is on, `admitPublishedHypothesis`
+gives a hypothesis one draft job only when every check holds:
 
 - the published day still verifies from a fresh snapshot, including the run's
   frozen owner direction and the retained tool evidence;
