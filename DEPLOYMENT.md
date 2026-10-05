@@ -65,6 +65,10 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
   `main`. It calls Render's authenticated deploy API with the exact green
   commit SHA for both services, waits for both deploy records to become live
   at that SHA, then verifies `/version.json`, `/health`, and `/health/ready`.
+- Only main's current head deploys automatically. A CI run that finishes green
+  for an older commit, such as a re-run, stands down with a notice instead of
+  rolling production back. To ship an older commit on purpose, dispatch the
+  deploy workflow with its exact SHA.
 
 Website scene preparation uses both services: the web service accepts the
 prepared scene and `blueprint-webapp-worker` forwards it. Keep
