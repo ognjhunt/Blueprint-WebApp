@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import { extractPublishedAddress, FREE_MAIL_DOMAINS, isLinkedInUrl, publishedPeople } from "../agents/communications-contact-evidence";
+import { addressIsPersonOwn, extractPublishedAddress, FREE_MAIL_DOMAINS, isLinkedInUrl, publishedPeople } from "../agents/communications-contact-evidence";
 import { HYPOTHESIS_CONTACT_VERSION, resolveHypothesisContact, verifyHypothesisContactResolution,
   type HypothesisPersonEvidence } from "../agents/communications-contact-resolution";
 import { communicationsDigest } from "../agents/communications-contract";
@@ -141,5 +141,41 @@ describe("hypothesis contacts follow the owner's 2026-10-05 contact rules (synth
       .toEqual([{ name: "Synthetic Person", role: "Director of Operations" }]);
     expect(publishedPeople("Returned parcels are sorted by hand at the synthetic site.")).toEqual([]);
     expect(publishedPeople("Synthetic Sorting, a parcel company, sorts returned parcels.")).toEqual([]);
+  });
+  it.each<[string, string, string]>([
+    ["Ann at a planning inbox", "Ann Smith, Planning Manager", "planning"],
+    ["Sal at a sales inbox", "Sal Romano, Sales Director", "sales"],
+    ["Mark at a marketing inbox", "Mark Chen, Marketing Lead", "marketing"],
+    ["Ian at a compliance inbox", "Ian Webb, Compliance Officer", "compliance"],
+    ["a surname that is a role word", "Jordan Sales, Operations Manager", "sales"],
+    ["a name inside a longer local part", "Ann Smith, Planning Manager", "annex.smithfield"],
+    ["a name beside a role word", "Ann Smith, Planning Manager", "ann.planning"],
+  ])("never reads a role inbox as a person's own address: %s", (_name, person, local) => {
+    const segment = `${person}, oversees sorting returned parcels: ${local}@sorting-operator.example`;
+    expect(addressIsPersonOwn(`${local}@sorting-operator.example`, segment, person.split(",")[0])).toBe(false);
+  });
+  it("reads a person's own address only from whole forms of their name", () => {
+    const segment = (local: string) => `Ann Smith, Planning Manager: ${local}@sorting-operator.example`;
+    for (const local of ["ann", "smith", "annsmith", "ann.smith", "ann_smith", "ann-smith", "asmith", "a.smith", "smitha", "smith.a",
+      "smithann", "smith.ann", "anns", "ann.s", "Ann.Smith", "ann.smith2"]) {
+      expect(addressIsPersonOwn(`${local}@sorting-operator.example`, segment(local), "Ann Smith"), local).toBe(true);
+    }
+    // A middle initial, accents and a hyphenated name.
+    expect(addressIsPersonOwn("jane.q.doe@op.example", "Jane Q. Doe, Plant Manager", "Jane Q. Doe")).toBe(true);
+    expect(addressIsPersonOwn("jose.nunez@op.example", "José Núñez, Plant Manager", "José Núñez")).toBe(true);
+    expect(addressIsPersonOwn("mary-kate.oneil@op.example", "Mary-Kate O'Neil, Plant Manager", "Mary-Kate O'Neil")).toBe(true);
+    expect(addressIsPersonOwn("kate.oneil@op.example", "Mary-Kate O'Neil, Plant Manager", "Mary-Kate O'Neil")).toBe(true);
+    // Never without the name in the same segment, and never from initials alone or another person's name.
+    expect(addressIsPersonOwn("ann.smith@op.example", "Planning Manager: ann.smith@op.example", "Ann Smith")).toBe(false);
+    expect(addressIsPersonOwn("as@op.example", "Ann Smith, Planning Manager", "Ann Smith")).toBe(false);
+    expect(addressIsPersonOwn("ann.jones@op.example", "Ann Smith, Planning Manager", "Ann Smith")).toBe(false);
+  });
+  it("addresses a role inbox published beside a person's name as an inbox, never greeting them", async () => {
+    const proof = await resolve("<p>Ann Smith, Planning Manager, oversees sorting returned parcels at Synthetic sorting site: planning@sorting-operator.example</p>", []);
+    expect(proof).toMatchObject({ contact: { email: "planning@sorting-operator.example" }, addressIsPersonal: false,
+      person: { name: "Ann Smith", role: "Planning Manager" } });
+    expect(proof.contact.route).not.toBe("named_person");
+    expect(verifyHypothesisContactResolution(proof, source(), "prospect-hypothesis", []).recipient).toMatchObject({ kind: "inbox",
+      addressee: "whoever runs sorting returned parcels at Synthetic sorting site", person: { name: "Ann Smith" } });
   });
 });

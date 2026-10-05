@@ -174,10 +174,36 @@ export function publishedPeople(quote: string) {
   }
   return people;
 }
-/** The address is this person's own: it is published in the same segment as their name, and its
- * local part carries their first or last name. This checks a published address; it never builds one. */
+// Words a shared or role inbox is named for. A local part with one of them is never one person's own,
+// even when it is also a form of their name (sales@ for "Jordan Sales").
+const ROLE_LOCAL_WORDS: ReadonlySet<string> = new Set(["accounts", "accounting", "admin", "administration", "all", "billing", "booking",
+  "bookings", "business", "careers", "ceo", "compliance", "contact", "contacts", "contactus", "customer", "customers", "customercare",
+  "customerservice", "director", "dispatch", "distribution", "engineering", "enquiries", "enquiry", "events", "facilities", "finance",
+  "fleet", "founder", "frontdesk", "fulfillment", "fulfilment", "general", "hello", "help", "helpdesk", "hiring", "hr", "info",
+  "information", "inquiries", "inquiry", "invoices", "it", "jobs", "legal", "logistics", "mail", "maintenance", "management", "manager",
+  "marketing", "media", "news", "newsroom", "noreply", "office", "operations", "ops", "orders", "owner", "partners", "partnerships",
+  "people", "planning", "plant", "postmaster", "pr", "president", "press", "privacy", "procurement", "production", "purchasing", "quality",
+  "reception", "receiving", "recruiting", "recruitment", "returns", "safety", "sales", "security", "service", "services", "shipping", "site",
+  "staff", "store", "support", "team", "tech", "warehouse", "webmaster", "welcome"]);
+const foldName = (value: string) => value.normalize("NFKD").replace(/\p{M}+/gu, "").toLowerCase();
+/** The address is this person's own: it is published in the same segment as their name, and its local
+ * part is exactly one form of that name: first, last, first and last either way round, initial and
+ * last either way round, or first and last initial, with any middle initials, joined by ".", "_", "-"
+ * or nothing, with optional trailing digits. Part of a longer word never counts ("Ann" in planning@,
+ * "Mark" in marketing@, "Ian" in compliance@), nor does a role word. This checks a published address;
+ * it never builds one. */
 export function addressIsPersonOwn(email: string, segment: string, name: string) {
-  const local = email.slice(0, email.lastIndexOf("@")).normalize("NFKC").toLowerCase().replace(/[^\p{L}]+/gu, "");
-  return containsContactName(segment, name) && name.normalize("NFKC").toLowerCase().split(/[\s.]+/)
-    .map(part => part.replace(/[^\p{L}]+/gu, "")).some(part => part.length >= 3 && local.includes(part));
+  if (!containsContactName(segment, name)) return false;
+  const tokens = foldName(email.slice(0, email.lastIndexOf("@"))).replace(/\d+$/, "").split(/[._-]/);
+  if (tokens.some(token => !/^\p{L}+$/u.test(token) || ROLE_LOCAL_WORDS.has(token))) return false;
+  const words = foldName(name).split(/\s+/).map(word => word.replace(/[^\p{L}-]+/gu, "").replace(/^-+|-+$/g, "")).filter(Boolean);
+  if (words.length < 2) return false;
+  // A hyphenated first or last name also counts by each of its parts ("Mary-Kate": marykate, mary, kate).
+  const variants = (word: string) => [...new Set([word.replaceAll("-", ""), ...word.split("-").filter(Boolean)])];
+  const middle = words.slice(1, -1).map(word => word[0]).join(""), forms = new Set<string>();
+  for (const first of variants(words[0])) for (const last of variants(words.at(-1)!)) {
+    for (const form of [first, last, first + last, last + first, first[0] + last, last + first[0], first + last[0]]) forms.add(form);
+    if (middle) for (const form of [first + middle + last, first[0] + middle + last]) forms.add(form);
+  }
+  return forms.has(tokens.join(""));
 }

@@ -425,7 +425,10 @@ gives a hypothesis one draft job only when every check holds:
 - the contact passes `blueprint.contact-resolution.v2`: the address is published
   verbatim on the operator's own domain and is at that domain; free-mail,
   careers, jobs, legal, privacy and support addresses are refused; LinkedIn is
-  never evidence.
+  never evidence. The draft greets a person by name only when the address is
+  their own: published beside their name, with a local part that is a whole
+  form of that name (`ann`, `ann.smith`, `asmith`, `smitha`, ...). A role inbox
+  (`planning@`, `sales@`, `marketing@`) is always addressed as an inbox.
 
 A missing contact goes to communications contact research. A known candidate is
 blocked. Anything else becomes `needs_research` for the research owner.
