@@ -470,6 +470,8 @@ describe("AdminLeads scene readiness", () => {
         status: "pending_approval", lane: "outbound_prospect", source_collection: "outboundProspects", source_doc_id: "hypothesis-prospect",
         action_type: "send_email", action_tier: 3, draft_output: {}, approval_reason: "outreach_ready_hypothesis_draft_only",
         qualification_tier: "outreach_ready", send_authority: "none", sending_enabled: false,
+        linkedin_search: { url: "https://www.linkedin.com/search/results/people/?keywords=operations%20manager%20Synthetic%20Sorting%20Co",
+          role: "operations manager", operator: "Synthetic Sorting Co" },
         action_payload: { to: "sortingops@hypothesis-operator.example", subject: "About sorting returned parcels", body, communications: {
           output: { subject: "About sorting returned parcels", body, usedFactIds: [], outreachContract: null },
           brief: { qualification: { tier: "outreach_ready", label: "hypothesis", openQuestions: [question] }, facts: [
@@ -489,6 +491,8 @@ describe("AdminLeads scene readiness", () => {
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
     expect(screen.getByRole("button", { name: "Reject" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Revise draft" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Search LinkedIn for operations manager at Synthetic Sorting Co" }))
+      .toHaveAttribute("href", "https://www.linkedin.com/search/results/people/?keywords=operations%20manager%20Synthetic%20Sorting%20Co");
   });
   it("preserves an unsaved draft edit when a queue refresh fails", async () => {
     let queueFails = false;

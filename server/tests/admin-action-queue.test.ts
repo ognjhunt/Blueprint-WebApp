@@ -332,15 +332,29 @@ describe("admin action queue", () => {
     ledgerRows[0] = { ...original, data: { ...original.data, lane: "outbound_prospect", source_collection: "outboundProspects",
       approval_reason: "outreach_ready_hypothesis_draft_only", qualification_tier: "outreach_ready", send_authority: "none",
       action_payload: { to: "sortingops@hypothesis-operator.example", subject: "About sorting", body: "Synthetic draft body" } } as any };
+    const withBrief = { id: "ledger-hypothesis", data: { ...ledgerRows[0].data, lane: "outbound_prospect", source_collection: "outboundProspects",
+      status: "pending_approval", qualification_tier: "outreach_ready", send_authority: "none",
+      action_payload: { to: "sortingops@hypothesis-operator.example", subject: "About sorting", body: "Synthetic draft body",
+        communications: { brief: { facilityName: "Synthetic Sorting Co", decisionOwner: null, qualification: { tier: "outreach_ready" },
+          contact: { recipient: { kind: "inbox", addressee: "whoever runs sorting at Synthetic sorting site",
+            person: { name: "Synthetic Person", role: "operations manager", sourceUrl: "https://news.example/story" } } } } } } } } as any;
+    ledgerRows.push(withBrief);
     const { server, baseUrl } = await startServer();
     try {
       const data = await (await fetch(`${baseUrl}/action-queue?limit=25`)).json();
       expect(data.items.find((row: { id: string }) => row.id === "ledger-1")).toMatchObject({ qualification_tier: "outreach_ready",
         send_authority: "none", approval_reason: "outreach_ready_hypothesis_draft_only" });
+      // A row without a hypothesis brief gets no LinkedIn link; one with a brief gets a computed, never stored, link.
+      expect(data.items.find((row: { id: string }) => row.id === "ledger-1")).not.toHaveProperty("linkedin_search");
+      expect(data.items.find((row: { id: string }) => row.id === "ledger-hypothesis")).toMatchObject({ linkedin_search: { role: "operations manager",
+        operator: "Synthetic Sorting Co",
+        url: "https://www.linkedin.com/search/results/people/?keywords=operations%20manager%20Synthetic%20Sorting%20Co" } });
+      expect(withBrief.data).not.toHaveProperty("linkedin_search");
       // Other rows keep their exact shape: the fields appear only on a hypothesis draft.
-      expect(data.items.find((row: { id: string }) => row.id === "ledger-2")).not.toHaveProperty("qualification_tier");
-      expect(data.items.find((row: { id: string }) => row.id === "ledger-2")).not.toHaveProperty("send_authority");
-    } finally { ledgerRows[0] = original; await stopServer(server); }
+      for (const field of ["qualification_tier", "send_authority", "linkedin_search"]) {
+        expect(data.items.find((row: { id: string }) => row.id === "ledger-2")).not.toHaveProperty(field);
+      }
+    } finally { ledgerRows[0] = original; ledgerRows.pop(); await stopServer(server); }
   });
 
   it("forwards the separate semantic attestation using the authenticated operator identity", async () => {

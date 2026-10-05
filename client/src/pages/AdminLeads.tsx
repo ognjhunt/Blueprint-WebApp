@@ -57,7 +57,7 @@ import { SiteScreeningCallPanel } from "@/components/admin/SiteScreeningCallPane
 import { OutreachApprovalReview, type OutreachApproval, type OutreachReviewSummary } from "@/components/admin/OutreachApprovalReview";
 import { FounderMailboxConnection } from "@/components/admin/FounderMailboxConnection";
 import { CommunicationsRecovery } from "@/components/admin/CommunicationsRecovery";
-import { CommunicationsDraftEditor, type GmailDraftSummary, type GmailDraftResult } from "@/components/admin/CommunicationsDraftEditor";
+import { CommunicationsDraftEditor, type GmailDraftSummary, type GmailDraftResult, type LinkedinSearch } from "@/components/admin/CommunicationsDraftEditor";
 
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -242,6 +242,7 @@ interface ActionQueueItem {
   // Present only on an outreach-ready hypothesis draft.
   qualification_tier?: string;
   send_authority?: string;
+  linkedin_search?: LinkedinSearch;
 }
 
 /** An outreach-ready hypothesis draft: shown, revisable and copyable to Gmail Drafts, never approvable. */
@@ -1889,7 +1890,7 @@ export default function AdminLeads() {
                       {item.status === "pending_approval" ? (
                         <>
                           {item.action_payload.communications ? <CommunicationsDraftEditor payload={item.action_payload} review={item.outreach_review}
-                            revisionId={item.draft_revision_id ?? null}
+                            revisionId={item.draft_revision_id ?? null} linkedinSearch={item.linkedin_search}
                             gmailDraft={item.gmail_draft ? {...item.gmail_draft,writesEnabled:item.gmail_draft.writesEnabled && founderDraftCapability.data?.draftScopeGranted===true && !founderDraftCapability.isError && !approvalQueueQuery.isError} : undefined}
                             onGmailSave={input=>saveGmailDraftMutation.mutateAsync({ledgerId:item.id,...input})}
                             onSave={input => reviseActionMutation.mutateAsync({ ledgerId: item.id, ...input })} /> : null}
