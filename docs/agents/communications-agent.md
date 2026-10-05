@@ -431,7 +431,10 @@ gives a hypothesis one draft job only when every check holds:
   (`planning@`, `sales@`, `marketing@`) is always addressed as an inbox.
 
 A missing contact goes to communications contact research. A known candidate is
-blocked. Anything else becomes `needs_research` for the research owner.
+blocked, and its open contact request is closed (`terminal`), so no contact
+research follows. A contact request that finds its hypothesis already admitted
+or blocked is settled (`resolved` or `terminal`), never left `running`. Anything
+else becomes `needs_research` for the research owner.
 
 The draft asks exactly the one published question (`blueprint.outreach.v2`).
 Approvals shows it as "Hypothesis · draft only", with no approve control.

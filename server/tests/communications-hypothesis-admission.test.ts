@@ -97,12 +97,14 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     expect(() => verifyPublishedResearch(f.snapshot, brief, handoff)).toThrow(OUTREACH_READY_SEND_REFUSAL);
     const proof = f.records("contactProofs").find(item => communicationsDigest(item) === brief.researchOrigin.contactEvidenceDigest);
     expect(verifyPublishedHypothesisForDraft(f.snapshot, brief, handoff, proof, communicationsNow).briefDigest).toBe(communicationsDigest(brief));
-    // Exact replay, and another tick, change nothing.
-    const replay = await f.resolution();
-    const before = structuredClone([...f.db.records.entries()].filter(([key]) => !key.includes("/intakeState/")));
+    // Exact replay, and another tick, create nothing more; the replayed claim is settled by the admitted job.
+    const replay = await f.resolution(), claimPath = `${COMMUNICATIONS_ROOT}/refreshRequests/${replay.requestId}`;
+    const kept = () => [...f.db.records.entries()].filter(([key]) => !key.includes("/intakeState/") && key !== claimPath);
+    const before = structuredClone(kept());
     expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, replay)).toMatchObject({ state: "admitted" });
     await runCommunicationsIntake(f.deps);
-    expect([...f.db.records.entries()].filter(([key]) => !key.includes("/intakeState/"))).toEqual(before);
+    expect(kept()).toEqual(before);
+    expect(f.db.records.get(claimPath)).toMatchObject({ state: "resolved", jobId: intake.jobId, lease: { owner: replay.leaseOwner, until: 0 } });
   });
 
   it("keeps a pending hypothesis contact request for contact research across a stale-fact refresh pass", async () => {
@@ -128,6 +130,64 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
       expect(f.records(name), name).toHaveLength(1);
     }
     expect(prospects(f)).toHaveLength(1);
+    // An admission that lost the race settles the claim it held; it is never left running.
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/refreshRequests/${resolution.requestId}`)).toMatchObject({ state: "resolved",
+      jobId: (outcomes[0] as any).jobId, lease: { owner: resolution.leaseOwner, until: 0 } });
+  });
+
+  it("settles a claimed contact request when another pass already admitted or blocked the hypothesis", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup(); await f.workItem(); await runCommunicationsIntake(f.deps);
+    const admitted = f.hypothesisIntake(), claim = await f.resolution();
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, claim)).toMatchObject({ state: "admitted", jobId: admitted.jobId });
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/refreshRequests/${claim.requestId}`)).toMatchObject({ state: "resolved", jobId: admitted.jobId,
+      lease: { owner: claim.leaseOwner, until: 0 } });
+    const g = setup();
+    await g.db.doc("outboundProspects/existing-prospect").set({ researchPublicationId: "BP-000043", contactEmail: "someone@another.example", stage: "drafted" });
+    expect(await admitPublishedHypothesis(g.snapshot, g.hypothesis.candidate_key, g.deps)).toMatchObject({ state: "blocked" });
+    const blockedClaim = await g.resolution();
+    expect(await admitPublishedHypothesis(g.snapshot, g.hypothesis.candidate_key, g.deps, blockedClaim)).toMatchObject({ state: "blocked" });
+    expect(g.db.records.get(`${COMMUNICATIONS_ROOT}/refreshRequests/${blockedClaim.requestId}`)).toMatchObject({ state: "terminal",
+      reason: "outreach_ready_candidate_already_known", lease: { owner: blockedClaim.leaseOwner, until: 0 } });
+    expect(g.records("jobs")).toHaveLength(0);
+  });
+
+  it("closes a hypothesis's open contact request when it is blocked, so no contact work follows", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup();
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps)).toMatchObject({ reasons: ["hypothesis_public_contact_missing"] });
+    await f.db.doc("outboundProspects/existing-prospect").set({ facilityName: f.hypothesis.organization, facilitySite: f.hypothesis.site,
+      facilityAddress: f.hypothesis.location, hypothesisedTask: f.hypothesis.task, contactEmail: "someone@another.example", stage: "drafted" });
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps)).toMatchObject({ state: "blocked",
+      reasons: ["outreach_ready_candidate_already_known"] });
+    expect(f.records("refreshRequests")).toEqual([expect.objectContaining({ kind: "public_contact_resolution", state: "terminal",
+      reason: "outreach_ready_candidate_already_known", lease: expect.objectContaining({ until: 0 }) })]);
+    const requestContactResearch = vi.fn(async () => true);
+    await runCommunicationsContactRefresh({ ...f.deps, requestContactResearch });
+    expect(f.deps.readContactPage).not.toHaveBeenCalled();
+    expect(requestContactResearch).not.toHaveBeenCalled();
+    expect(f.records("refreshRequests")).toEqual([expect.objectContaining({ state: "terminal" })]);
+  });
+
+  it.each<[string, (f: ReturnType<typeof setup>) => Promise<void>, string]>([
+    ["the same operator, site and task, before any page is read", async f => {
+      await f.db.doc("outboundProspects/existing-prospect").set({ facilityName: f.hypothesis.organization, facilitySite: f.hypothesis.site,
+        facilityAddress: f.hypothesis.location, hypothesisedTask: f.hypothesis.task, contactEmail: "someone@another.example", stage: "drafted" });
+    }, "outreach_ready_candidate_already_known"],
+    ["the contact address, once it is resolved", async f => {
+      await f.db.doc("outboundProspects/existing-prospect").set({ facilityName: "Synthetic unrelated operator", contactEmail: ADDRESS, stage: "drafted" });
+    }, "outreach_ready_recipient_already_known"],
+  ])("blocks a candidate the CRM gained before contact research ran, with no contact research for it: %s", async (_name, seed, reason) => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup();
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps)).toMatchObject({ reasons: ["hypothesis_public_contact_missing"] });
+    await seed(f);
+    const requestContactResearch = vi.fn(async () => true);
+    await runCommunicationsContactRefresh({ ...f.deps, requestContactResearch });
+    expect(requestContactResearch).not.toHaveBeenCalled();
+    expect(f.hypothesisIntake()).toMatchObject({ state: "blocked", reasons: [reason], draftJobCreated: false });
+    expect(f.records("refreshRequests")).toEqual([expect.objectContaining({ state: "terminal", reason, lease: expect.objectContaining({ until: 0 }) })]);
+    for (const name of ["briefs", "jobs", "contactProofs"]) expect(f.records(name)).toHaveLength(0);
   });
 
   it("admits the verified row on the same day byte for byte whether hypothesis drafts are on or off", async () => {
@@ -210,7 +270,7 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     const f = setup();
     const resolution = await f.resolution();
     await seed(f);
-    await expect(admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, resolution)).rejects.toThrow(reason);
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, resolution)).toMatchObject({ state: "blocked", reasons: [reason] });
     // Blocked is terminal for the hypothesis: a later pass, with or without a contact, keeps it.
     expect(f.hypothesisIntake()).toMatchObject({ state: "blocked", reasons: [reason], draftJobCreated: false, sendsAuthorized: false });
     expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps)).toMatchObject({ state: "blocked", reasons: [reason] });
@@ -230,7 +290,8 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
       }
       return original(fn);
     };
-    await expect(admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, resolution)).rejects.toThrow("outreach_ready_recipient_already_known");
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, resolution))
+      .toMatchObject({ state: "blocked", reasons: ["outreach_ready_recipient_already_known"] });
     f.db.runTransaction = original;
     expect(f.records("jobs")).toHaveLength(0);
     expect(prospects(f).map(item => item.id)).toEqual(["racing-prospect"]);
@@ -240,8 +301,8 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
     const suppressed = setup();
     suppressed.deps.isSuppressed.mockResolvedValue(true);
-    await expect(admitPublishedHypothesis(suppressed.snapshot, suppressed.hypothesis.candidate_key, suppressed.deps, await suppressed.resolution()))
-      .rejects.toThrow("recipient_suppressed");
+    expect(await admitPublishedHypothesis(suppressed.snapshot, suppressed.hypothesis.candidate_key, suppressed.deps, await suppressed.resolution()))
+      .toMatchObject({ state: "blocked", reasons: ["recipient_suppressed"] });
     expect(suppressed.hypothesisIntake()).toMatchObject({ state: "blocked", reasons: ["recipient_suppressed"] });
     const f = setup(); await f.workItem(); await runCommunicationsIntake(f.deps);
     const brief = communicationsBriefSchema.parse(f.records("briefs").find(item => item.qualification));

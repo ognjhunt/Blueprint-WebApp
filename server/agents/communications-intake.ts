@@ -257,27 +257,43 @@ const HYPOTHESIS_BLOCKING = new Set(["recipient_suppressed", "outreach_ready_can
 const HYPOTHESIS_CONTACT_GAP = "hypothesis_public_contact_missing";
 
 /** Records why a hypothesis is not drafted. A missing contact goes to communications-owned contact
- * research; a known candidate is blocked; anything else malformed or doubtful goes to the research
- * owner as needs_research. An admitted or blocked hypothesis never changes back. */
+ * research; a known candidate is blocked and its open request closed, so no contact or research work
+ * follows; anything else malformed or doubtful goes to the research owner as needs_research. An
+ * admitted or blocked hypothesis never changes back. */
 async function hypothesisNeedsAttention(deps: IntakeDependencies, identity: ReturnType<typeof sourceIdentity>, reason: string) {
   const root = deps.db.doc(COMMUNICATIONS_ROOT), intakeId = communicationsDigest(identity), ref = root.collection("intake").doc(intakeId);
   const requestRef = root.collection("refreshRequests").doc(`intake_${intakeId}`);
   return deps.db.runTransaction(async tx => {
-    const [previous, request] = await Promise.all([tx.get(ref), tx.get(requestRef)]), saved = previous.data();
+    const [previous, request] = await Promise.all([tx.get(ref), tx.get(requestRef)]), saved = previous.data(), prior = request.data();
     // Never overwrite an intake record that is not this hypothesis's, nor undo an admission or a block.
     if (saved && (saved.label !== "hypothesis" || ["admitted", "blocked"].includes(saved.state))) return saved;
     const blocked = HYPOTHESIS_BLOCKING.has(reason), contactGap = reason === HYPOTHESIS_CONTACT_GAP;
     const outcome = { ...(saved ?? {}), ...identity, intakeId, state: blocked ? "blocked" : "needs_research", reasons: [reason], label: "hypothesis",
       owner: "blueprint-communications-agent", requestedAt: saved?.requestedAt ?? deps.now(), eligibleForOutreach: false, draftJobCreated: false,
       sendsAuthorized: false, humanContextApprovalRequired: false, sent: false, sessionCreated: false };
-    if (!blocked) tx.set(requestRef, { ...identity, label: "hypothesis",
+    if (blocked) {
+      if (prior && !["resolved", "terminal"].includes(prior.state)) tx.set(requestRef, { state: "terminal", reason, completedAt: deps.now(),
+        nextAttemptAt: 0, lease: { owner: prior.lease?.owner ?? null, until: 0 }, sent: false, sessionCreated: false }, { merge: true });
+    } else tx.set(requestRef, { ...identity, label: "hypothesis",
       owner: contactGap ? "blueprint-communications-agent" : "blueprint-research-agent",
-      kind: contactGap ? "public_contact_resolution" : "research_owner_refresh", state: request.data()?.state ?? "pending",
+      kind: contactGap ? "public_contact_resolution" : "research_owner_refresh", state: prior?.state ?? "pending",
       scope: "relevant_claims_only", reasons: [reason], observerReceiptRequired: false, requestedAt: outcome.requestedAt }, { merge: true });
     tx.set(ref, outcome);
     return outcome;
   });
 }
+
+/** A contact request claimed for a hypothesis that another pass already admitted or blocked: resolved by
+ * that admission's job, or closed by the block. Never left running. */
+function settledHypothesisRequest(recorded: FirebaseFirestore.DocumentData, leaseOwner: string, now: number) {
+  return recorded.state === "admitted"
+    ? { state: "resolved", owner: "blueprint-communications-agent", resolvedAt: now, jobId: recorded.jobId, briefDigest: recorded.briefDigest,
+      contactProofDigest: recorded.contactEvidenceDigest ?? null, lease: { owner: leaseOwner, until: 0 } }
+    : { state: "terminal", reason: recorded.reasons?.[0] ?? "outreach_ready_hypothesis_blocked", completedAt: now, nextAttemptAt: 0,
+      lease: { owner: leaseOwner, until: 0 }, sent: false, sessionCreated: false };
+}
+const heldBy = (request: FirebaseFirestore.DocumentData | undefined, leaseOwner: string, now: number) =>
+  request?.lease?.owner === leaseOwner && request.state === "running" && request.lease.until > now;
 
 /** The canonical prospect queries the CRM checks read: this Sheets row, this operator, this address. */
 function hypothesisCrmQueries(deps: IntakeDependencies, source: HypothesisSource, email?: string) {
@@ -348,7 +364,17 @@ export async function admitPublishedHypothesis(snapshot: any, candidateKey: stri
   }
   const root = deps.db.doc(COMMUNICATIONS_ROOT), intakeRef = root.collection("intake").doc(intakeId);
   const recorded = (await intakeRef.get()).data();
-  if (recorded && ["admitted", "blocked"].includes(recorded.state)) return recorded;
+  if (recorded && ["admitted", "blocked"].includes(recorded.state)) {
+    if (resolution) {
+      const requestRef = root.collection("refreshRequests").doc(resolution.requestId);
+      await deps.db.runTransaction(async tx => {
+        if (heldBy((await tx.get(requestRef)).data(), resolution.leaseOwner, deps.now())) {
+          tx.set(requestRef, settledHypothesisRequest(recorded, resolution.leaseOwner, deps.now()), { merge: true });
+        }
+      });
+    }
+    return recorded;
+  }
   try {
     if (recorded && recorded.label !== "hypothesis") throw new Error("research_hypothesis_claim_changed");
     const { source, personEvidence } = hypothesisPublicationSource(snapshot, candidateKey, deps.now());
@@ -372,16 +398,18 @@ export async function admitPublishedHypothesis(snapshot: any, candidateKey: stri
     const digest = communicationsDigest(brief);
     const prospectRef = deps.db.collection("outboundProspects").doc(prospectId), bindingRef = root.collection("researchBindings").doc(key);
     const proofRef = root.collection("contactProofs").doc(contact.evidenceDigest);
-    const queries = hypothesisCrmQueries(deps, source, contact.email);
+    const queries = hypothesisCrmQueries(deps, source, contact.email), requestRef = root.collection("refreshRequests").doc(resolution.requestId);
     return await deps.db.runTransaction(async tx => {
       const [intake, prospect, binding, existing, proof, request, bound, named, holders] = await Promise.all([tx.get(intakeRef), tx.get(prospectRef),
         tx.get(bindingRef), tx.get(root.collection("briefs").doc(brief.briefId)), tx.get(proofRef),
-        tx.get(root.collection("refreshRequests").doc(resolution.requestId)), tx.get(queries.bound), tx.get(queries.named), tx.get(queries.holders!)]);
-      const claimed = intake.data();
-      // Claimed once: another admission that committed first owns this hypothesis.
-      if (claimed && ["admitted", "blocked"].includes(claimed.state)) return claimed;
+        tx.get(requestRef), tx.get(queries.bound), tx.get(queries.named), tx.get(queries.holders!)]);
+      const claimed = intake.data(), lease = request.data();
+      // Claimed once: another admission that committed first owns this hypothesis. This claim is settled.
+      if (claimed && ["admitted", "blocked"].includes(claimed.state)) {
+        if (heldBy(lease, resolution.leaseOwner, deps.now())) tx.set(requestRef, settledHypothesisRequest(claimed, resolution.leaseOwner, deps.now()), { merge: true });
+        return claimed;
+      }
       if (claimed && claimed.label !== "hypothesis") throw new Error("research_hypothesis_claim_changed");
-      const lease = request.data();
       if (lease?.lease?.owner !== resolution.leaseOwner || lease.lease.until <= deps.now() || lease.state !== "running"
         || communicationsDigest(sourceIdentity(lease, candidateKey)) !== communicationsDigest(identity)) throw new Error("contact_refresh_lease_or_source_changed");
       if (proof.exists && communicationsDigest(proof.data()) !== contact.evidenceDigest) throw new Error("contact_resolution_immutable_conflict");
@@ -423,11 +451,9 @@ export async function admitPublishedHypothesis(snapshot: any, candidateKey: stri
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message.slice(0, 1200) : "communications_intake_invalid";
-    // A known candidate is blocked even when the contact worker found it; it keeps its own outcome otherwise.
-    if (!resolution || HYPOTHESIS_BLOCKING.has(reason)) {
-      const outcome = await hypothesisNeedsAttention(deps, identity, reason);
-      if (!resolution) return outcome;
-    }
+    // A known candidate is blocked even when the contact worker found it. The block closes its request and
+    // is returned, so the worker asks for no contact research for it.
+    if (!resolution || HYPOTHESIS_BLOCKING.has(reason)) return hypothesisNeedsAttention(deps, identity, reason);
     throw error;
   }
 }
@@ -488,6 +514,8 @@ export async function runCommunicationsContactRefresh(deps: IntakeDependencies) 
           const conflict = await hypothesisCrmConflict(deps, hypothesis.source, prospectId);
           if (conflict) {
             await hypothesisNeedsAttention(deps, sourceIdentity(claim, claim.candidateKey), conflict);
+            // A known candidate is blocked and its request closed: no contact research for it.
+            if (HYPOTHESIS_BLOCKING.has(conflict)) break;
             throw new Error(conflict);
           }
         } else {
