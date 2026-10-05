@@ -1106,7 +1106,7 @@ describe("capture-first workspace intake", () => {
   });
 });
 
-it("joins the approved free run to its team request without another pending row or cross-owner access", async () => {
+it.each(["completed", "abandoned"])("keeps a %s free attempt visible without duplicate rows or cross-owner access", async runState => {
   state.records.set("inboundRequests/task-1", task());
   state.records.set("robotTeams/team-free", { accountUid: "robot-1" });
   state.records.set("inboundRequests/application-free", { account_owner_uid: "robot-1",
@@ -1114,19 +1114,21 @@ it("joins the approved free run to its team request without another pending row 
     free_evaluation_handoff: { runId: "free-run", executionRequestId: "prepared-free" } });
   state.records.set("robotEvalJobRequests/prepared-free", { buyer_user_id: "robot-1", status: "prepared_agent_execution" });
   state.records.set("evaluationRuns/free-run", { runId: "free-run", teamId: "team-free", sceneId: "task-1",
-    evaluationPurpose: "pilot", quotedUsd: 0, state: "completed", requestedAtIso: new Date().toISOString(),
+    evaluationPurpose: "pilot", quotedUsd: 0, state: runState, requestedAtIso: new Date().toISOString(),
     executionAdmission: { digestSha256: "sha256:" + "a".repeat(64), envelope: { funding: {
       payer: "blueprint", customer_price_usd: 0, cap_usd: 10, max_attempts: 1, approved_by: "operator",
       approval_digest: "sha256:" + "b".repeat(64), expires_at_iso: "2100-01-01T00:00:00Z", workspace_request_id: "application-free" } } },
-    result: { evidenceScope: "development_only", observed: { episodesRun: 1, episodesSucceeded: 1, successRate: 1, medianCycleSeconds: 20 } } });
+    ...(runState === "completed" ? { result: { evidenceScope: "development_only", observed: { episodesRun: 1, episodesSucceeded: 1, successRate: 1, medianCycleSeconds: 20 } } } : {}) });
   const team = await (await api("/", "robot-1")).json();
   expect(team.evaluations).toHaveLength(1);
-  expect(team.evaluations[0]).toMatchObject({ id: "application-free", runId: "free-run", status: "completed", successRate: 100,
-    evidenceLabel: "Development simulation", targetsMet: null });
+  expect(team.evaluations[0]).toMatchObject({ id: "application-free", runId: "free-run", status: runState,
+    successRate: runState === "completed" ? 100 : null, targetsMet: null });
   expect(JSON.stringify(team)).not.toContain("Confidential Site");
   const site = await (await api("/tasks/task-1", "site-1")).json();
   expect(site.results).toHaveLength(1);
-  expect(site.results[0]).toMatchObject({ id: "free-run", evidenceLabel: "Development simulation", targetsMet: null });
+  expect(site.results[0]).toMatchObject(runState === "completed"
+    ? { id: "free-run", evidenceLabel: "Development simulation", targetsMet: null }
+    : { id: "application-free", status: "abandoned", successRate: null, sampleCount: null, targetsMet: null });
   state.records.get("robotTeams/team-free").accountUid = "robot-2";
   const unlinked = await (await api("/", "robot-1")).json();
   expect(unlinked.evaluations[0].successRate).toBeNull();
