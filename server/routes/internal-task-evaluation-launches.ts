@@ -1,3 +1,4 @@
+import { recordPipelineCohortCosts } from "../utils/cohortPipelineCosts";
 import { Router, type Request, type Response } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -242,6 +243,8 @@ router.post(
         code: `openai_inference_usage_${outcome}`,
       });
     }
+    try { await recordPipelineCohortCosts(packet.launch_id || packet.run_id, packet); }
+    catch { return res.status(503).json({ code: "cohort_cost_projection_pending" }); }
     res.set("Cache-Control", "private, no-store");
     return res.status(outcome === "created" ? 201 : 200).json({
       schema_version: "blueprint_openai_inference_usage_ingest_receipt.v1",
@@ -453,6 +456,8 @@ router.post(
       error: "Immutable Task Evaluation direct-execution adoption conflict",
       code: "task_evaluation_direct_execution_adoption_immutable_conflict",
     });
+    try { await recordPipelineCohortCosts(receipt.launch_id); }
+    catch { return res.status(503).json({ code: "cohort_cost_projection_pending" }); }
     res.set("Cache-Control", "no-store");
     return res.status([
       "replayed",

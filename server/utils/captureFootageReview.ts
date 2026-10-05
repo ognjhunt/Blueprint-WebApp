@@ -1,3 +1,6 @@
+import { humanDecisionDigest } from "./human-reply-admission";
+import { getBrief } from "./siteTaskBrief";
+import { mergeFootageIntoBrief } from "./siteTaskBriefReading";
 /**
  * Getting the stored walkthrough in front of the footage reader.
  *
@@ -275,6 +278,7 @@ export async function buildCaptureFootageReviewer(params: {
   });
 
   if (!context) return null;
+  const sourceBrief = await getBrief(params.requestId);
 
   return {
     bindingFieldIds: context.bindingFieldIds,
@@ -304,6 +308,8 @@ export async function buildCaptureFootageReviewer(params: {
         return null;
       }
 
+      if (sourceBrief) await mergeFootageIntoBrief({ requestId: params.requestId,
+        captureId: params.captureId, evidence: result.output, briefDigest: humanDecisionDigest(sourceBrief) });
       return result.output;
     },
   };

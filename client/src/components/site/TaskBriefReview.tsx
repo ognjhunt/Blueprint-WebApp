@@ -38,6 +38,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { TaskClarification } from "./TaskClarification";
 import type { User } from "firebase/auth";
 
 import { gateFields } from "@/data/siteTaskQualification";
@@ -401,6 +402,7 @@ export function TaskBriefReview(props: {
           <>
             <p style={{ fontWeight: 500 }}>{state.verdict.screening.headline}</p>
             <p className="ms-field-hint">{state.verdict.screening.detail}</p>
+            {state.verdict.disposition === "needs_conversation" && <TaskClarification token={props.token} />}
             {state.verdict.screening.bookingUrl && (
               <a className="ms-button" href={state.verdict.screening.bookingUrl} target="_blank" rel="noreferrer">
                 Book the call
@@ -481,7 +483,7 @@ export function TaskBriefReview(props: {
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
         {drafted
           ? "We read what you sent and drafted this. Confirming it is what lets us act on it — you are not filling in a form, you are correcting ours."
-          : "These tell us whether a robot evaluation will hold up at your site. Answer what you know; anything you are not sure about can stay open, and we cover it on a short call."}
+          : "These tell us whether a robot evaluation will hold up at your site. Answer what you know; anything you are not sure about can stay open, and you can clarify it in writing or on a call."}
       </p>
 
       <p style={{ fontWeight: 500 }}>{props.brief.summary}</p>

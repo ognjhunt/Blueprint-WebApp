@@ -151,14 +151,23 @@ export function outreachReadySendRefusal(brief: unknown): typeof OUTREACH_READY_
     || (origin && Object.hasOwn(origin, "screenAdmissionId"))) ? OUTREACH_READY_SEND_REFUSAL : null;
 }
 
+/** A Sheets receipt names the sheet and every row the day wrote:
+ * `sheets:<sheet id>:Prospects:<row IDs joined by commas>`. A day writes at most 100
+ * verified rows and 100 hypotheses, each with a 9-character `BP-` ID, so the limit covers
+ * 200 rows on a sheet ID of up to 128 characters (Google sheet IDs are 44). */
+export const SHEETS_RECEIPT_MAX_ROWS = 200;
+const SHEETS_RECEIPT_MAX_SHEET_ID = 128;
+export const SHEETS_RECEIPT_MAX_LENGTH = "sheets:".length + SHEETS_RECEIPT_MAX_SHEET_ID + ":Prospects:".length
+  + SHEETS_RECEIPT_MAX_ROWS * "BP-000000,".length - 1;
+
 /** Separate immutable record written by research QA/publication or the verified
  * publication adapter after verified agent context or optional operator review, never by the
  * communications model or directly from a request body. */
 export const communicationsHandoffSchema = z.object({
   version: z.literal("blueprint.communications-handoff.v1"), state: z.literal("approved"),
   briefDigest: z.string().regex(/^[a-f0-9]{64}$/), reviewedBy: text, reviewedAt: date,
-  sourceRecordUrl: publicUrl, sheetsReceipt: text.nullable(), notionReceipt: text.nullable(),
-  recordReceipt: text.optional(),
+  sourceRecordUrl: publicUrl, sheetsReceipt: z.string().trim().min(1).max(SHEETS_RECEIPT_MAX_LENGTH).nullable(),
+  notionReceipt: text.nullable(), recordReceipt: text.optional(),
 }).strict();
 export type CommunicationsHandoff = z.infer<typeof communicationsHandoffSchema>;
 export function verifyCommunicationsHandoff(value: unknown, brief: CommunicationsBrief) {

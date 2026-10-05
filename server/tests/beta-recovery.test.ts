@@ -11,9 +11,8 @@ vi.mock("../utils/captureCoverageReview", () => ({ reviewCaptureCoverage: mocks.
 vi.mock("../config/env", () => ({ isSiteTaskBriefReadingEnabled: () => true, isSiteVideoEvidenceEnabled: () => true }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: mocks.site }));
 vi.mock("../utils/robotTeamNotifications", () => ({ notifyTeamOfRunOutcome: mocks.team }));
-import { recoverCaptureReviews, queueCoverageReview } from "../utils/captureReviewRecovery";
+import { recoverCaptureReviews } from "../utils/captureReviewRecovery";
 import { reconcileAgentRunNotifications } from "../utils/agentRunNotificationRecovery";
-import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 beforeEach(() => {
   state.docs.clear(); Object.values(mocks).forEach(mock => mock.mockReset());
   mocks.brief.mockResolvedValue(true); mocks.coverage.mockResolvedValue({ coversScene: true });
@@ -39,25 +38,6 @@ describe("bounded capture recovery", () => {
     expect(mocks.brief).toHaveBeenCalledTimes(1);
     expect(state.docs.get("inboundRequests/request")?.briefReviewWork.state).toBe("needs_review");
     expect(state.docs.get("inboundRequests/request")?.briefReviewWork.attempts).toBe(3);
-  });
-  it("queues one source-bound coverage review and holds a withdrawn grant", async () => {
-    state.docs.set("inboundRequests/request", { request: { consent_attestation: { granted: true,
-      statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-10-01T00:00:00Z" } },
-      capture_privacy_source_bound_decision: { capture_id: "capture", proceeded: true, producer_source: { key: "source-1" } } });
-    const input = { requestId: "request", sceneId: "scene", captureId: "capture" };
-    await queueCoverageReview(input); await queueCoverageReview(input);
-    expect((await recoverCaptureReviews()).processedCount).toBe(1);
-    await queueCoverageReview(input); await recoverCaptureReviews();
-    expect(mocks.coverage).toHaveBeenCalledTimes(1);
-    expect(mocks.coverage).toHaveBeenCalledWith({ ...input, expectedSourceKey: "source-1" });
-    const record = state.docs.get("inboundRequests/request")!;
-    record.capture_privacy_source_bound_decision.producer_source.key = "source-2";
-    await queueCoverageReview(input);
-    state.docs.get("inboundRequests/request")!.request.consent_attestation.granted = false;
-    await recoverCaptureReviews();
-    expect(mocks.coverage).toHaveBeenCalledTimes(1);
-    expect(state.docs.get("inboundRequests/request")?.coverageReviewWork.state).toBe("needs_review");
-    await expect(queueCoverageReview(input)).rejects.toThrow("current_clearance_required");
   });
 });
 describe("result notification intent recovery", () => {

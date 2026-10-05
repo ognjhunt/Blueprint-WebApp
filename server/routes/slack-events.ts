@@ -3,7 +3,7 @@ import { Request, Response, Router } from "express";
 import { z } from "zod";
 
 import { logger } from "../logger";
-import { evaluateSlackHumanReplySurface } from "../utils/human-reply-slack";
+import { evaluateSlackHumanReplySurface, slackReplyPrincipal } from "../utils/human-reply-slack";
 import { ingestHumanReplyPayload } from "../utils/human-reply-worker";
 import { buildSlackThreadCorrelationId } from "../utils/human-reply-routing";
 import { ingestSlackOpsIncident } from "../utils/ops-incident-ingest";
@@ -110,11 +110,13 @@ async function maybeIngestSlackReply(
     return { ingested: false, reason: surface.reason };
   }
 
+  const principal = await slackReplyPrincipal(user, envelope.team_id || "");
+  if (!principal) return { ingested: false, reason: "principal_unverified" };
   const ingestResult = await ingestHumanReplyPayload({
     channel: "slack",
-    external_message_id: ts,
+    external_message_id: `${envelope.team_id}:${channel}:${ts}`,
     external_thread_id: buildSlackThreadCorrelationId(channel, threadTs || ts),
-    sender: user,
+    sender: principal,
     recipient: channel,
     subject: null,
     body: text,

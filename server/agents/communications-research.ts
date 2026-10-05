@@ -4,7 +4,7 @@ export { researchDigest } from "./research-digest";
 import { evaluateLeadCohort, evaluateLeadVerification, LEAD_OUTREACH_RESULT_VERSION, LEAD_VERIFICATION_RESULT_VERSION, leadPacketCandidates, requireVerifiedLead } from "./lead-verification";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { communicationsDigest, outreachReadyQuestion, outreachReadySendRefusal, verifyCommunicationsHandoff,
+import { communicationsDigest, outreachReadyQuestion, outreachReadySendRefusal, SHEETS_RECEIPT_MAX_LENGTH, verifyCommunicationsHandoff,
   type CommunicationsBrief } from "./communications-contract";
 import { publishedPublicContact } from "./communications-contact-evidence";
 import { verifyContactResolution } from "./communications-contact-resolution";
@@ -182,6 +182,10 @@ function publishedQaResult(snapshot: any, row: any, origin: PublicationOrigin, c
 }
 
 const SHEETS_PROSPECT_ID = /^BP-\d{6}$/;
+/** Exactly `BP-` and six digits, with no whitespace on either side. The anchored pattern
+ * already refuses it (no multiline flag); the explicit trim keeps that true if it changes. */
+const isSheetsProspectId = (value: unknown): value is string => typeof value === "string" && value === value.trim()
+  && SHEETS_PROSPECT_ID.test(value);
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
 
 /** The Sheets plan behind the receipt. The receipt covers every row. Day-level identity
@@ -199,7 +203,10 @@ function publishedSheetRows(row: any, selected: any[], sheetsReceipt: unknown) {
     || plan.body_json !== JSON.stringify({ majorDimension: "ROWS", values: rows })
     || plan.request_digest !== createHash("sha256").update(plan.body_json).digest("hex")) throw new Error("research_adapter_sheet_identity_missing");
   const ids: unknown[] = rows.map((entry: unknown) => Array.isArray(entry) ? entry[0] : undefined);
-  if (sheetsReceipt !== `sheets:${row.packet.destinations.sheet_id}:Prospects:${ids.join(",")}`) throw new Error("research_adapter_sheet_identity_missing");
+  // The handoff keeps this receipt and is checked against it on the send path. Its schema
+  // trims and caps the receipt, so a receipt it would change could never verify again.
+  if (typeof sheetsReceipt !== "string" || sheetsReceipt !== sheetsReceipt.trim() || sheetsReceipt.length > SHEETS_RECEIPT_MAX_LENGTH
+    || sheetsReceipt !== `sheets:${row.packet.destinations.sheet_id}:Prospects:${ids.join(",")}`) throw new Error("research_adapter_sheet_identity_missing");
   const verifiedPositions: number[] = [];
   for (const item of selected) {
     const task = item.evidence?.find((entry: any) => entry.role === "task");
@@ -209,7 +216,7 @@ function publishedSheetRows(row: any, selected: any[], sheetsReceipt: unknown) {
       item.potential_robot_match, task.url, "Research", "", `${item.proposed_next_action}\n${plan.marker}`, "", item.task,
       capability?.url || "", "Unverified", item.location, row.date];
     let position = (verifiedPositions.at(-1) ?? -1) + 1;
-    while (position < rows.length && !(typeof ids[position] === "string" && SHEETS_PROSPECT_ID.test(ids[position] as string)
+    while (position < rows.length && !(isSheetsProspectId(ids[position])
       && researchDigest(rows[position]) === researchDigest(expected(ids[position])))) position++;
     if (position >= rows.length) throw new Error("research_adapter_sheet_identity_missing");
     verifiedPositions.push(position);
@@ -347,7 +354,7 @@ function hypothesisEntries(row: any, qaResult: any, selected: any[], sheet: Retu
     if (!task || !capability && candidate.potential_robot_match !== "unknown"
       || !["unqualified", "needs_review"].includes(candidate.qualification_status)) fail(`candidate_scope_${index}`);
     const position = sheet.hypothesisPositions[index], id = sheet.ids[position];
-    if (typeof id !== "string" || !SHEETS_PROSPECT_ID.test(id) || seenIds.has(id)) fail(`sheet_row_id_${index}`);
+    if (!isSheetsProspectId(id) || seenIds.has(id)) fail(`sheet_row_id_${index}`);
     seenIds.add(id);
     const expected = [id, candidate.organization, "Facility / site", candidate.site, "", "", "Hypothesis", "",
       candidate.potential_robot_match, task.url, "Research", "", `First email asks: ${question}\n${sheet.plan.marker}`, "",

@@ -43,6 +43,7 @@
  */
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { humanDecisionDigest } from "./human-reply-admission";
 import { logger } from "../logger";
 import { entryPrice, finalistRound, screeningRound } from "../../client/src/lib/evaluationPricing";
 
@@ -78,6 +79,10 @@ export interface CohortRecord {
   /** Site-specific cost, accumulated as it is incurred. */
   siteCostUsd: number;
   costBreakdown: Partial<Record<CohortCostKind, number>>;
+  estimatedCostUsd?: number;
+  unknownCostReceipts?: number;
+  estimatedCostReceipts?: number;
+  incrementalPolicyCostUsd?: number;
   firstRecordedIso: string;
   lastRecordedIso: string;
 }
@@ -209,6 +214,8 @@ export interface ContributionInput {
   screeningEpisodeCostUsd: number;
   /** Our real cost per finalist episode. Often the same; not necessarily. */
   finalistEpisodeCostUsd: number;
+  /** Set only when measured episode unit costs already include these exact policy receipts. */
+  episodeCostsIncludePolicyReceipts?: boolean;
 }
 
 export interface ContributionResult {
@@ -216,7 +223,9 @@ export interface ContributionResult {
   screeningCostUsd: number;
   finalistCostUsd: number;
   siteCostUsd: number;
-  contributionUsd: number;
+  additionalPolicyCostUsd: number;
+  contributionUsd: number | null;
+  costCompleteness: "known_inputs" | "incomplete";
   /** Final-comparison episodes per screening episode is the thing to watch. */
   unpaidEpisodesPerPaidEpisode: number | null;
 }
@@ -231,14 +240,18 @@ export function cohortContribution(input: ContributionInput): ContributionResult
   const { cohort } = input;
   const screeningCostUsd = round2(cohort.screeningEpisodes * input.screeningEpisodeCostUsd);
   const finalistCostUsd = round2(cohort.finalistEpisodes * input.finalistEpisodeCostUsd);
+  const additionalPolicyCostUsd = input.episodeCostsIncludePolicyReceipts ? 0 : round2(cohort.incrementalPolicyCostUsd || 0);
+  const incomplete = (cohort.unknownCostReceipts || 0) > 0 || (cohort.estimatedCostReceipts || 0) > 0;
 
   return {
     revenueUsd: round2(cohort.revenueUsd),
     screeningCostUsd,
     finalistCostUsd,
     siteCostUsd: round2(cohort.siteCostUsd),
-    contributionUsd: round2(
-      cohort.revenueUsd - screeningCostUsd - finalistCostUsd - cohort.siteCostUsd,
+    additionalPolicyCostUsd,
+    costCompleteness: incomplete ? "incomplete" : "known_inputs",
+    contributionUsd: incomplete ? null : round2(
+      cohort.revenueUsd - screeningCostUsd - finalistCostUsd - cohort.siteCostUsd - additionalPolicyCostUsd,
     ),
     unpaidEpisodesPerPaidEpisode:
       cohort.screeningEpisodes > 0
@@ -276,4 +289,57 @@ export function projectedBreakEvenEpisodeCostUsd(params: {
     params.paidEntries * screeningRound.episodes + params.finalists * finalistRound.episodes;
   if (episodes <= 0) return null;
   return Math.round((revenue / episodes) * 10_000) / 10_000;
+}
+
+export interface CohortCostReceipt {
+  receiptId: string;
+  sceneId: string;
+  sourceDigest: string;
+  sourceUri: string;
+  currency: "USD";
+  allocation: "shared_preparation" | "incremental_policy";
+  allocationId: string;
+  status: "settled" | "estimated" | "unknown";
+  amountUsd: number | null;
+  supersedesReceiptId?: string;
+}
+
+/** Immutable receipt-keyed feed. Estimates and unknowns never become settled cost. */
+export async function recordCohortCostReceipt(receipt: CohortCostReceipt): Promise<void> {
+  if (!db) throw new Error("cohort_store_unavailable");
+  if (!/^[A-Za-z0-9._:-]{1,200}$/.test(receipt.receiptId) || !receipt.sceneId || !receipt.allocationId
+    || !/^sha256:[a-f0-9]{64}$/.test(receipt.sourceDigest) || !receipt.sourceUri
+    || receipt.currency !== "USD" || !["shared_preparation", "incremental_policy"].includes(receipt.allocation)
+    || !["settled", "estimated", "unknown"].includes(receipt.status)
+    || (receipt.status === "unknown" ? receipt.amountUsd !== null
+      : typeof receipt.amountUsd !== "number" || !Number.isFinite(receipt.amountUsd) || receipt.amountUsd < 0)) {
+    throw new Error("cohort_cost_receipt_invalid");
+  }
+  const ref = db.collection("siteCohortCostReceipts").doc(receipt.receiptId);
+  const cohortRef = db.collection(COHORT_LEDGER_COLLECTION).doc(receipt.sceneId);
+  const allocationRef = cohortRef.collection("costAllocations").doc(humanDecisionDigest({
+    allocation: receipt.allocation, allocationId: receipt.allocationId }));
+  await db.runTransaction(async tx => {
+    const [prior, cohort, allocation] = await Promise.all([tx.get(ref), tx.get(cohortRef), tx.get(allocationRef)]);
+    if (prior.exists) {
+      if (humanDecisionDigest(prior.data()?.receipt) !== humanDecisionDigest(receipt)) throw new Error("cohort_cost_receipt_conflict");
+      return;
+    }
+    const previous = allocation.data()?.receipt as CohortCostReceipt | undefined;
+    if (previous && (previous.receiptId !== receipt.supersedesReceiptId || previous.status === "settled")) throw new Error("cohort_cost_allocation_conflict");
+    if (!previous && receipt.supersedesReceiptId) throw new Error("cohort_cost_predecessor_missing");
+    const value = { ...emptyCohort(receipt.sceneId), ...cohort.data() } as CohortRecord;
+    const settled = receipt.status === "settled" ? receipt.amountUsd! : 0;
+    tx.create(ref, { receipt, recordedAtIso: nowIso() });
+    tx.set(allocationRef, { receipt });
+    tx.set(cohortRef, { ...value,
+      siteCostUsd: value.siteCostUsd + (receipt.allocation === "shared_preparation" ? settled : 0),
+      incrementalPolicyCostUsd: (value.incrementalPolicyCostUsd || 0) + (receipt.allocation === "incremental_policy" ? settled : 0),
+      estimatedCostUsd: (value.estimatedCostUsd || 0) + (receipt.status === "estimated" ? receipt.amountUsd! : 0)
+        - (previous?.status === "estimated" ? previous.amountUsd! : 0),
+      estimatedCostReceipts: (value.estimatedCostReceipts || 0) + (receipt.status === "estimated" ? 1 : 0) - (previous?.status === "estimated" ? 1 : 0),
+      unknownCostReceipts: (value.unknownCostReceipts || 0) + (receipt.status === "unknown" ? 1 : 0) - (previous?.status === "unknown" ? 1 : 0),
+      lastRecordedIso: nowIso(),
+    }, { merge: true });
+  });
 }

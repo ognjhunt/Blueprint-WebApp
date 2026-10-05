@@ -10,7 +10,7 @@ import {
 } from "../utils/human-reply-routing";
 
 describe("human reply routing helpers", () => {
-  it.each(["do not approve", "yesterday", "yes, but do not spend", "> approved", "approved", "yes"])(
+  it.each(["do not approve", "yesterday", "yes, but do not spend", "> approved"])(
     "never treats unbound reply text as execution approval: %s", body => {
       const decision = classifyHumanReply(body, { blocker_kind: "technical" });
       expect(decision.should_resume_now).toBe(false);
@@ -77,5 +77,17 @@ describe("human reply routing helpers", () => {
     expect(decision.classification).toBe("clarification");
     expect(decision.resolution).toBe("ambiguous_input");
     expect(decision.should_resume_now).toBe(false);
+  });
+});
+
+
+describe("complete decision parsing", () => {
+  it.each(["Approved. Go ahead.", "yes", "I approve", "Proceed!"])("admits %s", body => {
+    expect(classifyHumanReply(body, { blocker_kind: "technical" }).classification).toBe("approval");
+  });
+  it.each(["do not approve", "yes if the cost is lower", '> approve', '"approve"',
+    "She said approved", "not approved", "approve?", "yesterday", "approve all", "yes, but wait",
+    "Approval packet: approve", "Please reply yes", "go ahead unless it costs money"])("does not grant authority for %s", body => {
+    expect(classifyHumanReply(body, { blocker_kind: "technical" }).classification).not.toBe("approval");
   });
 });

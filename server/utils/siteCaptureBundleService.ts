@@ -98,6 +98,7 @@ export interface BundleServiceDeps {
 }
 
 export interface TokenPayload {
+  supplement?: import("./captureUploadToken").CaptureSupplementBinding;
   requestId: string;
   sceneId: string;
   captureId: string;
@@ -333,6 +334,7 @@ export async function acceptBundlePlan(
   let plan: BundlePlanRecord;
   if (existingPlan) {
     const candidate = buildPlanRecord({
+      supplement: payload.supplement,
       requestId: payload.requestId,
       target,
       client,
@@ -383,6 +385,7 @@ export async function acceptBundlePlan(
       };
     }
     plan = buildPlanRecord({
+      supplement: payload.supplement,
       requestId: payload.requestId,
       target,
       client,
@@ -604,6 +607,7 @@ export async function completeBundle(
         code: "bundle_marker_conflict" } };
     }
     const privacy = await deps.loadPrivacyState(payload.requestId);
+    await deps.startCoverageReview({ requestId: payload.requestId, sceneId: target.sceneId, captureId: target.captureId });
     return completeResponse(target, privacy?.eligibility);
   }
 
@@ -775,8 +779,8 @@ export async function completeBundle(
   if (!hasCurrentRecordingConsent((await deps.loadAuthority(payload.requestId)).consentAttestation)) {
     return { status: 409, body: { code: "recording_consent_required", error: "Recording permission changed before completion." } };
   }
-  await deps.startCoverageReview({ requestId: payload.requestId, sceneId: target.sceneId, captureId: target.captureId });
   const currentSource = await appBundlePrivacySource(payload, deps.storage);
+  await deps.startCoverageReview({ requestId: payload.requestId, sceneId: target.sceneId, captureId: target.captureId });
   if (currentSource?.kind !== producerSource.kind || currentSource.key !== producerSource.key
       || (await finishBundle(target, completion, deps.storage)) === "conflict") {
     logger.error({ captureId: target.captureId }, "Bundle hash manifest or marker differs from its completion record");

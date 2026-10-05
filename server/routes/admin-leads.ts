@@ -2122,6 +2122,12 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
  * Record what a screening call settled for a `needs_conversation` site and
  * re-screen it. A `qualified` result is what lets Blueprint fund its scene.
  */
+router.get("/:requestId/site-task-clarification", requireAdmin, async (req, res) => {
+  try {
+    const { readSiteClarification } = await import("../utils/siteTaskClarifications");
+    return res.json(await readSiteClarification(req.params.requestId));
+  } catch { return res.status(503).json({ error: "Could not load clarification." }); }
+});
 router.post("/:requestId/site-task-call", requireAdmin, async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
   const note = typeof body.note === "string" ? body.note.trim() : "";
@@ -2143,6 +2149,7 @@ router.post("/:requestId/site-task-call", requireAdmin, async (req: Request, res
       clearedFieldIds,
       note,
       resolvedBy: String(user.email || user.uid),
+      clarificationId: typeof body.clarificationId === "string" ? body.clarificationId : undefined,
     });
     return res.json({ ok: true, ...result });
   } catch (error) {
