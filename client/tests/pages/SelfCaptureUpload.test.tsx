@@ -8,7 +8,7 @@
  * the phone" are the two ways it silently breaks.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
 
 vi.mock("wouter", () => ({
@@ -16,6 +16,12 @@ vi.mock("wouter", () => ({
 }));
 
 const TOKEN = "tok-e2e";
+const videoUpload = vi.hoisted(() => ({ send: vi.fn(), retry: vi.fn() }));
+vi.mock("@/lib/selfCaptureVideo", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/selfCaptureVideo")>()),
+  uploadSelfCaptureVideo: videoUpload.send,
+  retrySelfCaptureProcessing: videoUpload.retry,
+}));
 
 function mockFetch() {
   return vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -52,12 +58,119 @@ function setUserAgent(ua: string) {
 }
 
 beforeEach(() => {
+  videoUpload.send.mockReset();
+  videoUpload.retry.mockReset();
   vi.stubGlobal("fetch", mockFetch());
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   setUserAgent("");
+  window.history.replaceState(null, "", "/");
+});
+
+describe("retained video processing recovery", () => {
+  function retainedFetch(data: Record<string, unknown>) {
+    return vi.fn((input: RequestInfo | URL) => String(input).endsWith(`/api/self-capture/uploads/${TOKEN}`)
+      ? Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "ready", accepts: ["mov", "mp4"], ...data }) })
+      : mockFetch()(input));
+  }
+
+  it.each(["", PHONE_UA])("restores a processing failure on refresh without a camera or QR (%s)", async (ua) => {
+    setUserAgent(ua);
+    vi.stubGlobal("fetch", retainedFetch({ captureReceived: true, uploadState: "processing_pending", processingRetryAvailable: true }));
+    const first = render(<SelfCaptureUpload />);
+    expect(await screen.findByRole("button", { name: "Retry processing" })).toBeInTheDocument();
+    expect(screen.getByText(/You do not need to upload or record it again/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open the camera|Upload a video file|Choose or record/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /phone|device/i })).not.toBeInTheDocument();
+    first.unmount(); render(<SelfCaptureUpload />);
+    await screen.findByRole("button", { name: "Retry processing" });
+    expect(videoUpload.retry).not.toHaveBeenCalled();
+    expect(videoUpload.send).not.toHaveBeenCalled();
+  });
+
+  it("requires an explicit retry, guards repeated clicks, and keeps the saved layout", async () => {
+    vi.stubGlobal("fetch", retainedFetch({ captureReceived: true, uploadState: "processing_pending", processingRetryAvailable: true }));
+    let complete!: (result: { status: "done" }) => void;
+    videoUpload.retry.mockImplementation(() => new Promise(resolve => { complete = resolve; }));
+    render(<SelfCaptureUpload />);
+    const button = await screen.findByRole("button", { name: "Retry processing" });
+    expect(videoUpload.retry).not.toHaveBeenCalled();
+    fireEvent.click(button); fireEvent.click(button);
+    expect(videoUpload.retry).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Retrying processing…" })).toBeDisabled();
+    complete({ status: "done" });
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Retry.*processing/ })).not.toBeInTheDocument());
+    expect(screen.getByText("Video received.")).toBeInTheDocument();
+    expect(videoUpload.send).not.toHaveBeenCalled();
+  });
+
+  it("shows a current authorization hold ahead of a retained pending receipt", async () => {
+    vi.stubGlobal("fetch", retainedFetch({ state: "held", detail: "Current consent must be confirmed before processing.", captureReceived: true, uploadState: "processing_pending", processingRetryAvailable: true }));
+    render(<SelfCaptureUpload />);
+    await screen.findByText(/Current consent must be confirmed/);
+    expect(screen.queryByRole("button", { name: "Retry processing" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /phone/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps an existing-file route out of the camera even before any upload", async () => {
+    setUserAgent(PHONE_UA);
+    window.history.replaceState(null, "", "/capture-upload/tok-e2e?video=existing");
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("button", { name: "Upload a video file" });
+    expect(document.querySelector('input[type="file"]')).not.toHaveAttribute("capture");
+    expect(screen.queryByRole("button", { name: "Open the camera" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Ask someone else to film")).not.toBeInTheDocument();
+    expect(screen.getByText("Open this job on another device (optional)").closest("details")).not.toHaveAttribute("open");
+  });
+
+  it.each([
+    [false, "not_received", "Your job is saved."],
+    [true, "processing_pending", "Your video is saved."],
+  ])("does not imply footage checking before confirmed processing (%s)", async (captureReceived, uploadState, headline) => {
+    window.history.replaceState(null, "", "/capture-upload/tok-e2e?video=existing");
+    const read = retainedFetch({ captureReceived, uploadState, processingRetryAvailable: false });
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input).endsWith("/status")
+      ? Promise.resolve({ ok: true, json: async () => ({ captureReceived, status: {
+        decision: "footage_received", headline: "We are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: null,
+      } }) }) : read(input)));
+    render(<SelfCaptureUpload />);
+    await screen.findByText(headline, { selector: "strong" });
+    expect(screen.queryByText("We are checking your footage.")).not.toBeInTheDocument();
+  });
+
+  it("keeps the selected file for a metadata retry and guards repeated upload events", async () => {
+    let complete!: (result: { status: "failed"; message: string }) => void;
+    videoUpload.send.mockImplementationOnce(() => new Promise(resolve => { complete = resolve; }))
+      .mockResolvedValueOnce({ status: "processing_pending", message: "Saved; processing pending.", processingRetryAvailable: false });
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("button", { name: "Upload a video file" });
+    const file = new File(["video"], "original.mov", { type: "video/quicktime" });
+    const input = document.querySelector('input[type="file"]')!;
+    fireEvent.change(input, { target: { files: [file] } });
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(videoUpload.send).toHaveBeenCalledTimes(1);
+    complete({ status: "failed", message: "This browser could not read the video. Keep the original." });
+    fireEvent.click(await screen.findByRole("button", { name: "Try the selected video again" }));
+    await screen.findByText(/Saved; processing pending/);
+    expect(videoUpload.send.mock.calls[1][1]).toBe(file);
+    expect(window.location.search).toBe("?video=existing");
+    expect(screen.queryByText(/Nothing was saved/)).not.toBeInTheDocument();
+  });
+
+  it("does not apply an interrupted page's late upload result after navigating back", async () => {
+    let complete!: (result: { status: "done" }) => void;
+    videoUpload.send.mockImplementation(() => new Promise(resolve => { complete = resolve; }));
+    const first = render(<SelfCaptureUpload />);
+    await screen.findByRole("button", { name: "Upload a video file" });
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [new File(["video"], "original.mov")] } });
+    first.unmount(); render(<SelfCaptureUpload />);
+    await screen.findByRole("button", { name: "Upload a video file" });
+    complete({ status: "done" });
+    await waitFor(() => expect(screen.queryByText("Video received.")).not.toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: "Upload your existing video" })).toBeInTheDocument();
+  });
 });
 
 describe("SelfCaptureUpload by device", () => {
@@ -136,7 +249,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     expect(await screen.findByRole("heading", { name: "What would a good result look like?" })).toBeInTheDocument();
     const details = screen.getByText("Next: check your job brief").closest("details")!;
     expect(details.open).toBe(true);
-    expect(screen.getByRole("button", { name: "Add another video" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add another video" })).not.toBeInTheDocument();
   });
 
   it("shows questions on a return visit while the received video remains held", async () => {
