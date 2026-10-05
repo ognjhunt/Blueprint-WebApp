@@ -490,6 +490,14 @@ function outreachQuoteLevel(quote: unknown, url: unknown, index: EvidenceIndex):
   }
   return [null, null];
 }
+/** quote_level bound to one retained evidence state: the level at which a quote is proven at a URL. */
+export function outreachQuoteProver(evidence: unknown) {
+  const index = outreachEvidenceIndex(evidence);
+  return (quote: unknown, url: unknown) => {
+    const [level, sha] = outreachQuoteLevel(quote, url, index);
+    return level ? { level: level as "verified_on_page" | "in_citation_excerpt", toolResultSha256: sha! } : null;
+  };
+}
 /** Python verification.site_terms: (places, names) that tie evidence to this facility. */
 function siteTerms(candidate: any) {
   const parts = (value: unknown) => typeof value === "string" ? value.split(",").map(outreachNormalized) : [];
