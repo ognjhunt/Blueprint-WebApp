@@ -58,3 +58,29 @@ describe("existing queue outreach approval review", () => {
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   });
 });
+
+describe("outreach-ready hypothesis drafts (draft only)", () => {
+  const QUESTION = "Which parts of sorting returned parcels at Synthetic sorting site still need people, and what has kept them from being automated?";
+  const hypothesisPayload = { to: "sortingops@hypothesis-operator.example", subject: "About sorting returned parcels",
+    body: `Hello, I'm hoping this reaches whoever runs sorting returned parcels at Synthetic sorting site.\n\n${QUESTION}`,
+    communications: { brief: { qualification: { tier: "outreach_ready", label: "hypothesis", openQuestions: [QUESTION],
+      openChecks: ["manual_workflow", "existing_automation", "fit", "interest"], sendsAuthorized: false },
+    facts: [{ id: "fact-1", claim: "Synthetic hypothesis operator runs the Synthetic sorting site", sourceUrl: "https://hypothesis-operator.example/locations/sorting" },
+      { id: "fact-2", claim: "Associates sort returned parcels at the Synthetic sorting site", sourceUrl: "https://hypothesis-operator.example/careers/sorting-associate" }] } } };
+  it("labels the draft, shows its one question and proven quotes, and offers no approve control", () => {
+    const onApprove = vi.fn();
+    render(<OutreachApprovalReview review={review} payload={hypothesisPayload} pending={false} onApprove={onApprove} draftOnly />);
+    expect(screen.getByText("Hypothesis · draft only")).toBeVisible();
+    expect(screen.getByText(QUESTION, { selector: "q" })).toBeVisible();
+    expect(screen.getByText("Synthetic hypothesis operator runs the Synthetic sorting site")).toBeVisible();
+    expect(screen.getByText("Associates sort returned parcels at the Synthetic sorting site")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /approve/i })).toBeNull();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(onApprove).not.toHaveBeenCalled();
+  });
+  it("fails closed to draft only when the payload carries a hypothesis even without the server flag", () => {
+    render(<OutreachApprovalReview review={review} payload={hypothesisPayload} pending={false} onApprove={vi.fn()} />);
+    expect(screen.getByText("Hypothesis · draft only")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /approve/i })).toBeNull();
+  });
+});

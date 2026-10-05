@@ -360,6 +360,8 @@ type ActionLedgerRecord = Record<string, unknown> & {
   action_payload?: Record<string, unknown>;
   draft_output?: Record<string, unknown>;
   draft_revision_id?: string | null;
+  qualification_tier?: unknown;
+  send_authority?: unknown;
 };
 
 type ActionQueueItem = {
@@ -387,6 +389,9 @@ type ActionQueueItem = {
   draft_output: Record<string, unknown>;
   outreach_review?: OutreachReviewResult;
   draft_revision_id?: string | null;
+  // Present only on an outreach-ready hypothesis draft: tier "outreach_ready", send authority "none".
+  qualification_tier?: string;
+  send_authority?: string;
 };
 
 function normalizeActionLedgerItem(
@@ -442,6 +447,8 @@ function normalizeActionLedgerItem(
       }),
     } : {}),
     ...(isCommunicationsPayload(data.action_payload ?? {}) ? { sending_enabled: communicationsSendingEnabled(), draft_revision_id: data.draft_revision_id ?? null } : {}),
+    ...(typeof data.qualification_tier === "string" ? { qualification_tier: data.qualification_tier } : {}),
+    ...(typeof data.send_authority === "string" ? { send_authority: data.send_authority } : {}),
   };
 }
 

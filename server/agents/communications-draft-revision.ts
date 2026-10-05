@@ -1,8 +1,7 @@
 import { z } from "zod";
 import {
   communicationsBriefSchema, communicationsDigest, communicationsDeliveryKey,
-  communicationsEnvelopeSchema, communicationsJobSchema, isFounderReplyOrigin, verifyCommunicationsHandoff,
-} from "./communications-contract";
+  communicationsEnvelopeSchema, communicationsJobSchema, isFounderReplyOrigin, verifyCommunicationsHandoff, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL } from "./communications-contract";
 import { parseCommunicationsOutput, CommunicationsOutputValidationError } from "./communications-output";
 import { reviewCommunicationsPayload } from "./communications-review";
 import { COMMUNICATIONS_ROOT } from "./communications-store";
@@ -162,7 +161,9 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
     tx.update(ledgerRef, { action_payload: nextPayload,
       draft_output: { ...ledger.draft_output, ...output, requires_human_review: true, category: "communications" },
       outreach_semantic_review: null, outreach_reviewed_by: null, outreach_reviewed_at: null,
-      approval_reason: review.hardChecksPassed ? "requires_human_review" : `content_validation_failed:${review.blockers.join(",")}`,
+      // An outreach-ready hypothesis stays draft only whatever the revision; its diagnostics stay in the payload.
+      approval_reason: outreachReadySendRefusal(brief) ? OUTREACH_READY_SEND_REFUSAL
+        : review.hardChecksPassed ? "requires_human_review" : `content_validation_failed:${review.blockers.join(",")}`,
       draft_revision_id: revisionId, updated_at: new Date(now) });
     tx.update(jobRef, { output, reviewDigest: review.digest, draftRevisionId: revisionId, updatedAt: now });
     tx.set(sourceRef, { communications: { draft: output, reviewDigest: review.digest,

@@ -462,6 +462,34 @@ describe("AdminLeads scene readiness", () => {
     expect(await screen.findByText("No pending approvals or failed actions right now.")).toBeVisible();
     expect(screen.queryByText(/Could not load the action queue/)).not.toBeInTheDocument();
   });
+  it("labels an outreach-ready hypothesis draft, shows its question and quotes, and offers no approve control", async () => {
+    const question = "Which parts of sorting returned parcels at Synthetic sorting site still need people, and what has kept them from being automated?";
+    const body = `Hello, I'm hoping this reaches whoever runs sorting returned parcels at Synthetic sorting site.\n\n${question}`;
+    vi.spyOn(global, "fetch").mockImplementation(async input => {
+      if (String(input).startsWith("/api/admin/leads/action-queue?")) return Response.json({ items: [{ id: "communications_hypothesis-job",
+        status: "pending_approval", lane: "outbound_prospect", source_collection: "outboundProspects", source_doc_id: "hypothesis-prospect",
+        action_type: "send_email", action_tier: 3, draft_output: {}, approval_reason: "outreach_ready_hypothesis_draft_only",
+        qualification_tier: "outreach_ready", send_authority: "none", sending_enabled: false,
+        action_payload: { to: "sortingops@hypothesis-operator.example", subject: "About sorting returned parcels", body, communications: {
+          output: { subject: "About sorting returned parcels", body, usedFactIds: [], outreachContract: null },
+          brief: { qualification: { tier: "outreach_ready", label: "hypothesis", openQuestions: [question] }, facts: [
+            { id: "fact-1", claim: "Associates sort returned parcels at the Synthetic sorting site",
+              sourceUrl: "https://hypothesis-operator.example/careers/sorting-associate" }] } } },
+        outreach_review: { digest: "a".repeat(64), hardChecksPassed: true, blockers: [], semanticReviewRequired: { evidence: "Verify sources." } } }],
+        summary: { total: 1, pending_approval: 1, failed: 0 } });
+      return Response.json({ leads: [], total: 0, byStatus: {}, byPriority: {} });
+    });
+    renderPage();
+    const tab = await screen.findByRole("tab", { name: /approvals/i }); fireEvent.mouseDown(tab); fireEvent.click(tab);
+    expect((await screen.findAllByText("Hypothesis · draft only")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(question, { selector: "q" })).toBeVisible();
+    expect(screen.getByText("Associates sort returned parcels at the Synthetic sorting site")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Approve outreach" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve", exact: true })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Reject" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Revise draft" })).toBeVisible();
+  });
   it("preserves an unsaved draft edit when a queue refresh fails", async () => {
     let queueFails = false;
     vi.spyOn(global, "fetch").mockImplementation(async input => {

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { HYPOTHESIS_DRAFTS_FLAG, runCommunicationsIntake } from "../agents/communications-intake";
 import { processCommunicationsJob } from "../agents/communications-worker";
+import { reviseCommunicationsDraft } from "../agents/communications-draft-revision";
 import { CommunicationsStore } from "../agents/communications-store";
 import { communicationsBriefSchema } from "../agents/communications-contract";
 import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE } from "../agents/communications-instructions";
@@ -42,9 +43,31 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
     expect(feedback).toBeNull();
     const ledger = h.f.db.records.get(`action_ledger/${result.ledgerId}`);
-    expect(ledger).toMatchObject({ status: "pending_approval", action_tier: 3, approved_by: null, sent_at: null });
+    expect(ledger).toMatchObject({ status: "pending_approval", action_tier: 3, approved_by: null, sent_at: null,
+      qualification_tier: "outreach_ready", send_authority: "none", approval_reason: "outreach_ready_hypothesis_draft_only" });
     expect(ledger).not.toHaveProperty("first_contact_authority");
     expect(ledger.action_payload.communications.brief.qualification).toEqual(h.brief.qualification);
+  });
+
+  it("keeps a hypothesis draft draft-only through a founder's revision", async () => {
+    const h = await admitted();
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "Blueprint Robotics, Inc. · 1 Synthetic Road, Testville, TX 75001");
+    const result: any = await processCommunicationsJob(h.intake.jobId, h.deps);
+    h.f.advance(181000); // The drafting worker's lease has ended.
+    const job = h.f.records("jobs").find(item => item.jobId === h.intake.jobId);
+    const revised = { ...job.output, subject: "About sorting returned parcels at your site" };
+    const saved = await reviseCommunicationsDraft(h.f.db, result.ledgerId, "Synthetic Operator 1",
+      { expectedReviewDigest: job.reviewDigest, output: revised }, h.f.deps.now());
+    expect(saved).toMatchObject({ state: "pending_approval", sent: false, review: { hardChecksPassed: true } });
+    expect(h.f.db.records.get(`action_ledger/${result.ledgerId}`)).toMatchObject({ status: "pending_approval",
+      qualification_tier: "outreach_ready", send_authority: "none", approval_reason: "outreach_ready_hypothesis_draft_only" });
+    // A revision that breaks blueprint.outreach.v2 is kept for repair but stays draft only and fails review.
+    const broken = { ...revised, body: `${revised.body}\n\nIs this the right inbox?` };
+    const again = await reviseCommunicationsDraft(h.f.db, result.ledgerId, "Synthetic Operator 1",
+      { expectedReviewDigest: saved.review.digest, output: broken }, h.f.deps.now());
+    expect(again.review).toMatchObject({ hardChecksPassed: false, blockers: expect.arrayContaining(["exactly_one_initial_question_required"]) });
+    expect(h.f.db.records.get(`action_ledger/${result.ledgerId}`)).toMatchObject({ approval_reason: "outreach_ready_hypothesis_draft_only",
+      send_authority: "none" });
   });
 
   it("keeps verified drafting unchanged on the same day", async () => {
@@ -62,6 +85,10 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_OUTREACH_GUIDANCE);
     expect(input.researchBrief).not.toHaveProperty("qualification");
     expect(checkpoint).not.toHaveProperty("draftProfile");
+    const ledger = h.f.db.records.get(`action_ledger/communications_${h.verifiedJob.jobId}`);
+    expect(ledger).toMatchObject({ status: "pending_approval", approval_reason: "requires_human_review" });
+    expect(ledger).not.toHaveProperty("qualification_tier");
+    expect(ledger).not.toHaveProperty("send_authority");
   });
 
   it("never applies automatic first contact to a hypothesis, even with every automation flag on", async () => {

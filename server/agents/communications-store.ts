@@ -6,7 +6,7 @@ import {
   verifyCommunicationsReplyBinding,
   communicationsSentReceiptIdentity,
   isFounderReplyOrigin, verifyCommunicationsFounderReplyBinding, verifyFounderReplyAnchor,
-  type ThreadMessage,
+  type ThreadMessage, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL,
 } from "./communications-contract";
 import { communicationsContinuationDeadline, communicationsContinuationSessionBinding } from "./communications-api";
 import type { CommunicationsCheckpoint, CommunicationsCancelledContinuation, CommunicationsRejectedCreateRecovery,
@@ -442,9 +442,13 @@ export class CommunicationsStore {
         throw new Error("founder_origin_reply_learning_only");
       }
       if (existing.exists && communicationsDigest(existing.data()?.action_payload) !== communicationsDigest(payload)) throw new Error("draft_idempotency_conflict");
-      let authority = proposedAuthority;
+      // An outreach-ready hypothesis is draft only: no authority, no routine policy, a human-review row
+      // that every approval and send path refuses, labelled so the queue shows no approve control.
+      const hypothesis = outreachReadySendRefusal(communicationsBriefSchema.parse(brief.data())) !== null
+        || outreachReadySendRefusal((payload.communications as any)?.brief) !== null;
+      let authority = hypothesis ? null : proposedAuthority;
       if (record.automationPolicyVersion !== ROUTINE_COMMUNICATIONS_POLICY.version || record.cancelledContinuation) authority = null;
-      const prospective = !record.cancelledContinuation && record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
+      const prospective = !hypothesis && !record.cancelledContinuation && record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
       let refusal: string | null = null;
       if (prospective && !authority) {
         const quality = reviewCommunicationsPayload(payload, this.now());
@@ -495,7 +499,9 @@ export class CommunicationsStore {
         idempotency_key: `communications:${job.jobId}`, lane: "outbound_prospect", action_type: "send_email", action_tier: automatic ? 1 : 3,
         source_collection: "outboundProspects", source_doc_id: job.prospectId,
         action_payload: payload, draft_output: { ...output, requires_human_review: !prospective, category: "communications" },
-        status: policyBlocked ? "failed" : state, approval_reason: policyBlocked ? refusal : automatic ? null : "requires_human_review",
+        status: policyBlocked ? "failed" : state,
+        approval_reason: hypothesis ? OUTREACH_READY_SEND_REFUSAL : policyBlocked ? refusal : automatic ? null : "requires_human_review",
+        ...(hypothesis ? { qualification_tier: "outreach_ready", send_authority: "none" } : {}),
         auto_approve_reason: automatic ? authority?.kind : null,
         ...(automatic ? { first_contact_authority: authority, first_contact_authority_digest: authorityDigest } : {}),
         approved_by: null, approved_at: null, rejected_by: null, rejected_reason: null,

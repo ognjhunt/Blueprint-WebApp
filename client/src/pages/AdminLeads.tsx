@@ -239,6 +239,16 @@ interface ActionQueueItem {
   sending_enabled?: boolean;
   draft_revision_id?: string|null;
   gmail_draft?: GmailDraftSummary;
+  // Present only on an outreach-ready hypothesis draft.
+  qualification_tier?: string;
+  send_authority?: string;
+}
+
+/** An outreach-ready hypothesis draft: shown, revisable and copyable to Gmail Drafts, never approvable. */
+function isDraftOnlyHypothesis(item: ActionQueueItem) {
+  return item.send_authority === "none" || item.qualification_tier === "outreach_ready"
+    || item.approval_reason === "outreach_ready_hypothesis_draft_only"
+    || !!(item.action_payload.communications as { brief?: { qualification?: unknown } } | undefined)?.brief?.qualification;
 }
 
 interface ActionQueueResponse {
@@ -1833,6 +1843,9 @@ export default function AdminLeads() {
                         <span className="runway-chip runway-chip-quiet">
                           Tier {item.action_tier}
                         </span>
+                        {isDraftOnlyHypothesis(item) ? (
+                          <span className="runway-chip runway-chip-quiet">Hypothesis · draft only</span>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1882,10 +1895,10 @@ export default function AdminLeads() {
                             onSave={input => reviseActionMutation.mutateAsync({ ledgerId: item.id, ...input })} /> : null}
                           {item.lane === "outbound_prospect" || item.source_collection === "outboundProspects" || item.action_payload.communications ? (
                             <OutreachApprovalReview review={item.outreach_review} payload={item.action_payload}
-                              sendingEnabled={item.sending_enabled}
+                              sendingEnabled={item.sending_enabled} draftOnly={isDraftOnlyHypothesis(item)}
                               pending={approveActionMutation.isPending || approvalQueueQuery.isError}
                               onApprove={(outreachSemanticReview) => approveActionMutation.mutate({ ledgerId: item.id, outreachSemanticReview })} />
-                          ) : (
+                          ) : isDraftOnlyHypothesis(item) ? null : (
                             <button type="button" onClick={() => approveActionMutation.mutate({ ledgerId: item.id })}
                               className="runway-cta-ghost min-h-0 px-4 py-2 text-sm" disabled={approveActionMutation.isPending || approvalQueueQuery.isError}>
                               Approve

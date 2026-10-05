@@ -327,6 +327,22 @@ describe("admin action queue", () => {
     } finally { ledgerRows[0] = original; await stopServer(server); }
   });
 
+  it("exposes an outreach-ready hypothesis draft's tier, send authority and draft-only reason", async () => {
+    const original = ledgerRows[0];
+    ledgerRows[0] = { ...original, data: { ...original.data, lane: "outbound_prospect", source_collection: "outboundProspects",
+      approval_reason: "outreach_ready_hypothesis_draft_only", qualification_tier: "outreach_ready", send_authority: "none",
+      action_payload: { to: "sortingops@hypothesis-operator.example", subject: "About sorting", body: "Synthetic draft body" } } as any };
+    const { server, baseUrl } = await startServer();
+    try {
+      const data = await (await fetch(`${baseUrl}/action-queue?limit=25`)).json();
+      expect(data.items.find((row: { id: string }) => row.id === "ledger-1")).toMatchObject({ qualification_tier: "outreach_ready",
+        send_authority: "none", approval_reason: "outreach_ready_hypothesis_draft_only" });
+      // Other rows keep their exact shape: the fields appear only on a hypothesis draft.
+      expect(data.items.find((row: { id: string }) => row.id === "ledger-2")).not.toHaveProperty("qualification_tier");
+      expect(data.items.find((row: { id: string }) => row.id === "ledger-2")).not.toHaveProperty("send_authority");
+    } finally { ledgerRows[0] = original; await stopServer(server); }
+  });
+
   it("forwards the separate semantic attestation using the authenticated operator identity", async () => {
     const review = { digest: reviewOutreachDraft(outreachDraft).digest, checks: passingOutreachChecks };
     approveActionMock.mockResolvedValue({ state: "pending_approval", tier: 3, ledgerDocId: "outreach-1" });
