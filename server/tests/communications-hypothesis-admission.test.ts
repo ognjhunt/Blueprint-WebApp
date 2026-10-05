@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
-import { admitPublishedHypothesis, HYPOTHESIS_DRAFTS_FLAG, runCommunicationsIntake } from "../agents/communications-intake";
+import { admitPublishedHypothesis, HYPOTHESIS_DRAFTS_FLAG, runCommunicationsContactRefresh, runCommunicationsIntake } from "../agents/communications-intake";
+import { runCommunicationsFactRefresh } from "../agents/communications-fact-refresh";
 import { hypothesisPublicationSource, verifyPublishedHypothesisForDraft, verifyPublishedResearch } from "../agents/communications-research";
 import { COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { communicationsBriefSchema, communicationsDigest, OUTREACH_READY_OWNER_DECISION_REFERENCE, OUTREACH_READY_SEND_REFUSAL,
@@ -76,6 +77,18 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, replay)).toMatchObject({ state: "admitted" });
     await runCommunicationsIntake(f.deps);
     expect([...f.db.records.entries()].filter(([key]) => !key.includes("/intakeState/"))).toEqual(before);
+  });
+
+  it("keeps a pending hypothesis contact request for contact research across a stale-fact refresh pass", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup();
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps)).toMatchObject({ state: "needs_research" });
+    const before = structuredClone(f.records("refreshRequests"));
+    // The stale-fact worker runs first in every tick; it must not consume the contact request.
+    await runCommunicationsFactRefresh(f.db, f.deps.readContactPage, f.deps.now);
+    expect(f.records("refreshRequests")).toEqual(before);
+    await runCommunicationsContactRefresh(f.deps);
+    expect(f.hypothesisIntake()).toMatchObject({ state: "admitted", draftJobCreated: true });
   });
 
   it("claims each hypothesis once under concurrent admissions", async () => {
