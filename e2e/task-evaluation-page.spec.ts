@@ -3,7 +3,7 @@ import { resultFixture, sha } from "./fixtures/policy-canary-result";
 
 test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== "1", "Requires isolated fixture authentication");
 for (const width of [390, 1440]) {
-  test(`task details and fixed-price evaluation stay on one page at ${width}px`,async({page})=>{
+  test(`task details and free evaluation stay on one page at ${width}px`,async({page})=>{
     await page.setViewportSize({width,height:900});
     const policies=[{id:"pi05_droid",artifact_digest:"pi"},{id:"groot_n17_droid",artifact_digest:"groot"}];
     const report = resultFixture();
@@ -37,7 +37,7 @@ for (const width of [390, 1440]) {
         sourceLaunchId:"source-one",sourceProfileDigest:"profile",sceneRevisionDigest:"revision",
         taskDetails:{title:"Move the blue container",description:"Pick up the container and place it on the target.",requirements:[{label:"Time limit",value:"30 seconds"},{label:"Destination",value:"Green target"}]},
         thumbnailUrl:"/api/task-thumbnail",dataSummary:{sceneVersion:"v1",sceneRevisionDigest:"revision",bundleSizeBytes:797095},
-        checkout:{priceCents:9900,currency:"USD",developmentNoCharge:true,paymentsEnabled:false},
+        checkout:{priceCents:0,currency:"USD",developmentNoCharge:true,paymentsEnabled:false},
         configurations:[{id:"franka",label:"Franka configuration",binding_digest:"binding",policy_candidates:policies}],
         setups:[{id:"saved-one",name:"Franka",policyName:"GR00T",executionBindingId:"franka"}],
         providerTerms:{openai:{digest:"terms"},vast:{digest:"terms"}},testEnvironment:{label:"Development surface; room integration pending"},
@@ -70,17 +70,17 @@ for (const width of [390, 1440]) {
     await page.getByRole("button",{name:"Save setup",exact:true}).click();
     await expect(page.getByText(/needs simulation validation/)).toBeVisible();
     expect(savedModel).toMatchObject({delivery:"endpoint",robotDescription:{source:"model",format:"urdf",mobility:"mobile"}});
-    await expect(page.getByRole("button",{name:"Start evaluation · $99"})).toBeDisabled();
+    await expect(page.getByRole("button",{name:"Start free evaluation"})).toBeDisabled();
     expect(submissions).toBe(0);
     await page.getByLabel("Saved robot and policy").selectOption("saved-one");
     await expect(page.getByRole("spinbutton")).toHaveCount(0);
     await expect(page.getByText(/you won’t be charged/)).toBeVisible();
     await page.getByRole("checkbox").check();
-    await expect(page.getByRole("button",{name:"Start evaluation · $99"})).toBeEnabled();
+    await expect(page.getByRole("button",{name:"Start free evaluation"})).toBeEnabled();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.screenshot({animations:"disabled",path:`output/qa/result-consumer/task-evaluation-${width}.png`,fullPage:true});
-    await page.getByRole("button",{name:"Start evaluation · $99"}).click();
+    await page.getByRole("button",{name:"Start free evaluation"}).click();
     await expect(page.getByRole("heading",{name:"Evaluation queued"})).toBeVisible();
     await expect(page.getByRole("heading",{name:"Move the blue container"})).toBeVisible();
     await expect(page).toHaveURL(/packs\/source-one\/evaluate\?select=team&intake=scene-/);

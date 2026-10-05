@@ -85,7 +85,7 @@ export function TaskBrowse() {
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
         <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
-        <a className="ms-text-link" href="/app">Request a free invited evaluation</a>
+        {item.evaluationAvailable ? <a className="ms-text-link" href="/app">Request a free invited evaluation</a> : <p className="ms-field-hint">No runs available yet.</p>}
       </li>)}</ul>
     </>}
     <p className="ms-field-hint">Invited evaluations are free within the approved scope and share results with the site.</p>
