@@ -169,6 +169,49 @@ describe("transactional notifications", () => {
     expect(state.sendEmail).toHaveBeenCalledTimes(1);
   });
 
+  it("reconciles a lost email response from a recipient-bound provider receipt without resending", async () => {
+    const { dispatchTransactionalNotification, reconcileVerifiedNotificationEmail } = await import("../utils/transactional-notifications");
+    state.sendEmail.mockRejectedValueOnce(new Error("connection lost"));
+    const input = { eventType: "evaluation_results_ready" as const, recipientType: "buyer" as const,
+      recipientEmail: "owner@example.test", subjectId: "run-receipt" };
+    const records = await dispatchTransactionalNotification(input);
+    const record = records.find(row => row.channel === "email")!;
+    expect(record.status).toBe("delivery_unknown");
+    expect(state.sendEmail.mock.calls[0][0].sendGridCustomArgs.bp_notification_id).toBe(record.id);
+    const event = { type: "email.delivered", created_at: new Date(Date.now() + 1000).toISOString(), data: {
+      email_id: "provider-receipt", to: ["owner@example.test"], tags: { bp_notification_id: record.id },
+    } };
+    expect(await reconcileVerifiedNotificationEmail({ ...event, data: { ...event.data, to: ["other@example.test"] } }, "receipt-wrong")).toBe(false);
+    expect(await reconcileVerifiedNotificationEmail({ ...event, created_at: "invalid" }, "receipt-invalid")).toBe(false);
+    expect(await reconcileVerifiedNotificationEmail(event, "receipt-one")).toBe(true);
+    expect(await reconcileVerifiedNotificationEmail(event, "receipt-one")).toBe(true);
+    expect(await reconcileVerifiedNotificationEmail({ ...event, data: { ...event.data, email_id: "other-message" } }, "receipt-other")).toBe(false);
+    const replay = await dispatchTransactionalNotification(input);
+    expect(replay.find(row => row.channel === "email")).toMatchObject({ status: "sent", provider_message_id: "provider-receipt",
+      provider_receipt: { webhook_id: "receipt-one", event_type: "email.delivered" } });
+    expect(state.sendEmail).toHaveBeenCalledTimes(1);
+    const bounced = { ...event, type: "email.bounced", created_at: new Date(Date.now() + 2000).toISOString() };
+    expect(await reconcileVerifiedNotificationEmail(bounced, "receipt-bounced")).toBe(true);
+    expect(await reconcileVerifiedNotificationEmail(event, "late-old-delivery")).toBe(true);
+    expect((await dispatchTransactionalNotification(input)).find(row => row.channel === "email")).toMatchObject({
+      status: "failed", provider_receipt: { webhook_id: "receipt-bounced", event_type: "email.bounced" },
+    });
+    expect(state.sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a verified receipt when the interrupted send returns after its webhook", async () => {
+    const { dispatchTransactionalNotification, reconcileVerifiedNotificationEmail } = await import("../utils/transactional-notifications");
+    state.sendEmail.mockImplementationOnce(async options => {
+      expect(await reconcileVerifiedNotificationEmail({ type: "email.delivered", created_at: new Date(Date.now() + 1000).toISOString(),
+        data: { email_id: "provider-race", to: [options.to], tags: options.sendGridCustomArgs } }, "receipt-race")).toBe(true);
+      throw new Error("lost send response");
+    });
+    const records = await dispatchTransactionalNotification({ eventType: "evaluation_results_ready", recipientType: "buyer",
+      recipientEmail: "owner@example.test", subjectId: "run-race" });
+    expect(records.find(row => row.channel === "email")).toMatchObject({ status: "sent", provider_message_id: "provider-race" });
+    expect(state.sendEmail).toHaveBeenCalledTimes(1);
+  });
+
   it("sends email, queues in-app, and audits the order confirmation event", async () => {
     const { dispatchTransactionalNotification } = await import(
       "../utils/transactional-notifications"

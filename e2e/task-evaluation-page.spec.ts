@@ -13,6 +13,8 @@ for (const width of [390, 1440]) {
     let savedModel:Record<string,unknown>|null=null;
     let receipt:Record<string,unknown>={id:`scene-${"a".repeat(64)}`,state:"forward_pending"};
     await page.clock.install();
+    await page.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1"
+      ? route.continue() : route.fulfill({ status: 204, body: "" }));
     await page.route("**/api/**",async route=>{
       const path=new URL(route.request().url()).pathname;
       if(path===`/api/task-evaluation-runs/${runId}/status`) return route.fulfill({json:{

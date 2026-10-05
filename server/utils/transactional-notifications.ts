@@ -40,6 +40,8 @@ export type TransactionalNotificationRecord = {
   failure_reason: string | null;
   provider_message_id: string | null;
   delivery_provider: "resend" | "firebase" | null;
+  recipient_email_sha256?: string;
+  provider_receipt?: { webhook_id: string; event_type: string; occurred_at: string };
   preference_key: string | null;
   data: Record<string, string>;
   created_at: string;
@@ -262,8 +264,14 @@ async function writeRecord(record: TransactionalNotificationRecord) {
   if (!db) {
     return record;
   }
-  await db.collection(COLLECTION).doc(record.id).set(record, { merge: true });
-  return record;
+  const ref = db.collection(COLLECTION).doc(record.id);
+  return db.runTransaction(async transaction => {
+    const prior = (await transaction.get(ref)).data() as TransactionalNotificationRecord | undefined;
+    // A verified provider receipt can arrive before the original send returns.
+    if (prior?.provider_receipt) return prior;
+    transaction.set(ref, record, { merge: true });
+    return record;
+  });
 }
 
 function baseRecord(
@@ -402,6 +410,8 @@ async function dispatchEmail(input: TransactionalNotificationInput, profile: Rec
     });
   }
 
+  record.recipient_email_sha256 = emailReceiptHash(email);
+  record.recipient_email_domain = emailDomain(email);
   const prior = await claimExternalDelivery(record);
   if (prior) return prior;
   const copy = notificationCopy(input);
@@ -413,6 +423,7 @@ async function dispatchEmail(input: TransactionalNotificationInput, profile: Rec
       sendGridCategories: ["transactional", input.eventType],
       sendGridCustomArgs: {
         event_type: input.eventType,
+        bp_notification_id: record.id,
         subject_id: stringValue(input.subjectId, 200) || "unknown",
       },
     });
@@ -513,6 +524,7 @@ async function dispatchPush(input: TransactionalNotificationInput, profile: Reco
       },
       data: {
         event_type: input.eventType,
+        bp_notification_id: record.id,
         subject_id: record.subject_id,
         ...record.data,
       },
@@ -620,5 +632,47 @@ export async function dispatchCreatorPayoutSettlementNotifications(input: {
       stripe_payout_id: input.stripePayoutId,
       status: input.status,
     },
+  });
+}
+
+
+function emailReceiptHash(email: string) {
+  return crypto.createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+}
+
+/** Called only after verification by the existing Resend signature handler.
+ * A provider receipt resolves uncertainty; its absence never grants a resend.
+ */
+export async function reconcileVerifiedNotificationEmail(payload: unknown, webhookId: string): Promise<boolean> {
+  if (!isRecord(payload) || !isRecord(payload.data)) return false;
+  const event = payload.data;
+  const tags = isRecord(event.tags) ? event.tags : {};
+  const notification = tags.bp_notification_id;
+  const type = payload.type;
+  if (typeof notification !== "string" || !/^[a-z0-9_]{1,200}$/.test(notification)
+      || !["email.sent", "email.delivered", "email.failed", "email.bounced"].includes(String(type))) return false;
+  if (typeof event.email_id !== "string" || !event.email_id.trim()
+      || !Array.isArray(event.to) || event.to.length !== 1 || typeof event.to[0] !== "string"
+      || typeof payload.created_at !== "string" || !Number.isFinite(Date.parse(payload.created_at))
+      || !webhookId || webhookId.length > 200) return false;
+  if (!db) throw new Error("notification_store_unavailable");
+  const recipientHash = emailReceiptHash(event.to[0]);
+  const ref = db.collection(COLLECTION).doc(notification);
+  return db.runTransaction(async transaction => {
+    const record = (await transaction.get(ref)).data() as TransactionalNotificationRecord | undefined;
+    if (!record || record.channel !== "email" || !record.recipient_email_sha256
+        || record.recipient_email_sha256 !== recipientHash
+        || (record.provider_message_id && record.provider_message_id !== event.email_id)
+        || !["delivery_unknown", "sent", "failed"].includes(record.status)
+        || Date.parse(payload.created_at as string) < Math.floor(Date.parse(record.created_at) / 1000) * 1000) return false;
+    if (record.provider_receipt && Date.parse(record.provider_receipt.occurred_at) >= Date.parse(payload.created_at as string)) return true;
+    const accepted = type === "email.sent" || type === "email.delivered";
+    transaction.set(ref, { status: accepted ? "sent" : "failed",
+      sent_at: accepted ? record.sent_at || payload.created_at : record.sent_at,
+      delivery_provider: "resend", provider_message_id: event.email_id,
+      provider_receipt: { webhook_id: webhookId, event_type: type, occurred_at: payload.created_at },
+      failure_reason: accepted ? null : `provider_${type}`, updated_at: nowIso(),
+    }, { merge: true });
+    return true;
   });
 }
