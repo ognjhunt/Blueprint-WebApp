@@ -42,7 +42,7 @@ Private root `blueprintCommunications/default`:
 | `contactProofs/{proofDigest}` | Immutable `blueprint.contact-resolution.v1` with original publication/prospect binding, retrieved bytes, literal quote, scope and terminal deterministic contact QA |
 | `firstTouches/{deliveryKey}` | One first-touch queue claim across revisions; only proven pre-inference research failures can be replaced atomically |
 | `jobs/{jobId}` | Digest of prospect, brief ID/digest, intent and incoming message ID; fenced lease, maximum three recovery attempts, persisted API create/session/turn checkpoint |
-| `refreshRequests/{jobId}` | Broader fact refresh remains research-owned; supported `intake_*` contact gaps are fulfilled by communications with resolved/terminal/retry_wait outcomes |
+| `refreshRequests/{jobId}` | Broader fact refresh remains research-owned; supported `intake_*` contact gaps are fulfilled by communications with resolved/terminal/retry_wait outcomes. The stale-fact worker claims only a draft job's own request (one with `job`); `intake_*` contact and research-owner requests stay pending for their owners |
 | `sendReceipts/{deliveryKey}` | One-use claim bound to mailbox/prospect/intent/incoming message, independent of brief revisions; actual Gmail receipt or unresolved acknowledgement |
 
 An approved handoff record contains exactly `version`, `state: "approved"`,
