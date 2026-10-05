@@ -57,6 +57,11 @@ Repeated identical approval returns the same run; changed approval conflicts.
   during storage. Other corrected focused tests include real canonical free
   preparation/admission, handoff retries, audience recovery, and UI controls.
 - Final affected WebApp suite: 630 tests across 44 files passed.
+- Workspace handoff/result projection follow-up: 80 tests passed, including
+  built-page, scheduler, and source-authority race checks; a completed free
+  run appears on its original request, is shown once to the site, and cannot
+  expose another owner's run. Admission rechecks scene and team revisions in
+  the committing transaction, preventing withdrawal/ownership races. Development simulations do not assert target qualification.
 - Graphify architecture refresh, asset audit, and portable-storage static audit passed.
 - Pipeline impacted selection: 206 passed, 5 skipped. Changed Python Ruff
   checks passed. No paid provider execution was performed.

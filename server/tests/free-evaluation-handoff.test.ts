@@ -26,6 +26,8 @@ const command = () => ({ teamId: "team", checkpointId: "checkpoint", executionRe
   expiresAtIso: new Date(Date.now() + 600_000).toISOString() });
 beforeEach(() => {
   state.docs.clear(); admission.mockReset();
+  state.docs.set("inboundRequests/scene", { request: {} });
+  state.docs.set("robotTeams/team", { accountUid: "owner" });
   state.docs.set("inboundRequests/application", { account_owner_uid: "owner",
     workspace_evaluation: { opportunityId: "scene", setupId: "setup" } });
   state.docs.set("users/owner/robotSetups/setup", { payload: JSON.stringify({ reference: "https://policy.test/action", version: "v1" }) });
@@ -90,4 +92,14 @@ it("prepares the existing canonical request when the operator does not supply on
   expect(result.created).toBe(true);
   expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ submissionKey: "free:application", quotedUsd: 10 }),
     { approvedBy: "operator", expiresAtIso: input.expiresAtIso });
+});
+
+it.each(["scene", "team"])("refuses a concurrent %s authority change after admission", async changed => {
+  admission.mockImplementationOnce(async () => {
+    if (changed === "scene") state.docs.get("inboundRequests/scene")!.consent_revoked = true;
+    else state.docs.get("robotTeams/team")!.accountUid = "another-owner";
+    return { admitted: true, digestSha256: "d", envelope: { binding: { capture_id: "capture", task_family: "pick_place" } } };
+  });
+  await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("source_changed");
+  expect([...state.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
 });

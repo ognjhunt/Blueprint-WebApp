@@ -668,6 +668,7 @@ export async function getRun(
 export async function listRunsForScene(sceneId: string): Promise<
   (EvalRunRecord & {
     result?: {
+      evidenceScope?: "development_only";
       observed: {
         episodesRun: number;
         episodesSucceeded: number;

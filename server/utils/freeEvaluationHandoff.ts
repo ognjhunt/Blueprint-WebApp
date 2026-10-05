@@ -30,6 +30,12 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   if (!selection?.opportunityId || !selection.setupId || !application?.account_owner_uid)
     throw new Error("workspace_evaluation_missing");
   const owner = application.account_owner_uid;
+  const sceneRef = db.collection("inboundRequests").doc(selection.opportunityId);
+  const scene = (await sceneRef.get()).data();
+  if (!scene || scene.consent_revoked === true || scene.future_processing_allowed === false)
+    throw new Error("free_evaluation_scene_authority_unavailable");
+  const teamRef = db.collection("robotTeams").doc(approval.teamId);
+  const team = (await teamRef.get()).data();
   if (await teamAccountUid(approval.teamId) !== owner) throw new Error("free_evaluation_team_owner_mismatch");
   const setupRef = db.collection("users").doc(owner).collection("robotSetups").doc(selection.setupId);
   const setupRecord = (await setupRef.get()).data();
@@ -77,16 +83,18 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
     dispatchPending: true, executionCaptureId: String(binding.capture_id),
     executionAdmission: { envelope, canonicalJson: canonicalJson(envelope), digestSha256: agentExecutionAdmissionDigest(envelope) } };
   return db.runTransaction(async transaction => {
-    const [currentRequest, currentSetup, currentCheckpoint, currentDecision, currentRun] = await Promise.all([
+    const [currentRequest, currentSetup, currentCheckpoint, currentDecision, currentRun, currentScene, currentTeam] = await Promise.all([
       transaction.get(requestRef), transaction.get(setupRef), transaction.get(checkpointRef),
-      transaction.get(decisionRef), transaction.get(runRef),
+      transaction.get(decisionRef), transaction.get(runRef), transaction.get(sceneRef), transaction.get(teamRef),
     ]);
     if (currentRun.exists) {
       if ((currentRun.data()?.executionAdmission?.envelope?.funding?.approval_digest) !== approvalDigest)
         throw new Error("free_evaluation_approval_conflict");
       return { runId, created: false };
     }
-    if (agentExecutionAdmissionDigest(currentRequest.data()) !== agentExecutionAdmissionDigest(application)
+    if (agentExecutionAdmissionDigest(currentScene.data()) !== agentExecutionAdmissionDigest(scene)
+      || agentExecutionAdmissionDigest(currentTeam.data()) !== agentExecutionAdmissionDigest(team)
+      || agentExecutionAdmissionDigest(currentRequest.data()) !== agentExecutionAdmissionDigest(application)
       || agentExecutionAdmissionDigest(currentSetup.data()) !== agentExecutionAdmissionDigest(setupRecord)
       || agentExecutionAdmissionDigest(currentCheckpoint.data()) !== agentExecutionAdmissionDigest(checkpoint)
       || agentExecutionAdmissionDigest(currentDecision.data()) !== agentExecutionAdmissionDigest(decision))
