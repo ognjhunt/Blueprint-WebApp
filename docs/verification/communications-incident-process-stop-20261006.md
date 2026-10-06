@@ -122,6 +122,15 @@ automation; defaults alone are insufficient. Any unfenced automatic or unknown
 caller keeps the operation blocked. Existing public intake may still retain its
 ordinary inbound request outside these trees; it grants no outreach authority.
 
+This freeze is scoped to actors and records that can change this lap or its
+research/communications effects. Ordinary public intake writes to
+`inboundRequests`, `siteTaskFollowups`, `siteTaskBriefs` and `captureOutbox` are
+outside the two protected trees; they neither claim this lap nor authorize
+communications work. Zero public traffic is not required. Do not suspend HTTP
+or disable those unrelated intake paths to obtain this proof. New or changed
+records inside the protected queries still reject recovery through its existing
+transactional comparison.
+
 The recovery transaction rereads complete relevant queries and canonical row
 versions, rejecting changed/new work; the short owned release lease protects
 its supported worker/native admission consumers. Those guards supplement the

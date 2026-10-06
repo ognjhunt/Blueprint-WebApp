@@ -17,6 +17,7 @@ function authorityScope(a) {
     approvalReference: a.approvalReference, expectedWorkerServiceIds: a.expectedWorkerServiceIds,
     expectedLapSha256: a.expectedLapSha256, expectedSourceFailures: a.expectedSourceFailures,
     expectedPriorWorkerInstanceIds: a.expectedPriorWorkerInstanceIds ?? null,
+    ...(a.expectedWorkerInstanceAliases !== undefined ? { expectedWorkerInstanceAliases: a.expectedWorkerInstanceAliases } : {}),
     expectedBaselineRuntimeDigests: a.expectedBaselineRuntimeDigests ?? null };
 }
 export function fresh(at, now) {

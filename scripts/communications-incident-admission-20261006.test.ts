@@ -157,4 +157,78 @@ describe('complete current inventory after the retained original runtime', () =>
       expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).toThrow('actual_runtime_admission_unverified');
     }
   });
+  function aliasFixture() {
+    const f = currentFixture();
+    f.service.baselineRuntime.instanceId = `${ID}-aaaaaaaaaa-ab123`;
+    f.authority.expectedBaselineRuntimeDigests[ID] = sha(f.service.baselineRuntime);
+    f.service.instances.body[0].id = `${ID}-cd456`;
+    f.service.runtimes[0].instanceId = `${ID}-bbbbbbbbbb-cd456`;
+    f.authority.expectedWorkerInstanceAliases = { [ID]: [{ restInstanceId: `${ID}-cd456`, nativeInstanceId: `${ID}-bbbbbbbbbb-cd456` }] };
+    return f;
+  }
+  it('compares only parent-pinned known namespace pairs while retaining all original IDs and bytes', () => {
+    const f = aliasFixture(), before = JSON.stringify(f);
+    expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).not.toThrow();
+    expect(JSON.stringify(f)).toBe(before);
+    delete f.authority.expectedWorkerInstanceAliases;
+    expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).toThrow('admission_instance_scope_unverified');
+  });
+  it('rejects collisions, wrong namespaces, unpinned pod hashes and incomplete alias/runtime coverage', () => {
+    for (const change of [
+      (f: any) => f.authority.expectedWorkerInstanceAliases[ID].push({ restInstanceId: `${ID}-cd456`, nativeInstanceId: `${ID}-aaaaaaaaaa-cd456` }),
+      (f: any) => f.authority.expectedWorkerInstanceAliases[ID][0].nativeInstanceId = 'srv-other-bbbbbbbbbb-cd456',
+      (f: any) => f.authority.expectedWorkerInstanceAliases[ID][0].nativeInstanceId = `${ID}-extra-bbbbbbbbbb-cd456`,
+      (f: any) => f.authority.expectedWorkerInstanceAliases[ID][0].restInstanceId = null,
+      (f: any) => f.authority.expectedWorkerInstanceAliases[ID][0].nativeInstanceId = `${ID}-zzzzzzzzzz-cd456`,
+      (f: any) => f.service.runtimes[0].instanceId = `${ID}-aaaaaaaaaa-cd456`,
+      (f: any) => f.service.runtimes = [],
+      (f: any) => f.service.instances.body.push({ id: `${ID}-other`, createdAt: new Date(NOW - 1000).toISOString() }),
+    ]) {
+      const f = aliasFixture(); change(f);
+      expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).toThrow('admission_instance_alias_unverified');
+    }
+  });
+  it('rejects the original instance in its REST namespace even with a pinned alias and later timestamp', () => {
+    const f = aliasFixture();
+    f.service.instances.body[0].id = `${ID}-ab123`;
+    f.service.runtimes[0].instanceId = f.service.baselineRuntime.instanceId;
+    f.authority.expectedWorkerInstanceAliases[ID] = [{ restInstanceId: `${ID}-ab123`, nativeInstanceId: f.service.baselineRuntime.instanceId }];
+    expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).toThrow('admission_instance_scope_unverified');
+  });
+  it('rejects unsupported baseline namespaces instead of falling back to raw-only old-instance exclusion', () => {
+    for (const baselineId of [`${ID}-zzzzzzzzzz-ab123`, `${ID}-extra-aaaaaaaaaa-ab123`, 'srv-other-aaaaaaaaaa-ab123']) {
+      const f = aliasFixture(); f.service.baselineRuntime.instanceId = baselineId;
+      f.authority.expectedBaselineRuntimeDigests[ID] = sha(f.service.baselineRuntime);
+      expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).toThrow('admission_instance_scope_unverified');
+    }
+  });
+});
+
+describe('authenticated absent web OPS key with actual c4 startup-off evidence', () => {
+  const off = 'Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service (set BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1 to opt this process in)';
+  function absentFixture() {
+    const f = fixture(); f.web.opsFlag.status = 404; f.web.opsFlag.body = null;
+    f.web.startupLogs.body.logs[0].message = JSON.stringify({ service: 'blueprint-webapp', route: 'ops-automation-scheduler', msg: off });
+    return f;
+  }
+  it('retains authenticated absence and verifies effective off without inventing a configured false value', () => {
+    const f = absentFixture(), before = JSON.stringify(f.web);
+    expect(() => checkWebWriterFence(f.web, NOW)).not.toThrow(); expect(JSON.stringify(f.web)).toBe(before);
+  });
+  it('rejects missing, embedded, foreign-route, foreign-service, wrong-instance and earlier logs', () => {
+    for (const change of [
+      (w: any) => w.startupLogs.body.logs = [],
+      (w: any) => w.startupLogs.body.logs[0].message = `quoted: ${off}`,
+      (w: any) => w.startupLogs.body.logs[0].message = JSON.stringify({ service: 'blueprint-webapp', route: 'other', msg: off }),
+      (w: any) => w.startupLogs.body.logs[0].message = JSON.stringify({ service: 'other', route: 'ops-automation-scheduler', msg: off }),
+      (w: any) => w.startupLogs.body.logs[0].labels[1].value = 'another-instance',
+      (w: any) => w.startupLogs.body.logs[0].timestamp = new Date(NOW - 30000).toISOString(),
+      (w: any) => w.instances.body.push({ id: 'uncovered-instance', createdAt: new Date(NOW - 20000).toISOString() }),
+    ]) {
+      const f = absentFixture(); change(f.web); expect(() => checkWebWriterFence(f.web, NOW)).toThrow('web_runtime_ops_not_verified');
+    }
+    for (const value of [{}, 'false']) {
+      const f = absentFixture(); f.web.opsFlag.body = value; expect(() => checkWebWriterFence(f.web, NOW)).toThrow('web_writer_fence_unverified');
+    }
+  });
 });

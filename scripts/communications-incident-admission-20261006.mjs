@@ -110,6 +110,29 @@ export function checkAdmissionFence(service, authority, now) {
 export function checkCurrentAdmissionFence(service, authority, now) {
   return checkWorkerAdmission(service, authority, now, true);
 }
+// Keep the two reported namespaces unchanged. This comparison is an explicit,
+// parent-pinned inference for known pairs, never a generic suffix/fuzzy join.
+function renderInstanceKey(id, serviceId) {
+  if (typeof id !== 'string' || !id.startsWith(`${serviceId}-`)) return null;
+  const parts = id.slice(serviceId.length + 1).split('-'), suffix = parts.at(-1);
+  return /^[a-z0-9]{5}$/.test(suffix ?? '') && (parts.length === 1
+    || (parts.length === 2 && /^[a-f0-9]{8,16}$/.test(parts[0]))) ? `${serviceId}-${suffix}` : null;
+}
+function pinnedRuntimeIds(service, authority, currentOnly) {
+  const aliases = authority.expectedWorkerInstanceAliases?.[service.serviceId];
+  const nativeIds = Array.isArray(service.runtimes) ? service.runtimes.map(runtime => runtime.instanceId) : undefined;
+  if (aliases === undefined) return nativeIds;
+  if (!currentOnly || !Array.isArray(aliases) || !aliases.length || !Array.isArray(nativeIds) || !Array.isArray(service.instances.body)
+    || aliases.some(alias => !alias || Object.keys(alias).some(key => !['restInstanceId', 'nativeInstanceId'].includes(key))
+      || typeof alias.restInstanceId !== 'string' || typeof alias.nativeInstanceId !== 'string'
+      || renderInstanceKey(alias.restInstanceId, service.serviceId) !== alias.restInstanceId
+      || renderInstanceKey(alias.nativeInstanceId, service.serviceId) !== alias.restInstanceId)
+    || new Set(aliases.map(alias => alias.restInstanceId)).size !== aliases.length
+    || new Set(aliases.map(alias => alias.nativeInstanceId)).size !== aliases.length
+    || canonical(aliases.map(alias => alias.restInstanceId).sort()) !== canonical(service.instances.body.map(row => row.id).sort())
+    || canonical(aliases.map(alias => alias.nativeInstanceId).sort()) !== canonical([...nativeIds].sort())) refuse('admission_instance_alias_unverified');
+  return nativeIds.map(id => aliases.find(alias => alias.nativeInstanceId === id).restInstanceId);
+}
 function checkWorkerAdmission(service, authority, now, currentOnly) {
   const base = `https://api.render.com/v1/services/${service.serviceId}`;
   const prior = service.priorInstances;
@@ -117,6 +140,8 @@ function checkWorkerAdmission(service, authority, now, currentOnly) {
   const current = service.instances.body, runtimes = service.runtimes;
   const ids = list => list.map(row => row.id).sort();
   const baseline = service.baselineRuntime;
+  const mappedRuntimeIds = pinnedRuntimeIds(service, authority, currentOnly);
+  const baselineKey = renderInstanceKey(baseline?.instanceId, service.serviceId);
   const priorInvalid = currentOnly
     ? baseline?.schema !== 'blueprint.disabled-worker-runtime.v1' || baseline.serviceId !== service.serviceId
       || baseline.sourceCommit !== ADMISSION_SOURCE || baseline.entrySha256 !== ADMISSION_ENTRY_SHA256
@@ -124,8 +149,10 @@ function checkWorkerAdmission(service, authority, now, currentOnly) {
       || !Number.isSafeInteger(baseline.observedAtMs) || baseline.observedAtMs >= service.instances.observedAtMs
       || !authority.expectedBaselineRuntimeDigests?.[service.serviceId]
       || sha(baseline) !== authority.expectedBaselineRuntimeDigests[service.serviceId]
+      || (authority.expectedWorkerInstanceAliases?.[service.serviceId] !== undefined && !baselineKey)
       || typeof baseline.instanceId !== 'string' || !baseline.instanceId.startsWith(`${service.serviceId}-`)
       || !Array.isArray(current) || current.some(row => row.id === baseline.instanceId
+        || (baselineKey && renderInstanceKey(row.id, service.serviceId) === baselineKey)
         || !Number.isFinite(Date.parse(row.createdAt)) || Date.parse(row.createdAt) <= baseline.observedAtMs)
     : prior?.method !== 'GET' || prior.url !== `${base}/instances` || prior.status !== 200
       || !Array.isArray(prior.body) || !prior.body.length || !Array.isArray(original) || !original.length
@@ -141,7 +168,7 @@ function checkWorkerAdmission(service, authority, now, currentOnly) {
     || !Array.isArray(current) || !current.length || new Set(ids(current)).size !== current.length
     || service.deployReceipt?.method !== 'GET' || service.deployReceipt.url !== `${base}/deploys/${service.deploy.id}`
     || service.deployReceipt.status !== 200 || canonical(service.deployReceipt.body) !== canonical(service.deploy)
-    || !Array.isArray(runtimes) || canonical(runtimes.map(r => r.instanceId).sort()) !== canonical(ids(current))) refuse('admission_instance_scope_unverified');
+    || !Array.isArray(runtimes) || canonical([...mappedRuntimeIds].sort()) !== canonical(ids(current))) refuse('admission_instance_scope_unverified');
   for (const key of ADMISSION_FLAGS) {
     const receipt = service.admissionFlags?.[key];
     if (receipt?.method !== 'GET' || receipt.url !== `${base}/env-vars/${key}` || receipt.status !== 200
@@ -171,6 +198,7 @@ export function checkWebWriterFence(web, now) {
   const id = 'srv-d4vnmk3e5dus73aiohk0', base = `https://api.render.com/v1/services/${id}`;
   const off = 'Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service';
   const flag = web?.opsFlag, service = web?.service, instances = web?.instances, logs = web?.startupLogs;
+  const absent = flag?.status === 404 && flag.body === null;
   for (const receipt of [flag, service, instances, logs, web?.deployReceipt]) freshReceipt(receipt, now);
   let url; try { url = new URL(logs?.url); } catch { refuse('web_writer_fence_unverified'); }
   if (service?.method !== 'GET' || service.url !== base || service.status !== 200
@@ -179,7 +207,7 @@ export function checkWebWriterFence(web, now) {
     || web.deployReceipt?.method !== 'GET' || web.deployReceipt.url !== `${base}/deploys/${web.deploy.id}`
     || web.deployReceipt.status !== 200 || canonical(web.deployReceipt.body) !== canonical(web.deploy)
     || flag?.method !== 'GET' || flag.url !== `${base}/env-vars/BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB`
-    || flag.status !== 200 || flag.body?.key !== 'BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB' || !['0', 'false'].includes(flag.body?.value)
+    || !(absent || (flag.status === 200 && flag.body?.key === 'BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB' && ['0', 'false'].includes(flag.body?.value)))
     || instances?.method !== 'GET' || instances.url !== `${base}/instances` || instances.status !== 200
     || !Array.isArray(instances.body) || !instances.body.length
     || new Set(instances.body.map(row => row.id)).size !== instances.body.length
@@ -189,8 +217,11 @@ export function checkWebWriterFence(web, now) {
   for (const instance of instances.body) {
     if (!Number.isFinite(Date.parse(instance.createdAt)) || !logs.body.logs.some(log => {
       const label = name => log.labels?.find(row => row.name === name)?.value;
+      let message; if (absent) { try { message = JSON.parse(log.message); } catch { return false; } }
       return label('resource') === id && label('instance') === instance.id && typeof log.message === 'string'
-        && log.message.includes(off) && Date.parse(log.timestamp) >= Date.parse(instance.createdAt);
+        && (absent ? message?.service === 'blueprint-webapp' && message.route === 'ops-automation-scheduler'
+          && message.msg === `${off} (set BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1 to opt this process in)`
+          : log.message.includes(off)) && Date.parse(log.timestamp) >= Date.parse(instance.createdAt);
     })) refuse('web_runtime_ops_not_verified');
   }
 }

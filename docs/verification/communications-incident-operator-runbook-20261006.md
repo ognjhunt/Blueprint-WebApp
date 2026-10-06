@@ -3,8 +3,10 @@
 Execution source: `3a3f98ca19f64871bf343fa9dd08077768b5a702`, draft PR878.
 This retains the original reviewed `4ecd5ed59bbc8c20c59ceb093907792f5204cdec`
 recovery/cleanup behavior and the reviewed v2 and v3 admission-fence lanes. No live
-recovery, archive, deletion, model request, Gmail draft/send or activation has
-been executed by the source author. Parent owns native execution and release.
+recovery, provider deletion, model request, Gmail draft/send or activation has
+been executed by the source author. Separately approved read-only evidence and
+private company retention grant no authority for those actions. Parent owns
+native execution and release.
 
 ## Exact files and environment
 
@@ -49,7 +51,7 @@ instance inventories, every old instance gone and the actual Linux Node process
 environment/source/compiled entry for every replacement. It also requires the
 actual existing OPS-forward-only mode to remain truthy, skipping the entire
 worker OPS scheduler without changing any third control, and requires the
-web's existing persisted OPS-off control and same-instance startup-off logs.
+web's authenticated per-key OPS evidence and same-instance startup-off logs.
 It binds actual target/collector mount and root identity, exact initial
 bootstrap/preload inputs, and either c4's existing bootstrap bypass or confirmed
 absence of every overriding env path. Read no credential-file bytes and retain
@@ -128,6 +130,26 @@ as `service.baselineRuntime` and pin its exported `sha` in authority
 and cleanup authority. This records complete positive current coverage without
 inventing a pre-change inventory, GET receipt or creation timestamp. All other
 worker, web, actor, effect, freshness and transaction checks remain required.
+
+Where REST reports a service-plus-instance ID and the actual native environment
+reports the full pod ID, retain both raw values. Parent pins only the known
+paired observations in `expectedWorkerInstanceAliases[serviceId]`, with exact
+`restInstanceId` and `nativeInstanceId` fields. This is a recorded namespace
+inference, not a replacement API receipt or a generic fuzzy join. Render's
+[metrics ID reference](https://render.com/docs/metrics-streams-reference#universal-properties)
+documents the service-plus-terminal-component form and terminal uniqueness;
+it does not document every native pod alias. The bounded adapter additionally
+requires exact service prefixes, the known pod-hash/suffix shapes, unique pairs
+and complete one-to-one coverage. It checks the original baseline in both
+namespaces and preserves this authority through release/cleanup. Missing,
+ambiguous or unpinned pairs reject recovery; original bytes remain unchanged.
+
+An authenticated per-key web OPS GET may return 404 with `body:null`. Retain that
+as absent rather than inventing a configured `false`. The exact c4 source opts
+in only for literal `1`; this lane additionally requires a fresh exact Pino
+startup-off `msg`, `service:blueprint-webapp` and `route:ops-automation-scheduler`
+for every current web instance, after its creation. A quoted/embedded message,
+wrong instance/route, missing log or different source cannot satisfy this lane.
 
 The existing registered Deploy workflow has a separate manual GET-only
 `incident_inspect=true` mode. Run reviewed workflow code from the published

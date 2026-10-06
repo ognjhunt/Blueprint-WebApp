@@ -82,6 +82,33 @@ function disabledAdmissionFixture() {
   return f;
 }
 describe('owner-scoped lap259 recovery', () => {
+  it('uses pinned v3 namespace pairs and authenticated web absence without blocking unrelated public intake', async () => {
+    const f = disabledAdmissionFixture(), service = f.proof.services[0], id = service.serviceId;
+    f.proof.schema = 'blueprint.render-incident-fence.v3'; f.proof.lane = 'complete_current_disabled_admission';
+    delete service.priorInstances; delete f.authority.expectedPriorWorkerInstanceIds;
+    service.baselineRuntime = { ...structuredClone(service.runtimes[0]), instanceId: `${id}-aaaaaaaaaa-ab123`, observedAtMs: NOW - 20000 };
+    service.instances.body[0].id = `${id}-cd456`; service.runtimes[0].instanceId = `${id}-bbbbbbbbbb-cd456`;
+    f.authority.expectedBaselineRuntimeDigests = { [id]: sha(service.baselineRuntime) };
+    f.authority.expectedWorkerInstanceAliases = { [id]: [{ restInstanceId: `${id}-cd456`, nativeInstanceId: `${id}-bbbbbbbbbb-cd456` }] };
+    f.proof.web.opsFlag.status = 404; f.proof.web.opsFlag.body = null;
+    f.proof.web.startupLogs.body.logs[0].message = JSON.stringify({ service: 'blueprint-webapp', route: 'ops-automation-scheduler',
+      msg: 'Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service (set BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1 to opt this process in)' });
+    f.authority.processProofDigest = sha(f.proof);
+    const publicPath = 'inboundRequests/synthetic-public-request'; f.values.set(publicPath, { state: 'received' });
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).resolves.toMatchObject({ state: 'reconciled_and_release_fenced' });
+    expect(f.values.get(AUDIT).authority.expectedWorkerInstanceAliases).toEqual(f.authority.expectedWorkerInstanceAliases);
+    expect(f.values.get(publicPath)).toEqual({ state: 'received' }); expect(f.writes).toHaveLength(3);
+    f.values.set(publicPath, { state: 'public-intake-continued' });
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).resolves.toMatchObject({ state: 'already_reconciled' });
+    expect(f.writes).toHaveLength(3); expect(f.values.get(publicPath)).toEqual({ state: 'public-intake-continued' });
+    // Firestore retains serialized receipt bytes, not the caller's object reference.
+    f.values.set(AUDIT, structuredClone(f.values.get(AUDIT)));
+    service.runtimes[0].instanceId = `${id}-cccccccccc-cd456`;
+    f.authority.expectedWorkerInstanceAliases[id][0].nativeInstanceId = service.runtimes[0].instanceId;
+    f.authority.processProofDigest = sha(f.proof);
+    await expect(fenceLease(f.db, 'release-fence', f.authority, f.proof, f.now)).rejects.toThrow('release_fence_ownership_changed');
+    expect(f.writes).toHaveLength(3);
+  });
   it('consumes v2 runtime and Web evidence in the actual recovery transaction', async () => {
     const f = disabledAdmissionFixture();
     await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).resolves.toMatchObject({ state: 'reconciled_and_release_fenced' });
