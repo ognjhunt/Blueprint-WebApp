@@ -23,7 +23,7 @@ export default function Home() {
           <li><details><summary><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Check robot fit</span></summary><p>Blueprint works with relevant robot teams to evaluate your actual job for free before an introduction. When a team passes the evaluation, fits your budget, and wants your pilot, we introduce you. No match, no fee.</p></details></li>
           <li><details><summary><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Run the pilot</span></summary><p>You and the team agree the pilot directly, and Blueprint takes no cut. The provider installs and operates the robot. Measure the on-site trial against the success criteria you agreed.</p></details></li>
         </ol>
-        <a className="ms-method-link" href="/how-it-works#evaluation-example">See an evaluation example <ArrowRight size={16} aria-hidden="true" /></a>
+        <a className="ms-method-link" href="/how-it-works#warehouse-task">See the warehouse walkthrough <ArrowRight size={16} aria-hidden="true" /></a>
       </section>
 
       <section className="ms-team ms-container" aria-labelledby="team-title">

@@ -33,7 +33,11 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       await expect(page.getByRole("link", { name: "Blueprint home" })).toHaveCSS("color", "rgb(34, 37, 30)");
       await expect(page.locator(".ms-footer")).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      for (const image of await page.locator('img[loading="lazy"]').all()) {
+        await image.scrollIntoViewIfNeeded();
+      }
       await expect.poll(() => page.locator("img").evaluateAll((images) => images.filter((image) => !image.complete || image.naturalWidth === 0).map((image) => image.src))).toEqual([]);
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: `output/site-led-review/${name}-${viewport.width}.png`, fullPage: true });
     }
     expect(errors).toEqual([]);
@@ -93,13 +97,13 @@ test("the site page puts the capture form before the explanation, on a phone too
   }
 });
 
-test("pricing opens the match preview and explains the fee before a commitment", async ({ page }) => {
+test("pricing links to the warehouse walkthrough and explains the fee before a commitment", async ({ page }) => {
   await page.goto("/pricing");
   await expect(page.getByText(/We invoice at introduction, even if you choose not to buy/)).toBeVisible();
   await page.getByText("What if the provider pulls out or changes the offer?", { exact: true }).click();
   await expect(page.getByText(/If none fits, we refund your match fee/)).toBeVisible();
-  await page.getByRole("link", { name: "See what a match includes" }).click();
-  await expect(page).toHaveURL(/\/how-it-works#match-package$/);
-  await expect(page.getByRole("heading", { name: "Pilot brief · example format" })).toBeVisible();
-  await expect(page.getByText(/Illustrative format, not a customer result/)).toBeVisible();
+  await page.getByRole("link", { name: "See how a pilot works" }).click();
+  await expect(page).toHaveURL(/\/how-it-works#warehouse-task$/);
+  await expect(page.getByRole("heading", { name: "One task, from phone video to a pilot." })).toBeInViewport();
+  await expect(page.getByText(/examples, not measured customer results/)).toBeVisible();
 });

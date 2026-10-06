@@ -46,7 +46,7 @@ export default function Pricing() {
               wants to run your pilot. You get every team that matches, their full results, and a pilot
               brief you both start from. One fee per job, however many teams match.
             </p>
-            <p className="ms-price-note"><a className="ms-text-link" href="/how-it-works#match-package">See what a match includes <ArrowRight size={16} aria-hidden="true" /></a></p>
+            <p className="ms-price-note"><a className="ms-text-link" href="/how-it-works#warehouse-task">See how a pilot works <ArrowRight size={16} aria-hidden="true" /></a></p>
             <a className="ms-text-link" href="/contact/site-operator">
               Start a job assessment <ArrowRight size={20} aria-hidden="true" />
             </a>
