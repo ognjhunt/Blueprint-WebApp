@@ -43,9 +43,19 @@ const written = vi.hoisted(() => new Map<string, string>());
 const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
 const generations = vi.hoisted(() => ({ next: 1 }));
 const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
+const cleanupGate = vi.hoisted(() => ({ current: null as null | { wait: Promise<void> } }));
 const writeFault = vi.hoisted(() => ({ manifestOnce: false, markerOnce: false, readUnavailable: false,
   manifestError: null as unknown, manifestResponseSize: undefined as unknown,
   beforeManifestExists: null as null | (() => void) }));
+
+vi.mock("node:fs/promises", async importOriginal => {
+  const original = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...original, unlink: async (path: Parameters<typeof original.unlink>[0]) => {
+    const gate = cleanupGate.current;
+    if (gate && typeof path === "string" && path.includes("/self-capture-")) await gate.wait;
+    return original.unlink(path);
+  } };
+});
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -240,6 +250,7 @@ beforeEach(() => {
   storedVersions.clear();
   generations.next = 1;
   writeGate.current = null;
+  cleanupGate.current = null;
   writeFault.manifestOnce = false;
   writeFault.markerOnce = false;
   writeFault.readUnavailable = false;
@@ -365,7 +376,42 @@ async function retryProcessing(baseUrl: string, requestId: string) {
   return { status: response.status, body: await response.json() as Record<string, any> };
 }
 
+async function waitForUploadRelease(requestId: string) {
+  // An HTTP response can arrive while the route still awaits temp-file cleanup.
+  // Recovery owns a separate reservation only after the original one is released.
+  await vi.waitFor(() => expect(sharedFakeFirestoreState.docs.get(
+    `captureUploadSessions/walkthrough-${requestId}`,
+  )).toMatchObject({ browser_upload_reservation: null }), { timeout: 5000, interval: 10 });
+}
+
 describe("saved footage and processing are separate receipts", () => {
+  it("keeps an interrupted upload reserved through cleanup before admitting processing retry", async () => {
+    seedRequest("req-cleanup-drain", { disposition: "qualified" });
+    writeFault.manifestOnce = true;
+    let releaseCleanup!: () => void;
+    cleanupGate.current = { wait: new Promise<void>(resolve => { releaseCleanup = resolve; }) };
+    try {
+      await withRoutes(async baseUrl => {
+        expect(await uploadFor(baseUrl, "req-cleanup-drain", "original video"))
+          .toMatchObject({ status: 502, body: { captureReceived: true, state: "processing_pending" } });
+        const sessionPath = "captureUploadSessions/walkthrough-req-cleanup-drain";
+        const originalReservation = sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation;
+        expect(originalReservation).toMatchObject({ capture_id: "walkthrough-req-cleanup-drain" });
+        const versions = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
+        expect(await retryProcessing(baseUrl, "req-cleanup-drain"))
+          .toMatchObject({ status: 409, body: { code: "capture_retry_in_progress" } });
+        expect(sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation).toEqual(originalReservation);
+        expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
+        releaseCleanup();
+        await waitForUploadRelease("req-cleanup-drain");
+        expect(await retryProcessing(baseUrl, "req-cleanup-drain"))
+          .toMatchObject({ status: 200, body: { state: "processing_ready" } });
+        expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
+        await waitForUploadRelease("req-cleanup-drain");
+      });
+    } finally { releaseCleanup(); cleanupGate.current = null; }
+  });
+
   it("records a numeric-size manifest write response without changing the video generation", async () => {
     seedRequest("req-sdk-manifest", { disposition: "qualified" });
     await withRoutes(async baseUrl => {
@@ -407,8 +453,10 @@ describe("saved footage and processing are separate receipts", () => {
         const versions = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
         writeFault.manifestError = null;
         writeFault.manifestResponseSize = undefined;
+        await waitForUploadRelease("req-safe-diagnostic");
         expect((await retryProcessing(baseUrl, "req-safe-diagnostic")).status).toBe(200);
         expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
+        await waitForUploadRelease("req-safe-diagnostic");
       });
     } finally { log.mockRestore(); }
   });
