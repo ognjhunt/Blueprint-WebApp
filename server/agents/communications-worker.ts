@@ -400,7 +400,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const payload = assemble(output);
     const review = reviewCommunicationsPayload(payload, deps.now());
     if (!review.digest) throw new Error(`draft_quality_failed:${review.blockers.join(",")}`);
-    // blueprint.outreach.v2 is a hard contract: a hypothesis draft that fails it is rejected, never
+    // The versioned hypothesis contract is hard: a draft that fails it is rejected, never
     // saved for review, copied to Gmail or sent.
     if (hypothesis && !review.hardChecksPassed) throw new Error(`hypothesis_draft_contract_failed:${review.blockers.join(",")}`);
     if (hypothesis && claimed.checkpoint.framingVersion && output.outreachContract?.version !== "blueprint.outreach.v3") {
@@ -411,6 +411,10 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     if (!review.hardChecksPassed) payload.communicationsDraftDiagnostics = { blockers: review.blockers };
     // Check suppression again after inference. Queue admission is not sending.
     if (await deps.isSuppressed(brief.contact.email)) throw new Error("recipient_suppressed");
+    if (thread && (await readReplyFollowup(deps.store.db, brief, thread.threadId))?.nextAction === "no_action") {
+      await deps.store.finish(job, "no_reply", "owner_review_no_followup");
+      return { state: "no_reply", sent: false };
+    }
     const ledgerId = await deps.store.commitDraft(job, output, payload, review.digest, result.usage);
     if (await deps.store.automaticDraft(ledgerId)) {
       const outcome = deps.sendAutomatic ? await deps.sendAutomatic(ledgerId) : { state: "auto_approved" as const };

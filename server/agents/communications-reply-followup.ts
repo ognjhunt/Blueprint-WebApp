@@ -47,6 +47,7 @@ export function makeReplyFollowup(input: { brief: CommunicationsBrief; parentBri
   return { ...identity, evidenceDigest, owner: FOUNDER_MAILBOX, untrusted: true,
     state: optedOut ? "opted_out" : changed ? "awaiting_owner_review" : saved.state,
     responseMeaning: optedOut ? "opt_out" : changed ? "unknown" : saved.responseMeaning,
+    meaningEvidence: changed ? null : saved.meaningEvidence ?? null,
     statedTask: changed ? null : saved.statedTask, desiredOutcome: changed ? null : saved.desiredOutcome,
     timing: changed ? null : saved.timing, nextAction: optedOut ? "no_action" : changed ? "review_reply" : saved.nextAction,
     contextMissing: input.contextMissing, originalObservedAt: saved?.originalObservedAt ?? input.observedAt,
@@ -95,7 +96,7 @@ export async function reviewReplyFollowup(db: FirebaseFirestore.Firestore, prosp
     const previous = await tx.get(revision);
     if (!previous.exists) tx.create(revision, attestation);
     tx.update(ref, { ...meaning, state: "reviewed", review: { revisionId, reviewedBy: actor, reviewedAt: now }, updatedAt: now });
-    return { ...saved, ...meaning, state: "reviewed", review: { revisionId, reviewedBy: actor, reviewedAt: now } };
+    return { ...saved, ...meaning, state: "reviewed", review: { revisionId, reviewedBy: actor, reviewedAt: now }, updatedAt: now };
   });
 }
 
