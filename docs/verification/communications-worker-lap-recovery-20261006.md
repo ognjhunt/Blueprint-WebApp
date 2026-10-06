@@ -111,7 +111,10 @@ be described as worker recovery merely because the old active lap continues
 to reject every tick.
 
 For a source-only idle deployment, the release owner first verifies actual
-process admission settings and absence of newly admitted effects, then uses
+process admission settings and demonstrates that the target process has no
+admitted local stage, renewal or settlement still in flight. It must not
+terminate an unidentified process that may retain an owned lap handle. Disabled
+admission or repeated failed ticks alone do not prove local drainage. Then use
 normal exact-SHA green-CI deployment and readback while retaining the lap,
 budget hold and all controls. A selected shell's environment is not process
 proof. This lane neither activates outreach nor publishes native research
