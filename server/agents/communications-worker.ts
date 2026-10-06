@@ -532,6 +532,20 @@ export function buildCommunicationsInput(brief: CommunicationsBrief, thread: Ver
     learningHistory: { ...reference, unknown: "native_learning_context_exceeds_inline_budget" } });
 }
 
+/** The release owner coordinates deployment through the trusted research control.
+ * This read admits no work and changes no ordinary research/QA lease semantics. */
+export async function communicationsResearchReleaseAllowsTick(db: Pick<FirebaseFirestore.Firestore, "doc">,
+  now = () => Date.now()): Promise<boolean> {
+  try {
+    const lease = (await db.doc("blueprintDailyResearch/sites-first").get()).data()?.lease;
+    return !(typeof lease?.owner === "string" && lease.owner.startsWith("research-release:")
+      && Number.isFinite(lease.expires_at_ms) && lease.expires_at_ms > now());
+  } catch {
+    logger.warn({ code: "communications_research_release_control_unavailable" }, "Communications admission waits for research release control");
+    return false;
+  }
+}
+
 /** Intake uses the existing worker flag; paid drafting has its separate gate. */
 export function startCommunicationsWorker(): () => Promise<void> {
   if (process.env.BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED !== "true"
@@ -556,7 +570,9 @@ export function startCommunicationsWorker(): () => Promise<void> {
     now: () => Date.now(),
     sendAutomatic: executeAutomaticFirstContact,
   };
-  return startCommunicationsQueueLoop(deps, { observeFounderSends: async canContinue => {
+  return startCommunicationsQueueLoop(deps, {
+    canStartTick: () => communicationsResearchReleaseAllowsTick(db, deps.now),
+    observeFounderSends: async canContinue => {
     // Read-only and default off: flag, send-off state, owner direction and
     // durable read capability all gate it before any Gmail call.
     try {
@@ -586,12 +602,17 @@ export function startCommunicationsWorker(): () => Promise<void> {
 
 /** Stop admission immediately, then await the active job and its durable writes. */
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
-  options: { observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: () => Promise<void>;
+  options: { canStartTick?: () => Promise<boolean>; observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: () => Promise<void>;
     copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
   let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
   let automaticCursor: string | undefined;
   const tick = async () => {
     try {
+      // Fence each future lap before even intake can claim its separate scanner lease.
+      // Already-running work still drains; the release owner's pre/under-lease inventory
+      // must refuse any incomplete lap rather than treating this read as an atomic claim.
+      if (options.canStartTick && !await options.canStartTick()) return;
+      if (stopped) return;
       // Bound-thread opt-out intake runs first. Founder-send observation follows
       // in its own failure boundary, so a slow or failing Gmail read never
       // delays opt-outs; a new observation feeds the next tick's intake.

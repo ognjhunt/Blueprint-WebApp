@@ -8,15 +8,15 @@ qualification, publication or deployment outcome.
 ## Current reviewed research admission package
 
 The October 6 package pins reviewed Pipeline commit
-`503807116c4013a81ef1276368e7433affbc462b` (ognjhunt/BlueprintCapturePipeline#2622),
-whose lineage contains the reviewed wording and contact-lookup changes from
-#2621 and #2624 and the previous package source
+`3b7e0208cb7b2e269359c15175cf4a9cefb40da1` (ognjhunt/BlueprintCapturePipeline#2627),
+whose lineage contains reviewed screen admission from #2622, team qualification
+from #2626, wording and contact lookup from #2621 and #2624, and the previous package source
 `dd2d404fbcd914f7c371849d31b8a86fcc8e84a2`. Production release requires this
 exact source head to be merged and its required checks to pass. Its
-1,781,760-byte archive SHA256 is
-`ed1c73875166d0a84056a14a85b612c6080d53a577fbf3c93c52714388011ac8`,
-with 73 manifested source files. The manifest SHA256 is
-`6902f339e42393391c07482598c5ec9a4fdd7564bc6d0356df8bce1cc7015a4f`.
+1,832,960-byte archive SHA256 is
+`9dd78488682ee3ecdf7336156a044aed79f2eb79f65a0395e3579a2f2abb60d2`,
+with 76 manifested source files. The manifest SHA256 is
+`984b30886fd8101e51e2a76f25ff8ff6ee963061415716326e83d353eb2b5ae3`.
 It keeps everything in the previous package (owner-directed paid expansion, optional
 FindAll list-building tools, the owner-adjustable run duration and broad enumeration) and adds:
 - an optional site-universe slice: when control holds an enabled, reviewed
@@ -44,9 +44,23 @@ older rows keep their admitted wording and request bytes. Installation changes
 neither paid authority nor activation; sending, automatic first contact and
 hypothesis drafting must be verified off during this release.
 
-The separate owner-run robot-team universe is not an input to this archive or
-the scheduled daily agents. Its discovery/source checks do not establish robot
-partner eligibility, evaluation compatibility or partner interest.
+An optional private robot-team evidence pin gives prospective daily agents a
+frozen input and the free `blueprint_read_team_evidence` reader. The input retains
+physical embodiment, supported tasks, control and integration offerings, site
+constraints and source provenance. Capability candidates, reference material
+and unresolved teams stay separate; source checks establish neither actual
+Blueprint evaluation compatibility nor partner willingness or commitment.
+Publication uses the existing private company bucket with a content-addressed
+object, immutable generation and exact-byte readback. The reviewed
+`operators/team-universe-evidence.py` operator changes only that pin under its
+own fenced lease, with idle checks before and under the lease and monotonic
+compare-and-set/readback. Source adoption and dataset adoption use separate
+lease ownership. Neither operation grants paid execution or outreach authority.
+An absent or disabled team pin preserves legacy payloads, rows and tools. A
+configured invalid, stale or unsupported input records a precise gap while
+ordinary research continues. Valid inputs advertise the reader only with the
+validated frozen attachment; resource fallback removes the file and reader
+together. Already charged sessions retain their original row-bound registry.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
 through a frozen, publication-bound input. At most three tasks join a daily
@@ -183,6 +197,15 @@ Build with `BLUEPRINT_DAILY_RESEARCH_PACKAGE_BUILD=true`. The existing
 `scripts/install-daily-research.py` verifies the archive, safe regular-file
 members, manifest and every source-file digest before extraction. Its default
 target is `dist/daily-research`; the release stays separate from the WebApp SDK.
+
+At worker startup, `blueprint.daily-research-installed-runtime.v1` logs an
+aggregate receipt after hashing the actual installed manifest and every regular
+source file, binding the manifest to the current vendored archive and receipt.
+It includes the source commit, actual validated `RENDER_GIT_COMMIT`, computed
+archive/manifest/files-map SHA256s, checked file count and `files_verified`, plus
+only the send, automatic-first-contact and hypothesis-draft flag booleans.
+Symlinks and byte/source mismatches produce a stable failure code. These checks
+are read only; existing flags and worker startup/shutdown behavior remain unchanged.
 
 `BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED` defaults false. Replacing this package
 changes no existing flags or live controls. Installing source is separate from
