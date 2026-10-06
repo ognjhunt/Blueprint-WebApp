@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, CONTROL, LAP, INCIDENT, STOPPED_SOURCE, canonical, sha, refuse, row,
   inventory, existingAdmin, privateWrite } from './communications-incident-20261006.mjs';
 import { checkAdmissionFence, checkCurrentAdmissionFence, checkWebWriterFence } from './communications-incident-admission-20261006.mjs';
+import { successfulRead } from './communications-incident-mcp-20261006.mjs';
 
 export const RECOVERY = 'blueprint.communications-lap259-recovery.v1';
 export const AUDIT = `${ROOT}/incidentRecoveries/lap259-20261006`;
@@ -18,6 +19,10 @@ function authorityScope(a) {
     expectedLapSha256: a.expectedLapSha256, expectedSourceFailures: a.expectedSourceFailures,
     expectedPriorWorkerInstanceIds: a.expectedPriorWorkerInstanceIds ?? null,
     ...(a.expectedWorkerInstanceAliases !== undefined ? { expectedWorkerInstanceAliases: a.expectedWorkerInstanceAliases } : {}),
+    ...(a.expectedWebCommit !== undefined ? { expectedWebCommit: a.expectedWebCommit } : {}),
+    // Fresh per-proof MCP digests rotate like the existing file/proof digests;
+    // exact authenticated operation/workspace/resource scope remains durable.
+    ...(a.expectedMcpReadScope !== undefined ? { expectedMcpReadScope: a.expectedMcpReadScope } : {}),
     expectedBaselineRuntimeDigests: a.expectedBaselineRuntimeDigests ?? null };
 }
 export function fresh(at, now) {
@@ -51,7 +56,7 @@ export function checkFence(proof, authority, now) {
   for (const service of proof.services) {
     const base = `https://api.render.com/v1/services/${service.serviceId}`;
     if (!/^srv-[a-zA-Z0-9]+$/.test(service.serviceId) || !/^[a-f0-9]{40}$/.test(service.deployCommit ?? '')
-      || service.service?.method !== 'GET' || service.service.url !== base || service.service.status !== 200
+      || service.service?.method !== 'GET' || service.service.url !== base || !successfulRead(service.service, authority, now)
       || service.service.body?.id !== service.serviceId || service.service.body?.type !== 'background_worker'
       || service.instances?.method !== 'GET' || service.instances.url !== `${base}/instances`
       || service.instances.status !== 200 || !Array.isArray(service.instances.body)
@@ -66,7 +71,7 @@ export function checkFence(proof, authority, now) {
   // worker.ts. Parent also fences authenticated manual/CLI writers during CAS.
   if (!proof.frozenWriters.includes('authenticated-manual-and-cli-writers')) refuse('manual_writer_fence_missing');
   if (proof.schema !== 'blueprint.render-incident-fence.v1') {
-    checkWebWriterFence(proof.web, now);
+    checkWebWriterFence(proof.web, now, authority);
     const observations = proof.services.flatMap(s => [s.service, s.instances, s.deployReceipt,
       ...Object.values(s.admissionFlags), ...s.runtimes]);
     observations.push(proof.web.service, proof.web.instances, proof.web.deployReceipt, proof.web.opsFlag, proof.web.startupLogs);
