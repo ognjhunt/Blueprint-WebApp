@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-06",
+  "provenance": "User-supplied generated illustrations; not actual site captures, recorded evaluations, customer results or physical performance evidence.",
+  "source": "Google Drive links explicitly supplied by the owner in this session.",
+  "transformation": "WebP quality 90; full-size version preserves original framing; 840-pixel responsive version uses proportional Lanczos resize with no cropping or semantic edits.",
+  "canonical_storage": "Committed assets in Blueprint-owned GitHub repository ognjhunt/Blueprint-WebApp. Recover by git checkout; verify SHA-256 against this manifest. Original source identifiers and content hashes retained for provenance.",
+  "assets": [
+    {
+      "source_drive_id": "1IU5z_TawcVYLbjB3eCMrUKFBb-SLlGZM",
+      "source_filename": "dcca3d97-77d7-4afc-af3f-bc3208d9e453.png",
+      "source_sha256": "cdf8179d8d238668b62ea9992842f52c81061afee2a9bc552e6ab99c6b75ac2e",
+      "source_width": 1672,
+      "source_height": 941,
+      "variants": [
+        {
+          "public_url": "/illustrations/task-evaluation/01-task-capture.webp",
+          "width": 1672,
+          "height": 941,
+          "bytes": 231076,
+          "sha256": "a4f56323f29731bbb42d8df451cc320ecc945daec08f4b9f4040de459e998aa4"
+        },
+        {
+          "public_url": "/illustrations/task-evaluation/01-task-capture-840.webp",
+          "width": 840,
+          "height": 473,
+          "bytes": 94798,
+          "sha256": "2e18d1f5613c129e5de89736062ff0f078fe3e8edcedc29cf8a4491c5e7ce4ae"
+        }
+      ]
+    },
+    {
+      "source_drive_id": "171cL9Xbsv56T6L-zwOCHwZNslXvLDm80",
+      "source_filename": "f2741f51-dd60-4949-abd6-4d139795d238.png",
+      "source_sha256": "a3361110f45cb6c9735793e80c681c3b4cbbe90c027125f8cb351af62677a8c5",
+      "source_width": 1672,
+      "source_height": 941,
+      "variants": [
+        {
+          "public_url": "/illustrations/task-evaluation/03-humanoid-evaluation.webp",
+          "width": 1672,
+          "height": 941,
+          "bytes": 261214,
+          "sha256": "4eade72953d6adfe28503f7077d2cf510761d27f18b9c3d1ee40bc857dcc45f6"
+        },
+        {
+          "public_url": "/illustrations/task-evaluation/03-humanoid-evaluation-840.webp",
+          "width": 840,
+          "height": 473,
+          "bytes": 103808,
+          "sha256": "e000190323651f6faaabda018d31c5924139a39a3f4e2cb7a30f3224843f8b3b"
+        }
+      ]
+    },
+    {
+      "source_drive_id": "1WTqaAkJThnTGxDfCLSjoBdhIe-MSc00n",
+      "source_filename": "a929591a-3f25-4d2d-8ec9-80893551cfec.png",
+      "source_sha256": "959cb97f9cf2a59aec3aae22def4d0657f015865f6891d5d0adb0ce9683695b3",
+      "source_width": 1671,
+      "source_height": 941,
+      "variants": [
+        {
+          "public_url": "/illustrations/task-evaluation/02-arm-evaluation.webp",
+          "width": 1671,
+          "height": 941,
+          "bytes": 224964,
+          "sha256": "7fb3009bff507de9e4a1efbf8a5607b3893b22e41563d2bacaed5159d5897b73"
+        },
+        {
+          "public_url": "/illustrations/task-evaluation/02-arm-evaluation-840.webp",
+          "width": 840,
+          "height": 473,
+          "bytes": 92202,
+          "sha256": "e339086fc19ff39f899e7d0992e85baab1309a2dd59c6ff5b99404b2aaaee7db"
+        }
+      ]
+    }
+  ]
+}

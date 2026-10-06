@@ -156,7 +156,7 @@ const canonicalPublicQaRoutes: PublicQaRoute[] = [
   { label: "Pricing", path: "/pricing", canonicalPath: "/pricing", expectedHeading: "No match, no fee.", requiredCtas: [{ label: "Start a job assessment", hrefStartsWith: "/contact/site-operator" }, { label: "Apply for early access", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "A measured robot pilot.", requiredCtas: [{ label: "Start a job assessment", hrefStartsWith: "/contact/site-operator" }, { label: "Apply for early access", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Start with one recurring job.", requiredCtas: [{ label: "Building robots? Apply for early access", hrefStartsWith: "/contact/robot-team" }] },
-  { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Find a job your robot can support.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
+  { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Your next pilot starts with real work.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },
   { label: "Terms", path: "/terms", canonicalPath: "/terms", expectedHeading: "Terms of Service", requiredCtas: [] },
 ];

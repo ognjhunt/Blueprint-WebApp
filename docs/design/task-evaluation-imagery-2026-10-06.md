@@ -1,0 +1,13 @@
+# One job, from capture to evaluation
+
+Owner-directed launch follow-through to the public partner-intake surface. ADP-010 / partner-proof day 7: explain the same bounded site task across capture and evaluation without depicting generated illustrations as customer, simulator or physical proof.
+
+The homepage retains “One recurring job. A measured robot pilot.” and replaces the rotating robot showcase with two simultaneous views of the same workstation: a worker recording the task, and a fixed arm in a cutaway evaluation scene. The task question and site-defined criteria are visible beneath the pair. The job-assessment action stays primary; the robot-team beta link is immediately beside it. Specific time, success and tolerance numbers are left to the task brief.
+
+The robot-team invitation at `/contact/robot-team` uses the supplied humanoid cutaway view, the “Your next pilot starts with real work” headline, and three concise benefits before the existing application. Its action jumps directly to the existing access/application section. “Free evaluations for invited robot teams” stays distinct from the separately agreed physical pilot. Account gating, the application submission and the site-operator intake are unchanged.
+
+All three assets are owner-supplied generated illustrations. They explain the process, not an observed run, a partner relationship, a robot capability or a completed physical trial. Captions identify the capture/simulation illustration and the physical-test boundary. There are no fabricated result metrics. Full image frames preserve the task interaction; proportional WebP variants reduce transfer size without cropping. Static paired views replace the homepage carousel and generated motion. Its unused implementation and older source media remain in the repository; the How It Works seven-image sequence is preserved.
+
+Canonical optimized assets live in `client/public/illustrations/task-evaluation/`. `task-evaluation-imagery-2026-10-06.json` records original Drive identifiers, source content hashes, transformed dimensions, sizes and SHA-256 hashes. Recovery is an ordinary checkout of the Blueprint-owned repository followed by hash verification. Drive access is not a production dependency.
+
+Work is isolated from the separate description-first intake PR. The only production edits to `Contact.tsx` are in its robot-team branch; its site-intake branch is retained. Shared QA expectations are updated for the new invitation. Verification covers prerendered content, desktop/mobile full-frame geometry and audience navigation, plus the existing early-access and site-intake checks.
