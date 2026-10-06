@@ -46,6 +46,8 @@ export type CaptureVisit = {
   canMessage: boolean;
 };
 export type WorkspaceTask = {
+  recordingPermissionWithdrawn?: boolean;
+  recordingWithdrawalStatus?: string | null;
   id: string;
   title: string;
   siteName: string;

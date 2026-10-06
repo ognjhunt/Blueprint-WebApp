@@ -15,12 +15,16 @@ import {
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   CAPTURE_VIDEO_ACCEPT,
   captureTokenFromUrl,
   isCaptureVideoFile,
   uploadSelfCaptureVideo,
+  receivedVideoResult,
+  retrySelfCaptureProcessing,
+  type VideoUploadResult,
 } from "@/lib/selfCaptureVideo";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -47,9 +51,10 @@ type State =
       regionApproved: boolean;
       hasFootage: boolean;
       // What became of the video attached to the form. "none" is no video, not
-      // a failure; "failed" means the job is saved and only the video is not.
-      uploaded: "none" | "done" | "held" | "failed";
+      // a failure; "failed" means the job is saved but receipt is unconfirmed.
+      uploaded: "none" | VideoUploadResult["status"];
       uploadMessage: string | null;
+      processingRetryAvailable: boolean;
     }
   | { status: "failed"; message: string };
 
@@ -108,6 +113,45 @@ export function SiteCaptureStart() {
   // the capture link if the server saved the job but its response was lost.
   const retryToken = useRef(crypto.randomUUID());
   const [state, setState] = useState<State>({ status: "idle" });
+  const operationInFlight = useRef(false);
+  const [retryingProcessing, setRetryingProcessing] = useState(false);
+  const [retryingVideo, setRetryingVideo] = useState(false);
+
+  async function retryProcessing() {
+    if (operationInFlight.current || state.status !== "done" || !state.captureUrl
+      || !state.processingRetryAvailable) return;
+    const token = captureTokenFromUrl(state.captureUrl);
+    if (!token) return;
+    operationInFlight.current = true;
+    setRetryingProcessing(true);
+    try {
+      const outcome = await retrySelfCaptureProcessing(token);
+      setState((current) => current.status === "done" ? {
+        ...current,
+        uploaded: outcome.status === "failed" ? "processing_pending" : outcome.status,
+        uploadMessage: outcome.status === "done" ? null : outcome.message,
+        processingRetryAvailable: outcome.status === "processing_pending" && outcome.processingRetryAvailable,
+      } : current);
+    } finally {
+      operationInFlight.current = false;
+      setRetryingProcessing(false);
+    }
+  }
+  async function refreshReceivedVideo(captureUrl: string) {
+    const token = captureTokenFromUrl(captureUrl);
+    if (!token) return;
+    try {
+      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/status`);
+      const outcome = receivedVideoResult(await response.json().catch(() => null));
+      if (!outcome) return;
+      setCaptureReceived(true);
+      setState((current) => current.status === "done" ? {
+        ...current, uploaded: outcome.status,
+        uploadMessage: outcome.status === "done" ? null : outcome.message,
+        processingRetryAvailable: outcome.status === "processing_pending" && outcome.processingRetryAvailable,
+      } : current);
+    } catch { /* A status hint cannot substitute for verified receipt. */ }
+  }
   const [selfRecording, setSelfRecording] = useState(true);
   const [region, setRegion] = useState<CaptureRegion | "">("");
   const [regionManuallySet, setRegionManuallySet] = useState(false);
@@ -129,11 +173,33 @@ export function SiteCaptureStart() {
   const [footage, setFootage] = useState<File | null>(null);
   const [footageError, setFootageError] = useState<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  async function retrySelectedVideo() {
+    if (operationInFlight.current || state.status !== "done" || state.uploaded !== "failed"
+      || !state.captureUrl || !footage) return;
+    const token = captureTokenFromUrl(state.captureUrl);
+    if (!token) return;
+    operationInFlight.current = true;
+    setRetryingVideo(true);
+    try {
+      const outcome = await uploadSelfCaptureVideo(token, footage, setUploadPercent);
+      if (outcome.status !== "failed") setCaptureReceived(true);
+      setState((current) => current.status === "done" ? {
+        ...current, uploaded: outcome.status,
+        uploadMessage: outcome.status === "done" ? null : outcome.message,
+        processingRetryAvailable: outcome.status === "processing_pending" && outcome.processingRetryAvailable,
+      } : current);
+    } finally {
+      operationInFlight.current = false;
+      setRetryingVideo(false);
+      setUploadPercent(null);
+    }
+  }
   // The video is only taken from a site we are cleared to receive it from.
   const footageWanted = hasFootage && region !== "non_us";
   // When the submitter is not the one who will film — common when outreach
   // reaches an ops lead at a desk — we send the record-only link straight to
-  // whoever is on the floor. Blank means the submitter is filming.
+  // whoever is on the floor, only when the submitter chooses to delegate.
+  const [delegatedFilming, setDelegatedFilming] = useState(false);
   const [filmerContact, setFilmerContact] = useState("");
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
@@ -148,7 +214,7 @@ export function SiteCaptureStart() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (state.status === "working" || loading || !consent
+    if (operationInFlight.current || state.status === "working" || loading || !consent
       || (claudeAuthoringRequested && !claudeConsent)
       || (solAgentsRequested && !solAgentsConsent)) return;
     // A typed address that never resolved to a country: ask now, once, rather
@@ -165,6 +231,7 @@ export function SiteCaptureStart() {
     const email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
 
+    operationInFlight.current = true;
     setState({ status: "working" });
 
     try {
@@ -198,7 +265,7 @@ export function SiteCaptureStart() {
           captureMode: hasFootage || selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
           hasExistingFootage: hasFootage,
-          filmerContact: !hasFootage && selfRecording ? filmerContact.trim() || undefined : undefined,
+          filmerContact: !hasFootage && selfRecording && delegatedFilming ? filmerContact.trim() || undefined : undefined,
           // The grant, not just the ticked box: recorded server-side with the
           // sentence version, or the submission is refused.
           consentAttestation: {
@@ -269,14 +336,16 @@ export function SiteCaptureStart() {
       // The job is saved; now the video, through the same token route the
       // capture page uses. A failure here never loses the submission: the
       // success screen offers the link to send it again.
-      let uploaded: "none" | "done" | "held" | "failed" = "none";
+      let uploaded: "none" | VideoUploadResult["status"] = "none";
       let uploadMessage: string | null = null;
+      let processingRetryAvailable = false;
       const captureToken = captureUrl ? captureTokenFromUrl(captureUrl) : null;
       if (footageWanted && footage && regionApproved && captureToken) {
         setUploadPercent(0);
         const outcome = await uploadSelfCaptureVideo(captureToken, footage, setUploadPercent);
         uploaded = outcome.status;
         uploadMessage = outcome.status === "done" ? null : outcome.message;
+        processingRetryAvailable = outcome.status === "processing_pending" && outcome.processingRetryAvailable;
         if (outcome.status !== "failed") setCaptureReceived(true);
       }
 
@@ -293,6 +362,7 @@ export function SiteCaptureStart() {
         hasFootage,
         uploaded,
         uploadMessage,
+        processingRetryAvailable,
       });
     } catch {
       setState({
@@ -300,6 +370,7 @@ export function SiteCaptureStart() {
         message: "We could not reach Blueprint. Please try again shortly.",
       });
     } finally {
+      operationInFlight.current = false;
       setUploadPercent(null);
     }
   }
@@ -320,13 +391,17 @@ export function SiteCaptureStart() {
           </>
         ) : state.selfRecording && state.captureUrl && captureReceived ? (
           <>
-            <h2 style={{ marginTop: 0 }}>Your recording is in.</h2>
-            {state.uploaded === "held" && state.uploadMessage && (
+            <h2 style={{ marginTop: 0 }}>{state.uploaded === "processing_pending" ? "Video received. Processing is not confirmed." : "Your recording is in."}</h2>
+            {state.uploaded !== "done" && state.uploadMessage && (
               <p className="ms-field-hint">{state.uploadMessage}</p>
             )}
+            {state.uploaded === "processing_pending" && state.processingRetryAvailable && (
+              <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
+                {retryingProcessing ? "Retrying processing…" : "Retry processing"}
+              </button></p>
+            )}
             <p className="ms-field-hint">
-              Next, check the job brief we drafted from it. You can do that here or on the phone;
-              it is the same page.
+              Next, check your job brief. You can do that here or on the phone; it is the same page.
             </p>
             <p style={{ marginTop: "20px" }}>
               <a className="ms-button ms-button-large" href={state.captureUrl}>Review your job brief</a>
@@ -337,7 +412,7 @@ export function SiteCaptureStart() {
           <>
             <h2 style={{ marginTop: 0 }}>
               {state.uploaded === "failed"
-                ? "Your job is saved. The video did not send."
+                ? "Your job is saved. Check your video upload."
                 : state.hasFootage ? "Send us what you have." : "Film the work area."}
             </h2>
             {/* Two purposes, one recording. Footage they already hold may
@@ -347,8 +422,7 @@ export function SiteCaptureStart() {
                 make them film something they have already filmed. */}
             <p className="ms-field-hint">
               {state.uploaded === "failed"
-                ? `${state.uploadMessage ?? "The upload did not finish."} Nothing was lost — open the `
-                  + "uploader to send the video again."
+                ? `${state.uploadMessage ?? "We could not confirm the video upload."} Keep your original video and open your job page to check its status.`
                 : state.hasFootage
                 ? "Upload the video you already have through this link. We will tell you "
                   + "whether it covers the work area well enough to build the scene, or which extra "
@@ -357,21 +431,31 @@ export function SiteCaptureStart() {
                   + "enough. On an iPhone the link opens a small Blueprint camera when that is "
                   + "available; everywhere else the recorder opens in the browser. No account needed."}
             </p>
-            {!onAPhone && <CaptureHandoffQr url={state.captureUrl} label="Point your phone at this to film" />}
+            {!onAPhone && !state.hasFootage && <CaptureHandoffQr url={state.captureUrl} label="Point your phone at this to film" />}
+            {state.uploaded === "failed" && footage && <p>
+              <button type="button" className="ms-button" disabled={retryingVideo} onClick={() => void retrySelectedVideo()}>
+                {retryingVideo ? uploadPercent === null ? "Checking selected video…" : `Uploading video… ${uploadPercent}%` : "Try the selected video again"}
+              </button>
+            </p>}
             <p style={{ marginTop: "20px" }}>
-              <a className={onAPhone || state.hasFootage ? "ms-button ms-button-large" : "ms-text-link"} href={state.captureUrl}>
+              <a className={onAPhone || state.hasFootage ? "ms-button ms-button-large" : "ms-text-link"} href={state.hasFootage ? `${state.captureUrl}${state.captureUrl.includes("?") ? "&" : "?"}video=existing` : state.captureUrl}>
                 {state.hasFootage ? "Open the uploader" : onAPhone ? "Open the camera" : "Open your job page"}
               </a>
             </p>
             <p className="ms-field-hint" style={{ marginTop: "20px" }}>
               Keep this link — it is how you come back to this submission, and it is where the job
-              brief we draft from your job description will appear for you to correct. Film the
-              work, not the worker: hands and objects are what a robot team needs to see.
+              brief we draft from your job description will appear for you to correct.
+              {!state.hasFootage && " Film the work, not the worker: hands and objects are what a robot team needs to see."}
             </p>
+            {!onAPhone && state.hasFootage && <details>
+              <summary>Open this job on another device (optional)</summary>
+              <p className="ms-field-hint">Use this only if your existing video is on another device. You do not need to record it again.</p>
+              <CaptureHandoffQr url={`${state.captureUrl}${state.captureUrl.includes("?") ? "&" : "?"}video=existing`} label="Open this job on another device" />
+            </details>}
             {/* The laptop, watching the phone through the server's own status
                 rather than guessing. Renders nothing until there is something
                 real to say, and never blocks the capture happening elsewhere. */}
-            <CaptureLiveStatus captureUrl={state.captureUrl} onCaptureReceived={() => setCaptureReceived(true)} />
+            <CaptureLiveStatus captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
           </>
         ) : (
           <>
@@ -484,7 +568,7 @@ export function SiteCaptureStart() {
               }}
             />
             {footageError && <span role="alert" className="ms-field-hint" style={{ color: "var(--ms-alert, #b00)" }}>{footageError}</span>}
-            {footage && <span className="ms-field-hint">{formatBytes(footage.size)}. It uploads when you press Start.</span>}
+            {footage && <span className="ms-field-hint">{formatBytes(footage.size)}. It uploads when you select Start free assessment.</span>}
           </label>
         )
       ) : (
@@ -502,13 +586,26 @@ export function SiteCaptureStart() {
           </label>
 
           {selfRecording && (
-            <label htmlFor="start-filmer">
+            <label htmlFor="start-delegated-filming" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
+              <input
+                id="start-delegated-filming"
+                type="checkbox"
+                checked={delegatedFilming}
+                onChange={(event) => setDelegatedFilming(event.target.checked)}
+                aria-controls="start-filmer-details"
+                style={{ width: "auto", minHeight: 0 }}
+              />
+              <span>Someone else will record it</span>
+            </label>
+          )}
+
+          {selfRecording && delegatedFilming && (
+            <label id="start-filmer-details" htmlFor="start-filmer">
               <span>
-                Who is doing the filming? <span className="ms-optional">(optional)</span>
+                Their email <span className="ms-optional">(optional)</span>
               </span>
               <span className="ms-field-hint">
-                Filming it yourself? Leave this blank. If someone else on-site will do it, put their
-                email here and we will send them a record-only link — they can film and upload,
+                Add their email and we will send them a record-only link — they can film and upload,
                 and only you can confirm the job brief.
               </span>
               <input
@@ -586,8 +683,7 @@ export function SiteCaptureStart() {
       <label htmlFor="start-email">
         <span>Work email</span>
         <span className="ms-field-hint">
-          Where we send the capture link and everything that follows — the scene, the plan, the
-          verdict on your footage.
+          Where we send your job link to add footage, follow progress and review the job brief.
         </span>
         <input id="start-email" name="startEmail" type="email" required maxLength={320} />
       </label>
@@ -644,6 +740,10 @@ export function SiteCaptureStart() {
         Share only footage you are authorized to use. Robot teams never receive your original recording.
         {" "}<a href={PRIVACY_URL}>How we process your footage</a>.
       </p>
+      <p className="ms-form-note">
+        Still arranging recording permission?{" "}
+        <a href="mailto:hello@tryblueprint.io">Talk to us about the job</a> before starting this capture.
+      </p>
 
       {state.status === "failed" && (
         <p role="alert" style={{ color: "var(--ms-alert, #b00)" }}>
@@ -651,14 +751,21 @@ export function SiteCaptureStart() {
         </p>
       )}
 
+      <p className="ms-field-hint">
+        Next, review and correct your job brief before approving it. Starting is free.
+        You separately authorize the {formatPrice(matchFeeUsd)} match fee if you open the job to pilot proposals.
+        It is due when we introduce a qualifying match, even if you do not buy the pilot. No match, no fee.
+        {" "}<a href="/pricing#match-fee">Fee and replacement policy</a>.
+      </p>
+
       <p className="ms-form-note">
-        By selecting Start, you agree to our{" "}
+        By selecting Start free assessment, you agree to our{" "}
         <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms of Service</a> and{" "}
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a>.
       </p>
 
       <button className="ms-button ms-button-large" type="submit" disabled={!interactive || state.status === "working" || loading}>
-        {state.status !== "working" ? "Start"
+        {state.status !== "working" ? "Start free assessment"
           : uploadPercent !== null ? `Uploading video… ${uploadPercent}%` : "Working…"}
       </button>
 

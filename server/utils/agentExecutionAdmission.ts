@@ -40,7 +40,7 @@ export type AgentExecutionAdmissionResult =
   | { admitted: true; envelope: Record<string, unknown>; canonicalJson: string; digestSha256: string }
   | { admitted: false; blockers: string[] };
 
-function canonicalJson(value: unknown): string {
+export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {
     return `{${Object.entries(value as Record<string, unknown>)

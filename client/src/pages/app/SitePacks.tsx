@@ -19,7 +19,7 @@ function taskState(offering: ConfiguredSceneOfferingCard, developmentAccess = fa
   const base = `/app/packs/${encodeURIComponent(offering.source_launch_id)}`;
   if (!developmentAccess) {
     return { tag: offering.status === "evaluation_ready" ? "Ready" : offering.status === "configured_controls_pending" ? "Scene checks pending" : "Being prepared",
-      action: { label: "Evaluate a job · $99 per policy", href: "/sites" } };
+      action: { label: "Request a free evaluation", href: "/sites" } };
   }
   if (offering.presentation.appearance_review_status === "prepared_scene_ungraded") {
     return { action: { label: "View job", href: `${base}/evaluate?select=team` } };

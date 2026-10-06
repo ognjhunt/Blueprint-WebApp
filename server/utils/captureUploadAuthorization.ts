@@ -34,6 +34,7 @@
  * to drift apart.
  */
 
+import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decideDispatchForRequest } from "../agents/workflows";
 import type { InboundRequest } from "../types/inbound-request";
@@ -86,7 +87,7 @@ export async function authorizeCaptureUpload(
   if (!db) {
     return held(
       "store_unavailable",
-      "We cannot check this link right now. Try again shortly — nothing is lost.",
+      "We cannot check this link right now. Keep your original video and try again shortly.",
     );
   }
 
@@ -97,12 +98,16 @@ export async function authorizeCaptureUpload(
   } catch {
     return held(
       "store_unavailable",
-      "We cannot check this link right now. Try again shortly — nothing is lost.",
+      "We cannot check this link right now. Keep your original video and try again shortly.",
     );
   }
 
   if (!request) {
     return held("request_missing", "This link does not point at a submission we hold.");
+  }
+
+  if (!hasCurrentRecordingConsent(request.request?.consent_attestation)) {
+    return held("recording_consent_required", "The site owner must confirm the current recording permission before uploading.", request);
   }
 
   // `requiresHumanReview` is false here on purpose, and it is worth saying why:

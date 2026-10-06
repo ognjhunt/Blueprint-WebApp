@@ -105,6 +105,11 @@ async function runInboundSmoke(csrfSession) {
     requestedLanes: ["qualification"],
     helpWith: [],
     buyerType: "site_operator",
+    // Local smoke is synthetic. A live smoke needs its caller's explicit recording authority.
+    consentAttestation: {
+      granted: process.env.BLUEPRINT_LOCAL_LAUNCH_SMOKE === "1" || process.env.ALPHA_SMOKE_RECORDING_CONSENT === "1",
+      statementVersion: "2026-09-18.v1",
+    },
     siteName: smokeSiteName,
     siteLocation: process.env.ALPHA_SMOKE_SITE_LOCATION || "Durham, NC",
     taskStatement: process.env.ALPHA_SMOKE_TASK || "Validate alpha launch qualification automation.",

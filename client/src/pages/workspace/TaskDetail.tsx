@@ -416,11 +416,17 @@ export default function TaskDetail() {
               {task.readiness?.missingViews?.length ? (
                 <p className="ws-muted">Still needed: {task.readiness.missingViews.join(", ")}.</p>
               ) : null}
-              {!task.archived && (
+              {!task.archived && !task.recordingPermissionWithdrawn && (
                 <button className="ws-primary" type="button" onClick={() => void openTaskPage()} disabled={linkState === "working"}>
                   {linkState === "working" ? "Opening…" : "Add or review footage"}
                 </button>
               )}
+              {task.recordingPermissionWithdrawn ? <p role="status">Recording permission withdrawn. New uploads and queued evaluations are stopped. Pipeline acknowledgement and data cleanup are pending.</p> : <details className="mt-4">
+                <summary>Withdraw recording permission</summary>
+                <p>This stops new uploads and requests cancellation of queued evaluations. Blueprint must confirm pipeline processing has stopped and data cleanup is complete.</p>
+                <button type="button" className="ws-link" disabled={action.pending}
+                  onClick={() => void action.perform(`${endpoint}/recording-consent/withdraw`, {})}>Withdraw permission</button>
+              </details>}
             </section>
           )}
           {tab === "capture" && task.captureMode !== "self_capture" && (

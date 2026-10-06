@@ -1,6 +1,6 @@
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
-import { entryPrice, formatPrice, matchFeeUsd, matchReplacementPolicy, minTopupUsd } from "@/lib/evaluationPricing";
+import { formatPrice, matchFeeUsd, matchReplacementPolicy } from "@/lib/evaluationPricing";
 import { TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 type Section = { title: string; paragraphs?: readonly string[]; items?: readonly string[] };
@@ -9,7 +9,7 @@ export const termsSections: readonly Section[] = [
   {
     title: "1. The Service",
     paragraphs: [
-      "Blueprint helps sites and robot teams assess whether a robot fits a real job, and introduces a site to the robot teams that match it. A site can submit a job, film its work area, review a short job brief, and choose whether robot teams can see a card for the job. We may rebuild the work area as a simulated scene and run robot teams' policies against it where useful. Robot teams invited to evaluate a qualified site job pay no evaluation entry fee within the invitation's stated scope, whether or not the site later buys a pilot. Separately, robot teams can buy private evaluation runs against reconstructed listed jobs on the website or through our API.",
+      "Blueprint helps sites and robot teams assess whether a robot fits a real job, and introduces a site to the robot teams that match it. A site can submit a job, film its work area, review a short job brief, and choose whether robot teams can see a card for the job. We may rebuild the work area as a simulated scene and run robot teams' policies against it where useful. Robot teams invited to evaluate a qualified site job pay no evaluation entry fee within the invitation's stated scope, whether or not the site later buys a pilot. This beta offers free invited evaluations only; new paid private evaluations and balance top-ups are unavailable.",
       "The Service is in beta. Features may change, be limited, or be withdrawn, and we may pause or stop an evaluation, for example to protect a site's privacy or the integrity of a result.",
       "An evaluation result is a measurement in a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site. Any pilot or deployment requires a provider-backed offer, separate agreement, and site approval. The provider or integrator remains responsible for installation and operation; the site and responsible delivery parties approve the safety plan. Blueprint may record agreed pilot outcomes under the parties' permissions.",
     ],
@@ -36,14 +36,12 @@ export const termsSections: readonly Section[] = [
     ],
   },
   {
-    title: "4. Private evaluations: prices, balance and refunds",
+    title: "4. Free evaluations and existing balances",
     items: [
-      `These prices apply to private internal testing on reconstructed real site jobs. Invited teams pay no evaluation entry fee or supplier commission for work within the invitation's stated scope; those official results are shared with the site for pilot consideration. Each private evaluation has a flat quoted price, shown before you buy (currently $${entryPrice}): one policy running on one robot configuration against one site job. Blueprint sets the run length. Private results stay with your team and Blueprint and our processors as needed to perform the service. They are not shared with the site, do not trigger site updates, and do not affect pilot matching or the team's shared capability profile. To pursue a pilot afterward, enter a separate free invited evaluation; your private test remains private. This privacy model applies to new private purchases; it does not withdraw results shared under an earlier agreement.`,
-      `You pay from a prepaid balance. Top-ups are charged by Stripe at face value; the smallest is $${minTopupUsd}. Your balance does not expire while your account is open.`,
-      "Confirming a run places a hold for its quoted price. The flat quoted price is charged once any policy episodes execute. If none execute, the hold is released in full. A robot failing the task is a result and is charged. A failure on our side, such as a scene that will not launch, is not.",
-      `You can ask for a refund of unused balance at any time by writing to ${COMPANY.emails.hello} from your account email. We refund it to the original payment method, less amounts held for runs in progress.`,
-      "Prices do not include taxes unless we say so. You are responsible for taxes that apply to your purchases, other than taxes on our income.",
-      "You are responsible for the policies, endpoints and container images you submit: you must have the right to submit them, and they must not contain malware or other people's confidential data. We run them only to perform the evaluations you buy. Sites do not receive private evaluation results or your policy.",
+      "Invited teams pay no evaluation entry fee or supplier commission within the invitation's stated scope. The scope identifies the policy, job and execution limits. Results are shared with the site for pilot consideration.",
+      "New paid private evaluations and balance top-ups are unavailable during this beta. Existing balances, ledger records and historical results are preserved. Historical private results retain their original sharing restrictions.",
+      `You can ask for a refund of unused balance by writing to ${COMPANY.emails.hello} from your account email. Existing refund and settlement terms continue to apply to prior purchases.`,
+      "You must have the right to submit your policies, endpoints and container images. Sites do not receive your policy or original site recordings.",
     ],
   },
   {

@@ -49,7 +49,7 @@ vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-const { ensureSelfServeAgentExecution } = await import("../utils/selfServeAgentExecution");
+const { ensureSelfServeAgentExecution, prepareFreeAgentExecution } = await import("../utils/selfServeAgentExecution");
 const { discoverAgentExecutionAdmission } = await import("../utils/agentExecutionAdmission");
 
 const sha = (letter: string) => `sha256:${letter.repeat(64)}`;
@@ -236,4 +236,22 @@ describe("an autonomous agent can buy without a dry run first", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+});
+
+// Historical paid lifecycle coverage only; production release refusal is tested in free-beta-guards and robot-team-account-gate.
+vi.mock("../utils/freeBeta", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/freeBeta")>()),
+  FREE_BETA_ONLY: false,
+  canDispatchFreeBetaRun: () => true,
+}));
+
+it("prepares a sponsor-bounded free request through real canonical admission", async () => {
+  seed();
+  const free = { ...quote, quotedUsd: 10, submissionKey: "free:workspace-request" };
+  const prepared = await prepareFreeAgentExecution(free, { approvedBy: "operator", expiresAtIso: new Date(Date.now() + 600000).toISOString() });
+  expect(prepared, JSON.stringify(prepared)).toMatchObject({ prepared: true });
+  if (!prepared.prepared) return;
+  const admission = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
+  expect(admission, JSON.stringify(admission)).toMatchObject({ admitted: true });
+  expect([...sharedFakeFirestoreState.docs.keys()].filter(key => /evaluationRuns|robotTeamLedger/.test(key))).toEqual([]);
 });

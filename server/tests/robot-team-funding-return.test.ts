@@ -20,23 +20,11 @@ const { minTopupUsd } = await import("../../client/src/lib/evaluationPricing");
 
 beforeEach(() => createSession.mockClear());
 
-describe("starting a top-up", () => {
-  it("returns to the task being bought and asks Stripe for a receipt", async () => {
-    const result = await startBalanceTopup({
-      teamId: "team-1", amountUsd: 99, contactEmail: "eng@alpha.example", returnSceneId: "req-1",
-    });
-    expect(result).toMatchObject({ created: true });
-    const params = createSession.mock.calls[0][0] as Record<string, any>;
-    expect(params.success_url).toMatch(/\/contact\/robot-team\?funded=1&sceneId=req-1$/);
-    expect(params.cancel_url).toMatch(/\/contact\/robot-team\?funded=0&sceneId=req-1$/);
-    expect(params.payment_intent_data).toEqual({ receipt_email: "eng@alpha.example" });
-  });
-
-  it("ignores a return task that is not a plain id", async () => {
-    await startBalanceTopup({ teamId: "team-1", amountUsd: 99, returnSceneId: "x&funded=0" });
-    const params = createSession.mock.calls[0][0] as Record<string, any>;
-    expect(params.success_url).toMatch(/\/contact\/robot-team\?funded=1$/);
-    expect(params.payment_intent_data).toBeUndefined();
+describe("starting a top-up during the free beta", () => {
+  it.each([99, 1000, 0])("refuses %s before reaching Stripe", async amountUsd => {
+    const result = await startBalanceTopup({ teamId: "team-1", amountUsd, contactEmail: "eng@example.test" });
+    expect(result).toMatchObject({ created: false, refusal: "paid_evaluations_disabled" });
+    expect(createSession).not.toHaveBeenCalled();
   });
 });
 

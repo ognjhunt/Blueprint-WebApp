@@ -29,7 +29,7 @@ import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
 import { withCsrfHeader } from "@/lib/csrf";
 import { isCaptureMode, defaultCaptureMode } from "@/data/siteTaskQualification";
-import { uploadSelfCaptureVideo } from "@/lib/selfCaptureVideo";
+import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo, type VideoUploadResult } from "@/lib/selfCaptureVideo";
 
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
 type TaskStatus = {
@@ -80,17 +80,9 @@ type LinkState =
   | { status: "invalid"; message: string };
 
 type UploadState =
+  | VideoUploadResult
   | { status: "idle" }
-  | { status: "uploading"; percent: number }
-  | { status: "done" }
-  /**
-   * The upload worked and what is in it needs a person.
-   *
-   * Distinct from `failed` because telling someone their upload failed when it
-   * did not would send them off to re-film a video we already have.
-   */
-  | { status: "held"; message: string }
-  | { status: "failed"; message: string };
+  | { status: "uploading"; percent: number };
 
 export default function SelfCaptureUpload() {
   const [, params] = useRoute("/capture-upload/:token");
@@ -99,6 +91,12 @@ export default function SelfCaptureUpload() {
   const [link, setLink] = useState<LinkState>({ status: "checking" });
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
   const [fileName, setFileName] = useState<string | null>(null);
+  const [existingVideoOnly, setExistingVideoOnly] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("video") === "existing");
+  const selectedFile = useRef<File | null>(null);
+  const operationInFlight = useRef(false);
+  const [retryingProcessing, setRetryingProcessing] = useState(false);
+  const linkGeneration = useRef(0);
   /**
    * What to film, from the brief we drafted and they confirmed.
    *
@@ -237,6 +235,13 @@ export default function SelfCaptureUpload() {
   }, [pageUrl]);
 
   useEffect(() => {
+    const generation = ++linkGeneration.current;
+    setUpload({ status: "idle" });
+    setFileName(null);
+    selectedFile.current = null;
+    operationInFlight.current = false;
+    setRetryingProcessing(false);
+    setExistingVideoOnly(new URLSearchParams(window.location.search).get("video") === "existing");
     if (!token) {
       setLink({ status: "invalid", message: "This link is missing its code." });
       return;
@@ -276,7 +281,7 @@ export default function SelfCaptureUpload() {
 
     (async () => {
       try {
-        const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}`);
+        const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/status`);
         const data = await response.json().catch(() => null);
         if (cancelled) return;
 
@@ -288,15 +293,14 @@ export default function SelfCaptureUpload() {
           return;
         }
 
-        if (data.captureReceived === true) {
+        const received = receivedVideoResult(data);
+        if (received) {
           setLink({
             status: "valid",
             accepts: Array.isArray(data.accepts) ? data.accepts : ["mov", "mp4"],
             expiresAt: String(data.expiresAt || ""),
           });
-          setUpload(data.state === "held"
-            ? { status: "held", message: String(data.detail || "The review is still in progress.") }
-            : { status: "done" });
+          setUpload(received);
           return;
         }
 
@@ -319,6 +323,10 @@ export default function SelfCaptureUpload() {
           accepts: Array.isArray(data.accepts) ? data.accepts : ["mov", "mp4"],
           expiresAt: String(data.expiresAt || ""),
         });
+        if (data.uploadState === "status_unavailable") {
+          setExistingVideoOnly(true);
+          setUpload({ status: "failed", message: "We could not confirm your video's saved status. Keep the original file and check this page again before sending it." });
+        }
       } catch {
         if (!cancelled) {
           setLink({ status: "invalid", message: "We could not check this link. Try again shortly." });
@@ -328,19 +336,52 @@ export default function SelfCaptureUpload() {
 
     return () => {
       cancelled = true;
+      if (linkGeneration.current === generation) linkGeneration.current++;
     };
   }, [token]);
 
   const send = useCallback(
     async (file: File) => {
+      if (operationInFlight.current) return;
+      operationInFlight.current = true;
+      const generation = linkGeneration.current;
+      selectedFile.current = file;
+      setExistingVideoOnly(true);
+      const existingUrl = new URL(window.location.href);
+      existingUrl.searchParams.set("video", "existing");
+      window.history.replaceState(window.history.state, "", existingUrl);
       setFileName(file.name);
       setUpload({ status: "uploading", percent: 0 });
       // Measuring and posting live in `selfCaptureVideo`, shared with the start
       // form, so both go through the same checks.
-      setUpload(await uploadSelfCaptureVideo(token, file, (percent) => setUpload({ status: "uploading", percent })));
+      try {
+        const outcome = await uploadSelfCaptureVideo(token, file, (percent) => {
+          if (linkGeneration.current === generation) setUpload({ status: "uploading", percent });
+        });
+        if (linkGeneration.current === generation) setUpload(outcome);
+      } finally { if (linkGeneration.current === generation) operationInFlight.current = false; }
     },
     [token],
   );
+
+  async function retryProcessing() {
+    if (operationInFlight.current || upload.status !== "processing_pending" || !upload.processingRetryAvailable) return;
+    operationInFlight.current = true;
+    const generation = linkGeneration.current;
+    setRetryingProcessing(true);
+    try {
+      const outcome = await retrySelfCaptureProcessing(token);
+      if (linkGeneration.current !== generation) return;
+      setUpload(outcome.status === "failed"
+        ? { status: "processing_pending", message: outcome.message, processingRetryAvailable: false }
+        : outcome);
+    } finally {
+      if (linkGeneration.current === generation) {
+        operationInFlight.current = false;
+        setRetryingProcessing(false);
+      }
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -369,7 +410,8 @@ export default function SelfCaptureUpload() {
   // Saved on this device, or on another one: the laptop that showed the QR
   // code reaches the same layout once the phone's recording lands.
   // A named coverage gap keeps the camera in front instead.
-  const saved = upload.status === "done"
+  const saved = upload.status === "processing_pending" || upload.status === "held"
+    || (upload.status === "done" && status?.decision !== "add_views")
     || (upload.status === "idle" && status?.captureReceived === true && status.decision !== "add_views");
 
   // "Where this stands", for the operator who has no account. It carries a
@@ -385,7 +427,11 @@ export default function SelfCaptureUpload() {
         background: "var(--ms-paper)",
       }}
     >
-      <strong>{status.headline}</strong>
+      <strong>{upload.status === "processing_pending" || upload.status === "held"
+        ? "Your video is saved."
+        : existingVideoOnly && !saved && upload.status !== "done" && status.decision !== "add_views"
+          ? "Your job is saved."
+          : status.headline}</strong>
       {status.operatorAction && (
         <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
           {status.operatorAction}
@@ -441,7 +487,7 @@ export default function SelfCaptureUpload() {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" ? "Your job assessment" : saved || upload.status === "held" ? "A few details about the job" : onAPhone ? "Film the work area" : "Your job assessment"}
+        {link.status === "held" ? "Your job assessment" : saved ? "A few details about the job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job assessment"}
       </h1>
 
       {/* Where the task stands. Above the fold only when there is no camera on
@@ -536,42 +582,42 @@ export default function SelfCaptureUpload() {
 
       {link.status === "valid" && (
         <>
-          {upload.status !== "held" && (
+          {!saved && (
             <input
               ref={inputRef}
               type="file"
               accept={accepts}
-              capture="environment"
+              capture={existingVideoOnly ? undefined : "environment"}
               style={{ display: "none" }}
               onChange={(event) => {
                 const file = event.target.files?.[0];
+                event.target.value = "";
                 if (file) void send(file);
               }}
             />
           )}
-          {upload.status === "held" ? (
-            <>
-              <div style={{ marginBottom: "8px" }}>
-                <strong>Video received.</strong>
-                <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                  {upload.message} You can answer the questions below while review is pending.
-                </p>
-              </div>
-              {scope === "owner" && <TaskFollowUp token={token} onAnswered={onFollowUpAnswered} />}
-            </>
-          ) : saved ? (
+          {saved ? (
             <>
               <div
                 style={{ marginBottom: "8px" }}
               >
                 <strong>Video received.</strong>
                 <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                  {status?.footageReviewAutomated === false
+                  {upload.status === "processing_pending" || upload.status === "held"
+                    ? upload.message
+                    : status?.footageReviewAutomated === false
                     ? "Our team is reviewing whether it covers the work area."
                     : "We are checking whether it covers the work area."}{" "}
-                  A few answers can help define the job while review continues.
+                  {upload.status === "processing_pending" || upload.status === "held"
+                    ? "You can check the job brief while processing is pending."
+                    : "A few answers can help define the job while review continues."}
                 </p>
               </div>
+              {upload.status === "processing_pending" && upload.processingRetryAvailable && (
+                <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
+                  {retryingProcessing ? "Retrying processing…" : "Retry processing"}
+                </button></p>
+              )}
               {scope === "owner" && <TaskFollowUp token={token} onAnswered={onFollowUpAnswered} />}
               {/* Saved is not finished. The brief confirmation is the site's
                   attestation — the thing that lets a robot team be matched — and
@@ -612,13 +658,9 @@ export default function SelfCaptureUpload() {
 
               {scope === "film" && <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>}
 
-              <p className="ms-field-hint" style={{ marginBlock: "16px" }}>
-                Filmed another angle? We will use whichever views cover the work area best.{" "}
-                <button type="button" className="ms-text-link" onClick={() => inputRef.current?.click()}>
-                  Add another video
-                </button>
-              </p>
             </>
+          ) : existingVideoOnly ? (
+            <p className="ms-field-hint">Choose the video you already have. You do not need to record it again.</p>
           ) : !onAPhone ? (
             /*
              * A desktop cannot film a workcell, and a webcam that can see the
@@ -674,10 +716,10 @@ export default function SelfCaptureUpload() {
             </>
           )}
 
-          {upload.status !== "held" && !saved && (
+          {!saved && (
             <>
               <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-                {onAPhone
+                {existingVideoOnly ? "Upload your original .mov or .mp4 file from this device." : onAPhone
                   ? "Already have a video of the work area? Upload it instead."
                   : "Already have the recording on this computer? Upload a .mov or .mp4 file."}
               </p>
@@ -698,7 +740,7 @@ export default function SelfCaptureUpload() {
               >
                 {upload.status === "uploading"
                   ? "Uploading…"
-                  : onAPhone
+                  : onAPhone && !existingVideoOnly
                     ? "Choose or record a video"
                     : "Upload a video file"}
               </button>
@@ -730,9 +772,19 @@ export default function SelfCaptureUpload() {
 
               {upload.status === "failed" && (
                 <p style={{ color: "var(--ms-muted)", marginTop: "20px" }}>
-                  {upload.message} Nothing was saved, so it is safe to pick the video again.
+                  {upload.message}
                 </p>
               )}
+              {upload.status === "failed" && selectedFile.current && (
+                <button type="button" className="ms-text-link" onClick={() => void send(selectedFile.current!)}>
+                  Try the selected video again
+                </button>
+              )}
+              {existingVideoOnly && <details style={{ marginTop: "20px" }}>
+                <summary>Open this job on another device (optional)</summary>
+                <p className="ms-field-hint">Use this if your existing video is on another device. This opens the same job; no new recording is required.</p>
+                <CaptureHandoffQr url={pageUrl} label="Open this job on another device" />
+              </details>}
 
               {/* A re-film request or "where this stands" lands right under the
                   camera, so someone who came back to add an angle sees what we
@@ -788,15 +840,15 @@ export default function SelfCaptureUpload() {
                   is handing this to a colleague sends a link that can record and
                   upload but cannot attest -- so a forwarded QR never carries the
                   authority to confirm operating facts on the site's behalf. */}
-              {scope === "owner" && <details className="ms-task-interest"><summary>Ask someone else to film</summary><FilmLinkHandoff token={token} /></details>}
+              {scope === "owner" && (!existingVideoOnly || status?.decision === "add_views") && <details className="ms-task-interest"><summary>Ask someone else to film</summary><FilmLinkHandoff token={token} /></details>}
 
 
             </>
           )}
         </>
       )}
-      {link.status === "valid" && scope === "owner" && !saved && upload.status !== "held" && <PublicTaskListing token={token} />}
-      {!saved && upload.status !== "held" && (
+      {link.status === "valid" && scope === "owner" && !saved && <PublicTaskListing token={token} />}
+      {!saved && (
         <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage and ask you to confirm the job brief. We then assess provider fit and use a scene evaluation where it helps. Keep this link to follow progress.</p>
       )}
       </div>

@@ -469,10 +469,15 @@ describe("registration to plan, without an operator", () => {
       return ((await response.json()) as { next: string[] }).next;
     });
 
-    // An agent should not have to read a document to find the next call.
+    // Discovery describes the shipped free beta even though this legacy
+    // execution suite enables paid internals in its isolated fixtures.
     expect(next.join(" ")).toContain("POST /api/agent-team/checkpoints");
-    expect(next.join(" ")).toContain("POST /api/agent-team/funding");
-    expect(next.join(" ")).toContain("PUT /api/agent-team/policy");
+    expect(next.join(" ")).toContain("verified Blueprint account");
+    expect(next.join(" ")).toContain("/settings?tab=agent");
+    expect(next.join(" ")).toContain("/app");
+    expect(next.join(" ")).toContain("/contact/robot-team");
+    expect(next.join(" ")).toContain("free invited evaluations");
+    expect(next.join(" ")).not.toMatch(/\/api\/agent-team\/(?:plan|runs|funding|policy)\b/);
   });
 });
 
@@ -925,3 +930,10 @@ it("refuses model upload before reading bytes without a valid team key", async (
     expect((await response.json()).code).toBe("agent_key_invalid");
   });
 });
+
+// Historical paid lifecycle coverage only; production release refusal is tested in free-beta-guards and robot-team-account-gate.
+vi.mock("../utils/freeBeta", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/freeBeta")>()),
+  FREE_BETA_ONLY: false,
+  canDispatchFreeBetaRun: () => true,
+}));

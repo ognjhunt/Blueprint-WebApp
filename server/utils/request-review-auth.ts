@@ -12,12 +12,15 @@ interface RequestReviewTokenPayload {
 const SITE_CLAIM_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 function getSecret() {
-  return (
-    process.env.BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET ||
-    process.env.BLUEPRINT_SESSION_UI_TOKEN_SECRET ||
-    process.env.PIPELINE_SYNC_TOKEN ||
-    "blueprint-request-review-dev-secret"
+  const secret = (
+    process.env.BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET?.trim() ||
+    process.env.BLUEPRINT_SESSION_UI_TOKEN_SECRET?.trim() ||
+    process.env.PIPELINE_SYNC_TOKEN?.trim()
   );
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("Capture and review signing secret is required");
+  }
+  return secret || "blueprint-request-review-dev-secret";
 }
 
 function toBase64Url(value: string) {
@@ -113,4 +116,3 @@ export function verifyRequestReviewToken(token: string, requestId: string) {
 export function getRequestReviewCookieName() {
   return REQUEST_REVIEW_COOKIE_NAME;
 }
-
