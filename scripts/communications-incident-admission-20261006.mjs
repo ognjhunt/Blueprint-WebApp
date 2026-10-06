@@ -35,6 +35,10 @@ function filesystemIdentity(root) {
   return { mountNamespace: readlinkSync(`${root}/ns/mnt`), rootDevice: String(metadata.dev), rootInode: String(metadata.ino) };
 }
 export const ADMISSION_SOURCE = 'c4db1d2f61970efda3a226c9715345718a2064f5';
+// Reviewed Web-only revision: index.ts and bootstrap-env.ts are byte-identical
+// to ADMISSION_SOURCE. Its actual deployment still needs fresh instance/log
+// evidence and an explicit owner pin; this does not change worker admission.
+export const REVIEWED_WEB_SOURCE = '3c66debc04b0586a4358d59fa380f76d5016fb02';
 // Independently reproducible: pinned esbuild, exact main source, external packages.
 export const ADMISSION_ENTRY_SHA256 = '69c24029a5d1d087cc10ac6f834f3c22e74a3ef6e058b826f49c168c73f70f17';
 const stat = bytes => {
@@ -200,11 +204,13 @@ export function checkWebWriterFence(web, now, authority) {
   const off = 'Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service';
   const flag = web?.opsFlag, service = web?.service, instances = web?.instances, logs = web?.startupLogs;
   const absent = flag?.status === 404 && flag.body === null;
+  const expectedWebCommit = authority?.expectedWebCommit === undefined ? ADMISSION_SOURCE : authority.expectedWebCommit;
   for (const receipt of [flag, service, instances, logs, web?.deployReceipt]) freshReceipt(receipt, now);
   let url; try { url = new URL(logs?.url); } catch { refuse('web_writer_fence_unverified'); }
   if (service?.method !== 'GET' || service.url !== base || !successfulRead(service, authority, now)
     || service.body?.id !== id || service.body.type !== 'web_service'
-    || web.deploy?.status !== 'live' || web.deploy?.commit?.id !== ADMISSION_SOURCE
+    || ![ADMISSION_SOURCE, REVIEWED_WEB_SOURCE].includes(expectedWebCommit)
+    || web.deploy?.status !== 'live' || web.deploy?.commit?.id !== expectedWebCommit
     || web.deployReceipt?.method !== 'GET' || web.deployReceipt.url !== `${base}/deploys/${web.deploy.id}`
     || !successfulRead(web.deployReceipt, authority, now) || canonical(web.deployReceipt.body) !== canonical(web.deploy)
     || flag?.method !== 'GET' || flag.url !== `${base}/env-vars/BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB`

@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { CommunicationsAgentsAPI } from '../server/agents/communications-api';
 import { INCIDENT, ROOT, CONTROL, LAP, sha, QUERIES, STOPPED_SOURCE } from './communications-incident-20261006.mjs';
 import { AUDIT, CLEANUP, checkFence, checkEffects, recover, fenceLease, cleanupPhase, archiveFiles, verifyArchive } from './communications-incident-recovery-20261006.mjs';
-import { ADMISSION_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS } from './communications-incident-admission-20261006.mjs';
+import { ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS } from './communications-incident-admission-20261006.mjs';
 import { mcpReceipt, mcpReadScope } from './communications-incident-mcp-20261006.mjs';
 import { preparePlatform, assembleProof, sequence } from './communications-incident-operator-20261006.mjs';
 
@@ -83,8 +83,15 @@ function disabledAdmissionFixture() {
   f.authority.processProofDigest = sha(f.proof);
   return f;
 }
-function mcpFixture() {
+function mcpFixture(webCommit = ADMISSION_SOURCE, absentWebFlag = false) {
   const f = disabledAdmissionFixture(), worker = f.proof.services[0], web = f.proof.web;
+  web.deploy = { ...web.deploy, commit: { id: webCommit } };
+  web.deployReceipt.body = web.deploy;
+  if (absentWebFlag) {
+    web.opsFlag.status = 404; web.opsFlag.body = null;
+    web.startupLogs.body.logs[0].message = JSON.stringify({ service: 'blueprint-webapp', route: 'ops-automation-scheduler',
+      msg: 'Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service (set BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1 to opt this process in)' });
+  }
   web.service.body.ownerId = 'tea-synthetic';
   const call = (tool: string, args: any, body: any) => ({ tool: `mcp__render__${tool}`, arguments: { workspaceId: 'tea-synthetic', ...args },
     requestedAtUtc: new Date(NOW - 20).toISOString(), respondedAtUtc: new Date(NOW - 3).toISOString(),
@@ -103,6 +110,43 @@ function mcpFixture() {
   return { ...f, receipts };
 }
 describe('owner-scoped lap259 recovery', () => {
+  it.each([false, true])('requires the reviewed current Web owner pin through CAS, replay and fence release (absent flag: %s)', async absent => {
+    const f = mcpFixture(REVIEWED_WEB_SOURCE, absent);
+    f.authority.expectedWebCommit = REVIEWED_WEB_SOURCE;
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now))
+      .resolves.toMatchObject({ state: 'reconciled_and_release_fenced' });
+    expect(f.writes).toHaveLength(3);
+    expect(f.values.get(AUDIT).authority.expectedWebCommit).toBe(REVIEWED_WEB_SOURCE);
+    expect(f.proof.services[0].deploy.commit.id).toBe(ADMISSION_SOURCE);
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now))
+      .resolves.toMatchObject({ state: 'already_reconciled' });
+    await expect(fenceLease(f.db, 'release-fence', f.authority, f.proof, f.now)).resolves.toMatchObject({ state: 'release-fence' });
+    const changed = mcpFixture(); changed.authority.expectedWebCommit = ADMISSION_SOURCE;
+    const writes = f.writes.length;
+    await expect(fenceLease(f.db, 'release-fence', changed.authority, changed.proof, changed.now))
+      .rejects.toThrow('release_fence_ownership_changed');
+    expect(f.writes).toHaveLength(writes);
+  });
+  it('refuses unpinned, foreign or mismatched Web revisions and preserves every runtime fence before writes', async () => {
+    for (const change of [
+      (f: any) => { delete f.authority.expectedWebCommit; },
+      (f: any) => { f.authority.expectedWebCommit = ADMISSION_SOURCE; },
+      (f: any) => { f.authority.expectedWebCommit = 'a'.repeat(40); },
+      (f: any) => { f.authority.expectedWebCommit = null; },
+      (f: any) => { f.proof.web.deploy = { ...f.proof.web.deploy, commit: { id: 'a'.repeat(40) } }; },
+      (f: any) => { f.proof.web.deployReceipt.observedAtMs = NOW - 300001; },
+      (f: any) => { f.proof.web.instances.body[0].id = 'uncovered-current-instance'; },
+      (f: any) => { f.proof.web.opsFlag.body.value = '1'; },
+      (f: any) => { f.proof.web.opsFlag.status = 404; f.proof.web.opsFlag.body = null; },
+      (f: any) => { f.proof.services[0].runtimes[0].entrySha256 = 'a'.repeat(64); },
+      (f: any) => { f.proof.services[0].deployCommit = REVIEWED_WEB_SOURCE; },
+    ]) {
+      const f = mcpFixture(REVIEWED_WEB_SOURCE); f.authority.expectedWebCommit = REVIEWED_WEB_SOURCE;
+      change(f); f.authority.processProofDigest = sha(f.proof);
+      await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).rejects.toThrow();
+      expect(f.writes).toHaveLength(0);
+    }
+  });
   it('consumes successful authenticated MCP reads without inventing HTTP status in actual CAS recovery', async () => {
     const f = mcpFixture();
     expect(f.receipts.every(r => r.status === null && r.httpStatusObserved === false)).toBe(true);
@@ -162,8 +206,9 @@ describe('owner-scoped lap259 recovery', () => {
     f.authority.processProofDigest = sha(f.proof);
     await expect(fenceLease(f.db, 'release-fence', f.authority, f.proof, () => at)).rejects.toThrow('release_fence_ownership_changed');
   });
-  it('orchestrates local runtime, completed barrier, canonical/provider and supported recovery in order', async () => {
-    const f = mcpFixture(), worker = f.proof.services[0], web = f.proof.web;
+  it.each([ADMISSION_SOURCE, REVIEWED_WEB_SOURCE])('orchestrates local runtime, completed barrier, canonical/provider and supported recovery for Web %s', async webCommit => {
+    const f = mcpFixture(webCommit, true), worker = f.proof.services[0], web = f.proof.web;
+    if (webCommit === REVIEWED_WEB_SOURCE) f.authority.expectedWebCommit = webCommit;
     const baseline = { ...structuredClone(worker.runtimes[0]), observedAtMs: NOW - 20000, instanceId: `${worker.serviceId}-old` };
     const owner = { ...f.authority, writerFreezeEvidence: { source: 'synthetic-authenticated-owner-acknowledgements' }, frozenWriters: f.proof.frozenWriters,
       expectedBaselineRuntimeDigests: { [worker.serviceId]: sha(baseline) } };
@@ -187,6 +232,7 @@ describe('owner-scoped lap259 recovery', () => {
     expect(events).toEqual(['runtime', 'canonical', 'provider', 'recover']);
     expect(output).toMatchObject({ state: 'reconciled_and_release_fenced', sendsAuthorized: false, paidAdmissionAuthorized: false });
     expect(f.writes).toHaveLength(3);
+    expect(f.values.get(AUDIT).authority.expectedWebCommit).toBe(f.authority.expectedWebCommit);
     expect(() => assembleProof(platform, { ...worker.runtimes[0], observedAtMs: platform.observedAtMs - 1 }, f.now)).toThrow('runtime_after_complete_platform_required');
     expect(() => assembleProof(platform, worker.runtimes[0], () => NOW + 300001)).toThrow();
   });
