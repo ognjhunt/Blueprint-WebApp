@@ -77,15 +77,17 @@ describe("build output", () => {
     expect(home).not.toMatch(/og:image" content="[^"]+\.webp"/);
   });
 
-  it("ships the recorded evaluation example and all six episode videos", () => {
+  it("ships the warehouse walkthrough assets and retained job-fit content", () => {
     const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
-    expect(html).toContain("Recorded simulation");
-    expect(html).toContain("/proof/cup-evaluation/02-groot-external.mp4");
-    for (const cell of ["00", "02", "04"]) {
-      for (const policy of ["pi05", "groot"]) {
-        expect(fs.existsSync(distPath(`proof/cup-evaluation/${cell}-${policy}-external.mp4`))).toBe(true);
-        expect(fs.existsSync(distPath(`proof/cup-evaluation/${cell}-${policy}-poster.webp`))).toBe(true);
-      }
+    const manifest = JSON.parse(fs.readFileSync("docs/design/warehouse-pilot-sequence-2026-10-06.json", "utf8"));
+    expect(html).toContain(manifest.caption);
+    expect(html).toContain("Is your job a fit?");
+    expect(html).not.toContain('id="evaluation-example"');
+    expect(html).not.toContain('id="match-package"');
+    for (const image of manifest.images) {
+      const assetPath = image.asset.replace(/^client\/public\//, "");
+      expect(html).toContain(`/${assetPath}`);
+      expect(fs.existsSync(distPath(assetPath))).toBe(true);
     }
   });
 
