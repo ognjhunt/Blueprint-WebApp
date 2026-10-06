@@ -31,7 +31,7 @@ export function WarehousePilotSequence() {
       <nav className="ms-pilot-contents" aria-label="Warehouse walkthrough contents">
         <p className="ms-eyebrow">On this page</p>
         <ol>{contents.map(([id, label]) => <li key={id}><a href={`#${id}`}>{label}</a></li>)}</ol>
-        <a className="ms-pilot-next" href="#matching">How matching works ↓</a>
+        <a className="ms-pilot-next" href="#job-fit">Is your job a fit? ↓</a>
       </nav>
 
       <div className="ms-pilot-story">
