@@ -145,6 +145,30 @@ describe('owner-scoped lap259 recovery', () => {
     expect(f.values.get(`${ROOT}/draftBudgetAdmissions/synthetic-hold`)).toEqual({ state: 'usage_unknown', knownTotalIsComplete: false });
     expect(f.values.get(AUDIT)).toMatchObject({ accountingReconciled: false, sendsAuthorized: false, paidAdmissionAuthorized: false });
   });
+  it.each([null, []])('retains parent-pinned source failure with absent evidence %j in actual recovery', async evidence => {
+    const f = fixture();
+    const failure = saved(`${ROOT}/refreshRequests/synthetic-source-failure`, {
+      state: 'unresolved', kind: 'research_owner_refresh', reason: 'source_refresh_unavailable',
+      reasons: ['communications_intake_accepted_candidates_missing_or_overflow'],
+      leaseUntil: 0, sendsAuthorized: false, observerReceiptRequired: false, evidence,
+    });
+    f.packet.queries.find((q: any) => q.name === 'refresh').rows = [failure];
+    f.authority.expectedSourceFailures = [{ path: failure.path, sha256: failure.sha256 }];
+    f.values.set(failure.path, structuredClone(failure.value));
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now))
+      .resolves.toMatchObject({ state: 'reconciled_and_release_fenced' });
+    expect(f.values.get(failure.path)).toEqual(failure.value);
+    expect(f.writes.map(w => w.path).sort()).toEqual([AUDIT, LAP, CONTROL].sort());
+    for (const invalid of [undefined, {}, false, '', ['unknown-evidence']]) {
+      const changed = saved(failure.path, { ...failure.value, evidence: invalid });
+      f.packet.queries.find((q: any) => q.name === 'refresh').rows = [changed];
+      f.authority.expectedSourceFailures = [{ path: changed.path, sha256: changed.sha256 }];
+      expect(() => checkEffects(f.packet, f.provider, f.authority, NOW)).toThrow('refresh_outcome_unmapped');
+    }
+    f.packet.queries.find((q: any) => q.name === 'refresh').rows = [failure];
+    f.authority.expectedSourceFailures = [];
+    expect(() => checkEffects(f.packet, f.provider, f.authority, NOW)).toThrow('source_failure_scope_changed');
+  });
   it('replay reads matching audit without writing and protects a successor', async () => {
     const f = fixture(); await recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now);
     await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).resolves.toMatchObject({ state: 'already_reconciled' });

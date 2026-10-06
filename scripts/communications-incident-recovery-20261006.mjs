@@ -108,7 +108,9 @@ export function checkEffects(packet, provider, authority, now, recovered = false
     if (v.state !== 'unresolved' || v.kind !== 'research_owner_refresh' || v.reason !== 'source_refresh_unavailable'
       || canonical(v.reasons) !== canonical(['communications_intake_accepted_candidates_missing_or_overflow'])
       || v.leaseUntil !== 0 || v.sendsAuthorized !== false || v.observerReceiptRequired !== false
-      || v.evidence !== null) refuse('refresh_outcome_unmapped');
+      // Retain the original null/empty-array absence representation. The exact
+      // parent-pinned row digest still rejects changed or nonempty evidence.
+      || (v.evidence !== null && (!Array.isArray(v.evidence) || v.evidence.length !== 0))) refuse('refresh_outcome_unmapped');
     if (refs(v, ['jobId', 'sessionId', 'session_id', 'environment_id', 'createClaimedAt']).size) refuse('refresh_effect_unmapped');
     sourceFailures.push({ path: record.path, sha256: record.sha256 });
   }
