@@ -1,5 +1,5 @@
 /** Read-only actual Linux runtime proof; never edits flags or signals a process. */
-import { readFileSync, readdirSync, readlinkSync } from 'node:fs';
+import { readFileSync, readdirSync, readlinkSync, lstatSync, statSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { sha, refuse, canonical, privateWrite } from './communications-incident-20261006.mjs';
@@ -7,6 +7,32 @@ import { sha, refuse, canonical, privateWrite } from './communications-incident-
 export const ADMISSION_FLAGS = ['BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED', 'BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED'];
 const OPS_FORWARD_ONLY = 'BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER';
 const forwardOnly = value => ['1', 'true', 'yes', 'on'].includes(String(value ?? '').trim().toLowerCase());
+// Bound startup options only; no unreviewed preloaded code before admission guards.
+const safeNodeOptions = value => /^(?:\s*(?:--max[-_]old[-_]space[-_]size=[0-9]+|--max[-_]semi[-_]space[-_]size=[0-9]+|--enable-source-maps|--no-warnings))*\s*$/.test(value ?? '');
+const BOOTSTRAP_INPUTS = ['NODE_ENV', 'VITEST', 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP', 'PAPERCLIP_ENV_FILE'];
+const bootstrapSkipped = inputs => inputs.NODE_ENV === 'test' || inputs.VITEST === 'true' || forwardOnly(inputs.BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP);
+const overridingPaths = (cwd, inputs) => [inputs.PAPERCLIP_ENV_FILE, resolve(cwd, '../.paperclip-blueprint.env'), resolve(cwd, '.env.local')]
+  .filter(value => typeof value === 'string' && value.trim()).map(value => resolve(cwd, value));
+function bootstrapProtection(root, cwd, environment) {
+  const inputs = Object.fromEntries(BOOTSTRAP_INPUTS.map(key => [key, environment[key] ?? null]));
+  if (bootstrapSkipped(inputs)) return { mode: 'disabled', inputs, paths: [] };
+  const paths = overridingPaths(cwd, inputs).map(path => {
+    try { lstatSync(`${root}/root${path}`); refuse('runtime_env_override_present'); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    return { path, absent: true };
+  });
+  return { mode: 'overrides_absent', inputs, paths };
+}
+function bootstrapProofValid(proof, cwd) {
+  if (!proof?.inputs || BOOTSTRAP_INPUTS.some(key => proof.inputs[key] !== null && typeof proof.inputs[key] !== 'string')) return false;
+  const expected = bootstrapSkipped(proof.inputs) ? { mode: 'disabled', paths: [] }
+    : { mode: 'overrides_absent', paths: overridingPaths(cwd, proof.inputs).map(path => ({ path, absent: true })) };
+  return proof.mode === expected.mode && canonical(proof.paths) === canonical(expected.paths);
+}
+function filesystemIdentity(root) {
+  const metadata = statSync(`${root}/root`, { bigint: true });
+  return { mountNamespace: readlinkSync(`${root}/ns/mnt`), rootDevice: String(metadata.dev), rootInode: String(metadata.ino) };
+}
 export const ADMISSION_SOURCE = 'c4db1d2f61970efda3a226c9715345718a2064f5';
 // Independently reproducible: pinned esbuild, exact main source, external packages.
 export const ADMISSION_ENTRY_SHA256 = '69c24029a5d1d087cc10ac6f834f3c22e74a3ef6e058b826f49c168c73f70f17';
@@ -22,25 +48,35 @@ export function readRuntime(pid) {
   const root = `/proc/${pid}`, before = stat(readFileSync(`${root}/stat`));
   const command = readFileSync(`${root}/cmdline`), args = command.toString().split('\0').filter(Boolean);
   const cwd = readlinkSync(`${root}/cwd`), executable = readlinkSync(`${root}/exe`);
+  const filesystem = { target: filesystemIdentity(root), collector: filesystemIdentity('/proc/self') };
+  if (canonical(filesystem.target) !== canonical(filesystem.collector)) refuse('runtime_filesystem_view_unbound');
   const environment = Object.fromEntries(readFileSync(`${root}/environ`).toString().split('\0').filter(Boolean).map(entry => {
     const equal = entry.indexOf('='); return [entry.slice(0, equal), entry.slice(equal + 1)];
   }));
   const entry = args.length === 2 ? resolve(cwd, args[1]) : null;
   if (!['node', 'nodejs'].includes(basename(args[0] ?? '')) || !entry?.endsWith('/dist/worker.js')) refuse('runtime_entrypoint_unbound');
-  const entrySha256 = sha(readFileSync(entry)), after = stat(readFileSync(`${root}/stat`));
-  const selected = env => Object.fromEntries(['RENDER_SERVICE_ID', 'RENDER_INSTANCE_ID', 'RENDER_GIT_COMMIT', OPS_FORWARD_ONLY, ...ADMISSION_FLAGS].map(key => [key, env[key] ?? null]));
+  if (!safeNodeOptions(environment.NODE_OPTIONS)) refuse('runtime_startup_options_unbound');
+  const protection = bootstrapProtection(root, cwd, environment);
+  const entrySha256 = sha(readFileSync(`${root}/root${entry}`)), after = stat(readFileSync(`${root}/stat`));
+  const selected = env => Object.fromEntries(['RENDER_SERVICE_ID', 'RENDER_INSTANCE_ID', 'RENDER_GIT_COMMIT', OPS_FORWARD_ONLY,
+    ...ADMISSION_FLAGS, ...BOOTSTRAP_INPUTS, 'NODE_OPTIONS'].map(key => [key, env[key] ?? null]));
   const environmentAfter = Object.fromEntries(readFileSync(`${root}/environ`).toString().split('\0').filter(Boolean).map(entry => {
     const equal = entry.indexOf('='); return [entry.slice(0, equal), entry.slice(equal + 1)];
   }));
   if (before.startTicks !== after.startTicks || before.parentPid !== after.parentPid
     || sha(command) !== sha(readFileSync(`${root}/cmdline`)) || cwd !== readlinkSync(`${root}/cwd`)
-    || executable !== readlinkSync(`${root}/exe`) || canonical(selected(environment)) !== canonical(selected(environmentAfter))) refuse('runtime_identity_changed');
+    || executable !== readlinkSync(`${root}/exe`) || canonical(selected(environment)) !== canonical(selected(environmentAfter))
+    || canonical(filesystem.target) !== canonical(filesystemIdentity(root))
+    || canonical(protection) !== canonical(bootstrapProtection(root, cwd, environmentAfter))) refuse('runtime_identity_changed');
   return { schema: 'blueprint.disabled-worker-runtime.v1', observedAtMs: Date.now(), pid, ...after,
     bootId: readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim(), cwd, executable,
     entry, entrySha256, commandSha256: sha(command),
     serviceId: environment.RENDER_SERVICE_ID, instanceId: environment.RENDER_INSTANCE_ID,
     sourceCommit: environment.RENDER_GIT_COMMIT,
     opsForwardOnly: environment[OPS_FORWARD_ONLY] ?? null,
+    nodeOptions: environment.NODE_OPTIONS ?? null,
+    bootstrapProtection: protection,
+    filesystem,
     flags: Object.fromEntries(ADMISSION_FLAGS.map(key => [key, environment[key] ?? null])) };
 }
 export function inspectRuntime(requireDisabledAdmission = true) {
@@ -98,6 +134,11 @@ export function checkAdmissionFence(service, authority, now) {
       || runtime.entry !== resolve(runtime.cwd, 'dist/worker.js') || !['R', 'S', 'I'].includes(runtime.state)
       || runtime.rootInventoryComplete !== true || runtime.runtimeRootCount !== 1
       || !forwardOnly(runtime.opsForwardOnly)
+      || (runtime.nodeOptions !== null && typeof runtime.nodeOptions !== 'string') || !safeNodeOptions(runtime.nodeOptions)
+      || !bootstrapProofValid(runtime.bootstrapProtection, runtime.cwd)
+      || !runtime.filesystem?.target || canonical(runtime.filesystem.target) !== canonical(runtime.filesystem.collector)
+      || !/^mnt:\[[0-9]+\]$/.test(runtime.filesystem.target.mountNamespace ?? '')
+      || !/^[0-9]+$/.test(runtime.filesystem.target.rootDevice ?? '') || !/^[0-9]+$/.test(runtime.filesystem.target.rootInode ?? '')
       || !Number.isSafeInteger(runtime.observedAtMs) || runtime.observedAtMs > now + 5000 || now - runtime.observedAtMs > 300000
       || runtime.observedAtMs < Math.max(service.service.observedAtMs, service.instances.observedAtMs, service.deployReceipt.observedAtMs,
         ...ADMISSION_FLAGS.map(key => service.admissionFlags[key].observedAtMs))

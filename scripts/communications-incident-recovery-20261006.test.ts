@@ -64,6 +64,11 @@ function disabledAdmissionFixture() {
       entry: '/opt/render/project/src/dist/worker.js', entrySha256: ADMISSION_ENTRY_SHA256, commandSha256: 'b'.repeat(64),
       serviceId: id, instanceId: 'new', sourceCommit: ADMISSION_SOURCE, rootInventoryComplete: true, runtimeRootCount: 1,
       opsForwardOnly: 'true',
+      nodeOptions: null,
+      bootstrapProtection: { mode: 'disabled', inputs: { NODE_ENV: 'production', VITEST: null,
+        BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP: 'true', PAPERCLIP_ENV_FILE: null }, paths: [] },
+      filesystem: { target: { mountNamespace: 'mnt:[77]', rootDevice: '1', rootInode: '2' },
+        collector: { mountNamespace: 'mnt:[77]', rootDevice: '1', rootInode: '2' } },
       flags: Object.fromEntries(ADMISSION_FLAGS.map(key => [key, 'false'])) }] }];
   f.proof.web = { service: get(webBase, { id: webId, type: 'web_service', ownerId: 'owner-synthetic' }),
     deploy, deployReceipt: get(`${webBase}/deploys/${deploy.id}`, deploy),
