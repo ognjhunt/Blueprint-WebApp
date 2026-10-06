@@ -8,7 +8,7 @@ continue to apply. A passing quality check is never permission to send.
 ## October 7 launch direction
 
 Owner direction, 2026-10-06: new communications drafts consume
-`blueprint.outreach-framing.v1` from
+`blueprint.outreach-framing.v2` from
 `server/agents/communications-launch-framing.ts`. Its version, guidance digest,
 audience role and one initial question are included in the frozen request.
 Introduce Blueprint honestly, using a specific evidenced task hypothesis or
@@ -28,9 +28,12 @@ humanoid, wheeled, arm, open and closed models remain in scope, without a public
 API or deployment-maturity hard gate.
 
 No unsupported pilot-ready, partner, compatibility or hardware-supply claims.
-Robot-team beta evaluation is free; hardware, integration and site matching are
-not thereby free. Site assessment remains free, with the separate $2,500 site
-match fee per task when a match is found. Intake is description-first and
+Robot-team beta evaluation is free when invited; hardware, integration and site
+matching are not thereby free. Site assessment and opening pilot proposals are
+free. The separate $2,500 site fee per task applies only when the site books
+Blueprint's recommended pilot, bound to the specific recommendation/version.
+A recommendation is not a booking, customer commitment or payment; team
+availability and an accepted offer require evidence. Intake is description-first and
 matching follows stated demand. No need and negative replies are learning;
 interest is distinct from commitment and never grants action authority.
 
@@ -38,8 +41,11 @@ Fresh hypothesis drafts use `blueprint.outreach.v3`: the framing question and
 `checks:["interest"]`, without promoting any research open check. The immutable
 Pipeline-produced qualification, question and source dates remain intact. Old
 `blueprint.outreach.v2` drafts and session definitions v9-v12 remain archived.
-Prospective hypothesis session overrides v13-v16 consume the new framing through
-the existing saved-agent configuration flow. The saved agent itself is unchanged.
+Framing v1 inputs, guidance and hypothesis overrides v13-v16 remain byte-exact
+for historical sessions and agreements; they retain their recorded former fee
+direction as evidence. Prospective v2 hypothesis overrides v17-v20 use current
+main's pilot-booking policy through the existing saved-agent configuration flow.
+The saved agent itself is unchanged; no historical agreement is rewritten.
 Fresh launch-framed drafts do not enter automatic first contact, even if the
 older policy flag is enabled. Founder copy and sending authority remain separate.
 
@@ -106,8 +112,8 @@ is available; it is not evidence that a network search was performed or required
    **confirmed deployment capacity** distinct. A reply, useful public research,
    willingness to learn, or consent to evaluate does not establish the others.
 4. Offer a bounded **readiness/learning brief** where useful. This is a learning
-   artifact, distinct from a qualified match and the qualified-match fee. It
-   does not certify readiness, promise deployment, or trigger a match fee merely
+   artifact, distinct from a recommended pilot and the pilot booking fee. It
+   does not certify readiness, promise deployment, or trigger a fee merely
    because someone replies, provides information, or participates in evaluation.
 5. Build a **progressive job brief**: ask one easy job question first, then gather
    the smallest relevant detail after the recipient chooses to continue. Request
@@ -303,7 +309,7 @@ contract, or recorded evidence changes. Retry checks the stored attestation.
 | Warm kind/claim matches recorded verification fields | Source proves the connection/introduction/membership and wording implies no endorsement |
 | Offer, limits, and recipient-choice text appear in the body | Value is small, useful, task-specific, deliverable, and bounded; choice is unpressured |
 | One `?`, an anchored question, and explicit prohibited-pattern checks | One genuinely easy question tailored to verified site state, with public-signal provenance for claimed interest/pilot/deployment; no invented motivation/status, compound ask, confidential request, questionnaire, or default meeting |
-| Site-led learning/job-question contract, recorded team research, and exact Atlas/pipeline claim references | Separate talking/evaluation/capacity signals; learning vs qualified-match fee; later site-sharing consent, team configuration/support/timing, evidence-backed evaluation and consensual introduction/outcome feedback |
+| Site-led learning/job-question contract, recorded team research, and exact Atlas/pipeline claim references | Separate talking/evaluation/capacity signals; learning vs pilot booking fee; later site-sharing consent, team configuration/support/timing, evidence-backed evaluation and consensual introduction/outcome feedback |
 | All five rule decisions plus workflow review pass, and digest matches | Honest review of the exact message before the existing separate send approval |
 
 Pattern checks reject explicit meeting/questionnaire, video/confidential requests,

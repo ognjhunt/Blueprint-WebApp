@@ -1,5 +1,6 @@
 import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
+import { RecommendedPilot } from "@/components/site/RecommendedPilot";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 /**
  * The page an operator or filmer opens from a private job link.
@@ -926,6 +927,7 @@ export default function SelfCaptureUpload() {
           </div>}
         </>
       )}
+      {link.status === "valid" && scope === "owner" && <RecommendedPilot token={token} />}
       {link.status === "valid" && scope === "owner" && !saved && <PublicTaskListing token={token} />}
       {!saved && (
         <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: review your job brief. If you add footage, we check it before assessing provider fit and using a scene evaluation where it helps. Keep this link to follow progress.</p>

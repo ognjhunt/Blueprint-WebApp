@@ -1,7 +1,7 @@
 /**
  * Two public entry points. Keep the application after a concise team invitation,
  * the site form before supporting details, and keep
- * assessment, match-fee authorization and buying a pilot as distinct actions.
+ * assessment free and booking the recommended pilot as the one paid decision.
  */
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";

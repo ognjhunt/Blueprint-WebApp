@@ -16,7 +16,8 @@ import { buildCommunicationsInput, processCommunicationsJob, recoverRejectedComm
 import { CommunicationsRuntimeError, type CommunicationsAgentsAPI } from "../agents/communications-api";
 import { reserveCommunicationsDraft, reconcileCommunicationsDraftSession, COMMUNICATIONS_DRAFT_BUDGET } from "../agents/communications-draft-budget";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
-import { COMMUNICATIONS_AUDIENCE_ROLES, COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming,
+import { COMMUNICATIONS_AUDIENCE_ROLES, COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1,
+  COMMUNICATIONS_LAUNCH_GUIDANCE_V1, communicationsLaunchFraming,
   type CommunicationsAudienceRole } from "../agents/communications-launch-framing";
 
 async function setup(intent: "outreach" | "reply" = "outreach", now = () => communicationsNow, audienceRole?: CommunicationsAudienceRole) {
@@ -380,6 +381,8 @@ describe("Blueprint-owned communications queue", () => {
       expect(input.firstTouchPolicy).toContain("No public API or deployment maturity hard gate");
       expect(input.firstTouchPolicy).toContain("Demos do not establish paid demand");
       expect(input.firstTouchPolicy).toContain("$2,500");
+      expect(input.firstTouchPolicy).toContain("only when the site books Blueprint's recommended pilot");
+      expect(input.firstTouchPolicy).not.toContain("when a match is found");
       expect(params.checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
       return { output: f.output, checkpoint: params.checkpoint, usage: { input_tokens: 10 } };
     });
@@ -389,6 +392,19 @@ describe("Blueprint-owned communications queue", () => {
     const ledger = f.db.records.get(`action_ledger/${result.ledgerId}`);
     expect(ledger).toMatchObject({ approved_by: null, action_tier: 3 });
     expect(ledger.first_contact_authority).toBeUndefined();
+  });
+  it("preserves a prepared v1 checkpoint and frozen input instead of upgrading its commercial direction", async () => {
+    const f = await setup("outreach"), path = `${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`;
+    const prepared = f.db.records.get(path);
+    prepared.checkpoint.framingVersion = COMMUNICATIONS_FRAMING_V1;
+    const result = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false });
+    const params = f.deps.api.run.mock.calls[0][0], input = JSON.parse(params.input);
+    expect(params.checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_V1);
+    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_LAUNCH_GUIDANCE_V1);
+    expect(input.firstTouchFraming.instructionsDigest).toBe("920b1c200fa7421154565c29edf9de903b8fb12b1b07fcfe280fa6b0c8af8a85");
+    expect(buildCommunicationsInput(input.researchBrief, input.emailThread, "outreach", input.currentApproval, undefined,
+      params.checkpoint.executionWindow, params.checkpoint.draftWritingGuidance, COMMUNICATIONS_FRAMING_V1)).toBe(params.input);
   });
   it("retains one immutable correlated reply receipt with separate observed time and source hash", async () => {
     const f = await setup("reply"), incoming = f.thread!.messages.at(-1)!;

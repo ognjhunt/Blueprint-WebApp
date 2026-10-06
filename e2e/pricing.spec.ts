@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 
-test("pricing leads with no match, no fee and keeps robot teams free", async ({ page }) => {
+test("pricing leads with no pilot, no fee and keeps robot teams free", async ({ page }) => {
   await page.goto("/pricing");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("No match, no fee.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("No pilot, no fee.");
 
-  const site = page.locator("section", { has: page.getByRole("heading", { name: "Find a robot team" }) });
+  const site = page.locator("section", { has: page.getByRole("heading", { name: "Get a recommended pilot" }) });
   await expect(site.getByText("$2,500", { exact: true })).toBeVisible();
-  await expect(site.getByText("per job, only if we find a match", { exact: true })).toBeVisible();
+  await expect(site.getByText("per job, only when you book the pilot", { exact: true })).toBeVisible();
   await expect(site.getByText(/passed the evaluation for your job, fits your budget, and wants to run your pilot/)).toBeVisible();
   await expect(site.getByRole("link", { name: /Start a job assessment/ })).toHaveAttribute("href", "/contact/site-operator");
 
@@ -17,16 +17,16 @@ test("pricing leads with no match, no fee and keeps robot teams free", async ({ 
   await expect(team.getByRole("link", { name: /Apply for early access/ })).toHaveAttribute("href", "/contact/robot-team");
 
   const pilot = page.locator("section", { has: page.getByRole("heading", { name: "The pilot itself" }) });
-  await expect(pilot.getByText(/Blueprint takes no cut of the pilot or any deployment that follows/)).toBeVisible();
+  await expect(pilot.getByText(/takes no cut of the pilot or any deployment that follows/)).toBeVisible();
   await expect(pilot.getByRole("link", { name: /Fee details in our Terms/ })).toHaveAttribute("href", "/terms");
   await expect(page.getByText(/5%|capped at|authorized buyer/)).toHaveCount(0);
   await expect(page.getByRole("table")).toHaveCount(0);
 });
 
-test("terms preserve the match fee and disable paid team evaluations", async ({ page }) => {
+test("terms put the fee at booking and disable paid team evaluations", async ({ page }) => {
   await page.goto("/terms");
-  await expect(page.getByText(/No match, no fee\. When you open a job to pilot proposals/)).toBeVisible();
-  await expect(page.getByText(/invoice the site \$2,500 \(plus any applicable tax\), once per job however many teams match/)).toBeVisible();
+  await expect(page.getByText(/No pilot, no fee\. Blueprint selects one robot team/)).toBeVisible();
+  await expect(page.getByText(/invoices the site \$2,500 \(plus any applicable tax\), once per job\. If you do not book, you owe nothing/)).toBeVisible();
   await expect(page.getByText(/Blueprint takes no percentage of any pilot or deployment/)).toBeVisible();
   await expect(page.getByText(/Invited teams pay no evaluation entry fee or supplier commission within the invitation's stated scope/)).toBeVisible();
   await expect(page.getByText(/New paid private evaluations and balance top-ups are unavailable during this beta/)).toBeVisible();
@@ -52,5 +52,5 @@ test("legacy offer URLs still land on the pricing page", async ({ page, request 
 
   await page.goto("/data-packages");
   await expect(page).toHaveURL(/\/pricing/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("No match, no fee.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("No pilot, no fee.");
 });

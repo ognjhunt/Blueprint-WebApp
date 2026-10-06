@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { openAiResponsesHistoryTools } from "./operator-tools";
 import { COMMUNICATIONS_MODEL, communicationsDigest } from "./communications-contract";
 import { COMMUNICATIONS_DEFINITION, COMMUNICATIONS_HYPOTHESIS_INSTRUCTIONS } from "./communications-instructions";
-import { COMMUNICATIONS_LAUNCH_GUIDANCE } from "./communications-launch-framing";
+import { COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_LAUNCH_GUIDANCE_V1, COMMUNICATIONS_FRAMING_V1,
+  communicationsFramingVersion, type CommunicationsFramingVersion } from "./communications-launch-framing";
 
 /** The saved provider copy is checked against company-owned Git instructions.
  * This binding grants no inference, tools, consent or sending authority. */
@@ -390,30 +391,40 @@ export async function resolveCommunicationsMcpVaultBinding(binding: Communicatio
  * Firebase read definitions (#824), so each current base takes the next free number. */
 export const COMMUNICATIONS_HYPOTHESIS_PROFILE = "outreach-ready-hypothesis-v1" as const;
 const HYPOTHESIS_SUFFIX = `\n${COMMUNICATIONS_HYPOTHESIS_INSTRUCTIONS}`;
-// Prospective session override only. Archived v9-v12 and saved provider definitions
-// remain byte-exact; launch framing is bound in the new checkpoint/configuration.
-const LAUNCH_HYPOTHESIS_SUFFIX = `\n${COMMUNICATIONS_LAUNCH_GUIDANCE}
+// Archived v9-v16 and saved provider definitions remain byte-exact. Prospective
+// v17-v20 bind the current framing in their checkpoint/configuration.
+const LAUNCH_HYPOTHESIS_SUFFIX = `\n${COMMUNICATIONS_LAUNCH_GUIDANCE_V1}
 For an outreach-ready hypothesis, follow firstTouchFraming and ask its question verbatim. Research qualification.openQuestions and openChecks remain historical evidence and unresolved checks; this inquiry does not prove them. The outreachContract is {version:"blueprint.outreach.v3",senderIdentity,opening,questions:[{question,checks:["interest"]}],recipientChoice}. Use the same cold opening and recipient addressing evidence as the historical hypothesis contract. No offer, workflow or capability claims. The body includes all anchors and exactly this one question mark; the subject has none. Hypothesis jobs remain draft-only, with no approval or send authority.`;
+const BOOKING_HYPOTHESIS_SUFFIX = LAUNCH_HYPOTHESIS_SUFFIX.replace(COMMUNICATIONS_LAUNCH_GUIDANCE_V1, COMMUNICATIONS_LAUNCH_GUIDANCE);
+type FramingSelection = boolean | CommunicationsFramingVersion | undefined;
+function hypothesisFraming(selection: FramingSelection) {
+  // The published boolean helper API's true always means historical v1.
+  return selection === true ? COMMUNICATIONS_FRAMING_V1 : selection === false ? undefined : communicationsFramingVersion(selection);
+}
+function hypothesisSuffix(version: CommunicationsFramingVersion | undefined) {
+  return version === undefined ? HYPOTHESIS_SUFFIX : version === COMMUNICATIONS_FRAMING_V1 ? LAUNCH_HYPOTHESIS_SUFFIX : BOOKING_HYPOTHESIS_SUFFIX;
+}
 const HYPOTHESIS_VERSIONS: Record<string, string> = {
   [COMMUNICATIONS_HISTORY_DEFINITION.version]: "blueprint.communications-definition.v9",
   [COMMUNICATIONS_GMAIL_READ_DEFINITION.version]: "blueprint.communications-definition.v10",
   [COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION.version]: "blueprint.communications-definition.v11",
   [COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION.version]: "blueprint.communications-definition.v12",
 };
-export function communicationsHypothesisDefinition(base: { version: string; instructions: string }, launch = false) {
+export function communicationsHypothesisDefinition(base: { version: string; instructions: string }, launch: FramingSelection = false) {
   const version = Object.hasOwn(HYPOTHESIS_VERSIONS, base.version) ? HYPOTHESIS_VERSIONS[base.version] : undefined;
   if (!version) throw new Error("communications_hypothesis_definition_unavailable");
-  const instructions = base.instructions + (launch ? LAUNCH_HYPOTHESIS_SUFFIX : HYPOTHESIS_SUFFIX);
-  return Object.freeze({ version: launch ? version.replace(/v(\d+)$/, (_, number) => `v${Number(number) + 4}`) : version,
+  const framing = hypothesisFraming(launch), instructions = base.instructions + hypothesisSuffix(framing);
+  const offset = framing === undefined ? 0 : framing === COMMUNICATIONS_FRAMING_V1 ? 4 : 8;
+  return Object.freeze({ version: offset ? version.replace(/v(\d+)$/, (_, number) => `v${Number(number) + offset}`) : version,
     instructions, instructionsDigest: createHash("sha256").update(instructions).digest("hex") });
 }
 /** A session configuration with the hypothesis paragraph; tools, model and settings are unchanged. */
-export function communicationsHypothesisConfiguration<T extends { instructions: string }>(configuration: T, launch = false): T {
-  return { ...configuration, instructions: configuration.instructions + (launch ? LAUNCH_HYPOTHESIS_SUFFIX : HYPOTHESIS_SUFFIX) };
+export function communicationsHypothesisConfiguration<T extends { instructions: string }>(configuration: T, launch: FramingSelection = false): T {
+  return { ...configuration, instructions: configuration.instructions + hypothesisSuffix(hypothesisFraming(launch)) };
 }
 /** A hypothesis session's agent is today's verified base agent plus exactly the paragraph. */
-export function verifiedCommunicationsHypothesisAgent(value: any, verifyBase: (agent: any) => { version: string; instructions: string }, launch = false) {
-  const suffix = launch ? LAUNCH_HYPOTHESIS_SUFFIX : HYPOTHESIS_SUFFIX;
+export function verifiedCommunicationsHypothesisAgent(value: any, verifyBase: (agent: any) => { version: string; instructions: string }, launch: FramingSelection = false) {
+  const suffix = hypothesisSuffix(hypothesisFraming(launch));
   if (typeof value?.instructions !== "string" || !value.instructions.endsWith(suffix)) throw new Error("communications_hypothesis_agent_changed");
   return communicationsHypothesisDefinition(verifyBase({ ...value, instructions: value.instructions.slice(0, -suffix.length) }), launch);
 }

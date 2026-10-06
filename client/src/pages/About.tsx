@@ -1,6 +1,6 @@
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
-import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
+import { formatPrice, pilotFeeUsd } from "@/lib/evaluationPricing";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
@@ -43,7 +43,7 @@ export default function About() {
           <h2>How it works</h2>
           <ol>
             <li>Show us the job, including phone footage and a proposed pilot price or target budget. Keep ongoing economics separate.</li>
-            <li>Robot teams evaluate it for free. When one passes, fits your budget, and wants your pilot, we introduce you. No match, no fee; a match is {formatPrice(matchFeeUsd)} per job.</li>
+            <li>Robot teams evaluate it for free. We pick the one that fits and send you a recommended pilot to book. No pilot, no fee; booking is {formatPrice(pilotFeeUsd)} per job.</li>
             <li>You and the team agree the pilot directly, and we take no cut. The team installs and operates the robot.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/pricing">Pricing</a></p>
