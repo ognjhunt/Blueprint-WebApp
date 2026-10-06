@@ -5,15 +5,18 @@ its existing daily-research worker hook. It supports source-backed site/task
 discovery for partner admission; packaging alone proves no live research,
 qualification, publication or deployment outcome.
 
-## Current reviewed repair package
+## Current reviewed research admission package
 
-The October 5 package pins reviewed Pipeline commit
-`dd2d404fbcd914f7c371849d31b8a86fcc8e84a2` (merges ognjhunt/BlueprintCapturePipeline#2594), whose lineage contains the previous
-package source `94c8fe3e1ebccc5cdd117b62188ffa88f4186d03`. Its
-1,320,960-byte archive SHA256 is
-`895f0259d2a13709ddf2ce0a2509c42cdfcab561ea7a5a8dc88bb7d66160bb00`,
-with 66 manifested source files. The manifest SHA256 is
-`3c3e56781ff71d97af06b60b1943d9bcf194b3899c8f31f17ec048389085a5d5`.
+The October 6 package pins reviewed Pipeline commit
+`503807116c4013a81ef1276368e7433affbc462b` (ognjhunt/BlueprintCapturePipeline#2622),
+whose lineage contains the reviewed wording and contact-lookup changes from
+#2621 and #2624 and the previous package source
+`dd2d404fbcd914f7c371849d31b8a86fcc8e84a2`. Production release requires this
+exact source head to be merged and its required checks to pass. Its
+1,781,760-byte archive SHA256 is
+`ed1c73875166d0a84056a14a85b612c6080d53a577fbf3c93c52714388011ac8`,
+with 73 manifested source files. The manifest SHA256 is
+`6902f339e42393391c07482598c5ec9a4fdd7564bc6d0356df8bce1cc7015a4f`.
 It keeps everything in the previous package (owner-directed paid expansion, optional
 FindAll list-building tools, the owner-adjustable run duration and broad enumeration) and adds:
 - an optional site-universe slice: when control holds an enabled, reviewed
@@ -25,6 +28,25 @@ FindAll list-building tools, the owner-adjustable run duration and broad enumera
 - refusals that end a FindAll-pinned row cleanly when its tool registry changes before QA or
   repair starts.
 This is a research-only controlled release from Pipeline `main`.
+
+The package adds the owner-operated screen-admission and FullEnrich contact
+receipt modules and the `Store.screenSnapshot` consumer contract. Screen
+admission rechecks retained host evidence, recipient provenance, the current CRM
+and idempotency before and under the research lease. An uncertain CRM write
+permits readback of its original operation rather than another append. Missing
+contacts can create research gaps with zero draft jobs. A contact failure
+notifies the research owner.
+
+Producer and consumer use outreach wording rule v1.2. Unknown automation stays
+unknown, role inboxes receive a generic greeting, and a paused hypothesis-draft
+flag prevents model spending, including work already awaiting preflight. Frozen
+older rows keep their admitted wording and request bytes. Installation changes
+neither paid authority nor activation; sending, automatic first contact and
+hypothesis drafting must be verified off during this release.
+
+The separate owner-run robot-team universe is not an input to this archive or
+the scheduled daily agents. Its discovery/source checks do not establish robot
+partner eligibility, evaluation compatibility or partner interest.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
 through a frozen, publication-bound input. At most three tasks join a daily
