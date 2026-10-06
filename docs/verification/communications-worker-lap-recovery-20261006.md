@@ -8,9 +8,13 @@ starting at 2026-10-06 15:09:19 UTC, and
 `communications_worker_lap_unsettled` / `Communications worker requires recovery`
 each minute from 15:10:25 through 15:37:25 UTC. Research `workflow_idle` at
 15:37:08 and instance-count metrics of one through 15:34 do not prove
-communications drainage. These observations came from the parent; this checkout
-has no Render/Firestore read capability and has not independently fetched the
-live lap document.
+communications drainage. These Render observations came from the parent.
+A subsequent bounded, read-only transaction through the cloud's existing
+Firebase SDK retained the lap and research control in a private local packet
+with document update times and hashes. It confirmed an active, expired lap
+without a completion receipt. The raw operational record stays outside public
+commits; its process/effect correlation is still unproven. No live mutation or
+credential/access change was performed.
 
 ## Installed lifecycle
 
