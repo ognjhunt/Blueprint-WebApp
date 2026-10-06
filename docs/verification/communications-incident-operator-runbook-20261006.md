@@ -1,8 +1,8 @@
 # Owner-operated Oct6 recovery and cleanup
 
-Execution source: `f0f6e3d818ed94f0538519ff57e1bbf65fe047b2`, draft PR878.
+Execution source: `3a3f98ca19f64871bf343fa9dd08077768b5a702`, draft PR878.
 This retains the original reviewed `4ecd5ed59bbc8c20c59ceb093907792f5204cdec`
-recovery/cleanup behavior and adds the reviewed v2 admission-fence lane. No live
+recovery/cleanup behavior and the reviewed v2 and v3 admission-fence lanes. No live
 recovery, archive, deletion, model request, Gmail draft/send or activation has
 been executed by the source author. Parent owns native execution and release.
 
@@ -13,8 +13,8 @@ been executed by the source author. Parent owns native execution and release.
 | `communications-incident-20261006.mjs` | `5a0801e9b3402821f5e1a650663b6128874c147fd151a49455590f25b36027d9` |
 | `communications-incident-provider-20261006.py` | `98a51b3fe56cd248cdd5b9cbcd74a8bfa8698ba2c29fcb94a2f40dff396a0cc2` |
 | `communications-incident-summary-20261006.mjs` | `82613479a8950a27cdf3af4f110b810001cd1a4d66371ad024069e2f7776398c` |
-| `communications-incident-admission-20261006.mjs` | `b24c20544751a4b7610db5ea91b64e9735f30193af4e1ffea4c56174eb8d1560` |
-| `communications-incident-recovery-20261006.mjs` | `fdcd211684cafdcaa86bff3ae4ad4cea696819b79522fab87a32b0d4287a0863` |
+| `communications-incident-admission-20261006.mjs` | `8c561f7ea26030b3eb6e30e73679fc953b6c0173baed73838ad83d5471578a81` |
+| `communications-incident-recovery-20261006.mjs` | `17f5a05ca9c422c5a035ed010076fa2f68c8f23b10887e8373f4146397868557` |
 | `communications-incident-cleanup-20261006.py` | `278d7d8ddb42260bd6b84cc1b0c8432fdbd46d635023d7bf768b056df3eea1b1` |
 
 Run from the deployed WebApp root using existing dependencies and SDK bindings.
@@ -23,9 +23,9 @@ needs the existing `tsx` loader and full reviewed source. Prepare a private
 checkout without deploying it or copying credentials:
 
 ```bash
-incident_src=/tmp/blueprint-outreach-f0f6e3d81
+incident_src=/tmp/blueprint-outreach-3a3f98ca1
 mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/f0f6e3d818ed94f0538519ff57e1bbf65fe047b2 |
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/3a3f98ca19f64871bf343fa9dd08077768b5a702 |
   tar -xz --strip-components=1 -C "$incident_src" &&
 ln -s "$PWD/node_modules" "$incident_src/node_modules"
 ```
@@ -115,6 +115,33 @@ as specified in the process-fence document. It includes the separately bound
 `web` service/deploy/current-instance/OPS-off/startup-log receipts. The parent
 authenticates and pins these receipts and actual writer acknowledgements before
 execution. Keep raw message/proof/provider data in approved private storage.
+
+When a complete pre-change instance API inventory was not retained, use the
+separate `blueprint.render-incident-fence.v3` lane
+`complete_current_disabled_admission`. This lane requires a fresh authentic
+complete current REST `/instances` response, every current `createdAt` strictly
+after the retained original runtime observation, and one-to-one fresh actual
+disabled runtime coverage of every returned instance. The known original
+runtime instance must be absent. Include the original unmodified parsed runtime
+as `service.baselineRuntime` and pin its exported `sha` in authority
+`expectedBaselineRuntimeDigests[serviceId]`. Preserve that field through recovery
+and cleanup authority. This records complete positive current coverage without
+inventing a pre-change inventory, GET receipt or creation timestamp. All other
+worker, web, actor, effect, freshness and transaction checks remain required.
+
+The existing registered Deploy workflow has a separate manual GET-only
+`incident_inspect=true` mode. Run reviewed workflow code from the published
+inspection feature ref; the separate `ref` input must be the installed c4 SHA.
+This mode excludes the deploy job, checks no source out, and uses the existing
+repository-bound Render key only inside CI to collect the two complete instance
+responses and the three exact known boolean admission flags. It issues no
+deployment, settings, database, provider or Gmail mutations. Verify the actual
+inspection job's commit, run/attempt and artifact rather than workflow success
+alone. Its short-lived artifact retains actual GET URLs, status, observation
+times, response IDs, full nonsecret instance bodies and raw-byte hashes. Combine
+these with fresh authentic service/deploy/web-log receipts and process proofs;
+the inventory artifact alone does not authorize recovery. Do not re-enable a
+held Deploy workflow to run it without parent coordination.
 
 ```bash
 node --import tsx "$incident_src/scripts/communications-incident-recovery-20261006.mjs" recover /tmp/lap259-recovery
