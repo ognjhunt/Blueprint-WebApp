@@ -237,13 +237,17 @@ describe("blueprint.outreach.v2 for outreach-ready hypothesis drafts (synthetic)
       sourceUrl: "https://hypothesis-operator.example/team" }; value.body = value.body.replace(`Hello, I'm hoping this reaches ${ADDRESSEE}.`, "Hi Synthetic,"); });
     expect(reviewOutreachDraft(named)).toMatchObject({ hardChecksPassed: true });
   });
-  it.each(["Hello Jane,", "Dear Ms. Doe,", "Hi Casey,", "Good morning Dr. Casey,", "Jane,", "Casey,"])("refuses a named inbox salutation even with the correct role addressee: %s", greeting => {
+  it.each(["Hello Jane,", "Dear Ms. Doe,", "Hi Casey,", "Good morning Dr. Casey,", "Jane,", "Casey,", "Hi, Jane.", "Casey:", "Casey.", "Hello team, Jane,"])("refuses a named inbox salutation even with the correct role addressee: %s", greeting => {
     const value = draft();
     value.recipient.person = { name: "Jane Doe", role: "Manager", sourceUrl: "https://hypothesis-operator.example/team" };
     value.body = value.body.replace("Hello,", greeting);
     expect(reviewOutreachDraft(value)).toMatchObject({ hardChecksPassed: false, blockers: expect.arrayContaining(["hypothesis_recipient_greeting_mismatch"]) });
     value.recipient.person = null;
     expect(reviewOutreachDraft(value).hardChecksPassed).toBe(false);
+  });
+  it("accepts neutral routing prose without a salutation for the role inbox", () => {
+    const value = draft(); value.body = value.body.replace("Hello, ", "");
+    expect(reviewOutreachDraft(value).hardChecksPassed).toBe(true);
   });
   it("accepts a generic team salutation for the role inbox", () => {
     const value = draft(); value.body = value.body.replace("Hello,", "Hello team,");
