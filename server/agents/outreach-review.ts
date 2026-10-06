@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { communicationsLaunchFraming, COMMUNICATIONS_LAUNCH_GUIDANCE } from "./communications-launch-framing";
 
 const text = z.string().trim().min(1).max(1200);
 const source = z.string().trim().min(1).max(500);
@@ -82,6 +83,12 @@ export const outreachHypothesisContractSchema = z.object({
   recipientChoice: text,
 }).strict();
 export type OutreachHypothesisContract = z.infer<typeof outreachHypothesisContractSchema>;
+export const OUTREACH_LAUNCH_CONTRACT_VERSION = "blueprint.outreach.v3" as const;
+export const outreachLaunchContractSchema = outreachHypothesisContractSchema.extend({
+  version: z.literal(OUTREACH_LAUNCH_CONTRACT_VERSION),
+  questions: z.array(z.object({ question: text, checks: z.tuple([z.literal("interest")]) }).strict()).length(1),
+}).strict();
+export type OutreachLaunchContract = z.infer<typeof outreachLaunchContractSchema>;
 
 export const OUTREACH_SEMANTIC_CHECKS = {
   connection: "Use a known verified connection/introduction/community where possible; only claimed relationships require proof. Web research and verified business contact routes lead discovery; no network mining or exhaustive network search is required for legitimate cold contact. LinkedIn is optional role verification. Check the source and recipient identity; a shared community implies no endorsement.",
@@ -89,7 +96,7 @@ export const OUTREACH_SEMANTIC_CHECKS = {
   boundedValue: "Confirm the observation or task-specific research brief is useful, deliverable, and has clear limits; no capability or outcome guarantees.",
   easyQuestion: "Confirm there is exactly one easy, non-confidential question; no compound questionnaire, private operational data, video/upload, or meeting request by default. Tailor it to verified site state: unknown interest means ask relevance without assuming interest; expressed interest means ask the learning goal; pilot means ask an unresolved uncertainty; existing deployment means ask about expansion learning without assuming expansion plans. Verify recipient/site-specific public-signal provenance for claimed interest, pilot, or deployment. Do not invent motivation/status or ask 'what prompted your interest' without evidence of expressed interest. These are directions, not rigid templates; structural anchors do not establish semantic truth.",
   recipientChoice: "Confirm the recipient decides whether deeper conversation is worthwhile; reject pressure, urgency, implied obligation, or automatic follow-up commitments.",
-  workflow: "Disclose Blueprint identity from first contact using the founder's 'I'm building Blueprint' framing; do not pose as academic research or imply a large established company. Research site/job/team jointly with site-led discovery and parallel team feasibility. Separate interest in talking, evaluation participation, and deployment capacity. Keep readiness/learning distinct from the qualified-match fee. Use a progressive job brief before footage/details; obtain site permission before sharing with teams. Confirm team configuration/support/timing before any match promise; evaluations and physical-outcome feedback require evidence and consent. Verify every Atlas/pipeline capability claim.",
+  workflow: "Disclose Blueprint identity from first contact using the founder's 'I'm building Blueprint' framing; do not pose as academic research or imply a large established company. Research site/job/team jointly with site-led discovery and parallel team feasibility. Separate interest in talking, evaluation participation, and deployment capacity. Keep readiness/learning distinct from the qualified-match fee. Use a progressive job brief before footage/details; obtain site permission before sharing with teams. Confirm team configuration/support/timing before any match promise; evaluations and physical-outcome feedback require evidence and consent. Verify every Atlas/pipeline capability claim. " + COMMUNICATIONS_LAUNCH_GUIDANCE,
 } as const;
 
 const decision = z.enum(["pass", "revise", "block"]);
@@ -112,7 +119,7 @@ export type OutreachReviewContract = z.infer<typeof outreachReviewContractSchema
 export type OutreachSemanticReview = z.infer<typeof outreachSemanticReviewSchema>;
 /** `qualification` and `recipient` are present only for an outreach-ready hypothesis brief. */
 export type OutreachDraft = { to: string; subject: string; body: string; contract: unknown; context: unknown;
-  qualification?: unknown; recipient?: unknown };
+  qualification?: unknown; recipient?: unknown; framingContext?: { boundedJob: string; facilityName: string } };
 export type OutreachReviewResult = {
   hardChecksPassed: boolean;
   blockers: string[];
@@ -125,6 +132,7 @@ const prohibitedPatterns: [string, RegExp][] = [
   ["default_meeting_or_questionnaire", /\b(?:book|schedule|join)\b.{0,40}\b(?:call|meeting|demo)\b|\b(?:calendly|questionnaire|survey)\b/i],
   ["confidential_or_capture_ask", /\b(?:send|share|upload|film|record)\b.{0,50}\b(?:video|footage|password|credentials|confidential|internal documents)\b/i],
   ["pressure_or_guarantee", /\b(?:last chance|act now|limited time|guaranteed|we guarantee|you must|you owe)\b/i],
+  ["unsupported_readiness_or_supply", /\b(?:pilot[- ]ready|we (?:supply|provide) (?:free )?(?:robots|hardware)|free (?:hardware|integration|site matching)|committed partners|guaranteed compatibility)\b/i],
 ];
 
 const connectionClaim = /\b(?:we (?:met|know)|introduced (?:me|us)|our mutual|referred (?:me|us)|fellow member)\b/i;
@@ -155,7 +163,8 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
   const published = Array.isArray(qualification?.openQuestions) && qualification!.openQuestions.length === 1
     && typeof qualification!.openQuestions[0] === "string" ? qualification!.openQuestions[0] as string : null;
   if (!open || !published) blockers.push("outreach_hypothesis_qualification_missing");
-  const parsed = outreachHypothesisContractSchema.safeParse(draft.contract);
+  const launch = (draft.contract as any)?.version === OUTREACH_LAUNCH_CONTRACT_VERSION;
+  const parsed = (launch ? outreachLaunchContractSchema : outreachHypothesisContractSchema).safeParse(draft.contract);
   const context = outreachContextSchema.safeParse(draft.context);
   if (!parsed.success) blockers.push((draft.contract as any)?.version === "blueprint.outreach.v1"
     ? "outreach_hypothesis_contract_required" : "outreach_contract_missing_or_invalid");
@@ -164,9 +173,11 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
   const contract = parsed.data, opening = contract.opening, asked = contract.questions[0], text = draft.subject + " " + draft.body;
   // The question answers the open check that chose its template: S, then M, then A.
   const answered = open.includes("site_link") ? "site_link" : open.includes("manual_workflow") ? "manual_workflow" : "existing_automation";
-  if (asked.question !== published) blockers.push("hypothesis_question_not_published");
-  if (asked.checks.length !== 1 || asked.checks[0] !== answered) blockers.push("hypothesis_question_checks_mismatch");
-  if (!draft.body.includes(published)) blockers.push("hypothesis_question_missing_from_body");
+  const expected = launch && draft.framingContext ? communicationsLaunchFraming(draft.framingContext).question : published;
+  if (launch && !draft.framingContext) blockers.push("launch_framing_context_missing");
+  if (asked.question !== expected) blockers.push(launch ? "launch_question_mismatch" : "hypothesis_question_not_published");
+  if (asked.checks.length !== 1 || asked.checks[0] !== (launch ? "interest" : answered)) blockers.push("hypothesis_question_checks_mismatch");
+  if (!draft.body.includes(expected)) blockers.push("hypothesis_question_missing_from_body");
   if ((draft.body.match(QUESTION_MARKS) || []).length !== 1) blockers.push("exactly_one_initial_question_required");
   if ((draft.subject.match(QUESTION_MARKS) || []).length) blockers.push("hypothesis_subject_has_question");
   if (!/\bBlueprint\b/.test(contract.senderIdentity)) blockers.push("blueprint_identity_required");

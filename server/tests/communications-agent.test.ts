@@ -16,9 +16,12 @@ import { buildCommunicationsInput, processCommunicationsJob, recoverRejectedComm
 import { CommunicationsRuntimeError, type CommunicationsAgentsAPI } from "../agents/communications-api";
 import { reserveCommunicationsDraft, reconcileCommunicationsDraftSession, COMMUNICATIONS_DRAFT_BUDGET } from "../agents/communications-draft-budget";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
+import { COMMUNICATIONS_AUDIENCE_ROLES, COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming,
+  type CommunicationsAudienceRole } from "../agents/communications-launch-framing";
 
-async function setup(intent: "outreach" | "reply" = "outreach", now = () => communicationsNow) {
+async function setup(intent: "outreach" | "reply" = "outreach", now = () => communicationsNow, audienceRole?: CommunicationsAudienceRole) {
   const fixture = communicationsFixture(intent);
+  if (audienceRole) { fixture.brief.audienceRole = audienceRole; fixture.brief.unknowns.push("Closed-source model; early commercial offer and deployment maturity unknown"); }
   const db = memoryFirestore();
   const store = new CommunicationsStore(db, now, "test-owner");
   const install = async () => {
@@ -366,6 +369,27 @@ describe("outreach-ready brief contract (optional, draft-only qualification bloc
 });
 
 describe("Blueprint-owned communications queue", () => {
+  it.each(COMMUNICATIONS_AUDIENCE_ROLES)("consumes versioned %s framing in the actual fresh draft path with no automatic send", async role => {
+    const f = await setup("outreach", () => communicationsNow, role), framing = communicationsLaunchFraming(f.brief);
+    const contract = f.output.outreachContract as any;
+    f.output.body = f.output.body.replace(contract.question, framing.question); contract.question = framing.question;
+    // Closed source and early maturity are context, never a recipient hard gate.
+    f.deps.api.run.mockImplementation(async (params: any) => {
+      const input = JSON.parse(params.input);
+      expect(input.firstTouchFraming).toEqual(framing);
+      expect(input.firstTouchPolicy).toContain("No public API or deployment maturity hard gate");
+      expect(input.firstTouchPolicy).toContain("Demos do not establish paid demand");
+      expect(input.firstTouchPolicy).toContain("$2,500");
+      expect(params.checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
+      return { output: f.output, checkpoint: params.checkpoint, usage: { input_tokens: 10 } };
+    });
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
+    const result: any = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false, gmailDraftCreated: false });
+    const ledger = f.db.records.get(`action_ledger/${result.ledgerId}`);
+    expect(ledger).toMatchObject({ approved_by: null, action_tier: 3 });
+    expect(ledger.first_contact_authority).toBeUndefined();
+  });
   it("retains one immutable correlated reply receipt with separate observed time and source hash", async () => {
     const f = await setup("reply"), incoming = f.thread!.messages.at(-1)!;
     await f.store.recordReply(f.job, incoming, f.thread!.fetchedAt);
@@ -448,15 +472,15 @@ describe("Blueprint-owned communications queue", () => {
     expect(repairRequests).toBe(0);
     expect([...f.db.records.keys()].some(key => key.startsWith("action_ledger/"))).toBe(false);
   });
-  it("retains an uncorrected prospective draft with unsupported facts as blocked evidence, never automatic or human approval", async () => {
+  it("retains unsupported facts as review diagnostics with no automatic or human approval", async () => {
     const f = await setup("reply");
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");
     f.output.usedFactIds.push("unknown-fact");
     const result = await processCommunicationsJob(f.job.jobId, f.deps);
-    expect(result).toMatchObject({ state: "blocked", reason: "draft_quality_failed:used_fact_missing", sent: false });
+    expect(result).toMatchObject({ state: "pending_approval", sent: false });
     const ledger = f.db.records.get(`action_ledger/${(result as any).ledgerId}`);
-    expect(ledger).toMatchObject({ action_tier: 3, status: "failed", approved_by: null, action_payload: {
+    expect(ledger).toMatchObject({ action_tier: 3, status: "pending_approval", approved_by: null, action_payload: {
       communicationsDraftDiagnostics: { blockers: expect.arrayContaining(["used_fact_missing"]) }, communications: { output: f.output } } });
     expect(ledger.first_contact_authority).toBeUndefined();
     expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).hardChecksPassed).toBe(false);
@@ -504,7 +528,8 @@ describe("Blueprint-owned communications queue", () => {
     expect(ledger.outreach_semantic_review).toBeUndefined();
     const input = JSON.parse(f.deps.api.run.mock.calls[0][0].input);
     expect(input.firstTouchPolicy).not.toContain("automation_status");
-    expect(input.firstTouchPolicy).toContain("learningQuestion is a suggestion, not fixed wording");
+    expect(input.firstTouchFraming.version).toBe(COMMUNICATIONS_FRAMING_VERSION);
+    expect(input.firstTouchPolicy).toContain("ask one primary initial question");
   });
   it.each(["outreach", "reply"] as const)("supplies fresh %s writing guidance without changing archived charged input", async intent => {
     const f = await setup(intent);
@@ -523,7 +548,7 @@ describe("Blueprint-owned communications queue", () => {
     // while old charged checkpoints without it keep their historical shape.
     const charged = { ...saved, createClaimedAt: new Date(communicationsNow).toISOString(), sessionId: null };
     expect(buildCommunicationsInput(input.researchBrief, input.emailThread, intent, input.currentApproval, undefined,
-      charged.executionWindow, charged.draftWritingGuidance)).toBe(f.deps.api.run.mock.calls[0][0].input);
+      charged.executionWindow, charged.draftWritingGuidance, charged.framingVersion, charged.replyFollowup)).toBe(f.deps.api.run.mock.calls[0][0].input);
     expect(JSON.parse(buildCommunicationsInput(f.brief, f.thread, intent, null))).not.toHaveProperty("writingGuidance");
   });
   it("claims concurrently enqueued work once across two worker owners", async () => {

@@ -16,6 +16,7 @@ import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION_DIGES
 import { getCompanyHistoryAccess, runOperatorTool } from "./operator-tools";
 import { HYPOTHESIS_DRAFTS_DISABLED, hypothesisDraftsEnabled } from "./communications-hypothesis-controls";
 import { toolFailure } from "./adapters/tool-recovery";
+import { COMMUNICATIONS_FRAMING_VERSION } from "./communications-launch-framing";
 import { projectAgentEvidence, hydrateAgentEvidence } from "./private-evidence";
 
 export type CommunicationsHistoryReceipt = {
@@ -102,6 +103,8 @@ export type CommunicationsCheckpoint = {
   executionWindow?: CommunicationsExecutionWindow;
   /** Exact prospective writing directions, retained across charged recovery. */
   draftWritingGuidance?: string;
+  framingVersion?: typeof COMMUNICATIONS_FRAMING_VERSION;
+  replyFollowup?: unknown;
   /** Set before the first create of an outreach-ready hypothesis job only: the session runs today's
    * definition plus the hypothesis paragraph. Verified-lead checkpoints never carry it. */
   draftProfile?: typeof COMMUNICATIONS_HYPOTHESIS_PROFILE;
@@ -592,7 +595,7 @@ export class CommunicationsAgentsAPI {
       assertHypothesisInferenceEnabled(checkpoint);
       if (checkpoint.executionWindow && Date.now() >= this.repairDeadline(checkpoint)) throw new CommunicationsRuntimeError("communications_execution_deadline");
       const configurationDigest = hypothesis
-        ? communicationsDigest(communicationsHypothesisConfiguration(checked.gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION))
+        ? communicationsDigest(communicationsHypothesisConfiguration(checked.gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION, checkpoint.framingVersion === COMMUNICATIONS_FRAMING_VERSION))
         : checked.gmailMcp?.configurationDigest ?? COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST;
       const preparedDigest = communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
         configurationDigest, historyProfile: COMMUNICATIONS_HISTORY_PROFILE, finalRepairProfile: FINAL_REPAIR_PROFILE, input: params.input,
@@ -628,7 +631,7 @@ export class CommunicationsAgentsAPI {
     try { gmailMcp = checkpoint.gmailMcp ? verifiedCommunicationsCurrentMcpBinding(checkpoint.gmailMcp) : undefined; }
     catch { throw new CommunicationsRuntimeError("agents_existing_session_mcp_binding_mismatch"); }
     const baseDefinition = gmailMcp ? communicationsMcpDefinition(gmailMcp) : COMMUNICATIONS_HISTORY_DEFINITION;
-    const definition = hypothesis ? communicationsHypothesisDefinition(baseDefinition) : baseDefinition;
+    const definition = hypothesis ? communicationsHypothesisDefinition(baseDefinition, checkpoint.framingVersion === COMMUNICATIONS_FRAMING_VERSION) : baseDefinition;
     const baseConfiguration = gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION;
     if (hypothesis) await params.assertRepairAllowed?.();
     assertHypothesisInferenceEnabled(checkpoint);
@@ -646,7 +649,7 @@ export class CommunicationsAgentsAPI {
     }
     const handle = await this.request(fresh ? "/agents/sessions" : `/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, fresh ? {
       method: "POST", body: correctedBody ?? JSON.stringify({
-        agent_id: COMMUNICATIONS_SAVED_AGENT_ID, agent: hypothesis ? communicationsHypothesisConfiguration(baseConfiguration) : baseConfiguration,
+        agent_id: COMMUNICATIONS_SAVED_AGENT_ID, agent: hypothesis ? communicationsHypothesisConfiguration(baseConfiguration, checkpoint.framingVersion === COMMUNICATIONS_FRAMING_VERSION) : baseConfiguration,
         environment: { type: "none" }, input: params.input, stream: true,
         ...(gmailMcp ? { vault_ids: communicationsMcpVaultIds(gmailMcp) } : {}),
         metadata: { blueprint_communications_job: params.jobId, role: "communications",
@@ -1057,13 +1060,13 @@ export class CommunicationsAgentsAPI {
       const baseDigest = gmailMcp?.configurationDigest ?? COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST;
       if (checkpoint.historyProfile !== COMMUNICATIONS_HISTORY_PROFILE
         || checkpoint.historyConfigurationDigest !== (hypothesis
-          ? communicationsDigest(communicationsHypothesisConfiguration(gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION)) : baseDigest)
+          ? communicationsDigest(communicationsHypothesisConfiguration(gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION, checkpoint.framingVersion === COMMUNICATIONS_FRAMING_VERSION)) : baseDigest)
         || session.metadata?.blueprint_communications_history_profile !== COMMUNICATIONS_HISTORY_PROFILE
         || session.metadata?.blueprint_communications_history_configuration_digest !== checkpoint.historyConfigurationDigest) {
         throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch");
       }
       const verifyBase = (agent: any) => gmailMcp ? verifiedCommunicationsCurrentMcpAgent(agent, gmailMcp) : verifiedCommunicationsHistoryAgent(agent);
-      try { definition = hypothesis ? verifiedCommunicationsHypothesisAgent(session.agent, verifyBase) : verifyBase(session.agent); }
+      try { definition = hypothesis ? verifiedCommunicationsHypothesisAgent(session.agent, verifyBase, checkpoint.framingVersion === COMMUNICATIONS_FRAMING_VERSION) : verifyBase(session.agent); }
       catch { throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch"); }
     } else if (hypothesis) throw new CommunicationsRuntimeError("agents_existing_session_history_binding_mismatch");
     const usesSavedAgent = session.metadata?.blueprint_communications_saved_agent !== undefined;

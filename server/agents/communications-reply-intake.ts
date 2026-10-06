@@ -12,6 +12,7 @@ import { verifyFirstContactAuthority } from "./communications-first-contact";
 import { verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
 import { LeadVerificationRequired } from "./lead-verification";
 import type { ActionPayload } from "./action-policies";
+import { makeReplyFollowup, replyFollowupId, replyFollowupRef } from "./communications-reply-followup";
 
 export type CommunicationsReplyIntakeDependencies = {
   db: FirebaseFirestore.Firestore;
@@ -163,13 +164,14 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
   if (!replies.length) return { state: "no_reply" as const };
   const optOut = replies.find(isOptOut), incoming = optOut ?? replies.at(-1)!;
   let verificationGap: LeadVerificationRequired["verification"] | null = null;
+  const contextMissing = !parent.prospect || parent.prospect.contactEmail?.toLowerCase() !== parent.brief.contact.email.toLowerCase()
+    || parent.prospect.siteId !== parent.brief.siteId || parent.prospect.taskId !== parent.brief.taskId;
   if (!optOut) {
     // Only new drafting requires current research/canonical context. A real
     // opt-out still protects the originally verified recipient when it drifts.
     if (parent.brief.researchOrigin.sourceDigest && (!parent.provenance || parent.provenance.briefDigest !== parent.job.briefDigest
       || communicationsDigest(parent.provenance.source ?? null) !== parent.brief.researchOrigin.sourceDigest)) throw new Error("reply_parent_research_source_changed");
-    if (!parent.prospect || parent.prospect.contactEmail?.toLowerCase() !== parent.brief.contact.email.toLowerCase()
-      || parent.prospect.siteId !== parent.brief.siteId || parent.prospect.taskId !== parent.brief.taskId) throw new Error("reply_canonical_context_changed");
+    if (contextMissing && !founder) throw new Error("reply_canonical_context_changed");
     // A founder-thread reply is learning-only: no drafting follows, so it
     // needs no current research verification.
     if (!founder) {
@@ -190,6 +192,8 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
   const input = { prospectId: brief.prospectId, briefId: brief.briefId, briefDigest: communicationsDigest(brief),
     intent: "reply" as const, inboundMessageId: incoming.gmailMessageId };
   const job = { ...input, jobId: communicationsDigest(input) };
+  const followupId = replyFollowupId(brief.prospectId, parent.job.briefDigest, thread.threadId);
+  const followupRef = replyFollowupRef(deps.db, brief.prospectId, followupId);
   const claimRef = root.collection("replyIntake").doc(communicationsDeliveryKey(job));
   const binding = parent.kind === "system_send"
     ? communicationsReplyBindingSchema.parse({ version: "blueprint.communications-reply-binding.v1",
@@ -239,7 +243,7 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
     if (anchorChanged || communicationsDigest(savedParent.data() ?? null) !== parent.job.briefDigest
       || communicationsDigest(originalProvenance.data() ?? null) !== communicationsDigest(parent.provenance ?? null)
       || communicationsDigest(originalHandoff.data() ?? null) !== communicationsDigest(parent.handoff)
-      || !optOut && (source.data()?.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
+      || !optOut && !founder && (source.data()?.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
         || source.data()?.siteId !== brief.siteId || source.data()?.taskId !== brief.taskId)) throw new Error("reply_bound_context_changed");
     const derivedHandoff = { ...parent.handoff, briefDigest: job.briefDigest };
     const validProvenance = parent.provenance?.briefDigest === parent.job.briefDigest
@@ -250,6 +254,9 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
       || derivedProvenance && savedProvenance.exists && communicationsDigest(savedProvenance.data()) !== communicationsDigest(derivedProvenance)
       || savedBinding.exists && communicationsDigest(savedBinding.data()) !== communicationsDigest(binding)) throw new Error("reply_immutable_context_changed");
     const events = await Promise.all(replies.map(message => tx.get(sourceRef.collection("communicationsEvents").doc(`reply_${message.gmailMessageId}`))));
+    const savedFollowup = await tx.get(followupRef);
+    const canonicalMissing = !source.exists || source.data()?.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
+      || source.data()?.siteId !== brief.siteId || source.data()?.taskId !== brief.taskId;
     for (let index = 0; index < replies.length; index++) {
       const saved = events[index].data();
       if (saved && (saved.type !== "reply_received" || saved.untrusted !== true
@@ -265,6 +272,12 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
           message, messageHash: communicationsDigest(message), untrusted: true,
           originalObservedAt: thread.fetchedAt, observedAt: thread.fetchedAt, recordedAt: deps.now() });
       }
+      const followup = makeReplyFollowup({ brief, parentBriefDigest: parent.job.briefDigest, threadId: thread.threadId,
+        replies, observedAt: thread.fetchedAt, now: deps.now(), optOut: !!optOut, contextMissing: canonicalMissing }, savedFollowup.data());
+      // Exact replay retains the handoff and any owner's review byte-for-byte.
+      if (!savedFollowup.exists || savedFollowup.data()?.evidenceDigest !== followup.evidenceDigest
+        || followup.state === "opted_out" && savedFollowup.data()?.state !== "opted_out"
+        || savedFollowup.data()?.contextMissing !== canonicalMissing) tx.set(followupRef, followup);
     };
     if (claim.exists || previous.length) {
       if (claim.exists && claim.data()?.messageHash !== communicationsDigest(incoming)) throw new Error("communications_reply_source_changed");
@@ -275,7 +288,7 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
       if (optOut && source.data()?.contactEmail?.toLowerCase() === brief.contact.email.toLowerCase()) tx.set(sourceRef, { stage: "closed", closedReason: "recipient_opt_out",
         closedAtIso: source.data()?.closedAtIso ?? new Date(deps.now()).toISOString() }, { merge: true });
       return { state: optOut ? "opted_out" as const : "existing" as const,
-        jobId: claim.data()?.jobId ?? previous[0].id };
+        jobId: claim.data()?.jobId ?? previous[0].id, followupId };
     }
     // Read all queue state before writing: Firestore transactions cannot read
     // after writes, and the original delivery claim remains stable on restart.
@@ -309,7 +322,7 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
       : { version: "blueprint.communications-reply-intake.v1", jobId: job.jobId,
         messageHash: communicationsDigest(incoming), parentBriefDigest: parent.job.briefDigest,
         sendReceiptKey: parent.key, state, observedAt: thread.fetchedAt });
-    return { state, jobId: job.jobId };
+    return { state, jobId: job.jobId, followupId };
   });
 }
 

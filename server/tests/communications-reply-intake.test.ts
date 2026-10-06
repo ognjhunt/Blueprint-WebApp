@@ -11,6 +11,7 @@ import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { createCompanyHistoryTools } from "../research-learning/company-history";
 import { previewResearchCommunications, approveResearchCommunications } from "../agents/communications-producer";
 import { publishedResearchFixture } from "./fixtures/published-research";
+import { readReplyFollowup, reviewReplyFollowup } from "../agents/communications-reply-followup";
 
 async function setup() {
   const f = communicationsFixture(), db = memoryFirestore(), thread = communicationsFixture("reply").thread!;
@@ -57,6 +58,66 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("bound founder-thread reply intake (all providers mocked)", () => {
+  it("retains an owner queue, consumes it in the real draft input and exposes it to authorized history", async () => {
+    const f = await setup();
+    f.thread.messages[1].body = "Interested in a learning pilot for packing next year, to understand variability.";
+    const admitted: any = await admitBoundCommunicationsReplies(f.receiptKey, f.deps);
+    const job = f.replyJobs()[0][1], brief = await f.store.brief(job.briefId);
+    const original = await readReplyFollowup(f.db, brief, f.thread.threadId);
+    expect(original).toMatchObject({ handoffId: admitted.followupId, siteId: f.brief.siteId, taskId: f.brief.taskId,
+      owner: "nijel@tryblueprint.io", state: "awaiting_owner_review", responseMeaning: "unknown",
+      desiredOutcome: null, timing: null, statedTask: null, nextAction: "review_reply",
+      authority: { spending: false, listing: false, recording: false, sharing: false, sending: false } });
+    const cite = (value: string, quote: string) => ({ value, quote, messageId: f.thread.messages[1].gmailMessageId });
+    const reviewed = await reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId, {
+      expectedEvidenceDigest: original.evidenceDigest, responseMeaning: "exploratory_interest",
+      meaningEvidence: cite("learning pilot", "Interested in a learning pilot"), statedTask: cite("packing", "packing"),
+      desiredOutcome: cite("understand variability", "understand variability"), timing: cite("next year", "next year"),
+      nextAction: "prepare_draft_for_review" }, "authenticated-founder", communicationsNow);
+    await admitBoundCommunicationsReplies(f.receiptKey, f.deps);
+    expect(await readReplyFollowup(f.db, brief, f.thread.threadId)).toMatchObject(reviewed);
+    expect(await processCommunicationsJob(job.jobId, f.worker)).toMatchObject({ state: "pending_approval", sent: false });
+    const input = JSON.parse(f.api.run.mock.calls[0][0].input);
+    expect(input.replyFollowup).toMatchObject({ responseMeaning: "exploratory_interest", timing: { value: "next year" } });
+    expect(input.replyFollowupTrust).toBe("untrusted_evidence_no_action_authority");
+    const tools = createCompanyHistoryTools(f.db, { principalId: "trusted-reader", companyWide: false,
+      prospectIds: [f.job.prospectId], expiresAt: "2026-10-01T23:00:00Z" }, () => new Date(communicationsNow).toISOString());
+    const history: any = await tools("search_company_history", { query: "learning pilot", filters: { kind: "reply_followup" } });
+    expect(history.rows).toHaveLength(1);
+    expect(await tools("fetch_company_history_record", { record_id: history.rows[0].record_id })).toMatchObject({ ok: true });
+  });
+
+  it.each(["no_need", "negative"] as const)("records %s honestly and stops reply drafting before a model call", async responseMeaning => {
+    const f = await setup(); f.thread.messages[1].body = "We have no need for this.";
+    const admitted: any = await admitBoundCommunicationsReplies(f.receiptKey, f.deps), job = f.replyJobs()[0][1];
+    const brief = await f.store.brief(job.briefId), saved = await readReplyFollowup(f.db, brief, f.thread.threadId);
+    await reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId, { expectedEvidenceDigest: saved.evidenceDigest,
+      responseMeaning, meaningEvidence: { value: "no need", messageId: f.thread.messages[1].gmailMessageId, quote: "no need" },
+      statedTask: null, desiredOutcome: null, timing: null, nextAction: "no_action" }, "authenticated-founder", communicationsNow);
+    expect(await processCommunicationsJob(job.jobId, f.worker)).toMatchObject({ state: "no_reply", sent: false });
+    expect(f.api.run).not.toHaveBeenCalled();
+    expect(f.deps.suppress).not.toHaveBeenCalled(); // No need is not an invented opt-out.
+    f.thread.messages.push({ ...f.thread.messages[1], gmailMessageId: "late-opt-out", body: "Please don't contact us again." });
+    await admitBoundCommunicationsReplies(f.receiptKey, f.deps);
+    expect(await readReplyFollowup(f.db, brief, f.thread.threadId)).toMatchObject({ state: "opted_out", nextAction: "no_action" });
+    await expect(reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId, { expectedEvidenceDigest: saved.evidenceDigest,
+      responseMeaning: "unknown", meaningEvidence: null, statedTask: null, desiredOutcome: null, timing: null,
+      nextAction: "review_reply" }, "authenticated-founder", communicationsNow)).rejects.toThrow();
+  });
+
+  it("rejects invented reply quotes and stale review evidence without changing the queue or consent", async () => {
+    const f = await setup(), admitted: any = await admitBoundCommunicationsReplies(f.receiptKey, f.deps), job = f.replyJobs()[0][1];
+    const saved = await readReplyFollowup(f.db, await f.store.brief(job.briefId), f.thread.threadId);
+    const review = { expectedEvidenceDigest: saved.evidenceDigest, responseMeaning: "unknown", meaningEvidence: null,
+      statedTask: null, desiredOutcome: null, timing: { value: "urgent", messageId: f.thread.messages[1].gmailMessageId, quote: "urgent" },
+      nextAction: "review_reply" };
+    await expect(reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId, review, "authenticated-founder", communicationsNow))
+      .rejects.toThrow("reply_followup_quote_not_observed");
+    await expect(reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId,
+      { ...review, expectedEvidenceDigest: "0".repeat(64) }, "authenticated-founder", communicationsNow)).rejects.toThrow("reply_followup_binding_changed");
+    expect((await f.store.brief(job.briefId)).consent).toEqual(f.brief.consent); expect(f.api.run).not.toHaveBeenCalled();
+  });
+
   it("queues one correlated reply, uses the real worker to retain one review draft, and resumes without another job/session", async () => {
     const f = await setup();
     const admitted = await admitBoundCommunicationsReplies(f.receiptKey, f.deps);
