@@ -5,8 +5,9 @@ import { HYPOTHESIS_DRAFTS_FLAG, runCommunicationsIntake } from "../agents/commu
 import { processCommunicationsJob, recoverSavedCommunicationsDraft } from "../agents/communications-worker";
 import { reviseCommunicationsDraft } from "../agents/communications-draft-revision";
 import { CommunicationsStore } from "../agents/communications-store";
-import { communicationsBriefSchema } from "../agents/communications-contract";
-import { COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming } from "../agents/communications-launch-framing";
+import { communicationsBriefSchema, communicationsDigest } from "../agents/communications-contract";
+import { COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_AUDIENCE_ROLES, communicationsLaunchFraming } from "../agents/communications-launch-framing";
+import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { COMMUNICATIONS_HYPOTHESIS_PROFILE } from "../agents/communications-saved-agent";
 import { launchHypothesisDraft as hypothesisDraft, hypothesisDraft as archivedHypothesisDraft, hypothesisSetup } from "./fixtures/hypothesis";
 
@@ -41,6 +42,18 @@ function verifiedOutput(h: Awaited<ReturnType<typeof admitted>>) {
 }
 
 describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
+  it.each(COMMUNICATIONS_AUDIENCE_ROLES)("reviews the retained %s role against its own launch question", async audienceRole => {
+    const h = await admitted(), result: any = await processCommunicationsJob(h.intake.jobId, h.deps);
+    const payload = structuredClone(h.f.db.records.get(`action_ledger/${result.ledgerId}`).action_payload);
+    payload.communications.brief.audienceRole = audienceRole;
+    payload.communications.job.briefDigest = communicationsDigest(payload.communications.brief);
+    const output = hypothesisDraft(payload.communications.brief);
+    Object.assign(payload, { transportBody: payload.transportBody.replace(payload.body, output.body),
+      body: output.body, outreachContract: output.outreachContract });
+    payload.communications.output = output;
+    expect(reviewCommunicationsPayload(payload, h.deps.now())).toMatchObject({ hardChecksPassed: true, blockers: [] });
+    expect((output.outreachContract as any).questions[0].question).toBe(communicationsLaunchFraming(payload.communications.brief).question);
+  });
   it("gives a useful same-session repair for an archived contract returned to a fresh launch request", async () => {
     const h = await admitted(); h.setOutput(archivedHypothesisDraft(h.brief));
     const result: any = await processCommunicationsJob(h.intake.jobId, h.deps);

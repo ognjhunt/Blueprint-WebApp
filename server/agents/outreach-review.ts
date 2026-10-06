@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { communicationsLaunchFraming, COMMUNICATIONS_LAUNCH_GUIDANCE } from "./communications-launch-framing";
+import { communicationsLaunchFraming, COMMUNICATIONS_LAUNCH_GUIDANCE, type CommunicationsAudienceRole } from "./communications-launch-framing";
 
 const text = z.string().trim().min(1).max(1200);
 const source = z.string().trim().min(1).max(500);
@@ -119,7 +119,8 @@ export type OutreachReviewContract = z.infer<typeof outreachReviewContractSchema
 export type OutreachSemanticReview = z.infer<typeof outreachSemanticReviewSchema>;
 /** `qualification` and `recipient` are present only for an outreach-ready hypothesis brief. */
 export type OutreachDraft = { to: string; subject: string; body: string; contract: unknown; context: unknown;
-  qualification?: unknown; recipient?: unknown; framingContext?: { boundedJob: string; facilityName: string } };
+  qualification?: unknown; recipient?: unknown;
+  framingContext?: { boundedJob: string; facilityName: string; audienceRole?: CommunicationsAudienceRole } };
 export type OutreachReviewResult = {
   hardChecksPassed: boolean;
   blockers: string[];
