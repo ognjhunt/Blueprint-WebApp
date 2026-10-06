@@ -1,4 +1,5 @@
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
+import { hasCurrentDescriptionAuthority } from "../utils/descriptionAuthority";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { Request, Response, Router } from "express";
 import crypto from "crypto";
@@ -204,6 +205,9 @@ const router = Router();
 /**
  * The link, which is the invitation to collect.
  *
+ * Legacy recording invitations stay region-checked. An explicitly authorized
+ * description can also return to its brief; upload authorization still enforces
+ * the region and recording grant independently.
  * Region-checked here as well as in `decideCaptureDispatch`, because this is
  * the synchronous path: the form gets its answer from this call, long before a
  * workflow reads the request. Handing out a link the upload authorization will
@@ -217,9 +221,10 @@ function siteCaptureUrl(
   buyerType: string,
   requestId: string,
   captureRegion: CaptureRegion | null,
+  descriptionAuthorized = false,
 ): string | null {
   if (buyerType !== "site_operator") return null;
-  if (!isApprovedCaptureRegion(captureRegion)) return null;
+  if (!isApprovedCaptureRegion(captureRegion) && !descriptionAuthorized) return null;
   try {
     return captureUploadUrlFor(requestId);
   } catch {
@@ -253,7 +258,8 @@ function recoveredSubmission(existing: InboundRequest): SubmitInboundRequestResp
     status: existing.status,
     // A retry reads the saved decision. Changed answers must never lift a
     // region hold or convert another buyer type into a capture invitation.
-    captureUrl: siteCaptureUrl(existing.request?.buyerType || "", existing.requestId, existing.request?.capture_region ?? null),
+    captureUrl: siteCaptureUrl(existing.request?.buyerType || "", existing.requestId, existing.request?.capture_region ?? null,
+      hasCurrentDescriptionAuthority(existing.request?.description_authority)),
   };
 }
 
@@ -264,6 +270,7 @@ async function repairTaskReceivedNotification(existing: InboundRequest): Promise
     existing.request?.buyerType || "",
     existing.requestId,
     existing.request?.capture_region ?? null,
+    hasCurrentDescriptionAuthority(existing.request?.description_authority),
   )) return;
 
   try {
@@ -1185,7 +1192,26 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // is stored as null, which is "never asked", and is a different thing
     // from a grant.
     const consentAttestation = buildConsentAttestation(payload.consentAttestation);
-    if (consentAttestation === "refused" || (buyerType === "site_operator" && !hasCurrentRecordingConsent(consentAttestation))) {
+    const descriptionAuthority = buildConsentAttestation(payload.descriptionAuthority);
+    const descriptionOnly = buyerType === "site_operator" && payload.descriptionOnly === true;
+    if (descriptionOnly && payload.acceptedTerms !== true) {
+      return res.status(400).json({ ok: false, requestId: payload.requestId, status: "submitted",
+        message: "Accept the Terms of Service and Privacy Policy before sharing the job description." } satisfies SubmitInboundRequestResponse);
+    }
+    if (descriptionAuthority === "refused"
+      || (payload.descriptionAuthority != null && !hasCurrentDescriptionAuthority(descriptionAuthority))
+      || (descriptionOnly && !hasCurrentDescriptionAuthority(descriptionAuthority))) {
+      return res.status(400).json({ ok: false, requestId: payload.requestId, status: "submitted",
+        message: "Confirm that you are authorized to share this job description." } satisfies SubmitInboundRequestResponse);
+    }
+    // Prose can arrive before permission to film. This exception carries its
+    // own explicit authority and cannot admit footage or renew recording rights.
+    const containsFootage = payload.hasExistingFootage === true
+      || Boolean(normalizeTaskVideoUrl(payload.taskVideoUrl))
+      || normalizeTaskVideoUrls(payload.taskVideoUrls).length > 0;
+    if (consentAttestation === "refused" || (buyerType === "site_operator"
+      && (!descriptionOnly || containsFootage || consentAttestation != null)
+      && !hasCurrentRecordingConsent(consentAttestation))) {
       return res.status(400).json({
         ok: false,
         requestId: payload.requestId,
@@ -1523,6 +1549,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           taskVideoUrls: normalizeTaskVideoUrls(payload.taskVideoUrls),
           // Already past the refusal check above, so this is Record | null.
           consent_attestation: consentAttestation,
+          description_authority: descriptionAuthority,
           claude_authoring_consent: claudeAuthoringConsent,
           sol_agents_api_consent: solAgentsApiConsent,
           taskVideoUrl:
@@ -1606,7 +1633,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         // The dev fallback rehearses the production contract, and production
         // hands the capture link back in this response. Omitting it here let
         // the local path drift from the one real sites take.
-        captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
+        captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion, hasCurrentDescriptionAuthority(descriptionAuthority)),
       } satisfies SubmitInboundRequestResponse);
     }
 
@@ -1663,6 +1690,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         taskVideoUrls: normalizeTaskVideoUrls(payload.taskVideoUrls),
         // Already past the refusal check above, so this is Record | null.
         consent_attestation: consentAttestation,
+        description_authority: descriptionAuthority,
         claude_authoring_consent: claudeAuthoringConsent,
         sol_agents_api_consent: solAgentsApiConsent,
         taskVideoUrl:
@@ -1822,7 +1850,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
 
     // The first event email: the site's private link, so it is in their inbox
     // and not only on the success screen. Only where a link exists at all.
-    if (buyerType === "site_operator" && siteCaptureUrl(buyerType, payload.requestId, captureRegion)) {
+    if (buyerType === "site_operator" && siteCaptureUrl(buyerType, payload.requestId, captureRegion, hasCurrentDescriptionAuthority(descriptionAuthority))) {
       try { await enqueueTaskLifecycleNotification({ requestId: payload.requestId, milestone: "task_received" }); }
       catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not queue the task-received email"); }
     }
@@ -2064,7 +2092,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // actually run: self-capture, in an approved region (so the link is a live
     // recorder and not a "no region" wall), with a destination given.
     const filmerContact = String(payload.filmerContact || "").trim();
-    if (shouldSendFilmerHandoff({ filmerContact, buyerType, captureMode, captureRegion })) {
+    if (hasCurrentRecordingConsent(consentAttestation)
+      && shouldSendFilmerHandoff({ filmerContact, buyerType, captureMode, captureRegion })) {
       automationPromises.push(
         (async () => {
           try {
@@ -2088,7 +2117,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // task-received email above, which is the better first message; a second,
     // generic one would only compete with it.
     const siteHasTaskEmail =
-      buyerType === "site_operator" && Boolean(siteCaptureUrl(buyerType, payload.requestId, captureRegion));
+      buyerType === "site_operator" && Boolean(siteCaptureUrl(buyerType, payload.requestId, captureRegion, hasCurrentDescriptionAuthority(descriptionAuthority)));
     if (!siteHasTaskEmail) automationPromises.push(
       (async () => {
         try {
@@ -2241,7 +2270,7 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
       requestId: payload.requestId,
       siteSubmissionId: payload.requestId,
       status: "submitted",
-      captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion),
+      captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion, hasCurrentDescriptionAuthority(descriptionAuthority)),
     } satisfies SubmitInboundRequestResponse);
   } catch (error) {
     // Pino renders some thrown values as `{}` — an error with no own

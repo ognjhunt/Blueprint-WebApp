@@ -266,6 +266,82 @@ beforeEach(() => {
   });
 });
 
+describe("description-only owner can explicitly authorize future footage", () => {
+  function seedDescription(requestId: string) {
+    seedRequest(requestId, { disposition: "qualified" });
+    const record = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`) as Record<string, any>;
+    record.request.consent_attestation = null;
+    record.request.description_authority = { granted: true, statement_version: "2026-10-06.v1", recorded_at_iso: "2026-10-06T00:00:00Z" };
+    return record;
+  }
+  const grant = { granted: true, statementVersion: "2026-09-18.v1" };
+  async function consent(baseUrl: string, requestId: string, body: unknown = grant, scope: "owner" | "film" = "owner") {
+    const token = tokenFrom(captureUploadUrlFor(requestId, scope));
+    return fetch(`${baseUrl}/api/self-capture/uploads/${token}/recording-consent`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+  }
+  it("holds footage before the explicit owner grant, then allows a separately submitted upload", async () => {
+    seedDescription("req-description");
+    await withRoutes(async baseUrl => {
+      expect((await uploadStatus(baseUrl, "req-description")).body).toMatchObject({ state: "held", recordingConsentAvailable: true });
+      expect((await uploadFor(baseUrl, "req-description")).status).toBe(409);
+      expect(written.size).toBe(0);
+      expect((await consent(baseUrl, "req-description")).status).toBe(200);
+      const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-description") as Record<string, any>;
+      expect(record.request.consent_attestation).toMatchObject({ granted: true, statement_version: "2026-09-18.v1", recorded_by: "signed_owner_link" });
+      expect(record.request.consent_attestation.recorded_at_iso).toBeTruthy();
+      expect(written.size).toBe(0);
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+      expect((await uploadFor(baseUrl, "req-description")).status).toBe(201);
+    });
+  });
+  it.each([{}, { granted: false }, { granted: true, statementVersion: "old" }, { ...grant, matchFee: true }])("does not infer permission from an incomplete or broadened request (%j)", async body => {
+    seedDescription("req-description-denied");
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, "req-description-denied", body)).status).toBe(400);
+      expect(written.size).toBe(0);
+    });
+  });
+  it("refuses a film-only link", async () => {
+    seedDescription("req-description-film");
+    await withRoutes(async baseUrl => expect((await consent(baseUrl, "req-description-film", grant, "film")).status).toBe(403));
+  });
+  it.each(["root", "request", "capture_rights"])("preserves canonical withdrawal at %s for absent and existing grants", async location => {
+    for (const existing of [false, true]) for (const tombstone of [
+      { consent_revoked_at: "2026-10-05T00:00:00Z" }, { consent_status: "revoked" }, { future_processing_allowed: false },
+    ]) {
+      const requestId = `req-withdrawal-${location}-${existing}-${Object.keys(tombstone)[0]}`;
+      const record = seedDescription(requestId);
+      if (existing) record.request.consent_attestation = { granted: true, statement_version: grant.statementVersion, recorded_at_iso: "2026-10-01T00:00:00Z" };
+      const target = location === "root" ? record : location === "request" ? record.request : (record.capture_rights = {});
+      Object.assign(target, tombstone);
+      const original = structuredClone(record.request.consent_attestation);
+      await withRoutes(async baseUrl => {
+        expect((await uploadStatus(baseUrl, requestId)).body.recordingConsentAvailable).toBe(false);
+        expect((await consent(baseUrl, requestId)).status).toBe(409);
+        expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`) as any).request.consent_attestation).toEqual(original);
+        expect(written.size).toBe(0);
+      });
+    }
+  });
+  it.each(["root_revoked", "request_revoked", "stale", "withdrawn", "description_revoked", "missing_authority", "non_us"])("never clears a different rights or region hold (%s)", async reason => {
+    const record = seedDescription(`req-consent-${reason}`);
+    if (reason === "root_revoked") record.consent_revoked = true;
+    if (reason === "request_revoked") record.request.consent_revoked = true;
+    if (reason === "stale") record.request.consent_attestation = { ...grant, statement_version: "old", recorded_at_iso: "2026-10-01T00:00:00Z" };
+    if (reason === "withdrawn") record.request.consent_attestation = { granted: true, statement_version: grant.statementVersion, recorded_at_iso: "2026-10-01T00:00:00Z", withdrawn_at_iso: "2026-10-02T00:00:00Z" };
+    if (reason === "description_revoked") record.request.description_authority.revoked_at_iso = "2026-10-05T00:00:00Z";
+    if (reason === "missing_authority") record.request.description_authority = null;
+    if (reason === "non_us") record.request.capture_region = "non_us";
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, `req-consent-${reason}`)).status).toBe(reason === "non_us" ? 200 : 409);
+      expect((await uploadFor(baseUrl, `req-consent-${reason}`)).status).toBe(409);
+      expect(written.size).toBe(0);
+    });
+  });
+});
+
 /** A well-formed upload for a site that cleared the screen. */
 async function uploadFor(baseUrl: string, requestId: string, bytes = "x") {
   const token = tokenFrom(captureUploadUrlFor(requestId));

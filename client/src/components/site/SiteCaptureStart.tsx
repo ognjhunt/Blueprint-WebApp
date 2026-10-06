@@ -1,5 +1,5 @@
 import { isLikelyPhone } from "@/lib/device";
-/** Start with a task and capture permission; assess the work from its evidence. */
+/** Start with a description; recording authority is separate. */
 import { useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
@@ -15,6 +15,7 @@ import {
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
@@ -204,6 +205,7 @@ export function SiteCaptureStart() {
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
   const [consent, setConsent] = useState(false);
+  const [descriptionAuthority, setDescriptionAuthority] = useState(false);
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
   // Whether the phone handoff below is worth anything here. This form is
@@ -214,7 +216,8 @@ export function SiteCaptureStart() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (operationInFlight.current || state.status === "working" || loading || !consent
+    if (operationInFlight.current || state.status === "working" || loading || !descriptionAuthority
+      || (footageWanted && !consent)
       || (claudeAuthoringRequested && !claudeConsent)
       || (solAgentsRequested && !solAgentsConsent)) return;
     // A typed address that never resolved to a country: ask now, once, rather
@@ -264,14 +267,19 @@ export function SiteCaptureStart() {
           // Someone who already has the video is not asking for a visit.
           captureMode: hasFootage || selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
-          hasExistingFootage: hasFootage,
+          hasExistingFootage: footageWanted,
           filmerContact: !hasFootage && selfRecording && delegatedFilming ? filmerContact.trim() || undefined : undefined,
           // The grant, not just the ticked box: recorded server-side with the
           // sentence version, or the submission is refused.
-          consentAttestation: {
-            granted: consent,
-            statementVersion: RIGHTS_STATEMENT_VERSION,
+          descriptionOnly: !consent,
+          descriptionAuthority: {
+            granted: descriptionAuthority,
+            statementVersion: DESCRIPTION_AUTHORITY_VERSION,
           },
+          consentAttestation: consent ? {
+            granted: true,
+            statementVersion: RIGHTS_STATEMENT_VERSION,
+          } : null,
           ...(claudeAuthoringRequested ? { claudeAuthoringConsent: {
             granted: claudeConsent,
             statementVersion: "2026-09-24.v1",
@@ -359,7 +367,7 @@ export function SiteCaptureStart() {
         selfRecording: selfRecording || hasFootage,
         email,
         regionApproved,
-        hasFootage,
+        hasFootage: footageWanted,
         uploaded,
         uploadMessage,
         processingRetryAvailable,
@@ -380,7 +388,16 @@ export function SiteCaptureStart() {
       <div className="ms-form" aria-live="polite">
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
-        {!state.regionApproved ? (
+        {!state.hasFootage && state.captureUrl && !captureReceived ? (
+          <>
+            <h2 style={{ marginTop: 0 }}>Your job description is saved.</h2>
+            <p className="ms-field-hint">Review and correct your job brief. You can add footage later, once you have recording permission.</p>
+            <p><a className="ms-button ms-button-large" href={state.captureUrl}>Review your job brief</a></p>
+            {!state.regionApproved && <p className="ms-field-hint">{captureRegionHeldNotice}</p>}
+            <p className="ms-field-hint">Keep this private link to return to your job. We will also email it to {state.email}.</p>
+            <CaptureLiveStatus captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
+          </>
+        ) : !state.regionApproved ? (
           <>
             <h2 style={{ marginTop: 0 }}>We have your site.</h2>
             <p className="ms-field-hint">{captureRegionHeldNotice}</p>
@@ -605,7 +622,7 @@ export function SiteCaptureStart() {
                 Their email <span className="ms-optional">(optional)</span>
               </span>
               <span className="ms-field-hint">
-                Add their email and we will send them a record-only link — they can film and upload,
+                Once recording permission is confirmed, add their email and we will send them a record-only link — they can film and upload,
                 and only you can confirm the job brief.
               </span>
               <input
@@ -716,21 +733,24 @@ export function SiteCaptureStart() {
         />
       </div>
 
+      <label htmlFor="start-description-authority" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
+        <input id="start-description-authority" type="checkbox" required checked={descriptionAuthority}
+          onChange={(event) => setDescriptionAuthority(event.target.checked)}
+          style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
+        <span style={{ fontWeight: 400 }}>{DESCRIPTION_AUTHORITY_STATEMENT}</span>
+      </label>
       <label htmlFor="start-rights" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
         <input
           id="start-rights"
           name="startRights"
           type="checkbox"
-          required
+          required={footageWanted}
           checked={consent}
           onChange={(event) => setConsent(event.target.checked)}
           style={{ width: "auto", minHeight: 0, marginTop: "4px" }}
         />
-        {/* The only thing on this form that blocks, because it is a legal act
-            rather than a judgement about whether the site is any good. The
-            grant is transmitted and stored with the sentence version — a tick
-            the server never heard about protects nobody. */}
         <span style={{ fontWeight: 400 }}>
+          <span className="ms-field-hint">Required before adding footage; optional for a description.</span>{" "}
           I am authorized to record this site and to let Blueprint use the recording to build a
           scene robot teams can evaluate against.
         </span>
@@ -742,7 +762,7 @@ export function SiteCaptureStart() {
       </p>
       <p className="ms-form-note">
         Still arranging recording permission?{" "}
-        <a href="mailto:hello@tryblueprint.io">Talk to us about the job</a> before starting this capture.
+        You can start with the description and review your brief now.
       </p>
 
       {state.status === "failed" && (
