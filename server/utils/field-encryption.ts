@@ -656,6 +656,7 @@ export async function encryptInboundRequestForStorage<
         )
       ),
       consent_attestation: request.request.consent_attestation ?? null,
+      description_authority: request.request.description_authority ?? null,
       claude_authoring_consent: request.request.claude_authoring_consent ?? null,
       sol_agents_api_consent: request.request.sol_agents_api_consent ?? null,
       targetSiteType: await encryptOptionalField(
@@ -751,6 +752,7 @@ export async function decryptInboundRequestForAdmin<
       capture_mode: request.request.capture_mode ?? null,
       capture_region: request.request.capture_region ?? null,
       has_existing_footage: request.request.has_existing_footage ?? null,
+      description_authority: request.request.description_authority ?? null,
       siteTaskSpec: request.request.siteTaskSpec ?? null,
       taskDescription: await decryptOptionalField(
         request.request.taskDescription ?? null
