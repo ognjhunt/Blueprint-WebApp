@@ -43,6 +43,8 @@ import {
   taskItemImagePath,
 } from "../utils/taskItemInventory";
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
+import { canGrantInitialRecordingConsent } from "../utils/descriptionAuthority";
+import { hasCurrentRecordingConsent, RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
 import { enqueueCoverageReview } from "../utils/captureCoverageQueue";
@@ -1004,12 +1006,43 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
     blockers: authorization.blockers,
     openQuestions: authorization.openQuestions,
     selfCaptureSwitchAvailable: authorization.captureMode === "site_visit" && payload.scope === "owner",
+    recordingConsentAvailable: payload.scope === "owner" && authorization.recordingConsentAvailable === true,
   });
 }
 
 /** Safe diagnostic/status read even when an old app or browser upload is held. */
 router.get("/:token/status", (req, res) => respondCaptureUploadStatus(req, res, false));
 router.get("/:token", (req, res) => respondCaptureUploadStatus(req, res, true));
+
+/** An owner can authorize future footage after describing the job. No upload,
+ * processing, listing, fee or old-receipt consent is authorized by this write. */
+router.post("/:token/recording-consent", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) return res.status(404).json({ error: "This job link is not valid or has expired." });
+  if (payload.scope !== "owner") return res.status(403).json({ error: "Use the site owner's job link to confirm recording permission." });
+  const parsed = z.object({ granted: z.literal(true), statementVersion: z.literal(RECORDING_CONSENT_VERSION) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Review the recording permission and explicitly confirm it." });
+  if (!dbAdmin) return res.status(503).json({ error: "We could not save recording permission. Try again shortly." });
+  try {
+    const outcome = await dbAdmin.runTransaction(async tx => {
+      const ref = dbAdmin!.collection("inboundRequests").doc(payload.requestId);
+      const snap = await tx.get(ref), record = snap.data();
+      if (!snap.exists) return "missing";
+      if (record?.request?.buyerType === "site_operator" && hasCurrentRecordingConsent(record.request.consent_attestation)
+        && !projectWebsiteCaptureRights(record).consent_revoked) return "existing";
+      if (!canGrantInitialRecordingConsent(record)) return "held";
+      tx.set(ref, { request: { consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION,
+        recorded_at_iso: new Date().toISOString(), recorded_by: "signed_owner_link" } } }, { merge: true });
+      return "granted";
+    });
+    if (outcome === "missing") return res.status(404).json({ error: "This link does not point at a job we hold." });
+    if (outcome === "held") return res.status(409).json({ error: "Recording permission needs review. Contact hello@tryblueprint.io with your job link." });
+    return res.json({ ok: true });
+  } catch (error) {
+    logger.warn({ requestId: payload.requestId }, "Could not save initial recording permission");
+    return res.status(503).json({ error: "We could not save recording permission. Try again shortly." });
+  }
+});
 
 /** Replay a retained producer, never upload bytes or grant a new paid run. */
 router.post("/:token/processing-retry", async (req: Request, res: Response) => {

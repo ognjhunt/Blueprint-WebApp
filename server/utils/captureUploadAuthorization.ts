@@ -35,6 +35,7 @@
  */
 
 import { hasCurrentRecordingConsent } from "./recordingConsent";
+import { canGrantInitialRecordingConsent } from "./descriptionAuthority";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decideDispatchForRequest } from "../agents/workflows";
 import type { InboundRequest } from "../types/inbound-request";
@@ -57,6 +58,8 @@ export interface CaptureUploadAuthorization {
   openQuestions: string[];
   /** What the site chose at intake, when known; a visit can be switched to self-capture. */
   captureMode?: string | null;
+  /** Only an owner of a new prose-only job may make its first recording grant. */
+  recordingConsentAvailable?: boolean;
 }
 
 function held(
@@ -107,7 +110,8 @@ export async function authorizeCaptureUpload(
   }
 
   if (!hasCurrentRecordingConsent(request.request?.consent_attestation)) {
-    return held("recording_consent_required", "The site owner must confirm the current recording permission before uploading.", request);
+    return { ...held("recording_consent_required", "The site owner must confirm the current recording permission before uploading.", request),
+      recordingConsentAvailable: canGrantInitialRecordingConsent(request) };
   }
 
   // `requiresHumanReview` is false here on purpose, and it is worth saying why:
