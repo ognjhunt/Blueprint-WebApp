@@ -314,7 +314,7 @@ export async function runScreenContactRefresh(deps: ScreenIntakeDependencies) {
       } catch (error) {
         const reason = reasonOf(error, "contact_refresh_failed");
         if (reason === CONTACT_CLAIM_CHANGED) break;
-        const restore = reason === HYPOTHESIS_DRAFTS_DISABLED;
+        const restore = !hypothesisDraftsEnabled() || reason === HYPOTHESIS_DRAFTS_DISABLED;
         const transient = /contact_fetch_(?:timeout|dns_timeout|incomplete|failed)|ECONN|ENOTFOUND|EAI_AGAIN/.test(reason) && claim.attempts < 2;
         await deps.db.runTransaction(async tx => {
           const current = (await tx.get(doc.ref)).data();

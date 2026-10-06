@@ -128,6 +128,20 @@ describe("site-screen admission (synthetic, offline)", () => {
     expect(f.records("refreshRequests").some(x => x.owner === "blueprint-research-agent" && x.kind === "research_owner_refresh")).toBe(true);
     expect(f.records("jobs")).toHaveLength(0);
   });
+  it("restores contact attempts when a failed fetch observes the flag off", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true"); const f = setup();
+    await recordScreenHypotheses(f.snapshot, f.deps); await admitScreenHypothesis(f.snapshot, f.siteKey, f.deps);
+    f.deps.readContactPage.mockImplementation(async () => {
+      vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+      throw new Error("screen_contact_address_not_on_fresh_page");
+    });
+    await runScreenContactRefresh(f.deps);
+    expect(f.records("refreshRequests")).toHaveLength(1);
+    expect(f.records("refreshRequests")[0]).toMatchObject({ state: "pending", attempts: 0 });
+    expect(f.records("refreshRequests")[0].lease.until).toBe(0);
+    expect(f.records("jobs")).toHaveLength(0);
+    expect(f.records("refreshRequests").some(x => x.kind === "research_owner_refresh")).toBe(false);
+  });
   it("does not spend on a queued screen draft after the flag is turned off", async () => {
     vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true"); const f = setup(4);
     await recordScreenHypotheses(f.snapshot, f.deps); await admitScreenHypothesis(f.snapshot, f.siteKey, f.deps); await runScreenContactRefresh(f.deps);
