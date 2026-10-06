@@ -1,9 +1,10 @@
 /**
- * Two public entry points. Keep the form before supporting details, and keep
+ * Two public entry points. Keep the application after a concise team invitation,
+ * the site form before supporting details, and keep
  * assessment, match-fee authorization and buying a pilot as distinct actions.
  */
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
@@ -20,17 +21,44 @@ export default function Contact() {
       <>
         <SEO
           title="Early access for robot teams | Blueprint"
-          description="Robot teams can bring documented capabilities to scoped site jobs and focus on physical trials they can support. Apply for early access."
+          description="Your next pilot starts with real work. Explore suitable site jobs, clear evaluation criteria and preparation for a measured customer pilot. Free evaluations for invited robot teams."
           canonical="/contact/robot-team"
         />
-        <section className="ms-container ms-task-page">
-          <p className="ms-eyebrow">For robot teams</p>
-          <h1>Find a job your robot can support.</h1>
-          <p>Find relevant site jobs and evaluate them for free when invited. You confirm the configuration, price, timing and site conditions before a customer sees your offer.</p>
+        <section className="ms-beta-hero ms-container" aria-labelledby="robot-team-title">
+          <div className="ms-beta-copy">
+            <p className="ms-eyebrow">For robot teams</p>
+            <h1 id="robot-team-title">Your next pilot starts with real work.</h1>
+            <p>Bring your robot and the work you want to pursue. We’ll explore suitable site jobs and what a measured customer pilot would require.</p>
+            <ul className="ms-beta-benefits">
+              <li>A suitable site task</li>
+              <li>Clear evaluation criteria</li>
+              <li>Preparation for a customer pilot</li>
+            </ul>
+            <a className="ms-button" href="#robot-team-access">Join the robot-team beta <ArrowRight size={20} aria-hidden="true" /></a>
+            <p className="ms-beta-free">Free evaluations for invited robot teams. A physical pilot is agreed separately with the site.</p>
+          </div>
+          <div className="ms-beta-example">
+            <figure>
+              <img
+                src="/illustrations/task-evaluation/03-humanoid-evaluation.webp"
+                srcSet="/illustrations/task-evaluation/03-humanoid-evaluation-840.webp 840w, /illustrations/task-evaluation/03-humanoid-evaluation.webp 1672w"
+                sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 1000px) calc(100vw - 64px), (max-width: 1536px) 52vw, 734px"
+                width={1672}
+                height={941}
+                fetchPriority="high"
+                alt="Illustrative simulation view: a humanoid supports a blue case above the empty tray pocket in a digital cutaway of the same warehouse workstation."
+              />
+              <figcaption className="ms-imagery-caption">Illustrative simulation view · Robot configuration shown as an example.</figcaption>
+            </figure>
+            <p className="ms-beta-embodiments">Arms, mobile manipulators and humanoids. One task at a time.</p>
+          </div>
+        </section>
+        <section className="ms-container ms-task-page ms-beta-access" id="robot-team-access" aria-label="Robot-team access">
           <TaskBrowse />
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What happens after applying?</summary>
             <p>We review your robot's capabilities, the work you want and where you can support a pilot, then email the next step. Approved teams can see shared job details; applying does not commit you to an integration or a pilot.</p>
+            <p>You confirm the configuration, price, timing and site conditions before a customer sees your offer.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. Executable submissions use a policy endpoint or container; compatibility must be checked for the specific task.</p>
             <p>During the beta, evaluate for a pilot for free when invited; the site sees those results. A physical on-site trial is agreed separately with the site.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
@@ -60,7 +88,7 @@ export default function Contact() {
           <p className="ms-eyebrow">For site owners</p>
           <h1>Start with one recurring job.</h1>
           <p className="ms-inquiry-description">
-            Describe the work and confirm recording permission. Add a phone video if you have one. Starting is free; you do not need an approved budget.
+            Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.
           </p>
         </div>
         <div className="ms-inquiry-forms">
@@ -81,7 +109,7 @@ export default function Contact() {
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What should I record?</summary>
             <p className="ms-field-hint">Show one complete task cycle, the objects and where they start and finish, then the surrounding work area. Existing footage is welcome. Avoid screens, paperwork and restricted areas, and get permission to record.</p>
-            <p className="ms-field-hint">If filming needs approval, <a href={`mailto:${CONTACT_EMAIL}`}>talk to us about the job</a> while you arrange permission. Have someone who knows the job review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
+            <p className="ms-field-hint">If filming needs approval, submit the job description while you arrange permission. Have someone who knows the job review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "20px" }}>
             <a className="ms-text-link" href="/contact/robot-team">

@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 test("legacy robot-team evaluation URL reaches the job library for an approved team", async ({ page }) => {
   await page.goto("/robot-team/eval");
   await expect(page).toHaveURL(/\/contact\/robot-team/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Find a job your robot can support.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your next pilot starts with real work.");
   await expect(page.getByRole("region", { name: "Job library" })).toBeVisible();
   await expect(page.getByText("The first site jobs are being prepared.")).toBeVisible();
   await expect(page.getByRole("button", { name: "See what we would run" })).toHaveCount(0);
@@ -25,7 +25,7 @@ test("persona aliases separate site buyers from participating robot teams", asyn
   const gated = { items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } };
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ json: gated }));
   await page.goto("/for-robot-teams");
-  await expect(page.getByText(/Find relevant site jobs and evaluate them for free when invited/)).toBeVisible();
+  await expect(page.getByText(/Free evaluations for invited robot teams\./, { exact: false }).first()).toBeVisible();
   // Outside early access, the page is the application, not the library.
   await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
   await expect(page.getByText("Already have a robot policy to evaluate? Register it and see a plan", { exact: true })).toHaveCount(0);

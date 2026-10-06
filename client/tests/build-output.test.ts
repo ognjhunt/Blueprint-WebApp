@@ -235,7 +235,12 @@ describe("build output", () => {
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("One recurring job.");
     expect(homeHtml).toContain("A measured robot pilot.");
-    expect(homeHtml).toContain("Illustrative scenes");
+    expect(homeHtml).toContain("Illustrative workflow");
+    expect(homeHtml).toContain("The same task, in simulation.");
+    expect(homeHtml).toContain("Can the robot take a case from the tote and place it flat in the empty pocket?");
+    expect(homeHtml).toContain("cycle-time target · successful-placement target · allowed manual assistance");
+    expect(homeHtml).toContain("/illustrations/task-evaluation/01-task-capture.webp");
+    expect(homeHtml).toContain("/illustrations/task-evaluation/02-arm-evaluation.webp");
     expect(homeHtml).toContain("No match, no fee.");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
@@ -247,7 +252,7 @@ describe("build output", () => {
     // The published site form keeps the task and consent, without the retired
     // screening interview. These assertions inspect actual prerendered HTML.
     expect(siteHtml).toContain("What is the job?");
-    expect(siteHtml).toContain("Describe the work and confirm recording permission. Add a phone video if you have one. Starting is free; you do not need an approved budget.");
+    expect(siteHtml).toContain("Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.");
     expect(siteHtml).toContain("How this works");
     expect(siteHtml).toContain('id="start-self-recording"');
     // The country comes from the address; its select opens only to correct it.
@@ -255,10 +260,13 @@ describe("build output", () => {
     expect(siteHtml).toMatch(/<input[^>]*id="start-name"[^>]*required/);
     expect(siteHtml).toMatch(/<input[^>]*id="start-company"[^>]*required/);
     expect(siteHtml).toContain('id="start-rights"');
+    expect(siteHtml).toContain('id="start-description-authority"');
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
-    expect(robotHtml).toContain("Find a job your robot can support.");
-    expect(robotHtml).toContain("Find relevant site jobs and evaluate them for free when invited.");
+    expect(robotHtml).toContain("Your next pilot starts with real work.");
+    expect(robotHtml).toContain("Free evaluations for invited robot teams.");
+    expect(robotHtml).toContain("Illustrative simulation view");
+    expect(robotHtml).toContain("/illustrations/task-evaluation/03-humanoid-evaluation.webp");
     // The application is public; tasks and executable plans still wait for
     // server access approval.
     expect(robotHtml).not.toContain("Already have a robot policy to evaluate?");

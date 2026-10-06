@@ -43,9 +43,19 @@ const written = vi.hoisted(() => new Map<string, string>());
 const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
 const generations = vi.hoisted(() => ({ next: 1 }));
 const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
+const cleanupGate = vi.hoisted(() => ({ current: null as null | { wait: Promise<void> } }));
 const writeFault = vi.hoisted(() => ({ manifestOnce: false, markerOnce: false, readUnavailable: false,
   manifestError: null as unknown, manifestResponseSize: undefined as unknown,
   beforeManifestExists: null as null | (() => void) }));
+
+vi.mock("node:fs/promises", async importOriginal => {
+  const original = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...original, unlink: async (path: Parameters<typeof original.unlink>[0]) => {
+    const gate = cleanupGate.current;
+    if (gate && typeof path === "string" && path.includes("/self-capture-")) await gate.wait;
+    return original.unlink(path);
+  } };
+});
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -240,6 +250,7 @@ beforeEach(() => {
   storedVersions.clear();
   generations.next = 1;
   writeGate.current = null;
+  cleanupGate.current = null;
   writeFault.manifestOnce = false;
   writeFault.markerOnce = false;
   writeFault.readUnavailable = false;
@@ -252,6 +263,82 @@ beforeEach(() => {
     outcome: "cleared",
     detail: null,
     evidence: null,
+  });
+});
+
+describe("description-only owner can explicitly authorize future footage", () => {
+  function seedDescription(requestId: string) {
+    seedRequest(requestId, { disposition: "qualified" });
+    const record = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`) as Record<string, any>;
+    record.request.consent_attestation = null;
+    record.request.description_authority = { granted: true, statement_version: "2026-10-06.v1", recorded_at_iso: "2026-10-06T00:00:00Z" };
+    return record;
+  }
+  const grant = { granted: true, statementVersion: "2026-09-18.v1" };
+  async function consent(baseUrl: string, requestId: string, body: unknown = grant, scope: "owner" | "film" = "owner") {
+    const token = tokenFrom(captureUploadUrlFor(requestId, scope));
+    return fetch(`${baseUrl}/api/self-capture/uploads/${token}/recording-consent`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+  }
+  it("holds footage before the explicit owner grant, then allows a separately submitted upload", async () => {
+    seedDescription("req-description");
+    await withRoutes(async baseUrl => {
+      expect((await uploadStatus(baseUrl, "req-description")).body).toMatchObject({ state: "held", recordingConsentAvailable: true });
+      expect((await uploadFor(baseUrl, "req-description")).status).toBe(409);
+      expect(written.size).toBe(0);
+      expect((await consent(baseUrl, "req-description")).status).toBe(200);
+      const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-description") as Record<string, any>;
+      expect(record.request.consent_attestation).toMatchObject({ granted: true, statement_version: "2026-09-18.v1", recorded_by: "signed_owner_link" });
+      expect(record.request.consent_attestation.recorded_at_iso).toBeTruthy();
+      expect(written.size).toBe(0);
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+      expect((await uploadFor(baseUrl, "req-description")).status).toBe(201);
+    });
+  });
+  it.each([{}, { granted: false }, { granted: true, statementVersion: "old" }, { ...grant, matchFee: true }])("does not infer permission from an incomplete or broadened request (%j)", async body => {
+    seedDescription("req-description-denied");
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, "req-description-denied", body)).status).toBe(400);
+      expect(written.size).toBe(0);
+    });
+  });
+  it("refuses a film-only link", async () => {
+    seedDescription("req-description-film");
+    await withRoutes(async baseUrl => expect((await consent(baseUrl, "req-description-film", grant, "film")).status).toBe(403));
+  });
+  it.each(["root", "request", "capture_rights"])("preserves canonical withdrawal at %s for absent and existing grants", async location => {
+    for (const existing of [false, true]) for (const tombstone of [
+      { consent_revoked_at: "2026-10-05T00:00:00Z" }, { consent_status: "revoked" }, { future_processing_allowed: false },
+    ]) {
+      const requestId = `req-withdrawal-${location}-${existing}-${Object.keys(tombstone)[0]}`;
+      const record = seedDescription(requestId);
+      if (existing) record.request.consent_attestation = { granted: true, statement_version: grant.statementVersion, recorded_at_iso: "2026-10-01T00:00:00Z" };
+      const target = location === "root" ? record : location === "request" ? record.request : (record.capture_rights = {});
+      Object.assign(target, tombstone);
+      const original = structuredClone(record.request.consent_attestation);
+      await withRoutes(async baseUrl => {
+        expect((await uploadStatus(baseUrl, requestId)).body.recordingConsentAvailable).toBe(false);
+        expect((await consent(baseUrl, requestId)).status).toBe(409);
+        expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`) as any).request.consent_attestation).toEqual(original);
+        expect(written.size).toBe(0);
+      });
+    }
+  });
+  it.each(["root_revoked", "request_revoked", "stale", "withdrawn", "description_revoked", "missing_authority", "non_us"])("never clears a different rights or region hold (%s)", async reason => {
+    const record = seedDescription(`req-consent-${reason}`);
+    if (reason === "root_revoked") record.consent_revoked = true;
+    if (reason === "request_revoked") record.request.consent_revoked = true;
+    if (reason === "stale") record.request.consent_attestation = { ...grant, statement_version: "old", recorded_at_iso: "2026-10-01T00:00:00Z" };
+    if (reason === "withdrawn") record.request.consent_attestation = { granted: true, statement_version: grant.statementVersion, recorded_at_iso: "2026-10-01T00:00:00Z", withdrawn_at_iso: "2026-10-02T00:00:00Z" };
+    if (reason === "description_revoked") record.request.description_authority.revoked_at_iso = "2026-10-05T00:00:00Z";
+    if (reason === "missing_authority") record.request.description_authority = null;
+    if (reason === "non_us") record.request.capture_region = "non_us";
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, `req-consent-${reason}`)).status).toBe(reason === "non_us" ? 200 : 409);
+      expect((await uploadFor(baseUrl, `req-consent-${reason}`)).status).toBe(409);
+      expect(written.size).toBe(0);
+    });
   });
 });
 
@@ -289,7 +376,42 @@ async function retryProcessing(baseUrl: string, requestId: string) {
   return { status: response.status, body: await response.json() as Record<string, any> };
 }
 
+async function waitForUploadRelease(requestId: string) {
+  // An HTTP response can arrive while the route still awaits temp-file cleanup.
+  // Recovery owns a separate reservation only after the original one is released.
+  await vi.waitFor(() => expect(sharedFakeFirestoreState.docs.get(
+    `captureUploadSessions/walkthrough-${requestId}`,
+  )).toMatchObject({ browser_upload_reservation: null }), { timeout: 5000, interval: 10 });
+}
+
 describe("saved footage and processing are separate receipts", () => {
+  it("keeps an interrupted upload reserved through cleanup before admitting processing retry", async () => {
+    seedRequest("req-cleanup-drain", { disposition: "qualified" });
+    writeFault.manifestOnce = true;
+    let releaseCleanup!: () => void;
+    cleanupGate.current = { wait: new Promise<void>(resolve => { releaseCleanup = resolve; }) };
+    try {
+      await withRoutes(async baseUrl => {
+        expect(await uploadFor(baseUrl, "req-cleanup-drain", "original video"))
+          .toMatchObject({ status: 502, body: { captureReceived: true, state: "processing_pending" } });
+        const sessionPath = "captureUploadSessions/walkthrough-req-cleanup-drain";
+        const originalReservation = sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation;
+        expect(originalReservation).toMatchObject({ capture_id: "walkthrough-req-cleanup-drain" });
+        const versions = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
+        expect(await retryProcessing(baseUrl, "req-cleanup-drain"))
+          .toMatchObject({ status: 409, body: { code: "capture_retry_in_progress" } });
+        expect(sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation).toEqual(originalReservation);
+        expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
+        releaseCleanup();
+        await waitForUploadRelease("req-cleanup-drain");
+        expect(await retryProcessing(baseUrl, "req-cleanup-drain"))
+          .toMatchObject({ status: 200, body: { state: "processing_ready" } });
+        expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
+        await waitForUploadRelease("req-cleanup-drain");
+      });
+    } finally { releaseCleanup(); cleanupGate.current = null; }
+  });
+
   it("records a numeric-size manifest write response without changing the video generation", async () => {
     seedRequest("req-sdk-manifest", { disposition: "qualified" });
     await withRoutes(async baseUrl => {
@@ -331,8 +453,10 @@ describe("saved footage and processing are separate receipts", () => {
         const versions = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
         writeFault.manifestError = null;
         writeFault.manifestResponseSize = undefined;
+        await waitForUploadRelease("req-safe-diagnostic");
         expect((await retryProcessing(baseUrl, "req-safe-diagnostic")).status).toBe(200);
         expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
+        await waitForUploadRelease("req-safe-diagnostic");
       });
     } finally { log.mockRestore(); }
   });

@@ -51,6 +51,7 @@ test("capture takes the country from the address, asks only when it cannot, and 
   await page.locator("#start-company").fill("Acme Foods");
   // The country is not a question up front: the address answers it.
   await expect(page.locator("#start-region")).toHaveCount(0);
+  await page.locator("#start-description-authority").check();
   await page.locator("#start-rights").check();
   // A typed address never resolved to a country, so Start asks for it once.
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
