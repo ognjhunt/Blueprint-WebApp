@@ -31,18 +31,65 @@ function validWrittenObject(value: WrittenObject): boolean {
     && /^[A-Za-z0-9+/]{6}==$/.test(value.crc32c);
 }
 
+type WriteIdentityField = "object_name" | "generation" | "size" | "crc32c";
+class CaptureWriteIdentityError extends Error {
+  constructor(readonly identityField: WriteIdentityField) {
+    super("capture_write_identity_unavailable");
+  }
+}
+
+export type CaptureWriteStage = "task_context_read" | "capture_rights_read" | "manifest_build"
+  | "stored_upload_record" | "stored_video_verify" | "manifest_generation_read"
+  | "manifest_write" | "manifest_identity" | "pending_record";
+const safeWriteErrors = new Set([
+  "capture_write_identity_unavailable", "browser_manifest_write_unverified", "browser_delivery_source_changed",
+  "browser_pending_unavailable", "browser_pending_bundle_conflict", "browser_pending_changed",
+  "browser_pending_invalid", "browser_pending_conflict", "ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN",
+]);
+
+/** Log only fixed stages and known codes; SDK messages/objects can contain private data. */
+export function captureWriteFailureDiagnostic(stage: CaptureWriteStage, error: unknown): {
+  stage: CaptureWriteStage; code: string | number; identityField?: WriteIdentityField;
+} {
+  let suppliedCode: unknown;
+  let suppliedMessage: unknown;
+  try {
+    if (error instanceof CaptureWriteIdentityError) {
+      const identityField = error.identityField;
+      if (identityField === "object_name" || identityField === "generation" || identityField === "size" || identityField === "crc32c")
+        return { stage, code: "capture_write_identity_unavailable", identityField };
+    }
+    if (error && typeof error === "object") {
+      const candidate = error as { code?: unknown; message?: unknown };
+      // Snapshot unknown accessors once; diagnostics must not break the response.
+      suppliedCode = candidate.code;
+      suppliedMessage = candidate.message;
+    }
+  } catch {
+    return { stage, code: "unknown" };
+  }
+  const code = typeof suppliedCode === "number" && Number.isInteger(suppliedCode)
+    && (suppliedCode >= 1 && suppliedCode <= 16 || suppliedCode >= 100 && suppliedCode <= 599)
+    ? suppliedCode
+    : typeof suppliedCode === "string" && safeWriteErrors.has(suppliedCode) ? suppliedCode
+      : typeof suppliedMessage === "string" && safeWriteErrors.has(suppliedMessage) ? suppliedMessage : "unknown";
+  return { stage, code };
+}
+
 /** `metadata` is the response attached to this File by its completed write. */
 export function capturedWriteIdentity(objectName: string, metadata: unknown): WrittenObject {
   const value = metadata && typeof metadata === "object"
     ? metadata as Record<string, unknown> : {};
+  // Storage 7.21 resumable writes turn JSON size into a number before attaching
+  // File.metadata; simple writes and metadata reads preserve the decimal string.
+  // Byte counts are safe integers. Object generations remain exact strings.
   const size = typeof value.size === "string" && /^(0|[1-9][0-9]*)$/.test(value.size)
-    ? Number(value.size) : NaN;
-  if (value.name !== objectName || !validGeneration(value.generation)
-      || !Number.isSafeInteger(size) || size <= 0
-      || typeof value.crc32c !== "string"
-      || !/^[A-Za-z0-9+/]{6}==$/.test(value.crc32c)) {
-    throw new Error("capture_write_identity_unavailable");
-  }
+    ? Number(value.size) : typeof value.size === "number" ? value.size : NaN;
+  if (value.name !== objectName) throw new CaptureWriteIdentityError("object_name");
+  if (!validGeneration(value.generation)) throw new CaptureWriteIdentityError("generation");
+  if (!Number.isSafeInteger(size) || size <= 0) throw new CaptureWriteIdentityError("size");
+  if (typeof value.crc32c !== "string" || !/^[A-Za-z0-9+/]{6}==$/.test(value.crc32c))
+    throw new CaptureWriteIdentityError("crc32c");
   return { object_name: objectName, generation: value.generation,
     size_bytes: size, crc32c: value.crc32c };
 }
