@@ -5,9 +5,11 @@ planned as `codex/outreach-framing-web-20261006`. That branch was absent from th
 published repository on October 6. No existing branch was overwritten or force
 pushed. Original draft PR #876 starts from reviewed PR #872, commit
 `c986f040c704c551df434cd45240aa1ba1c8465a`. The launch candidate is instead
-`codex/outreach-launch-main-20261006`, based on live main
-`a5da2cbe38e764ab092b2e2e4f48fb39507c6ae3`, preserving PR #875's How It Works
-illustrations and browser proof. It reuses PR #872's Web phase2 hypothesis,
+`codex/outreach-launch-main-20261006`, initially constructed from main
+`a5da2cbe38e764ab092b2e2e4f48fb39507c6ae3` with PR #875's How It Works
+illustrations and browser proof. A normal merge then incorporated main
+`c4db1d2f61970efda3a226c9715345718a2064f5`, preserving PR #877's shorter
+walkthrough and its checks byte-for-byte. It reuses PR #872's Web phase2 hypothesis,
 contact and screen consumers without adopting its research archive, installed
 runtime, startup collector or deployment workflow. Those Pipeline/native
 publication changes remain with their release owner. The selected phase2 code
