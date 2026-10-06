@@ -1083,6 +1083,14 @@ describe("capture-first workspace intake", () => {
     captureMode: "self_capture", captureRegion: "us", hasExistingFootage: false,
     consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" },
   };
+  it("preserves explicit Terms and description authority for a signed-in prose submission", async () => {
+    const descriptionAuthority = { granted: true, statementVersion: "2026-10-06.v1" };
+    const response = await api("/capture-start", "site-1", { ...capture, descriptionOnly: true,
+      descriptionAuthority, acceptedTerms: true, consentAttestation: null });
+    expect(response.status).toBe(201);
+    expect(state.intakes.at(-1)).toMatchObject({ body: { acceptedTerms: true, descriptionOnly: true,
+      descriptionAuthority, consentAttestation: null, email: "site-1@example.com" }, metadata: { account_owner_uid: "site-1" } });
+  });
   it("binds new capture to the authenticated account, ignoring forged identity and permissions", async () => {
     const response = await api("/capture-start", "site-1", { ...capture, email: "forged@example.com", account_owner_uid: "site-2", siteTaskGates: { cleared: true } });
     expect(response.status).toBe(201);

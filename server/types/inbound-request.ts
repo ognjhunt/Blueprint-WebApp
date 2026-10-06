@@ -293,6 +293,8 @@ export interface RequestDetails {
   taskVideoUrls?: string[] | null;
   /** The rights-checkbox grant, recorded with the sentence version. Null = never asked. */
   consent_attestation?: ConsentAttestationRecord | null;
+  /** Authority to submit prose; grants no recording, publication or match fee. */
+  description_authority?: ConsentAttestationRecord | null;
   /** Explicit per-capture disclosure authority for Claude 3D authoring. */
   claude_authoring_consent?: ConsentAttestationRecord | null;
   /** Explicit per-capture disclosure authority for OpenAI managed-agent 3D authoring. */
@@ -1146,6 +1148,7 @@ export interface RequestDetailsStored {
   taskVideoUrls?: (EncryptableString | null)[] | null;
   /** The attestation fact: enum-like, queryable, and how a takedown proves its basis. */
   consent_attestation?: ConsentAttestationRecord | null;
+  description_authority?: ConsentAttestationRecord | null;
   targetSiteType?: EncryptableString | null;
   proofPathPreference?: ProofPathPreference | null;
   existingStackReviewWorkflow?: EncryptableString | null;
@@ -1239,6 +1242,9 @@ export interface InboundRequestPayload {
   taskVideoUrls?: string[] | null;
   /** The rights-checkbox grant from the site forms. Absent = client predated the field. */
   consentAttestation?: ConsentAttestationInput | null;
+  /** Description-only admission preserves the recording hold until a separate grant. */
+  descriptionOnly?: boolean;
+  descriptionAuthority?: ConsentAttestationInput | null;
   /** Only sent by the scoped Claude development-test website form. */
   claudeAuthoringConsent?: ConsentAttestationInput | null;
   /** Only sent by the scoped GPT-6.1 Sol managed-agent development-test website form. */

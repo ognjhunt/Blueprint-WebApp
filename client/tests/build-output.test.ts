@@ -252,7 +252,7 @@ describe("build output", () => {
     // The published site form keeps the task and consent, without the retired
     // screening interview. These assertions inspect actual prerendered HTML.
     expect(siteHtml).toContain("What is the job?");
-    expect(siteHtml).toContain("Describe the work and confirm recording permission. Add a phone video if you have one. Starting is free; you do not need an approved budget.");
+    expect(siteHtml).toContain("Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.");
     expect(siteHtml).toContain("How this works");
     expect(siteHtml).toContain('id="start-self-recording"');
     // The country comes from the address; its select opens only to correct it.
@@ -260,6 +260,7 @@ describe("build output", () => {
     expect(siteHtml).toMatch(/<input[^>]*id="start-name"[^>]*required/);
     expect(siteHtml).toMatch(/<input[^>]*id="start-company"[^>]*required/);
     expect(siteHtml).toContain('id="start-rights"');
+    expect(siteHtml).toContain('id="start-description-authority"');
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Your next pilot starts with real work.");
