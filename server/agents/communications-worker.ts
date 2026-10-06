@@ -37,6 +37,8 @@ import { createNativeLearningHooks, REVIEWED_NATIVE_LEARNING_CONFIG } from "../r
 import { getCompanyHistoryAccess } from "./operator-tools";
 import { runCommunicationsGmailDraftCopies } from "./communications-gmail-draft";
 import { founderSentRepliesAllowed, runCommunicationsFounderSentObserver } from "./communications-founder-sent-observer";
+import { claimCommunicationsWorkerLap, CommunicationsWorkerLapError, COMMUNICATIONS_WORKER_LAP_RENEW_MS,
+  type CommunicationsWorkerLap } from "./communications-release-lease";
 
 type CommunicationsLearningHooks = Pick<ReturnType<typeof createNativeLearningHooks>, "prepareNativeJob" | "afterNativeWork">;
 type PreparedLearning = Awaited<ReturnType<CommunicationsLearningHooks["prepareNativeJob"]>>;
@@ -571,7 +573,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
     sendAutomatic: executeAutomaticFirstContact,
   };
   return startCommunicationsQueueLoop(deps, {
-    canStartTick: () => communicationsResearchReleaseAllowsTick(db, deps.now),
+    claimLap: () => claimCommunicationsWorkerLap(db, deps.now),
     observeFounderSends: async canContinue => {
     // Read-only and default off: flag, send-off state, owner direction and
     // durable read capability all gate it before any Gmail call.
@@ -583,50 +585,70 @@ export function startCommunicationsWorker(): () => Promise<void> {
       const code = error instanceof Error && /^[a-z_][a-z0-9_]*$/.test(error.message) ? error.message : "founder_sent_observer_unavailable";
       logger.warn({ code }, "Founder-sent observation waits for its owner direction and read capability");
     }
-  }, intake: async () => {
+  }, intake: async canContinue => {
+    if (!canContinue()) return;
     await runCommunicationsFactRefresh(db);
+    if (!canContinue()) return;
     // Bound-thread opt-outs run before unrelated intake and the paid gate.
     await runCommunicationsReplyIntake({ db, readResearch: deps.readResearch, readThread: deps.readThread,
       isSuppressed: deps.isSuppressed, suppress: deps.suppress, now: deps.now,
       founderSentRepliesAllowed: () => founderSentRepliesAllowed(db) });
+    if (!canContinue()) return;
     await runCommunicationsIntake({ db, readResearch: deps.readResearch,
       isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readResearchContactPage,
       requestContactResearch: (source, prospectId, reason) => requestNativeContactResearch(db, source, prospectId, reason, deps.now()),
       readContactDiscovery: (source, prospectId) => readNativeContactDiscovery(db, source, prospectId) });
+    if (!canContinue()) return;
     const screenDeps = { db, readResearch: deps.readResearch, readScreenAdmission: deps.readScreenAdmission,
       isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readResearchContactPage };
     await runScreenAdmissionIntake(screenDeps);
+    if (!canContinue()) return;
     await runScreenContactRefresh(screenDeps);
   }, copyDrafts: canContinue => runCommunicationsGmailDraftCopies(db, undefined, undefined, canContinue), processJobs: allowPaidInference });
 }
 
 /** Stop admission immediately, then await the active job and its durable writes. */
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
-  options: { canStartTick?: () => Promise<boolean>; observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: () => Promise<void>;
+  options: { canStartTick?: () => Promise<boolean>; claimLap?: () => Promise<CommunicationsWorkerLap | null>;
+    observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: (canContinue: () => boolean) => Promise<void>;
     copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
   let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
   let automaticCursor: string | undefined;
   const tick = async () => {
+    let lap: CommunicationsWorkerLap | null = null, leaseLost = false;
+    let renewal: Promise<void> | null = null, renewTimer: ReturnType<typeof setInterval> | undefined;
+    const canContinue = () => !stopped && !leaseLost && !renewal && (!lap || lap.canContinue());
+    const admit = async () => { await renewal; return canContinue(); };
     try {
-      // Fence each future lap before even intake can claim its separate scanner lease.
-      // Already-running work still drains; the release owner's pre/under-lease inventory
-      // must refuse any incomplete lap rather than treating this read as an atomic claim.
-      if (options.canStartTick && !await options.canStartTick()) return;
-      if (stopped) return;
+      // Production owns a durable whole-lap claim, atomically against release.
+      // Optional legacy/injected loops retain their existing pre-read interface.
+      if (options.claimLap) {
+        lap = await options.claimLap();
+        if (!lap) return;
+        renewTimer = setInterval(() => {
+          if (!renewal && !leaseLost) renewal = lap!.renew().catch(error => {
+            leaseLost = true;
+            logger.warn({ code: error instanceof CommunicationsWorkerLapError ? error.code : "communications_worker_lap_renew_unavailable" },
+              "Communications lap waits for lease recovery");
+          }).finally(() => { renewal = null; });
+        }, COMMUNICATIONS_WORKER_LAP_RENEW_MS);
+        renewTimer.unref();
+      } else if (options.canStartTick && !await options.canStartTick()) return;
+      if (!await admit()) return;
       // Bound-thread opt-out intake runs first. Founder-send observation follows
       // in its own failure boundary, so a slow or failing Gmail read never
       // delays opt-outs; a new observation feeds the next tick's intake.
-      if (options.intake) await options.intake();
-      if (stopped) return;
-      try { await options.observeFounderSends?.(() => !stopped); }
+      if (options.intake) await options.intake(canContinue);
+      if (!await admit()) return;
+      try { await options.observeFounderSends?.(canContinue); }
       catch { logger.warn({ code: "communications_founder_sent_observer_unavailable" }, "Founder-sent observation waits for its owner direction and read capability"); }
-      if (stopped) return;
-      try { await options.copyDrafts?.(() => !stopped); }
+      if (!await admit()) return;
+      try { await options.copyDrafts?.(canContinue); }
       catch { logger.warn({ code: "communications_gmail_draft_copy_direction_unavailable" }, "Gmail staging waits for its retained copy direction"); }
-      if (stopped || options.processJobs === false) return;
+      if (!await admit() || options.processJobs === false) return;
       if (deps.sendAutomatic && automaticFirstContactEnabled()) {
         for (const job of await deps.store.automaticJobs(5, automaticCursor)) {
-          if (stopped) break;
+          if (!await admit()) break;
           // Advance before observing the send result so a corrupt/held row
           // cannot monopolize the next tick even when recovery throws.
           automaticCursor = job.jobId;
@@ -634,11 +656,25 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
           await deps.store.finishAutomatic(job, outcome);
         }
       }
+      if (!await admit()) return;
       for (const id of await deps.store.dueJobIds()) {
-        if (stopped) break;
+        if (!await admit()) break;
         await processCommunicationsJob(id, deps);
       }
-    } catch { logger.warn({ code: "communications_worker_tick_failed" }, "Communications worker requires recovery"); }
+    } catch (error) {
+      logger.warn({ code: error instanceof CommunicationsWorkerLapError ? error.code : "communications_worker_tick_failed" },
+        "Communications worker requires recovery");
+    } finally {
+      if (renewTimer) clearInterval(renewTimer);
+      await renewal;
+      // Stop waits for claim admission, every active stage and renewal, then
+      // owner/generation settlement. Uncertain/failed writes are never reset.
+      if (lap) try { await lap.release(); }
+      catch (error) {
+        logger.warn({ code: error instanceof CommunicationsWorkerLapError ? error.code : "communications_worker_lap_release_unavailable" },
+          "Communications lap drainage awaits its durable receipt");
+      }
+    }
   };
   const timer = setInterval(() => {
     if (!stopped && !activeTick) activeTick = tick().finally(() => { activeTick = null; });

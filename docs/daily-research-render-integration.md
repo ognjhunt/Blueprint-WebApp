@@ -118,6 +118,17 @@ holds that drained state across deployment; time until the next scheduled wake
 alone is insufficient. The source-only compare-and-set preserves historical
 rows and every authority, flag, grant and saved instruction pin. Final readback
 must show installed manifest source equal to the company control source.
+The production communications worker claims
+`blueprintCommunications/default/intakeState/workerLap` in the same Firestore
+transaction that reads the canonical research-release lease. Its
+`blueprint.communications-worker-lap.v1` record retains `phase`, unique lease
+owner, monotonic lease generation and expiry. The 180-second lease renews every
+60 seconds during the active lap and shutdown drainage. A failed or pending
+renewal prevents later stage admission; existing in-flight work remains awaited.
+Only the matching owner and generation can record `phase: complete` with
+`lease.until: 0` after drainage. The release inventory reads this same document;
+active or uncertain evidence blocks release even after expiry. Scanner/job
+leases and the canonical research lease are separate records and are unchanged.
 Older frozen create payloads retain their admitted bindings; this release does
 not perform the separate managed-harness or contact-agent design migrations.
 
