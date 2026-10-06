@@ -16,6 +16,7 @@ export function TaskBrowse() {
   const [region, setRegion] = useState("");
   const [availability, setAvailability] = useState("");
   const [access, setAccess] = useState<LibraryAccess | null>(null);
+  const [previewApplication, setPreviewApplication] = useState(false);
   const auth = useOptionalAuth();
   const currentUser = auth?.currentUser ?? null;
   useEffect(() => {
@@ -57,8 +58,16 @@ export function TaskBrowse() {
   // Anything other than an explicit "allowed" is the early-access page.
   const gated = state === "ready" && access !== null && !access.allowed;
   if (gated) return <RobotTeamEarlyAccess access={access} email={currentUser?.email ?? null} />;
+  // Say why the library shows instead of the application, so a signed-in
+  // viewer is never left guessing. Staff can still see the public form.
+  const viewer = currentUser && state === "ready" ? <p className="ms-field-hint" role="note">
+    Signed in as {currentUser.email ?? "your account"}
+    {access?.staff ? <> · staff view: you see what approved teams see. <button type="button" className="ms-text-link" onClick={() => setPreviewApplication(!previewApplication)}>{previewApplication ? "Back to the job library" : "Preview the application form"}</button></> : access?.gated ? " · approved for early access." : null}
+  </p> : null;
+  if (previewApplication) return <>{viewer}<RobotTeamEarlyAccess access={null} email={null} /></>;
   const libraryEmpty = state === "ready" && items.length === 0;
   return <section aria-label="Job library">
+    {viewer}
     {!libraryEmpty && <details className="ms-browse-filters" open={!isLikelyPhone()}><summary>Filter jobs</summary>
     <div className="ms-task-filters">
       <label>Job<select aria-label="Filter by job" value={family} onChange={e => setFamily(e.target.value)}>

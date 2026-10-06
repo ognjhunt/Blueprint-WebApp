@@ -14,6 +14,7 @@ vi.mock("@/contexts/AuthContext", () => ({
     tokenClaims: null,
     logout: vi.fn(),
   }),
+  useOptionalAuth: () => null,
 }));
 
 vi.mock("@/lib/experiments", () => ({
