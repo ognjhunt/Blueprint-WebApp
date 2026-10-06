@@ -12,6 +12,19 @@ dispatch a live operator command until the approved original bundle has been
 checked losslessly against this adapter and parent has approved the exact fresh
 platform packet and recovery scope.
 
+Prepare the exact source in a private directory from the deployed WebApp root,
+without deploying it, changing credentials, or installing dependencies:
+
+```bash
+incident_src=/tmp/blueprint-outreach-local-857ac8045
+mkdir -m 700 "$incident_src" &&
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/857ac80459846efd086c842f9124f25136e79b71 |
+  tar -xz --strip-components=1 -C "$incident_src" &&
+ln -s "$PWD/node_modules" "$incident_src/node_modules"
+```
+
+Verify the eight file hashes below before either operator mode.
+
 ## Prepare the platform packet
 
 The platform producer runs only after the diagnostic transfer/retention scope is
@@ -30,12 +43,12 @@ are supported. Preserve an original source envelope as additional provenance
 when a lossless structural adapter is required; never invent missing fields.
 
 MCP success requires an absent or literal `false` error marker and one JSON text
-block. A documented single service/deploy wrapper can be unwrapped while its
+block. A supported single service/deploy wrapper can be unwrapped while its
 original text remains retained. Derived reads use `status:null`,
 `httpStatusObserved:false`, and `transport:render_mcp`; their URL is explicitly a
 documented read equivalent. No HTTP status or headers are fabricated. Every log
-page must retain valid actual continuation times, exact next-call arguments and
-a final `hasMore:false`. Parent pins exact call-envelope digests for each proof;
+nonfinal page must retain valid actual continuation times and exact next-call
+arguments. The final page requires `hasMore:false`. Parent pins exact call-envelope digests for each proof;
 the durable recovery audit retains stable tool/workspace/resource scope while
 fresh proof digests may rotate.
 
@@ -65,18 +78,7 @@ The packet alone grants no action authority.
 
 ## One native operator command
 
-Prepare the exact source in a private directory without deploying it, changing
-credentials, or installing dependencies:
-
-```bash
-incident_src=/tmp/blueprint-outreach-local-857ac8045
-mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/857ac80459846efd086c842f9124f25136e79b71 |
-  tar -xz --strip-components=1 -C "$incident_src" &&
-ln -s "$PWD/node_modules" "$incident_src/node_modules"
-```
-
-Verify the eight file hashes below. The installed Python interpreter is
+The installed Python interpreter is
 `dist/daily-research/venv/bin/python`, with the existing
 `PYTHONPATH=dist/daily-research/release` binding. Source collection requires the
 existing deployed Admin SDK and provider bindings; do not copy credentials or
