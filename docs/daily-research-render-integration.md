@@ -207,6 +207,23 @@ only the send, automatic-first-contact and hypothesis-draft flag booleans.
 Symlinks and byte/source mismatches produce a stable failure code. These checks
 are read only; existing flags and worker startup/shutdown behavior remain unchanged.
 
+After both existing Render deploy records are live at the exact requested commit,
+the normal deployment workflow checks out that commit and reads the worker's
+startup receipt through the [Render service](https://api-docs.render.com/reference/retrieve-service)
+and [filtered logs](https://api-docs.render.com/reference/list-logs) GET APIs.
+It compares the observed source, deployment commit and file hashes/count with
+freshly checked vendor bytes, retaining only the fixed aggregate in the existing
+deployment evidence artifact. Log pagination and lag polling are bounded to
+twelve requests and sixty seconds; missing access/proof or mismatched bytes
+produce stable blockers. The three flags are recorded as observed. Older rollback
+commits without this observer record unavailable proof. This readback adds no
+service action, flag change or activation authority.
+The success wrapper preserves the actual startup log timestamp separately from
+GET completion time and records the observed `not_suspended` service state.
+Release checks can measure the startup proof's age without refreshing that age
+when logs are retrieved; exact worker deploy identity remains in the existing
+deployment artifact.
+
 `BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED` defaults false. Replacing this package
 changes no existing flags or live controls. Installing source is separate from
 activating a profile. Preserve existing admitted rows and their original
