@@ -350,7 +350,8 @@ function hypothesisEntries(row: any, qaResult: any, selected: any[], sheet: Retu
       ...(assessment.valid_until === null ? ["freshness"] : []), "existing_automation", "fit", "interest"];
     if (!same(entry.open_checks, openChecks)) fail(`open_checks_${index}`);
     const question = outreachReadyQuestion(openChecks, candidate.task, candidate.site, { location: candidate.location,
-      partialAutomation: assessment.counterevidence?.status === "contradicted", ruleVersion: ruleVersion as OutreachRuleVersion });
+      // Counterevidence alone may be about another task/site; it cannot justify "the rest of".
+      partialAutomation: false, ruleVersion: ruleVersion as OutreachRuleVersion });
     if (!same(entry.open_questions, [question])) fail(`open_questions_${index}`);
     // Recorded as published. Expiry is phase-2 admission's to judge, so replays stay stable.
     const validUntil = assessment.valid_until;

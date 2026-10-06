@@ -106,6 +106,35 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(h.seen[1].checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
   });
 
+  it("waits without inference when the flag turns off during published-research verification", async () => {
+    const h = await admitted(), read = h.deps.readResearch.getMockImplementation()!;
+    h.deps.readResearch.mockImplementation(async (...args: any[]) => {
+      const snapshot = await read(...args as [string]);
+      vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+      return snapshot;
+    });
+    expect(await processCommunicationsJob(h.intake.jobId, h.deps)).toMatchObject({ state: "queued", reason: "hypothesis_drafts_disabled", sent: false });
+    expect(h.api.run).not.toHaveBeenCalled();
+    expect(h.f.records("jobs").find(job => job.jobId === h.intake.jobId)).toMatchObject({ attempts: 0, checkpoint: { sessionId: null, createClaimedAt: null } });
+  });
+  it("refuses repair after the flag turns off during async repair evidence checks, retaining the charged checkpoint", async () => {
+    const h = await admitted();
+    h.api.run.mockImplementation(async params => {
+      const charged = { ...params.checkpoint, createClaimedAt: new Date(h.deps.now()).toISOString(), sessionId: "synthetic-paid-session", turnId: "synthetic-paid-turn" };
+      await params.saveCheckpoint(charged);
+      const read = h.deps.readResearch.getMockImplementation()!;
+      h.deps.readResearch.mockImplementation(async (...args: any[]) => {
+        const snapshot = await read(...args as [string]);
+        vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+        return snapshot;
+      });
+      await params.assertRepairAllowed();
+      throw new Error("unexpected_repair_allowed");
+    });
+    expect(await processCommunicationsJob(h.intake.jobId, h.deps)).toMatchObject({ state: "queued", reason: "hypothesis_drafts_disabled", sent: false });
+    expect(h.f.records("jobs").find(job => job.jobId === h.intake.jobId)).toMatchObject({ checkpoint: { sessionId: "synthetic-paid-session", turnId: "synthetic-paid-turn" } });
+    expect([...h.f.db.records.keys()].some(key => key.startsWith("action_ledger/"))).toBe(false);
+  });
   it("keeps verified drafting unchanged on the same day", async () => {
     const h = await admitted();
     h.setOutput(verifiedOutput(h));

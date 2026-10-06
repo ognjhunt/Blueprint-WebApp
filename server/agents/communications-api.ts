@@ -14,6 +14,7 @@ import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION_DIGES
   verifiedCommunicationsHypothesisAgent } from "./communications-saved-agent";
 
 import { getCompanyHistoryAccess, runOperatorTool } from "./operator-tools";
+import { HYPOTHESIS_DRAFTS_DISABLED, hypothesisDraftsEnabled } from "./communications-hypothesis-controls";
 import { toolFailure } from "./adapters/tool-recovery";
 import { projectAgentEvidence, hydrateAgentEvidence } from "./private-evidence";
 
@@ -27,6 +28,11 @@ export type CommunicationsOutputFeedback = { path: string; code: string; message
 export type CommunicationsOutputValidator = (output: CommunicationsOutput) =>
   CommunicationsOutputFeedback | null | Promise<CommunicationsOutputFeedback | null>;
 const FINAL_REPAIR_PROFILE = "same-session-final-v1" as const;
+function assertHypothesisInferenceEnabled(checkpoint: CommunicationsCheckpoint) {
+  if (checkpoint.draftProfile === COMMUNICATIONS_HYPOTHESIS_PROFILE && !hypothesisDraftsEnabled()) {
+    throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
+  }
+}
 type FinalRepair = {
   number: number; baselineTurnIds: string[]; source: CommunicationsOutputSource;
   feedback: CommunicationsOutputFeedback; event: { type: "agent.session.input.message";
@@ -77,6 +83,10 @@ export type CommunicationsCancelledContinuation = {
 export type CommunicationsCheckpoint = {
   createClaimedAt: string | null; sessionId: string | null; turnId: string | null;
   requestDigest?: string;
+  /** Host-authored proof of a hypothesis create that was paused before any provider POST.
+   * Claimed/unknown-ACK creates never acquire permission to submit again. */
+  hypothesisCreateSubmission?: { version: "hypothesis-create-submission-v1"; state: "not_submitted" | "claimed";
+    requestDigest: string; inputDigest: string };
   historyProfile?: typeof COMMUNICATIONS_HISTORY_PROFILE; historyConfigurationDigest?: string;
   historyToolReceipts?: CommunicationsHistoryReceipt[];
   historyEvidence?: Record<string, unknown>;
@@ -563,7 +573,11 @@ export class CommunicationsAgentsAPI {
       }
       if (!checkpoint.createClaimedAt && Date.now() >= deadline) throw new CommunicationsRuntimeError("communications_execution_deadline");
     }
-    if (checkpoint.createClaimedAt && !checkpoint.sessionId && !correctedBody) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
+    const pausedCreate = checkpoint.hypothesisCreateSubmission;
+    const resumeUnsubmitted = checkpoint.draftProfile === COMMUNICATIONS_HYPOTHESIS_PROFILE
+      && pausedCreate?.version === "hypothesis-create-submission-v1" && pausedCreate.state === "not_submitted"
+      && pausedCreate.requestDigest === checkpoint.requestDigest && pausedCreate.inputDigest === communicationsDigest({ input: params.input });
+    if (checkpoint.createClaimedAt && !checkpoint.sessionId && !correctedBody && !resumeUnsubmitted) throw new CommunicationsRuntimeError("session_create_requires_reconciliation");
     const fresh = !checkpoint.sessionId;
     let requestDigest = checkpoint.requestDigest;
     if (checkpoint.draftProfile !== undefined && checkpoint.draftProfile !== COMMUNICATIONS_HYPOTHESIS_PROFILE) {
@@ -573,19 +587,27 @@ export class CommunicationsAgentsAPI {
     if (fresh && !correctedBody) {
       if (!this.options.reservePaidDraft || !this.options.recordPaidDraftUsage) throw new CommunicationsRuntimeError("communications_paid_draft_admission_required");
       const checked = await this.preflight();
+      assertHypothesisInferenceEnabled(checkpoint);
+      if (hypothesis) await params.assertRepairAllowed?.();
+      assertHypothesisInferenceEnabled(checkpoint);
       if (checkpoint.executionWindow && Date.now() >= this.repairDeadline(checkpoint)) throw new CommunicationsRuntimeError("communications_execution_deadline");
       const configurationDigest = hypothesis
         ? communicationsDigest(communicationsHypothesisConfiguration(checked.gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION))
         : checked.gmailMcp?.configurationDigest ?? COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST;
-      requestDigest = communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
+      const preparedDigest = communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
         configurationDigest, historyProfile: COMMUNICATIONS_HISTORY_PROFILE, finalRepairProfile: FINAL_REPAIR_PROFILE, input: params.input,
         ...(checked.gmailMcp ? { mcpProfile: checked.gmailMcp.profile, savedConfigurationDigest: checked.gmailMcp.savedConfigurationDigest,
           mcpBindingDigest: communicationsDigest(checked.gmailMcp) } : {}) });
+      if (resumeUnsubmitted && preparedDigest !== checkpoint.requestDigest) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
+      requestDigest = preparedDigest;
+      // A resumed, proven-unsubmitted create reuses this exact reservation; never admit another one.
       await this.options.reservePaidDraft(params.jobId, requestDigest);
-      checkpoint.createClaimedAt = new Date().toISOString();
+      if (!resumeUnsubmitted) checkpoint.createClaimedAt = new Date().toISOString();
       checkpoint.requestDigest = requestDigest;
       checkpoint.historyProfile = COMMUNICATIONS_HISTORY_PROFILE;
       checkpoint.finalRepairProfile = FINAL_REPAIR_PROFILE;
+      if (hypothesis) checkpoint.hypothesisCreateSubmission = { version: "hypothesis-create-submission-v1", state: "not_submitted",
+        requestDigest, inputDigest: communicationsDigest({ input: params.input }) };
       checkpoint.historyConfigurationDigest = configurationDigest;
       if (checked.gmailMcp) checkpoint.gmailMcp = checked.gmailMcp;
       else delete checkpoint.gmailMcp;
@@ -608,6 +630,20 @@ export class CommunicationsAgentsAPI {
     const baseDefinition = gmailMcp ? communicationsMcpDefinition(gmailMcp) : COMMUNICATIONS_HISTORY_DEFINITION;
     const definition = hypothesis ? communicationsHypothesisDefinition(baseDefinition) : baseDefinition;
     const baseConfiguration = gmailMcp?.configuration ?? COMMUNICATIONS_HISTORY_CONFIGURATION;
+    if (hypothesis) await params.assertRepairAllowed?.();
+    assertHypothesisInferenceEnabled(checkpoint);
+    if (fresh && hypothesis && checkpoint.hypothesisCreateSubmission) {
+      // Consume the proven-unsubmitted receipt before POST. A crash or unknown ACK after this
+      // write retains a claimed create and can only reconcile, never blindly submit again.
+      checkpoint.hypothesisCreateSubmission.state = "claimed";
+      await saveCheckpoint({ ...checkpoint });
+      if (!hypothesisDraftsEnabled()) {
+        // This process knows no request was made; retain that exact frozen reservation for resume.
+        checkpoint.hypothesisCreateSubmission.state = "not_submitted";
+        await saveCheckpoint({ ...checkpoint });
+        throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
+      }
+    }
     const handle = await this.request(fresh ? "/agents/sessions" : `/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, fresh ? {
       method: "POST", body: correctedBody ?? JSON.stringify({
         agent_id: COMMUNICATIONS_SAVED_AGENT_ID, agent: hypothesis ? communicationsHypothesisConfiguration(baseConfiguration) : baseConfiguration,
@@ -896,6 +932,7 @@ export class CommunicationsAgentsAPI {
       if (checkpoint.finalRepairProfile && Date.now() >= this.repairDeadline(checkpoint)) {
         throw new CommunicationsRuntimeError("communications_final_repair_deadline");
       }
+      assertHypothesisInferenceEnabled(checkpoint);
       try {
         const submitted = await this.request(`/agents/sessions/${encodeURIComponent(checkpoint.sessionId!)}/events`, {
           method: "POST", headers: { "Idempotency-Key": receipt.idempotencyKey }, body: JSON.stringify({ events: [event] }),
@@ -1398,7 +1435,7 @@ export class CommunicationsAgentsAPI {
         await settle(this.cumulativeUsage(checkpoint, turns), true);
         throw error;
       }
-      try { await assertRepairAllowed?.(); }
+      try { await assertRepairAllowed?.(); assertHypothesisInferenceEnabled(checkpoint); }
       catch (error) {
         // The original request was never submitted. Account only the observed
         // prior turns, retain the frozen claim, and refuse further mutation.

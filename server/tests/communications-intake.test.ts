@@ -505,10 +505,10 @@ describe("published research days that carry outreach-ready hypotheses (offline,
     ["U once the manual workflow is verified and no automation is shown", { mutateHypothesisAssessment: assessment => {
       assessment.claims.human_workflow = { ...assessment.claims.site_task }; assessment.claims.plausible_fit.status = "unresolved"; } },
       ["existing_automation", "fit", "interest"], ask.U],
-    ["A once the manual workflow is verified and automation is shown", { mutateHypothesisAssessment: assessment => {
+    ["U when automation elsewhere does not prove partial automation of this task/site", { mutateHypothesisAssessment: assessment => {
       assessment.claims.human_workflow = { ...assessment.claims.site_task }; assessment.claims.plausible_fit.status = "unresolved";
       assessment.counterevidence.status = "contradicted"; } },
-      ["existing_automation", "fit", "interest"], ask.A],
+      ["existing_automation", "fit", "interest"], ask.U],
     ["v1.1's M for a day published under v1.1", { ruleVersion: LEGACY_OUTREACH_RULE_VERSION },
       ["manual_workflow", "existing_automation", "fit", "interest"], askV11.M],
     ["v1.1's A for a day published under v1.1", { ruleVersion: LEGACY_OUTREACH_RULE_VERSION, mutateHypothesisAssessment: assessment => {

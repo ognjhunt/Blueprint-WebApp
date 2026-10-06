@@ -15,6 +15,8 @@ import { firstContactLearningQuestion } from "./communications-first-contact";
 import { qualifiedSourceContact } from "./communications-source-assessment";
 import { sameOperatorUrl } from "./communications-contact-evidence";
 import type { ContactDiscovery } from "./communications-contact-research";
+import { HYPOTHESIS_DRAFTS_DISABLED, hypothesisDraftsEnabled } from "./communications-hypothesis-controls";
+export { HYPOTHESIS_DRAFTS_FLAG, HYPOTHESIS_DRAFTS_DISABLED, hypothesisDraftsEnabled } from "./communications-hypothesis-controls";
 
 // Read-only discovery of the existing pinned research owner's completed work.
 export const RESEARCH_WORK_ITEMS = "blueprintDailyResearch/sites-first/workItems";
@@ -246,11 +248,6 @@ export async function recordPublishedHypotheses(snapshot: any, deps: IntakeDepen
 // Phase 2: outreach-ready hypotheses move from hypothesis_recorded to one draft job. Draft only:
 // every send, approval and first-contact path refuses the brief, the prospect and its address.
 
-export const HYPOTHESIS_DRAFTS_FLAG = "BLUEPRINT_COMMUNICATIONS_HYPOTHESIS_DRAFTS_ENABLED";
-/** Default off. While off, hypotheses are only recorded, exactly as in phase 1: nothing is admitted, no
- * contact request is claimed and no queued hypothesis job is drafted (processCommunicationsJob). */
-export const hypothesisDraftsEnabled = () => process.env[HYPOTHESIS_DRAFTS_FLAG] === "true";
-export const HYPOTHESIS_DRAFTS_DISABLED = "hypothesis_drafts_disabled";
 // The candidate is already known or may not be written to: terminal for this hypothesis.
 const HYPOTHESIS_BLOCKING = new Set(["recipient_suppressed", "outreach_ready_candidate_already_known",
   "outreach_ready_candidate_under_verified_row", "outreach_ready_recipient_already_known"]);
@@ -572,7 +569,7 @@ export async function runCommunicationsContactRefresh(deps: IntakeDependencies) 
         }
       } catch (error) {
         const reason = error instanceof Error ? error.message.slice(0, 1200) : "contact_refresh_failed";
-        if (reason === HYPOTHESIS_DRAFTS_DISABLED) {
+        if (reason === HYPOTHESIS_DRAFTS_DISABLED || (claim.label === "hypothesis" && !hypothesisDraftsEnabled())) {
           // Hypothesis drafts were turned off after this claim: the request waits again, unclaimed, as it
           // was before it. No attempt is spent and no contact research is asked for.
           await deps.db.runTransaction(async tx => {
