@@ -4,6 +4,7 @@ import { outreachContext, outreachContract, outreachDraft } from "./fixtures/out
 import { CommunicationsStore } from "../agents/communications-store";
 import * as draftBudget from "../agents/communications-draft-budget";
 import * as producer from "../agents/communications-producer";
+import * as followups from "../agents/communications-reply-followup";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { communicationsNow } from "./fixtures/communications";
 
@@ -44,7 +45,7 @@ async function invoke(path: string, body: unknown = {}, method = "post", actor: 
   const res = { locals: { firebaseUser: { uid: actor } }, status: vi.fn(), json: vi.fn(), setHeader: vi.fn() };
   res.status.mockReturnValue(res);
   res.json.mockReturnValue(res);
-  await layer.route.stack[0].handle({ params: { prospectId: "prospect-1", jobId: "a".repeat(64) }, body }, res, vi.fn());
+  await layer.route.stack[0].handle({ params: { prospectId: "prospect-1", jobId: "a".repeat(64), handoffId: "b".repeat(64) }, body }, res, vi.fn());
   return { status: res.status.mock.calls[0]?.[0] ?? 200, body: res.json.mock.calls[0]?.[0] };
 }
 
@@ -60,6 +61,20 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe("outbound prospect review routes (no provider, Firestore, or transport I/O)", () => {
+  it("requires an authenticated operator for evidence-bound reply meaning and performs no inference or send", async () => {
+    const review = { expectedEvidenceDigest: "a".repeat(64), responseMeaning: "unknown", meaningEvidence: null,
+      statedTask: null, desiredOutcome: null, timing: null, nextAction: "review_reply" };
+    const write = vi.spyOn(followups, "reviewReplyFollowup").mockResolvedValue({ state: "reviewed" } as any);
+    const path = "/:prospectId/communications/followups/:handoffId/review";
+    expect((await invoke(path, review, "post", null)).status).toBe(403);
+    expect((await invoke(path, { ...review, sendsAuthorized: true })).status).toBe(400);
+    mocks.hasAnyRole.mockResolvedValueOnce(false);
+    expect((await invoke(path, review)).status).toBe(403);
+    expect(write).not.toHaveBeenCalled();
+    expect((await invoke(path, review)).body).toMatchObject({ ok: true, sent: false, sessionCreated: false, gmailDraftCreated: false });
+    expect(write).toHaveBeenCalledWith(expect.anything(), "prospect-1", "b".repeat(64), review, "authenticated-operator", expect.any(Number));
+    expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
   it("previews actual published research without writes and refuses caller-supplied facts, approval or credentials", async () => {
     const f = publishedResearchFixture();
     vi.spyOn(Date, "now").mockReturnValue(communicationsNow);

@@ -14,12 +14,16 @@ type HypothesisBrief = { qualification?: { openQuestions?: unknown }; facts?: { 
  * task. Draft only: it can be revised and saved to Gmail Drafts, never approved or sent from here. */
 function HypothesisDraftReview({ review, payload, brief }: { review?: OutreachReviewSummary; payload: Record<string, unknown>; brief?: HypothesisBrief }) {
   const questions = brief?.qualification?.openQuestions;
-  const question = Array.isArray(questions) && typeof questions[0] === "string" ? questions[0] : "";
+  const historicalQuestion = Array.isArray(questions) && typeof questions[0] === "string" ? questions[0] : "";
+  const contract = payload.outreachContract as { version?: unknown; questions?: { question?: unknown }[] } | undefined;
+  const launch = contract?.version === "blueprint.outreach.v3";
+  const currentQuestion = Array.isArray(contract?.questions) ? contract.questions[0]?.question : undefined;
+  const question = launch ? typeof currentQuestion === "string" ? currentQuestion : "" : historicalQuestion;
   const quotes = (Array.isArray(brief?.facts) ? brief!.facts : []).filter(fact => typeof fact?.claim === "string");
   return (
     <div className="w-full space-y-3 border border-runway-line p-3 text-sm">
       <p className="font-medium">Hypothesis · draft only</p>
-      <p>The operator, site and task are proven; everything else is open. You can revise this draft and save it to Gmail Drafts. It cannot be approved or sent from Blueprint.</p>
+      <p>The source quotes support this hypothesis; interest and fit remain open. You can revise this draft and save it to Gmail Drafts. It cannot be approved or sent from Blueprint.</p>
       {typeof payload.from === "string" ? <p>From: {payload.from}</p> : null}
       <p>To: {String(payload.to ?? "")}</p>
       <p>Subject: {String(payload.subject ?? "")}</p>
@@ -28,6 +32,10 @@ function HypothesisDraftReview({ review, payload, brief }: { review?: OutreachRe
         <p className="font-medium">The one question</p>
         {question ? <p><q>{question}</q></p> : <p role="alert">This draft has no published question and cannot be used.</p>}
       </div>
+      {launch && historicalQuestion ? <details>
+        <summary>Historical research question · unresolved</summary>
+        <p>{historicalQuestion}</p>
+      </details> : null}
       <div>
         <p className="font-medium">Proven quotes</p>
         <ul className="list-disc pl-5">

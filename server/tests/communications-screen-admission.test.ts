@@ -9,7 +9,7 @@ import { screenAdmission, screenPublicationSource, verifyScreenHypothesisForDraf
 import { admitScreenContact, verifyScreenContactResolution, screenHoldsTitle, screenRecipientProblem } from "../agents/communications-screen-contact";
 import { admitScreenHypothesis, recordScreenHypotheses, runScreenAdmissionIntake, runScreenContactRefresh } from "../agents/communications-screen-intake";
 import { HYPOTHESIS_DRAFTS_FLAG } from "../agents/communications-intake";
-import { hypothesisDraft } from "./fixtures/hypothesis";
+import { launchHypothesisDraft as hypothesisDraft } from "./fixtures/hypothesis";
 import { processCommunicationsJob } from "../agents/communications-worker";
 const golden = JSON.parse(readFileSync(new URL("./fixtures/screen-admission-snapshot.json", import.meta.url), "utf8"));
 const now = Date.parse(golden.snapshot.work_item.completed_at);

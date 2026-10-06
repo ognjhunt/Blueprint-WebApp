@@ -66,8 +66,9 @@ export function reviewCommunicationsPayload(payload: Record<string, unknown>, no
     const originalReview = reviewOutreachDraft({
       to: String(payload.to ?? ""), subject: String(payload.subject ?? ""), body: String(payload.body ?? ""),
       contract: output.outreachContract, context: brief.outreachContext,
-      // An outreach-ready hypothesis is reviewed by blueprint.outreach.v2; verified briefs are unchanged.
-      ...(brief.qualification ? { qualification: brief.qualification, recipient: brief.contact.recipient } : {}),
+      // The hypothesis contract is reviewed against the same immutable role as its writer input.
+      ...(brief.qualification ? { qualification: brief.qualification, recipient: brief.contact.recipient,
+        framingContext: { boundedJob: brief.boundedJob, facilityName: brief.facilityName, audienceRole: brief.audienceRole } } : {}),
     });
     blockers.push(...originalReview.blockers);
   } else {

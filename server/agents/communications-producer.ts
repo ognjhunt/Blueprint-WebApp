@@ -7,6 +7,7 @@ import {
 import { researchPublicationSource } from "./communications-research";
 import { COMMUNICATIONS_ROOT } from "./communications-store";
 import { PUBLIC_CONTACT_PREFIX, sameOperatorUrl } from "./communications-contact-evidence";
+import { COMMUNICATIONS_AUDIENCE_ROLES } from "./communications-launch-framing";
 
 const id = z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/);
 const text = z.string().trim().min(1).max(1200);
@@ -20,6 +21,7 @@ export const communicationsResearchInputSchema = z.object({
   date: z.string().date(), candidateKey: text,
   context: z.object({
     siteId: id, taskId: id, caseId: id, decision: text, decisionOwner: text.nullable(),
+    audienceRole: z.enum(COMMUNICATIONS_AUDIENCE_ROLES).optional(),
     purpose: text, learningQuestion: text,
     contactSourceEmail: z.string().email().max(254), contactSourceUrl: url,
     contactSourceCheckedAt: z.union([z.string().datetime({ offset: true }), z.string().date()]),
@@ -92,6 +94,7 @@ export function previewResearchCommunications(snapshot: any, prospectId: string,
     prospectId: id.parse(prospectId), siteId: canonical.siteId, taskId: canonical.taskId, caseId: canonical.caseId,
     teamIds: [], capabilityIds: [], facilityName: canonical.facilityName, boundedJob: candidate.task,
     decision: input.context.decision, decisionOwner: input.context.decisionOwner,
+    ...(input.context.audienceRole ? { audienceRole: input.context.audienceRole } : {}),
     facts, unknowns: candidate.unknowns, conflicts: input.context.conflicts,
     stage: { interest: "unknown" as const, evidenceIds: [] },
     contact: { email: canonical.contactEmail, purpose: input.context.purpose, learningQuestion: input.context.learningQuestion,
