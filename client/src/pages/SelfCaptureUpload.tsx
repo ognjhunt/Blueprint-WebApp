@@ -88,6 +88,12 @@ type UploadState =
 export default function SelfCaptureUpload() {
   const [, params] = useRoute("/capture-upload/:token");
   const token = params?.token ?? "";
+  // Back/Forward can change the private link without unmounting this route.
+  // Every brief, permission, status and in-flight operation belongs to one link.
+  return <SelfCaptureUploadForToken key={token} token={token} />;
+}
+
+function SelfCaptureUploadForToken({ token }: { token: string }) {
 
   const [link, setLink] = useState<LinkState>({ status: "checking" });
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
@@ -317,6 +323,7 @@ export default function SelfCaptureUpload() {
           successCriteria: data.brief.successCriteria ?? null,
           operatorAnswers: data.brief.operatorAnswers ?? null,
           operatorUnknown: data.brief.operatorUnknown ?? null,
+          pilotIntent: data.brief.pilotIntent ?? null,
         });
         setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
         setSiteAccount(data.account ?? null);

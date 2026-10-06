@@ -11,6 +11,8 @@ a run — they are not separate products and are not claimed as physical-readine
 
 ## Pick your guide
 
+For the current invited **site-operator** journey, start with [SITE_OPERATOR_BETA_GUIDE.md](./SITE_OPERATOR_BETA_GUIDE.md) and the [acceptance checklist](./INVITED_BETA_ACCEPTANCE.md). Those documents cover description-first intake and founder follow-through without assuming a cohort count or automated evaluation availability.
+
 | You are a… | Read | You will learn |
 |---|---|---|
 | **Capturer** (you record real sites) | [CAPTURER_BETA_GUIDE.md](./CAPTURER_BETA_GUIDE.md) | Supported location types, authorization capture, what a good capture is, the claim→capture→upload→review flow, submission states, and honest payout expectations. |

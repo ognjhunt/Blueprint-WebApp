@@ -11,9 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
 
-vi.mock("wouter", () => ({
-  useRoute: () => [true, { token: "tok-e2e" }],
-}));
+const route = vi.hoisted(() => ({ token: "tok-e2e" }));
+vi.mock("wouter", () => ({ useRoute: () => [true, { token: route.token }] }));
 
 const TOKEN = "tok-e2e";
 const videoUpload = vi.hoisted(() => ({ send: vi.fn(), retry: vi.fn() }));
@@ -58,6 +57,7 @@ function setUserAgent(ua: string) {
 }
 
 beforeEach(() => {
+  route.token = TOKEN;
   videoUpload.send.mockReset();
   videoUpload.retry.mockReset();
   vi.stubGlobal("fetch", mockFetch());
@@ -88,6 +88,66 @@ describe("description first owner return", () => {
       return mockFetch()(input);
     });
   }
+  it("preserves saved pilot plans on return, through an interrupted correction and retry", async () => {
+    let attempts = 0;
+    const fetcher = ownerFetch(true);
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
+        ready: true, scope: "owner", brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [],
+          confirmedAtIso: "2026-10-01T00:00:00Z", successCriteria: { unknown: true },
+          pilotIntent: { pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" } },
+      }) });
+      if (url.endsWith("/confirm")) {
+        attempts++;
+        return attempts === 1 ? Promise.reject(new Error("interrupted save")) : Promise.resolve({ ok: true,
+          json: async () => ({ disposition: "needs_conversation", stage: "description_received", nextAction: "Review the open questions", stillNeeded: [], beforeRecording: [] }) });
+      }
+      return fetcher(input, init);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit your answers" }));
+    expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
+    expect(screen.getByRole("combobox", { name: /what could happen next/ })).toHaveValue("multiple_sites");
+    fireEvent.change(screen.getByRole("textbox", { name: /Your name/ }), { target: { value: "Synthetic Operator" } });
+    fireEvent.click(screen.getByRole("radio", { name: "Not now" }));
+    fireEvent.click(screen.getByRole("button", { name: "This is right — confirm it" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach Blueprint/);
+    expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
+    fireEvent.click(screen.getByRole("button", { name: "This is right — confirm it" }));
+    await screen.findByText("Your job brief is confirmed.");
+    const posts = fetchMock.mock.calls.filter(call => String(call[0]).endsWith("/confirm"));
+    expect(posts).toHaveLength(2);
+    expect(JSON.parse(posts[1][1]!.body as string).pilotIntent).toEqual({ pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" });
+    expect(videoUpload.send).not.toHaveBeenCalled();
+  });
+
+  it("clears the old brief and assessment when Back/Forward opens another private link", async () => {
+    const fetcher = ownerFetch(false);
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({
+        status: { decision: "description_received", headline: "Previous private assessment", operatorAction: "Previous owner action" },
+      }) });
+      if (url.includes("second-token")) return Promise.resolve({ ok: false, json: async () => ({ error: "This link was withdrawn." }) });
+      return fetcher(input, init);
+    }));
+    const { rerender } = render(<SelfCaptureUpload />);
+    await screen.findByText("Your job brief is confirmed.");
+    await screen.findByText("Previous private assessment");
+    route.token = "second-token";
+    rerender(<SelfCaptureUpload />);
+    expect(screen.queryByText("Previous private assessment")).toBeNull();
+    expect(screen.queryByText("Previous owner action")).toBeNull();
+    expect(screen.queryByText("Your job brief is confirmed.")).toBeNull();
+    await screen.findByText("This link was withdrawn.");
+    expect(screen.queryByRole("button", { name: /Choose or record|Upload a video|Confirm recording permission/ })).toBeNull();
+    route.token = TOKEN;
+    rerender(<SelfCaptureUpload />);
+    await screen.findByText("Your job brief is confirmed.");
+    expect(screen.queryByText("This link was withdrawn.")).toBeNull();
+  });
   it.each(["", PHONE_UA])("shows the brief before optional recording even if footage is allowed (%s)", async ua => {
     setUserAgent(ua);
     vi.stubGlobal("fetch", ownerFetch(false));

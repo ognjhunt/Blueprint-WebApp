@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatPrice, pilotBookingAuthorization, pilotFeeUsd } from "@/lib/evaluationPricing";
 
 type Recommendation = {
@@ -18,11 +18,16 @@ type Recommendation = {
  * Renders nothing until Blueprint has made a recommendation.
  */
 export function RecommendedPilot({ token }: { token: string }) {
+  return <RecommendedPilotForToken key={token} token={token} />;
+}
+
+function RecommendedPilotForToken({ token }: { token: string }) {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [booked, setBooked] = useState(false);
   const [authorized, setAuthorized] = useState(false);
   const [state, setState] = useState<"idle" | "booking" | "error">("idle");
   const [message, setMessage] = useState("");
+  const bookingInFlight = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -31,31 +36,34 @@ export function RecommendedPilot({ token }: { token: string }) {
       const { recommendation: saved, booking } = await r.json();
       if (!active) return;
       setRecommendation(saved ?? null);
-      setBooked(Boolean(booking));
+      setBooked(Boolean(saved && booking?.recommendationId === saved.id));
     }).catch(() => undefined);
     return () => { active = false; };
   }, [token]);
 
   async function book(event: React.FormEvent) {
     event.preventDefault();
-    if (!recommendation) return;
+    if (!recommendation || !authorized || bookingInFlight.current || booked) return;
+    bookingInFlight.current = true;
     setState("booking");
     try {
       const r = await fetch(`/api/task-listings/owner/${encodeURIComponent(token)}/book`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recommendationId: recommendation.id, authorized: true }),
       });
-      if (!r.ok) {
-        const body = await r.json().catch(() => ({}));
-        setMessage(body.error ?? "The pilot was not booked. Try again.");
+      const body = await r.json().catch(() => null);
+      if (!r.ok || body?.ok !== true) {
+        setMessage(body?.error ?? "We could not confirm the booking. Reopen your job page to check its status before trying again, or email hello@tryblueprint.io.");
         setState("error");
         return;
       }
       setBooked(true);
       setState("idle");
     } catch {
-      setMessage("The pilot was not booked. Try again.");
+      setMessage("We could not confirm the booking. Reopen your job page to check its status before trying again, or email hello@tryblueprint.io.");
       setState("error");
+    } finally {
+      bookingInFlight.current = false;
     }
   }
 
