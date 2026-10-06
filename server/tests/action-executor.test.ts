@@ -39,7 +39,7 @@ const fakeDb = vi.hoisted(() => {
   });
 
   return {
-    runTransaction: async (callback: (tx: any) => Promise<unknown>) => {
+    runTransaction: vi.fn(async (callback: (tx: any) => Promise<unknown>) => {
       const writes: Array<() => Promise<unknown>> = [];
       const result = await callback({ get: async (ref: any) => {
         const prior = transactionSnapshots.get(ref.id);
@@ -56,7 +56,7 @@ const fakeDb = vi.hoisted(() => {
       }); } });
       for (const write of writes) await write();
       return result;
-    },
+    }),
     collection: vi.fn(() => ({
       doc: vi.fn((id?: string) => {
         const docId = id ?? `auto-doc-${++docIdCounter.value}`;

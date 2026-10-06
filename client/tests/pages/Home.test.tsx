@@ -11,13 +11,13 @@ describe("Site-led homepage", () => {
     expect(screen.getByRole("img")).toHaveAccessibleName(/Illustration/);
     expect(screen.queryByText(/months 0–2/i)).not.toBeInTheDocument();
   });
-  it("lets a reader inspect the task, the match, and the pilot", () => {
+  it("lets a reader inspect the job, robot fit before the match, and the pilot", () => {
     const { container } = render(<Home />);
     const steps = container.querySelectorAll("details");
     expect(steps).toHaveLength(3);
-    fireEvent.click(screen.getByText("Meet your match"));
+    fireEvent.click(screen.getByText("Check robot fit"));
     expect(steps[1]).toHaveAttribute("open");
-    expect(steps[1]).toHaveTextContent(/we introduce you right away/i);
+    expect(steps[1]).toHaveTextContent(/evaluate your actual job for free before an introduction/i);
     expect(steps[1]).toHaveTextContent(/No match, no fee\./);
     fireEvent.click(screen.getByText("Run the pilot"));
     expect(steps[2]).toHaveAttribute("open");

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { buildSlackThreadCorrelationId } from "./human-reply-routing";
 import type { HumanBlockerThreadRecord } from "./human-reply-store";
 
 function canonical(value: unknown): unknown {
@@ -26,9 +27,19 @@ export function replyPrincipal(sender: string | null): string {
 }
 export function humanReplyAdmissionError(thread: HumanBlockerThreadRecord, params: {
   sender: string | null; received_at: string; external_message_id: string; channel?: string;
+  external_thread_id?: string | null; recipient?: string | null;
 }, now = Date.now()): string | null {
   if (!thread.approved_identity || replyPrincipal(params.sender) !== replyPrincipal(thread.approved_identity)) return "wrong_principal";
-  if (params.channel && thread.channel && params.channel !== thread.channel) return "wrong_channel";
+  if (params.channel && thread.channel && params.channel !== thread.channel) {
+    // Email is the durable dispatch record; its verified principal can also
+    // reply on the exact Slack mirror recorded by that dispatch.
+    const mirroredSlack = params.channel === "slack" && thread.channel === "email"
+      && Boolean(thread.correlation.slack_thread_id)
+      && Boolean(params.external_thread_id)
+      && [params.external_thread_id, buildSlackThreadCorrelationId(params.recipient, params.external_thread_id)]
+        .includes(thread.correlation.slack_thread_id);
+    if (!mirroredSlack) return "wrong_channel";
+  }
   if ([thread.correlation.gmail_message_id, thread.correlation.external_message_id].includes(params.external_message_id)) return "outgoing_message";
   if (["awaiting_review", "resolved"].includes(thread.status) || thread.review_status === "rejected") return "decision_not_open";
   const received = Date.parse(params.received_at);

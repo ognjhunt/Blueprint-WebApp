@@ -1,5 +1,5 @@
 import { embedTexts } from "./embeddings";
-import { entryPrice, formatPrice, matchFeeUsd, matchReplacementPolicy } from "../../client/src/lib/evaluationPricing";
+import { formatPrice, matchFeeUsd, matchReplacementPolicy } from "../../client/src/lib/evaluationPricing";
 
 // Grounded question answering for headless agents. Answers are curated,
 // citation-backed snippets over Blueprint's public canonical content — never
@@ -194,7 +194,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      `No match, no fee. Submitting a site job, screening and evaluation are free. When Blueprint finds a robot team that passed the evaluation for the job, fits the site's budget, and wants to run the pilot, it introduces the two sides and charges the site ${formatPrice(matchFeeUsd)} per job, however many teams match. Blueprint takes no percentage of the pilot or any deployment; the site and the team agree the pilot price directly, and the provider performs installation and operation. The site explicitly authorizes the match fee when opening the job to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched jobs for free. Private evaluations cost ${formatPrice(entryPrice)} for one robot policy on one reconstructed real site job. Results stay with the team and Blueprint, are not shared with the site, and do not affect pilot matching. Pilot consideration requires a separate free invited evaluation. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.`,
+      `No match, no fee. Submitting a site job, screening and evaluation are free. When Blueprint finds a robot team that passed the evaluation for the job, fits the site's budget, and wants to run the pilot, it introduces the two sides and charges the site ${formatPrice(matchFeeUsd)} per job, however many teams match. Blueprint takes no percentage of the pilot or any deployment; the site and the team agree the pilot price directly, and the provider performs installation and operation. The site explicitly authorizes the match fee when opening the job to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched jobs for free. The beta enables free invited evaluations only. Private evaluations and balance top-ups are unavailable. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.`,
 
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [

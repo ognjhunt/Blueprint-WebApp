@@ -8,7 +8,6 @@ import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { TaskBrowse } from "@/components/site/TaskBrowse";
-import { entryPrice, formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 
 const CONTACT_EMAIL = "hello@tryblueprint.io";
 
@@ -33,7 +32,7 @@ export default function Contact() {
             <summary>What happens after applying?</summary>
             <p>We review your robot's capabilities, the work you want and where you can support a pilot, then email the next step. Approved teams can see shared job details; applying does not commit you to an integration or a pilot.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. Executable submissions use a policy endpoint or container; compatibility must be checked for the specific task.</p>
-            <p>Evaluate for a pilot for free when invited; the site sees those results. For internal testing, a private evaluation costs {formatPrice(entryPrice)} for one robot policy on one reconstructed site job. Private results are not shared with the site or used for matching.</p>
+            <p>During the beta, evaluate for a pilot for free when invited; the site sees those results. A physical on-site trial is agreed separately with the site.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
@@ -61,7 +60,7 @@ export default function Contact() {
           <p className="ms-eyebrow">For site owners</p>
           <h1>Start with one recurring job.</h1>
           <p className="ms-inquiry-description">
-            Describe the work. Add a phone video if you have one. Starting is free; you do not need an approved budget.
+            Describe the work and confirm recording permission. Add a phone video if you have one. Starting is free; you do not need an approved budget.
           </p>
         </div>
         <div className="ms-inquiry-forms">
@@ -69,10 +68,9 @@ export default function Contact() {
           <details className="ms-task-interest ms-visitor-detail">
             <summary>How this works</summary>
             <p className="ms-field-hint">
-              We draft a job brief for you to correct. You separately authorize the {formatPrice(matchFeeUsd)}
-              {" "}fee if you open it to pilot proposals. It is due when we introduce a qualifying match,
-              even if you do not buy the pilot. No match, no fee. Your job link shows progress and follow-ups.
-              {" "}<a href="/pricing#match-fee">Fee and replacement policy</a>.
+              Your job link shows progress and follow-ups. We draft a brief from the evidence for you to correct.
+              Robot teams evaluate for free when invited. You review the results before deciding on a pilot.
+              Simulation informs that choice; an agreed physical trial tests performance on site.
             </p>
             <p className="ms-field-hint">
               Geography, plainly: sending a person is an Austin-metro thing; anywhere in the US you
@@ -83,7 +81,7 @@ export default function Contact() {
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What should I record?</summary>
             <p className="ms-field-hint">Show one complete task cycle, the objects and where they start and finish, then the surrounding work area. Existing footage is welcome. Avoid screens, paperwork and restricted areas, and get permission to record.</p>
-            <p className="ms-field-hint">Start with a description if filming needs approval. Have someone who knows the job review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
+            <p className="ms-field-hint">If filming needs approval, <a href={`mailto:${CONTACT_EMAIL}`}>talk to us about the job</a> while you arrange permission. Have someone who knows the job review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "20px" }}>
             <a className="ms-text-link" href="/contact/robot-team">

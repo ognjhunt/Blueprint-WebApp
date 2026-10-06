@@ -170,7 +170,7 @@ export default function TeamEvaluationSelection() {
       </div> : context && <section aria-label="Run this job" className="mt-7">
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="text-xl font-medium">Test your robot</h2>
-          <p className="text-xl font-medium">$99 <span className="text-sm font-normal text-ink-500">per policy entry</span></p>
+          <p className="text-xl font-medium">Free <span className="text-sm font-normal text-ink-500">approved evaluation</span></p>
         </div>
         {addingSetup && <form onSubmit={saveSetup} className="mt-5 space-y-4 rounded border border-line p-4">
           <h3 className="font-medium">Add a setup</h3>
@@ -207,12 +207,12 @@ export default function TeamEvaluationSelection() {
           </label>}
           {configuration && <p className="text-sm">Policies: {configuration.policy_candidates.map(p=>p.id.replaceAll("_"," ")).join(" and ")}</p>}
           {context.checkout.developmentNoCharge && <p className="text-sm">Development test — you won’t be charged.</p>}
-          {!canStart && <p className="text-sm">Payment is not enabled for this job yet.</p>}
+          {!canStart && <p className="text-sm">An approved free invitation is required for this job.</p>}
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" required className="mt-1" />
             <span>I confirm the task and authorize evaluation with this setup.</span>
           </label>
           <button disabled={busy || !configuration || robotVersionChanged || !canStart} className="ws-primary">
-            {busy?"Queueing…":"Start evaluation · $99"}
+            {busy?"Queueing…":"Start free evaluation"}
           </button>
         </form>
       </section>}

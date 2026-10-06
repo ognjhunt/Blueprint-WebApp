@@ -1,3 +1,4 @@
+import { FREE_BETA_ONLY, FREE_BETA_PAID_DISABLED, FREE_BETA_PAID_MESSAGE } from "./freeBeta";
 /**
  * What a robot team has, what is spoken for, and what it may still spend.
  *
@@ -330,6 +331,7 @@ export async function setSpendPolicy(params: {
   perRunLimitUsd: number;
   agentSpendEnabled: boolean;
 }): Promise<SpendPolicy> {
+  if (FREE_BETA_ONLY && params.agentSpendEnabled) throw new Error(FREE_BETA_PAID_DISABLED);
   const policy: SpendPolicy = {
     teamId: params.teamId,
     dailyLimitUsd: Math.max(0, round2(params.dailyLimitUsd)),
@@ -344,6 +346,7 @@ export async function setSpendPolicy(params: {
 }
 
 export type SpendRefusal =
+  | "paid_evaluations_disabled"
   | "agent_spend_disabled"
   | "no_policy_configured"
   | "insufficient_balance"
@@ -373,6 +376,7 @@ export async function authorizeAgentSpend(params: {
   confirmation?: { clientKey: string; scopeDigest: string };
   requestedRun?: Pick<EvalRunRecord, "checkpointId" | "sceneId" | "taskFamily" | "quotedEpisodes" | "executionAdmission">;
 }): Promise<SpendAuthorization> {
+  if (FREE_BETA_ONLY) return { authorized: false, refusal: FREE_BETA_PAID_DISABLED, detail: FREE_BETA_PAID_MESSAGE };
   if (!db) return { authorized: false, refusal: "ledger_unavailable", detail: "The ledger could not be read." };
   const amountUsd = round2(params.amountUsd);
   if (!Number.isFinite(amountUsd) || amountUsd <= 0) return { authorized: false, refusal: "invalid_approval", detail: "A positive quote is required." };

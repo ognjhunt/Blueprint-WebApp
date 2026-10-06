@@ -1,12 +1,8 @@
 // @vitest-environment node
 /**
- * Planning is open. Paying and running need a verified account.
- *
- * A team (or its agent) can register, plan and dry-run without talking to
- * anyone. Before money moves, a person binds the team to a verified Blueprint
- * account, once; the account is also where the team's agent keys are issued
- * and revoked. These tests walk both sides: the agent surface refusing, and
- * the account connecting the team and issuing keys.
+ * Registration describes the free invited beta without granting execution.
+ * Verified accounts manage team access; neither registration nor account
+ * ownership enables the disabled planning, running or funding entrypoints.
  */
 import express from "express";
 import { createServer, type Server } from "node:http";
@@ -104,7 +100,9 @@ function account(path: string, uid: string, body?: unknown, extra: Record<string
   });
 }
 
-async function register(): Promise<{ teamId: string; agentKey: string }> {
+async function register(checkpoint?: { label: string; runtime: string; reference: string }): Promise<{
+  teamId: string; agentKey: string; grants: Record<string, unknown>; next: string[];
+}> {
   const response = await fetch(`${base}/api/agent-team/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -113,13 +111,57 @@ async function register(): Promise<{ teamId: string; agentKey: string }> {
       contactEmail: "robot-owner@example.com",
       hardwareMaturity: "pilots",
       deploymentGeography: "right_opportunity",
+      ...(checkpoint ? { checkpoint } : {}),
     }),
   });
   expect(response.status).toBe(201);
   return response.json();
 }
 
-describe("an unbound team can plan but cannot pay", () => {
+describe("free beta refuses paid entrypoints for every account", () => {
+  it.each([false, true])("registration instructions stay within the free invited beta (checkpoint: %s)", async (withCheckpoint) => {
+    const reply = await register(withCheckpoint ? {
+      label: "Registered policy", runtime: "policy_endpoint", reference: "https://example.test/policy",
+    } : undefined);
+    expect(reply.grants).toMatchObject({ balanceUsd: 0, agentSpendEnabled: false, accountBound: false });
+    expect(reply.grants.note).toContain("free invited evaluations only");
+    const instructions = reply.next.join(" ");
+    expect(instructions).toContain(withCheckpoint ? "GET /api/agent-team/checkpoints" : "POST /api/agent-team/checkpoints");
+    expect(instructions).toContain("registration does not start an evaluation");
+    expect(instructions).toContain("verified Blueprint account");
+    expect(instructions).toContain("/settings?tab=agent");
+    expect(instructions).toContain("/app");
+    expect(instructions).toContain("/contact/robot-team");
+    expect(`${reply.grants.note} ${instructions}`).not.toMatch(/\/api\/agent-team\/(?:plan|runs|funding|policy)\b|can plan|can dry-run|Stripe|fund a balance|switch the agent on/i);
+  });
+
+  it("checkpoint registration gives an available next step without starting work", async () => {
+    const { agentKey } = await register();
+    const response = await agent("/checkpoints", agentKey, {
+      label: "Registered policy", runtime: "policy_endpoint", reference: "https://example.test/policy",
+    });
+    expect(response.status).toBe(201);
+    const reply = await response.json();
+    expect(reply.checkpoint.status).toBe("registered");
+    expect(reply.next).toContain("Registration does not start an evaluation");
+    expect(reply.next).toContain("free invited evaluations");
+    expect(reply.next).toContain("verified Blueprint account");
+    expect(reply.next).toContain("/app");
+    expect(reply.next).toContain("/contact/robot-team");
+    expect(reply.next).not.toMatch(/\/api\/agent-team\/(?:plan|runs|funding|policy)\b|Stripe|fund a balance|switch the agent on/i);
+  });
+
+  it.each(["/plan", "/runs", "/funding"])("refuses anonymous empty %s before creating work", async (path) => {
+    const before = [...sharedFakeFirestoreState.docs.entries()];
+    const response = await fetch(`${base}/api/agent-team${path}`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+    });
+    expect(response.status).toBe(403);
+    expect((await response.json()).code).toBe("paid_evaluations_disabled");
+    expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(before);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
   it("refuses funding, switching spend on, and confirmed runs with the steps to fix it", async () => {
     const { agentKey } = await register();
 
@@ -129,7 +171,7 @@ describe("an unbound team can plan but cannot pay", () => {
 
     const funding = await agent("/funding", agentKey, { amountUsd: 100 });
     expect(funding.status).toBe(403);
-    expect((await funding.json()).code).toBe("team_account_required");
+    expect((await funding.json()).code).toBe("paid_evaluations_disabled");
 
     const enable = await agent("/policy", agentKey,
       { dailyLimitUsd: 100, perRunLimitUsd: 99, agentSpendEnabled: true }, "PUT");
@@ -138,20 +180,20 @@ describe("an unbound team can plan but cannot pay", () => {
     const run = await agent("/runs", agentKey,
       { checkpointId: "cp-1", confirm: true, idempotencyKey: "idem-12345678" });
     expect(run.status).toBe(403);
-    expect((await run.json()).code).toBe("team_account_required");
+    expect((await run.json()).code).toBe("paid_evaluations_disabled");
   });
 
-  it("still lets a team switch its agent off and dry-run", async () => {
+  it("lets a team switch its agent off but refuses the paid dry-run", async () => {
     const { agentKey } = await register();
     const disable = await agent("/policy", agentKey,
       { dailyLimitUsd: 0, perRunLimitUsd: 0, agentSpendEnabled: false }, "PUT");
     expect(disable.status).toBe(200);
     const dryRun = await agent("/runs", agentKey, { checkpointId: "cp-1" });
-    expect(dryRun.status).not.toBe(403);
+    expect(dryRun.status).toBe(403);
   });
 });
 
-describe("a verified account connects the team, and then it can pay", () => {
+describe("a verified account connects the team without enabling payments", () => {
   it("binds the team behind the key the plan page holds", async () => {
     const { teamId, agentKey } = await register();
 
@@ -162,9 +204,9 @@ describe("a verified account connects the team, and then it can pay", () => {
       accountEmail: "robot-owner@example.com",
     });
 
-    // Past the account gate: payments are simply not configured in tests.
+    // Account ownership does not override the release scope.
     const funding = await agent("/funding", agentKey, { amountUsd: 100 });
-    expect(funding.status).not.toBe(403);
+    expect(funding.status).toBe(403);
     expect((await (await agent("/me", agentKey)).json()).accountBound).toBe(true);
   });
 
@@ -180,7 +222,7 @@ describe("a verified account connects the team, and then it can pay", () => {
 });
 
 describe("the account issues and revokes the agent's keys", () => {
-  it("creates the team on first key, and the key can pay at once", async () => {
+  it("creates the team on first key without enabling payments", async () => {
     const issued = await account("/robot-team/agent-keys", "robot-owner", { label: "ci agent" });
     expect(issued.status).toBe(201);
     const { teamId, agentKey, keyId } = await issued.json();
@@ -264,4 +306,3 @@ describe("the team hears when a run it bought reports", () => {
     expect(rows.find((row) => row.kind === "team_run_no_result")!.body).toMatch(/not charged for episodes that did not run/);
   });
 });
-

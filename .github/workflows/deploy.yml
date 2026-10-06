@@ -93,10 +93,23 @@ jobs:
             echo "::error::Could not resolve a git SHA to deploy."
             exit 1
           fi
+          if [ "${EVENT_NAME}" != "workflow_dispatch" ]; then
+            # A re-run of an older commit's CI also completes green on main. Only
+            # main's current head deploys automatically, so a late green run can
+            # never roll production back; an older commit ships only through an
+            # explicit dispatch, which the checks above still gate.
+            main_head=$(gh api "repos/${REPO}/commits/main" --jq .sha)
+            if [ "${deploy_ref}" != "${main_head}" ]; then
+              echo "::notice::CI passed for ${deploy_ref}, but main is now ${main_head}. Not deploying an older commit; main's own green CI deploys it."
+              echo "stale=true" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          fi
           echo "deploy_ref=${deploy_ref}" >> "${GITHUB_OUTPUT}"
           echo "Deploying exact ref ${deploy_ref}"
 
       - name: Trigger exact-SHA Render deploy through API (fail-closed)
+        if: steps.ref.outputs.stale != 'true'
         id: render
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -212,6 +225,7 @@ jobs:
           echo "API acceptance is NOT deployment success; both exact-SHA deploy records are verified below."
 
       - name: Verify deployment completed at the exact SHA
+        if: steps.ref.outputs.stale != 'true'
         env:
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
           RENDER_WEB_DEPLOY_ID: ${{ steps.render.outputs.web_deploy_id }}
@@ -316,7 +330,7 @@ jobs:
           fi
 
       - name: Upload deployment evidence
-        if: always()
+        if: always() && steps.ref.outputs.stale != 'true'
         # The exact-SHA and readiness checks above remain required; artifact
         # storage quota must not turn a verified deployment into a red run.
         continue-on-error: true

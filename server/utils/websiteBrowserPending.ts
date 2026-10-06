@@ -1,6 +1,6 @@
 /** The exact browser write awaiting (or having passed) privacy admission. */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { SITE_CAPTURE_SESSIONS_COLLECTION } from "./siteCaptureUploadIdentity";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import type { WrittenManifest, WrittenObject } from "./websiteCaptureDelivery";
@@ -24,6 +24,39 @@ export interface BrowserWriteReservation {
   capture_id: string;
   id: string;
   expires_at_ms: number;
+}
+
+/** Original server-built manifest retained before its Storage write is attempted. */
+export interface BrowserStoredUpload {
+  schema_version: "website_browser_stored_upload.v1";
+  request_id: string;
+  scene_id: string;
+  capture_id: string;
+  completed_at_iso: string;
+  video: WrittenObject;
+  manifest_json: string;
+  manifest_sha256: string;
+}
+
+function validStoredUpload(value: unknown): value is BrowserStoredUpload {
+  if (!value || typeof value !== "object") return false;
+  const p = value as Partial<BrowserStoredUpload>;
+  if (p.schema_version !== "website_browser_stored_upload.v1"
+      || typeof p.request_id !== "string" || p.scene_id !== `site-${p.request_id}`
+      || p.capture_id !== `walkthrough-${p.request_id}`
+      || typeof p.completed_at_iso !== "string" || !Number.isFinite(Date.parse(p.completed_at_iso))
+      || typeof p.manifest_json !== "string" || Buffer.byteLength(p.manifest_json) > 65_536
+      || p.manifest_sha256 !== `sha256:${createHash("sha256").update(p.manifest_json).digest("hex")}`
+      || !p.video || typeof p.video.object_name !== "string"
+      || p.video.object_name !== `scenes/${p.scene_id}/captures/${p.capture_id}/raw/walkthrough.${p.video.object_name.endsWith(".mov") ? "mov" : "mp4"}`
+      || typeof p.video.generation !== "string" || !/^[1-9][0-9]{0,19}$/.test(p.video.generation)
+      || !Number.isSafeInteger(p.video.size_bytes) || p.video.size_bytes < 1
+      || typeof p.video.crc32c !== "string" || !/^[A-Za-z0-9+/]{6}==$/.test(p.video.crc32c)) return false;
+  try {
+    const manifest = JSON.parse(p.manifest_json);
+    return manifest.request_id === p.request_id && manifest.scene_id === p.scene_id
+      && manifest.capture_id === p.capture_id && manifest.video_uri === p.video.object_name;
+  } catch { return false; }
 }
 
 interface LegacyFinishClaim {
@@ -103,6 +136,9 @@ export async function reserveBrowserUpload(input: { request_id: string; scene_id
     const value = snapshot.data()?.browser_pending_delivery;
     if (value != null && !validPending(value)) throw new Error("browser_pending_invalid");
     if (value?.state === "held") throw new Error("browser_pending_conflict");
+    // A completed video with an interrupted manifest write must be retried,
+    // rather than overwritten by a second upload of the same footage.
+    if (snapshot.data()?.browser_stored_upload != null) throw new Error("browser_pending_conflict");
     const active = snapshot.data()?.browser_upload_reservation;
     if (active != null && !validReservation(active)) throw new Error("browser_pending_invalid");
     if (active && active.expires_at_ms > nowMs) throw new Error("browser_pending_conflict");
@@ -177,8 +213,59 @@ export async function recordBrowserPending(incoming: BrowserPending,
     if (value != null && !validPending(value)) throw new Error("browser_pending_invalid");
     const outcome = selectBrowserPending(value ?? null, incoming);
     if (outcome.action === "conflict") throw new Error("browser_pending_conflict");
-    transaction.set(ref, { browser_pending_delivery: outcome.selected, browser_upload_reservation: null }, { merge: true });
+    transaction.set(ref, { browser_pending_delivery: outcome.selected, browser_upload_reservation: null,
+      browser_stored_upload: null }, { merge: true });
     return outcome.selected;
+  });
+}
+
+/** Journal only an actual write response held by this upload's current claim. */
+export async function recordBrowserStoredUpload(incoming: BrowserStoredUpload,
+  reservation: BrowserWriteReservation): Promise<void> {
+  if (!db || !validStoredUpload(incoming) || !validReservation(reservation)
+      || incoming.request_id !== reservation.request_id || incoming.scene_id !== reservation.scene_id
+      || incoming.capture_id !== reservation.capture_id) throw new Error("browser_pending_invalid");
+  const ref = db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(incoming.capture_id);
+  await db.runTransaction(async transaction => {
+    const data = (await transaction.get(ref)).data();
+    if (data?.site_capture_bundle_claim || !validReservation(data?.browser_upload_reservation)
+        || crossRuntimeDigest(data.browser_upload_reservation) !== crossRuntimeDigest(reservation))
+      throw new Error("browser_pending_changed");
+    const prior = data?.browser_stored_upload;
+    if (prior != null && (!validStoredUpload(prior) || crossRuntimeDigest(prior) !== crossRuntimeDigest(incoming)))
+      throw new Error("browser_pending_changed");
+    transaction.set(ref, { browser_stored_upload: incoming }, { merge: true });
+  });
+}
+
+export async function loadBrowserStoredUpload(captureId: string): Promise<BrowserStoredUpload | null> {
+  if (!db) throw new Error("browser_pending_unavailable");
+  const value = (await db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(captureId).get())
+    .data()?.browser_stored_upload;
+  if (value == null) return null;
+  if (!validStoredUpload(value) || value.capture_id !== captureId) throw new Error("browser_pending_invalid");
+  return value;
+}
+
+/** Retry keeps the original receipt and never grants a canonical video write. */
+export async function reserveBrowserStoredUploadRetry(selected: BrowserStoredUpload,
+  nowMs = Date.now()): Promise<BrowserWriteReservation> {
+  if (!db || !validStoredUpload(selected)) throw new Error("browser_pending_invalid");
+  const reservation: BrowserWriteReservation = { schema_version: "website_browser_write_reservation.v1",
+    request_id: selected.request_id, scene_id: selected.scene_id, capture_id: selected.capture_id,
+    id: randomUUID(), expires_at_ms: nowMs + WRITE_RESERVATION_MS };
+  const ref = db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(selected.capture_id);
+  return db.runTransaction(async transaction => {
+    const data = (await transaction.get(ref)).data();
+    if (data?.site_capture_bundle_claim || data?.browser_pending_delivery?.state === "held"
+        || !validStoredUpload(data?.browser_stored_upload)
+        || crossRuntimeDigest(data.browser_stored_upload) !== crossRuntimeDigest(selected))
+      throw new Error("browser_pending_changed");
+    const active = data?.browser_upload_reservation;
+    if (active != null && (!validReservation(active) || active.expires_at_ms > nowMs))
+      throw new Error("browser_pending_conflict");
+    transaction.set(ref, { browser_upload_reservation: reservation }, { merge: true });
+    return reservation;
   });
 }
 

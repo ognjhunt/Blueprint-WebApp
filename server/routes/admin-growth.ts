@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { reconcileVerifiedNotificationEmail } from "../utils/transactional-notifications";
 import { Resend } from "resend";
 import { Request, Response, Router } from "express";
 import { getConfiguredEnvValue } from "../config/env";
@@ -1717,6 +1718,7 @@ export async function resendWebhookHandler(req: Request & { rawBody?: string }, 
 
   try {
     await ingestResendWebhook(event, webhookId);
+    await reconcileVerifiedNotificationEmail(event, webhookId);
     return res.status(202).json({ ok: true });
   } catch (error) {
     logger.error({ err: error }, "Failed to ingest Resend webhook");

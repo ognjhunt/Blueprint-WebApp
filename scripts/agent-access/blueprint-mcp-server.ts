@@ -362,13 +362,13 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
   {
     name: "blueprint.team.plan",
     description:
-      "Which evaluations across every site on the platform would teach this team the most per dollar, with a rationale per row and a named reason for everything skipped. Ranks by expected information gain, not by likelihood of passing. Commits nothing.",
+      "Paid planning is unavailable during the free beta (403 paid_evaluations_disabled). Request a free invited evaluation through the workspace.",
     inputSchema: teamPlanSchema,
   },
   {
     name: "blueprint.team.runs.start",
     description:
-      "Start the planned evaluations. The only team tool that spends. Without confirm:true it returns the plan and spends nothing; confirming requires an idempotencyKey so a retry cannot pay twice. Each run is authorised separately against the team's balance and daily limit.",
+      "Paid run starts and dry-run purchases are unavailable during the free beta (403 paid_evaluations_disabled), including confirm:true. Free workspace requests require bounded operator approval.",
     inputSchema: {
       type: "object",
       properties: {
@@ -400,7 +400,7 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
   {
     name: "blueprint.team.policy.set",
     description:
-      "Set the team's spend limits. A balance alone is never permission: agentSpendEnabled must be true before any autonomous spend is authorised, and a team can switch it off instantly without revoking the key or touching the balance.",
+      "Readjust historical spend limits or disable agent spending. Enabling agent spending is unavailable during the free beta (403 paid_evaluations_disabled). A balance is not spending permission.",
     inputSchema: {
       type: "object",
       properties: {

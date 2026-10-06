@@ -33,6 +33,11 @@ export default function BusinessSignUpFlow() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Static markup is replaced on client mount. Do not accept input that
+  // would be lost before React attaches the form's handlers.
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => { setInteractive(true); }, []);
+  const controlsDisabled = busy || !interactive;
   const [error, setError] = useState("");
   const [accountCreated, setAccountCreated] = useState(false);
   const attribution = useMemo(() => getDemandAttributionFromSearchParams(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)), []);
@@ -68,7 +73,7 @@ export default function BusinessSignUpFlow() {
   useEffect(() => { if (step === 2) heading.current?.focus(); }, [step]);
 
   async function google() {
-    if (pending.current) return;
+    if (!interactive || pending.current) return;
     pending.current = true;
     setBusy(true);
     setError("");
@@ -91,7 +96,7 @@ export default function BusinessSignUpFlow() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending.current || busy) return;
+    if (!interactive || pending.current || busy) return;
     setError("");
     if (step === 1) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError("Enter a valid email address."); return; }
@@ -141,23 +146,23 @@ export default function BusinessSignUpFlow() {
       <AuthSteps currentStep={step} labels={["Account", "Workspace"]} />
       <form className="auth-form auth-simple-signup" method="post" onSubmit={submit} noValidate aria-label={step === 1 ? "Account details" : "Workspace details"} aria-busy={busy}>
         {step === 1 ? <>
-          <div><label htmlFor="email">Work email</label><input id="email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required disabled={busy} /></div>
-          <div><label htmlFor="password">Password</label><div className="auth-password"><input id="password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} value={password} onChange={e => setPassword(e.target.value)} required disabled={busy} aria-describedby="signup-password-hint" /><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p id="signup-password-hint" className="auth-signup-note">At least 8 characters.</p></div>
+          <div><label htmlFor="email">Work email</label><input id="email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required disabled={controlsDisabled} /></div>
+          <div><label htmlFor="password">Password</label><div className="auth-password"><input id="password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} value={password} onChange={e => setPassword(e.target.value)} required disabled={controlsDisabled} aria-describedby="signup-password-hint" /><button type="button" disabled={controlsDisabled} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p id="signup-password-hint" className="auth-signup-note">At least 8 characters.</p></div>
         </> : <>
           <p className="auth-signup-email">{email}</p>
-          <div><label htmlFor="contactName">Your name</label><input id="contactName" autoComplete="name" maxLength={160} value={name} onChange={e => setName(e.target.value)} required disabled={busy} /></div>
-          <div><label htmlFor="organizationName">Organization</label><input id="organizationName" autoComplete="organization" maxLength={160} value={organization} onChange={e => setOrganization(e.target.value)} required disabled={busy} /></div>
-          <fieldset className="auth-workspace-choice" disabled={busy}><legend>I’m here to</legend>
+          <div><label htmlFor="contactName">Your name</label><input id="contactName" autoComplete="name" maxLength={160} value={name} onChange={e => setName(e.target.value)} required disabled={controlsDisabled} /></div>
+          <div><label htmlFor="organizationName">Organization</label><input id="organizationName" autoComplete="organization" maxLength={160} value={organization} onChange={e => setOrganization(e.target.value)} required disabled={controlsDisabled} /></div>
+          <fieldset className="auth-workspace-choice" disabled={controlsDisabled}><legend>I’m here to</legend>
             <label><input type="radio" name="workspaceType" value="site_operator" checked={workspaceType === "site_operator"} onChange={() => setWorkspaceType("site_operator")} required /><span>Plan a robot pilot for my site</span></label>
             <label><input type="radio" name="workspaceType" value="robot_team" checked={workspaceType === "robot_team"} onChange={() => setWorkspaceType("robot_team")} required /><span>Assess site jobs for my robots</span></label>
           </fieldset>
           <p className="auth-signup-note">{workspaceType === "site_operator" ? "Next, describe one recurring job and share footage. Your job page will track its assessment and pilot decisions." : workspaceType === "robot_team" ? "Next, review approved site jobs and confirm what your team can support." : "Next, start with a job or the job library."}</p>
-          <label className="auth-signup-consent"><input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} disabled={busy} required /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this organization’s account.</span></label>
+          <label className="auth-signup-consent"><input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} disabled={controlsDisabled} required /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this organization’s account.</span></label>
         </>}
         {error && <div className="auth-error" role="alert">{error}{accountCreated && <> <a href="/settings">Open Settings</a></>}</div>}
-        <div className="auth-signup-actions">{step === 2 && !accountCreated && <button className="auth-back" type="button" disabled={busy} onClick={() => { setError(""); setStep(1); }}>← Back</button>}<button className="auth-primary" type="submit" disabled={busy}>{busy ? "Saving…" : step === 1 ? "Continue" : accountCreated ? "Open workspace" : "Create account"}<ArrowRight size={18} aria-hidden="true" /></button></div>
+        <div className="auth-signup-actions">{step === 2 && !accountCreated && <button className="auth-back" type="button" disabled={controlsDisabled} onClick={() => { setError(""); setStep(1); }}>← Back</button>}<button className="auth-primary" type="submit" disabled={controlsDisabled}>{busy ? "Saving…" : step === 1 ? "Continue" : accountCreated ? "Open workspace" : "Create account"}<ArrowRight size={18} aria-hidden="true" /></button></div>
       </form>
-      {step === 1 && <><div className="auth-divider"><span>or</span></div><button className="auth-google" type="button" onClick={google} disabled={busy}>Continue with Google</button></>}
+      {step === 1 && <><div className="auth-divider"><span>or</span></div><button className="auth-google" type="button" onClick={google} disabled={controlsDisabled}>Continue with Google</button></>}
       <p className="auth-account-link">Already have an account? <a href="/sign-in">Sign in</a></p>
     </AuthLayout>
   </>;

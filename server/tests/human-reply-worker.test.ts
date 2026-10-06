@@ -100,7 +100,40 @@ afterEach(() => {
 });
 
 describe("human reply worker", () => {
-  it("approves queued action ledgers from approval replies", async () => {
+  it.each(["mirrored", "wrong_thread", "wrong_principal", "duplicate"])("handles an email blocker's Slack reply without weakening authority (%s)", async variant => {
+    listOpenHumanBlockerThreads.mockResolvedValue([{
+      blocker_id: "blocker-mirror", title: "Bound action", blocker_kind: "ops_commercial",
+      approved_identity: "owner@example.com", channel: "email", status: "awaiting_reply",
+      decision_issued_at: "2026-01-01T00:00:00Z", decision_expires_at: "2099-01-01T00:00:00Z",
+      routing_owner: "blueprint-chief-of-staff", execution_owner: "ops-lead", escalation_owner: null,
+      action_digest: "bound-action", record_of_truth: { report_paths: [], paperclip_issue_id: null, ops_work_item_id: "ledger-mirror" },
+      correlation: { blocker_id: "blocker-mirror", slack_thread_id: "D123:123.456" },
+      resume_action: { kind: "manual_followup", description: "Resume exact action", metadata: {} },
+    }]);
+    getHumanReplyEvent.mockResolvedValue(variant === "duplicate" ? { resume_state: "completed" } : null);
+    recordHumanReplyEvent.mockResolvedValue({ id: "slack:reply-mirror" });
+    recordExternalGapReport.mockResolvedValue({ stable_id: "human_reply:blocker-mirror" });
+    approveAction.mockResolvedValue({ state: "sent", ledgerDocId: "ledger-mirror" });
+    resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
+    const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
+    const result = await ingestHumanReplyPayload({ channel: "slack", external_message_id: "reply-mirror",
+      external_thread_id: variant === "wrong_thread" ? "D999:123.456" : "D123:123.456",
+      sender: variant === "wrong_principal" ? "other@example.com" : "owner@example.com", recipient: "D123",
+      body: variant === "wrong_thread" ? "[Blueprint Blocker ID: blocker-mirror] Approved. Go ahead." : "Approved. Go ahead.",
+    });
+    if (variant === "mirrored") {
+      expect(result).toMatchObject({ processed: true, resolution: "resolved_input" });
+      expect(approveAction).toHaveBeenCalledWith("ledger-mirror", "owner@example.com", undefined, "bound-action",
+        expect.objectContaining({ eventId: "slack:reply-mirror", claim: "claim" }));
+      expect(resolveHumanBlockerAwaitingReply).toHaveBeenCalledWith("blocker-mirror");
+    } else {
+      expect(result).toMatchObject({ processed: false, reason: variant === "wrong_thread" ? "wrong_channel" : variant === "wrong_principal" ? "untrusted_sender" : "duplicate" });
+      expect(recordHumanReplyEvent).not.toHaveBeenCalled();
+      expect(approveAction).not.toHaveBeenCalled();
+      expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
+    }
+  });
+  it.each([true, false])("executes an authenticated ledger approval only with an action digest (%s)", async bound => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
       {
@@ -111,9 +144,10 @@ describe("human reply worker", () => {
         execution_owner: "ops-lead",
         escalation_owner: null,
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         decision_issued_at: "2026-01-01T00:00:00Z",
         decision_expires_at: "2099-01-01T00:00:00Z",
-        action_digest: "bound-action",
+        action_digest: bound ? "bound-action" : null,
         record_of_truth: {
           report_paths: [],
           paperclip_issue_id: null,
@@ -146,6 +180,12 @@ describe("human reply worker", () => {
       body: "Approved. Go ahead.",
     });
 
+    if (!bound) {
+      expect(approveAction).not.toHaveBeenCalled();
+      expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
+      return;
+    }
     expect(approveAction).toHaveBeenCalledWith("ledger-123", "ohstnhunt@gmail.com", undefined, "bound-action", expect.objectContaining({ eventId: expect.any(String), claim: expect.any(String) }));
     expect(resolveHumanBlockerAwaitingReply).toHaveBeenCalledWith("blocker-action");
     expect(result).toMatchObject({
@@ -166,6 +206,7 @@ describe("human reply worker", () => {
         execution_owner: "webapp-codex",
         escalation_owner: "blueprint-cto",
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         decision_issued_at: "2026-01-01T00:00:00Z",
         decision_expires_at: "2099-01-01T00:00:00Z",
         action_digest: "bound-action",
@@ -236,7 +277,7 @@ describe("human reply worker", () => {
     });
   });
 
-  it("correlates Slack thread replies and resumes the owning Paperclip issue", async () => {
+  it("rejects a Slack identity that is not the approved sender", async () => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
       {
@@ -246,7 +287,8 @@ describe("human reply worker", () => {
         routing_owner: "blueprint-chief-of-staff",
         execution_owner: "webapp-codex",
         escalation_owner: "blueprint-cto",
-        approved_identity: "ohstnhunt@gmail.com",
+        approved_identity: "UAPPROVED",
+        channel: "slack",
         decision_issued_at: "2026-01-01T00:00:00Z",
         decision_expires_at: "2099-01-01T00:00:00Z",
         action_digest: "bound-action",
@@ -294,33 +336,12 @@ describe("human reply worker", () => {
       received_at: "2026-05-05T19:00:00.000Z",
     });
 
-    expect(recordHumanReplyEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        blocker_id: "blocker-slack",
-        channel: "slack",
-        external_thread_id: "D123:1712960000.000100",
-        should_resume_now: true,
-      }),
-    );
-    expect(createPaperclipIssueComment).toHaveBeenCalledWith(
-      "issue-slack",
-      expect.stringContaining("Human reply recorded for blocker blocker-slack."),
-    );
-    expect(wakePaperclipAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agentId: "agent-slack",
-        reason: "human_reply_resolved",
-        idempotencyKey: "human-reply:blocker-slack:slack:1712960000.000200",
-      }),
-    );
-    expect(result).toMatchObject({
-      processed: true,
-      blocker_id: "blocker-slack",
-      resolution: "resolved_input",
-    });
+    expect(recordHumanReplyEvent).not.toHaveBeenCalled();
+    expect(wakePaperclipAgent).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ processed: false, reason: "untrusted_sender" });
   });
 
-  it("auto-activates city launches from approval replies without a manual rerun", async () => {
+  it("holds city activation for a payload-bound approval", async () => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
       {
@@ -331,6 +352,7 @@ describe("human reply worker", () => {
         execution_owner: "city-launch-agent",
         escalation_owner: null,
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         decision_issued_at: "2026-01-01T00:00:00Z",
         decision_expires_at: "2099-01-01T00:00:00Z",
         action_digest: "bound-action",
@@ -391,34 +413,15 @@ describe("human reply worker", () => {
       received_at: "2026-04-17T16:30:00.000Z",
     });
 
-    expect(runCityLaunchExecutionHarness).toHaveBeenCalledWith({
-      city: "Chicago, IL",
-      founderApproved: true,
-      budgetTier: "low_budget",
-      budgetMaxUsd: 2500,
-      operatorAutoApproveUsd: 500,
-      windowHours: 72,
-    });
-    expect(writeCityLaunchCreativeAdsEvidence).toHaveBeenCalledWith({
-      city: "Chicago, IL",
-      budgetTier: "low_budget",
-      budgetMaxUsd: 2500,
-      windowHours: 72,
-      runMetaReadOnly: true,
-      founderApprovedPausedDraft: false,
-      launchId: "root-1",
-    });
     expect(approveAction).not.toHaveBeenCalled();
+    expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
+    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
     expect(wakePaperclipAgent).not.toHaveBeenCalled();
     expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      processed: true,
-      blocker_id: "city-launch-approval-chicago-il-123",
-      resolution: "resolved_input",
-    });
+    expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
   });
 
-  it("keeps city-launch approval resume blocked when creative/ad evidence cannot close", async () => {
+  it("keeps city activation held even when the reply is exactly APPROVE", async () => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([
       {
@@ -429,6 +432,7 @@ describe("human reply worker", () => {
         execution_owner: "city-launch-agent",
         escalation_owner: null,
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         decision_issued_at: "2026-01-01T00:00:00Z",
         decision_expires_at: "2099-01-01T00:00:00Z",
         action_digest: "bound-action",
@@ -489,26 +493,12 @@ describe("human reply worker", () => {
       received_at: "2026-05-06T18:45:00.000Z",
     });
 
-    expect(runCityLaunchExecutionHarness).toHaveBeenCalledWith({
-      city: "Durham, NC",
-      founderApproved: true,
-      budgetTier: "lean",
-      budgetMaxUsd: 2500,
-      operatorAutoApproveUsd: 500,
-      windowHours: 72,
-    });
-    expect(noteHumanReplyThreadBlocker).toHaveBeenCalledWith({
-      blocker_id: "city-launch-approval-durham-nc",
-      reason: expect.stringContaining("City launch creative/ad evidence blocked"),
-    });
-    expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalledWith(
-      "city-launch-approval-durham-nc",
-    );
-    expect(result).toMatchObject({
-      processed: true,
-      blocker_id: "city-launch-approval-durham-nc",
-      auto_resume_error: expect.stringContaining("Meta Ads CLI env missing"),
-    });
+    expect(approveAction).not.toHaveBeenCalled();
+    expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
+    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
+    expect(wakePaperclipAgent).not.toHaveBeenCalled();
+    expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
   });
 
   it("does not authorize planning spend from credential confirmation", async () => {
@@ -522,6 +512,7 @@ describe("human reply worker", () => {
         execution_owner: "city-launch-agent",
         escalation_owner: null,
         approved_identity: "ohstnhunt@gmail.com",
+        channel: "email",
         decision_issued_at: "2026-01-01T00:00:00Z",
         decision_expires_at: "2099-01-01T00:00:00Z",
         action_digest: "bound-action",
@@ -571,14 +562,12 @@ describe("human reply worker", () => {
       received_at: "2026-05-06T16:30:00.000Z",
     });
 
-    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
+    expect(approveAction).not.toHaveBeenCalled();
     expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
+    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
+    expect(wakePaperclipAgent).not.toHaveBeenCalled();
     expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      processed: true,
-      blocker_id: "city-launch-deep-research-boise-id",
-      resolution: "resolved_input",
-    });
+    expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
   });
 
   it("blocks the email watcher when Gmail OAuth is not production-ready", async () => {

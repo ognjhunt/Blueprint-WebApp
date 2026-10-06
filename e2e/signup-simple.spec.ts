@@ -5,6 +5,37 @@ test.beforeEach(mockExternalFonts);
 test.beforeEach(async ({ page }) => {
   await page.addLocatorHandler(page.getByRole("button", { name: "Reject all", exact: true }), button => button.click());
 });
+
+test('prerendered signup accepts input only after its client handlers are ready', async ({ page }) => {
+  test.skip(process.env.BLUEPRINT_E2E_STATIC !== '1', 'Requires the prerendered client used by the CI browser gate.');
+  let releaseClient!: () => void;
+  const clientReady = new Promise<void>(resolve => { releaseClient = resolve; });
+  await page.route('**/assets/index-*.js', async route => {
+    await clientReady;
+    await route.continue();
+  });
+  try {
+    // Hold the entry script itself so this checks real static HTML before
+    // client mount, without racing the route-preload timeout.
+    await page.goto('/signup/business?buyerType=site_operator', { waitUntil: 'commit' });
+    await expect(page.getByLabel('Work email', { exact: true })).toBeDisabled();
+    await expect(page.getByLabel('Password', { exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Continue with Google', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Show password', exact: true })).toBeDisabled();
+  } finally {
+    releaseClient();
+  }
+  await expect(page.getByLabel('Work email', { exact: true })).toBeEnabled();
+  await page.getByLabel('Work email', { exact: true }).fill('preview@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('preview-password-123');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByLabel('Plan a robot pilot for my site')).toBeChecked();
+  await page.getByRole('button', { name: /Back/ }).click();
+  await expect(page.getByLabel('Work email', { exact: true })).toHaveValue('preview@example.com');
+  await expect(page.getByLabel('Password', { exact: true })).toHaveValue('preview-password-123');
+});
+
 for (const width of [1440, 390]) {
   test(`signup stays short and readable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });

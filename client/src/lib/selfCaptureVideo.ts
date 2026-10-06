@@ -147,7 +147,57 @@ export type VideoUploadResult =
    * did not would send them off to re-film a video we already have.
    */
   | { status: "held"; message: string }
+  | { status: "processing_pending"; message: string; processingRetryAvailable: boolean }
   | { status: "failed"; message: string };
+
+/** Only storage-verified receipt may replace an upload with a saved layout. */
+export function receivedVideoResult(data: Record<string, unknown> | null): VideoUploadResult | null {
+  if (data?.captureReceived !== true) return null;
+  if (data.state === "held") {
+    return { status: "held", message: String(data.detail || data.message || data.error
+      || "Your video is retained. Processing is on hold while authorization or review is resolved.") };
+  }
+  if (data.state === "processing_pending" || data.uploadState === "processing_pending") {
+    return {
+      status: "processing_pending",
+      message: "Your video is saved. We could not confirm that processing started. You do not need to upload or record it again.",
+      processingRetryAvailable: data.processingRetryAvailable === true,
+    };
+  }
+  if (data.state === "processing_ready" || data.uploadState === "processing_ready") return { status: "done" };
+  // Retained bytes with no execution proof must not imply processing started.
+  return { status: "held", message: String(data.detail || data.message
+    || "Your video is retained. We are checking its processing status.") };
+}
+
+async function reconcileUpload(token: string, message: string): Promise<VideoUploadResult> {
+  try {
+    // This endpoint is read-only. An uncertain upload never starts processing
+    // merely because the browser checks whether its bytes arrived.
+    const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/status`);
+    const data = await response.json().catch(() => null);
+    const received = receivedVideoResult(data);
+    if (received) return received;
+  } catch { /* Keep uncertainty explicit when receipt cannot be checked. */ }
+  return { status: "failed", message: `${message} We could not confirm whether your video was received. Keep the original file and check this job page before sending it again.` };
+}
+
+/** Explicit retry of the retained receipt; the server rechecks current authority. */
+export async function retrySelfCaptureProcessing(token: string): Promise<VideoUploadResult> {
+  try {
+    const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/processing-retry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const data = await response.json().catch(() => null);
+    const received = receivedVideoResult(data);
+    if (received) return received;
+    return reconcileUpload(token, String(data?.error || "We could not confirm that processing started."));
+  } catch {
+    return reconcileUpload(token, "The connection interrupted the processing retry.");
+  }
+}
 
 /**
  * Measure the file, then post it to the token route with progress.
@@ -176,7 +226,7 @@ export async function uploadSelfCaptureVideo(
     return {
       status: "failed",
       message:
-        "We could not read this video. Record it in your phone's camera app and pick it from your library, rather than using a link or a screen recording.",
+        "This browser could not read the video's dimensions or frame rate. Keep your original video. Try selecting that file again or open this job page in another browser that can play it; you do not need to record it again.",
     };
   }
 
@@ -188,49 +238,47 @@ export async function uploadSelfCaptureVideo(
   body.append("video", file);
 
   return new Promise<VideoUploadResult>((resolve) => {
-    const request = new XMLHttpRequest();
-    request.open("POST", `/api/self-capture/uploads/${encodeURIComponent(token)}`);
+    try {
+      const request = new XMLHttpRequest();
+      request.open("POST", `/api/self-capture/uploads/${encodeURIComponent(token)}`);
+      request.timeout = 15 * 60 * 1000;
 
-    request.upload.addEventListener("progress", (event) => {
-      if (!event.lengthComputable) return;
-      onProgress?.(Math.round((event.loaded / event.total) * 100));
-    });
+      request.upload.addEventListener("progress", (event) => {
+        if (!event.lengthComputable) return;
+        onProgress?.(Math.round((event.loaded / event.total) * 100));
+      });
 
-    request.addEventListener("load", () => {
-      if (request.status >= 200 && request.status < 300) {
-        // A 2xx is not automatically "done": the privacy screen answers with
-        // a held state on a successful upload.
-        let parsed: { state?: string; message?: string } = {};
-        try {
-          parsed = JSON.parse(request.responseText) || {};
-        } catch {
-          // No body we can read means the plain success it has always been.
-        }
-        if (parsed.state === "held") {
-          resolve({
-            status: "held",
-            message:
-              parsed.message
-              || "Your video reached us. Someone is looking at it before anything is processed.",
-          });
+      request.addEventListener("load", () => {
+        let parsed: Record<string, unknown> | null = null;
+        try { parsed = JSON.parse(request.responseText); } catch { /* Receipt remains unknown. */ }
+        const received = receivedVideoResult(parsed);
+        if (received) { resolve(received); return; }
+        if (request.status >= 200 && request.status < 300) {
+          // A 2xx is not automatically "done": the privacy screen answers with
+          // a held state on a successful upload.
+          void reconcileUpload(token, "The upload response did not confirm receipt.").then(resolve);
           return;
         }
-        resolve({ status: "done" });
-        return;
-      }
-      let message = "The upload did not finish. Try again.";
-      try {
-        message = JSON.parse(request.responseText)?.error || message;
-      } catch {
-        // Keep the generic message; the server said nothing we can quote.
-      }
-      resolve({ status: "failed", message });
-    });
+        let message = "The upload did not finish. Try again.";
+        try {
+          message = String(parsed?.error || message);
+        } catch {
+          // Keep the generic message; the server said nothing we can quote.
+        }
+        void reconcileUpload(token, message).then(resolve);
+      });
 
-    request.addEventListener("error", () => {
-      resolve({ status: "failed", message: "The connection dropped before the video finished." });
-    });
+      request.addEventListener("error", () => {
+        void reconcileUpload(token, "The upload connection dropped.").then(resolve);
+      });
 
-    request.send(body);
+      for (const event of ["abort", "timeout"]) request.addEventListener(event, () => {
+        void reconcileUpload(token, "The upload was interrupted.").then(resolve);
+      });
+
+      request.send(body);
+    } catch {
+      void reconcileUpload(token, "This browser could not send the video.").then(resolve);
+    }
   });
 }

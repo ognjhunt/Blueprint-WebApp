@@ -1,3 +1,4 @@
+import { FREE_BETA_ONLY, FREE_BETA_PAID_DISABLED, MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 /**
  * The payment setup record, made without a person.
  *
@@ -93,14 +94,25 @@ function policyPackageFor(checkpoint: Record<string, any>): Record<string, unkno
  * quote and submission exists. A new plan starts a new submission; retries
  * within that submission reuse its prepared record.
  */
-export async function ensureSelfServeAgentExecution(params: {
-  teamId: string;
-  checkpointId: string;
-  sceneId: string;
-  quotedEpisodes: number;
-  quotedUsd: number;
-  submissionKey?: string;
-}): Promise<SelfServePreparation> {
+type PreparationParameters = {
+  teamId: string; checkpointId: string; sceneId: string; quotedEpisodes: number;
+  quotedUsd: number; submissionKey?: string;
+};
+export async function ensureSelfServeAgentExecution(params: PreparationParameters): Promise<SelfServePreparation> {
+  if (FREE_BETA_ONLY) return { prepared: false, blockers: [FREE_BETA_PAID_DISABLED] };
+  return prepareAgentExecution(params);
+}
+/** Server-only preparation after the operator's exact workspace approval is validated.
+ * This creates no provider operation; free dispatch still requires its signed funding capsule. */
+export async function prepareFreeAgentExecution(params: PreparationParameters, approval: { approvedBy: string; expiresAtIso: string }): Promise<SelfServePreparation> {
+  if (!approval.approvedBy || Date.parse(approval.expiresAtIso) <= Date.now()
+    || !Number.isFinite(Date.parse(approval.expiresAtIso))
+    || !Number.isFinite(params.quotedUsd) || params.quotedUsd <= 0 || params.quotedUsd > MAX_FREE_SPONSOR_CAP_USD
+    || !Number.isInteger(params.quotedEpisodes) || params.quotedEpisodes <= 0 || !params.submissionKey)
+    return { prepared: false, blockers: ["free_evaluation_approval_invalid"] };
+  return prepareAgentExecution(params, approval.approvedBy);
+}
+async function prepareAgentExecution(params: PreparationParameters, sponsorApprover?: string): Promise<SelfServePreparation> {
   if (!db) return { prepared: false, blockers: ["agent_execution_store_unavailable"] };
 
   const accountUid = await teamAccountUid(params.teamId);
@@ -199,7 +211,7 @@ export async function ensureSelfServeAgentExecution(params: {
     checkpoint_id: params.checkpointId,
     episodes: params.quotedEpisodes,
     max_cost_usd: params.quotedUsd,
-    source: "blueprint_self_serve_offer",
+    source: sponsorApprover ? "blueprint_free_beta_approval" : "blueprint_self_serve_offer",
     created_at_iso: nowIso,
   }, { merge: true });
 
@@ -236,6 +248,7 @@ export async function ensureSelfServeAgentExecution(params: {
       episodes: params.quotedEpisodes,
       max_cost_usd: params.quotedUsd,
       rights_cleared: true,
+      // Legacy canonical name for a single bounded execution, not a customer charge.
       one_time_purchase: true,
     },
     claims: [{
@@ -261,7 +274,7 @@ export async function ensureSelfServeAgentExecution(params: {
   const result = await submitTaskEvaluationRunRequest({
     submitted: canonical,
     firebaseUser: { uid: accountUid },
-    sourceRoute: "/api/agent-team/plan",
+    sourceRoute: sponsorApprover ? "/api/admin/free-evaluations" : "/api/agent-team/plan",
   });
   const status = text(result.body.status);
   if ((result.status === 202 || result.status === 200) && (status === "prepared_agent_execution" || result.body.already_exists)) {

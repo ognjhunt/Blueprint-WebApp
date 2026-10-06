@@ -1,3 +1,4 @@
+import { FREE_BETA_ONLY, FREE_BETA_PAID_DISABLED, FREE_BETA_PAID_MESSAGE } from "../utils/freeBeta";
 /**
  * What a robot team's agent can do without a person in the loop.
  *
@@ -106,6 +107,10 @@ import { policyCredentialSchema, storeCheckpointPolicyCredential, revokeCheckpoi
 import { getCheckpoint } from "../utils/robotCheckpoints";
 
 const router = Router();
+
+const refusePaidBeta = (_req: Request, res: Response, next?: () => void) => FREE_BETA_ONLY ? res.status(403).json({
+  code: FREE_BETA_PAID_DISABLED, error: FREE_BETA_PAID_MESSAGE,
+}) : next?.();
 
 /**
  * What we need to run something. Declared here because registration can carry
@@ -270,21 +275,19 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
       agentSpendEnabled: false,
       accountBound: false,
       note:
-        "This key can plan and dry-run. Paying and running need the team connected to a verified "
-        + "Blueprint account; after that, fund a balance and set a policy before an agent can spend.",
+        "This beta offers free invited evaluations only. This key supports capability registration; "
+        + "registration does not authorize execution or spending. Connect the team to a verified Blueprint account to manage access.",
     },
     next: parsed.data.checkpoint
       ? [
-          "POST /api/agent-team/plan to see what your checkpoint should run against. Free.",
-          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team) before paying.",
-          "POST /api/agent-team/funding to add balance (Stripe, face value).",
-          "PUT /api/agent-team/policy to set a daily limit and switch the agent on.",
+          "GET /api/agent-team/checkpoints to review your registered policy capabilities; registration does not start an evaluation.",
+          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage access at /settings?tab=agent.",
+          "Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
         ]
       : [
-          "POST /api/agent-team/checkpoints with something we can run.",
-          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team) before paying.",
-          "POST /api/agent-team/funding to add balance (Stripe, face value).",
-          "PUT /api/agent-team/policy to set a daily limit and switch the agent on.",
+          "POST /api/agent-team/checkpoints to register your policy capability; registration does not start an evaluation.",
+          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage access at /settings?tab=agent.",
+          "Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
         ],
   });
 });
@@ -552,7 +555,8 @@ router.get("/me", async (req: Request, res: Response) => {
       unrunnableReason: item.unrunnableReason,
     })),
     accountBound: Boolean(accountUid),
-    canSpendNow: Boolean(accountUid) && policy.agentSpendEnabled && remainingToday > 0 && balance.availableUsd > 0,
+    canSpendNow: false,
+    spendingDisabledReason: FREE_BETA_PAID_DISABLED,
   });
 });
 
@@ -597,7 +601,7 @@ router.post("/checkpoints", async (req: Request, res: Response) => {
   return res.status(201).json({
     ok: true,
     checkpoint: result.checkpoint,
-    next: "POST /api/agent-team/plan to see which evaluations would teach you the most.",
+    next: "Registration does not start an evaluation. Connect the team to a verified Blueprint account and manage access at /settings?tab=agent. Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
   });
 });
 
@@ -688,7 +692,7 @@ const PLANNING_PREVIEW_RUNS = 10;
  * A ranking is not trustworthy because it is correct; it is trustworthy because
  * someone can read it and disagree.
  */
-router.post("/plan", async (req: Request, res: Response) => {
+router.post("/plan", refusePaidBeta, async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
   if (!(await requireEarlyAccess(teamId, res))) return;
@@ -796,7 +800,7 @@ const runsSchema = z
  * of an all-or-nothing refusal that tells the agent nothing about what to try
  * next.
  */
-router.post("/runs", async (req: Request, res: Response) => {
+router.post("/runs", refusePaidBeta, async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
   if (!(await requireEarlyAccess(teamId, res))) return;
@@ -1240,7 +1244,7 @@ const fundingSchema = z
  * to whoever holds the card, and watches `GET /me` for the balance to move —
  * which is the right shape for an agent in CI with nowhere to be redirected to.
  */
-router.post("/funding", async (req: Request, res: Response) => {
+router.post("/funding", refusePaidBeta, async (req: Request, res: Response) => {
   const teamId = await requireTeam(req, res);
   if (!teamId) return;
   if (!(await requireAccountBoundTeam(teamId, res))) return;
@@ -1311,6 +1315,7 @@ router.put("/policy", async (req: Request, res: Response) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Policy is invalid", code: "policy_invalid" });
   }
+  if (FREE_BETA_ONLY && parsed.data.agentSpendEnabled) return refusePaidBeta(req, res);
   // Switching spend on is spend authority. Switching it off is always allowed,
   // so a team can stop its agent whatever state its account is in.
   if (parsed.data.agentSpendEnabled && !(await requireAccountBoundTeam(teamId, res))) return;
