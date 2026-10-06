@@ -6,9 +6,9 @@ import { processCommunicationsJob, recoverSavedCommunicationsDraft } from "../ag
 import { reviseCommunicationsDraft } from "../agents/communications-draft-revision";
 import { CommunicationsStore } from "../agents/communications-store";
 import { communicationsBriefSchema } from "../agents/communications-contract";
-import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE } from "../agents/communications-instructions";
+import { COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming } from "../agents/communications-launch-framing";
 import { COMMUNICATIONS_HYPOTHESIS_PROFILE } from "../agents/communications-saved-agent";
-import { hypothesisDraft, hypothesisSetup } from "./fixtures/hypothesis";
+import { launchHypothesisDraft as hypothesisDraft, hypothesisDraft as archivedHypothesisDraft, hypothesisSetup } from "./fixtures/hypothesis";
 
 // Invented operators, *.example hosts and synthetic evidence only. The model is a mock; no network or mailbox.
 afterEach(() => { vi.unstubAllEnvs(); });
@@ -41,15 +41,25 @@ function verifiedOutput(h: Awaited<ReturnType<typeof admitted>>) {
 }
 
 describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
+  it("gives a useful same-session repair for an archived contract returned to a fresh launch request", async () => {
+    const h = await admitted(); h.setOutput(archivedHypothesisDraft(h.brief));
+    const result: any = await processCommunicationsJob(h.intake.jobId, h.deps);
+    expect(h.seen[0].feedback).toEqual(expect.arrayContaining([expect.objectContaining({ code: "launch_contract_required",
+      message: expect.stringContaining("blueprint.outreach.v3") })]));
+    expect(result).toMatchObject({ state: "blocked", reason: "hypothesis_draft_contract_failed:launch_contract_required" });
+    expect([...h.f.db.records.keys()].some(path => path.startsWith("action_ledger/"))).toBe(false);
+  });
   it("drafts with the hypothesis guidance and session profile, to a human-review draft that never sends", async () => {
     const h = await admitted();
     const result: any = await processCommunicationsJob(h.intake.jobId, h.deps);
     expect(result).toMatchObject({ state: "pending_approval", sent: false, gmailDraftCreated: false });
     expect(h.api.run).toHaveBeenCalledOnce();
     const [{ input, checkpoint, feedback }] = h.seen;
-    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_HYPOTHESIS_GUIDANCE);
+    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_LAUNCH_GUIDANCE);
     expect(input.researchBrief.qualification.openQuestions).toEqual(h.brief.qualification!.openQuestions);
     expect(checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
+    expect(checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
+    expect(input.firstTouchFraming).toEqual(communicationsLaunchFraming(h.brief));
     expect(feedback).toBeNull();
     const ledger = h.f.db.records.get(`action_ledger/${result.ledgerId}`);
     expect(ledger).toMatchObject({ status: "pending_approval", action_tier: 3, approved_by: null, sent_at: null,
@@ -141,7 +151,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     const outcome = await processCommunicationsJob(h.verifiedJob.jobId, h.deps);
     expect(outcome).toMatchObject({ state: "pending_approval" });
     const [{ input, checkpoint }] = h.seen;
-    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_OUTREACH_GUIDANCE);
+    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_LAUNCH_GUIDANCE);
     expect(input.researchBrief).not.toHaveProperty("qualification");
     expect(checkpoint).not.toHaveProperty("draftProfile");
     const ledger = h.f.db.records.get(`action_ledger/communications_${h.verifiedJob.jobId}`);
@@ -186,9 +196,11 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     ["a reworded question", draft => {
       const question = "Is sorting returned parcels at Synthetic sorting site still done by hand?";
       return { ...draft, body: draft.body.replace((draft.outreachContract as any).questions[0].question, question),
-        outreachContract: { ...(draft.outreachContract as any), questions: [{ question, checks: ["manual_workflow"] }] } };
-    }, "hypothesis_question_not_published"],
+        outreachContract: { ...(draft.outreachContract as any), questions: [{ question, checks: ["interest"] }] } };
+    }, "launch_question_mismatch"],
     ["the verified-lead contract", draft => ({ ...draft, outreachContract: null }), "outreach_contract_missing_or_invalid"],
+    ["unsupported pilot readiness", draft => ({ ...draft, body: `${draft.body}\nWe are pilot-ready.` }), "unsupported_readiness_or_supply"],
+    ["free hardware", draft => ({ ...draft, body: `${draft.body}\nWe provide free hardware.` }), "unsupported_readiness_or_supply"],
   ])("rejects a final draft with %s: no ledger row, nothing copied or sent", async (_name, change, blocker) => {
     const h = await admitted();
     h.setOutput(change(hypothesisDraft(h.brief)));

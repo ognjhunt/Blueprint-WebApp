@@ -1,3 +1,4 @@
+import { COMMUNICATIONS_FRAMING_VERSION } from "../agents/communications-launch-framing";
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
@@ -979,25 +980,25 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(creates).toBe(1);
     expect(f.reservePaidDraft).toHaveBeenCalledOnce();
   });
-  it("creates a hypothesis session with today's history definition plus one paragraph, and reads it back", async () => {
+  it.each([false, true])("creates and reads back a hypothesis session with launch framing=%s, retaining archived hashes", async launch => {
     const f = apiFixture();
-    const result = await f.api.run({ ...f.params, checkpoint: hypothesisCheckpoint() as any });
+    const result = await f.api.run({ ...f.params, checkpoint: { ...hypothesisCheckpoint(), ...(launch ? { framingVersion: COMMUNICATIONS_FRAMING_VERSION } : {}) } as any });
     const body = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
-    const definition = communicationsHypothesisDefinition(COMMUNICATIONS_HISTORY_DEFINITION);
-    expect(definition.version).toBe("blueprint.communications-definition.v9");
+    const definition = communicationsHypothesisDefinition(COMMUNICATIONS_HISTORY_DEFINITION, launch);
+    expect(definition.version).toBe(launch ? "blueprint.communications-definition.v13" : "blueprint.communications-definition.v9");
     expect(definition.instructions.startsWith(`${COMMUNICATIONS_HISTORY_DEFINITION.instructions}\n`)).toBe(true);
-    expect(definition.instructions).toContain("blueprint.outreach.v2");
-    expect(body.agent).toEqual(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION));
+    expect(definition.instructions).toContain(launch ? "blueprint.outreach.v3" : "blueprint.outreach.v2");
+    expect(body.agent).toEqual(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, launch));
     expect(body.metadata).toMatchObject({ blueprint_communications_definition: definition.version,
       blueprint_communications_instructions_digest: definition.instructionsDigest,
       blueprint_communications_draft_profile: COMMUNICATIONS_HYPOTHESIS_PROFILE,
-      blueprint_communications_history_configuration_digest: communicationsDigest(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION)),
+      blueprint_communications_history_configuration_digest: communicationsDigest(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, launch)),
       blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST });
     expect(Object.keys(body.metadata).length).toBeLessThanOrEqual(16);
     expect(result.checkpoint).toMatchObject({ draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE, sessionId: "session-1" });
     expect(result.outputSource).toMatchObject({ definitionVersion: definition.version, instructionsDigest: definition.instructionsDigest });
     // The saved agent itself is untouched: the hypothesis paragraph exists only in this session's override.
-    expect(COMMUNICATIONS_SAVED_CONFIGURATION.instructions).not.toContain("blueprint.outreach.v2");
+    expect(COMMUNICATIONS_SAVED_CONFIGURATION.instructions).not.toContain(launch ? "blueprint.outreach.v3" : "blueprint.outreach.v2");
   });
   it("uses the Gmail-read definition plus the same paragraph when the saved agent carries the owner's Gmail connection", async () => {
     const f = apiFixture();

@@ -8,6 +8,7 @@ import { BusinessHistoryStore, businessReadScopeSchema } from "./business-histor
 import { readBusinessOverview } from "./business-learning-loop";
 import { siteLearningHistory, validateSiteLearning } from "./site-learning";
 import { readExistingSources } from "./existing-sources";
+import { verifyReplyFollowup } from "../agents/communications-reply-followup";
 import { REVIEWED_NATIVE_LEARNING_CONFIG } from "./native-hooks";
 import { ensureHistoryEmbeddings, embedHistoryQuery, cosineSimilarity, loadHistoryEmbeddingAuthority, type HistoryEmbeddingAuthority } from "./company-history-index";
 
@@ -124,6 +125,17 @@ export async function loadCompanyHistory(db: FirebaseFirestore.Firestore, access
   const nativeEvents: Parameters<typeof readableHistory>[1] = [];
   for (const prospectId of prospectIds) {
     check();
+    // Owner queue uses the same authorized prospect scope as message history.
+    // Meaning remains attributed evidence, never a permission or qualification.
+    try {
+      const followups = await readQueryPages(db.collection("outboundProspects").doc(prospectId).collection("replyFollowups"));
+      for (const row of followups) {
+        const value = verifyReplyFollowup(row.data());
+        if (value.prospectId !== prospectId || value.handoffId !== row.id || value.updatedAt > Date.parse(asOf)) continue;
+        records.push(record(row.ref.path, "reply_followup", value, { source_ref: row.ref.path,
+          source_document_sha256: digest(value), original_checked_at: value.originalObservedAt, task: value.taskHypothesis }));
+      }
+    } catch { diagnostics.push({ record_ref: `outboundProspects/${prospectId}/replyFollowups`, code: "reply_followup_history_unavailable" }); }
     try {
       const sections = [...sectionSchema.options], request = { prospectIds: [prospectId], sections, asOf, maturityDays: 14 };
       const read = await readExistingSources(db, { principalId: access.principalId, prospectIds: [prospectId], sections, expiresAt: access.expiresAt }, request, asOf);

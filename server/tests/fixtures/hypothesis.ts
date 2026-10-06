@@ -1,3 +1,4 @@
+import { communicationsLaunchFraming } from "../../agents/communications-launch-framing";
 import { vi } from "vitest";
 import { hypothesisPublicationSource } from "../../agents/communications-research";
 import { resolveHypothesisContact } from "../../agents/communications-contact-resolution";
@@ -67,4 +68,13 @@ export function hypothesisDraft(brief: CommunicationsBrief): CommunicationsOutpu
     contract.recipientChoice, "Nijel"].join("\n\n");
   return { disposition: "draft", subject: `About ${brief.boundedJob}`, body, reason: "Synthetic hypothesis draft: one published question, inbox addressing",
     usedFactIds: [fact.id], refreshFactIds: [], outreachContract: contract, requiresHumanReview: true };
+}
+
+/** Prospective owner-directed framing; source qualification stays unchanged. */
+export function launchHypothesisDraft(brief: CommunicationsBrief): CommunicationsOutput {
+  const draft = hypothesisDraft(brief);
+  const contract = draft.outreachContract as import("../../agents/outreach-review").OutreachHypothesisContract;
+  const question = communicationsLaunchFraming(brief).question;
+  return { ...draft, body: draft.body.replace(contract.questions[0].question, question),
+    outreachContract: { ...contract, version: "blueprint.outreach.v3", questions: [{ question, checks: ["interest"] }] } };
 }
