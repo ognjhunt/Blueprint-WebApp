@@ -1,6 +1,6 @@
 # Local recovery from a retained platform packet
 
-Execution source: `857ac80459846efd086c842f9124f25136e79b71`. This companion extends the reviewed
+Execution source: `9379022e6b1106a013820026d02c7598a390fe67`. This companion extends the reviewed
 PR878 incident utilities with a narrow Render MCP read adapter and a local
 operator sequence. PR878 outreach and intake code is unchanged. Publishing this
 source grants no live recovery, deletion, resume, model-call or Gmail authority.
@@ -16,9 +16,9 @@ Prepare the exact source in a private directory from the deployed WebApp root,
 without deploying it, changing credentials, or installing dependencies:
 
 ```bash
-incident_src=/tmp/blueprint-outreach-local-857ac8045
+incident_src=/tmp/blueprint-outreach-local-9379022e6
 mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/857ac80459846efd086c842f9124f25136e79b71 |
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/9379022e6b1106a013820026d02c7598a390fe67 |
   tar -xz --strip-components=1 -C "$incident_src" &&
 ln -s "$PWD/node_modules" "$incident_src/node_modules"
 ```
@@ -33,6 +33,24 @@ without rereading the inputs. The owner-direction file must contain the actual
 actor/reference, exact existing recovery scope, original baseline digest, pinned
 instance aliases, and authentic startup-spanning writer-freeze evidence. Writer
 names alone are not acknowledgements.
+
+For the separately observed Web deployment at
+`3c66debc04b0586a4358d59fa380f76d5016fb02`, the owner-direction file must explicitly
+pin `expectedWebCommit` to that exact revision. The legacy absent-pin contract
+still accepts only worker-source c4. Only these two reviewed Web revisions are
+supported; a future deployment needs another source review. This pin is retained
+in the durable recovery authority and cannot change when renewing or releasing
+the owned fence. The worker source and compiled-artifact checks remain c4.
+
+The source basis is exact Git blob equality between c4 and 3c66:
+`server/index.ts` is `9d7c3de1a4611d0b0d50533f0f32680164e81ef4` and
+`server/config/bootstrap-env.ts` is `25905c583f050ae842e3027e8fb82d8f7597f4d8`.
+Web starts the ops scheduler only when its environment flag equals `1` and emits
+the existing exact JSON startup-off message otherwise. Source equality does not
+prove a live process: collect fresh authenticated Web service/deploy reads,
+complete current instances, the actual flag receipt and startup logs for every
+current instance after it was created. Older c4 Web receipts cannot prove the
+3c66 deployment. No deployed actor identity is inferred.
 
 The MCP input schema is `blueprint.render-mcp-reads.v1`, with the existing parent
 thread and incident and `receipts` arrays named `workerService`, `workerDeploy`,
@@ -120,8 +138,8 @@ new packet. No cleanup, deletion or activation is part of this command.
 | `communications-incident-20261006.mjs` | `5a0801e9b3402821f5e1a650663b6128874c147fd151a49455590f25b36027d9` |
 | `communications-incident-provider-20261006.py` | `98a51b3fe56cd248cdd5b9cbcd74a8bfa8698ba2c29fcb94a2f40dff396a0cc2` |
 | `communications-incident-summary-20261006.mjs` | `82613479a8950a27cdf3af4f110b810001cd1a4d66371ad024069e2f7776398c` |
-| `communications-incident-admission-20261006.mjs` | `c44ab1173e85bd622c8c0209e11647b3316a58a994806f3696583b7ec205ea39` |
-| `communications-incident-recovery-20261006.mjs` | `be83a277ac6c2eb1b0020c78c2b10c467e1d6eca72dde336878af0da47ea7b32` |
+| `communications-incident-admission-20261006.mjs` | `052154f60e290b8009040f6379213a96c7dfeebcdde34c674bbbd47d3c6ad7e8` |
+| `communications-incident-recovery-20261006.mjs` | `ab28b4b65b0bce819bf0d6276aff4e27fadc8ed7727f7b308f062b702bd85dd8` |
 | `communications-incident-cleanup-20261006.py` | `278d7d8ddb42260bd6b84cc1b0c8432fdbd46d635023d7bf768b056df3eea1b1` |
 | `communications-incident-mcp-20261006.mjs` | `5221c60399f9bee443bcdd45e8418b0dd6b0fc99accde82231aaae6f4ed1adc4` |
 | `communications-incident-operator-20261006.mjs` | `adc60b1ed8ed1fa136ced55ba9c33a9ed002b796d129cc3ed2a8813b31bb51d4` |
@@ -129,7 +147,9 @@ new packet. No cleanup, deletion or activation is part of this command.
 Focused suites cover successful MCP consumption by actual recovery CAS,
 zero-write refusal for altered/error/unpinned/stale/unsupported envelopes,
 complete pagination, durable scope across fresh receipts, original HTTP lanes,
-and runtime-to-provider sequence ordering. These are synthetic/offline tests,
+the explicit reviewed Web source pin through CAS/replay/fence release, both
+flag-present and exact-JSON flag-absent lanes, and runtime-to-provider sequence
+ordering. These are synthetic/offline tests,
 with zero provider/Gmail/model requests. Runtime imports may initialize the
 existing Admin SDK; the test CAS is in memory. Actual fixture validation and
 installed live readback remain separate proof obligations.
