@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildBrowserDelivery,
   capturedWriteIdentity,
+  captureWriteFailureDiagnostic,
   writeBrowserDelivery,
   publishBrowserDelivery,
 } from "../utils/websiteCaptureDelivery";
@@ -23,6 +24,70 @@ const manifest = {
 };
 
 describe("original browser capture delivery", () => {
+  it.each([7, Number.MAX_SAFE_INTEGER, "7", String(Number.MAX_SAFE_INTEGER)])(
+    "accepts only exact safe integer byte counts: %s", size => {
+      expect(capturedWriteIdentity(video.object_name, { name: video.object_name,
+        generation: video.generation, size, crc32c: video.crc32c }).size_bytes).toBe(Number(size));
+    },
+  );
+
+  it.each([0, -1, 7.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, "0", "-1", "7.5", "07",
+    "7e0", " 7", "7 ", "9007199254740992", true, null, undefined, {}, new Number(7)])(
+    "refuses malformed or inexact byte counts: %s", size => {
+      let failure: unknown;
+      try { capturedWriteIdentity(video.object_name, { name: video.object_name,
+        generation: video.generation, size, crc32c: video.crc32c }); } catch (error) { failure = error; }
+      expect(failure).toBeInstanceOf(Error);
+      expect(captureWriteFailureDiagnostic("manifest_identity", failure)).toEqual({
+        stage: "manifest_identity", code: "capture_write_identity_unavailable", identityField: "size" });
+    },
+  );
+
+  it("reports fixed identity fields without embedding response values", () => {
+    for (const [patch, identityField] of [
+      [{ name: "private/provider/path" }, "object_name"],
+      [{ generation: Number(video.generation) }, "generation"],
+      [{ crc32c: "private=checksum" }, "crc32c"],
+    ] as const) {
+      let failure: unknown;
+      try { capturedWriteIdentity(video.object_name, { name: video.object_name,
+        generation: video.generation, size: 7, crc32c: video.crc32c, ...patch }); }
+      catch (error) { failure = error; }
+      expect(captureWriteFailureDiagnostic("manifest_identity", failure)).toEqual({
+        stage: "manifest_identity", code: "capture_write_identity_unavailable", identityField });
+    }
+  });
+
+  it("keeps known bounded codes and drops arbitrary error details", () => {
+    expect(captureWriteFailureDiagnostic("pending_record", new Error("browser_pending_changed")))
+      .toEqual({ stage: "pending_record", code: "browser_pending_changed" });
+    expect(captureWriteFailureDiagnostic("manifest_write", Object.assign(new Error("private message"), { code: 412 })))
+      .toEqual({ stage: "manifest_write", code: 412 });
+    const privateError = Object.assign(new Error("owner@example.com https://private.invalid/?token=secret"), {
+      code: "PRIVATE_VALUE", headers: { authorization: "secret" }, data: { video: "private/path" },
+    });
+    for (const error of [privateError, "private token", null, { code: 600 }, { code: 1.5 }, { code: "412" }])
+      expect(captureWriteFailureDiagnostic("manifest_write", error)).toEqual({ stage: "manifest_write", code: "unknown" });
+  });
+
+  it("snapshots changing accessors once and contains throwing diagnostic properties", () => {
+    let codeReads = 0;
+    let messageReads = 0;
+    const changing = { get code() { return ++codeReads === 1 ? 412 : "private token"; },
+      get message() { messageReads++; return "private provider URL"; } };
+    expect(captureWriteFailureDiagnostic("manifest_write", changing)).toEqual({ stage: "manifest_write", code: 412 });
+    expect([codeReads, messageReads]).toEqual([1, 1]);
+    messageReads = 0;
+    expect(captureWriteFailureDiagnostic("pending_record", {
+      get message() { return ++messageReads === 1 ? "browser_pending_changed" : "private token"; },
+    })).toEqual({ stage: "pending_record", code: "browser_pending_changed" });
+    expect(messageReads).toBe(1);
+    for (const key of ["code", "message"]) {
+      const throwing = Object.defineProperty({}, key, { get() { throw new Error("private token"); } });
+      expect(captureWriteFailureDiagnostic("manifest_write", throwing)).toEqual({ stage: "manifest_write", code: "unknown" });
+    }
+  });
+
   it("takes exact decimal generations from the completed write response", () => {
     expect(capturedWriteIdentity(video.object_name, {
       name: video.object_name, generation: video.generation,
