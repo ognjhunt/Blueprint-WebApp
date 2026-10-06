@@ -47,7 +47,19 @@ def inspect(api, canonical, now=time.time):
         except Exception as error:
             if getattr(error, "status_code", None) != 404:
                 raise ValueError("provider_get_unavailable") from None
-            sessions.append({"sessionId": session_id, "absent": True, "statusCode": 404})
+            environment_ids = {s["value"].get("environment_id") for s in canonical.get("sources", [])
+                               if s["value"].get("session_id") == session_id}
+            environment_ids.discard(None)
+            environments = []
+            for environment_id in sorted(environment_ids):
+                try:
+                    environment = api.get("environment", environment_id)
+                    environments.append({"environmentId": environment_id, "environment": environment})
+                except Exception as environment_error:
+                    if getattr(environment_error, "status_code", None) != 404:
+                        raise ValueError("provider_environment_get_unavailable") from None
+                    environments.append({"environmentId": environment_id, "absent": True, "statusCode": 404})
+            sessions.append({"sessionId": session_id, "absent": True, "statusCode": 404, "environments": environments})
             continue
         if session.get("id") != session_id:
             raise ValueError("provider_session_binding_invalid")
@@ -63,8 +75,24 @@ def inspect(api, canonical, now=time.time):
             raise ValueError("provider_environment_binding_invalid")
         sessions.append({"sessionId": session_id, "session": session, "turns": turns, "items": items,
                          "artifacts": artifacts, "environment": environment, "complete": True})
+    children = sorted({v.get("findall_id") for s in canonical.get("sources", [])
+                       for v in s["value"].get("parallel_findall_submissions", {}).values() if v.get("findall_id")})
+    findall = []
+    if children:
+        from tools.daily_research.findall import runtime
+        key = os.environ.get("PARALLEL_API_KEY")
+        if not key:
+            raise ValueError("existing_findall_get_binding_unavailable")
+        client = runtime().api.FindAllClient(key, timeout_seconds=10)
+        for findall_id in children:
+            try:
+                findall.append({"findallId": findall_id, "receipt": client.status(findall_id)})
+            except ValueError as error:
+                if str(error) != "findall_http_error:404":
+                    raise ValueError("findall_get_unavailable") from None
+                findall.append({"findallId": findall_id, "absent": True, "statusCode": 404})
     return {"schema": SCHEMA, "observedAtMs": int(now() * 1000), "canonicalDigest": digest(canonical),
-            "sessionReferenceDigest": digest(sorted(ids)), "sessions": sessions, "readOnly": True}
+            "sessionReferenceDigest": digest(sorted(ids)), "sessions": sessions, "findall": findall, "readOnly": True}
 
 
 def main():
