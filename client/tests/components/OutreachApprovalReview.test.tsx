@@ -83,4 +83,22 @@ describe("outreach-ready hypothesis drafts (draft only)", () => {
     expect(screen.getByText("Hypothesis · draft only")).toBeVisible();
     expect(screen.queryByRole("button", { name: /approve/i })).toBeNull();
   });
+  it("shows the current launch contract question and keeps archival qualification separate", () => {
+    const question = "Where, if anywhere, could Blueprint help with your current process for finding customers and assessing their tasks?";
+    render(<OutreachApprovalReview review={review} payload={{ ...hypothesisPayload,
+      body: `I'm building Blueprint.\n\n${question}`,
+      outreachContract: { version: "blueprint.outreach.v3", questions: [{ question, checks: ["interest"] }] },
+    }} pending={false} onApprove={vi.fn()} />);
+    expect(screen.getByText(question, { selector: "q" })).toBeVisible();
+    expect(screen.queryByText(QUESTION, { selector: "q" })).toBeNull();
+    expect(screen.getByText("Historical research question · unresolved")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /approve/i })).toBeNull();
+  });
+  it("never substitutes an archived question for missing current launch contract data", () => {
+    render(<OutreachApprovalReview review={review} payload={{ ...hypothesisPayload,
+      outreachContract: { version: "blueprint.outreach.v3", questions: [] },
+    }} pending={false} onApprove={vi.fn()} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("no published question");
+    expect(screen.queryByText(QUESTION, { selector: "q" })).toBeNull();
+  });
 });
