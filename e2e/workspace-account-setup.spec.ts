@@ -124,14 +124,14 @@ for (const type of ["site_operator", "robot_team"] as const) {
     );
     await expect(
       page.getByRole("heading", {
-        name: type === "site_operator" ? "Start with one recurring job." : "Find a job your robot can support.",
+        name: type === "site_operator" ? "Start with one recurring job." : "Your next pilot starts with real work.",
         exact: true,
       }),
     ).toBeVisible();
     await page.reload();
     await expect(
       page.getByRole("heading", {
-        name: type === "site_operator" ? "Start with one recurring job." : "Find a job your robot can support.",
+        name: type === "site_operator" ? "Start with one recurring job." : "Your next pilot starts with real work.",
         exact: true,
       }),
     ).toBeVisible();
