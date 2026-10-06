@@ -23,6 +23,8 @@ import type { ActionPayload } from "./action-policies";
 import { HYPOTHESIS_DRAFTS_DISABLED, hypothesisDraftsEnabled, runCommunicationsIntake } from "./communications-intake";
 import { runCommunicationsReplyIntake } from "./communications-reply-intake";
 import { readResearchContactPage } from "./communications-contact-fetch";
+import { readScreenAdmissionSnapshot, screenPublicationSource, verifyScreenHypothesisForDraft, type ScreenSnapshotReader } from "./communications-screen-research";
+import { runScreenAdmissionIntake, runScreenContactRefresh } from "./communications-screen-intake";
 import { requestNativeContactResearch, readNativeContactDiscovery, verifyExistingContactDiscovery, contactDiscoverySchema, contactResearchTask } from "./communications-contact-research";
 import { automaticFirstContactEnabled, firstContactGeography, ROUTINE_COMMUNICATIONS_POLICY,
   routineCommunicationsContentBlockers } from "./communications-first-contact";
@@ -44,6 +46,7 @@ export type CommunicationsDependencies = {
   api: Pick<CommunicationsAgentsAPI, "run" | "cancel" | "reconcileSaved">
     & Partial<Pick<CommunicationsAgentsAPI, "recoverRejectedCreate" | "prepareCancelledContinuation" | "continueCancelled">>;
   readResearch: ResearchSnapshotReader;
+  readScreenAdmission?: ScreenSnapshotReader;
   verifyMailbox: () => Promise<unknown>;
   readThread: (threadId: string) => Promise<VerifiedThread>;
   isSuppressed: (email: string) => Promise<boolean>;
@@ -217,14 +220,19 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       return { state: "awaiting_research", reasons: refresh };
     }
     const verifyCurrentResearch = async () => {
-      const snapshot = await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId);
+      const screen = brief.researchOrigin.screenAdmissionId;
+      if (screen && !deps.readScreenAdmission) throw new Error("screen_admission_reader_unavailable");
+      const snapshot = screen ? await deps.readScreenAdmission!(screen)
+        : await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId);
       const proof: any = await deps.store.contactProof(brief);
-      const source = () => hypothesis ? hypothesisPublicationSource(snapshot, brief.researchOrigin.candidateKey, deps.now()).source
+      const source = () => screen ? screenPublicationSource(snapshot, brief.researchOrigin.candidateKey, deps.now()).source
+        : hypothesis ? hypothesisPublicationSource(snapshot, brief.researchOrigin.candidateKey, deps.now()).source
         : researchPublicationSource(snapshot, brief.researchOrigin);
       if (proof?.discovery) await verifyExistingContactDiscovery(deps.store.db,
         contactResearchTask(source(), job.prospectId), contactDiscoverySchema.parse(proof.discovery));
       // A hypothesis is checked by the draft-only verification; verifyPublishedResearch refuses it.
-      return hypothesis ? verifyPublishedHypothesisForDraft(snapshot, brief, await deps.store.handoff(brief), proof, deps.now())
+      return screen ? verifyScreenHypothesisForDraft(snapshot, brief, await deps.store.handoff(brief), proof, deps.now())
+        : hypothesis ? verifyPublishedHypothesisForDraft(snapshot, brief, await deps.store.handoff(brief), proof, deps.now())
         : verifyPublishedResearch(snapshot, brief, await deps.store.handoff(brief), proof, deps.now());
     };
     await verifyCurrentResearch();
@@ -532,6 +540,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
   });
   const deps: CommunicationsDependencies = {
     store, api, readResearch: (date, admissionId) => readExistingResearchSnapshot(db, date, admissionId),
+    readScreenAdmission: id => readScreenAdmissionSnapshot(db, id),
     learningHooks: createNativeLearningHooks(db, REVIEWED_NATIVE_LEARNING_CONFIG),
     verifyMailbox: () => verifyFounderMailbox(), readThread: (id) => readFounderThread(id),
     isSuppressed: (email) => isEmailSuppressed(email, "growth_campaign"),
@@ -560,6 +569,10 @@ export function startCommunicationsWorker(): () => Promise<void> {
       isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readResearchContactPage,
       requestContactResearch: (source, prospectId, reason) => requestNativeContactResearch(db, source, prospectId, reason, deps.now()),
       readContactDiscovery: (source, prospectId) => readNativeContactDiscovery(db, source, prospectId) });
+    const screenDeps = { db, readResearch: deps.readResearch, readScreenAdmission: deps.readScreenAdmission,
+      isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readResearchContactPage };
+    await runScreenAdmissionIntake(screenDeps);
+    await runScreenContactRefresh(screenDeps);
   }, copyDrafts: canContinue => runCommunicationsGmailDraftCopies(db, undefined, undefined, canContinue), processJobs: allowPaidInference });
 }
 

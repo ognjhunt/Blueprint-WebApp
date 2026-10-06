@@ -18,6 +18,16 @@ export const SCREEN_CONTACT_KIND = "screen_contact_resolution";
 const SCREEN_CONTACT_GAP = "screen_hypothesis_contact_unverified";
 const SCREEN_RECIPIENT_MISSING = "screen_recipient_missing";
 
+/** Exhausted deterministic contact checks return to the research owner without another paid lookup. */
+function screenContactFailure(tx: FirebaseFirestore.Transaction, root: FirebaseFirestore.DocumentReference, request: FirebaseFirestore.DocumentData, reason: string, now: number) {
+  const identity = identityOf(request), intakeId = communicationsDigest(identity);
+  tx.set(root.collection("refreshRequests").doc(`research_${intakeId}`), { ...identity, origin: "site_screen", label: "hypothesis",
+    owner: "blueprint-research-agent", kind: "research_owner_refresh", state: "pending", scope: "relevant_claims_only",
+    reasons: [reason], requestedAt: now, sent: false, sessionCreated: false }, { merge: true });
+  tx.set(root.collection("intake").doc(intakeId), { state: "needs_research", reasons: [reason], eligibleForOutreach: false,
+    draftJobCreated: false, sendsAuthorized: false, sent: false, sessionCreated: false }, { merge: true });
+}
+
 /** A screen hypothesis's intake identity: its admission and site alone, so every pass names the same intake record. */
 export const screenIdentity = (admissionId: string | null, siteKey: string) => ({ date: null, runKey: admissionId ? `blueprint-screen-admission:${admissionId}` : null,
   candidateKey: siteKey, packetDigest: admissionId, rawArtifactDigest: null, screenAdmissionId: admissionId });
@@ -279,9 +289,10 @@ export async function runScreenContactRefresh(deps: ScreenIntakeDependencies) {
           || (request.lease?.until ?? 0) > deps.now() || (request.nextAttemptAt ?? 0) > deps.now() || !hypothesisDraftsEnabled()) return null;
         if ((request.attempts ?? 0) >= 2) {
           tx.set(doc.ref, { state: "terminal", reason: "contact_refresh_attempts_exhausted", lease: { owner, until: 0 } }, { merge: true });
+          screenContactFailure(tx, root, request, "contact_refresh_attempts_exhausted", deps.now());
           return null;
         }
-        const claimed = { ...request, state: "running", attempts: (request.attempts ?? 0) + 1, lease: { owner, until: deps.now() + 180000 },
+        const claimed: FirebaseFirestore.DocumentData = { ...request, state: "running", attempts: (request.attempts ?? 0) + 1, lease: { owner, until: deps.now() + 180000 },
           startedAt: deps.now() };
         tx.set(doc.ref, claimed);
         return claimed;
@@ -295,6 +306,7 @@ export async function runScreenContactRefresh(deps: ScreenIntakeDependencies) {
           await screenNeedsAttention(deps, identityOf(claim), reasonOf(error, "communications_intake_invalid"));
           break;
         }
+        if (!hypothesisDraftsEnabled()) throw new Error(HYPOTHESIS_DRAFTS_DISABLED);
         const proof = await admitScreenContact(prepared.source, prepared.prospectId, deps.readContactPage, deps.now);
         // Re-read the immutable admission after network work, before admission.
         await admitScreenHypothesis(await deps.readScreenAdmission(claim.screenAdmissionId), claim.candidateKey, deps,
@@ -310,6 +322,7 @@ export async function runScreenContactRefresh(deps: ScreenIntakeDependencies) {
           tx.set(doc.ref, restore ? { state: "pending", attempts: claim.attempts - 1, lease: { owner, until: 0 } }
             : { state: transient ? "retry_wait" : "terminal", reason, completedAt: deps.now(), nextAttemptAt: transient ? deps.now() + 300000 : 0,
               lease: { owner, until: 0 }, sent: false, sessionCreated: false }, { merge: true });
+          if (!restore && !transient) screenContactFailure(tx, root, current, reason, deps.now());
         });
       }
       break;

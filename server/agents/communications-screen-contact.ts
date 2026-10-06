@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { communicationsDigest, RECIPIENT_ROUTES, type CommunicationsRecipient, type RecipientProvenance } from "./communications-contract";
-import { addressNamesPerson, containsContactName, contactProhibition, extractPublishedAddress, FREE_MAIL_DOMAINS, isLinkedInUrl,
+import { addressIsPersonOwn, containsContactName, contactProhibition, extractPublishedAddress, FREE_MAIL_DOMAINS, isLinkedInUrl,
   localPartIsRole } from "./communications-contact-evidence";
 import { contactPageText, literalAddressUnsafe, VISIBILITY_BASIS } from "./communications-contact-resolution";
 import { CONTACT_RESEARCH_PAGE_LIMIT, contactFetchUrl, type ContactPageReader } from "./communications-contact-fetch";
@@ -17,7 +17,7 @@ import { CONTACT_RESEARCH_PAGE_LIMIT, contactFetchUrl, type ContactPageReader } 
  * directory, data broker, job board, social, map, newswire, government, free-mail or LinkedIn host never counts.
  *
  * A published address is found again on a freshly fetched page of that domain before it is used (admitScreenContact),
- * with the same extraction rules as every hypothesis contact. A looked-up address is never searched for on a page: it
+ * with the same extraction rules as every hypothesis contact. A looked-up address is never searched for on a page; the operator domain is checked independently. It
  * counts only with its provider check (status valid), on the proven domain, never free mail or a role inbox, for a named
  * person. Every proof is rechecked from its retained page bytes before each draft (verifyScreenContactResolution). */
 export const SCREEN_CONTACT_VERSION = "blueprint.screen-contact-resolution.v1" as const;
@@ -33,6 +33,31 @@ export const SCREEN_RECIPIENT_LABELS: Record<(typeof RECIPIENT_ROUTES)[number], 
   published_team_inbox: "published team inbox",
   published_general_inbox: "published general inbox",
 };
+const screenWords = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(/ +/).filter(Boolean);
+const screenHasName = (text: string, name: string) => ` ${screenWords(text).join(" ")} `.includes(` ${screenWords(name).join(" ")} `);
+/** Same evidence-preserving role comparison as contact_lookup.holds_title (word order and fillers may differ). */
+export function screenHoldsTitle(text: string, title: string) {
+  const have = new Set(screenWords(text)), filler = new Set(["of", "the", "and", "for", "at", "senior", "sr"]);
+  const wanted = screenWords(title).filter(word => !filler.has(word));
+  return wanted.length > 0 && wanted.every(word => have.has(word));
+}
+const SCREEN_TEAM = new Set(["sales", "operations", "ops", "plant", "engineering", "manufacturing", "production", "purchasing", "procurement", "quality", "maintenance", "automation", "innovation", "projects", "service", "orders", "business", "partnerships"]);
+const SCREEN_GENERAL = new Set(["info", "contact", "contacts", "hello", "office", "mail", "enquiries", "enquiry", "inquiries", "inquiry", "general", "admin", "reception", "press", "media", "pr", "news", "communications"]);
+const SCREEN_REFUSED = new Set(["careers", "career", "jobs", "job", "hr", "recruiting", "recruitment", "talent", "hiring", "legal", "privacy", "support", "help", "helpdesk", "noreply", "donotreply", "billing", "accounts", "invoices", "webmaster", "abuse", "security", "unsubscribe"]);
+function screenAddressRole(address: string, person: any) {
+  const parts = address.split("@")[0].match(/[a-z]+/g) ?? [], letters = parts.join("");
+  for (const [role, vocabulary] of [["refused", SCREEN_REFUSED], ["team", SCREEN_TEAM], ["general", SCREEN_GENERAL]] as const) {
+    if (parts.some(word => vocabulary.has(word))) return role;
+  }
+  return person && screenWords(String(person.name)).some(word => word.length >= 3 && letters.includes(word)) ? "person" : "unknown";
+}
+function screenFreshDate(value: unknown, checked: string) {
+  const parts = /^([0-9]{4})(?:-([0-9]{2}))?(?:-([0-9]{2}))?$/.exec(String(value ?? ""));
+  const year = Number(parts?.[1]), month = Number(parts?.[2] ?? "1"), day = Number(parts?.[3] ?? "1");
+  const date = parts ? Date.UTC(year, month - 1, day) : NaN, parsed = new Date(date), asOf = Date.parse(checked.slice(0, 10));
+  return Number.isFinite(date) && parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day
+    && asOf >= date && asOf - date <= 548 * 86400000;
+}
 const LOOKUP_ROUTES: readonly string[] = ["quoted_person_looked_up_email", "provider_sourced_corroborated", "provider_sourced_uncorroborated"];
 const PROVEN = ["verified_on_page", "in_citation_excerpt"] as const;
 // Mirrors tools/daily_research/site_screen.py NOT_OPERATOR_DOMAINS and FREE_MAIL: hosts whose pages never give an
@@ -110,7 +135,7 @@ export function screenOperatorDomain(context: ScreenRecipientContext) {
     textSha256: proof.text_sha256 as string };
 }
 
-const providerSchema = z.object({ name: z.string().trim().min(1).max(80), status: z.literal("valid"), score: z.number().int().min(0).max(100),
+const providerSchema = z.object({ name: z.literal("fullenrich"), status: z.literal("valid"), score: z.number().int().min(0).max(100).nullable(), verification_status: z.literal("DELIVERABLE"), lookup_sha256: z.string().regex(/^[a-f0-9]{64}$/), record_sha256: z.string().regex(/^[a-f0-9]{64}$/),
   checked_at: z.string().datetime({ offset: true }), request_digest: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
 
 /** The person behind a recipient, or null. A public-quote person needs the name in its proven quote, and its role only
@@ -120,20 +145,24 @@ export function screenPerson(recipient: any) {
   const person = recipient?.person;
   if (person === null || person === undefined) return null;
   if (person.source === "public_quote") {
-    if (!nonblank(person.name, 200) || !nonblank(person.quote) || !containsContactName(person.quote, person.name)
+    if (!nonblank(person.name, 200) || !nonblank(person.quote) || !screenHasName(person.quote, person.name)
       || !publicUrl(person.url) || !PROVEN.includes(person.level)) fail("screen_contact_person_invalid");
-    const role = nonblank(person.title, 200) && containsContactName(person.quote, person.title) ? person.title.trim() : null;
+    const role = nonblank(person.title, 200) && screenHoldsTitle(person.quote, person.title) ? person.title.trim() : null;
     return { name: person.name.trim(), role, sourceUrl: person.url as string, quote: person.quote as string, level: person.level as string,
       checkedAt: typeof person.date === "string" && person.date ? person.date : null, source: "public_quote" as const, corroborated: null };
   }
   if (person.source === "provider_sourced" && typeof person.corroborated === "boolean" && nonblank(person.name, 200) && nonblank(person.title, 200)) {
+    const employment = person.proof?.current_employment;
+    if (person.proof?.source !== "fullenrich_people_search" || !hex(person.proof.request_digest)
+      || !employment || !["employment.current.is_current", "employment.current.end_at_absent", "employment.all.is_current"].includes(employment.field)
+      || typeof employment.company_domain !== "string" || !onDomain(employment.company_domain, recipient.operator_domain.domain)) fail("screen_contact_person_invalid");
     const proof = person.corroboration;
     if (person.corroborated && !(keysAre(proof, ["level", "quote", "text_sha256", "url"]) && publicUrl(proof.url) && PROVEN.includes(proof.level)
-      && nonblank(proof.quote) && containsContactName(proof.quote, person.name) && hex(proof.text_sha256))) fail("screen_contact_person_invalid");
+      && nonblank(proof.quote) && screenHasName(proof.quote, person.name) && screenHoldsTitle(proof.quote, person.title) && hex(proof.text_sha256))) fail("screen_contact_person_invalid");
     if (!person.corroborated && proof !== null) fail("screen_contact_person_invalid");
     return { name: person.name.trim(), role: person.title.trim() as string | null, sourceUrl: person.corroborated ? proof.url as string : null,
       quote: person.corroborated ? proof.quote as string : null, level: person.corroborated ? proof.level as string : "provider_record",
-      checkedAt: null, source: "provider_sourced" as const, corroborated: person.corroborated as boolean };
+      checkedAt: null, source: "provider_sourced" as const, corroborated: person.corroborated as boolean, providerProof: person.proof };
   }
   return fail("screen_contact_person_invalid");
 }
@@ -152,8 +181,12 @@ export function screenRecipientProblem(context: ScreenRecipientContext): string 
     if (!onDomain(host, domain) || freeMail(host)) return INVALID;
     if (LOOKUP_ROUTES.includes(r.route)) {
       if (r.address_source !== "provider_lookup" || r.published !== null || !providerSchema.safeParse(r.provider).success
-        || localPartIsRole(r.address)) return INVALID;
+        || localPartIsRole(r.address) || screenAddressRole(r.address, r.person) !== "person") return INVALID;
       const source = r.person?.source;
+      if (r.route === "quoted_person_looked_up_email") {
+        if (r.person.current !== true || !screenFreshDate(r.person.date, r.provider.checked_at)
+          || !screenHasName(r.person.quote, r.person.name) || !screenHoldsTitle(r.person.quote, r.person.title)) return INVALID;
+      }
       if (r.route === "quoted_person_looked_up_email" ? source !== "public_quote" || !hex(r.person.text_sha256)
         : source !== "provider_sourced" || r.person.corroborated !== (r.route === "provider_sourced_corroborated")) return INVALID;
     } else {
@@ -163,7 +196,11 @@ export function screenRecipientProblem(context: ScreenRecipientContext): string 
         || !published.quote.toLowerCase().includes(r.address) || !hex(published.text_sha256)
         || !/^\d{4}-\d{2}-\d{2}$/.test(published.checked_on)) return INVALID;
       if (r.person !== null && r.person?.source !== "public_quote") return INVALID;
-      if (r.route === "published_person_email" && r.person === null) return INVALID;
+      const role = ({ published_person_email: "person", published_team_inbox: "team", published_general_inbox: "general" } as Record<string, string>)[r.route];
+      if (screenAddressRole(r.address, r.person) !== role) return INVALID;
+      if (r.route === "published_person_email" && (!r.person || r.person.current !== true
+        || !screenFreshDate(r.person.date, published.checked_on) || !screenHasName(r.person.quote, r.person.name)
+        || !screenHoldsTitle(r.person.quote, r.person.title))) return INVALID;
     }
     screenPerson(r);
   } catch (error) {
@@ -197,14 +234,16 @@ const screenContactBaseSchema = z.object({
   route: z.enum(RECIPIENT_ROUTES), label: z.string().min(1).max(200), addressSource: z.enum(["published", "provider_lookup"]),
   operatorDomain: z.object({ domain: z.string().min(1).max(253), basis: z.enum(["operator_quote", "website"]), url: z.string().url(),
     textSha256: digest }).strict(),
-  pages: z.array(pageSchema).max(1),
-  extraction: z.object({ version: z.literal(EXTRACTOR), pageIndex: z.literal(0), segmentIndex: z.number().int().nonnegative(),
+  pages: z.array(pageSchema).max(2),
+  extraction: z.object({ version: z.literal(EXTRACTOR), pageIndex: z.number().int().min(0).max(1), segmentIndex: z.number().int().nonnegative(),
     quote: z.string().min(1).max(1200), visibleTextDigest: digest, visibilityBasis: z.literal(VISIBILITY_BASIS) }).strict().nullable(),
-  provider: z.object({ name: z.string().min(1).max(80), status: z.literal("valid"), score: z.number().int().min(0).max(100),
+  provider: z.object({ name: z.string().min(1).max(80), status: z.literal("valid"), score: z.number().int().min(0).max(100).nullable(), verificationStatus: z.literal("DELIVERABLE"), lookupDigest: digest, recordDigest: digest,
     checkedAt: z.string().datetime({ offset: true }), requestDigest: digest }).strict().nullable(),
   person: z.object({ name: z.string().min(1).max(200), role: z.string().min(1).max(200).nullable(), sourceUrl: z.string().url().nullable(),
     quote: z.string().min(1).max(1200).nullable(), level: z.enum([...PROVEN, "provider_record"]), checkedAt: z.string().max(64).nullable(),
-    source: z.enum(["public_quote", "provider_sourced"]), corroborated: z.boolean().nullable() }).strict().nullable(),
+    source: z.enum(["public_quote", "provider_sourced"]), corroborated: z.boolean().nullable(), providerProof: z.object({ source: z.literal("fullenrich_people_search"), request_digest: digest,
+    current_employment: z.object({ field: z.enum(["employment.current.is_current", "employment.current.end_at_absent", "employment.all.is_current"]),
+      company_domain: z.string().min(1), start_at: z.string().nullable() }).strict() }).strict().optional() }).strict().nullable(),
   addressIsPersonal: z.boolean(),
   contact: z.object({ email: z.string().email(), route: z.enum(["named_person", "team_inbox", "general_inbox", "looked_up_person"]),
     scope: z.enum(["site", "organization_business_route"]), organization: z.string().min(1), site: z.string().nullable(),
@@ -225,10 +264,24 @@ function deriveScreenContact(source: ScreenContactSource, prospectId: string, pa
   if (problem) fail(problem);
   const domain = screenOperatorDomain(contextOf(source)), person = screenPerson(recipient), address: string = recipient.address;
   const organizationUrl = `https://${domain.domain}`;
+  const hostUrl = contactFetchUrl(domain.url, organizationUrl).href;
+  {
+    const hostPage = pages.find(page => page.requestedUrl === hostUrl) ?? fail("screen_contact_operator_page_missing");
+    const bytes = Buffer.from(hostPage.bodyBase64, "base64");
+    if (hostPage.byteCount !== bytes.length || hostPage.bodyDigest !== sha256(bytes)
+      || hostPage.finalUrl !== (hostPage.redirects.at(-1) ?? hostPage.requestedUrl)) fail("contact_resolution_retrieval_changed");
+    for (const url of [hostPage.finalUrl, ...hostPage.redirects]) contactFetchUrl(url, organizationUrl);
+    const parsed = contactPageText(hostPage);
+    if (contactProhibition.test(parsed.restrictionText)) fail("contact_resolution_recipient_restricted");
+    if (parsed.visibilityUnverified || !parsed.segments.some(text => containsContactName(text, source.candidate.organization))) {
+      fail("screen_contact_operator_domain_unproven");
+    }
+  }
   let extraction: z.infer<typeof screenContactBaseSchema>["extraction"] = null, contact, addressIsPersonal: boolean;
   if (recipient.address_source === "published") {
-    if (pages.length !== 1) fail("screen_contact_page_missing");
-    const page = pages[0], bytes = Buffer.from(page.bodyBase64, "base64");
+    const pageIndex = pages.findIndex(page => page.requestedUrl === contactFetchUrl(recipient.published.url, organizationUrl).href);
+    if (pageIndex < 0) fail("screen_contact_page_missing");
+    const page = pages[pageIndex], bytes = Buffer.from(page.bodyBase64, "base64");
     if (page.requestedUrl !== contactFetchUrl(recipient.published.url, organizationUrl).href || page.byteCount !== bytes.length
       || page.bodyDigest !== sha256(bytes) || page.finalUrl !== (page.redirects.at(-1) ?? page.requestedUrl)) fail("contact_resolution_retrieval_changed");
     for (const url of [page.finalUrl, ...page.redirects]) contactFetchUrl(url, organizationUrl);
@@ -245,25 +298,26 @@ function deriveScreenContact(source: ScreenContactSource, prospectId: string, pa
       }
     }
     if (found < 0) fail("screen_contact_address_not_on_fresh_page");
-    extraction = { version: EXTRACTOR, pageIndex: 0, segmentIndex: found, quote: parsed.segments[found],
+    extraction = { version: EXTRACTOR, pageIndex, segmentIndex: found, quote: parsed.segments[found],
       visibleTextDigest: communicationsDigest({ segments: parsed.segments, restrictionText: parsed.restrictionText,
         visibilityUnverified: parsed.visibilityUnverified }), visibilityBasis: VISIBILITY_BASIS };
     // Greeted by name only when the address is the person's own by the same rule as every hypothesis contact.
-    addressIsPersonal = recipient.route === "published_person_email" && !!person?.role && addressNamesPerson(address, person.name);
+    addressIsPersonal = recipient.route === "published_person_email" && !localPartIsRole(address) && !!person?.role && addressIsPersonOwn(address, extraction.quote, person.name);
     const scope = containsContactName(extraction.quote, source.candidate.site) ? "site" as const : "organization_business_route" as const;
     contact = { email: address, route: addressIsPersonal ? "named_person" as const : recipient.route === "published_team_inbox" ? "team_inbox" as const
       : "general_inbox" as const, scope, organization: source.candidate.organization, site: scope === "site" ? source.candidate.site : null,
       status: "public_business_contact" as const, sourceUrl: page.finalUrl, sourceCheckedAt: page.checkedAt };
   } else {
     // A looked-up address is never searched for on a page: its provider check is its evidence.
-    if (pages.length) fail("screen_contact_lookup_page_unexpected");
+    if (pages.length !== 1) fail("screen_contact_lookup_page_unexpected");
     addressIsPersonal = !!person?.role;
     contact = { email: address, route: "looked_up_person" as const, scope: "organization_business_route" as const,
       organization: source.candidate.organization, site: null, status: "looked_up_business_contact" as const,
       sourceUrl: person?.sourceUrl ?? domain.url, sourceCheckedAt: recipient.provider.checked_at as string };
   }
   const provider = recipient.provider ? { name: recipient.provider.name, status: recipient.provider.status, score: recipient.provider.score,
-    checkedAt: recipient.provider.checked_at, requestDigest: recipient.provider.request_digest } : null;
+    checkedAt: recipient.provider.checked_at, requestDigest: recipient.provider.request_digest,
+    verificationStatus: recipient.provider.verification_status, lookupDigest: recipient.provider.lookup_sha256, recordDigest: recipient.provider.record_sha256 } : null;
   return { version: SCREEN_CONTACT_VERSION, publication: screenContactPublication(source, prospectId), route: recipient.route,
     label: recipient.label, addressSource: recipient.address_source, operatorDomain: domain, pages, extraction, provider, person,
     addressIsPersonal, contact };
@@ -290,9 +344,11 @@ export async function admitScreenContact(source: ScreenContactSource, prospectId
   const problem = screenRecipientProblem(contextOf(source));
   if (problem) fail(problem);
   const pages: ScreenPage[] = [];
-  if (recipient.address_source === "published") {
-    const organizationUrl = `https://${screenOperatorDomain(contextOf(source)).domain}`;
-    const url = contactFetchUrl(recipient.published.url, organizationUrl).href, deadline = now() + 24000;
+  const domain = screenOperatorDomain(contextOf(source)), organizationUrl = `https://${domain.domain}`;
+  const urls = [...new Set([domain.url,
+    ...(recipient.address_source === "published" ? [recipient.published.url] : [])].map(url => contactFetchUrl(url, organizationUrl).href))];
+  const deadline = now() + 24000;
+  for (const url of urls) {
     let page;
     try { page = await readPage(url, organizationUrl, deadline); }
     catch (error) {

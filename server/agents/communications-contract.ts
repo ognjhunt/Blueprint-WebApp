@@ -52,7 +52,7 @@ export const RECIPIENT_ROUTES = ["published_person_email", "quoted_person_looked
 export const recipientProvenanceSchema = z.object({
   route: z.enum(RECIPIENT_ROUTES), label: text, addressSource: z.enum(["published", "provider_lookup"]),
   personSource: z.enum(["public_quote", "provider_sourced"]).nullable(), corroborated: z.boolean().nullable(),
-  provider: z.object({ name: text, status: z.literal("valid"), score: z.number().int().min(0).max(100), checkedAt: date,
+  provider: z.object({ name: text, status: z.literal("valid"), score: z.number().int().min(0).max(100).nullable(), verificationStatus: z.literal("DELIVERABLE"), lookupDigest: z.string().regex(/^[a-f0-9]{64}$/), recordDigest: z.string().regex(/^[a-f0-9]{64}$/), checkedAt: date,
     requestDigest: z.string().regex(/^[a-f0-9]{64}$/) }).strict().nullable(),
 }).strict().refine(value => (value.addressSource === "provider_lookup") === (value.provider !== null)
   && (value.personSource === "provider_sourced") === (value.corroborated !== null),
@@ -61,12 +61,12 @@ export type RecipientProvenance = z.infer<typeof recipientProvenanceSchema>;
 export const communicationsRecipientSchema = z.discriminatedUnion("kind", [
   // A provider-sourced person not corroborated by any public page has no source URL; anyone else has one.
   z.object({ kind: z.literal("named_person"), name: text, role: text, sourceUrl: publicUrl.nullable(),
-    provenance: recipientProvenanceSchema.optional() }).strict()
-    .refine(value => value.sourceUrl !== null || (value.provenance?.personSource === "provider_sourced" && value.provenance.corroborated === false),
-      { message: "only a provider-sourced person that no public page corroborates has no source", path: ["sourceUrl"] }),
+    provenance: recipientProvenanceSchema.optional() }).strict(),
   z.object({ kind: z.literal("inbox"), addressee: text, person: publishedPerson.nullable(),
     provenance: recipientProvenanceSchema.optional() }).strict(),
-]);
+]).refine(value => value.kind !== "named_person" || value.sourceUrl !== null
+  || (value.provenance?.personSource === "provider_sourced" && value.provenance.corroborated === false),
+{ message: "only a provider-sourced person that no public page corroborates has no source", path: ["sourceUrl"] });
 export type CommunicationsRecipient = z.infer<typeof communicationsRecipientSchema>;
 
 /** An outreach-ready hypothesis (owner decision 2026-10-05, design v1.1): operator, site and

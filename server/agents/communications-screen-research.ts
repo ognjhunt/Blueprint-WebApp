@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { researchDigest } from "./research-digest";
 import { communicationsDigest, OUTREACH_READY_OPEN_CHECKS, verifyCommunicationsHandoff, type CommunicationsBrief } from "./communications-contract";
-import { OUTREACH_RULE_VERSION } from "./lead-verification";
+import { isOutreachRuleVersion, outreachReadyQuestion, outreachReadyQuestionTemplate, type OutreachRuleVersion } from "./outreach-ready-question";
 import { COMMUNICATIONS_CRM_ID } from "./communications-reviewed-research";
 import { isLinkedInUrl } from "./communications-contact-evidence";
 import { screenRecipientProblem, verifyScreenContactResolution } from "./communications-screen-contact";
@@ -23,7 +23,7 @@ const WORK_ITEM_VERSION = "blueprint.site-screen-work-item.v1", PAYLOAD_VERSION 
 const SOURCE_VERSION = "blueprint.communications-screen-source.v1" as const;
 /** The screen and contact rules this release reads (Pipeline tools/daily_research/site_screen.py). A bundle made under
  * any other rule is refused until the list is reviewed; the record's own question is reused, never rebuilt here. */
-export const SCREEN_RULES: readonly string[] = ["blueprint.site-screen-rule.v2"];
+export const SCREEN_RULES: readonly string[] = ["blueprint.site-screen-rule.v2", "blueprint.site-screen-rule.v3"];
 export const SCREEN_CONTACT_RULES: readonly string[] = ["blueprint.site-contact-rule.v3"];
 /** The owner record that moves screened sites into the CRM and on to drafting. */
 export const SCREEN_OWNER_DECISION_REFERENCE =
@@ -91,6 +91,10 @@ function resultProblem(result: any, rules: { screen: string; outreach: string })
       || !oneQuestion(checks.question) || !/^[A-Z]$/.test(String(checks.question_template))
       || !same(result.hypothesis, { tier: "outreach_ready", label: "hypothesis", rule_version: rules.screen, outreach_rule_version: rules.outreach,
         open_checks: ordered, question_template: checks.question_template, question: checks.question })) return "screen_admission_question_mismatch";
+    // Ambiguous automation evidence never establishes partial automation at this task/site.
+    const questionOptions = { location: candidate.location, partialAutomation: false, ruleVersion: rules.outreach as OutreachRuleVersion };
+    if (rules.screen === "blueprint.site-screen-rule.v3" && (checks.question !== outreachReadyQuestion(ordered, candidate.task, candidate.site, questionOptions)
+      || checks.question_template !== outreachReadyQuestionTemplate(ordered, false, questionOptions.ruleVersion))) return "screen_admission_question_mismatch";
     const proofs = result.proofs;
     if (!Array.isArray(proofs) || proofs.map((proof: any) => proof?.claim).join() !== "operator,physical_site,site_task") return "screen_admission_proof_invalid";
     for (const proof of proofs) {
@@ -127,14 +131,14 @@ export function screenAdmission(snapshot: any) {
     || results.length > MAX_RESULTS || manifest.records !== results.length) fail("screen_admission_bundle_invalid");
   const rules = manifest.rules;
   if (!keysAre(rules, ["contact", "outreach", "screen"]) || !SCREEN_RULES.includes(rules.screen) || !SCREEN_CONTACT_RULES.includes(rules.contact)
-    || rules.outreach !== OUTREACH_RULE_VERSION) fail("screen_admission_rule_mismatch");
+    || !isOutreachRuleVersion(rules.outreach)) fail("screen_admission_rule_mismatch");
   // The owner direction the worker admitted this bundle under, recorded under its lease, is the bundle's own.
   const direction = state?.direction, pinned = bundle.direction, match = typeof direction?.uri === "string" ? DIRECTION_URI.exec(direction.uri) : null;
   if (!keysAre(direction, ["approval_reference", "effective_from", "expires_at", "generation", "label", "max_rows_per_batch", "paths", "rule_version",
     "sends_authorized", "sha256", "uri", "version"]) || !keysAre(pinned, ["generation", "sha256", "uri"]) || !match || match[1] !== direction.sha256
     || direction.sha256 !== pinned.sha256 || direction.generation !== pinned.generation || direction.uri !== pinned.uri
     || !/^[1-9][0-9]{0,18}$/.test(direction.generation) || direction.sends_authorized !== false || direction.label !== "hypothesis"
-    || !Array.isArray(direction.paths) || !direction.paths.includes("site_screen") || direction.rule_version !== OUTREACH_RULE_VERSION
+    || !Array.isArray(direction.paths) || !direction.paths.includes("site_screen") || !isOutreachRuleVersion(direction.rule_version)
     || !Number.isSafeInteger(direction.max_rows_per_batch) || direction.max_rows_per_batch < results.length || direction.max_rows_per_batch > MAX_RESULTS
     || !(Date.parse(direction.effective_from) < Date.parse(direction.expires_at))) fail("screen_admission_direction_invalid");
   if (!keysAre(state, ["acknowledged_at", "admission_id", "approval_reference", "bundle_blob", "direction", "generation", "payload", "plan",
@@ -220,7 +224,7 @@ export function screenPublicationSource(snapshot: any, siteKey: string, now: num
     candidate: { candidate_key: siteKey, organization: result.candidate.organization as string, site: result.candidate.site as string,
       location: result.candidate.location as string, task: result.candidate.task as string, task_url: result.candidate.task_url as string,
       unknowns: [] as string[] },
-    hypothesis: { tier: "outreach_ready" as const, label: "hypothesis" as const, ruleVersion: OUTREACH_RULE_VERSION,
+    hypothesis: { tier: "outreach_ready" as const, label: "hypothesis" as const, ruleVersion: result.hypothesis.outreach_rule_version,
       screenRuleVersion: result.checks.rule_version as string, openChecks: result.hypothesis.open_checks as string[],
       openQuestions: [result.hypothesis.question as string], questionTemplate: result.hypothesis.question_template as string,
       validUntil: null, checkedOn: result.checked_on as string, provingSources: result.proofs as any[], direction },
