@@ -143,6 +143,27 @@ these with fresh authentic service/deploy/web-log receipts and process proofs;
 the inventory artifact alone does not authorize recovery. Do not re-enable a
 held Deploy workflow to run it without parent coordination.
 
+While Deploy is held, the already registered Tony draft-window workflow has a
+separate manual `incident_inspect=true` mode. This mode excludes its entire
+configuration job, including checkout and the Tony script. Its inline collector
+requires the exact `codex/outreach-incident-held-inspect-20261006` branch, the
+installed c4 SHA in `incident_ref`, and an independently reviewed 40-character
+`reviewed_source` equal to the actual workflow head. Dispatch only after parent
+coordination; preparing or publishing this source grants no execution authority.
+Deploy remains disabled. Ordinary Tony operations retain their original
+main-only configuration boundary.
+
+Both collectors retain the complete original instance response, including
+optional bounded string `status` and boolean `ready` fields. They never filter
+instances by those fields or infer drainage from them. Unknown fields and invalid
+types reject collection; every returned instance still requires fresh actual
+runtime coverage under the existing admission validator. Verify the inspection
+head and run/attempt, the configuration job's actual skipped conclusion, all
+five receipts and their raw-body hashes. Archive verified private receipts in
+the existing company store before the one-day CI artifact expires. Neither a
+successful read-only job nor a skipped configuration job authorizes recovery,
+cleanup, sending or deployment.
+
 ```bash
 node --import tsx "$incident_src/scripts/communications-incident-recovery-20261006.mjs" recover /tmp/lap259-recovery
 ```

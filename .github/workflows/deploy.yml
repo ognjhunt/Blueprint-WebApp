@@ -98,7 +98,10 @@ jobs:
               fieldNames: fields(body), firstRowFieldNames: Array.isArray(body) ? fields(body[0]) : [],
               rawBodySha256: createHash('sha256').update(raw).digest('hex') }));
             if (path === 'instances') {
-              if (response.status !== 200 || !Array.isArray(body) || body.length > 1000 || body.some(row => !row || typeof row.id !== 'string' || row.id.length > 200 || !Number.isFinite(Date.parse(row.createdAt)) || Object.keys(row).some(field => !['id', 'createdAt'].includes(field)))) throw Error('instance_response_shape_unverified');
+              if (response.status !== 200 || !Array.isArray(body) || body.length > 1000 || body.some(row => !row || typeof row.id !== 'string' || !row.id.startsWith(`${service}-`) || row.id.length > 200 || typeof row.createdAt !== 'string' || !Number.isFinite(Date.parse(row.createdAt))
+                || (row.status !== undefined && (typeof row.status !== 'string' || row.status.length > 64))
+                || (row.ready !== undefined && typeof row.ready !== 'boolean')
+                || Object.keys(row).some(field => !['id', 'createdAt', 'status', 'ready'].includes(field)))) throw Error('instance_response_shape_unverified');
             } else if (response.status === 200) {
               if (body?.key !== path.slice('env-vars/'.length) || !['false', 'true', '0', '1'].includes(body.value) || Object.keys(body).some(field => !['key', 'value'].includes(field))) throw Error('fixed_flag_response_shape_unverified');
             } else {
