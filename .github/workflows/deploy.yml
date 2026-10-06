@@ -93,6 +93,10 @@ jobs:
             const raw = Buffer.from(await response.arrayBuffer());
             if (raw.length > 1_000_000 || ![200, 404].includes(response.status)) throw Error('incident_get_unavailable');
             let body; try { body = JSON.parse(raw); } catch { throw Error('incident_get_json_unavailable'); }
+            const fields = value => value && typeof value === 'object' ? Object.keys(value).slice(0, 16).map(field => /^[a-zA-Z][a-zA-Z0-9_]{0,64}$/.test(field) ? field : 'unrecognized_field') : [];
+            console.log(JSON.stringify({ name, status: response.status, responseKind: Array.isArray(body) ? 'array' : body === null ? 'null' : typeof body,
+              fieldNames: fields(body), firstRowFieldNames: Array.isArray(body) ? fields(body[0]) : [],
+              rawBodySha256: createHash('sha256').update(raw).digest('hex') }));
             if (path === 'instances') {
               if (response.status !== 200 || !Array.isArray(body) || body.length > 1000 || body.some(row => !row || typeof row.id !== 'string' || row.id.length > 200 || !Number.isFinite(Date.parse(row.createdAt)) || Object.keys(row).some(field => !['id', 'createdAt'].includes(field)))) throw Error('instance_response_shape_unverified');
             } else if (response.status === 200) {
