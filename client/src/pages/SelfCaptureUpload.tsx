@@ -1,5 +1,6 @@
 import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
+import { RecommendedPilot } from "@/components/site/RecommendedPilot";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 /**
  * The page a site employee opens from a link in an email.
@@ -847,6 +848,7 @@ export default function SelfCaptureUpload() {
           )}
         </>
       )}
+      {link.status === "valid" && scope === "owner" && <RecommendedPilot token={token} />}
       {link.status === "valid" && scope === "owner" && !saved && <PublicTaskListing token={token} />}
       {!saved && (
         <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage and ask you to confirm the job brief. We then assess provider fit and use a scene evaluation where it helps. Keep this link to follow progress.</p>

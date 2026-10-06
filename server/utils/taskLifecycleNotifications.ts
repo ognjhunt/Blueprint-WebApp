@@ -26,6 +26,8 @@ export type TaskLifecycleMilestone = Extract<
   | "results_ready"
   | "run_no_result"
   | "pilot_request"
+  | "pilot_recommended"
+  | "pilot_booked"
 >;
 
 /** A ready label without viewable assets is not a scene-ready milestone. */
@@ -88,7 +90,15 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
-    body: (url) => `A robot team asked to evaluate your site for a pilot. Your details stay private. If you would like to talk to them, reply to this email and we will introduce you; if not, there is nothing to do.\n\nOpen your job:\n${url}`,
+    body: (url) => `A robot team asked to evaluate your site for a pilot. Your details stay private, and there is nothing for you to do. We review every team that shows interest and send you one recommended pilot when the evidence supports it.\n\nOpen your job:\n${url}`,
+  },
+  pilot_recommended: {
+    subject: "Your recommended pilot is ready",
+    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the cost and dates, and what is still uncertain. If it looks right, book it there in one step. If not, reply and tell us why.\n\nOpen your job:\n${url}`,
+  },
+  pilot_booked: {
+    subject: "Your pilot is booked",
+    body: (url) => `Thanks. Your pilot is booked. We will coordinate the robot team, the dates and the site visit from here and email you when anything needs you.\n\nOpen your job:\n${url}`,
   },
 };
 

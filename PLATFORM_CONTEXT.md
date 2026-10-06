@@ -16,12 +16,13 @@ deliberate rather than an oversight.**
 
 What `Blueprint-WebApp` currently ships on its public routes:
 
-- The site is positioned as **task-to-pilot matching**. A site shows one
-  recurring task; robot teams evaluate it for free; Blueprint introduces the
-  teams that pass, fit the site's budget, and want the pilot. Pricing is
-  **no match, no fee**: $2,500 per task, charged to the site only when
-  Blueprint finds a match, with no cut of the pilot or any deployment
-  (`matchFeeUsd` in `client/src/lib/evaluationPricing.ts`).
+- The site is positioned as a **recommended pilot**. A site shows one
+  recurring task; robot teams evaluate it for free; Blueprint picks one team
+  that passes, fits the site's budget, and wants the pilot, and sends the site
+  one recommended pilot to book. Pricing is **no pilot, no fee**: $2,500 per
+  task, charged to the site only when it books the recommended pilot, with no
+  cut of the pilot or any deployment (`pilotFeeUsd` in
+  `client/src/lib/evaluationPricing.ts`).
 - Every public figure carries a primary source and an evidence grade
   (`published` or `illustrative`) in `client/src/data/deploymentMarket.ts`.
   There is no third grade, and no figure ships without a source.

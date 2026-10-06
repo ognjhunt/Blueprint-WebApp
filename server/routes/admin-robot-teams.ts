@@ -21,6 +21,8 @@ import {
   listPendingProposals,
 } from "../utils/robotTeamRegistry";
 import { hasAnyRole } from "../utils/access-control";
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import {
   creditTeam,
@@ -40,6 +42,47 @@ const router = Router();
 // only that a caller was signed in, so any robot team or site with an account
 // could list every team.
 router.use(requireAdminRole);
+
+const recommendationSchema = z.object({
+  teamName: z.string().trim().min(2).max(120),
+  purpose: z.string().trim().min(8).max(400),
+  siteProvides: z.string().trim().min(4).max(400),
+  teamProvides: z.string().trim().min(4).max(400),
+  pilotCost: z.string().trim().min(2).max(120),
+  window: z.string().trim().min(2).max(120),
+  uncertainties: z.string().trim().max(400).default(""),
+  alternative: z.string().trim().max(400).default(""),
+}).strict();
+
+/**
+ * Blueprint's one recommended pilot for a site job. Blueprint does the
+ * technical selection; the site's only decision is whether to book it.
+ * Replacing a recommendation gives it a new id, so a booking can never bind
+ * text the site did not see. A booked pilot is not replaced here.
+ */
+router.post("/recommendations/:requestId", async (req: Request, res: Response) => {
+  const parsed = recommendationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Fill in the team, purpose, what each side provides, cost and window." });
+  }
+  if (!db) return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Store unavailable" });
+  const requestId = String(req.params.requestId);
+  const ref = db.collection("inboundRequests").doc(requestId);
+  const snap = await ref.get();
+  if (!snap.exists) return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "Job not found" });
+  if (snap.data()?.pilot_booking) {
+    return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "This pilot is already booked." });
+  }
+  const recommendedAtIso = new Date().toISOString();
+  const id = `rec_${Date.now().toString(36)}`;
+  await ref.update({ pilot_recommendation: {
+    id, ...parsed.data, recommendedAtIso,
+    recommendedBy: (res.locals?.firebaseUser?.uid as string | undefined) ?? null,
+  } });
+  await enqueueTaskLifecycleNotification({ requestId, milestone: "pilot_recommended", eventId: id, detail: `${parsed.data.teamName}, to ${parsed.data.purpose.replace(/[.\s]+$/, "")}` })
+    .catch((error) => logger.warn({ error, requestId }, "Could not queue the recommended-pilot email"));
+  return res.json({ ok: true, id });
+});
 
 /** The queue, oldest proposals first so nothing rots at the bottom. */
 router.get("/proposals", async (_req: Request, res: Response) => {

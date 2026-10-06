@@ -15,7 +15,7 @@ import {
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
-import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
+import { formatPrice, pilotFeeUsd } from "@/lib/evaluationPricing";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   CAPTURE_VIDEO_ACCEPT,
@@ -753,9 +753,9 @@ export function SiteCaptureStart() {
 
       <p className="ms-field-hint">
         Next, review and correct your job brief before approving it. Starting is free.
-        You separately authorize the {formatPrice(matchFeeUsd)} match fee if you open the job to pilot proposals.
-        It is due when we introduce a qualifying match, even if you do not buy the pilot. No match, no fee.
-        {" "}<a href="/pricing#match-fee">Fee and replacement policy</a>.
+        We pick the robot team and send you one recommended pilot. You pay {formatPrice(pilotFeeUsd)} only
+        if you book it. No pilot, no fee.
+        {" "}<a href="/pricing#pilot-fee">Fee and replacement policy</a>.
       </p>
 
       <p className="ms-form-note">

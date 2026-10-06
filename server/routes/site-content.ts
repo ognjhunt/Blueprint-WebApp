@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { captureGroundedPublicCopy } from "../../client/src/lib/captureGroundedLanguage";
-import { formatPrice, matchFeeUsd, matchReplacementPolicy } from "../../client/src/lib/evaluationPricing";
+import { formatPrice, pilotFeeUsd, pilotReplacementPolicy } from "../../client/src/lib/evaluationPricing";
 
 const router = Router();
 
@@ -12,7 +12,7 @@ const definitions = [
   {
     term: "Managed robot pilot preparation",
     definition:
-      `Blueprint helps a business describe one recurring job and post a pilot price and conditions or a target budget. Robot teams evaluate the job for free. When a team passes, fits the budget, and wants the pilot, Blueprint introduces the two sides by name and charges the site ${formatPrice(matchFeeUsd)} per job; no match, no fee. The site and the team agree the pilot directly, and Blueprint takes no cut of it. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.`,
+      `Blueprint helps a business describe one recurring job and post a pilot price and conditions or a target budget. Robot teams evaluate the job for free. Blueprint picks one team that passed, fits the budget, and wants the pilot, and sends the site one recommended pilot; the site pays ${formatPrice(pilotFeeUsd)} per job only when it books it. No pilot, no fee. Blueprint takes no cut of the pilot itself. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.`,
   },
   {
     term: "Paying-site admission bar",
@@ -153,7 +153,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      `No match, no fee. Sites submit a job and get it screened and evaluated for free, and pay Blueprint ${formatPrice(matchFeeUsd)} per job only when it finds a robot team that passed the evaluation, fits the site's budget, and wants to run the pilot. Blueprint takes no percentage of the pilot or any deployment. The site explicitly authorizes the match fee when opening the job to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched jobs for free when invited. The beta offers no private paid evaluations or balance top-ups.`,
+      `No pilot, no fee. Sites submit a job and get it screened, evaluated and a recommended pilot for free, and pay Blueprint ${formatPrice(pilotFeeUsd)} per job only when they book the pilot Blueprint recommends. Blueprint selects the robot team; the site's one decision is whether to book. Blueprint takes no percentage of the pilot or any deployment. ${pilotReplacementPolicy} Robot teams evaluate invited jobs for free. The beta offers no private paid evaluations or balance top-ups.`,
   },
   {
     path: "/contact",

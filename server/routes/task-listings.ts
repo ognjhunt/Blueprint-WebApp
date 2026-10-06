@@ -7,12 +7,12 @@ import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { listingConsentVersion, taskListingSchema } from "../utils/taskListingDetails";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { enqueueNewTaskAlerts } from "../utils/robotTeamAccessEmails";
-import { formatPrice, matchFeeUsd } from "../../client/src/lib/evaluationPricing";
+import { pilotFeeUsd } from "../../client/src/lib/evaluationPricing";
 import { TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 
 const router = Router();
 router.use(rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }));
-const grantSchema = z.object({ enabled: z.boolean(), consent: z.literal(true), details: taskListingSchema, matchFee: z.literal(true).optional(), thumbnailPng: z.string().max(800_000).nullable().optional(), thumbnailConsent: z.literal(true).optional() }).strict().refine(value => !value.thumbnailPng || value.thumbnailConsent === true);
+const grantSchema = z.object({ enabled: z.boolean(), consent: z.literal(true), details: taskListingSchema, thumbnailPng: z.string().max(800_000).nullable().optional(), thumbnailConsent: z.literal(true).optional() }).strict().refine(value => !value.thumbnailPng || value.thumbnailConsent === true);
 
 router.route("/owner/:token")
   .all((req, res, next) => {
@@ -28,18 +28,19 @@ router.route("/owner/:token")
       if (!snap.exists) return res.status(404).json({ error: "Job not found" });
       res.set("Cache-Control", "no-store");
       const image = await db.collection("taskThumbnails").doc(res.locals.requestId).get();
-      return res.json({ listing: snap.data()?.public_task_listing ?? null, thumbnailPng: image.data()?.pngBase64 ?? null });
+      return res.json({
+        listing: snap.data()?.public_task_listing ?? null,
+        thumbnailPng: image.data()?.pngBase64 ?? null,
+        recommendation: snap.data()?.pilot_recommendation ?? null,
+        booking: snap.data()?.pilot_booking ?? null,
+      });
     } catch { return res.status(503).json({ error: "Listing unavailable" }); }
   })
   .post(async (req, res) => {
     const parsed = grantSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Review the public card and approve its text." });
-    // Opening a card to pilot proposals is where a site agrees to the match
-    // fee: no match, no fee. An evaluation-only or hidden card carries none.
-    const opensToPilots = parsed.data.enabled && parsed.data.details.opportunity === "open";
-    if (opensToPilots && parsed.data.matchFee !== true) {
-      return res.status(400).json({ error: `Agree to the ${formatPrice(matchFeeUsd)} match fee to open this job to pilot proposals.` });
-    }
+    // Opening a card to pilot proposals costs nothing. The fee is agreed once,
+    // when the site books the pilot Blueprint recommends: no pilot, no fee.
     if (!db) return res.status(503).json({ error: "Listing unavailable" });
     try {
       const ref = db.collection("inboundRequests").doc(res.locals.requestId);
@@ -60,9 +61,6 @@ router.route("/owner/:token")
           consentVersion: listingConsentVersion, approvedAtIso: new Date().toISOString(),
           approvedBy: "signed_owner_link",
           thumbnailDigest: parsed.data.thumbnailPng === null ? null : thumbnail?.digest ?? previousDigest,
-          matchFee: opensToPilots
-            ? { amountUsd: matchFeeUsd, termsVersion: TERMS_VERSION, acceptedAtIso: new Date().toISOString() }
-            : null,
         } });
         if (thumbnail) transaction.set(imageRef, { ...thumbnail, approvedAtIso: new Date().toISOString(), consentVersion: "public-task-thumbnail-v1" });
         else if (parsed.data.thumbnailPng === null) transaction.delete(imageRef);
@@ -71,12 +69,49 @@ router.route("/owner/:token")
       if (wentLive) {
         await enqueueTaskLifecycleNotification({ requestId: res.locals.requestId, milestone: "listing_live", eventId: wentLive })
           .catch(() => undefined);
-        // Approved robot teams hear about it too, so a match never waits on a person.
+        // Approved robot teams hear about it too, so a recommendation never waits on a person.
         await enqueueNewTaskAlerts({ requestId: res.locals.requestId, card: parsed.data.details, wentLiveIso: wentLive })
           .catch(() => undefined);
       }
       return res.json({ ok: true });
     } catch { return res.status(503).json({ error: "The public card was not saved. Try again." }); }
   });
+
+const bookSchema = z.object({ recommendationId: z.string().min(1).max(120), authorized: z.literal(true) }).strict();
+
+/**
+ * The site's one decision. Blueprint has already picked the team and scoped
+ * the pilot; booking is the single approval, and it is where the fee is
+ * agreed. A booking only ever binds the recommendation the site was shown.
+ */
+router.post("/owner/:token/book", async (req, res) => {
+  const token = verifyCaptureUploadToken(String(req.params.token));
+  if (!token || token.scope !== "owner") return res.status(403).json({ error: "Use the site owner's link to book this pilot." });
+  const parsed = bookSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Confirm you are authorized to book this pilot." });
+  if (!db) return res.status(503).json({ error: "Booking unavailable" });
+  try {
+    const ref = db.collection("inboundRequests").doc(token.requestId);
+    const outcome = await db.runTransaction(async transaction => {
+      const current = await transaction.get(ref);
+      const recommendation = current.data()?.pilot_recommendation;
+      if (!current.exists || !recommendation) return "missing" as const;
+      if (recommendation.id !== parsed.data.recommendationId) return "stale" as const;
+      if (current.data()?.pilot_booking) return "booked" as const;
+      transaction.update(ref, { pilot_booking: {
+        recommendationId: recommendation.id, amountUsd: pilotFeeUsd, termsVersion: TERMS_VERSION,
+        bookedAtIso: new Date().toISOString(), bookedBy: "signed_owner_link",
+      } });
+      return "ok" as const;
+    });
+    if (outcome === "missing") return res.status(404).json({ error: "There is no recommended pilot to book yet." });
+    if (outcome === "stale") return res.status(409).json({ error: "This recommendation has changed. Reopen your job page to see the current one." });
+    if (outcome === "ok") {
+      await enqueueTaskLifecycleNotification({ requestId: token.requestId, milestone: "pilot_booked", eventId: parsed.data.recommendationId })
+        .catch(() => undefined);
+    }
+    return res.json({ ok: true });
+  } catch { return res.status(503).json({ error: "The pilot was not booked. Try again." }); }
+});
 
 export default router;

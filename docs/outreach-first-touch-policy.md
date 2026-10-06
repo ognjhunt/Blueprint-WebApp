@@ -60,8 +60,8 @@ is available; it is not evidence that a network search was performed or required
    **confirmed deployment capacity** distinct. A reply, useful public research,
    willingness to learn, or consent to evaluate does not establish the others.
 4. Offer a bounded **readiness/learning brief** where useful. This is a learning
-   artifact, distinct from a qualified match and the qualified-match fee. It
-   does not certify readiness, promise deployment, or trigger a match fee merely
+   artifact, distinct from a recommended pilot and the pilot booking fee. It
+   does not certify readiness, promise deployment, or trigger a fee merely
    because someone replies, provides information, or participates in evaluation.
 5. Build a **progressive job brief**: ask one easy job question first, then gather
    the smallest relevant detail after the recipient chooses to continue. Request
@@ -257,7 +257,7 @@ contract, or recorded evidence changes. Retry checks the stored attestation.
 | Warm kind/claim matches recorded verification fields | Source proves the connection/introduction/membership and wording implies no endorsement |
 | Offer, limits, and recipient-choice text appear in the body | Value is small, useful, task-specific, deliverable, and bounded; choice is unpressured |
 | One `?`, an anchored question, and explicit prohibited-pattern checks | One genuinely easy question tailored to verified site state, with public-signal provenance for claimed interest/pilot/deployment; no invented motivation/status, compound ask, confidential request, questionnaire, or default meeting |
-| Site-led learning/job-question contract, recorded team research, and exact Atlas/pipeline claim references | Separate talking/evaluation/capacity signals; learning vs qualified-match fee; later site-sharing consent, team configuration/support/timing, evidence-backed evaluation and consensual introduction/outcome feedback |
+| Site-led learning/job-question contract, recorded team research, and exact Atlas/pipeline claim references | Separate talking/evaluation/capacity signals; learning vs pilot booking fee; later site-sharing consent, team configuration/support/timing, evidence-backed evaluation and consensual introduction/outcome feedback |
 | All five rule decisions plus workflow review pass, and digest matches | Honest review of the exact message before the existing separate send approval |
 
 Pattern checks reject explicit meeting/questionnaire, video/confidential requests,

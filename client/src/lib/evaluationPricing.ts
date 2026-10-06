@@ -1,9 +1,10 @@
 /**
- * Sites pay $2,500 per task at a qualifying introduction; invited pilot
- * evaluations are free and shared with the site. Robot teams pay $99 for a
- * private evaluation of one policy/configuration on one reconstructed site
- * task. Private results are excluded from site updates and pilot matching.
- * Blueprint sets the run length. Physical pilots are agreed separately.
+ * Sites pay $2,500 per task only when they book the pilot Blueprint
+ * recommends; invited pilot evaluations are free and shared with the site.
+ * Robot teams pay $99 for a private evaluation of one policy/configuration on
+ * one reconstructed site task. Private results are excluded from site updates
+ * and pilot recommendations. Blueprint sets the run length. Physical pilots
+ * are agreed separately.
  */
 
 /** The billable unit, and the whole of its definition. */
@@ -25,24 +26,27 @@ export const entryBoundaries = [
 export const entryPrice = 99;
 
 /**
- * A site's fee, once per task and only when Blueprint finds a match, however
- * many teams match. The server records the site's agreement against this same
- * number, so the page and the record cannot quote different fees.
+ * A site's fee, once per task and only when it books the pilot Blueprint
+ * recommends. The server records the booking against this same number, so
+ * the page and the record cannot quote different fees.
  */
-export const matchFeeUsd = 2500;
+export const pilotFeeUsd = 2500;
 
-/** Shown at both places a site can open a task to pilot proposals. */
-export const matchFeeAuthorization =
-  `I agree to Blueprint's ${formatPrice(matchFeeUsd)} fee for this job and am authorized to do so. It is due when a qualifying match is introduced, even if we do not buy a pilot.`;
+/**
+ * The one approval a site gives: shown next to the "Book this pilot" button.
+ * Booking and the fee are the same decision, so there is no earlier fee step.
+ */
+export const pilotBookingAuthorization =
+  `I am authorized to book this pilot for my site and agree to Blueprint's ${formatPrice(pilotFeeUsd)} fee for this job, due when the pilot is booked.`;
 
 /** Owner-approved remedy for a provider changing its confirmed offer. */
-export const matchReplacementPolicy =
-  "If a matched team withdraws or materially changes its confirmed price or scope before the pilot starts, we seek a replacement that meets the same agreed requirements. If none fits, we refund your match fee.";
+export const pilotReplacementPolicy =
+  "If the recommended team withdraws or materially changes its confirmed price or scope before the pilot starts, we recommend a replacement that meets the same agreed requirements. If none fits, we refund your fee.";
 
 /** The smallest top-up Stripe will charge. Mirrors `MIN_TOPUP_USD` on the server. */
 export const minTopupUsd = entryPrice;
 
-/** What a site pays for screening and evaluation: nothing. A match is `matchFeeUsd`. */
+/** What a site pays for screening, evaluation and a recommendation: nothing. A booked pilot is `pilotFeeUsd`. */
 export const siteAssessment = {
   amount: 0,
   unit: "to find out",
@@ -50,12 +54,12 @@ export const siteAssessment = {
   covers: [
     "The job defined: objects, cycle, exceptions, rough economics, timing, and the pass mark for a trial.",
     "A check of which robot teams can credibly support the job, with capture and free invited evaluation when useful.",
-    "A clear answer: the robot teams that match, specific changes needed, or no credible fit yet.",
-    "For a match, an introduction and a pilot brief both sides start from.",
+    "A clear answer: one recommended pilot, specific changes needed, or no credible fit yet.",
+    "For a recommended pilot: the team, what it tests, what you provide, the cost and dates, and one button to book it.",
   ],
   allIn:
-    "No match, no fee. Submitting a job, screening and evaluation are free. When we find a match, the fee is $2,500 per job, however many teams match.",
-  bounded: "When a comparison is useful, it covers up to five candidates.",
+    "No pilot, no fee. Submitting a job, screening, evaluation and our recommendation are free. When you book the pilot we recommend, the fee is $2,500 per job.",
+  bounded: "We pick one recommended pilot, and add an alternative only when it is meaningfully different.",
   /**
    * Precise about what a robot team actually receives, because the loose
    * version — "they buy your footage" — is both wrong and alarming. They buy
@@ -67,9 +71,9 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Invited robot teams evaluate a qualified job for free during the beta. A site pays Blueprint $2,500 per job only when we find a robot team that matches it. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Invited robot teams evaluate a qualified job for free during the beta. A site pays Blueprint $2,500 per job only when it books the pilot we recommend. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
-    "The physical pilot, which the robot team prices and runs. Blueprint takes no cut of the pilot; its only site fee is $2,500 per job when it finds a match.",
+    "The physical pilot, which the robot team prices and runs. Blueprint takes no cut of the pilot; its only site fee is $2,500 per job when you book the pilot we recommend.",
 } as const;
 
 /** How a robot team pays. No plan, no seat, no listing fee, no meter. */
@@ -101,7 +105,7 @@ export const entryModel = {
 export const included = [
   "How much evaluation an entry gets, and under what conditions. We size it, and it is the same for every entry on the task.",
   "The screen against Blueprint's four conditions for a site a robot can work in, listed below.",
-  "Private results for your team; no site visibility or pilot matching.",
+  "Private results for your team; no site visibility or pilot recommendations.",
   "The result: where the entry holds up, where it fails, and where the evidence stops short of a call.",
 ] as const;
 

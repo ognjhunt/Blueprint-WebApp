@@ -58,7 +58,7 @@ export default function CaptureVisit() {
     <>
       <SEO
         title="The capture visit | Blueprint"
-        description="A capture is the last step of qualification, not the first step of an engagement. Once a job matches a robot team we are in talks with, Blueprint sends an operator to your Austin-metro site: one workcell, two passes, one access window. Nothing installed, nothing left behind."
+        description="A capture is the last step of qualification, not the first step of an engagement. Once we have a robot team in talks that fits the job, Blueprint sends an operator to your Austin-metro site: one workcell, two passes, one access window. Nothing installed, nothing left behind."
         canonical="/capture-visit"
         jsonLd={[
           webPageJsonLd({
@@ -77,8 +77,8 @@ export default function CaptureVisit() {
       <PageHero
         eyebrow="The capture visit"
         title="We come to you. One access window. Nothing left behind."
-        body="A capture only happens once your job matches a robot team we're already talking to. Then we send a trained operator with a 360 camera and phone rig — one workcell, two passes, one escort from your team. It's the only part of the service your site physically sees."
-        chips={["Match first, then capture", "We send the operator", "Austin metro"]}
+        body="A capture only happens once a robot team we're already talking to fits your job. Then we send a trained operator with a 360 camera and phone rig — one workcell, two passes, one escort from your team. It's the only part of the service your site physically sees."
+        chips={["Fit first, then capture", "We send the operator", "Austin metro"]}
         ctaHref={submitHref}
         ctaLabel="Submit a job"
         secondaryHref="/governance"
@@ -95,7 +95,7 @@ export default function CaptureVisit() {
             index="01"
             eyebrow="How a visit gets scheduled"
             title="Capture is the last step of qualification."
-            lede="Not the first step of an engagement. The intake filters, the call qualifies, and the match decides. Any one of them can end in an honest no."
+            lede="Not the first step of an engagement. The intake filters, the call qualifies, and the fit check decides. Any one of them can end in an honest no."
           />
           <ol className="mt-14 grid gap-px border border-runway-line bg-runway-line sm:grid-cols-2 lg:grid-cols-4">
             {visitGate.map((stage, index) => (
@@ -330,7 +330,7 @@ export default function CaptureVisit() {
       <RunwayCta
         eyebrow="Before anything is scheduled"
         title="Describe the workflow first."
-        body="Nothing is captured until the job is scoped, matched to a robot team, and the no-capture list and consent are agreed in writing. Start with the workflow, not with a date."
+        body="Nothing is captured until the job is scoped, fitted to a robot team, and the no-capture list and consent are agreed in writing. Start with the workflow, not with a date."
         primaryHref={submitHref}
         primaryLabel="Submit a job"
         secondaryHref="/governance"
