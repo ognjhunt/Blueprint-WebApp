@@ -38,6 +38,7 @@
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 
 export const TASK_ITEM_INVENTORY_COLLECTION = "siteTaskItemInventories";
 
@@ -82,6 +83,8 @@ export interface TaskItemImage {
   /** Where the bytes live. Set from the signed token's scene, never a request body. */
   storagePath: string;
   uploadedAtIso: string;
+  /** Exact completed upload. Older entries retain unknown original generations. */
+  source?: { generation: string; size_bytes: number; crc32c: string; sha256: string };
 }
 
 export interface TaskItem {
@@ -319,13 +322,25 @@ export async function recordItemImage(
   itemId: string,
   image: TaskItemImage,
 ): Promise<TaskItemInventoryRecord | null> {
-  const record = await loadOrEmpty(requestId);
-  const item = record.items.find((candidate) => candidate.itemId === itemId);
-  if (!item) return null;
-  item.images.push(image);
-  record.updatedAtIso = nowIso();
-  await writeInventory(record);
-  return record;
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  return db.runTransaction(async tx => {
+    const ref = db!.collection(TASK_ITEM_INVENTORY_COLLECTION).doc(requestId);
+    const request = (await tx.get(db!.collection("inboundRequests").doc(requestId))).data();
+    const snapshot = await tx.get(ref);
+    if (!projectWebsiteCaptureRights(request).derived_scene_generation_allowed) throw new Error("source_revoked");
+    const record = snapshot.data() as TaskItemInventoryRecord | undefined;
+    const item = record?.items.find(candidate => candidate.itemId === itemId);
+    if (!record || !item) return null;
+    const prior = item.images.find(candidate => candidate.imageId === image.imageId);
+    if (prior) {
+      if (JSON.stringify(prior) !== JSON.stringify(image)) throw new Error("website_item_image_retry_conflict");
+      return record;
+    }
+    item.images.push(image);
+    record.updatedAtIso = nowIso();
+    tx.set(ref, record);
+    return record;
+  });
 }
 
 /**

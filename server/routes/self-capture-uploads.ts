@@ -1651,8 +1651,12 @@ router.post(
       extension,
     });
 
+    let imageSource: import("../utils/taskItemInventory").TaskItemImage["source"];
     try {
-      await saveStreamedFile(file, objectPath, {
+      const hash = createHash("sha256");
+      for await (const chunk of createReadStream(file.path)) hash.update(chunk);
+      const written = await saveStreamedFile(file, objectPath, {
+        captureIdentity: true, ifGenerationMatch: 0,
         contentType: file.mimetype || "image/jpeg",
         metadata: {
           request_id: payload.requestId,
@@ -1661,6 +1665,8 @@ router.post(
           kind: "task_item_example",
         },
       });
+      imageSource = { generation: written.generation, size_bytes: written.size_bytes,
+        crc32c: written.crc32c, sha256: `sha256:${hash.digest("hex")}` };
     } catch (error) {
       logger.error({ error, requestId: payload.requestId, itemId }, "Failed to store an item image");
       return res.status(502).json({ error: "We could not save that photo. Try again shortly." });
@@ -1672,6 +1678,7 @@ router.post(
       imageId,
       storagePath: objectPath,
       uploadedAtIso: new Date().toISOString(),
+      source: imageSource,
     });
     if (!record) {
       // Removed between the check and the write. The bytes are harmless orphans

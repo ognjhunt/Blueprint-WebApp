@@ -22,6 +22,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const storageAdmin = {
     bucket: () => ({
       file: (path: string) => ({
+        get metadata() { return { name: path, generation: "1", size: String(savedObjects.filter(row => row.path === path).at(-1)?.bytes ?? 0), crc32c: "AAAAAA==" }; },
+        getMetadata: async () => [{ generation: "1", size: String(savedObjects.filter(row => row.path === path).at(-1)?.bytes ?? 0), crc32c: "AAAAAA==" }],
         save: async (buffer: Buffer) => {
           savedObjects.push({ path, bytes: buffer.length });
         },
@@ -95,7 +97,7 @@ beforeEach(async () => {
 
   sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
     requestId: "req-1",
-    request: { buyerType: "site_operator", capture_mode: "self_capture", capture_region: "us" },
+    request: { buyerType: "site_operator", capture_mode: "self_capture", capture_region: "us", consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-06T00:00:00Z" } },
     contact: { email: "ops@acme.example", firstName: "Dana" },
   });
   await saveBrief(
