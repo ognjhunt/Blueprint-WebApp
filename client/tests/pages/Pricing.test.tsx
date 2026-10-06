@@ -45,7 +45,7 @@ describe("Pricing", () => {
     render(<Pricing />);
     expect(screen.getByText(/explicitly authorize the fee/)).toHaveTextContent(/even if you choose not to buy the pilot/);
     expect(screen.getByText(/If a matched team withdraws/)).toHaveTextContent(/If none fits, we refund your match fee/);
-    expect(screen.getByRole("link", { name: "See what a match includes" })).toHaveAttribute("href", "/how-it-works#match-package");
+    expect(screen.getByRole("link", { name: "See how a pilot works" })).toHaveAttribute("href", "/how-it-works#warehouse-task");
   });
 
   it("keeps retired and hypothetical billing models off the page", () => {
