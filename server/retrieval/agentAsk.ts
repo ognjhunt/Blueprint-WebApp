@@ -1,5 +1,5 @@
 import { embedTexts } from "./embeddings";
-import { formatPrice, matchFeeUsd, matchReplacementPolicy } from "../../client/src/lib/evaluationPricing";
+import { formatPrice, pilotFeeUsd, pilotReplacementPolicy } from "../../client/src/lib/evaluationPricing";
 
 // Grounded question answering for headless agents. Answers are curated,
 // citation-backed snippets over Blueprint's public canonical content — never
@@ -63,7 +63,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "capture backed evaluation",
     ],
     answer:
-      `Blueprint helps a business turn one recurring job into a measured robot pilot. The site shows the job and may post a pilot price and conditions or a target budget, with ongoing economics separate. Robot teams evaluate the job for free where evaluation is useful. When a team passes, fits the budget, and wants the pilot, Blueprint introduces the site and the team by name; teams that do not match stay anonymous. No match, no fee: the site pays Blueprint ${formatPrice(matchFeeUsd)} per job only when it finds a match. The site and the team agree the pilot directly, and Blueprint takes no cut of it. The provider or integrator installs and operates the robot. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.`,
+      `Blueprint helps a business turn one recurring job into a measured robot pilot. The site shows the job and may post a pilot price and conditions or a target budget, with ongoing economics separate. Robot teams evaluate the job for free where evaluation is useful. Blueprint picks one team that passed, fits the budget, and wants the pilot, and sends the site one recommended pilot; teams it does not recommend stay anonymous. No pilot, no fee: the site pays Blueprint ${formatPrice(pilotFeeUsd)} per job only when it books the recommended pilot. Blueprint takes no cut of the pilot itself. The provider or integrator installs and operates the robot. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.`,
     citations: [`${CANONICAL_ORIGIN}/`, `${CANONICAL_ORIGIN}/proof`],
     actions: [
       { description: "Read the public discovery summary", method: "GET", endpoint: "/api/site-content" },
@@ -194,7 +194,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      `No match, no fee. Submitting a site job, screening and evaluation are free. When Blueprint finds a robot team that passed the evaluation for the job, fits the site's budget, and wants to run the pilot, it introduces the two sides and charges the site ${formatPrice(matchFeeUsd)} per job, however many teams match. Blueprint takes no percentage of the pilot or any deployment; the site and the team agree the pilot price directly, and the provider performs installation and operation. The site explicitly authorizes the match fee when opening the job to proposals. It is invoiced at introduction even if no pilot is purchased. ${matchReplacementPolicy} Robot teams evaluate matched jobs for free. The beta enables free invited evaluations only. Private evaluations and balance top-ups are unavailable. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.`,
+      `No pilot, no fee. Submitting a site job, screening, evaluation and a recommended pilot are free. Blueprint selects one robot team that passed the evaluation for the job, fits the site's budget, and wants to run the pilot, and charges the site ${formatPrice(pilotFeeUsd)} per job only when the site books that pilot. Blueprint takes no percentage of the pilot or any deployment; the site and the team agree the pilot price directly, and the provider performs installation and operation. Booking is the site's one approval and where it agrees to the fee. ${pilotReplacementPolicy} Robot teams evaluate invited jobs for free. The beta enables free invited evaluations only. Private evaluations and balance top-ups are unavailable. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.`,
 
     citations: [`${CANONICAL_ORIGIN}/pricing`],
     actions: [

@@ -9,7 +9,7 @@ test("homepage leads with the site decision and separates supplier participation
   await expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
   await expect(page.getByRole("link", { name: "Apply for early access" })).toBeVisible();
   await page.getByText("Check robot fit", { exact: true }).click();
-  await expect(page.getByText(/evaluate your actual job for free before an introduction/)).toBeVisible();
+  await expect(page.getByText(/send you one recommended pilot to book/)).toBeVisible();
   await page.getByText("Run the pilot", { exact: true }).click();
   await expect(page.getByText(/Blueprint takes no cut/)).toBeVisible();
   await expect(page.getByText(/Illustrative workflow · Capture and simulation views of the same job/)).toBeVisible();

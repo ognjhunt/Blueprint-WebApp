@@ -98,16 +98,16 @@ export const visitGate: readonly VisitGateStep[] = [
   },
   {
     id: "match",
-    stage: "Match",
+    stage: "Fit",
     what:
       "Our work, not yours. The job is screened against the robot teams we are actually in conversation with — not a catalogue of vendors who might exist somewhere.",
-    outcome: "A match, a not-yet with the reason, or an honest no.",
+    outcome: "A recommended team, a not-yet with the reason, or an honest no.",
   },
   {
     id: "capture",
     stage: "Capture",
     what:
-      "Only on a match. A date, an arrival window, and a named person to meet are confirmed in writing before anyone travels.",
+      "Only when a team fits. A date, an arrival window, and a named person to meet are confirmed in writing before anyone travels.",
     outcome: "The visit on this page.",
   },
 ];

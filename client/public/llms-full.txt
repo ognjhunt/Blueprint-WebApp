@@ -2,7 +2,7 @@
 
 > Blueprint helps a business turn one recurring job into a scoped, funded, measurable robot pilot and decide what happens afterward.
 
-Show Blueprint one recurring job, including phone footage and a proposed pilot price and conditions or a target budget. Keep ongoing economics separate. An approved budget is not required to start. Robot teams evaluate the job for free. No match, no fee. When a robot team passes the evaluation, fits the site's budget, and wants to run the pilot, Blueprint introduces the two sides by name and charges the site $2,500 per job, however many teams match; teams that do not match stay anonymous. The site and the team agree the pilot directly, and Blueprint takes no percentage of the pilot or any deployment. The provider or integrator installs and operates the robot. Simulation is not physical proof or a deployment guarantee.
+Show Blueprint one recurring job, including phone footage and a proposed pilot price and conditions or a target budget. Keep ongoing economics separate. An approved budget is not required to start. Robot teams evaluate the job for free. No pilot, no fee. Blueprint picks one robot team that passed the evaluation, fits the site's budget, and wants to run the pilot, and sends the site one recommended pilot with its purpose, responsibilities, cost and dates; teams it does not recommend stay anonymous. The site books it in one step and pays Blueprint $2,500 per job only when it books. Blueprint takes no percentage of the pilot or any deployment. The provider or integrator installs and operates the robot. Simulation is not physical proof or a deployment guarantee.
 
 ## Public pages
 

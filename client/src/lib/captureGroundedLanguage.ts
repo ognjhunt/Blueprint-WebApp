@@ -1,8 +1,8 @@
 export const captureGroundedPublicCopy = {
   productSummary:
-    "Blueprint helps a business turn one recurring job into a measured robot pilot. A site shows the job and may post a pilot price and conditions or a target budget; neither is a purchase order or binds a robot team. Robot teams evaluate the job for free. When a team passes, fits the budget, and wants the pilot, Blueprint introduces the two sides and charges the site $2,500 per job; no match, no fee. The site and the team agree the pilot directly, and Blueprint takes no cut of it. The robot team or its integrator handles installation and operation while the site and responsible delivery parties approve the safety plan. A Task Evaluation Run returns a bounded decision or explicit abstention; it is not physical proof.",
+    "Blueprint helps a business turn one recurring job into a measured robot pilot. A site shows the job and may post a pilot price and conditions or a target budget; neither is a purchase order or binds a robot team. Robot teams evaluate the job for free. Blueprint picks one team that passed, fits the budget, and wants the pilot, and sends the site one recommended pilot; the site pays $2,500 per job only when it books it. No pilot, no fee. Blueprint takes no cut of the pilot itself. The robot team or its integrator handles installation and operation while the site and responsible delivery parties approve the safety plan. A Task Evaluation Run returns a bounded decision or explicit abstention; it is not physical proof.",
   seoDescription:
-    "Blueprint helps businesses show one recurring job, meet the robot teams that can do it, and run a measured pilot. No match, no fee.",
+    "Blueprint helps businesses show one recurring job, get one recommended robot pilot, and book it in one step. No pilot, no fee.",
   groundTruthDefinition:
     "Ground truth means immutable raw capture evidence, native timestamps, poses, device metadata, rights and privacy records, and provenance. Derived geometry, simulation, generated media, provider output, and runtime artifacts remain separately labeled evidence and do not automatically upgrade the claim.",
   supportSignalBoundary:
