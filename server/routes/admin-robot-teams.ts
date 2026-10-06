@@ -17,10 +17,13 @@ import { z } from "zod";
 
 import {
   applyProposal,
+  getRobotTeam,
   listMatchableRobotTeams,
   listPendingProposals,
 } from "../utils/robotTeamRegistry";
 import { hasAnyRole } from "../utils/access-control";
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import {
   creditTeam,
@@ -40,6 +43,70 @@ const router = Router();
 // only that a caller was signed in, so any robot team or site with an account
 // could list every team.
 router.use(requireAdminRole);
+
+const recommendationSchema = z.object({
+  teamId: z.string().trim().min(1).max(120),
+  purpose: z.string().trim().min(8).max(400),
+  siteProvides: z.string().trim().min(4).max(400),
+  teamProvides: z.string().trim().min(4).max(400),
+  pilotCost: z.string().trim().min(2).max(120),
+  window: z.string().trim().min(2).max(120),
+  uncertainties: z.string().trim().max(400).default(""),
+  alternative: z.string().trim().max(400).default(""),
+}).strict();
+
+/**
+ * A team we can name to a site: one we have talked to. A prospect has not
+ * told us it wants the pilot, a self-registered team has not been measured,
+ * and a declined team said no.
+ */
+const RECOMMENDABLE_STATUSES = new Set(["applied", "engaged"]);
+
+/**
+ * Blueprint's one recommended pilot for a site job. Blueprint does the
+ * technical selection; the site's only decision is whether to book it.
+ * The team is resolved from the registry, never typed, so the name a site
+ * sees is a team we have a record for. Replacing a recommendation gives it a
+ * new id, so a booking can never bind text the site did not see, and a
+ * booked pilot is not replaced. The check and write share one transaction
+ * with the site's booking.
+ */
+router.post("/recommendations/:requestId", async (req: Request, res: Response) => {
+  const parsed = recommendationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Fill in the team ID, purpose, what each side provides, cost and window." });
+  }
+  if (!db) return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Store unavailable" });
+  const requestId = String(req.params.requestId);
+  const { teamId, ...plan } = parsed.data;
+  try {
+    const team = await getRobotTeam(teamId);
+    if (!team || !RECOMMENDABLE_STATUSES.has(team.status)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Recommend a registered team that has applied or is engaged." });
+    }
+    const id = `rec_${Date.now().toString(36)}`;
+    const ref = db.collection("inboundRequests").doc(requestId);
+    const outcome = await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(ref);
+      if (!current.exists) return "missing" as const;
+      if (current.data()?.pilot_booking) return "booked" as const;
+      transaction.update(ref, { pilot_recommendation: {
+        id, teamId: team.id, teamName: team.name, ...plan,
+        recommendedAtIso: new Date().toISOString(),
+        recommendedBy: (res.locals?.firebaseUser?.uid as string | undefined) ?? null,
+      } });
+      return "ok" as const;
+    });
+    if (outcome === "missing") return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "Job not found" });
+    if (outcome === "booked") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "This pilot is already booked." });
+    await enqueueTaskLifecycleNotification({ requestId, milestone: "pilot_recommended", eventId: id, detail: `${team.name}, to ${plan.purpose.replace(/[.\s]+$/, "")}` })
+      .catch((error) => logger.warn({ error, requestId }, "Could not queue the recommended-pilot email"));
+    return res.json({ ok: true, id });
+  } catch (error) {
+    logger.error({ err: error, requestId }, "Failed to record a pilot recommendation");
+    return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Unable to record the recommendation" });
+  }
+});
 
 /** The queue, oldest proposals first so nothing rots at the bottom. */
 router.get("/proposals", async (_req: Request, res: Response) => {

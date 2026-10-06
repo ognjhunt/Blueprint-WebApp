@@ -71,8 +71,8 @@ describe("the public surface carries one pricing model", () => {
     }
   });
 
-  it("states the no-match-no-fee site price and free robot-team evaluation", async () => {
-    const { formatPrice, matchFeeUsd } = await import("@/lib/evaluationPricing");
+  it("states the no-pilot-no-fee site price and free robot-team evaluation", async () => {
+    const { formatPrice, pilotFeeUsd } = await import("@/lib/evaluationPricing");
     const { faqItems } = await import("@/pages/FAQ");
 
     const paymentAnswer = faqItems.find((item) => item.question === "How is Blueprint paid?");
@@ -80,8 +80,8 @@ describe("the public surface carries one pricing model", () => {
 
     // One site price, charged for the outcome Blueprint delivers. The optional
     // self-directed API price lives in the Terms and the API, not in the FAQ.
-    expect(paymentAnswer?.answer).toMatch(/^No match, no fee\./);
-    expect(paymentAnswer?.answer).toContain(`${formatPrice(matchFeeUsd)} per job`);
+    expect(paymentAnswer?.answer).toMatch(/^No pilot, no fee\./);
+    expect(paymentAnswer?.answer).toContain(`${formatPrice(pilotFeeUsd)} per job`);
     expect(paymentAnswer?.answer).toContain("no cut of the pilot");
     expect(paymentAnswer?.answer).toContain("Robot teams pay nothing");
     expect(paymentAnswer?.answer).not.toMatch(/5%|capped|introduced provider|\$99/);

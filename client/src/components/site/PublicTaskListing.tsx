@@ -2,7 +2,6 @@ import { TaskThumbnail } from "./TaskThumbnail";
 import { TaskThumbnailEditor } from "./TaskThumbnailEditor";
 import { useEffect, useState } from "react";
 import { type TaskListingDetails, opportunityLabels } from "@/types/taskBrowse";
-import { matchFeeAuthorization } from "@/lib/evaluationPricing";
 import { TaskFacts } from "./TaskFacts";
 const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking" };
 
@@ -13,10 +12,7 @@ export function PublicTaskListing({ token }: { token: string }) {
   const [existingThumbnail, setExistingThumbnail] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [consent, setConsent] = useState(false);
-  const [matchFee, setMatchFee] = useState(false);
   const [state, setState] = useState("loading");
-  // Opening the card to pilot proposals is where the site agrees to the match fee.
-  const opensToPilots = enabled && details.opportunity === "open";
   useEffect(() => {
     let active = true;
     fetch(`/api/task-listings/owner/${encodeURIComponent(token)}`).then(async r => {
@@ -34,7 +30,7 @@ export function PublicTaskListing({ token }: { token: string }) {
     try {
       const r = await fetch(`/api/task-listings/owner/${encodeURIComponent(token)}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, details, consent, thumbnailPng, ...(thumbnailPng ? { thumbnailConsent: true } : {}), ...(opensToPilots && matchFee ? { matchFee: true } : {}) }),
+        body: JSON.stringify({ enabled, details, consent, thumbnailPng, ...(thumbnailPng ? { thumbnailConsent: true } : {}) }),
       });
       if (!r.ok) throw new Error();
       setState("saved");
@@ -70,10 +66,7 @@ export function PublicTaskListing({ token }: { token: string }) {
         <TaskThumbnailEditor existing={existingThumbnail} onChange={png => { setThumbnailPng(png); setConsent(false); setState("idle"); }} />
         <div className="ms-task-preview" aria-label="Public card preview"><p className="ms-field-hint">Public preview · {opportunityLabels[details.opportunity]}</p><div className="ms-task-heading"><h3>{details.title || "Your job"}</h3><TaskThumbnail src={previewThumbnail ? `data:image/png;base64,${previewThumbnail}` : null} title={details.title || "Your job"} taskFamily={details.taskFamily} /></div><p>{details.taskFamily}</p><TaskFacts details={details} /></div>
         <label className="ms-check-row"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />Show this card in the job library</label>
-        {opensToPilots && <>
-          <label className="ms-check-row"><input type="checkbox" checked={matchFee} onChange={e => setMatchFee(e.target.checked)} required />{matchFeeAuthorization}</label>
-          <p className="ms-field-hint"><a href="/pricing#match-fee" target="_blank" rel="noreferrer">Match criteria, fee and replacement policy</a></p>
-        </>}
+        {enabled && details.opportunity === "open" && <p className="ms-field-hint">Opening to pilot proposals is free. You pay only if you book the pilot we recommend. <a href="/pricing#pilot-fee" target="_blank" rel="noreferrer">Fee and replacement policy</a></p>}
         <label className="ms-check-row"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} required />I reviewed the text and thumbnail for identifying details and am authorized to make them public. I can remove this card here at any time.</label>
         <button className="ms-button" disabled={state === "saving"}>{state === "saving" ? "Saving…" : "Save public card"}</button>
         {state === "saved" && <p role="status">{enabled ? "Public card saved. Listing pauses and rights restrictions still apply." : "Your card is hidden."}</p>}

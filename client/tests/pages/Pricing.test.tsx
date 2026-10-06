@@ -6,20 +6,20 @@ const section = (heading: string) =>
   screen.getByRole("heading", { name: heading }).closest("section") as HTMLElement;
 
 describe("Pricing", () => {
-  it("leads with no match, no fee", () => {
+  it("leads with no pilot, no fee", () => {
     render(<Pricing />);
-    expect(screen.getByRole("heading", { level: 1, name: "No match, no fee." })).toBeInTheDocument();
-    expect(screen.getByText(/Pay \$2,500 when we introduce a qualifying match/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "No pilot, no fee." })).toBeInTheDocument();
+    expect(screen.getByText(/Pay \$2,500 only when you book it/)).toBeInTheDocument();
   });
 
-  it("charges a site $2,500 per task, only when we find a match, and says what a match is", () => {
+  it("charges a site $2,500 per task, only when the site books the one recommended pilot", () => {
     render(<Pricing />);
-    const site = section("Find a robot team");
+    const site = section("Get a recommended pilot");
     expect(within(site).getByText("$2,500")).toBeInTheDocument();
-    expect(within(site).getByText("per job, only if we find a match")).toBeInTheDocument();
+    expect(within(site).getByText("per job, only when you book the pilot")).toBeInTheDocument();
     expect(within(site).getByText(/passed the evaluation for your job, fits your budget, and wants to run your pilot/)).toBeInTheDocument();
-    expect(within(site).getByText(/every team that matches, their full results, and a pilot brief you both start from/)).toBeInTheDocument();
-    expect(within(site).getByText(/One fee per job, however many teams match/)).toBeInTheDocument();
+    expect(within(site).getByText(/You get one recommended pilot: what it tests, what you provide/)).toBeInTheDocument();
+    expect(within(site).getByText(/Book it in one step. One fee per job/)).toBeInTheDocument();
     expect(within(site).getByRole("link", { name: /Start a job assessment/ })).toHaveAttribute("href", "/contact/site-operator");
   });
 
@@ -36,15 +36,15 @@ describe("Pricing", () => {
   it("takes no cut of the pilot or what follows it", () => {
     render(<Pricing />);
     const pilot = section("The pilot itself");
-    expect(within(pilot).getByText(/You and the robot team agree the pilot's price and terms directly/)).toBeInTheDocument();
-    expect(within(pilot).getByText(/Blueprint takes no cut of the pilot or any deployment that follows/)).toBeInTheDocument();
+    expect(within(pilot).getByText(/the recommended pilot shows that cost before\s+you book/)).toBeInTheDocument();
+    expect(within(pilot).getByText(/takes no cut of the pilot or any deployment that follows/)).toBeInTheDocument();
     expect(within(pilot).getByRole("link", { name: /Fee details in our Terms/ })).toHaveAttribute("href", "/terms");
   });
 
-  it("explains authorization, invoicing without a pilot purchase, and the replacement remedy", () => {
+  it("puts the fee at booking and states the replacement remedy", () => {
     render(<Pricing />);
-    expect(screen.getByText(/explicitly authorize the fee/)).toHaveTextContent(/even if you choose not to buy the pilot/);
-    expect(screen.getByText(/If a matched team withdraws/)).toHaveTextContent(/If none fits, we refund your match fee/);
+    expect(screen.getByText(/when you book the recommended pilot/)).toHaveTextContent(/If you do not book, or we find no credible\s+fit, you owe nothing/);
+    expect(screen.getByText(/If the recommended team withdraws/)).toHaveTextContent(/If none fits, we refund your fee/);
     expect(screen.getByRole("link", { name: "See how a pilot works" })).toHaveAttribute("href", "/how-it-works#warehouse-task");
   });
 

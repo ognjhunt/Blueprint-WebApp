@@ -9,7 +9,7 @@ import {
   finalistRoundRuns,
   formatPrice,
   included,
-  matchFeeUsd,
+  pilotFeeUsd,
   quoteEntries,
   screeningRound,
   shortlistRule,
@@ -17,12 +17,12 @@ import {
 } from "@/lib/evaluationPricing";
 
 describe("evaluation pricing", () => {
-  it("charges a site one flat fee per task, only when Blueprint finds a match", () => {
+  it("charges a site one flat fee per task, only when the site books the recommended pilot", () => {
     // Free to start; the fee is for the outcome, not for access to it.
     expect(siteAssessment.amount).toBe(0);
-    expect(matchFeeUsd).toBe(2_500);
-    expect(formatPrice(matchFeeUsd)).toBe("$2,500");
-    expect(siteAssessment.allIn).toMatch(/^No match, no fee\./);
+    expect(pilotFeeUsd).toBe(2_500);
+    expect(formatPrice(pilotFeeUsd)).toBe("$2,500");
+    expect(siteAssessment.allIn).toMatch(/^No pilot, no fee\./);
     expect(siteAssessment.whatIsNotFree).toMatch(/no cut of the pilot/i);
   });
   it("bills entries times tasks times the entry price", () => {
@@ -119,7 +119,7 @@ describe("the operating constants behind a flat price", () => {
   it("bounds the shortlist the free assessment covers", () => {
     expect(finalistRound.shortlist).toBe(5);
     expect(shortlistRule.cap).toBe(finalistRound.shortlist);
-    expect(siteAssessment.bounded).toMatch(/up to five candidates/i);
+    expect(siteAssessment.bounded).toMatch(/one recommended pilot/i);
   });
 
   it("does not run a final comparison with nothing to compare", () => {

@@ -23,12 +23,15 @@ Read first:
 
 Key rules:
 
-- The public site is positioned as task-to-pilot matching: a site shows one
-  recurring task, robot teams evaluate it for free, and Blueprint introduces
-  the teams that match. Pricing is "no match, no fee": a site pays $2,500 per
-  task only when Blueprint finds a match, robot teams evaluate matched tasks
-  free, and Blueprint takes no cut of the pilot. Keep public copy on that
-  model; the fee lives in `client/src/lib/evaluationPricing.ts` (`matchFeeUsd`).
+- The public site is positioned as a recommended pilot: a site shows one
+  recurring task, robot teams evaluate it for free, and Blueprint picks the
+  team and sends one recommended pilot the site can book in one step. Pricing
+  is "no pilot, no fee": a site pays $2,500 per task only when it books the
+  recommended pilot, robot teams evaluate invited tasks free, and Blueprint
+  takes no cut of the pilot. Booking is the site's one approval; do not add a
+  separate fee step or ask sites to compare teams. Avoid "match" wording in
+  public copy. The fee lives in `client/src/lib/evaluationPricing.ts`
+  (`pilotFeeUsd`).
 - Every public figure carries a primary source and an evidence grade
   (`published` or `illustrative`). There is no third grade. A figure with no
   source does not ship — add the source or drop the figure. See

@@ -55,6 +55,9 @@ export type OutboxKind =
   | "results_ready"
   | "run_no_result"
   | "pilot_request"
+  /** Blueprint's one recommended pilot, and the site booking it. */
+  | "pilot_recommended"
+  | "pilot_booked"
   | "brief_confirmed"
   | "coverage_shortfall"
   | "assessment_ready"

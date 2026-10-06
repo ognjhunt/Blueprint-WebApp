@@ -72,7 +72,7 @@ export default function ForRobotTeams() {
       <PageHero
         eyebrow={robotTeamHero.eyebrow}
         title={robotTeamHero.title}
-        body="Tell us what your robot can do and what your standard pilot includes. For each matched job, evaluate the evidence and decide whether you can meet the site's proposed price and conditions. You may suggest changes or decline."
+        body="Tell us what your robot can do and what your standard pilot includes. For each job we invite you to, evaluate the evidence and decide whether you can meet the site's proposed price and conditions. You may suggest changes or decline."
         chips={robotTeamHero.chips}
         ctaHref={joinHref}
         ctaLabel="Join the robot network"
@@ -183,7 +183,7 @@ export default function ForRobotTeams() {
       <Band tone="black" rule>
         <Inner className="py-16 lg:py-24">
           <Pullquote attribution="Core access · no listing fee, no lead fee">
-            Join, match and run standard evaluations free. You pay for exceptional compute, not for
+            Join and run standard evaluations free. You pay for exceptional compute, not for
             access.
           </Pullquote>
         </Inner>
