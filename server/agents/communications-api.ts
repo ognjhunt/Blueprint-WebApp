@@ -399,8 +399,8 @@ export class CommunicationsAgentsAPI {
     saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>;
     validateOutput?: CommunicationsOutputValidator; assertRepairAllowed?: () => void | Promise<void>;
   }): Promise<{ output: CommunicationsOutput; checkpoint: CommunicationsCheckpoint; usage: unknown; outputSource?: CommunicationsOutputSource }> {
-    communicationsFramingVersion(params.checkpoint.framingVersion);
     if (!this.options.allowPaidInference) throw new CommunicationsRuntimeError("communications_inference_disabled");
+    communicationsFramingVersion(params.checkpoint.framingVersion);
     if (params.checkpoint.rejectedCreateRecovery) {
       const recovery = this.verifyRecoveryRecord(params.checkpoint, params.jobId, params.input);
       return this.runRecoveryAttempt(params, recovery);
