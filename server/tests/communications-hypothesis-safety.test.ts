@@ -19,7 +19,7 @@ import { approveAction, retryFailedAction } from "../agents/action-executor";
 import { guardProspectSend, researchProspectSendBlocker } from "../utils/outboundProspects";
 import { mirrorCommunicationsGmailDraft, type GmailDraftPorts } from "../agents/communications-gmail-draft";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
-import { hypothesisDraft, hypothesisSetup, prospects } from "./fixtures/hypothesis";
+import { launchHypothesisDraft as hypothesisDraft, hypothesisSetup, prospects } from "./fixtures/hypothesis";
 
 // Invented operators, *.example hosts and synthetic evidence only. Every sender is a spy that must stay unused.
 afterEach(() => { vi.unstubAllEnvs(); store.db = null; for (const spy of Object.values(senders)) spy.mockClear(); });

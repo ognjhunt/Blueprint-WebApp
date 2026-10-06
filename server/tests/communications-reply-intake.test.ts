@@ -74,6 +74,7 @@ describe("bound founder-thread reply intake (all providers mocked)", () => {
       meaningEvidence: cite("learning pilot", "Interested in a learning pilot"), statedTask: cite("packing", "packing"),
       desiredOutcome: cite("understand variability", "understand variability"), timing: cite("next year", "next year"),
       nextAction: "prepare_draft_for_review" }, "authenticated-founder", communicationsNow);
+    await f.db.doc(`outboundProspects/${f.job.prospectId}/replyFollowups/${admitted.followupId}`).update({ contextMissing: true });
     await admitBoundCommunicationsReplies(f.receiptKey, f.deps);
     expect(await readReplyFollowup(f.db, brief, f.thread.threadId)).toMatchObject(reviewed);
     expect(await processCommunicationsJob(job.jobId, f.worker)).toMatchObject({ state: "pending_approval", sent: false });
@@ -103,6 +104,22 @@ describe("bound founder-thread reply intake (all providers mocked)", () => {
     await expect(reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId, { expectedEvidenceDigest: saved.evidenceDigest,
       responseMeaning: "unknown", meaningEvidence: null, statedTask: null, desiredOutcome: null, timing: null,
       nextAction: "review_reply" }, "authenticated-founder", communicationsNow)).rejects.toThrow();
+  });
+
+  it("honors an owner no-action review arriving during inference before committing any draft", async () => {
+    const f = await setup(); f.thread.messages[1].body = "We have no need for this.";
+    const admitted: any = await admitBoundCommunicationsReplies(f.receiptKey, f.deps), job = f.replyJobs()[0][1];
+    const saved = await readReplyFollowup(f.db, await f.store.brief(job.briefId), f.thread.threadId);
+    f.api.run.mockImplementationOnce(async () => {
+      await reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId, { expectedEvidenceDigest: saved.evidenceDigest,
+        responseMeaning: "no_need", meaningEvidence: { value: "no need", messageId: f.thread.messages[1].gmailMessageId, quote: "no need" },
+        statedTask: null, desiredOutcome: null, timing: null, nextAction: "no_action" }, "authenticated-founder", communicationsNow);
+      return { output: communicationsFixture("reply").output,
+        checkpoint: { createClaimedAt: null, sessionId: "mock-session", turnId: "mock-turn" }, usage: { input_tokens: 10 } };
+    });
+    expect(await processCommunicationsJob(job.jobId, f.worker)).toMatchObject({ state: "no_reply", sent: false });
+    expect(f.db.records.has(`action_ledger/communications_${job.jobId}`)).toBe(false);
+    expect(f.deps.suppress).not.toHaveBeenCalled();
   });
 
   it("rejects invented reply quotes and stale review evidence without changing the queue or consent", async () => {

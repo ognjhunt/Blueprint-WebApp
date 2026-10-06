@@ -16,7 +16,7 @@ import { processCommunicationsJob, startCommunicationsQueueLoop } from "../agent
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { communicationsDigest, communicationsDeliveryKey } from "../agents/communications-contract";
 import { compileAutomaticFirstContact, firstContactAuthority, firstContactLearningQuestion, verifyFirstContactAuthority,
-  firstContactDailyLimit, firstContactRecipientKey, firstContactCalendarDay, firstContactGeography } from "../agents/communications-first-contact";
+  firstContactDailyLimit, firstContactRecipientKey, firstContactCalendarDay, firstContactGeography, ROUTINE_COMMUNICATIONS_POLICY } from "../agents/communications-first-contact";
 import { executeAutomaticFirstContact, executeCommunicationsSend } from "../agents/communications-send";
 import { sendFounderMessage, findFounderSentMessage, verifyFounderMailbox, hasFounderPriorContact, readFounderThread } from "../agents/communications-gmail";
 import { requireFounderSendCapability } from "../agents/communications-oauth-store";
@@ -25,6 +25,19 @@ import { appendFirstContactFooter } from "../agents/communications-first-contact
 
 // Intentionally non-deliverable fixture; no real mailing address.
 const SYNTHETIC_POSTAL_LINE = "Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000";
+
+// These tests retain the previously authorized automatic policy for historical
+// checkpoints. Fresh launch framing is tested separately and cannot acquire it.
+async function retainArchivedCheckpoint(store: CommunicationsStore, jobId: string) {
+  const job = store.db.doc(`${COMMUNICATIONS_ROOT}/jobs/${jobId}`);
+  const checkpoint = (await job.get()).data()!.checkpoint;
+  await job.update({ ...(process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED === "true"
+    ? { automationPolicyVersion: ROUTINE_COMMUNICATIONS_POLICY.version } : {}), checkpoint: { ...checkpoint,
+    createClaimedAt: new Date(communicationsNow).toISOString(), sessionId: "archived-policy-session", turnId: "archived-policy-turn", executionWindow: {
+    version: "communications-execution-window-v1", preparedAt: new Date(communicationsNow).toISOString(),
+    deadlineAt: new Date(communicationsNow + 600000).toISOString(), timeoutSeconds: 600,
+  } } });
+}
 
 async function setup(beforeProcess?: (context: any) => Promise<void>, country: "US" | "CA" = "US") {
   const fixture = publishedResearchFixture({ publicContact: true, mutateCandidate: candidate => {
@@ -44,6 +57,7 @@ async function setup(beforeProcess?: (context: any) => Promise<void>, country: "
   const api = { run: vi.fn(async () => ({ output, checkpoint: { createClaimedAt: null, sessionId: "mock-session", turnId: "mock-turn" }, usage: { mock: true } })), cancel: vi.fn(), reconcileSaved: vi.fn() };
   const workerDeps = { store, api, readResearch: deps.readResearch, now: deps.now, isSuppressed: deps.isSuppressed,
     verifyMailbox: vi.fn(), readThread: vi.fn(), suppress: vi.fn() };
+  await retainArchivedCheckpoint(store, admitted.jobId);
   if (beforeProcess) await beforeProcess({ db, admitted, brief, output, workerDeps });
   const outcome = await processCommunicationsJob(admitted.jobId, workerDeps);
   const ledgerId = `communications_${admitted.jobId}`, ledger = db.records.get(`action_ledger/${ledgerId}`);
@@ -70,6 +84,7 @@ async function setupAutomaticReply(subject?: string) {
   });
   expect(admitted.state).toBe("queued");
   const jobId = (admitted as { jobId: string }).jobId;
+  await retainArchivedCheckpoint(f.store, jobId);
   f.workerDeps.api.run.mockImplementation(async () => ({ output: { ...communicationsFixture("reply").output,
     subject: thread.messages[1].subject, body: "Thanks for your reply. I will keep this discussion to public information.",
     usedFactIds: [], outreachContract: null },
@@ -110,6 +125,7 @@ describe("bounded first-contact authority (all providers mocked)", () => {
   });
   it("keeps a previously charged saved session in its original human lane", async () => {
     const f = await setup(async ({ db, admitted }) => {
+      delete db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${admitted.jobId}`).automationPolicyVersion;
       await db.doc(`${COMMUNICATIONS_ROOT}/jobs/${admitted.jobId}`).update({ checkpoint: {
         createClaimedAt: new Date(communicationsNow).toISOString(), sessionId: "old-paid-session", turnId: "old-turn" } });
     });

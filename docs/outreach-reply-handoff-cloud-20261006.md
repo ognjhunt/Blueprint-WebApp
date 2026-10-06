@@ -79,7 +79,8 @@ identical operator review is idempotent; changed evidence yields a conflict.
 
 No mail or paid model call occurs in that route. The ordinary system-origin reply
 worker consumes the frozen handoff as untrusted evidence. An owner-reviewed
-`no_action` stops before inference. The existing authorized company-history tools
+`no_action` stops before inference and is checked again before saving a draft if
+owner review arrives during inference. The existing authorized company-history tools
 also expose `reply_followup` records within their prospect scope, preserving the
 same evidence/authority boundary. A reviewer must inspect the original message
 events and audit revision when assessing recorded meaning; quotations establish
