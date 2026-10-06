@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { EvaluationExample } from "@/components/site/EvaluationExample";
+import { WarehousePilotSequence } from "@/components/site/WarehousePilotSequence";
 import { SEO } from "@/components/SEO";
 import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
@@ -26,7 +27,9 @@ export default function HowItWorks() {
   return <>
     <SEO title="How it works | Blueprint" description={description} canonical="/how-it-works" jsonLd={webPageJsonLd({ path: "/how-it-works", name: "How Blueprint works", description })} />
     <article className="ms-how ms-container">
-      <header className="ms-how-intro"><p className="ms-eyebrow">How it works</p><h1>From one job to a measured pilot.</h1><p>Start with repeatable parts handling in a fixed work area. Find a robot team and decide whether to run a pilot.</p></header>
+      <header className="ms-how-intro"><p className="ms-eyebrow">How it works</p><h1>From one job to a measured pilot.</h1><p>Show us the task. Compare robot approaches. Test a match on site.</p></header>
+      <WarehousePilotSequence />
+      <h2 className="ms-how-matching-title" id="matching">How matching works.</h2>
       <div className="ms-how-steps ms-how-preparation">
         <section><span className="ms-how-number" aria-hidden="true">01</span><div><h2>Show us the job.</h2><p>Describe the work. Start with what you have: a description, photos, or phone video. We draft a brief for you to correct, including the job, budget and success criteria.</p><span className="ms-how-result">Start free. No approved budget needed.</span></div></section>
         <section><span className="ms-how-number" aria-hidden="true">02</span><div><h2>Meet your match.</h2><p>Approve your brief and choose whether to open it to proposals. That is when you authorize the {formatPrice(matchFeeUsd)} match fee. Robot teams evaluate for free; a match passes the evaluation, fits your budget and wants your pilot. We introduce you and invoice then, even if you do not buy the pilot.</p><span className="ms-how-result">No match, no fee. One fee per job.</span></div></section>

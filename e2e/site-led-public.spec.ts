@@ -33,7 +33,11 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       await expect(page.getByRole("link", { name: "Blueprint home" })).toHaveCSS("color", "rgb(34, 37, 30)");
       await expect(page.locator(".ms-footer")).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      for (const image of await page.locator('img[loading="lazy"]').all()) {
+        await image.scrollIntoViewIfNeeded();
+      }
       await expect.poll(() => page.locator("img").evaluateAll((images) => images.filter((image) => !image.complete || image.naturalWidth === 0).map((image) => image.src))).toEqual([]);
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: `output/site-led-review/${name}-${viewport.width}.png`, fullPage: true });
     }
     expect(errors).toEqual([]);
