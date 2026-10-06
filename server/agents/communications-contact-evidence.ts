@@ -193,7 +193,17 @@ const foldName = (value: string) => value.normalize("NFKD").replace(/\p{M}+/gu, 
  * "Mark" in marketing@, "Ian" in compliance@), nor does a role word. This checks a published address;
  * it never builds one. */
 export function addressIsPersonOwn(email: string, segment: string, name: string) {
-  if (!containsContactName(segment, name)) return false;
+  return containsContactName(segment, name) && addressNamesPerson(email, name);
+}
+/** True when any word of the address's local part is a shared or role inbox word (ROLE_LOCAL_WORDS): such an
+ * address is never one person's own, however it was found. */
+export function localPartIsRole(email: string) {
+  const local = foldName(email.slice(0, email.lastIndexOf("@")));
+  return (local.match(/\p{L}+/gu) ?? []).some(word => ROLE_LOCAL_WORDS.has(word));
+}
+/** The address's local part is exactly one form of the person's name (addressIsPersonOwn's rule, without the
+ * same-segment test). It checks an address someone published or a provider verified; it never builds one. */
+export function addressNamesPerson(email: string, name: string) {
   const tokens = foldName(email.slice(0, email.lastIndexOf("@"))).replace(/\d+$/, "").split(/[._-]/);
   if (tokens.some(token => !/^\p{L}+$/u.test(token) || ROLE_LOCAL_WORDS.has(token))) return false;
   const words = foldName(name).split(/\s+/).map(word => word.replace(/[^\p{L}-]+/gu, "").replace(/^-+|-+$/g, "")).filter(Boolean);

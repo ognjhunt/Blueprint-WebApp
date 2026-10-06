@@ -122,8 +122,10 @@ export class CommunicationsStore {
     return handoff;
   }
   async contactProof(brief: CommunicationsBrief) {
-    // An outreach-ready hypothesis keeps its blueprint.contact-resolution.v2 proof the same way.
-    if (!["public_operator_resolution", "public_source_resolution"].includes(brief.researchOrigin.contactEvidenceKind ?? "")) return undefined;
+    // An outreach-ready hypothesis keeps its blueprint.contact-resolution.v2 proof the same way, and a site-screen
+    // hypothesis its blueprint.screen-contact-resolution.v1 proof.
+    if (!["public_operator_resolution", "public_source_resolution", "screen_recipient_resolution"]
+      .includes(brief.researchOrigin.contactEvidenceKind ?? "")) return undefined;
     const snapshot = await this.db.doc(COMMUNICATIONS_ROOT).collection("contactProofs").doc(brief.researchOrigin.contactEvidenceDigest!).get();
     if (!snapshot.exists || communicationsDigest(snapshot.data()) !== brief.researchOrigin.contactEvidenceDigest) throw new Error("research_contact_proof_missing_or_changed");
     return snapshot.data();

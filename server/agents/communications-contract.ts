@@ -65,9 +65,28 @@ export const OUTREACH_READY_OWNER_DECISION_REFERENCE =
  * exactly as published. Otherwise the draft writes to an inbox and addresses "whoever runs <task>
  * at <site>"; a published person behind the role is kept for reference, never greeted. */
 const publishedPerson = z.object({ name: text, role: text, sourceUrl: publicUrl }).strict();
+/** Where a site-screen recipient came from (owner decisions 2026-10-05: contact sources, provider lookup and
+ * provider-sourced person). Shown to the founder as the label; never part of the email. Absent on every daily
+ * hypothesis, so their digests are unchanged. */
+export const RECIPIENT_ROUTES = ["published_person_email", "quoted_person_looked_up_email", "provider_sourced_corroborated",
+  "provider_sourced_uncorroborated", "published_team_inbox", "published_general_inbox"] as const;
+export const recipientProvenanceSchema = z.object({
+  route: z.enum(RECIPIENT_ROUTES), label: text, addressSource: z.enum(["published", "provider_lookup"]),
+  personSource: z.enum(["public_quote", "provider_sourced"]).nullable(), corroborated: z.boolean().nullable(),
+  provider: z.object({ name: text, status: z.literal("valid"), score: z.number().int().min(0).max(100), checkedAt: date,
+    requestDigest: z.string().regex(/^[a-f0-9]{64}$/) }).strict().nullable(),
+}).strict().refine(value => (value.addressSource === "provider_lookup") === (value.provider !== null)
+  && (value.personSource === "provider_sourced") === (value.corroborated !== null),
+{ message: "a looked-up address carries its provider check; only a provider-sourced person is corroborated or not" });
+export type RecipientProvenance = z.infer<typeof recipientProvenanceSchema>;
 export const communicationsRecipientSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("named_person"), name: text, role: text, sourceUrl: publicUrl }).strict(),
-  z.object({ kind: z.literal("inbox"), addressee: text, person: publishedPerson.nullable() }).strict(),
+  // A provider-sourced person not corroborated by any public page has no source URL; anyone else has one.
+  z.object({ kind: z.literal("named_person"), name: text, role: text, sourceUrl: publicUrl.nullable(),
+    provenance: recipientProvenanceSchema.optional() }).strict()
+    .refine(value => value.sourceUrl !== null || (value.provenance?.personSource === "provider_sourced" && value.provenance.corroborated === false),
+      { message: "only a provider-sourced person that no public page corroborates has no source", path: ["sourceUrl"] }),
+  z.object({ kind: z.literal("inbox"), addressee: text, person: publishedPerson.nullable(),
+    provenance: recipientProvenanceSchema.optional() }).strict(),
 ]);
 export type CommunicationsRecipient = z.infer<typeof communicationsRecipientSchema>;
 
@@ -113,7 +132,9 @@ export const communicationsBriefSchema = z.object({
     recipient: communicationsRecipientSchema.optional(),
   }).strict(),
   consent: z.object({
-    status: z.enum(["unknown", "public_business_contact", "reply_requested", "opted_out"]),
+    // looked_up_business_contact: a provider-verified business address of a named person at the operator (owner
+    // decision 2026-10-05, provider lookup); site-screen hypotheses only, draft only.
+    status: z.enum(["unknown", "public_business_contact", "reply_requested", "opted_out", "looked_up_business_contact"]),
     sharingBoundary: text, sourceRefs: z.array(text).max(8),
   }).strict(),
   priorConversation: z.object({
@@ -148,7 +169,8 @@ export const communicationsBriefSchema = z.object({
     // immutable source record, including quotes, unknowns and cached fact IDs.
     sourceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     contactEvidenceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
-    contactEvidenceKind: z.enum(["published_evidence", "public_operator_resolution", "public_source_resolution"]).optional(),
+    contactEvidenceKind: z.enum(["published_evidence", "public_operator_resolution", "public_source_resolution",
+      "screen_recipient_resolution"]).optional(),
   }).strict(),
 }).strict();
 export type CommunicationsBrief = z.infer<typeof communicationsBriefSchema>;
@@ -161,12 +183,15 @@ export function isFounderReplyOrigin(origin: CommunicationsBrief["replyOrigin"])
 export const OUTREACH_READY_SEND_REFUSAL = "outreach_ready_hypothesis_draft_only";
 /** Outreach-ready hypotheses are draft only. This reads the raw brief, so a partial
  * or malformed block still refuses. No send, approval or first-contact path accepts
- * a qualification block, a public-source contact or a site-screen admission. */
+ * a qualification block, a public-source or site-screen contact, a looked-up address or a site-screen admission. */
 export function outreachReadySendRefusal(brief: unknown): typeof OUTREACH_READY_SEND_REFUSAL | null {
   const value = brief && typeof brief === "object" ? brief as Record<string, unknown> : null;
   const origin = value?.researchOrigin && typeof value.researchOrigin === "object" ? value.researchOrigin as Record<string, unknown> : null;
-  return value && (Object.hasOwn(value, "qualification") || origin?.contactEvidenceKind === "public_source_resolution"
-    || (origin && Object.hasOwn(origin, "screenAdmissionId"))) ? OUTREACH_READY_SEND_REFUSAL : null;
+  const consent = value?.consent && typeof value.consent === "object" ? value.consent as Record<string, unknown> : null;
+  return value && (Object.hasOwn(value, "qualification")
+    || ["public_source_resolution", "screen_recipient_resolution"].includes(String(origin?.contactEvidenceKind))
+    || (origin && Object.hasOwn(origin, "screenAdmissionId")) || consent?.status === "looked_up_business_contact")
+    ? OUTREACH_READY_SEND_REFUSAL : null;
 }
 
 /** A Sheets receipt names the sheet and every row the day wrote:

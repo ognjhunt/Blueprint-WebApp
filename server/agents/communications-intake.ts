@@ -18,11 +18,11 @@ import type { ContactDiscovery } from "./communications-contact-research";
 
 // Read-only discovery of the existing pinned research owner's completed work.
 export const RESEARCH_WORK_ITEMS = "blueprintDailyResearch/sites-first/workItems";
-type IntakeDependencies = { db: FirebaseFirestore.Firestore; readResearch: ResearchSnapshotReader;
+export type IntakeDependencies = { db: FirebaseFirestore.Firestore; readResearch: ResearchSnapshotReader;
   isSuppressed: (email: string) => Promise<boolean>; now: () => number; readContactPage?: ContactPageReader;
   requestContactResearch?: (source: any, prospectId: string, reason: string) => Promise<boolean>;
   readContactDiscovery?: (source: any, prospectId: string) => Promise<ContactDiscovery | null> };
-const bindingKey = (source: any) => communicationsDigest(source.admissionId
+export const bindingKey = (source: any) => communicationsDigest(source.admissionId
   ? { sourceRecordId: source.sheetsProspectId } : { sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
 const sourceIdentity = (row: any, candidateKey: string) => ({ date: row.date ?? null, runKey: row.run_key ?? row.runKey ?? null, candidateKey,
   packetDigest: row.packet_digest ?? row.packetDigest ?? null, rawArtifactDigest: row.raw_output_digest ?? row.rawArtifactDigest ?? null,
@@ -252,10 +252,10 @@ export const HYPOTHESIS_DRAFTS_FLAG = "BLUEPRINT_COMMUNICATIONS_HYPOTHESIS_DRAFT
 export const hypothesisDraftsEnabled = () => process.env[HYPOTHESIS_DRAFTS_FLAG] === "true";
 export const HYPOTHESIS_DRAFTS_DISABLED = "hypothesis_drafts_disabled";
 // The candidate is already known or may not be written to: terminal for this hypothesis.
-const HYPOTHESIS_BLOCKING = new Set(["recipient_suppressed", "outreach_ready_candidate_already_known",
+export const HYPOTHESIS_BLOCKING: ReadonlySet<string> = new Set(["recipient_suppressed", "outreach_ready_candidate_already_known",
   "outreach_ready_candidate_under_verified_row", "outreach_ready_recipient_already_known"]);
 const HYPOTHESIS_CONTACT_GAP = "hypothesis_public_contact_missing";
-const CONTACT_CLAIM_CHANGED = "contact_refresh_lease_or_source_changed";
+export const CONTACT_CLAIM_CHANGED = "contact_refresh_lease_or_source_changed";
 
 /** Records why a hypothesis is not drafted. A missing contact goes to communications-owned contact
  * research; a known candidate is blocked and its open request closed, so no contact or research work
@@ -293,18 +293,20 @@ async function hypothesisNeedsAttention(deps: IntakeDependencies, identity: Retu
 
 /** A contact request claimed for a hypothesis that another pass already admitted or blocked: resolved by
  * that admission's job, or closed by the block. Never left running. */
-function settledHypothesisRequest(recorded: FirebaseFirestore.DocumentData, leaseOwner: string, now: number) {
+export function settledHypothesisRequest(recorded: FirebaseFirestore.DocumentData, leaseOwner: string, now: number) {
   return recorded.state === "admitted"
     ? { state: "resolved", owner: "blueprint-communications-agent", resolvedAt: now, jobId: recorded.jobId, briefDigest: recorded.briefDigest,
       contactProofDigest: recorded.contactEvidenceDigest ?? null, lease: { owner: leaseOwner, until: 0 } }
     : { state: "terminal", reason: recorded.reasons?.[0] ?? "outreach_ready_hypothesis_blocked", completedAt: now, nextAttemptAt: 0,
       lease: { owner: leaseOwner, until: 0 }, sent: false, sessionCreated: false };
 }
-const heldBy = (request: FirebaseFirestore.DocumentData | undefined, leaseOwner: string, now: number) =>
+export const heldBy = (request: FirebaseFirestore.DocumentData | undefined, leaseOwner: string, now: number) =>
   request?.lease?.owner === leaseOwner && request.state === "running" && request.lease.until > now;
 
+/** What the CRM checks read from a daily or site-screen hypothesis source. */
+export type CrmCheckSource = Pick<HypothesisSource, "sheetsId" | "sheetsProspectId"> & { candidate: any };
 /** The canonical prospect queries the CRM checks read: this Sheets row, this operator, this address. */
-function hypothesisCrmQueries(deps: IntakeDependencies, source: HypothesisSource, email?: string) {
+export function hypothesisCrmQueries(deps: IntakeDependencies, source: CrmCheckSource, email?: string) {
   const prospects = deps.db.collection("outboundProspects");
   return { bound: prospects.where("researchPublicationId", "==", source.sheetsProspectId).limit(3),
     named: prospects.where("facilityName", "==", source.candidate.organization).limit(101),
@@ -313,7 +315,7 @@ function hypothesisCrmQueries(deps: IntakeDependencies, source: HypothesisSource
 /** Already in the CRM: another canonical prospect holds this Sheets row, the same operator, site and
  * task, or the contact address. Pipeline QA rechecked the Sheets CRM at publication; this checks the
  * WebApp's own store. Run before contact work, then again inside the claiming transaction. */
-function hypothesisCrmConflictIn(source: HypothesisSource, prospectId: string, bindingProspectId: unknown,
+export function hypothesisCrmConflictIn(source: CrmCheckSource, prospectId: string, bindingProspectId: unknown,
   bound: FirebaseFirestore.QuerySnapshot, named: FirebaseFirestore.QuerySnapshot, holders?: FirebaseFirestore.QuerySnapshot) {
   if (bindingProspectId !== undefined && bindingProspectId !== prospectId) return "outreach_ready_candidate_already_known";
   if (bound.docs.some(doc => doc.id !== prospectId)) return "outreach_ready_candidate_already_known";
@@ -324,7 +326,7 @@ function hypothesisCrmConflictIn(source: HypothesisSource, prospectId: string, b
   if (holders?.docs.some(doc => doc.id !== prospectId)) return "outreach_ready_recipient_already_known";
   return null;
 }
-async function hypothesisCrmConflict(deps: IntakeDependencies, source: HypothesisSource, prospectId: string, email?: string) {
+export async function hypothesisCrmConflict(deps: IntakeDependencies, source: CrmCheckSource, prospectId: string, email?: string) {
   const queries = hypothesisCrmQueries(deps, source, email);
   const binding = (await deps.db.doc(COMMUNICATIONS_ROOT).collection("researchBindings").doc(bindingKey(source)).get()).data();
   const [bound, named, holders] = await Promise.all([queries.bound.get(), queries.named.get(), queries.holders?.get()]);
