@@ -52,12 +52,21 @@ export async function claimCommunicationsWorkerLap(db: Pick<FirebaseFirestore.Fi
   now = () => Date.now(), owner = `communications-worker-lap:${randomUUID()}`): Promise<CommunicationsWorkerLap | null> {
   const controlRef = db.doc(RESEARCH_CONTROL), lapRef = db.doc(COMMUNICATIONS_WORKER_LAP_PATH);
   let held: { generation: number; until: number } | null = null;
+  let attempted: LapRecord | null = null, admitted = true;
   try {
     held = await db.runTransaction(async tx => {
       const [control, lap] = await Promise.all([tx.get(controlRef), tx.get(lapRef)]);
       const at = now();
-      if (releaseHeld(control.data(), at)) return null;
       const previous = record(lap.data());
+      // An SDK retry may see a committed earlier callback before its ACK was
+      // received, including when release control became held in the meantime.
+      if (attempted && previous?.phase === "active" && previous.lease.owner === owner
+        && previous.lease.generation === attempted.lease.generation && previous.lease.until === attempted.lease.until
+        && previous.startedAt === attempted.startedAt && previous.renewedAt === attempted.renewedAt) {
+        admitted = false;
+        return previous.lease;
+      }
+      if (releaseHeld(control.data(), at)) return null;
       if (previous?.phase === "active") fail("communications_worker_lap_unsettled");
       const generation = (previous?.lease.generation ?? 0) + 1;
       if (!Number.isSafeInteger(generation) || !Number.isSafeInteger(at)
@@ -66,24 +75,37 @@ export async function claimCommunicationsWorkerLap(db: Pick<FirebaseFirestore.Fi
       if (!Number.isSafeInteger(until)) fail("communications_worker_lap_record_invalid");
       const active: LapRecord = { schema_version: COMMUNICATIONS_WORKER_LAP_SCHEMA, phase: "active",
         lease: { owner, generation, until }, startedAt: at, renewedAt: at, completedAt: null };
+      // Preserve this exact unadmitted attempt even if its commit ACK is lost.
+      attempted = active;
       tx.set(lapRef, active);
       return { generation, until };
     });
   } catch (error) {
-    if (error instanceof CommunicationsWorkerLapError) throw error;
-    fail("communications_worker_lap_claim_unavailable");
+    if (!attempted) {
+      if (error instanceof CommunicationsWorkerLapError) throw error;
+      fail("communications_worker_lap_claim_unavailable");
+    }
+    // An unknown commit can be present already or become visible later. Keep a
+    // settlement-only handle; never admit stages or replace an absent record.
+    held = (attempted as LapRecord).lease;
+    admitted = false;
   }
   if (!held) return null;
   const generation = held.generation;
   let until = held.until;
-  const own = (current: LapRecord | undefined): LapRecord => {
-    if (!current || current.phase !== "active" || current.lease.owner !== owner || current.lease.generation !== generation) {
+  const own = (current: LapRecord | undefined, allowComplete = false): LapRecord => {
+    if (!current || (!allowComplete && current.phase !== "active") || current.lease.owner !== owner || current.lease.generation !== generation) {
+      fail("communications_worker_lap_ownership_changed");
+    }
+    if (!admitted && (current.startedAt !== attempted!.startedAt || current.renewedAt !== attempted!.renewedAt
+      || (current.phase === "active" && current.lease.until !== attempted!.lease.until))) {
       fail("communications_worker_lap_ownership_changed");
     }
     return current;
   };
-  return Object.freeze({ owner, generation, canContinue: () => until > now(),
+  return Object.freeze({ owner, generation, canContinue: () => admitted && until > now(),
     renew: async () => {
+      if (!admitted) fail("communications_worker_lap_claim_unavailable");
       try {
         until = await db.runTransaction(async tx => {
           const [control, lap] = await Promise.all([tx.get(controlRef), tx.get(lapRef)]);
@@ -103,7 +125,9 @@ export async function claimCommunicationsWorkerLap(db: Pick<FirebaseFirestore.Fi
     release: async () => {
       try {
         await db.runTransaction(async tx => {
-          const current = own(record((await tx.get(lapRef)).data()));
+          const current = own(record((await tx.get(lapRef)).data()), true);
+          // Recover a lost completion ACK by reading its matching receipt.
+          if (current.phase === "complete") return;
           const at = now();
           if (!Number.isSafeInteger(at)) fail("communications_worker_lap_record_invalid");
           // Expired own laps can settle after drainage; expiry cannot steal them.

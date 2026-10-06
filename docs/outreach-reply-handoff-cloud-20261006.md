@@ -23,7 +23,10 @@ candidate and are not included or edited. This owner handles independent review,
 required CI and release verification; the parent coordinates normal merge/deploy
 clearance, activation, recipient scope and any actual Gmail copy. The current
 [communications lap recovery prerequisite](verification/communications-worker-lap-recovery-20261006.md)
-blocks safe release until its live evidence is resolved.
+separates a fenced idle source deployment from runtime recovery/native publication
+and records the remaining live evidence. The candidate also includes a reviewed
+prospective claim/release acknowledgement repair; it grants no authority to adopt
+the existing unsettled lap or change any budget hold.
 
 The [first-touch policy](outreach-first-touch-policy.md) records the owner-approved
 launch direction. `communications-launch-framing.ts` is its versioned executable

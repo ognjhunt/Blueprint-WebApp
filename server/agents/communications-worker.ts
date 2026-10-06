@@ -649,13 +649,23 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
     observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: (canContinue: () => boolean) => Promise<void>;
     copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
   let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
+  let pendingSettlement: CommunicationsWorkerLap | null = null;
   let automaticCursor: string | undefined;
+  const settlePending = async () => {
+    const pending = pendingSettlement;
+    if (!pending) return;
+    await pending.release();
+    if (pendingSettlement === pending) pendingSettlement = null;
+  };
   const tick = async () => {
     let lap: CommunicationsWorkerLap | null = null, leaseLost = false;
     let renewal: Promise<void> | null = null, renewTimer: ReturnType<typeof setInterval> | undefined;
     const canContinue = () => !stopped && !leaseLost && !renewal && (!lap || lap.canContinue());
     const admit = async () => { await renewal; return canContinue(); };
     try {
+      // This drained/unadmitted scope keeps its original identity until its
+      // receipt is proven. A recovery tick cannot claim or perform new work.
+      if (pendingSettlement) { await settlePending(); return; }
       // Production owns a durable whole-lap claim, atomically against release.
       // Optional legacy/injected loops retain their existing pre-read interface.
       if (options.claimLap) {
@@ -705,7 +715,7 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
       await renewal;
       // Stop waits for claim admission, every active stage and renewal, then
       // owner/generation settlement. Uncertain/failed writes are never reset.
-      if (lap) try { await lap.release(); }
+      if (lap) try { pendingSettlement = lap; await settlePending(); }
       catch (error) {
         logger.warn({ code: error instanceof CommunicationsWorkerLapError ? error.code : "communications_worker_lap_release_unavailable" },
           "Communications lap drainage awaits its durable receipt");
@@ -720,7 +730,9 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
     if (stopPromise) return stopPromise;
     stopped = true;
     clearInterval(timer);
-    stopPromise = (async () => { await activeTick; })();
+    // Failure remains visible to the shutdown caller and preserves the handle;
+    // it must not become a successful "worker stopped" observation.
+    stopPromise = (async () => { await activeTick; await settlePending(); })();
     return stopPromise;
   };
 }
