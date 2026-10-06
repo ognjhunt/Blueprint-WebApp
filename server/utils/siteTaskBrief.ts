@@ -386,13 +386,23 @@ export async function confirmBrief(params: {
     unresolved: brief.unresolved.filter((fieldId) => !answers[fieldId]),
   };
 
+  // Confirmation attests to answers, not to footage we have never received.
+  const evidence = { hasAny: true, hasVisual: false, explainsTask: true,
+    coversScene: false, missingCoverage: undefined as string[] | undefined };
+
   if (db) {
     await db.runTransaction(async tx => {
       const briefRef = db!.collection(TASK_BRIEFS_COLLECTION).doc(params.requestId);
       const current = await tx.get(briefRef);
+      const requestRef = db!.collection("inboundRequests").doc(params.requestId);
+      const requestSnapshot = await tx.get(requestRef);
+      const coverage = requestSnapshot.data()?.capture_coverage;
+      evidence.hasVisual = Boolean(coverage);
+      evidence.coversScene = coverage?.covers_scene ?? false;
+      evidence.missingCoverage = coverage?.missing_coverage;
       if (humanDecisionDigest(current.data()) !== humanDecisionDigest(brief)) throw new Error("brief_changed_before_confirmation");
       tx.set(briefRef, confirmed, { merge: true });
-      tx.set(db!.collection("inboundRequests").doc(params.requestId),
+      tx.set(requestRef,
         {
           capture_coverage_pending: true,
           siteTaskGates: answers,
@@ -433,10 +443,7 @@ export async function confirmBrief(params: {
     captureMode: brief.captureMode,
     briefDrafted: true,
     briefConfirmed: true,
-    // Unknown here. The caller that owns the request record supplies the real
-    // values; this reports readiness as of the answers, which is what the
-    // operator is being told about at the moment they confirm.
-    evidence: { hasAny: true, hasVisual: true, explainsTask: true, coversScene: false },
+    evidence,
     reconstructed: false,
   });
 

@@ -166,9 +166,12 @@ test("a robot team outside early access applies instead of browsing", async ({ p
   await screenshot(page, "early-access-applied");
 });
 
-test("desktop capture has one status, adjacent upload, brand and owner-reviewed public card", async ({ page }) => {
+test("desktop owner reviews the brief before optional recording, with one status and explicit public card approval", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 }); const mutations = await fixtures(page);
   await page.goto("/capture-upload/owner-fixture");
+  await expect(page.getByRole("heading", { name: "Review your job brief", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Point your phone at this." })).toHaveCount(0);
+  await page.getByRole("button", { name: "Add footage when you are ready (optional)" }).click();
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toBeVisible();
   await expect(page.getByText("We have your task and are checking your footage.")).toHaveCount(1);
   // Updates follow events by email; the page promises that, not a deadline.
@@ -198,7 +201,7 @@ test("desktop capture has one status, adjacent upload, brand and owner-reviewed 
   await expect.poll(() => mutations.at(-1)?.body.thumbnailPng).toBe(null);
 });
 
-test("phone capture prioritizes the camera and promises event emails, not a deadline", async ({ browser }) => {
+test("phone owner reviews the brief before optional recording and keeps event emails", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true });
   const page = await context.newPage(); await fixtures(page);
   await page.route("**/api/site-task-brief/*/status", route => route.fulfill({ json: { status: { decision: "assessing", headline: "Preparing your scene", nextUpdateIso: "2020-01-01T12:00:00Z" } } }));
@@ -207,11 +210,14 @@ test("phone capture prioritizes the camera and promises event emails, not a dead
   await expect(page.getByText(/We email you each time something happens/)).toBeVisible();
   await expect(page.getByText(/Update overdue|Next status update by/)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Review your job brief", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Add footage when you are ready (optional)" }).click();
   await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ }).first()).toBeVisible();
   await screenshot(page, "phone-capture"); await context.close();
 });
 
-for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: intake hands off to the right device`, async ({ browser }) => {
+for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: description intake leads to brief review`, async ({ browser }) => {
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, ...(mobile ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true } : {}) });
   const page = await context.newPage(); await fixtures(page);
   await page.goto("/contact/site-operator");
@@ -221,19 +227,15 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: intak
   await form.locator("#start-email").fill("owner@example.test");
   await form.locator("#start-name").fill("Pat Lee");
   await form.locator("#start-company").fill("Acme Foods");
-  await form.locator("#start-rights").check();
+  await form.locator("#start-description-authority").check();
+  await expect(form.locator("#start-rights")).not.toBeChecked();
   // A typed address has no country yet: the first Start asks for it.
   await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await form.locator("#start-region").selectOption("us");
   await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  if (mobile) {
-    await expect(page.getByRole("link", { name: "Open the camera" })).toBeVisible();
-    await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(0);
-  } else {
-    await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Open your job page" })).toBeVisible();
-  }
+  await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(0);
   await screenshot(page, `${mobile ? "phone" : "desktop"}-intake-handoff`); await context.close();
 });
 

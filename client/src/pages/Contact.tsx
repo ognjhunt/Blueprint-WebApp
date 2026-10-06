@@ -88,7 +88,7 @@ export default function Contact() {
           <p className="ms-eyebrow">For site owners</p>
           <h1>Start with one recurring job.</h1>
           <p className="ms-inquiry-description">
-            Describe the work and confirm recording permission. Add a phone video if you have one. Starting is free; you do not need an approved budget.
+            Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.
           </p>
         </div>
         <div className="ms-inquiry-forms">
@@ -109,7 +109,7 @@ export default function Contact() {
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What should I record?</summary>
             <p className="ms-field-hint">Show one complete task cycle, the objects and where they start and finish, then the surrounding work area. Existing footage is welcome. Avoid screens, paperwork and restricted areas, and get permission to record.</p>
-            <p className="ms-field-hint">If filming needs approval, <a href={`mailto:${CONTACT_EMAIL}`}>talk to us about the job</a> while you arrange permission. Have someone who knows the job review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
+            <p className="ms-field-hint">If filming needs approval, submit the job description while you arrange permission. Have someone who knows the job review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "20px" }}>
             <a className="ms-text-link" href="/contact/robot-team">
