@@ -1,6 +1,6 @@
 # Owner-operated Oct6 recovery and cleanup
 
-Execution source: `42689320a674422adc36641d78c5c8ccc85b1982`, draft PR878.
+Execution source: `f0f6e3d818ed94f0538519ff57e1bbf65fe047b2`, draft PR878.
 This retains the original reviewed `4ecd5ed59bbc8c20c59ceb093907792f5204cdec`
 recovery/cleanup behavior and adds the reviewed v2 admission-fence lane. No live
 recovery, archive, deletion, model request, Gmail draft/send or activation has
@@ -13,7 +13,7 @@ been executed by the source author. Parent owns native execution and release.
 | `communications-incident-20261006.mjs` | `5a0801e9b3402821f5e1a650663b6128874c147fd151a49455590f25b36027d9` |
 | `communications-incident-provider-20261006.py` | `98a51b3fe56cd248cdd5b9cbcd74a8bfa8698ba2c29fcb94a2f40dff396a0cc2` |
 | `communications-incident-summary-20261006.mjs` | `82613479a8950a27cdf3af4f110b810001cd1a4d66371ad024069e2f7776398c` |
-| `communications-incident-admission-20261006.mjs` | `490fd6e7bebc20708656ab205ffc18e6ddcf819239ff8b0d238c2f8744b82849` |
+| `communications-incident-admission-20261006.mjs` | `b24c20544751a4b7610db5ea91b64e9735f30193af4e1ffea4c56174eb8d1560` |
 | `communications-incident-recovery-20261006.mjs` | `fdcd211684cafdcaa86bff3ae4ad4cea696819b79522fab87a32b0d4287a0863` |
 | `communications-incident-cleanup-20261006.py` | `278d7d8ddb42260bd6b84cc1b0c8432fdbd46d635023d7bf768b056df3eea1b1` |
 
@@ -23,9 +23,9 @@ needs the existing `tsx` loader and full reviewed source. Prepare a private
 checkout without deploying it or copying credentials:
 
 ```bash
-incident_src=/tmp/blueprint-outreach-42689320a
+incident_src=/tmp/blueprint-outreach-f0f6e3d81
 mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/42689320a674422adc36641d78c5c8ccc85b1982 |
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/f0f6e3d818ed94f0538519ff57e1bbf65fe047b2 |
   tar -xz --strip-components=1 -C "$incident_src" &&
 ln -s "$PWD/node_modules" "$incident_src/node_modules"
 ```
@@ -50,6 +50,11 @@ environment/source/compiled entry for every replacement. It also requires the
 actual existing OPS-forward-only mode to remain truthy, skipping the entire
 worker OPS scheduler without changing any third control, and requires the
 web's existing persisted OPS-off control and same-instance startup-off logs.
+It binds actual target/collector mount and root identity, exact initial
+bootstrap/preload inputs, and either c4's existing bootstrap bypass or confirmed
+absence of every overriding env path. Read no credential-file bytes and retain
+the real actor/filesystem freeze across replacement startup. Current absence
+without that startup-spanning evidence cannot establish historical guard state.
 The original v1 alternative still accepts authenticated service `suspended`
 plus complete empty instances for every scoped worker when an existing provider
 operator environment remains available. Desired state, metrics, old logs or a
@@ -190,9 +195,12 @@ an environment-delete API or claim historical cleanup.
 ## Validation and operational validity
 
 Independent review covers the original recovery/cleanup lane and the added v2
-actual-runtime/instance fence. Three affected suites pass 25 offline tests and
+actual-runtime/instance fence. Three affected suites pass 27 offline tests and
 TypeScript check; separate review exercises 16 v2 rejection/acceptance cases,
 actual Linux `/proc` reads and independent c4 compiled-worker reproduction.
+The final startup correction also passes 12 independent actual `/proc` cases
+covering exact/near-miss bypasses, override paths, symlinks, unknown filesystem
+states and an unreviewed preload even when bootstrap itself is skipped.
 Tests include the actual v2 recovery transaction, receipt/proof/snapshot
 chronology, changed-evidence CAS, exact source/turn/child scope,
 unmapped create/refresh states, archive corruption, replay, successor leases,

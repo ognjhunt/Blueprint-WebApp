@@ -72,6 +72,11 @@ replace or resume the stopped process during proof collection. This is a
 coordination hold, not a request to change GitHub or Render permissions, secrets
 or auto-deploy settings. The only rollout exception is the exact same-build
 worker fence action below; all other main/live deployments remain held.
+The freeze also covers startup environment, overriding env files and preload
+changes from before the baseline through every replacement's startup and final
+proof. Only the two specified Render values change. Parent retains the actual
+existing actor/filesystem scope; a later absence check alone is not proof that
+an overriding file was absent when the replacement started.
 
 The private process proof declares `pipeline-release-owner`,
 `paused-mac-outreach-owner`, and `authenticated-manual-and-cli-writers` in
@@ -140,6 +145,19 @@ The same source skips the entire OPS scheduler when the **already configured**
 watcher → action approval/execution → communications-send-receipt path. The
 collector must read and reread that actual process value. This lane changes no
 third control; if this existing mode is off or unknown, recovery stays blocked.
+The c4 bootstrap preserves nonempty initial values when reading default env
+files but can override them through `PAPERCLIP_ENV_FILE`,
+`../.paperclip-blueprint.env` or `.env.local`. The collector therefore requires
+the existing exact bootstrap bypass (`NODE_ENV=test`, `VITEST=true`, or truthy
+`BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP`) or complete absence of those overriding
+paths in the actual process filesystem, checked twice. It reads only path
+metadata, never credential-file bytes; present files/symlinks or unknown access
+block this bounded lane. Do not delete a file, import env or change a fourth
+control to pass it. It also binds initial `NODE_OPTIONS`: only empty values,
+heap-size options, `--enable-source-maps` and `--no-warnings` are accepted;
+unreviewed preload/import options stay blocked. Runtime proof retains the raw
+selected inputs. The unchanged c4 compiled source and real startup-spanning
+actor/filesystem freeze supplement this check.
 
 The exact controls, on the worker service only, are:
 
@@ -196,8 +214,9 @@ BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED=false
    collector reads the actual Linux `/proc` Node process environment, executable,
    command, PID/start ticks/boot identity and entrypoint bytes; it inventories
    all process commands twice and requires exactly one worker root. It retains
-   only the two flag values, the existing OPS-forward-only value and Render
-   identity, never provider credentials.
+   only the two flag values, existing OPS-forward-only/startup-option/bootstrap
+   inputs, override-path absence metadata and Render identity, never provider
+   credentials.
    Shell exports are not proof. Missing `/proc` visibility, another root,
    changing identity, mismatched source/artifact, an absent/non-truthy existing
    OPS-forward-only value, or a non-false actual worker-enable flag
