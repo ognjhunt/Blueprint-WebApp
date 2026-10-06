@@ -22,7 +22,11 @@ for (const width of [390, 1440]) {
     await page.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1"
       ? route.continue() : route.fulfill({ status: 204, body: "" }));
     await page.route("**/api/**", async route => {
-      const path = new URL(route.request().url()).pathname;
+      const url = new URL(route.request().url());
+      // This newer route takes precedence over the catch-all, including external
+      // geocoding paths containing /api/. Block those here as well.
+      if (url.hostname !== "127.0.0.1") return route.fulfill({ status: 204, body: "" });
+      const path = url.pathname;
       const post = route.request().method() === "POST";
       const body = post ? route.request().postDataJSON() : null;
       if (post) posts.push({ path, body });
@@ -90,6 +94,8 @@ for (const width of [390, 1440]) {
     await page.locator("#pilot-consideration").selectOption("evaluation_only");
     await page.getByRole("button", { name: "This is right — confirm it", exact: true }).click();
     await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
+    await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");
     await page.reload();
     await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
     await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");

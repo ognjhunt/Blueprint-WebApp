@@ -554,7 +554,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             {briefConfirmed && !editingBrief ? <p>Your job brief is confirmed.{" "}
               <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>Edit your answers</button>
             </p> : <TaskBriefReview key={brief.successCriteria?.successDefinition ?? ""} token={token} brief={brief}
-              account={siteAccount} onConfirmed={() => { setBriefConfirmed(true); setEditingBrief(false); }} />}
+              account={siteAccount} onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} />}
           </> : <p className="ms-field-hint">Your job description is saved. Your brief will appear here when it is ready. Keep this private link to return.</p>}
         </section>
       )}
@@ -737,7 +737,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     token={token}
                     brief={brief}
                     account={siteAccount}
-                    onConfirmed={() => { setBriefConfirmed(true); setEditingBrief(false); }}
+                    onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
               )}
@@ -911,7 +911,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     token={token}
                     brief={brief}
                     account={siteAccount}
-                    onConfirmed={() => { setBriefConfirmed(true); setEditingBrief(false); }}
+                    onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
               )}

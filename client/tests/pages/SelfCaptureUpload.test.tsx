@@ -110,16 +110,20 @@ describe("description first owner return", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Edit your answers" }));
     expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
     expect(screen.getByRole("combobox", { name: /what could happen next/ })).toHaveValue("multiple_sites");
+    fireEvent.change(screen.getByRole("combobox", { name: /would you consider a physical pilot/ }), { target: { value: "evaluation_only" } });
     fireEvent.change(screen.getByRole("textbox", { name: /Your name/ }), { target: { value: "Synthetic Operator" } });
     fireEvent.click(screen.getByRole("radio", { name: "Not now" }));
     fireEvent.click(screen.getByRole("button", { name: "This is right — confirm it" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach Blueprint/);
-    expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
+    expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("evaluation_only");
     fireEvent.click(screen.getByRole("button", { name: "This is right — confirm it" }));
     await screen.findByText("Your job brief is confirmed.");
     const posts = fetchMock.mock.calls.filter(call => String(call[0]).endsWith("/confirm"));
     expect(posts).toHaveLength(2);
-    expect(JSON.parse(posts[1][1]!.body as string).pilotIntent).toEqual({ pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" });
+    expect(JSON.parse(posts[1][1]!.body as string).pilotIntent).toEqual({ pilotConsideration: "evaluation_only", deploymentPath: "multiple_sites" });
+    fireEvent.click(screen.getByRole("button", { name: "Edit your answers" }));
+    expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("evaluation_only");
+    expect(screen.getByRole("combobox", { name: /what could happen next/ })).toHaveValue("multiple_sites");
     expect(videoUpload.send).not.toHaveBeenCalled();
   });
 
