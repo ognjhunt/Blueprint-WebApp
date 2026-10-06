@@ -9,6 +9,7 @@ import { researchDigest, researchPublicationHypotheses, researchPublicationSourc
 import * as research from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { communicationsDigest, communicationsHandoffSchema, SHEETS_RECEIPT_MAX_LENGTH } from "../agents/communications-contract";
+import { LEGACY_OUTREACH_RULE_VERSION } from "../agents/outreach-ready-question";
 import { processCommunicationsJob, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { publishedResearchFixture, type OutreachReadyBlock } from "./fixtures/published-research";
@@ -254,7 +255,15 @@ describe("published research days that carry outreach-ready hypotheses (offline,
     return { ...rest, researchOrigin };
   };
   // Design v1.1 wording, word for word, for the synthetic sorting candidate.
+  // Rule v1.2's wording (the fixture's default): the site is "your <City> site" from the location.
   const ask = {
+    S: "Is sorting returned parcels done at your Sortville site, or somewhere else in the company?",
+    M: "Which parts of sorting returned parcels at your Sortville site still need people, and what has kept them from being automated?",
+    A: "What has kept the rest of sorting returned parcels at your Sortville site from being automated so far?",
+    U: "Is any of sorting returned parcels at your Sortville site automated today, or is it all done by hand?",
+  };
+  // Rule v1.1's wording, for a day published under v1.1: the task and site fields verbatim.
+  const askV11 = {
     S: "Is sorting returned parcels done at your Synthetic sorting site site, or somewhere else in the company?",
     M: "Which parts of sorting returned parcels at Synthetic sorting site still need people, and what has kept them from being automated?",
     A: "What has kept the remaining sorting returned parcels work at Synthetic sorting site from being automated so far?",
@@ -493,9 +502,18 @@ describe("published research days that carry outreach-ready hypotheses (offline,
     ["S while the site link is open", { mutateHypothesisAssessment: assessment => { assessment.claims.site_task.status = "inference"; } },
       ["site_link", "manual_workflow", "existing_automation", "fit", "interest"], ask.S],
     ["M while the manual workflow is open", {}, ["manual_workflow", "existing_automation", "fit", "interest"], ask.M],
-    ["A once the manual workflow is verified", { mutateHypothesisAssessment: assessment => {
+    ["U once the manual workflow is verified and no automation is shown", { mutateHypothesisAssessment: assessment => {
       assessment.claims.human_workflow = { ...assessment.claims.site_task }; assessment.claims.plausible_fit.status = "unresolved"; } },
+      ["existing_automation", "fit", "interest"], ask.U],
+    ["A once the manual workflow is verified and automation is shown", { mutateHypothesisAssessment: assessment => {
+      assessment.claims.human_workflow = { ...assessment.claims.site_task }; assessment.claims.plausible_fit.status = "unresolved";
+      assessment.counterevidence.status = "contradicted"; } },
       ["existing_automation", "fit", "interest"], ask.A],
+    ["v1.1's M for a day published under v1.1", { ruleVersion: LEGACY_OUTREACH_RULE_VERSION },
+      ["manual_workflow", "existing_automation", "fit", "interest"], askV11.M],
+    ["v1.1's A for a day published under v1.1", { ruleVersion: LEGACY_OUTREACH_RULE_VERSION, mutateHypothesisAssessment: assessment => {
+      assessment.claims.human_workflow = { ...assessment.claims.site_task }; assessment.claims.plausible_fit.status = "unresolved"; } },
+      ["existing_automation", "fit", "interest"], askV11.A],
   ])("records exactly one question: %s", async (_name, options, openChecks, question) => {
     const f = setup({ publicContact: true, outreachReady: "published", ...options }); await f.workItem();
     await runCommunicationsIntake(f.deps);

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { outreachReadyQuestionShaped } from "./outreach-ready-question";
 import { OUTREACH_HYPOTHESIS_CONTRACT_VERSION, outreachContextSchema, outreachHypothesisContractSchema, outreachReviewContractSchema,
   type OutreachHypothesisContract, type OutreachReviewContract } from "./outreach-review";
 
@@ -29,32 +30,10 @@ export const OUTREACH_READY_OPEN_CHECKS = ["site_link", "manual_workflow", "fres
 const ALWAYS_OPEN_CHECKS: readonly (typeof OUTREACH_READY_OPEN_CHECKS)[number][] = ["existing_automation", "fit", "interest"];
 const singleQuestion = text.refine(value => value.indexOf("?") === value.length - 1, "exactly one question, ending in ?");
 
-/** The v1.1 question templates, word for word. <task> and <site> are the candidate's
- * `task` and `site`. */
-export const OUTREACH_READY_QUESTION_TEMPLATES = {
-  /** Site link open. */
-  S: (task: string, site: string) => `Is ${task} done at your ${site} site, or somewhere else in the company?`,
-  /** Manual workflow open. */
-  M: (task: string, site: string) => `Which parts of ${task} at ${site} still need people, and what has kept them from being automated?`,
-  /** Manual workflow verified; automation partial or elsewhere. */
-  A: (task: string, site: string) => `What has kept the remaining ${task} work at ${site} from being automated so far?`,
-} as const;
-export type OutreachReadyQuestionTemplate = keyof typeof OUTREACH_READY_QUESTION_TEMPLATES;
-/** Exactly one question is asked, by precedence S, then M, then A. The other open
- * checks are recorded and stay unasked. */
-export function outreachReadyQuestionTemplate(openChecks: readonly string[]): OutreachReadyQuestionTemplate {
-  return openChecks.includes("site_link") ? "S" : openChecks.includes("manual_workflow") ? "M" : "A";
-}
-/** The one question a hypothesis with these open checks asks. */
-export function outreachReadyQuestion(openChecks: readonly string[], task: string, site: string) {
-  return OUTREACH_READY_QUESTION_TEMPLATES[outreachReadyQuestionTemplate(openChecks)](task, site);
-}
-// Each template with <task> and <site> left open, for a block that does not carry them.
-const TEMPLATE_SHAPES = Object.fromEntries(Object.entries(OUTREACH_READY_QUESTION_TEMPLATES).map(([name, template]) => {
-  const [task, site] = ["\u0000", "\u0001"];
-  const pattern = template(task, site).replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(task, "(.+)").replace(site, "(.+)");
-  return [name, new RegExp(`^${pattern}$`)];
-})) as Record<OutreachReadyQuestionTemplate, RegExp>;
+// The one question, by outreach-ready rule version (v1.1 rows keep v1.1 wording, v1.2 rows v1.2): see
+// outreach-ready-question.ts, a mirror of Pipeline verification.outreach_question.
+export { OUTREACH_READY_QUESTION_TEMPLATES, outreachReadyQuestion, outreachReadyQuestionTemplate,
+  type OutreachReadyQuestionTemplate } from "./outreach-ready-question";
 
 /** The owner record behind the outreach-ready tier and its draft-only scope. */
 export const OUTREACH_READY_OWNER_DECISION_REFERENCE =
@@ -106,8 +85,8 @@ export const outreachReadyQualificationSchema = z.object({
       sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
   }).strict(),
   sendsAuthorized: z.literal(false),
-}).strict().refine(block => TEMPLATE_SHAPES[outreachReadyQuestionTemplate(block.openChecks)].test(block.openQuestions[0]),
-  { message: "the one question follows the template its open checks choose (S, then M, then A)", path: ["openQuestions", 0] });
+}).strict().refine(block => outreachReadyQuestionShaped(block.openChecks, block.openQuestions[0]),
+  { message: "the one question follows a template its open checks choose (S, then M, then A or U)", path: ["openQuestions", 0] });
 
 /** Immutable, quality-reviewed research handoff. Load time never refreshes evidence. */
 export const communicationsBriefSchema = z.object({

@@ -5,7 +5,8 @@ import { communicationsFixture } from "./communications";
 import { syntheticLeadVerification, syntheticVerificationCohort } from "./lead-verification";
 import { PUBLIC_CONTACT_PREFIX } from "../../agents/communications-contact-evidence";
 import { evaluateLeadVerification, evaluateOutreachTier, LEAD_OUTREACH_RESULT_VERSION, LEAD_VERIFICATION_VERSION, leadPacketCandidates,
-  OUTREACH_RULE_VERSION, retainedOutreachEvidence, verificationDigest } from "../../agents/lead-verification";
+  OUTREACH_RULE_VERSION, retainedOutreachEvidence, verificationDigest, type OutreachRuleVersion } from "../../agents/lead-verification";
+import { outreachReadyQuestion } from "../../agents/outreach-ready-question";
 
 /** The outreach-ready block of a synthetic day, editable before the day is sealed.
  * An `undefined` key or payload value leaves that field out of the day. */
@@ -21,7 +22,7 @@ function outreachReadyCandidate() {
     revalidated_at: null, snapshot_record_id: null, snapshot_fact_id: null,
     assertion_scope: role === "task" ? "current_operational" : "as_of_background" });
   return { candidate_key: "candidate-2", identity_keys: ["candidate-2"], organization: "Synthetic hypothesis operator",
-    organization_url: "https://hypothesis-operator.example", site: "Synthetic sorting site", location: "Synthetic second location",
+    organization_url: "https://hypothesis-operator.example", site: "Synthetic sorting site", location: "Sortville, Example State",
     task: "sorting returned parcels", potential_robot_match: "Public sorting robot research; no qualified match",
     qualification_status: "needs_review", confidence: "low", unknowns: ["Whether the sorting is still manual is unknown"],
     proposed_next_action: "Ask whether the sorting is still done by hand", evidence: [
@@ -71,11 +72,11 @@ function tierAssessment(candidate: any, assessedAt = "2026-09-30T21:00:00Z") {
       searches: ["Synthetic sorting site automation search"] } };
 }
 /** The run's frozen owner direction (Pipeline outreach_ready.freeze), invented for tests. */
-export function frozenDirection(runKey: string) {
+export function frozenDirection(runKey: string, ruleVersion: OutreachRuleVersion = OUTREACH_RULE_VERSION) {
   const sha = "e".repeat(64);
   return { schema_version: "blueprint.outreach-ready-admission.v1", run_key: runKey, frozen_at: "2026-09-30T12:00:00+00:00",
     direction_sha256: sha, state: "enabled", generation: "1700000000000001", version: 1,
-    uri: `gs://blueprint-8c1ca.appspot.com/operations/research/outreach-ready/${sha}/direction.json`, rule_version: OUTREACH_RULE_VERSION,
+    uri: `gs://blueprint-8c1ca.appspot.com/operations/research/outreach-ready/${sha}/direction.json`, rule_version: ruleVersion,
     paths: ["daily_qa"], label: "hypothesis", max_rows_per_batch: 50, sends_authorized: false,
     approval_reference: "Synthetic owner approval for tests only", valid_until: "2026-12-31T00:00:00+00:00" };
 }
@@ -91,7 +92,10 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
   pin?: string; mutateHypothesisCandidate?: (candidate: any) => void; mutateHypothesisAssessment?: (assessment: any) => void;
   /** Publish the hypothesis as Pipeline does under design v1.1: retained tool results, the full v3
    * tier block recomputed over the whole cohort, its tier evidence and the frozen owner direction. */
-  retainedTier?: boolean; mutateRow?: (row: any) => void } = {}) {
+  retainedTier?: boolean; mutateRow?: (row: any) => void;
+  /** The outreach-ready rule the day was published under (default v1.2); v1.1 is a row published before it. */
+  ruleVersion?: OutreachRuleVersion } = {}) {
+  const ruleVersion = options.ruleVersion ?? OUTREACH_RULE_VERSION;
   const { snapshot, brief, output } = communicationsFixture();
   const candidate = {
     candidate_key: "candidate-1", identity_keys: ["candidate-1"],
@@ -179,7 +183,7 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
   if (hypothesisAssessment && !options.retainedTier) hypothesisAssessment.claims.human_workflow = { status: "unresolved",
     reason: "Synthetic sources do not say whether the sorting is still done by hand.", source_refs: [] };
   if (hypothesis && options.retainedTier) {
-    row.outreach_ready = frozenDirection(row.run_key);
+    row.outreach_ready = frozenDirection(row.run_key, ruleVersion);
     row.application_tool_calls = {};
     for (const result of retainedToolResults(row.date, row.turn_id)) {
       row.application_tool_calls[result.callId] = result.call;
@@ -189,17 +193,14 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
   if (hypothesisAssessment) options.mutateHypothesisAssessment?.(hypothesisAssessment);
   const v3 = (item: any, assessment: any, tier: string) => ({ ...evaluateLeadVerification(item, assessment, Date.parse("2026-09-30T23:00:00Z")),
     version: LEAD_OUTREACH_RESULT_VERSION, tier, eligible_for_outreach_ready: tier === "outreach_ready" });
-  // Design v1.1, as the Pipeline derives it: open checks in rule order, then exactly one
-  // question, S while the site link is open, else M while the manual workflow is open, else A.
+  // As the Pipeline derives them: open checks in rule order, then exactly one question in the
+  // wording of the day's rule version (verification.outreach_question).
   const openChecks = (assessment: any) => [...(assessment.claims.site_task.status !== "verified_fact" ? ["site_link"] : []),
     ...(assessment.claims.human_workflow.status !== "verified_fact" ? ["manual_workflow"] : []),
     ...(assessment.valid_until === null ? ["freshness"] : []), "existing_automation", "fit", "interest"];
-  const question = (open: string[], task: string, site: string) => open.includes("site_link")
-    ? `Is ${task} done at your ${site} site, or somewhere else in the company?`
-    : open.includes("manual_workflow") ? `Which parts of ${task} at ${site} still need people, and what has kept them from being automated?`
-      : `What has kept the remaining ${task} work at ${site} from being automated so far?`;
   const entries = hypothesis ? [{ candidate: structuredClone(hypothesis), open_checks: openChecks(hypothesisAssessment),
-    open_questions: [question(openChecks(hypothesisAssessment), hypothesis.task, hypothesis.site)] }] : [];
+    open_questions: [outreachReadyQuestion(openChecks(hypothesisAssessment), hypothesis.task, hypothesis.site, { location: hypothesis.location,
+      partialAutomation: hypothesisAssessment.counterevidence?.status === "contradicted", ruleVersion })] }] : [];
   // The whole cohort's v3 results, recomputed from the retained tool results as Pipeline review does.
   const tierEvidence = hypothesis && options.retainedTier ? retainedOutreachEvidence(row, name => {
     const key = name.slice(row.date.length + 1, -5), files = snapshot.files as Record<string, string>;
@@ -208,7 +209,7 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
   const reason = { [candidate.candidate_key]: "Synthetic reviewed sources", ...(hypothesis ? { [hypothesis.candidate_key]: "Synthetic operator, site and task quotes" } : {}) };
   const tierCohort = tierEvidence ? evaluateOutreachTier(leadPacketCandidates(row.packet), { [candidate.candidate_key]: leadVerification,
     [hypothesis.candidate_key]: hypothesisAssessment }, Date.parse("2026-09-30T23:00:00Z"), Object.fromEntries(Object.entries(reason)
-      .map(([key, text]) => [key, { duplicate: false, duplicate_of: null, reason: text }])), tierEvidence) : null;
+      .map(([key, text]) => [key, { duplicate: false, duplicate_of: null, reason: text }])), tierEvidence, ruleVersion) : null;
   const block: OutreachReadyBlock | null = hypothesis ? { status: "Hypothesis", maturity: "Outreach-ready: operator, site, task proven",
     retained: tierCohort ? tierCohort.results.find(result => result.candidate_key === hypothesis.candidate_key)
       : v3(hypothesis, hypothesisAssessment, "outreach_ready"),
@@ -237,7 +238,7 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
         { duplicate: check.duplicate, duplicate_of: check.duplicate_of ?? null, reason: check.reason }])),
       results: [tierCohort ? tierCohort.results[0] : v3(candidate, leadVerification, "verified"), block.retained],
       ...(tierCohort ? { outreach_rule_version: tierCohort.outreach_rule_version, tier_evidence: tierCohort.tier_evidence,
-        outreach_ready_count: tierCohort.outreach_ready_count } : {}) }
+        outreach_ready_count: tierCohort.outreach_ready_count } : { outreach_rule_version: ruleVersion }) }
       : syntheticVerificationCohort(candidate, leadVerification, Date.parse("2026-09-30T23:00:00Z")) } : {}),
     ...(block?.reviewKeys !== undefined ? { outreach_ready_keys: block.reviewKeys } : {}) };
   row.qa = { state: "validated", turn_status: "completed", turn_id: "qa-turn-1", artifact_digest,

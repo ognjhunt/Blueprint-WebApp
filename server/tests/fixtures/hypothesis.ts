@@ -9,7 +9,8 @@ import { communicationsNow, memoryFirestore } from "./communications";
 import { publishedResearchFixture } from "./published-research";
 
 // Invented operators, *.example hosts and synthetic evidence only. No network, model or mailbox.
-export const QUESTION = "Which parts of sorting returned parcels at Synthetic sorting site still need people, and what has kept them from being automated?";
+// Rule v1.2's wording: the site is "your <City> site" from the hypothesis's location (Sortville).
+export const QUESTION = "Which parts of sorting returned parcels at your Sortville site still need people, and what has kept them from being automated?";
 export const ADDRESS = "sortingops@hypothesis-operator.example";
 const htmlPage = (url: string, body: string, checkedAt: string): ContactPage => ({ requestedUrl: url, finalUrl: url, redirects: [], checkedAt,
   status: 200, contentType: "text/html; charset=utf-8", bodyBase64: Buffer.from(body).toString("base64") });

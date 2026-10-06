@@ -8,7 +8,7 @@ import { COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { communicationsBriefSchema, communicationsDigest, OUTREACH_READY_OWNER_DECISION_REFERENCE, OUTREACH_READY_SEND_REFUSAL,
   verifyCommunicationsHandoff } from "../agents/communications-contract";
 import { prospectResearchTier } from "../utils/outboundProspects";
-import { leadIdentityKey, verificationDigest } from "../agents/lead-verification";
+import { LEGACY_OUTREACH_RULE_VERSION, leadIdentityKey, OUTREACH_RULE_VERSION, verificationDigest, type OutreachRuleVersion } from "../agents/lead-verification";
 import { communicationsNow } from "./fixtures/communications";
 import { publishedResearchFixture, TIER_SOURCES } from "./fixtures/published-research";
 import { ADDRESS, hypothesisSetup as setup, prospects, QUESTION } from "./fixtures/hypothesis";
@@ -450,5 +450,50 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     expect(leadIdentityKey({ organization: prospect.facilityName, site: prospect.facilitySite, location: prospect.facilityAddress,
       task: prospect.hypothesisedTask })).toBe(leadIdentityKey(f.hypothesis));
     expect(prospect).toMatchObject({ qualificationTier: "outreach_ready", entityAdmission: "research_hypothesis", sendAuthority: "none" });
+  });
+});
+
+// A row keeps the wording of the rule it was published under: v1.1 rows v1.1, v1.2 rows v1.2. Never mixed.
+describe("outreach-ready rule versions in hypothesis admission (synthetic)", () => {
+  const QUESTION_V11 = "Which parts of sorting returned parcels at Synthetic sorting site still need people, and what has kept them from being automated?";
+  const everyEntry = (edit: (entry: any) => void) => (block: any) => { for (const entries of [block.sheets, block.notion]) entries.forEach(edit); };
+
+  it.each<[string, OutreachRuleVersion, string]>([
+    ["a v1.1 row with v1.1 wording", LEGACY_OUTREACH_RULE_VERSION, QUESTION_V11],
+    ["a v1.2 row with v1.2 wording", OUTREACH_RULE_VERSION, QUESTION],
+  ])("admits %s, and its draft-only verification accepts it", async (_name, ruleVersion, question) => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup({ ruleVersion });
+    expect(f.snapshot.row.review.lead_verification.outreach_rule_version).toBe(ruleVersion);
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps, await f.resolution())).toMatchObject({ state: "admitted" });
+    const brief = communicationsBriefSchema.parse(f.records("briefs")[0]);
+    expect(brief.qualification!.openQuestions).toEqual([question]);
+    expect(brief.contact.learningQuestion).toBe(question);
+    const handoff = f.records("handoffs")[0], proof = f.records("contactProofs")[0];
+    expect(verifyPublishedHypothesisForDraft(f.snapshot, brief, handoff, proof, communicationsNow).briefDigest).toBe(communicationsDigest(brief));
+  });
+
+  it.each<[string, Parameters<typeof publishedResearchFixture>[0], string]>([
+    ["a v1.1 row published with v1.2 wording", { ruleVersion: LEGACY_OUTREACH_RULE_VERSION,
+      mutateOutreachReady: everyEntry(entry => { entry.open_questions = [QUESTION]; }) }, "research_hypothesis_block_invalid:open_questions_0"],
+    ["a v1.2 row published with v1.1 wording", { mutateOutreachReady: everyEntry(entry => { entry.open_questions = [QUESTION_V11]; }) },
+      "research_hypothesis_block_invalid:open_questions_0"],
+    ["a v1.2 cohort under a direction frozen at v1.1", { mutateRow: row => { row.outreach_ready.rule_version = LEGACY_OUTREACH_RULE_VERSION; } },
+      "outreach_ready_rule_version_mismatch"],
+    ["a v1.1 cohort under a direction frozen at v1.2", { ruleVersion: LEGACY_OUTREACH_RULE_VERSION,
+      mutateRow: row => { row.outreach_ready.rule_version = OUTREACH_RULE_VERSION; } }, "outreach_ready_rule_version_mismatch"],
+    ["a result block under another rule than its cohort", { mutateOutreachReady: block => {
+      block.retained.outreach_ready.rule_version = LEGACY_OUTREACH_RULE_VERSION; } }, "outreach_ready_tier_mismatch"],
+    ["a cohort under an unknown rule", { mutateRow: row => { row.review.lead_verification.outreach_rule_version = "blueprint.outreach-ready-rule.v1.3"; } },
+      "research_hypothesis_block_invalid:outreach_rule_version"],
+    ["a direction under an unknown rule", { mutateRow: row => { row.outreach_ready.rule_version = "blueprint.outreach-ready-rule.v1.3"; } },
+      "outreach_ready_direction_unusable"],
+  ])("refuses %s: the research owner gets it, and nothing is drafted", async (_name, options, reason) => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup(options);
+    expect(await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps)).toMatchObject({ state: "needs_research",
+      reasons: [reason], draftJobCreated: false, sendsAuthorized: false });
+    for (const name of ["briefs", "jobs"]) expect(f.records(name)).toHaveLength(0);
+    expect(prospects(f)).toHaveLength(0);
   });
 });

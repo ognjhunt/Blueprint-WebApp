@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { verificationDigest, researchDigest } from "./research-digest";
 export { researchDigest } from "./research-digest";
 import { evaluateLeadCohort, evaluateLeadVerification, evaluateOutreachTier, LEAD_OUTREACH_RESULT_VERSION, LEAD_VERIFICATION_RESULT_VERSION, leadIdentityKey,
-  leadPacketCandidates, OUTREACH_RULE_VERSION, outreachEvidenceSummary, outreachQuoteProver, requireVerifiedLead, retainedOutreachEvidence } from "./lead-verification";
+  isOutreachRuleVersion, leadPacketCandidates, outreachEvidenceSummary, outreachQuoteProver, requireVerifiedLead, retainedOutreachEvidence,
+  type OutreachRuleVersion } from "./lead-verification";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { communicationsDigest, OUTREACH_READY_OWNER_DECISION_REFERENCE, outreachReadyQuestion, outreachReadySendRefusal, SHEETS_RECEIPT_MAX_LENGTH,
@@ -319,6 +320,9 @@ function hypothesisEntries(row: any, qaResult: any, selected: any[], sheet: Retu
   if (sheet.hypothesisPositions.length !== published.length) fail("sheet_rows");
   if (sheet.hypothesisPositions.some(position => position < (sheet.verifiedPositions.at(-1) ?? -1))) fail("sheet_rows_order");
   const results: any[] = Array.isArray(review.lead_verification?.results) ? review.lead_verification.results : [];
+  // The rule the cohort was published under chooses the question's wording; a row is never re-worded.
+  const ruleVersion = review.lead_verification?.outreach_rule_version;
+  if (!isOutreachRuleVersion(ruleVersion)) fail("outreach_rule_version");
   const seen = new Set<string>(), seenIds = new Set<unknown>();
   return published.map((entry: any, index: number) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)
@@ -338,13 +342,15 @@ function hypothesisEntries(row: any, qaResult: any, selected: any[], sheet: Retu
       || retained[0].eligible_for_qualified_promotion !== false || retained[0].candidate_digest !== verificationDigest(candidate)
       || retained[0].assessment_digest !== verificationDigest(assessment)
       || verificationDigest(retained[0].assessment ?? null) !== verificationDigest(assessment)) fail(`lead_verification_${index}`);
-    // blueprint.outreach-ready-rule.v1.1: open checks in rule order, then exactly one
-    // question, from the template the open checks choose (S, then M, then A).
+    // Open checks in rule order, then exactly one question, from the template the open checks choose
+    // (S, then M, then A; v1.2 asks U instead of A unless automation evidence is recorded), in the
+    // wording of the row's own rule version.
     const openChecks = [...(assessment.claims?.site_task?.status !== "verified_fact" ? ["site_link"] : []),
       ...(assessment.claims?.human_workflow?.status !== "verified_fact" ? ["manual_workflow"] : []),
       ...(assessment.valid_until === null ? ["freshness"] : []), "existing_automation", "fit", "interest"];
     if (!same(entry.open_checks, openChecks)) fail(`open_checks_${index}`);
-    const question = outreachReadyQuestion(openChecks, candidate.task, candidate.site);
+    const question = outreachReadyQuestion(openChecks, candidate.task, candidate.site, { location: candidate.location,
+      partialAutomation: assessment.counterevidence?.status === "contradicted", ruleVersion: ruleVersion as OutreachRuleVersion });
     if (!same(entry.open_questions, [question])) fail(`open_questions_${index}`);
     // Recorded as published. Expiry is phase-2 admission's to judge, so replays stay stable.
     const validUntil = assessment.valid_until;
@@ -378,7 +384,7 @@ function frozenOutreachDirection(row: any, now: number) {
   const match = typeof frozen?.uri === "string" ? DIRECTION_URI.exec(frozen.uri) : null;
   if (!frozen || typeof frozen !== "object" || Array.isArray(frozen) || frozen.schema_version !== "blueprint.outreach-ready-admission.v1"
     || frozen.state !== "enabled" || frozen.run_key !== row.run_key || frozen.sends_authorized !== false || frozen.label !== "hypothesis"
-    || frozen.rule_version !== OUTREACH_RULE_VERSION || !Array.isArray(frozen.paths) || !frozen.paths.includes("daily_qa")
+    || !isOutreachRuleVersion(frozen.rule_version) || !Array.isArray(frozen.paths) || !frozen.paths.includes("daily_qa")
     || !match || match[1] !== frozen.direction_sha256 || typeof frozen.generation !== "string" || !/^[1-9][0-9]{0,18}$/.test(frozen.generation)
     || typeof frozen.valid_until !== "string" || !Number.isFinite(Date.parse(frozen.valid_until))) throw new Error("outreach_ready_direction_unusable");
   if (Date.parse(frozen.valid_until) <= now) throw new Error("outreach_ready_direction_expired");
@@ -403,7 +409,10 @@ export function hypothesisPublicationSource(snapshot: any, candidateKey: string,
   const entry = published.state === "recorded" ? published.entries.find(item => item.candidateKey === candidateKey) : undefined;
   if (!entry) throw new Error("research_hypothesis_not_published");
   const row = snapshot.row, direction = frozenOutreachDirection(row, now), lead = row.review.lead_verification;
-  if (lead?.result_version !== LEAD_OUTREACH_RESULT_VERSION || lead.outreach_rule_version !== OUTREACH_RULE_VERSION) throw new Error("outreach_ready_rule_version_mismatch");
+  // One rule throughout: the frozen direction's, the cohort's and (via the recomputed block) each result's.
+  if (lead?.result_version !== LEAD_OUTREACH_RESULT_VERSION || !isOutreachRuleVersion(lead.outreach_rule_version)
+    || lead.outreach_rule_version !== row.outreach_ready.rule_version) throw new Error("outreach_ready_rule_version_mismatch");
+  const ruleVersion = lead.outreach_rule_version;
   const results: any[] = lead.results, candidates = leadPacketCandidates(row.packet);
   // The tier is recomputed from these retained results and duplicate checks, so each must be QA's own, as
   // for a verified row (researchPublicationSource): every member's result binds its candidate and QA's
@@ -423,7 +432,7 @@ export function hypothesisPublicationSource(snapshot: any, candidateKey: string,
   catch { throw new Error("outreach_ready_evidence_unavailable"); }
   if (communicationsDigest(outreachEvidenceSummary(evidence)) !== communicationsDigest(lead.tier_evidence ?? null)) throw new Error("outreach_ready_evidence_changed");
   const recomputed = evaluateOutreachTier(candidates, Object.fromEntries(results.map(item => [item.candidate_key, item.assessment ?? null])),
-    now, lead.duplicate_checks ?? {}, evidence).results.find(item => item.candidate_key === candidateKey);
+    now, lead.duplicate_checks ?? {}, evidence, ruleVersion).results.find(item => item.candidate_key === candidateKey);
   const publishedResult = results.find(item => item.candidate_key === candidateKey);
   const tierOf = (value: any) => ({ tier: value?.tier ?? null, eligible: value?.eligible_for_outreach_ready ?? null, block: value?.outreach_ready ?? null });
   if (recomputed?.tier !== "outreach_ready") {
@@ -453,7 +462,7 @@ export function hypothesisPublicationSource(snapshot: any, candidateKey: string,
     version: "blueprint.communications-hypothesis-source.v1" as const,
     runKey: row.run_key, date: row.date, candidateKey, packetDigest: row.packet_digest, rawArtifactDigest: row.raw_output_digest,
     candidate, researchReview: row.review, qaArtifactDigest: row.qa.artifact_digest, leadVerification: assessment,
-    hypothesis: { tier: "outreach_ready" as const, label: "hypothesis" as const, ruleVersion: OUTREACH_RULE_VERSION,
+    hypothesis: { tier: "outreach_ready" as const, label: "hypothesis" as const, ruleVersion,
       openChecks: entry.openChecks, openQuestions: entry.openQuestions, validUntil: entry.validUntil,
       provingSources: recomputed.outreach_ready.proving_sources, tierEvidence: lead.tier_evidence, direction },
     sheetsId: row.packet.destinations.sheet_id, sheetsProspectId: entry.sheetsProspectId,
