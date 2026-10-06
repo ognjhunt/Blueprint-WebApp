@@ -62,6 +62,20 @@ it("rejects internally inconsistent cleanup receipts even when their digest is v
   proof.digest = digest(proof, "digest");
   expect(() => verifyWebsiteWithdrawalReceipt(command, proof)).toThrow();
 });
+it("retains a dated historical cloud observation without asserting current absence", async () => {
+  const command = websiteWithdrawalCommand("req1", withdrawal);
+  const proof = { ...receipt(command), cloud_object_absence_verified: false, cloud_object_current_absence_status: "unknown",
+    cloud_object_cleanup_receipt_digest: `sha256:${"7".repeat(64)}`, cloud_object_absence_observed_at_iso: "2026-10-06T00:00:00+00:00" };
+  proof.digest = digest(proof, "digest");
+  transport.result = { status: "forwarded", value: proof };
+  await forwardWebsiteCaptureWithdrawals();
+  expect((sharedFakeFirestoreState.docs.get("inboundRequests/req1") as any).capture_withdrawal).toMatchObject({
+    pipelineAcknowledged: true, cloudObjectAbsenceVerified: false, cloudObjectCurrentAbsenceStatus: "unknown",
+    cloudObjectAbsenceObservedAtIso: proof.cloud_object_absence_observed_at_iso, deletionConfirmed: false });
+  proof.cloud_object_absence_verified = true;
+  proof.digest = digest(proof, "digest");
+  expect(() => verifyWebsiteWithdrawalReceipt(command, proof)).toThrow();
+});
 it("keeps one malformed pending command from blocking another owner's acknowledgement", async () => {
   sharedFakeFirestoreState.docs.clear();
   sharedFakeFirestoreState.docs.set("inboundRequests/req0", { consent_revoked: true, captureWithdrawalPending: true,

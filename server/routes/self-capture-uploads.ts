@@ -1597,97 +1597,114 @@ router.post(
   authorizeBeforeCaptureBody,
   upload.single("image"),
   async (req: UploadRequest, res: Response) => {
-    const payload = verifyCaptureUploadToken(String(req.params.token || ""));
-    if (!payload) {
-      return res.status(404).json({ error: "This upload link is not valid or has expired." });
-    }
-
-    // Same capture gate as the walkthrough: holding a link is not the same as
-    // being cleared to use it (region, privacy holds).
-    const authorization = await authorizeCaptureUpload(payload.requestId);
-    if (!authorization.allowed) {
-      return res.status(409).json({
-        error: authorization.detail || "This capture cannot start yet.",
-        code: authorization.holdReason || "capture_held",
-        blockers: authorization.blockers,
-      });
-    }
-
-    const file = req.file;
-    if (!file || !file.size) {
-      return res.status(400).json({ error: "No image was attached." });
-    }
-
-    const extension = extensionOf(file.originalname);
-    if (!ALLOWED_IMAGE_EXTENSIONS.has(extension)) {
-      return res.status(415).json({
-        error: "Attach a photo from your phone — .jpg, .png, .heic, or .webp.",
-        accepts: [...ALLOWED_IMAGE_EXTENSIONS],
-      });
-    }
-
-    if (!storageAdmin) {
-      logger.error({ requestId: payload.requestId }, "Item image upload attempted without storage");
-      return res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
-    }
-
-    const itemId = String(req.params.itemId || "").trim();
-    // The item has to exist before we store anything, so a stray image cannot be
-    // written to storage with no inventory entry pointing at it.
-    const inventory = await getItemInventory(payload.requestId);
-    const declared = inventory?.items.some((entry) => entry.itemId === itemId);
-    if (!declared) {
-      return res.status(404).json({
-        error: "That item is not on this task's item list. Add it first, then attach its photos.",
-        code: "unknown_item",
-      });
-    }
-
-    const imageId = `img_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-    const objectPath = taskItemImagePath({
-      sceneId: payload.sceneId,
-      itemId,
-      imageId,
-      extension,
-    });
-
-    let imageSource: import("../utils/taskItemInventory").TaskItemImage["source"];
+    let storedBytes = false;
+    let requestId: string | undefined;
     try {
-      const hash = createHash("sha256");
-      for await (const chunk of createReadStream(file.path)) hash.update(chunk);
-      const written = await saveStreamedFile(file, objectPath, {
-        captureIdentity: true, ifGenerationMatch: 0,
-        contentType: file.mimetype || "image/jpeg",
-        metadata: {
-          request_id: payload.requestId,
-          scene_id: payload.sceneId,
-          item_id: itemId,
-          kind: "task_item_example",
-        },
+      const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+      if (!payload) {
+        return res.status(404).json({ error: "This upload link is not valid or has expired." });
+      }
+
+      requestId = payload.requestId;
+
+      // Same capture gate as the walkthrough: holding a link is not the same as
+      // being cleared to use it (region, privacy holds).
+      const authorization = await authorizeCaptureUpload(payload.requestId);
+      if (!authorization.allowed) {
+        return res.status(409).json({
+          error: authorization.detail || "This capture cannot start yet.",
+          code: authorization.holdReason || "capture_held",
+          blockers: authorization.blockers,
+        });
+      }
+
+      const file = req.file;
+      if (!file || !file.size) {
+        return res.status(400).json({ error: "No image was attached." });
+      }
+
+      const extension = extensionOf(file.originalname);
+      if (!ALLOWED_IMAGE_EXTENSIONS.has(extension)) {
+        return res.status(415).json({
+          error: "Attach a photo from your phone — .jpg, .png, .heic, or .webp.",
+          accepts: [...ALLOWED_IMAGE_EXTENSIONS],
+        });
+      }
+
+      if (!storageAdmin) {
+        logger.error({ requestId: payload.requestId }, "Item image upload attempted without storage");
+        return res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
+      }
+
+      const itemId = String(req.params.itemId || "").trim();
+      // The item has to exist before we store anything, so a stray image cannot be
+      // written to storage with no inventory entry pointing at it.
+      const inventory = await getItemInventory(payload.requestId);
+      const declared = inventory?.items.some((entry) => entry.itemId === itemId);
+      if (!declared) {
+        return res.status(404).json({
+          error: "That item is not on this task's item list. Add it first, then attach its photos.",
+          code: "unknown_item",
+        });
+      }
+
+      const imageId = `img_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      const objectPath = taskItemImagePath({
+        sceneId: payload.sceneId,
+        itemId,
+        imageId,
+        extension,
       });
-      imageSource = { generation: written.generation, size_bytes: written.size_bytes,
-        crc32c: written.crc32c, sha256: `sha256:${hash.digest("hex")}` };
+
+      let imageSource: import("../utils/taskItemInventory").TaskItemImage["source"];
+      try {
+        const hash = createHash("sha256");
+        for await (const chunk of createReadStream(file.path)) hash.update(chunk);
+        const written = await saveStreamedFile(file, objectPath, {
+          captureIdentity: true, ifGenerationMatch: 0,
+          contentType: file.mimetype || "image/jpeg",
+          metadata: {
+            request_id: payload.requestId,
+            scene_id: payload.sceneId,
+            item_id: itemId,
+            kind: "task_item_example",
+          },
+        });
+        storedBytes = true;
+        imageSource = { generation: written.generation, size_bytes: written.size_bytes,
+          crc32c: written.crc32c, sha256: `sha256:${hash.digest("hex")}` };
+      } catch (error) {
+        logger.error({ error, requestId: payload.requestId, itemId }, "Failed to store an item image");
+        return res.status(502).json({ error: "We could not save that photo. Try again shortly." });
+      } finally {
+        await discardUploadedFile(file);
+      }
+
+      const record = await recordItemImage(payload.requestId, itemId, {
+        imageId,
+        storagePath: objectPath,
+        uploadedAtIso: new Date().toISOString(),
+        source: imageSource,
+      });
+      if (!record) {
+        // Removed between the check and the write. The stored bytes remain a
+        // cleanup obligation; the item is gone and no photo was attached.
+        return res.status(404).json({ error: "That item is no longer on the list.", code: "unknown_item",
+          uploaded_bytes_retained_for_cleanup: true, deletion_confirmed: false });
+      }
+
+      return res.status(201).json({ ok: true, scope: payload.scope, ...presentInventory(record) });
     } catch (error) {
-      logger.error({ error, requestId: payload.requestId, itemId }, "Failed to store an item image");
-      return res.status(502).json({ error: "We could not save that photo. Try again shortly." });
+      const revoked = error instanceof Error && error.message === "source_revoked";
+      logger.error({ error, requestId, itemId: req.params.itemId }, "Item image could not be attached");
+      return res.status(revoked ? 409 : 503).json({
+        code: revoked ? "source_revoked" : "item_image_inventory_unavailable",
+        error: revoked ? "Recording consent was withdrawn. The photo was not attached." : "The photo could not be attached right now.",
+        uploaded_bytes_retained_for_cleanup: storedBytes, deletion_confirmed: false,
+      });
     } finally {
-      await discardUploadedFile(file);
+      await discardUploadedFile(req.file);
     }
-
-    const record = await recordItemImage(payload.requestId, itemId, {
-      imageId,
-      storagePath: objectPath,
-      uploadedAtIso: new Date().toISOString(),
-      source: imageSource,
-    });
-    if (!record) {
-      // Removed between the check and the write. The bytes are harmless orphans
-      // a later cleanup sweeps; the honest answer to the caller is that the item
-      // is gone.
-      return res.status(404).json({ error: "That item is no longer on the list.", code: "unknown_item" });
-    }
-
-    return res.status(201).json({ ok: true, scope: payload.scope, ...presentInventory(record) });
   },
 );
 

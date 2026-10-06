@@ -26,6 +26,8 @@ export const websiteWithdrawalReceipt = z.object({ schema_version: z.literal("we
   provider_acknowledgement: z.literal("unknown"), cloud_storage_cleanup_verified: z.literal(false),
   delivered_copy_cleanup_verified: z.literal(false), retained_audit_records: z.literal(true), legal_hold: z.boolean(),
   cloud_object_absence_verified: z.boolean().optional(), cloud_object_cleanup_receipt_digest: digest.nullable().optional(),
+  cloud_object_current_absence_status: z.enum(["unknown", "verified"]).optional(),
+  cloud_object_absence_observed_at_iso: z.string().datetime({ offset: true }).nullable().optional(),
   cleanup_scope: z.literal("server_mapped_site_local_files"), external_cleanup_required: z.literal(true),
 }).strict();
 
@@ -35,7 +37,10 @@ export function verifyWebsiteWithdrawalReceipt(command: ReturnType<typeof websit
     || receipt.command_digest !== canonicalArtifactDigest(command, "digest")
     || (["request_id", "scene_id", "capture_id", "withdrawal_id"] as const).some(key => receipt[key] !== command[key])
     || receipt.local_cleanup_verified !== Boolean(receipt.local_cleanup_receipt_digest)
-    || Boolean(receipt.cloud_object_absence_verified) !== Boolean(receipt.cloud_object_cleanup_receipt_digest)
+    || (receipt.cloud_object_absence_verified === true && (!receipt.cloud_object_cleanup_receipt_digest
+      || receipt.cloud_object_current_absence_status !== "verified"))
+    || (receipt.cloud_object_current_absence_status === "verified" && receipt.cloud_object_absence_verified !== true)
+    || Boolean(receipt.cloud_object_cleanup_receipt_digest) !== Boolean(receipt.cloud_object_absence_observed_at_iso)
     || (receipt.state === "local_cleanup_verified_external_pending" && (!receipt.local_cleanup_verified || receipt.legal_hold))
     || (receipt.state === "cleanup_retained_legal_hold" && !receipt.legal_hold))
     throw new Error("website_withdrawal_receipt_binding_invalid");
@@ -82,6 +87,8 @@ export async function forwardWebsiteCaptureWithdrawals() {
           providerAcknowledgement: receipt.provider_acknowledgement, cloudStorageCleanupVerified: false,
           cloudObjectAbsenceVerified: receipt.cloud_object_absence_verified ?? false,
           cloudObjectCleanupReceiptDigest: receipt.cloud_object_cleanup_receipt_digest ?? null,
+          cloudObjectCurrentAbsenceStatus: receipt.cloud_object_current_absence_status ?? "unknown",
+          cloudObjectAbsenceObservedAtIso: receipt.cloud_object_absence_observed_at_iso ?? null,
           deliveredCopyCleanupVerified: false, retainedAuditRecords: true, legalHold: receipt.legal_hold,
           pipelineReceiptDigest: receipt.digest, pipelineTombstoneDigest: receipt.tombstone_digest,
           lastAcknowledgedAtIso: new Date().toISOString() } : { acknowledgementBlocker: result.blocker ?? "website_withdrawal_receipt_invalid" };
