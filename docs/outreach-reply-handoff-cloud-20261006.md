@@ -3,11 +3,25 @@
 This cloud implementation supersedes the paused, unpublished local implementation
 planned as `codex/outreach-framing-web-20261006`. That branch was absent from the
 published repository on October 6. No existing branch was overwritten or force
-pushed. Work starts from reviewed PR #872, commit
-`c986f040c704c551df434cd45240aa1ba1c8465a`, on
-`codex/outreach-reply-handoff-cloud-20261006`. PR #873's separate intake work is
-not included or edited. Merge, deployment, activation, recipient scope and any
-actual Gmail copy remain coordinated by the parent release owner.
+pushed. Original draft PR #876 starts from reviewed PR #872, commit
+`c986f040c704c551df434cd45240aa1ba1c8465a`. The launch candidate is instead
+`codex/outreach-launch-main-20261006`, based on live main
+`a5da2cbe38e764ab092b2e2e4f48fb39507c6ae3`, preserving PR #875's How It Works
+illustrations and browser proof. It reuses PR #872's Web phase2 hypothesis,
+contact and screen consumers without adopting its research archive, installed
+runtime, startup collector or deployment workflow. Those Pipeline/native
+publication changes remain with their release owner. The selected phase2 code
+is commit `832ce03ea`; its large tier-equality fixture is existing reviewed
+source, not a new test harness. Old runtime publications without a screen
+snapshot remain inadmissible for that separate cohort. No source is promoted
+just because this Web code can read it.
+
+PR #873 and its main-based intake equivalent #874 have no file overlap with this
+candidate and are not included or edited. This owner handles independent review,
+required CI and release verification; the parent coordinates normal merge/deploy
+clearance, activation, recipient scope and any actual Gmail copy. The current
+[communications lap recovery prerequisite](verification/communications-worker-lap-recovery-20261006.md)
+blocks safe release until its live evidence is resolved.
 
 The [first-touch policy](outreach-first-touch-policy.md) records the owner-approved
 launch direction. `communications-launch-framing.ts` is its versioned executable
