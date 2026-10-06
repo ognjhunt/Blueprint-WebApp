@@ -64,7 +64,10 @@ export function TaskBrowse() {
     Signed in as {currentUser.email ?? "your account"}
     {access?.staff ? <> · staff view: you see what approved teams see. <button type="button" className="ms-text-link" onClick={() => setPreviewApplication(!previewApplication)}>{previewApplication ? "Back to the job library" : "Preview the application form"}</button></> : access?.gated ? " · approved for early access." : null}
   </p> : null;
-  if (previewApplication) return <>{viewer}<RobotTeamEarlyAccess access={null} email={null} /></>;
+  // A preview must never submit: a real submit records an application and
+  // sends email, so the whole form is disabled here.
+  if (previewApplication) return <>{viewer}<p className="ms-field-hint">Preview only. Submitting is disabled.</p>
+    <fieldset disabled aria-label="Application form preview" style={{ border: 0, padding: 0, margin: 0 }}><RobotTeamEarlyAccess access={null} email={null} /></fieldset></>;
   const libraryEmpty = state === "ready" && items.length === 0;
   return <section aria-label="Job library">
     {viewer}

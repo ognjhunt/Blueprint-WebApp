@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const auth = vi.hoisted(() => ({ currentUser: null as null | { uid: string; email: string } }));
+const auth = vi.hoisted(() => ({ currentUser: null as null | { uid: string; email: string }, userData: null as null | Record<string, unknown> }));
 vi.mock("@/contexts/AuthContext", () => ({ useOptionalAuth: () => auth }));
 vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async () => ({}) }));
 
@@ -9,7 +9,7 @@ const { MinimalSiteLayout } = await import("@/components/site/MinimalSiteLayout"
 const { TaskBrowse } = await import("@/components/site/TaskBrowse");
 
 const fetchMock = vi.fn();
-beforeEach(() => { auth.currentUser = null; fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
+beforeEach(() => { auth.currentUser = null; auth.userData = { finishedOnboarding: true }; fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 
 describe("signed-in state on public pages", () => {
   it("shows the account instead of the signed-out calls to action", () => {
@@ -22,6 +22,13 @@ describe("signed-in state on public pages", () => {
     expect(screen.queryByRole("link", { name: "Start a job assessment" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
     expect(screen.getAllByRole("link", { name: "Your workspace" })[0]).toHaveAttribute("href", "/app");
+
+    auth.userData = { role: "capturer" };
+    rerender(<MinimalSiteLayout>page</MinimalSiteLayout>);
+    expect(screen.getAllByRole("link", { name: "Your workspace" })[0]).toHaveAttribute("href", "/capture-app/account");
+    auth.userData = { finishedOnboarding: false };
+    rerender(<MinimalSiteLayout>page</MinimalSiteLayout>);
+    expect(screen.getAllByRole("link", { name: "Finish onboarding" })[0]).toHaveAttribute("href", "/onboarding");
   });
 
   it("tells staff why they see the library and lets them preview the application", async () => {
@@ -33,5 +40,6 @@ describe("signed-in state on public pages", () => {
     expect(await screen.findByRole("note")).toHaveTextContent(/Signed in as ops@example\.test · staff view/);
     fireEvent.click(screen.getByRole("button", { name: "Preview the application form" }));
     expect(screen.getByRole("button", { name: "Back to the job library" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Application form preview" })).toBeDisabled();
   });
 });

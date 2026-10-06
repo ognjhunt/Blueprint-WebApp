@@ -4,13 +4,25 @@ import { COMPANY } from "@/data/company";
 import { openCookieSettings } from "@/components/CookieConsent";
 import { useOptionalAuth } from "@/contexts/AuthContext";
 
+type WorkspaceUser = { role?: string; roles?: string[]; finishedOnboarding?: boolean };
+
+/** Same destinations as the app header: capturers, unfinished onboarding, everyone else. */
+function workspaceFor(user: WorkspaceUser | null | undefined) {
+  if (user?.role === "capturer" || user?.roles?.includes("capturer")) return { href: "/capture-app/account", label: "Your workspace" };
+  if (user && !user.finishedOnboarding) return { href: "/onboarding", label: "Finish onboarding" };
+  return { href: "/app", label: "Your workspace" };
+}
+
 export function MinimalSiteLayout({ children }: PropsWithChildren) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
-  // A signed-in visitor sees their account, not the signed-out call to action.
-  const signedIn = Boolean(useOptionalAuth()?.currentUser);
+  // A signed-in visitor sees their account, not the signed-out call to action,
+  // routed the same way the app header routes each persona.
+  const auth = useOptionalAuth();
+  const signedIn = Boolean(auth?.currentUser);
+  const account = workspaceFor(auth?.userData as WorkspaceUser | null | undefined);
   const primary = signedIn
-    ? <a className="ms-button" href="/app">Your workspace</a>
+    ? <a className="ms-button" href={account.href}>{account.label}</a>
     : <a className="ms-button" href="/contact/site-operator">Start a job assessment</a>;
   return (
     <div className="minimal-site">
@@ -44,7 +56,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
         </div>
         <nav aria-label="Footer navigation">
           <a href={`mailto:${COMPANY.emails.hello}`}>Get in touch <ArrowUpRight size={14} aria-hidden="true" /></a>
-          <a href="/about">About</a>{signedIn ? <a href="/app">Your workspace</a> : <a href="/sign-in">Sign in</a>}<a href="/privacy">Privacy</a><a href="/terms">Terms</a>
+          <a href="/about">About</a>{signedIn ? <a href={account.href}>{account.label}</a> : <a href="/sign-in">Sign in</a>}<a href="/privacy">Privacy</a><a href="/terms">Terms</a>
           <button type="button" className="ms-footer-link" onClick={openCookieSettings}>Cookie settings</button>
         </nav>
       </footer>
