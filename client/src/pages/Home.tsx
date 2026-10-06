@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { EmbodimentHero } from "@/components/site/EmbodimentHero";
+import { TaskEvaluationPair } from "@/components/site/TaskEvaluationPair";
 import { SEO } from "@/components/SEO";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
@@ -9,13 +9,20 @@ export default function Home() {
   return (
     <>
       <SEO title="Blueprint | From one job to a measured robot pilot" description={description} canonical="/" jsonLd={webPageJsonLd({ path: "/", name: "Blueprint", description })} />
-      <EmbodimentHero>
-          <div className="ms-hero-copy">
+      <section className="ms-task-hero ms-container" aria-labelledby="hero-title">
+          <div className="ms-task-hero-intro">
             <h1 id="hero-title">One recurring job.<br />A measured robot pilot.</h1>
-            <p className="ms-hero-description">Show us a job at your site. Blueprint works with relevant robot teams to evaluate whether their robots fit the task and prepare a measured on-site trial. Start with a description, photos or video.</p>
-            <a className="ms-button ms-button-large" href="/contact/site-operator">Start a job assessment <ArrowRight size={25} strokeWidth={1.5} aria-hidden="true" /></a>
+            <div className="ms-task-hero-actions">
+              <p>Show us the work. We help evaluate robot fit and prepare a measured pilot with a robot team.</p>
+              <div className="ms-task-hero-links">
+                <a className="ms-button" href="/contact/site-operator">Start a job assessment <ArrowRight size={21} strokeWidth={1.5} aria-hidden="true" /></a>
+                <a className="ms-text-link" href="/contact/robot-team">Join the robot-team beta <ArrowRight size={19} strokeWidth={1.5} aria-hidden="true" /></a>
+              </div>
+              <p className="ms-task-hero-start">Start with a description, photos or a short phone video.</p>
+            </div>
           </div>
-      </EmbodimentHero>
+          <TaskEvaluationPair />
+      </section>
 
       <section className="ms-method ms-container" id="how-it-works" aria-label="How it works">
         <ol className="ms-steps">
@@ -27,7 +34,7 @@ export default function Home() {
       </section>
 
       <section className="ms-team ms-container" aria-labelledby="team-title">
-        <div><h2 id="team-title">Build robots?</h2><p>Spend less time on unsuitable opportunities. Tell us what your team can actually install and support for a scoped site job.</p></div>
+        <div><h2 id="team-title">Working toward your next customer pilot?</h2><p>Explore suitable site jobs and what a measured pilot would require.</p><p className="ms-team-free">Free evaluations for invited robot teams.</p></div>
         <a className="ms-text-link" href="/contact/robot-team">Apply for early access <ArrowRight size={24} strokeWidth={1.5} aria-hidden="true" /></a>
       </section>
     </>

@@ -8,7 +8,12 @@ describe("Site-led homepage", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("One recurring job.A measured robot pilot.");
     expect(screen.getByRole("link", { name: "Start a job assessment" })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByRole("link", { name: "Apply for early access" })).toHaveAttribute("href", "/contact/robot-team");
-    expect(screen.getByRole("img")).toHaveAccessibleName(/Illustration/);
+    expect(screen.getByRole("link", { name: "Join the robot-team beta" })).toHaveAttribute("href", "/contact/robot-team");
+    const images = screen.getAllByRole("img");
+    expect(images).toHaveLength(2);
+    expect(images[0]).toHaveAccessibleName(/Illustrative task capture/);
+    expect(images[1]).toHaveAccessibleName(/Illustrative simulation view/);
+    expect(screen.getByRole("heading", { name: "Can the robot take a case from the tote and place it flat in the empty pocket?" })).toBeInTheDocument();
     expect(screen.queryByText(/months 0–2/i)).not.toBeInTheDocument();
   });
   it("lets a reader inspect the job, robot fit before the match, and the pilot", () => {

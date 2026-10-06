@@ -12,6 +12,6 @@ test("homepage leads with the site decision and separates supplier participation
   await expect(page.getByText(/evaluate your actual job for free before an introduction/)).toBeVisible();
   await page.getByText("Run the pilot", { exact: true }).click();
   await expect(page.getByText(/Blueprint takes no cut/)).toBeVisible();
-  await expect(page.getByText("Illustrative scenes", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Illustrative workflow · Capture and simulation views of the same job/)).toBeVisible();
   await expect(nav.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
 });

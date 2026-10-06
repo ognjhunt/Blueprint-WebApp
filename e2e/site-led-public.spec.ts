@@ -22,7 +22,7 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       ["home", "/", "One recurring job."],
       ["how", "/how-it-works", "From one job to a measured pilot."],
       ["site", "/contact/site-operator", "Start with one recurring job."],
-      ["robot", "/contact/robot-team", "Find a job your robot can support."],
+      ["robot", "/contact/robot-team", "Your next pilot starts with real work."],
       ["privacy", "/privacy", "Privacy Policy"],
       ["terms", "/terms", "Terms of Service"],
       ["not-found", "/this-page-does-not-exist", "That page isn’t here."],
