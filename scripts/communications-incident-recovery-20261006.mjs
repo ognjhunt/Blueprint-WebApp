@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { ROOT, CONTROL, LAP, INCIDENT, STOPPED_SOURCE, canonical, sha, refuse, row,
   inventory, existingAdmin, privateWrite } from './communications-incident-20261006.mjs';
+import { checkAdmissionFence, checkWebWriterFence } from './communications-incident-admission-20261006.mjs';
 
 export const RECOVERY = 'blueprint.communications-lap259-recovery.v1';
 export const AUDIT = `${ROOT}/incidentRecoveries/lap259-20261006`;
@@ -14,7 +15,8 @@ const terminal = value => ['completed', 'failed', 'cancelled'].includes(value);
 function authorityScope(a) {
   return { parentThread: a.parentThread, incident: a.incident, action: a.action, actor: a.actor,
     approvalReference: a.approvalReference, expectedWorkerServiceIds: a.expectedWorkerServiceIds,
-    expectedLapSha256: a.expectedLapSha256, expectedSourceFailures: a.expectedSourceFailures };
+    expectedLapSha256: a.expectedLapSha256, expectedSourceFailures: a.expectedSourceFailures,
+    expectedPriorWorkerInstanceIds: a.expectedPriorWorkerInstanceIds ?? null };
 }
 export function fresh(at, now) {
   if (!Number.isSafeInteger(at) || at > now + 5_000 || now - at > MAX_AGE_MS) refuse('evidence_not_fresh');
@@ -37,7 +39,7 @@ export function checkFence(proof, authority, now) {
     || !['reconcile_lap259_with_release_fence', 'archive_verify_delete_stopped_oct6'].includes(authority.action)
     || typeof authority.actor !== 'string' || authority.actor.length < 3
     || !authority.approvalReference || sha(proof) !== authority.processProofDigest) refuse('owner_direction_unbound');
-  if (proof.schema !== 'blueprint.render-incident-fence.v1' || proof.parentThread !== PARENT
+  if (!['blueprint.render-incident-fence.v1', 'blueprint.render-incident-fence.v2'].includes(proof.schema) || proof.parentThread !== PARENT
     || proof.incident !== authority.incident || !Array.isArray(proof.services) || proof.services.length < 1
     || !Array.isArray(proof.frozenWriters) || !proof.frozenWriters.includes('pipeline-release-owner')
     || !proof.frozenWriters.includes('paused-mac-outreach-owner')) refuse('process_fence_scope_incomplete');
@@ -49,14 +51,24 @@ export function checkFence(proof, authority, now) {
     if (!/^srv-[a-zA-Z0-9]+$/.test(service.serviceId) || !/^[a-f0-9]{40}$/.test(service.deployCommit ?? '')
       || service.service?.method !== 'GET' || service.service.url !== base || service.service.status !== 200
       || service.service.body?.id !== service.serviceId || service.service.body?.type !== 'background_worker'
-      || service.service.body.suspended !== 'suspended'
       || service.instances?.method !== 'GET' || service.instances.url !== `${base}/instances`
-      || service.instances.status !== 200 || !Array.isArray(service.instances.body) || service.instances.body.length !== 0
+      || service.instances.status !== 200 || !Array.isArray(service.instances.body)
       || service.deploy?.commit?.id !== service.deployCommit || service.deploy?.status !== 'live') refuse('process_stopped_instances_unverified');
+    if (proof.schema === 'blueprint.render-incident-fence.v2') {
+      if (proof.lane !== 'disabled_worker_admission') refuse('process_fence_lane_unknown');
+      checkAdmissionFence(service, authority, now);
+    } else if (service.service.body.suspended !== 'suspended' || service.instances.body.length !== 0) refuse('process_stopped_instances_unverified');
   }
   // This source serves HTTP in index.ts; communications/research loops are in
   // worker.ts. Parent also fences authenticated manual/CLI writers during CAS.
   if (!proof.frozenWriters.includes('authenticated-manual-and-cli-writers')) refuse('manual_writer_fence_missing');
+  if (proof.schema === 'blueprint.render-incident-fence.v2') {
+    checkWebWriterFence(proof.web, now);
+    const observations = proof.services.flatMap(s => [s.service, s.instances, s.deployReceipt,
+      ...Object.values(s.admissionFlags), ...s.runtimes]);
+    observations.push(proof.web.service, proof.web.instances, proof.web.deployReceipt, proof.web.opsFlag, proof.web.startupLogs);
+    if (observations.some(receipt => receipt.observedAtMs > proof.observedAtMs)) refuse('process_fence_observation_incomplete');
+  }
 }
 export function checkEffects(packet, provider, authority, now, recovered = false, verifyRetainedRecovery) {
   if (packet.schema !== INCIDENT || packet.project !== 'blueprint-8c1ca') refuse('canonical_binding_invalid');

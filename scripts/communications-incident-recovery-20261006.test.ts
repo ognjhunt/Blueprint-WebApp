@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { CommunicationsAgentsAPI } from '../server/agents/communications-api';
 import { INCIDENT, ROOT, CONTROL, LAP, sha, QUERIES, STOPPED_SOURCE } from './communications-incident-20261006.mjs';
 import { AUDIT, CLEANUP, checkFence, checkEffects, recover, fenceLease, cleanupPhase, archiveFiles, verifyArchive } from './communications-incident-recovery-20261006.mjs';
+import { ADMISSION_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS } from './communications-incident-admission-20261006.mjs';
 
 const NOW = 1791307000000;
 const saved = (path: string, value: any) => ({ path, value, sha256: sha(value), updateTime: { seconds: 1, nanoseconds: 2 } });
@@ -47,7 +48,52 @@ function fixture() {
     } };
   return { packet, provider, proof, authority, db, values, writes, archive: { synthetic: true }, now: () => NOW };
 }
+function disabledAdmissionFixture() {
+  const f = fixture(), id = 'srv-d9t8gg1t0dsc73am9q70', webId = 'srv-d4vnmk3e5dus73aiohk0';
+  const base = `https://api.render.com/v1/services/${id}`, webBase = `https://api.render.com/v1/services/${webId}`;
+  const get = (url: string, body: any, at = NOW - 3) => ({ method: 'GET', url, body, status: 200, observedAtMs: at });
+  const deploy = { id: 'dep-synthetic', commit: { id: ADMISSION_SOURCE }, status: 'live' };
+  f.proof.schema = 'blueprint.render-incident-fence.v2'; f.proof.lane = 'disabled_worker_admission';
+  f.proof.services = [{ serviceId: id, deployCommit: ADMISSION_SOURCE, deploy, deployReceipt: get(`${base}/deploys/${deploy.id}`, deploy),
+    service: get(base, { id, type: 'background_worker', suspended: 'not_suspended', serviceDetails: { envSpecificDetails: { startCommand: 'npm run start:worker' } } }),
+    priorInstances: get(`${base}/instances`, [{ id: 'old', createdAt: new Date(NOW - 20000).toISOString() }], NOW - 10000),
+    instances: get(`${base}/instances`, [{ id: 'new', createdAt: new Date(NOW - 1000).toISOString() }]),
+    admissionFlags: Object.fromEntries(ADMISSION_FLAGS.map(key => [key, get(`${base}/env-vars/${key}`, { key, value: 'false' })])),
+    runtimes: [{ schema: 'blueprint.disabled-worker-runtime.v1', observedAtMs: NOW - 2, pid: 7, parentPid: 1, state: 'S', startTicks: '100',
+      bootId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', cwd: '/opt/render/project/src', executable: '/opt/node/bin/node',
+      entry: '/opt/render/project/src/dist/worker.js', entrySha256: ADMISSION_ENTRY_SHA256, commandSha256: 'b'.repeat(64),
+      serviceId: id, instanceId: 'new', sourceCommit: ADMISSION_SOURCE, rootInventoryComplete: true, runtimeRootCount: 1,
+      flags: Object.fromEntries(ADMISSION_FLAGS.map(key => [key, 'false'])) }] }];
+  f.proof.web = { service: get(webBase, { id: webId, type: 'web_service', ownerId: 'owner-synthetic' }),
+    deploy, deployReceipt: get(`${webBase}/deploys/${deploy.id}`, deploy),
+    opsFlag: get(`${webBase}/env-vars/BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB`, { key: 'BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB', value: '0' }),
+    instances: get(`${webBase}/instances`, [{ id: 'web', createdAt: new Date(NOW - 20000).toISOString() }]),
+    startupLogs: get(`https://api.render.com/v1/logs?ownerId=owner-synthetic&resource=${webId}`, { hasMore: false, logs: [{
+      timestamp: new Date(NOW - 10000).toISOString(), labels: [{ name: 'resource', value: webId }, { name: 'instance', value: 'web' }],
+      message: 'Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service' }] }) };
+  f.authority.expectedWorkerServiceIds = [id]; f.authority.expectedPriorWorkerInstanceIds = { [id]: ['old'] };
+  f.authority.processProofDigest = sha(f.proof);
+  return f;
+}
 describe('owner-scoped lap259 recovery', () => {
+  it('consumes v2 runtime and Web evidence in the actual recovery transaction', async () => {
+    const f = disabledAdmissionFixture();
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).resolves.toMatchObject({ state: 'reconciled_and_release_fenced' });
+    expect(f.values.get(AUDIT).authority.expectedPriorWorkerInstanceIds).toEqual(f.authority.expectedPriorWorkerInstanceIds);
+    expect(f.values.get(`${ROOT}/draftBudgetAdmissions/synthetic-hold`)).toMatchObject({ state: 'usage_unknown' });
+    expect(f.writes).toHaveLength(3);
+    const missing = disabledAdmissionFixture(); delete missing.proof.web; missing.authority.processProofDigest = sha(missing.proof);
+    await expect(recover(missing.db, missing.packet, missing.provider, missing.proof, missing.authority, missing.archive, missing.now)).rejects.toThrow();
+    expect(missing.writes).toHaveLength(0);
+  });
+  it('rejects assembled v2 proof predating receipts and canonical evidence predating its completed fence', async () => {
+    const f = disabledAdmissionFixture(); f.proof.observedAtMs = NOW - 4; f.authority.processProofDigest = sha(f.proof);
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).rejects.toThrow('process_fence_observation_incomplete');
+    expect(f.writes).toHaveLength(0);
+    const old = disabledAdmissionFixture(); old.packet.observedAtMs = NOW - 2;
+    await expect(recover(old.db, old.packet, old.provider, old.proof, old.authority, old.archive, old.now)).rejects.toThrow('evidence_predates_process_fence');
+    expect(old.writes).toHaveLength(0);
+  });
   it('requires stopped actual instances beyond suspended desired state', () => {
     const f = fixture(); f.proof.services[0].instances.body = [{ id: 'synthetic-alive' }]; f.authority.processProofDigest = sha(f.proof);
     expect(() => checkFence(f.proof, f.authority, NOW)).toThrow('process_stopped_instances_unverified');
