@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { openAiResponsesHistoryTools } from "./operator-tools";
 import { COMMUNICATIONS_MODEL, communicationsDigest } from "./communications-contract";
-import { COMMUNICATIONS_DEFINITION } from "./communications-instructions";
+import { COMMUNICATIONS_DEFINITION, COMMUNICATIONS_HYPOTHESIS_INSTRUCTIONS } from "./communications-instructions";
 
 /** The saved provider copy is checked against company-owned Git instructions.
  * This binding grants no inference, tools, consent or sending authority. */
@@ -381,4 +381,32 @@ export async function resolveCommunicationsMcpVaultBinding(binding: Communicatio
     throw new Error("communications_mcp_vault_credentials_missing_or_ambiguous");
   }
   return mcpVaultBinding(verified, matches);
+}
+
+/** Outreach-ready hypothesis jobs only: today's history or read definition plus one paragraph, as a
+ * per-session override. The saved agent, the archived definitions and every verified-lead session are
+ * unchanged. The design named these v7 and v8, but those numbers already belong to the Notion and
+ * Firebase read definitions (#824), so each current base takes the next free number. */
+export const COMMUNICATIONS_HYPOTHESIS_PROFILE = "outreach-ready-hypothesis-v1" as const;
+const HYPOTHESIS_SUFFIX = `\n${COMMUNICATIONS_HYPOTHESIS_INSTRUCTIONS}`;
+const HYPOTHESIS_VERSIONS: Record<string, string> = {
+  [COMMUNICATIONS_HISTORY_DEFINITION.version]: "blueprint.communications-definition.v9",
+  [COMMUNICATIONS_GMAIL_READ_DEFINITION.version]: "blueprint.communications-definition.v10",
+  [COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION.version]: "blueprint.communications-definition.v11",
+  [COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION.version]: "blueprint.communications-definition.v12",
+};
+export function communicationsHypothesisDefinition(base: { version: string; instructions: string }) {
+  const version = Object.hasOwn(HYPOTHESIS_VERSIONS, base.version) ? HYPOTHESIS_VERSIONS[base.version] : undefined;
+  if (!version) throw new Error("communications_hypothesis_definition_unavailable");
+  const instructions = base.instructions + HYPOTHESIS_SUFFIX;
+  return Object.freeze({ version, instructions, instructionsDigest: createHash("sha256").update(instructions).digest("hex") });
+}
+/** A session configuration with the hypothesis paragraph; tools, model and settings are unchanged. */
+export function communicationsHypothesisConfiguration<T extends { instructions: string }>(configuration: T): T {
+  return { ...configuration, instructions: configuration.instructions + HYPOTHESIS_SUFFIX };
+}
+/** A hypothesis session's agent is today's verified base agent plus exactly the paragraph. */
+export function verifiedCommunicationsHypothesisAgent(value: any, verifyBase: (agent: any) => { version: string; instructions: string }) {
+  if (typeof value?.instructions !== "string" || !value.instructions.endsWith(HYPOTHESIS_SUFFIX)) throw new Error("communications_hypothesis_agent_changed");
+  return communicationsHypothesisDefinition(verifyBase({ ...value, instructions: value.instructions.slice(0, -HYPOTHESIS_SUFFIX.length) }));
 }

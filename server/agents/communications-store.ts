@@ -6,7 +6,7 @@ import {
   verifyCommunicationsReplyBinding,
   communicationsSentReceiptIdentity,
   isFounderReplyOrigin, verifyCommunicationsFounderReplyBinding, verifyFounderReplyAnchor,
-  type ThreadMessage,
+  type ThreadMessage, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL,
 } from "./communications-contract";
 import { communicationsContinuationDeadline, communicationsContinuationSessionBinding } from "./communications-api";
 import type { CommunicationsCheckpoint, CommunicationsCancelledContinuation, CommunicationsRejectedCreateRecovery,
@@ -122,7 +122,10 @@ export class CommunicationsStore {
     return handoff;
   }
   async contactProof(brief: CommunicationsBrief) {
-    if (brief.researchOrigin.contactEvidenceKind !== "public_operator_resolution") return undefined;
+    // An outreach-ready hypothesis keeps its blueprint.contact-resolution.v2 proof the same way, and a site-screen
+    // hypothesis its blueprint.screen-contact-resolution.v1 proof.
+    if (!["public_operator_resolution", "public_source_resolution", "screen_recipient_resolution"]
+      .includes(brief.researchOrigin.contactEvidenceKind ?? "")) return undefined;
     const snapshot = await this.db.doc(COMMUNICATIONS_ROOT).collection("contactProofs").doc(brief.researchOrigin.contactEvidenceDigest!).get();
     if (!snapshot.exists || communicationsDigest(snapshot.data()) !== brief.researchOrigin.contactEvidenceDigest) throw new Error("research_contact_proof_missing_or_changed");
     return snapshot.data();
@@ -350,6 +353,17 @@ export class CommunicationsStore {
         nextAttemptAt: this.now() + 15 * 60000, lease: { owner: this.owner, until: 0 }, updatedAt: this.now() });
     });
   }
+  /** Hypothesis drafts are off: the job waits, queued, with its attempt given back. Nothing else changes:
+   * a create claim, session or checkpoint made before the flag went off is kept for when it is on again. */
+  async deferHypothesisDraft(jobId: string, reason: string) {
+    const ref = this.jobs().doc(jobId);
+    await this.db.runTransaction(async tx => {
+      const row = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
+      if (!row || row.lease?.owner !== this.owner || row.lease.until <= this.now()) throw new Error("communications_lease_lost");
+      tx.update(ref, { state: "queued", reason, attempts: Math.max(0, row.attempts - 1),
+        nextAttemptAt: this.now() + 15 * 60000, lease: { owner: this.owner, until: 0 }, updatedAt: this.now() });
+    });
+  }
   async recordReply(job: CommunicationsJob, message: ThreadMessage, fetchedAt = new Date(this.now()).toISOString()) {
     const identity = communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"]
       .map(key => [key, (job as any)[key]]))), received = Date.parse(message.receivedAt), observed = Date.parse(fetchedAt);
@@ -441,9 +455,13 @@ export class CommunicationsStore {
         throw new Error("founder_origin_reply_learning_only");
       }
       if (existing.exists && communicationsDigest(existing.data()?.action_payload) !== communicationsDigest(payload)) throw new Error("draft_idempotency_conflict");
-      let authority = proposedAuthority;
+      // An outreach-ready hypothesis is draft only: no authority, no routine policy, a human-review row
+      // that every approval and send path refuses, labelled so the queue shows no approve control.
+      const hypothesis = outreachReadySendRefusal(communicationsBriefSchema.parse(brief.data())) !== null
+        || outreachReadySendRefusal((payload.communications as any)?.brief) !== null;
+      let authority = hypothesis ? null : proposedAuthority;
       if (record.automationPolicyVersion !== ROUTINE_COMMUNICATIONS_POLICY.version || record.cancelledContinuation) authority = null;
-      const prospective = !record.cancelledContinuation && record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
+      const prospective = !hypothesis && !record.cancelledContinuation && record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
       let refusal: string | null = null;
       if (prospective && !authority) {
         const quality = reviewCommunicationsPayload(payload, this.now());
@@ -494,7 +512,9 @@ export class CommunicationsStore {
         idempotency_key: `communications:${job.jobId}`, lane: "outbound_prospect", action_type: "send_email", action_tier: automatic ? 1 : 3,
         source_collection: "outboundProspects", source_doc_id: job.prospectId,
         action_payload: payload, draft_output: { ...output, requires_human_review: !prospective, category: "communications" },
-        status: policyBlocked ? "failed" : state, approval_reason: policyBlocked ? refusal : automatic ? null : "requires_human_review",
+        status: policyBlocked ? "failed" : state,
+        approval_reason: hypothesis ? OUTREACH_READY_SEND_REFUSAL : policyBlocked ? refusal : automatic ? null : "requires_human_review",
+        ...(hypothesis ? { qualification_tier: "outreach_ready", send_authority: "none" } : {}),
         auto_approve_reason: automatic ? authority?.kind : null,
         ...(automatic ? { first_contact_authority: authority, first_contact_authority_digest: authorityDigest } : {}),
         approved_by: null, approved_at: null, rejected_by: null, rejected_reason: null,
