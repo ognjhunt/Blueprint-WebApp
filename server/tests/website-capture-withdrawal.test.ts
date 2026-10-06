@@ -62,3 +62,26 @@ it("rejects internally inconsistent cleanup receipts even when their digest is v
   proof.digest = digest(proof, "digest");
   expect(() => verifyWebsiteWithdrawalReceipt(command, proof)).toThrow();
 });
+it("keeps one malformed pending command from blocking another owner's acknowledgement", async () => {
+  sharedFakeFirestoreState.docs.clear();
+  sharedFakeFirestoreState.docs.set("inboundRequests/req0", { consent_revoked: true, captureWithdrawalPending: true,
+    capture_withdrawal: { ...withdrawal, requestId: "other" } });
+  sharedFakeFirestoreState.docs.set("inboundRequests/req1", { consent_revoked: true, captureWithdrawalPending: true,
+    capture_withdrawal: withdrawal });
+  transport.result = { status: "forwarded", value: receipt(websiteWithdrawalCommand("req1", withdrawal)) };
+  await forwardWebsiteCaptureWithdrawals();
+  expect(transport.calls).toHaveLength(1);
+  expect((sharedFakeFirestoreState.docs.get("inboundRequests/req1") as any).capture_withdrawal.pipelineAcknowledged).toBe(true);
+  expect((sharedFakeFirestoreState.docs.get("inboundRequests/req0") as any).capture_withdrawal.pipelineAcknowledged).toBe(false);
+});
+it("retries an expired delivery lease with the same command and skips a current lease", async () => {
+  const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req1") as any;
+  stored.captureWithdrawalOutbox = { lease: "interrupted", leaseUntilMs: Date.now() + 120_000 };
+  transport.result = { status: "forwarded", value: receipt(websiteWithdrawalCommand("req1", withdrawal)) };
+  await forwardWebsiteCaptureWithdrawals();
+  expect(transport.calls).toHaveLength(0);
+  stored.captureWithdrawalOutbox.leaseUntilMs = Date.now() - 1;
+  await forwardWebsiteCaptureWithdrawals();
+  expect(transport.calls).toHaveLength(1);
+  expect(transport.calls[0].body).toEqual(websiteWithdrawalCommand("req1", withdrawal));
+});

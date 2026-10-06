@@ -51,43 +51,49 @@ export async function forwardWebsiteCaptureWithdrawals() {
   // Acknowledged but externally pending receipts cannot starve later sites.
   withdrawalCursor = pending.docs.length === 25 ? pending.docs.at(-1) : undefined;
   for (const snapshot of pending.docs) {
-    const lease = randomUUID(), now = Date.now();
-    const command = await db.runTransaction(async tx => {
-      const record = (await tx.get(snapshot.ref)).data();
-      const outbox = record?.captureWithdrawalOutbox;
-      if (!record?.capture_withdrawal || record.captureWithdrawalPending !== true || record.consent_revoked !== true
-        || (outbox?.nextAttemptAtMs ?? 0) > now || (outbox?.leaseUntilMs ?? 0) > now) return null;
-      const command = websiteWithdrawalCommand(snapshot.id, record.capture_withdrawal);
-      tx.set(snapshot.ref, { captureWithdrawalOutbox: { lease, leaseUntilMs: now + 120_000,
-        attemptCount: (outbox?.attemptCount ?? 0) + 1, commandDigest: canonicalArtifactDigest(command, "digest") } }, { merge: true });
-      return command;
-    });
-    if (!command) continue;
-    // Exact idempotent denial handoff. Never sends a cleanup/delete command.
-    const result = await signedCaptureLifecycleRequest({ path: "/website-capture-withdrawals", method: "POST", body: command,
-      schema: websiteWithdrawalReceipt, blocker: "website_withdrawal_pipeline_acknowledgement_pending" });
-    let receipt: z.infer<typeof websiteWithdrawalReceipt> | undefined;
-    if (result.value) {
-      try { receipt = verifyWebsiteWithdrawalReceipt(command, result.value); }
-      catch { /* Unknown or mismatched acknowledgement remains pending. */ }
+    try {
+      const lease = randomUUID(), now = Date.now();
+      const command = await db.runTransaction(async tx => {
+        const record = (await tx.get(snapshot.ref)).data();
+        const outbox = record?.captureWithdrawalOutbox;
+        if (!record?.capture_withdrawal || record.captureWithdrawalPending !== true || record.consent_revoked !== true
+          || (outbox?.nextAttemptAtMs ?? 0) > now || (outbox?.leaseUntilMs ?? 0) > now) return null;
+        const command = websiteWithdrawalCommand(snapshot.id, record.capture_withdrawal);
+        tx.set(snapshot.ref, { captureWithdrawalOutbox: { lease, leaseUntilMs: now + 120_000,
+          attemptCount: (outbox?.attemptCount ?? 0) + 1, commandDigest: canonicalArtifactDigest(command, "digest") } }, { merge: true });
+        return command;
+      });
+      if (!command) continue;
+      // Exact idempotent denial handoff. Never sends a cleanup/delete command.
+      const result = await signedCaptureLifecycleRequest({ path: "/website-capture-withdrawals", method: "POST", body: command,
+        schema: websiteWithdrawalReceipt, blocker: "website_withdrawal_pipeline_acknowledgement_pending" });
+      let receipt: z.infer<typeof websiteWithdrawalReceipt> | undefined;
+      if (result.value) {
+        try { receipt = verifyWebsiteWithdrawalReceipt(command, result.value); }
+        catch { /* Unknown or mismatched acknowledgement remains pending. */ }
+      }
+      await db.runTransaction(async tx => {
+        const record = (await tx.get(snapshot.ref)).data();
+        if (record?.captureWithdrawalOutbox?.lease !== lease
+          || canonicalArtifactDigest(websiteWithdrawalCommand(snapshot.id, record.capture_withdrawal), "digest") !== canonicalArtifactDigest(command, "digest")) return;
+        const progress = receipt ? { state: receipt.state, pipelineAcknowledged: true, deletionConfirmed: false,
+          acknowledgementBlocker: null,
+          localCleanupVerified: receipt.local_cleanup_verified, localCleanupReceiptDigest: receipt.local_cleanup_receipt_digest,
+          providerAcknowledgement: receipt.provider_acknowledgement, cloudStorageCleanupVerified: false,
+          cloudObjectAbsenceVerified: receipt.cloud_object_absence_verified ?? false,
+          cloudObjectCleanupReceiptDigest: receipt.cloud_object_cleanup_receipt_digest ?? null,
+          deliveredCopyCleanupVerified: false, retainedAuditRecords: true, legalHold: receipt.legal_hold,
+          pipelineReceiptDigest: receipt.digest, pipelineTombstoneDigest: receipt.tombstone_digest,
+          lastAcknowledgedAtIso: new Date().toISOString() } : { acknowledgementBlocker: result.blocker ?? "website_withdrawal_receipt_invalid" };
+        tx.set(snapshot.ref, { capture_withdrawal: { ...record.capture_withdrawal, ...progress }, captureWithdrawalPending: true,
+          captureWithdrawalOutbox: { lease: null, leaseUntilMs: 0, nextAttemptAtMs: Date.now() + (receipt ? 3_600_000 : 60_000),
+            lastTransportStatus: result.status } }, { merge: true });
+      });
+    } catch (error) {
+      // An invalid historical command or interrupted lease stays pending. It
+      // must not prevent other owners' denial handoffs in the same batch.
+      logger.error({ error, requestId: snapshot.id }, "Website withdrawal acknowledgement remains pending");
     }
-    await db.runTransaction(async tx => {
-      const record = (await tx.get(snapshot.ref)).data();
-      if (record?.captureWithdrawalOutbox?.lease !== lease
-        || canonicalArtifactDigest(websiteWithdrawalCommand(snapshot.id, record.capture_withdrawal), "digest") !== canonicalArtifactDigest(command, "digest")) return;
-      const progress = receipt ? { state: receipt.state, pipelineAcknowledged: true, deletionConfirmed: false,
-        acknowledgementBlocker: null,
-        localCleanupVerified: receipt.local_cleanup_verified, localCleanupReceiptDigest: receipt.local_cleanup_receipt_digest,
-        providerAcknowledgement: receipt.provider_acknowledgement, cloudStorageCleanupVerified: false,
-        cloudObjectAbsenceVerified: receipt.cloud_object_absence_verified ?? false,
-        cloudObjectCleanupReceiptDigest: receipt.cloud_object_cleanup_receipt_digest ?? null,
-        deliveredCopyCleanupVerified: false, retainedAuditRecords: true, legalHold: receipt.legal_hold,
-        pipelineReceiptDigest: receipt.digest, pipelineTombstoneDigest: receipt.tombstone_digest,
-        lastAcknowledgedAtIso: new Date().toISOString() } : { acknowledgementBlocker: result.blocker ?? "website_withdrawal_receipt_invalid" };
-      tx.set(snapshot.ref, { capture_withdrawal: { ...record.capture_withdrawal, ...progress }, captureWithdrawalPending: true,
-        captureWithdrawalOutbox: { lease: null, leaseUntilMs: 0, nextAttemptAtMs: Date.now() + (receipt ? 3_600_000 : 60_000),
-          lastTransportStatus: result.status } }, { merge: true });
-    });
   }
 }
 
