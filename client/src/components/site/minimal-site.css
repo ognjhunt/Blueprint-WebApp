@@ -228,6 +228,47 @@
 .ms-how-open h2 { font-size: 27px; line-height: 1.25; letter-spacing: -.035em; }
 .ms-how-open p { font-size: 15px; line-height: 1.8; color: var(--ms-muted); }
 .ms-how-cta { display: flex; align-items: center; gap: 35px; margin-top: 36px; }
+.ms-pilot-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 60px; align-items: start; }
+.ms-pilot-contents { position: sticky; top: 32px; padding-top: 5px; }
+.ms-pilot-contents ol { display: grid; gap: 2px; list-style: none; margin-top: 15px; padding: 0; }
+.ms-pilot-contents a { display: block; padding-block: 10px; color: var(--ms-muted); font-size: 13px; line-height: 1.5; text-underline-offset: 4px; }
+.ms-pilot-contents a:hover { color: var(--ms-green); text-decoration: underline; }
+.ms-pilot-next { margin-top: 17px; border-top: 1px solid var(--ms-rule); }
+.ms-pilot-story { min-width: 0; }
+.ms-pilot-story section, .ms-how-matching-title { scroll-margin-top: 32px; }
+.ms-pilot-story h2 { margin-top: 13px; font-size: clamp(30px, 3.1vw, 43px); line-height: 1.15; letter-spacing: -.04em; }
+.ms-pilot-story h3 { margin-top: 12px; font-size: 29px; line-height: 1.25; letter-spacing: -.035em; }
+.ms-pilot-story section > p:not(.ms-eyebrow) { margin-top: 18px; color: var(--ms-muted); font-size: 16px; line-height: 1.75; max-width: 66ch; }
+.ms-pilot-story section > .ms-pilot-caption { color: var(--ms-ink); font-size: 14px; }
+.ms-pilot-story section > .ms-pilot-disclosure { font-size: 13px; line-height: 1.7; }
+.ms-pilot-task { margin-top: 27px; border-top: 1px solid var(--ms-rule); }
+.ms-pilot-task > div { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 20px; padding-block: 13px; border-bottom: 1px solid var(--ms-rule); font-size: 14px; line-height: 1.65; }
+.ms-pilot-task dt { font-weight: 500; }
+.ms-pilot-task dd { color: var(--ms-muted); }
+.ms-pilot-step { margin-top: 54px; }
+.ms-pilot-image { margin-top: 23px; }
+.ms-pilot-image img { display: block; width: 100%; height: auto; aspect-ratio: 1672 / 941; border-radius: 3px; background: #191b1c; }
+.ms-pilot-image figcaption { margin-top: 10px; color: var(--ms-muted); font-size: 12px; line-height: 1.65; }
+.ms-pilot-comparison { margin-top: 30px; }
+.ms-pilot-comparison h4 { font-size: 16px; font-weight: 500; line-height: 1.5; }
+.ms-pilot-comparison .ms-pilot-image { margin-top: 12px; }
+.ms-how-matching-title { margin-top: 76px; margin-bottom: 25px; font-size: 36px; letter-spacing: -.04em; line-height: 1.2; }
+@media (max-width: 1000px) {
+  .ms-pilot-layout { grid-template-columns: 170px minmax(0, 1fr); gap: 32px; }
+}
+@media (max-width: 700px) {
+  .ms-pilot-layout { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .ms-pilot-contents { position: static; border-block: 1px solid var(--ms-rule); padding-block: 20px; }
+  .ms-pilot-contents ol { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; margin-top: 8px; }
+  .ms-pilot-contents a { min-height: 44px; display: flex; align-items: center; }
+  .ms-pilot-next { margin-top: 5px; border: 0; }
+  .ms-pilot-story h3 { font-size: 25px; }
+  .ms-pilot-story section > p:not(.ms-eyebrow) { font-size: 15px; }
+  .ms-pilot-story section > .ms-pilot-disclosure { font-size: 13px; }
+  .ms-pilot-task > div { grid-template-columns: 75px minmax(0, 1fr); gap: 14px; font-size: 13px; }
+  .ms-pilot-step { margin-top: 40px; }
+  .ms-how-matching-title { margin-top: 55px; font-size: 30px; }
+}
 @media (max-width: 700px) {
   .ms-rotating-hero .ms-hero-inner { padding-bottom: 390px; min-height: 795px; }
   .ms-rotating-hero .ms-hero-art { bottom: 22px; }
