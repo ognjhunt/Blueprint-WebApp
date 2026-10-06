@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 import { researchDigest, verificationDigest } from "./research-digest";
-import { outreachReadyQuestion } from "./communications-contract";
+import { isOutreachRuleVersion, LEGACY_OUTREACH_RULE_VERSION, OUTREACH_RULE_VERSION, outreachReadyQuestion, questionTask,
+  type OutreachRuleVersion } from "./outreach-ready-question";
 export { verificationDigest } from "./research-digest";
 
 export const LEAD_VERIFICATION_VERSION = "blueprint.lead-verification.v1";
@@ -263,12 +264,14 @@ export function requireVerifiedLead(source: any, now: number) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// blueprint.outreach-ready-rule.v1.1: a TypeScript mirror of Pipeline tools/daily_research/
-// verification.py (retained_evidence, evidence_index, quote_level, outreach_gates, outreach_tier and
-// the result-v3 cohort pass). It is tested against the vendored shared golden file. Admission uses it
-// only to re-derive a published tier: any disagreement with Pipeline refuses, so a mirror defect can
-// withhold a hypothesis but never admit one. It grants no verification, send or approval authority.
-export const OUTREACH_RULE_VERSION = "blueprint.outreach-ready-rule.v1.1";
+// blueprint.outreach-ready-rule.v1.2, and v1.1 for rows published under it: a TypeScript mirror of
+// Pipeline tools/daily_research/verification.py (retained_evidence, evidence_index, quote_level,
+// outreach_gates, outreach_tier and the result-v3 cohort pass). It is tested against the vendored shared
+// golden file. Admission uses it only to re-derive a published tier under the row's own rule version:
+// any disagreement with Pipeline refuses, so a mirror defect can withhold a hypothesis but never admit
+// one. It grants no verification, send or approval authority.
+export { LEGACY_OUTREACH_RULE_VERSION, OUTREACH_RULE_VERSION, OUTREACH_RULE_VERSIONS, isOutreachRuleVersion,
+  type OutreachRuleVersion } from "./outreach-ready-question";
 export const OUTREACH_EVIDENCE_VERSION = "blueprint.outreach-ready-evidence.v1";
 export const OUTREACH_MIN_QUOTE_WORDS = 3;
 const PROVEN_FACTS = ["operator", "physical_site", "site_task"] as const;
@@ -582,17 +585,19 @@ function outreachGates(result: any, candidate: any, index: EvidenceIndex, confli
     assessment_valid: result.assessment_valid === true && !(Array.isArray(result.validation_errors) && result.validation_errors.length),
     identity_present: !!result.identity_key, duplicate: !!result.duplicate_of || (!!object(check) && check.duplicate === true),
     conflict, valid_until: Object.hasOwn(assessment, "valid_until") ? assessment.valid_until : null, states, facts,
-    facility: facilityGates(assessment, indexed, index), task: candidate?.task, site: candidate?.site };
+    facility: facilityGates(assessment, indexed, index), task: candidate?.task, site: candidate?.site,
+    // v1.2: the question's city, and its automation evidence (a contradicted counterevidence).
+    location: candidate?.location, partial_automation: states.counterevidence === "contradicted" };
 }
 /** Python verification.open_checks, in rule order. */
 export function outreachOpenChecks(states: Record<string, unknown>, validUntil: unknown) {
   return [...(states.site_task !== "verified_fact" ? ["site_link"] : []), ...(states.human_workflow !== "verified_fact" ? ["manual_workflow"] : []),
     ...(validUntil === null ? ["freshness"] : []), "existing_automation", "fit", "interest"];
 }
-/** Python verification.outreach_tier. Any defect here gives tier none, as in Python. */
-function outreachTier(gates: ReturnType<typeof outreachGates> | null, nowUs: bigint) {
+/** Python verification.outreach_tier under ``ruleVersion``. Any defect here gives tier none, as in Python. */
+function outreachTier(gates: ReturnType<typeof outreachGates> | null, nowUs: bigint, ruleVersion: OutreachRuleVersion) {
   const block: { rule_version: string; proving_sources: any[]; open_checks: string[]; open_questions: string[]; blockers: string[] } = {
-    rule_version: OUTREACH_RULE_VERSION, proving_sources: [], open_checks: [], open_questions: [], blockers: [] };
+    rule_version: ruleVersion, proving_sources: [], open_checks: [], open_questions: [], blockers: [] };
   try {
     if (!gates) throw new Error("gates unavailable");
     const { facts, states } = gates;
@@ -615,10 +620,12 @@ function outreachTier(gates: ReturnType<typeof outreachGates> | null, nowUs: big
       if (blocking.has(gates.facility[field].value) && gates.facility[field].proven === true) blockers.push(code);
     }
     const checks = outreachOpenChecks(states, validUntil);
-    if (!pyText(gates.task) || !pyText(gates.site)) blockers.push("question_task_or_site_missing");
     let question: string | null = null;
-    if (pyText(gates.task) && pyText(gates.site)) {
-      question = outreachReadyQuestion(checks, gates.task, gates.site);
+    if (!pyText(gates.task) || !pyText(gates.site) || ruleVersion !== LEGACY_OUTREACH_RULE_VERSION && !pyText(questionTask(gates.task))) {
+      blockers.push("question_task_or_site_missing");
+    } else {
+      question = outreachReadyQuestion(checks, gates.task, gates.site, { location: gates.location,
+        partialAutomation: gates.partial_automation === true, ruleVersion });
       if ((question.match(/\?/g) ?? []).length !== 1) blockers.push("question_not_single");
     }
     if (blockers.length) return { tier: "none", eligible_for_outreach_ready: false, outreach_ready: { ...block, blockers: [...new Set(blockers)] } };
@@ -633,7 +640,8 @@ function outreachTier(gates: ReturnType<typeof outreachGates> | null, nowUs: big
  * `evidence` is retainedOutreachEvidence output; anything else proves no quote. The verified path
  * (evaluateLeadCohort, requireVerifiedLead) is unchanged and never reads this. */
 export function evaluateOutreachTier(candidates: any[], assessments: Record<string, any>, now: number,
-  duplicateChecks: Record<string, any> | null | undefined, evidence: unknown) {
+  duplicateChecks: Record<string, any> | null | undefined, evidence: unknown, ruleVersion: OutreachRuleVersion = OUTREACH_RULE_VERSION) {
+  if (!isOutreachRuleVersion(ruleVersion)) throw new Error("outreach_rule_version_unknown");
   const results: any[] = candidates.map(candidate => evaluateLeadVerification(candidate,
     own(assessments, candidate?.candidate_key) ? assessments[candidate.candidate_key] : null, now));
   const checks = object(duplicateChecks) ? duplicateChecks! : {};
@@ -678,8 +686,8 @@ export function evaluateOutreachTier(candidates: any[], assessments: Record<stri
   const tiered = results.map((result, position) => {
     let gates: ReturnType<typeof outreachGates> | null = null;
     try { gates = outreachGates(result, candidates[position], index, conflicted.has(result)); } catch { gates = null; }
-    return { ...result, version: LEAD_OUTREACH_RESULT_VERSION, ...outreachTier(gates, nowUs) };
+    return { ...result, version: LEAD_OUTREACH_RESULT_VERSION, ...outreachTier(gates, nowUs, ruleVersion) };
   });
-  return { outreach_rule_version: OUTREACH_RULE_VERSION, tier_evidence: outreachEvidenceSummary(evidence), results: tiered,
+  return { outreach_rule_version: ruleVersion, tier_evidence: outreachEvidenceSummary(evidence), results: tiered,
     outreach_ready_count: tiered.filter(result => result.eligible_for_outreach_ready).length };
 }
