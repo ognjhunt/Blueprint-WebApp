@@ -88,6 +88,12 @@ type UploadState =
 export default function SelfCaptureUpload() {
   const [, params] = useRoute("/capture-upload/:token");
   const token = params?.token ?? "";
+  // Back/Forward can change the private link without unmounting this route.
+  // Every brief, permission, status and in-flight operation belongs to one link.
+  return <SelfCaptureUploadForToken key={token} token={token} />;
+}
+
+function SelfCaptureUploadForToken({ token }: { token: string }) {
 
   const [link, setLink] = useState<LinkState>({ status: "checking" });
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
@@ -317,6 +323,7 @@ export default function SelfCaptureUpload() {
           successCriteria: data.brief.successCriteria ?? null,
           operatorAnswers: data.brief.operatorAnswers ?? null,
           operatorUnknown: data.brief.operatorUnknown ?? null,
+          pilotIntent: data.brief.pilotIntent ?? null,
         });
         setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
         setSiteAccount(data.account ?? null);
@@ -547,7 +554,7 @@ export default function SelfCaptureUpload() {
             {briefConfirmed && !editingBrief ? <p>Your job brief is confirmed.{" "}
               <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>Edit your answers</button>
             </p> : <TaskBriefReview key={brief.successCriteria?.successDefinition ?? ""} token={token} brief={brief}
-              account={siteAccount} onConfirmed={() => { setBriefConfirmed(true); setEditingBrief(false); }} />}
+              account={siteAccount} onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} />}
           </> : <p className="ms-field-hint">Your job description is saved. Your brief will appear here when it is ready. Keep this private link to return.</p>}
         </section>
       )}
@@ -730,7 +737,7 @@ export default function SelfCaptureUpload() {
                     token={token}
                     brief={brief}
                     account={siteAccount}
-                    onConfirmed={() => { setBriefConfirmed(true); setEditingBrief(false); }}
+                    onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
               )}
@@ -904,7 +911,7 @@ export default function SelfCaptureUpload() {
                     token={token}
                     brief={brief}
                     account={siteAccount}
-                    onConfirmed={() => { setBriefConfirmed(true); setEditingBrief(false); }}
+                    onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
               )}

@@ -143,7 +143,7 @@ export function TaskBriefReview(props: {
   brief: DraftedBrief;
   /** Absent or null: the page could not tell, so no account step is shown. */
   account?: SiteAccount | null;
-  onConfirmed?: () => void;
+  onConfirmed?: (brief: DraftedBrief) => void;
 }) {
   const [state, setState] = useState<State>({ status: "reviewing" });
   const [name, setName] = useState("");
@@ -264,8 +264,8 @@ export function TaskBriefReview(props: {
 
   async function confirm(options: { google?: boolean } = {}) {
     const missing = problem();
-    if (missing) {
-      setState({ status: "failed", message: missing });
+    if (missing || !pilotConsideration || !deploymentPath) {
+      setState({ status: "failed", message: missing || "Answer the two pilot and deployment questions, even if you are undecided." });
       return;
     }
     setState({ status: "confirming" });
@@ -281,6 +281,18 @@ export function TaskBriefReview(props: {
       return;
     }
 
+    const confirmedBrief: DraftedBrief = {
+      ...props.brief,
+      operatorAnswers: answers,
+      operatorUnknown: [...unknown],
+      successCriteria: {
+        successDefinition: successUnknown ? null : successDefinition.trim(),
+        successRate: successUnknown || !successRate ? null : Number(successRate),
+        cycleTimeSeconds: successUnknown || !cycleTimeSeconds ? null : Number(cycleTimeSeconds),
+        unknown: successUnknown,
+      },
+      pilotIntent: { pilotConsideration, deploymentPath },
+    };
     let verdict: Verdict;
     try {
       const response = await fetch(`/api/site-task-brief/${encodeURIComponent(props.token)}/confirm`, {
@@ -289,15 +301,10 @@ export function TaskBriefReview(props: {
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           confirmedBy: name.trim(),
-          answers,
-          unknown: [...unknown],
-          successCriteria: {
-            successDefinition: successUnknown ? null : successDefinition.trim(),
-            successRate: successUnknown || !successRate ? null : Number(successRate),
-            cycleTimeSeconds: successUnknown || !cycleTimeSeconds ? null : Number(cycleTimeSeconds),
-            unknown: successUnknown,
-          },
-          pilotIntent: { pilotConsideration, deploymentPath },
+          answers: confirmedBrief.operatorAnswers,
+          unknown: confirmedBrief.operatorUnknown,
+          successCriteria: confirmedBrief.successCriteria,
+          pilotIntent: confirmedBrief.pilotIntent,
         }),
       });
       const body = (await response.json().catch(() => ({}))) as Partial<Verdict> & {
@@ -339,7 +346,7 @@ export function TaskBriefReview(props: {
     }
 
     setState({ status: "confirmed", verdict, listed });
-    props.onConfirmed?.();
+    props.onConfirmed?.(confirmedBrief);
     if (user) await saveToAccount(user);
   }
 
