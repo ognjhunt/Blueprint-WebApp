@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { outreachContextSchema, outreachReviewContractSchema } from "./outreach-review";
+import { outreachReadyQuestionShaped } from "./outreach-ready-question";
+import { OUTREACH_HYPOTHESIS_CONTRACT_VERSION, outreachContextSchema, outreachHypothesisContractSchema, outreachReviewContractSchema,
+  type OutreachHypothesisContract, type OutreachReviewContract } from "./outreach-review";
 
 export const COMMUNICATIONS_MODEL = "gpt-6-luna";
 export const COMMUNICATIONS_PROJECT = "proj_F2tFJuxLaovJru8RrtXRaqNj";
@@ -28,32 +30,25 @@ export const OUTREACH_READY_OPEN_CHECKS = ["site_link", "manual_workflow", "fres
 const ALWAYS_OPEN_CHECKS: readonly (typeof OUTREACH_READY_OPEN_CHECKS)[number][] = ["existing_automation", "fit", "interest"];
 const singleQuestion = text.refine(value => value.indexOf("?") === value.length - 1, "exactly one question, ending in ?");
 
-/** The v1.1 question templates, word for word. <task> and <site> are the candidate's
- * `task` and `site`. */
-export const OUTREACH_READY_QUESTION_TEMPLATES = {
-  /** Site link open. */
-  S: (task: string, site: string) => `Is ${task} done at your ${site} site, or somewhere else in the company?`,
-  /** Manual workflow open. */
-  M: (task: string, site: string) => `Which parts of ${task} at ${site} still need people, and what has kept them from being automated?`,
-  /** Manual workflow verified; automation partial or elsewhere. */
-  A: (task: string, site: string) => `What has kept the remaining ${task} work at ${site} from being automated so far?`,
-} as const;
-export type OutreachReadyQuestionTemplate = keyof typeof OUTREACH_READY_QUESTION_TEMPLATES;
-/** Exactly one question is asked, by precedence S, then M, then A. The other open
- * checks are recorded and stay unasked. */
-export function outreachReadyQuestionTemplate(openChecks: readonly string[]): OutreachReadyQuestionTemplate {
-  return openChecks.includes("site_link") ? "S" : openChecks.includes("manual_workflow") ? "M" : "A";
-}
-/** The one question a hypothesis with these open checks asks. */
-export function outreachReadyQuestion(openChecks: readonly string[], task: string, site: string) {
-  return OUTREACH_READY_QUESTION_TEMPLATES[outreachReadyQuestionTemplate(openChecks)](task, site);
-}
-// Each template with <task> and <site> left open, for a block that does not carry them.
-const TEMPLATE_SHAPES = Object.fromEntries(Object.entries(OUTREACH_READY_QUESTION_TEMPLATES).map(([name, template]) => {
-  const [task, site] = ["\u0000", "\u0001"];
-  const pattern = template(task, site).replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(task, "(.+)").replace(site, "(.+)");
-  return [name, new RegExp(`^${pattern}$`)];
-})) as Record<OutreachReadyQuestionTemplate, RegExp>;
+// The one question, by outreach-ready rule version (v1.1 rows keep v1.1 wording, v1.2 rows v1.2): see
+// outreach-ready-question.ts, a mirror of Pipeline verification.outreach_question.
+export { OUTREACH_READY_QUESTION_TEMPLATES, outreachReadyQuestion, outreachReadyQuestionTemplate,
+  type OutreachReadyQuestionTemplate } from "./outreach-ready-question";
+
+/** The owner record behind the outreach-ready tier and its draft-only scope. */
+export const OUTREACH_READY_OWNER_DECISION_REFERENCE =
+  "gs://blueprint-8c1ca.appspot.com/operations/recovery/2026-10-05/owner-decisions/owner-decision-outreach-ready-and-screen-20261005.json";
+
+/** Who a hypothesis draft addresses (owner decision 2026-10-05, contact sources). A named person
+ * is greeted by name only when the address is their own published address; their role is quoted
+ * exactly as published. Otherwise the draft writes to an inbox and addresses "whoever runs <task>
+ * at <site>"; a published person behind the role is kept for reference, never greeted. */
+const publishedPerson = z.object({ name: text, role: text, sourceUrl: publicUrl }).strict();
+export const communicationsRecipientSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("named_person"), name: text, role: text, sourceUrl: publicUrl }).strict(),
+  z.object({ kind: z.literal("inbox"), addressee: text, person: publishedPerson.nullable() }).strict(),
+]);
+export type CommunicationsRecipient = z.infer<typeof communicationsRecipientSchema>;
 
 /** An outreach-ready hypothesis (owner decision 2026-10-05, design v1.1): operator, site and
  * task are proven; the one missing fact that would change the decision is the open question.
@@ -71,8 +66,8 @@ export const outreachReadyQualificationSchema = z.object({
       sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
   }).strict(),
   sendsAuthorized: z.literal(false),
-}).strict().refine(block => TEMPLATE_SHAPES[outreachReadyQuestionTemplate(block.openChecks)].test(block.openQuestions[0]),
-  { message: "the one question follows the template its open checks choose (S, then M, then A)", path: ["openQuestions", 0] });
+}).strict().refine(block => outreachReadyQuestionShaped(block.openChecks, block.openQuestions[0]),
+  { message: "the one question follows a template its open checks choose (S, then M, then A or U)", path: ["openQuestions", 0] });
 
 /** Immutable, quality-reviewed research handoff. Load time never refreshes evidence. */
 export const communicationsBriefSchema = z.object({
@@ -93,6 +88,8 @@ export const communicationsBriefSchema = z.object({
     scope: z.enum(["site", "organization_business_route"]).optional(),
     // Original unknowns remain in the brief; this overlays only a proved contact gap.
     resolvedMissingContactGaps: z.array(text).max(16).optional(),
+    // Hypothesis drafts only; verified briefs omit it, so their digests are unchanged.
+    recipient: communicationsRecipientSchema.optional(),
   }).strict(),
   consent: z.object({
     status: z.enum(["unknown", "public_business_contact", "reply_requested", "opted_out"]),
@@ -313,6 +310,19 @@ export type VerifiedThread = {
   mailbox: typeof FOUNDER_MAILBOX; threadId: string; messages: ThreadMessage[]; fetchedAt: string;
 };
 
+/** The draft's outreach contract: blueprint.outreach.v2 when it says so, otherwise exactly the v1
+ * schema, so a verified-lead draft parses, fails and is repaired with the same issues as before. */
+const outreachContractField = z.unknown().transform((value, context): OutreachReviewContract | OutreachHypothesisContract => {
+  const schema = value && typeof value === "object" && (value as { version?: unknown }).version === OUTREACH_HYPOTHESIS_CONTRACT_VERSION
+    ? outreachHypothesisContractSchema : outreachReviewContractSchema;
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) context.addIssue(issue);
+    return z.NEVER;
+  }
+  return parsed.data;
+});
+
 export const communicationsOutputSchema = z.object({
   disposition: z.enum(["draft", "research_refresh", "no_reply"]),
   subject: z.string().trim().max(1000), body: z.string().trim().max(20000),
@@ -320,7 +330,8 @@ export const communicationsOutputSchema = z.object({
   // the existing bounded provider response; send and review authority stay separate.
   reason: z.string().trim().min(1), usedFactIds: z.array(id).max(16),
   refreshFactIds: z.array(id).max(16),
-  outreachContract: outreachReviewContractSchema.nullable(),
+  // v1 for verified leads; v2 only for an outreach-ready hypothesis (the review refuses any other pairing).
+  outreachContract: outreachContractField.nullable(),
   requiresHumanReview: z.literal(true),
 }).strict();
 export type CommunicationsOutput = z.infer<typeof communicationsOutputSchema>;
@@ -350,14 +361,17 @@ export function communicationsDigest(value: unknown) {
   return createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 }
 
+const checkedLongAgo = (time: string, days: number, now: number) => {
+  const age = now - Date.parse(time);
+  return !Number.isFinite(age) || age < 0 || age > days * 86400000;
+};
+/** briefRefreshReasons for the facts alone: a consequential fact checked over 7 days ago, any other over 30. */
+export function staleFactReasons(facts: CommunicationsBrief["facts"], now: number): string[] {
+  return facts.filter((fact) => checkedLongAgo(fact.sourceCheckedAt, fact.consequential ? 7 : 30, now)).map((fact) => `stale_fact:${fact.id}`);
+}
 export function briefRefreshReasons(brief: CommunicationsBrief, now: number): string[] {
-  const stale = (time: string, days: number) => {
-    const age = now - Date.parse(time);
-    return !Number.isFinite(age) || age < 0 || age > days * 86400000;
-  };
-  const reasons = brief.facts.filter((fact) => stale(fact.sourceCheckedAt, fact.consequential ? 7 : 30))
-    .map((fact) => `stale_fact:${fact.id}`);
-  if (stale(brief.contact.sourceCheckedAt, 30)) reasons.push("stale_contact");
+  const reasons = staleFactReasons(brief.facts, now);
+  if (checkedLongAgo(brief.contact.sourceCheckedAt, 30, now)) reasons.push("stale_contact");
   if (brief.conflicts.length) reasons.push("conflicting_evidence");
   if (brief.stage.interest !== "unknown" && (!brief.stage.evidenceIds.length
     || brief.stage.evidenceIds.some((ref) => !brief.facts.some((fact) => fact.id === ref && fact.evidenceClass !== "inference")))) {

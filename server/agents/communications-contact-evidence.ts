@@ -111,3 +111,99 @@ export function assertContactUnknowns(candidate: any, resolvedMissingContacts = 
   const { gaps, blocked } = contactUnknowns(candidate);
   if (blocked.length || (!resolvedMissingContacts && gaps.length)) throw new Error("verified_contact_conflicting_unknowns");
 }
+
+// ---------------------------------------------------------------------------------------------
+// Owner decision 2026-10-05 (contact sources), for outreach-ready hypotheses only
+// (blueprint.contact-resolution.v2). Verified-lead contacts above are unchanged.
+
+/** Consumer and free-mail providers: never an operator's own published business address. */
+export const FREE_MAIL_DOMAINS: ReadonlySet<string> = new Set(["gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "ymail.com",
+  "rocketmail.com", "outlook.com", "hotmail.com", "hotmail.co.uk", "live.com", "msn.com", "aol.com", "icloud.com", "me.com", "mac.com",
+  "proton.me", "protonmail.com", "pm.me", "gmx.com", "gmx.net", "gmx.de", "mail.com", "zoho.com", "zohomail.com", "yandex.com", "yandex.ru",
+  "fastmail.com", "hey.com", "tutanota.com", "tuta.io", "qq.com", "163.com", "126.com", "comcast.net", "verizon.net", "att.net",
+  "sbcglobal.net", "bellsouth.net", "cox.net", "charter.net", "earthlink.net"]);
+
+/** LinkedIn is never evidence for a person or an address: any linkedin.com or lnkd.in host. */
+export function isLinkedInUrl(value: unknown) {
+  try {
+    const host = new URL(String(value)).hostname.toLowerCase().replace(/\.$/, "");
+    return ["linkedin.com", "lnkd.in"].some(name => host === name || host.endsWith(`.${name}`));
+  } catch { return false; }
+}
+
+// Careers, jobs, legal, privacy and support routes stay refused. Unlike restrictedContact, a press
+// or media route is not refused: it ranks as a general inbox.
+const restrictedPublishedRoute = /\b(?:personal only|support only|technical (?:support|assistance)|customer (?:support|service|care)|careers?|jobs?|recruit(?:ing|ment|ers?)?|hiring|privacy|legal|do not contact|no unsolicited|not for business|unsubscribe|opt.out)\b/i;
+const restrictedLocalPart = /^(?:careers?|jobs?|recruit(?:ing|ment|ers?)?|hiring|talent|hr|legal|counsel|privacy|dpo|gdpr|data[._-]?protection|support|help|helpdesk|customer[._-]?(?:support|service|care)|tech[._-]?support|no[._-]?reply|do[._-]?not[._-]?reply|unsubscribe|abuse|postmaster|webmaster)(?:[._+-].*)?$/i;
+const pressLocalPart = /^(?:press|media|pr|news(?:room)?|communications?)(?:[._+-].*)?$/i;
+
+/** An address the operator itself publishes, verbatim and exactly once, in one visible segment of a
+ * page on its own domain. The address's domain must be the operator's host or a subdomain of it: it
+ * is never guessed, never derived from a name pattern and never taken from another organization.
+ * Free-mail addresses and careers, jobs, legal, privacy and support routes are refused. A press
+ * route is allowed and ranks as a general inbox. */
+export function extractPublishedAddress(quote: string, candidate: any, pageUrl: string) {
+  if (isLinkedInUrl(candidate?.organization_url) || isLinkedInUrl(pageUrl)) throw new Error("contact_source_linkedin_refused");
+  let operatorPage = false;
+  try { operatorPage = sameOperatorUrl(pageUrl, candidate.organization_url); } catch { operatorPage = false; }
+  if (!operatorPage) throw new Error("contact_address_page_not_operator_domain");
+  const emails = emailsIn(quote);
+  if (emails.length !== 1 || !z.string().email().safeParse(emails[0]).success) throw new Error("contact_address_not_published_once");
+  const email = emails[0], at = email.lastIndexOf("@"), local = email.slice(0, at), domain = email.slice(at + 1);
+  if (FREE_MAIL_DOMAINS.has(domain)) throw new Error("contact_address_free_mail_refused");
+  const owner = contactHost(candidate.organization_url);
+  if (domain !== owner && !domain.endsWith(`.${owner}`)) throw new Error("contact_address_other_domain_refused");
+  if (restrictedLocalPart.test(local) || restrictedPublishedRoute.test(quote) || contactProhibition.test(quote)) {
+    throw new Error("contact_address_restricted_route");
+  }
+  return { email, press: pressLocalPart.test(local) || /\b(?:press|media)\b/i.test(quote) };
+}
+
+// A person's name: two capitalized words, with an optional middle initial ("Jane Q. Doe", "Mary-Kate
+// O'Neil", "McDonald"). The role must carry a title word; it is kept exactly as published.
+const NAME_WORD = "\\p{Lu}(?:\\p{Ll}+|['’]\\p{Lu}\\p{Ll}+)(?:\\p{Lu}\\p{Ll}+)?(?:-\\p{Lu}\\p{Ll}+)?";
+const PERSON = new RegExp(`(?<![\\p{L}\\p{N}])(${NAME_WORD}(?: \\p{Lu}\\.)? ${NAME_WORD}),\\s+`, "gu");
+const ROLE = /^[^,;:.()\n@]{2,120}?(?=\s*(?:[,;:.()\n]|$)|\s+(?:at|said|says|who|and|with|told|from|in)\b)/;
+const TITLE = /\b(?:director|manager|head|lead|supervisor|superintendent|coordinator|officer|president|chief|owner|founder|engineer|planner|foreman|administrator|executive|principal)\b/i;
+/** Every "Name, role" pair a quote publishes, verbatim. Anything else names no one. */
+export function publishedPeople(quote: string) {
+  const people: { name: string; role: string }[] = [];
+  for (const match of quote.matchAll(PERSON)) {
+    const role = ROLE.exec(quote.slice((match.index ?? 0) + match[0].length))?.[0].trim();
+    if (role && TITLE.test(role) && role.split(/\s+/).length <= 10) people.push({ name: match[1], role });
+  }
+  return people;
+}
+// Words a shared or role inbox is named for. A local part with one of them is never one person's own,
+// even when it is also a form of their name (sales@ for "Jordan Sales").
+const ROLE_LOCAL_WORDS: ReadonlySet<string> = new Set(["accounts", "accounting", "admin", "administration", "all", "billing", "booking",
+  "bookings", "business", "careers", "ceo", "compliance", "contact", "contacts", "contactus", "customer", "customers", "customercare",
+  "customerservice", "director", "dispatch", "distribution", "engineering", "enquiries", "enquiry", "events", "facilities", "finance",
+  "fleet", "founder", "frontdesk", "fulfillment", "fulfilment", "general", "hello", "help", "helpdesk", "hiring", "hr", "info",
+  "information", "inquiries", "inquiry", "invoices", "it", "jobs", "legal", "logistics", "mail", "maintenance", "management", "manager",
+  "marketing", "media", "news", "newsroom", "noreply", "office", "operations", "ops", "orders", "owner", "partners", "partnerships",
+  "people", "planning", "plant", "postmaster", "pr", "president", "press", "privacy", "procurement", "production", "purchasing", "quality",
+  "reception", "receiving", "recruiting", "recruitment", "returns", "safety", "sales", "security", "service", "services", "shipping", "site",
+  "staff", "store", "support", "team", "tech", "warehouse", "webmaster", "welcome"]);
+const foldName = (value: string) => value.normalize("NFKD").replace(/\p{M}+/gu, "").toLowerCase();
+/** The address is this person's own: it is published in the same segment as their name, and its local
+ * part is exactly one form of that name: first, last, first and last either way round, initial and
+ * last either way round, or first and last initial, with any middle initials, joined by ".", "_", "-"
+ * or nothing, with optional trailing digits. Part of a longer word never counts ("Ann" in planning@,
+ * "Mark" in marketing@, "Ian" in compliance@), nor does a role word. This checks a published address;
+ * it never builds one. */
+export function addressIsPersonOwn(email: string, segment: string, name: string) {
+  if (!containsContactName(segment, name)) return false;
+  const tokens = foldName(email.slice(0, email.lastIndexOf("@"))).replace(/\d+$/, "").split(/[._-]/);
+  if (tokens.some(token => !/^\p{L}+$/u.test(token) || ROLE_LOCAL_WORDS.has(token))) return false;
+  const words = foldName(name).split(/\s+/).map(word => word.replace(/[^\p{L}-]+/gu, "").replace(/^-+|-+$/g, "")).filter(Boolean);
+  if (words.length < 2) return false;
+  // A hyphenated first or last name also counts by each of its parts ("Mary-Kate": marykate, mary, kate).
+  const variants = (word: string) => [...new Set([word.replaceAll("-", ""), ...word.split("-").filter(Boolean)])];
+  const middle = words.slice(1, -1).map(word => word[0]).join(""), forms = new Set<string>();
+  for (const first of variants(words[0])) for (const last of variants(words.at(-1)!)) {
+    for (const form of [first, last, first + last, last + first, first[0] + last, last + first[0], first + last[0]]) forms.add(form);
+    if (middle) for (const form of [first + middle + last, first[0] + middle + last]) forms.add(form);
+  }
+  return forms.has(tokens.join(""));
+}

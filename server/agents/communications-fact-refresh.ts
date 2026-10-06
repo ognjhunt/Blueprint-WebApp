@@ -13,7 +13,11 @@ export async function runCommunicationsFactRefresh(db: FirebaseFirestore.Firesto
     const claim = randomUUID();
     const request = await db.runTransaction(async tx => {
       const value = (await tx.get(row.ref)).data();
-      if (!value || !["pending", "running"].includes(value.state) || (value.leaseUntil || 0) > now()) return null;
+      // Only a draft job's stale-fact request (CommunicationsStore.requestRefresh) is this worker's.
+      // Intake contact gaps and research-owner refreshes carry no job; their owners claim them.
+      // Job request IDs are hex job IDs, which sort before every `intake_` ID, so none waits behind them.
+      if (!value || !value.job || typeof value.job !== "object") return null;
+      if (!["pending", "running"].includes(value.state) || (value.leaseUntil || 0) > now()) return null;
       if ((value.attempts || 0) >= 3) {
         tx.update(row.ref, { state: "unresolved", reason: "source_refresh_attempts_exhausted", completedAt: now() }); return null;
       }
