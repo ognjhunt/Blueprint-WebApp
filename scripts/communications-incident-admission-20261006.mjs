@@ -5,6 +5,8 @@ import { pathToFileURL } from 'node:url';
 import { sha, refuse, canonical, privateWrite } from './communications-incident-20261006.mjs';
 
 export const ADMISSION_FLAGS = ['BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED', 'BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED'];
+const OPS_FORWARD_ONLY = 'BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER';
+const forwardOnly = value => ['1', 'true', 'yes', 'on'].includes(String(value ?? '').trim().toLowerCase());
 export const ADMISSION_SOURCE = 'c4db1d2f61970efda3a226c9715345718a2064f5';
 // Independently reproducible: pinned esbuild, exact main source, external packages.
 export const ADMISSION_ENTRY_SHA256 = '69c24029a5d1d087cc10ac6f834f3c22e74a3ef6e058b826f49c168c73f70f17';
@@ -26,7 +28,7 @@ export function readRuntime(pid) {
   const entry = args.length === 2 ? resolve(cwd, args[1]) : null;
   if (!['node', 'nodejs'].includes(basename(args[0] ?? '')) || !entry?.endsWith('/dist/worker.js')) refuse('runtime_entrypoint_unbound');
   const entrySha256 = sha(readFileSync(entry)), after = stat(readFileSync(`${root}/stat`));
-  const selected = env => Object.fromEntries(['RENDER_SERVICE_ID', 'RENDER_INSTANCE_ID', 'RENDER_GIT_COMMIT', ...ADMISSION_FLAGS].map(key => [key, env[key] ?? null]));
+  const selected = env => Object.fromEntries(['RENDER_SERVICE_ID', 'RENDER_INSTANCE_ID', 'RENDER_GIT_COMMIT', OPS_FORWARD_ONLY, ...ADMISSION_FLAGS].map(key => [key, env[key] ?? null]));
   const environmentAfter = Object.fromEntries(readFileSync(`${root}/environ`).toString().split('\0').filter(Boolean).map(entry => {
     const equal = entry.indexOf('='); return [entry.slice(0, equal), entry.slice(equal + 1)];
   }));
@@ -38,6 +40,7 @@ export function readRuntime(pid) {
     entry, entrySha256, commandSha256: sha(command),
     serviceId: environment.RENDER_SERVICE_ID, instanceId: environment.RENDER_INSTANCE_ID,
     sourceCommit: environment.RENDER_GIT_COMMIT,
+    opsForwardOnly: environment[OPS_FORWARD_ONLY] ?? null,
     flags: Object.fromEntries(ADMISSION_FLAGS.map(key => [key, environment[key] ?? null])) };
 }
 export function inspectRuntime() {
@@ -58,7 +61,7 @@ export function inspectRuntime() {
   const runtime = readRuntime(before[0]);
   if (canonical(before) !== canonical(collect())) refuse('runtime_inventory_changed');
   if (runtime.sourceCommit !== ADMISSION_SOURCE || runtime.entrySha256 !== ADMISSION_ENTRY_SHA256
-    || ADMISSION_FLAGS.some(key => runtime.flags[key] !== 'false')) refuse('runtime_admission_not_closed');
+    || !forwardOnly(runtime.opsForwardOnly) || ADMISSION_FLAGS.some(key => runtime.flags[key] !== 'false')) refuse('runtime_admission_not_closed');
   return { ...runtime, rootInventoryComplete: true, runtimeRootCount: before.length };
 }
 export function checkAdmissionFence(service, authority, now) {
@@ -93,6 +96,7 @@ export function checkAdmissionFence(service, authority, now) {
       || !runtime.entry?.endsWith('/dist/worker.js') || !['node', 'nodejs'].includes(basename(runtime.executable ?? ''))
       || runtime.entry !== resolve(runtime.cwd, 'dist/worker.js') || !['R', 'S', 'I'].includes(runtime.state)
       || runtime.rootInventoryComplete !== true || runtime.runtimeRootCount !== 1
+      || !forwardOnly(runtime.opsForwardOnly)
       || !Number.isSafeInteger(runtime.observedAtMs) || runtime.observedAtMs > now + 5000 || now - runtime.observedAtMs > 300000
       || runtime.observedAtMs < Math.max(service.service.observedAtMs, service.instances.observedAtMs, service.deployReceipt.observedAtMs,
         ...ADMISSION_FLAGS.map(key => service.admissionFlags[key].observedAtMs))

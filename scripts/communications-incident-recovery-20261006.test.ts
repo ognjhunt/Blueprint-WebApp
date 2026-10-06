@@ -63,6 +63,7 @@ function disabledAdmissionFixture() {
       bootId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', cwd: '/opt/render/project/src', executable: '/opt/node/bin/node',
       entry: '/opt/render/project/src/dist/worker.js', entrySha256: ADMISSION_ENTRY_SHA256, commandSha256: 'b'.repeat(64),
       serviceId: id, instanceId: 'new', sourceCommit: ADMISSION_SOURCE, rootInventoryComplete: true, runtimeRootCount: 1,
+      opsForwardOnly: 'true',
       flags: Object.fromEntries(ADMISSION_FLAGS.map(key => [key, 'false'])) }] }];
   f.proof.web = { service: get(webBase, { id: webId, type: 'web_service', ownerId: 'owner-synthetic' }),
     deploy, deployReceipt: get(`${webBase}/deploys/${deploy.id}`, deploy),

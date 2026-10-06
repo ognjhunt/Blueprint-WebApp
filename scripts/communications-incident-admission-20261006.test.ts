@@ -19,6 +19,7 @@ function fixture() {
       cwd: '/opt/render/project/src', executable: '/opt/node/bin/node', entry: '/opt/render/project/src/dist/worker.js',
       entrySha256: ADMISSION_ENTRY_SHA256, commandSha256: 'b'.repeat(64), serviceId: ID, instanceId: 'instance-new',
       sourceCommit: ADMISSION_SOURCE, rootInventoryComplete: true, runtimeRootCount: 1,
+      opsForwardOnly: 'true',
       flags: Object.fromEntries(ADMISSION_FLAGS.map(key => [key, 'false'])) }] };
   const authority = { expectedPriorWorkerInstanceIds: { [ID]: ['instance-old'] } };
   const webId = 'srv-d4vnmk3e5dus73aiohk0', webBase = `https://api.render.com/v1/services/${webId}`;
@@ -45,7 +46,8 @@ describe('exact disabled worker admission evidence', () => {
   it('rejects false shell assertions, live flags, wrong source or compiled artifact', () => {
     for (const change of [(s: any) => s.runtimes[0].flags[ADMISSION_FLAGS[0]] = 'true',
       (s: any) => s.runtimes[0].entrySha256 = 'a'.repeat(64), (s: any) => s.runtimes[0].sourceCommit = 'c'.repeat(40),
-      (s: any) => s.runtimes[0].rootInventoryComplete = false, (s: any) => s.runtimes[0].serviceId = 'srv-other']) {
+      (s: any) => s.runtimes[0].rootInventoryComplete = false, (s: any) => s.runtimes[0].serviceId = 'srv-other',
+      (s: any) => s.runtimes[0].opsForwardOnly = 'false', (s: any) => delete s.runtimes[0].opsForwardOnly]) {
       const f = fixture(); change(f.service); expect(() => checkAdmissionFence(f.service, f.authority, NOW)).toThrow('actual_runtime_admission_unverified');
     }
     const f = fixture(); f.service.admissionFlags[ADMISSION_FLAGS[0]].body.value = 'true';
@@ -69,11 +71,13 @@ describe('exact disabled worker admission evidence', () => {
     const child = spawn(process.execPath, ['dist/worker.js'], { cwd: directory, env: { ...process.env,
       RENDER_SERVICE_ID: ID, RENDER_INSTANCE_ID: 'instance-synthetic', RENDER_GIT_COMMIT: ADMISSION_SOURCE,
       BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED: 'false', BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED: 'false',
+      BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER: 'true',
       OPENAI_API_KEY: 'synthetic-secret-never-retained' }, stdio: ['ignore', 'pipe', 'pipe'] });
     try {
       await new Promise<void>((resolve, reject) => { child.stdout!.once('data', () => resolve()); child.once('error', reject); });
       const proof = readRuntime(child.pid); expect(proof.flags[ADMISSION_FLAGS[0]]).toBe('false');
       expect(proof.instanceId).toBe('instance-synthetic'); expect(proof.pid).toBe(child.pid);
+      expect(proof.opsForwardOnly).toBe('true');
       expect(JSON.stringify(proof)).not.toContain('synthetic-secret-never-retained');
       expect(proof.entrySha256).not.toBe(ADMISSION_ENTRY_SHA256);
     } finally { child.kill(); await new Promise<void>(r => child.once('exit', () => r())); rmSync(directory, { recursive: true }); }
