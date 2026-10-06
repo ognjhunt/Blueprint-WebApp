@@ -4,6 +4,8 @@ import { CommunicationsAgentsAPI } from '../server/agents/communications-api';
 import { INCIDENT, ROOT, CONTROL, LAP, sha, QUERIES, STOPPED_SOURCE } from './communications-incident-20261006.mjs';
 import { AUDIT, CLEANUP, checkFence, checkEffects, recover, fenceLease, cleanupPhase, archiveFiles, verifyArchive } from './communications-incident-recovery-20261006.mjs';
 import { ADMISSION_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS } from './communications-incident-admission-20261006.mjs';
+import { mcpReceipt, mcpReadScope } from './communications-incident-mcp-20261006.mjs';
+import { preparePlatform, assembleProof, sequence } from './communications-incident-operator-20261006.mjs';
 
 const NOW = 1791307000000;
 const saved = (path: string, value: any) => ({ path, value, sha256: sha(value), updateTime: { seconds: 1, nanoseconds: 2 } });
@@ -81,7 +83,113 @@ function disabledAdmissionFixture() {
   f.authority.processProofDigest = sha(f.proof);
   return f;
 }
+function mcpFixture() {
+  const f = disabledAdmissionFixture(), worker = f.proof.services[0], web = f.proof.web;
+  web.service.body.ownerId = 'tea-synthetic';
+  const call = (tool: string, args: any, body: any) => ({ tool: `mcp__render__${tool}`, arguments: { workspaceId: 'tea-synthetic', ...args },
+    requestedAtUtc: new Date(NOW - 20).toISOString(), respondedAtUtc: new Date(NOW - 3).toISOString(),
+    result: { content: [{ type: 'text', text: JSON.stringify(body) }] } });
+  const replace = (original: any, tool: string, args: any, url = original.url) => mcpReceipt([call(tool, args, original.body)], url);
+  worker.service = replace(worker.service, 'get_service', { serviceId: worker.serviceId });
+  worker.deployReceipt = replace(worker.deployReceipt, 'get_deploy', { serviceId: worker.serviceId, deployId: worker.deploy.id });
+  web.service = replace(web.service, 'get_service', { serviceId: 'srv-d4vnmk3e5dus73aiohk0' });
+  web.deployReceipt = replace(web.deployReceipt, 'get_deploy', { serviceId: 'srv-d4vnmk3e5dus73aiohk0', deployId: web.deploy.id });
+  web.startupLogs = replace(web.startupLogs, 'list_logs', { resource: ['srv-d4vnmk3e5dus73aiohk0'] },
+    'https://api.render.com/v1/logs?ownerId=tea-synthetic&resource=srv-d4vnmk3e5dus73aiohk0');
+  const receipts = [worker.service, worker.deployReceipt, web.service, web.deployReceipt, web.startupLogs];
+  f.authority.expectedMcpReadScope = Object.fromEntries(receipts.map(r => [r.url, mcpReadScope(r)]));
+  f.authority.expectedMcpReceiptDigests = Object.fromEntries(receipts.map(r => [r.url, sha(r.mcp)]));
+  f.authority.processProofDigest = sha(f.proof);
+  return { ...f, receipts };
+}
 describe('owner-scoped lap259 recovery', () => {
+  it('consumes successful authenticated MCP reads without inventing HTTP status in actual CAS recovery', async () => {
+    const f = mcpFixture();
+    expect(f.receipts.every(r => r.status === null && r.httpStatusObserved === false)).toBe(true);
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).resolves.toMatchObject({ state: 'reconciled_and_release_fenced' });
+    expect(f.writes).toHaveLength(3);
+    expect(f.values.get(AUDIT).authority.expectedMcpReadScope).toEqual(f.authority.expectedMcpReadScope);
+  });
+  it('rejects error, mismatched, unpinned, stale or invented MCP read evidence before any writes', async () => {
+    for (const change of [
+      (f: any) => { f.receipts[0].mcp.calls[0].result.isError = true; },
+      (f: any) => { f.receipts[0].mcp.calls[0].result.isError = 'true'; },
+      (f: any) => { f.receipts[0].mcp.calls[0].result.isError = null; },
+      (f: any) => { f.receipts[0].body.type = 'web_service'; },
+      (f: any) => { delete f.authority.expectedMcpReceiptDigests; },
+      (f: any) => { delete f.authority.expectedMcpReadScope; },
+      (f: any) => { f.receipts[0].status = 200; },
+      (f: any) => { f.receipts[0].status = 200; delete f.receipts[0].transport; f.receipts[0].mcp.calls[0].result.isError = true; },
+      (f: any) => { f.receipts[0].mcp.calls[0].arguments.workspaceId = 'tea-foreign'; },
+      (f: any) => { f.receipts[0].mcp.calls[0].tool = 'mcp__render__update_service'; },
+      (f: any) => { f.receipts[0].mcp.calls[0].respondedAtUtc = new Date(NOW - 300001).toISOString(); },
+      (f: any) => { f.receipts[4].mcp.calls[0].result.content[0].text = JSON.stringify({ logs: [], hasMore: true }); },
+    ]) {
+      const f = mcpFixture(); change(f); f.authority.processProofDigest = sha(f.proof);
+      await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).rejects.toThrow();
+      expect(f.writes).toHaveLength(0);
+    }
+  });
+  it('requires real log pagination cursors and exact continuation without inventing completeness', () => {
+    const f = mcpFixture(), original = f.receipts[4].mcp.calls[0], url = f.receipts[4].url;
+    const first = structuredClone(original), second = structuredClone(original);
+    second.requestedAtUtc = new Date(NOW - 2).toISOString(); second.respondedAtUtc = new Date(NOW - 1).toISOString();
+    first.result.content[0].text = JSON.stringify({ logs: [], hasMore: true });
+    expect(() => mcpReceipt([first, second], url)).toThrow('mcp_read_logs_incomplete');
+    first.result.content[0].text = JSON.stringify({ logs: [], hasMore: true, nextStartTime: 'unknown', nextEndTime: 'unknown' });
+    second.arguments.startTime = 'unknown'; second.arguments.endTime = 'unknown';
+    expect(() => mcpReceipt([first, second], url)).toThrow('mcp_read_logs_incomplete');
+    const start = new Date(NOW - 20000).toISOString(), end = new Date(NOW - 10000).toISOString();
+    first.result.content[0].text = JSON.stringify({ logs: [], hasMore: true, nextStartTime: start, nextEndTime: end });
+    second.arguments.startTime = start; second.arguments.endTime = end;
+    expect(mcpReceipt([first, second], url).body.hasMore).toBe(false);
+    second.arguments.startTime = new Date(NOW - 19999).toISOString();
+    expect(() => mcpReceipt([first, second], url)).toThrow('mcp_read_logs_incomplete');
+  });
+  it('rotates fresh MCP byte pins while retaining exact durable scope for owned-fence release', async () => {
+    const f = mcpFixture(); await recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now);
+    f.values.set(AUDIT, structuredClone(f.values.get(AUDIT)));
+    const at = NOW + 90000;
+    for (const r of f.receipts) {
+      r.mcp.calls[0].requestedAtUtc = new Date(at - 20).toISOString(); r.mcp.calls[0].respondedAtUtc = new Date(at - 3).toISOString();
+      r.observedAtMs = at - 3; f.authority.expectedMcpReceiptDigests[r.url] = sha(r.mcp);
+    }
+    f.proof.observedAtMs = at; f.proof.services[0].runtimes[0].observedAtMs = at - 2;
+    f.authority.processProofDigest = sha(f.proof);
+    await expect(fenceLease(f.db, 'release-fence', f.authority, f.proof, () => at)).resolves.toMatchObject({ state: 'release-fence' });
+    const r = f.receipts[0]; r.mcp.calls[0].tool = 'mcp__render_alternate__get_service';
+    f.authority.expectedMcpReadScope[r.url] = mcpReadScope(r); f.authority.expectedMcpReceiptDigests[r.url] = sha(r.mcp);
+    f.authority.processProofDigest = sha(f.proof);
+    await expect(fenceLease(f.db, 'release-fence', f.authority, f.proof, () => at)).rejects.toThrow('release_fence_ownership_changed');
+  });
+  it('orchestrates local runtime, completed barrier, canonical/provider and supported recovery in order', async () => {
+    const f = mcpFixture(), worker = f.proof.services[0], web = f.proof.web;
+    const baseline = { ...structuredClone(worker.runtimes[0]), observedAtMs: NOW - 20000, instanceId: `${worker.serviceId}-old` };
+    const owner = { ...f.authority, writerFreezeEvidence: { source: 'synthetic-authenticated-owner-acknowledgements' }, frozenWriters: f.proof.frozenWriters,
+      expectedBaselineRuntimeDigests: { [worker.serviceId]: sha(baseline) } };
+    const mcp = { schema: 'blueprint.render-mcp-reads.v1', parentThread: f.proof.parentThread, incident: f.proof.incident,
+      receipts: { workerService: worker.service.mcp.calls, workerDeploy: worker.deployReceipt.mcp.calls,
+        webService: web.service.mcp.calls, webDeploy: web.deployReceipt.mcp.calls, webLogs: web.startupLogs.mcp.calls } };
+    const ci = { schema: 'blueprint.render-incident-ci-receipts.v1', parentThread: f.proof.parentThread, incident: f.proof.incident, readOnly: true,
+      receipts: [{ name: 'worker-instances', ...worker.instances }, { name: 'web-instances', ...web.instances },
+        { name: 'daily-enabled', ...worker.admissionFlags[ADMISSION_FLAGS[0]] }, { name: 'communications-enabled', ...worker.admissionFlags[ADMISSION_FLAGS[1]] },
+        { name: 'web-ops-enabled', ...web.opsFlag }] };
+    const platform = preparePlatform(mcp, ci, baseline, owner), files = new Map<string, Buffer>(), events: string[] = [];
+    const output = await sequence(Buffer.from(JSON.stringify(platform)), '/tmp/synthetic-operator', {
+      now: f.now, write: (path: string, value: any) => files.set(path, Buffer.from(JSON.stringify(value))), read: (path: string) => files.get(path),
+      runtime: () => { events.push('runtime'); return worker.runtimes[0]; },
+      collectCanonical: (path: string) => { events.push('canonical'); expect(files.has('/tmp/synthetic-operator/process-proof.json')).toBe(true); files.set(path, Buffer.from(JSON.stringify(f.packet))); },
+      collectProvider: (_: string, path: string) => { events.push('provider'); files.set(path, Buffer.from(JSON.stringify(f.provider))); },
+      recover: async (directory: string) => { events.push('recover'); const read = (name: string) => JSON.parse(files.get(`${directory}/${name}.json`)!.toString());
+        const result = await recover(f.db, read('canonical'), read('provider'), read('process-proof'), read('authority'), f.archive, f.now);
+        return { ok: true, ...result }; },
+    });
+    expect(events).toEqual(['runtime', 'canonical', 'provider', 'recover']);
+    expect(output).toMatchObject({ state: 'reconciled_and_release_fenced', sendsAuthorized: false, paidAdmissionAuthorized: false });
+    expect(f.writes).toHaveLength(3);
+    expect(() => assembleProof(platform, { ...worker.runtimes[0], observedAtMs: platform.observedAtMs - 1 }, f.now)).toThrow('runtime_after_complete_platform_required');
+    expect(() => assembleProof(platform, worker.runtimes[0], () => NOW + 300001)).toThrow();
+  });
   it('uses pinned v3 namespace pairs and authenticated web absence without blocking unrelated public intake', async () => {
     const f = disabledAdmissionFixture(), service = f.proof.services[0], id = service.serviceId;
     f.proof.schema = 'blueprint.render-incident-fence.v3'; f.proof.lane = 'complete_current_disabled_admission';
