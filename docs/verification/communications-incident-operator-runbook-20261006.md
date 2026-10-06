@@ -60,8 +60,8 @@ existing Admin SDK. Never resume the worker to inspect. If authenticated Render
 receipts or provider GET access are unavailable, report that exact capability
 gap; do not replace evidence with asserted strings or bootstrap a key.
 
-The collector covers complete capped canonical inventories, generation/digest
-verified research blobs, exact recorded sessions, paired environments for
+The collector covers complete capped canonical inventories, digest-verified
+research blobs and versioned canonical rows, exact recorded sessions, paired environments for
 session404, full turn/item/artifact lists and recorded FindAll children. Missing,
 unknown, unmapped or truncated effects block mutation. The known accounting
 hold remains unresolved; it is neither reset nor counted as zero.
