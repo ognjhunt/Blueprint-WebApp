@@ -97,7 +97,11 @@ router.post("/owner/:token/book", async (req, res) => {
       const recommendation = current.data()?.pilot_recommendation;
       if (!current.exists || !recommendation) return "missing" as const;
       if (recommendation.id !== parsed.data.recommendationId) return "stale" as const;
-      if (current.data()?.pilot_booking) return "booked" as const;
+      // A retry of the same booking re-queues its confirmation below; the
+      // outbox key keeps that to one email.
+      if (current.data()?.pilot_booking) {
+        return current.data()?.pilot_booking?.recommendationId === recommendation.id ? "booked" as const : "stale" as const;
+      }
       transaction.update(ref, { pilot_booking: {
         recommendationId: recommendation.id, amountUsd: pilotFeeUsd, termsVersion: TERMS_VERSION,
         bookedAtIso: new Date().toISOString(), bookedBy: "signed_owner_link",
@@ -106,7 +110,7 @@ router.post("/owner/:token/book", async (req, res) => {
     });
     if (outcome === "missing") return res.status(404).json({ error: "There is no recommended pilot to book yet." });
     if (outcome === "stale") return res.status(409).json({ error: "This recommendation has changed. Reopen your job page to see the current one." });
-    if (outcome === "ok") {
+    if (outcome === "ok" || outcome === "booked") {
       await enqueueTaskLifecycleNotification({ requestId: token.requestId, milestone: "pilot_booked", eventId: parsed.data.recommendationId })
         .catch(() => undefined);
     }
