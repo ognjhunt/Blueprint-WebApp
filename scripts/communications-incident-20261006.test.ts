@@ -49,6 +49,6 @@ class Tests(unittest.TestCase):
   api=API();m.inspect(api,self.packet());self.assertFalse(any(x[1]=='sessions' for x in api.calls))
 unittest.main()
 `;
-    expect(() => execFileSync('python3', ['-c', source], { cwd: process.cwd(), stdio: 'pipe' })).not.toThrow();
+    expect(() => execFileSync('python3', ['-B', '-c', source], { cwd: process.cwd(), stdio: 'pipe' })).not.toThrow();
   });
 });

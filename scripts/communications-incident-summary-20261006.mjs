@@ -8,6 +8,7 @@ const statuses = list => list.reduce((result, row) => {
   const state = ['completed', 'cancelled', 'failed', 'in_progress', 'queued', 'running', 'requires_action'].includes(value) ? value : 'unknown';
   result[state] = (result[state] ?? 0) + 1; return result;
 }, {});
+const safeEnum = value => typeof value === 'string' && /^[a-z_]{1,64}$/.test(value) ? value : 'unknown';
 export function summarize(canonicalBytes, providerBytes) {
   const canonical = JSON.parse(canonicalBytes), provider = JSON.parse(providerBytes);
   if (canonical.schema !== 'blueprint.communications-incident-20261006.v1'
@@ -24,11 +25,19 @@ export function summarize(canonicalBytes, providerBytes) {
       subagentTurnCount: Array.isArray(remote.turns) ? remote.turns.filter(t => t.subagent_id).length : null,
       itemCount: Array.isArray(remote.items) ? remote.items.length : null,
       activeItemCount: Array.isArray(remote.items) ? remote.items.filter(i => ['in_progress', 'queued', 'running', 'requires_action'].includes(i.status)).length : null,
+      itemShapes: Array.isArray(remote.items) ? remote.items.reduce((counts, item) => {
+        const shape = `${safeEnum(item.type)}:${item.status === undefined ? 'missing' : safeEnum(item.status)}`;
+        counts[shape] = (counts[shape] ?? 0) + 1; return counts;
+      }, {}) : null,
       artifactCount: Array.isArray(remote.artifacts) ? remote.artifacts.length : null,
       environmentBound: Boolean(remote.environment?.id),
       environmentStatus: ['connected', 'disconnected', 'deleted', 'stopped', 'running', 'pending'].includes(remote.environment?.status) ? remote.environment.status : 'unknown',
       researchDates: (canonical.sources ?? []).filter(s => s.value?.session_id === remote.sessionId).map(s => s.value.date),
-    })) };
+      pairedEnvironments: (remote.environments ?? []).map(e => ({ environmentRefSha256: sha(e.environmentId),
+        absent: e.absent === true && e.statusCode === 404, status: safeEnum(e.environment?.status) })),
+    })), findall: (provider.findall ?? []).map(child => ({ childRefSha256: sha(child.findallId),
+      absent: child.absent === true && child.statusCode === 404,
+      isActive: typeof child.receipt?.status?.is_active === 'boolean' ? child.receipt.status.is_active : null })) };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {

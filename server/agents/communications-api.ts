@@ -512,6 +512,12 @@ export class CommunicationsAgentsAPI {
     this.verifyRejectionProof(recovery.rejectionProof, original, jobId, body.input);
     return recovery;
   }
+  /** Offline owner inspection uses the exact runtime binding validator. No API,
+   * inference, ledger, continuation or cleanup authority is granted here. */
+  verifyRetainedRecoveryEvidence(original: CommunicationsCheckpoint, jobId: string): void {
+    if (!original.rejectedCreateRecovery) throw new CommunicationsRuntimeError("communications_rejected_create_binding_invalid");
+    this.verifyRecoveryRecord(original, jobId);
+  }
   private async runRecoveryAttempt(params: { input: string; jobId: string; checkpoint: CommunicationsCheckpoint;
     saveCheckpoint: (checkpoint: CommunicationsCheckpoint) => Promise<void>;
     validateOutput?: CommunicationsOutputValidator; assertRepairAllowed?: () => void | Promise<void> },
