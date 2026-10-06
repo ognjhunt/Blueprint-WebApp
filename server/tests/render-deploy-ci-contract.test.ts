@@ -66,9 +66,22 @@ describe("Render deploy-on-green contract", () => {
     expect(deployWorkflow).toContain('main_head=$(gh api "repos/${REPO}/commits/main" --jq .sha)');
     expect(deployWorkflow).toContain('if [ "${deploy_ref}" != "${main_head}" ]; then');
     expect(deployWorkflow).toContain('echo "stale=true" >> "${GITHUB_OUTPUT}"');
-    // Both deploy steps and the evidence upload stand down for a stale completion.
-    expect(deployWorkflow.match(/if: steps\.ref\.outputs\.stale != 'true'/g)?.length).toBe(2);
-    expect(deployWorkflow).toContain("if: always() && steps.ref.outputs.stale != 'true'");
+    const steps = deployWorkflow.split(/^      - name: /m).slice(1);
+    const namedStep = (name: string) => {
+      const matches = steps.filter(step => step.split("\n", 1)[0] === name);
+      expect(matches, name).toHaveLength(1);
+      return matches[0];
+    };
+    // Every deploy and readback stage stands down for a stale completion.
+    for (const name of [
+      "Trigger exact-SHA Render deploy through API (fail-closed)",
+      "Verify deployment completed at the exact SHA",
+      "Checkout the exact verified deployment for runtime readback",
+      "Read back installed daily research runtime",
+    ]) {
+      expect(namedStep(name), name).toContain("\n        if: steps.ref.outputs.stale != 'true'\n");
+    }
+    expect(namedStep("Upload deployment evidence")).toContain("\n        if: always() && steps.ref.outputs.stale != 'true'\n");
     expect(deploymentDoc).toContain("Only main's current head deploys automatically");
   });
 });
