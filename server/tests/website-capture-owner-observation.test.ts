@@ -52,6 +52,19 @@ function fixture() {
 }
 
 describe("authoritative original website capture owner read", () => {
+  it("an intact historical browser receipt does not override current withdrawal", async () => {
+    const { deps } = fixture();
+    const originalRead = deps.readRequest;
+    deps.readRequest = async () => {
+      const current = await originalRead();
+      return { ...current, data: { ...current.data, consent_revoked: true } };
+    };
+    const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
+    expect(observed.capture_rights.derived_scene_generation_allowed).toBe(false);
+    expect(observed.capture_rights.data_licensing_allowed).toBe(false);
+    expect(observed.producer_delivery.raw_video.generation).toBe(video.generation);
+  });
   it("selects M1 and V1 even after a later canonical marker/video generation exists", async () => {
     const { deps, objects } = fixture();
     objects.set(`${markerName}@200`, object(markerName, "200", Buffer.from("later marker")));
