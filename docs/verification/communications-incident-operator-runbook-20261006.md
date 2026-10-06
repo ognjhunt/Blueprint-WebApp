@@ -1,6 +1,6 @@
 # Owner-operated Oct6 recovery and cleanup
 
-Execution source: `3a3f98ca19f64871bf343fa9dd08077768b5a702`, draft PR878.
+Execution source: `0b023c1ba628645647cd6f2cf8d9d544722cc29b`, draft PR878.
 This retains the original reviewed `4ecd5ed59bbc8c20c59ceb093907792f5204cdec`
 recovery/cleanup behavior and the reviewed v2 and v3 admission-fence lanes. No live
 recovery, provider deletion, model request, Gmail draft/send or activation has
@@ -15,8 +15,8 @@ native execution and release.
 | `communications-incident-20261006.mjs` | `5a0801e9b3402821f5e1a650663b6128874c147fd151a49455590f25b36027d9` |
 | `communications-incident-provider-20261006.py` | `98a51b3fe56cd248cdd5b9cbcd74a8bfa8698ba2c29fcb94a2f40dff396a0cc2` |
 | `communications-incident-summary-20261006.mjs` | `82613479a8950a27cdf3af4f110b810001cd1a4d66371ad024069e2f7776398c` |
-| `communications-incident-admission-20261006.mjs` | `8c561f7ea26030b3eb6e30e73679fc953b6c0173baed73838ad83d5471578a81` |
-| `communications-incident-recovery-20261006.mjs` | `17f5a05ca9c422c5a035ed010076fa2f68c8f23b10887e8373f4146397868557` |
+| `communications-incident-admission-20261006.mjs` | `8556400c7523fe6bb39ee45570af9ed9fa73abea3d086b8275790bf96b43648a` |
+| `communications-incident-recovery-20261006.mjs` | `1c169b9a1f71bc9c7afbd4479c231b4dbca53b67002202f5c1a946bc76d86650` |
 | `communications-incident-cleanup-20261006.py` | `278d7d8ddb42260bd6b84cc1b0c8432fdbd46d635023d7bf768b056df3eea1b1` |
 
 Run from the deployed WebApp root using existing dependencies and SDK bindings.
@@ -25,9 +25,9 @@ needs the existing `tsx` loader and full reviewed source. Prepare a private
 checkout without deploying it or copying credentials:
 
 ```bash
-incident_src=/tmp/blueprint-outreach-3a3f98ca1
+incident_src=/tmp/blueprint-outreach-0b023c1ba
 mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/3a3f98ca19f64871bf343fa9dd08077768b5a702 |
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/0b023c1ba628645647cd6f2cf8d9d544722cc29b |
   tar -xz --strip-components=1 -C "$incident_src" &&
 ln -s "$PWD/node_modules" "$incident_src/node_modules"
 ```
