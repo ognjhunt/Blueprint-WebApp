@@ -46,7 +46,7 @@ function mockFetch() {
         json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }),
       });
     }
-    return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
+    return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope: "film" }) });
   });
 }
 
@@ -67,6 +67,71 @@ afterEach(() => {
   vi.unstubAllGlobals();
   setUserAgent("");
   window.history.replaceState(null, "", "/");
+});
+
+describe("description first owner return", () => {
+  function ownerFetch(held: boolean) {
+    let granted = false;
+    return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/csrf") return Promise.resolve({ ok: true, json: async () => ({ csrfToken: "synthetic-qa" }) });
+      if (url.endsWith("/recording-consent")) {
+        granted = true;
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
+      }
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) return Promise.resolve({ ok: true,
+        json: async () => ({ ok: true, state: held && !granted ? "held" : "ready", recordingConsentAvailable: held && !granted,
+          accepts: ["mov", "mp4"], holdReason: "recording_consent_required", detail: "Confirm recording permission before adding footage.", blockers: [], openQuestions: [] }) });
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
+        ready: true, scope: "owner", brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: "2026-10-01T00:00:00Z" },
+      }) });
+      return mockFetch()(input);
+    });
+  }
+  it.each(["", PHONE_UA])("shows the brief before optional recording even if footage is allowed (%s)", async ua => {
+    setUserAgent(ua);
+    vi.stubGlobal("fetch", ownerFetch(false));
+    render(<SelfCaptureUpload />);
+    await screen.findByText("Your job brief is confirmed.");
+    expect(screen.getByRole("heading", { name: "Review your job brief" })).toBeVisible();
+    expect(screen.queryByRole("img", { name: /phone|recorder/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Choose or record|Upload a video|Open the camera/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add footage when you are ready (optional)" }));
+    expect(await screen.findByRole("button", { name: ua ? "Choose or record a video" : "Upload a video file" })).toBeVisible();
+    expect(videoUpload.send).not.toHaveBeenCalled();
+  });
+  it("keeps the brief available through a recording hold and requires a separate explicit grant", async () => {
+    const fetcher = ownerFetch(true);
+    vi.stubGlobal("fetch", fetcher);
+    render(<SelfCaptureUpload />);
+    await screen.findByText("Your job brief is confirmed.");
+    expect(screen.getByRole("heading", { name: "Review your job brief" })).toBeVisible();
+    fireEvent.click(screen.getByText("Add footage when you have permission (optional)"));
+    const button = screen.getByRole("button", { name: "Confirm recording permission" });
+    expect(button).toBeDisabled();
+    expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("checkbox", { name: /I am authorized to record this site/ }));
+    fireEvent.click(button);
+    await screen.findByRole("button", { name: "Add footage when you are ready (optional)" });
+    const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
+    expect(posts).toHaveLength(1);
+    expect(posts[0][0]).toContain("/recording-consent");
+    expect(JSON.parse(posts[0][1]!.body as string)).toEqual({ granted: true, statementVersion: "2026-09-18.v1" });
+    expect(videoUpload.send).not.toHaveBeenCalled();
+    expect(videoUpload.retry).not.toHaveBeenCalled();
+  });
+  it("keeps a measured additional-views request in the recording flow", async () => {
+    const fetcher = ownerFetch(false);
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true,
+        json: async () => ({ captureReceived: true, status: { decision: "add_views", headline: "Add a view of the pallet.", operatorAction: "Film the pallet.", missingViews: ["pallet"] } }) });
+      return fetcher(input);
+    }));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByRole("button", { name: "Upload a video file" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
+  });
 });
 
 describe("retained video processing recovery", () => {
@@ -242,7 +307,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
       if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) {
         return Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" }) });
       }
-      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope: "film" }) });
     }));
     render(<SelfCaptureUpload />);
 
@@ -269,7 +334,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
       }) });
       if (url.startsWith("/api/site-task-brief/") && url.endsWith("/status")) return Promise.resolve({ ok: false, json: async () => ({}) });
       if (url.includes("/items")) return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
-      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope: "film" }) });
     }));
     render(<SelfCaptureUpload />);
 
@@ -298,7 +363,7 @@ describe("SelfCaptureUpload once robot teams have run", () => {
       if (url.includes("/items")) {
         return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
       }
-      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope: "film" }) });
     });
   }
 

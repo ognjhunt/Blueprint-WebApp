@@ -274,6 +274,7 @@ describe("field encryption", () => {
         capture_mode: "self_capture" as const,
         capture_region: "us" as const,
         has_existing_footage: true,
+        description_authority: { granted: true, statement_version: "2026-10-06.v1", recorded_at_iso: "2026-10-06T00:00:00Z" },
       },
       site_task_gate_sources: { sceneStability: "inferred" as const },
     };
@@ -295,6 +296,8 @@ describe("field encryption", () => {
     expect(decrypted.request.capture_region).toBe("us");
     expect(stored.request.has_existing_footage).toBe(true);
     expect(decrypted.request.has_existing_footage).toBe(true);
+    expect(stored.request.description_authority).toEqual(request.request.description_authority);
+    expect(decrypted.request.description_authority).toEqual(request.request.description_authority);
 
     // Provenance rides at the top level, where the spread carries it.
     expect(decrypted.site_task_gate_sources).toEqual({ sceneStability: "inferred" });

@@ -38,6 +38,56 @@ vi.mock("../utils/rate-limit-redis", () => ({
 const devLogPath = path.join(os.tmpdir(), "blueprint-dev-inbound-requests.jsonl");
 const originalNodeEnv = process.env.NODE_ENV;
 
+describe("description authority independent from recording", () => {
+  function descriptionPayload(requestId: string) {
+    return { ...buildPayload(requestId, `${requestId}@example.com`), accountSignup: false,
+      descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" },
+      consentAttestation: null, captureRegion: "us", captureMode: "self_capture" };
+  }
+
+  it.each(["us", "non_us"])("saves prose and returns a brief link with no recording or listing grant (%s)", async (captureRegion) => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `description-${captureRegion}-${Date.now()}`;
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...descriptionPayload(requestId), captureRegion }) });
+      expect(response.status).toBe(201);
+      expect((await response.json()).captureUrl).toContain("/capture-upload/");
+      const row = fs.readFileSync(devLogPath, "utf8").trim().split("\n").map(line => JSON.parse(line)).find(row => row.requestId === requestId);
+      expect(row.request.description_authority).toMatchObject({ granted: true, statement_version: "2026-10-06.v1" });
+      expect(row.request.description_authority.recorded_at_iso).toBeTruthy();
+      expect(row.request.consent_attestation).toBeNull();
+      expect(row.request.pilot_opportunity_visibility).not.toBe("public");
+      expect(row.request.match_fee_authorized).toBeUndefined();
+    } finally { await stopServer(server); }
+  });
+
+  it.each([
+    { descriptionAuthority: undefined },
+    { descriptionAuthority: { granted: false, statementVersion: "2026-10-06.v1" } },
+    { descriptionAuthority: { granted: true, statementVersion: "old" } },
+    { acceptedTerms: false },
+    { hasExistingFootage: true },
+    { taskVideoUrl: "https://example.com/clip.mov" },
+    { taskVideoUrls: ["https://example.com/clip.mov"] },
+    { consentAttestation: { granted: false, statementVersion: "2026-09-18.v1" } },
+    { consentAttestation: { granted: true, statementVersion: "old" } },
+  ])("refuses incomplete authority or footage without recording rights (%j)", async (override) => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `description-denied-${crypto.randomUUID()}`;
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...descriptionPayload(requestId), ...override }) });
+      expect(response.status).toBe(400);
+      expect(fs.existsSync(devLogPath) && fs.readFileSync(devLogPath, "utf8").includes(requestId)).toBeFalsy();
+    } finally { await stopServer(server); }
+  });
+});
+
 function buildPayload(requestId: string, email: string) {
   return {
     requestId,

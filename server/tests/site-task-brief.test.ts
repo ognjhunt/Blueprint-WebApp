@@ -155,6 +155,8 @@ describe("confirming a brief is the attestation", () => {
 
     expect(result).toBeTruthy();
     expect(result!.disposition).toBe("qualified");
+    expect(result!.readiness.nextAction).not.toContain("Your footage");
+    expect(result!.readiness.stage).toBe("capture_needed");
     for (const source of Object.values(result!.sources)) {
       expect(source).toBe("operator_stated");
     }

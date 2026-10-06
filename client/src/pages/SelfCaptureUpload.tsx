@@ -3,11 +3,10 @@ import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { RecommendedPilot } from "@/components/site/RecommendedPilot";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 /**
- * The page a site employee opens from a link in an email.
+ * The page an operator or filmer opens from a private job link.
  *
- * They have no account, and no reason to trust a long form. The link is
- * the credential and the video is the payload, so this page is deliberately one
- * screen: what to film, a file picker, and a progress bar.
+ * The owner reviews the job description before optional recording. A film-only
+ * colleague link opens the recorder without carrying brief-confirmation rights.
  *
  * It says nothing about the site, the buyer, or the request. The API behind it
  * is careful not to leak who a customer is to anyone holding a forwarded link,
@@ -77,6 +76,7 @@ type LinkState =
       holdReason?: string | null;
       /** The site asked for a visit and may film it itself instead. */
       selfCaptureSwitch?: boolean;
+      recordingConsentAvailable?: boolean;
     }
   | { status: "invalid"; message: string };
 
@@ -97,6 +97,10 @@ export default function SelfCaptureUpload() {
   const selectedFile = useRef<File | null>(null);
   const operationInFlight = useRef(false);
   const [retryingProcessing, setRetryingProcessing] = useState(false);
+  const [addingFootage, setAddingFootage] = useState(false);
+  const [recordingConsent, setRecordingConsent] = useState(false);
+  const [savingConsent, setSavingConsent] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const linkGeneration = useRef(0);
   /**
    * What to film, from the brief we drafted and they confirmed.
@@ -191,6 +195,41 @@ export default function SelfCaptureUpload() {
    */
   const [scope, setScope] = useState<"owner" | "film">("owner");
 
+  async function confirmRecordingConsent() {
+    if (operationInFlight.current || !recordingConsent || scope !== "owner"
+      || link.status !== "held" || !link.recordingConsentAvailable) return;
+    const generation = linkGeneration.current;
+    operationInFlight.current = true;
+    setSavingConsent(true);
+    setConsentError(null);
+    try {
+      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/recording-consent`, {
+        method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ granted: true, statementVersion: "2026-09-18.v1" }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.ok) throw new Error(result?.error || "We could not save recording permission. Try again shortly.");
+      const statusResponse = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/status`);
+      const data = await statusResponse.json().catch(() => null);
+      if (!statusResponse.ok || !data?.ok) throw new Error("Permission was saved. Reopen this link to check whether footage can be added.");
+      if (linkGeneration.current !== generation) return;
+      setLink(data.state === "held" ? {
+        status: "held", detail: String(data.detail || "This capture cannot start yet."),
+        blockers: Array.isArray(data.blockers) ? data.blockers.map(String) : [],
+        openQuestions: Array.isArray(data.openQuestions) ? data.openQuestions.map(String) : [],
+        holdReason: data.holdReason, selfCaptureSwitch: data.selfCaptureSwitchAvailable === true,
+        recordingConsentAvailable: data.recordingConsentAvailable === true,
+      } : { status: "valid", accepts: data.accepts ?? ["mov", "mp4"], expiresAt: String(data.expiresAt || "") });
+    } catch (error) {
+      if (linkGeneration.current === generation) setConsentError(error instanceof Error ? error.message : "We could not save recording permission.");
+    } finally {
+      if (linkGeneration.current === generation) {
+        operationInFlight.current = false;
+        setSavingConsent(false);
+      }
+    }
+  }
+
   // Whether the operator can clear the loose items before filming. A cleared
   // space films as a clean plate -- nothing to remove later -- but it is a real
   // ask, so it is offered, not required. Either way the objects themselves come
@@ -242,6 +281,12 @@ export default function SelfCaptureUpload() {
     selectedFile.current = null;
     operationInFlight.current = false;
     setRetryingProcessing(false);
+    setAddingFootage(false);
+    setRecordingConsent(false);
+    setSavingConsent(false);
+    setConsentError(null);
+    setBrief(null);
+    setScope("owner");
     setExistingVideoOnly(new URLSearchParams(window.location.search).get("video") === "existing");
     if (!token) {
       setLink({ status: "invalid", message: "This link is missing its code." });
@@ -315,6 +360,7 @@ export default function SelfCaptureUpload() {
               : [],
             holdReason: typeof data.holdReason === "string" ? data.holdReason : null,
             selfCaptureSwitch: data.selfCaptureSwitchAvailable === true,
+            recordingConsentAvailable: data.recordingConsentAvailable === true,
           });
           return;
         }
@@ -414,6 +460,8 @@ export default function SelfCaptureUpload() {
   const saved = upload.status === "processing_pending" || upload.status === "held"
     || (upload.status === "done" && status?.decision !== "add_views")
     || (upload.status === "idle" && status?.captureReceived === true && status.decision !== "add_views");
+  const descriptionFirst = scope === "owner" && !saved && !existingVideoOnly
+    && status?.captureReceived !== true && upload.status !== "done";
 
   // "Where this stands", for the operator who has no account. It carries a
   // re-film request when there is one, so it is never dropped -- but on a
@@ -488,13 +536,25 @@ export default function SelfCaptureUpload() {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" ? "Your job assessment" : saved ? "A few details about the job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job assessment"}
+        {link.status === "held" || descriptionFirst ? "Your job assessment" : saved ? "A few details about the job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job assessment"}
       </h1>
 
-      {/* Where the task stands. Above the fold only when there is no camera on
-          this page yet -- a held or checking link. On a recordable link it moves
-          below the camera, because the camera is the page. */}
-      {link.status !== "valid" && statusCard}
+      {descriptionFirst && (link.status === "valid" || link.status === "held") && (
+        <section aria-label="Review your job brief" style={{ marginBottom: "28px" }}>
+          <h2>Review your job brief</h2>
+          {brief ? <>
+            <p className="ms-field-hint">We drafted this from your description. Review and correct it now; you can add footage later.</p>
+            {briefConfirmed && !editingBrief ? <p>Your job brief is confirmed.{" "}
+              <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>Edit your answers</button>
+            </p> : <TaskBriefReview key={brief.successCriteria?.successDefinition ?? ""} token={token} brief={brief}
+              account={siteAccount} onConfirmed={() => { setBriefConfirmed(true); setEditingBrief(false); }} />}
+          </> : <p className="ms-field-hint">Your job description is saved. Your brief will appear here when it is ready. Keep this private link to return.</p>}
+        </section>
+      )}
+
+      {/* A description keeps the brief first. A filming link keeps measured
+          status beside the recorder; a held link explains its hold. */}
+      {(link.status !== "valid" || descriptionFirst) && statusCard}
 
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
@@ -502,6 +562,21 @@ export default function SelfCaptureUpload() {
 
       {link.status === "held" && (
         <>
+          {scope === "owner" && link.recordingConsentAvailable && (
+            <details style={{ marginBottom: "24px" }}>
+              <summary>Add footage when you have permission (optional)</summary>
+              <p className="ms-field-hint">Confirm recording permission before adding footage. Your description and job brief are already available.</p>
+              <label style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                <input type="checkbox" checked={recordingConsent} onChange={event => setRecordingConsent(event.target.checked)}
+                  style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
+                <span>I am authorized to record this site and to let Blueprint use the recording to build a scene robot teams can evaluate against.</span>
+              </label>
+              <button type="button" className="ms-button" disabled={!recordingConsent || savingConsent} onClick={() => void confirmRecordingConsent()}>
+                {savingConsent ? "Saving permission…" : "Confirm recording permission"}
+              </button>
+              {consentError && <p role="alert">{consentError}</p>}
+            </details>
+          )}
           {link.selfCaptureSwitch && (
             <section aria-label="Film it yourself" style={{ marginBottom: "24px" }}>
               <p style={{ marginBottom: "12px" }}>
@@ -583,6 +658,9 @@ export default function SelfCaptureUpload() {
 
       {link.status === "valid" && (
         <>
+          {descriptionFirst && <button type="button" className="ms-text-link" aria-expanded={addingFootage}
+            onClick={() => setAddingFootage(current => !current)}>Add footage when you are ready (optional)</button>}
+          {(!descriptionFirst || addingFootage) && <div>
           {!saved && (
             <input
               ref={inputRef}
@@ -790,7 +868,7 @@ export default function SelfCaptureUpload() {
               {/* A re-film request or "where this stands" lands right under the
                   camera, so someone who came back to add an angle sees what we
                   need before the optional sections. */}
-              {statusCard}
+              {!descriptionFirst && statusCard}
 
               {/* Optional, and never in front of the camera. Permission to
                   capture, the answers that refine what to film, and task
@@ -799,7 +877,7 @@ export default function SelfCaptureUpload() {
                   not a gate. Confirming it is the attestation that turns the site
                   into supply, before or after filming. A film-only link never
                   sees it: attestation is not theirs to make. */}
-              {scope === "owner" && brief && briefConfirmed && !editingBrief && (
+              {!descriptionFirst && scope === "owner" && brief && briefConfirmed && !editingBrief && (
                 <p className="ms-field-hint" style={{ marginTop: "28px", marginBottom: "8px" }}>
                   Your job brief is confirmed.{" "}
                   <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
@@ -807,7 +885,7 @@ export default function SelfCaptureUpload() {
                   </button>
                 </p>
               )}
-              {scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
+              {!descriptionFirst && scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
                 <details open={editingBrief || undefined} style={{ marginTop: "28px", marginBottom: "8px" }}>
                   <summary>
                     {briefBlocksCapture
@@ -846,12 +924,13 @@ export default function SelfCaptureUpload() {
 
             </>
           )}
+          </div>}
         </>
       )}
       {link.status === "valid" && scope === "owner" && <RecommendedPilot token={token} />}
       {link.status === "valid" && scope === "owner" && !saved && <PublicTaskListing token={token} />}
       {!saved && (
-        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: we check the footage and ask you to confirm the job brief. We then assess provider fit and use a scene evaluation where it helps. Keep this link to follow progress.</p>
+        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: review your job brief. If you add footage, we check it before assessing provider fit and using a scene evaluation where it helps. Keep this link to follow progress.</p>
       )}
       </div>
     </div>
