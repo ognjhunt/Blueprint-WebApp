@@ -1,6 +1,6 @@
 # Owner-operated Oct6 recovery and cleanup
 
-Execution source: `0b023c1ba628645647cd6f2cf8d9d544722cc29b`, draft PR878.
+Execution source: `c1bbe18a9e541e92d16a2c0eb09f209a9d7dba95`, draft PR878.
 This retains the original reviewed `4ecd5ed59bbc8c20c59ceb093907792f5204cdec`
 recovery/cleanup behavior and the reviewed v2 and v3 admission-fence lanes. No live
 recovery, provider deletion, model request, Gmail draft/send or activation has
@@ -16,7 +16,7 @@ native execution and release.
 | `communications-incident-provider-20261006.py` | `98a51b3fe56cd248cdd5b9cbcd74a8bfa8698ba2c29fcb94a2f40dff396a0cc2` |
 | `communications-incident-summary-20261006.mjs` | `82613479a8950a27cdf3af4f110b810001cd1a4d66371ad024069e2f7776398c` |
 | `communications-incident-admission-20261006.mjs` | `8556400c7523fe6bb39ee45570af9ed9fa73abea3d086b8275790bf96b43648a` |
-| `communications-incident-recovery-20261006.mjs` | `1c169b9a1f71bc9c7afbd4479c231b4dbca53b67002202f5c1a946bc76d86650` |
+| `communications-incident-recovery-20261006.mjs` | `e334bccda96d987385bf1cc590ee8fd14e975f51a51b1b7e7eb90a0bf651b63b` |
 | `communications-incident-cleanup-20261006.py` | `278d7d8ddb42260bd6b84cc1b0c8432fdbd46d635023d7bf768b056df3eea1b1` |
 
 Run from the deployed WebApp root using existing dependencies and SDK bindings.
@@ -25,9 +25,9 @@ needs the existing `tsx` loader and full reviewed source. Prepare a private
 checkout without deploying it or copying credentials:
 
 ```bash
-incident_src=/tmp/blueprint-outreach-0b023c1ba
+incident_src=/tmp/blueprint-outreach-c1bbe18a9
 mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/0b023c1ba628645647cd6f2cf8d9d544722cc29b |
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/c1bbe18a9e541e92d16a2c0eb09f209a9d7dba95 |
   tar -xz --strip-components=1 -C "$incident_src" &&
 ln -s "$PWD/node_modules" "$incident_src/node_modules"
 ```
@@ -88,6 +88,12 @@ research blobs and versioned canonical rows, exact recorded sessions, paired env
 session404, full turn/item/artifact lists and recorded FindAll children. Missing,
 unknown, unmapped or truncated effects block mutation. The known accounting
 hold remains unresolved; it is neither reset nor counted as zero.
+
+The two parent-pinned `source_refresh_unavailable` rows retain their original
+absent-evidence representation, either `null` or an empty array. This is a
+read-only representation check: the exact row digests, state, reason, lease,
+reference and authority checks remain required; nonempty, missing or other
+evidence shapes reject recovery. Do not normalize or rewrite these stored rows.
 
 ## Recovery packet and command
 
