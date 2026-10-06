@@ -1,6 +1,8 @@
 # Owner-operated Oct6 recovery and cleanup
 
-Reviewed code: `4ecd5ed59bbc8c20c59ceb093907792f5204cdec`, draft PR878. No live
+Execution source: `42689320a674422adc36641d78c5c8ccc85b1982`, draft PR878.
+This retains the original reviewed `4ecd5ed59bbc8c20c59ceb093907792f5204cdec`
+recovery/cleanup behavior and adds the reviewed v2 admission-fence lane. No live
 recovery, archive, deletion, model request, Gmail draft/send or activation has
 been executed by the source author. Parent owns native execution and release.
 
@@ -11,7 +13,8 @@ been executed by the source author. Parent owns native execution and release.
 | `communications-incident-20261006.mjs` | `5a0801e9b3402821f5e1a650663b6128874c147fd151a49455590f25b36027d9` |
 | `communications-incident-provider-20261006.py` | `98a51b3fe56cd248cdd5b9cbcd74a8bfa8698ba2c29fcb94a2f40dff396a0cc2` |
 | `communications-incident-summary-20261006.mjs` | `82613479a8950a27cdf3af4f110b810001cd1a4d66371ad024069e2f7776398c` |
-| `communications-incident-recovery-20261006.mjs` | `1de88bc2a409c48939374f7585f1b47597e76e3bcab72318f4b9d090a78c3f05` |
+| `communications-incident-admission-20261006.mjs` | `490fd6e7bebc20708656ab205ffc18e6ddcf819239ff8b0d238c2f8744b82849` |
+| `communications-incident-recovery-20261006.mjs` | `fdcd211684cafdcaa86bff3ae4ad4cea696819b79522fab87a32b0d4287a0863` |
 | `communications-incident-cleanup-20261006.py` | `278d7d8ddb42260bd6b84cc1b0c8432fdbd46d635023d7bf768b056df3eea1b1` |
 
 Run from the deployed WebApp root using existing dependencies and SDK bindings.
@@ -20,9 +23,9 @@ needs the existing `tsx` loader and full reviewed source. Prepare a private
 checkout without deploying it or copying credentials:
 
 ```bash
-incident_src=/tmp/blueprint-outreach-4ecd5ed59
+incident_src=/tmp/blueprint-outreach-42689320a
 mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/4ecd5ed59bbc8c20c59ceb093907792f5204cdec |
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/42689320a674422adc36641d78c5c8ccc85b1982 |
   tar -xz --strip-components=1 -C "$incident_src" &&
 ln -s "$PWD/node_modules" "$incident_src/node_modules"
 ```
@@ -36,11 +39,22 @@ private create-only local files. The summary reads local JSON only.
 ## Process fence and fresh evidence
 
 Parent first retains an authentic fence covering every possible owning worker
-service and manual/CLI writer. The implemented lane requires authenticated
-Render service GET showing `suspended`, exact deployment commit, and complete
-instances GET returning an empty array for every parent-pinned worker service.
-Suspended desired state, metrics, logs or a selected Shell's env alone are
-insufficient. The actual Pipeline/manual-writer freeze acknowledgements must be
+service and manual/CLI writer. Follow the exact existing-service procedure and
+acknowledgement provenance in
+[process fence and coordinated resume](communications-incident-process-stop-20261006.md).
+V2 changes only the existing two worker-enable flags to `false`, using Render's
+**Save and deploy** of the existing c4 build, preserving its existing operator
+Shell and bindings. It verifies fresh persisted controls, full original/current
+instance inventories, every old instance gone and the actual Linux Node process
+environment/source/compiled entry for every replacement. It also requires the
+actual existing OPS-forward-only mode to remain truthy, skipping the entire
+worker OPS scheduler without changing any third control, and requires the
+web's existing persisted OPS-off control and same-instance startup-off logs.
+The original v1 alternative still accepts authenticated service `suspended`
+plus complete empty instances for every scoped worker when an existing provider
+operator environment remains available. Desired state, metrics, old logs or a
+selected Shell's environment alone are insufficient for either lane.
+The actual Pipeline/manual-writer freeze acknowledgements must be
 retained independently; the proof's writer-name list declares their scope and
 does not itself prove drainage. The paused Mac owner stays stopped.
 
@@ -53,7 +67,9 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=dist/daily-research/release \
   --canonical /tmp/lap259-canonical-after-fence.json --output /tmp/lap259-provider-after-fence.json
 ```
 
-Both observations must follow the process fence and be within five minutes.
+Both observations must follow the completed process proof observation and be
+within five minutes. In v2, the assembled proof timestamp must also follow all
+its current GET/runtime observations; old receipts cannot be relabelled fresh.
 If suspension removes the worker Shell, use a remaining existing authenticated
 web/operator environment or the saved cloud with private retained packets and
 existing Admin SDK. Never resume the worker to inspect. If authenticated Render
@@ -76,16 +92,24 @@ parent thread `01a0fe81-486b-7714-9e81-983a66bd80c4`, incident
 
 - `expectedWorkerServiceIds`, `expectedLapSha256`, and the exact approved two
   source-failure refresh paths/hashes in `expectedSourceFailures`;
+- for v2, `expectedPriorWorkerInstanceIds` keyed by service, retaining every
+  complete original instance ID from the authentic pre-change inventory;
 - `canonicalFileSha256`, `providerFileSha256`, `processProofFileSha256` for raw
   bytes, and `processProofDigest` using the collector's exported `sha` on JSON.
 
-Process proof schema is `blueprint.render-incident-fence.v1`, with matching
+Process proof schema is `blueprint.render-incident-fence.v2`, lane
+`disabled_worker_admission` (or the original suspension-only v1), with matching
 parent/incident, `observedAtMs`, `frozenWriters` and `services`. Required writer
 names are `pipeline-release-owner`, `paused-mac-outreach-owner`, and
 `authenticated-manual-and-cli-writers`. Each service includes `serviceId`,
 `deployCommit`, actual deployment JSON in `deploy`, and `service`/`instances`
 receipts with GET `method`, exact official URL, HTTP `status` and full parsed
-`body`. The parent authenticates and pins these receipts before execution.
+`body`. V2 adds actual `observedAtMs` to each current receipt plus immutable
+`priorInstances`, `admissionFlags`, `deployReceipt` and complete `runtimes`
+as specified in the process-fence document. It includes the separately bound
+`web` service/deploy/current-instance/OPS-off/startup-log receipts. The parent
+authenticates and pins these receipts and actual writer acknowledgements before
+execution. Keep raw message/proof/provider data in approved private storage.
 
 ```bash
 node --import tsx "$incident_src/scripts/communications-incident-recovery-20261006.mjs" recover /tmp/lap259-recovery
@@ -165,8 +189,12 @@ an environment-delete API or claim historical cleanup.
 
 ## Validation and operational validity
 
-Independent review accepted the exact code above, 17 offline tests and TypeScript
-check. Tests include changed-evidence CAS, exact source/turn/child scope,
+Independent review covers the original recovery/cleanup lane and the added v2
+actual-runtime/instance fence. Three affected suites pass 25 offline tests and
+TypeScript check; separate review exercises 16 v2 rejection/acceptance cases,
+actual Linux `/proc` reads and independent c4 compiled-worker reproduction.
+Tests include the actual v2 recovery transaction, receipt/proof/snapshot
+chronology, changed-evidence CAS, exact source/turn/child scope,
 unmapped create/refresh states, archive corruption, replay, successor leases,
 late active items, native export creation, durable handoff and the actual
 retained native `record_cleanup` method. AST Graphify refreshed its fixed corpus;
