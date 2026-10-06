@@ -627,11 +627,13 @@ export async function processSceneIntakeQueue(limit = 10) {
           throw new Error("stored_request_digest_invalid");
         let sponsorshipRevoked = false;
         if (record.website_request_id && state === "accepted") {
-          try { await loadWebsiteSceneSponsorship(record.website_request_id); }
+          try { await loadWebsiteSceneSponsorship(record.website_request_id, false, record.source_session_id); }
           catch (error) {
             const code = error instanceof Error ? error.message : "";
             if (["source_revoked", "website_scene_sponsorship_changed", "website_scene_sponsorship_not_configured",
-              "website_scene_sponsorship_missing", "website_task_context_not_confirmed", "task_brief_missing"].includes(code)) sponsorshipRevoked = true;
+              "website_scene_sponsorship_missing", "website_task_context_not_confirmed", "task_brief_missing",
+              "task_context_capture_mismatch", "supplement_not_requested"].includes(code)
+              || code.startsWith("website_capture_binding_")) sponsorshipRevoked = true;
             else if (code !== "consent_expired") throw error;
           }
         }
@@ -730,7 +732,7 @@ export async function processSceneIntakeQueue(limit = 10) {
           let sponsored = false;
           let sponsoredAuthority: Awaited<ReturnType<typeof loadWebsiteSceneSponsorship>> | null = null;
           if (record.website_request_id) {
-            const authority = await loadWebsiteSceneSponsorship(record.website_request_id);
+            const authority = await loadWebsiteSceneSponsorship(record.website_request_id, false, record.source_session_id);
             if (record.sponsorship_digest !== authority.authority_digest)
               throw new Error("website_scene_sponsorship_binding_invalid");
             validateWebsiteSponsoredIntake(record.request, authority);

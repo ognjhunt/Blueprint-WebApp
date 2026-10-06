@@ -72,7 +72,7 @@ function timeoutMs() {
     : DEFAULT_TIMEOUT_MS;
 }
 
-async function signedRequest<T>(params: {
+export async function signedCaptureLifecycleRequest<T>(params: {
   path: string;
   method: "GET" | "POST";
   body?: Record<string, unknown>;
@@ -168,7 +168,7 @@ export async function applyCompletedCaptureLifecycleToPipeline(params: {
   action: "consent_revoked" | "operator_deletion_request" | "retention_expired";
   idempotencyKey: string;
 }) {
-  const result = await signedRequest({
+  const result = await signedCaptureLifecycleRequest({
     path: `${lifecyclePath(params.captureSessionId, params.intakeId)}/lifecycle`,
     method: "POST",
     body: {
@@ -200,7 +200,7 @@ export function recordCaptureExternalRevocationEvidenceInPipeline(params: {
   verificationMethod: "signed_webapp_receipt" | "storage_access_revocation_receipt";
   idempotencyKey: string;
 }) {
-  return signedRequest({
+  return signedCaptureLifecycleRequest({
     path: `${lifecyclePath(params.captureSessionId, params.intakeId)}/external-revocation-evidence`,
     method: "POST",
     body: {
@@ -221,7 +221,7 @@ export function inspectCompletedCaptureLifecycleInPipeline(params: {
   captureSessionId: string;
   intakeId: string;
 }) {
-  return signedRequest({
+  return signedCaptureLifecycleRequest({
     path: `${lifecyclePath(params.captureSessionId, params.intakeId)}/lifecycle`,
     method: "GET",
     schema: inspectionSchema,

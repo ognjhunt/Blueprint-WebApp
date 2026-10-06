@@ -4,11 +4,13 @@ import express from "express";
 import { createServer } from "node:http";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";
+import vector from "./fixtures/website-context-vector.json";
 
 const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null, persisted: [] as Record<string, unknown>[] }));
-vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async () => state.brief }));
+vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async () => state.brief, TASK_BRIEFS_COLLECTION: "siteTaskBriefs" }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: { firestore: { FieldValue: { serverTimestamp: () => "server-time" } } }, dbAdmin: {
-  collection: () => ({ doc: () => ({ set: async (value: Record<string, unknown>) => { state.persisted.push(value); }, get: async () => ({ exists: true, data: () => ({ request: { consent_attestation: state.consent }, notification_request_id: "req1" }) }) }) }),
+  runTransaction: async (callback: any) => callback({ get: (ref: any) => ref.get(), set: (ref: any, value: any) => ref.set(value) }),
+  collection: (name: string) => ({ doc: () => ({ set: async (value: Record<string, unknown>) => { state.persisted.push(value); }, get: async () => ({ exists: name !== "siteTaskItemInventories", data: () => name === "siteTaskItemInventories" ? undefined : name === "siteTaskBriefs" ? state.brief : ({ request: { consent_attestation: state.consent }, notification_request_id: "req1" }) }) }) }),
 } }));
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
@@ -34,6 +36,25 @@ it("binds task content and confirmation without disclosing owner identity", () =
   expect(confirmed.context_digest).not.toBe(draft.context_digest);
   expect(confirmed.operator_answers).toEqual({ item_rigidity: "rigid" });
   expect(JSON.stringify(confirmed)).not.toContain("private owner identity");
+});
+
+it("exports the exact cross-runtime synthetic owner evidence vector", () => {
+  expect(projectWebsiteTaskContext(vector.brief as unknown as SiteTaskBriefRecord, vector.rights as any,
+    { inventory: vector.inventory as any })).toEqual(vector.context);
+  expect(JSON.stringify(vector.context)).not.toContain("synthetic-private-owner");
+});
+
+it("retains verbatim owner item statements, units, unknown targets and their provenance", () => {
+  const source = { ...brief(true), operatorTaskDetails: { item_weight: "about 5 lb (not weighed)", item_make_model: "ACME X2" },
+    successCriteria: { successDefinition: "Carton arrives intact", successRate: 95, cycleTimeSeconds: null, unknown: false } };
+  const projected = projectWebsiteTaskContext(source) as Record<string, any>;
+  expect(projected.operator_task_details).toEqual(source.operatorTaskDetails);
+  expect(projected.success_criteria).toEqual(source.successCriteria);
+  expect(projected.task_evidence_provenance.item_details).toBe("owner_stated_unverified");
+  expect(projected.task_evidence_provenance.success_rate_unit).toBe("percent");
+  expect(projected.task_evidence_provenance.cycle_time_unit).toBe("seconds");
+  expect(projected.context_digest).not.toBe(projectWebsiteTaskContext(brief(true)).context_digest);
+  expect(projected).not.toHaveProperty("mass_kg");
 });
 
 it("reads confirmation after upload and rejects unsigned or mismatched capture requests", async () => {
@@ -131,6 +152,8 @@ it("stores the Pipeline's execution offer only for the signed, matching capture"
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
   try {
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer() })).status).toBe(409);
+    state.consent = grant;
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer() })).status).toBe(200);
     expect(state.persisted.at(-1)).toMatchObject({ agent_execution_offer: { scenario_id: "capture_observed", episode_count: 50 } });
 

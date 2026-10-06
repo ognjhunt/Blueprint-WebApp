@@ -592,6 +592,7 @@ describe("saved footage and processing are separate receipts", () => {
     writeFault.manifestOnce = true;
     await withRoutes(async baseUrl => {
       expect((await uploadFor(baseUrl, "req-retry-withdrawal", "original")).status).toBe(502);
+      await waitForUploadRelease("req-retry-withdrawal");
       const before = [...storedVersions.keys()];
       const transaction = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
       const withdrawal = vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementation(async callback => {

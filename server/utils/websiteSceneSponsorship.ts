@@ -8,6 +8,21 @@ import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
+import type { TaskItemInventoryRecord } from "./taskItemInventory";
+import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
+
+function continuationAuthority(authority: Record<string, any>, input: {
+  brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
+  captureId?: string; captureBinding?: Record<string, any>;
+}) {
+  if (!input.captureBinding) return authority;
+  const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {
+    inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding });
+  const { authority_digest: parentDigest, ...retained } = authority;
+  const value = { ...retained, capture_id: context.capture_id, task_context_digest: context.context_digest,
+    continuation_parent_authority_digest: parentDigest };
+  return { ...value, authority_digest: digest(value) };
+}
 
 const money = z.number().finite().positive().max(1000);
 const policySchema = z.object({
@@ -88,11 +103,12 @@ function developmentTestSiteAuthorized(record: Record<string, any>, contextDiges
 
 export function websiteSceneSponsorship(input: {
   requestId: string; brief: SiteTaskBriefRecord; record: Record<string, any>; now: number;
+  inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, any>;
 }) {
   const configured = policy();
   const rights = projectWebsiteCaptureRights(input.record);
   if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
-  const context = projectWebsiteTaskContext(input.brief, rights);
+  const context = projectWebsiteTaskContext(input.brief, rights, { inventory: input.inventory });
   if (!context.confirmed) throw new Error("website_task_context_not_confirmed");
   const managedConsent = input.record.request?.sol_agents_api_consent;
   const managedAgents = managedConsent !== undefined && managedConsent !== null;
@@ -123,7 +139,7 @@ export function websiteSceneSponsorship(input: {
       || previous.request_id !== input.requestId || previous.task_context_digest !== context.context_digest)
       throw new Error("website_scene_sponsorship_changed");
     if (previous.expires_at_epoch <= input.now) throw new Error("consent_expired");
-    return previous;
+    return continuationAuthority(previous, input);
   }
   // Blueprint pays for a scene only when our own screen says the site clears:
   // a `not_now` site is blocked by an answer only the site can change, and a
@@ -177,25 +193,30 @@ export function websiteSceneSponsorship(input: {
       task_confirmed: true, spend_authorized: true,
     },
   };
-  return { ...value, authority_digest: digest(value) };
+  return continuationAuthority({ ...value, authority_digest: digest(value) }, input);
 }
 
 /** One retained grant per upload. Replays never renew its clock or its budget. */
-export async function loadWebsiteSceneSponsorship(requestId: string, create = false) {
+export async function loadWebsiteSceneSponsorship(requestId: string, create = false, captureId = `walkthrough-${requestId}`) {
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const store = db;
+  const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
   return storeTimeout(store.runTransaction(async transaction => {
     const ref = store.collection("inboundRequests").doc(requestId);
-    const [request, brief] = await Promise.all([
+    const [request, brief, inventory] = await Promise.all([
       transaction.get(ref), transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
+      transaction.get(store.collection("siteTaskItemInventories").doc(requestId)),
     ]);
     if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
+    await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
     if (!create && !record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
     const authority = websiteSceneSponsorship({ requestId, record,
-      brief: brief.data() as SiteTaskBriefRecord, now: Date.now() / 1000 });
+      brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      now: Date.now() / 1000 });
     if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority });
-    return authority;
+    return continuationAuthority(authority, { brief: brief.data() as SiteTaskBriefRecord, record,
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, captureId, captureBinding });
   }));
 }
 
@@ -413,20 +434,25 @@ export async function amendWebsitePreparationRequestLimit(
 }
 
 /** Reserve the full quote once; retries never replenish the preparation cap. */
-export async function reserveWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSpendRequest>) {
+export async function reserveWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSpendRequest>,
+  captureId = `walkthrough-${requestId}`) {
   const command = preparationSpendRequest.parse(input);
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const store = db;
+  const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
   return storeTimeout(store.runTransaction(async transaction => {
     const ref = store.collection("inboundRequests").doc(requestId);
-    const [request, brief] = await Promise.all([
+    const [request, brief, inventory] = await Promise.all([
       transaction.get(ref), transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
+      transaction.get(store.collection("siteTaskItemInventories").doc(requestId)),
     ]);
     if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
+    await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
     if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
     const authority = websiteSceneSponsorship({ requestId, record,
-      brief: brief.data() as SiteTaskBriefRecord, now: Date.now() / 1000 });
+      brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      captureId, captureBinding, now: Date.now() / 1000 });
     if (command.task_context_digest !== authority.task_context_digest)
       throw new Error("website_scene_sponsorship_binding_invalid");
     if (sceneProviderTerms()[command.provider]?.digest !== authority.consent.provider_terms_reference)
@@ -443,8 +469,10 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const micros = (amount: number) => Math.ceil(amount * 1_000_000);
     const reserved = previous.reduce((sum, row) => sum + micros(row.settlement?.actual_cost_usd ?? row.admission.maximum_cost_usd), 0);
     const attempts = previous.reduce((sum, row) => sum + row.admission.request_count, 0);
-    if (reserved + micros(command.maximum_cost_usd) > Math.floor(preparationSpendLimit(record, authority) * 1_000_000)
-        || attempts + command.request_count > preparationRequestLimit(record, authority))
+    // Amendments and reservations belong to the original retained allowance.
+    const rootAuthority = record.website_scene_sponsorship;
+    if (reserved + micros(command.maximum_cost_usd) > Math.floor(preparationSpendLimit(record, rootAuthority) * 1_000_000)
+        || attempts + command.request_count > preparationRequestLimit(record, rootAuthority))
       throw new Error("website_scene_preparation_budget_exhausted");
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
       blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,

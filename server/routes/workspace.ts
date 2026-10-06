@@ -1283,7 +1283,8 @@ router.post("/tasks/:taskId/recording-consent/withdraw", handle(async (req, res)
     const withdrawal = { state: "uploads_stopped_cleanup_pending", requestedAtIso: new Date().toISOString(),
       requestedBy: caller.uid, requestId: req.params.taskId,
       sceneId: `site-${req.params.taskId}`, captureId: `walkthrough-${req.params.taskId}`,
-      deletionConfirmed: false, pipelineAcknowledged: false };
+      deletionConfirmed: false, pipelineAcknowledged: false, localCleanupVerified: false,
+      providerAcknowledgement: "unknown", retainedAuditRecords: true };
     transaction.set(ref, { consent_revoked: true, future_processing_allowed: false,
       request: { consent_attestation: { granted: false, revoked_at_iso: withdrawal.requestedAtIso } },
       workspace_task: { paused: true }, briefReviewPending: false,

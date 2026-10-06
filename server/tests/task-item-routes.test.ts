@@ -15,6 +15,7 @@ import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
 /** Records every object saved to storage, so tests can assert bytes landed. */
 const savedObjects: { path: string; bytes: number }[] = [];
+const storageEvents = { afterWrite: undefined as (() => void) | undefined };
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -22,6 +23,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const storageAdmin = {
     bucket: () => ({
       file: (path: string) => ({
+        get metadata() { return { name: path, generation: "1", size: String(savedObjects.filter(row => row.path === path).at(-1)?.bytes ?? 0), crc32c: "AAAAAA==" }; },
+        getMetadata: async () => [{ generation: "1", size: String(savedObjects.filter(row => row.path === path).at(-1)?.bytes ?? 0), crc32c: "AAAAAA==" }],
         save: async (buffer: Buffer) => {
           savedObjects.push({ path, bytes: buffer.length });
         },
@@ -36,6 +39,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
             },
             final(callback) {
               savedObjects.push({ path, bytes: Buffer.concat(chunks).length });
+              storageEvents.afterWrite?.();
               callback();
             },
           });
@@ -84,6 +88,7 @@ let baseUrl: string;
 beforeEach(async () => {
   sharedFakeFirestoreState.docs.clear();
   savedObjects.length = 0;
+  storageEvents.afterWrite = undefined;
   const app = express();
   app.use(express.json());
   app.use("/api/site-task-brief", briefRouter);
@@ -95,7 +100,7 @@ beforeEach(async () => {
 
   sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
     requestId: "req-1",
-    request: { buyerType: "site_operator", capture_mode: "self_capture", capture_region: "us" },
+    request: { buyerType: "site_operator", capture_mode: "self_capture", capture_region: "us", consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-06T00:00:00Z" } },
     contact: { email: "ops@acme.example", firstName: "Dana" },
   });
   await saveBrief(
@@ -109,6 +114,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
@@ -195,6 +201,27 @@ describe("photographing an item is capture, so a film link may do it", () => {
       last = (await response.json()) as typeof last;
     }
     expect(last!.items.find((i) => i.itemId === itemId)?.coverageStatus).toBe("covered");
+  });
+
+  it("returns a typed late-withdrawal refusal after storage without attaching orphaned bytes", async () => {
+    const itemId = await firstItemId();
+    storageEvents.afterWrite = () => { (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as any).consent_revoked = true; };
+    const response = await fetch(itemImage(token("film"), itemId), { method: "POST", body: imageForm(), signal: AbortSignal.timeout(1500) });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "source_revoked", uploaded_bytes_retained_for_cleanup: true, deletion_confirmed: false });
+    expect(savedObjects).toHaveLength(1);
+    const inventory = sharedFakeFirestoreState.docs.get("siteTaskItemInventories/req-1") as any;
+    expect(inventory.items.find((item: any) => item.itemId === itemId).images).toEqual([]);
+  });
+
+  it.each(["read", "write"])("returns availability failure for inventory %s instead of rejecting the Express handler", async phase => {
+    const itemId = await firstItemId();
+    const inventory = await import("../utils/taskItemInventory");
+    vi.spyOn(inventory, phase === "read" ? "getItemInventory" : "recordItemImage").mockRejectedValueOnce(new Error("synthetic unavailable"));
+    const response = await fetch(itemImage(token("film"), itemId), { method: "POST", body: imageForm(), signal: AbortSignal.timeout(1500) });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "item_image_inventory_unavailable", uploaded_bytes_retained_for_cleanup: phase === "write", deletion_confirmed: false });
+    expect(savedObjects).toHaveLength(phase === "write" ? 1 : 0);
   });
 
   it("refuses an image for an item nobody declared, before storing bytes", async () => {

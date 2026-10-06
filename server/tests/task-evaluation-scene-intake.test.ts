@@ -307,6 +307,24 @@ it("retains one Blueprint cap and expiry per upload and refuses changed, expired
   await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("not_configured");
 });
 
+it("derives a supplementary preparation binding without renewing the original allowance or expiry", async () => {
+  sponsoredCapture();
+  const root = await loadWebsiteSceneSponsorship("req1", true);
+  const record = store.rows.get("inboundRequests/req1");
+  const binding = { schema_version: "website_capture_continuation.v1", capture_id: "supplement-test",
+    original_capture_id: "walkthrough-req1", coordinate_frames_independent: true, lineage: [{ synthetic: true }] };
+  const value = websiteSceneSponsorship({ requestId: "req1", brief: store.rows.get("siteTaskBriefs/req1"), record,
+    now: root.consent.accepted_at_epoch + 10, captureId: "supplement-test", captureBinding: binding });
+  expect(value).toMatchObject({ capture_id: "supplement-test", continuation_parent_authority_digest: root.authority_digest,
+    expires_at_epoch: root.expires_at_epoch, upstream_max_spend_usd: root.upstream_max_spend_usd,
+    max_total_spend_usd: root.max_total_spend_usd, max_paid_attempts: root.max_paid_attempts });
+  expect(value.task_context_digest).not.toBe(root.task_context_digest);
+  expect(record.website_scene_sponsorship).toEqual(root);
+  expect(() => websiteSceneSponsorship({ requestId: "req1", brief: store.rows.get("siteTaskBriefs/req1"),
+    record: { ...record, consent_revoked: true }, now: root.consent.accepted_at_epoch + 10,
+    captureId: "supplement-test", captureBinding: binding })).toThrow("source_revoked");
+});
+
 it.each(["needs_conversation", "not_now", undefined])("funds no scene for a site our screen has not cleared (%s)", async (disposition) => {
   sponsoredCapture();
   store.rows.get("inboundRequests/req1").site_task_triage = disposition ? { disposition } : undefined;

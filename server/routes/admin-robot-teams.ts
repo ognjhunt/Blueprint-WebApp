@@ -10,6 +10,7 @@
  * guarantee if the person is named.
  */
 import { Router, type Request, type Response } from "express";
+import { randomUUID } from "node:crypto";
 
 import { HTTP_STATUS } from "../constants/http-status";
 import { logger } from "../logger";
@@ -84,7 +85,7 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
     if (!team || !RECOMMENDABLE_STATUSES.has(team.status)) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Recommend a registered team that has applied or is engaged." });
     }
-    const id = `rec_${Date.now().toString(36)}`;
+    const id = `rec_${randomUUID()}`;
     const ref = db.collection("inboundRequests").doc(requestId);
     const outcome = await db.runTransaction(async (transaction) => {
       const current = await transaction.get(ref);

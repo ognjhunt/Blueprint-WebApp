@@ -23,6 +23,7 @@ import { startAdpManagedRunWorker } from "./agents/adp-managed-runs";
 import { startCompanyPolicyCandidateOutboxWorker } from "./utils/companyPolicyCandidateOutboxWorker";
 import { startDailyResearchWorker } from "./utils/dailyResearchWorker";
 import { startCommunicationsWorker } from "./agents/communications-worker";
+import { startWebsiteCaptureWithdrawalWorker } from "./utils/websiteCaptureWithdrawal";
 
 const launchForwardOnly = () =>
   ["1", "true", "yes", "on"].includes(
@@ -60,6 +61,7 @@ export function startWorker(): WorkerHandle {
   const stopCompanyPolicyCandidateOutbox = startCompanyPolicyCandidateOutboxWorker();
   const researchWorker = startDailyResearchWorker();
   const stopCommunicationsWorker = startCommunicationsWorker();
+  const stopWebsiteWithdrawals = startWebsiteCaptureWithdrawalWorker();
 
   let stopPromise: Promise<void> | undefined;
   const stop = () => {
@@ -69,6 +71,7 @@ export function startWorker(): WorkerHandle {
     stopTaskEvaluationLaunchForwarder();
     stopAdpManagedRuns();
     stopCompanyPolicyCandidateOutbox();
+    stopWebsiteWithdrawals();
     const communicationsStopped = stopCommunicationsWorker();
     stopScheduler();
     await Promise.all([researchWorker.stop(), communicationsStopped]);
