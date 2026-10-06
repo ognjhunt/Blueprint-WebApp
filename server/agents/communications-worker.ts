@@ -273,6 +273,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const recipientGeography = automatic ? firstContactGeography(provenance, brief, deps.now()) : null;
     const assemble = (output: CommunicationsOutput) => buildCommunicationsPayload(job, brief, thread, output, automatic, recipientGeography);
     const assertRepairAllowed = async () => {
+      if (hypothesis && !hypothesisDraftsEnabled()) throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
       // Repair cannot refresh or replace consequential context. The original
       // input, dates, lease and thread remain the correction boundary.
       if (leaseError) throw new CommunicationsRuntimeError("communications_lease_lost");
@@ -303,6 +304,8 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
         throw new Error("reply_thread_changed_requires_current_context");
       }
       if (current.lease.until <= deps.now() || claimed.lease.until <= deps.now()) throw new Error("communications_lease_lost");
+      // The flag may change while the async evidence/identity checks are in flight.
+      if (hypothesis && !hypothesisDraftsEnabled()) throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
     };
     const activeCheckpoint = effectiveCommunicationsCheckpoint(claimed.checkpoint);
     const expired = !continuation && !rejectedCreate && activeCheckpoint.createClaimedAt
@@ -352,6 +355,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
         return issues;
       },
     };
+    if (hypothesis && !hypothesisDraftsEnabled()) throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
     const result = phase ? await deps.api.continueCancelled!({ jobId, phase, assertWorkAllowed: assertRepairAllowed,
       validateOutput: runParams.validateOutput, savePhase: async value => {
         if (leaseError) throw new CommunicationsRuntimeError("communications_lease_lost");
@@ -414,6 +418,10 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     }
     const code = error instanceof CommunicationsRuntimeError ? error.code
       : error instanceof Error && /^[a-z_][a-z0-9_:,.-]*$/.test(error.message) ? error.message : "communications_context_or_permission_unavailable";
+    if (code === HYPOTHESIS_DRAFTS_DISABLED) {
+      await deps.store.deferHypothesisDraft(jobId, code);
+      return { state: "queued", reason: code, sent: false };
+    }
     const retry = !continuation && error instanceof CommunicationsRuntimeError && error.retryable && claimed.attempts < 3;
     if (retry) await deps.store.update(jobId, { state: "retry", reason: code, nextAttemptAt: deps.now() + claimed.attempts * 15000 });
     else await deps.store.finish(job, "blocked", code);

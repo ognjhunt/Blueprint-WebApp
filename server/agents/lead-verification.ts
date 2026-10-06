@@ -586,8 +586,9 @@ function outreachGates(result: any, candidate: any, index: EvidenceIndex, confli
     identity_present: !!result.identity_key, duplicate: !!result.duplicate_of || (!!object(check) && check.duplicate === true),
     conflict, valid_until: Object.hasOwn(assessment, "valid_until") ? assessment.valid_until : null, states, facts,
     facility: facilityGates(assessment, indexed, index), task: candidate?.task, site: candidate?.site,
-    // v1.2: the question's city, and its automation evidence (a contradicted counterevidence).
-    location: candidate?.location, partial_automation: states.counterevidence === "contradicted" };
+    // Counterevidence may refer to another task/site. The assessment has no validated exact
+    // task/site partial-automation scope, so new questions must keep that premise open.
+    location: candidate?.location, partial_automation: false };
 }
 /** Python verification.open_checks, in rule order. */
 export function outreachOpenChecks(states: Record<string, unknown>, validUntil: unknown) {

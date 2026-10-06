@@ -215,7 +215,7 @@ describe("outreach-ready tier mirror of blueprint.outreach-ready-rule.v1.2 and v
       if ("retained" in item) expect([...new Set(caseEvidence(item).pages.map((page: any) => page.url))].sort()).toEqual(item.expected_credited_urls);
     });
   it("covers every template of each rule and the named Pipeline probes under both", () => {
-    for (const [rule, letters] of [[LEGACY_OUTREACH_RULE_VERSION, ["A", "M", "S"]], [OUTREACH_RULE_VERSION, ["A", "M", "S", "U"]]] as const) {
+    for (const [rule, letters] of [[LEGACY_OUTREACH_RULE_VERSION, ["A", "M", "S"]], [OUTREACH_RULE_VERSION, ["M", "S", "U"]]] as const) {
       const cases = tierCases().filter(item => item.rule_version === rule), names = new Set(cases.map(item => item.name));
       for (const name of ["closed_site", "vendor_only_automation_evidence", "expired_assessment", "findall_citation_excerpt", "paraphrased_task_quote",
         "conflicting_duplicates", "verified_full_proof_path", "company_level_task_inference", "company_level_task_marked_verified",
@@ -271,7 +271,7 @@ describe("outreach-ready tier mirror of blueprint.outreach-ready-rule.v1.2 and v
     expect(result.outreach_ready.blockers).toContain(blocker);
     expect(result.outreach_ready.open_questions).toEqual([]);
   });
-  it("lets a contradicted counterevidence change the question (U to A), never the eligibility; a contradicted workflow blocks", () => {
+  it("keeps automation elsewhere neutral and eligible; a contradicted workflow blocks", () => {
     const item = tierCases()[0], claims = item.assessments["golden-1"].claims;
     expect(item.rule_version).toBe(OUTREACH_RULE_VERSION);
     Object.assign(claims.human_workflow, { status: "verified_fact", source_refs: ["S2"] });
@@ -280,7 +280,7 @@ describe("outreach-ready tier mirror of blueprint.outreach-ready-rule.v1.2 and v
       "Is any of manual case picking for outbound orders at your Testville site automated today, or is it all done by hand?"]);
     Object.assign(item.assessments["golden-1"].counterevidence, { status: "contradicted", reason: "Synthetic partial automation elsewhere" });
     expect(tiered(item).results[0]).toMatchObject({ tier: "outreach_ready", outreach_ready: { blockers: [], open_questions: [
-      "What has kept the rest of manual case picking for outbound orders at your Testville site from being automated so far?"] } });
+      "Is any of manual case picking for outbound orders at your Testville site automated today, or is it all done by hand?"] } });
     claims.human_workflow.status = "contradicted";
     expect(tiered(item).results[0].outreach_ready.blockers).toEqual(["human_workflow_contradicted"]);
   });

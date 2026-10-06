@@ -193,8 +193,15 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
     if (!new RegExp(`^(?:hi|hello|dear|hey|good (?:morning|afternoon|evening))\\s+(?:(?:mr|ms|mrs|mx|dr)\\.?\\s+)?(?:${names})(?![\\p{L}\\p{N}])`, "iu")
       .test(draft.body.trim())) blockers.push("hypothesis_recipient_greeting_mismatch");
   } else if (recipient?.kind === "inbox" && typeof recipient.addressee === "string") {
-    // Addressed in the opening paragraph to whoever runs the task; no one is named anywhere.
-    if (!opener.includes(recipient.addressee) || (typeof recipient.person?.name === "string" && namedIn(draft.body, recipient.person.name))) {
+    // A role inbox keeps a generic salutation even when the research knows a person's name.
+    // Checking only the full name misses first names, surnames, honorifics and invented recipients.
+    const salutation = /^(?:hi|hello|dear|hey|good (?:morning|afternoon|evening))(?:\s+([^,\n!?]+))?/iu.exec(opener);
+    const bareAddress = /^([^,\n!?]{1,80}),\s+(?:I\b|I'm\b|I’m\b|we\b|we're\b|we’re\b)/iu.exec(opener);
+    const addressed = (salutation ? salutation[1] : bareAddress?.[1])?.trim().replace(/[.:;]+$/, "") ?? "";
+    const generic = !addressed || /^(?:team|everyone|all|there|folks|(?:operations|plant|site|office|business|engineering|manufacturing|production) team)$/iu.test(addressed)
+      || addressed.toLowerCase() === recipient.addressee.toLowerCase() || /^i(?:['’]m| am)\b/iu.test(addressed);
+    if (!opener.includes(recipient.addressee) || !generic
+      || (typeof recipient.person?.name === "string" && namedIn(draft.body, recipient.person.name))) {
       blockers.push("hypothesis_recipient_greeting_mismatch");
     }
   } else blockers.push("hypothesis_recipient_greeting_mismatch");

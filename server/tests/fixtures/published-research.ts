@@ -200,7 +200,7 @@ export function publishedResearchFixture(options: { unknowns?: string[]; taskCla
     ...(assessment.valid_until === null ? ["freshness"] : []), "existing_automation", "fit", "interest"];
   const entries = hypothesis ? [{ candidate: structuredClone(hypothesis), open_checks: openChecks(hypothesisAssessment),
     open_questions: [outreachReadyQuestion(openChecks(hypothesisAssessment), hypothesis.task, hypothesis.site, { location: hypothesis.location,
-      partialAutomation: hypothesisAssessment.counterevidence?.status === "contradicted", ruleVersion })] }] : [];
+      partialAutomation: false, ruleVersion })] }] : [];
   // The whole cohort's v3 results, recomputed from the retained tool results as Pipeline review does.
   const tierEvidence = hypothesis && options.retainedTier ? retainedOutreachEvidence(row, name => {
     const key = name.slice(row.date.length + 1, -5), files = snapshot.files as Record<string, string>;

@@ -237,6 +237,18 @@ describe("blueprint.outreach.v2 for outreach-ready hypothesis drafts (synthetic)
       sourceUrl: "https://hypothesis-operator.example/team" }; value.body = value.body.replace(`Hello, I'm hoping this reaches ${ADDRESSEE}.`, "Hi Synthetic,"); });
     expect(reviewOutreachDraft(named)).toMatchObject({ hardChecksPassed: true });
   });
+  it.each(["Hello Jane,", "Dear Ms. Doe,", "Hi Casey,", "Good morning Dr. Casey,", "Jane,", "Casey,"])("refuses a named inbox salutation even with the correct role addressee: %s", greeting => {
+    const value = draft();
+    value.recipient.person = { name: "Jane Doe", role: "Manager", sourceUrl: "https://hypothesis-operator.example/team" };
+    value.body = value.body.replace("Hello,", greeting);
+    expect(reviewOutreachDraft(value)).toMatchObject({ hardChecksPassed: false, blockers: expect.arrayContaining(["hypothesis_recipient_greeting_mismatch"]) });
+    value.recipient.person = null;
+    expect(reviewOutreachDraft(value).hardChecksPassed).toBe(false);
+  });
+  it("accepts a generic team salutation for the role inbox", () => {
+    const value = draft(); value.body = value.body.replace("Hello,", "Hello team,");
+    expect(reviewOutreachDraft(value).hardChecksPassed).toBe(true);
+  });
   it.each<[string, (value: any) => void, string]>([
     ["a question that is not the published one", value => { value.contract.questions[0].question = "Is sorting returned parcels still done by hand?";
       value.body = value.body.replace(QUESTION, "Is sorting returned parcels still done by hand?"); }, "hypothesis_question_not_published"],

@@ -191,6 +191,20 @@ describe("outreach-ready hypothesis admission for drafting (offline, synthetic)"
     for (const name of ["briefs", "jobs", "contactProofs"]) expect(f.records(name)).toHaveLength(0);
   });
 
+  it("returns a claimed hypothesis contact request to wait when the flag turns off during a failed page read", async () => {
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const f = setup();
+    await admitPublishedHypothesis(f.snapshot, f.hypothesis.candidate_key, f.deps);
+    f.deps.readContactPage.mockImplementation(async () => {
+      vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+      throw new Error("contact_resolution_missing_or_ambiguous");
+    });
+    const requestContactResearch = vi.fn(async () => true);
+    await runCommunicationsContactRefresh({ ...f.deps, requestContactResearch });
+    expect(requestContactResearch).not.toHaveBeenCalled();
+    expect(f.records("refreshRequests")).toEqual([expect.objectContaining({ state: "pending", attempts: 0, lease: expect.objectContaining({ until: 0 }) })]);
+    expect(f.records("jobs")).toHaveLength(0);
+  });
   it("admits the verified row on the same day byte for byte whether hypothesis drafts are on or off", async () => {
     const run = async (enabled: boolean) => {
       vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, enabled ? "true" : "false");

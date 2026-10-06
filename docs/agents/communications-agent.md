@@ -424,7 +424,8 @@ gives a hypothesis one draft job only when every check holds:
   so a row is never re-worded: a v1.1 row keeps v1.1 wording and a v1.2 row has
   v1.2 wording (`outreach-ready-question.ts`, a copy of Pipeline's
   `outreach_question`: the task with an ordinary leading capital lower-cased,
-  "your <City> site", and template U when no automation is shown);
+  "your <City> site", and template U when exact-task/site partial automation is
+  unknown; counterevidence about other tasks/sites cannot establish that premise);
 - the assessment is unexpired and its proven facts are at most 7 days old;
 - no canonical prospect already holds the same Sheets row, operator, site and
   task, or contact address, and no verified row covers it;

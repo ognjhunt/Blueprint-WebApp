@@ -1,8 +1,9 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest } from "../agents/communications-contract";
-import { communicationsFixture } from "./fixtures/communications";
+import { communicationsFixture, memoryFirestore } from "./fixtures/communications";
+import { reserveCommunicationsDraft } from "../agents/communications-draft-budget";
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
 import { communicationsHypothesisConfiguration, communicationsHypothesisDefinition, COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION,
   COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION, COMMUNICATIONS_GMAIL_READ_DEFINITION, COMMUNICATIONS_HISTORY_DEFINITION,
@@ -11,6 +12,7 @@ import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
   COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } from "../agents/communications-saved-agent";
 
 import { hydrateAgentEvidence } from "../agents/private-evidence";
+import { HYPOTHESIS_DRAFTS_FLAG } from "../agents/communications-hypothesis-controls";
 const httpStorage = vi.hoisted(() => ({ enabled: false, fail: false, objects: new Map<string, string>() }));
 vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => httpStorage.enabled ? {
   bucketName: "mock-private-http-evidence",
@@ -890,6 +892,8 @@ describe("new-session bounded communications final repair", () => {
 });
 
 describe("outreach-ready hypothesis session definitions (hypothesis jobs only)", () => {
+  beforeEach(() => { vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true"); });
+  afterEach(() => { vi.unstubAllEnvs(); });
   const hypothesisCheckpoint = () => ({ createClaimedAt: null, sessionId: null, turnId: null, draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE });
   /** Replace what the provider reports for the created session's agent instructions. */
   const reportInstructions = (f: ReturnType<typeof apiFixture>, rewrite: (instructions: string) => string) => {
@@ -901,6 +905,80 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
       return Response.json({ ...session, agent: { ...session.agent, instructions: rewrite(session.agent.instructions) } });
     });
   };
+  it("refuses a hypothesis reservation and create when the flag turns off during preflight", async () => {
+    const f = apiFixture(), original = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const result = await original(url, init);
+      if (String(url).endsWith(`/agents/${COMMUNICATIONS_SAVED_AGENT_ID}`)) vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+      return result;
+    });
+    await expect(f.api.run({ ...f.params, checkpoint: hypothesisCheckpoint() as any })).rejects.toMatchObject({ code: "hypothesis_drafts_disabled" });
+    expect(f.reservePaidDraft).not.toHaveBeenCalled();
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+  });
+  it("keeps a pre-POST create claim when the flag turns off during checkpoint persistence, without a provider POST", async () => {
+    const f = apiFixture();
+    await expect(f.api.run({ ...f.params, checkpoint: hypothesisCheckpoint() as any, saveCheckpoint: async checkpoint => {
+      await f.params.saveCheckpoint(checkpoint);
+      vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+    } })).rejects.toMatchObject({ code: "hypothesis_drafts_disabled" });
+    expect(f.reservePaidDraft).toHaveBeenCalledOnce();
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+    expect(f.checkpoints.at(-1)).toMatchObject({ createClaimedAt: expect.any(String), sessionId: null,
+      hypothesisCreateSubmission: { state: "not_submitted", requestDigest: expect.any(String), inputDigest: communicationsDigest({ input: f.params.input }) } });
+  });
+  it.each(["reservation", "claim_persisted"] as const)("resumes the exact held budget admission after the flag turns off during %s", async pauseAt => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "1");
+    const f = apiFixture(), db = memoryFirestore();
+    let paused = false, stored: any;
+    const reserve = vi.fn(async (jobId: string, digest: string) => {
+      await reserveCommunicationsDraft(db, jobId, digest, Date.now());
+      if (!paused && pauseAt === "reservation") { paused = true; vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false"); }
+    });
+    const saveCheckpoint = async (checkpoint: any) => {
+      stored = structuredClone(checkpoint);
+      if (!paused && pauseAt === "claim_persisted" && checkpoint.hypothesisCreateSubmission?.state === "claimed") {
+        paused = true; vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+      }
+    };
+    const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true,
+      fetch: f.fetchMock as any, reservePaidDraft: reserve, recordPaidDraftUsage: f.recordPaidDraftUsage });
+    await expect(api.run({ ...f.params, checkpoint: hypothesisCheckpoint() as any, saveCheckpoint }))
+      .rejects.toMatchObject({ code: "hypothesis_drafts_disabled" });
+    expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
+    expect(stored.hypothesisCreateSubmission).toMatchObject({ state: "not_submitted", requestDigest: stored.requestDigest,
+      inputDigest: communicationsDigest({ input: f.params.input }) });
+    const digest = stored.requestDigest;
+    const admissions = () => [...db.records.entries()].filter(([path]: any) => path.includes("/draftBudgetAdmissions/"));
+    expect(admissions()).toHaveLength(1);
+    expect(admissions()[0][1]).toMatchObject({ jobId: f.params.jobId, requestDigest: digest, state: "reserved" });
+    await expect(api.run({ ...f.params, input: "changed synthetic context", checkpoint: structuredClone(stored), saveCheckpoint }))
+      .rejects.toMatchObject({ code: "session_create_requires_reconciliation" });
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    const result = await api.run({ ...f.params, checkpoint: structuredClone(stored), saveCheckpoint });
+    expect(result.checkpoint.sessionId).toBe("session-1");
+    expect(reserve.mock.calls.map(([, requestDigest]) => requestDigest)).toEqual([digest, digest]);
+    expect(admissions()).toHaveLength(1);
+    expect([...db.records.entries()].filter(([path]: any) => path.includes("/draftBudgetDays/"))[0][1].admissions).toBe(1);
+    expect(f.calls.filter(call => call.init.method === "POST" && call.path.endsWith("/agents/sessions"))).toHaveLength(1);
+  });
+  it("does not resubmit a claimed hypothesis create after an unknown provider acknowledgment", async () => {
+    const f = apiFixture(), baseline = f.fetchMock.getMockImplementation()!;
+    let creates = 0, stored: any;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      if (init.method === "POST" && String(url).endsWith("/agents/sessions")) { creates++; throw new Error("synthetic unknown acknowledgment"); }
+      return baseline(url, init);
+    });
+    const saveCheckpoint = async (checkpoint: any) => { stored = structuredClone(checkpoint); };
+    await expect(f.api.run({ ...f.params, checkpoint: hypothesisCheckpoint() as any, saveCheckpoint })).rejects.toThrow();
+    expect(stored.hypothesisCreateSubmission.state).toBe("claimed");
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "false");
+    vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
+    await expect(f.api.run({ ...f.params, checkpoint: stored, saveCheckpoint }))
+      .rejects.toMatchObject({ code: "session_create_requires_reconciliation" });
+    expect(creates).toBe(1);
+    expect(f.reservePaidDraft).toHaveBeenCalledOnce();
+  });
   it("creates a hypothesis session with today's history definition plus one paragraph, and reads it back", async () => {
     const f = apiFixture();
     const result = await f.api.run({ ...f.params, checkpoint: hypothesisCheckpoint() as any });
