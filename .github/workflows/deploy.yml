@@ -329,6 +329,36 @@ jobs:
             exit 1
           fi
 
+      - name: Checkout the exact verified deployment for runtime readback
+        if: steps.ref.outputs.stale != 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ steps.ref.outputs.deploy_ref }}
+          persist-credentials: false
+
+      - name: Read back installed daily research runtime
+        if: steps.ref.outputs.stale != 'true'
+        env:
+          DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+        run: |
+          set -euo pipefail
+          evidence=/tmp/deploy-evidence/research-installed-runtime.json
+          # Older rollback commits predate this observer. Record that absence
+          # truthfully; a commit containing the observer must produce proof.
+          if [ ! -f server/utils/dailyResearchInstalledRuntime.ts ] || [ ! -f scripts/read-daily-research-runtime.mjs ]; then
+            printf '%s\n' '{"schema_version":"blueprint.daily-research-deploy-readback.v1","code":"research_readback_observer_unavailable_at_commit","proof":null}' > "${evidence}"
+            cat "${evidence}"
+          else
+            # The script emits only a validated aggregate or a stable blocker.
+            # Raw API responses, headers and log messages stay in memory.
+            status=0
+            node scripts/read-daily-research-runtime.mjs > "${evidence}" || status=$?
+            cat "${evidence}"
+            exit "${status}"
+          fi
+
       - name: Upload deployment evidence
         if: always() && steps.ref.outputs.stale != 'true'
         # The exact-SHA and readiness checks above remain required; artifact

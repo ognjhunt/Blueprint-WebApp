@@ -5,15 +5,18 @@ its existing daily-research worker hook. It supports source-backed site/task
 discovery for partner admission; packaging alone proves no live research,
 qualification, publication or deployment outcome.
 
-## Current reviewed repair package
+## Current reviewed research admission package
 
-The October 5 package pins reviewed Pipeline commit
-`dd2d404fbcd914f7c371849d31b8a86fcc8e84a2` (merges ognjhunt/BlueprintCapturePipeline#2594), whose lineage contains the previous
-package source `94c8fe3e1ebccc5cdd117b62188ffa88f4186d03`. Its
-1,320,960-byte archive SHA256 is
-`895f0259d2a13709ddf2ce0a2509c42cdfcab561ea7a5a8dc88bb7d66160bb00`,
-with 66 manifested source files. The manifest SHA256 is
-`3c3e56781ff71d97af06b60b1943d9bcf194b3899c8f31f17ec048389085a5d5`.
+The October 6 package pins reviewed Pipeline commit
+`3b7e0208cb7b2e269359c15175cf4a9cefb40da1` (ognjhunt/BlueprintCapturePipeline#2627),
+whose lineage contains reviewed screen admission from #2622, team qualification
+from #2626, wording and contact lookup from #2621 and #2624, and the previous package source
+`dd2d404fbcd914f7c371849d31b8a86fcc8e84a2`. Production release requires this
+exact source head to be merged and its required checks to pass. Its
+1,832,960-byte archive SHA256 is
+`9dd78488682ee3ecdf7336156a044aed79f2eb79f65a0395e3579a2f2abb60d2`,
+with 76 manifested source files. The manifest SHA256 is
+`984b30886fd8101e51e2a76f25ff8ff6ee963061415716326e83d353eb2b5ae3`.
 It keeps everything in the previous package (owner-directed paid expansion, optional
 FindAll list-building tools, the owner-adjustable run duration and broad enumeration) and adds:
 - an optional site-universe slice: when control holds an enabled, reviewed
@@ -25,6 +28,39 @@ FindAll list-building tools, the owner-adjustable run duration and broad enumera
 - refusals that end a FindAll-pinned row cleanly when its tool registry changes before QA or
   repair starts.
 This is a research-only controlled release from Pipeline `main`.
+
+The package adds the owner-operated screen-admission and FullEnrich contact
+receipt modules and the `Store.screenSnapshot` consumer contract. Screen
+admission rechecks retained host evidence, recipient provenance, the current CRM
+and idempotency before and under the research lease. An uncertain CRM write
+permits readback of its original operation rather than another append. Missing
+contacts can create research gaps with zero draft jobs. A contact failure
+notifies the research owner.
+
+Producer and consumer use outreach wording rule v1.2. Unknown automation stays
+unknown, role inboxes receive a generic greeting, and a paused hypothesis-draft
+flag prevents model spending, including work already awaiting preflight. Frozen
+older rows keep their admitted wording and request bytes. Installation changes
+neither paid authority nor activation; sending, automatic first contact and
+hypothesis drafting must be verified off during this release.
+
+An optional private robot-team evidence pin gives prospective daily agents a
+frozen input and the free `blueprint_read_team_evidence` reader. The input retains
+physical embodiment, supported tasks, control and integration offerings, site
+constraints and source provenance. Capability candidates, reference material
+and unresolved teams stay separate; source checks establish neither actual
+Blueprint evaluation compatibility nor partner willingness or commitment.
+Publication uses the existing private company bucket with a content-addressed
+object, immutable generation and exact-byte readback. The reviewed
+`operators/team-universe-evidence.py` operator changes only that pin under its
+own fenced lease, with idle checks before and under the lease and monotonic
+compare-and-set/readback. Source adoption and dataset adoption use separate
+lease ownership. Neither operation grants paid execution or outreach authority.
+An absent or disabled team pin preserves legacy payloads, rows and tools. A
+configured invalid, stale or unsupported input records a precise gap while
+ordinary research continues. Valid inputs advertise the reader only with the
+validated frozen attachment; resource fallback removes the file and reader
+together. Already charged sessions retain their original row-bound registry.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
 through a frozen, publication-bound input. At most three tasks join a daily
@@ -82,6 +118,17 @@ holds that drained state across deployment; time until the next scheduled wake
 alone is insufficient. The source-only compare-and-set preserves historical
 rows and every authority, flag, grant and saved instruction pin. Final readback
 must show installed manifest source equal to the company control source.
+The production communications worker claims
+`blueprintCommunications/default/intakeState/workerLap` in the same Firestore
+transaction that reads the canonical research-release lease. Its
+`blueprint.communications-worker-lap.v1` record retains `phase`, unique lease
+owner, monotonic lease generation and expiry. The 180-second lease renews every
+60 seconds during the active lap and shutdown drainage. A failed or pending
+renewal prevents later stage admission; existing in-flight work remains awaited.
+Only the matching owner and generation can record `phase: complete` with
+`lease.until: 0` after drainage. The release inventory reads this same document;
+active or uncertain evidence blocks release even after expiry. Scanner/job
+leases and the canonical research lease are separate records and are unchanged.
 Older frozen create payloads retain their admitted bindings; this release does
 not perform the separate managed-harness or contact-agent design migrations.
 
@@ -161,6 +208,32 @@ Build with `BLUEPRINT_DAILY_RESEARCH_PACKAGE_BUILD=true`. The existing
 `scripts/install-daily-research.py` verifies the archive, safe regular-file
 members, manifest and every source-file digest before extraction. Its default
 target is `dist/daily-research`; the release stays separate from the WebApp SDK.
+
+At worker startup, `blueprint.daily-research-installed-runtime.v1` logs an
+aggregate receipt after hashing the actual installed manifest and every regular
+source file, binding the manifest to the current vendored archive and receipt.
+It includes the source commit, actual validated `RENDER_GIT_COMMIT`, computed
+archive/manifest/files-map SHA256s, checked file count and `files_verified`, plus
+only the send, automatic-first-contact and hypothesis-draft flag booleans.
+Symlinks and byte/source mismatches produce a stable failure code. These checks
+are read only; existing flags and worker startup/shutdown behavior remain unchanged.
+
+After both existing Render deploy records are live at the exact requested commit,
+the normal deployment workflow checks out that commit and reads the worker's
+startup receipt through the [Render service](https://api-docs.render.com/reference/retrieve-service)
+and [filtered logs](https://api-docs.render.com/reference/list-logs) GET APIs.
+It compares the observed source, deployment commit and file hashes/count with
+freshly checked vendor bytes, retaining only the fixed aggregate in the existing
+deployment evidence artifact. Log pagination and lag polling are bounded to
+twelve requests and sixty seconds; missing access/proof or mismatched bytes
+produce stable blockers. The three flags are recorded as observed. Older rollback
+commits without this observer record unavailable proof. This readback adds no
+service action, flag change or activation authority.
+The success wrapper preserves the actual startup log timestamp separately from
+GET completion time and records the observed `not_suspended` service state.
+Release checks can measure the startup proof's age without refreshing that age
+when logs are retrieved; exact worker deploy identity remains in the existing
+deployment artifact.
 
 `BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED` defaults false. Replacing this package
 changes no existing flags or live controls. Installing source is separate from

@@ -22,6 +22,7 @@ import { startTaskEvaluationLaunchForwardWorker } from "./utils/taskEvaluationLa
 import { startAdpManagedRunWorker } from "./agents/adp-managed-runs";
 import { startCompanyPolicyCandidateOutboxWorker } from "./utils/companyPolicyCandidateOutboxWorker";
 import { startDailyResearchWorker } from "./utils/dailyResearchWorker";
+import { logDailyResearchInstalledRuntime } from "./utils/dailyResearchInstalledRuntime";
 import { startCommunicationsWorker } from "./agents/communications-worker";
 
 const launchForwardOnly = () =>
@@ -58,6 +59,7 @@ export function startWorker(): WorkerHandle {
   const stopTaskEvaluationLaunchForwarder = startTaskEvaluationLaunchForwardWorker();
   const stopAdpManagedRuns = startAdpManagedRunWorker();
   const stopCompanyPolicyCandidateOutbox = startCompanyPolicyCandidateOutboxWorker();
+  logDailyResearchInstalledRuntime();
   const researchWorker = startDailyResearchWorker();
   const stopCommunicationsWorker = startCommunicationsWorker();
 

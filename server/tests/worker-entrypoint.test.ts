@@ -21,6 +21,7 @@ const startCompanyPolicyCandidateOutboxWorker = vi.hoisted(() => vi.fn());
 const startCommunicationsWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
 const stopResearch = vi.hoisted(() => vi.fn(async () => {}));
 const startDailyResearchWorker = vi.hoisted(() => vi.fn(() => ({ stop: stopResearch })));
+const logDailyResearchInstalledRuntime = vi.hoisted(() => vi.fn());
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
 
 vi.mock("../utils/opsAutomationScheduler", () => ({ startOpsAutomationScheduler }));
@@ -34,6 +35,7 @@ vi.mock("../utils/companyPolicyCandidateOutboxWorker", () => ({
   startCompanyPolicyCandidateOutboxWorker,
 }));
 vi.mock("../utils/dailyResearchWorker", () => ({ startDailyResearchWorker }));
+vi.mock("../utils/dailyResearchInstalledRuntime", () => ({ logDailyResearchInstalledRuntime }));
 vi.mock("../config/env", () => ({ validateEnv }));
 vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -101,6 +103,8 @@ describe("worker entrypoint", () => {
     expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
     expect(startCommunicationsWorker).toHaveBeenCalledTimes(1);
     expect(startDailyResearchWorker).toHaveBeenCalledTimes(1);
+    expect(logDailyResearchInstalledRuntime).toHaveBeenCalledTimes(1);
+    expect(logDailyResearchInstalledRuntime.mock.invocationCallOrder[0]).toBeLessThan(startDailyResearchWorker.mock.invocationCallOrder[0]);
     expect(stopScheduler).not.toHaveBeenCalled();
 
     await handle.stop();
