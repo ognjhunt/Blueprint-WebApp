@@ -79,8 +79,10 @@ supported operator orphan-lap reconciliation function, route or script**.
 `reconcile-draft` recovers an existing model session and usage; Gmail writer
 reconciliation addresses a distinct copy attempt. Neither settles this lap.
 Do not clear/delete the document, invent its owner, reset flags or use TTL as
-authority. The release remains blocked until an evidence-backed reconciliation
-is reviewed and supported by the owner of the release protocol.
+authority. The installed release remains blocked until an evidence-backed
+reconciliation is reviewed and supported. The parent has now assigned the
+scoped operator companion to this implementation; its published source and
+sequence are in the [operator runbook](communications-incident-operator-runbook-20261006.md).
 
 ## Reviewed prospective repair
 
@@ -139,8 +141,11 @@ operator evidence must bind trusted process/fence receipts and complete remote
 effect readbacks, rather than accepting a string that asserts drainage. The
 atomic operation would preserve owner/generation, write a matching completion
 receipt and a private audit, reject changed evidence, and leave all other
-controls/history/accounting untouched. This companion belongs to the existing
-release-protocol owner. Installed code has no such orphan operation today.
+controls/history/accounting untouched. The parent assigned this operator
+companion to the outreach implementation. Independently reviewed source is
+published at `4ecd5ed59bbc8c20c59ceb093907792f5204cdec` and can run from a private
+reviewed checkout before deployment. Installed worker code still cannot
+automatically adopt this incident; operational evidence remains a separate gate.
 
 The cancelled research row cannot use installed `cleanup_completed`: that
 standing route requires a completed, QA-validated run, terminal publication and
@@ -151,4 +156,8 @@ direction, session and environment. It must reuse full export, immutable archive
 and generation/digest readback, recheck all turns and child work terminal, claim
 deletion idempotently, verify both resources absent, and retain cleanup/audit
 receipts. No new session, provider spend, credential or access change is needed.
-No live mutation, paid call or activation has been performed by this candidate.
+The reviewed action-time companion now reuses the published full export, exact
+SDK DELETE primitive and unchanged `Runner.record_cleanup` contract. Standing
+completed-run gates remain unchanged. See the linked operator runbook for
+separate archive, verify, one-time DELETE and observation modes. No live
+mutation, paid call or activation has been performed by this candidate.
