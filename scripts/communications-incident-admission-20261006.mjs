@@ -43,7 +43,7 @@ export function readRuntime(pid) {
     opsForwardOnly: environment[OPS_FORWARD_ONLY] ?? null,
     flags: Object.fromEntries(ADMISSION_FLAGS.map(key => [key, environment[key] ?? null])) };
 }
-export function inspectRuntime() {
+export function inspectRuntime(requireDisabledAdmission = true) {
   const collect = () => {
     const pids = readdirSync('/proc').filter(name => /^[0-9]+$/.test(name));
     if (pids.length > 10000) refuse('runtime_inventory_overflow');
@@ -61,7 +61,8 @@ export function inspectRuntime() {
   const runtime = readRuntime(before[0]);
   if (canonical(before) !== canonical(collect())) refuse('runtime_inventory_changed');
   if (runtime.sourceCommit !== ADMISSION_SOURCE || runtime.entrySha256 !== ADMISSION_ENTRY_SHA256
-    || !forwardOnly(runtime.opsForwardOnly) || ADMISSION_FLAGS.some(key => runtime.flags[key] !== 'false')) refuse('runtime_admission_not_closed');
+    || !forwardOnly(runtime.opsForwardOnly)
+    || (requireDisabledAdmission && ADMISSION_FLAGS.some(key => runtime.flags[key] !== 'false'))) refuse('runtime_admission_not_closed');
   return { ...runtime, rootInventoryComplete: true, runtimeRootCount: before.length };
 }
 export function checkAdmissionFence(service, authority, now) {
@@ -132,8 +133,8 @@ export function checkWebWriterFence(web, now) {
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    if (process.argv[2] !== 'inspect' || !process.argv[3]?.startsWith('/tmp/')) refuse('explicit_private_inspection_required');
-    const proof = inspectRuntime(); privateWrite(process.argv[3], proof);
-    console.log(JSON.stringify({ ok: true, readOnly: true, schema: proof.schema, proofSha256: sha(proof), rootCount: proof.runtimeRootCount }));
+    if (!['inspect', 'inspect-before-fence'].includes(process.argv[2]) || !process.argv[3]?.startsWith('/tmp/')) refuse('explicit_private_inspection_required');
+    const proof = inspectRuntime(process.argv[2] === 'inspect'); privateWrite(process.argv[3], proof);
+    console.log(JSON.stringify({ ok: true, readOnly: true, observation: process.argv[2], schema: proof.schema, proofSha256: sha(proof), rootCount: proof.runtimeRootCount }));
   } catch (error) { console.error(JSON.stringify({ ok: false, code: /^[a-z_]+$/.test(error.message) ? error.message : 'runtime_inspection_unavailable' })); process.exitCode = 2; }
 }
