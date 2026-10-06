@@ -153,7 +153,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      `No pilot, no fee. Sites submit a job and get it screened, evaluated and a recommended pilot for free, and pay Blueprint ${formatPrice(pilotFeeUsd)} per job only when they book the pilot Blueprint recommends. Blueprint selects the robot team; the site's one decision is whether to book. Blueprint takes no percentage of the pilot or any deployment. ${pilotReplacementPolicy} Robot teams evaluate invited jobs for free. The beta offers no private paid evaluations or balance top-ups.`,
+      `No pilot, no fee. Sites submit a job and get it screened, evaluated and a recommended pilot for free, and pay Blueprint ${formatPrice(pilotFeeUsd)} per job only when they book the pilot Blueprint recommends. Blueprint selects the robot team; the site's one decision is whether to book. Blueprint takes no percentage of the pilot or any deployment. ${pilotReplacementPolicy} Robot teams evaluate jobs free when invited. The beta offers no private paid evaluations or balance top-ups.`,
   },
   {
     path: "/contact",
