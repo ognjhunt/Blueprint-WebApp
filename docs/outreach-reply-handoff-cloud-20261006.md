@@ -53,9 +53,19 @@ stated task, desired outcome and timing start at `null`, meaning starts at
 `unknown`, and the next action is internal reply review. The authority object
 always denies spending, listing, recording, sharing and sending.
 
+The existing reply-intake worker also persists free preparation as
+`blueprint.reply-preparation.v1`: exact evidence and review-revision bindings,
+an owner task and a conditional single-question draft. Unreviewed fields are
+labelled `not_interpreted`, so the system does not pretend the recipient omitted
+information that may already be in the message. The conditional proposal requires
+review of continuation and the unanswered question before use. This consumer runs
+with paid processing off and never opens a model session, Gmail draft or ledger.
+
 Exact replay preserves an operator's review. New evidence reopens review without
 silently carrying earlier meaning forward; earlier attestations remain in the
-`reviews` subcollection. Durable suppression precedes opt-out admission. A late
+`reviews` subcollection and the latest reviewed task/outcome/timing stays visible
+as `priorReviewedContext`, explicitly historical and requiring reassessment.
+The current preparation is rebound to the new evidence. Durable suppression precedes opt-out admission. A late
 opt-out closes the handoff and prevents reopening it through the review endpoint.
 A missing canonical founder prospect produces a visible context-repair flag and
 retains the original bound context; it never invents a replacement prospect.
@@ -76,6 +86,16 @@ explicit commitment; none changes action authority. No need and negative meaning
 require `nextAction:"no_action"`. The remaining actions are internal review,
 context clarification or preparing a draft for separate review. A repeated
 identical operator review is idempotent; changed evidence yields a conflict.
+
+Authenticated evidence review automatically refreshes preparation: exploratory or
+explicit interest gets one role-appropriate question for the next unresolved
+task, desired outcome or timing field. Fully recorded details yield a bounded
+owner handoff. No need, negative meaning and opt-out yield no draft proposal;
+missing canonical context yields an internal repair task. The ordinary system
+reply writer also receives this persisted preparation. Founder reply jobs stay
+terminal `learning_only`; the private proposal never becomes a mailbox copy or
+send command. Meaning interpretation remains attributed owner work; automatic
+semantic extraction is not implemented or claimed.
 
 No mail or paid model call occurs in that route. The ordinary system-origin reply
 worker consumes the frozen handoff as untrusted evidence. An owner-reviewed
@@ -105,6 +125,14 @@ create/readback/replay using mocked provider ports. Coverage includes all four
 roles, closed-source/early-stage context, exploratory future interest, no need,
 negative meaning, unsupported readiness/hardware claims, missing context, stale
 review evidence, replay, late opt-out and existing paid/flag brakes.
+
+Independent review of `743eb689` found the missing preparation consumer,
+historical-context visibility and malformed-sibling isolation. Those findings
+are addressed by real intake/review persistence and scoped-history regressions.
+The Graphify dependency was resolved using the repository-documented isolated
+`graphifyy==0.9.73` environment and deterministic AST runner; no model tokens or
+runtime dependency were introduced. Canonical derived outputs are in ignored
+`graphify-out/`.
 
 No real Gmail drafts, messages, model calls, deployment, access changes or
 activation were performed. The release owner must obtain independent review,

@@ -277,6 +277,7 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
       // Exact replay retains the handoff and any owner's review byte-for-byte.
       if (!savedFollowup.exists || savedFollowup.data()?.evidenceDigest !== followup.evidenceDigest
         || followup.state === "opted_out" && savedFollowup.data()?.state !== "opted_out"
+        || !savedFollowup.data()?.preparation
         || savedFollowup.data()?.contextMissing !== canonicalMissing) tx.set(followupRef, followup);
     };
     if (claim.exists || previous.length) {

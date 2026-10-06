@@ -130,10 +130,12 @@ export async function loadCompanyHistory(db: FirebaseFirestore.Firestore, access
     try {
       const followups = await readQueryPages(db.collection("outboundProspects").doc(prospectId).collection("replyFollowups"));
       for (const row of followups) {
-        const value = verifyReplyFollowup(row.data());
-        if (value.prospectId !== prospectId || value.handoffId !== row.id || value.updatedAt > Date.parse(asOf)) continue;
-        records.push(record(row.ref.path, "reply_followup", value, { source_ref: row.ref.path,
-          source_document_sha256: digest(value), original_checked_at: value.originalObservedAt, task: value.taskHypothesis }));
+        try {
+          const value = verifyReplyFollowup(row.data());
+          if (value.prospectId !== prospectId || value.handoffId !== row.id || value.updatedAt > Date.parse(asOf)) continue;
+          records.push(record(row.ref.path, "reply_followup", value, { source_ref: row.ref.path,
+            source_document_sha256: digest(value), original_checked_at: value.originalObservedAt, task: value.taskHypothesis }));
+        } catch { diagnostics.push({ record_ref: row.ref.path, code: "reply_followup_history_record_invalid" }); }
       }
     } catch { diagnostics.push({ record_ref: `outboundProspects/${prospectId}/replyFollowups`, code: "reply_followup_history_unavailable" }); }
     try {
