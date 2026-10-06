@@ -12,7 +12,10 @@ const clone = (value: any) => value === undefined ? undefined : structuredClone(
  * This models the canonical-release race, rather than a serialized blind write. */
 function firestore() {
   const values = new Map<string, any>(), versions = new Map<string, number>(), writes: string[] = [], reads: string[][] = [];
-  let beforeCommit: (() => void) | undefined, unavailable = false, uncertainCommit = false;
+  let beforeCommit: (() => void) | undefined, unavailable = false;
+  let uncertainCommit: "lost_ack" | "retry_after_commit" | "late_commit" | undefined;
+  let afterUnknownCommit: (() => void) | undefined;
+  let delayedCommit: (() => void) | undefined;
   const put = (path: string, value: any) => { values.set(path, clone(value)); versions.set(path, (versions.get(path) ?? 0) + 1); };
   const doc = (path: string) => ({ path });
   const db = { doc, runTransaction: vi.fn(async (callback: any) => {
@@ -26,15 +29,21 @@ function firestore() {
       reads.push([...seen.keys()]);
       const race = beforeCommit; beforeCommit = undefined; race?.();
       if ([...seen].some(([path, version]) => (versions.get(path) ?? 0) !== version)) continue;
-      pending.forEach(([path, value]) => { put(path, value); writes.push(path); });
-      if (uncertainCommit) { uncertainCommit = false; throw new Error("SYNTHETIC_COMMIT_ACK_UNKNOWN"); }
+      const commit = () => pending.forEach(([path, value]) => { put(path, value); writes.push(path); });
+      const uncertainty = uncertainCommit; uncertainCommit = undefined;
+      if (uncertainty === "late_commit") delayedCommit = commit;
+      else commit();
+      if (uncertainty) { const after = afterUnknownCommit; afterUnknownCommit = undefined; after?.(); }
+      if (uncertainty === "retry_after_commit") continue;
+      if (uncertainty) throw new Error("SYNTHETIC_COMMIT_ACK_UNKNOWN");
       return result;
     }
     throw new Error("SYNTHETIC_TRANSACTION_CONFLICT");
   }) };
   return { db: db as unknown as FirebaseFirestore.Firestore, values, writes, reads, put,
     race: (callback: () => void) => { beforeCommit = callback; }, unavailable: (value: boolean) => { unavailable = value; },
-    uncertainCommit: () => { uncertainCommit = true; } };
+    uncertainCommit: (mode: NonNullable<typeof uncertainCommit> = "lost_ack", after?: () => void) => { uncertainCommit = mode; afterUnknownCommit = after; },
+    finishDelayedCommit: () => { const commit = delayedCommit; delayedCommit = undefined; commit?.(); } };
 }
 function queue(f: ReturnType<typeof firestore>, claimLap = () => claimCommunicationsWorkerLap(f.db, Date.now, ownerA)) {
   const store = { automaticJobs: vi.fn(async () => [{ jobId: "synthetic-send" }]),
@@ -146,14 +155,52 @@ describe("atomic communications whole-lap lease (synthetic only)", () => {
     }
     expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("PRIVATE");
   });
-  it("an uncertain claim acknowledgement admits nothing and never resets its durable active record", async () => {
-    const f = firestore(), q = queue(f); f.uncertainCommit();
-    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(120000); await stop();
+  it.each(["lost_ack", "retry_after_commit"] as const)("retains an unadmitted %s claim and settles only its exact record", async mode => {
+    const f = firestore(), q = queue(f); f.uncertainCommit(mode);
+    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(60000);
     q.effects.forEach(effect => expect(effect).not.toHaveBeenCalled());
-    expect(f.values.get(LAP)).toMatchObject({ phase: "active", lease: { owner: ownerA, generation: 1 } });
-    expect(f.writes).toEqual([LAP]);
-    expect(logger.warn).toHaveBeenCalledWith({ code: "communications_worker_lap_claim_unavailable" }, "Communications worker requires recovery");
-    expect(logger.warn).toHaveBeenCalledWith({ code: "communications_worker_lap_unsettled" }, "Communications worker requires recovery");
+    expect(f.values.get(LAP)).toMatchObject({ phase: "complete", lease: { owner: ownerA, generation: 1, until: 0 } });
+    expect(f.writes).toEqual([LAP, LAP]);
+    await vi.advanceTimersByTimeAsync(60000); await stop();
+    expect(q.options.intake).toHaveBeenCalledOnce(); expect(f.values.get(LAP).lease.generation).toBe(2);
+  });
+  it("keeps a missing unknown claim fenced until its late commit is actually read back", async () => {
+    const f = firestore(), q = queue(f); f.uncertainCommit("late_commit");
+    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(120000);
+    expect(f.values.has(LAP)).toBe(false); expect(f.writes).toEqual([]);
+    q.effects.forEach(effect => expect(effect).not.toHaveBeenCalled());
+    f.finishDelayedCommit(); await vi.advanceTimersByTimeAsync(60000);
+    expect(f.values.get(LAP)).toMatchObject({ phase: "complete", lease: { owner: ownerA, generation: 1 } });
+    q.effects.forEach(effect => expect(effect).not.toHaveBeenCalled()); await stop();
+  });
+  it("retains a committed claim when an SDK retry encounters newly held release control", async () => {
+    const f = firestore(), q = queue(f);
+    f.uncertainCommit("retry_after_commit", () => f.put(CONTROL,
+      { lease: { owner: "research-release:synthetic", expires_at_ms: Date.now() + 180000 } }));
+    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(60000); await stop();
+    q.effects.forEach(effect => expect(effect).not.toHaveBeenCalled());
+    expect(f.values.get(LAP)).toMatchObject({ phase: "complete", lease: { owner: ownerA, generation: 1 } });
+    expect(f.values.get(CONTROL).lease.owner).toBe("research-release:synthetic");
+    expect(f.writes).toEqual([LAP, LAP]);
+  });
+  it("an unknown claim cannot settle a changed initial record or renew to admit work", async () => {
+    const f = firestore(); f.uncertainCommit();
+    const lap = (await claimCommunicationsWorkerLap(f.db, Date.now, ownerA))!;
+    expect(lap.canContinue()).toBe(false);
+    await expect(lap.renew()).rejects.toMatchObject({ code: "communications_worker_lap_claim_unavailable" });
+    const changed = { ...clone(f.values.get(LAP)), renewedAt: Date.now() + 1 }; f.put(LAP, changed);
+    await expect(lap.release()).rejects.toMatchObject({ code: "communications_worker_lap_ownership_changed" });
+    expect(f.values.get(LAP)).toEqual(changed); expect(f.writes).toEqual([LAP]);
+  });
+  it("an unknown claim cannot overwrite a successor and unresolved stop rejects", async () => {
+    const f = firestore(), q = queue(f); f.uncertainCommit("late_commit");
+    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(60000);
+    const successor = { schema_version: "blueprint.communications-worker-lap.v1", phase: "active",
+      lease: { owner: ownerB, generation: 2, until: Date.now() + 180000 }, startedAt: Date.now(), renewedAt: Date.now(), completedAt: null };
+    f.put(LAP, successor); await vi.advanceTimersByTimeAsync(60000);
+    await expect(stop()).rejects.toMatchObject({ code: "communications_worker_lap_ownership_changed" });
+    expect(f.values.get(LAP)).toEqual(successor); expect(f.writes).toEqual([]);
+    q.effects.forEach(effect => expect(effect).not.toHaveBeenCalled());
   });
   it("stop waits for a pending claim, then releases its acquired scope without admission", async () => {
     const f = firestore(); let finish!: (lap: CommunicationsWorkerLap) => void;
@@ -172,6 +219,7 @@ describe("atomic communications whole-lap lease (synthetic only)", () => {
     });
     const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(60000);
     const stopping = stop(); await vi.advanceTimersByTimeAsync(120000);
+    expect(q.options.intake).toHaveBeenCalledOnce();
     expect(f.values.get(LAP)).toMatchObject({ phase: "active", lease: { until: Date.now() + 180000 } });
     expect(f.values.has("synthetic/final-stage-write")).toBe(false);
     finish(); await stopping;
@@ -213,12 +261,49 @@ describe("atomic communications whole-lap lease (synthetic only)", () => {
     expect(q.options.observeFounderSends).toHaveBeenCalledOnce(); expect(q.options.copyDrafts).toHaveBeenCalledOnce();
     await stop(); expect(f.values.get(LAP).phase).toBe("complete");
   });
-  it("failed final release leaves active evidence and no raw exception in logs", async () => {
+  it("failed final release preserves its handle and makes unresolved shutdown fail", async () => {
     const f = firestore(), q = queue(f);
     q.options.intake.mockImplementationOnce(async () => { f.unavailable(true); });
-    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(60000); await stop();
+    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(60000);
+    await expect(stop()).rejects.toMatchObject({ code: "communications_worker_lap_release_unavailable" });
     expect(f.values.get(LAP).phase).toBe("active");
     expect(logger.warn).toHaveBeenCalledWith({ code: "communications_worker_lap_release_unavailable" }, "Communications lap drainage awaits its durable receipt");
     expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("PRIVATE");
+  });
+  it("retries a transient drained release before a fresh claim or any further effect", async () => {
+    const f = firestore(), q = queue(f);
+    q.options.intake.mockImplementationOnce(async () => { f.unavailable(true); });
+    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(60000);
+    expect(f.values.get(LAP).phase).toBe("active"); expect(q.options.intake).toHaveBeenCalledOnce();
+    f.unavailable(false); await vi.advanceTimersByTimeAsync(60000);
+    expect(f.values.get(LAP)).toMatchObject({ phase: "complete", lease: { generation: 1 } });
+    expect(q.options.intake).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(60000); await stop();
+    expect(q.options.intake).toHaveBeenCalledTimes(2); expect(f.values.get(LAP).lease.generation).toBe(2);
+  });
+  it("recognizes a lost release ACK without rewriting completion or admitting work on the retry tick", async () => {
+    const f = firestore(), q = queue(f); q.options.intake.mockImplementationOnce(async () => { f.uncertainCommit(); });
+    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(60000);
+    const completion = clone(f.values.get(LAP)); expect(completion.phase).toBe("complete");
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(f.values.get(LAP)).toEqual(completion); expect(f.writes).toEqual([LAP, LAP]);
+    expect(q.options.intake).toHaveBeenCalledOnce(); await stop();
+  });
+  it("stop retries the original drained scope once the release backend recovers", async () => {
+    const f = firestore(), q = queue(f); q.options.intake.mockImplementationOnce(async () => { f.unavailable(true); });
+    const stop = startCommunicationsQueueLoop(q.deps, q.options); await vi.advanceTimersByTimeAsync(60000);
+    f.unavailable(false); await stop();
+    expect(f.values.get(LAP)).toMatchObject({ phase: "complete", lease: { owner: ownerA, generation: 1 } });
+    expect(q.options.intake).toHaveBeenCalledOnce();
+  });
+  it.each(["paid_off", "stage_throw"])("settles after %s without admitting later paid work", async mode => {
+    const f = firestore(), q = queue(f);
+    if (mode === "stage_throw") q.options.intake.mockRejectedValueOnce(new Error("SYNTHETIC_PRIVATE_STAGE_DETAIL"));
+    const stop = startCommunicationsQueueLoop(q.deps, { ...q.options, processJobs: false });
+    await vi.advanceTimersByTimeAsync(60000); await stop();
+    expect(f.values.get(LAP).phase).toBe("complete");
+    expect(q.deps.store.dueJobIds).not.toHaveBeenCalled(); expect(q.deps.sendAutomatic).not.toHaveBeenCalled();
+    expect(q.deps.api.run).not.toHaveBeenCalled();
+    if (mode === "stage_throw") expect(q.options.observeFounderSends).not.toHaveBeenCalled();
   });
 });

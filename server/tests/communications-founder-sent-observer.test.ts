@@ -23,6 +23,7 @@ import { reviseCommunicationsDraft } from "../agents/communications-draft-revisi
 import { firstContactRecipientKey } from "../agents/communications-first-contact";
 import { processCommunicationsJob, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { CommunicationsStore } from "../agents/communications-store";
+import { reviewReplyFollowup } from "../agents/communications-reply-followup";
 import { sendFounderMessage } from "../agents/communications-gmail";
 import { saveFounderCredential, FOUNDER_STORAGE, FOUNDER_CREDENTIAL_COLLECTION } from "../agents/communications-oauth-store";
 import { FOUNDER_CONNECTION_ID, type FounderCredential } from "../agents/communications-oauth";
@@ -560,9 +561,38 @@ describe("founder-sent thread reply intake", () => {
     return { ...f, verified: thread, readThread, suppress, deps, replyJobs, suppressionPath };
   }
 
+  it("prepares a conditional owner proposal, then stages the unanswered detail after evidence review without reopening the founder job", async () => {
+    const f = await observedThread({ replyBody: "Interested in a learning pilot for packing next year, to understand variability." });
+    const [admitted]: any = await runCommunicationsReplyIntake(f.deps);
+    const path = `${f.paths.prospect}/replyFollowups/${admitted.followupId}`, original = structuredClone(f.db.records.get(path));
+    expect(original.preparation).toMatchObject({ action: "review_reply", unresolvedFields: null,
+      evidenceDigest: original.evidenceDigest, sourceMessageIds: ["founder-reply-in-1"],
+      fieldStatus: { statedTask: "not_interpreted", desiredOutcome: "not_interpreted", timing: "not_interpreted" },
+      proposedDraft: { requiresOwnerReview: true, condition: expect.any(String) },
+      authority: { spending: false, listing: false, recording: false, sharing: false, sending: false } });
+    expect(original.preparation.proposedDraft.body.match(/\?/g)).toHaveLength(1);
+    await runCommunicationsReplyIntake(f.deps);
+    expect(f.db.records.get(path)).toEqual(original);
+    const cite = (value: string, quote: string) => ({ value, quote, messageId: "founder-reply-in-1" });
+    const input = { expectedEvidenceDigest: original.evidenceDigest, responseMeaning: "exploratory_interest",
+      meaningEvidence: cite("learning pilot", "Interested in a learning pilot"), statedTask: cite("packing", "packing"),
+      desiredOutcome: null, timing: cite("next year", "next year"), nextAction: "prepare_draft_for_review" };
+    const reviewed = await reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId, input, "authenticated-founder", communicationsNow);
+    expect(reviewed.preparation).toMatchObject({ action: "prepare_clarification_for_owner", unresolvedFields: ["desiredOutcome"],
+      reviewRevisionId: reviewed.review.revisionId,
+      proposedDraft: { question: "What would you want to improve or learn about that task?", condition: null } });
+    expect(f.db.records.get(path)).toEqual(reviewed);
+    const completed = await reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId,
+      { ...input, desiredOutcome: cite("understand variability", "understand variability") }, "authenticated-founder", communicationsNow + 1);
+    expect(completed.preparation).toMatchObject({ action: "review_next_step", unresolvedFields: [], proposedDraft: null });
+    expect(f.replyJobs()).toMatchObject([{ state: "learning_only", checkpoint: { sessionId: null } }]);
+    expect(f.db.records.has(`action_ledger/communications_${admitted.jobId}`)).toBe(false);
+    expect(sendFounderMessage).not.toHaveBeenCalled(); expect(f.receipts()).toEqual([]);
+  });
+
   it("records a founder-thread reply for learning only: never drafted, approved or sent", async () => {
     const f = await observedThread();
-    expect(await runCommunicationsReplyIntake(f.deps)).toEqual([{ observationId: f.job.jobId, state: "learning_only", jobId: expect.any(String) }]);
+    expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ observationId: f.job.jobId, state: "learning_only", jobId: expect.any(String), followupId: expect.any(String) }]);
     const [job] = f.replyJobs(), observation = f.db.records.get(f.paths.observation);
     const brief = f.db.records.get(`${f.root}/briefs/${job.briefId}`);
     expect(brief).toMatchObject({ replyOrigin: { origin: "founder_send_observed", parentBriefId: f.brief.briefId, parentBriefDigest: f.job.briefDigest,
@@ -575,6 +605,11 @@ describe("founder-sent thread reply intake", () => {
     expect(f.db.records.get(`${f.root}/replyIntake/${communicationsDeliveryKey(job)}`)).toMatchObject({ version: "blueprint.communications-reply-intake.v2",
       replyOrigin: "founder_send_observed", founderSendObservationId: f.job.jobId, state: "learning_only" });
     expect(job).toMatchObject({ state: "learning_only", reason: "founder_thread_reply_learning_only" });
+    const followups = [...f.db.records.entries()].filter(([path]) => path.startsWith(`${f.paths.prospect}/replyFollowups/`));
+    expect(followups).toHaveLength(1);
+    expect(followups[0][1]).toMatchObject({ state: "awaiting_owner_review", responseMeaning: "unknown",
+      siteId: f.brief.siteId, taskId: f.brief.taskId, desiredOutcome: null, timing: null, nextAction: "review_reply",
+      preparation: { action: "review_reply", proposedDraft: { requiresOwnerReview: true, condition: expect.any(String) } } });
     // The reply itself is retained as untrusted evidence for learning.
     expect(f.db.records.get(`${f.paths.prospect}/communicationsEvents/reply_founder-reply-in-1`))
       .toMatchObject({ type: "reply_received", untrusted: true, jobId: job.jobId });
@@ -617,6 +652,18 @@ describe("founder-sent thread reply intake", () => {
     const store = new CommunicationsStore(f.db, () => communicationsNow, "founder-commit-test"), jobPath = `${f.root}/jobs/${job.jobId}`;
     f.db.records.set(jobPath, { ...f.db.records.get(jobPath), lease: { owner: "founder-commit-test", until: communicationsNow + 60000 } });
     await expect(store.commitDraft(identity, output, payload as any, "a".repeat(64), null)).rejects.toThrow("founder_origin_reply_learning_only");
+  });
+
+  it("keeps a correlated founder reply actionable when its canonical prospect is missing, without a paid job or invented context", async () => {
+    const f = await observedThread({ replyBody: "We may want to learn about robotics in the future." });
+    f.db.records.delete(f.paths.prospect);
+    expect(await runCommunicationsReplyIntake(f.deps)).toMatchObject([{ state: "learning_only", followupId: expect.any(String) }]);
+    const followups = [...f.db.records.entries()].filter(([path]) => path.startsWith(`${f.paths.prospect}/replyFollowups/`));
+    expect(followups).toHaveLength(1);
+    expect(followups[0][1]).toMatchObject({ contextMissing: true, siteId: f.brief.siteId, taskId: f.brief.taskId,
+      state: "awaiting_owner_review", responseMeaning: "unknown", desiredOutcome: null, timing: null, nextAction: "review_reply" });
+    expect(f.db.records.has(f.paths.prospect)).toBe(false);
+    expect(f.deps.readResearch).not.toHaveBeenCalled(); expect(f.receipts()).toEqual([]);
   });
 
   it("keeps the reply brief bound to the unchanged observation and draft copy", async () => {

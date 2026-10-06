@@ -1,9 +1,11 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { claimCommunicationsWorkerLap, CommunicationsWorkerLapError, COMMUNICATIONS_WORKER_LAP_RENEW_MS,
-  type CommunicationsWorkerLap } from "./communications-release-lease";
 import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "../utils/email-suppression";
-import { COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
+import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
+import { COMMUNICATIONS_HYPOTHESIS_PROFILE } from "./communications-saved-agent";
+import { COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming, communicationsFramingVersion,
+  type CommunicationsFramingVersion } from "./communications-launch-framing";
+import { readReplyFollowup } from "./communications-reply-followup";
 import { runCommunicationsFactRefresh } from "./communications-fact-refresh";
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest, briefRefreshReasons,
@@ -16,13 +18,16 @@ import { CommunicationsAgentsAPI, CommunicationsRuntimeError, type Communication
   type CommunicationsExecutionWindow, communicationsExecutionDeadline, effectiveCommunicationsCheckpoint } from "./communications-api";
 import { communicationsContinuationDeadline, type CommunicationsOwnerAuthorityRef, type CommunicationsCancelledContinuation } from "./communications-api";
 import { verifyFounderMailbox, readFounderThread } from "./communications-gmail";
-import { readExistingResearchSnapshot, researchPublicationSource, verifyPublishedResearch, type ResearchSnapshotReader } from "./communications-research";
+import { hypothesisPublicationSource, readExistingResearchSnapshot, researchPublicationSource, verifyPublishedHypothesisForDraft, verifyPublishedResearch,
+  type ResearchSnapshotReader } from "./communications-research";
 import { reviewCommunicationsPayload } from "./communications-review";
 import { CommunicationsStore, type CommunicationsJobRecord } from "./communications-store";
 import type { ActionPayload } from "./action-policies";
-import { runCommunicationsIntake } from "./communications-intake";
+import { HYPOTHESIS_DRAFTS_DISABLED, hypothesisDraftsEnabled, runCommunicationsIntake } from "./communications-intake";
 import { runCommunicationsReplyIntake } from "./communications-reply-intake";
 import { readResearchContactPage } from "./communications-contact-fetch";
+import { readScreenAdmissionSnapshot, screenPublicationSource, verifyScreenHypothesisForDraft, type ScreenSnapshotReader } from "./communications-screen-research";
+import { runScreenAdmissionIntake, runScreenContactRefresh } from "./communications-screen-intake";
 import { requestNativeContactResearch, readNativeContactDiscovery, verifyExistingContactDiscovery, contactDiscoverySchema, contactResearchTask } from "./communications-contact-research";
 import { automaticFirstContactEnabled, firstContactGeography, ROUTINE_COMMUNICATIONS_POLICY,
   routineCommunicationsContentBlockers } from "./communications-first-contact";
@@ -35,6 +40,8 @@ import { createNativeLearningHooks, REVIEWED_NATIVE_LEARNING_CONFIG } from "../r
 import { getCompanyHistoryAccess } from "./operator-tools";
 import { runCommunicationsGmailDraftCopies } from "./communications-gmail-draft";
 import { founderSentRepliesAllowed, runCommunicationsFounderSentObserver } from "./communications-founder-sent-observer";
+import { claimCommunicationsWorkerLap, CommunicationsWorkerLapError, COMMUNICATIONS_WORKER_LAP_RENEW_MS,
+  type CommunicationsWorkerLap } from "./communications-release-lease";
 
 type CommunicationsLearningHooks = Pick<ReturnType<typeof createNativeLearningHooks>, "prepareNativeJob" | "afterNativeWork">;
 type PreparedLearning = Awaited<ReturnType<CommunicationsLearningHooks["prepareNativeJob"]>>;
@@ -44,6 +51,7 @@ export type CommunicationsDependencies = {
   api: Pick<CommunicationsAgentsAPI, "run" | "cancel" | "reconcileSaved">
     & Partial<Pick<CommunicationsAgentsAPI, "recoverRejectedCreate" | "prepareCancelledContinuation" | "continueCancelled">>;
   readResearch: ResearchSnapshotReader;
+  readScreenAdmission?: ScreenSnapshotReader;
   verifyMailbox: () => Promise<unknown>;
   readThread: (threadId: string) => Promise<VerifiedThread>;
   isSuppressed: (email: string) => Promise<boolean>;
@@ -161,6 +169,16 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
   try {
     const brief = communicationsBriefSchema.parse(await deps.store.brief(job.briefId));
     if (brief.prospectId !== job.prospectId || job.briefDigest !== communicationsDigest(brief)) throw new Error("research_brief_changed");
+    // An outreach-ready hypothesis is drafted under its own session profile and draft-only checks.
+    const hypothesis = !!brief.qualification;
+    if (hypothesis && (continuation || rejectedCreate)) throw new Error("communications_hypothesis_recovery_unsupported");
+    // Hypothesis drafts off: the job waits, queued, before any further read, inference or paid create.
+    if (hypothesis && !hypothesisDraftsEnabled()) {
+      await deps.store.deferHypothesisDraft(jobId, HYPOTHESIS_DRAFTS_DISABLED);
+      return { state: "queued", reason: HYPOTHESIS_DRAFTS_DISABLED, sent: false };
+    }
+    if ((claimed.checkpoint.createClaimedAt || claimed.checkpoint.sessionId)
+      && (claimed.checkpoint.draftProfile === COMMUNICATIONS_HYPOTHESIS_PROFILE) !== hypothesis) throw new Error("communications_draft_profile_mismatch");
     // The owner direction for founder-sent threads authorizes reading and
     // learning only: no thread read, inference, approval row or send follows.
     if (isFounderReplyOrigin(brief.replyOrigin)) {
@@ -172,6 +190,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     if (!source.exists || prospect?.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
       || prospect?.siteId !== brief.siteId || prospect?.taskId !== brief.taskId) throw new Error("canonical_prospect_identity_missing_or_changed");
     let thread: VerifiedThread | null = null;
+    let replyFollowup: any = null;
     if (job.intent === "reply") {
       if (!brief.priorConversation || !job.inboundMessageId) throw new Error("real_reply_context_missing");
       thread = await deps.readThread(brief.priorConversation.gmailThreadId);
@@ -193,6 +212,11 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
         return { state: "opted_out" };
       }
       if (replies.at(-1)?.gmailMessageId !== incoming.gmailMessageId) throw new Error("reply_superseded_requires_latest_context");
+      replyFollowup = await readReplyFollowup(deps.store.db, brief, thread.threadId);
+      if (replyFollowup?.nextAction === "no_action") {
+        await deps.store.finish(job, "no_reply", "owner_review_no_followup");
+        return { state: "no_reply", sent: false };
+      }
     } else {
       if (job.inboundMessageId || brief.priorConversation) throw new Error("outreach_requires_first_touch_context");
     }
@@ -207,11 +231,20 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       return { state: "awaiting_research", reasons: refresh };
     }
     const verifyCurrentResearch = async () => {
-      const snapshot = await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId);
+      const screen = brief.researchOrigin.screenAdmissionId;
+      if (screen && !deps.readScreenAdmission) throw new Error("screen_admission_reader_unavailable");
+      const snapshot = screen ? await deps.readScreenAdmission!(screen)
+        : await deps.readResearch(brief.researchOrigin.date, brief.researchOrigin.admissionId);
       const proof: any = await deps.store.contactProof(brief);
+      const source = () => screen ? screenPublicationSource(snapshot, brief.researchOrigin.candidateKey, deps.now()).source
+        : hypothesis ? hypothesisPublicationSource(snapshot, brief.researchOrigin.candidateKey, deps.now()).source
+        : researchPublicationSource(snapshot, brief.researchOrigin);
       if (proof?.discovery) await verifyExistingContactDiscovery(deps.store.db,
-        contactResearchTask(researchPublicationSource(snapshot, brief.researchOrigin), job.prospectId), contactDiscoverySchema.parse(proof.discovery));
-      return verifyPublishedResearch(snapshot, brief, await deps.store.handoff(brief), proof, deps.now());
+        contactResearchTask(source(), job.prospectId), contactDiscoverySchema.parse(proof.discovery));
+      // A hypothesis is checked by the draft-only verification; verifyPublishedResearch refuses it.
+      return screen ? verifyScreenHypothesisForDraft(snapshot, brief, await deps.store.handoff(brief), proof, deps.now())
+        : hypothesis ? verifyPublishedHypothesisForDraft(snapshot, brief, await deps.store.handoff(brief), proof, deps.now())
+        : verifyPublishedResearch(snapshot, brief, await deps.store.handoff(brief), proof, deps.now());
     };
     await verifyCurrentResearch();
     const approval = await deps.store.approvalState(job.prospectId);
@@ -232,23 +265,29 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       // Validate before persisting or reserving a paid create. Configuration
       // changes cannot extend a charged checkpoint's already frozen window.
       communicationsExecutionDeadline({ ...claimed.checkpoint, executionWindow });
-      claimed.checkpoint = { ...claimed.checkpoint, executionWindow, draftWritingGuidance: COMMUNICATIONS_WRITING_GUIDANCE };
+      claimed.checkpoint = { ...claimed.checkpoint, executionWindow, draftWritingGuidance: COMMUNICATIONS_WRITING_GUIDANCE,
+        framingVersion: communicationsFramingVersion(claimed.checkpoint.framingVersion) ?? COMMUNICATIONS_FRAMING_VERSION,
+        ...(replyFollowup ? { replyFollowup } : {}),
+        ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) };
       await deps.store.update(jobId, { checkpoint: claimed.checkpoint });
     }
     const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning, claimed.checkpoint.executionWindow,
-      claimed.checkpoint.draftWritingGuidance);
+      claimed.checkpoint.draftWritingGuidance, claimed.checkpoint.framingVersion,
+      claimed.checkpoint.replyFollowup);
     // Bind only prospective work before its first paid create. Reconnected
     // sessions retain this decision; old charged/Tony sessions never acquire it.
-    if (!recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId && automaticFirstContactEnabled()) {
+    // No standing policy covers a hypothesis: it never enters automatic first contact.
+    if (!claimed.checkpoint.framingVersion && !hypothesis && !recovery && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId && automaticFirstContactEnabled()) {
       claimed.automationPolicyVersion = ROUTINE_COMMUNICATIONS_POLICY.version;
       await deps.store.update(jobId, { automationPolicyVersion: claimed.automationPolicyVersion });
     }
-    const automatic = !continuation && !recovery && claimed.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version
+    const automatic = !claimed.checkpoint.framingVersion && !hypothesis && !continuation && !recovery && claimed.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version
       && automaticFirstContactEnabled() && !!firstContactPostalLine();
     const provenance = automatic ? (await deps.store.db.doc("blueprintCommunications/default").collection("researchSources").doc(job.briefDigest).get()).data() : null;
     const recipientGeography = automatic ? firstContactGeography(provenance, brief, deps.now()) : null;
     const assemble = (output: CommunicationsOutput) => buildCommunicationsPayload(job, brief, thread, output, automatic, recipientGeography);
     const assertRepairAllowed = async () => {
+      if (hypothesis && !hypothesisDraftsEnabled()) throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
       // Repair cannot refresh or replace consequential context. The original
       // input, dates, lease and thread remain the correction boundary.
       if (leaseError) throw new CommunicationsRuntimeError("communications_lease_lost");
@@ -278,7 +317,12 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       if (thread && communicationsDigest((await deps.readThread(thread.threadId)).messages) !== communicationsDigest(thread.messages)) {
         throw new Error("reply_thread_changed_requires_current_context");
       }
+      if (thread && (await readReplyFollowup(deps.store.db, brief, thread.threadId))?.nextAction === "no_action") {
+        throw new Error("owner_review_no_followup");
+      }
       if (current.lease.until <= deps.now() || claimed.lease.until <= deps.now()) throw new Error("communications_lease_lost");
+      // The flag may change while the async evidence/identity checks are in flight.
+      if (hypothesis && !hypothesisDraftsEnabled()) throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
     };
     const activeCheckpoint = effectiveCommunicationsCheckpoint(claimed.checkpoint);
     const expired = !continuation && !rejectedCreate && activeCheckpoint.createClaimedAt
@@ -322,12 +366,14 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
         const issues: CommunicationsOutputFeedback = output.disposition === "research_refresh"
           ? output.refreshFactIds.some(id => !brief.facts.some(fact => fact.id === id))
             ? [{ path: "refreshFactIds", code: "refresh_fact_unknown", message: "Select only fact IDs already present in researchBrief.facts; do not invent evidence." }] : []
-          : output.disposition === "no_reply" ? [] : communicationsDraftFeedback(assemble(output), output, job.intent, automatic, deps.now());
+          : output.disposition === "no_reply" ? [] : communicationsDraftFeedback(assemble(output), output, job.intent, automatic, deps.now(), hypothesis,
+            communicationsFramingVersion(claimed.checkpoint.framingVersion) !== undefined);
         if (!issues.length) return null;
         await assertRepairAllowed();
         return issues;
       },
     };
+    if (hypothesis && !hypothesisDraftsEnabled()) throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
     const result = phase ? await deps.api.continueCancelled!({ jobId, phase, assertWorkAllowed: assertRepairAllowed,
       validateOutput: runParams.validateOutput, savePhase: async value => {
         if (leaseError) throw new CommunicationsRuntimeError("communications_lease_lost");
@@ -355,11 +401,21 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const payload = assemble(output);
     const review = reviewCommunicationsPayload(payload, deps.now());
     if (!review.digest) throw new Error(`draft_quality_failed:${review.blockers.join(",")}`);
+    // The versioned hypothesis contract is hard: a draft that fails it is rejected, never
+    // saved for review, copied to Gmail or sent.
+    if (hypothesis && !review.hardChecksPassed) throw new Error(`hypothesis_draft_contract_failed:${review.blockers.join(",")}`);
+    if (hypothesis && claimed.checkpoint.framingVersion && output.outreachContract?.version !== "blueprint.outreach.v3") {
+      throw new Error("hypothesis_draft_contract_failed:launch_contract_required");
+    }
     // Preserve useful drafts and isolate unresolved claims/style diagnostics in
     // the existing human-review ledger. Approval/send still revalidate them.
     if (!review.hardChecksPassed) payload.communicationsDraftDiagnostics = { blockers: review.blockers };
     // Check suppression again after inference. Queue admission is not sending.
     if (await deps.isSuppressed(brief.contact.email)) throw new Error("recipient_suppressed");
+    if (thread && (await readReplyFollowup(deps.store.db, brief, thread.threadId))?.nextAction === "no_action") {
+      await deps.store.finish(job, "no_reply", "owner_review_no_followup");
+      return { state: "no_reply", sent: false };
+    }
     const ledgerId = await deps.store.commitDraft(job, output, payload, review.digest, result.usage);
     if (await deps.store.automaticDraft(ledgerId)) {
       const outcome = deps.sendAutomatic ? await deps.sendAutomatic(ledgerId) : { state: "auto_approved" as const };
@@ -387,6 +443,10 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     }
     const code = error instanceof CommunicationsRuntimeError ? error.code
       : error instanceof Error && /^[a-z_][a-z0-9_:,.-]*$/.test(error.message) ? error.message : "communications_context_or_permission_unavailable";
+    if (code === HYPOTHESIS_DRAFTS_DISABLED) {
+      await deps.store.deferHypothesisDraft(jobId, code);
+      return { state: "queued", reason: code, sent: false };
+    }
     const retry = !continuation && error instanceof CommunicationsRuntimeError && error.retryable && claimed.attempts < 3;
     if (retry) await deps.store.update(jobId, { state: "retry", reason: code, nextAttemptAt: deps.now() + claimed.attempts * 15000 });
     else await deps.store.finish(job, "blocked", code);
@@ -417,13 +477,30 @@ function buildCommunicationsPayload(job: CommunicationsJob, brief: Communication
   };
 }
 
+// blueprint.outreach.v2 repairs for an outreach-ready hypothesis draft; they replace the v1 wording.
+const HYPOTHESIS_FIXES: Record<string, [string, string]> = {
+  outreach_contract_missing_or_invalid: ["outreachContract", "Use exactly {version:\"blueprint.outreach.v2\",senderIdentity,opening,questions,recipientChoice} for this hypothesis brief."],
+  outreach_hypothesis_contract_required: ["outreachContract.version", "This brief is an outreach-ready hypothesis: use the blueprint.outreach.v2 contract, not v1."],
+  hypothesis_question_not_published: ["outreachContract.questions.0.question", "Ask researchBrief.qualification.openQuestions[0] word for word."],
+  hypothesis_question_checks_mismatch: ["outreachContract.questions.0.checks", "Use [site_link] when qualification.openChecks includes site_link, else [manual_workflow] when it includes manual_workflow, else [existing_automation]."],
+  hypothesis_question_missing_from_body: ["body", "Include researchBrief.qualification.openQuestions[0] in the body, word for word."],
+  exactly_one_initial_question_required: ["outreachContract.questions", "Ask only researchBrief.qualification.openQuestions[0]; it must be the only question mark in the email."],
+  learning_question_mismatch: ["body", "Ask only researchBrief.qualification.openQuestions[0]; it must be the only question mark in the email."],
+  hypothesis_subject_has_question: ["subject", "Remove the question mark from the subject; the one question belongs in the body."],
+  blueprint_identity_required_before_question: ["body", "Put the Blueprint identity before the question."],
+  hypothesis_recipient_greeting_mismatch: ["body", "Address the recipient as researchBrief.contact.recipient records: greet a named_person by name; for an inbox, address recipient.addressee in the opening paragraph and name no one."],
+};
+
 /** Field diagnostics only: this does not approve, publish, commit or send. */
-function communicationsDraftFeedback(payload: ActionPayload, output: CommunicationsOutput, intent: CommunicationsJob["intent"], automatic: boolean, now: number): CommunicationsOutputFeedback {
+function communicationsDraftFeedback(payload: ActionPayload, output: CommunicationsOutput, intent: CommunicationsJob["intent"], automatic: boolean, now: number,
+  hypothesis = false, launch = false): CommunicationsOutputFeedback {
   const fixes: Record<string, [string, string]> = {
     used_fact_missing: ["usedFactIds", "Reference only existing researchBrief.facts IDs; remove unsupported claims and IDs. Outreach needs a sourced fact; a plain acknowledgment need not cite one."],
     learning_question_mismatch: ["body", "For first outreach, use one easy question fitting the verified site; replies may adapt to the actual incoming message."],
     not_a_sendable_draft: ["disposition", "Provide a nonempty subject/body for a draft, or choose no_reply/research_refresh. A draft must have no refreshFactIds."],
     outreach_contract_missing_or_invalid: ["outreachContract", "For outreach, supply the recorded structured outreach contract matching this message; replies use null."],
+    launch_question_mismatch: ["outreachContract.questions", "Use firstTouchFraming.question verbatim; retain research qualification as unresolved evidence."],
+    unsupported_readiness_or_supply: ["body", "Remove unsupported pilot readiness, hardware supply, free integration or partner commitment claims."],
     blueprint_identity_required: ["outreachContract.senderIdentity", "Identify Blueprint truthfully in the body and matching senderIdentity."],
     blueprint_identity_required_before_offer: ["body", "Put the recorded Blueprint identity before the offer."],
     review_anchor_missing_from_body: ["outreachContract", "Align the contract anchors with the exact authored body; preserve verified evidence and sharing limits."],
@@ -445,9 +522,18 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
     unsafe_reply_content: ["body", "Remove guarantees, pressure, credential or unapproved footage/private-data requests."],
     reply_subject_changed: ["subject", "Use the exact subject of the correlated incoming message already supplied in emailThread."],
     routine_public_scope_content_not_authorized: ["body", "Keep routine communications within the recorded public-business purpose; remove pricing, commitments, private/sensitive claims or requests. Do not invent additional authority."],
+    ...(hypothesis ? HYPOTHESIS_FIXES : {}),
+    ...(hypothesis && launch ? {
+      outreach_contract_missing_or_invalid: ["outreachContract", "Use blueprint.outreach.v3 with the recorded cold opening, questions:[{question:firstTouchFraming.question,checks:['interest']}] and recipientChoice. All anchors occur in the body."] as [string, string],
+      launch_contract_required: ["outreachContract", "Use blueprint.outreach.v3 and firstTouchFraming.question; research qualification is historical evidence, not this draft's question."] as [string, string],
+      hypothesis_question_missing_from_body: ["body", "Include firstTouchFraming.question verbatim as the body's only question."] as [string, string],
+      hypothesis_question_checks_mismatch: ["outreachContract.questions", "Use checks:['interest']; this draft leaves every research open check unresolved."] as [string, string],
+    } : {}),
   };
   const review = reviewCommunicationsPayload(payload, now);
-  const blockers = [...new Set([...review.blockers, ...(automatic ? routineCommunicationsContentBlockers(output, intent) : [])])];
+  const blockers = [...new Set([...review.blockers,
+    ...(hypothesis && launch && output.outreachContract?.version !== "blueprint.outreach.v3" ? ["launch_contract_required"] : []),
+    ...(automatic ? routineCommunicationsContentBlockers(output, intent) : [])])];
   const consequential = blockers.filter(code => !fixes[code]);
   if (consequential.length) throw new Error(`communications_context_not_repairable:${consequential.join(",")}`);
   const issues = blockers.map(code => ({ code, path: fixes[code][0], message: fixes[code][1] }));
@@ -456,11 +542,17 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
 }
 
 export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown,
-  learning?: PreparedLearning, executionWindow?: CommunicationsExecutionWindow, draftWritingGuidance?: string) {
-  const policy = intent === "outreach" ? COMMUNICATIONS_OUTREACH_GUIDANCE
+  learning?: PreparedLearning, executionWindow?: CommunicationsExecutionWindow, draftWritingGuidance?: string,
+  framingVersion?: CommunicationsFramingVersion, replyFollowup?: unknown) {
+  const version = communicationsFramingVersion(framingVersion);
+  const framing = version === undefined ? undefined : communicationsLaunchFraming(brief, version);
+  const policy = intent === "outreach" ? brief.qualification ? COMMUNICATIONS_HYPOTHESIS_GUIDANCE : COMMUNICATIONS_OUTREACH_GUIDANCE
     : "Use the actual correlated reply; first-touch drafting is not required for this reply.";
   const base = { intent, approvedSender: FOUNDER_MAILBOX, researchBrief: brief,
     currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy,
+    ...(framing ? { firstTouchFraming: framing,
+      firstTouchPolicy: intent === "outreach" ? framing.guidance : policy } : {}),
+    ...(replyFollowup ? { replyFollowup, replyFollowupTrust: "untrusted_evidence_no_action_authority" } : {}),
     ...(draftWritingGuidance ? { writingGuidance: draftWritingGuidance } : {}),
     ...(executionWindow ? { executionBoundary: { window: executionWindow,
       guidance: "Work within this frozen wall-clock window. Use evidence-backed judgment to return a usable complete draft with truthful unknowns before the deadline; do not repeat completed reads or trade factual quality for speed. This clock grants no spend, access or send authority." } } : {}) };
@@ -481,6 +573,20 @@ export function buildCommunicationsInput(brief: CommunicationsBrief, thread: Ver
     learningHistory: { ...reference, unknown: "native_learning_context_exceeds_inline_budget" } });
 }
 
+/** The release owner coordinates deployment through the trusted research control.
+ * This read admits no work and changes no ordinary research/QA lease semantics. */
+export async function communicationsResearchReleaseAllowsTick(db: Pick<FirebaseFirestore.Firestore, "doc">,
+  now = () => Date.now()): Promise<boolean> {
+  try {
+    const lease = (await db.doc("blueprintDailyResearch/sites-first").get()).data()?.lease;
+    return !(typeof lease?.owner === "string" && lease.owner.startsWith("research-release:")
+      && Number.isFinite(lease.expires_at_ms) && lease.expires_at_ms > now());
+  } catch {
+    logger.warn({ code: "communications_research_release_control_unavailable" }, "Communications admission waits for research release control");
+    return false;
+  }
+}
+
 /** Intake uses the existing worker flag; paid drafting has its separate gate. */
 export function startCommunicationsWorker(): () => Promise<void> {
   if (process.env.BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED !== "true"
@@ -497,6 +603,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
   });
   const deps: CommunicationsDependencies = {
     store, api, readResearch: (date, admissionId) => readExistingResearchSnapshot(db, date, admissionId),
+    readScreenAdmission: id => readScreenAdmissionSnapshot(db, id),
     learningHooks: createNativeLearningHooks(db, REVIEWED_NATIVE_LEARNING_CONFIG),
     verifyMailbox: () => verifyFounderMailbox(), readThread: (id) => readFounderThread(id),
     isSuppressed: (email) => isEmailSuppressed(email, "growth_campaign"),
@@ -530,24 +637,40 @@ export function startCommunicationsWorker(): () => Promise<void> {
       isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readResearchContactPage,
       requestContactResearch: (source, prospectId, reason) => requestNativeContactResearch(db, source, prospectId, reason, deps.now()),
       readContactDiscovery: (source, prospectId) => readNativeContactDiscovery(db, source, prospectId) });
+    if (!canContinue()) return;
+    const screenDeps = { db, readResearch: deps.readResearch, readScreenAdmission: deps.readScreenAdmission,
+      isSuppressed: deps.isSuppressed, now: deps.now, readContactPage: readResearchContactPage };
+    await runScreenAdmissionIntake(screenDeps);
+    if (!canContinue()) return;
+    await runScreenContactRefresh(screenDeps);
   }, copyDrafts: canContinue => runCommunicationsGmailDraftCopies(db, undefined, undefined, canContinue), processJobs: allowPaidInference });
 }
 
 /** Stop admission immediately, then await the active job and its durable writes. */
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
-  options: { claimLap?: () => Promise<CommunicationsWorkerLap | null>;
+  options: { canStartTick?: () => Promise<boolean>; claimLap?: () => Promise<CommunicationsWorkerLap | null>;
     observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: (canContinue: () => boolean) => Promise<void>;
     copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
   let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
+  let pendingSettlement: CommunicationsWorkerLap | null = null;
   let automaticCursor: string | undefined;
+  const settlePending = async () => {
+    const pending = pendingSettlement;
+    if (!pending) return;
+    await pending.release();
+    if (pendingSettlement === pending) pendingSettlement = null;
+  };
   const tick = async () => {
     let lap: CommunicationsWorkerLap | null = null, leaseLost = false;
     let renewal: Promise<void> | null = null, renewTimer: ReturnType<typeof setInterval> | undefined;
     const canContinue = () => !stopped && !leaseLost && !renewal && (!lap || lap.canContinue());
     const admit = async () => { await renewal; return canContinue(); };
     try {
+      // This drained/unadmitted scope keeps its original identity until its
+      // receipt is proven. A recovery tick cannot claim or perform new work.
+      if (pendingSettlement) { await settlePending(); return; }
       // Production owns a durable whole-lap claim, atomically against release.
-      // Injected loops without claims retain their existing test interface.
+      // Optional legacy/injected loops retain their existing pre-read interface.
       if (options.claimLap) {
         lap = await options.claimLap();
         if (!lap) return;
@@ -559,7 +682,7 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
           }).finally(() => { renewal = null; });
         }, COMMUNICATIONS_WORKER_LAP_RENEW_MS);
         renewTimer.unref();
-      }
+      } else if (options.canStartTick && !await options.canStartTick()) return;
       if (!await admit()) return;
       // Bound-thread opt-out intake runs first. Founder-send observation follows
       // in its own failure boundary, so a slow or failing Gmail read never
@@ -595,7 +718,7 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
       await renewal;
       // Stop waits for claim admission, every active stage and renewal, then
       // owner/generation settlement. Uncertain/failed writes are never reset.
-      if (lap) try { await lap.release(); }
+      if (lap) try { pendingSettlement = lap; await settlePending(); }
       catch (error) {
         logger.warn({ code: error instanceof CommunicationsWorkerLapError ? error.code : "communications_worker_lap_release_unavailable" },
           "Communications lap drainage awaits its durable receipt");
@@ -610,7 +733,9 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
     if (stopPromise) return stopPromise;
     stopped = true;
     clearInterval(timer);
-    stopPromise = (async () => { await activeTick; })();
+    // Failure remains visible to the shutdown caller and preserves the handle;
+    // it must not become a successful "worker stopped" observation.
+    stopPromise = (async () => { await activeTick; await settlePending(); })();
     return stopPromise;
   };
 }

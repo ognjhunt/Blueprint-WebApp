@@ -5,12 +5,16 @@ type Draft = Record<string, unknown> & { subject: string; body: string; usedFact
 type RevisionResult = { review: OutreachReviewSummary };
 export type GmailDraftSummary = { writesEnabled: boolean; state: string; draftId: string|null; verifiedAt: string|null; currentRevisionVerified: boolean };
 export type GmailDraftResult = { state: string; reviewDigest?: string; revisionId?: string|null; sent: false };
+/** A LinkedIn people-search link for an outreach-ready hypothesis draft (owner decision 2026-10-05). */
+export type LinkedinSearch = { url: string; role: string; operator: string };
+const LINKEDIN_PEOPLE_SEARCH_PREFIX = "https://www.linkedin.com/search/results/people/?keywords=";
 
 
 /** Ordinary message editing plus optional source/wording anchor repair. The
  * server preserves research and history and rechecks each save. */
-export function CommunicationsDraftEditor({ payload, review, onSave, revisionId = null, gmailDraft, onGmailSave }: {
+export function CommunicationsDraftEditor({ payload, review, onSave, revisionId = null, gmailDraft, onGmailSave, linkedinSearch }: {
   payload: Record<string, unknown>; review?: OutreachReviewSummary; revisionId?: string|null; gmailDraft?: GmailDraftSummary;
+  linkedinSearch?: LinkedinSearch;
   onGmailSave?: (input: { expectedReviewDigest: string; expectedRevisionId: string|null; mode: "write"|"reconcile" }) => Promise<GmailDraftResult>;
   onSave: (input: { expectedReviewDigest: string; output: Record<string, unknown> }) => Promise<RevisionResult>;
 }) {
@@ -67,7 +71,12 @@ export function CommunicationsDraftEditor({ payload, review, onSave, revisionId 
     target[path.at(-1)!] = value;
     setEditing({ ...editing, contract: JSON.stringify(next, null, 2) });
   };
+  // A plain link only: the browser opens it. Nothing from it is fetched, stored or used as evidence.
+  const linkedin = linkedinSearch && typeof linkedinSearch.url === "string" && linkedinSearch.url.startsWith(LINKEDIN_PEOPLE_SEARCH_PREFIX)
+    && linkedinSearch.url.length > LINKEDIN_PEOPLE_SEARCH_PREFIX.length ? linkedinSearch : null;
   return <div className="w-full space-y-3 border border-runway-line p-3 text-sm">
+    {linkedin ? <p>Find who runs this task: <a className="underline" href={linkedin.url} target="_blank" rel="noreferrer noopener">
+      Search LinkedIn for {linkedin.role} at {linkedin.operator}</a>. Opens a LinkedIn search in your browser. It is never fetched or stored, and it is not evidence.</p> : null}
     {!editing ? <button type="button" className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
       disabled={!envelope?.output || !review?.digest || gmailPending} onClick={start}>Revise draft</button> : <>
       <p>Edit this saved draft, then revalidate it. Saving keeps it pending approval.</p>

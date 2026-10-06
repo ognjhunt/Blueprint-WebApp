@@ -15,6 +15,7 @@ import { CONTACT_RESEARCH_PAGE_LIMIT } from "../agents/communications-contact-fe
 import { hidingStyle } from "../agents/communications-contact-visibility";
 import { readFileSync } from "node:fs";
 import { requestNativeContactResearch, readNativeContactDiscovery } from "../agents/communications-contact-research";
+import { runCommunicationsFactRefresh } from "../agents/communications-fact-refresh";
 
 const htmlPage = (url: string, body: string, checkedAt = new Date(communicationsNow).toISOString()): ContactPage => ({
   requestedUrl: url, finalUrl: url, redirects: [], checkedAt, status: 200, contentType: "text/html; charset=utf-8", bodyBase64: Buffer.from(body).toString("base64"),
@@ -425,6 +426,51 @@ ${main}</section></main><footer>Careers: careers@facility.example</footer>
       .toEqual(["https://facility.example/contact"]);
     const parsed = contactPageText(htmlPage("https://facility.example/", '<a title=" href=/contact " href="https://attacker.example/contact">Contact</a>'));
     expect(parsed.links).toEqual(["https://attacker.example/contact"]);
+  });
+});
+
+// Behaviour change in this PR (commit 3fa1a909): the stale-fact worker runs first in every tick and used to
+// claim every pending or running refresh request. Intake requests carry no job, so it marked them
+// unresolved (source_refresh_unavailable) before their owners saw them. It now leaves them to their owners.
+describe("verified intake refresh requests are left to their owners by the stale-fact worker (offline)", () => {
+  it("keeps a verified row's contact gap pending, or running, through a stale-fact pass until contact research fulfils it", async () => {
+    const f = setup({ actualProducer: true, unknowns: ["Site data-sharing permission is unknown."] });
+    expect(await f.request()).toMatchObject({ state: "needs_research", reasons: ["verified_public_business_contact_missing"] });
+    const path = `${COMMUNICATIONS_ROOT}/refreshRequests/${[...f.db.records.keys()].find(key => key.includes("/refreshRequests/"))!.split("/").at(-1)}`;
+    expect(path).toMatch(/\/refreshRequests\/intake_[a-f0-9]{64}$/);
+    const pending = structuredClone(f.db.records.get(path));
+    expect(pending).toMatchObject({ kind: "public_contact_resolution", owner: "blueprint-communications-agent", state: "pending" });
+    await runCommunicationsFactRefresh(f.db, f.deps.readContactPage, f.deps.now);
+    expect(f.db.records.get(path)).toEqual(pending);
+    // A contact worker on another instance holds it: the stale-fact worker leaves that claim alone too.
+    const held = { ...pending, state: "running", attempts: 1, lease: { owner: "another-contact-worker", until: communicationsNow + 180000 } };
+    await f.db.doc(path).set(held);
+    await runCommunicationsFactRefresh(f.db, f.deps.readContactPage, f.deps.now);
+    expect(f.db.records.get(path)).toEqual(held);
+    expect(f.deps.readContactPage).not.toHaveBeenCalled();
+    // Once that claim lapses, contact research fulfils the gap.
+    f.advance(180001);
+    await f.refresh();
+    const outcome = f.records("intake")[0];
+    expect(outcome).toMatchObject({ state: "admitted", sent: false, sessionCreated: false });
+    expect(f.db.records.get(path)).toMatchObject({ state: "resolved", jobId: outcome.jobId });
+    expect(f.records("jobs")).toHaveLength(1);
+  });
+
+  it("keeps a verified row's research-owner request pending for the research owner", async () => {
+    const f = setup({ publicContact: true });
+    f.advance(9 * 86400000);
+    const outcome = await f.request();
+    expect(outcome).toMatchObject({ state: "needs_research" });
+    expect(outcome.reasons[0]).not.toMatch(/contact/);
+    const [request] = f.records("refreshRequests");
+    expect(request).toMatchObject({ kind: "research_owner_refresh", owner: "blueprint-research-agent", state: "pending", reasons: outcome.reasons });
+    const before = structuredClone(request);
+    await runCommunicationsFactRefresh(f.db, f.deps.readContactPage, f.deps.now);
+    await f.refresh();
+    expect(f.records("refreshRequests")).toEqual([before]);
+    expect(f.deps.readContactPage).not.toHaveBeenCalled();
+    expect(f.records("jobs")).toHaveLength(0);
   });
 });
 

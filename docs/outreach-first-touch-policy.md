@@ -5,6 +5,58 @@ pre-send review. This change authorizes no messages, invitations, or activation.
 Existing approval, suppression, sender, recipient, rights, and commercial controls
 continue to apply. A passing quality check is never permission to send.
 
+## October 7 launch direction
+
+Owner direction, 2026-10-06: new communications drafts consume
+`blueprint.outreach-framing.v2` from
+`server/agents/communications-launch-framing.ts`. Its version, guidance digest,
+audience role and one initial question are included in the frozen request.
+Introduce Blueprint honestly, using a specific evidenced task hypothesis or
+team detail. Sites are asked whether exploring robotics would be useful and why.
+Do not assume pain, manual work, automation, budget, urgency, fit or interest.
+Improvement now, bounded learning and preparation for future robotics are valid
+motivations; nonurgent interest remains in scope.
+
+Robot, platform and policy conversations discover demand for Blueprint, the
+current acquisition/task-assessment process and alternatives, desired next
+relationships, help wanted and the actual offer, in staged questions. Demos do
+not prove paid demand or need for leads. Production service, supervised or
+teleoperated pilots, design partnerships, platforms and readiness experiments
+are possible offers, not assumed facts. World-model/evaluation teams provide
+technical validation; their role does not imply robot supply. Early commercial,
+humanoid, wheeled, arm, open and closed models remain in scope, without a public
+API or deployment-maturity hard gate.
+
+No unsupported pilot-ready, partner, compatibility or hardware-supply claims.
+Robot-team beta evaluation is free when invited; hardware, integration and site
+matching are not thereby free. Site assessment and opening pilot proposals are
+free. The separate $2,500 site fee per task applies only when the site books
+Blueprint's recommended pilot, bound to the specific recommendation/version.
+A recommendation is not a booking, customer commitment or payment; team
+availability and an accepted offer require evidence. Intake is description-first and
+matching follows stated demand. No need and negative replies are learning;
+interest is distinct from commitment and never grants action authority.
+
+Fresh hypothesis drafts use `blueprint.outreach.v3`: the framing question and
+`checks:["interest"]`, without promoting any research open check. The immutable
+Pipeline-produced qualification, question and source dates remain intact. Old
+`blueprint.outreach.v2` drafts and session definitions v9-v12 remain archived.
+Framing v1 inputs, guidance and hypothesis overrides v13-v16 remain byte-exact
+for historical sessions and agreements; they retain their recorded former fee
+direction as evidence. Prospective v2 hypothesis overrides v17-v20 use current
+main's pilot-booking policy through the existing saved-agent configuration flow.
+The saved agent itself is unchanged; no historical agreement is rewritten.
+Fresh launch-framed drafts do not enter automatic first contact, even if the
+older policy flag is enabled. Founder copy and sending authority remain separate.
+
+Correlated replies create a private owner queue at
+`outboundProspects/<prospectId>/replyFollowups/<handoffId>`, linked to the exact
+message events and original site/task/consent context. Task meaning, desired
+outcome and timing remain unknown until an authenticated operator records exact
+reply quotes. The handoff grants no spending, listing, recording, sharing or
+sending authority. See the [cloud implementation handoff](outreach-reply-handoff-cloud-20261006.md)
+for review, export and release steps.
+
 ## Five rules
 
 1. Start with a verified connection, introduction, or shared community where
