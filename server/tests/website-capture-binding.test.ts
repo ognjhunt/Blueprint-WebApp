@@ -1,11 +1,24 @@
 // @vitest-environment node
 import { beforeEach, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
+import express from "express";
+import { createServer } from "node:http";
 import { sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
-vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore }));
+vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,
+  default: { firestore: { FieldValue: { serverTimestamp: () => "synthetic-time" } } } }));
+vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => storage }));
+vi.mock("../utils/siteTaskBrief", async () => ({ getBrief: async () => (await import("./fixtures/website-continuation-vector.json")).default.brief,
+  TASK_BRIEFS_COLLECTION: "siteTaskBriefs" }));
+vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
+vi.mock("../utils/pipelineSyncSecurity", () => ({
+  createPipelineSyncRateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  verifyPipelineSyncRequest: (req: any) => req.headers["x-synthetic-signed"] === "1" ? { ok: true } : { ok: false, status: 401, code: "unauthorized" },
+}));
 import { resolveWebsiteCaptureBinding, assertWebsiteCaptureBindingInTransaction } from "../utils/websiteCaptureBinding";
 import { supplementIdentity } from "../utils/captureSupplement";
 import { bundleDigest } from "../utils/siteCaptureBundle";
+import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import continuationVector from "./fixtures/website-continuation-vector.json";
 import type { BundleStorage, BundleObjectInfo } from "../utils/siteCaptureBundleStorage";
 
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -53,6 +66,38 @@ it("binds finalized descendants to original sources with independent coordinate 
   expect(binding?.coordinate_frames_independent).toBe(true);
   expect(await resolveWebsiteCaptureBinding("req1", "site-req1", second, storage)).toEqual(binding);
   await sharedFakeFirestore.runTransaction(tx => assertWebsiteCaptureBindingInTransaction(tx, "req1", binding));
+});
+it("exports an authoritative supplementary context consumed by the shared Pipeline vector", async () => {
+  const captureId = child();
+  const captureBinding = await resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage);
+  expect(projectWebsiteTaskContext(continuationVector.brief as any, continuationVector.rights as any,
+    { captureId, captureBinding })).toEqual(continuationVector.context);
+});
+it("serves verified supplementary context through the controller and projects current late withdrawal", async () => {
+  const captureId = child();
+  sharedFakeFirestoreState.docs.set("inboundRequests/req1", { request: { consent_attestation: {
+    granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-06T00:00:00Z" } } });
+  const { default: router } = await import("../routes/internal-capture-worlds");
+  const app = express(); app.use(express.json()); app.use(router);
+  const server = createServer(app);
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address(); if (!address || typeof address === "string") throw new Error("synthetic bind failed");
+  const post = (signed = true, id = captureId) => fetch(`http://127.0.0.1:${address.port}/creator-captures/${id}/task-context`, {
+    method: "POST", headers: { "content-type": "application/json", ...(signed ? { "x-synthetic-signed": "1" } : {}) },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1" }),
+  });
+  try {
+    const accepted = await post();
+    expect(accepted.status).toBe(200);
+    expect(await accepted.json()).toEqual(continuationVector.context);
+    expect((await post(false)).status).toBe(401);
+    expect((await post(true, "supplement-unissued")).status).toBe(409);
+    const source = sharedFakeFirestoreState.docs.get("inboundRequests/req1") as any;
+    source.consent_revoked = true;
+    const revoked = await (await post()).json();
+    expect(revoked.capture_rights).toMatchObject({ consent_status: "revoked", derived_scene_generation_allowed: false });
+    expect(revoked.context_digest).not.toBe(continuationVector.context.context_digest);
+  } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
 });
 it.each(["unknown", "cross_site", "changed_parent", "unfinished", "source_generation", "marker_generation", "changed_lineage"])("refuses %s rather than granting authority by ID pattern", async fault => {
   const captureId = child();
