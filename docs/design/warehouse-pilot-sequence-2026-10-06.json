@@ -7,18 +7,29 @@
   "sourceCount": 7,
   "originalBriefCount": 8,
   "note": "The supplied folder contains seven images, covering capture, reconstruction, task assets, three robot comparisons and on-site testing.",
-  "imageProcessing": "Full resolution 1672 by 941; WebP quality 90; no cropping or content changes.",
+  "imageProcessing": "Full source resolution and native aspect ratios; WebP quality 90; no cropping or content changes. Images 1 and 7 use the user-supplied replacements.",
   "images": [
     {
-      "source_name": "f9f52233-8c90-433a-99b6-563bb402fdc7.png",
-      "source_sha256": "728d1f028eb542447cd2eaa8556bfe94c3c805002ff8fafa837f2963f04a153a",
+      "source_name": "4827b653-959d-490f-8dee-04cd2ec1d367.png",
+      "source_sha256": "744bec08606d0091d5332170952a2f119900c6361aaa5f9ff7398a78ca824733",
       "asset": "client/public/illustrations/warehouse-pilot/01-task-capture.webp",
-      "asset_sha256": "e8af98237d571e6c71b54d819a3fdf86d26971f915bfd335c50bbdc5d489b5ed",
-      "size_bytes": 234444,
+      "asset_sha256": "8624b738ebef392fc482b709434474948de26465b74677615d8dc94ff50d3c25",
+      "size_bytes": 203366,
       "dimensions": [
-        1672,
-        941
-      ]
+        1448,
+        1086
+      ],
+      "source_drive_id": "1DMk9urihJ0pyGEbhRZyynJlupE7ppKyy",
+      "replaces": {
+        "source_name": "f9f52233-8c90-433a-99b6-563bb402fdc7.png",
+        "source_sha256": "728d1f028eb542447cd2eaa8556bfe94c3c805002ff8fafa837f2963f04a153a",
+        "asset_sha256": "e8af98237d571e6c71b54d819a3fdf86d26971f915bfd335c50bbdc5d489b5ed",
+        "size_bytes": 234444,
+        "dimensions": [
+          1672,
+          941
+        ]
+      }
     },
     {
       "source_name": "0219f968-32e9-4727-948d-f2db2be1d5e8.png",
@@ -76,15 +87,26 @@
       ]
     },
     {
-      "source_name": "ef88eae5-0ca0-4389-9440-c73cfbcfb465.png",
-      "source_sha256": "9f1abef9e857cdef158765c99b1ccfd84cc6c8bc3ab368c2a17915193ff72e9b",
+      "source_name": "289a926f-9d54-470d-a975-9c00a87383b7.png",
+      "source_sha256": "97b95ef3adf1b7ab64c740c12b8b8f82130afc2fff06454e7ff8edb89ac68529",
       "asset": "client/public/illustrations/warehouse-pilot/07-on-site-testing.webp",
-      "asset_sha256": "371a711b5e0a9d148c10be105f2780ee9387887ad2b230f8106cbe2dbc18a6c8",
-      "size_bytes": 240084,
+      "asset_sha256": "15dd1a4f945f8da1ccb39bbcf703d66f9e671aec62a9cdcefef0924b01d367bc",
+      "size_bytes": 208660,
       "dimensions": [
-        1672,
-        941
-      ]
+        1448,
+        1086
+      ],
+      "source_drive_id": "1pGuGkaxPAgDraw-Sd9KyUGgxybAvshAe",
+      "replaces": {
+        "source_name": "ef88eae5-0ca0-4389-9440-c73cfbcfb465.png",
+        "source_sha256": "9f1abef9e857cdef158765c99b1ccfd84cc6c8bc3ab368c2a17915193ff72e9b",
+        "asset_sha256": "371a711b5e0a9d148c10be105f2780ee9387887ad2b230f8106cbe2dbc18a6c8",
+        "size_bytes": 240084,
+        "dimensions": [
+          1672,
+          941
+        ]
+      }
     }
   ]
 }

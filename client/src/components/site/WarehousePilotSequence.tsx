@@ -2,12 +2,14 @@ type PilotImageProps = {
   src: string;
   alt: string;
   caption: string;
+  width?: number;
+  height?: number;
 };
 
-function PilotImage({ src, alt, caption }: PilotImageProps) {
+function PilotImage({ src, alt, caption, width = 1672, height = 941 }: PilotImageProps) {
   return (
     <figure className="ms-pilot-image">
-      <img src={src} alt={alt} width={1672} height={941} loading="lazy" decoding="async" />
+      <img src={src} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
       <figcaption>{caption}</figcaption>
     </figure>
   );
@@ -50,7 +52,7 @@ export function WarehousePilotSequence() {
           <p className="ms-eyebrow">01 · Capture</p>
           <h3 id="task-capture-title">Show us the task as it happens.</h3>
           <p>Film a worker doing the job. Keep the hands, objects and work area in view. Agree what a completed task looks like and which exceptions matter.</p>
-          <PilotImage src="/illustrations/warehouse-pilot/01-task-capture.webp" alt="A warehouse worker in a lime reflective vest films horizontally on a phone while another worker places a blue case above the empty tray pocket; her body and feet are clear of the bench." caption="A phone recording captures the worker’s hands, the cases and the placement task." />
+          <PilotImage src="/illustrations/warehouse-pilot/01-task-capture.webp" width={1448} height={1086} alt="A close view of a warehouse worker in a lime reflective vest filming horizontally on a phone while another worker holds a blue case above the empty tray pocket." caption="A phone recording captures the worker’s hands, the cases and the placement task." />
         </section>
 
         <section className="ms-pilot-step" id="workspace-reconstruction" aria-labelledby="workspace-reconstruction-title">
@@ -90,7 +92,7 @@ export function WarehousePilotSequence() {
           <p className="ms-eyebrow">05 · On-site trial</p>
           <h3 id="on-site-testing-title">Test the approach at the real bench.</h3>
           <p>Once a team matches, you agree the pilot directly with them. The provider brings the robot to the site and tests the task under supervision. Measure completed placements, cycle time and interventions against the agreed criteria.</p>
-          <PilotImage src="/illustrations/warehouse-pilot/07-on-site-testing.webp" alt="Illustrative on-site test: a wheeled robot supports a blue case in its grippers above an empty tray pocket while a technician supervises from a laptop beside the bench." caption="Illustrative on-site trial: the grippers support the case above the empty pocket before placement." />
+          <PilotImage src="/illustrations/warehouse-pilot/07-on-site-testing.webp" width={1448} height={1086} alt="A close view of an illustrative on-site test: a wheeled robot supports a blue case in its grippers above an empty tray pocket while a technician supervises from a laptop beside the bench." caption="Illustrative on-site trial: the grippers support the case above the empty pocket before placement." />
         </section>
 
         <section className="ms-pilot-step" id="pilot-decision" aria-labelledby="pilot-decision-title">

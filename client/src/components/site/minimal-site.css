@@ -247,7 +247,7 @@
 .ms-pilot-task dd { color: var(--ms-muted); }
 .ms-pilot-step { margin-top: 54px; }
 .ms-pilot-image { margin-top: 23px; }
-.ms-pilot-image img { display: block; width: 100%; height: auto; aspect-ratio: 1672 / 941; border-radius: 3px; background: #191b1c; }
+.ms-pilot-image img { display: block; width: 100%; height: auto; border-radius: 3px; background: #191b1c; }
 .ms-pilot-image figcaption { margin-top: 10px; color: var(--ms-muted); font-size: 12px; line-height: 1.65; }
 .ms-pilot-comparison { margin-top: 30px; }
 .ms-pilot-comparison h4 { font-size: 16px; font-weight: 500; line-height: 1.5; }
