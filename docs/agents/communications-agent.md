@@ -42,7 +42,7 @@ Private root `blueprintCommunications/default`:
 | `contactProofs/{proofDigest}` | Immutable `blueprint.contact-resolution.v1` with original publication/prospect binding, retrieved bytes, literal quote, scope and terminal deterministic contact QA |
 | `firstTouches/{deliveryKey}` | One first-touch queue claim across revisions; only proven pre-inference research failures can be replaced atomically |
 | `jobs/{jobId}` | Digest of prospect, brief ID/digest, intent and incoming message ID; fenced lease, maximum three recovery attempts, persisted API create/session/turn checkpoint |
-| `refreshRequests/{jobId}` | Broader fact refresh remains research-owned; supported `intake_*` contact gaps are fulfilled by communications with resolved/terminal/retry_wait outcomes |
+| `refreshRequests/{jobId}` | Broader fact refresh remains research-owned; supported `intake_*` contact gaps are fulfilled by communications with resolved/terminal/retry_wait outcomes. The stale-fact worker claims only a draft job's own request (one with `job`); `intake_*` contact and research-owner requests stay pending for their owners |
 | `sendReceipts/{deliveryKey}` | One-use claim bound to mailbox/prospect/intent/incoming message, independent of brief revisions; actual Gmail receipt or unresolved acknowledgement |
 
 An approved handoff record contains exactly `version`, `state: "approved"`,
@@ -402,6 +402,56 @@ Flags default off; this change writes no environment values:
 - `BLUEPRINT_COMMUNICATIONS_SEND_ENABLED=true` separately permits approved sending.
 - `BLUEPRINT_COMMUNICATIONS_FOUNDER_SENT_OBSERVER_ENABLED=true` separately permits
   read-only founder-sent draft observation (below).
+- `BLUEPRINT_COMMUNICATIONS_HYPOTHESIS_DRAFTS_ENABLED=true` separately permits
+  drafting outreach-ready hypotheses (below). They stay draft only.
+
+### Outreach-ready hypothesis drafts (default off)
+
+Owner decision 2026-10-05: a published outreach-ready hypothesis may become a
+draft. While the flag is off, intake only records each hypothesis
+(`hypothesis_recorded`). Turning the flag off also stops hypothesis work already
+queued: a hypothesis draft job waits as `queued` (`hypothesis_drafts_disabled`)
+before any session or paid create, and a hypothesis contact request waits
+unclaimed, until the flag is on again. While it is on, `admitPublishedHypothesis`
+gives a hypothesis one draft job only when every check holds:
+
+- the published day still verifies from a fresh snapshot, including the run's
+  frozen owner direction and the retained tool evidence;
+- `evaluateOutreachTier` (the TypeScript copy of Pipeline's
+  `blueprint.outreach-ready-rule.v1.2`, and of v1.1 for rows published under it)
+  recomputes exactly the published tier under the row's own rule version. The
+  frozen direction, the cohort and every result block must name the same rule,
+  so a row is never re-worded: a v1.1 row keeps v1.1 wording and a v1.2 row has
+  v1.2 wording (`outreach-ready-question.ts`, a copy of Pipeline's
+  `outreach_question`: the task with an ordinary leading capital lower-cased,
+  "your <City> site", and template U when exact-task/site partial automation is
+  unknown; counterevidence about other tasks/sites cannot establish that premise);
+- the assessment is unexpired and its proven facts are at most 7 days old;
+- no canonical prospect already holds the same Sheets row, operator, site and
+  task, or contact address, and no verified row covers it;
+- the contact passes `blueprint.contact-resolution.v2`: the address is published
+  verbatim on the operator's own domain and is at that domain; free-mail,
+  careers, jobs, legal, privacy and support addresses are refused; LinkedIn is
+  never evidence. The draft greets a person by name only when the address is
+  their own: published beside their name, with a local part that is a whole
+  form of that name (`ann`, `ann.smith`, `asmith`, `smitha`, ...). A role inbox
+  (`planning@`, `sales@`, `marketing@`) is always addressed as an inbox.
+
+A missing contact goes to communications contact research. A known candidate is
+blocked, and its open contact request is closed (`terminal`), so no contact
+research follows. A contact request that finds its hypothesis already admitted
+or blocked is settled (`resolved` or `terminal`), never left `running`. Anything
+else becomes `needs_research` for the research owner. The publication, CRM and
+fact-freshness checks run before any contact work, and again at admission. A
+failure found by contact research, or at admission with a contact, is recorded
+the same way; it never asks for more contact research. A request handed from
+contact research to the research owner starts `pending` for it, even if contact
+research had already ended it as `terminal`.
+
+The draft asks exactly the one published question (`blueprint.outreach.v2`).
+Approvals shows it as "Hypothesis · draft only", with no approve control.
+Every send, approval and first-contact path refuses it. The existing Gmail
+draft copy is unchanged and can copy it.
 
 ### Founder-sent draft observation (default off)
 

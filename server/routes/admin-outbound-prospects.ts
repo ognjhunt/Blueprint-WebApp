@@ -38,6 +38,7 @@ import { CommunicationsAgentsAPI } from "../agents/communications-api";
 import { reconcileCommunicationsDraftSession } from "../agents/communications-draft-budget";
 import { communicationsDigest } from "../agents/communications-contract";
 import { founderMailboxConnectionPlan } from "../agents/communications-connection";
+import { replyFollowupReviewSchema, reviewReplyFollowup } from "../agents/communications-reply-followup";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
 import {
   communicationsResearchInputSchema, previewResearchCommunications, approveResearchCommunications,
@@ -245,9 +246,36 @@ router.get("/:prospectId/communications", async (req: Request, res: Response) =>
   const prospect = await ref.get();
   if (!prospect.exists) return res.status(404).json({ error: "not_found" });
   const events = await ref.collection("communicationsEvents").limit(30).get();
+  const followups = await ref.collection("replyFollowups").get();
   const jobs = await new CommunicationsStore(db).jobsForProspect(String(req.params.prospectId));
   return res.json({ ok: true, jobs, communications: prospect.data()?.communications ?? null,
+    replyFollowups: followups.docs.map(doc => ({ id: doc.id, ...doc.data() })),
     events: events.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
+});
+
+router.post("/:prospectId/communications/followups/:handoffId/review", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  const actor = res.locals.firebaseUser?.uid;
+  if (typeof actor !== "string" || !actor.trim()) return res.status(403).json({ error: "operator_identity_missing" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const input = replyFollowupReviewSchema.safeParse(req.body);
+  if (!input.success) return res.status(400).json({ error: "reply_followup_review_invalid" });
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    const handoff = await reviewReplyFollowup(db, String(req.params.prospectId), String(req.params.handoffId), input.data, actor, Date.now());
+    return res.json({ ok: true, handoff, sent: false, sessionCreated: false, gmailDraftCreated: false });
+  } catch { return res.status(409).json({ error: "reply_followup_review_conflict" }); }
+});
+
+router.get("/:prospectId/communications/followups", async (req: Request, res: Response) => {
+  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const prospectId = String(req.params.prospectId);
+  if (!/^[a-zA-Z0-9_.:-]{1,160}$/.test(prospectId)) return res.status(400).json({ error: "prospect_invalid" });
+  // Owner review remains accessible when the canonical prospect needs repair.
+  const rows = await db.collection(COLLECTION).doc(prospectId).collection("replyFollowups").get();
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({ ok: true, replyFollowups: rows.docs.map(doc => ({ id: doc.id, ...doc.data() })) });
 });
 
 /** Recover an existing session and its usage without inference, queue or send. */

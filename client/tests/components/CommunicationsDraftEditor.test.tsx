@@ -97,3 +97,24 @@ describe("saved communications draft editor", () => {
   });
 
 });
+
+describe("LinkedIn people-search link on a hypothesis draft", () => {
+  const url = "https://www.linkedin.com/search/results/people/?keywords=operations%20manager%20Synthetic%20Sorting%20Co";
+  it("shows a plain link that opens a search in the browser and is never evidence", () => {
+    const fetchSpy = vi.spyOn(global, "fetch");
+    render(<CommunicationsDraftEditor payload={payload} review={review} onSave={vi.fn()}
+      linkedinSearch={{ url, role: "operations manager", operator: "Synthetic Sorting Co" }} />);
+    const link = screen.getByRole("link", { name: /Search LinkedIn for operations manager at Synthetic Sorting Co/ });
+    expect(link).toHaveAttribute("href", url);
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
+    expect(screen.getByText(/never fetched or stored, and it is not evidence/)).toBeVisible();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+  it.each([undefined, "https://www.linkedin.com/in/someone", "javascript:alert(1)", "https://linkedin.example/search/results/people/?keywords=x"])(
+    "shows no link for %s", value => {
+      render(<CommunicationsDraftEditor payload={payload} review={review} onSave={vi.fn()}
+        linkedinSearch={value === undefined ? undefined : { url: value, role: "operations manager", operator: "Synthetic Sorting Co" }} />);
+      expect(screen.queryByRole("link", { name: /Search LinkedIn/ })).toBeNull();
+    });
+});

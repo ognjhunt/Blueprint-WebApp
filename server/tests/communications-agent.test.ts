@@ -7,17 +7,22 @@ vi.mock("../agents/operator-tools", async importOriginal => ({ ...await importOr
   getCompanyHistoryAccess: async () => continuationMocks.access }));
 import { communicationsFixture, communicationsNow, memoryFirestore, cancelledContinuationFixture, syntheticQualification } from "./fixtures/communications";
 import { communicationsDigest, communicationsBriefSchema, correlateReply, authorText, isOptOut, communicationsDeliveryKey, communicationsOutputSchema,
-  outreachReadyQuestion, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL, communicationsHandoffSchema,
+  outreachReadyQuestion, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL, OUTREACH_READY_OWNER_DECISION_REFERENCE, communicationsHandoffSchema,
   SHEETS_RECEIPT_MAX_LENGTH } from "../agents/communications-contract";
+import { LEGACY_OUTREACH_RULE_VERSION } from "../agents/outreach-ready-question";
 import { researchDigest, verifyPublishedResearch } from "../agents/communications-research";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { buildCommunicationsInput, processCommunicationsJob, recoverRejectedCommunicationsCreate, continueCancelledCommunicationsJob, startCommunicationsWorker, startCommunicationsQueueLoop } from "../agents/communications-worker";
 import { CommunicationsRuntimeError, type CommunicationsAgentsAPI } from "../agents/communications-api";
 import { reserveCommunicationsDraft, reconcileCommunicationsDraftSession, COMMUNICATIONS_DRAFT_BUDGET } from "../agents/communications-draft-budget";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
+import { COMMUNICATIONS_AUDIENCE_ROLES, COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1,
+  COMMUNICATIONS_LAUNCH_GUIDANCE_V1, communicationsLaunchFraming,
+  type CommunicationsAudienceRole } from "../agents/communications-launch-framing";
 
-async function setup(intent: "outreach" | "reply" = "outreach", now = () => communicationsNow) {
+async function setup(intent: "outreach" | "reply" = "outreach", now = () => communicationsNow, audienceRole?: CommunicationsAudienceRole) {
   const fixture = communicationsFixture(intent);
+  if (audienceRole) { fixture.brief.audienceRole = audienceRole; fixture.brief.unknowns.push("Closed-source model; early commercial offer and deployment maturity unknown"); }
   const db = memoryFirestore();
   const store = new CommunicationsStore(db, now, "test-owner");
   const install = async () => {
@@ -296,17 +301,25 @@ describe("outreach-ready brief contract (optional, draft-only qualification bloc
     const brief = hypothesisBrief(value => mutate(value.qualification));
     expect(communicationsBriefSchema.safeParse(brief).success).toBe(false);
   });
-  it.each<[string, string[], string]>([
+  it.each<[string, string[], string, { location?: string; partialAutomation?: boolean; ruleVersion?: any }]>([
     ["S while the site link is open", ["site_link", "manual_workflow", "freshness", "existing_automation", "fit", "interest"],
-      "Is Packing done at your Synthetic packing site site, or somewhere else in the company?"],
+      "Is packing done at your McKinney site, or somewhere else in the company?", { location: "MCKINNEY, TX 75069" }],
     ["M while the manual workflow is open", ["manual_workflow", "existing_automation", "fit", "interest"],
-      "Which parts of Packing at Synthetic packing site still need people, and what has kept them from being automated?"],
-    ["A once the manual workflow is verified", ["freshness", "existing_automation", "fit", "interest"],
-      "What has kept the remaining Packing work at Synthetic packing site from being automated so far?"],
-  ])("parses exactly one question, %s", (_name, openChecks, question) => {
+      "Which parts of packing at your Synthetic packing site still need people, and what has kept them from being automated?", {}],
+    ["A once the manual workflow is verified and automation is shown", ["freshness", "existing_automation", "fit", "interest"],
+      "What has kept the rest of packing at your Synthetic packing site from being automated so far?", { partialAutomation: true }],
+    ["U once the manual workflow is verified and no automation is shown", ["freshness", "existing_automation", "fit", "interest"],
+      "Is any of packing at your Synthetic packing site automated today, or is it all done by hand?", {}],
+    ["v1.1's S", ["site_link", "manual_workflow", "freshness", "existing_automation", "fit", "interest"],
+      "Is Packing done at your Synthetic packing site site, or somewhere else in the company?", { ruleVersion: LEGACY_OUTREACH_RULE_VERSION }],
+    ["v1.1's M", ["manual_workflow", "existing_automation", "fit", "interest"],
+      "Which parts of Packing at Synthetic packing site still need people, and what has kept them from being automated?", { ruleVersion: LEGACY_OUTREACH_RULE_VERSION }],
+    ["v1.1's A once the manual workflow is verified", ["freshness", "existing_automation", "fit", "interest"],
+      "What has kept the remaining Packing work at Synthetic packing site from being automated so far?", { ruleVersion: LEGACY_OUTREACH_RULE_VERSION }],
+  ])("parses exactly one question, %s", (_name, openChecks, question, options) => {
     const brief = hypothesisBrief(value => { value.qualification.openChecks = openChecks; value.qualification.openQuestions = [question]; });
     expect(communicationsBriefSchema.parse(brief)).toEqual(brief);
-    expect(outreachReadyQuestion(openChecks, "Packing", "Synthetic packing site")).toBe(question);
+    expect(outreachReadyQuestion(openChecks, "Packing", "Synthetic packing site", options)).toBe(question);
   });
   it.each<[string, (brief: any) => void]>([
     ["a qualification block", () => undefined],
@@ -318,6 +331,32 @@ describe("outreach-ready brief contract (optional, draft-only qualification bloc
     const brief = hypothesisBrief(value => { value.researchOrigin = { ...value.researchOrigin }; mutate(value); });
     const handoff = { ...f.handoff, briefDigest: communicationsDigest(brief) };
     expect(() => verifyPublishedResearch(f.snapshot, brief, handoff)).toThrow(OUTREACH_READY_SEND_REFUSAL);
+  });
+  it("binds the 2026-10-05 owner decision record as the qualification reference", () => {
+    expect(OUTREACH_READY_OWNER_DECISION_REFERENCE).toBe(
+      "gs://blueprint-8c1ca.appspot.com/operations/recovery/2026-10-05/owner-decisions/owner-decision-outreach-ready-and-screen-20261005.json");
+    const brief = hypothesisBrief(value => { value.qualification.ownerDecision.reference = OUTREACH_READY_OWNER_DECISION_REFERENCE; });
+    expect(communicationsBriefSchema.parse(brief).qualification?.ownerDecision.reference).toBe(OUTREACH_READY_OWNER_DECISION_REFERENCE);
+  });
+  it.each<[string, unknown]>([
+    ["a named person greeted by name", { kind: "named_person", name: "Synthetic Person", role: "Operations Manager",
+      sourceUrl: "https://facility.example/team" }],
+    ["an inbox addressed to whoever runs the task", { kind: "inbox", addressee: "whoever runs Packing at Synthetic packing site", person: null }],
+    ["an inbox with a published person behind the role", { kind: "inbox", addressee: "whoever runs Packing at Synthetic packing site",
+      person: { name: "Synthetic Person", role: "operations manager", sourceUrl: "https://news.example/synthetic-story" } }],
+  ])("parses a hypothesis contact recipient: %s", (_name, recipient) => {
+    const brief = hypothesisBrief(value => { value.contact = { ...value.contact, recipient }; });
+    expect(communicationsBriefSchema.parse(brief)).toEqual(brief);
+  });
+  it.each<[string, unknown]>([
+    ["an unknown kind", { kind: "team", addressee: "whoever runs Packing at Synthetic packing site", person: null }],
+    ["a named person without a role", { kind: "named_person", name: "Synthetic Person", sourceUrl: "https://facility.example/team" }],
+    ["an extra field", { kind: "inbox", addressee: "whoever runs Packing at Synthetic packing site", person: null, greeting: "Hi" }],
+    ["a source that is not a public web page", { kind: "named_person", name: "Synthetic Person", role: "Operations Manager",
+      sourceUrl: "mailto:person@facility.example" }],
+  ])("refuses a contact recipient with %s", (_name, recipient) => {
+    const brief = hypothesisBrief(value => { value.contact = { ...value.contact, recipient }; });
+    expect(communicationsBriefSchema.safeParse(brief).success).toBe(false);
   });
   it("reads the raw brief, so a partial or malformed block still refuses", () => {
     const { brief } = communicationsFixture();
@@ -331,6 +370,42 @@ describe("outreach-ready brief contract (optional, draft-only qualification bloc
 });
 
 describe("Blueprint-owned communications queue", () => {
+  it.each(COMMUNICATIONS_AUDIENCE_ROLES)("consumes versioned %s framing in the actual fresh draft path with no automatic send", async role => {
+    const f = await setup("outreach", () => communicationsNow, role), framing = communicationsLaunchFraming(f.brief);
+    const contract = f.output.outreachContract as any;
+    f.output.body = f.output.body.replace(contract.question, framing.question); contract.question = framing.question;
+    // Closed source and early maturity are context, never a recipient hard gate.
+    f.deps.api.run.mockImplementation(async (params: any) => {
+      const input = JSON.parse(params.input);
+      expect(input.firstTouchFraming).toEqual(framing);
+      expect(input.firstTouchPolicy).toContain("No public API or deployment maturity hard gate");
+      expect(input.firstTouchPolicy).toContain("Demos do not establish paid demand");
+      expect(input.firstTouchPolicy).toContain("$2,500");
+      expect(input.firstTouchPolicy).toContain("only when the site books Blueprint's recommended pilot");
+      expect(input.firstTouchPolicy).not.toContain("when a match is found");
+      expect(params.checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
+      return { output: f.output, checkpoint: params.checkpoint, usage: { input_tokens: 10 } };
+    });
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
+    const result: any = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false, gmailDraftCreated: false });
+    const ledger = f.db.records.get(`action_ledger/${result.ledgerId}`);
+    expect(ledger).toMatchObject({ approved_by: null, action_tier: 3 });
+    expect(ledger.first_contact_authority).toBeUndefined();
+  });
+  it("preserves a prepared v1 checkpoint and frozen input instead of upgrading its commercial direction", async () => {
+    const f = await setup("outreach"), path = `${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`;
+    const prepared = f.db.records.get(path);
+    prepared.checkpoint.framingVersion = COMMUNICATIONS_FRAMING_V1;
+    const result = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false });
+    const params = f.deps.api.run.mock.calls[0][0], input = JSON.parse(params.input);
+    expect(params.checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_V1);
+    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_LAUNCH_GUIDANCE_V1);
+    expect(input.firstTouchFraming.instructionsDigest).toBe("920b1c200fa7421154565c29edf9de903b8fb12b1b07fcfe280fa6b0c8af8a85");
+    expect(buildCommunicationsInput(input.researchBrief, input.emailThread, "outreach", input.currentApproval, undefined,
+      params.checkpoint.executionWindow, params.checkpoint.draftWritingGuidance, COMMUNICATIONS_FRAMING_V1)).toBe(params.input);
+  });
   it("retains one immutable correlated reply receipt with separate observed time and source hash", async () => {
     const f = await setup("reply"), incoming = f.thread!.messages.at(-1)!;
     await f.store.recordReply(f.job, incoming, f.thread!.fetchedAt);
@@ -413,15 +488,15 @@ describe("Blueprint-owned communications queue", () => {
     expect(repairRequests).toBe(0);
     expect([...f.db.records.keys()].some(key => key.startsWith("action_ledger/"))).toBe(false);
   });
-  it("retains an uncorrected prospective draft with unsupported facts as blocked evidence, never automatic or human approval", async () => {
+  it("retains unsupported facts as review diagnostics with no automatic or human approval", async () => {
     const f = await setup("reply");
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");
     f.output.usedFactIds.push("unknown-fact");
     const result = await processCommunicationsJob(f.job.jobId, f.deps);
-    expect(result).toMatchObject({ state: "blocked", reason: "draft_quality_failed:used_fact_missing", sent: false });
+    expect(result).toMatchObject({ state: "pending_approval", sent: false });
     const ledger = f.db.records.get(`action_ledger/${(result as any).ledgerId}`);
-    expect(ledger).toMatchObject({ action_tier: 3, status: "failed", approved_by: null, action_payload: {
+    expect(ledger).toMatchObject({ action_tier: 3, status: "pending_approval", approved_by: null, action_payload: {
       communicationsDraftDiagnostics: { blockers: expect.arrayContaining(["used_fact_missing"]) }, communications: { output: f.output } } });
     expect(ledger.first_contact_authority).toBeUndefined();
     expect(reviewCommunicationsPayload(ledger.action_payload, communicationsNow).hardChecksPassed).toBe(false);
@@ -469,7 +544,8 @@ describe("Blueprint-owned communications queue", () => {
     expect(ledger.outreach_semantic_review).toBeUndefined();
     const input = JSON.parse(f.deps.api.run.mock.calls[0][0].input);
     expect(input.firstTouchPolicy).not.toContain("automation_status");
-    expect(input.firstTouchPolicy).toContain("learningQuestion is a suggestion, not fixed wording");
+    expect(input.firstTouchFraming.version).toBe(COMMUNICATIONS_FRAMING_VERSION);
+    expect(input.firstTouchPolicy).toContain("ask one primary initial question");
   });
   it.each(["outreach", "reply"] as const)("supplies fresh %s writing guidance without changing archived charged input", async intent => {
     const f = await setup(intent);
@@ -488,7 +564,7 @@ describe("Blueprint-owned communications queue", () => {
     // while old charged checkpoints without it keep their historical shape.
     const charged = { ...saved, createClaimedAt: new Date(communicationsNow).toISOString(), sessionId: null };
     expect(buildCommunicationsInput(input.researchBrief, input.emailThread, intent, input.currentApproval, undefined,
-      charged.executionWindow, charged.draftWritingGuidance)).toBe(f.deps.api.run.mock.calls[0][0].input);
+      charged.executionWindow, charged.draftWritingGuidance, charged.framingVersion, charged.replyFollowup)).toBe(f.deps.api.run.mock.calls[0][0].input);
     expect(JSON.parse(buildCommunicationsInput(f.brief, f.thread, intent, null))).not.toHaveProperty("writingGuidance");
   });
   it("claims concurrently enqueued work once across two worker owners", async () => {

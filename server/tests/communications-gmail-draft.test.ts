@@ -7,15 +7,26 @@ const copyStorage = vi.hoisted(() => ({ raw: "", generation: "1" }));
 vi.mock("../agents/communications-oauth-store", () => ({ requireFounderDraftCapability: capability }));
 vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => ({ bucketName: "blueprint-8c1ca.appspot.com",
  info: async () => ({ generation: copyStorage.generation, size: Buffer.byteLength(copyStorage.raw) }), readText: async () => copyStorage.raw }) }));
-import { communicationsFixture, communicationsNow, memoryFirestore } from "./fixtures/communications";
+import { communicationsFixture, communicationsNow, memoryFirestore, syntheticQualification } from "./fixtures/communications";
+import { launchHypothesisDraft } from "./fixtures/hypothesis";
 import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
-import { communicationsDeliveryKey } from "../agents/communications-contract";
+import { communicationsDeliveryKey, communicationsDigest } from "../agents/communications-contract";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, runCommunicationsGmailDraftCopies, type GmailDraftPorts } from "../agents/communications-gmail-draft";
 beforeEach(()=>{vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE","Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");capability.mockReset().mockResolvedValue(undefined);});
 afterEach(()=>vi.unstubAllEnvs());
-function fixture() {
- const {job,brief,handoff,output}=communicationsFixture(), ledgerId=`communications_${job.jobId}`;
+function fixture(launch = false) {
+ const {job,brief,handoff}=communicationsFixture();
+ let { output } = communicationsFixture();
+ if (launch) {
+  brief.qualification = syntheticQualification();
+  brief.contact.recipient = { kind: "inbox", addressee: "the packing team", person: null };
+  output = launchHypothesisDraft(brief);
+  job.briefDigest = communicationsDigest(brief);
+  const { jobId: _, ...identity } = job;
+  job.jobId = communicationsDigest(identity); handoff.briefDigest = job.briefDigest;
+ }
+ const ledgerId=`communications_${job.jobId}`;
  const payload={from:"nijel@tryblueprint.io",replyTo:"nijel@tryblueprint.io",to:brief.contact.email.toLowerCase(),emailTransport:"founder_gmail",subject:output.subject,body:output.body,transportBody:appendFirstContactFooter(output.body,brief.contact.email),outreachContext:brief.outreachContext,outreachContract:output.outreachContract,communications:{version:"blueprint.communications.v1",job,brief,output,thread:null,approvalState:"pending_approval"}};
  const reviewDigest=reviewCommunicationsPayload(payload,communicationsNow).digest!, revisionId="a".repeat(64), root="blueprintCommunications/default";
  const db=memoryFirestore(new Map([
@@ -33,6 +44,16 @@ function fixture() {
  return{db,job,brief,ledgerId,input,ports,payload,root,receipt,setCopied:(v:any)=>{copied=v;}};
 }
 describe("separate retained recurring Gmail copy direction",()=>{
+ it("copies a launch-framed hypothesis only through the exact founder draft scope, with no approval or send", async () => {
+  const f = fixture(true);
+  expect(f.payload.outreachContract?.version).toBe("blueprint.outreach.v3");
+  expect(reviewCommunicationsPayload(f.payload, communicationsNow).hardChecksPassed).toBe(true);
+  expect(await mirrorCommunicationsGmailDraft(f.db, f.ledgerId, "authenticated-founder", f.input, f.ports, communicationsNow))
+   .toMatchObject({ state: "verified", sent: false, approved: false });
+  await mirrorCommunicationsGmailDraft(f.db, f.ledgerId, "authenticated-founder", f.input, f.ports, communicationsNow);
+  expect(f.ports.write).toHaveBeenCalledOnce();
+  expect(f.db.records.get(`action_ledger/${f.ledgerId}`).approved_by).toBeUndefined();
+ });
  function recurring() {
   const f=fixture();copyStorage.generation="1";
   vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","true");vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED","false");vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED","false");

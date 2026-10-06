@@ -2,7 +2,9 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { communicationsDigest } from "./communications-contract";
 import { defaultTreeAdapter, parse, type DefaultTreeAdapterMap } from "parse5";
-import { assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, EMAIL, extractBusinessContact, restrictedContact, sameOperatorUrl, supportedBusinessRoute } from "./communications-contact-evidence";
+import { addressIsPersonOwn, assertContactUnknowns, contactUnknowns, contactProhibition, containsContactName, EMAIL, extractBusinessContact,
+  extractPublishedAddress, isLinkedInUrl, publishedPeople, restrictedContact, sameOperatorUrl, supportedBusinessRoute } from "./communications-contact-evidence";
+import type { CommunicationsRecipient } from "./communications-contract";
 import { CONTACT_RESEARCH_PAGE_LIMIT, contactFetchUrl, type ContactPage, type ContactPageReader } from "./communications-contact-fetch";
 import { contactDiscoverySchema, type ContactDiscovery } from "./communications-contact-research";
 import { elementFacts, hidingRules, hidingStyle, matchesHidingRule } from "./communications-contact-visibility";
@@ -14,12 +16,13 @@ const pageSchema = z.object({ requestedUrl: z.string().url(), finalUrl: z.string
   checkedAt: z.string().datetime(), status: z.literal(200), contentType: z.string().max(200),
   bodyBase64: z.string().max(Math.ceil(CONTACT_RESEARCH_PAGE_LIMIT / 3) * 4), bodyDigest: digest, byteCount: z.number().int().positive().max(CONTACT_RESEARCH_PAGE_LIMIT),
 }).strict();
+const publicationSchema = z.object({ date: z.string().date(), runKey: z.string().min(1), candidateKey: z.string().min(1),
+  packetDigest: digest, rawArtifactDigest: digest, sourceDigest: digest,
+  qaArtifactDigest: digest, researchQaReference: z.string().min(1),
+  sheetsId: z.string().min(1), sheetsProspectId: z.string().min(1), prospectId: z.string().min(1) }).strict();
 const resolutionBaseSchema = z.object({
   version: z.literal("blueprint.contact-resolution.v1"),
-  publication: z.object({ date: z.string().date(), runKey: z.string().min(1), candidateKey: z.string().min(1),
-    packetDigest: digest, rawArtifactDigest: digest, sourceDigest: digest,
-    qaArtifactDigest: digest, researchQaReference: z.string().min(1),
-    sheetsId: z.string().min(1), sheetsProspectId: z.string().min(1), prospectId: z.string().min(1) }).strict(),
+  publication: publicationSchema,
   pages: z.array(pageSchema).min(1).max(3),
   discovery: contactDiscoverySchema.optional(),
   contact: z.object({ email: z.string().email(), scope: z.enum(["site", "organization_business_route"]),
@@ -325,11 +328,10 @@ export function verifyContactResolution(value: unknown, source: any, prospectId:
     kind: "public_operator_resolution" as const, resolvedGaps: proof.resolvedGaps };
 }
 
-/** Bounded communications-owned research. Only cited pages and discovered operator
- * contact links, three pages/24 seconds; no guessed path/address, model or Gmail. */
-export async function resolvePublicContact(source: any, prospectId: string, readPage: ContactPageReader, now: () => number,
-  discovery?: ContactDiscovery) {
-  assertContactUnknowns(source.candidate, true);
+/** Up to three pages: the research agent's discovered sources, the operator's own site and its cited
+ * operator pages, then contact links found on them; three pages, six reads, 24 seconds. Shared by the
+ * verified (v1) and hypothesis (v2) resolutions, so both read pages by the same rules. */
+async function collectContactPages(source: any, readPage: ContactPageReader, now: () => number, discovery?: ContactDiscovery) {
   const queue = [...(discovery?.sources.map(s => s.url) ?? []), source.candidate.organization_url,
     ...source.candidate.evidence.filter((x: any) => x.classification === "operator").map((x: any) => x.url)];
   const visited = new Set<string>(), pages: z.infer<typeof pageSchema>[] = [], deadline = now() + 24000;
@@ -353,6 +355,15 @@ export async function resolvePublicContact(source: any, prospectId: string, read
     // Discovered contact links take precedence over another general source page.
     queue.unshift(...parsed.links);
   }
+  return pages;
+}
+
+/** Bounded communications-owned research. Only cited pages and discovered operator
+ * contact links, three pages/24 seconds; no guessed path/address, model or Gmail. */
+export async function resolvePublicContact(source: any, prospectId: string, readPage: ContactPageReader, now: () => number,
+  discovery?: ContactDiscovery) {
+  assertContactUnknowns(source.candidate, true);
+  const pages = await collectContactPages(source, readPage, now, discovery);
   const candidates = pages.flatMap((page, pageIndex) => {
     const parsed = contactPageText(page);
     if (parsed.visibilityUnverified) return [];
@@ -374,5 +385,164 @@ export async function resolvePublicContact(source: any, prospectId: string, read
       quote: selected.quote, visibleTextDigest: selected.visibleTextDigest, visibilityBasis: VISIBILITY_BASIS },
     resolvedGaps: contactUnknowns(source.candidate).gaps }, source, prospectId);
   return contactResolutionSchema.parse({ ...base, qa: { version: "blueprint.contact-qa.v1", state: "approved",
+    reviewedBy: "blueprint-communications-contact-verifier", reviewedAt: new Date(now()).toISOString(), inputDigest: communicationsDigest(base) } });
+}
+
+// ---------------------------------------------------------------------------------------------
+// blueprint.contact-resolution.v2: contacts for outreach-ready hypotheses, under the owner decision
+// of 2026-10-05 on contact sources. The address must be published verbatim on a freshly read page on
+// the operator's own domain, at that domain (extractPublishedAddress). A named person may also come
+// from a news story, press release, job post or operator page that the day's research quoted and
+// retained evidence proves; that person is never greeted unless the address is their own. LinkedIn is
+// never evidence. Ranking is publicContactPriority, unchanged, with a press inbox capped at general.
+export const HYPOTHESIS_CONTACT_VERSION = "blueprint.contact-resolution.v2" as const;
+const HYPOTHESIS_EXTRACTOR = "blueprint.published-address-text.v1" as const;
+/** A research quote that names a person, with the level at which the day's retained evidence proves it. */
+export type HypothesisPersonEvidence = { url: string; quote: string; checkedAt: string;
+  level: "verified_on_page" | "in_citation_excerpt"; toolResultSha256: string };
+const personSchema = z.object({ name: z.string().min(1).max(200), role: z.string().min(1).max(200), quote: z.string().min(1).max(1200),
+  sourceUrl: z.string().url(), level: z.enum(["fresh_operator_page", "verified_on_page", "in_citation_excerpt"]),
+  checkedAt: z.string().min(1).max(64), toolResultSha256: digest.nullable() }).strict();
+const hypothesisResolutionBaseSchema = z.object({
+  version: z.literal(HYPOTHESIS_CONTACT_VERSION),
+  publication: publicationSchema,
+  pages: z.array(pageSchema).min(1).max(3),
+  discovery: contactDiscoverySchema.optional(),
+  contact: z.object({ email: z.string().email(), route: z.enum(["named_person", "team_inbox", "general_inbox"]),
+    scope: z.enum(["site", "organization_business_route"]), organization: z.string().min(1), site: z.string().nullable(),
+    status: z.literal("public_business_contact"), sourceUrl: z.string().url(), sourceCheckedAt: z.string().datetime() }).strict(),
+  person: personSchema.nullable(),
+  addressIsPersonal: z.boolean(),
+  extraction: z.object({ version: z.literal(HYPOTHESIS_EXTRACTOR), pageIndex: z.number().int().nonnegative(), segmentIndex: z.number().int().nonnegative(),
+    quote: z.string().min(1).max(1200), visibleTextDigest: digest, visibilityBasis: z.literal(VISIBILITY_BASIS) }).strict(),
+  resolvedGaps: z.array(z.string().min(1).max(1200)).max(16),
+}).strict();
+export const hypothesisContactResolutionSchema = hypothesisResolutionBaseSchema.extend({
+  qa: z.object({ version: z.literal("blueprint.contact-qa.v2"), state: z.literal("approved"),
+    reviewedBy: z.literal("blueprint-communications-contact-verifier"), reviewedAt: z.string().datetime(), inputDigest: digest }).strict(),
+});
+export type HypothesisContactResolution = z.infer<typeof hypothesisContactResolutionSchema>;
+type HypothesisPerson = z.infer<typeof personSchema>;
+
+/** The deterministic choice both the resolver and the verifier make from the same pages and evidence. */
+function deriveHypothesisContact(pages: z.infer<typeof pageSchema>[], source: any, personEvidence: HypothesisPersonEvidence[]) {
+  const candidate = source.candidate;
+  const found: { email: string; press: boolean; priority: number; pageIndex: number; segmentIndex: number; quote: string; visibleTextDigest: string }[] = [];
+  const operatorPeople: (HypothesisPerson & { pageIndex: number; segmentIndex: number })[] = [];
+  let unverified = false;
+  for (const [pageIndex, page] of pages.entries()) {
+    const parsed = contactPageText(page);
+    if (contactProhibition.test(parsed.restrictionText)) throw new Error("contact_resolution_recipient_restricted");
+    if (parsed.visibilityUnverified) { unverified = true; continue; }
+    const visibleTextDigest = communicationsDigest({ segments: parsed.segments, restrictionText: parsed.restrictionText,
+      visibilityUnverified: parsed.visibilityUnverified });
+    for (const [segmentIndex, quote] of parsed.segments.entries()) {
+      if (quote.length > 1200 || literalAddressUnsafe(quote, parsed.joins[segmentIndex], parsed.edges[segmentIndex])) continue;
+      for (const person of publishedPeople(quote)) operatorPeople.push({ ...person, quote, sourceUrl: page.finalUrl, level: "fresh_operator_page",
+        checkedAt: page.checkedAt, toolResultSha256: null, pageIndex, segmentIndex });
+      try {
+        const address = extractPublishedAddress(quote, candidate, page.finalUrl), ranked = publicContactPriority(quote, candidate);
+        found.push({ ...address, priority: address.press ? Math.max(2, ranked) : ranked, pageIndex, segmentIndex, quote, visibleTextDigest });
+      } catch (error) {
+        if (error instanceof Error && error.message === "contact_source_linkedin_refused") throw error;
+      }
+    }
+  }
+  const eligible = found.filter(item => item.priority < 3);
+  if (!eligible.length) throw new Error(unverified ? "contact_resolution_visibility_unverified" : "contact_resolution_missing_or_ambiguous");
+  const priority = Math.min(...eligible.map(item => item.priority)), preferred = eligible.filter(item => item.priority === priority);
+  if (new Set(preferred.map(item => item.email)).size !== 1) throw new Error("contact_resolution_missing_or_ambiguous");
+  const selected = preferred[0];
+  const own = operatorPeople.filter(person => person.pageIndex === selected.pageIndex && person.segmentIndex === selected.segmentIndex);
+  const addressIsPersonal = new Set(own.map(person => person.name)).size === 1 && addressIsPersonOwn(selected.email, selected.quote, own[0].name);
+  const research: HypothesisPerson[] = personEvidence.filter(entry => !isLinkedInUrl(entry.url)).flatMap(entry => publishedPeople(entry.quote)
+    .map(person => ({ ...person, quote: entry.quote, sourceUrl: entry.url, level: entry.level, checkedAt: entry.checkedAt,
+      toolResultSha256: entry.toolResultSha256 })));
+  // One published person behind the role: the selected segment's, else any operator page's, else the
+  // research evidence's. Two or more different names are ambiguous and give none.
+  const people = [...own, ...operatorPeople.filter(person => !own.includes(person)), ...research];
+  const named = addressIsPersonal ? own[0] : new Set(people.map(person => person.name)).size === 1 ? people[0] : null;
+  const person: HypothesisPerson | null = named ? { name: named.name, role: named.role, quote: named.quote, sourceUrl: named.sourceUrl,
+    level: named.level, checkedAt: named.checkedAt, toolResultSha256: named.toolResultSha256 } : null;
+  const route = addressIsPersonal ? "named_person" as const : priority <= 1 && !selected.press ? "team_inbox" as const : "general_inbox" as const;
+  return { selected, person, addressIsPersonal, route,
+    scope: containsContactName(selected.quote, candidate.site) ? "site" as const : "organization_business_route" as const };
+}
+
+/** The draft's recipient: a named person only for their own address; otherwise whoever runs the task. */
+export function hypothesisRecipient(proof: Pick<HypothesisContactResolution, "person" | "addressIsPersonal">, candidate: any): CommunicationsRecipient {
+  const person = proof.person ? { name: proof.person.name, role: proof.person.role, sourceUrl: proof.person.sourceUrl } : null;
+  return proof.addressIsPersonal && person ? { kind: "named_person", ...person }
+    : { kind: "inbox", addressee: `whoever runs ${candidate.task} at ${candidate.site}`, person };
+}
+
+function checkHypothesisResolution(value: unknown, source: any, prospectId: string, personEvidence: HypothesisPersonEvidence[]) {
+  const base = hypothesisResolutionBaseSchema.parse(value);
+  if (isLinkedInUrl(source.candidate.organization_url) || (base.person && isLinkedInUrl(base.person.sourceUrl))) {
+    throw new Error("contact_source_linkedin_refused");
+  }
+  assertContactUnknowns(source.candidate, true);
+  if (communicationsDigest(base.publication) !== communicationsDigest(contactPublication(source, prospectId))
+    || communicationsDigest(base.resolvedGaps) !== communicationsDigest(contactUnknowns(source.candidate).gaps)) throw new Error("contact_resolution_source_changed");
+  const reachable = new Set([source.candidate.organization_url, ...source.candidate.evidence.filter((x: any) => x.classification === "operator").map((x: any) => x.url)]
+    .filter((x: string) => { try { return sameOperatorUrl(x, source.candidate.organization_url); } catch { return false; } })
+    .map((x: string) => { try { return contactFetchUrl(x, source.candidate.organization_url).href; } catch { return ""; } }));
+  if (base.pages.reduce((total, page) => total + page.byteCount, 0) > 512 * 1024) throw new Error("contact_resolution_total_size_limit");
+  if (base.discovery) {
+    if (base.discovery.sourceDigest !== communicationsDigest(source)
+      || base.discovery.requestId !== communicationsDigest({ publication: contactPublication(source, prospectId), sourceDigest: communicationsDigest(source) })) throw new Error("contact_research_source_changed");
+    for (const s of base.discovery.sources) reachable.add(contactFetchUrl(s.url, source.candidate.organization_url).href);
+  }
+  for (const page of base.pages) {
+    const bytes = Buffer.from(page.bodyBase64, "base64"), requested = contactFetchUrl(page.requestedUrl, source.candidate.organization_url).href;
+    if (!reachable.has(requested) || page.byteCount !== bytes.length || page.bodyDigest !== hash(bytes)
+      || page.finalUrl !== (page.redirects.at(-1) ?? page.requestedUrl)) throw new Error("contact_resolution_retrieval_changed");
+    for (const url of [page.finalUrl, ...page.redirects]) contactFetchUrl(url, source.candidate.organization_url);
+    for (const link of contactPageText(page).links) { try { reachable.add(contactFetchUrl(link, source.candidate.organization_url).href); } catch { /* no scope widening */ } }
+  }
+  const derived = deriveHypothesisContact(base.pages, source, personEvidence), page = base.pages[derived.selected.pageIndex];
+  if (communicationsDigest(base.extraction) !== communicationsDigest({ version: HYPOTHESIS_EXTRACTOR, pageIndex: derived.selected.pageIndex,
+    segmentIndex: derived.selected.segmentIndex, quote: derived.selected.quote, visibleTextDigest: derived.selected.visibleTextDigest,
+    visibilityBasis: VISIBILITY_BASIS })
+    || communicationsDigest(base.contact) !== communicationsDigest({ email: derived.selected.email, route: derived.route, scope: derived.scope,
+      organization: source.candidate.organization, site: derived.scope === "site" ? source.candidate.site : null, status: "public_business_contact",
+      sourceUrl: page.finalUrl, sourceCheckedAt: page.checkedAt })) throw new Error("contact_resolution_extraction_changed");
+  if (base.addressIsPersonal !== derived.addressIsPersonal || communicationsDigest(base.person) !== communicationsDigest(derived.person)) {
+    throw new Error("contact_resolution_person_changed");
+  }
+  return base;
+}
+
+/** Deterministic contact QA for a hypothesis, rerun at admission and before every draft. */
+export function verifyHypothesisContactResolution(value: unknown, source: any, prospectId: string, personEvidence: HypothesisPersonEvidence[]) {
+  const proof = hypothesisContactResolutionSchema.parse(value), { qa, ...base } = proof;
+  checkHypothesisResolution(base, source, prospectId, personEvidence);
+  if (qa.inputDigest !== communicationsDigest(base) || Date.parse(qa.reviewedAt) < Math.max(...proof.pages.map(x => Date.parse(x.checkedAt)))) {
+    throw new Error("contact_resolution_qa_changed");
+  }
+  return { email: proof.contact.email, scope: proof.contact.scope, sourceUrl: proof.contact.sourceUrl,
+    sourceCheckedAt: proof.contact.sourceCheckedAt, evidenceDigest: communicationsDigest(proof),
+    kind: "public_source_resolution" as const, resolvedGaps: proof.resolvedGaps, recipient: hypothesisRecipient(proof, source.candidate) };
+}
+
+/** Bounded communications-owned research for a hypothesis: the same page reads as the verified
+ * path (collectContactPages), with the owner's contact rules applied. No model, Gmail or send. */
+export async function resolveHypothesisContact(source: any, prospectId: string, readPage: ContactPageReader, now: () => number,
+  personEvidence: HypothesisPersonEvidence[], discovery?: ContactDiscovery) {
+  if (isLinkedInUrl(source.candidate.organization_url)) throw new Error("contact_source_linkedin_refused");
+  assertContactUnknowns(source.candidate, true);
+  const pages = await collectContactPages(source, readPage, now, discovery);
+  if (!pages.length) throw new Error("contact_resolution_missing_or_ambiguous");
+  const derived = deriveHypothesisContact(pages, source, personEvidence), page = pages[derived.selected.pageIndex];
+  const base = checkHypothesisResolution({ version: HYPOTHESIS_CONTACT_VERSION, publication: contactPublication(source, prospectId), pages,
+    ...(discovery ? { discovery } : {}),
+    contact: { email: derived.selected.email, route: derived.route, scope: derived.scope, organization: source.candidate.organization,
+      site: derived.scope === "site" ? source.candidate.site : null, status: "public_business_contact",
+      sourceUrl: page.finalUrl, sourceCheckedAt: page.checkedAt },
+    person: derived.person, addressIsPersonal: derived.addressIsPersonal,
+    extraction: { version: HYPOTHESIS_EXTRACTOR, pageIndex: derived.selected.pageIndex, segmentIndex: derived.selected.segmentIndex,
+      quote: derived.selected.quote, visibleTextDigest: derived.selected.visibleTextDigest, visibilityBasis: VISIBILITY_BASIS },
+    resolvedGaps: contactUnknowns(source.candidate).gaps }, source, prospectId, personEvidence);
+  return hypothesisContactResolutionSchema.parse({ ...base, qa: { version: "blueprint.contact-qa.v2", state: "approved",
     reviewedBy: "blueprint-communications-contact-verifier", reviewedAt: new Date(now()).toISOString(), inputDigest: communicationsDigest(base) } });
 }

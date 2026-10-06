@@ -26,6 +26,7 @@ import {
   retryFailedAction,
 } from "../agents/action-executor";
 import { reviewOutreachDraft, type OutreachReviewResult } from "../agents/outreach-review";
+import { linkedinPeopleSearchHint } from "../agents/communications-linkedin-hint";
 import { isCommunicationsPayload, reviewCommunicationsPayload } from "../agents/communications-review";
 import { communicationsSendingEnabled } from "../agents/communications-send";
 import { mirrorCommunicationsGmailDraft, CommunicationsGmailDraftError, communicationsGmailDraftStatus, configuredGmailDraftPorts } from "../agents/communications-gmail-draft";
@@ -360,6 +361,8 @@ type ActionLedgerRecord = Record<string, unknown> & {
   action_payload?: Record<string, unknown>;
   draft_output?: Record<string, unknown>;
   draft_revision_id?: string | null;
+  qualification_tier?: unknown;
+  send_authority?: unknown;
 };
 
 type ActionQueueItem = {
@@ -387,6 +390,11 @@ type ActionQueueItem = {
   draft_output: Record<string, unknown>;
   outreach_review?: OutreachReviewResult;
   draft_revision_id?: string | null;
+  // Present only on an outreach-ready hypothesis draft: tier "outreach_ready", send authority "none".
+  qualification_tier?: string;
+  send_authority?: string;
+  // Computed on each read for a hypothesis draft; never fetched, stored or used as evidence.
+  linkedin_search?: { url: string; role: string; operator: string };
 };
 
 function normalizeActionLedgerItem(
@@ -442,7 +450,16 @@ function normalizeActionLedgerItem(
       }),
     } : {}),
     ...(isCommunicationsPayload(data.action_payload ?? {}) ? { sending_enabled: communicationsSendingEnabled(), draft_revision_id: data.draft_revision_id ?? null } : {}),
+    ...(typeof data.qualification_tier === "string" ? { qualification_tier: data.qualification_tier } : {}),
+    ...(typeof data.send_authority === "string" ? { send_authority: data.send_authority } : {}),
+    ...(linkedinSearchFor(data.action_payload) ? { linkedin_search: linkedinSearchFor(data.action_payload)! } : {}),
   };
+}
+
+/** The founder's LinkedIn people-search link for an outreach-ready hypothesis draft, or null. */
+function linkedinSearchFor(payload: unknown) {
+  const communications = payload && typeof payload === "object" ? (payload as { communications?: { brief?: unknown } }).communications : undefined;
+  return linkedinPeopleSearchHint(communications && typeof communications === "object" ? communications.brief : undefined);
 }
 
 function sortActionQueueItems(items: ActionQueueItem[]) {
