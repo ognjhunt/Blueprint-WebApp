@@ -1,4 +1,5 @@
-import { COMMUNICATIONS_FRAMING_VERSION } from "../agents/communications-launch-framing";
+import { COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V1_DIGEST,
+  COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_LAUNCH_GUIDANCE_V1 } from "../agents/communications-launch-framing";
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
@@ -928,7 +929,9 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(f.checkpoints.at(-1)).toMatchObject({ createClaimedAt: expect.any(String), sessionId: null,
       hypothesisCreateSubmission: { state: "not_submitted", requestDigest: expect.any(String), inputDigest: communicationsDigest({ input: f.params.input }) } });
   });
-  it.each(["reservation", "claim_persisted"] as const)("resumes the exact held budget admission after the flag turns off during %s", async pauseAt => {
+  it.each((["reservation", "claim_persisted"] as const).flatMap(pauseAt =>
+    [undefined, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_VERSION].map(framingVersion => [pauseAt, framingVersion] as const)))
+  ("resumes the exact held budget admission after the flag turns off during %s with framing %s", async (pauseAt, framingVersion) => {
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "1");
     const f = apiFixture(), db = memoryFirestore();
     let paused = false, stored: any;
@@ -944,7 +947,7 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     };
     const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: true,
       fetch: f.fetchMock as any, reservePaidDraft: reserve, recordPaidDraftUsage: f.recordPaidDraftUsage });
-    await expect(api.run({ ...f.params, checkpoint: hypothesisCheckpoint() as any, saveCheckpoint }))
+    await expect(api.run({ ...f.params, checkpoint: { ...hypothesisCheckpoint(), ...(framingVersion ? { framingVersion } : {}) } as any, saveCheckpoint }))
       .rejects.toMatchObject({ code: "hypothesis_drafts_disabled" });
     expect(f.calls.every(call => call.init.method !== "POST")).toBe(true);
     expect(stored.hypothesisCreateSubmission).toMatchObject({ state: "not_submitted", requestDigest: stored.requestDigest,
@@ -958,6 +961,9 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true");
     const result = await api.run({ ...f.params, checkpoint: structuredClone(stored), saveCheckpoint });
     expect(result.checkpoint.sessionId).toBe("session-1");
+    expect(result.checkpoint.framingVersion).toBe(framingVersion);
+    const body = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
+    expect(body.agent).toEqual(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, framingVersion));
     expect(reserve.mock.calls.map(([, requestDigest]) => requestDigest)).toEqual([digest, digest]);
     expect(admissions()).toHaveLength(1);
     expect([...db.records.entries()].filter(([path]: any) => path.includes("/draftBudgetDays/"))[0][1].admissions).toBe(1);
@@ -980,25 +986,60 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(creates).toBe(1);
     expect(f.reservePaidDraft).toHaveBeenCalledOnce();
   });
-  it.each([false, true])("creates and reads back a hypothesis session with launch framing=%s, retaining archived hashes", async launch => {
+  it.each([undefined, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_VERSION])("creates and reads back a hypothesis session with framing=%s, retaining archived hashes", async version => {
     const f = apiFixture();
-    const result = await f.api.run({ ...f.params, checkpoint: { ...hypothesisCheckpoint(), ...(launch ? { framingVersion: COMMUNICATIONS_FRAMING_VERSION } : {}) } as any });
+    const result = await f.api.run({ ...f.params, checkpoint: { ...hypothesisCheckpoint(), ...(version ? { framingVersion: version } : {}) } as any });
     const body = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
-    const definition = communicationsHypothesisDefinition(COMMUNICATIONS_HISTORY_DEFINITION, launch);
-    expect(definition.version).toBe(launch ? "blueprint.communications-definition.v13" : "blueprint.communications-definition.v9");
+    const definition = communicationsHypothesisDefinition(COMMUNICATIONS_HISTORY_DEFINITION, version);
+    expect(definition.version).toBe(version === undefined ? "blueprint.communications-definition.v9"
+      : version === COMMUNICATIONS_FRAMING_V1 ? "blueprint.communications-definition.v13" : "blueprint.communications-definition.v17");
     expect(definition.instructions.startsWith(`${COMMUNICATIONS_HISTORY_DEFINITION.instructions}\n`)).toBe(true);
-    expect(definition.instructions).toContain(launch ? "blueprint.outreach.v3" : "blueprint.outreach.v2");
-    expect(body.agent).toEqual(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, launch));
+    expect(definition.instructions).toContain(version ? "blueprint.outreach.v3" : "blueprint.outreach.v2");
+    expect(body.agent).toEqual(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, version));
     expect(body.metadata).toMatchObject({ blueprint_communications_definition: definition.version,
       blueprint_communications_instructions_digest: definition.instructionsDigest,
       blueprint_communications_draft_profile: COMMUNICATIONS_HYPOTHESIS_PROFILE,
-      blueprint_communications_history_configuration_digest: communicationsDigest(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, launch)),
+      blueprint_communications_history_configuration_digest: communicationsDigest(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, version)),
       blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST });
     expect(Object.keys(body.metadata).length).toBeLessThanOrEqual(16);
     expect(result.checkpoint).toMatchObject({ draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE, sessionId: "session-1" });
     expect(result.outputSource).toMatchObject({ definitionVersion: definition.version, instructionsDigest: definition.instructionsDigest });
     // The saved agent itself is untouched: the hypothesis paragraph exists only in this session's override.
-    expect(COMMUNICATIONS_SAVED_CONFIGURATION.instructions).not.toContain(launch ? "blueprint.outreach.v3" : "blueprint.outreach.v2");
+    expect(COMMUNICATIONS_SAVED_CONFIGURATION.instructions).not.toContain(version ? "blueprint.outreach.v3" : "blueprint.outreach.v2");
+    const previousCalls = f.calls.length, previousAdmissions = f.reservePaidDraft.mock.calls.length;
+    await expect(f.api.reconcileSaved(result.checkpoint, f.params.jobId)).resolves.toMatchObject({ output: result.output });
+    expect(f.calls.slice(previousCalls).every(call => (call.init.method ?? "GET") === "GET")).toBe(true);
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(previousAdmissions);
+    if (version) {
+      await expect(f.api.reconcileSaved({ ...result.checkpoint,
+        framingVersion: version === COMMUNICATIONS_FRAMING_V1 ? COMMUNICATIONS_FRAMING_VERSION : COMMUNICATIONS_FRAMING_V1 }, f.params.jobId))
+        .rejects.toMatchObject({ code: "agents_existing_session_history_binding_mismatch" });
+      expect(f.reservePaidDraft).toHaveBeenCalledTimes(previousAdmissions);
+    }
+  });
+  it("preserves every v1 instruction hash and publishes booking guidance only in v17–20", () => {
+    const bases = [COMMUNICATIONS_HISTORY_DEFINITION, COMMUNICATIONS_GMAIL_READ_DEFINITION,
+      COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION, COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION];
+    expect(COMMUNICATIONS_FRAMING_V1_DIGEST).toBe("920b1c200fa7421154565c29edf9de903b8fb12b1b07fcfe280fa6b0c8af8a85");
+    expect(bases.map(base => communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_V1).instructionsDigest)).toEqual([
+      "e96a2455ec75d63f67aa0608bbb8370f681502828787e25c6e6b8e195177212e",
+      "1eb9a09dc11fb15d3b783df869579848f685154fdf0cc333e63ced2b40e4ab0e",
+      "0616f5fe2b7a1db6c0fae319b932e2c75848e57ee8829074403b3a14bdf0f1d1",
+      "fa07ace846fa248c2f98bc67dd048e4f3158f928d32716aee698e7ecad98b715",
+    ]);
+    for (const base of bases) expect(communicationsHypothesisDefinition(base, true)).toEqual(communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_V1));
+    expect(bases.map(base => communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_VERSION).version))
+      .toEqual([17, 18, 19, 20].map(version => `blueprint.communications-definition.v${version}`));
+    expect(COMMUNICATIONS_LAUNCH_GUIDANCE_V1).toContain("when a match is found");
+    expect(COMMUNICATIONS_LAUNCH_GUIDANCE).toContain("only when the site books Blueprint's recommended pilot");
+    expect(COMMUNICATIONS_LAUNCH_GUIDANCE).not.toContain("when a match is found");
+  });
+  it.each([null, false, "blueprint.outreach-framing.v3", "", {}])("rejects unsupported framing %j before provider or paid admission", async framingVersion => {
+    const f = apiFixture(), checkpoint = { ...hypothesisCheckpoint(), framingVersion } as any;
+    await expect(f.api.run({ ...f.params, checkpoint })).rejects.toThrow("communications_framing_version_unsupported");
+    await expect(f.api.reconcileSaved(checkpoint, f.params.jobId)).rejects.toThrow("communications_framing_version_unsupported");
+    await expect(f.api.verifyExistingDraftSession(checkpoint, f.params.jobId, "a".repeat(64))).rejects.toThrow("communications_framing_version_unsupported");
+    expect(f.fetchMock).not.toHaveBeenCalled(); expect(f.reservePaidDraft).not.toHaveBeenCalled();
   });
   it("uses the Gmail-read definition plus the same paragraph when the saved agent carries the owner's Gmail connection", async () => {
     const f = apiFixture();

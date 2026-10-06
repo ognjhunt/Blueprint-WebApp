@@ -16,14 +16,14 @@ describe("Site-led homepage", () => {
     expect(screen.getByRole("heading", { name: "Can the robot take a case from the tote and place it flat in the empty pocket?" })).toBeInTheDocument();
     expect(screen.queryByText(/months 0–2/i)).not.toBeInTheDocument();
   });
-  it("lets a reader inspect the job, robot fit before the match, and the pilot", () => {
+  it("lets a reader inspect the job, robot fit before a recommended pilot, and the pilot", () => {
     const { container } = render(<Home />);
     const steps = container.querySelectorAll("details");
     expect(steps).toHaveLength(3);
     fireEvent.click(screen.getByText("Check robot fit"));
     expect(steps[1]).toHaveAttribute("open");
-    expect(steps[1]).toHaveTextContent(/evaluate your actual job for free before an introduction/i);
-    expect(steps[1]).toHaveTextContent(/No match, no fee\./);
+    expect(steps[1]).toHaveTextContent(/send you one recommended pilot to book/i);
+    expect(steps[1]).toHaveTextContent(/No pilot, no fee\./);
     fireEvent.click(screen.getByText("Run the pilot"));
     expect(steps[2]).toHaveAttribute("open");
     expect(steps[2]).toHaveTextContent(/provider installs and operates the robot/i);

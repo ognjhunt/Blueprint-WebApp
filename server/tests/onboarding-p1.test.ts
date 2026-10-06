@@ -127,22 +127,21 @@ describe("owner authorization and durable demand", () => {
     expect((await post("owner", { enabled: false, details, consent: true })).status).toBe(200);
     expect(await listTaskBrowseCards()).toHaveLength(0);
   });
-  it("opens a card to pilot proposals only with the match fee agreed, and records the agreement", async () => {
+  it("opens a card to pilot proposals for free, and books only the recommended pilot", async () => {
     const { TERMS_VERSION } = await import("../../client/src/lib/legalAcceptance");
     const post = (body: unknown) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const listing = () => (state.docs.get("inboundRequests/req1") as { public_task_listing: { matchFee: { amountUsd: number; termsVersion: string; acceptedAtIso: string } | null } }).public_task_listing;
+    const book = (body: unknown) => fetch(`${base}/owner/${token("owner")}/book`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const doc = () => state.docs.get("inboundRequests/req1") as { public_task_listing: Record<string, unknown>; pilot_booking?: { amountUsd: number; termsVersion: string; recommendationId: string } };
     const open = { ...details, opportunity: "open" };
-    const refused = await post({ enabled: true, details: open, consent: true });
-    expect(refused.status).toBe(400);
-    expect((await refused.json()).error).toMatch(/\$2,500 match fee/);
-    expect((await post({ enabled: true, details: open, consent: true, matchFee: true })).status).toBe(200);
-    expect(listing().matchFee).toMatchObject({ amountUsd: 2500, termsVersion: TERMS_VERSION });
-    expect(Number.isFinite(Date.parse(listing().matchFee!.acceptedAtIso))).toBe(true);
-    // An evaluation-only card, or a hidden one, needs no fee agreement and carries none.
-    expect((await post({ enabled: true, details, consent: true })).status).toBe(200);
-    expect(listing().matchFee).toBeNull();
-    expect((await post({ enabled: false, details: open, consent: true })).status).toBe(200);
-    expect(listing().matchFee).toBeNull();
+    // Opening is free: no fee step and no fee record.
+    expect((await post({ enabled: true, details: open, consent: true })).status).toBe(200);
+    expect(doc().public_task_listing).not.toHaveProperty("matchFee");
+    // Nothing to book until Blueprint recommends a pilot, and only the one shown.
+    expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(404);
+    state.docs.set("inboundRequests/req1", { ...doc(), pilot_recommendation: { id: "rec_1", teamName: "Acme Robotics" } } as never);
+    expect((await book({ recommendationId: "rec_0", authorized: true })).status).toBe(409);
+    expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(200);
+    expect(doc().pilot_booking).toMatchObject({ recommendationId: "rec_1", amountUsd: 2500, termsVersion: TERMS_VERSION });
   });
   it("emails the site once when its card goes live, and again only if it is switched off and on", async () => {
     const post = (enabled: boolean) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, details, consent: true }) });

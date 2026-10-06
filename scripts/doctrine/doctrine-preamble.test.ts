@@ -29,8 +29,8 @@ describe("platform context preamble", () => {
   });
 
   it("states what the public surface currently ships", () => {
-    expect(contents).toMatch(/task-to-pilot matching/i);
-    expect(contents).toMatch(/no match, no fee/i);
+    expect(contents).toMatch(/recommended pilot/i);
+    expect(contents).toMatch(/no pilot, no fee/i);
     expect(contents).toMatch(/qualifying-environment standard/i);
   });
 
@@ -71,7 +71,7 @@ describe("repo-local agent guides agree with the preamble", () => {
 
   it("updates the AGENTS.md mission to describe the surface that ships", () => {
     const agents = read("AGENTS.md");
-    expect(agents).toMatch(/positioned as task-to-pilot matching/i);
+    expect(agents).toMatch(/positioned as a recommended pilot/i);
     expect(agents).toMatch(/read its preamble first; never edit inside a shared block/i);
   });
 });

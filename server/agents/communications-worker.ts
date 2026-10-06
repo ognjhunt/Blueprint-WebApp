@@ -3,7 +3,8 @@ import { logger } from "../logger";
 import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "../utils/email-suppression";
 import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
 import { COMMUNICATIONS_HYPOTHESIS_PROFILE } from "./communications-saved-agent";
-import { COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming } from "./communications-launch-framing";
+import { COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming, communicationsFramingVersion,
+  type CommunicationsFramingVersion } from "./communications-launch-framing";
 import { readReplyFollowup } from "./communications-reply-followup";
 import { runCommunicationsFactRefresh } from "./communications-fact-refresh";
 import {
@@ -265,7 +266,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       // changes cannot extend a charged checkpoint's already frozen window.
       communicationsExecutionDeadline({ ...claimed.checkpoint, executionWindow });
       claimed.checkpoint = { ...claimed.checkpoint, executionWindow, draftWritingGuidance: COMMUNICATIONS_WRITING_GUIDANCE,
-        framingVersion: COMMUNICATIONS_FRAMING_VERSION,
+        framingVersion: communicationsFramingVersion(claimed.checkpoint.framingVersion) ?? COMMUNICATIONS_FRAMING_VERSION,
         ...(replyFollowup ? { replyFollowup } : {}),
         ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) };
       await deps.store.update(jobId, { checkpoint: claimed.checkpoint });
@@ -366,7 +367,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
           ? output.refreshFactIds.some(id => !brief.facts.some(fact => fact.id === id))
             ? [{ path: "refreshFactIds", code: "refresh_fact_unknown", message: "Select only fact IDs already present in researchBrief.facts; do not invent evidence." }] : []
           : output.disposition === "no_reply" ? [] : communicationsDraftFeedback(assemble(output), output, job.intent, automatic, deps.now(), hypothesis,
-            claimed.checkpoint.framingVersion === COMMUNICATIONS_FRAMING_VERSION);
+            communicationsFramingVersion(claimed.checkpoint.framingVersion) !== undefined);
         if (!issues.length) return null;
         await assertRepairAllowed();
         return issues;
@@ -542,13 +543,15 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
 
 export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown,
   learning?: PreparedLearning, executionWindow?: CommunicationsExecutionWindow, draftWritingGuidance?: string,
-  framingVersion?: typeof COMMUNICATIONS_FRAMING_VERSION, replyFollowup?: unknown) {
+  framingVersion?: CommunicationsFramingVersion, replyFollowup?: unknown) {
+  const version = communicationsFramingVersion(framingVersion);
+  const framing = version === undefined ? undefined : communicationsLaunchFraming(brief, version);
   const policy = intent === "outreach" ? brief.qualification ? COMMUNICATIONS_HYPOTHESIS_GUIDANCE : COMMUNICATIONS_OUTREACH_GUIDANCE
     : "Use the actual correlated reply; first-touch drafting is not required for this reply.";
   const base = { intent, approvedSender: FOUNDER_MAILBOX, researchBrief: brief,
     currentApproval: approvalState, emailThread: thread, emailContentTrust: "untrusted_data", firstTouchPolicy: policy,
-    ...(framingVersion ? { firstTouchFraming: communicationsLaunchFraming(brief),
-      firstTouchPolicy: intent === "outreach" ? communicationsLaunchFraming(brief).guidance : policy } : {}),
+    ...(framing ? { firstTouchFraming: framing,
+      firstTouchPolicy: intent === "outreach" ? framing.guidance : policy } : {}),
     ...(replyFollowup ? { replyFollowup, replyFollowupTrust: "untrusted_evidence_no_action_authority" } : {}),
     ...(draftWritingGuidance ? { writingGuidance: draftWritingGuidance } : {}),
     ...(executionWindow ? { executionBoundary: { window: executionWindow,

@@ -2,7 +2,7 @@ import { SEO } from "@/components/SEO";
 import { EditorialFaq } from "@/components/site/editorial";
 import { Reveal } from "@/components/site/motion";
 import { Band, ClosingCta, Inner } from "@/components/site/publicSections";
-import { formatPrice, matchFeeUsd } from "@/lib/evaluationPricing";
+import { formatPrice, pilotFeeUsd } from "@/lib/evaluationPricing";
 import { faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 export const faqItems = [
@@ -19,7 +19,7 @@ export const faqItems = [
   {
     question: "How do you find a robot team for my job?",
     answer:
-      "We match your job to participating teams' configurations and run supported evaluations on jobs you approve for access. When a team passes, fits your budget, and wants your pilot, we introduce you by name right away. Teams that don't match stay anonymous. Evaluation alone does not commit either side to a pilot.",
+      "We check your job against participating teams' configurations and run supported evaluations on jobs you approve for access. Then we pick one team that passed, fits your budget, and wants your pilot, and send you a recommended pilot you can book in one step. Teams we do not recommend stay anonymous. Evaluation alone does not commit either side to a pilot.",
   },
   {
     question: "Do I need to book a call or host Blueprint onsite?",
@@ -54,7 +54,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      `No match, no fee. Submitting a job, screening and evaluation are free. When we find a robot team that passed the evaluation for your job, fits your budget, and wants your pilot, we introduce you and charge ${formatPrice(matchFeeUsd)} per job, however many teams match. Blueprint takes no cut of the pilot or any deployment. Robot teams pay nothing to join or to evaluate the jobs we match them to.`,
+      `No pilot, no fee. Submitting a job, screening, evaluation and our recommendation are free. When you book the pilot we recommend, Blueprint charges ${formatPrice(pilotFeeUsd)} per job. Blueprint takes no cut of the pilot or any deployment. Robot teams pay nothing to join or to evaluate the jobs we invite them to.`,
   },
 ];
 

@@ -37,9 +37,9 @@ describe("public managed-pilot copy", () => {
 
     expect(container).toHaveTextContent(/Show us the job/i);
     expect(container).toHaveTextContent(/Check robot fit/i);
-    expect(container).toHaveTextContent(/No match, no fee/i);
+    expect(container).toHaveTextContent(/No pilot, no fee/i);
     expect(container).toHaveTextContent(/Run the pilot/i);
-    expect(container).toHaveTextContent(/You and the team agree the pilot directly/i);
+    expect(container).toHaveTextContent(/Book it in one step and we coordinate the rest/i);
 
     // Withdrawn products, legacy package prices, and outcome guarantees stay absent.
     expect(container).not.toHaveTextContent(/Policy Shortlist/i);

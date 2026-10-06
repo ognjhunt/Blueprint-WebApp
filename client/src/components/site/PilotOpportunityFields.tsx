@@ -101,7 +101,7 @@ export function PilotOpportunityFields({
             </span>
             <span className="mt-1 block text-sm leading-6 text-white/60">
               Blueprint will standardize the site-task for private qualification. This remains one
-              Task Evaluation Run and does not promise a match, site visit, or deployment.
+              Task Evaluation Run and does not promise a recommended pilot, site visit, or deployment.
             </span>
           </span>
         </label>

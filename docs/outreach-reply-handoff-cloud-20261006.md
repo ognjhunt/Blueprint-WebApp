@@ -33,7 +33,10 @@ launch direction. `communications-launch-framing.ts` is its versioned executable
 writing definition, consumed by the existing worker and saved-agent configuration
 flow. It does not replace Pipeline research truth or its immutable qualification
 questions. The provider saved agent and existing session definitions stay exact;
-new hypothesis overrides use v13-v16, while v9-v12 still replay unchanged.
+new framing-v2 hypothesis overrides use v17-v20 and main's pilot-booking fee
+direction. Historical framing-v1 overrides v13-v16 retain their exact input and
+configuration bytes; v9-v12 still replay unchanged. Historical agreements are
+preserved and no recommendation implies booking, payment or team availability.
 The small `communications-api.ts` caller changes select and verify that prospective
 configuration; they add no tools, providers, credentials, spending or runtime lane.
 
