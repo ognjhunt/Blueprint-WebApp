@@ -8,15 +8,19 @@ qualification, publication or deployment outcome.
 ## Current reviewed research admission package
 
 The October 6 package pins reviewed Pipeline commit
-`3b7e0208cb7b2e269359c15175cf4a9cefb40da1` (ognjhunt/BlueprintCapturePipeline#2627),
-whose lineage contains reviewed screen admission from #2622, team qualification
-from #2626, wording and contact lookup from #2621 and #2624, and the previous package source
-`dd2d404fbcd914f7c371849d31b8a86fcc8e84a2`. Production release requires this
+`c4d0d8db4ece61b72a5a9ec12a4027068acc3ff1` (ognjhunt/BlueprintCapturePipeline#2625),
+the complete beta/native/research union containing canonical reciprocal consumer
+`f40bb1ec260478272775f0510ec5bd1a877241b6` (#2629). Its reviewed native repair
+blobs match `9e95c1db` (#2628). The research subtree preserves the reviewed
+screen admission, team qualification, wording and contact lookup from #2622,
+#2626, #2621 and #2624, together with the existing DD2 package features. The
+previous installed package source is `dd2d404fbcd914f7c371849d31b8a86fcc8e84a2`.
+Production release requires this
 exact source head to be merged and its required checks to pass. Its
 1,832,960-byte archive SHA256 is
-`9dd78488682ee3ecdf7336156a044aed79f2eb79f65a0395e3579a2f2abb60d2`,
+`75250bc44359a3ff14c4b271dbd70098ade081eb2aed3573c4d3324fa9de1edb`,
 with 76 manifested source files. The manifest SHA256 is
-`984b30886fd8101e51e2a76f25ff8ff6ee963061415716326e83d353eb2b5ae3`.
+`3960588fd7fb596aebee7e754e3b2faa0a6d39c3e3630e062587c0567ed7e57d`.
 It keeps everything in the previous package (owner-directed paid expansion, optional
 FindAll list-building tools, the owner-adjustable run duration and broad enumeration) and adds:
 - an optional site-universe slice: when control holds an enabled, reviewed
@@ -27,13 +31,28 @@ FindAll list-building tools, the owner-adjustable run duration and broad enumera
   and any slice failure leaves the run working without it;
 - refusals that end a FindAll-pinned row cleanly when its tool registry changes before QA or
   repair starts.
-This is a research-only controlled release from Pipeline `main`.
+This is an offline prepared research-only release from the exact canonical union.
+Its required final Pipeline and combined Web checks, merge and installed readback
+remain separate release gates; offline packaging is not authority for live use.
+
+The combined Web baseline is reviewed #871 at `d1a47075`, preserving its upload
+repair, proxy-boundary tests and exact common dependency lock. The full research
+worker retains the additional hypothesis/screen safeguards. Initial guard
+installation keeps #871's DD2 package; this newer archive belongs only to the
+subsequent separately fenced source adoption.
 
 The package adds the owner-operated screen-admission and FullEnrich contact
 receipt modules and the `Store.screenSnapshot` consumer contract. Screen
 admission rechecks retained host evidence, recipient provenance, the current CRM
 and idempotency before and under the research lease. An uncertain CRM write
-permits readback of its original operation rather than another append. Missing
+permits readback of its original operation rather than another append. The canonical
+consumer reads `blueprintCommunications/default/intakeState/workerLap`, including
+absence, in the same transaction that writes a `research-release:` canonical
+lease. It validates explicit complete/schema/owner/generation/timestamp/until0
+state; expiry alone does not prove drainage. Publication plans, claims, prewrites
+and acknowledgements recheck that reciprocal fence. Ordinary daily ownership
+and the holder's valid planned/claimed publication recovery remain compatible.
+Both commit orderings are covered by the canonical contention tests. Missing
 contacts can create research gaps with zero draft jobs. A contact failure
 notifies the research owner.
 

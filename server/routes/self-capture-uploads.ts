@@ -69,8 +69,8 @@ import {
 } from "../utils/siteCaptureUploadIdentity";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { notifySlackFootageNeedsReview } from "../utils/slack";
-import { buildBrowserDelivery, capturedWriteIdentity, publishBrowserDelivery,
-  type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
+import { buildBrowserDelivery, capturedWriteIdentity, captureWriteFailureDiagnostic, publishBrowserDelivery,
+  type CaptureWriteStage, type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
 import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
   publishBrowserPending, recordBrowserPending,
   releaseBrowserUpload, reserveBrowserUpload, recordBrowserStoredUpload, loadBrowserStoredUpload,
@@ -644,15 +644,19 @@ async function finishStoredCapture(params: {
   let pending: BrowserPending;
   let storedUpload = params.storedUpload;
   let journalRecorded = Boolean(storedUpload);
+  let captureWriteStage: CaptureWriteStage = "task_context_read";
   try {
     if (!storedUpload) {
       // Keep the exact server-built manifest with the observed write response.
       // A manifest-write retry must not fabricate measurements or rebuild the
       // original consent/task snapshot from a later state.
       const brief = await getBrief(payload.requestId);
+      captureWriteStage = "capture_rights_read";
+      const captureRights = await loadWebsiteCaptureRights(payload.requestId);
+      captureWriteStage = "manifest_build";
       const manifestJson = JSON.stringify(buildBrowserCaptureManifest({ payload,
         objectPath, video: params.videoMetadata, sizeBytes: params.sizeBytes,
-        captureRights: await loadWebsiteCaptureRights(payload.requestId),
+        captureRights,
         taskContext: { description: brief?.summary ?? "", confirmed: Boolean(brief?.confirmedAtIso),
           confirmed_at: brief?.confirmedAtIso ?? null },
       }), null, 2);
@@ -661,20 +665,26 @@ async function finishStoredCapture(params: {
         completed_at_iso: new Date().toISOString(), video: params.video,
         manifest_json: manifestJson,
         manifest_sha256: `sha256:${createHash("sha256").update(manifestJson).digest("hex")}` };
+      captureWriteStage = "stored_upload_record";
       await recordBrowserStoredUpload(storedUpload, params.reservation);
       journalRecorded = true;
     }
+    captureWriteStage = "stored_video_verify";
     if (!(await verifiedStoredVideo(storedUpload.video))) throw new Error("browser_delivery_source_changed");
     const manifestName = `${rawPrefix}/manifest.json`;
     const manifestBytes = Buffer.from(storedUpload.manifest_json);
     const manifestFile = bucket.file(manifestName);
+    captureWriteStage = "manifest_generation_read";
     const priorManifest = await currentObjectGeneration(bucket, manifestName);
+    captureWriteStage = "manifest_write";
     await manifestFile.save(manifestBytes, { contentType: "application/json",
       preconditionOpts: { ifGenerationMatch: priorManifest } });
+    captureWriteStage = "manifest_identity";
     const written = capturedWriteIdentity(manifestName, manifestFile.metadata);
     if (written.size_bytes !== manifestBytes.length) throw new Error("browser_manifest_write_unverified");
     const manifestIdentity: WrittenManifest = { ...written,
       sha256: `sha256:${createHash("sha256").update(manifestBytes).digest("hex")}` };
+    captureWriteStage = "pending_record";
     pending = await recordBrowserPending({
       schema_version: "website_browser_pending.v1", request_id: payload.requestId,
       scene_id: payload.sceneId, capture_id: payload.captureId, state: "held",
@@ -682,7 +692,7 @@ async function finishStoredCapture(params: {
     }, params.reservation);
   } catch (error) {
     logger.error(
-      { error, captureId: payload.captureId },
+      { captureWriteFailure: captureWriteFailureDiagnostic(captureWriteStage, error), captureId: payload.captureId },
       "Self-capture video stored but its exact manifest or pending identity failed",
     );
     return retainedProcessingFailure(params.video, journalRecorded, payload);

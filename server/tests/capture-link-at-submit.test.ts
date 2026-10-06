@@ -44,6 +44,7 @@ const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata
 const generations = vi.hoisted(() => ({ next: 1 }));
 const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
 const writeFault = vi.hoisted(() => ({ manifestOnce: false, markerOnce: false, readUnavailable: false,
+  manifestError: null as unknown, manifestResponseSize: undefined as unknown,
   beforeManifestExists: null as null | (() => void) }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
@@ -82,6 +83,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
         },
         file: (path: string, options?: { generation?: string }) => {
           let responseMetadata: Record<string, string> | undefined;
+          let resumableResponse = false;
           const current = () => options?.generation
             ? storedVersions.get(`${path}@${options.generation}`)
             : [...storedVersions.entries()].reverse().find(([key]) => key.startsWith(`${path}@`))?.[1];
@@ -97,8 +99,14 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
             storedVersions.delete(`${path}@${options.generation}`);
             written.delete(path);
           },
-          get metadata() { return responseMetadata; },
-          save: async (body: unknown, config?: { preconditionOpts?: { ifGenerationMatch?: string | number } }) => {
+          // Storage 7.21 default-resumable writes normalize size to a number.
+          // Metadata GET and the non-resumable video stream retain strings.
+          get metadata() { return responseMetadata && resumableResponse
+            ? { ...responseMetadata, size: writeFault.manifestResponseSize ?? Number(responseMetadata.size) }
+            : responseMetadata; },
+          save: async (body: unknown, config?: { resumable?: boolean; preconditionOpts?: { ifGenerationMatch?: string | number } }) => {
+            if (path.endsWith("/manifest.json")) expect(config?.resumable).toBeUndefined();
+            if (path.endsWith("/manifest.json") && writeFault.manifestError) throw writeFault.manifestError;
             if (path.endsWith("/manifest.json") && writeFault.manifestOnce) {
               writeFault.manifestOnce = false;
               throw new Error("injected_manifest_write_failure");
@@ -112,6 +120,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
               throw Object.assign(new Error("precondition failed"), { code: 412 });
             }
             write(Buffer.isBuffer(body) ? body : Buffer.from(String(body)));
+            resumableResponse = config?.resumable !== false;
           },
           getMetadata: async () => {
             if (writeFault.readUnavailable) throw new Error("injected_storage_read_failure");
@@ -135,7 +144,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
           // The route now streams uploads to disk-backed temp files and into
           // storage through a write stream, so the fake has to speak that
           // surface too. The bytes are recorded, not kept.
-          createWriteStream: (config?: { preconditionOpts?: { ifGenerationMatch?: number | string } }) => {
+          createWriteStream: (config?: { resumable?: boolean; preconditionOpts?: { ifGenerationMatch?: number | string } }) => {
+            expect(config?.resumable).toBe(false);
             const chunks: Buffer[] = [];
             return new Writable({
               write(chunk, _encoding, callback) {
@@ -233,6 +243,8 @@ beforeEach(() => {
   writeFault.manifestOnce = false;
   writeFault.markerOnce = false;
   writeFault.readUnavailable = false;
+  writeFault.manifestError = null;
+  writeFault.manifestResponseSize = undefined;
   writeFault.beforeManifestExists = null;
   screenCaptureForPrivacy.mockClear();
   screenCaptureForPrivacy.mockResolvedValue({
@@ -278,6 +290,53 @@ async function retryProcessing(baseUrl: string, requestId: string) {
 }
 
 describe("saved footage and processing are separate receipts", () => {
+  it("records a numeric-size manifest write response without changing the video generation", async () => {
+    seedRequest("req-sdk-manifest", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      const result = await uploadFor(baseUrl, "req-sdk-manifest", "original video");
+      expect(result).toMatchObject({ status: 201, body: { captureReceived: true, uploadState: "processing_ready" } });
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-sdk-manifest") as Record<string, any>;
+      const pending = session.browser_pending_delivery;
+      const manifestBytes = Buffer.from(written.get(pending.manifest.object_name)!);
+      expect(pending.manifest.size_bytes).toBe(manifestBytes.length);
+      expect(typeof pending.manifest.generation).toBe("string");
+      expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@")))
+        .toEqual([`${pending.video.object_name}@${pending.video.generation}`]);
+      const markerName = pending.manifest.object_name.replace("manifest.json", "capture_upload_complete.json");
+      expect(JSON.parse(written.get(markerName)!).producer_delivery.raw_video_generation).toBe(pending.video.generation);
+    });
+  });
+
+  it.each([
+    { fault: "write", stage: "manifest_write", code: 412 },
+    { fault: "unknown", stage: "manifest_write", code: "unknown" },
+    { fault: "identity", stage: "manifest_identity", code: "capture_write_identity_unavailable", identityField: "size" },
+  ])("records a bounded diagnostic for $fault failure and retains only proven receipt authority", async expected => {
+    const { logger } = await import("../logger");
+    const log = vi.spyOn(logger, "error");
+    seedRequest("req-safe-diagnostic", { disposition: "qualified" });
+    if (expected.fault === "write") writeFault.manifestError = Object.assign(new Error("private provider detail"), { code: 412 });
+    if (expected.fault === "unknown") writeFault.manifestError = Object.assign(new Error("owner@example.com ?token=secret"),
+      { code: "private-code", stack: "private-stack", headers: { authorization: "secret" } });
+    if (expected.fault === "identity") writeFault.manifestResponseSize = 1.5;
+    try {
+      await withRoutes(async baseUrl => {
+        expect(await uploadFor(baseUrl, "req-safe-diagnostic", "original video")).toMatchObject({ status: 502,
+          body: { captureReceived: true, state: "processing_pending", processingRetryAvailable: true } });
+        const record = log.mock.calls.find(call => call[1] === "Self-capture video stored but its exact manifest or pending identity failed");
+        const { fault: _fault, ...diagnostic } = expected;
+        expect(record?.[0]).toEqual({ captureId: "walkthrough-req-safe-diagnostic", captureWriteFailure: diagnostic });
+        expect(JSON.stringify(record)).not.toMatch(/owner@example|token=secret|private-provider|private-stack|authorization/);
+        expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+        const versions = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
+        writeFault.manifestError = null;
+        writeFault.manifestResponseSize = undefined;
+        expect((await retryProcessing(baseUrl, "req-safe-diagnostic")).status).toBe(200);
+        expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
+      });
+    } finally { log.mockRestore(); }
+  });
+
   it("recovers an interrupted manifest from the original measured draft without replacing the video", async () => {
     seedRequest("req-manifest-recovery", { disposition: "qualified" });
     writeFault.manifestOnce = true;
