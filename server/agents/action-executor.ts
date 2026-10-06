@@ -28,7 +28,7 @@ import { logger } from "../logger";
 import { reviewOutreachDraft, validateOutreachSemanticReview, outreachSemanticReviewSchema } from "./outreach-review";
 import { isCommunicationsPayload, reviewCommunicationsPayload } from "./communications-review";
 import { communicationsSendBlocker, communicationsSendingEnabled, executeCommunicationsSend, reconcileCommunicationsSend } from "./communications-send";
-import { communicationsDigest, outreachReadySendRefusal } from "./communications-contract";
+import { communicationsDigest, outreachReadySendRefusal, OUTREACH_READY_SEND_REFUSAL } from "./communications-contract";
 import { assertNotHypothesisRecipient, prospectResearchTier, recipientLookupAddresses, researchProspectSendBlocker } from "../utils/outboundProspects";
 
 function getDb() {
@@ -256,8 +256,10 @@ function isProspectOutreach(scope?: { lane?: string; source_collection?: string;
     || isCommunicationsPayload(scope?.action_payload ?? {});
 }
 
-/** A hypothesis brief is draft only; refused before content review or any flag. */
-function communicationsHypothesisRefusal(payload: ActionPayload) {
+/** A hypothesis brief is draft only; refused before content review or any flag. So is a ledger row the
+ * drafting worker recorded as an outreach-ready hypothesis (send_authority "none"), whatever its payload. */
+function communicationsHypothesisRefusal(payload: ActionPayload, ledger?: Record<string, any>) {
+  if (ledger && (ledger.send_authority === "none" || ledger.qualification_tier === "outreach_ready")) return OUTREACH_READY_SEND_REFUSAL;
   return isCommunicationsPayload(payload) ? outreachReadySendRefusal((payload.communications as any)?.brief) : null;
 }
 
@@ -715,7 +717,7 @@ export async function approveAction(
   }
 
   if (isProspectOutreach(data) || data.action_type === "send_email" || data.action_type === "send_campaign_emails") {
-    const hypothesis = communicationsHypothesisRefusal(data.action_payload);
+    const hypothesis = communicationsHypothesisRefusal(data.action_payload, data);
     const validation: { valid: boolean; reason?: string } = hypothesis ? { valid: false, reason: hypothesis }
       : validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
     if (validation.valid && isProspectOutreach(data)) {
@@ -963,7 +965,7 @@ export async function retryFailedAction(
   if (data.status !== "failed") throw new Error(`Cannot retry action in state: ${data.status}`);
   if (data.execution_attempts >= 3) throw new Error("Max retries exceeded");
 
-  const hypothesis = communicationsHypothesisRefusal(data.action_payload);
+  const hypothesis = communicationsHypothesisRefusal(data.action_payload, data);
   const validation: { valid: boolean; reason?: string } = hypothesis ? { valid: false, reason: hypothesis }
     : validateActionPayloadBeforeExecution(data.action_type, data.action_payload, data);
   if (validation.valid && isProspectOutreach(data)) {
