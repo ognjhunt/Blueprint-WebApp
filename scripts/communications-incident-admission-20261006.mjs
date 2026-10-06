@@ -101,22 +101,44 @@ export function inspectRuntime(requireDisabledAdmission = true) {
     || (requireDisabledAdmission && ADMISSION_FLAGS.some(key => runtime.flags[key] !== 'false'))) refuse('runtime_admission_not_closed');
   return { ...runtime, rootInventoryComplete: true, runtimeRootCount: before.length };
 }
+// v2 retains the original complete-before-and-after inventory contract.
 export function checkAdmissionFence(service, authority, now) {
+  return checkWorkerAdmission(service, authority, now, false);
+}
+// v3 positively covers every actual current instance after the pinned retained
+// baseline. It does not manufacture a missing pre-change inventory or timestamps.
+export function checkCurrentAdmissionFence(service, authority, now) {
+  return checkWorkerAdmission(service, authority, now, true);
+}
+function checkWorkerAdmission(service, authority, now, currentOnly) {
   const base = `https://api.render.com/v1/services/${service.serviceId}`;
   const prior = service.priorInstances;
   const original = authority.expectedPriorWorkerInstanceIds?.[service.serviceId];
   const current = service.instances.body, runtimes = service.runtimes;
   const ids = list => list.map(row => row.id).sort();
+  const baseline = service.baselineRuntime;
+  const priorInvalid = currentOnly
+    ? baseline?.schema !== 'blueprint.disabled-worker-runtime.v1' || baseline.serviceId !== service.serviceId
+      || baseline.sourceCommit !== ADMISSION_SOURCE || baseline.entrySha256 !== ADMISSION_ENTRY_SHA256
+      || baseline.rootInventoryComplete !== true || baseline.runtimeRootCount !== 1
+      || !Number.isSafeInteger(baseline.observedAtMs) || baseline.observedAtMs >= service.instances.observedAtMs
+      || !authority.expectedBaselineRuntimeDigests?.[service.serviceId]
+      || sha(baseline) !== authority.expectedBaselineRuntimeDigests[service.serviceId]
+      || typeof baseline.instanceId !== 'string' || !baseline.instanceId.startsWith(`${service.serviceId}-`)
+      || !Array.isArray(current) || current.some(row => row.id === baseline.instanceId
+        || !Number.isFinite(Date.parse(row.createdAt)) || Date.parse(row.createdAt) <= baseline.observedAtMs)
+    : prior?.method !== 'GET' || prior.url !== `${base}/instances` || prior.status !== 200
+      || !Array.isArray(prior.body) || !prior.body.length || !Array.isArray(original) || !original.length
+      || canonical(ids(prior.body)) !== canonical([...original].sort())
+      || !Number.isSafeInteger(prior.observedAtMs) || prior.observedAtMs >= service.instances.observedAtMs
+      || !Array.isArray(current) || current.some(row => original.includes(row.id)
+        || !Number.isFinite(Date.parse(row.createdAt)) || Date.parse(row.createdAt) < prior.observedAtMs);
   for (const receipt of [service.service, service.instances, service.deployReceipt, ...ADMISSION_FLAGS.map(key => service.admissionFlags?.[key])]) freshReceipt(receipt, now);
   if (service.serviceId !== 'srv-d9t8gg1t0dsc73am9q70' || service.deployCommit !== ADMISSION_SOURCE
     || service.service.body.suspended !== 'not_suspended'
     || service.service.body.serviceDetails?.envSpecificDetails?.startCommand !== 'npm run start:worker'
-    || prior?.method !== 'GET' || prior.url !== `${base}/instances` || prior.status !== 200
-    || !Array.isArray(prior.body) || !prior.body.length || !Array.isArray(original) || !original.length
-    || canonical(ids(prior.body)) !== canonical([...original].sort())
+    || priorInvalid
     || !Array.isArray(current) || !current.length || new Set(ids(current)).size !== current.length
-    || !Number.isSafeInteger(prior.observedAtMs) || prior.observedAtMs >= service.instances.observedAtMs
-    || current.some(row => original.includes(row.id) || !Number.isFinite(Date.parse(row.createdAt)) || Date.parse(row.createdAt) < prior.observedAtMs)
     || service.deployReceipt?.method !== 'GET' || service.deployReceipt.url !== `${base}/deploys/${service.deploy.id}`
     || service.deployReceipt.status !== 200 || canonical(service.deployReceipt.body) !== canonical(service.deploy)
     || !Array.isArray(runtimes) || canonical(runtimes.map(r => r.instanceId).sort()) !== canonical(ids(current))) refuse('admission_instance_scope_unverified');

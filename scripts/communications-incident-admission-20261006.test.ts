@@ -3,7 +3,8 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ADMISSION_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS, checkAdmissionFence, checkWebWriterFence, readRuntime } from './communications-incident-admission-20261006.mjs';
+import { ADMISSION_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS, checkAdmissionFence, checkCurrentAdmissionFence, checkWebWriterFence, readRuntime } from './communications-incident-admission-20261006.mjs';
+import { sha } from './communications-incident-20261006.mjs';
 
 const NOW = 1791310200000, ID = 'srv-d9t8gg1t0dsc73am9q70', BASE = `https://api.render.com/v1/services/${ID}`;
 const get = (url: string, body: any, at = NOW - 2) => ({ method: 'GET', url, body, status: 200, observedAtMs: at });
@@ -112,5 +113,48 @@ describe('exact disabled worker admission evidence', () => {
       writeFileSync(join(directory, '.env.local'), 'OPENAI_API_KEY=synthetic-private-byte-do-not-read\nBLUEPRINT_COMMUNICATIONS_WORKER_ENABLED=true\n');
       expect(() => readRuntime(child.pid)).toThrow('runtime_env_override_present');
     } finally { child.kill(); await new Promise<void>(r => child.once('exit', () => r())); rmSync(directory, { recursive: true }); }
+  });
+});
+
+describe('complete current inventory after the retained original runtime', () => {
+  function currentFixture() {
+    const f = fixture();
+    f.service.instances.body[0].id = `${ID}-new`;
+    f.service.runtimes[0].instanceId = `${ID}-new`;
+    f.service.baselineRuntime = { ...structuredClone(f.service.runtimes[0]), instanceId: `${ID}-old`, observedAtMs: NOW - 20000,
+      flags: Object.fromEntries(ADMISSION_FLAGS.map(key => [key, 'true'])) };
+    delete f.service.priorInstances;
+    const authority: any = { expectedBaselineRuntimeDigests: { [ID]: sha(f.service.baselineRuntime) } };
+    return { ...f, authority };
+  }
+  it('uses authentic complete current inventory and all runtime proofs without inventing a prior GET', () => {
+    const f = currentFixture();
+    expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).not.toThrow();
+    expect(() => checkAdmissionFence(f.service, f.authority, NOW)).toThrow('admission_instance_scope_unverified');
+  });
+  it('rejects old, earlier, undated or duplicated current instances and incomplete actual runtime coverage', () => {
+    for (const change of [
+      (s: any) => s.instances.body[0].id = s.baselineRuntime.instanceId,
+      (s: any) => s.instances.body[0].createdAt = new Date(s.baselineRuntime.observedAtMs).toISOString(),
+      (s: any) => delete s.instances.body[0].createdAt,
+      (s: any) => s.instances.body.push(s.instances.body[0]),
+      (s: any) => s.runtimes = [],
+      (s: any) => s.instances.body.push({ id: `${ID}-uncovered`, createdAt: new Date(NOW - 1000).toISOString() }),
+    ]) {
+      const f = currentFixture(); change(f.service);
+      expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).toThrow('admission_instance_scope_unverified');
+    }
+  });
+  it('binds the unchanged retained baseline and preserves every disabled startup/runtime check', () => {
+    const f = currentFixture(); f.service.baselineRuntime.observedAtMs--;
+    expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).toThrow('admission_instance_scope_unverified');
+    const g = currentFixture(); delete g.authority.expectedBaselineRuntimeDigests;
+    expect(() => checkCurrentAdmissionFence(g.service, g.authority, NOW)).toThrow('admission_instance_scope_unverified');
+    for (const change of [(s: any) => s.runtimes[0].flags[ADMISSION_FLAGS[0]] = 'true',
+      (s: any) => s.runtimes[0].opsForwardOnly = 'false', (s: any) => s.runtimes[0].observedAtMs = NOW - 3,
+      (s: any) => s.runtimes[0].nodeOptions = '--require=/tmp/unreviewed.js']) {
+      const f = currentFixture(); change(f.service);
+      expect(() => checkCurrentAdmissionFence(f.service, f.authority, NOW)).toThrow('actual_runtime_admission_unverified');
+    }
   });
 });
