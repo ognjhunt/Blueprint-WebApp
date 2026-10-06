@@ -195,11 +195,19 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
   } else if (recipient?.kind === "inbox" && typeof recipient.addressee === "string") {
     // A role inbox keeps a generic salutation even when the research knows a person's name.
     // Checking only the full name misses first names, surnames, honorifics and invented recipients.
-    const salutation = /^(?:hi|hello|dear|hey|good (?:morning|afternoon|evening))(?:\s+([^,\n!?]+))?/iu.exec(opener);
-    const bareAddress = /^([^,\n!?]{1,80}),\s+(?:I\b|I'm\b|I’m\b|we\b|we're\b|we’re\b)/iu.exec(opener);
-    const addressed = (salutation ? salutation[1] : bareAddress?.[1])?.trim().replace(/[.:;]+$/, "") ?? "";
-    const generic = !addressed || /^(?:team|everyone|all|there|folks|(?:operations|plant|site|office|business|engineering|manufacturing|production) team)$/iu.test(addressed)
-      || addressed.toLowerCase() === recipient.addressee.toLowerCase() || /^i(?:['’]m| am)\b/iu.test(addressed);
+    const salutation = /^(?:hi|hello|dear|hey|good (?:morning|afternoon|evening))\b/iu.exec(opener);
+    const stripPunctuation = (value: string) => value.trim().replace(/^[,.:;!?—–-]+\s*/u, "");
+    const remaining = stripPunctuation(salutation ? opener.slice(salutation[0].length) : opener);
+    const fragment = /^([^,\n!?;:.]{1,160})(?:[,\n!?;:.]|$)/u.exec(remaining);
+    const addressed = fragment?.[1]?.trim() ?? "";
+    const neutralProse = (value: string) => /^(?:i(?:['’]m| am|['’]d| would| hope| was| noticed| found| saw)\b|we(?:['’]re| are| hope| were)\b|hoping\b|your\b|the\b|this\b)/iu.test(value);
+    const genericAddress = /^(?:team|everyone|all|there|folks|(?:operations|plant|site|office|business|engineering|manufacturing|production) team)$/iu.test(addressed)
+      || addressed.toLowerCase() === recipient.addressee.toLowerCase();
+    // A greeting can be followed by neutral routing prose or an explicit generic addressee.
+    // Unknown comma/colon/period-separated names never become generic by failing to parse.
+    const afterAddress = stripPunctuation(fragment ? remaining.slice(fragment[0].length) : remaining);
+    const generic = (!remaining && !!salutation) || neutralProse(remaining)
+      || (genericAddress && (!afterAddress || neutralProse(afterAddress)));
     if (!opener.includes(recipient.addressee) || !generic
       || (typeof recipient.person?.name === "string" && namedIn(draft.body, recipient.person.name))) {
       blockers.push("hypothesis_recipient_greeting_mismatch");
