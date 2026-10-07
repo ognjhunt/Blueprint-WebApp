@@ -251,16 +251,18 @@ describe("build output", () => {
     expect(siteHtml).toContain("Start with one task.");
     // The published site form keeps the task and consent, without the retired
     // screening interview. These assertions inspect actual prerendered HTML.
-    expect(siteHtml).toContain("What is the job?");
+    expect(siteHtml).toContain("What is the task?");
     expect(siteHtml).toContain("Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.");
     expect(siteHtml).toContain("How this works");
-    expect(siteHtml).toContain('id="start-self-recording"');
+    expect(siteHtml).toContain("How will we see the task?");
+    expect(siteHtml).toContain('id="start-method-phone"');
     // The country comes from the address; its select opens only to correct it.
     expect(siteHtml).not.toContain('id="start-region"');
-    expect(siteHtml).toMatch(/<input[^>]*id="start-name"[^>]*required/);
+    expect(siteHtml).not.toContain('id="start-name"');
     expect(siteHtml).toMatch(/<input[^>]*id="start-company"[^>]*required/);
     expect(siteHtml).toContain('id="start-rights"');
-    expect(siteHtml).toContain('id="start-description-authority"');
+    expect(siteHtml).not.toContain('id="start-description-authority"');
+    expect(siteHtml).toContain("I am authorized to share this job description");
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Test your robot on real site jobs.");
