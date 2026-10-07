@@ -15,7 +15,8 @@ The existing final dispatch source guard now covers `pilot_booked` as well as `p
 ## Proof
 
 - Before implementation, the first 11 booking tests produced **5 failures / 6 passes**: no durable intent after saved booking, no rollback on intent failure, missing confirmation on retry, missing contact accepted, and no authoritative delivery binding. Raw log: `work/booking-before.log`.
-- Final focused group: **60 passed**: 15 booking tests, 19 recommendation-route tests, 5 dispatch source-guard tests, 21 existing onboarding tests. Raw log: `work/booking-after.log`.
+- Initial candidate focused group: **60 passed**: 15 booking tests, 19 recommendation-route tests, 5 dispatch source-guard tests, 21 existing onboarding tests. Raw log: `work/booking-after.log`.
+- Review follow-up: **16 booking tests passed**, including a transaction that commits both records then throws (HTTP 503), followed by retry preserving exact booking/intent bytes and a single stubbed send, plus a correctly signed expired owner token returning 403 with no writes. Raw log: `work/booking-review-after.log`.
 - Tests exercise actual route handlers, atomic fake Firestore and the real outbox pump/source guard. Email delivery is stubbed; rate limiting is bypassed only in the new high-volume fixture suite so unrelated quota consumption does not mask route assertions.
 - Booking tests cover atomic write failure/rollback, same-booking lost-response retry, legacy delivery states, invalid/film links, explicit authority, stale recommendation, rejected client amount, exact server fee, current recipient changes, missing authoritative booking, SDK read-before-write ordering, deterministic transaction callback retries and A→B→A zero-attempt recovery.
 - No provider send, production request or live mutation occurred. The Node deny-egress preload allowed localhost test listeners only; no external attempts were recorded.

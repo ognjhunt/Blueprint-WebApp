@@ -55,12 +55,23 @@ describe("durable pilot booking confirmation", () => {
   });
 
   it("preserves booking identity and confirmation history after a lost response retry", async () => {
-    await post();
+    const run = store.runTransaction.bind(store);
+    vi.spyOn(store, "runTransaction").mockImplementationOnce(async callback => {
+      await run(callback);
+      throw new Error("transaction committed but acknowledgement was lost");
+    });
+    expect((await post()).status).toBe(503);
     const booking = doc().pilot_booking;
+    const committed = rows();
+    expect(booking).toMatchObject({ recommendationId: "rec_book", amountUsd: 2500 });
+    expect(committed).toHaveLength(1);
+    expect(committed[0][1]).toMatchObject({ status: "pending", attempts: 0 });
+    expect((await post()).status).toBe(200);
+    expect(doc().pilot_booking).toEqual(booking);
+    expect(rows()).toEqual(committed);
     await deliverOutbox();
     const sent = rows();
     expect((await post()).status).toBe(200);
-    expect(doc().pilot_booking).toEqual(booking);
     expect(rows()).toEqual(sent);
     await deliverOutbox();
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -151,6 +162,15 @@ describe("durable pilot booking confirmation", () => {
     expect(doc().pilot_booking).toEqual(booking);
     await deliverOutbox();
     expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+
+  it("rejects an expired correctly signed owner link without writes", async () => {
+    const expired = createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner", ttlSeconds: -1 });
+    const response = await fetch(`${base}/owner/${expired}/book`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    expect(response.status).toBe(403);
+    expect(doc().pilot_booking).toBeUndefined();
+    expect(rows()).toHaveLength(0);
   });
 
 });
