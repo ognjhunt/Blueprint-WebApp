@@ -57,6 +57,7 @@ derived/graphify/webapp-architecture/*
 ops/paperclip/research-grounding/notion/
 
 # Generated execution artifacts (prevent worktree drift)
+/work/site-reliability/
 output/
 outputs/
 tmp/
