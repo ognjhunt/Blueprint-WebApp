@@ -224,13 +224,14 @@ export async function observeWebsiteCaptureOwner(
   const source = { request_id: input.request_id, scene_id: input.scene_id,
     capture_id: input.capture_id, bucket: deps.bucket, raw_prefix_uri: `gs://${deps.bucket}/${prefix}`,
     capture_owner: { user_id: owner, basis: "inboundRequests.account_owner_uid" },
-    ownership_record: { claimed_at_iso: claimed }, consent_attestation: consent, capture_rights: rights };
+    ownership_record: { claimed_at_iso: claimed }, consent_attestation: consent, capture_rights: rights,
+    completion_marker: { object_name: markerName, generation: markerIdentity.generation,
+      size_bytes: markerIdentity.size_bytes, sha256: sha(markerRead.bytes) },
+    producer_delivery: producer };
   const response = { schema_version: "website_capture_owner_observation.v1", ...source,
     source_document: { collection: "inboundRequests", document_id: input.request_id,
       update_time: first.updateTime }, source_projection_digest: crossRuntimeDigest(source),
-    completion_marker: { object_name: markerName, generation: markerIdentity.generation,
-      size_bytes: markerIdentity.size_bytes, sha256: sha(markerRead.bytes) },
-    producer_delivery: producer, observed_at_epoch: observedAt,
+    observed_at_epoch: observedAt,
     valid_until_epoch: observedAt + 60 };
   const result = { ...response, observation_digest: crossRuntimeDigest(response) };
   if (Buffer.byteLength(JSON.stringify(result)) > 65_536) throw new Error("owner_response_too_large");
