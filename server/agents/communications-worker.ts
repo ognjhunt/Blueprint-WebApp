@@ -41,7 +41,7 @@ import { CommunicationsDraftBudgetError, reserveCommunicationsDraft, recordCommu
   assertCommunicationsContinuationBudget } from "./communications-draft-budget";
 import { createNativeLearningHooks, REVIEWED_NATIVE_LEARNING_CONFIG } from "../research-learning/native-hooks";
 import { getCompanyHistoryAccess } from "./operator-tools";
-import { runCommunicationsGmailDraftCopies } from "./communications-gmail-draft";
+import { runCommunicationsGmailDraftCopies, prepareSameRunDraftSave, saveCommunicationsUnsentDraft, type SameRunDraftSave } from "./communications-gmail-draft";
 import { founderSentRepliesAllowed, runCommunicationsFounderSentObserver } from "./communications-founder-sent-observer";
 import { claimCommunicationsWorkerLap, CommunicationsWorkerLapError, COMMUNICATIONS_WORKER_LAP_RENEW_MS,
   type CommunicationsWorkerLap } from "./communications-release-lease";
@@ -62,6 +62,8 @@ export type CommunicationsDependencies = {
   now: () => number;
   learningHooks?: CommunicationsLearningHooks;
   sendAutomatic?: (ledgerId: string) => Promise<{ state: "sent" | "auto_approved" | "failed"; reason?: string }>;
+  prepareDraftSave?: () => Promise<SameRunDraftSave>;
+  saveUnsentDraft?: (jobId: string, binding: SameRunDraftSave, canContinue?: () => boolean) => ReturnType<typeof saveCommunicationsUnsentDraft>;
 };
 
 /** Existing authenticated operator only. A generation/hash-bound company
@@ -159,8 +161,23 @@ export function communicationsRejectedCreateRecoveryOptions(store: Communication
 
 export async function processCommunicationsJob(jobId: string, deps: CommunicationsDependencies,
   recovery?: { expectedOutputSha256: string }, rejectedCreate?: {
-    intent: CommunicationsRejectedCreateRecoveryIntent; expectedCheckpointDigest: string }, continuation?: { authorityRef: CommunicationsOwnerAuthorityRef }) {
+    intent: CommunicationsRejectedCreateRecoveryIntent; expectedCheckpointDigest: string }, continuation?: { authorityRef: CommunicationsOwnerAuthorityRef }, canContinue = () => true) {
   let phase: CommunicationsCancelledContinuation | undefined;
+  const saveDraft = async (binding: SameRunDraftSave) => {
+    try {
+      if (!deps.saveUnsentDraft) throw new Error("gmail_draft_same_run_action_unavailable");
+      return await deps.saveUnsentDraft(jobId, binding, canContinue);
+    } catch (error) {
+      // The canonical draft and accounting remain intact. The existing copy
+      // binding reconciles unknown ACKs; this run does not claim success.
+      const reason = error instanceof Error && /^[a-z_]+$/.test(error.message) ? error.message : "gmail_draft_same_run_readback_pending";
+      return { state: "gmail_draft_pending", reason, ledgerId: `communications_${jobId}`, sent: false, gmailDraftCreated: false };
+    }
+  };
+  if (!recovery && !rejectedCreate && !continuation && deps.saveUnsentDraft) {
+    const persisted = (await deps.store.db.doc(`blueprintCommunications/default/jobs/${jobId}`).get()).data();
+    if (persisted?.state === "pending_approval" && persisted.checkpoint?.sameRunDraftSave) return saveDraft(persisted.checkpoint.sameRunDraftSave);
+  }
   if (continuation) {
     // Persistent schedules and automatic delivery stay off. Manual paid
     // inference is admitted only by the separately verified owner receipt.
@@ -310,11 +327,13 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       communicationsExecutionDeadline({ ...claimed.checkpoint, executionWindow });
       const evaluationReadiness = (brief.audienceRole ?? "site") === "site"
         ? await readEvaluationReadiness(deps.store.db, brief, deps.now()) : undefined;
+      const sameRunDraftSave = deps.prepareDraftSave ? await deps.prepareDraftSave() : undefined;
       claimed.checkpoint = { ...claimed.checkpoint, executionWindow,
         draftWritingGuidance: `${COMMUNICATIONS_WRITING_GUIDANCE}\n${COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE}`,
         framingVersion: communicationsFramingVersion(claimed.checkpoint.framingVersion) ?? COMMUNICATIONS_FRAMING_VERSION,
         ...(replyFollowup ? { replyFollowup } : {}),
         ...(evaluationReadiness ? { evaluationReadiness } : {}),
+        ...(sameRunDraftSave ? { sameRunDraftSave, draftWritingGuidance: `${COMMUNICATIONS_WRITING_GUIDANCE}\n${COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE}\nThis authorized run saves an eligible unsent Gmail draft immediately through the host's save_unsent_draft action. Return the authored plain draft; do not invent a Gmail ID or call a raw mail mutation. End the signature with Nijel Hunt followed by Blueprint on its own line. The host formats one direct https://tryblueprint.io/ link on Blueprint in that signature, without tracking, a button, extra CTA or model-authored HTML. Success requires the host's actual unsent draft readback; sending still requires its separate authority.` } : {}),
         ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) };
       await deps.store.update(jobId, { checkpoint: claimed.checkpoint });
     }
@@ -416,6 +435,9 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
             ? [{ path: "refreshFactIds", code: "refresh_fact_unknown", message: "Select only fact IDs already present in researchBrief.facts; do not invent evidence." }] : []
           : output.disposition === "no_reply" ? [] : communicationsDraftFeedback(assemble(output), output, job.intent, automatic, deps.now(), hypothesis,
             communicationsFramingVersion(claimed.checkpoint.framingVersion));
+        if (claimed.checkpoint.sameRunDraftSave && output.disposition === "draft" && !/(?:^|\n)Nijel Hunt\nBlueprint(?:\n|$)/.test(output.body.replace(/\r\n/g, "\n"))) {
+          issues.push({ path: "body", code: "gmail_draft_signature_missing", message: "Finish the plain signature with Nijel Hunt, then Blueprint on its own line. The host adds the single direct homepage link; do not add HTML or another CTA." });
+        }
         if (!issues.length) return null;
         await assertRepairAllowed();
         return issues;
@@ -476,6 +498,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     }
     const persisted = (await deps.store.db.doc("blueprintCommunications/default").collection("jobs").doc(jobId).get()).data();
     if (persisted?.state === "blocked") return { state: "blocked", reason: persisted.reason, ledgerId, sent: false, gmailDraftCreated: false };
+    if (!recovery && !rejectedCreate && !continuation && claimed.checkpoint.sameRunDraftSave) return saveDraft(claimed.checkpoint.sameRunDraftSave);
     return { state: "pending_approval", ledgerId, sent: false, gmailDraftCreated: false };
   } catch (error) {
     await stopObservation();
@@ -684,6 +707,8 @@ export function startCommunicationsWorker(): () => Promise<void> {
     suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "all", source: "communications_reply" }),
     now: () => Date.now(),
     sendAutomatic: executeAutomaticFirstContact,
+    prepareDraftSave: () => prepareSameRunDraftSave(db),
+    saveUnsentDraft: (jobId, binding, canContinue) => saveCommunicationsUnsentDraft(db, jobId, binding, undefined, undefined, canContinue),
   };
   let savedRecoveryCursor: string | undefined;
   return startCommunicationsQueueLoop(deps, {
@@ -790,7 +815,7 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
       if (!await admit()) return;
       for (const id of await deps.store.dueJobIds()) {
         if (!await admit()) break;
-        await processCommunicationsJob(id, deps);
+        await processCommunicationsJob(id, deps, undefined, undefined, undefined, canContinue);
       }
     } catch (error) {
       logger.warn({ code: error instanceof CommunicationsWorkerLapError ? error.code : "communications_worker_tick_failed" },

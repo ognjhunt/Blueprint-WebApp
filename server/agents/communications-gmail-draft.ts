@@ -14,7 +14,7 @@ import { logger } from "../logger";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const requestSchema = z.object({ expectedReviewDigest: hash, expectedRevisionId: hash.nullable(), mode: z.enum(["write", "reconcile"]).default("write") }).strict();
-type DraftContent = { jobId: string; reviewDigest: string; payloadDigest: string; to: string; subject: string; body: string; messageId: string; mimeProfile?: "multipart-alternative-v1"; threadId?: string; inReplyTo?: string };
+type DraftContent = { jobId: string; reviewDigest: string; payloadDigest: string; to: string; subject: string; body: string; messageId: string; mimeProfile?: "multipart-alternative-v1" | "multipart-signature-link-v2"; threadId?: string; inReplyTo?: string };
 export type GmailDraftPorts = {
   enabled(): boolean; requireCapability(): Promise<void>; verifyMailbox(): Promise<unknown>;
   allowsRevision(jobId: string, revisionId: string | null, reviewDigest: string): boolean;
@@ -22,14 +22,18 @@ export type GmailDraftPorts = {
   find(content: DraftContent, draftId?: string): Promise<{ draftId: string; messageId: string; threadId: string; authoredRfcMessageId: string; observedRfcMessageId: string } | null>;
   write(content: DraftContent, draftId?: string): Promise<{ draftId: string }>;
   copyDirection?: { ref: GmailDraftCopyDirectionRef; digest: string };
+  signatureLink?: true;
+  recipientDraftExists?(email: string): Promise<boolean>;
 };
-type GmailDraftCopyDirectionRef = { uri: string; generation: string; sha256: string };
+export type GmailDraftCopyDirectionRef = { uri: string; generation: string; sha256: string };
+export type SameRunDraftSave = { version: "same-run-unsent-draft-v1"; ref: GmailDraftCopyDirectionRef; digest: string };
 export type GmailDraftCopyDirection = {
-  version: "blueprint.communications-gmail-draft-copy-direction.v1"; owner: "Nijel Hunt";
+  version: "blueprint.communications-gmail-draft-copy-direction.v1" | "blueprint.communications-gmail-draft-copy-direction.v2"; owner: "Nijel Hunt";
   approvedAt: string; expiresAt: string;
   direction: { kind: "direct_current_chat_human_reply"; text: string; sourceRef: string };
   binding: { mailbox: typeof FOUNDER_MAILBOX; composeApprovalReference: string };
-  scope: { draftOnly: true; gmailCopiesAuthorized: true; sendsAuthorized: false; newInferenceAuthorized: false; accessChangesAuthorized: false };
+  scope: { draftOnly: true; gmailCopiesAuthorized: true; sendsAuthorized: false; newInferenceAuthorized: false; accessChangesAuthorized: false;
+    saveWithinRun?: true; prospectiveOnly?: true };
 };
 export class CommunicationsGmailDraftError extends Error { constructor(message: string, public status = 409) { super(message); } }
 function fail(message: string): never { throw new CommunicationsGmailDraftError(message); }
@@ -53,7 +57,7 @@ async function gmailDraftCopyDirection(db: FirebaseFirestore.Firestore, now: () 
     || createHash("sha256").update(raw).digest("hex") !== ref.sha256) fail("gmail_draft_copy_direction_invalid");
   let authority: GmailDraftCopyDirection;
   try { authority = JSON.parse(raw); } catch { return fail("gmail_draft_copy_direction_invalid"); }
-  if (authority?.version !== "blueprint.communications-gmail-draft-copy-direction.v1" || authority.owner !== "Nijel Hunt"
+  if (!["blueprint.communications-gmail-draft-copy-direction.v1", "blueprint.communications-gmail-draft-copy-direction.v2"].includes(authority?.version) || authority.owner !== "Nijel Hunt"
     || !Number.isFinite(Date.parse(authority.approvedAt)) || Date.parse(authority.approvedAt) > now()
     || !Number.isFinite(Date.parse(authority.expiresAt)) || Date.parse(authority.expiresAt) <= now()
     || authority.direction?.kind !== "direct_current_chat_human_reply" || typeof authority.direction.text !== "string" || !authority.direction.text.trim()
@@ -62,7 +66,56 @@ async function gmailDraftCopyDirection(db: FirebaseFirestore.Firestore, now: () 
     || authority.binding.composeApprovalReference !== process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF
     || authority.scope?.draftOnly !== true || authority.scope.gmailCopiesAuthorized !== true || authority.scope.sendsAuthorized !== false
     || authority.scope.newInferenceAuthorized !== false || authority.scope.accessChangesAuthorized !== false) fail("gmail_draft_copy_direction_invalid");
-  return { ref, digest: communicationsDigest(authority), expiresAt: authority.expiresAt };
+  const saveWithinRun = authority.version === "blueprint.communications-gmail-draft-copy-direction.v2"
+    && authority.scope.saveWithinRun === true && authority.scope.prospectiveOnly === true;
+  if (authority.version.endsWith(".v2") && !saveWithinRun) fail("gmail_draft_copy_direction_invalid");
+  return { ref, digest: communicationsDigest(authority), expiresAt: authority.expiresAt, approvedAt: authority.approvedAt, saveWithinRun };
+}
+
+/** Prospective host action inside one communications run. Existing compose
+ * consent and owner direction admit an unsent save, never inference or send. */
+export async function prepareSameRunDraftSave(db: FirebaseFirestore.Firestore, now = () => Date.now(), basePorts = configuredGmailDraftPorts()): Promise<SameRunDraftSave> {
+  if (process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED !== "false" || process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED !== "false") fail("gmail_draft_same_run_requires_send_off");
+  const direction = await gmailDraftCopyDirection(db, now);
+  if (!direction?.saveWithinRun) fail("gmail_draft_same_run_direction_missing");
+  await basePorts.requireCapability(); await basePorts.verifyMailbox();
+  if (!same(await gmailDraftCopyDirection(db, now), direction)) fail("gmail_draft_copy_direction_changed");
+  return { version: "same-run-unsent-draft-v1", ref: direction.ref, digest: direction.digest };
+}
+
+export async function saveCommunicationsUnsentDraft(db: FirebaseFirestore.Firestore, jobId: string, bound: SameRunDraftSave,
+  now = () => Date.now(), basePorts = configuredGmailDraftPorts(), canContinue = () => true) {
+  if (!canContinue()) fail("gmail_draft_writes_disabled");
+  const current = await prepareSameRunDraftSave(db, now, basePorts);
+  if (!same(current, bound)) fail("gmail_draft_same_run_direction_changed");
+  const job = (await db.doc(`${COMMUNICATIONS_ROOT}/jobs/${jobId}`).get()).data();
+  const ledgerId = `communications_${jobId}`, ledger = (await db.doc(`action_ledger/${ledgerId}`).get()).data();
+  // Old charged jobs never acquire this prospective action. An existing
+  // manually saved draft cannot become an app copy by recovering old output.
+  if (!job?.checkpoint?.sameRunDraftSave || !same(job.checkpoint.sameRunDraftSave, bound) || !ledger || !job.reviewDigest) fail("gmail_draft_same_run_job_binding_changed");
+  const old = (await db.doc(`${COMMUNICATIONS_ROOT}/gmailDraftBindings/${jobId}`).get()).data();
+  const ports: GmailDraftPorts = { ...basePorts, signatureLink: true, copyDirection: { ref: bound.ref, digest: bound.digest },
+    enabled: () => canContinue() && process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "false" && process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED === "false",
+    allowsRevision: (id, revision, digest) => id === jobId && revision === (ledger.draft_revision_id ?? null) && digest === job.reviewDigest,
+    requireCapability: async () => {
+      if (!canContinue()) fail("gmail_draft_writes_disabled");
+      if (!same(await prepareSameRunDraftSave(db, now, basePorts), bound)) fail("gmail_draft_same_run_direction_changed");
+      const [liveJob, liveLedger] = await Promise.all([
+        db.doc(`${COMMUNICATIONS_ROOT}/jobs/${jobId}`).get(), db.doc(`action_ledger/${ledgerId}`).get(),
+      ]);
+      const saved = liveJob.data(), action = liveLedger.data();
+      if (!canContinue()) fail("gmail_draft_writes_disabled");
+      if (!saved?.checkpoint?.sameRunDraftSave || !same(saved.checkpoint.sameRunDraftSave, bound) || saved.state !== "pending_approval"
+        || saved.reviewDigest !== job.reviewDigest || (saved.draftRevisionId ?? null) !== (ledger.draft_revision_id ?? null)
+        || action?.status !== "pending_approval" || (action.draft_revision_id ?? null) !== (ledger.draft_revision_id ?? null)) fail("gmail_draft_same_run_job_binding_changed");
+    },
+    priorContact: async email => await basePorts.priorContact(email) || Boolean(await basePorts.recipientDraftExists?.(email)) };
+  const result = await mirrorCommunicationsGmailDraft(db, ledgerId, "Nijel Hunt (same-run unsent draft direction)", {
+    expectedReviewDigest: job.reviewDigest, expectedRevisionId: ledger.draft_revision_id ?? null,
+    mode: old && ["writing", "unknown", "verified"].includes(old.state) ? "reconcile" : "write",
+  }, ports, now());
+  if (result.state !== "verified" || !("draftId" in result) || !result.draftId) fail("gmail_draft_same_run_readback_pending");
+  return { state: "gmail_draft_saved" as const, ledgerId, gmailDraftId: result.draftId, gmailDraftCreated: true, sent: false, approved: false };
 }
 function draftWindowConfigured() {
   return Boolean(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF?.trim())
@@ -132,7 +185,7 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
       to: payload.to, subject: payload.subject, body: payload.transportBody,
       messageId: `<blueprint-draft-${job.jobId}@tryblueprint.io>`,
       // A new delivery profile never relabels a retained text/plain attempt.
-      ...(!old ? { mimeProfile: "multipart-alternative-v1" as const }
+      ...(!old ? { mimeProfile: ports.signatureLink ? "multipart-signature-link-v2" as const : "multipart-alternative-v1" as const }
         : old.content?.mimeProfile ? { mimeProfile: old.content.mimeProfile } : {}),
       ...(payload.gmailThreadId ? { threadId: payload.gmailThreadId } : {}), ...(payload.inReplyTo ? { inReplyTo: payload.inReplyTo } : {}) };
     if (old && (old.jobId !== job.jobId || old.ledgerId !== ledgerId || old.prospectId !== job.prospectId)) fail("gmail_draft_binding_identity_changed");
@@ -225,9 +278,13 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
 /** Stage eligible internal drafts without approval or inference. Existing
  * writing/unknown claims are observed only; no clock can license a new create. */
 export async function runCommunicationsGmailDraftCopies(db: FirebaseFirestore.Firestore, now = () => Date.now(), basePorts = configuredGmailDraftPorts(), canContinue = () => true) {
-  if (!recurringCopiesEnabled()) return;
   const direction = await gmailDraftCopyDirection(db, now);
   if (!direction) return;
+  const enabled = () => canContinue() && (direction.saveWithinRun
+    ? process.env.BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED === "true" && process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "false"
+      && process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED === "false"
+    : recurringCopiesEnabled());
+  if (!enabled()) return;
   const ports: GmailDraftPorts = { ...basePorts, copyDirection: direction,
     enabled: () => recurringCopiesEnabled() && canContinue() && now() < Date.parse(direction.expiresAt),
     allowsRevision: (jobId, revisionId, reviewDigest) => /^[a-f0-9]{64}$/.test(jobId) && /^[a-f0-9]{64}$/.test(reviewDigest)
@@ -237,14 +294,21 @@ export async function runCommunicationsGmailDraftCopies(db: FirebaseFirestore.Fi
       await basePorts.requireCapability();
     } };
   let cursor: string | undefined;
-  while (recurringCopiesEnabled() && canContinue()) {
+  while (enabled()) {
     let query = db.doc(COMMUNICATIONS_ROOT).collection("jobs").where("state", "==", "pending_approval").orderBy("__name__").limit(50);
     if (cursor) query = query.startAfter(cursor);
     const page = await query.get();
     if (page.empty) return;
     for (const doc of page.docs) {
       cursor = doc.id;
-      if (!recurringCopiesEnabled() || !canContinue()) return;
+      if (!enabled()) return;
+      if (direction.saveWithinRun) {
+        const bound = doc.data().checkpoint?.sameRunDraftSave;
+        if (!bound) continue; // Historical/manual copies remain excluded.
+        try { await saveCommunicationsUnsentDraft(db, doc.id, bound, now, basePorts, enabled); }
+        catch (error) { logger.warn({ jobId: doc.id, code: error instanceof CommunicationsGmailDraftError ? error.message : "gmail_draft_same_run_readback_pending" }, "Same-run unsent draft waits for its exact durable receipt"); }
+        continue;
+      }
       const ledgerId = `communications_${doc.id}`, ledger = (await db.collection("action_ledger").doc(ledgerId).get()).data();
       if (!ledger || ledger.status !== "pending_approval" || !ledger.action_payload?.communications) continue;
       const old = (await db.doc(COMMUNICATIONS_ROOT).collection("gmailDraftBindings").doc(doc.id).get()).data();
@@ -301,9 +365,26 @@ export async function reconcileEndedGmailDraftWriter(db: FirebaseFirestore.Fires
 }
 
 /** Deterministic delivery view only; authored plain bytes remain canonical. */
-function gmailDraftHtml(body: string) {
+function signatureLines(body: string) {
+  const lines = body.replace(/\r\n/g, "\n").split("\n").filter(line => !/^Blueprint: https:\/\/tryblueprint\.io\/?$/.test(line));
+  const index = lines.lastIndexOf("Blueprint");
+  if (index < 1 || lines[index - 1] !== "Nijel Hunt") fail("gmail_draft_signature_missing");
+  return { lines, index };
+}
+function gmailDraftPlain(content: DraftContent) {
+  if (content.mimeProfile !== "multipart-signature-link-v2") return content.body;
+  const { lines, index } = signatureLines(content.body);
+  lines[index] = "Blueprint — https://tryblueprint.io/";
+  return lines.join("\n");
+}
+function gmailDraftHtml(body: string, profile?: DraftContent["mimeProfile"]) {
   const escape = (value: string) => value.replace(/[&<>"']/g, character =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]!));
+  if (profile === "multipart-signature-link-v2") {
+    const { lines, index } = signatureLines(body);
+    return `<html><body><div>${lines.map((line, number) => number === index
+      ? '<a href="https://tryblueprint.io/" style="color:#0000ee;text-decoration:underline">Blueprint</a>' : escape(line)).join("<br>\n")}</div></body></html>`;
+  }
   const lines = body.replace(/\r\n/g, "\n").split("\n").map(line => {
     const link = /^Blueprint: (https?:\/\/\S+)$/.exec(line);
     if (!link) return escape(line);
@@ -319,7 +400,7 @@ function gmailDraftBodyMatches(payload: gmail_v1.Schema$MessagePart | undefined,
   if (!payload || payload.filename || payload.body?.attachmentId) return false;
   if (!content.mimeProfile) return payload.mimeType === "text/plain" && !(payload.parts?.length)
     && normalize(extractPlainTextBody(payload)) === normalize(content.body);
-  if (content.mimeProfile !== "multipart-alternative-v1" || payload.mimeType !== "multipart/alternative"
+  if (!["multipart-alternative-v1", "multipart-signature-link-v2"].includes(content.mimeProfile) || payload.mimeType !== "multipart/alternative"
     || payload.body?.data || payload.parts?.length !== 2
     || payload.headers?.some(header => (header.name ?? "").toLowerCase() === "content-disposition"
       && !/^inline(?:;|$)/i.test(header.value ?? ""))) return false;
@@ -330,15 +411,15 @@ function gmailDraftBodyMatches(payload: gmail_v1.Schema$MessagePart | undefined,
       && !/^inline(?:;|$)/i.test(header.value ?? "")));
   const plain = parts.filter(part => inline(part, "text/plain")), html = parts.filter(part => inline(part, "text/html"));
   return plain.length === 1 && html.length === 1
-    && normalize(Buffer.from(plain[0].body!.data!, "base64url").toString("utf8")) === normalize(content.body)
-    && normalize(Buffer.from(html[0].body!.data!, "base64url").toString("utf8")) === gmailDraftHtml(content.body);
+    && normalize(Buffer.from(plain[0].body!.data!, "base64url").toString("utf8")) === normalize(gmailDraftPlain(content))
+    && normalize(Buffer.from(html[0].body!.data!, "base64url").toString("utf8")) === gmailDraftHtml(content.body, content.mimeProfile);
 }
 
 export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail, mode: "automated" | "manual_approved_copy" = "automated"): GmailDraftPorts {
   const client = async () => gmail ??= await existingFounderGmail();
   const raw = (content: DraftContent) => {
     if ([content.to,content.subject,content.messageId,content.inReplyTo ?? ""].some(value => /[\r\n]/.test(value))) fail("gmail_draft_header_invalid");
-    if (content.mimeProfile && content.mimeProfile !== "multipart-alternative-v1") fail("gmail_draft_mime_profile_invalid");
+    if (content.mimeProfile && !["multipart-alternative-v1", "multipart-signature-link-v2"].includes(content.mimeProfile)) fail("gmail_draft_mime_profile_invalid");
     const headers = [`From: Nijel Hunt <${FOUNDER_MAILBOX}>`, `To: ${content.to}`, `Reply-To: ${FOUNDER_MAILBOX}`, `Message-ID: ${content.messageId}`,
       `Subject: =?UTF-8?B?${Buffer.from(content.subject).toString("base64")}?=`, `X-Blueprint-Job-ID: ${content.jobId}`,
       `X-Blueprint-Review-Digest: ${content.reviewDigest}`, `X-Blueprint-Payload-Digest: ${content.payloadDigest}`,
@@ -349,7 +430,7 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail, mode: "automat
     const part = (mime: string, body: string) => `--${boundary}\r\nContent-Type: ${mime}; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n`
       + (Buffer.from(body).toString("base64").match(/.{1,76}/g) ?? []).join("\r\n") + "\r\n";
     const message = [...headers, `Content-Type: multipart/alternative; boundary="${boundary}"`].join("\r\n") + "\r\n\r\n"
-      + part("text/plain", content.body) + part("text/html", gmailDraftHtml(content.body)) + `--${boundary}--\r\n`;
+      + part("text/plain", gmailDraftPlain(content)) + part("text/html", gmailDraftHtml(content.body, content.mimeProfile)) + `--${boundary}--\r\n`;
     return Buffer.from(message).toString("base64url");
   };
   return {
@@ -362,6 +443,12 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail, mode: "automat
       const response = await (await client()).users.messages.list({ userId: "me", q: `in:anywhere -in:drafts {from:${JSON.stringify(email)} to:${JSON.stringify(email)}}`, maxResults: 1, includeSpamTrash: true });
       if (response.data.messages?.length) return true;
       if (response.data.resultSizeEstimate !== 0 || response.data.nextPageToken) fail("gmail_draft_prior_contact_unverified");
+      return false;
+    },
+    async recipientDraftExists(email) {
+      const response = await (await client()).users.drafts.list({ userId: "me", q: `to:${JSON.stringify(email)}`, maxResults: 1 });
+      if (response.data.drafts?.length) return true;
+      if (response.data.resultSizeEstimate !== 0 || response.data.nextPageToken) fail("gmail_draft_recipient_inventory_unverified");
       return false;
     },
     async find(content, draftId) {
@@ -400,7 +487,7 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail, mode: "automat
         || addresses(get("Reply-To"))!==FOUNDER_MAILBOX || subject!==content.subject
         || (content.threadId && content.threadId!==message.threadId) || (content.inReplyTo && get("In-Reply-To")!==content.inReplyTo)) fail("gmail_draft_readback_content_changed");
       return {draftId,messageId:message.id,threadId:message.threadId,authoredRfcMessageId:content.messageId,observedRfcMessageId:get("Message-ID")!,
-        ...(content.mimeProfile ? { mimeProfile: content.mimeProfile, htmlSha256: createHash("sha256").update(gmailDraftHtml(content.body)).digest("hex") } : {})};
+        ...(content.mimeProfile ? { mimeProfile: content.mimeProfile, htmlSha256: createHash("sha256").update(gmailDraftHtml(content.body, content.mimeProfile)).digest("hex") } : {})};
     },
     async write(content,draftId) {
       const api=await client(), requestBody={message:{raw:raw(content),...(content.threadId?{threadId:content.threadId}:{})}};

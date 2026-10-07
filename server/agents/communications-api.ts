@@ -103,6 +103,8 @@ export type CommunicationsCheckpoint = {
   executionWindow?: CommunicationsExecutionWindow;
   /** Exact prospective writing directions, retained across charged recovery. */
   draftWritingGuidance?: string;
+  /** Frozen only before a prospective create; old charged sessions never gain it. */
+  sameRunDraftSave?: import("./communications-gmail-draft").SameRunDraftSave;
   framingVersion?: CommunicationsFramingVersion;
   replyFollowup?: unknown;
   evaluationReadiness?: import("./communications-contract").EvaluationReadiness;
