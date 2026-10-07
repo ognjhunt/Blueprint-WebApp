@@ -24,7 +24,7 @@ import { verifyFounderMailbox, readFounderThread } from "./communications-gmail"
 import { hypothesisPublicationSource, readExistingResearchSnapshot, researchPublicationSource, verifyPublishedHypothesisForDraft, verifyPublishedResearch,
   type ResearchSnapshotReader } from "./communications-research";
 import { reviewCommunicationsPayload } from "./communications-review";
-import { CommunicationsStore, type CommunicationsJobRecord } from "./communications-store";
+import { CommunicationsStore, COMMUNICATIONS_SAVED_RECOVERY_REQUESTER, type CommunicationsJobRecord } from "./communications-store";
 import type { ActionPayload } from "./action-policies";
 import { HYPOTHESIS_DRAFTS_DISABLED, hypothesisDraftsEnabled, runCommunicationsIntake } from "./communications-intake";
 import { runCommunicationsReplyIntake } from "./communications-reply-intake";
@@ -78,6 +78,46 @@ export function continueCancelledCommunicationsJob(jobId: string, authorityRef: 
 export function recoverSavedCommunicationsDraft(jobId: string, expectedOutputSha256: string, deps: CommunicationsDependencies) {
   if (!/^[a-f0-9]{64}$/.test(expectedOutputSha256)) throw new Error("communications_saved_output_digest_invalid");
   return processCommunicationsJob(jobId, deps, { expectedOutputSha256 });
+}
+
+/** Repair the old reader's specific rejection using an already completed
+ * session. Ordinary context/consent gates run again; inference and sends are
+ * unavailable in this lane, including when the paid drafting flag is off. */
+export async function runCommunicationsSavedDraftRecovery(deps: CommunicationsDependencies,
+  canContinue = () => true, afterJobId?: string) {
+  if (!canContinue()) return afterJobId;
+  const page = await deps.store.savedRecoveryPage(afterJobId);
+  const requester = COMMUNICATIONS_SAVED_RECOVERY_REQUESTER;
+  for (const job of page.jobs) {
+    if (!canContinue()) return afterJobId;
+    const rejected = job.state === "blocked" && job.reason === "agents_native_mcp_call_binding_mismatch";
+    const resumed = ["queued", "running"].includes(job.state) && job.reason === "operator_retry_requested" && job.retryRequestedBy === requester;
+    if ((!rejected && !resumed) || (rejected ? job.attempts !== 1 : ![1, 2].includes(job.attempts))
+      || job.checkpoint?.framingVersion !== COMMUNICATIONS_FRAMING_VERSION
+      || !job.checkpoint.sessionId || !job.checkpoint.turnId || !job.checkpoint.requestDigest
+      || !Number.isSafeInteger(job.lease?.until) || job.lease!.until < 0 || job.lease!.until > deps.now()) continue;
+    if (resumed && (job.savedOutputRecovery?.version !== "completed-saved-output-v1"
+      || job.savedOutputRecovery.checkpointDigest !== communicationsDigest(job.checkpoint)
+      || !/^[a-f0-9]{64}$/.test(job.savedOutputRecovery.rawOutputSha256))) continue;
+    try {
+      const saved = await deps.api.reconcileSaved(structuredClone(job.checkpoint), job.jobId);
+      if (!saved?.outputSource?.rawOutputSha256 || !canContinue()) continue;
+      const expectedSha = resumed ? job.savedOutputRecovery!.rawOutputSha256 : saved.outputSource.rawOutputSha256;
+      if (saved.outputSource.rawOutputSha256 !== expectedSha) continue;
+      if (rejected) await deps.store.retryBlocked({ jobId: job.jobId, prospectId: job.prospectId, briefDigest: job.briefDigest,
+        requestedBy: requester, savedOutputRecovery: { version: "completed-saved-output-v1",
+          rawOutputSha256: expectedSha, checkpointDigest: communicationsDigest(job.checkpoint) } });
+      if (!canContinue()) return afterJobId;
+      const forbidden = async () => { throw new CommunicationsRuntimeError("communications_saved_recovery_inference_forbidden"); };
+      await recoverSavedCommunicationsDraft(job.jobId, expectedSha, {
+        ...deps, api: { run: forbidden, cancel: forbidden, reconcileSaved: deps.api.reconcileSaved.bind(deps.api) },
+        sendAutomatic: undefined,
+      });
+    } catch {
+      logger.warn({ jobId: job.jobId, code: "communications_saved_draft_recovery_held" }, "Completed saved draft waits for verified context");
+    }
+  }
+  return page.cursor;
 }
 
 /** Trusted operator action only. The API requires server-side verification of
@@ -136,7 +176,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     ? await deps.store.claimCancelledContinuation(jobId, phase!, tx => claimCommunicationsCancelledContinuationBudget(deps.store.db, tx, phase!, deps.now()))
     : rejectedCreate
     ? await deps.store.claimRejectedCreate(jobId, rejectedCreate.expectedCheckpointDigest)
-    : await deps.store.claim(jobId);
+    : await deps.store.claim(jobId, recovery?.expectedOutputSha256);
   if (!claimed) return { state: "no_op" };
   const job = communicationsJobSchema.parse(Object.fromEntries(Object.entries(claimed).filter(([key]) =>
     ["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"].includes(key))));
@@ -645,6 +685,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
     now: () => Date.now(),
     sendAutomatic: executeAutomaticFirstContact,
   };
+  let savedRecoveryCursor: string | undefined;
   return startCommunicationsQueueLoop(deps, {
     claimLap: () => claimCommunicationsWorkerLap(db, deps.now),
     observeFounderSends: async canContinue => {
@@ -679,6 +720,8 @@ export function startCommunicationsWorker(): () => Promise<void> {
     await runScreenAdmissionIntake(screenDeps);
     if (!canContinue()) return;
     await runScreenContactRefresh(screenDeps);
+  }, recoverSavedDrafts: async canContinue => {
+    savedRecoveryCursor = await runCommunicationsSavedDraftRecovery(deps, canContinue, savedRecoveryCursor);
   }, copyDrafts: canContinue => runCommunicationsGmailDraftCopies(db, undefined, undefined, canContinue), processJobs: allowPaidInference });
 }
 
@@ -686,6 +729,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
   options: { canStartTick?: () => Promise<boolean>; claimLap?: () => Promise<CommunicationsWorkerLap | null>;
     observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: (canContinue: () => boolean) => Promise<void>;
+    recoverSavedDrafts?: (canContinue: () => boolean) => Promise<void>;
     copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
   let activeTick: Promise<void> | null = null, stopped = false, stopPromise: Promise<void> | null = null;
   let pendingSettlement: CommunicationsWorkerLap | null = null;
@@ -727,6 +771,8 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
       if (!await admit()) return;
       try { await options.observeFounderSends?.(canContinue); }
       catch { logger.warn({ code: "communications_founder_sent_observer_unavailable" }, "Founder-sent observation waits for its owner direction and read capability"); }
+      if (!await admit()) return;
+      await options.recoverSavedDrafts?.(canContinue);
       if (!await admit()) return;
       try { await options.copyDrafts?.(canContinue); }
       catch { logger.warn({ code: "communications_gmail_draft_copy_direction_unavailable" }, "Gmail staging waits for its retained copy direction"); }

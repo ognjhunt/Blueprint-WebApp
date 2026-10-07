@@ -8,7 +8,7 @@ import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communicatio
 import { CommunicationsAgentsAPI } from "../agents/communications-api";
 import { COMMUNICATIONS_MODEL, communicationsDigest, communicationsDeliveryKey, communicationsOutputSchema } from "../agents/communications-contract";
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-instructions";
-import { recoverSavedCommunicationsDraft } from "../agents/communications-worker";
+import { recoverSavedCommunicationsDraft, runCommunicationsSavedDraftRecovery, startCommunicationsQueueLoop, processCommunicationsJob } from "../agents/communications-worker";
 import { recordCommunicationsDraftUsage, reserveCommunicationsDraft } from "../agents/communications-draft-budget";
 import { compileAutomaticFirstContact } from "../agents/communications-first-contact";
 import { CommunicationsOutputValidationError, outputTextDigest, parseCommunicationsOutput } from "../agents/communications-output";
@@ -149,6 +149,112 @@ describe("same-output recovery into human review only", () => {
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/draftBudgetAdmissions/${f.id}`)).toMatchObject({ state: "usage_unknown", usageState: "unresolved" });
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/draftBudgetState/current`).activeAdmissionId).toBe(f.id);
     expect(f.reserve).not.toHaveBeenCalled(); expect(f.sendAutomatic).not.toHaveBeenCalled();
+  });
+});
+
+describe("automatic recovery of the old native-reader rejection", () => {
+  async function held(options: Parameters<typeof completedDraft>[0] = {}) {
+    const f = await completedDraft(options), path = `${COMMUNICATIONS_ROOT}/jobs/${f.admitted.jobId}`;
+    await f.db.doc(path).update({ reason: "agents_native_mcp_call_binding_mismatch",
+      checkpoint: { ...f.checkpoint, framingVersion: "blueprint.outreach-framing.v3" } });
+    return { ...f, path };
+  }
+  it("recovers the completed output once through real API/store consumers without paid drafting or sends", async () => {
+    const f = await held();
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE", "false");
+    await runCommunicationsSavedDraftRecovery(f.worker);
+    expect(f.db.records.get(f.path)).toMatchObject({ state: "pending_approval", attempts: 2,
+      checkpoint: { sessionId: "saved-session", turnId: "saved-turn" }, outputSource: { rawOutputSha256: outputTextDigest(f.rawOutput) } });
+    const ledger = f.db.records.get(`action_ledger/communications_${f.admitted.jobId}`);
+    expect(ledger).toMatchObject({ status: "pending_approval", approved_by: null, sent_at: null });
+    expect(f.run).not.toHaveBeenCalled(); expect(f.cancel).not.toHaveBeenCalled(); expect(f.reserve).not.toHaveBeenCalled(); expect(f.sendAutomatic).not.toHaveBeenCalled();
+    const calls = f.fetch.mock.calls.length, cost = f.db.records.get(`${COMMUNICATIONS_ROOT}/draftBudgetAdmissions/${f.id}`).estimatedModelMicros;
+    await runCommunicationsSavedDraftRecovery(f.worker);
+    expect(f.fetch).toHaveBeenCalledTimes(calls);
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/draftBudgetAdmissions/${f.id}`).estimatedModelMicros).toBe(cost);
+  });
+  it.each(["running", "wrong_binding", "invalid_output", "other_reason", "active_lease", "missing_session", "second_attempt"])("holds %s without creating another session", async kind => {
+    const f = await held({ terminal: kind !== "running", mutateSession: kind === "wrong_binding", invalidOutput: kind === "invalid_output" });
+    const row = f.db.records.get(f.path);
+    if (kind === "other_reason") row.reason = "context_missing";
+    if (kind === "active_lease") row.lease.until = Date.now() + 1000;
+    if (kind === "missing_session") row.checkpoint.sessionId = null;
+    if (kind === "second_attempt") row.attempts = 2;
+    await runCommunicationsSavedDraftRecovery(f.worker);
+    expect(f.db.records.get(f.path).state).toBe("blocked");
+    expect([...f.db.records.keys()].some(key => key.startsWith("action_ledger/"))).toBe(false);
+    expect(f.run).not.toHaveBeenCalled(); expect(f.cancel).not.toHaveBeenCalled(); expect(f.reserve).not.toHaveBeenCalled(); expect(f.sendAutomatic).not.toHaveBeenCalled();
+  });
+  it.each(["late_opt_out", "missing_context"])("rechecks %s before a recovered draft can enter Gmail staging", async kind => {
+    const f = await held();
+    if (kind === "late_opt_out") f.worker.isSuppressed = async () => true;
+    else f.db.records.delete(`outboundProspects/${f.admitted.prospectId}`);
+    await runCommunicationsSavedDraftRecovery(f.worker);
+    expect(f.db.records.get(f.path).state).not.toBe("pending_approval");
+    expect([...f.db.records.keys()].some(key => key.startsWith("action_ledger/"))).toBe(false);
+    expect(f.run).not.toHaveBeenCalled(); expect(f.reserve).not.toHaveBeenCalled(); expect(f.sendAutomatic).not.toHaveBeenCalled();
+  });
+  it("runs recovery before automatic unsent-copy staging even while paid job processing is disabled", async () => {
+    const f = await held(), order: string[] = [];
+    const stop = startCommunicationsQueueLoop(f.worker, { processJobs: false,
+      recoverSavedDrafts: async canContinue => { order.push("recover"); await runCommunicationsSavedDraftRecovery(f.worker, canContinue); },
+      copyDrafts: async () => { order.push("copy"); expect(f.db.records.get(f.path).state).toBe("pending_approval"); } });
+    await vi.advanceTimersByTimeAsync(60000); await stop();
+    expect(order).toEqual(["recover", "copy"]); expect(f.reserve).not.toHaveBeenCalled(); expect(f.run).not.toHaveBeenCalled();
+  });
+  it("performs no reads or retry after the lap is stopped", async () => {
+    const f = await held(), scan = vi.spyOn(f.worker.store, "savedRecoveryPage");
+    await runCommunicationsSavedDraftRecovery(f.worker, () => false);
+    expect(scan).not.toHaveBeenCalled(); expect(f.fetch).not.toHaveBeenCalled(); expect(f.db.records.get(f.path).attempts).toBe(1);
+  });
+  it("resumes a durable saved-output handoff after stop without requiring paid processing", async () => {
+    const f = await held(); let active = true;
+    const retry = f.worker.store.retryBlocked.bind(f.worker.store);
+    vi.spyOn(f.worker.store, "retryBlocked").mockImplementation(async input => { const result = await retry(input); active = false; return result; });
+    await runCommunicationsSavedDraftRecovery(f.worker, () => active);
+    expect(f.db.records.get(f.path)).toMatchObject({ state: "queued", attempts: 1 });
+    await runCommunicationsSavedDraftRecovery(f.worker);
+    expect(f.db.records.get(f.path)).toMatchObject({ state: "pending_approval", attempts: 2 });
+    expect(f.worker.store.retryBlocked).toHaveBeenCalledOnce();
+    expect(f.run).not.toHaveBeenCalled(); expect(f.reserve).not.toHaveBeenCalled(); expect(f.sendAutomatic).not.toHaveBeenCalled();
+  });
+  async function paused() {
+    const f = await held(); let active = true;
+    const retry = f.worker.store.retryBlocked.bind(f.worker.store);
+    vi.spyOn(f.worker.store, "retryBlocked").mockImplementation(async input => { const row = await retry(input); active = false; return row; });
+    await runCommunicationsSavedDraftRecovery(f.worker, () => active);
+    return f;
+  }
+  it.each(["changed_output", "not_completed"])("keeps the original durable selection when %s and paid processing is enabled", async kind => {
+    const f = await paused(), original = f.fetch.getMockImplementation()!;
+    const pin = structuredClone(f.db.records.get(f.path).savedOutputRecovery);
+    f.fetch.mockImplementation(async (...args) => {
+      const response = await original(...args), data: any = await response.json(), path = new URL(String(args[0])).pathname;
+      if (kind === "changed_output" && path.endsWith("/items")) data.data[0].content[0].text += " ";
+      if (kind === "not_completed" && path.endsWith("/turns")) data.data[0].status = "running";
+      return Response.json(data);
+    });
+    const stop = startCommunicationsQueueLoop(f.worker, {
+      recoverSavedDrafts: async canContinue => { await runCommunicationsSavedDraftRecovery(f.worker, canContinue); } });
+    await vi.advanceTimersByTimeAsync(60000); await stop();
+    expect(await f.worker.store.dueJobIds()).toEqual([]);
+    expect(await processCommunicationsJob(f.admitted.jobId, f.worker)).toEqual({ state: "no_op" });
+    expect(f.db.records.get(f.path)).toMatchObject({ state: "queued", attempts: 1, savedOutputRecovery: pin });
+    expect(f.run).not.toHaveBeenCalled(); expect(f.cancel).not.toHaveBeenCalled(); expect(f.reserve).not.toHaveBeenCalled(); expect(f.sendAutomatic).not.toHaveBeenCalled();
+  });
+  it.each([false, true])("resumes an expired claim with observed progress=%s while preserving the original raw selection", async progress => {
+    const f = await paused(), hash = outputTextDigest(f.rawOutput);
+    await f.worker.store.claim(f.admitted.jobId, hash);
+    if (progress) {
+      const saved = await f.worker.api.reconcileSaved(f.db.records.get(f.path).checkpoint, f.admitted.jobId);
+      await f.worker.store.update(f.admitted.jobId, { output: saved!.output, outputSource: saved!.outputSource,
+        checkpoint: { ...saved!.checkpoint, usageReceipts: [{ turnId: "saved-turn", status: "completed", usage }] } });
+    }
+    f.db.records.get(f.path).lease.until = Date.now() - 1;
+    await runCommunicationsSavedDraftRecovery(f.worker);
+    expect(f.db.records.get(f.path)).toMatchObject({ state: "pending_approval", attempts: 3,
+      savedOutputRecovery: { rawOutputSha256: hash }, outputSource: { rawOutputSha256: hash } });
+    expect(f.run).not.toHaveBeenCalled(); expect(f.cancel).not.toHaveBeenCalled(); expect(f.reserve).not.toHaveBeenCalled(); expect(f.sendAutomatic).not.toHaveBeenCalled();
   });
 });
 
