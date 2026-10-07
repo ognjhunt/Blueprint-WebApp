@@ -81,6 +81,7 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
     return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Fill in the team ID, purpose, what each side provides, cost and window." });
   }
   if (!db) return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Store unavailable" });
+  const store = db;
   const requestId = String(req.params.requestId);
   const { teamId, ...plan } = parsed.data;
   try {
@@ -97,8 +98,8 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
     };
     const captureUrl = captureUploadUrlFor(requestId, "owner");
     const rows = new Map<string, ReturnType<typeof buildOutboxEntry>>();
-    const ref = db.collection("inboundRequests").doc(requestId);
-    const outcome = await db.runTransaction(async (transaction) => {
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const outcome = await store.runTransaction(async (transaction) => {
       const current = await transaction.get(ref);
       if (!current.exists) return { status: "missing" } as const;
       const record = current.data()!;
@@ -111,10 +112,10 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { status: "contact_missing" } as const;
       const input = buildPilotRecommendationNotification({ requestId, recommendation, to, captureUrl });
-      const intentRef = db.collection(CAPTURE_OUTBOX_COLLECTION).doc(input.idempotencyKey);
+      const intentRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(input.idempotencyKey);
       const intent = await transaction.get(intentRef);
       const legacyKey = `${requestId}:pilot_recommended:${recommendation.id}`;
-      const legacyRef = db.collection(CAPTURE_OUTBOX_COLLECTION).doc(legacyKey);
+      const legacyRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(legacyKey);
       const legacy = await transaction.get(legacyRef);
       const matches = (existing: OutboxEntry, key: string) =>
         existing.idempotencyKey === key && existing.requestId === requestId
