@@ -8,6 +8,7 @@ import * as followups from "../agents/communications-reply-followup";
 import * as inprocess from "../agents/communications-inprocess-recovery";
 import * as gmail from "../agents/communications-gmail";
 import * as oauth from "../agents/communications-oauth-store";
+import * as recoveryMemory from "../agents/communications-recovery-memory";
 import { EventEmitter } from "node:events";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { communicationsNow } from "./fixtures/communications";
@@ -65,6 +66,27 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe("outbound prospect review routes (no provider, Firestore, or transport I/O)", () => {
+  it("reports exact owner runtime, full-cgroup reserve and literal controls without provider or mailbox calls", async () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID", "authenticated-operator");
+    vi.stubEnv("OPENAI_API_KEY", "synthetic-never-real"); vi.stubEnv("RENDER_GIT_COMMIT", "f".repeat(40));
+    for (const key of ["BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED", "BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED"]) vi.stubEnv(key, "false");
+    const sample = { observedAt: "synthetic", rss: 150 * 1024 * 1024, cgroup: { current: 200 * 1024 * 1024, limit: 512 * 1024 * 1024 } };
+    const memory = vi.spyOn(recoveryMemory, "sampleCommunicationsRecoveryMemory").mockReturnValue(sample as any);
+    const recover = vi.spyOn(inprocess, "recoverCommunicationsDraftInProcess"), capability = vi.spyOn(oauth, "requireFounderDraftCapability"), mailbox = vi.spyOn(gmail, "verifyFounderMailbox");
+    expect((await invoke("/communications/recovery-runtime", {}, "get", "another-owner")).status).toBe(403);
+    expect(memory).not.toHaveBeenCalled();
+    const result = await invoke("/communications/recovery-runtime", {}, "get");
+    expect(result.body).toMatchObject({ sourceCommit: "f".repeat(40), existingProcess: true, providerKeyConfigured: true,
+      headroomAvailable: true, headroomReserveBytes: 24 * 1024 * 1024, outreachControlsOff: true, memory: sample,
+      sent: false, sessionCreated: false, gmailDraftCreated: false });
+    memory.mockReturnValue({ ...sample, cgroup: { current: 500 * 1024 * 1024, limit: 512 * 1024 * 1024 } } as any);
+    expect((await invoke("/communications/recovery-runtime", {}, "get")).body.headroomAvailable).toBe(false);
+    memory.mockReturnValue({ ...sample, cgroup: null } as any);
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "FALSE");
+    expect((await invoke("/communications/recovery-runtime", {}, "get")).body).toMatchObject({ headroomAvailable: false, outreachControlsOff: false });
+    expect(recover).not.toHaveBeenCalled(); expect(capability).not.toHaveBeenCalled(); expect(mailbox).not.toHaveBeenCalled();
+    expect(mocks.set).not.toHaveBeenCalled(); expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
   it("requires the configured authenticated owner and exact source/job pins for in-process recovery", async () => {
     const path = "/:prospectId/communications/:jobId/recover-saved-draft";
     const body = { briefDigest: "b".repeat(64), expectedCheckpointDigest: "c".repeat(64), expectedJobDigest: "d".repeat(64),
