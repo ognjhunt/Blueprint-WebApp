@@ -1,0 +1,56 @@
+{
+  "schema": "blueprint.disabled-worker-runtime.v1",
+  "observedAtMs": 1791313421027,
+  "pid": 111,
+  "state": "S",
+  "parentPid": 106,
+  "startTicks": "1468431060",
+  "bootId": "0691b6a3-0fe8-4194-ab74-6443a954c504",
+  "cwd": "/opt/render/project/src",
+  "executable": "/opt/render/project/nodes/node-24.14.1/bin/node",
+  "entry": "/opt/render/project/src/dist/worker.js",
+  "entrySha256": "69c24029a5d1d087cc10ac6f834f3c22e74a3ef6e058b826f49c168c73f70f17",
+  "commandSha256": "25efd9d9cca71140606e29c25acd0cb997b57943c889893425871cf2135ac046",
+  "serviceId": "srv-d9t8gg1t0dsc73am9q70",
+  "instanceId": "srv-d9t8gg1t0dsc73am9q70-75d789d8b7-jlzs9",
+  "sourceCommit": "c4db1d2f61970efda3a226c9715345718a2064f5",
+  "opsForwardOnly": "true",
+  "nodeOptions": null,
+  "bootstrapProtection": {
+    "mode": "overrides_absent",
+    "inputs": {
+      "NODE_ENV": "production",
+      "VITEST": null,
+      "BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP": null,
+      "PAPERCLIP_ENV_FILE": null
+    },
+    "paths": [
+      {
+        "path": "/opt/render/project/.paperclip-blueprint.env",
+        "absent": true
+      },
+      {
+        "path": "/opt/render/project/src/.env.local",
+        "absent": true
+      }
+    ]
+  },
+  "filesystem": {
+    "target": {
+      "mountNamespace": "mnt:[4026537046]",
+      "rootDevice": "1048615",
+      "rootInode": "25986989"
+    },
+    "collector": {
+      "mountNamespace": "mnt:[4026537046]",
+      "rootDevice": "1048615",
+      "rootInode": "25986989"
+    }
+  },
+  "flags": {
+    "BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED": "true",
+    "BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED": "true"
+  },
+  "rootInventoryComplete": true,
+  "runtimeRootCount": 1
+}
