@@ -10,10 +10,19 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
+import { createHash } from "node:crypto";
+import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+import { buildBrowserDelivery } from "../utils/websiteCaptureDelivery";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+
+const storage = vi.hoisted(() => ({
+  objects: new Map<string, { generation: string; size: string; crc32c: string; bytes?: Buffer }>(),
+  failure: null as Error | null,
+  write: vi.fn(() => { throw new Error("Unexpected storage mutation"); }),
+}));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -27,7 +36,20 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
       },
     },
     dbAdmin: sharedFakeFirestore,
-    storageAdmin: null,
+    storageAdmin: { bucket: () => ({ file: (name: string) => ({
+      getMetadata: async () => {
+        if (storage.failure) throw storage.failure;
+        const metadata = storage.objects.get(name);
+        if (!metadata) throw Object.assign(new Error("missing"), { code: 404 });
+        return [{ name, ...metadata }];
+      },
+      exists: async () => {
+        if (storage.failure) throw storage.failure;
+        return [storage.objects.has(name)];
+      },
+      download: async () => [storage.objects.get(name)?.bytes ?? Buffer.alloc(0)],
+      save: storage.write, delete: storage.write,
+    }) }) },
   };
 });
 
@@ -53,6 +75,8 @@ const token = () =>
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  storage.objects.clear();
+  storage.failure = null;
   sharedFakeFirestoreState.docs.clear();
   const app = express();
   app.use(express.json());
@@ -91,6 +115,128 @@ async function status() {
 }
 
 describe("GET /api/site-task-brief/:token/status", () => {
+  function savedRecording(kind: "stored" | "held" | "published", scope: "owner" | "film" = "owner") {
+    const identity = { requestId: "req-1", sceneId: "site-req-1", captureId: "walkthrough-req-1" };
+    const objectName = `scenes/${identity.sceneId}/captures/${identity.captureId}/raw/walkthrough.mp4`;
+    const video = { object_name: objectName, generation: "17", size_bytes: 5, crc32c: "AAAAAA==" };
+    storage.objects.set(objectName, { generation: "17", size: "5", crc32c: "AAAAAA==" });
+    const manifest = JSON.stringify({ request_id: identity.requestId, scene_id: identity.sceneId,
+      capture_id: identity.captureId, video_uri: objectName,
+      capture_rights: { derived_scene_generation_allowed: true, consent_status: "granted", consent_revoked: false } });
+    const completed_at_iso = "2026-10-07T00:00:00.000Z";
+    const common = { request_id: identity.requestId, scene_id: identity.sceneId,
+      capture_id: identity.captureId, completed_at_iso, video };
+    sharedFakeFirestoreState.docs.set(`captureUploadSessions/${identity.captureId}`, kind === "stored" ? {
+      browser_stored_upload: { ...common, schema_version: "website_browser_stored_upload.v1",
+        manifest_json: manifest, manifest_sha256: `sha256:${createHash("sha256").update(manifest).digest("hex")}` },
+    } : {
+      browser_pending_delivery: { ...common, schema_version: "website_browser_pending.v1", state: kind,
+        manifest: { object_name: objectName.replace("walkthrough.mp4", "manifest.json"), generation: "18",
+          size_bytes: 20, crc32c: "AAAAAA==", sha256: `sha256:${"a".repeat(64)}` } },
+    });
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, capture_coverage: null,
+      request: { ...(request.request as Record<string, unknown>), consent_attestation: {
+        granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: completed_at_iso,
+      } },
+    });
+    return { token: createCaptureUploadToken({ ...identity, scope }), objectName };
+  }
+
+  it.each(["stored", "held", "published"] as const)("acknowledges %s browser bytes without a processing marker", async (kind) => {
+    const saved = savedRecording(kind);
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ captureReceived: true,
+      status: { decision: "footage_received", operatorAction: null } });
+    expect(body.status.headline).toContain("Your video is saved.");
+    expect(body.status.headline).not.toMatch(/are checking|are preparing|film the work area/i);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+  });
+
+  it.each(["owner", "film"] as const)("keeps %s receipt polling read-only after withdrawal", async (scope) => {
+    const saved = savedRecording("stored", scope);
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1");
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, consent_revoked: true });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
+    expect(await response.json()).toMatchObject({ captureReceived: true,
+      processingHold: { code: "capture_processing_not_authorized" },
+      status: { headline: "Your video is saved. Processing is on hold until its existing consent can be verified.", operatorAction: null } });
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
+  });
+
+  it("does not claim active review when a verified published handoff's consent is withdrawn", async () => {
+    const saved = savedRecording("stored");
+    const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-1")!;
+    const source = session.browser_stored_upload;
+    const bytes = Buffer.from(source.manifest_json);
+    const manifest = { object_name: saved.objectName.replace("walkthrough.mp4", "manifest.json"),
+      generation: "18", size_bytes: bytes.length, crc32c: "AAAAAA==", sha256: source.manifest_sha256 };
+    storage.objects.set(manifest.object_name, { generation: "18", size: String(bytes.length), crc32c: "AAAAAA==", bytes });
+    const pending = { ...source, schema_version: "website_browser_pending.v1", state: "published", manifest };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-1", { browser_pending_delivery: pending });
+    const delivery = buildBrowserDelivery({ requestId: "req-1", sceneId: "site-req-1", captureId: "walkthrough-req-1",
+      rawPrefix: saved.objectName.slice(0, saved.objectName.lastIndexOf("/")), video: pending.video,
+      manifest, completedAtIso: pending.completed_at_iso });
+    for (const [name, content] of [[delivery.objectName, delivery.recordBytes],
+      [`${delivery.record.raw_prefix}/capture_upload_complete.json`, delivery.markerBytes]] as const) {
+      storage.objects.set(name, { generation: "19", size: String(content.length), crc32c: "AAAAAA==", bytes: content });
+    }
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1");
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, consent_revoked: true });
+    const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
+    expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
+      processingHold: { code: "capture_processing_not_authorized" },
+      status: { headline: "Your video is saved. Processing is on hold until its existing consent can be verified.", operatorAction: null } });
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
+  });
+
+  it.each(["generation", "size", "crc32c", "missing"])("does not claim a saved receipt whose %s differs", async (field) => {
+    const saved = savedRecording("stored");
+    // A stale marker from an earlier write must not override the receipt's
+    // contradictory generation/size/checksum (or vanished video).
+    storage.objects.set(saved.objectName.replace("walkthrough.mp4", "capture_upload_complete.json"),
+      { generation: "3", size: "2", crc32c: "AAAAAA==" });
+    if (field === "missing") storage.objects.delete(saved.objectName);
+    else Object.assign(storage.objects.get(saved.objectName)!, { [field]: field === "crc32c" ? "AQAAAA==" : "99" });
+    const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "task_status_unavailable" });
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+
+  it("retains the completion-marker fallback for app bundles without a browser walkthrough", async () => {
+    storage.objects.set("scenes/scene-1/captures/cap-1/raw/capture_upload_complete.json",
+      { generation: "1", size: "2", crc32c: "AAAAAA==" });
+    expect((await status()).body.captureReceived).toBe(true);
+  });
+
+  it("refuses a saved receipt belonging to a different scene", async () => {
+    savedRecording("held");
+    const wrongSceneToken = createCaptureUploadToken({ requestId: "req-1", captureId: "walkthrough-req-1", sceneId: "wrong-scene" });
+    const response = await fetch(`${baseUrl}/api/site-task-brief/${wrongSceneToken}/status`);
+    expect(response.status).toBe(503);
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+
+  it("does not convert a storage outage into instructions to film again", async () => {
+    storage.failure = new Error("storage unavailable");
+    const { code, body } = await status();
+    expect(code).toBe(503);
+    expect(body.code).toBe("task_status_unavailable");
+    expect(body.captureReceived).toBeUndefined();
+    expect(body.status).toBeUndefined();
+  });
+
   it("keeps repeated owner and film status reads free of outbox delivery and writes", async () => {
     sharedFakeFirestoreState.docs.set("captureOutbox/unrelated-pending", {
       requestId: "another-site", state: "pending", attempts: 0,
