@@ -468,6 +468,11 @@
 .ms-task-preview { border-block: 1px solid var(--ms-rule); padding-block: 16px; margin-block: 16px; }
 .ms-check-row { display: flex !important; flex-direction: row !important; align-items: start; gap: 12px; }
 .ms-check-row input { width: 20px !important; height: 20px; min-height: 20px !important; flex-shrink: 0; margin-top: 3px; }
+.ms-choice { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ms-choice legend { font-size: 13px; font-weight: 500; margin-bottom: 4px; padding: 0; }
+.ms-choice .ms-check-row { font-weight: 400; font-size: 15px; align-items: center; }
+.ms-choice .ms-check-row input { margin-top: 0; }
+.ms-form input[type="radio"], .ms-form input[type="checkbox"] { accent-color: var(--ms-green); }
 .ms-task-empty { padding-block: 20px; }
 .ms-capture-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 20px; }
 @media (max-width: 600px) { .ms-task-filters { grid-template-columns: 1fr; gap: 12px; } .ms-task-page { padding-top: 24px; } }
