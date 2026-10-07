@@ -16,8 +16,13 @@ import { automaticFirstContactEnabled, firstContactAuthority, verifyFirstContact
   routineCommunicationsContentBlockers } from "./communications-first-contact";
 import { firstContactPostalLine } from "./communications-first-contact-footer";
 import { reviewCommunicationsPayload } from "./communications-review";
+import { outputTextDigest, type CommunicationsOutputSource } from "./communications-output";
 
 export const COMMUNICATIONS_ROOT = "blueprintCommunications/default";
+export const COMMUNICATIONS_SAVED_RECOVERY_REQUESTER = "communications worker (completed saved-session recovery)";
+export type CommunicationsSavedOutputRecovery = {
+  version: "completed-saved-output-v1"; rawOutputSha256: string; checkpointDigest: string;
+};
 // learning_only: a reply on a founder-sent thread. It is recorded for learning
 // and never drafted, approved or sent; no path moves it back to queued.
 export const COMMUNICATIONS_JOB_STATES = Object.freeze(["queued", "running", "retry", "blocked", "awaiting_research",
@@ -27,6 +32,9 @@ export type CommunicationsJobRecord = CommunicationsJob & {
   attempts: number; checkpoint: CommunicationsCheckpoint; output?: CommunicationsOutput;
   lease?: { owner: string; until: number }; nextAttemptAt?: number; reason?: string;
   automationPolicyVersion?: string;
+  retryRequestedBy?: string;
+  savedOutputRecovery?: CommunicationsSavedOutputRecovery;
+  outputSource?: CommunicationsOutputSource;
   cancelledContinuation?: CommunicationsCancelledContinuation;
 };
 
@@ -137,7 +145,7 @@ export class CommunicationsStore {
       return queued.record;
     });
   }
-  async claim(jobId: string): Promise<CommunicationsJobRecord | null> {
+  async claim(jobId: string, expectedSavedOutputSha256?: string): Promise<CommunicationsJobRecord | null> {
     const ref = this.jobs().doc(jobId);
     return this.db.runTransaction(async (tx) => {
       const snapshot = await tx.get(ref);
@@ -149,6 +157,11 @@ export class CommunicationsStore {
       }
       if (!["queued", "retry", "running"].includes(record.state) || record.attempts >= 3
         || (record.nextAttemptAt ?? 0) > this.now() || (record.lease?.until ?? 0) > this.now()) return null;
+      if (record.savedOutputRecovery || record.retryRequestedBy === COMMUNICATIONS_SAVED_RECOVERY_REQUESTER) {
+        const pin = record.savedOutputRecovery;
+        if (pin?.version !== "completed-saved-output-v1" || !/^[a-f0-9]{64}$/.test(pin.rawOutputSha256)
+          || pin.rawOutputSha256 !== expectedSavedOutputSha256 || pin.checkpointDigest !== communicationsDigest(record.checkpoint)) return null;
+      }
       const claimed = { ...record, state: "running" as const, attempts: record.attempts + 1,
         lease: { owner: this.owner, until: this.now() + 180000 } };
       tx.update(ref, claimed);
@@ -183,7 +196,8 @@ export class CommunicationsStore {
     });
   }
   /** Explicit operator recovery; retain identity, create claim and attempt budget. */
-  async retryBlocked(input: { jobId: string; prospectId: string; briefDigest: string; requestedBy: string }) {
+  async retryBlocked(input: { jobId: string; prospectId: string; briefDigest: string; requestedBy: string;
+    savedOutputRecovery?: CommunicationsSavedOutputRecovery }) {
     if (!input.requestedBy.trim()) throw new Error("operator_identity_missing");
     const ref = this.jobs().doc(input.jobId);
     return this.db.runTransaction(async tx => {
@@ -193,6 +207,10 @@ export class CommunicationsStore {
       if (record.state !== "blocked" || (record.lease?.until ?? 0) > this.now()) throw new Error("communications_retry_state_or_lease_conflict");
       if (record.attempts >= 3) throw new Error("communications_recovery_exhausted");
       if (record.checkpoint.createClaimedAt && !record.checkpoint.sessionId) throw new Error("session_create_requires_reconciliation");
+      if (input.savedOutputRecovery && (input.requestedBy !== COMMUNICATIONS_SAVED_RECOVERY_REQUESTER
+        || input.savedOutputRecovery.version !== "completed-saved-output-v1"
+        || !/^[a-f0-9]{64}$/.test(input.savedOutputRecovery.rawOutputSha256)
+        || input.savedOutputRecovery.checkpointDigest !== communicationsDigest(record.checkpoint))) throw new Error("communications_saved_recovery_binding_changed");
       const sourceRef = this.db.collection("outboundProspects").doc(record.prospectId);
       const source = await tx.get(sourceRef);
       const brief = communicationsBriefSchema.parse((await tx.get(this.db.doc(COMMUNICATIONS_ROOT).collection("briefs").doc(record.briefId))).data());
@@ -204,7 +222,8 @@ export class CommunicationsStore {
         || ["unknown", "opted_out"].includes(brief.consent.status)) throw new Error("communications_retry_context_changed");
       verifyCommunicationsHandoff((await tx.get(this.db.doc(COMMUNICATIONS_ROOT).collection("handoffs").doc(record.briefDigest))).data(), brief);
       const update = { state: "queued" as const, reason: "operator_retry_requested", nextAttemptAt: this.now(),
-        lease: { owner: this.owner, until: 0 }, retryRequestedBy: input.requestedBy, retryRequestedAt: this.now(), updatedAt: this.now() };
+        lease: { owner: this.owner, until: 0 }, retryRequestedBy: input.requestedBy, retryRequestedAt: this.now(), updatedAt: this.now(),
+        ...(input.savedOutputRecovery ? { savedOutputRecovery: input.savedOutputRecovery } : {}) };
       tx.update(ref, update);
       tx.set(sourceRef.collection("communicationsEvents").doc(`retry_${record.jobId}_${record.attempts}`), {
         type: "operator_retry_requested", jobId: record.jobId, requestedBy: input.requestedBy,
@@ -270,7 +289,21 @@ export class CommunicationsStore {
     await this.db.runTransaction(async (tx) => {
       const data = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
       if (!data || data.lease?.owner !== this.owner || data.lease.until <= this.now()) throw new Error("communications_lease_lost");
-      tx.update(ref, { ...update, updatedAt: this.now() });
+      let recovery = data.savedOutputRecovery;
+      if (recovery && update.savedOutputRecovery) throw new Error("communications_saved_recovery_binding_changed");
+      if (recovery && update.checkpoint) {
+        const source = update.outputSource;
+        const identity = (checkpoint: CommunicationsCheckpoint) => ({ ...communicationsContinuationSessionBinding(checkpoint),
+          turnId: checkpoint.turnId, framingVersion: checkpoint.framingVersion, draftProfile: checkpoint.draftProfile,
+          draftWritingGuidance: checkpoint.draftWritingGuidance ?? null });
+        if (recovery.checkpointDigest !== communicationsDigest(data.checkpoint)
+          || communicationsDigest(identity(update.checkpoint)) !== communicationsDigest(identity(data.checkpoint))
+          || !source || source.rawOutputSha256 !== recovery.rawOutputSha256 || outputTextDigest(source.rawOutput) !== recovery.rawOutputSha256
+          || source.jobId !== jobId || source.sessionId !== data.checkpoint.sessionId || source.turnId !== data.checkpoint.turnId
+          || source.requestDigest !== data.checkpoint.requestDigest) throw new Error("communications_saved_recovery_binding_changed");
+        recovery = { ...recovery, checkpointDigest: communicationsDigest(update.checkpoint) };
+      }
+      tx.update(ref, { ...update, ...(recovery ? { savedOutputRecovery: recovery } : {}), updatedAt: this.now() });
     });
   }
   /** A separate operator phase leases the same cancelled job. Its original
@@ -548,10 +581,20 @@ export class CommunicationsStore {
     const due: string[] = [];
     for (const doc of snapshot.docs) {
       const data = doc.data();
+      if (data.savedOutputRecovery || data.retryRequestedBy === COMMUNICATIONS_SAVED_RECOVERY_REQUESTER) continue;
       if ((data.nextAttemptAt ?? 0) > this.now() || (data.lease?.until ?? 0) > this.now()) continue;
       if (data.attempts >= 3) { await this.claim(doc.id); continue; }
       if (due.length < limit) due.push(doc.id);
     }
     return due;
+  }
+
+  /** Bounded scan of blocked rows; a caller-owned cursor prevents one held row
+   * from hiding later completed sessions. Eligibility is checked by the worker. */
+  async savedRecoveryPage(afterJobId?: string) {
+    let query = this.jobs().where("state", "in", ["blocked", "queued", "running"]).orderBy("__name__").limit(50);
+    if (afterJobId) query = query.startAfter(afterJobId);
+    const page = await query.get();
+    return { jobs: page.docs.map(doc => doc.data() as CommunicationsJobRecord), cursor: page.docs.at(-1)?.id };
   }
 }
