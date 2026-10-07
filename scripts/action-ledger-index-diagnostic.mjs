@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 const PROJECT = 'blueprint-8c1ca', WORKER = 'srv-d9t8gg1t0dsc73am9q70';
 export const PARENT = `projects/${PROJECT}/databases/(default)/collectionGroups/action_ledger`;
-const OPERATOR_SHA = '3ba5285df57483a4302cab6435a6a02d9188768952cad666f020d507109b1ce1';
+const OPERATOR_SHA = 'a39b1a70e1469754892daae60646184c1ab788f61a1ba442c0e17e65c6aad686';
 const OLD_PATH = '/tmp/blueprint-action-ledger-index-g1Gtmj/receipts.jsonl';
 const OLD_SHA = '43debbd20d2e3821e6ce14552aaf775f4b1d43c79e778e3fe7dca0751d652ccd';
 const BUCKET = 'blueprint-8c1ca.appspot.com';

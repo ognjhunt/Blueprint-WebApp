@@ -49,6 +49,48 @@ describe('fixed action-ledger index operator', () => {
     await expect(invoke(c).promise).rejects.toThrow('duplicate_target_index');
     expect(c.createIndex).not.toHaveBeenCalled();
   });
+  it('handles the observed36-row mixed-collection page and evaluates only the exact target parent', async () => {
+    const others = Array.from({ length: 35 }, (_, i) => ({
+      name: `projects/blueprint-8c1ca/databases/(default)/collectionGroups/other_${i}/indexes/index-${String(i).padStart(6, '0')}`,
+      get queryScope() { throw Error('unrelated_scope_must_not_be_evaluated'); },
+      get fields() { throw Error('unrelated_fields_must_not_be_evaluated'); },
+      get state() { throw Error('unrelated_state_must_not_be_evaluated'); },
+    }));
+    const c = fake([...others, index()]), run = invoke(c, 'inspect');
+    expect(await run.promise).toMatchObject({ ready: true, indexName: name });
+    expect(run.events.find(row => row.event === 'inventory-complete')).toMatchObject({ count: 36, pages: 1, targetCount: 1 });
+    expect(c.getIndex).toHaveBeenCalledTimes(1); expect(c.getIndex).toHaveBeenCalledWith({ name }, expect.anything());
+    expect(c.createIndex).not.toHaveBeenCalled(); expect(c.deleteIndex).not.toHaveBeenCalled(); expect(c.updateIndex).not.toHaveBeenCalled();
+  });
+  it('never qualifies identical fields/state from another collection as an action_ledger match', async () => {
+    const c = fake([{ ...index(), name: name.replace('/action_ledger/', '/action_ledger_extra/') }]);
+    const run = invoke(c, 'inspect'); expect(await run.promise).toMatchObject({ ready: false, state: 'ABSENT', indexName: null });
+    expect(run.events.find(row => row.event === 'inventory-complete')).toMatchObject({ count: 1, targetCount: 0 });
+    expect(c.getIndex).not.toHaveBeenCalled(); expect(c.createIndex).not.toHaveBeenCalled();
+  });
+  it('finishes mixed-collection pagination before evaluating the later exact target', async () => {
+    const c = fake();
+    c.listIndexes.mockResolvedValueOnce([[{ ...index(), name: name.replace('/action_ledger/', '/other/') }], null, { nextPageToken: 'next' }])
+      .mockResolvedValueOnce([[index()], null, {}]);
+    expect(await invoke(c, 'inspect').promise).toMatchObject({ ready: true });
+    expect(c.listIndexes).toHaveBeenCalledTimes(2); expect(c.getIndex).toHaveBeenCalledTimes(1); expect(c.createIndex).not.toHaveBeenCalled();
+  });
+  it('rejects duplicate exact targets within mixed collection inventory without a get or write', async () => {
+    const c = fake([{ ...index(), name: name.replace('/action_ledger/', '/other/') }, index(), { ...index(), name: `${PARENT}/indexes/second` }]);
+    await expect(invoke(c).promise).rejects.toThrow('duplicate_target_index');
+    expect(c.getIndex).not.toHaveBeenCalled(); expect(c.createIndex).not.toHaveBeenCalled();
+  });
+  it.each([
+    name.replace('/(default)/', '/other-db/'), name.replace('/blueprint-8c1ca/', '/other-project/'),
+    name.replace('/collectionGroups/', '/wrong-marker/'), name.replace('/action_ledger/', '//'), name + '/extra',
+    name.replace('/indexes/', '/fields/'), name.replace('/action_ledger/', '/./'), name.replace('/action_ledger/', '/../'),
+  ])('rejects foreign database/project or malformed resource before absence/get/write: %s', invalidName => {
+    const c = fake([{ ...index(), name: invalidName }]); const run = invoke(c, 'inspect');
+    expect(c.getIndex).not.toHaveBeenCalled();
+    return expect(run.promise).rejects.toThrow('index_inventory_scope_invalid').then(() => {
+      expect(run.events.some(row => row.event === 'inventory-complete')).toBe(false); expect(c.createIndex).not.toHaveBeenCalled();
+    });
+  });
   it('inspects absence without a create', async () => {
     const c = fake(); const r = invoke(c, 'inspect');
     expect(await r.promise).toMatchObject({ ready: false, state: 'ABSENT' });
@@ -82,7 +124,7 @@ describe('fixed action-ledger index operator', () => {
     expect(c.listIndexes.mock.calls.every(call => !Object.hasOwn(call[0], 'pageSize'))).toBe(true);
     expect(c.createIndex).not.toHaveBeenCalled();
   });
-  it.each(['ready', 'absent', 'pagination', 'oversized', 'create-denied'])('uses the real installed SDK default-page wire contract: %s', async scenario => {
+  it.each(['ready', 'absent', 'pagination', 'oversized', 'create-denied', 'mixed', 'mixed-pagination'])('uses the real installed SDK default-page wire contract: %s', async scenario => {
     const require = createRequire(import.meta.url), sdkRequire = createRequire(require.resolve('@google-cloud/firestore'));
     // The whole test suite may have loaded GAX before this fixture.
     sdkRequire('google-gax/build/src/fallbackServiceStub');

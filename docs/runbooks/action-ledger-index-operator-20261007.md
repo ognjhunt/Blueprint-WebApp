@@ -56,6 +56,27 @@ versioned manifest's existing default name ordering. A collection-group index,
 wrong field order, descending name field or incompatible API scope does not
 satisfy the target.
 
+The parent-reported live sanitized SDK response had36same-project/defaultDB
+resources,35from other collections and one from the exact action_ledger parent,
+with no next page. Inventory now validates the fixed project/defaultDB prefix
+and exact eight-segment collectionGroups/<collection>/indexes/<id> structure,
+using the existing bounded opaque-segment character policy and rejecting dot,
+dot-dot and wildcard collection markers. Valid other collections count toward
+all inventory/page limits but their fields/state are never evaluated. Only the
+unchanged exact action_ledger parent can enter target matching/getIndex. Foreign
+projects/databases, malformed names and duplicate distinct exact targets still
+refuse before absence/get/create; complete pagination remains mandatory.
+
+The official [ListIndexes contract](https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.collectionGroups.indexes/list)
+defines the request parent and indexes/nextPageToken response. The installed
+SDK sends that parent and returns decoded response rows without an additional
+client collection filter. The mixed-collection response is live provider
+evidence, not a documented universal guarantee that listing ignores collection.
+The official [Index schema](https://github.com/googleapis/googleapis/blob/master/google/firestore/admin/v1/index.proto)
+defines collection identity in each full resource name. Selection therefore
+uses each exact resource parent and required fields, then independent getIndex
+READY. The36-row shape result alone proves no target field match/absence/READY.
+
 `inspect` never creates. `ensure` first completes a bounded, explicitly
 non-auto-paginated inventory, reuses a matching existing CREATING/READY index,
 and makes at most one create request only after confirmed absence. All SDK

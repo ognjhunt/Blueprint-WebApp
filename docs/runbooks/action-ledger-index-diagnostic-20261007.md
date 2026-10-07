@@ -29,8 +29,9 @@ Use only the existing, authenticated Render worker Shell in its application
 directory `/opt/render/project/src`. Materialize the newly reviewed diagnostic
 source into a fresh private /tmp directory and verify the handoff's hash.
 Supply the corrected operator path; its bytes must match
-`3ba5285df57483a4302cab6435a6a02d9188768952cad666f020d507109b1ce1`.
-Its narrow list change omits pageSize100; the historical operator bytes at SHA
+`a39b1a70e1469754892daae60646184c1ab788f61a1ba442c0e17e65c6aad686`.
+Its list request still omits pageSize100. It admits only well-formed same-project/defaultDB
+inventory while qualifying only the exact action_ledger parent. The historical operator bytes at SHA
 `5281c83cbffc493d38c078c8beeb82c7e534333a3029fed38d8960e0d7e16f35`
 remain preserved in the earlier exact Git head and packet.
 

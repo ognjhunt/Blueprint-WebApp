@@ -16,6 +16,13 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const refuse = code => { throw Error(code); };
 const resource = (name, prefix) => typeof name === 'string' && name.startsWith(prefix) && /^[A-Za-z0-9._~%-]{1,512}$/.test(name.slice(prefix.length));
 const indexName = name => resource(name, `${PARENT}/indexes/`);
+function inventoryIndexName(name) {
+  const prefix = `${DATABASE}/collectionGroups/`;
+  if (typeof name !== 'string' || !name.startsWith(prefix)) return false;
+  const parts = name.slice(prefix.length).split('/');
+  return parts.length === 3 && parts[1] === 'indexes' && !['.', '..', '-'].includes(parts[0])
+    && resource(parts[0], '') && resource(parts[2], '');
+}
 const operationName = name => resource(name, `${DATABASE}/operations/`);
 const enumIs = (value, label, number) => value === label || value === number;
 const stateOf = row => enumIs(row.state, 'READY', 2) ? 'READY' : enumIs(row.state, 'CREATING', 1) ? 'CREATING' : enumIs(row.state, 'NEEDS_REPAIR', 3) ? 'NEEDS_REPAIR' : 'UNKNOWN';
@@ -57,8 +64,10 @@ export async function runIndexOperation({ client, mode, record, wait = ms => new
       const [rows, next, response] = await api('list', () => client.listIndexes({ parent: PARENT, ...(pageToken ? { pageToken } : {}) }, { ...RPC, autoPaginate: false }));
       if (!Array.isArray(rows) || rows.length > 100 || (count += rows.length) > 2000) refuse('index_inventory_limit');
       for (const row of rows) {
-        if (!indexName(row?.name)) refuse('index_inventory_scope_invalid');
-        if (exact(row)) found.set(row.name, row);
+        if (!inventoryIndexName(row?.name)) refuse('index_inventory_scope_invalid');
+        // Live listing can include other collections in this same database.
+        // Their fields/state confer no target authority and are not evaluated.
+        if (indexName(row.name) && exact(row)) found.set(row.name, row);
       }
       pageToken = response?.nextPageToken ?? next?.pageToken ?? '';
       if (typeof pageToken !== 'string' || pageToken.length > 8192 || (pageToken && seen.has(pageToken))) refuse('index_inventory_pagination_invalid');

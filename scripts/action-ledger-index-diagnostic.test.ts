@@ -151,7 +151,7 @@ describe('scope-only diagnosis and exact operator receipt input', () => {
     const path = `${directory}/receipts.jsonl`, bytes = Buffer.from([
       { schema: 'blueprint.action_ledger_index_operator_receipt.v1', observedAtMs: 1791406800000, event: 'start', mode: 'inspect', readOnly: true,
         project: 'blueprint-8c1ca', parent: PARENT, renderServiceId: 'srv-d9t8gg1t0dsc73am9q70', deploymentCommit: 'efd2e685819328c4c3060cec7d105142612adf63',
-        scriptSha256: '3ba5285df57483a4302cab6435a6a02d9188768952cad666f020d507109b1ce1', manifestSha256: '91b3fcdc84a63fbd1c63de6d3f9d12f52f1bed0a9ddcde1d33d474f0e75e6647', receiptPath: path, ...changes },
+        scriptSha256: 'a39b1a70e1469754892daae60646184c1ab788f61a1ba442c0e17e65c6aad686', manifestSha256: '91b3fcdc84a63fbd1c63de6d3f9d12f52f1bed0a9ddcde1d33d474f0e75e6647', receiptPath: path, ...changes },
       ...extra,
     ].map(row => JSON.stringify(row)).join('\n') + '\n');
     writeFileSync(path, bytes, { mode: 0o600 });
