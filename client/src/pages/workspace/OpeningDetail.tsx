@@ -25,7 +25,7 @@ export default function OpeningDetail() {
       query={query}
       active="opportunities"
       title={item?.workflow || "Opening"}
-      back={{ href: "/app/opportunities", label: "Openings" }}
+      back={{ href: "/app/library", label: "Task library" }}
     >
       {feed.isLoading ? (
         <p role="status">Loading opening…</p>
@@ -36,8 +36,8 @@ export default function OpeningDetail() {
       ) : !item ? (
         <Empty
           title="Opening unavailable"
-          href="/app/opportunities"
-          action="Browse openings"
+          href="/app/library"
+          action="Task library"
         >
           This opening is not available to your account, or is no longer
           accepting evaluations.

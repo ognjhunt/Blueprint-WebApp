@@ -10,15 +10,23 @@ import {
   EvaluationTable,
 } from "@/components/workspace/WorkspaceUI";
 import type { WorkspaceTask } from "@/types/workspace";
+/** The task's own image when we have one, else the shared illustration. */
+function TaskArt({ src }: { src: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const real = Boolean(src) && !failed;
+  return (
+    <figure className="ws-task-art">
+      <img src={real ? src! : "/images/site-led/auth/packing.webp"} alt="" onError={() => setFailed(true)} />
+      {!real && <figcaption>Illustration</figcaption>}
+    </figure>
+  );
+}
 export function TaskRows({ tasks }: { tasks: WorkspaceTask[] }) {
   return (
     <div>
       {tasks.map((task) => (
         <article className="ws-task-row" key={task.id}>
-          <figure className="ws-task-art">
-            <img src="/images/site-led/auth/packing.webp" alt="" />
-            <figcaption>Illustration</figcaption>
-          </figure>
+          <TaskArt src={task.thumbnailUrl ?? null} />
           <div className="ws-task-copy">
             <h3>{task.title}</h3>
             <p className="ws-muted">
@@ -48,7 +56,7 @@ export function TaskRows({ tasks }: { tasks: WorkspaceTask[] }) {
             </p>
           </div>
           <ActionLink href={`/app/tasks/${encodeURIComponent(task.id)}`}>
-            {task.status === "Review results" ? "Review results" : "View job"}
+            {task.status === "Review results" ? "Review results" : "View task"}
           </ActionLink>
         </article>
       ))}
@@ -101,10 +109,10 @@ export default function Overview() {
       title="Overview"
       action={
         <ActionLink
-          href={site ? "/app/tasks/new" : "/app/opportunities"}
+          href={site ? "/app/tasks/new" : "/app/library"}
           primary
         >
-          {site ? "Describe a job" : "Browse openings"}
+          {site ? "Show us a task" : "Task library"}
         </ActionLink>
       }
     >
@@ -143,7 +151,7 @@ export default function Overview() {
           ) : null}
           <section>
             <div className="ws-section-title">
-              <h2>Your jobs</h2>
+              <h2>Your tasks</h2>
               {tasks.length > 0 && (
                 <Link href="/app/tasks" className="ws-link">
                   View all
@@ -154,9 +162,9 @@ export default function Overview() {
               <TaskRows tasks={tasks.slice(0, 4)} />
             ) : (
               <Empty
-                title="Start with one job"
+                title="Start with one task"
                 href="/app/tasks/new"
-                action="Describe a job"
+                action="Show us a task"
               >
                 Tell us about the work, the site, and what success looks like.
                 Your capture and evaluations will stay together here.
@@ -182,7 +190,7 @@ export default function Overview() {
                 <h2>Review your results</h2>
                 <p>{nextResult.title} · Evaluation complete</p>
                 <p className="ws-muted">
-                  Your result is ready. The site has not selected a pilot team.
+                  Your result is ready. Blueprint shares it with the site and recommends one pilot.
                 </p>
               </div>
               <ActionLink href={`/app/evaluations/${nextResult.id}`}>
@@ -199,10 +207,10 @@ export default function Overview() {
             ) : (
               <Empty
                 title="Find your next pilot"
-                href="/app/opportunities"
-                action="Browse openings"
+                href="/app/library"
+                action="Task library"
               >
-                Explore site jobs, save your robot and policy, and request an
+                Explore site tasks, save your robot and policy, and request an
                 evaluation.
               </Empty>
             )}
@@ -210,12 +218,12 @@ export default function Overview() {
           {evaluations.length > 0 && (
             <section className="ws-next ws-section">
               <div>
-                <h2>Ready for another job?</h2>
+                <h2>Ready for another task?</h2>
                 <p className="ws-muted">
-                  Browse openings and evaluate a saved robot and policy.
+                  Pick a task and evaluate a saved robot and policy.
                 </p>
               </div>
-              <ActionLink href="/app/opportunities">Browse openings</ActionLink>
+              <ActionLink href="/app/library">Task library</ActionLink>
             </section>
           )}
         </>

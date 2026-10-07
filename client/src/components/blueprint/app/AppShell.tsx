@@ -89,16 +89,14 @@ export function AppShell({
     : isSite
       ? [
           ["overview", "Overview", "/app"],
-          ["tasks", "Jobs", "/app/tasks"],
+          ["tasks", "Tasks", "/app/tasks"],
           ["history", "History", "/app/history"],
           ["settings", "Settings", "/settings"],
         ]
       : [
           ["overview", "Overview", "/app"],
           ...(hasOwnedSites ? [["tasks", "Owned sites", "/app/tasks"]] : []),
-          // Task discovery plus access to current and historical evaluation receipts.
-          ["opportunities", "Job library", "/sites"],
-          ["runs", "Runs & balance", "/settings?tab=agent"],
+          ["opportunities", "Task library", "/app/library"],
           ["history", "History", "/app/history"],
           ["settings", "Settings", "/settings"],
         ];

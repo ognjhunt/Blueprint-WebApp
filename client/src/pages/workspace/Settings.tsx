@@ -13,7 +13,6 @@ import {
   useAction,
 } from "@/components/workspace/WorkspaceUI";
 import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
-import { AgentAccessPanel } from "@/components/workspace/AgentAccessPanel";
 import type { RobotSetup } from "@/types/workspace";
 function WorkspaceSettings() {
   const query = useWorkspace(),
@@ -21,7 +20,7 @@ function WorkspaceSettings() {
     { currentUser, userData } = useAuth(),
     [tab, setTab] = useState(() => {
       const requested = new URLSearchParams(window.location.search).get("tab");
-      return requested === "robots" || requested === "agent" ? requested : "account";
+      return requested === "robots" ? requested : "account";
     }),
     [editing, setEditing] = useState<RobotSetup | "new" | null>(null),
     [removing, setRemoving] = useState<RobotSetup | null>(null);
@@ -34,7 +33,6 @@ function WorkspaceSettings() {
           {[
             ["account", "Account"],
             ["robots", "Robots & policies"],
-            ["agent", "Agent access"],
           ].map(([value, label]) => (
             <button
               key={value}
@@ -157,7 +155,7 @@ function WorkspaceSettings() {
             </p>
             <p className="ws-muted">
               {robot
-                ? "Find openings, evaluate your robot, and track pilot decisions."
+                ? "Find site tasks, evaluate your robot, and track results."
                 : "Manage captures, job evaluations, and pilot decisions."}
             </p>
             <div className="ws-form-actions">
@@ -165,8 +163,8 @@ function WorkspaceSettings() {
                 Open overview →
               </Link>
               {robot && (
-                <Link className="ws-link" href="/app/opportunities">
-                  Browse openings →
+                <Link className="ws-link" href="/app/library">
+                  Task library →
                 </Link>
               )}
             </div>
@@ -180,7 +178,6 @@ function WorkspaceSettings() {
           </section>
         </>
       )}
-      {tab === "agent" && robot && <AgentAccessPanel user={currentUser} />}
       {tab === "robots" && robot && (
         <>
           <div className="ws-section-title">

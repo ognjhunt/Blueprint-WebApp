@@ -61,7 +61,7 @@ export default function TaskDetail() {
       query={query}
       active="tasks"
       title={task?.title || "Job"}
-      back={{ href: "/app/tasks", label: "Your jobs" }}
+      back={{ href: "/app/tasks", label: "Your tasks" }}
       action={
         task && !task.archived ? (
           <button className="ws-link" onClick={() => setEditing(true)}>
@@ -71,7 +71,7 @@ export default function TaskDetail() {
       }
     >
       {!task ? (
-        <Empty title="Job not found" href="/app/tasks" action="Your jobs">
+        <Empty title="Task not found" href="/app/tasks" action="Your tasks">
           This job is unavailable in your account.
         </Empty>
       ) : (
@@ -106,9 +106,9 @@ export default function TaskDetail() {
           )}
 
           {!task.archived && (
-            <div className="ws-section" aria-label="Your job page">
+            <div className="ws-section" aria-label="Your task page">
               <p>
-                <strong>Your job page.</strong>{" "}
+                <strong>Your task page.</strong>{" "}
                 Review or edit your answers, add footage
                 {task.sceneReady ? ", and open your scene" : ""}.
               </p>
@@ -118,16 +118,16 @@ export default function TaskDetail() {
                 onClick={() => void openTaskPage()}
                 disabled={linkState === "working"}
               >
-                {linkState === "working" ? "Opening…" : "Open your job page"}
+                {linkState === "working" ? "Opening…" : "Open your task page"}
               </button>
               {linkState === "failed" && (
-                <p role="alert">The job page could not be opened. Try again.</p>
+                <p role="alert">The task page could not be opened. Try again.</p>
               )}
             </div>
           )}
 
           <Feedback error={action.error} notice={action.notice} />
-          <div className="ws-tabs" role="tablist" aria-label="Job sections">
+          <div className="ws-tabs" role="tablist" aria-label="Task sections">
             {["overview", "results", "capture"].map((value) => (
               <button
                 key={value}
@@ -307,26 +307,12 @@ export default function TaskDetail() {
                                 </Tag>
                               </td>
                               <td>
-                                {!task.archived &&
-                                !task.pilot.selectedResultId &&
-                                result.targetsMet === true ? (
-                                  <button
-                                    className="ws-link"
-                                    onClick={() => {
-                                      setSelection(result);
-                                      setPilotAction("invite");
-                                    }}
-                                  >
-                                    Invite to pilot →
-                                  </button>
-                                ) : (
-                                  <button
-                                    className="ws-link"
-                                    onClick={() => setDetails(result)}
-                                  >
-                                    View details →
-                                  </button>
-                                )}
+                                <button
+                                  className="ws-link"
+                                  onClick={() => setDetails(result)}
+                                >
+                                  View details →
+                                </button>
                               </td>
                             </tr>
                           ))}
@@ -357,11 +343,11 @@ export default function TaskDetail() {
                   <h2>
                     {task.pilot.selectedResultId
                       ? statusLabel(task.pilot.state)
-                      : "No pilot team selected"}
+                      : "Your recommended pilot"}
                   </h2>
                   <p className="ws-muted">
                     {task.pilot.notes ||
-                      "You choose the team after reviewing the results."}
+                      "We review these results and send you one recommended pilot. You book it from your task page."}
                   </p>
                   {task.pilot.siteVisitAnswer && (
                     <p className="ws-note">Robot-team site access: {optionLabel(siteVisitOptions, task.pilot.siteVisitAnswer)}. A visit still needs separate approval and agreed terms.</p>
@@ -372,6 +358,16 @@ export default function TaskDetail() {
                     <p className="ws-note">Outcome recorded by your site.</p>
                   )}
                 </div>
+                {!task.archived && !task.pilot.selectedResultId && (
+                  <button
+                    className="ws-link"
+                    type="button"
+                    onClick={() => void openTaskPage()}
+                    disabled={linkState === "working"}
+                  >
+                    Book it on your task page →
+                  </button>
+                )}
                 {!task.archived &&
                   task.pilot.selectedResultId &&
                   task.pilot.state !== "deployed" && (
@@ -401,7 +397,7 @@ export default function TaskDetail() {
                   className="ws-link"
                   onClick={() => setPilotAction("close")}
                 >
-                  Close job
+                  Close task
                 </button>
               )}
             </>

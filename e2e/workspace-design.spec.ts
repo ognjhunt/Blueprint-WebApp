@@ -308,7 +308,7 @@ for (const role of ["site_operator", "robot_team"] as const) {
           ? [
               ["/app", "Overview"],
               ["/onboarding", "Finish setup"],
-              ["/app/tasks", "Your jobs"],
+              ["/app/tasks", "Your tasks"],
               ["/app/tasks/task-1", "Pack cartons into totes"],
               ["/app/tasks/task-1?tab=capture", "Pack cartons into totes"],
               ["/app/history", "History"],
@@ -318,7 +318,7 @@ for (const role of ["site_operator", "robot_team"] as const) {
           : [
               ["/app", "Overview"],
               ["/onboarding", "Finish setup"],
-              ["/app/opportunities", "Openings"],
+              ["/app/library", "Task library"],
               ["/app/opportunities/task-1", "Pack cartons into totes"],
               ["/app/evaluations/application-1", "Pack cartons into totes"],
               ["/app/history", "History"],
@@ -372,10 +372,10 @@ for (const role of ["site_operator", "robot_team"] as const) {
       if (width === 390) {
         await page.getByRole("button", { name: "Open navigation" }).click();
         await expect(page.getByRole("navigation")).toBeVisible();
-        // Robot teams also get the job library and their runs and balance.
+        // Both personas get four: Overview, Tasks or Task library, History, Settings.
         await expect(
           page.getByRole("navigation").getByRole("link"),
-        ).toHaveCount(role === "robot_team" ? 5 : 4);
+        ).toHaveCount(4);
       }
     });
   }
@@ -400,21 +400,15 @@ test("site can coordinate a visit without a false completion", async ({
     "remains scheduled until confirmed",
   );
 });
-test("site chooses an anonymous pilot team with a deliberate confirmation", async ({
+test("site reviews results without picking a team; Blueprint recommends one pilot", async ({
   page,
 }) => {
   await seed(page, "site_operator");
   await page.goto("/app/tasks/task-1");
-  await page.getByRole("button", { name: "Invite to pilot →" }).first().click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("combobox", { name: "Robot-team on-site access" }).selectOption("subject_to_approval");
-  await page
-    .getByLabel("Decision notes")
-    .fill("Review scope and pilot terms with this team.");
-  await page.getByRole("button", { name: "Confirm pilot selection" }).click();
-  await expect(page.getByRole("status")).toContainText("Pilot team selected");
-  await expect(page.getByText("Pilot selected", { exact: true })).toBeVisible();
-  await expect(page.getByText(/robot-team site access: possibly, subject to site approval/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Invite to pilot/ })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Your recommended pilot" })).toBeVisible();
+  await expect(page.getByText(/send you one recommended pilot\. You book it from your task page\./)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Book it on your task page →" })).toBeVisible();
 });
 test("robot team saves a setup and requests an evaluation from an opening", async ({
   page,
@@ -449,7 +443,7 @@ test("empty workspaces and API errors are clear and do not invent records", asyn
   await seed(page, "site_operator", true);
   await page.goto("/app");
   await expect(
-    page.getByRole("heading", { name: "Start with one job" }),
+    page.getByRole("heading", { name: "Start with one task" }),
   ).toBeVisible();
   await page.route("**/api/workspace/", (route) =>
     route.fulfill({

@@ -534,6 +534,15 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         catch { return false; }
       });
     task.sceneReady = scenePreviewReady;
+    // The real picture of this task: the captured scene's preview, then the
+    // card image the site approved. The client falls back to an illustration.
+    const httpsUrl = (value: unknown) => {
+      try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null; }
+      catch { return null; }
+    };
+    task.thumbnailUrl = (reconstruction?.state === "ready" ? httpsUrl(reconstruction?.assets?.thumbnailUrl) : null)
+      ?? (/^[a-f0-9]{64}$/.test(String(record.public_task_listing?.thumbnailDigest ?? "")) && record.public_task_listing?.enabled === true
+        ? `/api/site-worlds/tasks/${encodeURIComponent(requestId)}/thumbnail` : null);
     task.readiness = projectTaskStatus(
       taskStatusInputFrom({
         site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,

@@ -345,7 +345,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "registerRobotTeam",
           summary: "Register a robot team and receive an agent key, with no credential.",
           description:
-            "Open self-serve registration. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates the team (status self_registered, zero balance, agent spend off) and returns a key exactly once — only a SHA-256 is stored. That key can plan and dry-run; paying and running need the team connected to a verified Blueprint account, which issues and revokes its team's agent keys under Settings → Agent access. Rate limited per address. A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
+            "Open self-serve registration. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates the team (status self_registered, zero balance, agent spend off) and returns a key exactly once — only a SHA-256 is stored. That key can plan and dry-run; paying and running need the team connected to a verified Blueprint account, whose agent keys Blueprint issues and revokes on request (hello@tryblueprint.io). Rate limited per address. A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
           security: [{}],
           requestBody: {
             required: true,
@@ -402,7 +402,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "reissueRobotTeamKey",
           summary: "Re-issue a lost agent key to the team's registered contact email.",
           description:
-            "No credential: anyone can call it, so the response never contains a key and says the same thing whether or not the address is registered. New keys are emailed to the address on the team record. Rate limited per address. A team connected to a Blueprint account is not re-issued a key by email; the message points to Settings → Agent access.",
+            "No credential: anyone can call it, so the response never contains a key and says the same thing whether or not the address is registered. New keys are emailed to the address on the team record. Rate limited per address. A team connected to a Blueprint account is not re-issued a key by email; the message asks the team to email hello@tryblueprint.io.",
           security: [{}],
           requestBody: {
             required: true,
