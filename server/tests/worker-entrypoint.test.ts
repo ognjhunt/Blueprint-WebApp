@@ -18,17 +18,20 @@ const startStripeWebhookQueueProcessor = vi.hoisted(() => vi.fn());
 const startTaskEvaluationLaunchForwardWorker = vi.hoisted(() => vi.fn());
 const startAdpManagedRunWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
 const startCompanyPolicyCandidateOutboxWorker = vi.hoisted(() => vi.fn());
+const startSavedRecoveryWorker = vi.hoisted(() => vi.fn(() => vi.fn(async () => {})));
 const startCommunicationsWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
 const stopResearch = vi.hoisted(() => vi.fn(async () => {}));
 const startDailyResearchWorker = vi.hoisted(() => vi.fn(() => ({ stop: stopResearch })));
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
 
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 vi.mock("../utils/opsAutomationScheduler", () => ({ startOpsAutomationScheduler }));
 vi.mock("../utils/stripeWebhookQueue", () => ({ startStripeWebhookQueueProcessor }));
 vi.mock("../utils/taskEvaluationLaunchForwardWorker", () => ({
   startTaskEvaluationLaunchForwardWorker,
 }));
 vi.mock("../agents/adp-managed-runs", () => ({ startAdpManagedRunWorker }));
+vi.mock("../agents/communications-saved-recovery-worker", () => ({ startSavedRecoveryWorker }));
 vi.mock("../agents/communications-worker", () => ({ startCommunicationsWorker }));
 vi.mock("../utils/companyPolicyCandidateOutboxWorker", () => ({
   startCompanyPolicyCandidateOutboxWorker,
@@ -100,6 +103,7 @@ describe("worker entrypoint", () => {
     expect(startTaskEvaluationLaunchForwardWorker).toHaveBeenCalledTimes(1);
     expect(startCompanyPolicyCandidateOutboxWorker).toHaveBeenCalledTimes(1);
     expect(startCommunicationsWorker).toHaveBeenCalledTimes(1);
+    expect(startSavedRecoveryWorker).toHaveBeenCalledTimes(1);
     expect(startDailyResearchWorker).toHaveBeenCalledTimes(1);
     expect(stopScheduler).not.toHaveBeenCalled();
 

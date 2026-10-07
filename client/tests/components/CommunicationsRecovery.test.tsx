@@ -16,6 +16,7 @@ beforeEach(() => {
 
 const savedJob = { ...job, state: "blocked", sessionId: "synthetic-original-session", expectedJobDigest: "c".repeat(64), expectedCheckpointDigest: "d".repeat(64) };
 const runtime = { sourceCommit: "e".repeat(40), existingProcess: true, providerKeyConfigured: true, headroomAvailable: true,
+  executionPlacement: "existing_background_worker", workerServiceId: "existing-worker-service", workerFresh: true, founderBindingConfigured: true, controls: {},
   outreachControlsOff: true, headroomReserveBytes: 24 * 1024 * 1024,
   memory: { observedAt: "2026-10-07T20:00:00.000Z", rss: 150 * 1024 * 1024, cgroup: { current: 200 * 1024 * 1024, limit: 512 * 1024 * 1024 } } };
 const rawOutputSha256 = "f".repeat(64);
@@ -24,9 +25,15 @@ const originalInput = { prospectId: job.prospectId, jobId: job.jobId, briefDiges
 const originalRequestDigest = createHash("sha256").update(JSON.stringify(Object.fromEntries(Object.keys(originalInput).sort().map(key => [key, originalInput[key as keyof typeof originalInput]])))).digest("hex");
 const originalOwnedPin = { rawOutputSha256, checkpointDigest: savedJob.expectedCheckpointDigest, ownerAction: {
   actorUid: "ops-user", originalJobDigest: savedJob.expectedJobDigest, sourceCommit: runtime.sourceCommit, requestDigest: originalRequestDigest } };
+const canonical = (value: any): string => value === null || typeof value !== "object" ? JSON.stringify(value) : Array.isArray(value)
+  ? `[${value.map(canonical).join(",")}]` : `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
+const queueDigest = createHash("sha256").update(canonical({ input: originalInput, actorUid: "ops-user" })).digest("hex");
+function queueView(state: string) { return { actorUid: "ops-user", generation: 1, requestDigest: queueDigest, state, cancelRequested: state === "cancelled",
+  expectedSourceCommit: runtime.sourceCommit, sessionId: savedJob.sessionId, expiresAtMs: Date.now() + 300000,
+  result: state === "completed" ? { state: "pending_approval", ledgerId: `communications_${job.jobId}`, sent: false, gmailDraftCreated: false, sessionCreated: false } : null }; }
 function savedTransport(options: { runtime?: object; runtimeError?: number; sourceChanged?: boolean; jobChanged?: boolean; lostAck?: boolean;
-  partial?: boolean; ownedFromStart?: boolean; hideAfterAck?: boolean; resultState?: string; compose?: boolean; alteredRequest?: boolean } = {}) {
-  let runtimeReads = 0, inventories = 0, posts = 0;
+  partial?: boolean; ownedFromStart?: boolean; hideAfterAck?: boolean; resultState?: string; compose?: boolean; alteredRequest?: boolean; queued?: boolean } = {}) {
+  let runtimeReads = 0, inventories = 0, posts = 0, cancelled = false;
   return vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
     const path = String(url);
     if (path.endsWith("recovery-runtime")) {
@@ -43,8 +50,8 @@ function savedTransport(options: { runtime?: object; runtimeError?: number; sour
         ...(options.jobChanged && inventories > 1 ? { expectedJobDigest: "0".repeat(64) } : {}) }] });
     }
     if (path.endsWith("/communications")) {
-      const owned = options.ownedFromStart || posts > 0;
-      return Response.json({ jobs: [{ ...savedJob, state: owned ? options.ownedFromStart || options.partial && posts === 1 ? "queued" : "pending_approval" : "blocked",
+      const owned = options.ownedFromStart || posts > 0 && !options.queued;
+      return Response.json({ jobs: [{ ...savedJob, state: owned ? options.ownedFromStart && posts === 0 || options.partial && posts === 1 ? "queued" : "pending_approval" : "blocked",
         checkpoint: { sessionId: savedJob.sessionId }, lease: { until: 0 }, ledgerId: `communications_${job.jobId}`,
         ...(owned ? { outputSource: { rawOutputSha256 }, savedOutputRecovery: options.alteredRequest
           ? { ...originalOwnedPin, ownerAction: { ...originalOwnedPin.ownerAction, requestDigest: "0".repeat(64) } } : originalOwnedPin } : {}) }] });
@@ -53,9 +60,11 @@ function savedTransport(options: { runtime?: object; runtimeError?: number; sour
       posts++;
       if (options.partial && posts === 1) throw new Error("synthetic disconnect after owner pin");
       if (options.lostAck) throw new Error("synthetic lost acknowledgement");
-      return Response.json({ ok: true, state: options.resultState ?? "pending_approval", ledgerId: `communications_${job.jobId}`,
-        sent: false, gmailDraftCreated: false, sessionCreated: false, existingProcess: true });
+      return Response.json({ ok: true, state: options.queued ? "queued" : "completed", request: queueView(options.queued ? "queued" : "completed"), executionPlacement: "existing_background_worker",
+        sent: false, gmailDraftCreated: false, sessionCreated: false, existingProcess: true }, { status: 202 });
     }
+    if (path.endsWith("/saved-recovery")) return Response.json({ ok: true, request: posts ? queueView(cancelled ? "cancelled" : options.queued ? "queued" : options.partial && posts === 1 ? "failed" : "completed") : null });
+    if (path.endsWith("/saved-recovery/cancel") && init?.method === "POST") { cancelled = true; return Response.json({ ok: true, request: queueView("cancelled") }); }
     throw new Error("Unexpected synthetic request " + path);
   });
 }
@@ -109,7 +118,7 @@ describe("existing blocked-job saved-output recovery UI", () => {
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("recovery-runtime"))).toHaveLength(2);
     expect(fetchMock.mock.calls.some(([url]) => /gmail-draft|\/retry$|\/approve$|\/send$|api.openai.com/.test(String(url)))).toBe(false);
   });
-  it.each([{ headroomAvailable: false }, { providerKeyConfigured: false }, { outreachControlsOff: false }])("blocks unavailable runtime readiness without any POST: %j", async value => {
+  it.each([{ headroomAvailable: false }, { providerKeyConfigured: false }, { outreachControlsOff: false }, { workerFresh: false }, { founderBindingConfigured: false }, { executionPlacement: "existing_http_process" }, { memory: null }])("blocks unavailable runtime readiness without any POST: %j", async value => {
     const fetchMock = savedTransport({ runtime: value }); await prepareSavedRecovery();
     expect(screen.getByRole("checkbox")).toBeDisabled(); expect(screen.getByRole("button", { name: "Recover saved output" })).toBeDisabled();
     expect(fetchMock.mock.calls.every(([, init]) => init?.method !== "POST")).toBe(true);
@@ -118,6 +127,22 @@ describe("existing blocked-job saved-output recovery UI", () => {
     const fetchMock = savedTransport({ compose: false }); await prepareSavedRecovery();
     expect(screen.getByRole("checkbox")).toBeDisabled(); expect(screen.getByText(/Compose access: unavailable/)).toBeVisible();
     expect(fetchMock.mock.calls.every(([, init]) => init?.method !== "POST")).toBe(true);
+  });
+  it("retains a queued intent, reads its status and cancels only the same generation with refreshed CSRF", async () => {
+    const fetchMock = savedTransport({ queued: true }); await prepareSavedRecovery();
+    expect(screen.getByText(/Worker process RSS/)).toBeVisible(); expect(screen.queryByText(/Web process RSS/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox")); fireEvent.click(screen.getByRole("button", { name: "Recover saved output" }));
+    await screen.findByText(/Recovery intent is queued in the existing worker/);
+    expect(screen.getByRole("button", { name: "Recover saved output" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Original job digest" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Check recovery status" })); await screen.findByText(/Recovery intent: queued/);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel saved recovery" })); await screen.findByText(/Cancellation recorded for this exact generation/);
+    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"); expect(posts).toHaveLength(2);
+    expect(posts[1][0]).toBe(`/api/admin/outbound-prospects/${job.prospectId}/communications/${job.jobId}/saved-recovery/cancel`);
+    expect(JSON.parse(posts[1][1]!.body as string)).toEqual({ generation: 1, requestDigest: queueDigest });
+    expect(posts[1][1]).toMatchObject({ headers: { "X-CSRF-Token": "mock-csrf", Authorization: "Bearer mock-firebase-token" } });
+    expect(screen.queryByText(/Saved output for .* is in Approvals/)).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => /gmail-draft|\/retry$|\/approve$|\/send$|api.openai.com/.test(String(url)))).toBe(false);
   });
   it("preserves an original pin mismatch and does not substitute current hashes", async () => {
     const fetchMock = savedTransport(); await prepareSavedRecovery();
@@ -153,7 +178,7 @@ describe("existing blocked-job saved-output recovery UI", () => {
     const fetchMock = savedTransport({ partial: true }); await prepareSavedRecovery();
     fireEvent.click(screen.getByRole("checkbox")); fireEvent.click(screen.getByRole("button", { name: "Recover saved output" }));
     await screen.findByText(/synthetic disconnect after owner pin/);
-    fireEvent.click(screen.getByRole("button", { name: "Check recovery status" })); await screen.findByText(/Current job state: queued/);
+    fireEvent.click(screen.getByRole("button", { name: "Check recovery status" })); await screen.findByText(/Recovery intent: failed/);
     fireEvent.click(screen.getByRole("checkbox")); fireEvent.click(screen.getByRole("button", { name: "Recover saved output" }));
     expect(await screen.findByText(/Saved output for .* is in Approvals/)).toBeVisible();
     const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"); expect(posts).toHaveLength(2);

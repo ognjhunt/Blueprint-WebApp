@@ -17,6 +17,14 @@ const aad = (ownerUid: string, clientId: string, flowId: string) => `${FOUNDER_C
 const encryptedStorageConfigured = () => process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_BINDING_STORAGE === FOUNDER_STORAGE
   && Boolean(process.env.FIELD_ENCRYPTION_KMS_KEY_NAME || process.env.FIELD_ENCRYPTION_MASTER_KEY);
 
+/** Presence only, using the same encrypted adapter as the private reader.
+ * A stored binding is still decrypted and scope-verified before execution. */
+export function founderDraftRuntimeConfigured(): boolean {
+  return encryptedStorageConfigured() && ["BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID", "BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_ID",
+    "BLUEPRINT_COMMUNICATIONS_GMAIL_CLIENT_SECRET", "BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF"].every(key => Boolean(process.env[key]?.trim()))
+    && !process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_REFRESH_TOKEN?.trim();
+}
+
 /** Existing bound encryption + default-denied Firestore. No new vault/provider.
  * Selecting this adapter and installing client credentials remain owner actions. */
 export function configuredFounderConsent(): FounderGmailConsent | null {

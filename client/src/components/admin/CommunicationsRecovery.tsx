@@ -8,17 +8,21 @@ type BlockedJob = { jobId: string; prospectId: string; briefDigest: string; atte
   state?: string; sessionId?: string | null; expectedJobDigest?: string; expectedCheckpointDigest?: string;
   savedOutputRecovery?: { rawOutputSha256: string; ownerAction?: { actorUid: string; sourceCommit: string; originalJobDigest: string; requestDigest: string } } | null };
 type Readiness = { sourceCommit: string | null; existingProcess: boolean; providerKeyConfigured: boolean; headroomAvailable: boolean;
-  outreachControlsOff: boolean; headroomReserveBytes: number; memory: { observedAt: string; rss: number; cgroup: { current: number; limit: number } | null };
+  outreachControlsOff: boolean; headroomReserveBytes: number; memory: { observedAt: string; rss: number; cgroup: { current: number; limit: number } | null } | null;
+  executionPlacement: string; workerServiceId: string | null; workerFresh: boolean; founderBindingConfigured: boolean; controls: Record<string, string> | null;
   draftScopeGranted: boolean };
 const hash = /^[a-f0-9]{64}$/;
 const ready = (value?: Readiness) => Boolean(value && /^[a-f0-9]{40}$/.test(value.sourceCommit ?? "")
-  && value.existingProcess && value.providerKeyConfigured && value.headroomAvailable && value.outreachControlsOff && value.draftScopeGranted);
+  && value.existingProcess && value.executionPlacement === "existing_background_worker" && value.workerServiceId && value.workerFresh
+  && value.founderBindingConfigured && value.providerKeyConfigured && value.memory && value.headroomAvailable && value.outreachControlsOff && value.draftScopeGranted);
 const mib = (value: number) => (value / 1024 / 1024).toFixed(1);
-// The recovery request is a flat string object. This matches the server's
-// canonical sorted-key SHA256 without importing server/provider code.
-const requestDigest = async (input: Record<string, string>) => {
-  const canonical = JSON.stringify(Object.fromEntries(Object.keys(input).sort().map(key => [key, input[key]])));
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+// Both the legacy flat owner pin and the nested queue intent use the same
+// canonical sorted-key JSON as communicationsDigest. No server/provider import.
+const canonical = (value: any): string => value === null || typeof value !== "object" ? JSON.stringify(value)
+  : Array.isArray(value) ? `[${value.map(canonical).join(",")}]`
+  : `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
+const requestDigest = async (input: unknown) => {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(input)));
   return Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, "0")).join("");
 };
 
@@ -29,6 +33,7 @@ function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob
   const actor = useRef(currentUser?.uid); actor.current = currentUser?.uid;
   const [pins, setPins] = useState({ expectedJobDigest: "", expectedCheckpointDigest: "", rawOutputSha256: "" });
   const [reviewed, setReviewed] = useState(false);
+  const [intent, setIntent] = useState<{ generation: number; requestDigest: string; state: string; cancelRequested: boolean; sourceCommit: string } | null>(null);
   const request = async (path: string, body?: unknown) => {
     const user = currentUser;
     if (!user || actor.current !== user.uid) throw new Error("Sign in as the existing founder owner.");
@@ -64,6 +69,23 @@ function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob
     if (!requesterUid || actor.current !== requesterUid) throw new Error("Owner session changed. Check readiness again.");
     return matches;
   };
+  const rememberIntent = async (value: any, sourceCommit: string) => {
+    const requesterUid = currentUser?.uid;
+    if (!value || !requesterUid || value.actorUid !== requesterUid || value.expectedSourceCommit !== sourceCommit || value.sessionId !== job.sessionId
+      || !Number.isSafeInteger(value.generation) || value.generation < 1 || !["queued", "running", "completed", "failed", "cancelled"].includes(value.state)
+      || value.requestDigest !== await requestDigest({ input: inputFor(sourceCommit), actorUid: requesterUid })) throw new Error("Recovery intent acknowledgement is unverified. Check recovery status.");
+    if (actor.current !== requesterUid) throw new Error("Owner session changed. Check readiness again.");
+    setIntent({ generation: value.generation, requestDigest: value.requestDigest, state: value.state, cancelRequested: value.cancelRequested === true, sourceCommit });
+  };
+  const confirmRecovered = async (sourceCommit: string) => {
+    const result = await request(`/api/admin/outbound-prospects/${encodeURIComponent(job.prospectId)}/communications`);
+    const saved = result.jobs?.find((row: any) => row.jobId === job.jobId);
+    if (saved?.state === "pending_approval" && saved.ledgerId === `communications_${job.jobId}` && saved.outputSource?.rawOutputSha256 === pins.rawOutputSha256
+      && await ownedByOriginalAction(saved, sourceCommit)) {
+      onRecovered(job.jobId, saved.ledgerId); return true;
+    }
+    return false;
+  };
   const recovery = useMutation({ retry: false, mutationFn: async () => {
     if (!reviewed || !validPins || !job.sessionId || job.attempts >= 3 || job.leaseUntil > Date.now()) throw new Error("Review the original job and retained evidence pins first.");
     const displayedSource = readiness.data?.sourceCommit, originalPins = { ...pins };
@@ -85,24 +107,37 @@ function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob
     const result = await request(`/api/admin/outbound-prospects/${encodeURIComponent(job.prospectId)}/communications/${job.jobId}/recover-saved-draft`, {
       briefDigest: job.briefDigest, ...originalPins, sessionId: job.sessionId, expectedSourceCommit: fresh.sourceCommit,
     });
-    if (result.ok !== true || !["pending_approval", "no_op"].includes(result.state) || result.ledgerId !== `communications_${job.jobId}`
+    if (result.ok !== true || result.executionPlacement !== "existing_background_worker"
       || result.sent !== false || result.gmailDraftCreated !== false || result.sessionCreated !== false || result.existingProcess !== true) {
       throw new Error("Recovery acknowledgement is unverified. Check recovery status before another action.");
     }
-    onRecovered(job.jobId, result.ledgerId);
+    await rememberIntent(result.request, fresh.sourceCommit!);
+    setReviewed(false);
+    if (result.request.state === "completed" && await confirmRecovered(fresh.sourceCommit!)) return "Original saved output is in Approvals. No Gmail copy or send occurred.";
+    return `Recovery intent is ${result.request.state} in the existing worker. Check recovery status; no new inference, Gmail copy or send is authorized.`;
   }, onError: () => { setReviewed(false); } });
   const status = useMutation({ retry: false, mutationFn: async () => {
-    const result = await request(`/api/admin/outbound-prospects/${encodeURIComponent(job.prospectId)}/communications`);
-    const saved = result.jobs?.find((row: any) => row.jobId === job.jobId);
-    if (saved?.state === "pending_approval" && saved.ledgerId === `communications_${job.jobId}` && saved.outputSource?.rawOutputSha256 === pins.rawOutputSha256
-      && readiness.data?.sourceCommit && await ownedByOriginalAction(saved, readiness.data.sourceCommit)) {
-      onRecovered(job.jobId, saved.ledgerId); return "Original saved output is in Approvals. No Gmail copy or send occurred.";
+    const sourceCommit = readiness.data?.sourceCommit;
+    if (sourceCommit && await confirmRecovered(sourceCommit)) return "Original saved output is in Approvals. No Gmail copy or send occurred.";
+    const result = await request(`/api/admin/outbound-prospects/${encodeURIComponent(job.prospectId)}/communications/${job.jobId}/saved-recovery`);
+    if (result.request && /^[a-f0-9]{40}$/.test(result.request.expectedSourceCommit ?? "")) {
+      await rememberIntent(result.request, result.request.expectedSourceCommit);
+      return `Recovery intent: ${result.request.state}${result.request.cancelRequested ? "; cancellation requested" : ""}. ${result.request.error ?? "Preserve the original evidence pins."}`;
     }
-    return `Current job state: ${saved?.state ?? "unknown"}. No recovery action was taken. Preserve the original pins and inspect the retained context.`;
+    return "No owner recovery intent is recorded. No recovery action was taken.";
+  } });
+  const cancellation = useMutation({ retry: false, mutationFn: async () => {
+    if (!intent) throw new Error("Check recovery status before cancelling this exact intent.");
+    const result = await request(`/api/admin/outbound-prospects/${encodeURIComponent(job.prospectId)}/communications/${job.jobId}/saved-recovery/cancel`, {
+      generation: intent.generation, requestDigest: intent.requestDigest,
+    });
+    await rememberIntent(result.request, intent.sourceCommit);
+    setReviewed(false); return "Cancellation recorded for this exact generation. Check recovery status; an existing approval remains retained.";
   } });
   useEffect(() => { setPins({ expectedJobDigest: "", expectedCheckpointDigest: "", rawOutputSha256: "" }); setReviewed(false);
-    readiness.reset(); recovery.reset(); status.reset(); }, [currentUser?.uid, job.jobId]);
-  const busy = readiness.isPending || recovery.isPending || status.isPending;
+    setIntent(null); readiness.reset(); recovery.reset(); status.reset(); cancellation.reset(); }, [currentUser?.uid, job.jobId]);
+  const busy = readiness.isPending || recovery.isPending || status.isPending || cancellation.isPending;
+  const activeIntent = intent && ["queued", "running"].includes(intent.state);
   return <div className="mt-3 space-y-3 border-t border-runway-line pt-3">
     <p>This job has an existing session. Recover its reviewed saved output into Approvals. Gmail copying stays a separate action.</p>
     <button type="button" className="runway-cta-ghost min-h-0 px-3 py-2 text-sm" disabled={!currentUser || busy}
@@ -111,24 +146,32 @@ function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob
     {readiness.isError && <p role="alert">{readiness.error.message} No recovery was requested.</p>}
     {!readiness.isError && readiness.data && <div aria-label="Saved-output readiness">
       <p>Founder owner access: verified. Source: <code className="break-all">{readiness.data.sourceCommit ?? "unknown"}</code>.</p>
-      <p>Provider configured: {readiness.data.providerKeyConfigured ? "yes" : "no"}. Compose access: {readiness.data.draftScopeGranted ? "verified" : "unavailable"}.</p>
+      <p>Existing worker: <code>{readiness.data.workerServiceId ?? "unavailable"}</code>. Measurement: {readiness.data.workerFresh ? "fresh and source-bound" : "unavailable or stale"}.</p>
+      <p>Worker provider configured: {readiness.data.providerKeyConfigured ? "yes" : "no"}. Compose access: {readiness.data.draftScopeGranted ? "verified" : "unavailable"}.</p>
+      <p>Worker founder binding: {readiness.data.founderBindingConfigured ? "configured; verified again before execution" : "unavailable"}.</p>
       <p>Outreach controls: {readiness.data.outreachControlsOff ? "all four off" : "recovery blocked"}.</p>
-      <p>Web process RSS: {mib(readiness.data.memory.rss)} MiB. Full memory group: {readiness.data.memory.cgroup
+      {readiness.data.controls && <ul>{Object.entries(readiness.data.controls).map(([name, state]) => <li key={name}>{name}: {state}</li>)}</ul>}
+      <p>Worker process RSS: {readiness.data.memory ? mib(readiness.data.memory.rss) : "unavailable"} MiB. Full memory group: {readiness.data.memory?.cgroup
         ? `${mib(readiness.data.memory.cgroup.current)} / ${mib(readiness.data.memory.cgroup.limit)} MiB` : "unavailable"}.</p>
       <p>{mib(readiness.data.headroomReserveBytes)} MiB reserve: {readiness.data.headroomAvailable ? "available" : "unavailable"}. Cache is included in full usage.</p>
-      <p>Measured: {readiness.data.memory.observedAt}. Readiness is checked again before recovery.</p>
+      <p>Measured: {readiness.data.memory?.observedAt ?? "unavailable"}. Readiness is checked again before recovery.</p>
     </div>}
     <p>Enter the three SHA256 pins from the retained original-output recovery packet. Current job and checkpoint must still match.</p>
     {([["expectedJobDigest", "Original job digest"], ["expectedCheckpointDigest", "Original checkpoint digest"], ["rawOutputSha256", "Reviewed output SHA256"]] as const).map(([field, label]) =>
       <label key={field} className="block">{label}<input aria-label={label} className="mt-1 block w-full border border-runway-line bg-transparent p-2 font-mono text-xs"
-        value={pins[field]} maxLength={64} autoComplete="off" disabled={busy} onChange={event => { onSelected(); setReviewed(false); setPins({ ...pins, [field]: event.target.value.trim() }); }} /></label>)}
+        value={pins[field]} maxLength={64} autoComplete="off" disabled={busy || Boolean(activeIntent)} onChange={event => { onSelected(); setReviewed(false); setPins({ ...pins, [field]: event.target.value.trim() }); }} /></label>)}
     {Object.values(pins).every(value => hash.test(value)) && !validPins && <p role="alert">Original job or checkpoint digest does not match the current record. Preserve the original evidence; do not replace its pins.</p>}
-    <label className="flex gap-2"><input type="checkbox" checked={reviewed} disabled={busy || !validPins || !ready(readiness.data) || readiness.isError}
+    <label className="flex gap-2"><input type="checkbox" checked={reviewed} disabled={busy || Boolean(activeIntent) || !validPins || !ready(readiness.data) || readiness.isError}
       onChange={event => setReviewed(event.target.checked)} />I reviewed this original job, saved output and displayed source under the retained recovery authorization.</label>
-    <button type="button" className="runway-cta-ghost min-h-0 px-3 py-2 text-sm" disabled={busy || !currentUser || !reviewed || !validPins
+    <button type="button" className="runway-cta-ghost min-h-0 px-3 py-2 text-sm" disabled={busy || Boolean(activeIntent) || !currentUser || !reviewed || !validPins
       || !ready(readiness.data) || readiness.isError || job.attempts >= 3 || job.leaseUntil > Date.now()}
       onClick={() => recovery.mutate()}>{recovery.isPending ? "Recovering saved output…" : "Recover saved output"}</button>
     <button type="button" className="runway-cta-ghost ml-2 min-h-0 px-3 py-2 text-sm" disabled={busy || !currentUser} onClick={() => status.mutate()}>Check recovery status</button>
+    <button type="button" className="runway-cta-ghost ml-2 min-h-0 px-3 py-2 text-sm" disabled={busy || !activeIntent || intent?.cancelRequested}
+      onClick={() => cancellation.mutate()}>Cancel saved recovery</button>
+    {recovery.data && <p role="status">{recovery.data}</p>}
+    {cancellation.isError && <p role="alert">{cancellation.error.message} Check recovery status before another action.</p>}
+    {cancellation.data && <p role="status">{cancellation.data}</p>}
     {recovery.isError && <p role="alert">{recovery.error.message} Check recovery status before retrying. No new inference, Gmail copy or send is authorized.</p>}
     {status.isError && <p role="alert">{status.error.message}</p>}{status.data && <p role="status">{status.data}</p>}
   </div>;

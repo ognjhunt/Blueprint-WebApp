@@ -23,6 +23,7 @@ import { startAdpManagedRunWorker } from "./agents/adp-managed-runs";
 import { startCompanyPolicyCandidateOutboxWorker } from "./utils/companyPolicyCandidateOutboxWorker";
 import { startDailyResearchWorker } from "./utils/dailyResearchWorker";
 import { startCommunicationsWorker } from "./agents/communications-worker";
+import { startSavedRecoveryWorker } from "./agents/communications-saved-recovery-worker";
 import { startWebsiteCaptureWithdrawalWorker } from "./utils/websiteCaptureWithdrawal";
 
 const launchForwardOnly = () =>
@@ -61,6 +62,7 @@ export function startWorker(): WorkerHandle {
   const stopCompanyPolicyCandidateOutbox = startCompanyPolicyCandidateOutboxWorker();
   const researchWorker = startDailyResearchWorker();
   const stopCommunicationsWorker = startCommunicationsWorker();
+  const stopSavedRecoveryWorker = startSavedRecoveryWorker();
   const stopWebsiteWithdrawals = startWebsiteCaptureWithdrawalWorker();
 
   let stopPromise: Promise<void> | undefined;
@@ -74,7 +76,7 @@ export function startWorker(): WorkerHandle {
     stopWebsiteWithdrawals();
     const communicationsStopped = stopCommunicationsWorker();
     stopScheduler();
-    await Promise.all([researchWorker.stop(), communicationsStopped]);
+    await Promise.all([researchWorker.stop(), communicationsStopped, stopSavedRecoveryWorker()]);
     logger.info(attachRequestMeta({ route: "worker" }), "Blueprint worker stopped");
     })();
     return stopPromise;
