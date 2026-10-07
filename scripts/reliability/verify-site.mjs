@@ -25,6 +25,10 @@ const sources = [
   'server/tests/site-task-received-email.test.ts', 'server/tests/inbound-request-ownership.test.ts',
   'server/tests/pilot-recommendation-notifications.test.ts', 'server/tests/pilot-recommendation-route.test.ts',
   'server/tests/pilot-booking-notification.test.ts',
+  'server/tests/task-item-routes.test.ts', 'server/tests/task-item-inventory.test.ts',
+  'server/tests/task-item-initialization.test.ts', 'server/tests/task-item-mutations.test.ts',
+  'server/tests/self-capture-status-failure.test.ts', 'server/tests/capture-link-at-submit.test.ts',
+  'server/tests/site-capture-bundle-routes.test.ts',
 ];
 for (const source of sources) if (!existsSync(path.join(root, source))) throw new Error(`Missing required suite: ${source}`);
 // Validate the network guard separately; this expected denial is not an application attempt.

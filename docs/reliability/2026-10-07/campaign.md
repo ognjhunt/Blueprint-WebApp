@@ -12,7 +12,7 @@ simulation or robot-availability prerequisite.
 | Component | Exact source baseline | Observed deployment |
 |---|---|---|
 | WebApp | `efd2e685819328c4c3060cec7d105142612adf63` | `/version.json` matches; Render Web `dep-db3ae8142hec7393loug` live, worker `dep-db3ae8flk1mc739ve9i0` live at the same SHA |
-| CapturePipeline | `89938271a5c92fc0473b01326733199e0b456444` | Not yet verified |
+| CapturePipeline | `89938271a5c92fc0473b01326733199e0b456444` | Active host release link matches baseline at21:30 UTC; listener/timer inactive under an existing preserved freeze; loaded listener revision not proven |
 | Capture | `492978395d52f12cab6b7c72f2a99302cacefefc` | Installed mobile version not accessible here |
 | Contracts dependency | `7708a4e4c5dedeeb39cc73d3f6869304de295b81` | Source-only pinned dependency |
 
@@ -75,15 +75,17 @@ email, charge, consent change or fault injection was performed by this campaign.
 
 | ID | Severity / failure | Repair and verification |
 | --- | --- | --- |
-| SITE-01 | High: prior private-link data/consent persists | PR921, `315bdd23c`: keyed claim state; failing-before UI and Chromium regression; independent review; all eight exact-head CI checks pass |
+| SITE-01 | High: prior private-link data/consent persists | PR921, `90cd39c96`: keyed claim state; failing-before UI and Chromium regression; independent review; original source head315bdd passed all eight checks; final artifact-ignore-only head requires fresh CI |
 | SITE-02 | High: role/account change retains protected content | PR921: current-render authorization; three new failing-before regressions now pass |
 | SITE-03 | High: retained footage reported absent or active when held | PR923, `592ea5a3b`: generation-bound shared receipt reader, truthful retained/held/unknown projection; 24 status cases plus independent review; all eight exact-head CI checks pass |
 | SITE-04 | High: database outage hangs claim summary | PR923: move read inside error boundary; explicit 503 and three claim tests |
-| SITE-05 | High: concurrent notification sends / unknown replay | PR922, `5d3f8046d`: fenced claim/dispatch/receipt; real Resend SDK transport shape; 640 unique seeded schedules and hand-written faults; independent review; browser CI pending |
+| SITE-05 | High: concurrent notification sends / unknown replay | PR922, `62e9d1521`: fenced claim/dispatch/receipt; real Resend SDK transport shape; 640 unique seeded schedules and hand-written faults; independent review; browser CI pending |
 | SITE-06 | High: unsupported footage promoted into job facts | PR920, `be1e22b21`: require usable timestamp-supported observations, derive cycle evidence from complete nonoverlapping intervals; eight failing-before regressions; independent review; browser CI pending |
-| SITE-07 | High: accepted intake loses first return-link intent | PR925, `1eeb77cd8`: create intake and return-link intent in one SDK batch; crash/lost-ack tests and actual installed SDK serialization |
-| SITE-08 | High: recommendation/booking commits without notification, or old recipient notified | PR925, `1eeb77cd8`: transactional producer intent and current-authority dispatch guard; legacy sent/unknown rows reused; reviewer-found legacy duplicate fixed; lost booking acknowledgement leaves one booking/intent and same retry preserves it |
-| PIPE-01 | High: required-stage failure reported complete | Pipeline PR2645, `dee58dde`: 13 new regressions failed before; independently reviewed; impacted tests and sentinel gate pass |
+| SITE-07 | High: accepted intake loses first return-link intent | PR925, `13ea31026`: create intake and return-link intent in one SDK batch; crash/lost-ack tests and actual installed SDK serialization |
+| SITE-08 | High: recommendation/booking commits without notification, or old recipient notified | PR925, `13ea31026`: transactional producer intent and current-authority dispatch guard; legacy sent/unknown rows reused; reviewer-found legacy duplicate fixed; lost booking acknowledgement leaves one booking/intent and same retry preserves it |
+| PIPE-01 | High: required-stage failure reported complete | Pipeline PR2645, source `dee58dde` / documentation head `cc9660c6`: 13 new regressions failed before; independently reviewed; impacted tests and sentinel gate pass |
+| SITE-09 | High: delayed item initialization or owner mutation loses accepted edits/photos | PR926, `72b021e89`: create-only initialization plus transaction retry against current inventory; eight failing-before cases; independently32 passing tests |
+| SITE-10 | High: capture status dependency initialization escapes Express4 response handling | PR927, `a004c0cc2`: private-data-safe503 and no-store; two failing-before callbacks; independently141 passing tests |
 | LIMIT-01 | Medium: unsubmitted browser draft and retry identity lost on reload | Observed source limitation; no accepted-data-loss assertion made. No new private-data browser persistence policy invented |
 | LIMIT-02 | Medium: ancillary listing notice remains best effort | Existing publication survives notice failure; no automatic repair claim; outside initial receipt/recommendation/booking repair |
 
@@ -91,8 +93,10 @@ All repairs above remain **unmerged and undeployed** at this checkpoint. No know
 failure is counted as fixed in production. Integration typecheck found four nullable DB references inside transaction
 callbacks. Stable local database bindings fixed them; final PR925 typecheck and
 40 focused assertions pass, with independent approval of exact `1eeb77cd8`.
-CI pending is not a pass. A further reproduced item-initialization race can
-overwrite accepted owner edits/photos; a separate narrow repair is in progress.
+CI pending is not a pass. Items and status exception repairs are now independently
+reviewed in PR926/927. PR925 also fixes three reproduced mixed-version producer
+races by reserving the legacy key when free;47 independent final-scope tests pass
+on `13ea31026`. This does not make an old unfenced sender safe during rollout.
 
 The combined offline gate passed **181 assertions across 17 required suites** at
 `c58fac22a204412b8b9b604005c6fc82f9ddb473`, with zero unexpected egress. The runner
@@ -100,7 +104,7 @@ itself passed 16 synthetic validator controls, including empty/missing/failed su
 malformed reports, skips, wrong counts and simulated unexpected egress. These are
 validator tests, not 16 additional customer scenarios. All 17 changed production
 files at the preceding integrated head matched independently reviewed lane blobs;
-final source changes require scoped review again.
+later patches received scoped independent review before their updated PR heads.
 
 Additional bounded execution: five isolated Chromium journeys (three new and two
 existing invited-beta viewport cases); 216 distinct adjacent workflow assertions
@@ -119,7 +123,10 @@ node scripts/reliability/verify-site.mjs
 npm run test:site-reliability:browser
 ```
 
-The route runner needs loopback binding permission. Its explicit test-only preload
+The route runner and this environment's Node child-test harness need loopback/IPC
+binding permission. One validator invocation under the default socket-denied
+execution sandbox failed at the harness level; with explicit local binding support,
+all16 controls pass. That rejected execution is not counted as a successful run. Its explicit test-only preload
 blocks the instrumented Node TCP/TLS/DNS and UDP-send paths, and it strips inherited provider configuration;
 it is process instrumentation, not a universal kernel sandbox. Browser fixtures
 block other origins and use fake API/auth ports. Resource tests use Docker network
@@ -142,7 +149,8 @@ source identity, exact command and limitations:
   [reference records](./judgment-reference-set.json).
 - [Resource protocol and retained measurements](./recovery-resource-soak.md).
 - Pipeline repository: `docs/reliability/2026-10-07/crossrepo-handoff/README.md`
-  and `verification.json` in PR2645.
+  and `verification.json` in PR2645; its `release-custody.md` and sanitized JSON
+  projections bind the observed host release/freeze and promotion limitations.
 
 Independent review artifacts are retained under coordinator scratch
 `work/adversarial-review/`; exact source manifests and executable regressions are
@@ -179,3 +187,36 @@ intents are active. Retain source/receipt schemas and use additive compatibility
 no destructive schema rollback. Release only through the existing held procedure
 with actual current lease/owner proof, final green main SHA, Web/worker version
 readbacks and narrowly authorized runtime checks.
+
+## Checkpoint release queue and remaining work
+
+At21:34 UTC, the integration source is locally tested and versioned; all repairs
+remain unreleased. PR921/922/925 received review follow-ups, so their earlier green
+or pending runs cannot substitute for the new final heads. PR923 remains unchanged
+and green. PR920 remains atbe1e22b21. PR926/927 are separate small repairs on current
+main; PipelinePR2645 adds docs-only deployed-source evidence without changing its
+reviewed application patch. Do not merge the entire integration branch as a giant
+replacement for these individual reviews.
+
+Release order: review current owner/holds, merge green independent small fixes,
+merge922 before its dependent925, then integrate the packet/gate after its referenced
+suites exist on main. Rebase/check any overlapping site-task-brief or upload route
+diffs and rerun impacted checks on exact final main before release. Cut over Web and
+worker using the existing proof-bound coordinator. Pipeline is a separate host
+release boundary; its existing listener freeze must remain unless the accountable
+owner separately authorizes activation. An iteration deployment is not production
+promotion or proof that the listener ran.
+
+The active independent PR924 assessment path bypasses PR920's cycle projection.
+Offline schema/source review reproduced an operator target accepted as a measured
+claim. The finding and minimal input were sent to that PR's owner in
+[the coordination comment](https://github.com/ognjhunt/Blueprint-WebApp/pull/924#issuecomment-6047144239).
+It has no direct file overlap; it must not be described as covered by PR920 merely
+because both merge. This campaign did not edit that owner's active implementation.
+
+Unperformed external proof: real invited-account login/email return, live storage
+upload/consent/job execution, live provider acceptance/reconciliation, actual normal
+worker/provider memory profile, native Capture/device journey, measured robotics,
+and the inaccessible dishwasher reference. Existing safe metadata reads do not
+close those gaps. Complete the current bounded fixes before expanding into further
+hypothetical cases.
