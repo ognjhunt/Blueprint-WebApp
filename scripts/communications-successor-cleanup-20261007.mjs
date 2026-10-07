@@ -35,6 +35,7 @@ export async function cleanupPhase(db, mode, packet, provider, proof, authority,
     if (mode === 'release-cleanup-fence') {
       if (j?.state === 'delete_submitted' && Number.isSafeInteger(j.fenceReleasedAtMs)) return { state: 'cleanup_fence_already_released', submitDelete: false };
       if (j?.state !== 'delete_submitted' || lease?.owner !== j.releaseFence.owner || lease.generation !== j.releaseFence.generation) refuse('cleanup_fence_ownership_changed');
+      checkFence(proof, authority, now()); // Awaited reads cannot outlive proof.
       tx.set(db.doc(CONTROL), { lease: { ...lease, expires_at_ms: 0 } }, { merge: true });
       tx.set(db.doc(CLEANUP), { ...j, fenceReleasedAtMs: now(), releaseDisposition: 'released_for_native_record_cleanup' });
       return { state: 'cleanup_fence_released', submitDelete: false };
@@ -44,6 +45,9 @@ export async function cleanupPhase(db, mode, packet, provider, proof, authority,
     if (packet.observedAtMs < proof.observedAtMs || provider.observedAtMs < proof.observedAtMs) refuse('evidence_predates_process_fence');
     const currentPacket = await inventory(db, tx);
     if (canonical(currentPacket) !== canonical({ docs: packet.docs, queries: packet.queries })) refuse('canonical_evidence_changed');
+    checkFence(proof, authority, now());
+    fresh(cleanupReadback.observedAtMs, now());
+    checkEffects(packet, provider, authority, now(), true, verifier);
     if (!lease || !Number.isSafeInteger(lease.generation) || !Number.isSafeInteger(lease.expires_at_ms) || lease.expires_at_ms > now()) refuse('foreign_research_lease_held');
     if (mode === 'cleanup-archive') {
       if (j) return { state: 'archive_already_retained', submitDelete: false, archive: j.archive };

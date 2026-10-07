@@ -1,13 +1,13 @@
 import {describe,expect,it,vi} from 'vitest';
 import {execFileSync} from 'node:child_process';
-const observation=vi.hoisted(()=>({fenceCalls:0,decodedSource:null as any}));
+const observation=vi.hoisted(()=>({fenceCalls:0,decodedSource:null as any,afterDecode:()=>{}}));
 // Admission/Git decoding have their own real positive and refusal suite. These
 // synthetic ledger tests isolate CAS and journal effects without private rows.
 vi.mock('./communications-successor-admission-20261007.mjs',async original=>{
   const m:any=await original();return {...m,checkFence:(proof:any,_authority:any,now:number)=>{observation.fenceCalls++;if(now-proof.observedAtMs>300000)throw Error('evidence_not_fresh');}};
 });
 vi.mock('./communications-incident-20261006.mjs',async original=>{
-  const m:any=await original();return {...m,readSource:async()=>structuredClone(observation.decodedSource)};
+  const m:any=await original();return {...m,readSource:async()=>{const result=structuredClone(observation.decodedSource);observation.afterDecode();return result;}};
 });
 import {CONTROL,LAP,ROOT,QUERIES,STOPPED_SOURCE,sha,INCIDENT} from './communications-incident-20261006.mjs';
 import {AUDIT,CLEANUP} from './communications-incident-recovery-20261006.mjs';
@@ -15,7 +15,7 @@ import {cleanupPhase} from './communications-successor-cleanup-20261007.mjs';
 const NOW=1791358500000;
 const saved=(path:string,value:any)=>({path,value,sha256:sha(value),updateTime:{seconds:1,nanoseconds:2}});
 function fixture(){
-  observation.fenceCalls=0;
+  observation.fenceCalls=0;observation.afterDecode=()=>{};
   const oldLap={schema_version:'blueprint.communications-worker-lap.v1',phase:'active',lease:{owner:'communications-worker-lap:synthetic',generation:259,until:1791299565642},startedAt:1791299385642,renewedAt:1791299385642,completedAt:null};
   const audit={atMs:NOW-10000,originalLap:{value:oldLap}},lap={...oldLap,phase:'complete',lease:{...oldLap.lease,until:0},completedAt:audit.atMs,recoveryRef:AUDIT};
   const source={path:`${CONTROL}/runs/2026-10-06`,blobSha256:STOPPED_SOURCE,value:{date:'2026-10-06',state:'cancelled',turn_status:'cancelled',session_id:'sess_synthetic',environment_id:'env_synthetic',turn_id:'turn_synthetic',metadata:{synthetic:true},evidence_digest:'a'.repeat(64),cleanup_required:true}};
@@ -26,16 +26,20 @@ function fixture(){
   const provider={schema:'blueprint.communications-incident-provider-20261006.v1',readOnly:true,observedAtMs:NOW,findall:[],sessions:[{sessionId:'sess_synthetic',complete:true,session:{id:'sess_synthetic',status:'idle',metadata:source.value.metadata,required_actions:[]},turns:[{id:'turn_synthetic',status:'cancelled'}],items:[],artifacts:[],environment:{id:'env_synthetic'}}]};
   const values=new Map<any,any>([...docs,...queries.flatMap(q=>q.rows),saved(AUDIT,audit)].map(r=>[r.path,structuredClone(r.value)]));
   const writes:any[]=[],snapshot=(path:string)=>({ref:{path},exists:values.has(path),data:()=>values.get(path),updateTime:{seconds:1,nanoseconds:2}});
-  let retry=false,clock=NOW;
+  let retry=false,clock=NOW,slowInventory=false;
   const db:any={doc:(path:string)=>({path}),collection:(path:string)=>({path,where(){return this;},limit(cap:number){return {path,cap};}}),runTransaction:async(fn:any)=>{
-    const attempt=async(commit:boolean)=>{const staged:any[]=[];const result=await fn({get:async(ref:any)=>ref.cap?{size:[...values.keys()].filter(k=>k.startsWith(ref.path+'/')&&!k.slice(ref.path.length+1).includes('/')).length,docs:[...values.keys()].filter(k=>k.startsWith(ref.path+'/')&&!k.slice(ref.path.length+1).includes('/')).map(snapshot)}:snapshot(ref.path),
+    const attempt=async(commit:boolean)=>{const staged:any[]=[];const result=await fn({get:async(ref:any)=>{
+      if(!ref.cap)return snapshot(ref.path);
+      if(slowInventory){clock=NOW+300001;slowInventory=false;}
+      return {size:[...values.keys()].filter(k=>k.startsWith(ref.path+'/')&&!k.slice(ref.path.length+1).includes('/')).length,docs:[...values.keys()].filter(k=>k.startsWith(ref.path+'/')&&!k.slice(ref.path.length+1).includes('/')).map(snapshot)};
+    },
       set:(ref:any,value:any,opts:any)=>staged.push({path:ref.path,value,merge:opts?.merge}),create:(ref:any,value:any)=>staged.push({path:ref.path,value})});
       if(commit){for(const w of staged){values.set(w.path,w.merge?{...values.get(w.path),...structuredClone(w.value)}:structuredClone(w.value));writes.push(structuredClone(w));}}return result;};
     if(retry){await attempt(false);clock=NOW+300001;}return attempt(true);}};
   const target={sourceBlobSha256:STOPPED_SOURCE,sessionId:'sess_synthetic',environmentId:'env_synthetic'};
   const authority:any={action:'archive_verify_delete_stopped_oct6',expectedLapSha256:sha(lap),expectedHistoricalAuditDigest:sha(audit),expectedSourceFailures:[],stoppedTargetDigest:sha(target),approvalReference:'synthetic-authorized-target',expectedReleaseCommit:'a'.repeat(40)};
   const proof={observedAtMs:NOW-1},readback={observedAtMs:NOW,targetDigest:sha(target),sourceBlobSha256:STOPPED_SOURCE,files:[{name:'synthetic.json',bytes:1,sha256:'a'.repeat(64)}]},archive={syntheticVerified:true};
-  return {db,values,writes,packet,provider,proof,authority,readback,archive,now:()=>clock,setRetry:()=>{retry=true;}};
+  return {db,values,writes,packet,provider,proof,authority,readback,archive,now:()=>clock,setRetry:()=>{retry=true;},setSlowRead:(sourceRead=false)=>{if(sourceRead)observation.afterDecode=()=>{clock=NOW+300001;};else slowInventory=true;}};
 }
 describe('supported successor cleanup journal CAS',()=>{
   it('claims once, treats lost ACK as observe-only, and releases only its exact own generation',async()=>{
@@ -66,7 +70,15 @@ describe('supported successor cleanup journal CAS',()=>{
   });
   it('rechecks native proof freshness on transaction retry and commits no stale claim',async()=>{
     const f=fixture();f.setRetry();await expect(cleanupPhase(f.db,'cleanup-archive',f.packet,f.provider,f.proof,f.authority,f.archive,f.readback,f.now)).rejects.toThrow('evidence_not_fresh');
-    expect(observation.fenceCalls).toBe(3);expect(f.writes).toHaveLength(0);expect(f.values.has(CLEANUP)).toBe(false);
+    expect(observation.fenceCalls).toBe(4);expect(f.writes).toHaveLength(0);expect(f.values.has(CLEANUP)).toBe(false);
+  });
+  it.each(['cleanup-archive','cleanup-submit','release-cleanup-fence'])('refuses proof expiry during awaited reads before %s mutation',async mode=>{
+    const f=fixture(),args=[f.packet,f.provider,f.proof,f.authority,f.archive,f.readback,f.now] as const;
+    if(mode!=='cleanup-archive')await cleanupPhase(f.db,'cleanup-archive',...args);
+    if(mode==='release-cleanup-fence')await cleanupPhase(f.db,'cleanup-submit',...args);
+    const before=f.writes.length,lease=structuredClone(f.values.get(CONTROL).lease);f.setSlowRead(mode==='release-cleanup-fence');
+    await expect(cleanupPhase(f.db,mode,...args)).rejects.toThrow('evidence_not_fresh');
+    expect(f.writes).toHaveLength(before);expect(f.values.get(CONTROL).lease).toEqual(lease);
   });
   it('adopts the real Python adapter with UTF-8 source binding and unchanged provider implementation',()=>{
     const script=String.raw`
