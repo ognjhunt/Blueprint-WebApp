@@ -18,6 +18,25 @@ the worker. Before starting, the parent supplies one authentic fresh native
 proof packet using the existing incident operator; the actual process inventory
 cannot be reconstructed or restamped from an earlier packet.
 
+The parent can prepare that one packet in the existing native worker shell:
+
+```sh
+node communications-release-native-proof-20261007.mjs \
+  /tmp/ACTUAL_EXISTING_ABF348_CODE_DIRECTORY \
+  FRESH_PLATFORM_GS_URI ACTUAL_PLATFORM_GENERATION ACTUAL_PLATFORM_SHA256 \
+  /tmp/new-native-release-proof-output
+```
+
+Copy this published script into the native shell and verify its source SHA first.
+It verifies the nine previously reviewed `abf348c30` helper hashes, downloads the
+generation-pinned fresh platform packet, reads the original recovery archive,
+collects the actual native process inventory and assembles fresh proof using
+existing helpers. It preserves the immutable audited authority and rotates only
+per-proof hashes. Canonical/provider bytes remain exact historical evidence;
+they are not re-collected or labeled current. It writes no database records,
+replays no recovery and calls no inference provider. Its final JSON contains the
+manifest URI, generation and hash for the single cloud execution below.
+
 For a private four-file directory containing `canonical.json`, `provider.json`,
 `process-proof.json`, and `authority.json`:
 

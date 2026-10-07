@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { sha, CONTROL, LAP } from './communications-incident-20261006.mjs';
 import { boundProof, continuousRelease, packagedLease, predecessorGuard, retainOwnedIntent } from './communications-release-sequence-20261007.mjs';
 
@@ -225,5 +227,25 @@ describe('private proof byte bindings and real deployment hold consumer', () => 
     await expect(holdConsumer(undefined, {}, (row: any) => ({ ...row, autoDeploy: 'yes' }))).rejects.toThrow('outreach_release_recipe_changed');
     await expect(holdConsumer(undefined, {}, (row: any) => ({ ...row,
       serviceDetails: { envSpecificDetails: { startCommand: 'node --require synthetic dist/worker.js' } } }))).rejects.toThrow('outreach_release_recipe_changed');
+  });
+});
+
+describe('native proof preparation source boundary (offline)', () => {
+  it('rejects altered native helper bytes before initializing any credential or provider client', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'outreach-native-source-'));
+    try {
+      mkdirSync(`${root}/scripts`);
+      writeFileSync(`${root}/scripts/communications-incident-20261006.mjs`, 'synthetic altered bytes');
+      await expect(promisify(execFile)(process.execPath, ['scripts/communications-release-native-proof-20261007.mjs', root,
+        'gs://blueprint-8c1ca.appspot.com/operations/communications/incident-20261006/synthetic', '1', '0'.repeat(64), `${root}/output`],
+      { env: { PATH: process.env.PATH, FIREBASE_SERVICE_ACCOUNT_JSON: 'synthetic-not-json' }, timeout: 5000 }))
+        .rejects.toMatchObject({ stderr: expect.stringContaining('reviewed_native_helper_bytes_changed') });
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+  it('refuses a nonprivate native output before reading source or initializing clients', async () => {
+    await expect(promisify(execFile)(process.execPath, ['scripts/communications-release-native-proof-20261007.mjs', '/tmp/synthetic',
+      'synthetic', '1', '0'.repeat(64), '/workspace/synthetic-output'],
+    { env: { PATH: process.env.PATH, FIREBASE_SERVICE_ACCOUNT_JSON: 'synthetic-not-json' }, timeout: 5000 }))
+      .rejects.toMatchObject({ stderr: expect.stringContaining('private_exact_directories_required') });
   });
 });
