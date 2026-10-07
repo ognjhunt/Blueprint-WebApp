@@ -98,12 +98,14 @@ reviewed in PR926/927. PR925 also fixes three reproduced mixed-version producer
 races by reserving the legacy key when free;47 independent final-scope tests pass
 on `13ea31026`. This does not make an old unfenced sender safe during rollout.
 
-The combined offline gate passed **181 assertions across 17 required suites** at
-`c58fac22a204412b8b9b604005c6fc82f9ddb473`, with zero unexpected egress. The runner
+The final combined offline gate passed **363 assertions across24 required suites**
+at `9b195b680922d931f9c3b7257ce62df9f818e97a`, with zero unexpected egress and clean
+tracked source. [The exact summary](./verification-summary.json) retains hashes and
+counts. TypeScript and the required Graphify refresh also pass. The runner
 itself passed 16 synthetic validator controls, including empty/missing/failed suites,
 malformed reports, skips, wrong counts and simulated unexpected egress. These are
-validator tests, not 16 additional customer scenarios. All 17 changed production
-files at the preceding integrated head matched independently reviewed lane blobs;
+validator tests, not 16 additional customer scenarios. All18 changed production
+files match [independently reviewed lane blobs](./independent-review.md);
 later patches received scoped independent review before their updated PR heads.
 
 Additional bounded execution: five isolated Chromium journeys (three new and two

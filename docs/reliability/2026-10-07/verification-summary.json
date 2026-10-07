@@ -1,0 +1,123 @@
+{
+  "schema": "blueprint.site-reliability-verification.v1",
+  "started": "2026-10-07T21:34:05.900Z",
+  "finished": "2026-10-07T21:34:29.508Z",
+  "sourceSha": "9b195b680922d931f9c3b7257ce62df9f818e97a",
+  "trackedSourceDirty": false,
+  "runnerSha256": "18efc063ef58f13d757e4d9e8d0dcf849ae2cdceffb24fbca79bd9ba1f012089",
+  "networkGuardSha256": "3a7ccc5ff99fc16c83ad0a8fa548a3f060e721395ad5d382b8b55a4815fc500d",
+  "success": true,
+  "exitCode": 0,
+  "signal": null,
+  "runnerError": null,
+  "requiredSuites": 24,
+  "discoveredSuites": 24,
+  "assertions": 363,
+  "failed": 0,
+  "skippedOrUnknown": 0,
+  "unexpectedEgress": 0,
+  "networkNegativeControl": "passed",
+  "sourceIdentities": [
+    {
+      "path": "client/tests/pages/ClaimSite.test.tsx",
+      "sha256": "df3fc6fea1f24a85a57122524c7c162d26d6e219e40dcca6a218807539faf4a0"
+    },
+    {
+      "path": "client/tests/components/ProtectedRoute.test.tsx",
+      "sha256": "e3b0de8990b00d1672bb1e24630c8c9ce290ff0ce6a115b74a4fc82f0456b3e5"
+    },
+    {
+      "path": "server/tests/site-claim-route.test.ts",
+      "sha256": "2d9d7f3a8647b14a18f10d394e8e1a78f243034007b96b1e448130e843900e22"
+    },
+    {
+      "path": "server/tests/site-task-brief-status.test.ts",
+      "sha256": "4264145669068465b1895a820c812bceeac8e98c533801cc5ec02097c43e1090"
+    },
+    {
+      "path": "server/tests/site-task-brief-scope.test.ts",
+      "sha256": "feeaa5c225c430f18e0df0a5118dc05d8840bcfc9b253a22c4ae5bb896670db1"
+    },
+    {
+      "path": "server/tests/film-link-handoff.test.ts",
+      "sha256": "5b5d7475f64731ae13278552c3ac50d9099bac21bb3b4a797f02df814962a425"
+    },
+    {
+      "path": "server/tests/capture-outbox.test.ts",
+      "sha256": "3c311cf0febabe63a8aa708628703eee40e0255c0bd1cb177db03a64568278ed"
+    },
+    {
+      "path": "server/tests/email-provider-receipt.test.ts",
+      "sha256": "98e73530b727b21e64b91d0b7e748bfe66bc134e8fef57f2f37c1d2c6ca6d4a0"
+    },
+    {
+      "path": "server/tests/site-video-judgment-provenance.test.ts",
+      "sha256": "b8a5118fdb091dbd36fcb64c8558674ba16b25a9ec25d4030d9becd4b480bfc1"
+    },
+    {
+      "path": "server/tests/site-video-cycle-provenance.test.ts",
+      "sha256": "3c05e2564010eff764e6ab534bd2b99da2a988546791cbf87fc2279fdc0f121d"
+    },
+    {
+      "path": "server/tests/agent-ask-evidence-boundary.test.ts",
+      "sha256": "27fc4cf138ff7d23401e16b3d64d9aa616bed6d6867726a13bffd1149e3d838c"
+    },
+    {
+      "path": "server/tests/inbound-request-commit.test.ts",
+      "sha256": "e0cd0d517d34a331fd02c6952c93db1019838179c0558efa6513c4c3bb43ce95"
+    },
+    {
+      "path": "server/tests/site-task-received-email.test.ts",
+      "sha256": "4138b32cdc324ccbe185ca82d53564c41a9451a002ad7cd5352bdf9a1ed1b3cc"
+    },
+    {
+      "path": "server/tests/inbound-request-ownership.test.ts",
+      "sha256": "7fc88d473a429ef2f156dcaaf5d67295a446b2b88aa34239d9af072d78b56045"
+    },
+    {
+      "path": "server/tests/pilot-recommendation-notifications.test.ts",
+      "sha256": "95dc3a1ea9b1236ac4291847c88cf29b34cac756598421a81223b8489ea56594"
+    },
+    {
+      "path": "server/tests/pilot-recommendation-route.test.ts",
+      "sha256": "1fbede518bf2cdc37fc497a58d6f5297493354505384e8bbd90071d2e532690e"
+    },
+    {
+      "path": "server/tests/pilot-booking-notification.test.ts",
+      "sha256": "301bfc9b446bee2cc9ac9ec131bf4027fec4389e1bd6cca2343e643002b52def"
+    },
+    {
+      "path": "server/tests/task-item-routes.test.ts",
+      "sha256": "64b1e3e9cd2f47b13569e2c07b27b1b344cd0c846c75b02e7becc38bff989c81"
+    },
+    {
+      "path": "server/tests/task-item-inventory.test.ts",
+      "sha256": "38fd13f52c1a4d8539c7d9b9bb93a2e35baca560c1f913a2d00b5962d5e1804c"
+    },
+    {
+      "path": "server/tests/task-item-initialization.test.ts",
+      "sha256": "1131fb1daaaf17b5fc5e2f82e63efd0aa9ad0c9aef9e3537e94465b7cd0a2087"
+    },
+    {
+      "path": "server/tests/task-item-mutations.test.ts",
+      "sha256": "cf4a27989b7bec1cb475860eca0d8585f7132dfd94dc1f08fde44029b517dd57"
+    },
+    {
+      "path": "server/tests/self-capture-status-failure.test.ts",
+      "sha256": "24d2c8c1c83a7d2b71fd09a080f60ac5884cfb2b56d4b3eda3b5625c3534b1d9"
+    },
+    {
+      "path": "server/tests/capture-link-at-submit.test.ts",
+      "sha256": "3ff83c9d7853be98363de5f37c23fdbf06a852723fd2430cf6f45fd629ab022a"
+    },
+    {
+      "path": "server/tests/site-capture-bundle-routes.test.ts",
+      "sha256": "5bcc68657287e8dec38f25766c5398690f19a992660c371c96f770af4120b57f"
+    }
+  ],
+  "evidence": {
+    "report": "vitest.json",
+    "log": "runner.log"
+  },
+  "boundary": "Offline fixtures and installed SDK serialization; not live datastore/provider or physical proof."
+}

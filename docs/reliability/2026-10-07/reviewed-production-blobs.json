@@ -1,0 +1,133 @@
+{
+  "head": "2356a7cdae0abef92807938e3fa03f90ecf3377d",
+  "base": "d0bd8e15a",
+  "rows": [
+    {
+      "path": "client/src/components/ProtectedRoute.tsx",
+      "reviewedCommit": "315bdd23c",
+      "actual": "77ddc5c0a4573a5ebe5833a4e7b0c234b8706825",
+      "expected": "77ddc5c0a4573a5ebe5833a4e7b0c234b8706825",
+      "equal": true
+    },
+    {
+      "path": "client/src/pages/ClaimSite.tsx",
+      "reviewedCommit": "315bdd23c",
+      "actual": "98082023b5a440a1ac7f2b523280a8d2783adc4e",
+      "expected": "98082023b5a440a1ac7f2b523280a8d2783adc4e",
+      "equal": true
+    },
+    {
+      "path": "server/routes/admin-robot-teams.ts",
+      "reviewedCommit": "48c30bc37",
+      "actual": "47ee58fbe0499c43a3b390870779613f6ca52f28",
+      "expected": "47ee58fbe0499c43a3b390870779613f6ca52f28",
+      "equal": true
+    },
+    {
+      "path": "server/routes/inbound-request.ts",
+      "reviewedCommit": "3448870dc",
+      "actual": "96da4df6666b2ca69d2587c304917cc51c4ca1be",
+      "expected": "96da4df6666b2ca69d2587c304917cc51c4ca1be",
+      "equal": true
+    },
+    {
+      "path": "server/routes/self-capture-uploads.ts",
+      "reviewedCommit": "2f9b4f519",
+      "actual": "842c7357c026cf03d710369fd038cee5c8b2e6fd",
+      "expected": "842c7357c026cf03d710369fd038cee5c8b2e6fd",
+      "equal": true
+    },
+    {
+      "path": "server/routes/site-claim.ts",
+      "reviewedCommit": "bfe646cf2",
+      "actual": "ac3ea6536987696a48d339b55a71d9d461bd765b",
+      "expected": "ac3ea6536987696a48d339b55a71d9d461bd765b",
+      "equal": true
+    },
+    {
+      "path": "server/routes/site-task-brief.ts",
+      "reviewedCommit": "f48226465",
+      "actual": "68b88332bfdbff3feedacd650053a76eb039a556",
+      "expected": "68b88332bfdbff3feedacd650053a76eb039a556",
+      "equal": true
+    },
+    {
+      "path": "server/utils/captureOutbox.ts",
+      "reviewedCommit": "1b7e016c7",
+      "actual": "fc6b9b8f834843bf4b6dd7dd44c17da4a9cae8e3",
+      "expected": "fc6b9b8f834843bf4b6dd7dd44c17da4a9cae8e3",
+      "equal": true
+    },
+    {
+      "path": "server/utils/email.ts",
+      "reviewedCommit": "62e9d1521",
+      "actual": "5916f0dc038668662bad68614699d53f7b0531ef",
+      "expected": "5916f0dc038668662bad68614699d53f7b0531ef",
+      "equal": true
+    },
+    {
+      "path": "server/utils/inboundRequestCommit.ts",
+      "reviewedCommit": "3448870dc",
+      "actual": "1fb5a71325ecdc0406dadd10ce0f5810de68db55",
+      "expected": "1fb5a71325ecdc0406dadd10ce0f5810de68db55",
+      "equal": true
+    },
+    {
+      "path": "server/utils/pilotRecommendationNotifications.ts",
+      "reviewedCommit": "bcf4aca40",
+      "actual": "88ea7434bf2a3de020ea69eceda5c1c39239b66b",
+      "expected": "88ea7434bf2a3de020ea69eceda5c1c39239b66b",
+      "equal": true
+    },
+    {
+      "path": "server/utils/siteTaskBriefReading.ts",
+      "reviewedCommit": "be1e22b21",
+      "actual": "96ee50ae660f59893d350916c54e8a88dbdbe809",
+      "expected": "96ee50ae660f59893d350916c54e8a88dbdbe809",
+      "equal": true
+    },
+    {
+      "path": "server/utils/siteVideoEvidence.ts",
+      "reviewedCommit": "be1e22b21",
+      "actual": "7d659fc4040395eedbc10103acf26041527ee1bd",
+      "expected": "7d659fc4040395eedbc10103acf26041527ee1bd",
+      "equal": true
+    },
+    {
+      "path": "server/utils/siteVideoObservationClaims.ts",
+      "reviewedCommit": "be1e22b21",
+      "actual": "96ce13ffe9057ce965479d2ab2bf0767b17aa58a",
+      "expected": "96ce13ffe9057ce965479d2ab2bf0767b17aa58a",
+      "equal": true
+    },
+    {
+      "path": "server/utils/taskLifecycleNotifications.ts",
+      "reviewedCommit": "69a883dd2",
+      "actual": "74066b6118b662c461bae3c36bb1c651ee3bd8fa",
+      "expected": "74066b6118b662c461bae3c36bb1c651ee3bd8fa",
+      "equal": true
+    },
+    {
+      "path": "server/utils/websiteBrowserUploadStatus.ts",
+      "reviewedCommit": "5472e4314",
+      "actual": "3b725fdcbc68b5764954829ca1ea5e88e6901330",
+      "expected": "3b725fdcbc68b5764954829ca1ea5e88e6901330",
+      "equal": true
+    },
+    {
+      "path": "server/routes/task-listings.ts",
+      "reviewedCommit": "48c30bc37",
+      "actual": "7d3df216c0f2186b477edcc67e3822ec6c4753fb",
+      "expected": "7d3df216c0f2186b477edcc67e3822ec6c4753fb",
+      "equal": true
+    },
+    {
+      "path": "server/utils/taskItemInventory.ts",
+      "reviewedCommit": "f4eba6d81",
+      "actual": "120e6fb09928f05c4dbe3ea673369ae5c062775d",
+      "expected": "120e6fb09928f05c4dbe3ea673369ae5c062775d",
+      "equal": true
+    }
+  ],
+  "unmapped": []
+}
