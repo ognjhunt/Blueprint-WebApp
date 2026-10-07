@@ -1,6 +1,6 @@
 # Local recovery from a retained platform packet
 
-Execution source: `fc05c16d22a9123c6aae14eb4eb8d989bae68068`. This companion extends the reviewed
+Execution source: `abf348c30c370acf67e37f3f040afea82f60ec48`. This companion extends the reviewed
 PR878 incident utilities with a narrow Render MCP read adapter and a local
 operator sequence. PR878 outreach and intake code is unchanged. Publishing this
 source grants no live recovery, deletion, resume, model-call or Gmail authority.
@@ -18,9 +18,9 @@ Prepare the exact source in a private directory from the deployed WebApp root,
 without deploying it, changing credentials, or installing dependencies:
 
 ```bash
-incident_src=/tmp/blueprint-outreach-local-fc05c16d2
+incident_src=/tmp/blueprint-outreach-local-abf348c30
 mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/fc05c16d22a9123c6aae14eb4eb8d989bae68068 |
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/abf348c30c370acf67e37f3f040afea82f60ec48 |
   tar -xz --strip-components=1 -C "$incident_src" &&
 ln -s "$PWD/node_modules" "$incident_src/node_modules"
 ```
@@ -86,17 +86,21 @@ walks every tree. Missing, duplicate, unused, misordered, unsafe-path and
 nonregular excluded objects are rejected. It compares all tracked source,
 assets, dependency locks, build/start recipes, configuration and file-loaded
 inputs against baseline `ce8c9d065351ca51b0b4b56e011aaee46d331e5a`.
-Only the thirteen exact nonruntime incident utility/test/runbook paths named in
+Only the fourteen exact nonruntime incident utility/test/runbook paths named in
 the reviewed verifier are omitted from the content inventory; their leaf object
 IDs remain bound by the complete tree proof. Every tree object present in the
 candidate is required. Nothing outside those paths is
 exempt. Their absence from the Web bundle and build/start references is reviewed.
-Tree directory names and modes remain in the inventory.
+Tree directory names and modes remain in the inventory. The exact compressed
+incident test fixture contains only fixed ce8 commit/tree bytes (no blob bodies
+or private prospect data); it keeps offline tests independent of future HEAD
+changes. Publication and merge compatibility are verified separately with the
+CLI rather than enforcing this recovery baseline on every future CI run.
 
 The fixed inventory SHA256 is
 `230ecb3ff7243610f9ddd1af9bdddda1c8ef68b1aef54e8beeff88a1a170a5df`.
 The reviewed policy digest is
-`aca4563b39e74e6d5f51f686a1095140237938b9e9cd51069105a005f9b9dc40`.
+`44aa074094e03f607ec600fee635fab6edd65f9bff14282050454a6dc0a41857`.
 The policy also checks the fresh authenticated Web service's exact existing
 repository `https://github.com/ognjhunt/Blueprint-WebApp`, branch `main`, Node
 environment/runtime, build command `npm install; npm run build` and start
@@ -233,7 +237,7 @@ new packet. No cleanup, deletion or activation is part of this command.
 | `communications-incident-cleanup-20261006.py` | `278d7d8ddb42260bd6b84cc1b0c8432fdbd46d635023d7bf768b056df3eea1b1` |
 | `communications-incident-mcp-20261006.mjs` | `040a9e6a7f3660447c264577a32cd317f6fb95312bd48404e9e216d31e859aeb` |
 | `communications-incident-operator-20261006.mjs` | `0053c94e5b6dd59c09ed0dd1586b81295c85c89e2e52ffa005aafea123f55178` |
-| `communications-incident-web-source-20261007.mjs` | `0d596a22ae29269d8defd5184c2ad2d1a67c5b6ac898b6bcd3111edcd448fe55` |
+| `communications-incident-web-source-20261007.mjs` | `8723fd6ce153dd997644bbf26a8acea16b4348ada4ed1f0caea256bf923047ca` |
 
 Focused suites cover successful MCP consumption by actual recovery CAS,
 both legacy and actual tool names with raw scope retained, zero-write refusal
