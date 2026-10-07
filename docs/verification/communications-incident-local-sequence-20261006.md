@@ -1,6 +1,6 @@
 # Local recovery from a retained platform packet
 
-Execution source: `e7853171240ab6e681ff64f276da13ab7f52f7b7`. This companion extends the reviewed
+Execution source: `bfb47e5dcef02b4bd688695882ee4b2f1b8303ff`. This companion extends the reviewed
 PR878 incident utilities with a narrow Render MCP read adapter and a local
 operator sequence. PR878 outreach and intake code is unchanged. Publishing this
 source grants no live recovery, deletion, resume, model-call or Gmail authority.
@@ -18,9 +18,9 @@ Prepare the exact source in a private directory from the deployed WebApp root,
 without deploying it, changing credentials, or installing dependencies:
 
 ```bash
-incident_src=/tmp/blueprint-outreach-local-e78531712
+incident_src=/tmp/blueprint-outreach-local-bfb47e5dc
 mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/e7853171240ab6e681ff64f276da13ab7f52f7b7 |
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/bfb47e5dcef02b4bd688695882ee4b2f1b8303ff |
   tar -xz --strip-components=1 -C "$incident_src" &&
 ln -s "$PWD/node_modules" "$incident_src/node_modules"
 ```
@@ -36,23 +36,33 @@ actor/reference, exact existing recovery scope, original baseline digest, pinned
 instance aliases, and authentic startup-spanning writer-freeze evidence. Writer
 names alone are not acknowledgements.
 
-For the separately observed Web deployment at
-`3c66debc04b0586a4358d59fa380f76d5016fb02`, the owner-direction file must explicitly
-pin `expectedWebCommit` to that exact revision. The legacy absent-pin contract
-still accepts only worker-source c4. Only these two reviewed Web revisions are
+For a Web deployment at `3c66debc04b0586a4358d59fa380f76d5016fb02` or the
+PR889 revision `85a010acd6ee6235ca8ddc487da290f52c94b310`, the owner-direction
+file must explicitly pin `expectedWebCommit` to the actual deployed revision.
+The legacy absent-pin contract still accepts only worker-source c4.
+Only these three reviewed Web revisions are
 supported; a future deployment needs another source review. This pin is retained
 in the durable recovery authority and cannot change when renewing or releasing
 the owned fence. The worker source and compiled-artifact checks remain c4.
 
-The source basis is exact Git blob equality between c4 and 3c66:
+The source basis is exact Git blob equality between c4, 3c66 and PR889:
 `server/index.ts` is `9d7c3de1a4611d0b0d50533f0f32680164e81ef4` and
-`server/config/bootstrap-env.ts` is `25905c583f050ae842e3027e8fb82d8f7597f4d8`.
+`server/config/bootstrap-env.ts` is `25905c583f050ae842e3027e8fb82d8f7597f4d8`;
+`server/utils/opsAutomationScheduler.ts` is `f87b6eaf0075b38d82101491bdb033d4c4273ed9`.
+PR889 changes frontend, copy and tests; it does not change these runtime files.
 Web starts the ops scheduler only when its environment flag equals `1` and emits
 the existing exact JSON startup-off message otherwise. Source equality does not
 prove a live process: collect fresh authenticated Web service/deploy reads,
 complete current instances, the actual flag receipt and startup logs for every
-current instance after it was created. Older c4 Web receipts cannot prove the
-3c66 deployment. No deployed actor identity is inferred.
+current instance after it was created. Older Web receipts cannot prove a new
+deployment. No deployed actor identity is inferred.
+
+Before the next capture, prepare this exact execution source and all eight
+hashes, and update the actual owner-direction file's Web pin to the current
+deployment. Preserve its authenticated owner scope, baseline and acknowledgements.
+Do not represent PR889 as 3c66. The previous CI inspection is historical evidence;
+it cannot supply the next five-minute window. Parent coordinates one fresh
+capture only while both the browser operator and MCP collector are active.
 
 The MCP input schema is `blueprint.render-mcp-reads.v1`, with the existing parent
 thread and incident and `receipts` arrays named `workerService`, `workerDeploy`,
@@ -153,7 +163,7 @@ new packet. No cleanup, deletion or activation is part of this command.
 | `communications-incident-20261006.mjs` | `5a0801e9b3402821f5e1a650663b6128874c147fd151a49455590f25b36027d9` |
 | `communications-incident-provider-20261006.py` | `98a51b3fe56cd248cdd5b9cbcd74a8bfa8698ba2c29fcb94a2f40dff396a0cc2` |
 | `communications-incident-summary-20261006.mjs` | `82613479a8950a27cdf3af4f110b810001cd1a4d66371ad024069e2f7776398c` |
-| `communications-incident-admission-20261006.mjs` | `052154f60e290b8009040f6379213a96c7dfeebcdde34c674bbbd47d3c6ad7e8` |
+| `communications-incident-admission-20261006.mjs` | `05edc90fd66691e9722b7351915167703bed03b6b40c58e778a76131d718a05d` |
 | `communications-incident-recovery-20261006.mjs` | `ab28b4b65b0bce819bf0d6276aff4e27fadc8ed7727f7b308f062b702bd85dd8` |
 | `communications-incident-cleanup-20261006.py` | `278d7d8ddb42260bd6b84cc1b0c8432fdbd46d635023d7bf768b056df3eea1b1` |
 | `communications-incident-mcp-20261006.mjs` | `040a9e6a7f3660447c264577a32cd317f6fb95312bd48404e9e216d31e859aeb` |
@@ -164,7 +174,8 @@ both legacy and actual tool names with raw scope retained, zero-write refusal
 for actual-name operation/target/timestamp changes even with fresh byte pins,
 zero-write refusal for altered/error/unpinned/stale/unsupported envelopes,
 complete pagination, durable scope across fresh receipts, original HTTP lanes,
-the explicit reviewed Web source pin through CAS/replay/fence release, both
+the explicit 3c66 and PR889 Web source pins through CAS/replay/fence release,
+zero-write refusal when changing between those pins during an owned fence, both
 flag-present and exact-JSON flag-absent lanes, and runtime-to-provider sequence
 ordering. These are synthetic/offline tests,
 with zero provider/Gmail/model requests. Runtime imports may initialize the

@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { CommunicationsAgentsAPI } from '../server/agents/communications-api';
 import { INCIDENT, ROOT, CONTROL, LAP, sha, QUERIES, STOPPED_SOURCE } from './communications-incident-20261006.mjs';
 import { AUDIT, CLEANUP, checkFence, checkEffects, recover, fenceLease, cleanupPhase, archiveFiles, verifyArchive } from './communications-incident-recovery-20261006.mjs';
-import { ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS } from './communications-incident-admission-20261006.mjs';
+import { ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS } from './communications-incident-admission-20261006.mjs';
 import { mcpReceipt, mcpReadScope } from './communications-incident-mcp-20261006.mjs';
 import { preparePlatform, assembleProof, sequence } from './communications-incident-operator-20261006.mjs';
 
@@ -110,13 +110,14 @@ function mcpFixture(webCommit = ADMISSION_SOURCE, absentWebFlag = false, actualT
   return { ...f, receipts };
 }
 describe('owner-scoped lap259 recovery', () => {
-  it.each([false, true])('requires the reviewed current Web owner pin through CAS, replay and fence release (absent flag: %s)', async absent => {
-    const f = mcpFixture(REVIEWED_WEB_SOURCE, absent);
-    f.authority.expectedWebCommit = REVIEWED_WEB_SOURCE;
+  it.each([REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE].flatMap(webCommit => [false, true].map(absent => ({ webCommit, absent }))))
+    ('requires Web $webCommit owner pin through CAS, replay and fence release (absent flag: $absent)', async ({ webCommit, absent }) => {
+    const f = mcpFixture(webCommit, absent);
+    f.authority.expectedWebCommit = webCommit;
     await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now))
       .resolves.toMatchObject({ state: 'reconciled_and_release_fenced' });
     expect(f.writes).toHaveLength(3);
-    expect(f.values.get(AUDIT).authority.expectedWebCommit).toBe(REVIEWED_WEB_SOURCE);
+    expect(f.values.get(AUDIT).authority.expectedWebCommit).toBe(webCommit);
     expect(f.proof.services[0].deploy.commit.id).toBe(ADMISSION_SOURCE);
     await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now))
       .resolves.toMatchObject({ state: 'already_reconciled' });
@@ -125,9 +126,13 @@ describe('owner-scoped lap259 recovery', () => {
     const writes = f.writes.length;
     await expect(fenceLease(f.db, 'release-fence', changed.authority, changed.proof, changed.now))
       .rejects.toThrow('release_fence_ownership_changed');
+    const other = mcpFixture(webCommit === REVIEWED_WEB_SOURCE ? REVIEWED_LAUNCH_WEB_SOURCE : REVIEWED_WEB_SOURCE, absent);
+    other.authority.expectedWebCommit = other.proof.web.deploy.commit.id;
+    await expect(fenceLease(f.db, 'release-fence', other.authority, other.proof, other.now))
+      .rejects.toThrow('release_fence_ownership_changed');
     expect(f.writes).toHaveLength(writes);
   });
-  it('refuses unpinned, foreign or mismatched Web revisions and preserves every runtime fence before writes', async () => {
+  it.each([REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE])('refuses unpinned, foreign or mismatched Web %s and preserves every runtime fence before writes', async webCommit => {
     for (const change of [
       (f: any) => { delete f.authority.expectedWebCommit; },
       (f: any) => { f.authority.expectedWebCommit = ADMISSION_SOURCE; },
@@ -139,9 +144,9 @@ describe('owner-scoped lap259 recovery', () => {
       (f: any) => { f.proof.web.opsFlag.body.value = '1'; },
       (f: any) => { f.proof.web.opsFlag.status = 404; f.proof.web.opsFlag.body = null; },
       (f: any) => { f.proof.services[0].runtimes[0].entrySha256 = 'a'.repeat(64); },
-      (f: any) => { f.proof.services[0].deployCommit = REVIEWED_WEB_SOURCE; },
+      (f: any) => { f.proof.services[0].deployCommit = webCommit; },
     ]) {
-      const f = mcpFixture(REVIEWED_WEB_SOURCE); f.authority.expectedWebCommit = REVIEWED_WEB_SOURCE;
+      const f = mcpFixture(webCommit); f.authority.expectedWebCommit = webCommit;
       change(f); f.authority.processProofDigest = sha(f.proof);
       await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).rejects.toThrow();
       expect(f.writes).toHaveLength(0);
@@ -239,9 +244,9 @@ describe('owner-scoped lap259 recovery', () => {
     f.authority.processProofDigest = sha(f.proof);
     await expect(fenceLease(f.db, 'release-fence', f.authority, f.proof, () => at)).rejects.toThrow('release_fence_ownership_changed');
   });
-  it.each([ADMISSION_SOURCE, REVIEWED_WEB_SOURCE])('orchestrates actual-name MCP, runtime, barrier and canonical/provider recovery for Web %s', async webCommit => {
+  it.each([ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE])('orchestrates actual-name MCP, runtime, barrier and canonical/provider recovery for Web %s', async webCommit => {
     const f = mcpFixture(webCommit, true, true), worker = f.proof.services[0], web = f.proof.web;
-    if (webCommit === REVIEWED_WEB_SOURCE) f.authority.expectedWebCommit = webCommit;
+    if (webCommit !== ADMISSION_SOURCE) f.authority.expectedWebCommit = webCommit;
     const baseline = { ...structuredClone(worker.runtimes[0]), observedAtMs: NOW - 20000, instanceId: `${worker.serviceId}-old` };
     const owner = { ...f.authority, writerFreezeEvidence: { source: 'synthetic-authenticated-owner-acknowledgements' }, frozenWriters: f.proof.frozenWriters,
       expectedBaselineRuntimeDigests: { [worker.serviceId]: sha(baseline) } };
