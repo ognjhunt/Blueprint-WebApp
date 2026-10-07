@@ -20,6 +20,7 @@ function authorityScope(a) {
     expectedPriorWorkerInstanceIds: a.expectedPriorWorkerInstanceIds ?? null,
     ...(a.expectedWorkerInstanceAliases !== undefined ? { expectedWorkerInstanceAliases: a.expectedWorkerInstanceAliases } : {}),
     ...(a.expectedWebCommit !== undefined ? { expectedWebCommit: a.expectedWebCommit } : {}),
+    ...(a.expectedWebSourcePolicyDigest !== undefined ? { expectedWebSourcePolicyDigest: a.expectedWebSourcePolicyDigest } : {}),
     // Fresh per-proof MCP digests rotate like the existing file/proof digests;
     // exact authenticated operation/workspace/resource scope remains durable.
     ...(a.expectedMcpReadScope !== undefined ? { expectedMcpReadScope: a.expectedMcpReadScope } : {}),
