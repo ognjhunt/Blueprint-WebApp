@@ -105,6 +105,7 @@ export type CommunicationsCheckpoint = {
   draftWritingGuidance?: string;
   framingVersion?: CommunicationsFramingVersion;
   replyFollowup?: unknown;
+  evaluationReadiness?: import("./communications-contract").EvaluationReadiness;
   /** Set before the first create of an outreach-ready hypothesis job only: the session runs today's
    * definition plus the hypothesis paragraph. Verified-lead checkpoints never carry it. */
   draftProfile?: typeof COMMUNICATIONS_HYPOTHESIS_PROFILE;

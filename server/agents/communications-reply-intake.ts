@@ -13,6 +13,7 @@ import { verifyPublishedResearch, type ResearchSnapshotReader } from "./communic
 import { LeadVerificationRequired } from "./lead-verification";
 import type { ActionPayload } from "./action-policies";
 import { makeReplyFollowup, replyFollowupId, replyFollowupRef } from "./communications-reply-followup";
+import { readinessFollowupPointer, readinessFollowupRef } from "./communications-readiness-followup";
 
 export type CommunicationsReplyIntakeDependencies = {
   db: FirebaseFirestore.Firestore;
@@ -255,6 +256,7 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
       || savedBinding.exists && communicationsDigest(savedBinding.data()) !== communicationsDigest(binding)) throw new Error("reply_immutable_context_changed");
     const events = await Promise.all(replies.map(message => tx.get(sourceRef.collection("communicationsEvents").doc(`reply_${message.gmailMessageId}`))));
     const savedFollowup = await tx.get(followupRef);
+    const readinessRef = readinessFollowupRef(deps.db, followupId), readinessWatch = await tx.get(readinessRef);
     const canonicalMissing = !source.exists || source.data()?.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase()
       || source.data()?.siteId !== brief.siteId || source.data()?.taskId !== brief.taskId;
     for (let index = 0; index < replies.length; index++) {
@@ -279,6 +281,7 @@ async function admitAnchoredReplies(parent: BoundParent, deps: CommunicationsRep
         || followup.state === "opted_out" && savedFollowup.data()?.state !== "opted_out"
         || !savedFollowup.data()?.preparation
         || savedFollowup.data()?.contextMissing !== canonicalMissing) tx.set(followupRef, followup);
+      if (followup.audienceRole === "site" && !readinessWatch.exists) tx.create(readinessRef, readinessFollowupPointer(brief, followupId));
     };
     if (claim.exists || previous.length) {
       if (claim.exists && claim.data()?.messageHash !== communicationsDigest(incoming)) throw new Error("communications_reply_source_changed");

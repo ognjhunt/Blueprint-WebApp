@@ -9,6 +9,7 @@ export const replyFollowupReviewSchema = z.object({ expectedEvidenceDigest: hash
   responseMeaning: z.enum(["unknown", "exploratory_interest", "no_need", "negative", "explicit_commitment"]),
   meaningEvidence: supportedText.nullable(), statedTask: supportedText.nullable(),
   desiredOutcome: supportedText.nullable(), timing: supportedText.nullable(),
+  pilotPurpose: supportedText.nullable().optional(), constraints: supportedText.nullable().optional(),
   nextAction: z.enum(["review_reply", "clarify_context", "prepare_draft_for_review", "no_action"]),
 }).strict().refine(value => value.responseMeaning === "unknown" || value.meaningEvidence !== null,
   "a recorded meaning requires original reply evidence")
@@ -26,7 +27,9 @@ export function replyFollowupRef(db: FirebaseFirestore.Firestore, prospectId: st
  * Uninterpreted text cannot establish which details the recipient omitted. */
 export function prepareReplyFollowup(value: any) {
   const reviewed = value.state === "reviewed", closed = value.state === "opted_out" || value.nextAction === "no_action";
-  const fields = ["statedTask", "desiredOutcome", "timing"] as const;
+  const expanded = value.scopingVersion === "blueprint.site-task-scoping.v1" && (value.audienceRole ?? "site") === "site";
+  const fields = expanded ? ["statedTask", "desiredOutcome", "pilotPurpose", "constraints", "timing"] as const
+    : ["statedTask", "desiredOutcome", "timing"] as const;
   const unresolved = reviewed ? fields.filter(field => !value[field]) : null;
   const role = value.audienceRole, taskQuestion = role === "site"
     ? "Which recurring task would you like to explore?"
@@ -36,6 +39,8 @@ export function prepareReplyFollowup(value: any) {
     : role === "world_model_evaluation" ? "What would a useful technical validation help you learn?"
     : "What would you want Blueprint's help to accomplish in that process?";
   const questions = { statedTask: taskQuestion, desiredOutcome: outcomeQuestion,
+    pilotPurpose: "What would you want a useful pilot to help you learn or improve?",
+    constraints: "What constraints would a useful next step need to fit?",
     timing: "What timing, if any, would be useful for exploring this?" };
   const continuing = reviewed && ["exploratory_interest", "explicit_commitment"].includes(value.responseMeaning);
   const field = continuing ? unresolved?.[0] : null;
@@ -45,7 +50,8 @@ export function prepareReplyFollowup(value: any) {
     : !continuing ? "review_reply" : field ? "prepare_clarification_for_owner" : "review_next_step";
   const binding = { evidenceDigest: value.evidenceDigest, reviewRevisionId: value.review?.revisionId ?? null,
     contextMissing: value.contextMissing, responseMeaning: value.responseMeaning, nextAction: value.nextAction,
-    statedTask: value.statedTask, desiredOutcome: value.desiredOutcome, timing: value.timing };
+    statedTask: value.statedTask, desiredOutcome: value.desiredOutcome, timing: value.timing,
+    ...(expanded ? { scopingVersion: value.scopingVersion, pilotPurpose: value.pilotPurpose, constraints: value.constraints } : {}) };
   return { version: "blueprint.reply-preparation.v1", bindingDigest: communicationsDigest(binding), ...binding,
     owner: value.owner, action, sourceMessageIds: value.evidence.map((item: any) => item.messageId),
     fieldStatus: Object.fromEntries(fields.map(field => [field, !reviewed ? "not_interpreted" : value[field] ? "evidence_recorded" : "unresolved"])),
@@ -54,6 +60,7 @@ export function prepareReplyFollowup(value: any) {
       : value.contextMissing ? "Repair the original site/task/contact linkage before considering a follow-up."
       : !continuing ? "Review the linked reply and record its supported meaning and details before choosing a follow-up."
       : field ? "Review the proposed single clarification against the actual reply before composing it in the founder's thread."
+      : expanded ? "Review the established task, purpose, constraints and timing, then choose a bounded next step within the existing permissions."
       : "Review the established task, desired outcome and timing, then choose a bounded next step within the existing permissions.",
     proposedDraft: closed || value.contextMissing || continuing && !field ? null : {
       body: `Thanks for your reply.\n\n${question}\n\nNijel`, question, requiresOwnerReview: true,
@@ -89,6 +96,7 @@ export function makeReplyFollowup(input: { brief: CommunicationsBrief; parentBri
     evidenceDigest: saved.evidenceDigest, review: saved.review, responseMeaning: saved.responseMeaning,
     meaningEvidence: saved.meaningEvidence ?? null, statedTask: saved.statedTask, desiredOutcome: saved.desiredOutcome,
     timing: saved.timing, nextAction: saved.nextAction, status: "historical_requires_reassessment",
+    ...(saved.scopingVersion ? { pilotPurpose: saved.pilotPurpose, constraints: saved.constraints } : {}),
   } : saved?.priorReviewedContext ?? null;
   const value = { ...identity, evidenceDigest, owner: FOUNDER_MAILBOX, untrusted: true,
     state: optedOut ? "opted_out" : changed ? "awaiting_owner_review" : saved.state,
@@ -99,6 +107,8 @@ export function makeReplyFollowup(input: { brief: CommunicationsBrief; parentBri
     contextMissing: input.contextMissing, originalObservedAt: saved?.originalObservedAt ?? input.observedAt,
     updatedAt: input.now, review: changed ? null : saved.review ?? null,
     priorReviewedContext,
+    ...((!saved && (brief.audienceRole ?? "site") === "site") || saved?.scopingVersion ? { scopingVersion: "blueprint.site-task-scoping.v1",
+      pilotPurpose: changed ? null : saved.pilotPurpose ?? null, constraints: changed ? null : saved.constraints ?? null } : {}),
     authority: { spending: false, listing: false, recording: false, sharing: false, sending: false },
   };
   return { ...value, preparation: prepareReplyFollowup(value) };
@@ -135,11 +145,13 @@ export async function reviewReplyFollowup(db: FirebaseFirestore.Firestore, prosp
       if (evidence[index].data()?.untrusted !== true
         || communicationsDigest(evidence[index].data()?.message) !== saved.evidence[index].messageHash) throw new Error("reply_followup_evidence_changed");
     }
-    for (const field of [review.meaningEvidence, review.statedTask, review.desiredOutcome, review.timing]) {
+    for (const field of [review.meaningEvidence, review.statedTask, review.desiredOutcome, review.timing, review.pilotPurpose, review.constraints]) {
       if (field && !evidence.some(event => event.data()?.message.gmailMessageId === field.messageId
         && event.data()?.message.body.includes(field.quote))) throw new Error("reply_followup_quote_not_observed");
     }
-    const { expectedEvidenceDigest: _, ...meaning } = review;
+    const { expectedEvidenceDigest: _, ...details } = review;
+    const meaning = { ...details, ...(saved.scopingVersion || Object.hasOwn(details, "pilotPurpose") || Object.hasOwn(details, "constraints")
+      ? { scopingVersion: "blueprint.site-task-scoping.v1", pilotPurpose: details.pilotPurpose ?? null, constraints: details.constraints ?? null } : {}) };
     if (saved.state === "reviewed" && saved.preparation && saved.review?.reviewedBy === actor
       && communicationsDigest(Object.fromEntries(Object.keys(meaning).map(key => [key, saved[key]]))) === communicationsDigest(meaning)) return saved;
     const attestation = { ...meaning, evidenceDigest: saved.evidenceDigest, reviewedBy: actor, reviewedAt: now };

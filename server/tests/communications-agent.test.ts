@@ -404,7 +404,8 @@ describe("Blueprint-owned communications queue", () => {
     expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_LAUNCH_GUIDANCE_V1);
     expect(input.firstTouchFraming.instructionsDigest).toBe("920b1c200fa7421154565c29edf9de903b8fb12b1b07fcfe280fa6b0c8af8a85");
     expect(buildCommunicationsInput(input.researchBrief, input.emailThread, "outreach", input.currentApproval, undefined,
-      params.checkpoint.executionWindow, params.checkpoint.draftWritingGuidance, COMMUNICATIONS_FRAMING_V1)).toBe(params.input);
+      params.checkpoint.executionWindow, params.checkpoint.draftWritingGuidance, COMMUNICATIONS_FRAMING_V1,
+      params.checkpoint.replyFollowup, params.checkpoint.evaluationReadiness)).toBe(params.input);
   });
   it("retains one immutable correlated reply receipt with separate observed time and source hash", async () => {
     const f = await setup("reply"), incoming = f.thread!.messages.at(-1)!;
@@ -505,7 +506,7 @@ describe("Blueprint-owned communications queue", () => {
   });
   it.each(["adapted_question", "plain_acknowledgment"])("keeps a %s reply eligible for exact human review without imposing the first-touch template", async kind => {
     const f = await setup("reply");
-    f.output.body = kind === "adapted_question" ? "Thanks for explaining. Which packing step should we discuss? Is there public context you would like us to read first?"
+    f.output.body = kind === "adapted_question" ? "Thanks for explaining. Which packing step should we discuss?"
       : "Thanks for the clarification. We will keep the discussion within the recorded public-source boundary.";
     f.output.usedFactIds = [];
     expect(f.output.body).not.toContain(f.brief.contact.learningQuestion);
@@ -564,7 +565,7 @@ describe("Blueprint-owned communications queue", () => {
     // while old charged checkpoints without it keep their historical shape.
     const charged = { ...saved, createClaimedAt: new Date(communicationsNow).toISOString(), sessionId: null };
     expect(buildCommunicationsInput(input.researchBrief, input.emailThread, intent, input.currentApproval, undefined,
-      charged.executionWindow, charged.draftWritingGuidance, charged.framingVersion, charged.replyFollowup)).toBe(f.deps.api.run.mock.calls[0][0].input);
+      charged.executionWindow, charged.draftWritingGuidance, charged.framingVersion, charged.replyFollowup, charged.evaluationReadiness)).toBe(f.deps.api.run.mock.calls[0][0].input);
     expect(JSON.parse(buildCommunicationsInput(f.brief, f.thread, intent, null))).not.toHaveProperty("writingGuidance");
   });
   it("claims concurrently enqueued work once across two worker owners", async () => {

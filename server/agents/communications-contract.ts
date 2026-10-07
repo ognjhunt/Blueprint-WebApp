@@ -365,6 +365,16 @@ export const communicationsOutputSchema = z.object({
 }).strict();
 export type CommunicationsOutput = z.infer<typeof communicationsOutputSchema>;
 
+export const communicationsEvaluationReadinessSchema = z.object({
+  version: z.literal("blueprint.communications-evaluation-readiness.v1"),
+  state: z.enum(["available", "unavailable", "unknown"]), observedAt: date, bindingDigest: hash,
+  capabilities: z.array(z.object({ capabilityId: z.string().regex(/^[a-zA-Z0-9_.:-]{1,192}$/), status: z.enum(["available", "unavailable", "unknown"]),
+    recordRef: z.string(), recordDigest: hash, checkedAt: date.nullable(), expiresAt: date.nullable(),
+    basis: z.literal("live_pipeline_catalog").optional() }).strict()).max(8),
+  blockers: z.array(z.string()).max(16),
+}).strict();
+export type EvaluationReadiness = z.infer<typeof communicationsEvaluationReadinessSchema>;
+
 export const communicationsEnvelopeSchema = z.object({
   version: z.literal("blueprint.communications.v1"),
   job: communicationsJobSchema, brief: communicationsBriefSchema,
@@ -378,6 +388,7 @@ export const communicationsEnvelopeSchema = z.object({
     }).strict()).min(1).max(20),
   }).strict().nullable(),
   output: communicationsOutputSchema,
+  evaluationReadiness: communicationsEvaluationReadinessSchema.optional(),
   approvalState: z.literal("pending_approval"),
 }).strict();
 export type CommunicationsEnvelope = z.infer<typeof communicationsEnvelopeSchema>;
