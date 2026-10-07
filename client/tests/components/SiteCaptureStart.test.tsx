@@ -84,7 +84,7 @@ describe("SiteCaptureStart and the country", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each(["Paris", "Georgia", "Vancouver, CA", "Austin, TX, Germany"])("shows the country fallback before Start for unresolved geography (%s)", (location) => {
+  it.each(["Paris", "Georgia", "Vancouver, CA", "Austin, TX, Germany", "123 Main St", "123 Main St.", "10 High ST", "Warehouse near us"])("shows the country fallback before Start for unresolved geography (%s)", (location) => {
     render(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
     expect(region()).not.toBeNull();
@@ -129,6 +129,40 @@ describe("SiteCaptureStart and the country", () => {
     fireEvent.change(location, { target: { value: "" } });
     expect(region()).toBeNull();
     expect(screen.queryByText(/Country:/)).toBeNull();
+  });
+
+  it("clears the prior inferred country while a new Google pick awaits details and ignores details after another edit", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    let resolveDetails: ((place: unknown, status: string) => void) | undefined;
+    vi.stubGlobal("google", { maps: { places: {
+      AutocompleteService: class {
+        getPlacePredictions(_request: unknown, callback: Function) {
+          callback([{ description: "Berlin, Germany", place_id: "berlin-id" }], "OK");
+        }
+      },
+      PlacesService: class {
+        getDetails(_request: unknown, callback: typeof resolveDetails) { resolveDetails = callback; }
+      },
+    } } });
+    try {
+      signedIn({ workspaceType: "site_operator" }, []);
+      render(<SiteCaptureStart />);
+      await screen.findByText(/Saving to your workspace/);
+      fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Slide the racks" } });
+      const location = document.querySelector("#start-location")!;
+      fireEvent.change(location, { target: { value: "Austin TX" } });
+      expect(screen.getByText(/Country: United States\./)).toBeInTheDocument();
+      fireEvent.mouseDown(await screen.findByText("Berlin, Germany"));
+      expect((location as HTMLInputElement).value).toBe("Berlin, Germany");
+      expect(region()!.value).toBe("");
+      fireEvent.click(document.querySelector("#start-description-authority")!);
+      fireEvent.submit(screen.getByRole("form"));
+      expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
+      fireEvent.change(location, { target: { value: "Austin TX" } });
+      resolveDetails?.({ address_components: [{ short_name: "DE", types: ["country"] }] }, "OK");
+      expect(await screen.findByText(/Country: United States\./)).toBeInTheDocument();
+      expect(region()).toBeNull();
+    } finally { vi.unstubAllEnvs(); }
   });
 
   it("does not ask for a country up front", () => {

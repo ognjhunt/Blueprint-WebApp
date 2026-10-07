@@ -227,6 +227,9 @@ export function LocationAutocomplete(props: {
     setActive(-1);
     let countryCode = suggestion.countryCode;
     if (suggestion.googlePlaceId) {
+      // The visible location has already changed. Clear the prior inferred
+      // country while structured details are pending, including on failure.
+      props.onSelectionChange?.({ label: suggestion.label, countryCode: null });
       countryCode = await googleCountryCode(suggestion.googlePlaceId);
       if (selectionGeneration.current !== generation) return;
     }

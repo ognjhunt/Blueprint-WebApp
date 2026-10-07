@@ -43,6 +43,16 @@ export function inferLocationCountryCode(label: string): string | null {
     const country = countries.get(suffix);
     const state = stateCodes.get(suffix);
     if (country && state) return null;
+    // ISO codes in ordinary street/prose suffixes ("Main St", "near us")
+    // are not country declarations. Require a standalone or comma-delimited
+    // uppercase code; the explicit UK/USA aliases and full names stay usable.
+    if (country && suffix.length === 2 && suffix !== "uk") {
+      const raw = label.trim().replace(/\./g, "");
+      if (!(raw === suffix.toUpperCase() || (normalized.endsWith(`,${suffix}`)
+        && raw.endsWith(suffix.toUpperCase())))) return null;
+    }
+    if (state && ["or", "hi", "oh", "ok"].includes(suffix)
+      && !normalized.endsWith(`,${suffix}`)) return null;
     const prefix = normalized.slice(0, -suffix.length).replace(/[,\s]+$/, "")
       .replace(/(?:,|\s)\d{5}(?:-\d{4})?$/, "");
     const preceding = explicitLocationSuffix(prefix);

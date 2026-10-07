@@ -13,7 +13,7 @@ describe("country from typed job locations", () => {
   it.each([["London UK", "GB"], ["Berlin, Germany", "DE"], ["Toronto, Canada", "CA"], ["Tbilisi, GE", "GE"]])("resolves explicit country without widening it (%s)", (location, country) => {
     expect(inferLocationCountryCode(location)).toBe(country);
   });
-  it.each(["", "Austin", "Paris", "CA", "Vancouver, CA", "Georgia", "Bremen, DE", "78701", "Austin, 78701", "Austin, TX, Germany", "Austin, TX 78701, Germany", "Berlin, Germany, Texas", "Toronto, Canada, TX 78701", "London UK Germany", "Texas Avenue"])("keeps ambiguous or conflicting geography unresolved (%s)", (location) => {
+  it.each(["", "Austin", "Paris", "CA", "Vancouver, CA", "Georgia", "Bremen, DE", "78701", "Austin, 78701", "Austin, TX, Germany", "Austin, TX 78701, Germany", "Berlin, Germany, Texas", "Toronto, Canada, TX 78701", "London UK Germany", "Texas Avenue", "123 Main St", "123 Main St.", "10 High ST", "Warehouse near us", "Warehouse near US", "this or", "say hi"])("keeps ambiguous or conflicting geography unresolved (%s)", (location) => {
     expect(inferLocationCountryCode(location)).toBeNull();
   });
 });
