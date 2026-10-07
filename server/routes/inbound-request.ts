@@ -1071,8 +1071,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
     );
     const missingFields: string[] = [];
     if (!payload.requestId) missingFields.push("requestId");
-    if (!payload.firstName?.trim()) missingFields.push("firstName");
-    if (!payload.lastName?.trim()) missingFields.push("lastName");
+    // A site starts with a task, an email and a company; no name is asked.
+    if (buyerType !== "site_operator" && !payload.firstName?.trim()) missingFields.push("firstName");
+    if (buyerType !== "site_operator" && !payload.lastName?.trim()) missingFields.push("lastName");
     if (!payload.company?.trim()) missingFields.push("company");
     if (!payload.email?.trim()) missingFields.push("email");
     if (!payload.budgetBucket) missingFields.push("budgetBucket");
@@ -1498,8 +1499,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
         priority,
         owner,
         contact: {
-          firstName: payload.firstName.trim(),
-          lastName: payload.lastName.trim(),
+          firstName: (payload.firstName ?? "").trim(),
+          lastName: (payload.lastName ?? "").trim(),
           email: emailLower,
           roleTitle: payload.roleTitle?.trim() || "",
           company: payload.company.trim(),
@@ -1658,8 +1659,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
       priority,
       owner,
       contact: {
-        firstName: payload.firstName.trim(),
-        lastName: payload.lastName.trim(),
+        firstName: (payload.firstName ?? "").trim(),
+        lastName: (payload.lastName ?? "").trim(),
         email: emailLower,
         roleTitle: payload.roleTitle?.trim() || "",
         company: payload.company.trim(),
@@ -1904,8 +1905,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
       requestId: payload.requestId,
       buyerType,
       email: emailLower,
-      firstName: payload.firstName.trim(),
-      lastName: payload.lastName.trim(),
+      firstName: (payload.firstName ?? "").trim(),
+      lastName: (payload.lastName ?? "").trim(),
       company: payload.company.trim(),
       siteName: siteName || targetSiteType || null,
       proofPathPreference,
@@ -2044,8 +2045,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
           const slackResult = await notifySlackInboundRequest({
             requestId: payload.requestId,
             siteSubmissionId: payload.requestId,
-            firstName: payload.firstName.trim(),
-            lastName: payload.lastName.trim(),
+            firstName: (payload.firstName ?? "").trim(),
+            lastName: (payload.lastName ?? "").trim(),
             email: emailLower,
             company: payload.company.trim(),
             roleTitle: payload.roleTitle?.trim() || "",
@@ -2162,7 +2163,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           const subject = `[${priority.toUpperCase()}] New ${requestPathLabel.toLowerCase()} from ${payload.company.trim()}`;
           const text = `New site submission received:
 
-Name: ${payload.firstName.trim()} ${payload.lastName.trim()}
+Name: ${`${(payload.firstName ?? "").trim()} ${(payload.lastName ?? "").trim()}`.trim() || "Not given"}
 Email: ${emailLower}
 Company: ${payload.company.trim()}
 Role: ${payload.roleTitle?.trim() || "Not specified"}
