@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { CommunicationsAgentsAPI } from '../server/agents/communications-api';
 import { INCIDENT, ROOT, CONTROL, LAP, sha, QUERIES, STOPPED_SOURCE } from './communications-incident-20261006.mjs';
 import { AUDIT, CLEANUP, checkFence, checkEffects, recover, fenceLease, cleanupPhase, archiveFiles, verifyArchive } from './communications-incident-recovery-20261006.mjs';
 import { ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS } from './communications-incident-admission-20261006.mjs';
 import { mcpReceipt, mcpReadScope } from './communications-incident-mcp-20261006.mjs';
 import { preparePlatform, assembleProof, sequence } from './communications-incident-operator-20261006.mjs';
+import { WEB_SOURCE_POLICY_DIGEST, WEB_SOURCE_RECIPE } from './communications-incident-web-source-20261007.mjs';
+
+// Fixed raw Git evidence keeps these offline recovery fixtures independent of
+// unrelated future HEAD changes. Publication compatibility is checked separately.
+const CERTIFIED_SOURCE_PROOF = { schema: 'blueprint.web-runtime-source-proof.v1', repository: 'ognjhunt/Blueprint-WebApp',
+  ...JSON.parse(gunzipSync(readFileSync('scripts/communications-incident-web-source-20261007.fixture.json.gz')).toString()),
+  policyDigest: WEB_SOURCE_POLICY_DIGEST };
+const CERTIFIED_WEB_SOURCE = CERTIFIED_SOURCE_PROOF.commit;
 
 const NOW = 1791307000000;
 const saved = (path: string, value: any) => ({ path, value, sha256: sha(value), updateTime: { seconds: 1, nanoseconds: 2 } });
@@ -85,6 +95,13 @@ function disabledAdmissionFixture() {
 }
 function mcpFixture(webCommit = ADMISSION_SOURCE, absentWebFlag = false, actualToolNames = false) {
   const f = disabledAdmissionFixture(), worker = f.proof.services[0], web = f.proof.web;
+  if (webCommit === CERTIFIED_WEB_SOURCE) {
+    web.sourceProof = structuredClone(CERTIFIED_SOURCE_PROOF);
+    const { repo, branch, env, runtime, buildCommand, startCommand } = WEB_SOURCE_RECIPE;
+    Object.assign(web.service.body, { repo, branch, serviceDetails: { env, runtime, envSpecificDetails: { buildCommand, startCommand } } });
+    Object.assign(f.authority, { expectedWebCommit: webCommit, expectedWebSourcePolicyDigest: WEB_SOURCE_POLICY_DIGEST,
+      expectedWebSourceProofDigest: sha(web.sourceProof) });
+  }
   web.deploy = { ...web.deploy, commit: { id: webCommit } };
   web.deployReceipt.body = web.deploy;
   if (absentWebFlag) {
@@ -110,7 +127,7 @@ function mcpFixture(webCommit = ADMISSION_SOURCE, absentWebFlag = false, actualT
   return { ...f, receipts };
 }
 describe('owner-scoped lap259 recovery', () => {
-  it.each([REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE].flatMap(webCommit => [false, true].map(absent => ({ webCommit, absent }))))
+  it.each([REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE, CERTIFIED_WEB_SOURCE].flatMap(webCommit => [false, true].map(absent => ({ webCommit, absent }))))
     ('requires Web $webCommit owner pin through CAS, replay and fence release (absent flag: $absent)', async ({ webCommit, absent }) => {
     const f = mcpFixture(webCommit, absent);
     f.authority.expectedWebCommit = webCommit;
@@ -132,7 +149,7 @@ describe('owner-scoped lap259 recovery', () => {
       .rejects.toThrow('release_fence_ownership_changed');
     expect(f.writes).toHaveLength(writes);
   });
-  it.each([REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE])('refuses unpinned, foreign or mismatched Web %s and preserves every runtime fence before writes', async webCommit => {
+  it.each([REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE, CERTIFIED_WEB_SOURCE])('refuses unpinned, foreign or mismatched Web %s and preserves every runtime fence before writes', async webCommit => {
     for (const change of [
       (f: any) => { delete f.authority.expectedWebCommit; },
       (f: any) => { f.authority.expectedWebCommit = ADMISSION_SOURCE; },
@@ -151,6 +168,54 @@ describe('owner-scoped lap259 recovery', () => {
       await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).rejects.toThrow();
       expect(f.writes).toHaveLength(0);
     }
+  });
+  it.each([
+    ['missing source', (f: any) => { delete f.proof.web.sourceProof; }],
+    ['missing policy pin', (f: any) => { delete f.authority.expectedWebSourcePolicyDigest; }],
+    ['missing object pin', (f: any) => { delete f.authority.expectedWebSourceProofDigest; }],
+    ['foreign policy', (f: any) => { f.authority.expectedWebSourcePolicyDigest = 'a'.repeat(64); }],
+    ['altered commit bytes', (f: any) => { f.proof.web.sourceProof.commitBase64 = Buffer.from('forged commit').toString('base64'); }],
+    ['altered tree bytes', (f: any) => { f.proof.web.sourceProof.trees[0].base64 = Buffer.from('forged tree').toString('base64'); }],
+    ['omitted tree', (f: any) => { f.proof.web.sourceProof.trees.pop(); }],
+    ['duplicate tree', (f: any) => { f.proof.web.sourceProof.trees.push(f.proof.web.sourceProof.trees[0]); }],
+  ])('rejects %s source evidence before actual recovery CAS even with refreshed digest pins', async (_name, change) => {
+    const f = mcpFixture(CERTIFIED_WEB_SOURCE, true, true);
+    (change as (value: any) => void)(f);
+    if (f.proof.web.sourceProof && _name !== 'missing object pin') f.authority.expectedWebSourceProofDigest = sha(f.proof.web.sourceProof);
+    f.authority.processProofDigest = sha(f.proof);
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).rejects.toThrow();
+    expect(f.writes).toHaveLength(0);
+  });
+  it('retains the certified policy and actual source pin while immutable proof byte pins rotate for fence release', async () => {
+    const f = mcpFixture(CERTIFIED_WEB_SOURCE, true, true);
+    await recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now);
+    expect(f.values.get(AUDIT).authority.expectedWebSourcePolicyDigest).toBe(WEB_SOURCE_POLICY_DIGEST);
+    expect(f.values.get(AUDIT).authority.expectedWebCommit).toBe(CERTIFIED_WEB_SOURCE);
+    f.values.set(AUDIT, structuredClone(f.values.get(AUDIT)));
+    f.proof.web.sourceProof.trees.reverse();
+    f.authority.expectedWebSourceProofDigest = sha(f.proof.web.sourceProof);
+    f.authority.processProofDigest = sha(f.proof);
+    await expect(fenceLease(f.db, 'release-fence', f.authority, f.proof, f.now)).resolves.toMatchObject({ state: 'release-fence' });
+    const other = mcpFixture(REVIEWED_LAUNCH_WEB_SOURCE, true, true), writes = f.writes.length;
+    other.authority.expectedWebCommit = REVIEWED_LAUNCH_WEB_SOURCE;
+    await expect(fenceLease(f.db, 'release-fence', other.authority, other.proof, other.now)).rejects.toThrow('release_fence_ownership_changed');
+    expect(f.writes).toHaveLength(writes);
+  });
+  it.each([
+    (service: any) => { service.repo = 'https://github.com/foreign/repository'; },
+    (service: any) => { service.branch = 'foreign'; },
+    (service: any) => { service.serviceDetails.runtime = 'docker'; },
+    (service: any) => { service.serviceDetails.envSpecificDetails.buildCommand = 'unreviewed build'; },
+    (service: any) => { service.serviceDetails.envSpecificDetails.startCommand = 'node unreviewed.js'; },
+  ])('rejects changed authenticated Web source/build/start recipe before writes', async change => {
+    const f = mcpFixture(CERTIFIED_WEB_SOURCE, true, true), service = f.proof.web.service;
+    change(service.body);
+    service.mcp.calls[0].result.content[0].text = JSON.stringify(service.body);
+    f.authority.expectedMcpReceiptDigests[service.url] = sha(service.mcp);
+    f.authority.processProofDigest = sha(f.proof);
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now))
+      .rejects.toThrow('web_source_runtime_recipe_changed');
+    expect(f.writes).toHaveLength(0);
   });
   it.each([false, true])('consumes authenticated MCP reads without inventing HTTP status in CAS (actual tool names: %s)', async actualToolNames => {
     const f = mcpFixture(ADMISSION_SOURCE, false, actualToolNames);
@@ -244,13 +309,14 @@ describe('owner-scoped lap259 recovery', () => {
     f.authority.processProofDigest = sha(f.proof);
     await expect(fenceLease(f.db, 'release-fence', f.authority, f.proof, () => at)).rejects.toThrow('release_fence_ownership_changed');
   });
-  it.each([ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE])('orchestrates actual-name MCP, runtime, barrier and canonical/provider recovery for Web %s', async webCommit => {
+  it.each([ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE, CERTIFIED_WEB_SOURCE])('orchestrates actual-name MCP, runtime, barrier and canonical/provider recovery for Web %s', async webCommit => {
     const f = mcpFixture(webCommit, true, true), worker = f.proof.services[0], web = f.proof.web;
     if (webCommit !== ADMISSION_SOURCE) f.authority.expectedWebCommit = webCommit;
     const baseline = { ...structuredClone(worker.runtimes[0]), observedAtMs: NOW - 20000, instanceId: `${worker.serviceId}-old` };
     const owner = { ...f.authority, writerFreezeEvidence: { source: 'synthetic-authenticated-owner-acknowledgements' }, frozenWriters: f.proof.frozenWriters,
       expectedBaselineRuntimeDigests: { [worker.serviceId]: sha(baseline) } };
     const mcp = { schema: 'blueprint.render-mcp-reads.v1', parentThread: f.proof.parentThread, incident: f.proof.incident,
+      ...(web.sourceProof ? { webSourceProof: web.sourceProof } : {}),
       receipts: { workerService: worker.service.mcp.calls, workerDeploy: worker.deployReceipt.mcp.calls,
         webService: web.service.mcp.calls, webDeploy: web.deployReceipt.mcp.calls, webLogs: web.startupLogs.mcp.calls } };
     const ci = { schema: 'blueprint.render-incident-ci-receipts.v1', parentThread: f.proof.parentThread, incident: f.proof.incident, readOnly: true,

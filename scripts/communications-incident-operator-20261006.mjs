@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { sha, refuse, privateWrite, existingAdmin } from './communications-incident-20261006.mjs';
 import { mcpReceipt, mcpReadScope } from './communications-incident-mcp-20261006.mjs';
-import { inspectRuntime } from './communications-incident-admission-20261006.mjs';
+import { inspectRuntime, checkWebSourcePin } from './communications-incident-admission-20261006.mjs';
 import { checkFence, archiveFiles, verifyArchive } from './communications-incident-recovery-20261006.mjs';
 
 const PARENT = '01a0fe81-486b-7714-9e81-983a66bd80c4', INCIDENT = 'lap259-20261006';
@@ -54,7 +54,9 @@ export function preparePlatform(mcp, ci, baseline, owner) {
     deployReceipt: workerDeploy, instances: one('worker-instances'), baselineRuntime: baseline,
     admissionFlags: { BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED: one('daily-enabled'), BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED: one('communications-enabled') } };
   const web = { service: webService, deploy: webDeploy.body, deployReceipt: webDeploy,
-    instances: one('web-instances'), opsFlag: one('web-ops-enabled'), startupLogs: logs };
+    instances: one('web-instances'), opsFlag: one('web-ops-enabled'), startupLogs: logs,
+    ...(mcp.webSourceProof !== undefined ? { sourceProof: mcp.webSourceProof } : {}) };
+  if (checkWebSourcePin(web, owner) !== web.deploy?.commit?.id) refuse('web_source_deploy_changed');
   const observations = [worker.service, worker.deployReceipt, worker.instances, ...Object.values(worker.admissionFlags),
     web.service, web.deployReceipt, web.instances, web.opsFlag, web.startupLogs];
   if (observations.some(r => !Number.isSafeInteger(r.observedAtMs))) refuse('actual_platform_times_required');

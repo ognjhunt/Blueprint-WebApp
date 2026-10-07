@@ -4,6 +4,7 @@ import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { sha, refuse, canonical, privateWrite } from './communications-incident-20261006.mjs';
 import { successfulRead } from './communications-incident-mcp-20261006.mjs';
+import { checkWebSourceProof, WEB_SOURCE_RECIPE } from './communications-incident-web-source-20261007.mjs';
 
 export const ADMISSION_FLAGS = ['BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED', 'BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED'];
 const OPS_FORWARD_ONLY = 'BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER';
@@ -202,17 +203,29 @@ function checkWorkerAdmission(service, authority, now, currentOnly) {
       || ADMISSION_FLAGS.some(key => runtime.flags?.[key] !== 'false')) refuse('actual_runtime_admission_unverified');
   }
 }
+export function checkWebSourcePin(web, authority) {
+  const expected = authority?.expectedWebCommit === undefined ? ADMISSION_SOURCE : authority.expectedWebCommit;
+  if (web?.sourceProof !== undefined || authority?.expectedWebSourcePolicyDigest !== undefined
+    || authority?.expectedWebSourceProofDigest !== undefined
+    || ![ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE].includes(expected)) {
+    checkWebSourceProof(web?.sourceProof, authority);
+    const service = web?.service?.body, details = service?.serviceDetails;
+    if (canonical({ repo: service?.repo, branch: service?.branch, env: details?.env, runtime: details?.runtime,
+      buildCommand: details?.envSpecificDetails?.buildCommand, startCommand: details?.envSpecificDetails?.startCommand })
+      !== canonical(WEB_SOURCE_RECIPE)) refuse('web_source_runtime_recipe_changed');
+  }
+  return expected;
+}
 export function checkWebWriterFence(web, now, authority) {
   const id = 'srv-d4vnmk3e5dus73aiohk0', base = `https://api.render.com/v1/services/${id}`;
   const off = 'Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service';
   const flag = web?.opsFlag, service = web?.service, instances = web?.instances, logs = web?.startupLogs;
   const absent = flag?.status === 404 && flag.body === null;
-  const expectedWebCommit = authority?.expectedWebCommit === undefined ? ADMISSION_SOURCE : authority.expectedWebCommit;
   for (const receipt of [flag, service, instances, logs, web?.deployReceipt]) freshReceipt(receipt, now);
+  const expectedWebCommit = checkWebSourcePin(web, authority);
   let url; try { url = new URL(logs?.url); } catch { refuse('web_writer_fence_unverified'); }
   if (service?.method !== 'GET' || service.url !== base || !successfulRead(service, authority, now)
     || service.body?.id !== id || service.body.type !== 'web_service'
-    || ![ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE].includes(expectedWebCommit)
     || web.deploy?.status !== 'live' || web.deploy?.commit?.id !== expectedWebCommit
     || web.deployReceipt?.method !== 'GET' || web.deployReceipt.url !== `${base}/deploys/${web.deploy.id}`
     || !successfulRead(web.deployReceipt, authority, now) || canonical(web.deployReceipt.body) !== canonical(web.deploy)
