@@ -14,6 +14,7 @@ import {
 } from "@/data/captureResidency";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import { inferLocationCountryCode } from "@/lib/deploymentCoverage";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { formatPrice, pilotFeeUsd } from "@/lib/evaluationPricing";
@@ -640,12 +641,10 @@ export function SiteCaptureStart() {
         </>
       )}
 
-      {/* The address and the country it implies, grouped: the country is a
-          consequence of the address, so it sits under it as a line to confirm
-          rather than a second question. */}
+      {/* Show resolved country or the required fallback while entering the job location. */}
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
-          <span>{selfRecording || hasFootage ? "Where is it?" : "Site address"}</span>
+          <span>Where would the robot do this job?</span>
           <span className="ms-field-hint">
             {selfRecording || hasFootage
               ? "A city is plenty. We only need a street address if we are sending someone."
@@ -658,7 +657,16 @@ export function SiteCaptureStart() {
             maxLength={300}
             placeholder={selfRecording || hasFootage ? "City, or a full address" : "Street address"}
             onSelectionChange={(place) => {
-              if (!regionManuallySet) setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+              if (!regionManuallySet) {
+                setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+                if (place) setCountryOpen(!place.countryCode);
+              }
+            }}
+            onInputChange={(text) => {
+              if (regionManuallySet) return;
+              const country = inferLocationCountryCode(text);
+              setRegion(country ? (country === "US" ? "us" : "non_us") : "");
+              setCountryOpen(!country && text.trim().length > 0);
             }}
           />
         </label>

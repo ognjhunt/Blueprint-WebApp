@@ -6,8 +6,8 @@
  * "where is it", which made a legal residency decision the operator's job twice
  * over. The address answers it for almost everyone, so the country is a line to
  * confirm under the address; the select only opens to correct it, or when a
- * typed address never resolved to one, because it decides whether we may
- * collect footage at all.
+ * typed location remains ambiguous. That fallback is visible before Start,
+ * because the country decides whether we may collect footage at all.
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -76,6 +76,61 @@ it.each(["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"])(
 );
 
 describe("SiteCaptureStart and the country", () => {
+  it.each(["Austin, TX", "austin tx", "Austin, Texas, United States", "Austin, TX 78701"])("recognizes an explicit US job location before Start (%s)", (location) => {
+    render(<SiteCaptureStart />);
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
+    expect(screen.getByText(/Country: United States\./)).toBeInTheDocument();
+    expect(region()).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["Paris", "Georgia", "Vancouver, CA", "Austin, TX, Germany"])("shows the country fallback before Start for unresolved geography (%s)", (location) => {
+    render(<SiteCaptureStart />);
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
+    expect(region()).not.toBeNull();
+    expect(region()!.value).toBe("");
+    expect(postsTo("/api/inbound-request")).toHaveLength(0);
+  });
+
+  it.each(["Berlin, Germany", "London UK", "Toronto, Canada"])("recognizes explicit non-US geography and keeps its upload hold (%s)", (location) => {
+    render(<SiteCaptureStart />);
+    fireEvent.click(document.querySelector("#start-existing-footage")!);
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
+    expect(screen.getByText(/Country: Outside the United States\./)).toBeInTheDocument();
+    expect(screen.getByText(/Outside the US we set up the data-transfer terms/)).toBeInTheDocument();
+    expect(document.querySelector("#start-footage")).toBeNull();
+    expect(upload.send).not.toHaveBeenCalled();
+  });
+
+  it("posts a typed Austin TX description on the first Start with the existing country contract", async () => {
+    signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: null } }]);
+    render(<SiteCaptureStart />);
+    await screen.findByText(/Saving to your workspace/);
+    fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Slide the dishwasher racks" } });
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
+    fireEvent.click(document.querySelector("#start-description-authority")!);
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByRole("link", { name: "Saved in your workspace" });
+    const calls = postsTo("/api/workspace/capture-start");
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(calls[0][1].body)).toMatchObject({ siteLocation: "Austin TX", captureRegion: "us", descriptionOnly: true, consentAttestation: null });
+    expect(upload.send).not.toHaveBeenCalled();
+  });
+
+  it("invalidates typed inference on an ambiguous edit and resolves explicit non-US edits", () => {
+    render(<SiteCaptureStart />);
+    const location = document.querySelector("#start-location")!;
+    fireEvent.change(location, { target: { value: "Austin TX" } });
+    expect(screen.getByText(/Country: United States\./)).toBeInTheDocument();
+    fireEvent.change(location, { target: { value: "Paris" } });
+    expect(region()!.value).toBe("");
+    fireEvent.change(location, { target: { value: "Paris, France" } });
+    expect(screen.getByText(/Country: Outside the United States\./)).toBeInTheDocument();
+    fireEvent.change(location, { target: { value: "" } });
+    expect(region()).toBeNull();
+    expect(screen.queryByText(/Country:/)).toBeNull();
+  });
+
   it("does not ask for a country up front", () => {
     render(<SiteCaptureStart />);
     expect(region()).toBeNull();
@@ -108,10 +163,12 @@ describe("SiteCaptureStart and the country", () => {
     expect(screen.getByText(/During the beta we can only take walkthroughs/)).toBeInTheDocument();
   });
 
-  it("asks once, on Start, when a typed address never resolved to a country", async () => {
+  it("shows unresolved country before Start and focuses it if an incomplete form is submitted", async () => {
     render(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin" } });
+    expect(region()).not.toBeNull();
+    expect(region()!.value).toBe("");
     fireEvent.click(document.querySelector("#start-description-authority")!);
   fireEvent.click(document.querySelector("#start-rights")!);
 
@@ -157,7 +214,7 @@ function fillAndSubmit() {
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin" } });
   fireEvent.click(document.querySelector("#start-description-authority")!);
   fireEvent.click(document.querySelector("#start-rights")!);
-  // A typed address has no country yet: the first Start asks for it.
+  // A bare city is ambiguous: its visible country fallback still needs a choice.
   fireEvent.submit(screen.getByRole("form"));
   fireEvent.change(region()!, { target: { value: "us" } });
   fireEvent.submit(screen.getByRole("form"));

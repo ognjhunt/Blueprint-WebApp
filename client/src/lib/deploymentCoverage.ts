@@ -27,6 +27,43 @@ for (let a = 65; a <= 90; a++) for (let b = 65; b <= 90; b++) {
   }
 }
 
+const locationAliases = [...new Set([...countries.keys(), ...stateCodes.keys()])]
+  .sort((left, right) => right.length - left.length);
+
+function explicitLocationSuffix(label: string) {
+  return locationAliases.find((alias) => label === alias || label.endsWith(` ${alias}`)
+    || label.endsWith(`,${alias}`));
+}
+
+/** Resolve explicit geography only; city names and state/country collisions need a choice. */
+export function inferLocationCountryCode(label: string): string | null {
+  const normalized = normalize(label).replace(/\s*,\s*/g, ",");
+  const suffix = explicitLocationSuffix(normalized);
+  if (suffix) {
+    const country = countries.get(suffix);
+    const state = stateCodes.get(suffix);
+    if (country && state) return null;
+    const prefix = normalized.slice(0, -suffix.length).replace(/[,\s]+$/, "")
+      .replace(/(?:,|\s)\d{5}(?:-\d{4})?$/, "");
+    const preceding = explicitLocationSuffix(prefix);
+    const precedingCountry = preceding ? countries.get(preceding) : undefined;
+    const precedingState = preceding ? stateCodes.has(preceding) : false;
+    if (country) {
+      if (precedingCountry && !precedingState && precedingCountry !== country) return null;
+      if (country !== "US" && precedingState && !precedingCountry) return null;
+      return country;
+    }
+    if (state) return precedingCountry && !precedingState && precedingCountry !== "US" ? null : "US";
+  }
+  // A ZIP code alone is insufficient; require an explicit, unambiguous US state.
+  const withoutZip = normalized.replace(/(?:,|\s)\d{5}(?:-\d{4})?$/, "");
+  if (withoutZip !== normalized) {
+    const state = explicitLocationSuffix(withoutZip);
+    if (state && stateCodes.has(state) && !countries.has(state)) return inferLocationCountryCode(withoutZip);
+  }
+  return null;
+}
+
 /** Explicit declarations only: ambiguous prose remains provisional. */
 export function compareDeploymentCoverage(
   serviceArea: string | null,

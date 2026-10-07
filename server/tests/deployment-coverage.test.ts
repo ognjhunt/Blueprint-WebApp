@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { compareDeploymentCoverage } from "../../client/src/lib/deploymentCoverage";
+import { compareDeploymentCoverage, inferLocationCountryCode } from "../../client/src/lib/deploymentCoverage";
 import { toSiteRequirement } from "../utils/siteMatchRun";
 import { matchRobotTeam } from "../../client/src/lib/robotMatch";
 import type { InboundRequest } from "../types/inbound-request";
 
 const ohio = { country: "US", state: "OH", city: "Columbus", label: "Columbus, Ohio" };
+
+describe("country from typed job locations", () => {
+  it.each(["Austin TX", "Austin, Texas", "10 Main Street, Austin, TX 78701-1234", "Austin, TX, U.S.A.", "Atlanta, Georgia, United States"])("resolves explicit US geography (%s)", (location) => {
+    expect(inferLocationCountryCode(location)).toBe("US");
+  });
+  it.each([["London UK", "GB"], ["Berlin, Germany", "DE"], ["Toronto, Canada", "CA"], ["Tbilisi, GE", "GE"]])("resolves explicit country without widening it (%s)", (location, country) => {
+    expect(inferLocationCountryCode(location)).toBe(country);
+  });
+  it.each(["", "Austin", "Paris", "CA", "Vancouver, CA", "Georgia", "Bremen, DE", "78701", "Austin, 78701", "Austin, TX, Germany", "Austin, TX 78701, Germany", "Berlin, Germany, Texas", "Toronto, Canada, TX 78701", "London UK Germany", "Texas Avenue"])("keeps ambiguous or conflicting geography unresolved (%s)", (location) => {
+    expect(inferLocationCountryCode(location)).toBeNull();
+  });
+});
 
 describe("deployment and support coverage", () => {
   it("matches a self-recorded site outside Austin to nationwide coverage", () => {
