@@ -26,8 +26,27 @@ function inventoryIndexName(name) {
 const operationName = name => resource(name, `${DATABASE}/operations/`);
 const enumIs = (value, label, number) => value === label || value === number;
 const stateOf = row => enumIs(row.state, 'READY', 2) ? 'READY' : enumIs(row.state, 'CREATING', 1) ? 'CREATING' : enumIs(row.state, 'NEEDS_REPAIR', 3) ? 'NEEDS_REPAIR' : 'UNKNOWN';
+function definitionKnown(row) {
+  if (!['COLLECTION', 'COLLECTION_GROUP', 'COLLECTION_RECURSIVE'].some((label, i) => enumIs(row.queryScope, label, i + 1))
+    || (row.apiScope != null && !['ANY_API', 'DATASTORE_MODE_API', 'MONGODB_COMPATIBLE_API'].some((label, i) => enumIs(row.apiScope, label, i)))
+    || !Array.isArray(row.fields) || row.fields.length < 2 || row.fields.length > 100) return false;
+  const fieldPaths = new Set();
+  return row.fields.every(field => {
+    if (!field || typeof field.fieldPath !== 'string' || !field.fieldPath) return false;
+    if (fieldPaths.has(field.fieldPath)) return false;
+    fieldPaths.add(field.fieldPath);
+    // This operator understands only order/array definitions. Unsupported
+    // nested definitions cannot establish target absence or allow a create.
+    if (field.vectorConfig != null || field.searchConfig != null) return false;
+    const ordered = enumIs(field.order, 'ASCENDING', 1) || enumIs(field.order, 'DESCENDING', 2);
+    const array = enumIs(field.arrayConfig, 'CONTAINS', 1);
+    if ((!ordered && field.order != null && !enumIs(field.order, 'ORDER_UNSPECIFIED', 0))
+      || (!array && field.arrayConfig != null && !enumIs(field.arrayConfig, 'ARRAY_CONFIG_UNSPECIFIED', 0))) return false;
+    return Number(ordered) + Number(array) === 1;
+  });
+}
 function exact(row) {
-  return row && enumIs(row.queryScope, 'COLLECTION', 1)
+  return row && definitionKnown(row) && enumIs(row.queryScope, 'COLLECTION', 1)
     && (row.apiScope == null || enumIs(row.apiScope, 'ANY_API', 0))
     && Array.isArray(row.fields) && row.fields.length === 4
     && row.fields.every((field, i) => field.fieldPath === FIELDS[i].fieldPath && enumIs(field.order, 'ASCENDING', 1)
@@ -57,7 +76,7 @@ export async function runIndexOperation({ client, mode, record, wait = ms => new
     try { return await call(); } catch (error) { throw failure(error, stage); }
   }
   async function inventory() {
-    let pageToken = ''; const seen = new Set(); const found = new Map(); let count = 0;
+    let pageToken = ''; const seen = new Set(); const found = new Map(); const targetNames = new Set(); let count = 0;
     for (let page = 0; page < 20; page++) {
       // Native index administration currently accepts only the default (0)
       // page size. Bound returned inventory locally instead of overriding it.
@@ -67,7 +86,12 @@ export async function runIndexOperation({ client, mode, record, wait = ms => new
         if (!inventoryIndexName(row?.name)) refuse('index_inventory_scope_invalid');
         // Live listing can include other collections in this same database.
         // Their fields/state confer no target authority and are not evaluated.
-        if (indexName(row.name) && exact(row)) found.set(row.name, row);
+        if (indexName(row.name)) {
+          if (targetNames.has(row.name)) refuse('duplicate_target_index');
+          targetNames.add(row.name);
+          if (!definitionKnown(row)) refuse('target_index_definition_unavailable');
+          if (exact(row)) found.set(row.name, row);
+        }
       }
       pageToken = response?.nextPageToken ?? next?.pageToken ?? '';
       if (typeof pageToken !== 'string' || pageToken.length > 8192 || (pageToken && seen.has(pageToken))) refuse('index_inventory_pagination_invalid');

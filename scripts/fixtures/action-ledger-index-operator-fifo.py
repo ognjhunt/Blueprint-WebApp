@@ -3,14 +3,16 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
-import tempfile
 import time
+import uuid
 
 repo = Path(__file__).resolve().parents[2]
 source = repo / "scripts/action-ledger-index-diagnostic.mjs"
-with tempfile.TemporaryDirectory(prefix="blueprint-action-ledger-index-", dir="/tmp") as directory:
-    root = Path(directory)
+root = Path('/tmp') / ('blueprint-action-ledger-index-' + uuid.uuid4().hex)
+root.mkdir(mode=0o700)
+try:
     operator = root / "operator.mjs"
     operator.write_bytes((repo / "scripts/action-ledger-index-operator.mjs").read_bytes())
     operator.chmod(0o600)
@@ -30,4 +32,6 @@ with tempfile.TemporaryDirectory(prefix="blueprint-action-ledger-index-", dir="/
              "sourceSha256": hashlib.sha256(source.read_bytes()).hexdigest(), "exitCode": result.returncode,
              "code": rows[0]["code"], "elapsedSeconds": time.monotonic() - started,
              "beforeAuthentication": True, "network": "no credentials; rejected before token acquisition"}
+finally:
+    shutil.rmtree(root)
 print(json.dumps(proof))

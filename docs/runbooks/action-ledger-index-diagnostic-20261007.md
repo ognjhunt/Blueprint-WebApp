@@ -29,7 +29,7 @@ Use only the existing, authenticated Render worker Shell in its application
 directory `/opt/render/project/src`. Materialize the newly reviewed diagnostic
 source into a fresh private /tmp directory and verify the handoff's hash.
 Supply the corrected operator path; its bytes must match
-`a39b1a70e1469754892daae60646184c1ab788f61a1ba442c0e17e65c6aad686`.
+`ba1e24ddef8e560114560cc938ec764815bcd57671f58ff9fe9c4ae11c48b096`.
 Its list request still omits pageSize100. It admits only well-formed same-project/defaultDB
 inventory while qualifying only the exact action_ledger parent. The historical operator bytes at SHA
 `5281c83cbffc493d38c078c8beeb82c7e534333a3029fed38d8960e0d7e16f35`
@@ -72,9 +72,15 @@ an unknown create or blindly modify parameters.
 
 The corrected live inspect reached inventory but stopped at
 `index_inventory_scope_invalid`, without absence/READY or an index write. The
-actual resource-name shape has not yet been observed. Do not weaken that guard
-or guess another name format. Use the reviewed diagnostic's separately selected
-mode in the same existing worker Shell:
+parent then reported a sanitized same-parent SDK response with36valid resources
+in the expected project/default database:35other collections and one exact
+action_ledger parent, with no next page. Scope receipt SHA-256 is
+`02879cc946659152e53db105e47c8d7abb8b7f15446cc6ea9ba985ed88e46db6`;
+parent-reported archive generation is `1791408470519267`. Root has not read that
+live object. This proves shape only, not required fields, absence or READY.
+The corrected operator selects only the exact parent after bounded database
+inventory validation. The diagnostic remains separately selected and read-only
+in the same existing worker Shell:
 
 ```bash
 node <verified-diagnostic-path> <verified-corrected-operator-path> diagnose-scope
@@ -89,8 +95,8 @@ enums. It never prints resource IDs, foreign project/collection names, field
 definitions, arbitrary SDK keys, page tokens or document/customer contents.
 Additional shape rows are counted as omitted. Any next page remains unread;
 this is diagnostic evidence and never full inventory, absence or READY proof.
-There is no direct-REST fallback in this mode, even on API failure. The operator
-resource guard and source bytes are unchanged.
+There is no direct-REST fallback in this mode, even on API failure. Shape
+diagnosis does not change the corrected operator's resource guard or execute it.
 Project token categories distinguish a decimal number from the expected ID;
 collection token categories distinguish the expected ID from a wildcard or
 another ID. These are shape evidence only, never authorization to accept an

@@ -80,6 +80,29 @@ describe('fixed action-ledger index operator', () => {
     await expect(invoke(c).promise).rejects.toThrow('duplicate_target_index');
     expect(c.getIndex).not.toHaveBeenCalled(); expect(c.createIndex).not.toHaveBeenCalled();
   });
+  it('rejects a repeated target resource identity with contradictory definitions across pages', async () => {
+    const c = fake();
+    c.listIndexes.mockResolvedValueOnce([[index()], null, { nextPageToken: 'next' }])
+      .mockResolvedValueOnce([[{ ...index(), fields: FIELDS.slice().reverse() }], null, {}]);
+    await expect(invoke(c).promise).rejects.toThrow('duplicate_target_index');
+    expect(c.getIndex).not.toHaveBeenCalled(); expect(c.createIndex).not.toHaveBeenCalled();
+  });
+  it.each([
+    { fields: undefined }, { fields: [] }, { fields: [{ fieldPath: 'lane', order: 1 }] },
+    { fields: FIELDS.map(field => ({ ...field, order: 'UNRECOGNIZED_ORDER' })) },
+    { fields: FIELDS.map(field => ({ ...field, arrayConfig: 'CONTAINS' })) },
+    { fields: [{ fieldPath: 'embedding', vectorConfig: {} }, { fieldPath: '__name__', order: 1 }] },
+    { fields: [{ fieldPath: 'embedding', vectorConfig: { dimension: 3, flat: {} } }, { fieldPath: '__name__', order: 1 }] },
+    { fields: [{ fieldPath: 'text', searchConfig: {} }, { fieldPath: '__name__', order: 1 }] },
+    { fields: [{ fieldPath: 'lane', order: 1 }, { fieldPath: 'lane', order: 1 }] },
+    { queryScope: 999 }, { apiScope: 999 },
+  ])('does not turn incomplete/ambiguous target definition into absence/create permission: %j', change => {
+    const c = fake([{ ...index(), ...change }]); const run = invoke(c);
+    return expect(run.promise).rejects.toThrow('target_index_definition_unavailable').then(() => {
+      expect(run.events.some(row => row.event === 'inventory-complete')).toBe(false);
+      expect(c.getIndex).not.toHaveBeenCalled(); expect(c.createIndex).not.toHaveBeenCalled();
+    });
+  });
   it.each([
     name.replace('/(default)/', '/other-db/'), name.replace('/blueprint-8c1ca/', '/other-project/'),
     name.replace('/collectionGroups/', '/wrong-marker/'), name.replace('/action_ledger/', '//'), name + '/extra',
@@ -99,6 +122,12 @@ describe('fixed action-ledger index operator', () => {
   it('requires exact getIndex READY even when listed READY', async () => {
     const c = fake([index()]); c.getIndex.mockResolvedValue([index('CREATING')]);
     expect(await invoke(c).promise).toMatchObject({ ready: false, state: 'CREATING' });
+    expect(c.createIndex).not.toHaveBeenCalled();
+  });
+  it('refuses conflicting field configuration in independently fetched target', async () => {
+    const c = fake([index()]);
+    c.getIndex.mockResolvedValue([{ ...index(), fields: FIELDS.map(field => ({ ...field, searchConfig: {} })) }]);
+    await expect(invoke(c, 'inspect').promise).rejects.toThrow('index_readback_mismatch');
     expect(c.createIndex).not.toHaveBeenCalled();
   });
   it('uses an existing exact READY index without a create', async () => {

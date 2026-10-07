@@ -1,7 +1,8 @@
 # Bounded action-ledger index operation
 
 The qualification model completed for the October 7 intake, then the existing
-action executor's quota query failed because its composite index was absent.
+action executor's quota query failed because its required composite index was
+unavailable to that query. Current exact index absence/READY remains unproven.
 PR 914 versions that exact index. Web/worker deployment alone does not install
 it. This operator command installs at most that one missing index; it does not
 resume qualification, touch task documents, send messages, reset retries or
@@ -66,6 +67,13 @@ all inventory/page limits but their fields/state are never evaluated. Only the
 unchanged exact action_ledger parent can enter target matching/getIndex. Foreign
 projects/databases, malformed names and duplicate distinct exact targets still
 refuse before absence/get/create; complete pagination remains mandatory.
+Repeated exact-parent resource identities also fail, including across pages,
+rather than collapsing contradictory definitions. Missing, incomplete, unknown
+or conflicting exact-parent definitions cannot establish absence or authorize
+creation. This scoped operator supports order/array definitions only; nested
+vector/search configurations and duplicate field paths fail closed. The same
+definition check applies to independent getIndex readback. Only a complete,
+bounded inventory of known nonmatching definitions establishes absence.
 
 The official [ListIndexes contract](https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.collectionGroups.indexes/list)
 defines the request parent and indexes/nextPageToken response. The installed
