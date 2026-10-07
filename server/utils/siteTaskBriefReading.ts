@@ -45,6 +45,7 @@ import {
 import { VIDEO_CONTRADICTION_CONFIDENCE_FLOOR } from "../../client/src/lib/gateTriage";
 import { bindingGates } from "../../client/src/lib/siteTaskReadiness";
 import { getBrief, mergeBriefProposals, type ProposedGateAnswer } from "./siteTaskBrief";
+import { timestampedVideoObservations } from "./siteVideoObservationClaims";
 
 /**
  * How sure the model has to be before "you said so" is offered as a reading.
@@ -115,28 +116,25 @@ export function proposalsFromReading(
  * so the operator can scrub to it and disagree.
  */
 export function proposalsFromFootage(
-  evidence: Pick<SiteVideoEvidenceOutput, "observations">,
+  evidence: Pick<SiteVideoEvidenceOutput, "footage_status" | "observations">,
   captureMode: CaptureMode,
 ): ProposedGateAnswer[] {
   const binding = bindingGates(captureMode);
   const proposals: ProposedGateAnswer[] = [];
 
-  for (const observation of evidence.observations) {
-    if (observation.stance === "not_visible") continue;
+  for (const observation of timestampedVideoObservations(evidence)) {
     const value = observation.implied_value?.trim();
     if (!value) continue;
     if (observation.confidence < VIDEO_CONTRADICTION_CONFIDENCE_FLOOR) continue;
     const field = binding.find((candidate) => candidate.id === observation.field_id);
     if (!field || !optionOf(field, value)) continue;
 
-    const moment = observation.moments[0];
+    const moment = observation.moments.find(item => Number.isFinite(item.at_seconds) && item.at_seconds >= 0)!;
     proposals.push({
       fieldId: field.id,
       value,
       basis: "observation",
-      reading: moment
-        ? `${observation.observation} (at ${clockLabel(moment.at_seconds)})`
-        : observation.observation,
+      reading: `${observation.observation} (at ${clockLabel(moment.at_seconds)})`,
     });
   }
 
