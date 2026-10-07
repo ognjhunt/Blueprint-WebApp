@@ -18,7 +18,7 @@ describe("Site-led homepage", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Café" }));
     expect(screen.getByRole("tabpanel")).toHaveTextContent(/dish rack/);
     expect(screen.getByRole("img", { name: /café example/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Play examples" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pause examples" })).toBeInTheDocument();
     expect(screen.queryByText(/Your criteria/)).not.toBeInTheDocument();
   });
 
@@ -40,10 +40,10 @@ describe("Site-led homepage", () => {
       fireEvent.mouseEnter(section);
       act(() => screen.getByRole("tab", { name: "Warehouse" }).focus());
       fireEvent.mouseLeave(section);
-      act(() => { vi.advanceTimersByTime(7000); });
+      act(() => { vi.advanceTimersByTime(11000); });
       expect(screen.getByRole("tab", { name: "Warehouse" })).toHaveAttribute("aria-selected", "true");
       act(() => screen.getByRole("tab", { name: "Warehouse" }).blur());
-      act(() => { vi.advanceTimersByTime(7000); });
+      act(() => { vi.advanceTimersByTime(11000); });
       expect(screen.getByRole("tab", { name: "Café" })).toHaveAttribute("aria-selected", "true");
     } finally {
       vi.useRealTimers();
