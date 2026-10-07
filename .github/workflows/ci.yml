@@ -221,10 +221,13 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        # All configured browser checks use Chromium. Bound installation so a
+        # stalled runner fails with logs instead of holding the gate indefinitely.
+        timeout-minutes: 10
+        run: npx playwright install --with-deps chromium
 
       - name: Verify Playwright install
-        run: npx playwright install --dry-run
+        run: npx playwright install --dry-run chromium
 
       - name: Build stable browser-test client
         env:
