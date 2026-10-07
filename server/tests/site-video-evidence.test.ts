@@ -211,7 +211,7 @@ describe("evidence summary", () => {
             stance: "corroborates",
             observation: "Fixtures unchanged.",
             confidence: 0.8,
-            moments: [],
+            moments: [{ at_seconds: 0, note: "fixture positions" }],
           },
           {
             field_id: "lighting",

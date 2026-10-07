@@ -37,6 +37,7 @@ import { logger } from "../logger";
 import type { InboundRequest, SiteVideoEvidenceSummary } from "../types/inbound-request";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { isSiteVideoEvidenceApplied, isSiteVideoEvidenceEnabled } from "../config/env";
+import { timestampedVideoObservations } from "./siteVideoObservationClaims";
 
 function nowIso() {
   return new Date().toISOString();
@@ -76,7 +77,7 @@ export function summariseVideoEvidence(
   model: string,
 ): SiteVideoEvidenceSummary {
   const byStance = (stance: "contradicts" | "corroborates") =>
-    output.observations
+    timestampedVideoObservations(output)
       .filter((observation) => observation.stance === stance)
       .map((observation) => ({
         field_id: observation.field_id,
