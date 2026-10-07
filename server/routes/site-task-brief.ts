@@ -53,6 +53,7 @@ import { buildLetsTalkEmail, buildNotYetEmail, buildMatchEmail } from "../utils/
 import { runSiteMatch } from "../utils/siteMatchRun";
 import type { InboundRequest, InboundRequestStored, SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
+import { describeBrowserUpload } from "../utils/websiteBrowserUploadStatus";
 import { storedCaptureMarkerExists } from "../utils/captureParts";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
@@ -803,6 +804,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
  * telling another "in review" about the same task.
  */
 router.get("/:token/status", async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store");
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
@@ -840,25 +842,20 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       }).stage;
     }
 
-    // The same object the extractor reads: the one truth about whether a
-    // recording landed. Unreadable counts as absent here — the honest answer
-    // below it ("film the work area") is wrong only when this said true.
-    let hasStoredCapture = false;
-    if (storageAdmin) {
-      try {
-        const bucketName =
-          process.env.FIREBASE_STORAGE_BUCKET?.trim() || "blueprint-8c1ca.appspot.com";
-        const rawPrefix = `scenes/${payload.sceneId}/captures/${payload.captureId}/raw`;
-        hasStoredCapture = await storedCaptureMarkerExists(
-          storageAdmin.bucket(bucketName) as never,
-          rawPrefix,
-        );
-      } catch (error) {
-        logger.warn(
-          { error, requestId: payload.requestId },
-          "Could not check for a stored capture; status will not claim one",
-        );
-      }
+    // A saved recording is distinct from its processing completion marker.
+    // Use the phone receipt's exact generation check: privacy holds and a
+    // failed marker write must not send the laptop back to filming again.
+    const upload = await describeBrowserUpload(payload, false);
+    if (upload.uploadState === "status_unavailable") {
+      return res.status(503).json({ error: "The recording status could not be checked. Keep your original video and check again shortly.",
+        code: "task_status_unavailable" });
+    }
+    let hasStoredCapture = upload.captureReceived;
+    if (!hasStoredCapture && storageAdmin) {
+      // Completed app bundles need not use the browser walkthrough filename.
+      const bucketName = process.env.FIREBASE_STORAGE_BUCKET?.trim() || "blueprint-8c1ca.appspot.com";
+      hasStoredCapture = await storedCaptureMarkerExists(storageAdmin.bucket(bucketName) as never,
+        `scenes/${payload.sceneId}/captures/${payload.captureId}/raw`);
     }
 
     const reconstruction = captureSession?.exists
@@ -887,6 +884,14 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       }),
     );
 
+    // Retention alone is not an active review or permission to process. The
+    // desktop must show the same hold as the phone while preserving the saved
+    // receipt (and must never ask for a replacement recording in that state).
+    if (status.decision === "footage_received" && (upload.processingHold || upload.uploadState !== "processing_ready")) {
+      status.headline = upload.processingHold?.detail
+        ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";
+      status.operatorAction = null;
+    }
     // Updates follow events by email; no timed check-in is promised.
     status.nextUpdateIso = null;
     // Keep the optional claim from brief confirmation onward, including the
@@ -902,9 +907,10 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       ok: true,
       scope: payload.scope,
       status,
-      // The completion marker, as a fact: the laptop that showed the QR code
-      // reads this to know the phone's recording landed.
+      // Retention only: a saved recording does not prove processing started.
       captureReceived: hasStoredCapture,
+      uploadState: upload.uploadState,
+      processingHold: upload.processingHold ?? null,
       // Whether coverage is checked automatically or by a person, so the page
       // says which one happens.
       footageReviewAutomated: isSiteVideoEvidenceEnabled(),
