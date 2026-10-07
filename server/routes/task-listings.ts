@@ -94,12 +94,13 @@ router.post("/owner/:token/book", async (req, res) => {
   const parsed = bookSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Confirm you are authorized to book this pilot." });
   if (!db) return res.status(503).json({ error: "Booking unavailable" });
+  const store = db;
   try {
-    const ref = db.collection("inboundRequests").doc(token.requestId);
+    const ref = store.collection("inboundRequests").doc(token.requestId);
     const bookedAtIso = new Date().toISOString();
     const captureUrl = captureUploadUrlFor(token.requestId, "owner");
     const rows = new Map<string, ReturnType<typeof buildOutboxEntry>>();
-    const outcome = await db.runTransaction(async transaction => {
+    const outcome = await store.runTransaction(async transaction => {
       const current = await transaction.get(ref);
       const record = current.data();
       const recommendation = record?.pilot_recommendation;
@@ -111,10 +112,10 @@ router.post("/owner/:token/book", async (req, res) => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return "contact_missing" as const;
       const input = buildTaskLifecycleNotification({ requestId: token.requestId, milestone: "pilot_booked",
         eventId: pilotRecommendationEventId(recommendation.id, to), to, captureUrl });
-      const intentRef = db.collection(CAPTURE_OUTBOX_COLLECTION).doc(input.idempotencyKey);
+      const intentRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(input.idempotencyKey);
       const intent = await transaction.get(intentRef);
       const legacyKey = `${token.requestId}:pilot_booked:${recommendation.id}`;
-      const legacyRef = db.collection(CAPTURE_OUTBOX_COLLECTION).doc(legacyKey);
+      const legacyRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(legacyKey);
       const legacy = await transaction.get(legacyRef);
       const matches = (entry: OutboxEntry, key: string) => entry.idempotencyKey === key
         && entry.requestId === token.requestId && entry.kind === "pilot_booked" && entry.to === to;
