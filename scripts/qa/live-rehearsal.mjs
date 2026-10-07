@@ -56,17 +56,16 @@ try {
   });
 
   await page.goto(`${BASE}/contact/site-operator`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("textbox", { name: /^Your name/ }).fill("Beta Rehearsal (automated lap)");
   await page
     .getByRole("textbox", { name: /^Work email/ })
     .fill(`beta-rehearsal+${stamp}@tryblueprint.io`);
   await page.getByRole("textbox", { name: /^Site or company/ }).fill("Blueprint Live Lap Rehearsal");
   await page
-    .getByRole("textbox", { name: /^What is the job\?/ })
+    .getByRole("textbox", { name: /^What is the task\?/ })
     .fill("Move sealed cartons from the conveyor onto a pallet at the end of each shift.");
-  await page.getByRole("combobox", { name: /^Where would the robot do this job\?/ }).fill("Austin, TX");
+  await page.getByRole("combobox", { name: /^Where would the robot do this task\?/ }).fill("Austin, TX");
   await page.keyboard.press("Escape");
-  await page.getByRole("checkbox", { name: /I am authorised to record/ }).check();
+  await page.getByRole("checkbox", { name: /I am authori[sz]ed to record/ }).check();
   await shot(page, "01-live-intake-filled");
   await page.getByRole("button", { name: "Start" }).click();
 

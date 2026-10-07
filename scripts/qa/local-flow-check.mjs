@@ -48,18 +48,16 @@ try {
   const page = await desktop.newPage({ viewport: { width: 1280, height: 900 } });
   await page.goto(`${BASE}/contact/site-operator`, { waitUntil: "domcontentloaded" });
   await dismissCookies(page);
-
-  await page.getByRole("textbox", { name: /^Your name/ }).fill("E2E Flow Check");
   await page
     .getByRole("textbox", { name: /^Work email/ })
     .fill(`e2e+flow-${Date.now()}@blueprint.test`);
   await page.getByRole("textbox", { name: /^Site or company/ }).fill("Blueprint Flow Test Co");
   await page
-    .getByRole("textbox", { name: /^What is the job\?/ })
+    .getByRole("textbox", { name: /^What is the task\?/ })
     .fill("Move sealed cartons from the conveyor onto a pallet at the end of each shift.");
-  await page.getByRole("combobox", { name: /^Where would the robot do this job\?/ }).fill("Austin, TX");
+  await page.getByRole("combobox", { name: /^Where would the robot do this task\?/ }).fill("Austin, TX");
   await page.keyboard.press("Escape");
-  await page.getByRole("checkbox", { name: /I am authorised to record/ }).check();
+  await page.getByRole("checkbox", { name: /I am authori[sz]ed to record/ }).check();
   await shot(page, "01-desktop-intake-filled");
   await page.getByRole("button", { name: "Start" }).click();
 
