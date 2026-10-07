@@ -152,3 +152,40 @@ Live execution needs a fresh native packet; old successful recovery proof stays
 historical evidence and is never relabeled as current runtime proof. The original
 Oct6 cleanup and 7 a.m. research admission require their separate existing
 authority, retained IDs/evidence, mailbox dedupe and budget gates.
+
+## Prospective release after the skipped deployment
+
+The failed guarded deployment performed no Render POST. Its exact normal lease
+was separately settled to expiry zero, preserving its generation and the original
+incident audit. The original `release` command remains bound to that audit and
+must not be replayed against a successor. A separately requested prospective
+release uses `release-settled` with generation-pinned settlement evidence:
+
+```sh
+node --use-env-proxy scripts/communications-release-sequence-20261007.mjs release-settled \
+  FRESH_NATIVE_MANIFEST_URI EXACT_GREEN_MAIN_SHA /tmp/new-prospective-release \
+  MANIFEST_GENERATION MANIFEST_SHA256 \
+  SETTLEMENT_URI SETTLEMENT_GENERATION SETTLEMENT_SHA256
+```
+
+This verifies the exact current settled owner/generation/expiry zero and the
+unchanged audit and completed lap, then uses the same packaged canonical acquire
+and heartbeat. It does not replay recovery or decrement a generation. Changed
+predecessors, audit or lap evidence reject before acquisition.
+
+The explicit prospective dispatch adds `repair_bootstrap=true`. In the existing
+held deployment job, the three OFF checks must pass before any settings write.
+Only an authenticated404 for `BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP` on each of
+the two fixed services permits one single-key PUT with `{ "value": "true" }`.
+A configured nontrue value is refused. The writer preserves unrelated variables,
+retains intent/status evidence, and requires a fresh literaltrue GET. There are
+no update retries; unknown acknowledgements remain observe-only.
+
+These two settings prevent local env overrides during startup. They change no
+credential, permission, identity or access, and activate no outreach loop. The
+supported single-key API is documented at
+https://api-docs.render.com/reference/update-env-var. This API save path avoids
+the MCP merge tool's additional automatic deploy call; the same existing job
+performs the one exact-SHA deployment only after protective GET readbacks pass.
+The controller's normal heartbeat owns both configuration repair and deployment.
+The after-deploy guard is read-only and verifies both services still held OFF.

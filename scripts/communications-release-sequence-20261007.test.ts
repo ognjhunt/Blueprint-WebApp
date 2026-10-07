@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { sha, CONTROL, LAP } from './communications-incident-20261006.mjs';
-import { boundProof, continuousRelease, packagedLease, predecessorGuard, retainOwnedIntent, workflowAdmission } from './communications-release-sequence-20261007.mjs';
+import { boundProof, continuousRelease, packagedLease, predecessorGuard, retainOwnedIntent, settledPredecessor, workflowAdmission } from './communications-release-sequence-20261007.mjs';
+
+import { AUDIT } from './communications-incident-recovery-20261006.mjs';
 
 let directory: string, Store: any, LeaseChannel: any;
 beforeAll(async () => {
@@ -180,11 +182,11 @@ describe('private proof byte bindings and real deployment hold consumer', () => 
   const workflow = readFileSync('.github/workflows/deploy.yml', 'utf8');
   const node = workflow.split("cat > /tmp/outreach-release-holds.mjs <<'NODE'\n")[1].split('          NODE')[0];
   async function holdConsumer(change: (key: string, row: any) => any = (_key, row) => row, env: any = {}, recipeChange: any = (row: any) => row) {
-    const writes: string[] = [], calls: string[] = [];
+    const writes: string[] = [], calls: string[] = [], puts: any[] = [], saved = new Map<string, any>();
     const source = node.replace(/          /g, '').replace(/import \{[^\n]+\} from 'node:fs';\n/, '');
     await runInNewContext(`(async () => {${source}})()`, {
       process: { env: { RENDER_API_KEY: 'synthetic', RENDER_SERVICE_ID: 'srv-d4vnmk3e5dus73aiohk0',
-        RENDER_WORKER_SERVICE_ID: 'srv-d9t8gg1t0dsc73am9q70', DEPLOYMENT_VARIABLE_CONTEXT: '{}', ...env }, argv: ['node', 'synthetic', 'after'] },
+        RENDER_WORKER_SERVICE_ID: 'srv-d9t8gg1t0dsc73am9q70', DEPLOYMENT_VARIABLE_CONTEXT: '{}', ...env }, argv: ['node', 'synthetic', env.HOLD_PHASE ?? 'after'] },
       AbortSignal: { timeout: () => null },
       fetch: async (url: string, options: any) => {
         expect(options.redirect).toBe('error'); calls.push(url);
@@ -195,13 +197,18 @@ describe('private proof byte bindings and real deployment hold consumer', () => 
             serviceDetails: { envSpecificDetails: { startCommand: worker ? 'npm run start:worker' : 'npm run start' } },
             autoDeploy: 'no', branch: 'main' }) };
         }
+        if (options.method === 'PUT') {
+          const body = JSON.parse(options.body); puts.push({ url, body }); saved.set(url, { key, value: body.value });
+          return { status: env.PUT_STATUS ?? 200, json: async () => ({ key, value: body.value }) };
+        }
+        if (saved.has(url)) return { status: 200, json: async () => saved.get(url) };
         const row = change(key, { key, value: ['BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP', 'BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER'].includes(key)
           ? 'true' : key === 'NODE_OPTIONS' ? '' : 'false' });
         return { status: row === null ? 404 : 200, json: async () => row };
       },
       mkdirSync: () => {}, writeFileSync: (_path: string, bytes: string) => writes.push(bytes),
     });
-    return { writes, calls };
+    return { writes, calls, puts };
   }
   it('real workflow verifies fixed authenticated OFF flags and bootstrap skip on both services', async () => {
     const { calls, writes } = await holdConsumer();
@@ -219,6 +226,21 @@ describe('private proof byte bindings and real deployment hold consumer', () => 
   it('accepts only the supported absent Web escape hatch, not missing worker flags or bootstrap skip', async () => {
     await expect(holdConsumer((key, row) => key === 'BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB' ? null : row)).resolves.toBeDefined();
     await expect(holdConsumer((key, row) => key === 'BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED' ? null : row)).rejects.toThrow('outreach_release_hold_changed');
+  });
+  it('saves only two absent bootstrap keys then verifies actual literaltrue GETs', async () => {
+    const { puts, calls, writes } = await holdConsumer((key, row) => key === 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP' ? null : row,
+      { REPAIR_BOOTSTRAP: 'true', HOLD_PHASE: 'before' });
+    expect(puts).toHaveLength(2); expect(calls).toHaveLength(14);
+    expect(puts.every(p => p.url.endsWith('/env-vars/BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP') && p.body.value === 'true')).toBe(true);
+    expect(writes.some(w => JSON.parse(w).schema === 'blueprint.held-bootstrap-save.v1')).toBe(true);
+  });
+  it.each(['after', 'before'])('does not overwrite configured nontrue bootstrap in phase %s', async phase => {
+    await expect(holdConsumer((key, row) => key === 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP' ? { ...row, value: 'false' } : row,
+      { REPAIR_BOOTSTRAP: 'true', HOLD_PHASE: phase })).rejects.toThrow('outreach_release_hold_changed');
+  });
+  it('rejects a failed save without retry', async () => {
+    await expect(holdConsumer((key, row) => key === 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP' ? null : row,
+      { REPAIR_BOOTSTRAP: 'true', HOLD_PHASE: 'before', PUT_STATUS: 500 })).rejects.toThrow('bootstrap_repair_update_unverified');
   });
   it('refuses a different valid service binding before issuing any reads', async () => {
     await expect(holdConsumer(undefined, { RENDER_WORKER_SERVICE_ID: 'srv-synthetic-successor' })).rejects.toThrow('outreach_release_service_binding_changed');
@@ -314,5 +336,61 @@ describe('native proof preparation source boundary (offline)', () => {
       'synthetic', '1', '0'.repeat(64), '/workspace/synthetic-output'],
     { env: { PATH: process.env.PATH, FIREBASE_SERVICE_ACCOUNT_JSON: 'synthetic-not-json' }, timeout: 5000 }))
       .rejects.toMatchObject({ stderr: expect.stringContaining('private_exact_directories_required') });
+  });
+});
+
+describe('prospective exact settled predecessor, without incident rewind', () => {
+  function settled() {
+    const f = fixture();
+    const lease = { owner: 'research-release:web-worker-00000000-0000-4000-8000-000000000001', generation: 6697, expires_at_ms: 0 };
+    f.docs[CONTROL].lease = structuredClone(lease);
+    f.docs[AUDIT] = { releaseFence: { generation: 6696 }, historical: true, authority: { actor: 'synthetic' } };
+    const record = { schema: 'blueprint.skipped-held-release-settlement.v1', state: 'skipped_deploy_exact_own_lease_settled',
+      lease, auditDigest: sha(f.docs[AUDIT]), lapDigest: sha(f.docs[LAP]), newDeploymentAuthorized: false, automaticRetryAuthorized: false };
+    return { f, record };
+  }
+  it('reads the released6697 and canonical package acquires6698 while preserving the original audit', async () => {
+    const { f, record } = settled();
+    const selected = await settledPredecessor(f.db, record, { actor: 'synthetic' });
+    expect(selected.state).toBe('settled-predecessor'); expect(f.writes).toHaveLength(0);
+    const guard = predecessorGuard(f.db, selected.lease, record, { actor: 'synthetic' });
+    const store = new Store(guard.db, () => 1791345600000, 'research-release:synthetic-new-release');
+    await store.acquire('research_release');
+    expect(f.docs[CONTROL].lease.generation).toBe(6698); expect(f.docs[AUDIT].releaseFence.generation).toBe(6696);
+  });
+  it.each(['lease', 'audit', 'lap'])('rejects changed %s with zero writes', async field => {
+    const { f, record } = settled();
+    if (field === 'lease') f.docs[CONTROL].lease = { ...record.lease, generation: 6698 };
+    if (field === 'audit') f.docs[AUDIT].changed = true;
+    if (field === 'lap') f.docs[LAP].phase = 'active';
+    await expect(settledPredecessor(f.db, record, { actor: 'synthetic' })).rejects.toThrow('settled_release_predecessor_changed');
+    expect(f.writes).toHaveLength(0);
+  });
+  it.each([1, null, '0'])('rejects unsettled expiry %s before DB access', async expiry => {
+    const { f, record } = settled(); record.lease.expires_at_ms = expiry as any;
+    await expect(settledPredecessor(f.db, record, { actor: 'synthetic' })).rejects.toThrow('settled_release_record_unverified'); expect(f.writes).toHaveLength(0);
+  });
+  it.each(['actor', 'approvalReference', 'action', 'expectedMcpReadScope', 'expectedWebCommit', 'expectedSourceFailures'])('rejects changed immutable authority %s', async key => {
+    const { f, record } = settled();
+    await expect(settledPredecessor(f.db, record, { actor: 'synthetic', [key]: 'changed' })).rejects.toThrow('settled_release_predecessor_changed');
+    expect(f.writes).toHaveLength(0);
+  });
+  it('rejects a changed immutable actor while allowing per-proof hashes to rotate', async () => {
+    const { f, record } = settled();
+    await expect(settledPredecessor(f.db, record, { actor: 'changed' })).rejects.toThrow('settled_release_predecessor_changed');
+    await expect(settledPredecessor(f.db, record, { actor: 'synthetic', processProofDigest: 'fresh-per-proof' })).resolves.toBeDefined();
+    expect(f.writes).toHaveLength(0);
+  });
+  it('rejects a changed additional lease field between selection and acquire', async () => {
+    const { f, record } = settled(); const selected = await settledPredecessor(f.db, record, { actor: 'synthetic' });
+    f.docs[CONTROL].lease.extra = 'intervening writer';
+    const guard = predecessorGuard(f.db, selected.lease, record, { actor: 'synthetic' }), store = new Store(guard.db, () => 1791345600000, 'research-release:synthetic-new-release');
+    await expect(store.acquire('research_release')).rejects.toThrow('settled_release_predecessor_changed'); expect(f.writes).toHaveLength(0);
+  });
+  it('rejects an audit change between selection and canonical acquire', async () => {
+    const { f, record } = settled(); const selected = await settledPredecessor(f.db, record, { actor: 'synthetic' });
+    f.docs[AUDIT].changed = true;
+    const guard = predecessorGuard(f.db, selected.lease, record, { actor: 'synthetic' }), store = new Store(guard.db, () => 1791345600000, 'research-release:synthetic-new-release');
+    await expect(store.acquire('research_release')).rejects.toThrow('settled_release_predecessor_changed'); expect(f.writes).toHaveLength(0);
   });
 });

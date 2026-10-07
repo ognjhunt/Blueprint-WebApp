@@ -53,6 +53,11 @@ on:
         required: false
         default: false
         type: boolean
+      repair_bootstrap:
+        description: "Save only the two missing bootstrap-disable settings during an owned held release."
+        required: false
+        default: false
+        type: boolean
       release_token:
         description: "Unique operator token for reconciling one dispatch without retries."
         required: false
@@ -204,6 +209,7 @@ jobs:
           RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
           DEPLOYMENT_VARIABLE_CONTEXT: ${{ toJSON(vars) }}
+          REPAIR_BOOTSTRAP: ${{ github.event.inputs.repair_bootstrap }}
         run: |
           cat > /tmp/outreach-release-holds.mjs <<'NODE'
           import { mkdirSync, writeFileSync } from 'node:fs';
@@ -228,13 +234,38 @@ jobs:
             ['srv-d9t8gg1t0dsc73am9q70', 'NODE_OPTIONS', true, ''],
             ['srv-d4vnmk3e5dus73aiohk0', 'NODE_OPTIONS', true, ''],
           ];
-          const receipts = [];
+          mkdirSync('/tmp/deploy-evidence', { recursive: true });
+          const receipts = [], repairs = [];
+          const retainRepairs = () => writeFileSync('/tmp/deploy-evidence/bootstrap-repair.json', JSON.stringify({
+            schema: 'blueprint.held-bootstrap-save.v1', key: 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP', value: 'true',
+            repairs, sendsAuthorized: false, paidAdmissionAuthorized: false, workerResumeAuthorized: false,
+          }, null, 2) + '\n');
           for (const [service, key, absenceAllowed, expected = 'false'] of checks) {
-            const response = await fetch(`https://api.render.com/v1/services/${service}/env-vars/${key}`, {
+            let response = await fetch(`https://api.render.com/v1/services/${service}/env-vars/${key}`, {
               redirect: 'error', signal: AbortSignal.timeout(20000),
               headers: { Authorization: `Bearer ${process.env.RENDER_API_KEY}`, Accept: 'application/json' },
             });
-            const body = response.status === 404 && absenceAllowed ? null : await response.json();
+            let body = response.status === 404 && absenceAllowed ? null : await response.json();
+            if (process.argv[2] === 'before' && process.env.REPAIR_BOOTSTRAP === 'true'
+              && key === 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP' && expected === 'true' && response.status === 404) {
+              // Fixed checks above already verified both worker flags and the Web escape hatch OFF.
+              // Single-key save preserves unrelated variables and credentials. Never retry an uncertain PUT.
+              const repair = { service, key, previousStatus: 404, intentAtMs: Date.now(), method: 'PUT', value: 'true' };
+              repairs.push(repair); retainRepairs();
+              const url = `https://api.render.com/v1/services/${service}/env-vars/${key}`;
+              const saved = await fetch(url, { method: 'PUT', redirect: 'error', signal: AbortSignal.timeout(20000),
+                headers: { Authorization: `Bearer ${process.env.RENDER_API_KEY}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: 'true' }) });
+              repair.updateStatus = saved.status; repair.updatedAtMs = Date.now(); retainRepairs();
+              if (saved.status !== 200) throw Error('bootstrap_repair_update_unverified');
+              response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(20000),
+                headers: { Authorization: `Bearer ${process.env.RENDER_API_KEY}`, Accept: 'application/json' } });
+              body = await response.json();
+              repair.readbackStatus = response.status;
+              repair.literalTrueObserved = response.status === 200 && body?.key === key && body.value === 'true';
+              repair.observedAtMs = Date.now(); retainRepairs();
+              if (!repair.literalTrueObserved) throw Error('bootstrap_repair_readback_unverified');
+            }
             if (!(response.status === 404 && absenceAllowed) &&
                 !(response.status === 200 && body?.key === key && body.value === expected)) {
               throw Error('outreach_release_hold_changed');

@@ -8,8 +8,8 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { CONTROL, sha, refuse, existingAdmin, privateWrite } from './communications-incident-20261006.mjs';
-import { checkFence, fenceLease, archiveFiles, verifyArchive } from './communications-incident-recovery-20261006.mjs';
+import { CONTROL, LAP, canonical, sha, refuse, existingAdmin, privateWrite } from './communications-incident-20261006.mjs';
+import { AUDIT, checkFence, fenceLease, archiveFiles, verifyArchive } from './communications-incident-recovery-20261006.mjs';
 
 const runFile = promisify(execFile);
 const REPO = 'ognjhunt/Blueprint-WebApp', WORKFLOW = 'deploy.yml';
@@ -72,7 +72,7 @@ export function boundProof(files) {
  * Pipeline Store still performs every normal lap, expiry and generation check.
  * Guard every Firestore transaction retry, including an expired successor.
  */
-export function predecessorGuard(db, expected) {
+export function predecessorGuard(db, expected, settlement = null, authority = null) {
   let acquiring = true;
   return {
     db: {
@@ -82,12 +82,45 @@ export function predecessorGuard(db, expected) {
           const lease = (await tx.get(db.doc(CONTROL))).data()?.lease;
           if (lease?.owner !== expected.owner || lease?.generation !== expected.generation
             || lease?.expires_at_ms !== 0) refuse('release_predecessor_changed');
+          if (settlement) {
+            if (canonical(lease) !== canonical(expected)) refuse('settled_release_predecessor_changed');
+            const [audit, lap] = await Promise.all([AUDIT, LAP].map(path => tx.get(db.doc(path))));
+            if (sha(audit.data()) !== settlement.auditDigest || sha(lap.data()) !== settlement.lapDigest
+              || !authority || sha(immutableAuthority(audit.data()?.authority)) !== sha(immutableAuthority(authority)))
+              refuse('settled_release_predecessor_changed');
+          }
         }
         return fn(tx);
       }, ...args),
     },
     acquired: () => { acquiring = false; },
   };
+}
+
+const immutableAuthority = ({ expectedMcpReceiptDigests, processProofDigest, processProofFileSha256, ...rest } = {}) => rest;
+
+/** A separately requested prospective release after a verified skipped deploy.
+ * The historical settlement is evidence, never standing deployment authority.
+ * This reads the exact settled predecessor; it never rewinds the incident audit.
+ */
+export async function settledPredecessor(db, record, authority) {
+  const lease = record?.lease;
+  if (record?.schema !== 'blueprint.skipped-held-release-settlement.v1'
+    || record.state !== 'skipped_deploy_exact_own_lease_settled'
+    || record.newDeploymentAuthorized !== false || record.automaticRetryAuthorized !== false
+    || !/^research-release:web-worker-[a-f0-9-]{36}$/.test(lease?.owner ?? '')
+    || !Number.isSafeInteger(lease?.generation) || lease.generation < 1 || lease.expires_at_ms !== 0
+    || !/^[a-f0-9]{64}$/.test(record.auditDigest ?? '') || !/^[a-f0-9]{64}$/.test(record.lapDigest ?? ''))
+    refuse('settled_release_record_unverified');
+  return db.runTransaction(async tx => {
+    const [control, audit, lap] = await Promise.all([CONTROL, AUDIT, LAP].map(path => tx.get(db.doc(path))));
+    if (canonical(control.data()?.lease) !== canonical(lease) || sha(audit.data()) !== record.auditDigest
+      || sha(lap.data()) !== record.lapDigest || audit.data()?.releaseFence?.generation + 1 !== lease.generation
+      || sha(immutableAuthority(audit.data()?.authority)) !== sha(immutableAuthority(authority))
+      || lap.data()?.phase !== 'complete' || lap.data()?.lease?.generation !== 259 || lap.data()?.lease?.until !== 0)
+      refuse('settled_release_predecessor_changed');
+    return { state: 'settled-predecessor', lease };
+  });
 }
 
 export async function retainOwnedIntent(assertLease, retainIntent) {
@@ -99,7 +132,7 @@ export async function retainOwnedIntent(assertLease, retainIntent) {
 export async function continuousRelease(steps) {
   await steps.preflight();
   const released = await steps.releaseIncident();
-  if (released?.state !== 'release-fence' || released.lease?.expires_at_ms !== 0) refuse('incident_release_readback_missing');
+  if (!['release-fence', 'settled-predecessor'].includes(released?.state) || released.lease?.expires_at_ms !== 0) refuse('incident_release_readback_missing');
   const channel = steps.channel(released.lease);
   // Await the canonical SDK's bounded transaction rather than abandoning a
   // Promise that could later acquire ownership and start a heartbeat.
@@ -166,8 +199,7 @@ export async function packagedLease(directory, importModule = path => import(pat
   return importModule(pathToFileURL(`${target}/tools/daily_research/firestore_bridge.mjs`).href);
 }
 
-async function proofFiles(input, generation, digest, bucket) {
-  const download = async (uri, gen, expected, size) => {
+async function pinnedBytes(bucket, uri, gen, expected, size) {
     if (!uri?.startsWith(PREFIX) || !/^[0-9]+$/.test(gen ?? '') || !/^[a-f0-9]{64}$/.test(expected ?? '')) refuse('generation_pinned_release_proof_required');
     const file = bucket.file(uri.slice('gs://blueprint-8c1ca.appspot.com/'.length), { generation: gen });
     const [metadata] = await file.getMetadata(), [bytes] = await file.download();
@@ -175,7 +207,10 @@ async function proofFiles(input, generation, digest, bucket) {
       || bytes.length > 20_000_000 || (size !== undefined && size !== bytes.length)
       || sha(bytes) !== expected) refuse('release_proof_download_changed');
     return bytes;
-  };
+}
+
+async function proofFiles(input, generation, digest, bucket) {
+  const download = (...args) => pinnedBytes(bucket, ...args);
   if (input?.startsWith('/tmp/') && resolve(input) === input) {
     return Object.fromEntries(FILES.map(name => [`${name}.json`, readFileSync(`${input}/${name}.json`)]));
   }
@@ -192,8 +227,8 @@ async function proofFiles(input, generation, digest, bucket) {
 }
 
 async function main() {
-  const [mode, input, target, directory, generation, digest] = process.argv.slice(2);
-  if (mode !== 'release' || !/^[a-f0-9]{40}$/.test(target ?? '')
+  const [mode, input, target, directory, generation, digest, settlementUri, settlementGeneration, settlementDigest] = process.argv.slice(2);
+  if (!['release', 'release-settled'].includes(mode) || !/^[a-f0-9]{40}$/.test(target ?? '')
     || !directory?.startsWith('/tmp/') || resolve(directory) !== directory) refuse('exact_bounded_release_command_required');
   mkdirSync(directory, { mode: 0o700 });
   const { app, db, bucket } = existingAdmin();
@@ -208,12 +243,18 @@ async function main() {
     const files = await proofFiles(input, generation, digest, bucket);
     for (const [name, bytes] of Object.entries(files)) writeFileSync(`${directory}/${name}`, bytes, { mode: 0o600, flag: 'wx' });
     const { proof, authority } = boundProof(files);
+    const settlementBytes = mode === 'release-settled' ? await pinnedBytes(bucket, settlementUri, settlementGeneration, settlementDigest) : null;
+    const settlement = settlementBytes ? JSON.parse(settlementBytes) : null;
+    if (settlementBytes) writeFileSync(`${directory}/settlement.json`, settlementBytes, { mode: 0o600, flag: 'wx' });
     const configurationFreeze = proof.writerFreezeEvidence?.githubConfiguration;
     if (!proof.frozenWriters?.includes('github-configuration-writers') || !configurationFreeze)
       refuse('github_configuration_writer_freeze_missing');
     checkFence(proof, authority, Date.now());
     const { Store, LeaseChannel } = await packagedLease(directory);
     const owner = `research-release:web-worker-${randomUUID()}`;
+    const bootstrapRepairScope = settlement ? { services: ['srv-d9t8gg1t0dsc73am9q70', 'srv-d4vnmk3e5dus73aiohk0'],
+      key: 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP', value: 'true', route: 'single_key_put',
+      configuredValuesMayBeOverwritten: false, automaticRetryAuthorized: false } : null;
     const exactOwnLease = async released => {
       const lease = (await db.doc(CONTROL).get()).data()?.lease;
       if (lease?.owner !== store.owner || lease?.generation !== store.generation
@@ -248,35 +289,35 @@ async function main() {
         journal('proof-retention', archive);
       },
       releaseIncident: async () => {
-        const released = await fenceLease(db, 'release-fence', authority, proof);
+        const released = settlement ? await settledPredecessor(db, settlement, authority) : await fenceLease(db, 'release-fence', authority, proof);
         journal('incident-release', released); return released;
       },
       channel: predecessor => {
         journal('acquire-intent', { owner, predecessor, intendedGeneration: predecessor.generation + 1,
           scope: 'research_release', automaticRetryAuthorized: false });
-        guard = predecessorGuard(db, predecessor);
+        guard = predecessorGuard(db, predecessor, settlement, authority);
         store = new Store(guard.db, Date.now, owner);
         return new LeaseChannel(store);
       },
       acquired: () => guard.acquired(),
-      retainAcquireIntent: () => retain(['incident-release', 'acquire-intent']),
+      retainAcquireIntent: () => retain(['incident-release', 'acquire-intent', ...(settlement ? ['settlement'] : [])]),
       acquireReadback: async () => { heldLease = await exactOwnLease(false); journal(`lease-${Date.now()}`, heldLease); },
       deploy: async assertLease => {
         await assertLease();
         if ((await api('commits/main')).sha !== target) refuse('release_main_changed');
         // Enable only for this one exact dispatch; restore the existing hold
         // immediately. Parent's writer freeze covers this short dispatch window.
-        journal('workflow-restoration-intent', { target, workflow: WORKFLOW, restore: 'disabled_manually' });
+        journal('workflow-restoration-intent', { target, workflow: WORKFLOW, restore: 'disabled_manually', bootstrapRepairScope });
         await retainOwnedIntent(assertLease, () => retain(['acquire-intent', 'workflow-restoration-intent']));
         workflowEnabled = true;
         await gh(['workflow', 'enable', WORKFLOW, '--repo', REPO]);
         try {
           await assertLease();
-          journal('dispatch-intent', { target, token: owner, atMs: Date.now(), retryAuthorized: false });
+          journal('dispatch-intent', { target, token: owner, atMs: Date.now(), retryAuthorized: false, repairBootstrap: Boolean(settlement), bootstrapRepairScope });
           await retainOwnedIntent(assertLease, () => retain(['dispatch-intent']));
           try {
             await gh(['workflow', 'run', WORKFLOW, '--repo', REPO, '--ref', 'main',
-              '-f', `ref=${target}`, '-f', 'clear_cache=false', '-f', 'release_hold=true', '-f', `release_token=${owner}`]);
+              '-f', `ref=${target}`, '-f', 'clear_cache=false', '-f', 'release_hold=true', '-f', `release_token=${owner}`, '-f', `repair_bootstrap=${Boolean(settlement)}`]);
           } catch {
             journal('dispatch-ack-unknown', { target, token: owner, automaticRetryAuthorized: false });
           }
