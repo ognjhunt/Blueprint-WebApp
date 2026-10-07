@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("homepage speaks to sites, with robot teams one nav link away", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Could a robot take over a repetitive task?");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Could a robot take over a repetitive task at your site?");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
   await expect(nav.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");

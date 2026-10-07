@@ -31,7 +31,7 @@ describe("public managed-pilot copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Could a robot take over a repetitive task\?/i,
+        name: /Could a robot take over a repetitive task at your site\?/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Show us a task/i }).length).toBeGreaterThan(0);

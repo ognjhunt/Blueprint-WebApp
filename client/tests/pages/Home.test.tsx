@@ -5,7 +5,7 @@ import Home from "@/pages/Home";
 describe("Site-led homepage", () => {
   it("speaks to sites only, with one call to action and the price", () => {
     render(<Home />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Could a robot take over a repetitive task?");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Could a robot take over a repetitive task at your site?");
     expect(screen.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByText("Free to start. No pilot, no fee.")).toBeInTheDocument();
     // Robot teams reach their own page from the nav, not from the homepage.

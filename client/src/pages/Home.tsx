@@ -3,17 +3,17 @@ import { TaskEvaluationPair } from "@/components/site/TaskEvaluationPair";
 import { SEO } from "@/components/SEO";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
-const description = "Could a robot take over a repetitive task? Show us the task. We find a robot team that fits and set up a pilot at your site to test it. Free to start. No pilot, no fee.";
+const description = "Could a robot take over a repetitive task at your site? Show us the task. We find a robot team that fits and set up a pilot to test it. Free to start. No pilot, no fee.";
 
 export default function Home() {
   return (
     <>
-      <SEO title="Blueprint | From one job to a measured robot pilot" description={description} canonical="/" jsonLd={webPageJsonLd({ path: "/", name: "Blueprint", description })} />
+      <SEO title="Blueprint | From your task to a robot pilot" description={description} canonical="/" jsonLd={webPageJsonLd({ path: "/", name: "Blueprint", description })} />
       <section className="ms-task-hero ms-container" aria-labelledby="hero-title">
           <div className="ms-task-hero-intro">
-            <h1 id="hero-title">Could a robot take over a repetitive task?</h1>
+            <h1 id="hero-title">Could a robot take over a repetitive task at your site?</h1>
             <div className="ms-task-hero-actions">
-              <p>Show us the task. We find a robot team that fits and set up a pilot at your site to test it.</p>
+              <p>Show us the task. We find a robot team that fits and set up a pilot to test it.</p>
               <div className="ms-task-hero-links">
                 <a className="ms-button" href="/contact/site-operator">Show us a task <ArrowRight size={21} strokeWidth={1.5} aria-hidden="true" /></a>
               </div>

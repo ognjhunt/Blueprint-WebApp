@@ -19,8 +19,8 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       errors.push(error.message);
     });
     for (const [name, path, heading] of [
-      ["home", "/", "Could a robot take over a repetitive task?"],
-      ["how", "/how-it-works", "From one job to a measured pilot."],
+      ["home", "/", "Could a robot take over a repetitive task at your site?"],
+      ["how", "/how-it-works", "From your task to a measured pilot."],
       ["site", "/contact/site-operator", "Start with one task."],
       ["robot", "/contact/robot-team", "Test your robot on real site jobs."],
       ["privacy", "/privacy", "Privacy Policy"],
@@ -57,7 +57,7 @@ test("mobile navigation works and the method steps are visible without a click",
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
   await expect(page).toHaveURL(/\/how-it-works$/);
-  await expect(page.locator("h1")).toContainText("From one job to a measured pilot.");
+  await expect(page.locator("h1")).toContainText("From your task to a measured pilot.");
   await page.goto("/");
   await expect(page.getByText("One click. We coordinate the rest.")).toBeVisible();
 });
