@@ -14,6 +14,7 @@ import {
 } from "@/data/captureResidency";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import { inferLocationCountryCode } from "@/lib/deploymentCoverage";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { formatPrice, pilotFeeUsd } from "@/lib/evaluationPricing";
@@ -153,7 +154,7 @@ export function SiteCaptureStart() {
   const [method, setMethod] = useState<"upload" | "phone" | "visit">("phone");
   const selfRecording = method === "phone";
   const [region, setRegion] = useState<CaptureRegion | "">("");
-  const [regionManuallySet, setRegionManuallySet] = useState(false);
+  const regionManuallySet = useRef(false);
   // The address answers the country, so the country is not a question on the
   // page. It opens when the operator asks to correct it, or when a typed
   // address never resolved to a country and we cannot go on without one.
@@ -581,9 +582,7 @@ export function SiteCaptureStart() {
         )
       ) : null}
 
-      {/* The address and the country it implies, grouped: the country is a
-          consequence of the address, so it sits under it as a line to confirm
-          rather than a second question. */}
+      {/* Show resolved country or the required fallback while entering the job location. */}
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
           <span>Where would the robot do this task?</span>
@@ -599,7 +598,16 @@ export function SiteCaptureStart() {
             maxLength={300}
             placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
             onSelectionChange={(place) => {
-              if (!regionManuallySet) setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+              if (!regionManuallySet.current) {
+                setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+                if (place) setCountryOpen(!place.countryCode);
+              }
+            }}
+            onInputChange={(text) => {
+              if (regionManuallySet.current) return;
+              const country = inferLocationCountryCode(text);
+              setRegion(country ? (country === "US" ? "us" : "non_us") : "");
+              setCountryOpen(!country && text.trim().length > 0);
             }}
           />
         </label>
@@ -613,7 +621,7 @@ export function SiteCaptureStart() {
               ref={regionSelect}
               value={region}
               required
-              onChange={(event) => { setRegion(event.target.value as CaptureRegion); setRegionManuallySet(!!event.target.value); }}
+              onChange={(event) => { regionManuallySet.current = !!event.target.value; setRegion(event.target.value as CaptureRegion); }}
             >
               <option value="">Choose country</option>
               {captureRegionOptions.map((option) => (

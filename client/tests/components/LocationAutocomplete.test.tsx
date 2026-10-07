@@ -84,6 +84,16 @@ describe("suggestions from the free provider", () => {
 });
 
 describe("the floor is always plain typing", () => {
+  it("reports typed text after invalidating a picked place, without a provider call", () => {
+    const events: unknown[] = [];
+    render(<LocationAutocomplete id="loc" name="startLocation"
+      onSelectionChange={(place) => events.push(place)}
+      onInputChange={(text) => events.push(text)} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Austin TX" } });
+    expect(events).toEqual([null, "Austin TX"]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("does not query on very short input", async () => {
     const input = field();
     fireEvent.change(input, { target: { value: "du" } });

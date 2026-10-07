@@ -162,6 +162,8 @@ export function LocationAutocomplete(props: {
   onSelect?: (place: ChosenPlace) => void;
   /** Reports both a picked place and its later invalidation by manual editing. */
   onSelectionChange?: (place: ChosenPlace | null) => void;
+  /** Reports plain typing after invalidating any earlier picked place. */
+  onInputChange?: (text: string) => void;
 }) {
   const [value, setValue] = useState(props.defaultValue ?? "");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -207,6 +209,7 @@ export function LocationAutocomplete(props: {
     selectionGeneration.current += 1;
     setValue(text);
     props.onSelectionChange?.(null);
+    props.onInputChange?.(text);
     if (debounce.current) window.clearTimeout(debounce.current);
     if (text.trim().length < 3) {
       setSuggestions([]);
@@ -224,6 +227,9 @@ export function LocationAutocomplete(props: {
     setActive(-1);
     let countryCode = suggestion.countryCode;
     if (suggestion.googlePlaceId) {
+      // The visible location has already changed. Clear the prior inferred
+      // country while structured details are pending, including on failure.
+      props.onSelectionChange?.({ label: suggestion.label, countryCode: null });
       countryCode = await googleCountryCode(suggestion.googlePlaceId);
       if (selectionGeneration.current !== generation) return;
     }

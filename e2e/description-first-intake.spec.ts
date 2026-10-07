@@ -58,10 +58,8 @@ for (const device of ["desktop", "mobile"] as const) {
       await page.locator("#start-email").fill("qa@example.invalid");
       await page.locator("#start-company").fill("Synthetic QA site");
       await expect(page.locator("#start-rights")).not.toBeChecked();
-      await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-      expect(mutations).toHaveLength(0);
-      await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-      await page.locator("#start-region").selectOption("us");
+      await expect(page.getByText(/Country: United States\./)).toBeVisible();
+      await expect(page.locator("#start-region")).toHaveCount(0);
       await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
       await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toBeVisible();
       expect(mutations).toHaveLength(1);

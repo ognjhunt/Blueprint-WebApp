@@ -48,10 +48,11 @@ test("capture takes the country from the address, asks only when it cannot, and 
   await page.locator("#start-location").fill("Berlin");
   await page.locator("#start-email").fill("owner@example.test");
   await page.locator("#start-company").fill("Acme Foods");
-  // The country is not a question up front: the address answers it.
-  await expect(page.locator("#start-region")).toHaveCount(0);
+  // A bare city is ambiguous: its required country is visible before Start.
+  await expect(page.locator("#start-region")).toBeVisible();
+  await expect(page.locator("#start-region")).toHaveValue("");
   await page.locator("#start-rights").check();
-  // A typed address never resolved to a country, so Start asks for it once.
+  // Native required-field validation focuses the already-visible fallback.
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect(page.locator("#start-region")).toBeFocused();
   await expect(page.locator("#start-region")).toHaveValue("");
