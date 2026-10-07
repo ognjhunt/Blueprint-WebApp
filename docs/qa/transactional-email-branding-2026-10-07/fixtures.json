@@ -1,0 +1,17 @@
+{
+  "sourceCommit": "a99f86eb9977ce9822397bf7a6108a751508a22f",
+  "sourcePath": "server/utils/taskLifecycleNotifications.ts",
+  "synthetic": true,
+  "fixtures": [
+    {
+      "name": "task_received",
+      "subject": "We have your Blueprint job \u2014 here is your link",
+      "body": "Thanks for sending us your job. This private link is where you review your job brief and follow everything that happens next. You can add footage later, once you have recording permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\nhttps://tryblueprint.io/capture-upload/local-preview-token\n\nWe will email you each time something happens on your job.\n\n\u2014 The Blueprint team"
+    },
+    {
+      "name": "video_received",
+      "subject": "We received your Blueprint walkthrough",
+      "body": "Your walkthrough arrived safely. Next we check that it covers the work area and that nothing private is in view, then we build the scene. We will email you when that is done.\n\nOpen your job:\nhttps://tryblueprint.io/capture-upload/local-preview-token\n\n\u2014 The Blueprint team"
+    }
+  ]
+}

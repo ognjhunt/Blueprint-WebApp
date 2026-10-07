@@ -19,7 +19,7 @@ describe("the branded email layout", () => {
   it("renders dash lines as a list and links inline URLs", () => {
     const html = textToEmailHtml("Missing views:\n\n- the left bench\n- the exit door\n\nSee https://tryblueprint.io/pricing.");
     expect(html).toMatch(/<ul[^>]*><li[^>]*>the left bench<\/li><li[^>]*>the exit door<\/li><\/ul>/);
-    expect(html).toContain('<a href="https://tryblueprint.io/pricing"');
+    expect(html).toMatch(/<a\b[^>]*href="https:\/\/tryblueprint.io\/pricing"/);
   });
 
   it("gives both parts the same company identity", () => {
@@ -27,6 +27,41 @@ describe("the branded email layout", () => {
     expect(message.text).toBe("Body.\n\n--\nBlueprint Robotics, Inc. · 1005 Crete St, Durham, NC 27707\nhttps://tryblueprint.io");
     expect(message.html).toContain("Blueprint Robotics, Inc. · 1005 Crete St, Durham, NC 27707");
     expect(withTextFooter(message.text)).toBe(message.text);
+  });
+
+  it("keeps the private link and security wording intact in both parts", () => {
+    const url = `https://tryblueprint.io/capture-upload/${"signed-token_".repeat(35)}?role=owner&version=1`;
+    const text = `It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\n— The Blueprint team`;
+    const message = brandedEmail({ subject: "Your Blueprint job", text });
+    expect(message.text).toBe(withTextFooter(text));
+    expect(message.html).toContain("without a password, so please don&#39;t forward it.");
+    // The visible fallback and button lead to the exact same owner-scoped URL.
+    const links = [...message.html.matchAll(/href="([^"]+)"/g)].map(match => match[1]);
+    expect(links).toEqual([url.replace(/&/g, "&amp;"), url.replace(/&/g, "&amp;")]);
+  });
+
+  it("escapes the visible heading and footer and preserves optional unsubscribe", () => {
+    const message = brandedEmail({
+      subject: 'Received <script>alert("x")</script>',
+      text: "Body.",
+      footerNote: "Reply to <ops>.",
+      unsubscribeUrl: "https://tryblueprint.io/email-preferences?token=existing&action=unsubscribe",
+    });
+    expect(message.html).toMatch(/<h1[^>]*>Received &lt;script&gt;alert\(&quot;x&quot;\)&lt;\/script&gt;<\/h1>/);
+    expect(message.html).not.toContain("<script>");
+    expect(message.html).toContain("Reply to &lt;ops&gt;.");
+    expect(message.html).toContain('href="https://tryblueprint.io/email-preferences?token=existing&amp;action=unsubscribe"');
+    expect(message.html).toContain(">Unsubscribe</a>");
+    expect(brandedEmail({ subject: "Receipt", text: "Body." }).html).not.toContain(">Unsubscribe</a>");
+  });
+
+  it("keeps sender identity and message readable independently of the logo", () => {
+    const message = brandedEmail({ subject: "We received your walkthrough", text: "Your walkthrough arrived safely." });
+    const withoutImages = message.html.replace(/<img\b[^>]*>/g, "");
+    expect(withoutImages).toMatch(/class="email-wordmark"[^>]*>Blueprint<\/td>/);
+    expect(withoutImages).toContain("Your walkthrough arrived safely.");
+    expect(withoutImages).toContain("1005 Crete St, Durham, NC 27707");
+    expect(message.html).toContain('src="https://tryblueprint.io/brand/email-mark.png" alt="" width="35" height="35"');
   });
 
   it("never greets anyone by a placeholder", () => {
