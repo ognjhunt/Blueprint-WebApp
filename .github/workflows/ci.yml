@@ -259,6 +259,9 @@ jobs:
       - name: Verify invited site beta journey with isolated fixture APIs
         run: npx playwright test --config playwright.invited-beta.config.ts
 
+      - name: Verify private site links and retained capture handoff
+        run: npm run test:site-reliability:browser
+
       - name: Upload Playwright report
         if: ${{ always() && hashFiles('playwright-report/**') != '' }}
         continue-on-error: true

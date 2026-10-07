@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
@@ -13,7 +13,12 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, requireRoles }: ProtectedRouteProps) {
   const { currentUser, userData, tokenClaims, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const [isReady, setIsReady] = useState(false);
+  // Derive visibility from this render's authority. A sticky ready flag can
+  // keep private children mounted after sign-out or role revocation while
+  // the navigation effect runs.
+  const isCapturer = userData?.role === "capturer" || userData?.roles?.includes("capturer") === true;
+  const isReady = !loading && Boolean(currentUser && userData) && !isCapturer
+    && (!requireRoles?.length || hasAnyRole(requireRoles, userData, tokenClaims));
 
   useEffect(() => {
     // Only proceed when loading is complete
@@ -42,8 +47,6 @@ export default function ProtectedRoute({ children, requireRoles }: ProtectedRout
       ) {
         sessionStorage.removeItem("redirectAfterAuth");
         setLocation("/");
-      } else {
-        setIsReady(true);
       }
     }
   }, [currentUser, userData, tokenClaims, loading, setLocation, requireRoles]);

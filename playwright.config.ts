@@ -27,7 +27,7 @@ export default defineConfig({
   // (scripts/qa/run-operator-surfaces.ts), which targets this file directly.
   // Exclude it from the default sweep so a plain `playwright test` run
   // doesn't try to load it without that bypass and fail on missing auth.
-  testIgnore: ['**/invited-site-beta.spec.ts', ...(operatorQaFakeAuthEnabled
+  testIgnore: ['**/site-private-link-reliability.spec.ts', '**/invited-site-beta.spec.ts', ...(operatorQaFakeAuthEnabled
     ? taskEvaluationRunE2eEnabled
       ? ['**/operator-surfaces.spec.ts', '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
       : ['**/task-evaluation-run.spec.ts', '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
