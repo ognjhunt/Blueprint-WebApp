@@ -156,13 +156,22 @@ export async function inspectAgentEvidence<T>(record: T, scope: Scope): Promise<
   catch (error) { return { ...record, agent_evidence_error: error instanceof AgentEvidenceError ? error.message : "agent_evidence_read_unavailable" }; }
 }
 
-export async function persistAgentEvidence(document: Document, scope: Scope, updates: RecordData, database?: { runTransaction: (...args: any[]) => Promise<any> }) {
+export async function persistAgentEvidence(document: Document, scope: Scope, updates: RecordData, database?: { runTransaction: (...args: any[]) => Promise<any> }, options?: { preserveCancelledSession?: boolean }) {
   let verifiedReference: Reference | undefined;
   let recovery: { sourceDigest: string; metadata: RecordData; accountingIdentity?: RecordData } | undefined;
   for (let attempt = 0; attempt < 3; attempt++) {
     const snapshot = await document.get();
     const rawPrior = snapshot.exists ? snapshot.data() : {};
     const prior = snapshot.exists ? await hydrateAgentEvidence(rawPrior, scope) : {};
+    // A late SDK result may retain paid evidence, but cannot resurrect the
+    // operator's cancelled assessment. The source check below is atomic.
+    if (scope.collection === "agentRuns" && prior.task_kind === "site_assessment" && prior.status === "cancelled") {
+      updates = { ...updates, status: "cancelled", error: prior.error ?? "site_assessment_cancelled" };
+      delete updates.completed_at;
+    }
+    if (scope.collection === "agentSessions" && options?.preserveCancelledSession && prior.status === "cancelled") {
+      updates = { ...updates, status: "cancelled" };
+    }
     const merged = { ...prior, ...updates };
     if (plain(prior.metadata) && plain(updates.metadata)) merged.metadata = { ...prior.metadata, ...updates.metadata };
     if (requiresMutationReconciliation(prior) || requiresMutationReconciliation(updates)) merged.mutation_reconciliation_required = true;

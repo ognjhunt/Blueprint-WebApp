@@ -910,7 +910,13 @@ async function logRunEvent(
 
 async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
+  host?: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void> },
 ): Promise<AgentResult<TOutput>> {
+  if (task.kind === "site_assessment") {
+    if (!host) throw new Error("site_assessment_host_required");
+    const { runSiteAssessmentTask } = await import("./adapters/site-assessment");
+    return runSiteAssessmentTask(task as unknown as NormalizedAgentTask, host) as Promise<AgentResult<TOutput>>;
+  }
   if (requiresMutationReconciliation(task as unknown as Record<string, unknown>) && !["openai_responses", "deepseek_chat", "zai_glm"].includes(task.provider)) {
     return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
       tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
@@ -1053,11 +1059,11 @@ async function executeTask<TInput, TOutput>(
   }
 }
 
-async function saveSession(session: PersistedAgentSession) {
+async function saveSession(session: PersistedAgentSession, preserveCancelledSession = false) {
   if (!db) {
     return;
   }
-  await persistAgentEvidence(db.collection("agentSessions").doc(session.id), { collection: "agentSessions", id: session.id }, stripUndefinedDeep(session), db);
+  await persistAgentEvidence(db.collection("agentSessions").doc(session.id), { collection: "agentSessions", id: session.id }, stripUndefinedDeep(session), db, { preserveCancelledSession });
 }
 
 async function saveRun(run: PersistedAgentRun) {
@@ -1310,7 +1316,7 @@ async function updateSessionRuntimePointers(
     ...updates,
     updated_at: nowTimestamp(),
   };
-  await saveSession(nextSession);
+  await saveSession(nextSession, nextSession.task_kind === "site_assessment");
   return nextSession;
 }
 
@@ -1750,7 +1756,21 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
   let retainedAdapterResult: AgentResult<TOutput> | undefined;
   try {
     const startedAtMs = Date.now();
-    const result = await executeTask(normalizedTask);
+    const assertActive = async () => {
+      const run = await db?.collection("agentRuns").doc(runId).get();
+      const sessionId = options?.sessionId || normalizedTask.session_id;
+      const session = sessionId ? await db?.collection("agentSessions").doc(sessionId).get() : null;
+      if (run?.data()?.status === "cancelled" || session?.data()?.status === "cancelled") throw new Error("site_assessment_cancelled");
+      if (run?.data()?.status !== "running") throw new Error("site_assessment_run_not_active");
+    };
+    const result = await executeTask(normalizedTask, { runId, assertActive, assertCostAllowed: async () => {
+      const check = await evaluatePreRunCostStop({ task: normalizedTaskForLogs, runId,
+        sessionId: options?.sessionId || normalizedTask.session_id || null });
+      if (check?.stopped) throw new Error("site_assessment_runtime_cost_stop");
+    } });
+    if (normalizedTask.kind === "site_assessment" && (await db?.collection("agentRuns").doc(runId).get())?.data()?.status === "cancelled") {
+      result.status = "cancelled"; result.error = "site_assessment_cancelled";
+    }
     retainedAdapterResult = result as AgentResult<TOutput>;
     const status = resultStatus(result);
     const latencyMs = Date.now() - startedAtMs;
@@ -2046,6 +2066,9 @@ export async function createAgentSession(params: {
 }) {
   const sessionId = crypto.randomUUID();
   const profile = params.agent_profile_id ? await getAgentProfile(params.agent_profile_id) : null;
+  if (params.task_kind === "site_assessment" && profile && profile.task_kind !== "site_assessment") {
+    throw new Error("site_assessment_profile_incompatible");
+  }
   const environment = params.environment_profile_id
     ? await getEnvironmentProfile(params.environment_profile_id)
     : null;
@@ -2062,7 +2085,7 @@ export async function createAgentSession(params: {
     },
   });
   const provider = normalizeAgentProvider(
-    params.provider || profile?.default_provider,
+    params.provider || profile?.default_provider || (params.task_kind === "site_assessment" ? "openai_responses" : undefined),
   );
   const session: PersistedAgentSession = {
     id: sessionId,
@@ -2156,6 +2179,13 @@ export async function sendAgentSessionMessage(params: {
     throw new Error("Agent session not found");
   }
 
+  // A new authenticated message/resume is explicit new-work intent. Completion
+  // and checkpoint writes below cannot reopen a concurrent cancellation.
+  if (params.task.kind === "site_assessment" && session.status === "cancelled") {
+    session.status = "active";
+    await saveSession({ ...session, updated_at: nowTimestamp() });
+  }
+
   if ((session as unknown as Record<string, unknown>).mutation_reconciliation_required === true) {
     session.metadata = { ...(session.metadata || {}), mutation_reconciliation_required: true };
   }
@@ -2204,6 +2234,7 @@ export async function sendAgentSessionMessage(params: {
     provider: params.task.provider || agentProfile?.default_provider || session.provider,
     runtime: params.task.runtime || agentProfile?.default_runtime || session.runtime,
     tool_policy: mergeToolPolicy(
+      params.task.kind === "site_assessment" ? getTaskDefinition(params.task.kind).tool_policy : undefined,
       environmentProfile?.tool_policy,
       agentProfile?.tool_policy,
       params.task.tool_policy,
@@ -2434,6 +2465,7 @@ export async function sendAgentSessionMessage(params: {
     provider: params.task.provider || agentProfile?.default_provider || session.provider,
     runtime: params.task.runtime || agentProfile?.default_runtime || session.runtime,
     tool_policy: mergeToolPolicy(
+      params.task.kind === "site_assessment" ? getTaskDefinition(params.task.kind).tool_policy : undefined,
       environmentProfile?.tool_policy,
       agentProfile?.tool_policy,
       params.task.tool_policy,
@@ -2621,7 +2653,7 @@ export async function sendAgentSessionMessage(params: {
       last_run_id: runId,
       metadata: nextSessionMetadata,
       updated_at: nowTimestamp(),
-    });
+    }, normalizedTask.kind === "site_assessment");
     await createRuntimeCheckpoint({
       session: {
         ...session,

@@ -5,7 +5,7 @@ import type { CompanyHistoryAccess } from "../research-learning/company-history"
 // expiry come from the existing private owner-controlled read binding, never
 // model input/metadata or an automatically renewed runtime grant.
 const companyTaskKinds = new Set<AgentTaskKind>(["operator_thread", "adp_run_operator", "external_harness_thread",
-  "capture_dispatch", "robot_capability_extraction", "outbound_outreach", "support_triage"]);
+  "capture_dispatch", "robot_capability_extraction", "outbound_outreach", "support_triage", "site_assessment"]);
 export async function getCompanyHistoryAccess(task: { kind: AgentTaskKind }): Promise<CompanyHistoryAccess | null> {
   if (!companyTaskKinds.has(task.kind)) return null;
   try {
