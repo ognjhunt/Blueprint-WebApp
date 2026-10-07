@@ -80,15 +80,16 @@ JSON `fileSha256`. Retain its original bytes in the existing private company
 storage with generation, size, hash and download verification before the timed
 attempt.
 
-The verifier hashes each typed Git object with its raw byte length, binds the
+The verifier hashes each supplied commit/tree object with its raw byte length, binds the
 complete root tree to the exact commit bytes and owner-pinned deployed SHA, and
 walks every tree. Missing, duplicate, unused, misordered, unsafe-path and
 nonregular excluded objects are rejected. It compares all tracked source,
 assets, dependency locks, build/start recipes, configuration and file-loaded
 inputs against baseline `ce8c9d065351ca51b0b4b56e011aaee46d331e5a`.
 Only the thirteen exact nonruntime incident utility/test/runbook paths named in
-the reviewed verifier are omitted from the content inventory; their objects
-remain required in the complete Git tree proof. Nothing outside those paths is
+the reviewed verifier are omitted from the content inventory; their leaf object
+IDs remain bound by the complete tree proof. Every tree object present in the
+candidate is required. Nothing outside those paths is
 exempt. Their absence from the Web bundle and build/start references is reviewed.
 Tree directory names and modes remain in the inventory.
 
