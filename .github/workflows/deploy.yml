@@ -1,4 +1,5 @@
 name: Deploy (Render, CI-gated)
+run-name: ${{ github.event.inputs.release_token || 'CI-gated Render deploy' }}
 
 # Single deploy owner for Blueprint-WebApp and blueprint-webapp-worker:
 # render.yaml keeps Render-native auto-deploy OFF, and this workflow is the
@@ -47,6 +48,16 @@ on:
         required: false
         default: false
         type: boolean
+      release_hold:
+        description: "Verify both outreach loops remain disabled before and after an operator-owned release."
+        required: false
+        default: false
+        type: boolean
+      release_token:
+        description: "Unique operator token for reconciling one dispatch without retries."
+        required: false
+        default: ""
+        type: string
 
 permissions:
   actions: read
@@ -134,7 +145,8 @@ jobs:
     if: >-
       github.event.inputs.incident_inspect != 'true' &&
       (github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success')
+      (github.event.workflow_run.conclusion == 'success' &&
+      vars.BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED == 'true'))
     steps:
       - name: Resolve and verify deploy ref
         id: ref
@@ -184,6 +196,66 @@ jobs:
           fi
           echo "deploy_ref=${deploy_ref}" >> "${GITHUB_OUTPUT}"
           echo "Deploying exact ref ${deploy_ref}"
+
+      - name: Verify outreach release holds before deploying
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_hold == 'true'
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+        run: |
+          cat > /tmp/outreach-release-holds.mjs <<'NODE'
+          import { mkdirSync, writeFileSync } from 'node:fs';
+          if (process.env.RENDER_SERVICE_ID !== 'srv-d4vnmk3e5dus73aiohk0'
+            || process.env.RENDER_WORKER_SERVICE_ID !== 'srv-d9t8gg1t0dsc73am9q70') {
+            throw Error('outreach_release_service_binding_changed');
+          }
+          const checks = [
+            ['srv-d9t8gg1t0dsc73am9q70', 'BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED', false],
+            ['srv-d9t8gg1t0dsc73am9q70', 'BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED', false],
+            ['srv-d4vnmk3e5dus73aiohk0', 'BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB', true],
+            ['srv-d9t8gg1t0dsc73am9q70', 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP', false, 'true'],
+            ['srv-d4vnmk3e5dus73aiohk0', 'BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP', false, 'true'],
+            ['srv-d9t8gg1t0dsc73am9q70', 'BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER', false, 'true'],
+            ['srv-d9t8gg1t0dsc73am9q70', 'NODE_OPTIONS', true, ''],
+            ['srv-d4vnmk3e5dus73aiohk0', 'NODE_OPTIONS', true, ''],
+          ];
+          const receipts = [];
+          for (const [service, key, absenceAllowed, expected = 'false'] of checks) {
+            const response = await fetch(`https://api.render.com/v1/services/${service}/env-vars/${key}`, {
+              redirect: 'error', signal: AbortSignal.timeout(20000),
+              headers: { Authorization: `Bearer ${process.env.RENDER_API_KEY}`, Accept: 'application/json' },
+            });
+            const body = response.status === 404 && absenceAllowed ? null : await response.json();
+            if (!(response.status === 404 && absenceAllowed) &&
+                !(response.status === 200 && body?.key === key && body.value === expected)) {
+              throw Error('outreach_release_hold_changed');
+            }
+            receipts.push({ service, key, status: response.status, body, observedAtMs: Date.now() });
+          }
+          for (const [service, type, startCommand] of [
+            ['srv-d9t8gg1t0dsc73am9q70', 'background_worker', 'npm run start:worker'],
+            ['srv-d4vnmk3e5dus73aiohk0', 'web_service', 'npm run start'],
+          ]) {
+            const response = await fetch(`https://api.render.com/v1/services/${service}`, {
+              redirect: 'error', signal: AbortSignal.timeout(20000),
+              headers: { Authorization: `Bearer ${process.env.RENDER_API_KEY}`, Accept: 'application/json' },
+            });
+            const body = await response.json();
+            if (response.status !== 200 || body.id !== service || body.type !== type
+              || body.serviceDetails?.envSpecificDetails?.startCommand !== startCommand
+              || body.autoDeploy !== 'no' || body.branch !== 'main') throw Error('outreach_release_recipe_changed');
+            receipts.push({ service, status: response.status, type, startCommand, autoDeploy: body.autoDeploy,
+              branch: body.branch, observedAtMs: Date.now() });
+          }
+          mkdirSync('/tmp/deploy-evidence', { recursive: true });
+          writeFileSync(`/tmp/deploy-evidence/outreach-release-holds-${process.argv[2]}.json`, JSON.stringify({
+            schema: 'blueprint.outreach-release-holds.v1', readOnly: true,
+            sendsAuthorized: false, paidAdmissionAuthorized: false, receipts,
+          }, null, 2) + '\n');
+          NODE
+
+          node /tmp/outreach-release-holds.mjs before
 
       - name: Trigger exact-SHA Render deploy through API (fail-closed)
         if: steps.ref.outputs.stale != 'true'
@@ -405,6 +477,14 @@ jobs:
             echo "::error::GET /health/ready returned ${ready_code}; the deployed commit is live but the service is not launch-ready."
             exit 1
           fi
+
+      - name: Verify outreach release holds remain off
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_hold == 'true'
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+        run: node /tmp/outreach-release-holds.mjs after
 
       - name: Upload deployment evidence
         if: always() && steps.ref.outputs.stale != 'true'
