@@ -68,6 +68,12 @@ function autoClaimRequested() {
 
 export function ClaimSite() {
   const { token = "" } = useParams();
+  // A claim link is an authority boundary. Reset its summary, credentials,
+  // consent and pending UI updates before rendering a different link.
+  return <ClaimSiteForToken key={token} token={token} />;
+}
+
+function ClaimSiteForToken({ token }: { token: string }) {
   const [stage, setStage] = useState<Stage>({ status: "loading" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

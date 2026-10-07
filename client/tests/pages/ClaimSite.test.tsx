@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  token: "claim-token-123",
   auth: { currentUser: null as any },
   create: vi.fn(),
   signIn: vi.fn(),
@@ -10,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   workspaceRequest: vi.fn(),
 }));
 
-vi.mock("wouter", () => ({ useParams: () => ({ token: "claim-token-123" }) }));
+vi.mock("wouter", () => ({ useParams: () => ({ token: mocks.token }) }));
 vi.mock("@/lib/firebase", () => ({ auth: mocks.auth }));
 vi.mock("firebase/auth", () => ({
   getAuth: () => mocks.auth,
@@ -71,6 +72,7 @@ function user(overrides: Record<string, unknown> = {}) {
 describe("ClaimSite", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.token = "claim-token-123";
     mocks.auth.currentUser = null;
     mocks.authChanged = null;
     mocks.workspaceRequest.mockResolvedValue({ ok: true });
@@ -273,4 +275,109 @@ describe("ClaimSite", () => {
       window.history.replaceState({}, "", "/");
     }
   });
+
+  it("hides the previous site's form immediately while another claim link loads", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => summary })
+      .mockImplementationOnce(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+    const view = render(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of packing line/i });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "private-password" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    mocks.token = "second-claim-token";
+    view.rerender(<ClaimSite />);
+
+    expect(screen.queryByRole("form", { name: /claim this site/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/packing line/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+    expect(mocks.workspaceRequest).not.toHaveBeenCalled();
+  });
+
+  it("does not carry passwords or checked consent to another site's claim", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => summary })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ...summary,
+        requestId: "request-2", claimEmail: "other@example.com",
+        site: { ...summary.site, siteName: "Second site" },
+      }) }));
+    const view = render(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of packing line/i });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "private-password" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    mocks.token = "second-claim-token";
+    view.rerender(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of second site/i });
+    expect(screen.getByLabelText(/password/i)).toHaveValue("");
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByRole("textbox", { name: /work email/i })).toHaveValue("other@example.com");
+  });
+
+  it("ignores a late retry from the previous claim after navigating to another link", async () => {
+    let resolveRetry!: (value: unknown) => void;
+    vi.stubGlobal("fetch", vi.fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockImplementationOnce(() => new Promise(resolve => { resolveRetry = resolve; }))
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ...summary,
+        requestId: "request-2", site: { ...summary.site, siteName: "Second site" },
+      }) }));
+    const view = render(<ClaimSite />);
+    fireEvent.click(await screen.findByRole("button", { name: /try again/i }));
+    mocks.token = "second-claim-token";
+    view.rerender(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of second site/i });
+    await act(async () => resolveRetry({ ok: true, json: async () => summary }));
+    expect(screen.getByRole("heading", { name: /keep track of second site/i })).toBeInTheDocument();
+    expect(screen.queryByText(/packing line/i)).not.toBeInTheDocument();
+  });
+
+
+  it("keeps the new claim visible when sign-in for the previous link finishes late", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => summary })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ...summary,
+        requestId: "request-2", site: { ...summary.site, siteName: "Second site" },
+      }) }));
+    let finishSignIn!: (value: unknown) => void;
+    mocks.signIn.mockImplementationOnce(() => new Promise(resolve => { finishSignIn = resolve; }));
+    const view = render(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of packing line/i });
+    fireEvent.click(screen.getByRole("link", { name: /sign in instead/i }));
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "private-password" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    mocks.token = "second-claim-token";
+    view.rerender(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of second site/i });
+    await act(async () => finishSignIn({ user: user() }));
+    expect(screen.getByRole("heading", { name: /keep track of second site/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /this site is yours/i })).not.toBeInTheDocument();
+    expect(mocks.workspaceRequest).not.toHaveBeenCalledWith(expect.anything(), "/claim", "POST", expect.objectContaining({ token: "second-claim-token" }));
+  });
+
+  it("does not show an old verification completion under the next claim link", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => summary })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ...summary,
+        requestId: "request-2", site: { ...summary.site, siteName: "Second site" },
+      }) }));
+    let finishReload!: () => void;
+    const existing = user({ emailVerified: false, reload: vi.fn(() => new Promise<void>(resolve => { finishReload = resolve; })) });
+    mocks.auth.currentUser = existing;
+    const view = render(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of packing line/i });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /i’ve verified/i }));
+    mocks.token = "second-claim-token";
+    view.rerender(<ClaimSite />);
+    await screen.findByRole("heading", { name: /keep track of second site/i });
+    existing.emailVerified = true;
+    await act(async () => finishReload());
+    expect(screen.getByRole("heading", { name: /keep track of second site/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /this site is yours/i })).not.toBeInTheDocument();
+    expect(mocks.workspaceRequest).not.toHaveBeenCalledWith(expect.anything(), "/claim", "POST", expect.objectContaining({ token: "second-claim-token" }));
+  });
+
 });
