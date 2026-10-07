@@ -126,6 +126,57 @@ required before the unchanged packaged native `record_cleanup` path. Cleanup
 does not reconcile unknown charges or prove billing stopped. Preserve all other
 sessions/environments, video, CRM and accounting.
 
+If a DELETE acknowledgement is unknown and the process proof expires, do not
+repeat `delete` or re-export the deleted resources. Recollect platform receipts
+through `prepare-platform`, using the same immutable direction, deploy/instance
+scope and original readback pin. Refresh only native/process/MCP evidence, while
+retaining the exact original canonical, provider, cleanup-readback and journal
+bytes. The existing exported consumers support this read-only refresh recipe:
+
+```bash
+node --input-type=module - PLATFORM_GS_URI GENERATION SHA256 \
+  /tmp/ORIGINAL_CLEANUP_PROOF /tmp/NEW_OBSERVATION_PROOF <<'NODE'
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {existingAdmin,sha,privateWrite} from './scripts/communications-incident-20261006.mjs';
+import {inspectRuntime,checkFence,authorityScope} from './scripts/communications-successor-admission-20261007.mjs';
+import {assembleProof} from './scripts/communications-successor-operator-20261007.mjs';
+const [uri,generation,digest,original,output]=process.argv.slice(2);
+const prefix='gs://blueprint-8c1ca.appspot.com/operations/communications/incident-20261006/';
+if(!uri.startsWith(prefix)||!/^\d+$/.test(generation)||!/^[a-f0-9]{64}$/.test(digest)
+  ||!original.startsWith('/tmp/')||!output.startsWith('/tmp/'))throw Error('exact_private_refresh_required');
+const old=JSON.parse(readFileSync(`${original}/authority.json`));
+if(execFileSync('git',['rev-parse','HEAD']).toString().trim()!==old.expectedReleaseCommit
+  ||execFileSync('git',['status','--porcelain','--untracked-files=no']).toString().trim())throw Error('execution_source_changed');
+const {app,bucket}=existingAdmin();let bytes;
+try{const file=bucket.file(uri.slice('gs://blueprint-8c1ca.appspot.com/'.length),{generation});
+  const [metadata]=await file.getMetadata();[bytes]=await file.download();
+  if(String(metadata.generation)!==generation||Number(metadata.size)!==bytes.length
+    ||bytes.length>20000000||sha(bytes)!==digest)throw Error('platform_bytes_changed');
+}finally{await app.delete();}
+const {proof,authority}=assembleProof(JSON.parse(bytes),inspectRuntime(old.expectedReleaseCommit));
+if(sha(authorityScope({...authority,cleanupReadbackFileSha256:old.cleanupReadbackFileSha256}))
+  !==sha(authorityScope(old)))throw Error('immutable_cleanup_scope_changed');
+mkdirSync(output,{mode:0o700});
+for(const name of ['canonical','provider','cleanup-readback','cleanup-journal'])
+  writeFileSync(`${output}/${name}.json`,readFileSync(`${original}/${name}.json`),{mode:0o600,flag:'wx'});
+privateWrite(`${output}/process-proof.json`,proof);
+const bound={...old,expectedMcpReceiptDigests:authority.expectedMcpReceiptDigests,
+  processProofDigest:sha(proof),processProofFileSha256:sha(readFileSync(`${output}/process-proof.json`))};
+checkFence(proof,bound,Date.now());privateWrite(`${output}/authority.json`,bound);
+console.log(JSON.stringify({ok:true,readOnly:true,newDeleteClaim:false,output}));
+NODE
+PYTHONPATH=dist/daily-research/release PYTHONDONTWRITEBYTECODE=1 \
+  dist/daily-research/venv/bin/python scripts/communications-successor-cleanup-20261007.py \
+  observe --directory /tmp/NEW_OBSERVATION_PROOF
+```
+
+The fresh observation uses authenticated target GETs before releasing the exact
+own journal fence or invoking native `record_cleanup`. If instances, immutable
+scope or canonical target changed, stop and retain the evidence; the old DELETE
+claim never authorizes another submission. Original provider observations remain
+historical and receive no replacement timestamp.
+
 No further coding prerequisite is expected after this companion's review/merge.
 The remaining gate is actual restored native access and fresh runtime/provider
 evidence. Parent owns final activation and exact contact/paid batch. Keep sends
