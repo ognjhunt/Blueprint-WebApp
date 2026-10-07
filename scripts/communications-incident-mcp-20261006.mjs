@@ -6,7 +6,12 @@ import { canonical, sha, refuse } from './communications-incident-20261006.mjs';
 const WORKER = 'srv-d9t8gg1t0dsc73am9q70', WEB = 'srv-d4vnmk3e5dus73aiohk0';
 const SCHEMA = 'blueprint.render-mcp-read.v1';
 function operation(call) {
-  const tool = call?.tool?.split('__').at(-1);
+  const aliases = new Map([
+    ['mcp__codex_apps__render_get_service', 'get_service'],
+    ['mcp__codex_apps__render_get_deploy', 'get_deploy'],
+    ['mcp__codex_apps__render_list_logs', 'list_logs'],
+  ]);
+  const tool = aliases.get(call?.tool) ?? call?.tool?.split('__').at(-1);
   if (!['get_service', 'get_deploy', 'list_logs'].includes(tool)) refuse('mcp_read_operation_unbound');
   return tool;
 }

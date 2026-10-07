@@ -1,24 +1,26 @@
 # Local recovery from a retained platform packet
 
-Execution source: `9379022e6b1106a013820026d02c7598a390fe67`. This companion extends the reviewed
+Execution source: `e7853171240ab6e681ff64f276da13ab7f52f7b7`. This companion extends the reviewed
 PR878 incident utilities with a narrow Render MCP read adapter and a local
 operator sequence. PR878 outreach and intake code is unchanged. Publishing this
 source grants no live recovery, deletion, resume, model-call or Gmail authority.
 
 The synthetic protocol and supported CAS path are independently reviewed. The
-actual retained MCP bundle is awaiting its separately requested transfer approval;
-its outer schema and transport compatibility have not been verified here. Do not
-dispatch a live operator command until the approved original bundle has been
-checked losslessly against this adapter and parent has approved the exact fresh
-platform packet and recovery scope.
+approved retained MCP bundle exposed three actual tool names that the original
+adapter did not recognize. The alias-only repair recognizes those exact names
+while preserving each original tool, arguments, response and timestamp. The old
+fixture is structural evidence only; its October 6 20:40 timestamps remain old.
+Do not dispatch a live operator command until the adopted source hashes and
+actual fixture check pass and the parent dispatches the exact fresh platform
+packet and recovery scope.
 
 Prepare the exact source in a private directory from the deployed WebApp root,
 without deploying it, changing credentials, or installing dependencies:
 
 ```bash
-incident_src=/tmp/blueprint-outreach-local-9379022e6
+incident_src=/tmp/blueprint-outreach-local-e78531712
 mkdir -m 700 "$incident_src" &&
-curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/9379022e6b1106a013820026d02c7598a390fe67 |
+curl -fsSL https://codeload.github.com/ognjhunt/Blueprint-WebApp/tar.gz/e7853171240ab6e681ff64f276da13ab7f52f7b7 |
   tar -xz --strip-components=1 -C "$incident_src" &&
 ln -s "$PWD/node_modules" "$incident_src/node_modules"
 ```
@@ -57,8 +59,21 @@ thread and incident and `receipts` arrays named `workerService`, `workerDeploy`,
 `webService`, `webDeploy`, and `webLogs`. Every captured call preserves its exact
 `tool`, `arguments`, `requestedAtUtc`, `respondedAtUtc`, and full `result` envelope.
 Only `get_service`, `get_deploy`, and `list_logs` for the two existing services
-are supported. Preserve an original source envelope as additional provenance
+are supported. Their actual tool names
+`mcp__codex_apps__render_get_service`, `mcp__codex_apps__render_get_deploy`, and
+`mcp__codex_apps__render_list_logs` are recognized without renaming the captured
+tool. Preserve an original source envelope as additional provenance
 when a lossless structural adapter is required; never invent missing fields.
+
+The retained fixture uses `schemaVersion:render-mcp-readonly-receipts-v1`.
+Its exact field mapping is `requestAt` to `requestedAtUtc`, `receivedAt` to
+`respondedAtUtc`, `args` to `arguments`, and `response` to `result`; `tool` is
+unchanged. Map `worker_service`, `worker_deploy`, `web_service`, `web_deploy`, and
+the complete `web_logs_alltypes1` page to the five groups above, retaining the
+complete original object as `sourceEnvelope` and its original bytes/hash
+separately. The list-deploys receipts and narrower app-only log page remain
+provenance, not replacements for exact deployment reads or complete logs. A fresh
+capture must retain its own actual call times and bytes.
 
 MCP success requires an absent or literal `false` error marker and one JSON text
 block. A supported single service/deploy wrapper can be unwrapped while its
@@ -141,10 +156,12 @@ new packet. No cleanup, deletion or activation is part of this command.
 | `communications-incident-admission-20261006.mjs` | `052154f60e290b8009040f6379213a96c7dfeebcdde34c674bbbd47d3c6ad7e8` |
 | `communications-incident-recovery-20261006.mjs` | `ab28b4b65b0bce819bf0d6276aff4e27fadc8ed7727f7b308f062b702bd85dd8` |
 | `communications-incident-cleanup-20261006.py` | `278d7d8ddb42260bd6b84cc1b0c8432fdbd46d635023d7bf768b056df3eea1b1` |
-| `communications-incident-mcp-20261006.mjs` | `5221c60399f9bee443bcdd45e8418b0dd6b0fc99accde82231aaae6f4ed1adc4` |
+| `communications-incident-mcp-20261006.mjs` | `040a9e6a7f3660447c264577a32cd317f6fb95312bd48404e9e216d31e859aeb` |
 | `communications-incident-operator-20261006.mjs` | `adc60b1ed8ed1fa136ced55ba9c33a9ed002b796d129cc3ed2a8813b31bb51d4` |
 
 Focused suites cover successful MCP consumption by actual recovery CAS,
+both legacy and actual tool names with raw scope retained, zero-write refusal
+for actual-name operation/target/timestamp changes even with fresh byte pins,
 zero-write refusal for altered/error/unpinned/stale/unsupported envelopes,
 complete pagination, durable scope across fresh receipts, original HTTP lanes,
 the explicit reviewed Web source pin through CAS/replay/fence release, both
