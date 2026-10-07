@@ -19,10 +19,10 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       errors.push(error.message);
     });
     for (const [name, path, heading] of [
-      ["home", "/", "One recurring job."],
+      ["home", "/", "Could a robot do your recurring job?"],
       ["how", "/how-it-works", "From one job to a measured pilot."],
       ["site", "/contact/site-operator", "Start with one recurring job."],
-      ["robot", "/contact/robot-team", "Your next pilot starts with real work."],
+      ["robot", "/contact/robot-team", "Test your robot on real site jobs."],
       ["privacy", "/privacy", "Privacy Policy"],
       ["terms", "/terms", "Terms of Service"],
       ["not-found", "/this-page-does-not-exist", "That page isn’t here."],
@@ -44,7 +44,7 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
   });
 }
 
-test("mobile navigation and keyboard-accessible method disclosure work", async ({ page }) => {
+test("mobile navigation works and the method steps are visible without a click", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "Open menu" }).click();
@@ -59,9 +59,7 @@ test("mobile navigation and keyboard-accessible method disclosure work", async (
   await expect(page).toHaveURL(/\/how-it-works$/);
   await expect(page.locator("h1")).toContainText("From one job to a measured pilot.");
   await page.goto("/");
-  await page.locator("summary").nth(2).focus();
-  await page.keyboard.press("Enter");
-  await expect(page.getByText(/Measure the on-site trial against the success criteria you agreed/)).toBeVisible();
+  await expect(page.getByText("One click; we coordinate the rest.")).toBeVisible();
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {

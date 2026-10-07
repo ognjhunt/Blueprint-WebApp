@@ -6,7 +6,7 @@ test("docs page is publicly reachable", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /One recurring job/i,
+      name: /Could a robot do your recurring job/i,
     }),
   ).toBeVisible();
 });
@@ -17,7 +17,7 @@ test("blog alias redirects to home", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: /One recurring job/i,
+      name: /Could a robot do your recurring job/i,
     }),
   ).toBeVisible();
 });

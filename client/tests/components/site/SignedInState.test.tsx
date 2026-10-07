@@ -12,14 +12,12 @@ const fetchMock = vi.fn();
 beforeEach(() => { auth.currentUser = null; auth.userData = { finishedOnboarding: true }; fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 
 describe("signed-in state on public pages", () => {
-  it("shows the account instead of the signed-out calls to action", () => {
+  it("shows the account in place of Sign in", () => {
     const { rerender } = render(<MinimalSiteLayout>page</MinimalSiteLayout>);
-    expect(screen.getByRole("link", { name: "Start a job assessment" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Sign in" })[0]).toHaveAttribute("href", "/sign-in");
 
     auth.currentUser = { uid: "u1", email: "ops@example.test" };
     rerender(<MinimalSiteLayout>page</MinimalSiteLayout>);
-    expect(screen.queryByRole("link", { name: "Start a job assessment" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
     expect(screen.getAllByRole("link", { name: "Your workspace" })[0]).toHaveAttribute("href", "/app");
 

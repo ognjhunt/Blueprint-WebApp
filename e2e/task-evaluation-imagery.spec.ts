@@ -62,8 +62,8 @@ test("both audience actions lead to their working intake and the beta action rea
   await hero.getByRole("link", { name: "Start a job assessment" }).click();
   await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
   await page.goto("/");
-  await hero.getByRole("link", { name: "Join the robot-team beta" }).click();
-  await expect(page.locator("h1")).toHaveText("Your next pilot starts with real work.");
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "For robot teams" }).click();
+  await expect(page.locator("h1")).toHaveText("Test your robot on real site jobs.");
   await expect(page.getByRole("img", { name: /Illustrative simulation view: a humanoid/ })).toBeVisible();
   await page.getByRole("link", { name: "Join the robot-team beta" }).click();
   await expect(page).toHaveURL(/#robot-team-access$/);
