@@ -503,6 +503,7 @@
 .ms-pilot-card-foot .ms-button { pointer-events: none; }
 .ms-pilot-art { display: block; width: 100%; max-width: 440px; margin-top: 36px; color: var(--ms-green); animation: ms-pilot-in 420ms ease both; }
 .ms-pilot-panel { animation: ms-pilot-in 420ms ease both; }
+@media (prefers-reduced-motion: reduce) { .ms-pilot-art, .ms-pilot-panel { animation: none; } }
 @keyframes ms-pilot-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .ms-pilot-tabs { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 0 28px; }
 .ms-pilot-tabs [role="tablist"] { display: flex; flex-wrap: wrap; gap: 6px; }

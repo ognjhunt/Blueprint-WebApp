@@ -193,7 +193,9 @@ const ROTATE_MS = 6000;
 export function PilotPreview() {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [held, setHeld] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const held = hovered || focused;
 
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) setPaused(true);
@@ -208,8 +210,9 @@ export function PilotPreview() {
   const { Art } = example;
   return (
     <section className="ms-pilot-preview" aria-labelledby="pilot-preview-title"
-      onMouseEnter={() => setHeld(true)} onMouseLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)} onBlur={() => setHeld(false)}>
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false); }}>
       <div className="ms-pilot-preview-intro">
         <p className="ms-eyebrow">What you get</p>
         <h2 id="pilot-preview-title">One recommended pilot, on one page.</h2>

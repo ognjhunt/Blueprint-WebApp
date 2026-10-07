@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act } from "react";
+import { describe, expect, it, vi } from "vitest";
 import Home from "@/pages/Home";
 
 describe("Site-led homepage", () => {
@@ -29,5 +30,23 @@ describe("Site-led homepage", () => {
     expect(steps[0]).toHaveTextContent(/Show us the task.*Describe it or film it on your phone\./);
     expect(steps[1]).toHaveTextContent(/We find the right robot.*We test it with robot teams and pick one that fits\./);
     expect(steps[2]).toHaveTextContent(/Book the pilot.*One click\. We coordinate the rest\./);
+  });
+
+  it("keeps the example still while a keyboard user is inside it, even after the pointer leaves", () => {
+    vi.useFakeTimers();
+    try {
+      render(<Home />);
+      const section = screen.getByRole("tabpanel").closest("section")!;
+      fireEvent.mouseEnter(section);
+      act(() => screen.getByRole("tab", { name: "Warehouse" }).focus());
+      fireEvent.mouseLeave(section);
+      act(() => { vi.advanceTimersByTime(7000); });
+      expect(screen.getByRole("tab", { name: "Warehouse" })).toHaveAttribute("aria-selected", "true");
+      act(() => screen.getByRole("tab", { name: "Warehouse" }).blur());
+      act(() => { vi.advanceTimersByTime(7000); });
+      expect(screen.getByRole("tab", { name: "Café" })).toHaveAttribute("aria-selected", "true");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
