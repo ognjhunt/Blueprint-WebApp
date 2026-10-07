@@ -40,9 +40,10 @@ import { communicationsDigest } from "../agents/communications-contract";
 import { founderMailboxConnectionPlan } from "../agents/communications-connection";
 import { replyFollowupReviewSchema, reviewReplyFollowup } from "../agents/communications-reply-followup";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
-import { communicationsInprocessRecoverySchema, recoverCommunicationsDraftInProcess } from "../agents/communications-inprocess-recovery";
-import { sampleCommunicationsRecoveryMemory, assertCommunicationsRecoveryHeadroom, COMMUNICATIONS_RECOVERY_HEADROOM_BYTES } from "../agents/communications-recovery-memory";
-import { verifyFounderMailbox, readFounderThread } from "../agents/communications-gmail";
+import { communicationsInprocessRecoverySchema } from "../agents/communications-inprocess-recovery";
+import { enqueueSavedRecovery, cancelSavedRecovery, SAVED_RECOVERY_REQUESTS, SAVED_RECOVERY_WORKER, SAVED_RECOVERY_FRESH_MS, SAVED_RECOVERY_CONTROLS, type SavedRecoveryReadiness, type SavedRecoveryRequest } from "../agents/communications-saved-recovery-queue";
+import { assertCommunicationsRecoveryHeadroom, COMMUNICATIONS_RECOVERY_HEADROOM_BYTES } from "../agents/communications-recovery-memory";
+import { verifyFounderMailbox } from "../agents/communications-gmail";
 import { requireFounderDraftCapability } from "../agents/communications-oauth-store";
 import {
   communicationsResearchInputSchema, previewResearchCommunications, approveResearchCommunications,
@@ -304,73 +305,71 @@ router.post("/:prospectId/communications/:jobId/reconcile-draft", async (req: Re
   } catch { return res.status(409).json({ error: "communications_draft_recovery_not_verified" }); }
 });
 
-/** Owner-only measurement of this existing HTTP process, without recovery or
- * provider calls. The separate worker's baseline is measured independently. */
+/** Web reports the execution worker's source-bound, fresh measurement. Missing
+ * heartbeat, provider, controls or full cgroup headroom stays unavailable. */
 router.get("/communications/recovery-runtime", async (_req: Request, res: Response) => {
   const ownerUid = process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID?.trim();
   if (!(await requireOps(res)) || !ownerUid || res.locals.firebaseUser?.uid !== ownerUid) return res.status(403).json({ error: "communications_recovery_owner_required" });
   res.setHeader("Cache-Control", "no-store");
-  const memory = sampleCommunicationsRecoveryMemory("existing_http_process_idle");
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const worker = (await db.doc(SAVED_RECOVERY_WORKER).get()).data() as SavedRecoveryReadiness | undefined;
+  const sourceCommit = process.env.RENDER_GIT_COMMIT ?? null;
+  const workerFresh = Boolean(worker?.version === "existing-worker-saved-recovery-v1" && worker.executionPlacement === "existing_background_worker"
+    && worker.serviceId && worker.serviceId !== process.env.RENDER_SERVICE_ID && worker.sourceCommit === sourceCommit && worker.ownerUid === ownerUid
+    && Number.isSafeInteger(worker.observedAtMs) && worker.observedAtMs <= Date.now() && Date.now() - worker.observedAtMs <= SAVED_RECOVERY_FRESH_MS);
   let headroomAvailable = false;
-  try { assertCommunicationsRecoveryHeadroom(memory); headroomAvailable = true; } catch { /* Measurement cannot authorize bypassing the reserve. */ }
-  const outreachControlsOff = ["BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED", "BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED",
-    "BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED"].every(key => process.env[key] === "false");
-  return res.json({ sourceCommit: process.env.RENDER_GIT_COMMIT ?? null, existingProcess: true,
-    providerKeyConfigured: !!process.env.OPENAI_API_KEY?.trim(), memory, headroomAvailable,
-    headroomReserveBytes: COMMUNICATIONS_RECOVERY_HEADROOM_BYTES, outreachControlsOff,
-    sent: false, sessionCreated: false, gmailDraftCreated: false });
+  try { if (workerFresh && worker?.headroomAvailable && worker.headroomReserveBytes === COMMUNICATIONS_RECOVERY_HEADROOM_BYTES) { assertCommunicationsRecoveryHeadroom(worker.memory); headroomAvailable = true; } } catch { /* Full worker cgroup remains authoritative. */ }
+  return res.json({ sourceCommit, existingProcess: true, executionPlacement: "existing_background_worker", workerServiceId: worker?.serviceId ?? null, workerFresh,
+    providerKeyConfigured: workerFresh && worker?.providerKeyConfigured === true, founderBindingConfigured: workerFresh && worker?.founderBindingConfigured === true,
+    memory: worker?.memory ?? null, headroomAvailable,
+    headroomReserveBytes: COMMUNICATIONS_RECOVERY_HEADROOM_BYTES, outreachControlsOff: workerFresh && worker?.outreachControlsOff === true && SAVED_RECOVERY_CONTROLS.every(key => worker?.controls?.[key] === "literal_off"),
+    controls: worker?.controls ?? null, sent: false, sessionCreated: false, gmailDraftCreated: false });
 });
-
-/** Recover one completed output through the worker's normal consumer in the
- * existing HTTP process. This route cannot generate, cancel, copy or send. */
+const recoveryRequestView = (record: SavedRecoveryRequest | undefined) => record ? { actorUid: record.actorUid, requestDigest: record.requestDigest,
+  generation: record.generation, state: record.state, expiresAtMs: record.expiresAtMs, cancelRequested: record.cancelRequested,
+  expectedSourceCommit: record.input.expectedSourceCommit, sessionId: record.input.sessionId, result: record.result ?? null, error: record.error ?? null } : null;
+/** Explicit owner intent; Web needs no model key and runs no model consumer. */
 router.post("/:prospectId/communications/:jobId/recover-saved-draft", async (req: Request, res: Response) => {
   const ownerUid = process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID?.trim();
   if (!(await requireOps(res)) || !ownerUid || res.locals.firebaseUser?.uid !== ownerUid) return res.status(403).json({ error: "communications_recovery_owner_required" });
-  if (!db || !process.env.OPENAI_API_KEY?.trim()) return res.status(503).json({ error: "communications_recovery_runtime_unavailable" });
-  const runtimeDb = db;
+  if (!db) return res.status(503).json({ error: "communications_recovery_runtime_unavailable" });
   const parsed = communicationsInprocessRecoverySchema.safeParse(req.body);
   const prospectId = String(req.params.prospectId ?? ""), jobId = String(req.params.jobId ?? "");
   if (!parsed.success || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(prospectId) || !/^[a-f0-9]{64}$/.test(jobId)) return res.status(400).json({ error: "communications_saved_recovery_input_invalid" });
   res.setHeader("Cache-Control", "no-store");
-  const controller = new AbortController();
-  const aborted = () => controller.abort();
-  const disconnected = () => { if (!res.writableEnded) controller.abort(); };
-  req.once("aborted", aborted); res.once("close", disconnected);
   try {
-    await requireFounderDraftCapability();
-    await verifyFounderMailbox();
-    let gets = 0;
-    const api = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference: false,
-      reviewedSavedOutputDigest: parsed.data.rawOutputSha256, fetch: async (url, init: RequestInit = {}) => {
-        const target = new URL(String(url)), method = init.method ?? "GET";
-        const base = `/v1/agents/sessions/${parsed.data.sessionId}`;
-        if (method !== "GET" || target.origin !== "https://api.openai.com" || ![base, `${base}/turns`, `${base}/items`].includes(target.pathname)
-          || ++gets > 32) throw new Error("communications_saved_recovery_get_only_boundary");
-        const response = await fetch(url, { ...init, redirect: "error", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]) });
-        if (!response.body) return response;
-        const reader = response.body.getReader(), chunks: Uint8Array[] = [];
-        let bytes = 0;
-        try {
-          for (;;) {
-            const next = await reader.read(); if (next.done) break;
-            bytes += next.value.length;
-            if (bytes > 262144) throw new Error("communications_saved_recovery_response_too_large");
-            chunks.push(next.value);
-          }
-        } finally { await reader.cancel(); }
-        return new globalThis.Response(Buffer.concat(chunks), { status: response.status, statusText: response.statusText, headers: response.headers });
-      } });
-    const result = await recoverCommunicationsDraftInProcess({ prospectId, jobId, ...parsed.data }, ownerUid, {
-      store: new CommunicationsStore(runtimeDb), api, readResearch: (date, admissionId) => readExistingResearchSnapshot(runtimeDb, date, admissionId),
-      verifyMailbox: verifyFounderMailbox, readThread: readFounderThread,
-      isSuppressed: email => isEmailSuppressed(email, "growth_campaign"),
-      suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "all", source: "communications_reply" }), now: Date.now,
-    }, { signal: controller.signal });
-    return res.json({ ok: true, ...result, sessionCreated: false, existingProcess: true });
+    await requireFounderDraftCapability(); await verifyFounderMailbox();
+    const request = await enqueueSavedRecovery(db, { prospectId, jobId, ...parsed.data }, ownerUid, Date.now());
+    return res.status(202).json({ ok: true, state: request.state, request: recoveryRequestView(request), executionPlacement: "existing_background_worker",
+      sessionCreated: false, sent: false, gmailDraftCreated: false, existingProcess: true });
   } catch (error) {
     const code = error instanceof Error && /^communications_[a-z_]+$/.test(error.message) ? error.message : "communications_saved_recovery_not_verified";
     return res.status(409).json({ error: code, sent: false, sessionCreated: false, gmailDraftCreated: false });
-  } finally { req.removeListener("aborted", aborted); res.removeListener("close", disconnected); }
+  }
+});
+router.get("/:prospectId/communications/:jobId/saved-recovery", async (req: Request, res: Response) => {
+  const ownerUid = process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID?.trim();
+  if (!(await requireOps(res)) || !ownerUid || res.locals.firebaseUser?.uid !== ownerUid) return res.status(403).json({ error: "communications_recovery_owner_required" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const jobId = String(req.params.jobId ?? ""), prospectId = String(req.params.prospectId ?? "");
+  if (!/^[a-f0-9]{64}$/.test(jobId)) return res.status(400).json({ error: "communications_saved_recovery_input_invalid" });
+  const record = (await db.doc(`${SAVED_RECOVERY_REQUESTS}/${jobId}`).get()).data() as SavedRecoveryRequest | undefined;
+  if (record && (record.actorUid !== ownerUid || record.input.prospectId !== prospectId)) return res.status(409).json({ error: "communications_saved_recovery_intent_binding_changed" });
+  res.setHeader("Cache-Control", "no-store"); return res.json({ ok: true, request: recoveryRequestView(record), sent: false, gmailDraftCreated: false, sessionCreated: false });
+});
+router.post("/:prospectId/communications/:jobId/saved-recovery/cancel", async (req: Request, res: Response) => {
+  const ownerUid = process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID?.trim();
+  if (!(await requireOps(res)) || !ownerUid || res.locals.firebaseUser?.uid !== ownerUid) return res.status(403).json({ error: "communications_recovery_owner_required" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const parsed = z.object({ generation: z.number().int().positive(), requestDigest: z.string().regex(/^[a-f0-9]{64}$/) }).strict().safeParse(req.body);
+  const jobId = String(req.params.jobId ?? "");
+  if (!parsed.success || !/^[a-f0-9]{64}$/.test(jobId)) return res.status(400).json({ error: "communications_saved_recovery_input_invalid" });
+  try {
+    const prior = (await db.doc(`${SAVED_RECOVERY_REQUESTS}/${jobId}`).get()).data() as SavedRecoveryRequest | undefined;
+    if (!prior || prior.input.prospectId !== String(req.params.prospectId ?? "")) throw Error("communications_saved_recovery_intent_binding_changed");
+    const request = await cancelSavedRecovery(db, jobId, ownerUid, parsed.data.generation, parsed.data.requestDigest, Date.now());
+    res.setHeader("Cache-Control", "no-store"); return res.json({ ok: true, request: recoveryRequestView(request), sent: false, gmailDraftCreated: false, sessionCreated: false });
+  } catch { return res.status(409).json({ error: "communications_saved_recovery_cancel_not_verified" }); }
 });
 
 /** Requeue one blocked job after repair; retain its create claim and budget. */

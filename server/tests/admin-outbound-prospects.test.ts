@@ -5,6 +5,7 @@ import { CommunicationsStore } from "../agents/communications-store";
 import * as draftBudget from "../agents/communications-draft-budget";
 import * as producer from "../agents/communications-producer";
 import * as followups from "../agents/communications-reply-followup";
+import * as recoveryQueue from "../agents/communications-saved-recovery-queue";
 import * as inprocess from "../agents/communications-inprocess-recovery";
 import * as gmail from "../agents/communications-gmail";
 import * as oauth from "../agents/communications-oauth-store";
@@ -23,7 +24,7 @@ vi.mock("../agents/communications-research", async (original) => ({
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: { firestore: { FieldValue: { serverTimestamp: () => "timestamp" } } },
   // The recipient lookup is a mocked query too: no test here reaches a real Firestore.
-  dbAdmin: { collection: () => ({ doc: () => ({ get: mocks.get, set: mocks.set }),
+  dbAdmin: { doc: () => ({ get: mocks.get, set: mocks.set }), collection: () => ({ doc: () => ({ get: mocks.get, set: mocks.set }),
     where: (...args: unknown[]) => { mocks.where(...args); return { limit: () => ({ get: mocks.recipientQuery }) }; } }) },
 }));
 vi.mock("../utils/access-control", () => ({ hasAnyRole: mocks.hasAnyRole }));
@@ -66,45 +67,46 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe("outbound prospect review routes (no provider, Firestore, or transport I/O)", () => {
-  it("reports exact owner runtime, full-cgroup reserve and literal controls without provider or mailbox calls", async () => {
+  it("reports only the fresh existing worker measurement, without a Web provider or memory substitute", async () => {
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID", "authenticated-operator");
-    vi.stubEnv("OPENAI_API_KEY", "synthetic-never-real"); vi.stubEnv("RENDER_GIT_COMMIT", "f".repeat(40));
-    for (const key of ["BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED", "BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED", "BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED"]) vi.stubEnv(key, "false");
+    vi.stubEnv("OPENAI_API_KEY", ""); vi.stubEnv("RENDER_GIT_COMMIT", "f".repeat(40)); vi.stubEnv("RENDER_SERVICE_ID", "web-service");
     const sample = { observedAt: "synthetic", rss: 150 * 1024 * 1024, cgroup: { current: 200 * 1024 * 1024, limit: 512 * 1024 * 1024 } };
-    const memory = vi.spyOn(recoveryMemory, "sampleCommunicationsRecoveryMemory").mockReturnValue(sample as any);
+    const worker = { version: "existing-worker-saved-recovery-v1", executionPlacement: "existing_background_worker", sourceCommit: "f".repeat(40),
+      serviceId: "existing-worker", ownerUid: "authenticated-operator", observedAtMs: Date.now(), providerKeyConfigured: true, founderBindingConfigured: true,
+      controls: Object.fromEntries(recoveryQueue.SAVED_RECOVERY_CONTROLS.map(key => [key, "literal_off"])), outreachControlsOff: true,
+      headroomAvailable: true, headroomReserveBytes: 24 * 1024 * 1024, memory: sample };
+    mocks.get.mockResolvedValue({ data: () => worker });
+    const memory = vi.spyOn(recoveryMemory, "sampleCommunicationsRecoveryMemory");
     const recover = vi.spyOn(inprocess, "recoverCommunicationsDraftInProcess"), capability = vi.spyOn(oauth, "requireFounderDraftCapability"), mailbox = vi.spyOn(gmail, "verifyFounderMailbox");
     expect((await invoke("/communications/recovery-runtime", {}, "get", "another-owner")).status).toBe(403);
-    expect(memory).not.toHaveBeenCalled();
-    const result = await invoke("/communications/recovery-runtime", {}, "get");
-    expect(result.body).toMatchObject({ sourceCommit: "f".repeat(40), existingProcess: true, providerKeyConfigured: true,
-      headroomAvailable: true, headroomReserveBytes: 24 * 1024 * 1024, outreachControlsOff: true, memory: sample,
-      sent: false, sessionCreated: false, gmailDraftCreated: false });
-    memory.mockReturnValue({ ...sample, cgroup: { current: 500 * 1024 * 1024, limit: 512 * 1024 * 1024 } } as any);
+    expect((await invoke("/communications/recovery-runtime", {}, "get")).body).toMatchObject({ sourceCommit: "f".repeat(40), existingProcess: true,
+      executionPlacement: "existing_background_worker", workerFresh: true, providerKeyConfigured: true, founderBindingConfigured: true,
+      headroomAvailable: true, outreachControlsOff: true, memory: sample });
+    worker.memory = { ...sample, cgroup: { current: 500 * 1024 * 1024, limit: 512 * 1024 * 1024 } };
     expect((await invoke("/communications/recovery-runtime", {}, "get")).body.headroomAvailable).toBe(false);
-    memory.mockReturnValue({ ...sample, cgroup: null } as any);
-    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "FALSE");
-    expect((await invoke("/communications/recovery-runtime", {}, "get")).body).toMatchObject({ headroomAvailable: false, outreachControlsOff: false });
-    expect(recover).not.toHaveBeenCalled(); expect(capability).not.toHaveBeenCalled(); expect(mailbox).not.toHaveBeenCalled();
+    worker.controls.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED = "missing";
+    expect((await invoke("/communications/recovery-runtime", {}, "get")).body.outreachControlsOff).toBe(false);
+    worker.observedAtMs -= 45001;
+    expect((await invoke("/communications/recovery-runtime", {}, "get")).body).toMatchObject({ workerFresh: false, providerKeyConfigured: false, headroomAvailable: false });
+    expect(memory).not.toHaveBeenCalled(); expect(recover).not.toHaveBeenCalled(); expect(capability).not.toHaveBeenCalled(); expect(mailbox).not.toHaveBeenCalled();
     expect(mocks.set).not.toHaveBeenCalled(); expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
   });
-  it("requires the configured authenticated owner and exact source/job pins for in-process recovery", async () => {
+  it("queues exact authenticated founder intent without a Web model binding or consumer", async () => {
     const path = "/:prospectId/communications/:jobId/recover-saved-draft";
     const body = { briefDigest: "b".repeat(64), expectedCheckpointDigest: "c".repeat(64), expectedJobDigest: "d".repeat(64),
       rawOutputSha256: "e".repeat(64), sessionId: "synthetic-session", expectedSourceCommit: "f".repeat(40) };
-    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID", "authenticated-operator");
-    vi.stubEnv("OPENAI_API_KEY", "synthetic-never-real");
-    const recover = vi.spyOn(inprocess, "recoverCommunicationsDraftInProcess").mockResolvedValue({ state: "pending_approval" } as any);
-    const capability = vi.spyOn(oauth, "requireFounderDraftCapability").mockResolvedValue(undefined);
-    vi.spyOn(gmail, "verifyFounderMailbox").mockResolvedValue({} as any);
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID", "authenticated-operator"); vi.stubEnv("OPENAI_API_KEY", "");
+    const recover = vi.spyOn(inprocess, "recoverCommunicationsDraftInProcess");
+    const enqueue = vi.spyOn(recoveryQueue, "enqueueSavedRecovery").mockResolvedValue({ input: { prospectId: "prospect-1", jobId: "a".repeat(64), ...body },
+      actorUid: "authenticated-operator", generation: 1, state: "queued", requestDigest: "1".repeat(64), expiresAtMs: Date.now() + 300000, cancelRequested: false } as any);
+    vi.spyOn(oauth, "requireFounderDraftCapability").mockResolvedValue(undefined); vi.spyOn(gmail, "verifyFounderMailbox").mockResolvedValue({} as any);
     expect((await invoke(path, body, "post", "other-operator")).status).toBe(403);
     for (const extra of [{ apiKey: "unaccepted" }, { approved: true }, { body: "unaccepted" }, { requestedBy: "forged" }, { sendsAuthorized: true }]) {
       expect((await invoke(path, { ...body, ...extra })).status).toBe(400);
     }
-    expect(recover).not.toHaveBeenCalled(); expect(capability).not.toHaveBeenCalled();
-    const result = await invoke(path, body);
-    expect(result.body).toMatchObject({ ok: true, state: "pending_approval", existingProcess: true, sessionCreated: false });
-    expect(recover).toHaveBeenCalledWith({ prospectId: "prospect-1", jobId: "a".repeat(64), ...body }, "authenticated-operator", expect.anything(), expect.anything());
-    expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+    expect((await invoke(path, body)).body).toMatchObject({ ok: true, state: "queued", executionPlacement: "existing_background_worker", sent: false, gmailDraftCreated: false, sessionCreated: false });
+    expect(enqueue).toHaveBeenCalledWith(expect.anything(), { prospectId: "prospect-1", jobId: "a".repeat(64), ...body }, "authenticated-operator", expect.any(Number));
+    expect(recover).not.toHaveBeenCalled(); expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
   });
   it("requires an authenticated operator for evidence-bound reply meaning and performs no inference or send", async () => {
     const review = { expectedEvidenceDigest: "a".repeat(64), responseMeaning: "unknown", meaningEvidence: null,

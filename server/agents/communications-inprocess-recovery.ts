@@ -11,9 +11,11 @@ export const communicationsInprocessRecoverySchema = z.object({
   briefDigest: hash, expectedCheckpointDigest: hash, expectedJobDigest: hash, rawOutputSha256: hash,
   sessionId: z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/), expectedSourceCommit: z.string().regex(/^[a-f0-9]{40}$/),
 }).strict();
-type Input = z.infer<typeof communicationsInprocessRecoverySchema> & { prospectId: string; jobId: string };
+export type CommunicationsInprocessRecoveryInput = z.infer<typeof communicationsInprocessRecoverySchema> & { prospectId: string; jobId: string };
+type Input = CommunicationsInprocessRecoveryInput;
 type Options = { signal?: AbortSignal; sample?: (stage: string) => CommunicationsRecoveryMemorySample;
-  loadRecovery?: () => Promise<typeof import("./communications-worker")> };
+  loadRecovery?: () => Promise<typeof import("./communications-worker")>;
+  authority?: { path: string; assertRecord: (record: unknown) => void; assertCurrent: () => Promise<void> } };
 let active = false;
 // A drained invocation retains its exact handle until completion is acknowledged.
 // An expiry or unrelated lap can never substitute for that receipt.
@@ -50,6 +52,7 @@ export async function recoverCommunicationsDraftInProcess(input: Input, actorUid
       await pendingSettlement.release();
       pendingSettlement = null;
     }
+    await options.authority?.assertCurrent();
     sample("existing_process_before_recovery");
     lap = await claimCommunicationsWorkerLap(deps.store.db, deps.now);
     if (!lap?.canContinue()) throw new Error("communications_saved_recovery_release_or_lap_held");
@@ -77,6 +80,10 @@ export async function recoverCommunicationsDraftInProcess(input: Input, actorUid
     scopedDb.runTransaction = ((callback: (tx: FirebaseFirestore.Transaction) => Promise<unknown>, ...args: any[]) =>
       deps.store.db.runTransaction(async tx => {
         check(); sample("before_transaction");
+        if (options.authority) {
+          await options.authority.assertCurrent();
+          options.authority.assertRecord((await tx.get(deps.store.db.doc(options.authority.path))).data());
+        }
         const current = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
         const currentPin = current?.savedOutputRecovery;
         if (!current || current.jobId !== input.jobId || current.prospectId !== input.prospectId
