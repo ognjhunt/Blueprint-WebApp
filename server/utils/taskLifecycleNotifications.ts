@@ -123,18 +123,33 @@ export async function enqueueTaskLifecycleNotification(params: {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     return { enqueued: false, reason: "contact_missing" };
   }
+  return enqueueOutbox(buildTaskLifecycleNotification({ ...params, requestId, to }));
+}
+
+/** Build the existing notice without a database write or delivery. Atomic
+ * request writers can put this intent beside their business mutation. Supply
+ * captureUrl when a transaction retry must reuse the exact signed link. */
+export function buildTaskLifecycleNotification(params: {
+  requestId: string;
+  milestone: TaskLifecycleMilestone;
+  to: string;
+  eventId?: string;
+  detail?: string;
+  captureUrl?: string;
+}): Parameters<typeof enqueueOutbox>[0] {
+  const requestId = params.requestId.trim();
   const message = copy[params.milestone];
-  const url = captureUploadUrlFor(requestId, "owner");
+  const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
-  return enqueueOutbox({
+  return {
     idempotencyKey: `${requestId}:${params.milestone}${eventId ? `:${eventId}` : ""}`,
     requestId,
     kind: params.milestone,
-    to,
+    to: params.to,
     subject: message.subject,
     body: `${message.body(url, params.detail?.trim() ?? "")}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "ops@tryblueprint.io",
-  });
+  };
 }
 
 

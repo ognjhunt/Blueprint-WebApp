@@ -84,21 +84,15 @@ beforeEach(() => sharedFakeFirestoreState.docs.clear());
 let syntheticIpSuffix = 0;
 async function saveWithoutFirstEmail(baseUrl: string, requestId: string) {
   const body = { ...payload(requestId, `${requestId}@example.test`), retryToken: "r".repeat(64) };
-  const originalCollection = sharedFakeFirestore.collection.bind(sharedFakeFirestore);
-  const collectionSpy = vi.spyOn(sharedFakeFirestore, "collection").mockImplementation((name: string) => {
-    if (name !== "captureOutbox") return originalCollection(name);
-    return { doc: () => ({ create: async () => {
-      throw Object.assign(new Error("synthetic outbox unavailable"), { code: 14 });
-    } }) } as ReturnType<typeof originalCollection>;
+  const response = await fetch(baseUrl, {
+    method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": `192.0.2.${++syntheticIpSuffix}` }, body: JSON.stringify(body),
   });
-  try {
-    const response = await fetch(baseUrl, {
-      method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": `192.0.2.${++syntheticIpSuffix}` }, body: JSON.stringify(body),
-    });
-    expect(response.status).toBe(201);
-    expect(sharedFakeFirestoreState.docs.has(`inboundRequests/${requestId}`)).toBe(true);
-    expect(sharedFakeFirestoreState.docs.has(`captureOutbox/${requestId}:task_received`)).toBe(false);
-  } finally { collectionSpy.mockRestore(); }
+  expect(response.status).toBe(201);
+  expect(sharedFakeFirestoreState.docs.has(`inboundRequests/${requestId}`)).toBe(true);
+  // Simulate a historical pre-atomic intake with a missing notification. New
+  // intake now saves both documents together, so an enqueue fault cannot make
+  // this state; the authorized legacy repair path must remain supported.
+  sharedFakeFirestoreState.docs.delete(`captureOutbox/${requestId}:task_received`);
   return body;
 }
 

@@ -24,7 +24,10 @@ import {
 } from "../utils/robotTeamRegistry";
 import { hasAnyRole } from "../utils/access-control";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxEntry } from "../utils/captureOutbox";
+import { buildPilotRecommendationNotification } from "../utils/pilotRecommendationNotifications";
+import { decryptFieldValue } from "../utils/field-encryption";
+import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import {
   creditTeam,
@@ -78,6 +81,7 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
     return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Fill in the team ID, purpose, what each side provides, cost and window." });
   }
   if (!db) return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Store unavailable" });
+  const store = db;
   const requestId = String(req.params.requestId);
   const { teamId, ...plan } = parsed.data;
   try {
@@ -85,24 +89,75 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
     if (!team || !RECOMMENDABLE_STATUSES.has(team.status)) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Recommend a registered team that has applied or is engaged." });
     }
-    const id = `rec_${randomUUID()}`;
-    const ref = db.collection("inboundRequests").doc(requestId);
-    const outcome = await db.runTransaction(async (transaction) => {
+    // Stable across Firestore callback retries. A lost HTTP response can also
+    // retry an unchanged plan without replacing the recommendation it saved.
+    const proposed = {
+      id: `rec_${randomUUID()}`, teamId: team.id, teamName: team.name, ...plan,
+      recommendedAtIso: new Date().toISOString(),
+      recommendedBy: (res.locals?.firebaseUser?.uid as string | undefined) ?? null,
+    };
+    const captureUrl = captureUploadUrlFor(requestId, "owner");
+    const rows = new Map<string, ReturnType<typeof buildOutboxEntry>>();
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const outcome = await store.runTransaction(async (transaction) => {
       const current = await transaction.get(ref);
-      if (!current.exists) return "missing" as const;
-      if (current.data()?.pilot_booking) return "booked" as const;
-      transaction.update(ref, { pilot_recommendation: {
-        id, teamId: team.id, teamName: team.name, ...plan,
-        recommendedAtIso: new Date().toISOString(),
-        recommendedBy: (res.locals?.firebaseUser?.uid as string | undefined) ?? null,
-      } });
-      return "ok" as const;
+      if (!current.exists) return { status: "missing" } as const;
+      const record = current.data()!;
+      if (record.pilot_booking) return { status: "booked" } as const;
+      const previous = record.pilot_recommendation;
+      const samePlan = typeof previous?.id === "string"
+        && Object.entries({ teamId: team.id, teamName: team.name, ...plan })
+          .every(([key, value]) => previous[key] === value);
+      const recommendation = samePlan ? previous as typeof proposed : proposed;
+      const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { status: "contact_missing" } as const;
+      const input = buildPilotRecommendationNotification({ requestId, recommendation, to, captureUrl });
+      const intentRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(input.idempotencyKey);
+      const intent = await transaction.get(intentRef);
+      const legacyKey = `${requestId}:pilot_recommended:${recommendation.id}`;
+      const legacyRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(legacyKey);
+      const legacy = await transaction.get(legacyRef);
+      const matches = (existing: OutboxEntry, key: string) =>
+        existing.idempotencyKey === key && existing.requestId === requestId
+        && existing.kind === "pilot_recommended" && existing.to === to;
+      if (intent.exists && !matches(intent.data() as OutboxEntry, input.idempotencyKey)) {
+        throw new Error("Recommendation notification identity conflict");
+      }
+      // The previous writer used only the recommendation ID. Its pending,
+      // acknowledged or ambiguous delivery is the SAME authorized event;
+      // adding a recipient-hashed copy would send that recommendation twice.
+      const reuseLegacy = legacy.exists && matches(legacy.data() as OutboxEntry, legacyKey);
+      const existing = (reuseLegacy ? legacy.data() : intent.data()) as OutboxEntry | undefined;
+      const existingRef = reuseLegacy ? legacyRef : intentRef;
+      // All authoritative reads precede writes. Failure to persist either row
+      // aborts the recommendation; no post-commit enqueue can lose the notice.
+      if (!samePlan) transaction.update(ref, { pilot_recommendation: recommendation });
+      if (!existing) {
+        // Old handlers still enqueue this key after their source write. Reserve
+        // it atomically when free, including on fresh bookings: an old-handler
+        // retry must collide with this intent rather than create a second one.
+        // An occupied different-recipient key remains immutable; that recipient
+        // correction uses its own bound key and the dispatch source guard.
+        const writeInput = legacy.exists ? input : { ...input, idempotencyKey: legacyKey };
+        const writeRef = legacy.exists ? intentRef : legacyRef;
+        // A Firestore retry may observe a corrected recipient even though the
+        // legacy document key stays the same. Never reuse another recipient's
+        // cached message merely because its reserved key matches.
+        const rowKey = JSON.stringify([writeInput.idempotencyKey, writeInput.to]);
+        if (!rows.has(rowKey)) rows.set(rowKey, buildOutboxEntry(writeInput));
+        transaction.create(writeRef, rows.get(rowKey)!);
+      } else if (existing.status === "cancelled" && existing.attempts === 0) {
+        // A→B→A contact correction can restore an event cancelled before any
+        // dispatch. Only this explicit, currently authorized admin retry may
+        // rearm it; preserve all attempted/ambiguous/acknowledged histories.
+        transaction.update(existingRef, { status: "pending", lastError: null });
+      }
+      return { status: "ok", id: recommendation.id } as const;
     });
-    if (outcome === "missing") return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "Job not found" });
-    if (outcome === "booked") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "This pilot is already booked." });
-    await enqueueTaskLifecycleNotification({ requestId, milestone: "pilot_recommended", eventId: id, detail: `${team.name}, to ${plan.purpose.replace(/[.\s]+$/, "")}` })
-      .catch((error) => logger.warn({ error, requestId }, "Could not queue the recommended-pilot email"));
-    return res.json({ ok: true, id });
+    if (outcome.status === "missing") return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "Job not found" });
+    if (outcome.status === "booked") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "This pilot is already booked." });
+    if (outcome.status === "contact_missing") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "Add a valid site contact email before recommending this pilot." });
+    return res.json({ ok: true, id: outcome.id });
   } catch (error) {
     logger.error({ err: error, requestId }, "Failed to record a pilot recommendation");
     return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Unable to record the recommendation" });

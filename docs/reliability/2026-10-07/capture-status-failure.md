@@ -1,0 +1,17 @@
+# Capture status dependency failure containment
+
+State: done (local implementation and offline verification). Local run: `capture-status`; no external issue or provider-spend budget supplied. Objective: return a truthful unavailable response when the signed capture status responder unexpectedly rejects, rather than leaving its Express 4 caller without a response.
+
+Base: `bfdfcc622`. `GET /api/self-capture/uploads/:token/status` and legacy `GET /api/self-capture/uploads/:token` return the promise from one async responder. The app uses Express 4 with ordinary error middleware, not a global async-rejection wrapper. The ordinary database-read errors inside `authorizeCaptureUpload`, and database/storage read errors inside `describeBrowserUpload`, already have fail-closed handling; those were not represented as broken.
+
+The concrete uncovered failure was `resolveBundleStorage()` constructing its SDK bucket outside any responder catch. Injecting a bucket-initialization exception caused both actual registered GET callbacks to reject without producing a response. The two new regression assertions failed before the change with the exception originating at `siteCaptureBundleStorage.ts:158`. The test awaited the callback promise explicitly to capture that evidence without leaving an unhandled rejection running in the test process; Express 4 itself does not await it.
+
+The shared responder now catches unexpected failures and returns HTTP 503, `Cache-Control: no-store`, stable code `capture_status_unavailable`, a message to keep the original video and retry the status check, `retryAllowed:true`, and `processingRetryAvailable:false`. It reports neither `captureReceived` nor any capture/request ID or raw dependency error. The new warning contains a fixed diagnostic message, without the signed link or exception contents. Invalid links remain 404. Existing successful and already-handled unavailable responses retain their shape.
+
+The modern `/status` path remains a read: its failure tests assert no persisted records and no privacy screening. The legacy GET retains its existing authorized recovery behavior; this patch does not claim that route is generally side-effect-free or roll back recovery that preceded an unrelated status failure. `retryAllowed` permits asking for status again, never processing a capture.
+
+Tests cover rejected storage construction on both registered callbacks, actual HTTP 503 responses for storage-construction and unexpected authorization failures, private-data exclusion from body/logs, no-store, no state changes on the modern failure path, and unchanged invalid-link behavior. Dependencies are fakes. Route tests require localhost binding; external TCP/TLS/DNS remained denied with the coordinator's test preload. No live database, object storage or provider was contacted.
+
+Verification after the fix: `self-capture-status-failure.test.ts` (5), `capture-link-at-submit.test.ts` (87), and `site-capture-bundle-routes.test.ts` (49) passed: **141 tests, three files, 7.24 seconds**. `npm run check`, `git diff --check`, and the required Graphify refresh also passed.
+
+Next action: root coordinator integrates the isolated commit and includes the exact candidate in independent review and combined release gates. This is a narrow status-responder containment fix; it does not change the concurrently owned item routes or authorize a processing retry, send, deployment or production mutation.
