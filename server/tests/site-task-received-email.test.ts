@@ -6,7 +6,7 @@
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE, fakeArrayUnion } = await import("./helpers/fake-firestore");
@@ -81,9 +81,64 @@ async function start(): Promise<{ server: Server; baseUrl: string }> {
   return { server, baseUrl: `http://127.0.0.1:${address.port}` };
 }
 
-beforeEach(() => sharedFakeFirestoreState.docs.clear());
+beforeEach(() => { sharedFakeFirestoreState.docs.clear(); vi.restoreAllMocks(); });
 
 describe("the first event email", () => {
+  it.each(["before", "after"])("recovers an interruption %s the atomic commit without a lost private-link intent", async (phase) => {
+    const { server, baseUrl } = await start();
+    const originalBatch = sharedFakeFirestore.batch.bind(sharedFakeFirestore);
+    let interrupted = false;
+    const batchSpy = vi.spyOn(sharedFakeFirestore, "batch").mockImplementation(() => {
+      const batch = originalBatch();
+      const commit = batch.commit.bind(batch);
+      batch.commit = async () => {
+        if (!interrupted) {
+          interrupted = true;
+          if (phase === "after") await commit();
+          throw new Error("synthetic process interruption");
+        }
+        return commit();
+      };
+      return batch;
+    });
+    // Fault the former standalone write too, so the same regression can run
+    // against the pre-fix route and expose request=true / receipt=false.
+    const originalCollection = sharedFakeFirestore.collection.bind(sharedFakeFirestore);
+    const collectionSpy = vi.spyOn(sharedFakeFirestore, "collection").mockImplementation(name => {
+      const collection = originalCollection(name);
+      if (name !== "inboundRequests") return collection;
+      return { ...collection, doc: (id: string) => {
+        const ref = collection.doc(id);
+        return { ...ref, create: async (record: Record<string, unknown>) => {
+          if (!interrupted) {
+            interrupted = true;
+            if (phase === "after") await ref.create(record);
+            throw new Error("synthetic process interruption");
+          }
+          return ref.create(record);
+        } };
+      } };
+    });
+    const id = `atomic-crash-${phase}`;
+    const body = { ...payload(id, `${id}@example.test`), retryToken: "r".repeat(64) };
+    const post = () => fetch(baseUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    try {
+      expect((await post()).status).toBe(500);
+      expect(sharedFakeFirestoreState.docs.has(`inboundRequests/${id}`)).toBe(phase === "after");
+      expect(sharedFakeFirestoreState.docs.has(`captureOutbox/${id}:task_received`)).toBe(phase === "after");
+      batchSpy.mockRestore();
+      collectionSpy.mockRestore();
+      expect((await post()).status).toBe(phase === "after" ? 200 : 201);
+      expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${id}:task_received`))
+        .toMatchObject({ status: "pending", attempts: 0, to: body.email });
+      expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key === `captureOutbox/${id}:task_received`)).toHaveLength(1);
+    } finally {
+      batchSpy.mockRestore();
+      collectionSpy.mockRestore();
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+  });
+
   it("emails a US site its private link as the first event, and a non-US site none", async () => {
     const { server, baseUrl } = await start();
     try {
