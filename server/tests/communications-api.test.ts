@@ -1,4 +1,4 @@
-import { COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V1_DIGEST,
+import { COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V1_DIGEST,
   COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_LAUNCH_GUIDANCE_V1 } from "../agents/communications-launch-framing";
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +15,9 @@ import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
 
 import { hydrateAgentEvidence } from "../agents/private-evidence";
 import { HYPOTHESIS_DRAFTS_FLAG } from "../agents/communications-hypothesis-controls";
+import { buildCommunicationsInput } from "../agents/communications-worker";
+import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "../agents/communications-outreach-quality";
+import { founderOutreachFixture } from "./fixtures/founder-outreach";
 const httpStorage = vi.hoisted(() => ({ enabled: false, fail: false, objects: new Map<string, string>() }));
 vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => httpStorage.enabled ? {
   bucketName: "mock-private-http-evidence",
@@ -986,15 +989,16 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(creates).toBe(1);
     expect(f.reservePaidDraft).toHaveBeenCalledOnce();
   });
-  it.each([undefined, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_VERSION])("creates and reads back a hypothesis session with framing=%s, retaining archived hashes", async version => {
+  it.each([undefined, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_VERSION])("creates and reads back a hypothesis session with framing=%s, retaining archived hashes", async version => {
     const f = apiFixture();
     const result = await f.api.run({ ...f.params, checkpoint: { ...hypothesisCheckpoint(), ...(version ? { framingVersion: version } : {}) } as any });
     const body = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
     const definition = communicationsHypothesisDefinition(COMMUNICATIONS_HISTORY_DEFINITION, version);
     expect(definition.version).toBe(version === undefined ? "blueprint.communications-definition.v9"
-      : version === COMMUNICATIONS_FRAMING_V1 ? "blueprint.communications-definition.v13" : "blueprint.communications-definition.v17");
+      : version === COMMUNICATIONS_FRAMING_V1 ? "blueprint.communications-definition.v13"
+      : version === COMMUNICATIONS_FRAMING_V2 ? "blueprint.communications-definition.v17" : "blueprint.communications-definition.v21");
     expect(definition.instructions.startsWith(`${COMMUNICATIONS_HISTORY_DEFINITION.instructions}\n`)).toBe(true);
-    expect(definition.instructions).toContain(version ? "blueprint.outreach.v3" : "blueprint.outreach.v2");
+    expect(definition.instructions).toContain(version === COMMUNICATIONS_FRAMING_VERSION ? "blueprint.outreach.v4" : version ? "blueprint.outreach.v3" : "blueprint.outreach.v2");
     expect(body.agent).toEqual(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, version));
     expect(body.metadata).toMatchObject({ blueprint_communications_definition: definition.version,
       blueprint_communications_instructions_digest: definition.instructionsDigest,
@@ -1028,13 +1032,48 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
       "fa07ace846fa248c2f98bc67dd048e4f3158f928d32716aee698e7ecad98b715",
     ]);
     for (const base of bases) expect(communicationsHypothesisDefinition(base, true)).toEqual(communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_V1));
-    expect(bases.map(base => communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_VERSION).version))
+    expect(bases.map(base => communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_V2).version))
       .toEqual([17, 18, 19, 20].map(version => `blueprint.communications-definition.v${version}`));
+    expect(bases.map(base => communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_V2).instructionsDigest)).toEqual([
+      "c24ac6997d73b2859b289036774fe372702f97be3b0049a4489a44f952a3e6e7",
+      "28a8c0b87ce519e034e4e70ee2eed7597dfc8d3bb682ee8fa7b840cf0900c1d8",
+      "99649ab589d1a1a0a911d03936c201acf8bcbf0d40395bd513d4601682482d2f",
+      "f225b0f1f03fa832680207b1f62da3912752705b21e6d7254fefb291aec4c452",
+    ]);
+    expect(bases.map(base => communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_VERSION).version))
+      .toEqual([21, 22, 23, 24].map(version => `blueprint.communications-definition.v${version}`));
     expect(COMMUNICATIONS_LAUNCH_GUIDANCE_V1).toContain("when a match is found");
     expect(COMMUNICATIONS_LAUNCH_GUIDANCE).toContain("only when the site books Blueprint's recommended pilot");
     expect(COMMUNICATIONS_LAUNCH_GUIDANCE).not.toContain("when a match is found");
   });
-  it.each([null, false, "blueprint.outreach-framing.v3", "", {}])("rejects unsupported framing %j before provider or paid admission", async framingVersion => {
+  it.each([false, true])("sends the real assembled founder guidance to the generator, hypothesis=%s", async hypothesis => {
+    const fixture = hypothesis ? founderOutreachFixture("future") : communicationsFixture();
+    const f = apiFixture({ rawOutput: JSON.stringify(fixture.output) }), { brief } = fixture;
+    const input = buildCommunicationsInput(brief, null, "outreach", "pending_approval", undefined, undefined,
+      COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION);
+    const result = await f.api.run({ ...f.params, input, checkpoint: { ...f.params.checkpoint,
+      framingVersion: COMMUNICATIONS_FRAMING_VERSION,
+      ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) } });
+    const posted = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
+    expect(posted.input).toBe(input);
+    const consumed = JSON.parse(posted.input);
+    expect(consumed.researchBrief).toEqual(brief);
+    expect(consumed.writingGuidance).toBe(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+    expect(consumed.firstTouchPolicy).toContain("Learn why in a follow-up");
+    expect(consumed.firstTouchPolicy).toContain("without mechanically enumerating all three");
+    expect(consumed.firstTouchFraming.questionIsSuggestion).toBe(true);
+    expect(consumed.firstTouchFraming.question).not.toContain("why");
+    if (hypothesis) {
+      expect(posted.agent.instructions).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+      expect(posted.agent.instructions).toContain('version:"blueprint.outreach.v4"');
+      expect(posted.agent.instructions).toContain("Anchors may overlap naturally");
+      expect(result.outputSource?.definitionVersion).toBe("blueprint.communications-definition.v21");
+    }
+    expect(f.reservePaidDraft).toHaveBeenCalledOnce(); // Mock admission only; no provider/spend.
+    expect(result.checkpoint.requestDigest).toBe(posted.metadata.blueprint_communications_request_digest);
+    expect(result.output).toEqual(fixture.output);
+  });
+  it.each([null, false, "blueprint.outreach-framing.v4", "", {}])("rejects unsupported framing %j before provider or paid admission", async framingVersion => {
     const f = apiFixture(), checkpoint = { ...hypothesisCheckpoint(), framingVersion } as any;
     await expect(f.api.run({ ...f.params, checkpoint })).rejects.toThrow("communications_framing_version_unsupported");
     await expect(f.api.reconcileSaved(checkpoint, f.params.jobId)).rejects.toThrow("communications_framing_version_unsupported");

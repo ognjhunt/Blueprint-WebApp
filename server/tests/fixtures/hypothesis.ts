@@ -1,4 +1,4 @@
-import { communicationsLaunchFraming } from "../../agents/communications-launch-framing";
+import { communicationsLaunchFraming, COMMUNICATIONS_FRAMING_V2 } from "../../agents/communications-launch-framing";
 import { vi } from "vitest";
 import { hypothesisPublicationSource } from "../../agents/communications-research";
 import { resolveHypothesisContact } from "../../agents/communications-contact-resolution";
@@ -75,6 +75,18 @@ export function launchHypothesisDraft(brief: CommunicationsBrief): Communication
   const draft = hypothesisDraft(brief);
   const contract = draft.outreachContract as import("../../agents/outreach-review").OutreachHypothesisContract;
   const question = communicationsLaunchFraming(brief).question;
+  const senderIdentity = "I'm building Blueprint to help businesses figure out where robots might fit.";
+  const opening = { ...contract.opening, relevance: question };
+  const greeting = draft.body.split("\n\n")[0];
+  return { ...draft, body: [greeting, `${opening.publicDetail.claim} ${senderIdentity}`, question, "Thanks,\nNijel Hunt\nBlueprint"].join("\n\n"),
+    outreachContract: { ...contract, version: "blueprint.outreach.v4", senderIdentity, opening,
+      recipientChoice: question, questions: [{ question, checks: ["interest"] }] } };
+}
+
+/** Historical v1/v2 launch output remains replayable through the new reviewer. */
+export function archivedLaunchHypothesisDraft(brief: CommunicationsBrief): CommunicationsOutput {
+  const draft = hypothesisDraft(brief), contract = draft.outreachContract as import("../../agents/outreach-review").OutreachHypothesisContract;
+  const question = communicationsLaunchFraming(brief, COMMUNICATIONS_FRAMING_V2).question;
   return { ...draft, body: draft.body.replace(contract.questions[0].question, question),
     outreachContract: { ...contract, version: "blueprint.outreach.v3", questions: [{ question, checks: ["interest"] }] } };
 }
