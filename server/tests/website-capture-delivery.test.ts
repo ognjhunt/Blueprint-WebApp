@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import deliveryFixture from "./fixtures/website-browser-delivery-web493.json";
+import minuteDeliveryFixture from "./fixtures/website-browser-delivery-minute-web493.json";
 
 import {
   buildBrowserDelivery,
@@ -25,12 +26,14 @@ const manifest = {
 };
 
 describe("original browser capture delivery", () => {
-  it("matches the exact cross-repo Capture consumer fixture without rewriting retained bytes", () => {
-    const built = buildBrowserDelivery(deliveryFixture.input);
-    expect(built.objectName).toBe(deliveryFixture.receipt_object_name);
-    expect(built.markerBytes.toString("utf8")).toBe(deliveryFixture.marker_json);
-    expect(built.recordBytes.toString("utf8")).toBe(deliveryFixture.receipt_json);
-  });
+  it.each([deliveryFixture, minuteDeliveryFixture])(
+    "matches the exact cross-repo Capture consumer fixture without rewriting retained bytes", fixture => {
+      const built = buildBrowserDelivery(fixture.input);
+      expect(built.objectName).toBe(fixture.receipt_object_name);
+      expect(built.markerBytes.toString("utf8")).toBe(fixture.marker_json);
+      expect(built.recordBytes.toString("utf8")).toBe(fixture.receipt_json);
+    },
+  );
   it.each([7, Number.MAX_SAFE_INTEGER, "7", String(Number.MAX_SAFE_INTEGER)])(
     "accepts only exact safe integer byte counts: %s", size => {
       expect(capturedWriteIdentity(video.object_name, { name: video.object_name,
