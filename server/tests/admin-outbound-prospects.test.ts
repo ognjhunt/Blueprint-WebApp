@@ -5,6 +5,10 @@ import { CommunicationsStore } from "../agents/communications-store";
 import * as draftBudget from "../agents/communications-draft-budget";
 import * as producer from "../agents/communications-producer";
 import * as followups from "../agents/communications-reply-followup";
+import * as inprocess from "../agents/communications-inprocess-recovery";
+import * as gmail from "../agents/communications-gmail";
+import * as oauth from "../agents/communications-oauth-store";
+import { EventEmitter } from "node:events";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { communicationsNow } from "./fixtures/communications";
 
@@ -42,10 +46,10 @@ const prospect = {
 async function invoke(path: string, body: unknown = {}, method = "post", actor: string | null = "authenticated-operator") {
   const layer = router.stack.find((entry) => entry.route?.path === path && entry.route.methods[method]);
   if (!layer?.route) throw new Error("Missing route " + path);
-  const res = { locals: { firebaseUser: { uid: actor } }, status: vi.fn(), json: vi.fn(), setHeader: vi.fn() };
+  const res = Object.assign(new EventEmitter(), { locals: { firebaseUser: { uid: actor } }, status: vi.fn(), json: vi.fn(), setHeader: vi.fn(), writableEnded: false });
   res.status.mockReturnValue(res);
   res.json.mockReturnValue(res);
-  await layer.route.stack[0].handle({ params: { prospectId: "prospect-1", jobId: "a".repeat(64), handoffId: "b".repeat(64) }, body }, res, vi.fn());
+  await layer.route.stack[0].handle(Object.assign(new EventEmitter(), { params: { prospectId: "prospect-1", jobId: "a".repeat(64), handoffId: "b".repeat(64) }, body }), res, vi.fn());
   return { status: res.status.mock.calls[0]?.[0] ?? 200, body: res.json.mock.calls[0]?.[0] };
 }
 
@@ -61,6 +65,25 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe("outbound prospect review routes (no provider, Firestore, or transport I/O)", () => {
+  it("requires the configured authenticated owner and exact source/job pins for in-process recovery", async () => {
+    const path = "/:prospectId/communications/:jobId/recover-saved-draft";
+    const body = { briefDigest: "b".repeat(64), expectedCheckpointDigest: "c".repeat(64), expectedJobDigest: "d".repeat(64),
+      rawOutputSha256: "e".repeat(64), sessionId: "synthetic-session", expectedSourceCommit: "f".repeat(40) };
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID", "authenticated-operator");
+    vi.stubEnv("OPENAI_API_KEY", "synthetic-never-real");
+    const recover = vi.spyOn(inprocess, "recoverCommunicationsDraftInProcess").mockResolvedValue({ state: "pending_approval" } as any);
+    const capability = vi.spyOn(oauth, "requireFounderDraftCapability").mockResolvedValue(undefined);
+    vi.spyOn(gmail, "verifyFounderMailbox").mockResolvedValue({} as any);
+    expect((await invoke(path, body, "post", "other-operator")).status).toBe(403);
+    for (const extra of [{ apiKey: "unaccepted" }, { approved: true }, { body: "unaccepted" }, { requestedBy: "forged" }, { sendsAuthorized: true }]) {
+      expect((await invoke(path, { ...body, ...extra })).status).toBe(400);
+    }
+    expect(recover).not.toHaveBeenCalled(); expect(capability).not.toHaveBeenCalled();
+    const result = await invoke(path, body);
+    expect(result.body).toMatchObject({ ok: true, state: "pending_approval", existingProcess: true, sessionCreated: false });
+    expect(recover).toHaveBeenCalledWith({ prospectId: "prospect-1", jobId: "a".repeat(64), ...body }, "authenticated-operator", expect.anything(), expect.anything());
+    expect(mocks.runAgentTask).not.toHaveBeenCalled(); expect(mocks.executeAction).not.toHaveBeenCalled();
+  });
   it("requires an authenticated operator for evidence-bound reply meaning and performs no inference or send", async () => {
     const review = { expectedEvidenceDigest: "a".repeat(64), responseMeaning: "unknown", meaningEvidence: null,
       statedTask: null, desiredOutcome: null, timing: null, nextAction: "review_reply" };

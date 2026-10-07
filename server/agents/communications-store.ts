@@ -22,6 +22,7 @@ export const COMMUNICATIONS_ROOT = "blueprintCommunications/default";
 export const COMMUNICATIONS_SAVED_RECOVERY_REQUESTER = "communications worker (completed saved-session recovery)";
 export type CommunicationsSavedOutputRecovery = {
   version: "completed-saved-output-v1"; rawOutputSha256: string; checkpointDigest: string;
+  ownerAction?: { actorUid: string; sourceCommit: string; originalJobDigest: string; requestDigest: string; stableCheckpointDigest: string };
 };
 // learning_only: a reply on a founder-sent thread. It is recorded for learning
 // and never drafted, approved or sent; no path moves it back to queued.
@@ -197,12 +198,13 @@ export class CommunicationsStore {
   }
   /** Explicit operator recovery; retain identity, create claim and attempt budget. */
   async retryBlocked(input: { jobId: string; prospectId: string; briefDigest: string; requestedBy: string;
-    savedOutputRecovery?: CommunicationsSavedOutputRecovery }) {
+    savedOutputRecovery?: CommunicationsSavedOutputRecovery; expectedJobDigest?: string }) {
     if (!input.requestedBy.trim()) throw new Error("operator_identity_missing");
     const ref = this.jobs().doc(input.jobId);
     return this.db.runTransaction(async tx => {
       const existing = await tx.get(ref);
       const record = existing.data() as CommunicationsJobRecord | undefined;
+      if (input.expectedJobDigest && (!record || communicationsDigest(record) !== input.expectedJobDigest)) throw new Error("communications_retry_record_changed");
       if (!record || record.prospectId !== input.prospectId || record.briefDigest !== input.briefDigest) throw new Error("communications_retry_identity_mismatch");
       if (record.state !== "blocked" || (record.lease?.until ?? 0) > this.now()) throw new Error("communications_retry_state_or_lease_conflict");
       if (record.attempts >= 3) throw new Error("communications_recovery_exhausted");

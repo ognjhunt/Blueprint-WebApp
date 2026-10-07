@@ -66,11 +66,16 @@ async function gmailDraftCopyDirection(db: FirebaseFirestore.Firestore, now: () 
 }
 function draftWindowConfigured() {
   return Boolean(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF?.trim())
-    && ["JOB_ID", "REVISION_ID", "REVIEW_DIGEST"].every(field => /^[a-f0-9]{64}$/.test(process.env[`BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_${field}`] ?? ""));
+    && ["JOB_ID", "REVIEW_DIGEST"].every(field => /^[a-f0-9]{64}$/.test(process.env[`BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_${field}`] ?? ""))
+    && (process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVISION_ID === "null"
+      || /^[a-f0-9]{64}$/.test(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVISION_ID ?? ""));
 }
 function draftWindowAllows(jobId: string, revisionId: string | null, reviewDigest: string) {
+  // Literal "null" explicitly selects the original canonical draft. Missing or
+  // empty configuration never authorizes that revision or a later edit.
+  const configuredRevision = process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVISION_ID;
   return draftWindowConfigured() && jobId === process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_JOB_ID
-    && revisionId === process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVISION_ID
+    && revisionId === (configuredRevision === "null" ? null : configuredRevision)
     && reviewDigest === process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVIEW_DIGEST;
 }
 

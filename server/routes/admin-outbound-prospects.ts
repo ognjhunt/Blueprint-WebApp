@@ -40,6 +40,10 @@ import { communicationsDigest } from "../agents/communications-contract";
 import { founderMailboxConnectionPlan } from "../agents/communications-connection";
 import { replyFollowupReviewSchema, reviewReplyFollowup } from "../agents/communications-reply-followup";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
+import { communicationsInprocessRecoverySchema, recoverCommunicationsDraftInProcess } from "../agents/communications-inprocess-recovery";
+import { sampleCommunicationsRecoveryMemory } from "../agents/communications-recovery-memory";
+import { verifyFounderMailbox, readFounderThread } from "../agents/communications-gmail";
+import { requireFounderDraftCapability } from "../agents/communications-oauth-store";
 import {
   communicationsResearchInputSchema, previewResearchCommunications, approveResearchCommunications,
 } from "../agents/communications-producer";
@@ -53,6 +57,7 @@ import {
   buildUnsubscribeUrl,
   normalizeSuppressionEmail,
   recordEmailSuppression,
+  isEmailSuppressed,
 } from "../utils/email-suppression";
 import {
   bindingGateFieldIds,
@@ -297,6 +302,69 @@ router.post("/:prospectId/communications/:jobId/reconcile-draft", async (req: Re
     const recovery = await reconcileCommunicationsDraftSession(db, api, { prospectId, jobId, ...parsed.data, requestedBy }, Date.now());
     return res.json({ ok: true, ...recovery, sent: false, sessionCreated: false, jobQueued: false });
   } catch { return res.status(409).json({ error: "communications_draft_recovery_not_verified" }); }
+});
+
+/** Owner-only measurement of this existing HTTP process, without recovery or
+ * provider calls. The separate worker's baseline is measured independently. */
+router.get("/communications/recovery-runtime", async (_req: Request, res: Response) => {
+  const ownerUid = process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID?.trim();
+  if (!(await requireOps(res)) || !ownerUid || res.locals.firebaseUser?.uid !== ownerUid) return res.status(403).json({ error: "communications_recovery_owner_required" });
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({ sourceCommit: process.env.RENDER_GIT_COMMIT ?? null, existingProcess: true,
+    providerKeyConfigured: !!process.env.OPENAI_API_KEY?.trim(), memory: sampleCommunicationsRecoveryMemory("existing_http_process_idle"),
+    sent: false, sessionCreated: false, gmailDraftCreated: false });
+});
+
+/** Recover one completed output through the worker's normal consumer in the
+ * existing HTTP process. This route cannot generate, cancel, copy or send. */
+router.post("/:prospectId/communications/:jobId/recover-saved-draft", async (req: Request, res: Response) => {
+  const ownerUid = process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID?.trim();
+  if (!(await requireOps(res)) || !ownerUid || res.locals.firebaseUser?.uid !== ownerUid) return res.status(403).json({ error: "communications_recovery_owner_required" });
+  if (!db || !process.env.OPENAI_API_KEY?.trim()) return res.status(503).json({ error: "communications_recovery_runtime_unavailable" });
+  const runtimeDb = db;
+  const parsed = communicationsInprocessRecoverySchema.safeParse(req.body);
+  const prospectId = String(req.params.prospectId ?? ""), jobId = String(req.params.jobId ?? "");
+  if (!parsed.success || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(prospectId) || !/^[a-f0-9]{64}$/.test(jobId)) return res.status(400).json({ error: "communications_saved_recovery_input_invalid" });
+  res.setHeader("Cache-Control", "no-store");
+  const controller = new AbortController();
+  const aborted = () => controller.abort();
+  const disconnected = () => { if (!res.writableEnded) controller.abort(); };
+  req.once("aborted", aborted); res.once("close", disconnected);
+  try {
+    await requireFounderDraftCapability();
+    await verifyFounderMailbox();
+    let gets = 0;
+    const api = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference: false,
+      reviewedSavedOutputDigest: parsed.data.rawOutputSha256, fetch: async (url, init: RequestInit = {}) => {
+        const target = new URL(String(url)), method = init.method ?? "GET";
+        const base = `/v1/agents/sessions/${parsed.data.sessionId}`;
+        if (method !== "GET" || target.origin !== "https://api.openai.com" || ![base, `${base}/turns`, `${base}/items`].includes(target.pathname)
+          || ++gets > 32) throw new Error("communications_saved_recovery_get_only_boundary");
+        const response = await fetch(url, { ...init, redirect: "error", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]) });
+        if (!response.body) return response;
+        const reader = response.body.getReader(), chunks: Uint8Array[] = [];
+        let bytes = 0;
+        try {
+          for (;;) {
+            const next = await reader.read(); if (next.done) break;
+            bytes += next.value.length;
+            if (bytes > 262144) throw new Error("communications_saved_recovery_response_too_large");
+            chunks.push(next.value);
+          }
+        } finally { await reader.cancel(); }
+        return new globalThis.Response(Buffer.concat(chunks), { status: response.status, statusText: response.statusText, headers: response.headers });
+      } });
+    const result = await recoverCommunicationsDraftInProcess({ prospectId, jobId, ...parsed.data }, ownerUid, {
+      store: new CommunicationsStore(runtimeDb), api, readResearch: (date, admissionId) => readExistingResearchSnapshot(runtimeDb, date, admissionId),
+      verifyMailbox: verifyFounderMailbox, readThread: readFounderThread,
+      isSuppressed: email => isEmailSuppressed(email, "growth_campaign"),
+      suppress: (email, reason) => recordEmailSuppression({ email, reason, scope: "all", source: "communications_reply" }), now: Date.now,
+    }, { signal: controller.signal });
+    return res.json({ ok: true, ...result, sessionCreated: false, existingProcess: true });
+  } catch (error) {
+    const code = error instanceof Error && /^communications_[a-z_]+$/.test(error.message) ? error.message : "communications_saved_recovery_not_verified";
+    return res.status(409).json({ error: code, sent: false, sessionCreated: false, gmailDraftCreated: false });
+  } finally { req.removeListener("aborted", aborted); res.removeListener("close", disconnected); }
 });
 
 /** Requeue one blocked job after repair; retain its create claim and budget. */
