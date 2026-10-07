@@ -233,11 +233,11 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("Could a robot do your recurring job?");
+    expect(homeHtml).toContain("Could a robot take over a repetitive task?");
     expect(homeHtml).toContain("Free to start. No pilot, no fee.");
     expect(homeHtml).toContain("Illustrative example");
-    expect(homeHtml).toContain("The same job, in simulation.");
-    expect(homeHtml).toContain("Book your recommended pilot");
+    expect(homeHtml).toContain("The same task, in simulation.");
+    expect(homeHtml).toContain("Book the pilot");
     expect(homeHtml).not.toContain("Join the robot-team beta");
     expect(homeHtml).toContain("/illustrations/task-evaluation/01-task-capture.webp");
     expect(homeHtml).toContain("/illustrations/task-evaluation/02-arm-evaluation.webp");
@@ -248,7 +248,7 @@ describe("build output", () => {
     for (const file of ["index.html", "how-it-works/index.html", "contact/robot-team/index.html", "contact/site-operator/index.html"]) {
       expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
     }
-    expect(siteHtml).toContain("Start with one recurring job.");
+    expect(siteHtml).toContain("Start with one task.");
     // The published site form keeps the task and consent, without the retired
     // screening interview. These assertions inspect actual prerendered HTML.
     expect(siteHtml).toContain("What is the job?");
@@ -306,7 +306,7 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("Could a robot do your recurring job?");
+    expect(browserJavaScript).toContain("Could a robot take over a repetitive task?");
     expect(browserJavaScript).toContain("We draft a brief from the evidence for you to correct.");
   });
 

@@ -35,7 +35,7 @@ describe("brand polish QA harness contract", () => {
       canonicalPath: "/contact/robot-team", expectedHeading: "Test your robot on real site jobs.",
     });
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq")).toMatchObject({
-      canonicalPath: "/", expectedHeading: "Could a robot do your recurring job?",
+      canonicalPath: "/", expectedHeading: "Could a robot take over a repetitive task?",
     });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({

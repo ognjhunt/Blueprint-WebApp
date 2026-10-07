@@ -59,7 +59,7 @@ test("the full task and simulation frames remain readable without overlapping th
 test("both audience actions lead to their working intake and the beta action reaches the application", async ({ page }) => {
   await page.goto("/");
   const hero = page.locator(".ms-task-hero");
-  await hero.getByRole("link", { name: "Start a job assessment" }).click();
+  await hero.getByRole("link", { name: "Show us a task" }).click();
   await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
   await page.goto("/");
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "For robot teams" }).click();

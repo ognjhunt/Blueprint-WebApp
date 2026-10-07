@@ -31,16 +31,16 @@ describe("public managed-pilot copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Could a robot do your recurring job\?/i,
+        name: /Could a robot take over a repetitive task\?/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Start a job assessment/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Show us a task/i }).length).toBeGreaterThan(0);
 
-    expect(container).toHaveTextContent(/Show us the job/i);
-    expect(container).toHaveTextContent(/We check robot fit/i);
+    expect(container).toHaveTextContent(/Show us the task/i);
+    expect(container).toHaveTextContent(/We find the right robot/i);
     expect(container).toHaveTextContent(/No pilot, no fee/i);
-    expect(container).toHaveTextContent(/Book your recommended pilot/i);
-    expect(container).toHaveTextContent(/One click; we coordinate the rest/i);
+    expect(container).toHaveTextContent(/Book the pilot/i);
+    expect(container).toHaveTextContent(/One click\. We coordinate the rest/i);
     for (const link of screen.getAllByRole("link", { name: "For robot teams" })) expect(link).toHaveAttribute("href", "/contact/robot-team");
 
     // Withdrawn products, legacy package prices, and outcome guarantees stay absent.

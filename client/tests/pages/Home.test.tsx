@@ -5,8 +5,8 @@ import Home from "@/pages/Home";
 describe("Site-led homepage", () => {
   it("speaks to sites only, with one call to action and the price", () => {
     render(<Home />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Could a robot do your recurring job?");
-    expect(screen.getByRole("link", { name: "Start a job assessment" })).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Could a robot take over a repetitive task?");
+    expect(screen.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByText("Free to start. No pilot, no fee.")).toBeInTheDocument();
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
@@ -22,8 +22,8 @@ describe("Site-led homepage", () => {
     expect(container.querySelectorAll("details")).toHaveLength(0);
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(3);
-    expect(steps[0]).toHaveTextContent(/Show us the job.*Describe it, add photos or a phone video\./);
-    expect(steps[1]).toHaveTextContent(/We check robot fit.*We evaluate it with robot teams and pick one\./);
-    expect(steps[2]).toHaveTextContent(/Book your recommended pilot.*One click; we coordinate the rest\./);
+    expect(steps[0]).toHaveTextContent(/Show us the task.*Describe it or film it on your phone\./);
+    expect(steps[1]).toHaveTextContent(/We find the right robot.*We test it with robot teams and pick one that fits\./);
+    expect(steps[2]).toHaveTextContent(/Book the pilot.*One click\. We coordinate the rest\./);
   });
 });

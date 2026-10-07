@@ -54,7 +54,7 @@ describe("Header", () => {
   it("uses a single site-first action in the header", () => {
     render(<Header />);
 
-    const requestLink = screen.getAllByRole("link", { name: /^Start a job assessment$/i })[0];
+    const requestLink = screen.getAllByRole("link", { name: /^Show us a task$/i })[0];
     expect(requestLink).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.queryByRole("link", { name: /Capture network/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /See policy evaluation/i })).not.toBeInTheDocument();

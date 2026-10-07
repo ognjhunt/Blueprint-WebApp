@@ -36,7 +36,7 @@ const signupLinks = [
   {
     href: "/signup/business?buyerType=site_operator&source=header-signup",
     label: "Site operator",
-    description: "Start with one recurring job. We help assess fit, scope a measured pilot, and decide what follows.",
+    description: "Start with one task. We help assess fit, scope a measured pilot, and decide what follows.",
     Icon: ShieldCheck,
   },
 ] as const;

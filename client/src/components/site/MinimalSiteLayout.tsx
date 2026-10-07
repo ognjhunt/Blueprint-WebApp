@@ -51,7 +51,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
       <footer className="ms-footer ms-container">
         <div className="ms-footer-brand">
           <a className="ms-brand" href="/" aria-label="Return to homepage"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
-          <p className="ms-footer-description">Blueprint connects businesses that need work done with robot teams that can do it.</p>
+          <p className="ms-footer-description">Blueprint helps sites put robots to work on real tasks.</p>
           <p>© {new Date().getFullYear()} {COMPANY.legalName}</p>
         </div>
         <nav aria-label="Footer navigation">

@@ -70,7 +70,7 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title="Start a job assessment | Blueprint"
+        title="Show us a task | Blueprint"
           description="Describe one recurring job. Blueprint helps assess fit, scope a funded robot pilot, measure the trial, and decide what follows."
           canonical="/contact/site-operator"
       />
@@ -80,7 +80,7 @@ export default function Contact() {
             <ArrowLeft size={16} aria-hidden="true" /> Back to Blueprint
           </a>
           <p className="ms-eyebrow">For site owners</p>
-          <h1>Start with one recurring job.</h1>
+          <h1>Start with one task.</h1>
           <p className="ms-inquiry-description">
             Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.
           </p>

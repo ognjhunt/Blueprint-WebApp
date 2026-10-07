@@ -4,7 +4,7 @@ export function TaskEvaluationPair() {
     <div className="ms-task-example">
       <div className="ms-task-pair">
         <figure>
-          <figcaption><strong>Your job, filmed on a phone.</strong></figcaption>
+          <figcaption><strong>Your task, filmed on a phone.</strong></figcaption>
           <img
             src="/illustrations/task-evaluation/01-task-capture.webp"
             srcSet="/illustrations/task-evaluation/01-task-capture-840.webp 840w, /illustrations/task-evaluation/01-task-capture.webp 1672w"
@@ -16,7 +16,7 @@ export function TaskEvaluationPair() {
           />
         </figure>
         <figure>
-          <figcaption><strong>The same job, in simulation.</strong></figcaption>
+          <figcaption><strong>The same task, in simulation.</strong></figcaption>
           <img
             src="/illustrations/task-evaluation/02-arm-evaluation.webp"
             srcSet="/illustrations/task-evaluation/02-arm-evaluation-840.webp 840w, /illustrations/task-evaluation/02-arm-evaluation.webp 1671w"
