@@ -83,7 +83,7 @@ email, charge, consent change or fault injection was performed by this campaign.
 | SITE-06 | High: unsupported footage promoted into job facts | PR920, `be1e22b21`: require usable timestamp-supported observations, derive cycle evidence from complete nonoverlapping intervals; eight failing-before regressions; independent review; browser CI pending |
 | SITE-07 | High: accepted intake loses first return-link intent | PR925, `13ea31026`: create intake and return-link intent in one SDK batch; crash/lost-ack tests and actual installed SDK serialization |
 | SITE-08 | High: recommendation/booking commits without notification, or old recipient notified | PR925, `13ea31026`: transactional producer intent and current-authority dispatch guard; legacy sent/unknown rows reused; reviewer-found legacy duplicate fixed; lost booking acknowledgement leaves one booking/intent and same retry preserves it |
-| PIPE-01 | High: required-stage failure reported complete | Pipeline PR2645, source `dee58dde` / documentation head `cc9660c6`: 13 new regressions failed before; independently reviewed; impacted tests and sentinel gate pass |
+| PIPE-01 | High: required-stage failure reported complete | Pipeline PR2645, source `dee58dde` / documentation head `4e464e44`: 13 new regressions failed before; independently reviewed; impacted tests and sentinel gate pass |
 | SITE-09 | High: delayed item initialization or owner mutation loses accepted edits/photos | PR926, `72b021e89`: create-only initialization plus transaction retry against current inventory; eight failing-before cases; independently32 passing tests |
 | SITE-10 | High: capture status dependency initialization escapes Express4 response handling | PR927, `a004c0cc2`: private-data-safe503 and no-store; two failing-before callbacks; independently141 passing tests |
 | LIMIT-01 | Medium: unsubmitted browser draft and retry identity lost on reload | Observed source limitation; no accepted-data-loss assertion made. No new private-data browser persistence policy invented |
@@ -222,3 +222,23 @@ worker/provider memory profile, native Capture/device journey, measured robotics
 and the inaccessible dishwasher reference. Existing safe metadata reads do not
 close those gaps. Complete the current bounded fixes before expanding into further
 hypothetical cases.
+
+
+### Live browser boundary
+
+At approximately21:40 UTC, fresh anonymous Chromium contexts attempted only the
+source-inspected public homepage and site-intake document at desktop/mobile widths.
+The browser allowed only same-origin static documents/assets, blocked all API,
+non-GET and external-origin requests, and submitted no form. All four navigation
+attempts failed with `net::ERR_CERT_AUTHORITY_INVALID` through the environment's
+configured proxy before page inspection. No certificate warning was bypassed,
+no trust store was changed, and no screenshot/successful visual journey is claimed.
+This is a browser/environment access failure, not a backend HTTP response or proof
+that the public site's own certificate is defective. Static version curl readback
+remains a separate successful metadata observation.
+
+Fresh release custody/proof references are kept private. The existing owner is
+being asked privately for the current handoff; historical release evidence and
+a settled old lease do not clear the next release. Published Pipeline metadata
+is limited to source revision and frozen/running state, without internal receipt
+locators, runtime invocation identifiers or authority/proof references.
