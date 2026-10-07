@@ -71,7 +71,7 @@ import {
 } from "../utils/siteCaptureUploadIdentity";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { notifySlackFootageNeedsReview } from "../utils/slack";
-import { buildBrowserDelivery, capturedWriteIdentity, captureWriteFailureDiagnostic, publishBrowserDelivery,
+import { buildBrowserDelivery, capturedWriteIdentity, captureWriteFailureDiagnostic, matchesBrowserDeliveryRecord, publishBrowserDelivery,
   type CaptureWriteStage, type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
 import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
   publishBrowserPending, recordBrowserPending,
@@ -427,16 +427,17 @@ async function verifiedPendingMarker(pending: BrowserPending): Promise<boolean> 
     rawPrefix: pending.video.object_name.slice(0, pending.video.object_name.lastIndexOf("/")),
     video: pending.video, manifest: pending.manifest, completedAtIso: pending.completed_at_iso });
   const bucket = storageAdmin.bucket(storageBucketName());
-  for (const [name, expected] of [
-    [`${delivery.record.raw_prefix}/capture_upload_complete.json`, delivery.markerBytes],
-    [delivery.objectName, delivery.recordBytes],
+  for (const [name, expected, receipt] of [
+    [`${delivery.record.raw_prefix}/capture_upload_complete.json`, delivery.markerBytes, false],
+    [delivery.objectName, delivery.recordBytes, true],
   ] as const) {
     try {
       const [metadata] = await bucket.file(name).getMetadata();
       const selected = capturedWriteIdentity(name, metadata);
-      if (selected.size_bytes !== expected.length) return false;
+      if (receipt ? selected.size_bytes > 65_536 : selected.size_bytes !== expected.length) return false;
       const [bytes] = await bucket.file(name, { generation: selected.generation }).download();
-      if (!bytes.equals(expected)) return false;
+      if (bytes.length !== selected.size_bytes
+        || (receipt ? !matchesBrowserDeliveryRecord(bytes, delivery.record) : !bytes.equals(expected))) return false;
       const [after] = await bucket.file(name).getMetadata();
       if (capturedWriteIdentity(name, after).generation !== selected.generation) return false;
     } catch (error) {

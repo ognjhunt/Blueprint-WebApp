@@ -59,7 +59,7 @@ function storageBucketName(): string {
   return (
     process.env.BLUEPRINT_CAPTURE_BUCKET
     || process.env.FIREBASE_STORAGE_BUCKET
-    || ""
+    || "blueprint-8c1ca.appspot.com"
   );
 }
 

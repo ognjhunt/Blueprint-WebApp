@@ -1,6 +1,6 @@
 /** Immutable server-side proof of one browser upload's completed Storage writes. */
 import { createHash } from "node:crypto";
-import { crossRuntimeDigest } from "./crossRuntimeCanonical";
+import { crossRuntimeCanonicalJson, crossRuntimeDigest } from "./crossRuntimeCanonical";
 
 const generationPattern = /^[1-9][0-9]{0,19}$/;
 const shaPattern = /^sha256:[a-f0-9]{64}$/;
@@ -115,6 +115,20 @@ export interface BrowserDelivery {
   recordBytes: Buffer;
 }
 
+/** Preserve the original writer's field order across Firestore map round trips. */
+function orderedWriteIdentity(value: WrittenObject): WrittenObject {
+  return { object_name: value.object_name, generation: value.generation,
+    size_bytes: value.size_bytes, crc32c: value.crc32c };
+}
+
+/** Retained JSON map order is incidental; every receipt value and marker byte remains bound. */
+export function matchesBrowserDeliveryRecord(bytes: Buffer, expected: BrowserDeliveryRecord): boolean {
+  if (bytes.length < 1 || bytes.length > 65_536) return false;
+  try {
+    return crossRuntimeCanonicalJson(JSON.parse(bytes.toString("utf8"))) === crossRuntimeCanonicalJson(expected);
+  } catch { return false; }
+}
+
 /** Build marker bytes once; subsequent retries may only replay these bytes. */
 export function buildBrowserDelivery(input: {
   requestId: string; sceneId: string; captureId: string; rawPrefix: string;
@@ -160,7 +174,8 @@ export function buildBrowserDelivery(input: {
     schema_version: "website_browser_capture_delivery.v1",
     request_id: input.requestId, scene_id: input.sceneId,
     capture_id: input.captureId, raw_prefix: input.rawPrefix,
-    delivery_key: deliveryKey, raw_video: input.video, manifest: input.manifest,
+    delivery_key: deliveryKey, raw_video: orderedWriteIdentity(input.video),
+    manifest: { ...orderedWriteIdentity(input.manifest), sha256: input.manifest.sha256 },
     marker_json: markerBytes.toString("utf8"), marker_sha256: sha256(markerBytes),
     completed_at_iso: input.completedAtIso,
   };
@@ -197,10 +212,11 @@ export async function writeBrowserDelivery(
     if ((error as { code?: unknown })?.code !== 412) throw error;
     const [meta] = await file.getMetadata();
     const selected = capturedWriteIdentity(delivery.objectName, meta);
-    if (selected.size_bytes !== delivery.recordBytes.length) throw new Error("browser_delivery_conflict");
+    if (selected.size_bytes > 65_536) throw new Error("browser_delivery_conflict");
     const pinned = bucket.file(delivery.objectName, { generation: selected.generation });
     const [bytes] = await pinned.download();
-    if (!bytes.equals(delivery.recordBytes)) throw new Error("browser_delivery_conflict");
+    if (bytes.length !== selected.size_bytes || !matchesBrowserDeliveryRecord(bytes, delivery.record))
+      throw new Error("browser_delivery_conflict");
     const [after] = await pinned.getMetadata();
     if (capturedWriteIdentity(delivery.objectName, after).generation !== selected.generation) {
       throw new Error("browser_delivery_conflict");
