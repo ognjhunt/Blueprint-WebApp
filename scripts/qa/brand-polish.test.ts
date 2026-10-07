@@ -32,10 +32,10 @@ describe("brand polish QA harness contract", () => {
     expect(harness.publicQaRoutes.slice(0, canonicalPaths.length).map((route: { path: string }) => route.path)).toEqual(canonicalPaths);
     for (const route of harness.publicQaRoutes) expect(canonicalPaths).toContain(route.canonicalPath);
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/for-robot-teams")).toMatchObject({
-      canonicalPath: "/contact/robot-team", expectedHeading: "Your next pilot starts with real work.",
+      canonicalPath: "/contact/robot-team", expectedHeading: "Test your robot on real site jobs.",
     });
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq")).toMatchObject({
-      canonicalPath: "/", expectedHeading: "A measured robot pilot.",
+      canonicalPath: "/", expectedHeading: "Could a robot do your recurring job?",
     });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({

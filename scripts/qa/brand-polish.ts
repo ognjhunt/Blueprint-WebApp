@@ -154,9 +154,9 @@ export const publicLaunchPosturePatterns: PublicLaunchPosturePattern[] = [
 const canonicalPublicQaRoutes: PublicQaRoute[] = [
   { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "From one job to a measured pilot.", requiredCtas: [{ label: "Start a job assessment", hrefStartsWith: "/contact/site-operator" }, { label: "Apply for early access", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Pricing", path: "/pricing", canonicalPath: "/pricing", expectedHeading: "No pilot, no fee.", requiredCtas: [{ label: "Start a job assessment", hrefStartsWith: "/contact/site-operator" }, { label: "Apply for early access", hrefStartsWith: "/contact/robot-team" }] },
-  { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "A measured robot pilot.", requiredCtas: [{ label: "Start a job assessment", hrefStartsWith: "/contact/site-operator" }, { label: "Apply for early access", hrefStartsWith: "/contact/robot-team" }] },
+  { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "Could a robot do your recurring job?", requiredCtas: [{ label: "Start a job assessment", hrefStartsWith: "/contact/site-operator" }, { label: "For robot teams", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Start with one recurring job.", requiredCtas: [{ label: "Building robots? Apply for early access", hrefStartsWith: "/contact/robot-team" }] },
-  { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Your next pilot starts with real work.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
+  { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Test your robot on real site jobs.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },
   { label: "Terms", path: "/terms", canonicalPath: "/terms", expectedHeading: "Terms of Service", requiredCtas: [] },
 ];

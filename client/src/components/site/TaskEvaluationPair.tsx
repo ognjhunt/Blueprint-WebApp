@@ -4,7 +4,7 @@ export function TaskEvaluationPair() {
     <div className="ms-task-example">
       <div className="ms-task-pair">
         <figure>
-          <figcaption><span>01 · Show us the work</span><strong>A short phone video of your job.</strong></figcaption>
+          <figcaption><strong>Your job, filmed on a phone.</strong></figcaption>
           <img
             src="/illustrations/task-evaluation/01-task-capture.webp"
             srcSet="/illustrations/task-evaluation/01-task-capture-840.webp 840w, /illustrations/task-evaluation/01-task-capture.webp 1672w"
@@ -16,7 +16,7 @@ export function TaskEvaluationPair() {
           />
         </figure>
         <figure>
-          <figcaption><span>02 · Evaluate robot fit</span><strong>The same task, in simulation.</strong></figcaption>
+          <figcaption><strong>The same job, in simulation.</strong></figcaption>
           <img
             src="/illustrations/task-evaluation/02-arm-evaluation.webp"
             srcSet="/illustrations/task-evaluation/02-arm-evaluation-840.webp 840w, /illustrations/task-evaluation/02-arm-evaluation.webp 1671w"
@@ -27,11 +27,7 @@ export function TaskEvaluationPair() {
           />
         </figure>
       </div>
-      <p className="ms-imagery-caption">Illustrative workflow · Capture and simulation views of the same job. Physical performance is tested in the on-site pilot.</p>
-      <div className="ms-task-example-test">
-        <h2>Can the robot take a case from the tote and place it flat in the empty pocket?</h2>
-        <p><strong>Your criteria:</strong> cycle-time target · successful-placement target · allowed manual assistance</p>
-      </div>
+      <p className="ms-imagery-caption">Illustrative example · Physical performance is tested in the on-site pilot.</p>
     </div>
   );
 }

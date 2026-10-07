@@ -21,21 +21,16 @@ export default function Contact() {
       <>
         <SEO
           title="Early access for robot teams | Blueprint"
-          description="Your next pilot starts with real work. Explore suitable site jobs, clear evaluation criteria and preparation for a measured customer pilot. Free evaluations for invited robot teams."
+          description="Test your robot on real site jobs. Evaluate fit on a captured workspace and work toward a measured customer pilot. Free evaluations for invited teams."
           canonical="/contact/robot-team"
         />
         <section className="ms-beta-hero ms-container" aria-labelledby="robot-team-title">
           <div className="ms-beta-copy">
-            <p className="ms-eyebrow">For robot teams</p>
-            <h1 id="robot-team-title">Your next pilot starts with real work.</h1>
-            <p>Bring your robot and the work you want to pursue. We’ll explore suitable site jobs and what a measured customer pilot would require.</p>
-            <ul className="ms-beta-benefits">
-              <li>A suitable site task</li>
-              <li>Clear evaluation criteria</li>
-              <li>Preparation for a customer pilot</li>
-            </ul>
+            <p className="ms-eyebrow">Robot-team beta</p>
+            <h1 id="robot-team-title">Test your robot on real site jobs.</h1>
+            <p>Evaluate fit on a captured workspace and work toward a measured customer pilot.</p>
             <a className="ms-button" href="#robot-team-access">Join the robot-team beta <ArrowRight size={20} aria-hidden="true" /></a>
-            <p className="ms-beta-free">Free evaluations for invited robot teams. A physical pilot is agreed separately with the site.</p>
+            <p className="ms-beta-free">Free evaluations for invited teams.</p>
           </div>
           <div className="ms-beta-example">
             <figure>
@@ -50,7 +45,6 @@ export default function Contact() {
               />
               <figcaption className="ms-imagery-caption">Illustrative simulation view · Robot configuration shown as an example.</figcaption>
             </figure>
-            <p className="ms-beta-embodiments">Arms, mobile manipulators and humanoids. One task at a time.</p>
           </div>
         </section>
         <section className="ms-container ms-task-page ms-beta-access" id="robot-team-access" aria-label="Robot-team access">

@@ -233,12 +233,12 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("One recurring job.");
-    expect(homeHtml).toContain("A measured robot pilot.");
-    expect(homeHtml).toContain("Illustrative workflow");
-    expect(homeHtml).toContain("The same task, in simulation.");
-    expect(homeHtml).toContain("Can the robot take a case from the tote and place it flat in the empty pocket?");
-    expect(homeHtml).toContain("cycle-time target · successful-placement target · allowed manual assistance");
+    expect(homeHtml).toContain("Could a robot do your recurring job?");
+    expect(homeHtml).toContain("Free to start. No pilot, no fee.");
+    expect(homeHtml).toContain("Illustrative example");
+    expect(homeHtml).toContain("The same job, in simulation.");
+    expect(homeHtml).toContain("Book your recommended pilot");
+    expect(homeHtml).not.toContain("Join the robot-team beta");
     expect(homeHtml).toContain("/illustrations/task-evaluation/01-task-capture.webp");
     expect(homeHtml).toContain("/illustrations/task-evaluation/02-arm-evaluation.webp");
     expect(homeHtml).toContain("No pilot, no fee.");
@@ -263,8 +263,8 @@ describe("build output", () => {
     expect(siteHtml).toContain('id="start-description-authority"');
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
-    expect(robotHtml).toContain("Your next pilot starts with real work.");
-    expect(robotHtml).toContain("Free evaluations for invited robot teams.");
+    expect(robotHtml).toContain("Test your robot on real site jobs.");
+    expect(robotHtml).toContain("Free evaluations for invited teams.");
     expect(robotHtml).toContain("Illustrative simulation view");
     expect(robotHtml).toContain("/illustrations/task-evaluation/03-humanoid-evaluation.webp");
     // The application is public; tasks and executable plans still wait for
@@ -306,7 +306,7 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("A measured robot pilot.");
+    expect(browserJavaScript).toContain("Could a robot do your recurring job?");
     expect(browserJavaScript).toContain("We draft a brief from the evidence for you to correct.");
   });
 
