@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { SITE_ASSESSMENT_MODEL, siteAssessmentSchema } from "../site-assessment";
+import { SITE_ASSESSMENT_INSTRUCTIONS, SITE_ASSESSMENT_MODEL, siteAssessmentSchema } from "../site-assessment";
 import type { StructuredTaskDefinition } from "../types";
+import { buildCacheFriendlyPrompt } from "./prompt-cache";
 
 /** The existing admin session records the supplied conversation, never a URL. */
 export const siteAssessmentTaskInput = z.object({
@@ -13,7 +14,14 @@ export const siteAssessmentTask: StructuredTaskDefinition<z.infer<typeof siteAss
   model_by_provider: { openai_responses: SITE_ASSESSMENT_MODEL }, output_schema: siteAssessmentSchema,
   tool_policy: { mode: "api", prefer_direct_api: true, allowed_actions: assessmentReadActions },
   session_policy: { dispatch_mode: "collect", lane: "session", max_concurrent: 1 },
-  build_prompt: input => JSON.stringify(input),
+  build_prompt: input => buildCacheFriendlyPrompt({
+    instructions: SITE_ASSESSMENT_INSTRUCTIONS,
+    returnShape: { status: "assessment | needs_operator_input", job: [],
+      objects_motions_conditions_variations: [], operator_success: [], known: [], estimates: [], missing: [], approaches: [],
+      next_action: { kind: "ask_operator | inspect_video | measure | research | robot_trial | process_change | no_robot", action: "",
+        why: { text: "", basis: "unknown", evidence: [] } }, questions: [] },
+    payload: input,
+  }),
   build_outcome_contract: () => ({
     objective: "Assess one admitted site's job using video, operator statements and sourced robot evidence.",
     success_criteria: ["Return the six assessment sections, including uncertainties and a useful next action."],

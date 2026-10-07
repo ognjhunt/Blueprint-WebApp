@@ -92,6 +92,10 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     whatGoesWrong: "Shrink wrap snags about twice a shift.",
     operatorAnswers: { sceneStability: "stable", taskShape: "single" },
   },
+  site_assessment: {
+    message: "The operator needs repeatable rack movement; acceptance is not yet defined.",
+    context: { request_id: "req-1" },
+  },
   capture_video_privacy: { taskVideoUrl: "https://example.com/clip.mp4" },
   capture_coverage: {
     videoUrl: "https://example.com/clip.mp4",
