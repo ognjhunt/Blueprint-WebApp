@@ -52,7 +52,9 @@ export async function runIndexOperation({ client, mode, record, wait = ms => new
   async function inventory() {
     let pageToken = ''; const seen = new Set(); const found = new Map(); let count = 0;
     for (let page = 0; page < 20; page++) {
-      const [rows, next, response] = await api('list', () => client.listIndexes({ parent: PARENT, pageSize: 100, ...(pageToken ? { pageToken } : {}) }, { ...RPC, autoPaginate: false }));
+      // Native index administration currently accepts only the default (0)
+      // page size. Bound returned inventory locally instead of overriding it.
+      const [rows, next, response] = await api('list', () => client.listIndexes({ parent: PARENT, ...(pageToken ? { pageToken } : {}) }, { ...RPC, autoPaginate: false }));
       if (!Array.isArray(rows) || rows.length > 100 || (count += rows.length) > 2000) refuse('index_inventory_limit');
       for (const row of rows) {
         if (!indexName(row?.name)) refuse('index_inventory_scope_invalid');

@@ -39,7 +39,7 @@ describe('read-only index API diagnosis and explicit receipt archival', () => {
     await diagnose({ client, token, fetcher, record: (x: any) => rows.push(x) });
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, options] = fetcher.mock.calls[0];
-    expect(url).toBe(`https://firestore.googleapis.com/v1/${PARENT}/indexes?pageSize=100`);
+    expect(url).toBe(`https://firestore.googleapis.com/v1/${PARENT}/indexes`);
     expect(options).toMatchObject({ method: 'GET', redirect: 'error', headers: { Authorization: `Bearer ${token}` } });
     expect(rows.at(-1)).toMatchObject({ event: 'rest-list-result', furtherPages: true, completeInventory: false });
     expect(JSON.stringify(rows)).not.toContain(token); expect(client.createIndex).not.toHaveBeenCalled();
@@ -53,6 +53,17 @@ describe('read-only index API diagnosis and explicit receipt archival', () => {
     await diagnose({ client: { listIndexes: vi.fn().mockResolvedValue([[], null, {}]) }, token, fetcher, record: (x: any) => rows.push(x) });
     expect(fetcher).not.toHaveBeenCalled(); expect(rows.at(-1)).toMatchObject({ completeInventory: false });
     expect(JSON.stringify(rows)).not.toContain('ready:true');
+  });
+  it('uses the supported SDK default and retains the local100-row bound', async () => {
+    const client = { listIndexes: vi.fn(async request => {
+      if (request.pageSize) throw { code: 3, message: 'Invalid page size. Only 0 is supported.' };
+      return [Array.from({ length: 101 }, () => ({})), null, {}];
+    }) }, fetcher = vi.fn(), rows: any[] = [];
+    await diagnose({ client, token, fetcher, record: (x: any) => rows.push(x) });
+    expect(client.listIndexes).toHaveBeenCalledWith({ parent: PARENT }, expect.objectContaining({ retry: null, autoPaginate: false, timeout: 10000 }));
+    expect(rows.some(row => row.event === 'sdk-list-result')).toBe(false);
+    expect(rows.at(-1)).toMatchObject({ event: 'sdk-list-error', apiCode: null, message: 'sdk_page_limit' });
+    expect(fetcher).not.toHaveBeenCalled();
   });
   it('redacts REST error detail and does not claim success on an error status', async () => {
     const rows: any[] = []; await diagnose({ client: { listIndexes: vi.fn().mockRejectedValue({ code: 3 }) }, token, secrets: [token], fetcher: async () => response({ error: { code: 400, message: `invalid pageSize ${token}` } }, 400), record: (x: any) => rows.push(x) });

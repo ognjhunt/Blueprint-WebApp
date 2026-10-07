@@ -27,8 +27,12 @@ dependencies through the application directory's `package.json`.
 cd /opt/render/project/src
 node /tmp/action-ledger-index-operator.mjs plan
 node /tmp/action-ledger-index-operator.mjs inspect
-node /tmp/action-ledger-index-operator.mjs ensure
 ```
+
+For the current corrected preflight, run only `plan` and `inspect`. An `ensure`
+invocation is a separate parent-coordinated index write after complete absence,
+current authorization and prior unknown-acknowledgement reconciliation; it is
+not implied by the command sequence above.
 
 `plan` is local and does not acquire a token or contact a provider. All modes
 require the exact PR 914 manifest bytes, SHA-256
@@ -58,6 +62,17 @@ and makes at most one create request only after confirmed absence. All SDK
 calls disable automatic retries and have a 10-second timeout. A five-minute
 process deadline also bounds authentication/cleanup. Observation is limited
 to 12 iterations; a pending index is a pending result, not success.
+
+The October7 live diagnostic returned `Invalid page size. Only 0 is supported.`
+from both the installed SDK and same-token direct REST request with pageSize100.
+Corrected list requests omit the page-size override, using the installed SDK's
+protobuf/default request rather than guessing another positive value. Direct
+REST diagnostics likewise omit pageSize. Inventory still refuses a returned
+page above100rows, more than2000total rows, more than20pages or repeated/invalid
+page tokens. An over-limit result is incomplete inventory and cannot authorize
+creation. No row/page/time cap, IAM, credential, transport or retry policy is
+widened. Default request size does not impose a network-response byte cap on the
+stock SDK decoder; result limits apply after decoding.
 
 Before create, the CLI synchronously writes and fsyncs a private JSONL intent.
 It then retains the operation name, operation progress and independently

@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 
 const PROJECT = 'blueprint-8c1ca', WORKER = 'srv-d9t8gg1t0dsc73am9q70';
 export const PARENT = `projects/${PROJECT}/databases/(default)/collectionGroups/action_ledger`;
-const OPERATOR_SHA = '5281c83cbffc493d38c078c8beeb82c7e534333a3029fed38d8960e0d7e16f35';
+const OPERATOR_SHA = '3ba5285df57483a4302cab6435a6a02d9188768952cad666f020d507109b1ce1';
 const OLD_PATH = '/tmp/blueprint-action-ledger-index-g1Gtmj/receipts.jsonl';
 const OLD_SHA = '43debbd20d2e3821e6ce14552aaf775f4b1d43c79e778e3fe7dca0751d652ccd';
 const BUCKET = 'blueprint-8c1ca.appspot.com';
@@ -43,15 +43,16 @@ export async function boundedResponse(response, limit = 65536) {
 }
 export async function diagnose({ client, token, record, fetcher = fetch, secrets = [] }) {
   let code = null;
-  record({ event: 'sdk-list-request', parent: PARENT, pageSize: 100, filterPresent: false, method: 'GET', readOnly: true });
-  try { const [rows, , response] = await client.listIndexes({ parent: PARENT, pageSize: 100 }, { timeout: 10000, retry: null, autoPaginate: false });
+  record({ event: 'sdk-list-request', parent: PARENT, pageSizeOverride: false, filterPresent: false, method: 'GET', readOnly: true });
+  try { const [rows, , response] = await client.listIndexes({ parent: PARENT }, { timeout: 10000, retry: null, autoPaginate: false });
+    if (!Array.isArray(rows) || rows.length > 100) refuse('sdk_page_limit');
     record({ event: 'sdk-list-result', success: true, firstPageCount: rows.length, furtherPages: Boolean(response?.nextPageToken), completeInventory: false }); return;
   } catch (error) { const safe = safeError(error, secrets); code = safe.apiCode; record({ event: 'sdk-list-error', ...safe }); }
   // Compare the documented JSON GET only after INVALID_ARGUMENT, never use a
   // second transport to evade an IAM denial or change identity/resource scope.
   if (code !== 3) return;
-  const url = `https://firestore.googleapis.com/v1/${PARENT}/indexes?pageSize=100`;
-  record({ event: 'rest-list-request', parent: PARENT, pageSize: 100, method: 'GET', enumEncodingOption: false, readOnly: true });
+  const url = `https://firestore.googleapis.com/v1/${PARENT}/indexes`;
+  record({ event: 'rest-list-request', parent: PARENT, pageSizeOverride: false, method: 'GET', enumEncodingOption: false, readOnly: true });
   let response;
   try { response = await fetcher(url, { method: 'GET', redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }); }
   catch { record({ event: 'rest-list-unavailable' }); return; }

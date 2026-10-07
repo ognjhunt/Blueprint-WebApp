@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { runWireScenario } from './fixtures/action-ledger-index-list-wire.mjs';
 import { runIndexOperation, PARENT, FIELDS, verifyManifest, tokenBoundClient, main } from './action-ledger-index-operator.mjs';
 
 const name = `${PARENT}/indexes/synthetic`;
@@ -79,7 +80,13 @@ describe('fixed action-ledger index operator', () => {
     expect(await invoke(c).promise).toMatchObject({ ready: true });
     expect(c.listIndexes.mock.calls[1][0]).toMatchObject({ parent: PARENT, pageToken: 'next' });
     expect(c.listIndexes.mock.calls[0][1]).toMatchObject({ autoPaginate: false, retry: null });
+    expect(c.listIndexes.mock.calls.every(call => !Object.hasOwn(call[0], 'pageSize'))).toBe(true);
     expect(c.createIndex).not.toHaveBeenCalled();
+  });
+  it.each(['ready', 'absent', 'pagination', 'oversized', 'create-denied'])('uses the real installed SDK default-page wire contract: %s', async scenario => {
+    const receipt = await runWireScenario(scenario);
+    expect(receipt.scenario).toBe(scenario);
+    expect(receipt.calls.filter(call => call.path.endsWith('/indexes')).every(call => call.pageSize === null)).toBe(true);
   });
   it('refuses pagination loops without creating', async () => {
     const c = fake(); c.listIndexes.mockResolvedValue([[], { pageToken: 'same' }, { nextPageToken: 'same' }]);
