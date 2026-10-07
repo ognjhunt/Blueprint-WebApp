@@ -32,17 +32,20 @@ export async function pilotRecommendationNotificationIsCurrent(
   entry: OutboxEntry,
   transaction: FirebaseFirestore.Transaction,
 ): Promise<boolean> {
-  if (entry.kind !== "pilot_recommended") return true;
+  if (entry.kind !== "pilot_recommended" && entry.kind !== "pilot_booked") return true;
   if (!db) throw new Error("Recommendation notification store unavailable");
   const snapshot = await transaction.get(db.collection("inboundRequests").doc(entry.requestId));
   const record = snapshot.data();
   const recommendation = record?.pilot_recommendation;
-  if (!snapshot.exists || record?.pilot_booking || typeof recommendation?.id !== "string") return false;
+  if (!snapshot.exists || typeof recommendation?.id !== "string") return false;
+  if (entry.kind === "pilot_booked") {
+    if (record?.pilot_booking?.recommendationId !== recommendation.id) return false;
+  } else if (record?.pilot_booking) return false;
   const to = String(await decryptFieldValue(record?.contact?.email ?? "")).trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) || to !== entry.to) return false;
-  const expectedKey = `${entry.requestId}:pilot_recommended:${pilotRecommendationEventId(recommendation.id, to)}`;
+  const expectedKey = `${entry.requestId}:${entry.kind}:${pilotRecommendationEventId(recommendation.id, to)}`;
   // Legacy queued rows are accepted only if their exact current event and
   // recipient still match. No old event is upgraded into a new recommendation.
   return entry.idempotencyKey === expectedKey
-    || entry.idempotencyKey === `${entry.requestId}:pilot_recommended:${recommendation.id}`;
+    || entry.idempotencyKey === `${entry.requestId}:${entry.kind}:${recommendation.id}`;
 }
