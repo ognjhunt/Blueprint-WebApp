@@ -175,8 +175,9 @@ export class CommunicationsStore {
   }
   async blockedJobs() {
     const root = this.db.doc(COMMUNICATIONS_ROOT);
-    const [blocked, budget] = await Promise.all([this.jobs().where("state", "==", "blocked").limit(20).get(),
-      root.collection("draftBudgetState").doc("current").get()]);
+    const [blocked, budget, owned] = await Promise.all([this.jobs().where("state", "==", "blocked").limit(20).get(),
+      root.collection("draftBudgetState").doc("current").get(),
+      this.jobs().where("retryRequestedBy", "==", COMMUNICATIONS_SAVED_RECOVERY_REQUESTER).limit(20).get()]);
     // Prioritize the one global accounting hold. An older bounded page of
     // unrelated blocked jobs must not hide a crashed unknown-create owner.
     const recovery: FirebaseFirestore.DocumentSnapshot[] = [];
@@ -188,11 +189,17 @@ export class CommunicationsStore {
         if (saved.exists && row && COMMUNICATIONS_JOB_STATES.includes(row.state) && (row.lease?.until ?? 0) <= this.now()) recovery.push(saved);
       }
     }
-    return [...recovery, ...blocked.docs.filter(doc => !recovery.some(saved => saved.id === doc.id))].slice(0, 20).map(doc => {
+    const seen = new Set<string>();
+    const ownedRecovery = owned.docs.filter(doc => doc.data()?.savedOutputRecovery?.ownerAction
+      && ["blocked", "queued", "running", "retry", "pending_approval"].includes(doc.data()?.state));
+    return [...recovery, ...ownedRecovery, ...blocked.docs].filter(doc => {
+      if (seen.has(doc.id)) return false; seen.add(doc.id); return true;
+    }).slice(0, 20).map(doc => {
       const record = doc.data() as CommunicationsJobRecord;
       return { jobId: doc.id, prospectId: record.prospectId, briefDigest: record.briefDigest, state: record.state,
         attempts: record.attempts, reason: record.reason ?? "communications_blocked", leaseUntil: record.lease?.until ?? 0,
         expectedJobDigest: communicationsDigest(record), expectedCheckpointDigest: communicationsDigest(record.checkpoint), sessionId: record.checkpoint.sessionId,
+        savedOutputRecovery: record.savedOutputRecovery ?? null,
         sessionReconciliationRequired: Boolean(record.checkpoint.createClaimedAt && !record.checkpoint.sessionId) };
     });
   }

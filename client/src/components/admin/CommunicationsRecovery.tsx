@@ -5,7 +5,8 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { useAuth } from "@/contexts/AuthContext";
 
 type BlockedJob = { jobId: string; prospectId: string; briefDigest: string; attempts: number; reason: string; leaseUntil: number;
-  state?: string; sessionId?: string | null; expectedJobDigest?: string; expectedCheckpointDigest?: string };
+  state?: string; sessionId?: string | null; expectedJobDigest?: string; expectedCheckpointDigest?: string;
+  savedOutputRecovery?: { rawOutputSha256: string; ownerAction?: { actorUid: string; sourceCommit: string; originalJobDigest: string; requestDigest: string } } | null };
 type Readiness = { sourceCommit: string | null; existingProcess: boolean; providerKeyConfigured: boolean; headroomAvailable: boolean;
   outreachControlsOff: boolean; headroomReserveBytes: number; memory: { observedAt: string; rss: number; cgroup: { current: number; limit: number } | null };
   draftScopeGranted: boolean };
@@ -13,10 +14,17 @@ const hash = /^[a-f0-9]{64}$/;
 const ready = (value?: Readiness) => Boolean(value && /^[a-f0-9]{40}$/.test(value.sourceCommit ?? "")
   && value.existingProcess && value.providerKeyConfigured && value.headroomAvailable && value.outreachControlsOff && value.draftScopeGranted);
 const mib = (value: number) => (value / 1024 / 1024).toFixed(1);
+// The recovery request is a flat string object. This matches the server's
+// canonical sorted-key SHA256 without importing server/provider code.
+const requestDigest = async (input: Record<string, string>) => {
+  const canonical = JSON.stringify(Object.fromEntries(Object.keys(input).sort().map(key => [key, input[key]])));
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, "0")).join("");
+};
 
 /** The ordinary founder app transport; an explicit saved-output action never
  * enters the generic retry or Gmail-copy/send paths. Evidence pins stay private. */
-function SavedOutputRecovery({ job, onRecovered }: { job: BlockedJob; onRecovered: (jobId: string, ledgerId: string) => void }) {
+function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob; onSelected: () => void; onRecovered: (jobId: string, ledgerId: string) => void }) {
   const { currentUser } = useAuth();
   const actor = useRef(currentUser?.uid); actor.current = currentUser?.uid;
   const [pins, setPins] = useState({ expectedJobDigest: "", expectedCheckpointDigest: "", rawOutputSha256: "" });
@@ -40,19 +48,40 @@ function SavedOutputRecovery({ job, onRecovered }: { job: BlockedJob; onRecovere
     return { ...runtime, draftScopeGranted: consent.enabled === true && consent.draftScopeGranted === true && consent.sendsEnabled === false };
   };
   const readiness = useMutation({ mutationFn: readReadiness, retry: false });
-  const validPins = Object.values(pins).every(value => hash.test(value)) && pins.expectedJobDigest === job.expectedJobDigest
-    && pins.expectedCheckpointDigest === job.expectedCheckpointDigest;
+  const validPins = Object.values(pins).every(value => hash.test(value)) && (job.savedOutputRecovery?.ownerAction
+    ? job.savedOutputRecovery.ownerAction.actorUid === currentUser?.uid && job.savedOutputRecovery.ownerAction.originalJobDigest === pins.expectedJobDigest
+      && job.savedOutputRecovery.rawOutputSha256 === pins.rawOutputSha256
+    : pins.expectedJobDigest === job.expectedJobDigest && pins.expectedCheckpointDigest === job.expectedCheckpointDigest);
+  const inputFor = (sourceCommit: string) => ({ prospectId: job.prospectId, jobId: job.jobId, briefDigest: job.briefDigest,
+    ...pins, sessionId: job.sessionId!, expectedSourceCommit: sourceCommit });
+  const ownedByOriginalAction = async (saved: any, sourceCommit: string) => {
+    const requesterUid = currentUser?.uid;
+    const pin = saved?.savedOutputRecovery, owner = pin?.ownerAction;
+    const matches = Boolean(owner && saved.jobId === job.jobId && saved.prospectId === job.prospectId && saved.briefDigest === job.briefDigest
+      && saved.checkpoint?.sessionId === job.sessionId && owner.actorUid === requesterUid && owner.sourceCommit === sourceCommit
+      && owner.originalJobDigest === pins.expectedJobDigest && pin.rawOutputSha256 === pins.rawOutputSha256
+      && owner.requestDigest === await requestDigest(inputFor(sourceCommit)));
+    if (!requesterUid || actor.current !== requesterUid) throw new Error("Owner session changed. Check readiness again.");
+    return matches;
+  };
   const recovery = useMutation({ retry: false, mutationFn: async () => {
     if (!reviewed || !validPins || !job.sessionId || job.attempts >= 3 || job.leaseUntil > Date.now()) throw new Error("Review the original job and retained evidence pins first.");
     const displayedSource = readiness.data?.sourceCommit, originalPins = { ...pins };
     const fresh = await readReadiness();
     if (!ready(fresh)) throw new Error("Owner runtime, compose capability, outreach controls or memory reserve is unavailable. Check readiness again.");
     if (fresh.sourceCommit !== displayedSource) throw new Error("Deployed source changed. Review the new source and check readiness again.");
-    const inventory = await request("/api/admin/outbound-prospects/communications/blocked-jobs");
-    const current = inventory.jobs?.find((row: BlockedJob) => row.jobId === job.jobId);
-    if (!current || current.prospectId !== job.prospectId || current.briefDigest !== job.briefDigest || current.sessionId !== job.sessionId
-      || current.expectedJobDigest !== originalPins.expectedJobDigest || current.expectedCheckpointDigest !== originalPins.expectedCheckpointDigest
-      || current.attempts >= 3 || current.leaseUntil > Date.now()) throw new Error("Original job context changed. Check recovery status before another action.");
+    const history = await request(`/api/admin/outbound-prospects/${encodeURIComponent(job.prospectId)}/communications`);
+    const saved = history.jobs?.find((row: any) => row.jobId === job.jobId);
+    const owned = await ownedByOriginalAction(saved, fresh.sourceCommit!);
+    if (!owned) {
+      const inventory = await request("/api/admin/outbound-prospects/communications/blocked-jobs");
+      const current = inventory.jobs?.find((row: BlockedJob) => row.jobId === job.jobId);
+      if (!current || current.prospectId !== job.prospectId || current.briefDigest !== job.briefDigest || current.sessionId !== job.sessionId
+        || current.expectedJobDigest !== originalPins.expectedJobDigest || current.expectedCheckpointDigest !== originalPins.expectedCheckpointDigest
+        || saved?.savedOutputRecovery?.ownerAction) throw new Error("Original job context changed. Check recovery status before another action.");
+    }
+    if (!saved || !["blocked", "queued", "running", "retry", "pending_approval"].includes(saved.state)
+      || saved.attempts >= 3 || (saved.lease?.until ?? 0) > Date.now()) throw new Error("Original job context changed. Check recovery status before another action.");
     const result = await request(`/api/admin/outbound-prospects/${encodeURIComponent(job.prospectId)}/communications/${job.jobId}/recover-saved-draft`, {
       briefDigest: job.briefDigest, ...originalPins, sessionId: job.sessionId, expectedSourceCommit: fresh.sourceCommit,
     });
@@ -64,9 +93,9 @@ function SavedOutputRecovery({ job, onRecovered }: { job: BlockedJob; onRecovere
   }, onError: () => { setReviewed(false); } });
   const status = useMutation({ retry: false, mutationFn: async () => {
     const result = await request(`/api/admin/outbound-prospects/${encodeURIComponent(job.prospectId)}/communications`);
-    const saved = result.jobs?.find((row: any) => row.jobId === job.jobId), owner = saved?.savedOutputRecovery?.ownerAction;
+    const saved = result.jobs?.find((row: any) => row.jobId === job.jobId);
     if (saved?.state === "pending_approval" && saved.ledgerId === `communications_${job.jobId}` && saved.outputSource?.rawOutputSha256 === pins.rawOutputSha256
-      && owner?.actorUid === currentUser?.uid && owner.originalJobDigest === pins.expectedJobDigest && owner.sourceCommit === readiness.data?.sourceCommit) {
+      && readiness.data?.sourceCommit && await ownedByOriginalAction(saved, readiness.data.sourceCommit)) {
       onRecovered(job.jobId, saved.ledgerId); return "Original saved output is in Approvals. No Gmail copy or send occurred.";
     }
     return `Current job state: ${saved?.state ?? "unknown"}. No recovery action was taken. Preserve the original pins and inspect the retained context.`;
@@ -77,7 +106,7 @@ function SavedOutputRecovery({ job, onRecovered }: { job: BlockedJob; onRecovere
   return <div className="mt-3 space-y-3 border-t border-runway-line pt-3">
     <p>This job has an existing session. Recover its reviewed saved output into Approvals. Gmail copying stays a separate action.</p>
     <button type="button" className="runway-cta-ghost min-h-0 px-3 py-2 text-sm" disabled={!currentUser || busy}
-      onClick={() => { setReviewed(false); readiness.mutate(); }}>Check saved-output readiness</button>
+      onClick={() => { onSelected(); setReviewed(false); readiness.mutate(); }}>Check saved-output readiness</button>
     {readiness.isPending && <p role="status">Checking the existing founder runtime…</p>}
     {readiness.isError && <p role="alert">{readiness.error.message} No recovery was requested.</p>}
     {!readiness.isError && readiness.data && <div aria-label="Saved-output readiness">
@@ -92,7 +121,7 @@ function SavedOutputRecovery({ job, onRecovered }: { job: BlockedJob; onRecovere
     <p>Enter the three SHA256 pins from the retained original-output recovery packet. Current job and checkpoint must still match.</p>
     {([["expectedJobDigest", "Original job digest"], ["expectedCheckpointDigest", "Original checkpoint digest"], ["rawOutputSha256", "Reviewed output SHA256"]] as const).map(([field, label]) =>
       <label key={field} className="block">{label}<input aria-label={label} className="mt-1 block w-full border border-runway-line bg-transparent p-2 font-mono text-xs"
-        value={pins[field]} maxLength={64} autoComplete="off" disabled={busy} onChange={event => { setReviewed(false); setPins({ ...pins, [field]: event.target.value.trim() }); }} /></label>)}
+        value={pins[field]} maxLength={64} autoComplete="off" disabled={busy} onChange={event => { onSelected(); setReviewed(false); setPins({ ...pins, [field]: event.target.value.trim() }); }} /></label>)}
     {Object.values(pins).every(value => hash.test(value)) && !validPins && <p role="alert">Original job or checkpoint digest does not match the current record. Preserve the original evidence; do not replace its pins.</p>}
     <label className="flex gap-2"><input type="checkbox" checked={reviewed} disabled={busy || !validPins || !ready(readiness.data) || readiness.isError}
       onChange={event => setReviewed(event.target.checked)} />I reviewed this original job, saved output and displayed source under the retained recovery authorization.</label>
@@ -108,7 +137,8 @@ export function CommunicationsRecovery() {
   const { currentUser } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [recovered, setRecovered] = useState<{ jobId: string; ledgerId: string } | null>(null);
-  useEffect(() => { setRecovered(null); }, [currentUser?.uid]);
+  const [selected, setSelected] = useState<BlockedJob | null>(null);
+  useEffect(() => { setRecovered(null); setSelected(null); }, [currentUser?.uid]);
   const queryClient = useQueryClient();
   const key = ["blocked-communications-jobs", currentUser?.uid];
   const jobs = useQuery<BlockedJob[]>({
@@ -142,10 +172,10 @@ export function CommunicationsRecovery() {
       {jobs.isError && <p role="alert">Could not read blocked jobs.</p>}
       {retry.isError && <p role="alert">{retry.error.message}</p>}
       {jobs.data?.length === 0 && <p>No blocked communications jobs.</p>}
-      {jobs.data?.map(job => <div key={job.jobId} className="border border-runway-line p-3">
+      {[...(jobs.data ?? []), ...(selected && !jobs.data?.some(job => job.jobId === selected.jobId) ? [selected] : [])].map(job => <div key={job.jobId} className="border border-runway-line p-3">
         <p>Prospect: {job.prospectId}</p><p>Job: {job.jobId}</p><p>{job.reason}</p>
         <p>{job.attempts} of 3 attempts used.</p>
-        {job.sessionId ? <SavedOutputRecovery job={job} onRecovered={(jobId, ledgerId) => {
+        {job.sessionId ? <SavedOutputRecovery job={job} onSelected={() => setSelected(job)} onRecovered={(jobId, ledgerId) => {
           setRecovered({ jobId, ledgerId }); void queryClient.invalidateQueries({ queryKey: key });
           void queryClient.invalidateQueries({ queryKey: ["admin-action-queue", currentUser?.uid] });
         }} /> : <button type="button" className="runway-cta-ghost mt-2 min-h-0 px-3 py-2 text-sm"
