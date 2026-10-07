@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { communicationsLaunchFraming, COMMUNICATIONS_LAUNCH_GUIDANCE, type CommunicationsAudienceRole } from "./communications-launch-framing";
+import { communicationsLaunchFraming, COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_FRAMING_V2, type CommunicationsAudienceRole } from "./communications-launch-framing";
 
 const text = z.string().trim().min(1).max(1200);
 const source = z.string().trim().min(1).max(500);
@@ -89,6 +89,13 @@ export const outreachLaunchContractSchema = outreachHypothesisContractSchema.ext
   questions: z.array(z.object({ question: text, checks: z.tuple([z.literal("interest")]) }).strict()).length(1),
 }).strict();
 export type OutreachLaunchContract = z.infer<typeof outreachLaunchContractSchema>;
+/** Prospective natural interest question, anchored to the actual body rather
+ * than a generated exact template. Evidence and addressing checks still apply. */
+export const OUTREACH_FOUNDER_CONTRACT_VERSION = "blueprint.outreach.v4" as const;
+export const outreachFounderContractSchema = outreachLaunchContractSchema.extend({
+  version: z.literal(OUTREACH_FOUNDER_CONTRACT_VERSION),
+}).strict();
+export type OutreachFounderContract = z.infer<typeof outreachFounderContractSchema>;
 
 export const OUTREACH_SEMANTIC_CHECKS = {
   connection: "Use a known verified connection/introduction/community where possible; only claimed relationships require proof. Web research and verified business contact routes lead discovery; no network mining or exhaustive network search is required for legitimate cold contact. LinkedIn is optional role verification. Check the source and recipient identity; a shared community implies no endorsement.",
@@ -164,8 +171,9 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
   const published = Array.isArray(qualification?.openQuestions) && qualification!.openQuestions.length === 1
     && typeof qualification!.openQuestions[0] === "string" ? qualification!.openQuestions[0] as string : null;
   if (!open || !published) blockers.push("outreach_hypothesis_qualification_missing");
-  const launch = (draft.contract as any)?.version === OUTREACH_LAUNCH_CONTRACT_VERSION;
-  const parsed = (launch ? outreachLaunchContractSchema : outreachHypothesisContractSchema).safeParse(draft.contract);
+  const natural = (draft.contract as any)?.version === OUTREACH_FOUNDER_CONTRACT_VERSION;
+  const launch = natural || (draft.contract as any)?.version === OUTREACH_LAUNCH_CONTRACT_VERSION;
+  const parsed = (natural ? outreachFounderContractSchema : launch ? outreachLaunchContractSchema : outreachHypothesisContractSchema).safeParse(draft.contract);
   const context = outreachContextSchema.safeParse(draft.context);
   if (!parsed.success) blockers.push((draft.contract as any)?.version === "blueprint.outreach.v1"
     ? "outreach_hypothesis_contract_required" : "outreach_contract_missing_or_invalid");
@@ -174,12 +182,15 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
   const contract = parsed.data, opening = contract.opening, asked = contract.questions[0], text = draft.subject + " " + draft.body;
   // The question answers the open check that chose its template: S, then M, then A.
   const answered = open.includes("site_link") ? "site_link" : open.includes("manual_workflow") ? "manual_workflow" : "existing_automation";
-  const expected = launch && draft.framingContext ? communicationsLaunchFraming(draft.framingContext).question : published;
+  // Archived v3 contracts keep the v1/v2 question even after the default moves.
+  const expected = natural ? asked.question : launch && draft.framingContext
+    ? communicationsLaunchFraming(draft.framingContext, COMMUNICATIONS_FRAMING_V2).question : published;
   if (launch && !draft.framingContext) blockers.push("launch_framing_context_missing");
   if (asked.question !== expected) blockers.push(launch ? "launch_question_mismatch" : "hypothesis_question_not_published");
   if (asked.checks.length !== 1 || asked.checks[0] !== (launch ? "interest" : answered)) blockers.push("hypothesis_question_checks_mismatch");
   if (!draft.body.includes(expected)) blockers.push("hypothesis_question_missing_from_body");
   if ((draft.body.match(QUESTION_MARKS) || []).length !== 1) blockers.push("exactly_one_initial_question_required");
+  if (natural && (!asked.question.endsWith("?") || (asked.question.match(QUESTION_MARKS) || []).length !== 1)) blockers.push("exactly_one_initial_question_required");
   if ((draft.subject.match(QUESTION_MARKS) || []).length) blockers.push("hypothesis_subject_has_question");
   if (!/\bBlueprint\b/.test(contract.senderIdentity)) blockers.push("blueprint_identity_required");
   if (draft.body.indexOf(contract.senderIdentity) > draft.body.indexOf(asked.question)) blockers.push("blueprint_identity_required_before_question");

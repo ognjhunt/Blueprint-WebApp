@@ -6,10 +6,10 @@ import { processCommunicationsJob, recoverSavedCommunicationsDraft } from "../ag
 import { reviseCommunicationsDraft } from "../agents/communications-draft-revision";
 import { CommunicationsStore } from "../agents/communications-store";
 import { communicationsBriefSchema, communicationsDigest } from "../agents/communications-contract";
-import { COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_AUDIENCE_ROLES, communicationsLaunchFraming } from "../agents/communications-launch-framing";
+import { COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_AUDIENCE_ROLES, communicationsLaunchFraming } from "../agents/communications-launch-framing";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { COMMUNICATIONS_HYPOTHESIS_PROFILE } from "../agents/communications-saved-agent";
-import { launchHypothesisDraft as hypothesisDraft, hypothesisDraft as archivedHypothesisDraft, hypothesisSetup } from "./fixtures/hypothesis";
+import { launchHypothesisDraft as hypothesisDraft, archivedLaunchHypothesisDraft, hypothesisDraft as archivedHypothesisDraft, hypothesisSetup } from "./fixtures/hypothesis";
 
 // Invented operators, *.example hosts and synthetic evidence only. The model is a mock; no network or mailbox.
 afterEach(() => { vi.unstubAllEnvs(); });
@@ -42,6 +42,47 @@ function verifiedOutput(h: Awaited<ReturnType<typeof admitted>>) {
 }
 
 describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
+  it("accepts a natural future-oriented interest question without requiring the suggested wording or why", async () => {
+    const h = await admitted(), output = hypothesisDraft(h.brief), old = (output.outreachContract as any).questions[0].question;
+    const question = "Would exploring the options for that work be useful, even if it is just to prepare for later?";
+    output.body = output.body.replace(old, question);
+    const contract = output.outreachContract as any;
+    contract.questions[0].question = question; contract.opening.relevance = question; contract.recipientChoice = question;
+    h.setOutput(output);
+    expect(await processCommunicationsJob(h.intake.jobId, h.deps)).toMatchObject({ state: "pending_approval", sent: false });
+    expect(h.seen[0].feedback).toBeNull();
+    expect(h.seen[0].input.writingGuidance).toContain("Learn why in a follow-up");
+    expect(h.seen[0].input.firstTouchFraming.questionIsSuggestion).toBe(true);
+    const job = h.f.records("jobs").find(job => job.jobId === h.intake.jobId);
+    expect(job.writingQuality).toMatchObject({ advisoryOnly: true, signals: [] });
+  });
+  it.each(["blueprint.outreach-framing.v1", COMMUNICATIONS_FRAMING_V2])("replays a charged %s draft with its historical instructions and question", async framingVersion => {
+    const h = await admitted(), original = h.f.records("jobs").find(job => job.jobId === h.intake.jobId);
+    const checkpoint = { ...original.checkpoint, framingVersion, draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE,
+      draftWritingGuidance: "retained historical guidance", createClaimedAt: new Date(h.deps.now()).toISOString(),
+      sessionId: "synthetic-retained-session", turnId: "synthetic-retained-turn" };
+    h.f.db.records.set(`blueprintCommunications/default/jobs/${h.intake.jobId}`, { ...original, checkpoint });
+    h.setOutput(archivedLaunchHypothesisDraft(h.brief));
+    expect(await processCommunicationsJob(h.intake.jobId, h.deps)).toMatchObject({ state: "pending_approval", sent: false });
+    expect(h.seen[0].feedback).toBeNull();
+    expect(h.seen[0].input.writingGuidance).toBe("retained historical guidance");
+    expect(h.seen[0].checkpoint.framingVersion).toBe(framingVersion);
+    expect(h.seen[0].input.firstTouchFraming.question).toContain("and if so, why?");
+  });
+  it.each(["El Paso versus Ubly", "San Antonio versus Muskogee"])("holds a recipient-site conflict (%s) before the generator even when the email is deliverable", async conflict => {
+    const h = await admitted();
+    const priorDigest = communicationsDigest(h.brief);
+    h.brief.conflicts = [`A deliverable address belongs to a person at another site: ${conflict}. Site authority is unresolved.`];
+    const digest = communicationsDigest(h.brief), jobPath = `blueprintCommunications/default/jobs/${h.intake.jobId}`;
+    h.f.db.records.set(`blueprintCommunications/default/briefs/${h.brief.briefId}`, h.brief);
+    h.f.db.records.set(`blueprintCommunications/default/handoffs/${digest}`, {
+      ...h.f.db.records.get(`blueprintCommunications/default/handoffs/${priorDigest}`), briefDigest: digest,
+    });
+    h.f.db.records.set(jobPath, { ...h.f.db.records.get(jobPath), briefDigest: digest });
+    expect(await processCommunicationsJob(h.intake.jobId, h.deps)).toEqual({ state: "awaiting_research", reasons: ["conflicting_evidence"] });
+    expect(h.api.run).not.toHaveBeenCalled();
+    expect([...h.f.db.records.keys()].some(path => path.startsWith("action_ledger/"))).toBe(false);
+  });
   it.each(COMMUNICATIONS_AUDIENCE_ROLES)("reviews the retained %s role against its own launch question", async audienceRole => {
     const h = await admitted(), result: any = await processCommunicationsJob(h.intake.jobId, h.deps);
     const payload = structuredClone(h.f.db.records.get(`action_ledger/${result.ledgerId}`).action_payload);
@@ -58,7 +99,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     const h = await admitted(); h.setOutput(archivedHypothesisDraft(h.brief));
     const result: any = await processCommunicationsJob(h.intake.jobId, h.deps);
     expect(h.seen[0].feedback).toEqual(expect.arrayContaining([expect.objectContaining({ code: "launch_contract_required",
-      message: expect.stringContaining("blueprint.outreach.v3") })]));
+      message: expect.stringContaining("blueprint.outreach.v4") })]));
     expect(result).toMatchObject({ state: "blocked", reason: "hypothesis_draft_contract_failed:launch_contract_required" });
     expect([...h.f.db.records.keys()].some(path => path.startsWith("action_ledger/"))).toBe(false);
   });
@@ -68,7 +109,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(result).toMatchObject({ state: "pending_approval", sent: false, gmailDraftCreated: false });
     expect(h.api.run).toHaveBeenCalledOnce();
     const [{ input, checkpoint, feedback }] = h.seen;
-    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_LAUNCH_GUIDANCE);
+    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_FOUNDER_GUIDANCE);
     expect(input.researchBrief.qualification.openQuestions).toEqual(h.brief.qualification!.openQuestions);
     expect(checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
     expect(checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
@@ -164,7 +205,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     const outcome = await processCommunicationsJob(h.verifiedJob.jobId, h.deps);
     expect(outcome).toMatchObject({ state: "pending_approval" });
     const [{ input, checkpoint }] = h.seen;
-    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_LAUNCH_GUIDANCE);
+    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_FOUNDER_GUIDANCE);
     expect(input.researchBrief).not.toHaveProperty("qualification");
     expect(checkpoint).not.toHaveProperty("draftProfile");
     const ledger = h.f.db.records.get(`action_ledger/communications_${h.verifiedJob.jobId}`);
@@ -206,11 +247,6 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
 
   it.each<[string, (draft: ReturnType<typeof hypothesisDraft>) => ReturnType<typeof hypothesisDraft>, string]>([
     ["a second question", draft => ({ ...draft, body: `${draft.body}\n\nAre you the right person to ask?` }), "exactly_one_initial_question_required"],
-    ["a reworded question", draft => {
-      const question = "Is sorting returned parcels at Synthetic sorting site still done by hand?";
-      return { ...draft, body: draft.body.replace((draft.outreachContract as any).questions[0].question, question),
-        outreachContract: { ...(draft.outreachContract as any), questions: [{ question, checks: ["interest"] }] } };
-    }, "launch_question_mismatch"],
     ["the verified-lead contract", draft => ({ ...draft, outreachContract: null }), "outreach_contract_missing_or_invalid"],
     ["unsupported pilot readiness", draft => ({ ...draft, body: `${draft.body}\nWe are pilot-ready.` }), "unsupported_readiness_or_supply"],
     ["free hardware", draft => ({ ...draft, body: `${draft.body}\nWe provide free hardware.` }), "unsupported_readiness_or_supply"],
