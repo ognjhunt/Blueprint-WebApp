@@ -57,7 +57,7 @@ try {
   await page
     .getByRole("textbox", { name: /^What is the job\?/ })
     .fill("Move sealed cartons from the conveyor onto a pallet at the end of each shift.");
-  await page.getByRole("combobox", { name: /^Where is it\?/ }).fill("Austin, TX");
+  await page.getByRole("combobox", { name: /^Where would the robot do this job\?/ }).fill("Austin, TX");
   await page.keyboard.press("Escape");
   await page.getByRole("checkbox", { name: /I am authorised to record/ }).check();
   await shot(page, "01-desktop-intake-filled");

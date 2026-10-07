@@ -645,18 +645,18 @@ export function SiteCaptureStart() {
           rather than a second question. */}
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
-          <span>{selfRecording || hasFootage ? "Where is it?" : "Site address"}</span>
+          <span>Where would the robot do this job?</span>
           <span className="ms-field-hint">
             {selfRecording || hasFootage
-              ? "A city is plenty. We only need a street address if we are sending someone."
-              : "A capture operator needs a street address, not a site nickname."}
+              ? "A city is enough to start. We ask for the street address before anyone visits."
+              : "We are sending someone to film it, so we need the street address."}
           </span>
           <LocationAutocomplete
             id="start-location"
             name="startLocation"
             required
             maxLength={300}
-            placeholder={selfRecording || hasFootage ? "City, or a full address" : "Street address"}
+            placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
             onSelectionChange={(place) => {
               if (!regionManuallySet) setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
             }}

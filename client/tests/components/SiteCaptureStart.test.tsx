@@ -127,6 +127,13 @@ describe("SiteCaptureStart and the country", () => {
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: account.user, loading: false }) }));
 
 
+it("asks where the robot would do the job, not where the video was filmed", () => {
+  render(<SiteCaptureStart />);
+  const label = document.querySelector('label[for="start-location"]')!;
+  expect(label).toHaveTextContent(/^Where would the robot do this job\?/);
+  expect(label).not.toHaveTextContent(/filmed/i);
+});
+
 it("clears an inferred country when the address is edited, but preserves an explicit correction", async () => {
   fetchMock.mockResolvedValue(photon([{ name: "Austin", countrycode: "US" }]));
   render(<SiteCaptureStart />);
