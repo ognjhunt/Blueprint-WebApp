@@ -616,3 +616,25 @@ web/worker encryption configuration against one retained setup before retrying;
 do not change its ciphertext, remove the saved-setup check, or submit another
 run. A failed readback remains retryable and does not consume a provider POST
 attempt. Configuration repair lets the existing outbox resume.
+
+### Qualification action-ledger index
+
+`countTodayAutoSends` in `server/agents/action-executor.ts` requires the
+`action_ledger` COLLECTION composite in `firestore.indexes.json`: `lane`
+ASCENDING, `status` ASCENDING, then `created_at` ASCENDING. The final
+`__name__` ASCENDING order is implicit. This supports the existing lane/status
+filters and daily timestamp range without changing the automatic-send limit
+or any dispatch controls.
+
+`firebase.json` owns the versioned index manifest. The Render deployment
+workflow deploys application code and does not apply Firestore indexes. Deploy
+this index separately through the existing authorized Firebase/Firestore
+operator in the coordinated release window, retaining existing indexes and
+rules. Read the exact index back as `READY` before claiming the code-9 query
+failure is repaired; an accepted index-build operation or green application CI
+does not establish that. Index deployment does not retry a failed
+qualification job or authorize sending. Preserve the saved request and check
+the existing paid-run scope and communications controls before any retry.
+
+See the official [index deployment and build lifecycle](https://firebase.google.com/docs/firestore/query-data/indexing)
+and [default document-name ordering](https://firebase.google.com/docs/firestore/query-data/index-overview#default_ordering_and_the_name_field).
