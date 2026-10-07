@@ -43,6 +43,7 @@ vi.mock("../utils/captureOutbox", () => ({
 const briefRouter = (await import("../routes/site-task-brief")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { draftBrief, saveBrief } = await import("../utils/siteTaskBrief");
+const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
 
 let server: Server;
 let baseUrl: string;
@@ -51,6 +52,7 @@ const token = () =>
   createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1" });
 
 beforeEach(async () => {
+  vi.clearAllMocks();
   sharedFakeFirestoreState.docs.clear();
   const app = express();
   app.use(express.json());
@@ -89,6 +91,25 @@ async function status() {
 }
 
 describe("GET /api/site-task-brief/:token/status", () => {
+  it("keeps repeated owner and film status reads free of outbox delivery and writes", async () => {
+    sharedFakeFirestoreState.docs.set("captureOutbox/unrelated-pending", {
+      requestId: "another-site", state: "pending", attempts: 0,
+    });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const filmToken = createCaptureUploadToken({
+      requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film",
+    });
+
+    expect((await status()).code).toBe(200);
+    expect((await status()).code).toBe(200);
+    expect((await fetch(`${baseUrl}/api/site-task-brief/${filmToken}/status`)).status).toBe(200);
+    expect((await fetch(`${baseUrl}/api/site-task-brief/invalid-token/status`)).status).toBe(404);
+
+    expect(deliverOutbox).not.toHaveBeenCalled();
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+  });
+
   it("reads assessing while nobody has run against the scene, and already offers the claim", async () => {
     const { code, body } = await status();
     expect(code).toBe(200);
