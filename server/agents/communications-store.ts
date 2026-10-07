@@ -563,7 +563,11 @@ export class CommunicationsStore {
         execution_attempts: 0, last_execution_error: policyBlocked ? refusal : null, last_execution_at: null, sent_at: null, created_at: now, updated_at: now,
       });
       if (authority && !existing.exists && authorityRef && !savedAuthority?.exists) tx.create(authorityRef, authority);
-      tx.update(jobRef, { state, output, usage, ledgerId, reviewDigest, ...(policyBlocked ? { reason: refusal } : {}), updatedAt: this.now() });
+      tx.update(jobRef, { state, output, usage, ledgerId, reviewDigest, ...(policyBlocked ? { reason: refusal } : {}),
+        // The same-run writer has drained its observation before committing.
+        // Release only this verified owner while atomically retaining output,
+        // so its immediate Gmail action can use the existing copy checks.
+        ...(record.checkpoint.sameRunDraftSave && state === "pending_approval" ? { lease: { ...record.lease, until: 0 } } : {}), updatedAt: this.now() });
       tx.set(sourceRef, { communications: { jobId: job.jobId, ledgerId, briefId: job.briefId, briefDigest: job.briefDigest,
         state, draft: output, reviewDigest, gmailDraftId: null, updatedAt: this.now() } }, { merge: true });
       tx.set(sourceRef.collection("communicationsEvents").doc(job.jobId), {

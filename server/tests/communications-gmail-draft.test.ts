@@ -13,7 +13,8 @@ import { founderOutreachFixture } from "./fixtures/founder-outreach";
 import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
 import { communicationsDeliveryKey, communicationsDigest } from "../agents/communications-contract";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
-import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, runCommunicationsGmailDraftCopies, type GmailDraftPorts } from "../agents/communications-gmail-draft";
+import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, runCommunicationsGmailDraftCopies,
+ prepareSameRunDraftSave, saveCommunicationsUnsentDraft, type GmailDraftPorts } from "../agents/communications-gmail-draft";
 beforeEach(()=>{vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE","Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");capability.mockReset().mockResolvedValue(undefined);});
 afterEach(()=>vi.unstubAllEnvs());
 function fixture(launch: boolean | "historical" = false) {
@@ -99,6 +100,63 @@ describe("separate retained recurring Gmail copy direction",()=>{
   vi.mocked(f.ports.priorContact).mockImplementationOnce(async()=>{current+=60001;return false;});
   await runCommunicationsGmailDraftCopies(f.db,()=>current,f.ports);
   expect(f.ports.write).not.toHaveBeenCalled();expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"refused_before_write",providerWriteSubmitted:false});
+ });
+});
+describe("same-run unsent Gmail draft action",()=>{
+ async function direct() {
+  const f=fixture(); copyStorage.generation="1";
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED","false");vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED","false");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","false");vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF","unchanged-existing-compose-consent");
+  const authority:any={version:"blueprint.communications-gmail-draft-copy-direction.v2",owner:"Nijel Hunt",approvedAt:new Date(communicationsNow-1000).toISOString(),expiresAt:new Date(communicationsNow+60000).toISOString(),
+   direction:{kind:"direct_current_chat_human_reply",text:"Save eligible prospective drafts inside the same run",sourceRef:"gs://blueprint-8c1ca.appspot.com/operations/recovery/synthetic/human-copy-direction.json"},
+   binding:{mailbox:"nijel@tryblueprint.io",composeApprovalReference:"unchanged-existing-compose-consent"},scope:{draftOnly:true,gmailCopiesAuthorized:true,sendsAuthorized:false,newInferenceAuthorized:false,accessChangesAuthorized:false,saveWithinRun:true,prospectiveOnly:true}};
+  const retain=()=>{copyStorage.raw=JSON.stringify(authority);f.db.records.set(f.root,{gmailDraftCopyDirection:{uri:"gs://blueprint-8c1ca.appspot.com/operations/recovery/synthetic/agent-e2e-gmail-draft-copy-owner-direction.json",generation:"1",sha256:createHash("sha256").update(copyStorage.raw).digest("hex")}});};retain();
+  f.ports.recipientDraftExists=vi.fn(async()=>false);
+  const binding=await prepareSameRunDraftSave(f.db,()=>communicationsNow,f.ports);
+  f.db.records.get(`${f.root}/jobs/${f.job.jobId}`).checkpoint={createClaimedAt:null,sessionId:null,turnId:null,sameRunDraftSave:binding};
+  const save=(now=()=>communicationsNow)=>saveCommunicationsUnsentDraft(f.db,f.job.jobId,binding,now,f.ports);
+  return{...f,authority,retain,binding,save};
+ }
+ it("saves without a separate copy window or approval and rechecks the actual unsent copy on replay",async()=>{
+  const f=await direct();
+  expect(await f.save()).toMatchObject({state:"gmail_draft_saved",gmailDraftId:"gmail-draft-1",sent:false,approved:false});
+  await f.save();expect(f.ports.write).toHaveBeenCalledOnce();expect(f.ports.find).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(f.ports.write).mock.calls[0][0].mimeProfile).toBe("multipart-signature-link-v2");
+  expect(f.db.records.get(`action_ledger/${f.ledgerId}`).status).toBe("pending_approval");
+  expect(f.db.records.get(`action_ledger/${f.ledgerId}`).approved_by).toBeUndefined();
+  expect(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_JOB_ID).toBeUndefined();
+ });
+ it("reconciles a lost create ACK using the retained binding instead of making another copy",async()=>{
+  const f=await direct();vi.mocked(f.ports.write).mockImplementationOnce(async content=>{f.setCopied(content);throw Error("synthetic_lost_ack");});
+  await expect(f.save()).rejects.toThrow("gmail_draft_unknown_acknowledgement_reconcile_exact_job");expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`).state).toBe("unknown");
+  expect(await f.save()).toMatchObject({state:"gmail_draft_saved",gmailDraftId:"gmail-draft-1"});expect(f.ports.write).toHaveBeenCalledOnce();
+ });
+ it.each(["historical", "recipient_draft", "opt_out", "changed_direction", "expired", "send_enabled"])("refuses %s without creating mail",async kind=>{
+  const f=await direct();
+  if(kind==="historical")delete f.db.records.get(`${f.root}/jobs/${f.job.jobId}`).checkpoint.sameRunDraftSave;
+  if(kind==="recipient_draft")vi.mocked(f.ports.recipientDraftExists!).mockResolvedValue(true);
+  if(kind==="opt_out")vi.mocked(f.ports.priorContact).mockImplementation(async()=>{f.db.records.set(`email_suppressions/${f.brief.contact.email}`,{global_suppressed:true});return false;});
+  if(kind==="changed_direction"){f.authority.direction.text="Changed direction";f.retain();}
+  if(kind==="expired"){f.authority.expiresAt=new Date(communicationsNow).toISOString();f.retain();}
+  if(kind==="send_enabled")vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED","true");
+  await expect(f.save()).rejects.toThrow();expect(f.ports.write).not.toHaveBeenCalled();
+ });
+ it("does not claim success when the provider accepts a write but readback cannot verify it",async()=>{
+  const f=await direct();vi.mocked(f.ports.find).mockResolvedValue(null);
+  await expect(f.save()).rejects.toThrow("gmail_draft_readback_unverified");
+  await expect(f.save()).rejects.toThrow();expect(f.ports.write).toHaveBeenCalledOnce();
+ });
+ it("restarts through the same durable action and excludes historical manual copies",async()=>{
+  const f=await direct();vi.stubEnv("BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED","true");
+  await runCommunicationsGmailDraftCopies(f.db,()=>communicationsNow,f.ports);
+  expect(f.ports.write).toHaveBeenCalledOnce();
+  await runCommunicationsGmailDraftCopies(f.db,()=>communicationsNow,f.ports);expect(f.ports.write).toHaveBeenCalledOnce();
+  const old=await direct();delete old.db.records.get(`${old.root}/jobs/${old.job.jobId}`).checkpoint.sameRunDraftSave;
+  await runCommunicationsGmailDraftCopies(old.db,()=>communicationsNow,old.ports);expect(old.ports.write).not.toHaveBeenCalled();
+ });
+ it("preserves a manually edited copy rather than overwriting it on a later run",async()=>{
+  const f=await direct();await f.save();vi.mocked(f.ports.find).mockRejectedValue(Error("gmail_draft_readback_content_changed"));
+  await expect(f.save()).rejects.toThrow("gmail_draft_unknown_acknowledgement_reconcile_exact_job");expect(f.ports.write).toHaveBeenCalledOnce();
  });
 });
 describe("manual Gmail draft copy of the exact canonical revision",()=>{
@@ -251,8 +309,8 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   const from=full.message.payload.headers.find((header:any)=>header.name==="From");from.value+=" attacker@example.reserved.invalid";
   await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");expect(api.users.drafts.send).not.toHaveBeenCalled();expect(api.users.messages.send).not.toHaveBeenCalled();
  });
- it.each(["named", "inbox", "dated", "future"] as const)("copies natural %s paragraphs/signature as exact plain text and escaped HTML, then verifies both alternatives",async kind=>{
-  const f=fixture(), founder=founderOutreachFixture(kind);let full:any;
+ it.each(["named", "inbox", "dated", "future", "direct"] as const)("copies natural %s paragraphs/signature as exact plain text and escaped HTML, then verifies both alternatives",async kind=>{
+  const f=fixture(), founder=founderOutreachFixture(kind === "direct" ? "named" : kind);let full:any;
   const api:any={users:{drafts:{create:vi.fn(async({requestBody}:any,options:any)=>{
    expect(options.retry).toBe(false);
    const raw=Buffer.from(requestBody.message.raw,"base64url").toString("utf8");
@@ -268,16 +326,18 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   }),get:vi.fn(async()=>({data:full})),send:vi.fn()},messages:{send:vi.fn()}}};
   const ports=configuredGmailDraftPorts(api), content:any={jobId:f.job.jobId,reviewDigest:f.input.expectedReviewDigest,payloadDigest:"c".repeat(64),
    to:f.payload.to,subject:founder.output.subject,
-   body:appendFirstContactFooter(founder.output.body,f.brief.contact.email)+"\n<unsafe>&\"'",messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`,mimeProfile:"multipart-alternative-v1"};
+   body:appendFirstContactFooter(founder.output.body,f.brief.contact.email)+"\n<unsafe>&\"'",messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`,mimeProfile:kind === "direct" ? "multipart-signature-link-v2" : "multipart-alternative-v1"};
   await ports.write(content);
   const parts=full.message.payload.parts;
-  expect(Buffer.from(parts[0].body.data,"base64url").toString()).toBe(content.body);
+  const plain=Buffer.from(parts[0].body.data,"base64url").toString();
+  if(kind === "direct")expect(plain).toContain("Nijel Hunt\nBlueprint — https://tryblueprint.io/");else expect(plain).toBe(content.body);
   const html=Buffer.from(parts[1].body.data,"base64url").toString();
-  expect(html).toContain('<a href="https://tryblueprint.io/">https://tryblueprint.io</a>');
+  expect(html).toContain(kind === "direct" ? '<a href="https://tryblueprint.io/" style="color:#0000ee;text-decoration:underline">Blueprint</a>' : '<a href="https://tryblueprint.io/">https://tryblueprint.io</a>');
+  if(kind === "direct"){expect(html.match(/<a /g)).toHaveLength(1);expect(html).not.toMatch(/<img|utm_|tracking|redirect|<button/);}
   expect(html).toContain("&lt;unsafe&gt;&amp;&quot;&#39;");expect(html).not.toContain("<unsafe>");
   expect(html).toContain("If you’d rather I don’t follow up, just let me know.");expect(html).not.toContain("Unsubscribe from");
   expect(html).toContain("<br>\n<br>\n");
-  expect(html).toContain("Thanks,<br>\nNijel Hunt<br>\nBlueprint");
+  expect(html).toContain(kind === "direct" ? "Thanks,<br>\nNijel Hunt<br>\n<a" : "Thanks,<br>\nNijel Hunt<br>\nBlueprint");
   expect(html.match(/Nijel Hunt/g)).toHaveLength(1);
   expect(html).not.toMatch(/<script|<style/);
   expect(await ports.find(content,full.id)).toMatchObject({draftId:full.id,mimeProfile:content.mimeProfile,htmlSha256:createHash("sha256").update(html).digest("hex")});
