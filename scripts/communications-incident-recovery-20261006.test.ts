@@ -83,7 +83,7 @@ function disabledAdmissionFixture() {
   f.authority.processProofDigest = sha(f.proof);
   return f;
 }
-function mcpFixture(webCommit = ADMISSION_SOURCE, absentWebFlag = false) {
+function mcpFixture(webCommit = ADMISSION_SOURCE, absentWebFlag = false, actualToolNames = false) {
   const f = disabledAdmissionFixture(), worker = f.proof.services[0], web = f.proof.web;
   web.deploy = { ...web.deploy, commit: { id: webCommit } };
   web.deployReceipt.body = web.deploy;
@@ -93,7 +93,7 @@ function mcpFixture(webCommit = ADMISSION_SOURCE, absentWebFlag = false) {
       msg: 'Ops automation scheduler not started in web process; it runs in the blueprint-webapp-worker service (set BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1 to opt this process in)' });
   }
   web.service.body.ownerId = 'tea-synthetic';
-  const call = (tool: string, args: any, body: any) => ({ tool: `mcp__render__${tool}`, arguments: { workspaceId: 'tea-synthetic', ...args },
+  const call = (tool: string, args: any, body: any) => ({ tool: actualToolNames ? `mcp__codex_apps__render_${tool}` : `mcp__render__${tool}`, arguments: { workspaceId: 'tea-synthetic', ...args },
     requestedAtUtc: new Date(NOW - 20).toISOString(), respondedAtUtc: new Date(NOW - 3).toISOString(),
     result: { content: [{ type: 'text', text: JSON.stringify(body) }] } });
   const replace = (original: any, tool: string, args: any, url = original.url) => mcpReceipt([call(tool, args, original.body)], url);
@@ -147,12 +147,45 @@ describe('owner-scoped lap259 recovery', () => {
       expect(f.writes).toHaveLength(0);
     }
   });
-  it('consumes successful authenticated MCP reads without inventing HTTP status in actual CAS recovery', async () => {
-    const f = mcpFixture();
+  it.each([false, true])('consumes authenticated MCP reads without inventing HTTP status in CAS (actual tool names: %s)', async actualToolNames => {
+    const f = mcpFixture(ADMISSION_SOURCE, false, actualToolNames);
     expect(f.receipts.every(r => r.status === null && r.httpStatusObserved === false)).toBe(true);
+    if (actualToolNames) expect(new Set(f.receipts.map(r => r.mcp.calls[0].tool))).toEqual(new Set([
+      'mcp__codex_apps__render_get_service', 'mcp__codex_apps__render_get_deploy', 'mcp__codex_apps__render_list_logs',
+    ]));
     await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).resolves.toMatchObject({ state: 'reconciled_and_release_fenced' });
     expect(f.writes).toHaveLength(3);
     expect(f.values.get(AUDIT).authority.expectedMcpReadScope).toEqual(f.authority.expectedMcpReadScope);
+  });
+  it.each([
+    ['unsupported operation', (f: any) => { f.receipts[0].mcp.calls[0].tool = 'mcp__codex_apps__render_update_service'; }],
+    ['unreviewed list operation', (f: any) => { f.receipts[0].mcp.calls[0].tool = 'mcp__codex_apps__render_list_deploys'; }],
+    ['similar tool spelling', (f: any) => { f.receipts[0].mcp.calls[0].tool = 'mcp__codex_apps__render_get_service_extra'; }],
+    ['foreign service', (f: any) => { f.receipts[0].mcp.calls[0].arguments.serviceId = 'srv-foreign'; }],
+    ['foreign deployment', (f: any) => { f.receipts[1].mcp.calls[0].arguments.deployId = 'dep-foreign'; }],
+    ['foreign log resource', (f: any) => { f.receipts[4].mcp.calls[0].arguments.resource = ['srv-foreign']; }],
+    ['foreign workspace', (f: any) => { f.receipts[0].mcp.calls[0].arguments.workspaceId = 'tea-foreign'; }],
+    ['response before request', (f: any) => { f.receipts[0].mcp.calls[0].requestedAtUtc = new Date(NOW).toISOString(); }],
+    ['stale response', (f: any) => {
+      f.receipts[0].mcp.calls[0].requestedAtUtc = new Date(NOW - 300021).toISOString();
+      f.receipts[0].mcp.calls[0].respondedAtUtc = new Date(NOW - 300001).toISOString();
+      f.receipts[0].observedAtMs = NOW - 300001;
+    }],
+    ['future response', (f: any) => {
+      f.receipts[0].mcp.calls[0].respondedAtUtc = new Date(NOW + 5001).toISOString();
+      f.receipts[0].observedAtMs = NOW + 5001;
+    }],
+    ['error envelope', (f: any) => { f.receipts[0].mcp.calls[0].result.isError = true; }],
+    ['invented HTTP success', (f: any) => { f.receipts[0].status = 200; }],
+  ])('refuses actual-name %s evidence before CAS even with refreshed byte pins', async (_name, change) => {
+    const f = mcpFixture(ADMISSION_SOURCE, false, true);
+    (change as (value: any) => void)(f);
+    // A new byte pin cannot repair a foreign operation/target, altered transport
+    // or original stale/invalid timestamp. Stable authenticated scope remains bound.
+    f.authority.expectedMcpReceiptDigests = Object.fromEntries(f.receipts.map(r => [r.url, sha(r.mcp)]));
+    f.authority.processProofDigest = sha(f.proof);
+    await expect(recover(f.db, f.packet, f.provider, f.proof, f.authority, f.archive, f.now)).rejects.toThrow();
+    expect(f.writes).toHaveLength(0);
   });
   it('rejects error, mismatched, unpinned, stale or invented MCP read evidence before any writes', async () => {
     for (const change of [
@@ -206,8 +239,8 @@ describe('owner-scoped lap259 recovery', () => {
     f.authority.processProofDigest = sha(f.proof);
     await expect(fenceLease(f.db, 'release-fence', f.authority, f.proof, () => at)).rejects.toThrow('release_fence_ownership_changed');
   });
-  it.each([ADMISSION_SOURCE, REVIEWED_WEB_SOURCE])('orchestrates local runtime, completed barrier, canonical/provider and supported recovery for Web %s', async webCommit => {
-    const f = mcpFixture(webCommit, true), worker = f.proof.services[0], web = f.proof.web;
+  it.each([ADMISSION_SOURCE, REVIEWED_WEB_SOURCE])('orchestrates actual-name MCP, runtime, barrier and canonical/provider recovery for Web %s', async webCommit => {
+    const f = mcpFixture(webCommit, true, true), worker = f.proof.services[0], web = f.proof.web;
     if (webCommit === REVIEWED_WEB_SOURCE) f.authority.expectedWebCommit = webCommit;
     const baseline = { ...structuredClone(worker.runtimes[0]), observedAtMs: NOW - 20000, instanceId: `${worker.serviceId}-old` };
     const owner = { ...f.authority, writerFreezeEvidence: { source: 'synthetic-authenticated-owner-acknowledgements' }, frozenWriters: f.proof.frozenWriters,
