@@ -128,12 +128,13 @@ describe("existing worker placement for explicit saved-output recovery", () => {
   });
   it.each(["cancel", "generation", "expiry", "revoked_owner", "stopping"])("fences %s during an awaited saved GET before approval commit", async kind => {
     const f = await setup(), request = await f.enqueue(), controller = new AbortController();
+    let currentTime = f.deps.now(); f.options.now = () => currentTime;
     const original = f.deps.api.reconcileSaved.bind(f.deps.api);
     vi.spyOn(f.deps.api, "reconcileSaved").mockImplementation(async (...args) => {
       const result = await original(...args);
       if (kind === "cancel") await cancelSavedRecovery(f.db, f.input.jobId, "synthetic-owner", request.generation, request.requestDigest, f.deps.now());
       if (kind === "generation") await f.db.doc(f.requestPath).update({ generation: 2 });
-      if (kind === "expiry") await f.db.doc(f.requestPath).update({ expiresAtMs: f.deps.now() });
+      if (kind === "expiry") currentTime += SAVED_RECOVERY_WINDOW_MS;
       if (kind === "revoked_owner") f.options.assertOwner.mockRejectedValue(Error("communications_saved_recovery_owner_changed"));
       if (kind === "stopping") controller.abort();
       return result;
@@ -141,6 +142,64 @@ describe("existing worker placement for explicit saved-output recovery", () => {
     if (kind === "generation") await expect(f.execute(controller.signal)).rejects.toThrow("settlement_changed"); else await f.execute(controller.signal);
     expect(f.db.records.has(`action_ledger/communications_${f.input.jobId}`)).toBe(false);
     expect(f.db.records.get(COMMUNICATIONS_WORKER_LAP_PATH)).toMatchObject({ phase: "complete", lease: { until: 0 } });
+  });
+  it.each(["lost_ack", "sdk_retry"])("retains its attempted claim across %s and executes the saved consumer once", async mode => {
+    const f = await setup(); await f.enqueue(); const run = f.db.runTransaction.bind(f.db); let affected = false;
+    f.db.runTransaction = async (fn: any) => {
+      const wasQueued = f.db.records.get(f.requestPath)?.state === "queued", result = await run(fn);
+      if (!affected && wasQueued && f.db.records.get(f.requestPath)?.state === "running") {
+        affected = true; if (mode === "lost_ack") throw Error("synthetic_claim_ack_lost"); return run(fn);
+      }
+      return result;
+    };
+    await f.execute(); expect(affected).toBe(true); expect(f.requests).toHaveLength(3);
+    expect(f.db.records.get(f.requestPath).state).toBe("completed"); await f.execute(); expect(f.requests).toHaveLength(3);
+  });
+  it("retains a committed claim when its confirming read fails, then resumes only the same local token", async () => {
+    const f = await setup(); await f.enqueue(); const run = f.db.runTransaction.bind(f.db), doc = f.db.doc.bind(f.db);
+    let claimLost = false, readUnavailable = false;
+    f.db.doc = (path: string) => { const ref = doc(path), get = ref.get.bind(ref); ref.get = async () => {
+      if (path === f.requestPath && readUnavailable) { readUnavailable = false; throw Error("synthetic_claim_confirmation_unavailable"); } return get();
+    }; return ref; };
+    f.db.runTransaction = async (fn: any) => {
+      const queued = f.db.records.get(f.requestPath)?.state === "queued", result = await run(fn);
+      if (!claimLost && queued && f.db.records.get(f.requestPath)?.state === "running") { claimLost = true; readUnavailable = true; throw Error("synthetic_claim_ack_lost"); }
+      return result;
+    };
+    await expect(f.execute()).rejects.toThrow("synthetic_claim_confirmation_unavailable");
+    const token = f.db.records.get(f.requestPath).executionToken; expect(f.requests).toHaveLength(0);
+    await f.execute(); expect(f.db.records.get(f.requestPath)).toMatchObject({ state: "completed", executionToken: token }); expect(f.requests).toHaveLength(3);
+  });
+  it.each(["unavailable", "lost_ack"])("retains a drained final settlement after %s and never retrieves the output again", async mode => {
+    const f = await setup(); await f.enqueue(); const run = f.db.runTransaction.bind(f.db); let affected = false;
+    f.db.runTransaction = async (fn: any) => {
+      const result = await run((tx: any) => fn({ ...tx, set: (ref: any, value: any) => {
+        if (!affected && mode === "unavailable" && ref.path === f.requestPath && value.state === "completed") { affected = true; throw Error("synthetic_settlement_unavailable"); }
+        return tx.set(ref, value);
+      } }));
+      if (!affected && mode === "lost_ack" && f.db.records.get(f.requestPath)?.state === "completed") { affected = true; throw Error("synthetic_settlement_ack_lost"); }
+      return result;
+    };
+    await expect(f.execute()).rejects.toThrow(/synthetic_settlement/); expect(f.db.records.get(f.path).state).toBe("pending_approval");
+    expect(f.requests).toHaveLength(3); const token = f.db.records.get(f.requestPath).executionToken;
+    await f.execute(); expect(f.db.records.get(f.requestPath)).toMatchObject({ state: "completed", executionToken: token }); expect(f.requests).toHaveLength(3);
+  });
+  it("clears only a proven uncommitted local claim after its first confirming read failed", async () => {
+    const f = await setup(); await f.enqueue(); const run = f.db.runTransaction.bind(f.db), doc = f.db.doc.bind(f.db);
+    let interrupted = false, readUnavailable = false;
+    f.db.doc = (path: string) => { const ref = doc(path), get = ref.get.bind(ref); ref.get = async () => {
+      if (path === f.requestPath && readUnavailable) { readUnavailable = false; throw Error("synthetic_claim_confirmation_unavailable"); } return get();
+    }; return ref; };
+    f.db.runTransaction = async (fn: any) => {
+      const before = structuredClone(f.db.records.get(f.requestPath)), result = await run(fn);
+      if (!interrupted && before?.state === "queued" && f.db.records.get(f.requestPath)?.state === "running") {
+        interrupted = true; f.db.records.set(f.requestPath, before); readUnavailable = true; throw Error("synthetic_claim_uncommitted");
+      }
+      return result;
+    };
+    await expect(f.execute()).rejects.toThrow("synthetic_claim_confirmation_unavailable"); expect(f.requests).toHaveLength(0);
+    await f.execute(); expect(f.requests).toHaveLength(0); expect(f.db.records.get(f.requestPath).state).toBe("queued");
+    await f.execute(); expect(f.requests).toHaveLength(3); expect(f.db.records.get(f.requestPath).state).toBe("completed");
   });
   it("does not steal a running intent after expiry, and expires queued authority without execution", async () => {
     const f = await setup(); await f.enqueue(); await f.db.doc(f.requestPath).update({ state: "running", executionToken: "old-token", expiresAtMs: f.deps.now() - 1 });

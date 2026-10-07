@@ -60,62 +60,123 @@ function nativeDependencies(db: Firestore, request: SavedRecoveryRequest, signal
     isSuppressed: async email => { await assertCurrent(); return isEmailSuppressed(email, "growth_campaign"); },
     suppress: async (email, reason) => { await assertCurrent(); return recordEmailSuppression({ email, reason, scope: "all", source: "communications_reply" }); } };
 }
+type OwnedRecovery = { request: SavedRecoveryRequest; phase: "claim" | "execute" | "settle";
+  result?: SavedRecoveryRequest["result"]; error?: string; terminalState?: SavedRecoveryRequest["state"]; settledAtMs?: number };
+// Exact local handles survive ambiguous transaction acknowledgements. Neither
+// expiry nor a running record owned by another process can substitute for one.
+const ownedRecoveries = new WeakMap<Firestore, OwnedRecovery>();
+const activeRecoveries = new WeakSet<Firestore>();
+function sameIntentIdentity(current: SavedRecoveryRequest | undefined, owned: OwnedRecovery) {
+  const expected = owned.request;
+  return Boolean(current && current.version === expected.version && current.generation === expected.generation && current.requestDigest === expected.requestDigest
+    && current.actorUid === expected.actorUid && communicationsDigest(current.input) === communicationsDigest(expected.input)
+    && current.requestedAtMs === expected.requestedAtMs && current.expiresAtMs === expected.expiresAtMs);
+}
+function sameOwnedRequest(current: SavedRecoveryRequest | undefined, owned: OwnedRecovery) {
+  return sameIntentIdentity(current, owned) && current!.executionToken === owned.request.executionToken && current!.executionServiceId === owned.request.executionServiceId;
+}
+async function settleOwnedRecovery(db: Firestore, owned: OwnedRecovery) {
+  const ref = db.doc(`${SAVED_RECOVERY_REQUESTS}/${owned.request.input.jobId}`);
+  await db.runTransaction(async tx => {
+    const current = (await tx.get(ref)).data() as SavedRecoveryRequest | undefined;
+    if (!sameOwnedRequest(current, owned)) throw Error("communications_saved_recovery_settlement_changed");
+    if (current!.state !== "running") {
+      if (current!.state !== owned.terminalState || current!.settledAtMs !== owned.settledAtMs
+        || communicationsDigest(current!.result ?? null) !== communicationsDigest(owned.result ?? null)
+        || (current!.error ?? null) !== (owned.error ?? null)) throw Error("communications_saved_recovery_settlement_changed");
+      return; // Our exact committed completion with a previously lost ACK.
+    }
+    if (!owned.result && current!.cancelRequested) owned.terminalState = "cancelled";
+    tx.set(ref, { ...current, state: owned.terminalState!, settledAtMs: owned.settledAtMs!,
+      ...(owned.result ? { result: owned.result } : {}), ...(owned.error ? { error: owned.error } : {}) });
+  });
+  if (ownedRecoveries.get(db) === owned) ownedRecoveries.delete(db);
+}
 /** Runs inside the existing worker, with no general intake, paid draft, copy or
  * send callback. Each intent needs its own current founder action and pins. */
 export async function executeSavedRecoveryRequest(db: Firestore, jobId: string, signal: AbortSignal, options: Options = {}) {
-  const now = options.now ?? Date.now, readiness = options.readiness ?? (() => savedRecoveryWorkerReadiness(now()));
-  const ref = db.doc(`${SAVED_RECOVERY_REQUESTS}/${jobId}`), token = randomUUID();
-  const claimed = await db.runTransaction(async tx => {
-    const request = (await tx.get(ref)).data() as SavedRecoveryRequest | undefined;
-    if (!request || request.state !== "queued") return null;
-    if (request.version !== "owner-saved-recovery-request-v1" || request.input.jobId !== jobId
-      || !Number.isSafeInteger(request.generation) || request.generation < 1 || !Number.isSafeInteger(request.requestedAtMs)
-      || request.requestedAtMs > now() || request.expiresAtMs !== request.requestedAtMs + SAVED_RECOVERY_WINDOW_MS
-      || request.requestDigest !== communicationsDigest({ input: request.input, actorUid: request.actorUid })) throw Error("communications_saved_recovery_intent_binding_changed");
-    if (request.cancelRequested || now() >= request.expiresAtMs) {
-      tx.set(ref, { ...request, state: "cancelled", settledAtMs: now() }); return null;
-    }
-    const runtime = readiness();
-    assertSavedRecoveryWorker(runtime, request.input.expectedSourceCommit, request.actorUid, now());
-    const next: SavedRecoveryRequest = { ...request, state: "running", executionToken: token, executionServiceId: runtime.serviceId };
-    tx.set(ref, next); return next;
-  });
-  if (!claimed) return;
-  const controller = new AbortController(), abort = () => controller.abort();
-  signal.addEventListener("abort", abort, { once: true }); if (signal.aborted) abort();
-  const deadline = setTimeout(abort, Math.max(1, claimed.expiresAtMs - now()));
-  const checkRecord = (record: unknown) => {
-    if (controller.signal.aborted) throw Error("communications_saved_recovery_request_cancelled");
-    assertSavedRecoveryRequest(record as SavedRecoveryRequest, claimed, token, now());
-  };
-  const check = async () => {
-    checkRecord((await ref.get()).data());
-    assertSavedRecoveryWorker(readiness(), claimed.input.expectedSourceCommit, claimed.actorUid, now());
-    await (options.assertOwner ?? assertOwner)(claimed.actorUid);
-    if (controller.signal.aborted) throw Error("communications_saved_recovery_request_cancelled");
-  };
-  let monitor: Promise<void> | undefined;
-  const poll = setInterval(() => { if (!monitor) monitor = check().catch(abort).finally(() => { monitor = undefined; }); }, 1000);
-  poll.unref(); deadline.unref();
-  let result: SavedRecoveryRequest["result"], error: string | undefined;
+  if (activeRecoveries.has(db)) throw Error("communications_saved_recovery_process_busy");
+  activeRecoveries.add(db);
   try {
-    await check(); await (options.capability ?? requireFounderDraftCapability)(); await check();
-    const deps = (options.dependencies ?? ((r, s, c) => nativeDependencies(db, r, s, c)))(claimed, controller.signal, check);
-    const recovered = await recoverCommunicationsDraftInProcess(claimed.input, claimed.actorUid, deps, { signal: controller.signal,
-      sample: stage => { const runtime = readiness(); assertSavedRecoveryWorker(runtime, claimed.input.expectedSourceCommit, claimed.actorUid, now()); return { ...runtime.memory, stage }; },
-      authority: { path: ref.path, assertRecord: checkRecord, assertCurrent: check } });
-    result = { state: recovered.state, ledgerId: "ledgerId" in recovered && typeof recovered.ledgerId === "string" ? recovered.ledgerId : null,
-      sent: false, gmailDraftCreated: false, sessionCreated: false };
-  } catch (caught) { error = safeCode(caught); }
-  finally { clearInterval(poll); clearTimeout(deadline); signal.removeEventListener("abort", abort); await monitor; }
-  await db.runTransaction(async tx => {
-    const current = (await tx.get(ref)).data() as SavedRecoveryRequest | undefined;
-    // Exact receipt only: a subsequent generation or cancellation cannot be
-    // overwritten by a stale completion. Never expire-steal a running intent.
-    if (!current || current.generation !== claimed.generation || current.requestDigest !== claimed.requestDigest || current.executionToken !== token || current.state !== "running") throw Error("communications_saved_recovery_settlement_changed");
-    tx.set(ref, { ...current, state: result && ["pending_approval", "no_op"].includes(result.state) ? "completed" : current.cancelRequested || controller.signal.aborted ? "cancelled" : "failed",
-      settledAtMs: now(), ...(result ? { result } : {}), ...(error ? { error } : {}) });
-  });
+    const now = options.now ?? Date.now, readiness = options.readiness ?? (() => savedRecoveryWorkerReadiness(now()));
+    let owned = ownedRecoveries.get(db);
+    if (owned?.phase === "settle") { await settleOwnedRecovery(db, owned); return; }
+    if (owned && owned.request.input.jobId !== jobId) throw Error("communications_saved_recovery_intent_unsettled");
+    const ref = db.doc(`${SAVED_RECOVERY_REQUESTS}/${jobId}`);
+    if (!owned) {
+      const token = randomUUID();
+      try {
+        await db.runTransaction(async tx => {
+          const request = (await tx.get(ref)).data() as SavedRecoveryRequest | undefined;
+          if (!request || request.state !== "queued") return;
+          if (request.version !== "owner-saved-recovery-request-v1" || request.input.jobId !== jobId
+            || !Number.isSafeInteger(request.generation) || request.generation < 1 || !Number.isSafeInteger(request.requestedAtMs)
+            || request.requestedAtMs > now() || request.expiresAtMs !== request.requestedAtMs + SAVED_RECOVERY_WINDOW_MS
+            || request.requestDigest !== communicationsDigest({ input: request.input, actorUid: request.actorUid })) throw Error("communications_saved_recovery_intent_binding_changed");
+          if (request.cancelRequested || now() >= request.expiresAtMs) {
+            tx.set(ref, { ...request, state: "cancelled", settledAtMs: now() }); return;
+          }
+          const runtime = readiness();
+          assertSavedRecoveryWorker(runtime, request.input.expectedSourceCommit, request.actorUid, now());
+          owned = { request: { ...request, state: "running", executionToken: token, executionServiceId: runtime.serviceId }, phase: "claim" };
+          ownedRecoveries.set(db, owned); // Retain before the commit/ACK boundary.
+          tx.set(ref, owned.request);
+        });
+      } catch (error) {
+        const attempted = ownedRecoveries.get(db);
+        if (!attempted) throw error;
+        const observed = (await ref.get()).data() as SavedRecoveryRequest | undefined;
+        if (!sameOwnedRequest(observed, attempted)) {
+          if (sameIntentIdentity(observed, attempted) && !observed!.executionToken && ["queued", "cancelled"].includes(observed!.state)) {
+            ownedRecoveries.delete(db); // Proven not committed; no consumer ran.
+          }
+          throw error;
+        }
+        // Only our exact attempted token proves a committed lost-ACK claim.
+      }
+    }
+    owned = ownedRecoveries.get(db);
+    if (!owned) return;
+    const observed = (await ref.get()).data() as SavedRecoveryRequest | undefined;
+    if (owned.phase === "claim" && sameIntentIdentity(observed, owned) && !observed!.executionToken
+      && ["queued", "cancelled"].includes(observed!.state)) {
+      ownedRecoveries.delete(db); // A later exact read proves the attempt never committed.
+      return;
+    }
+    if (!sameOwnedRequest(observed, owned) || observed!.state !== "running") throw Error("communications_saved_recovery_claim_unverified");
+    owned.phase = "execute";
+    const claimed = owned.request, token = claimed.executionToken!;
+    const controller = new AbortController(), abort = () => controller.abort();
+    signal.addEventListener("abort", abort, { once: true }); if (signal.aborted) abort();
+    const deadline = setTimeout(abort, Math.max(1, claimed.expiresAtMs - now()));
+    const checkRecord = (record: unknown) => {
+      if (now() >= claimed.expiresAtMs) controller.abort();
+      if (controller.signal.aborted) throw Error("communications_saved_recovery_request_cancelled");
+      assertSavedRecoveryRequest(record as SavedRecoveryRequest, claimed, token, now());
+    };
+    const check = async () => {
+      checkRecord((await ref.get()).data());
+      assertSavedRecoveryWorker(readiness(), claimed.input.expectedSourceCommit, claimed.actorUid, now());
+      await (options.assertOwner ?? assertOwner)(claimed.actorUid);
+      if (controller.signal.aborted) throw Error("communications_saved_recovery_request_cancelled");
+    };
+    let monitor: Promise<void> | undefined;
+    const poll = setInterval(() => { if (!monitor) monitor = check().catch(abort).finally(() => { monitor = undefined; }); }, 1000);
+    poll.unref(); deadline.unref();
+    try {
+      await check(); await (options.capability ?? requireFounderDraftCapability)(); await check();
+      const deps = (options.dependencies ?? ((r, s, c) => nativeDependencies(db, r, s, c)))(claimed, controller.signal, check);
+      const recovered = await recoverCommunicationsDraftInProcess(claimed.input, claimed.actorUid, deps, { signal: controller.signal,
+        sample: stage => { const runtime = readiness(); assertSavedRecoveryWorker(runtime, claimed.input.expectedSourceCommit, claimed.actorUid, now()); return { ...runtime.memory, stage }; },
+        authority: { path: ref.path, assertRecord: checkRecord, assertCurrent: check } });
+      owned.result = { state: recovered.state, ledgerId: "ledgerId" in recovered && typeof recovered.ledgerId === "string" ? recovered.ledgerId : null,
+        sent: false, gmailDraftCreated: false, sessionCreated: false };
+    } catch (caught) { owned.error = safeCode(caught); }
+    finally { clearInterval(poll); clearTimeout(deadline); signal.removeEventListener("abort", abort); await monitor; }
+    owned.terminalState = owned.result && ["pending_approval", "no_op"].includes(owned.result.state) ? "completed" : controller.signal.aborted ? "cancelled" : "failed";
+    owned.settledAtMs = now(); owned.phase = "settle";
+    await settleOwnedRecovery(db, owned); // A failure keeps this drained handle.
+  } finally { activeRecoveries.delete(db); }
 }
 /** Only server/worker.ts starts this poller; Web neither starts another process
  * nor gains the worker's provider/Gmail credentials. Shutdown drains its lap. */
@@ -126,11 +187,16 @@ export function startSavedRecoveryWorker(options: { db?: Firestore; worker?: Opt
   const tick = async () => {
     if (controller.signal.aborted) return;
     await db.doc(SAVED_RECOVERY_WORKER).set((options.worker?.readiness ?? savedRecoveryWorkerReadiness)());
+    const pending = ownedRecoveries.get(db);
+    if (pending) { await executeSavedRecoveryRequest(db, pending.request.input.jobId, controller.signal, options.worker); return; }
     const queued = await db.collection(SAVED_RECOVERY_REQUESTS).where("state", "==", "queued").limit(1).get();
     if (controller.signal.aborted) return;
     if (queued.docs[0]) await executeSavedRecoveryRequest(db, queued.docs[0].id, controller.signal, options.worker);
   };
   const start = () => { if (!active && !controller.signal.aborted) active = tick().catch(error => logger.warn({ code: safeCode(error) }, "Saved-output recovery waits for its exact owner intent and worker readiness")).finally(() => { active = undefined; }); };
   const timer = setInterval(start, 10000); timer.unref(); start();
-  return async () => { controller.abort(); clearInterval(timer); await active; };
+  return async () => { controller.abort(); clearInterval(timer); await active;
+    const pending = ownedRecoveries.get(db);
+    if (pending) await executeSavedRecoveryRequest(db, pending.request.input.jobId, controller.signal, options.worker);
+  };
 }
