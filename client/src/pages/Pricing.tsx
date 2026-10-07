@@ -5,7 +5,7 @@ import { formatPrice, pilotFeeUsd, pilotReplacementPolicy } from "@/lib/evaluati
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  `Start a job assessment for free. Get one recommended pilot. Blueprint charges ${formatPrice(pilotFeeUsd)} per job only when you book it.`;
+  `Show us a task for free. Get one recommended pilot. Blueprint charges ${formatPrice(pilotFeeUsd)} per job only when you book it.`;
 
 export default function Pricing() {
   return (
@@ -48,7 +48,7 @@ export default function Pricing() {
             </p>
             <p className="ms-price-note"><a className="ms-text-link" href="/how-it-works#warehouse-task">See how a pilot works <ArrowRight size={16} aria-hidden="true" /></a></p>
             <a className="ms-text-link" href="/contact/site-operator">
-              Start a job assessment <ArrowRight size={20} aria-hidden="true" />
+              Show us a task <ArrowRight size={20} aria-hidden="true" />
             </a>
           </section>
 

@@ -8,7 +8,7 @@ test("pricing leads with no pilot, no fee and keeps robot teams free", async ({ 
   await expect(site.getByText("$2,500", { exact: true })).toBeVisible();
   await expect(site.getByText("per job, only when you book the pilot", { exact: true })).toBeVisible();
   await expect(site.getByText(/passed the evaluation for your job, fits your budget, and wants to run your pilot/)).toBeVisible();
-  await expect(site.getByRole("link", { name: /Start a job assessment/ })).toHaveAttribute("href", "/contact/site-operator");
+  await expect(site.getByRole("link", { name: /Show us a task/ })).toHaveAttribute("href", "/contact/site-operator");
 
   const team = page.locator("section", { has: page.getByRole("heading", { name: "Evaluate real site jobs" }) });
   await expect(team.getByText("$0", { exact: true })).toBeVisible();

@@ -12,7 +12,7 @@ describe("How it works", () => {
     expect(screen.queryByRole("heading", { name: "How matching works." })).not.toBeInTheDocument();
     expect(screen.queryByText("See what a match includes")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Same task. Different policies." })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Start a job assessment" })).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByRole("link", { name: "Apply for early access" })).toHaveAttribute("href", "/contact/robot-team");
     expect(screen.queryByText(/guaranteed deployment|5%|authorized buyer/i)).not.toBeInTheDocument();
   });

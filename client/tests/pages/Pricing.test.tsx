@@ -20,7 +20,7 @@ describe("Pricing", () => {
     expect(within(site).getByText(/passed the evaluation for your job, fits your budget, and wants to run your pilot/)).toBeInTheDocument();
     expect(within(site).getByText(/You get one recommended pilot: what it tests, what you provide/)).toBeInTheDocument();
     expect(within(site).getByText(/Book it in one step. One fee per job/)).toBeInTheDocument();
-    expect(within(site).getByRole("link", { name: /Start a job assessment/ })).toHaveAttribute("href", "/contact/site-operator");
+    expect(within(site).getByRole("link", { name: /Show us a task/ })).toHaveAttribute("href", "/contact/site-operator");
   });
 
   it("keeps invited robot-team evaluation free", () => {
