@@ -451,8 +451,10 @@ export function authorText(body: string) {
 }
 /** Plain-text form for founder-thread scans that hold no ThreadMessage. */
 export function isOptOutText(body: string) {
-  return /\b(?:unsubscribe|remove (?:me|us) from|take (?:me|us) off|(?:do not|don't) (?:contact|email|message|follow[ -]?up)|stop (?:emailing|contacting|sending|messaging|following[ -]?up)|no (?:more |further )?(?:follow[ -]?ups?)|no more (?:emails|messages))\b/i
-    .test(authorText(body).replace(/[’‘]/g, "'"));
+  const text = authorText(body).replace(/[’‘]/g, "'");
+  const authored = text.split(/\r?\n-- ?\r?\n/, 1)[0].trim();
+  return /^no[ ,]+thanks[.!]?$/i.test(authored) || /\b(?:unsubscribe|remove (?:me|us) from|take (?:me|us) off|(?:do not|don't) (?:contact|email|message|follow[ -]?up)|stop (?:emailing|contacting|sending|messaging|following[ -]?up)|no (?:more |further )?(?:follow[ -]?ups?)|no more (?:emails|messages))\b/i
+    .test(text);
 }
 
 export function isOptOut(message: ThreadMessage) {

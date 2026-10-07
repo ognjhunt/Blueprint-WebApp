@@ -105,6 +105,8 @@ export type CommunicationsCheckpoint = {
   draftWritingGuidance?: string;
   /** Frozen only before a prospective create; old charged sessions never gain it. */
   sameRunDraftSave?: import("./communications-gmail-draft").SameRunDraftSave;
+  /** Added only to new drafts; absent on historical same-run checkpoints. */
+  unsentDraftFooterProfile?: "approved-runtime-reply-optout-v1";
   framingVersion?: CommunicationsFramingVersion;
   replyFollowup?: unknown;
   evaluationReadiness?: import("./communications-contract").EvaluationReadiness;

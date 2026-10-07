@@ -304,7 +304,8 @@ export class CommunicationsStore {
         const source = update.outputSource;
         const identity = (checkpoint: CommunicationsCheckpoint) => ({ ...communicationsContinuationSessionBinding(checkpoint),
           turnId: checkpoint.turnId, framingVersion: checkpoint.framingVersion, draftProfile: checkpoint.draftProfile,
-          draftWritingGuidance: checkpoint.draftWritingGuidance ?? null });
+          draftWritingGuidance: checkpoint.draftWritingGuidance ?? null,
+          ...(checkpoint.unsentDraftFooterProfile ? { unsentDraftFooterProfile: checkpoint.unsentDraftFooterProfile } : {}) });
         if (recovery.checkpointDigest !== communicationsDigest(data.checkpoint)
           || communicationsDigest(identity(update.checkpoint)) !== communicationsDigest(identity(data.checkpoint))
           || !source || source.rawOutputSha256 !== recovery.rawOutputSha256 || outputTextDigest(source.rawOutput) !== recovery.rawOutputSha256

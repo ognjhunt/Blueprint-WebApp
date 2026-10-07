@@ -10,6 +10,7 @@ import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communicatio
 import { processCommunicationsJob, type CommunicationsDependencies } from "../agents/communications-worker";
 import { prepareSameRunDraftSave, saveCommunicationsUnsentDraft, type GmailDraftPorts } from "../agents/communications-gmail-draft";
 import { COMMUNICATIONS_AUDIENCE_ROLES, communicationsLaunchFraming, type CommunicationsAudienceRole } from "../agents/communications-launch-framing";
+import { appendCommunicationsFooter } from "../agents/communications-first-contact-footer";
 
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 async function setup(role: CommunicationsAudienceRole = "site") {
@@ -31,6 +32,7 @@ async function setup(role: CommunicationsAudienceRole = "site") {
   // The pinned object hash is over raw bytes, while business digests are canonical.
   const { createHash } = await import("node:crypto");
   db.records.get(COMMUNICATIONS_ROOT).gmailDraftCopyDirection.sha256 = createHash("sha256").update(storage.raw).digest("hex");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");
   vi.stubEnv("BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "false"); vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "false");
   vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED", "false"); vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF", "synthetic-existing-compose");
   let copied: any = null;
@@ -54,9 +56,34 @@ describe("one communications run saves and verifies the unsent Gmail draft", () 
     const f = await setup(role), result = await processCommunicationsJob(f.job.jobId, f.deps);
     expect(result).toMatchObject({ state: "gmail_draft_saved", gmailDraftId: "synthetic-gmail-draft", gmailDraftCreated: true, sent: false, approved: false });
     expect(f.api.run).toHaveBeenCalledOnce(); expect(f.ports.write).toHaveBeenCalledOnce();
+    const copied = vi.mocked(f.ports.write).mock.calls[0][0];
+    expect(copied.body).toContain("Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");
+    expect(copied.body).toContain("Reply “no thanks” to stop all marketing emails from Blueprint.");
+    expect(copied.body).toContain("Commercial outreach.");
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).output.body).toBe(f.output.body);
     expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "gmail_draft_saved" });
     expect(f.api.run).toHaveBeenCalledOnce(); expect(f.ports.write).toHaveBeenCalledOnce();
     expect(f.db.records.get(`action_ledger/communications_${f.job.jobId}`)).toMatchObject({ status: "pending_approval", approved_by: null, sent_at: null });
+  });
+  it("does no inference or Gmail write when the approved runtime postal configuration is unavailable", async () => {
+    const f = await setup(); vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "");
+    expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "blocked" });
+    expect(f.api.run).not.toHaveBeenCalled(); expect(f.ports.write).not.toHaveBeenCalled();
+  });
+  it("retains the historical footer for an already charged same-run v1 checkpoint", async () => {
+    const f = await setup(), bound = await f.deps.prepareDraftSave!();
+    const checkpoint = { sameRunDraftSave: bound, framingVersion: "blueprint.outreach-framing.v3", createClaimedAt: new Date(communicationsNow).toISOString(),
+      sessionId: "synthetic-existing-session", turnId: "synthetic-existing-turn",
+      draftWritingGuidance: "save_unsent_draft" };
+    f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).checkpoint = checkpoint;
+    f.deps.prepareDraftSave = vi.fn(async () => bound);
+    const result = await processCommunicationsJob(f.job.jobId, f.deps);
+    expect(result, JSON.stringify(result)).toMatchObject({ state: "gmail_draft_saved" });
+    expect(f.deps.prepareDraftSave).not.toHaveBeenCalled();
+    expect(vi.mocked(f.ports.write).mock.calls[0][0].body).toBe(appendCommunicationsFooter(f.output.body, f.brief.contact.email));
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).checkpoint.unsentDraftFooterProfile).toBeUndefined();
+    expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "gmail_draft_saved" });
+    expect(f.api.run).toHaveBeenCalledOnce(); expect(f.ports.write).toHaveBeenCalledOnce();
   });
   it("does no inference when existing compose capability is unavailable", async () => {
     const f = await setup(); vi.mocked(f.ports.requireCapability).mockRejectedValue(Error("founder_gmail_draft_capability_missing"));
