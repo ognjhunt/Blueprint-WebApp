@@ -233,7 +233,7 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("Could a robot take over a repetitive task?");
+    expect(homeHtml).toContain("Could a robot take over a repetitive task at your site?");
     expect(homeHtml).toContain("Free to start. No pilot, no fee.");
     expect(homeHtml).toContain("Illustrative example");
     expect(homeHtml).toContain("The same task, in simulation.");
@@ -306,7 +306,7 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("Could a robot take over a repetitive task?");
+    expect(browserJavaScript).toContain("Could a robot take over a repetitive task at your site?");
     expect(browserJavaScript).toContain("We draft a brief from the evidence for you to correct.");
   });
 
