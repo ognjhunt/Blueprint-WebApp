@@ -61,7 +61,7 @@ function nativeDependencies(db: Firestore, request: SavedRecoveryRequest, signal
     suppress: async (email, reason) => { await assertCurrent(); return recordEmailSuppression({ email, reason, scope: "all", source: "communications_reply" }); } };
 }
 type OwnedRecovery = { request: SavedRecoveryRequest; phase: "claim" | "execute" | "settle";
-  result?: SavedRecoveryRequest["result"]; error?: string; terminalState?: SavedRecoveryRequest["state"]; settledAtMs?: number };
+  result?: SavedRecoveryRequest["result"]; error?: string; terminalState?: SavedRecoveryRequest["state"]; settledAtMs?: number; claimFence?: boolean };
 // Exact local handles survive ambiguous transaction acknowledgements. Neither
 // expiry nor a running record owned by another process can substitute for one.
 const ownedRecoveries = new WeakMap<Firestore, OwnedRecovery>();
@@ -79,6 +79,14 @@ async function settleOwnedRecovery(db: Firestore, owned: OwnedRecovery) {
   const ref = db.doc(`${SAVED_RECOVERY_REQUESTS}/${owned.request.input.jobId}`);
   await db.runTransaction(async tx => {
     const current = (await tx.get(ref)).data() as SavedRecoveryRequest | undefined;
+    if (owned.claimFence && sameIntentIdentity(current, owned) && !current!.executionToken
+      && ["queued", "cancelled"].includes(current!.state)) {
+      // This conditional write changes the queued document version. A delayed
+      // original claim must conflict, rather than landing after a plain read.
+      tx.set(ref, { ...current, executionToken: owned.request.executionToken, executionServiceId: owned.request.executionServiceId,
+        state: "cancelled", cancelRequested: true, settledAtMs: owned.settledAtMs!, error: owned.error! });
+      return;
+    }
     if (!sameOwnedRequest(current, owned)) throw Error("communications_saved_recovery_settlement_changed");
     if (current!.state !== "running") {
       if (current!.state !== owned.terminalState || current!.settledAtMs !== owned.settledAtMs
@@ -88,9 +96,15 @@ async function settleOwnedRecovery(db: Firestore, owned: OwnedRecovery) {
     }
     if (!owned.result && current!.cancelRequested) owned.terminalState = "cancelled";
     tx.set(ref, { ...current, state: owned.terminalState!, settledAtMs: owned.settledAtMs!,
+      ...(owned.claimFence ? { cancelRequested: true } : {}),
       ...(owned.result ? { result: owned.result } : {}), ...(owned.error ? { error: owned.error } : {}) });
   });
   if (ownedRecoveries.get(db) === owned) ownedRecoveries.delete(db);
+}
+async function fenceUnconfirmedClaim(db: Firestore, owned: OwnedRecovery, now: number) {
+  owned.phase = "settle"; owned.claimFence = true; owned.terminalState = "cancelled";
+  owned.settledAtMs = now; owned.error = "communications_saved_recovery_claim_not_confirmed";
+  await settleOwnedRecovery(db, owned); // Retain this exact fence on an uncertain ACK.
 }
 /** Runs inside the existing worker, with no general intake, paid draft, copy or
  * send callback. Each intent needs its own current founder action and pins. */
@@ -128,7 +142,7 @@ export async function executeSavedRecoveryRequest(db: Firestore, jobId: string, 
         const observed = (await ref.get()).data() as SavedRecoveryRequest | undefined;
         if (!sameOwnedRequest(observed, attempted)) {
           if (sameIntentIdentity(observed, attempted) && !observed!.executionToken && ["queued", "cancelled"].includes(observed!.state)) {
-            ownedRecoveries.delete(db); // Proven not committed; no consumer ran.
+            await fenceUnconfirmedClaim(db, attempted, now()); return;
           }
           throw error;
         }
@@ -140,8 +154,7 @@ export async function executeSavedRecoveryRequest(db: Firestore, jobId: string, 
     const observed = (await ref.get()).data() as SavedRecoveryRequest | undefined;
     if (owned.phase === "claim" && sameIntentIdentity(observed, owned) && !observed!.executionToken
       && ["queued", "cancelled"].includes(observed!.state)) {
-      ownedRecoveries.delete(db); // A later exact read proves the attempt never committed.
-      return;
+      await fenceUnconfirmedClaim(db, owned, now()); return;
     }
     if (!sameOwnedRequest(observed, owned) || observed!.state !== "running") throw Error("communications_saved_recovery_claim_unverified");
     owned.phase = "execute";

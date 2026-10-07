@@ -184,7 +184,7 @@ describe("existing worker placement for explicit saved-output recovery", () => {
     expect(f.requests).toHaveLength(3); const token = f.db.records.get(f.requestPath).executionToken;
     await f.execute(); expect(f.db.records.get(f.requestPath)).toMatchObject({ state: "completed", executionToken: token }); expect(f.requests).toHaveLength(3);
   });
-  it("clears only a proven uncommitted local claim after its first confirming read failed", async () => {
+  it("conditionally fences an uncertain local claim after its first confirming read failed", async () => {
     const f = await setup(); await f.enqueue(); const run = f.db.runTransaction.bind(f.db), doc = f.db.doc.bind(f.db);
     let interrupted = false, readUnavailable = false;
     f.db.doc = (path: string) => { const ref = doc(path), get = ref.get.bind(ref); ref.get = async () => {
@@ -198,8 +198,9 @@ describe("existing worker placement for explicit saved-output recovery", () => {
       return result;
     };
     await expect(f.execute()).rejects.toThrow("synthetic_claim_confirmation_unavailable"); expect(f.requests).toHaveLength(0);
-    await f.execute(); expect(f.requests).toHaveLength(0); expect(f.db.records.get(f.requestPath).state).toBe("queued");
-    await f.execute(); expect(f.requests).toHaveLength(3); expect(f.db.records.get(f.requestPath).state).toBe("completed");
+    await f.execute(); expect(f.requests).toHaveLength(0); expect(f.db.records.get(f.requestPath)).toMatchObject({ state: "cancelled", cancelRequested: true,
+      error: "communications_saved_recovery_claim_not_confirmed" });
+    await f.enqueue(); await f.execute(); expect(f.requests).toHaveLength(3); expect(f.db.records.get(f.requestPath)).toMatchObject({ state: "completed", generation: 2 });
   });
   it("does not steal a running intent after expiry, and expires queued authority without execution", async () => {
     const f = await setup(); await f.enqueue(); await f.db.doc(f.requestPath).update({ state: "running", executionToken: "old-token", expiresAtMs: f.deps.now() - 1 });
