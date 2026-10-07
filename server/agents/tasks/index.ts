@@ -9,6 +9,7 @@ import { supportTriageTask } from "./support-triage";
 import { waitlistTriageTask } from "./waitlist-triage";
 import { adpRunOperatorTask } from "./adp-run-operator";
 import { siteVideoEvidenceTask } from "./site-video-evidence";
+import { siteAssessmentTask } from "./site-assessment";
 import { captureVideoPrivacyTask } from "./capture-video-privacy";
 import { siteTaskBriefReadingTask } from "./site-task-brief-reading";
 import { captureCoverageTask } from "./capture-coverage";
@@ -27,6 +28,7 @@ export const taskDefinitions = {
   external_harness_thread: externalHarnessThreadTask,
   adp_run_operator: adpRunOperatorTask,
   site_video_evidence: siteVideoEvidenceTask,
+  site_assessment: siteAssessmentTask,
   capture_video_privacy: captureVideoPrivacyTask,
   site_task_brief_reading: siteTaskBriefReadingTask,
   capture_coverage: captureCoverageTask,

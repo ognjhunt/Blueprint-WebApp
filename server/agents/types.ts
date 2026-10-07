@@ -30,6 +30,7 @@ export type AgentTaskKind =
   | "adp_run_operator"
   | "external_harness_thread"
   | "site_video_evidence"
+  | "site_assessment"
   /** A bounded static-video answer to the upload-time privacy question only. */
   | "capture_video_privacy"
   /** Reads a site's task description into brief proposals the operator confirms. */

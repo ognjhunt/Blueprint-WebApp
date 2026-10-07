@@ -12,6 +12,7 @@ export type AgentThreadPhase = "investigation" | "implementation" | "review_qa";
 
 export type AgentTaskKind =
   | "operator_thread"
+  | "site_assessment"
   | "adp_run_operator"
   | "external_harness_thread"
   | "support_triage";

@@ -93,7 +93,7 @@ export type AgentCostTelemetryRecord = {
   known_usage_subtotals?: Record<string, number>;
   conservative_spend_usd?: number | null;
   spend_reservation?: { known_reported_cost_usd: number; unknown_usage_reserved_cost_usd: number;
-    projected_max_cost_per_call_usd: number; unknown_calls: number } | null;
+    projected_max_cost_per_call_usd: number; unknown_calls: number; reserved_max_costs_usd?: number[] } | null;
   spend_accounting_status?: "complete" | "reserved_unknown" | "unresolved";
   created_at_ms: number | null;
 };
@@ -764,10 +764,16 @@ function compactAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTelemetryRe
       }
       if (compact.cost_estimate_usd !== null || typeof conservative !== "number" || !Number.isFinite(conservative)
         || conservative <= asNumber(known.estimated_total_cost_usd)) fail("conservative_spend_usd");
+      const reservations = bound.reserved_max_costs_usd;
+      if (reservations !== undefined && (!Array.isArray(reservations) || reservations.length !== bound.unknown_calls
+        || reservations.some(value => typeof value !== "number" || !Number.isFinite(value) || value <= 0)
+        || Math.abs(Math.max(...reservations) - Number(bound.projected_max_cost_per_call_usd)) > 1e-9)) fail("spend_reservation");
+      const reserved = Array.isArray(reservations) ? reservations.reduce((sum: number, value: number) => sum + value, 0)
+        : Number(bound.projected_max_cost_per_call_usd) * Number(bound.unknown_calls);
       if (!Number.isSafeInteger(bound.unknown_calls) || Number(bound.unknown_calls) < 1 || Number(bound.unknown_calls) > Number(compact.calls)
         || Number(bound.projected_max_cost_per_call_usd) <= 0
         || Math.abs(Number(bound.known_reported_cost_usd) - asNumber(known.estimated_total_cost_usd)) > 1e-9
-        || Math.abs(Number(bound.unknown_usage_reserved_cost_usd) - Number(bound.projected_max_cost_per_call_usd) * Number(bound.unknown_calls)) > 1e-9
+        || Math.abs(Number(bound.unknown_usage_reserved_cost_usd) - reserved) > 1e-9
         || Math.abs(Number(conservative) - Number(bound.known_reported_cost_usd) - Number(bound.unknown_usage_reserved_cost_usd)) > 1e-9) fail("spend_reservation");
     } else if (compact.spend_accounting_status === "complete") {
       if (typeof conservative !== "number" || !Number.isFinite(conservative) || conservative < 0
@@ -808,15 +814,22 @@ function readConservativeReservation(artifacts: Record<string, unknown>, known: 
     || Math.abs(total - estimatedKnown - unknown) > 1e-9) return null;
   const samples = artifacts.usage_samples;
   if (!Array.isArray(samples) || samples.length === 0) return null;
-  const unknownCalls = samples.filter(sample => !finite(asRecord(sample)?.estimated_total_cost_usd)).length;
+  const unknownSamples = samples.filter(sample => !finite(asRecord(sample)?.estimated_total_cost_usd));
+  const unknownCalls = unknownSamples.length;
   const knownSampleCost = samples.reduce((sum, sample) => {
     const cost = asRecord(sample)?.estimated_total_cost_usd;
     return sum + (finite(cost) ? cost : 0);
   }, 0);
   if (Math.abs(estimatedKnown - knownSampleCost) > 1e-9) return null;
-  if (unknownCalls < 1 || Math.abs(unknown - maximum * unknownCalls) > 1e-9) return null;
+  const reservations = unknownSamples.map(sample => asRecord(sample)?.reserved_max_cost_usd);
+  const hasVariableReservations = reservations.some(value => value !== undefined);
+  if (hasVariableReservations && (!reservations.every(value => finite(value) && value > 0)
+    || Math.abs(Math.max(...reservations as number[]) - maximum) > 1e-9)) return null;
+  const reserved = hasVariableReservations ? (reservations as number[]).reduce((sum, value) => sum + value, 0) : maximum * unknownCalls;
+  if (unknownCalls < 1 || Math.abs(unknown - reserved) > 1e-9) return null;
   return { known_reported_cost_usd: estimatedKnown, unknown_usage_reserved_cost_usd: unknown,
-    projected_max_cost_per_call_usd: maximum, unknown_calls: unknownCalls };
+    projected_max_cost_per_call_usd: maximum, unknown_calls: unknownCalls,
+    ...(hasVariableReservations ? { reserved_max_costs_usd: reservations as number[] } : {}) };
 }
 
 export function extractAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTelemetryRecord {

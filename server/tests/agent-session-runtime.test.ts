@@ -85,6 +85,8 @@ const resolveStartupContext = vi.hoisted(() =>
 vi.mock("../agents/adapters/openai-responses", () => ({
   runOpenAIResponsesTask,
 }));
+const runSiteAssessmentTask = vi.hoisted(() => vi.fn());
+vi.mock("../agents/adapters/site-assessment", () => ({ runSiteAssessmentTask }));
 
 vi.mock("../agents/adapters/deepseek-chat", () => ({
   runDeepSeekChatTask,
@@ -277,6 +279,54 @@ afterEach(() => {
 });
 
 describe("agent session runtime", () => {
+  it("routes a default assessment session through the SDK host and retains its six-part output and evidence", async () => {
+    const runtime = await import("../agents/runtime");
+    const assessment = { status: "needs_operator_input", job: [], objects_motions_conditions_variations: [],
+      operator_success: [], known: [], estimates: [], missing: [], approaches: [],
+      next_action: { kind: "ask_operator", action: "Define acceptance", why: { text: "Acceptance is missing", basis: "unknown", evidence: [] } },
+      questions: [{ question: "What counts as a successful cycle?", decision_it_changes: "Acceptance target" }] };
+    const packet = { schema_version: "site_assessment.v1", request_id: "one", assessment, sources: [], tool_receipts: [] };
+    runSiteAssessmentTask.mockResolvedValueOnce({ status: "completed", provider: "openai_responses", runtime: "openai_responses",
+      model: "gpt-6.1-sol", tool_mode: "api", output: assessment, artifacts: { site_assessment_packet: packet,
+        usage: { calls: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0 } }, requires_human_review: true, requires_approval: false });
+    const session = await runtime.createAgentSession({ title: "Assessment", task_kind: "site_assessment" });
+    const result = await runtime.sendAgentSessionMessage({ sessionId: session.id,
+      task: { kind: "site_assessment", input: { message: "Operator needs repeatable rack movement", context: { request_id: "one" } } } });
+    expect(result.result?.output).toEqual(assessment);
+    const [task, host] = runSiteAssessmentTask.mock.calls.at(-1)!;
+    expect(task.provider).toBe("openai_responses"); expect(task.model).toBe("gpt-6.1-sol");
+    expect(task.tool_policy.allowed_actions).toContain("analyze_site_video");
+    expect(host.runId).toBe(result.runId); expect(host.assertCostAllowed).toBeTypeOf("function");
+    const retained = await runtime.listAgentRunsForSession(session.id);
+    expect(retained[0].artifacts?.site_assessment_packet).toEqual(packet);
+  });
+  it("honors assessment cancellation before another inference and keeps late paid receipts cancelled", async () => {
+    const runtime = await import("../agents/runtime");
+    runSiteAssessmentTask.mockImplementationOnce(async (task, host) => {
+      await host.assertActive();
+      await runtime.cancelAgentSession({ sessionId: task.session_id, reason: "Stop this assessment" });
+      await expect(host.assertActive()).rejects.toThrow("site_assessment_cancelled");
+      return { status: "completed", provider: task.provider, runtime: task.runtime, model: task.model, tool_mode: "api",
+        artifacts: { usage: { calls: 1, prompt_tokens: 1, completion_tokens: 1, cost_usd: 0.000012 }, retained_receipt: "paid-before-cancel" },
+        requires_human_review: true, requires_approval: false };
+    });
+    const session = await runtime.createAgentSession({ title: "Cancelable assessment", task_kind: "site_assessment" });
+    const result = await runtime.sendAgentSessionMessage({ sessionId: session.id,
+      task: { kind: "site_assessment", input: { message: "Review the task", context: { request_id: "one" } } } });
+    expect(result.result?.status).toBe("cancelled");
+    const retained = await runtime.listAgentRunsForSession(session.id);
+    expect(retained[0].status).toBe("cancelled"); expect(retained[0].artifacts?.retained_receipt).toBe("paid-before-cancel");
+    expect((await runtime.getAgentSession(session.id))?.status).toBe("cancelled");
+    runSiteAssessmentTask.mockImplementationOnce(async (task, host) => {
+      await host.assertActive();
+      return { status: "completed", provider: task.provider, runtime: task.runtime, model: task.model, tool_mode: "api",
+        requires_human_review: true, requires_approval: false };
+    });
+    const resumed = await runtime.sendAgentSessionMessage({ sessionId: session.id,
+      task: { kind: "site_assessment", input: { message: "Resume with this new answer", context: { request_id: "one" } } } });
+    expect(resumed.result?.status).toBe("completed");
+    expect((await runtime.getAgentSession(session.id))?.status).toBe("idle");
+  });
   it("offloads large proof across run/session/checkpoints/events and hydrates a resumed quarantine", async () => {
     privateStorage.available = true;
     const runtime = await import("../agents/runtime");

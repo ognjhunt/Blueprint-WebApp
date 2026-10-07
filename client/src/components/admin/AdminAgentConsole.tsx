@@ -37,6 +37,11 @@ const sessionTaskOptions: Array<{
   description: string;
 }> = [
   {
+    value: "site_assessment",
+    label: "Site task assessment",
+    description: "Assess an admitted site video and operator conversation with sourced robot evidence.",
+  },
+  {
     value: "operator_thread",
     label: "Ops agent thread",
     description: "Internal operator assistant with attached startup context.",
@@ -275,6 +280,7 @@ export default function AdminAgentConsole() {
   const [selectedAgentProfileId, setSelectedAgentProfileId] = useState<string>("");
   const [selectedEnvironmentProfileId, setSelectedEnvironmentProfileId] = useState<string>("");
   const [message, setMessage] = useState("");
+  const [assessmentRequestId, setAssessmentRequestId] = useState("");
   const [steerMessage, setSteerMessage] = useState("");
   const [delegationTitle, setDelegationTitle] = useState("Bounded delegated task");
   const [delegationMessage, setDelegationMessage] = useState("");
@@ -446,16 +452,18 @@ export default function AdminAgentConsole() {
 
   useEffect(() => {
     const profiles = contextOptionsQuery.data?.profiles || [];
+    if (taskKind === "site_assessment") { setSelectedAgentProfileId(""); return; }
     if (!selectedAgentProfileId && profiles[0]?.id) {
       setSelectedAgentProfileId(profiles[0].id);
     }
     if (!delegationProfileId && profiles[0]?.id) {
       setDelegationProfileId(profiles[0].id);
     }
-  }, [contextOptionsQuery.data?.profiles, selectedAgentProfileId, delegationProfileId]);
+  }, [contextOptionsQuery.data?.profiles, selectedAgentProfileId, delegationProfileId, taskKind]);
 
   useEffect(() => {
     const environments = contextOptionsQuery.data?.environments || [];
+    if (taskKind === "site_assessment") { setSelectedEnvironmentProfileId(""); return; }
     if (!selectedEnvironmentProfileId && environments[0]?.id) {
       setSelectedEnvironmentProfileId(environments[0].id);
     }
@@ -464,6 +472,7 @@ export default function AdminAgentConsole() {
     }
   }, [
     contextOptionsQuery.data?.environments,
+    taskKind,
     selectedEnvironmentProfileId,
     delegationEnvironmentProfileId,
   ]);
@@ -620,10 +629,15 @@ export default function AdminAgentConsole() {
         throw new Error("No session selected");
       }
       const sessionTaskKind = selectedSession?.task_kind || "operator_thread";
+      const previousAssessment = sessionTaskKind === "site_assessment" ? runsQuery.data?.runs.find(run => run.task_kind === "site_assessment"
+        && run.status === "completed" && (run.artifacts?.site_assessment_packet as any)?.request_id === assessmentRequestId.trim()) : undefined;
       const body = {
         task_kind: sessionTaskKind,
+        ...(previousAssessment ? { resume_from_run_id: previousAssessment.id } : {}),
         input:
-          sessionTaskKind === "support_triage"
+          sessionTaskKind === "site_assessment"
+            ? { message, context: { request_id: assessmentRequestId.trim() } }
+            : sessionTaskKind === "support_triage"
             ? { summary: message, message }
             : sessionTaskKind === "external_harness_thread"
               ? { message, harness: "codex" }
@@ -2417,17 +2431,27 @@ export default function AdminAgentConsole() {
                   </div>
                 ) : null}
 
+                {selectedSession.task_kind === "site_assessment" ? (
+                  <label className="block text-sm text-runway-mute">
+                    Site request ID
+                    <input className="runway-input mt-2" value={assessmentRequestId}
+                      onChange={(event) => setAssessmentRequestId(event.target.value)} placeholder="Select the site's existing request" />
+                  </label>
+                ) : null}
                 <textarea
                   className="runway-input min-h-[120px]"
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
-                  placeholder="Send a message into this agent session"
+                  placeholder={selectedSession.task_kind === "site_assessment"
+                    ? "Paste the operator conversation or answer the assessment's follow-up questions"
+                    : "Send a message into this agent session"}
                 />
                 <button
                   type="button"
                   onClick={() => sendMessageMutation.mutate()}
                   className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-                  disabled={sendMessageMutation.isPending || !message.trim()}
+                  disabled={sendMessageMutation.isPending || !message.trim()
+                    || (selectedSession.task_kind === "site_assessment" && !assessmentRequestId.trim())}
                 >
                   {sendMessageMutation.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -2510,6 +2534,15 @@ export default function AdminAgentConsole() {
                       <pre className="runway-num mt-3 overflow-x-auto border border-runway-line bg-runway-black p-3 text-xs text-runway-mute">
                         {JSON.stringify(run.output, null, 2)}
                       </pre>
+                    ) : null}
+                    {run.task_kind === "site_assessment" && run.artifacts ? (
+                      <details className="mt-3 border border-runway-line p-3 text-sm text-runway-body">
+                        <summary>Assessment sources and analysis receipts</summary>
+                        <pre className="runway-num mt-3 overflow-x-auto text-xs text-runway-mute">
+                          {JSON.stringify({ packet: run.artifacts.site_assessment_packet ?? run.artifacts.site_assessment_partial_evidence,
+                            source_admission: run.artifacts.source_admission, accounting: run.artifacts.inference_reservation }, null, 2)}
+                        </pre>
+                      </details>
                     ) : null}
                     {run.metadata && Object.keys(run.metadata).length > 0 ? (
                       <pre className="runway-num mt-3 overflow-x-auto border border-runway-line bg-runway-black p-3 text-xs text-runway-body">
