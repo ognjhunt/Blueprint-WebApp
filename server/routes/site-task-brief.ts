@@ -898,10 +898,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
         : null;
 
-    // Piggyback delivery on this poll, so a deployment with no scheduler still
-    // sends. Never blocks or fails the status read.
-    void deliverOutbox({ limit: 5 }).catch(() => undefined);
-
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
