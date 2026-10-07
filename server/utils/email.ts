@@ -264,6 +264,15 @@ async function sendViaResend({
       const status = error?.statusCode;
       const rejected = typeof status === "number" && status >= 400 && status < 500
         && status !== 408;
+      logger.error({
+        ...buildEmailLogContext({ event: "email_dispatch_failed", provider: "resend",
+          to, subject, text, html, replyTo, attachments, sendGridCategories, sendGridCustomArgs }),
+        // Preserve the failure event without logging a raw provider payload,
+        // which may echo recipient details or message content.
+        failureReason: rejected ? "provider_rejected" : "provider_acknowledgement_unavailable",
+        providerStatus: typeof status === "number" ? status : null,
+        outcome: rejected ? "not_sent" : "unknown",
+      }, "Failed to send email via Resend");
       return { sent: false, provider: "resend", messageId: null,
         error: new Error(`Resend rejected email: ${error?.message || "missing email ID"}`),
         outcome: rejected ? "not_sent" : "unknown" };
