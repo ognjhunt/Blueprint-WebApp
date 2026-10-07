@@ -112,22 +112,41 @@ brand/mark.svg: 5b5f794315a196de0fcb98f5a747fef513d7d3a660005a0085ae4be2bfb29107
 brand/email-mark.png: b2fbf6c2e313ea1de50c31a0470417ed04f3388d4f0f4d4d1c08b3f58874dfe7
 ```
 
-## Release handoff
+## Completed release and recovery
 
-Original screenshots have been inspected, independent implementation review
-is complete, and PR #913 is ready for review. Normal merge requires green CI
-at the latest PR head and the shared-release coordination below.
-The parent must coordinate release owner
-`01a1119c-3d06-7099-9fde-19dac4ac90ef` before normal merge or deployment because
-communications recovery and the site upload test share the web/worker release.
-No lane-local Render trigger or provider/environment change is needed.
+[PR #913](https://github.com/ognjhunt/Blueprint-WebApp/pull/913) was normally
+merged as `be9ba38b1d6ba2bd84aee0f7b4e1f0113a429fec` on 2026-10-07.
+The parent coordinated the shared web/worker release with owner
+`01a1119c-3d06-7099-9fde-19dac4ac90ef`. The combined release commit
+`ec044fac5fed3baf85be0d982a37473e9d1ae137` passed
+[main CI run 37673851339](https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37673851339).
+[CI-gated deploy run 37675726545](https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37675726545)
+completed successfully at 2026-10-07 19:39:42 UTC. Its provider receipt records
+both services live at that exact commit:
 
-After coordination, use the normal PR merge. Preserve the existing deployment
-and outreach holds. The existing CI-gated deploy
-workflow must bring both web and worker live at the green merged SHA. Verify
-`/version.json`, `/health`, `/health/ready`, and the new public PNG (HTTP 200,
-`image/png`, expected SHA-256). Do not invoke a notification retry, outbox
-delivery, or new test send as a read-only release probe.
+| Service | Render deployment | Status |
+| --- | --- | --- |
+| Web | `dep-db39udks728c73bqqmug` | `live` |
+| Worker | `dep-db39uduk1f9s738ut650` | `live` |
+
+Read-only production HTTP verification at 19:42 UTC confirmed
+`/version.json` reports the release SHA, `/health` returns HTTP 200 healthy,
+and `/health/ready` returns HTTP 200 ready with zero blockers. The public
+`/brand/email-mark.png` returns HTTP 200, `image/png`, 496 bytes and the
+expected SHA-256 shown above. The deployed email layout also matches the
+reviewed source SHA-256
+`31de24c336fa25d46026790995981646dfcd20ec8510bdad021b326eea293711`.
+
+Recover the structured deployment IDs, CI/run links, asset digest and public
+readback from the repository's
+[portable release receipt](https://github.com/ognjhunt/Blueprint-WebApp/pull/913#issuecomment-6045554844).
+The deploy workflow verified the existing deployment and outreach holds
+before and after rollout. No notification retry, outbox delivery, external
+test email, lane-local Render trigger or provider/environment change ran.
+The functional release is complete; the documentation follow-up is
+[PR #915](https://github.com/ognjhunt/Blueprint-WebApp/pull/915), subject to
+its own latest-head CI and normal shared-owner merge. This document update
+does not require repeating the completed branding deployment.
 
 Source thread: `01a0fe81-486b-7714-9e81-983a66bd80c4`.
 
@@ -138,8 +157,8 @@ existing partner intake and access to private job links. The observed issue
 is a small rectangle replacing the recognizable site mark, limited message
 hierarchy and narrow mobile spacing. The completion artifact is
 [PR #913](https://github.com/ognjhunt/Blueprint-WebApp/pull/913), its source,
-before/after renders and validation evidence; deployment receipts will be
-recorded after rollout.
+before/after renders, validation evidence and the completed deployment receipt
+linked above.
 
 ADP backlog item: not supplied or assigned. ADP day gate: not supplied or
 assigned. No formal ADP linkage, milestone completion or program closeout is
@@ -149,5 +168,6 @@ The owner's explicit implementation, merge and deployment request authorizes
 this bounded receipt improvement. It does not authorize new provider settings,
 spend, external test sends or changes to transactional controls.
 
-Remaining release gates are latest-head CI and shared-release coordination,
-followed by exact merged-SHA web/worker and public-asset verification.
+The receipt implementation, normal merge and coordinated deployment are
+complete, including exact release-SHA web/worker and public-asset verification.
+No ADP milestone or broader communications recovery completion is implied.
