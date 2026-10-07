@@ -294,12 +294,12 @@ function Hotel({ t }: { t: number }) {
   const turn = -x / 5;
   return (
     <g>
-      <rect x={22} y={56} width={110} height={124} fill={tint} stroke="none" />
+      <rect x={22} y={56} width={110} height={124} fill="#c9d4ca" stroke="none" />
       <g {...ink}>
         {/* Delivery robot, facing left: base, mast, screen face. */}
         <rect x={x - 20} y={154} width={40} height={18} rx={6} fill={tint} />
-        <rect x={x - 4} y={112} width={8} height={42} fill={paper} />
-        <rect x={x - 14} y={92} width={28} height={20} rx={5} fill={paper} />
+        <rect x={x - 4} y={112} width={8} height={42} fill={tint} />
+        <rect x={x - 14} y={92} width={28} height={20} rx={5} fill={tint} />
         <circle cx={x - 6} cy={102} r={2} fill="currentColor" /><circle cx={x + 3} cy={102} r={2} fill="currentColor" />
         <path d={`M${x + 20} 163 H${x + 28}`} />
         {/* Linen cart with folded sheets above the rim. */}
