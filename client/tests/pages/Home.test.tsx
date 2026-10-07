@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Home from "@/pages/Home";
 
@@ -10,10 +10,14 @@ describe("Site-led homepage", () => {
     expect(screen.getByText("Free to start. No pilot, no fee.")).toBeInTheDocument();
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
-    const images = screen.getAllByRole("img");
-    expect(images).toHaveLength(2);
-    expect(images[0]).toHaveAccessibleName(/Illustrative task capture/);
-    expect(images[1]).toHaveAccessibleName(/Illustrative simulation view/);
+    // One example of the deliverable, clearly marked, instead of staged imagery.
+    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel"]);
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveTextContent(/Example.*Robot team.*Moving full totes.*Pilot cost.*Quoted by the robot team/);
+    fireEvent.click(screen.getByRole("tab", { name: "Café" }));
+    expect(screen.getByRole("tabpanel")).toHaveTextContent(/dish rack/);
+    expect(screen.getByRole("img", { name: /café example/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play examples" })).toBeInTheDocument();
     expect(screen.queryByText(/Your criteria/)).not.toBeInTheDocument();
   });
 

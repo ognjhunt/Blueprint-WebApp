@@ -235,12 +235,12 @@ describe("build output", () => {
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Could a robot take over a repetitive task at your site?");
     expect(homeHtml).toContain("Free to start. No pilot, no fee.");
-    expect(homeHtml).toContain("Illustrative example");
-    expect(homeHtml).toContain("The same task, in simulation.");
+    expect(homeHtml).toContain("One recommended pilot, on one page.");
+    expect(homeHtml).toContain("Quoted by the robot team, paid to them");
+    expect(homeHtml).not.toContain("The same task, in simulation.");
     expect(homeHtml).toContain("Book the pilot");
     expect(homeHtml).not.toContain("Join the robot-team beta");
-    expect(homeHtml).toContain("/illustrations/task-evaluation/01-task-capture.webp");
-    expect(homeHtml).toContain("/illustrations/task-evaluation/02-arm-evaluation.webp");
+    expect(homeHtml).not.toContain("/illustrations/task-evaluation/02-arm-evaluation.webp");
     expect(homeHtml).toContain("No pilot, no fee.");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
