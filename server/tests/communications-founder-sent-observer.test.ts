@@ -578,13 +578,15 @@ describe("founder-sent thread reply intake", () => {
       meaningEvidence: cite("learning pilot", "Interested in a learning pilot"), statedTask: cite("packing", "packing"),
       desiredOutcome: null, timing: cite("next year", "next year"), nextAction: "prepare_draft_for_review" };
     const reviewed = await reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId, input, "authenticated-founder", communicationsNow);
-    expect(reviewed.preparation).toMatchObject({ action: "prepare_clarification_for_owner", unresolvedFields: ["desiredOutcome"],
+    expect(reviewed.preparation).toMatchObject({ action: "prepare_clarification_for_owner", unresolvedFields: ["desiredOutcome", "pilotPurpose", "constraints"],
       reviewRevisionId: reviewed.review.revisionId,
       proposedDraft: { question: "What would you want to improve or learn about that task?", condition: null } });
     expect(f.db.records.get(path)).toEqual(reviewed);
     const completed = await reviewReplyFollowup(f.db, f.job.prospectId, admitted.followupId,
-      { ...input, desiredOutcome: cite("understand variability", "understand variability") }, "authenticated-founder", communicationsNow + 1);
-    expect(completed.preparation).toMatchObject({ action: "review_next_step", unresolvedFields: [], proposedDraft: null });
+      { ...input, desiredOutcome: cite("understand variability", "understand variability"),
+        pilotPurpose: cite("understand variability", "understand variability") }, "authenticated-founder", communicationsNow + 1);
+    expect(completed.preparation).toMatchObject({ action: "prepare_clarification_for_owner", unresolvedFields: ["constraints"],
+      proposedDraft: { question: "What constraints would a useful next step need to fit?" } });
     expect(f.replyJobs()).toMatchObject([{ state: "learning_only", checkpoint: { sessionId: null } }]);
     expect(f.db.records.has(`action_ledger/communications_${admitted.jobId}`)).toBe(false);
     expect(sendFounderMessage).not.toHaveBeenCalled(); expect(f.receipts()).toEqual([]);

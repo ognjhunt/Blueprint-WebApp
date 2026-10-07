@@ -12,6 +12,9 @@ import { createCompanyHistoryTools } from "../research-learning/company-history"
 import { previewResearchCommunications, approveResearchCommunications } from "../agents/communications-producer";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import { prepareReplyFollowup, readReplyFollowup, reviewReplyFollowup } from "../agents/communications-reply-followup";
+import { publishSyntheticReadiness } from "./fixtures/communications-readiness";
+import { runCommunicationsReadinessFollowups } from "../agents/communications-readiness-followup";
+import { mirrorCommunicationsGmailDraft, type GmailDraftPorts } from "../agents/communications-gmail-draft";
 
 async function setup() {
   const f = communicationsFixture(), db = memoryFirestore(), thread = communicationsFixture("reply").thread!;
@@ -58,6 +61,105 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(communicationsNow); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("bound founder-thread reply intake (all providers mocked)", () => {
+  async function interestedSite() {
+    const f = await setup();
+    f.thread.messages[1].body = "Interested in packing: improve throughput, learn about variability in a pilot, no shutdowns, next year.";
+    const admitted: any = await admitBoundCommunicationsReplies(f.receiptKey, f.deps);
+    const job = f.replyJobs()[0][1], brief = await f.store.brief(job.briefId);
+    const original = await readReplyFollowup(f.db, brief, f.thread.threadId);
+    const cite = (value: string) => ({ value, quote: value, messageId: f.thread.messages[1].gmailMessageId });
+    await reviewReplyFollowup(f.db, brief.prospectId, admitted.followupId, { expectedEvidenceDigest: original.evidenceDigest,
+      responseMeaning: "exploratory_interest", meaningEvidence: cite("Interested"), statedTask: cite("packing"),
+      desiredOutcome: cite("improve throughput"), pilotPurpose: cite("learn about variability"), constraints: cite("no shutdowns"),
+      timing: cite("next year"), nextAction: "prepare_draft_for_review" }, "authenticated-founder", communicationsNow);
+    return { ...f, admitted, replyJob: job, replyBrief: brief };
+  }
+
+  it.each(["unavailable", "unknown"] as const)("offers scoping before %s access in the real generation path and copies one unsent Gmail draft", async status => {
+    const f = await interestedSite(); await publishSyntheticReadiness(f.db, status);
+    await runCommunicationsReadinessFollowups(f.db, f.deps.isSuppressed, f.deps.now);
+    const output = { ...communicationsFixture("reply").output, body: status === "unavailable"
+      ? "Happy to help scope packing while evaluation access isn't available yet. What would you most want to learn? We can revisit evaluation when access is confirmed. Video is optional.\n\nNijel"
+      : "Happy to help scope packing. Evaluation access still needs to be confirmed. What would you most want to learn? We can revisit evaluation when access is confirmed. Video is optional.\n\nNijel" };
+    f.api.run.mockImplementation(async (params: any) => {
+      expect(await params.validateOutput(output)).toBeNull();
+      return { output, checkpoint: params.checkpoint, usage: { input_tokens: 10 } };
+    });
+    const result: any = await processCommunicationsJob(f.replyJob.jobId, f.worker);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false });
+    const input = JSON.parse(f.api.run.mock.calls[0][0].input);
+    expect(input.evaluationReadiness.state).toBe(status);
+    expect(input.siteInterestReplyGuidance).toContain("operational improvement");
+    expect(input.siteInterestReplyGuidance).toContain("Video is optional");
+    expect(input.replyFollowup).toMatchObject({ constraints: { value: "no shutdowns" }, pilotPurpose: { value: "learn about variability" },
+      timing: { value: "next year" }, readinessFollowup: { state: "waiting_for_capability", authority: { sending: false } } });
+    const ledger = f.db.records.get(`action_ledger/${result.ledgerId}`), review = reviewCommunicationsPayload(ledger.action_payload, communicationsNow);
+    expect(review.hardChecksPassed).toBe(true);
+    // The same production copy path, with all Gmail ports replaced: no sends,
+    // approval grants, credentials, paid inference or access changes.
+    const ports: GmailDraftPorts = { enabled: () => true, allowsRevision: () => true, requireCapability: vi.fn(async () => undefined),
+      verifyMailbox: vi.fn(async () => ({})), priorContact: vi.fn(async () => false), write: vi.fn(async () => ({ draftId: "synthetic-reply-draft" })),
+      find: vi.fn(async () => ({ draftId: "synthetic-reply-draft", messageId: "synthetic-draft-message", threadId: f.thread.threadId,
+        authoredRfcMessageId: `<blueprint-draft-${f.replyJob.jobId}@tryblueprint.io>`, observedRfcMessageId: `<blueprint-draft-${f.replyJob.jobId}@tryblueprint.io>` })) };
+    const copy = { expectedReviewDigest: review.digest!, expectedRevisionId: null, mode: "write" as const };
+    await vi.advanceTimersByTimeAsync(180001); // Existing generation lease must drain before Gmail copy.
+    expect(await mirrorCommunicationsGmailDraft(f.db, result.ledgerId, "authenticated-founder", copy, ports, Date.now()))
+      .toMatchObject({ state: "verified", sent: false, approved: false });
+    await mirrorCommunicationsGmailDraft(f.db, result.ledgerId, "authenticated-founder", copy, ports, Date.now());
+    expect(ports.write).toHaveBeenCalledOnce();
+    expect(f.db.records.get(`action_ledger/${result.ledgerId}`)).toMatchObject({ status: "pending_approval", approved_by: null, sent_at: null });
+    expect((await processCommunicationsJob(f.replyJob.jobId, f.worker)).state).toBe("no_op");
+    expect(f.api.run).toHaveBeenCalledOnce();
+  });
+
+  it("retains one capability follow-up across readiness transitions/replays without another reply job or inference", async () => {
+    const f = await interestedSite(); await publishSyntheticReadiness(f.db, "unavailable");
+    const lap = () => runCommunicationsReadinessFollowups(f.db, f.deps.isSuppressed, f.deps.now);
+    await lap(); await lap(); // One-page cursor wraps before the next read.
+    const path = `outboundProspects/${f.brief.prospectId}/replyFollowups/${f.admitted.followupId}`;
+    expect(f.db.records.get(path).readinessFollowup.state).toBe("waiting_for_capability");
+    await publishSyntheticReadiness(f.db, "available"); await lap(); await lap(); await lap();
+    expect(f.db.records.get(path).readinessFollowup).toMatchObject({ state: "ready_for_owner_review", readiness: { state: "available" },
+      authority: { sending: false, matching: false, pilotCommitment: false } });
+    const first = structuredClone(f.db.records.get(`${path}/readinessActions/capability_available`));
+    await publishSyntheticReadiness(f.db, "unavailable"); await lap(); await lap();
+    expect(f.db.records.get(path).readinessFollowup.state).toBe("waiting_for_capability");
+    await publishSyntheticReadiness(f.db, "available"); await lap(); await lap();
+    await admitBoundCommunicationsReplies(f.receiptKey, f.deps);
+    expect([...f.db.records.keys()].filter(key => key.startsWith(`${path}/readinessActions/`))).toHaveLength(1);
+    expect(f.db.records.get(`${path}/readinessActions/capability_available`)).toEqual(first);
+    expect(f.replyJobs()).toHaveLength(1); expect(f.api.run).not.toHaveBeenCalled();
+    f.thread.messages.push({ ...f.thread.messages[1], gmailMessageId: "readiness-opt-out", body: "Please don't contact us again." });
+    await admitBoundCommunicationsReplies(f.receiptKey, f.deps); await lap(); await lap();
+    expect(f.db.records.get(path).readinessFollowup.state).toBe("closed");
+  });
+
+  it("keeps unsupported promises out of the Gmail path and supplies repair diagnostics in the same drafting turn", async () => {
+    const f = await interestedSite(); await publishSyntheticReadiness(f.db, "unavailable");
+    f.api.run.mockImplementation(async (params: any) => {
+      const bad = { ...communicationsFixture("reply").output,
+        body: "We can run an evaluation now. We will supply a robot. Evaluation access will be ready next week. We need a video before we can reply." };
+      const issues = await params.validateOutput(bad);
+      expect(issues.map((item: any) => item.code)).toEqual(expect.arrayContaining(["unsupported_reply_commitment",
+        "unsupported_reply_launch_date", "reply_evaluation_readiness_not_evidenced", "reply_video_condition"]));
+      const output = { ...bad, body: "Happy to scope the job while access is being confirmed. What constraints should we consider?\n\nNijel" };
+      expect(await params.validateOutput(output)).toBeNull();
+      return { output, checkpoint: params.checkpoint, usage: { input_tokens: 10 } };
+    });
+    const result: any = await processCommunicationsJob(f.replyJob.jobId, f.worker);
+    expect(result.state).toBe("pending_approval");
+    expect(f.db.records.get(`action_ledger/${result.ledgerId}`).action_payload.body).toContain("Happy to scope");
+    expect(f.api.run).toHaveBeenCalledOnce();
+  });
+
+  it("rejects constraints or pilot purpose not quoted in the original reply", async () => {
+    const f = await interestedSite(), saved = await readReplyFollowup(f.db, f.replyBrief, f.thread.threadId);
+    await expect(reviewReplyFollowup(f.db, f.replyBrief.prospectId, f.admitted.followupId, { expectedEvidenceDigest: saved.evidenceDigest,
+      responseMeaning: "unknown", meaningEvidence: null, statedTask: null, desiredOutcome: null, timing: null,
+      constraints: { value: "next month", quote: "next month", messageId: f.thread.messages[1].gmailMessageId },
+      nextAction: "review_reply" }, "authenticated-founder", communicationsNow)).rejects.toThrow("reply_followup_quote_not_observed");
+  });
+
   it("retains an owner queue, consumes it in the real draft input and exposes it to authorized history", async () => {
     const f = await setup();
     f.thread.messages[1].body = "Interested in a learning pilot for packing next year, to understand variability.";
@@ -109,7 +211,8 @@ describe("bound founder-thread reply intake (all providers mocked)", () => {
     const f = await setup(), admitted: any = await admitBoundCommunicationsReplies(f.receiptKey, f.deps);
     const saved = f.db.records.get(`outboundProspects/${f.job.prospectId}/replyFollowups/${admitted.followupId}`);
     const preparation = prepareReplyFollowup({ ...saved, audienceRole, state: "reviewed", responseMeaning: "exploratory_interest" });
-    expect(preparation).toMatchObject({ action: "prepare_clarification_for_owner", unresolvedFields: ["statedTask", "desiredOutcome", "timing"],
+    expect(preparation).toMatchObject({ action: "prepare_clarification_for_owner", unresolvedFields: audienceRole === "site"
+      ? ["statedTask", "desiredOutcome", "pilotPurpose", "constraints", "timing"] : ["statedTask", "desiredOutcome", "timing"],
       proposedDraft: { question, requiresOwnerReview: true, condition: null }, authority: { sending: false, spending: false } });
     expect(preparation.proposedDraft!.body.match(/\?/g)).toHaveLength(1);
     expect(f.api.run).not.toHaveBeenCalled();

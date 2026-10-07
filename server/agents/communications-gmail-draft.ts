@@ -4,6 +4,7 @@ import { type gmail_v1 } from "googleapis";
 import { communicationsDigest, communicationsDeliveryKey, communicationsEnvelopeSchema, FOUNDER_MAILBOX, verifyCommunicationsHandoff, communicationsBriefSchema,
   isFounderReplyOrigin } from "./communications-contract";
 import { reviewCommunicationsPayload } from "./communications-review";
+import { readEvaluationReadiness, siteReplyPromiseBlockers } from "./communications-readiness";
 import { COMMUNICATIONS_ROOT } from "./communications-store";
 import { existingFounderGmail, verifyFounderMailbox } from "./communications-gmail";
 import { requireFounderDraftCapability } from "./communications-oauth-store";
@@ -179,6 +180,11 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
         || ["closed","converted"].includes(currentSource?.stage) || currentSuppression?.global_suppressed===true
         || currentSuppression?.suppressed_scopes?.some((scope:string)=>["all","growth_campaign"].includes(scope))) fail("gmail_draft_source_changed_before_write");
       if (planned.old.draftId && !await ports.find(planned.old.confirmedContent, planned.old.draftId)) fail("gmail_draft_previous_copy_changed_manual_reconciliation_required");
+      const envelope = communicationsEnvelopeSchema.parse(currentLedger!.action_payload.communications);
+      if (envelope.job.intent === "reply" && envelope.evaluationReadiness) {
+        const readiness = await readEvaluationReadiness(db, envelope.brief, Date.now());
+        if (siteReplyPromiseBlockers(envelope.output.body, readiness).length) fail("gmail_draft_readiness_changed_before_write");
+      }
       if (ports.copyDirection) {
         await ports.requireCapability();
         if (!ports.enabled()) fail("gmail_draft_copy_direction_changed");

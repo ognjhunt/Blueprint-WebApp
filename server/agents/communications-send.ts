@@ -7,6 +7,7 @@ import { COMMUNICATIONS_ROOT, CommunicationsStore } from "./communications-store
 import { readExistingResearchSnapshot, verifyPublishedResearch } from "./communications-research";
 import { verifyFounderMailbox, readFounderThread, findFounderSentMessage, sendFounderMessage, hasFounderPriorContact } from "./communications-gmail";
 import { reviewCommunicationsPayload } from "./communications-review";
+import { readEvaluationReadiness, siteReplyPromiseBlockers } from "./communications-readiness";
 import type { ActionPayload } from "./action-policies";
 import { requireFounderSendCapability } from "./communications-oauth-store";
 import { automaticFirstContactEnabled, firstContactDailyLimit, firstContactRecipientKey, firstContactCalendarDay, FIRST_CONTACT_POLICY,
@@ -66,7 +67,12 @@ export async function communicationsSendBlocker(payload: ActionPayload, ledgerId
     }
     const review = reviewCommunicationsPayload(payload);
     if (!review.hardChecksPassed) return review.blockers.join(",");
-    const { job, brief, thread } = communicationsEnvelopeSchema.parse(payload.communications);
+    const { job, brief, thread, output, evaluationReadiness } = communicationsEnvelopeSchema.parse(payload.communications);
+    if (job.intent === "reply" && evaluationReadiness) {
+      const readiness = await readEvaluationReadiness(dbAdmin, brief, Date.now());
+      const blockers = siteReplyPromiseBlockers(output.body, readiness);
+      if (blockers.length) return blockers.join(",");
+    }
     // The founder already sent, or may have sent, this job from Gmail; a system send could repeat it.
     const founderRoot = dbAdmin.doc(COMMUNICATIONS_ROOT);
     const [founderSend, founderCheck] = await Promise.all([founderRoot.collection("founderSendObservations").doc(job.jobId).get(),
