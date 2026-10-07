@@ -4,11 +4,13 @@ import {
   describeStructuredAutomationProvider,
   getStructuredAutomationFallbackProvider,
   getOpenAiTimeoutMs,
+  getAnthropicTimeoutMs,
   getStructuredAutomationProvider,
   getTaskModelByProvider,
   isProviderConfigured,
   type StructuredProvider,
 } from "./provider-config";
+import { HAIKU_MODEL, isNativeAnthropicConfigured } from "../utils/anthropicHaikuPricing";
 
 /**
  * The lanes this metadata speaks for.
@@ -32,7 +34,9 @@ const CONNECTIVITY_TASK_KINDS = [
 type ConnectivityTaskKind = (typeof CONNECTIVITY_TASK_KINDS)[number];
 
 function runtimeDefaultModel() {
-  const provider = getStructuredAutomationProvider("operator_thread");
+  const resolution = describeStructuredAutomationProvider();
+  if (resolution.reason.startsWith("luna_migration")) return HAIKU_MODEL;
+  const provider = resolution.provider;
   return getTaskModelByProvider("operator_thread")[provider] || "gpt-5.4";
 }
 
@@ -68,11 +72,11 @@ export function getAgentRuntimeConnectionMetadata() {
   return {
     provider,
     fallback_provider: fallbackProvider,
-    configured: isProviderConfigured(provider),
-    auth_configured: isProviderConfigured(provider),
+    configured: provider === "anthropic_agent_sdk" && runtimeDefaultModel() === HAIKU_MODEL ? isNativeAnthropicConfigured() : isProviderConfigured(provider),
+    auth_configured: provider === "anthropic_agent_sdk" && runtimeDefaultModel() === HAIKU_MODEL ? isNativeAnthropicConfigured() : isProviderConfigured(provider),
     timeout_ms: Number(
       provider === "anthropic_agent_sdk"
-        ? process.env.ANTHROPIC_TIMEOUT_MS ?? 20_000
+        ? getAnthropicTimeoutMs(runtimeDefaultModel())
         : provider === "deepseek_chat"
           ? process.env.DEEPSEEK_TIMEOUT_MS ?? 120_000
         : provider === "codex_local"
