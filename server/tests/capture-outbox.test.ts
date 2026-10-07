@@ -92,9 +92,14 @@ describe("delivery sends what is pending, once", () => {
       return { sent: true, provider: "resend", messageId: "accepted" };
     });
     const passes = [deliverOutbox(), deliverOutbox()];
-    await vi.waitFor(() => expect(sendEmailMock).toHaveBeenCalled());
-    release();
-    await Promise.all(passes);
+    const completed = Promise.allSettled(passes);
+    try {
+      await vi.waitFor(() => expect(sendEmailMock).toHaveBeenCalled(), { timeout: 10_000, interval: 10 });
+    } finally {
+      release();
+      await completed;
+    }
+    for (const result of await completed) if (result.status === "rejected") throw result.reason;
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
   });
   it("sends a pending message and marks it sent", async () => {
@@ -234,11 +239,17 @@ describe("delivery recovery never replays an ambiguous effect", () => {
     const held = new Promise<void>(resolve => { release = resolve; });
     sendEmailMock.mockImplementation(async () => { await held; return { sent: true, provider: "resend", messageId: "late" }; });
     const first = deliverOutbox();
-    await vi.waitFor(() => expect(sendEmailMock).toHaveBeenCalled());
-    row().deliveryLeaseUntilMs = Date.now() - 1;
-    await deliverOutbox();
-    expect(row().status).toBe("unknown");
-    release(); await first;
+    const completed = Promise.allSettled([first]);
+    try {
+      await vi.waitFor(() => expect(sendEmailMock).toHaveBeenCalled(), { timeout: 10_000, interval: 10 });
+      row().deliveryLeaseUntilMs = Date.now() - 1;
+      await deliverOutbox();
+      expect(row().status).toBe("unknown");
+    } finally {
+      release();
+      await completed;
+    }
+    for (const result of await completed) if (result.status === "rejected") throw result.reason;
     expect(row()).toMatchObject({ status: "sent", deliveryMessageId: "late", attempts: 1 });
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
   });
