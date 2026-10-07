@@ -15,6 +15,7 @@ import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpd
 
 import { createHash, randomUUID } from "node:crypto";
 import { automationBatch } from "./automationBatch";
+import { pilotRecommendationNotificationIsCurrent } from "./pilotRecommendationNotifications";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
@@ -224,7 +225,11 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
         tx.set(doc.ref, { status: "pending", lastError: "delivery_message_changed" }, { merge: true });
         return false;
       }
-      if (!currentNotice) {
+      // Re-read recommendation/recipient authority in this same transaction.
+      // A source read/decrypt failure leaves a recoverable pre-dispatch claim;
+      // an obsolete notice is cancelled without consuming a send attempt.
+      const currentRecommendation = await pilotRecommendationNotificationIsCurrent(entry, tx);
+      if (!currentNotice || !currentRecommendation) {
         tx.set(doc.ref, { status: "cancelled" }, { merge: true });
         return false;
       }
