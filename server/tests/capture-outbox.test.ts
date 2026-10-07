@@ -9,9 +9,11 @@
  * enqueuing twice is one message, and a failed send retries until it is spent
  * rather than forever or never.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { createHash } from "node:crypto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { sharedFakeFirestore as db, sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
 const sendEmailMock = vi.fn();
 
@@ -36,7 +38,7 @@ vi.mock("../logger", () => ({
 
 vi.mock("../utils/email", () => ({ sendEmail: sendEmailMock }));
 
-const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
+const { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries } = await import("../utils/captureOutbox");
 
 function entry(overrides: Record<string, unknown> = {}) {
   return {
@@ -49,6 +51,8 @@ function entry(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+afterEach(() => { vi.restoreAllMocks(); });
 
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
@@ -79,6 +83,20 @@ describe("enqueuing is idempotent", () => {
 });
 
 describe("delivery sends what is pending, once", () => {
+  it("admits one sender when request and worker passes overlap", async () => {
+    await enqueueOutbox(entry());
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    sendEmailMock.mockImplementation(async () => {
+      await held;
+      return { sent: true, provider: "resend", messageId: "accepted" };
+    });
+    const passes = [deliverOutbox(), deliverOutbox()];
+    await vi.waitFor(() => expect(sendEmailMock).toHaveBeenCalled());
+    release();
+    await Promise.all(passes);
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+  });
   it("sends a pending message and marks it sent", async () => {
     sendEmailMock.mockResolvedValue({ sent: true, provider: "smtp", messageId: "m1" });
     await enqueueOutbox(entry());
@@ -153,5 +171,185 @@ describe("a failed send retries, then gives up", () => {
     expect(second.sent).toBe(1);
     const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed") as Record<string, unknown>;
     expect(doc.status).toBe("sent");
+  });
+});
+
+const row = () => sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed") as any;
+const microtasks = async (count: number) => { for (let i = 0; i < count; i++) await Promise.resolve(); };
+
+describe("delivery recovery never replays an ambiguous effect", () => {
+  it.each(["unknown", "throw"])("quarantines %s without another send", async mode => {
+    await enqueueOutbox(entry());
+    sendEmailMock.mockImplementation(async () => {
+      if (mode === "throw") throw new Error("connection lost");
+      return { sent: false, provider: "resend", messageId: null, outcome: "unknown" };
+    });
+    await deliverOutbox(); await deliverOutbox();
+    expect(row()).toMatchObject({ status: "unknown", attempts: 1 });
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves dispatch uncertainty when the acceptance write fails", async () => {
+    await enqueueOutbox(entry());
+    const original = db.runTransaction.bind(db);
+    const spy = vi.spyOn(db, "runTransaction").mockImplementation(async (callback: any) => original(async (tx: any) => callback({
+      ...tx, set: (ref: any, data: any, options: any) => {
+        if (data.status === "sent") throw new Error("acknowledgement write unavailable");
+        return tx.set(ref, data, options);
+      },
+    })));
+    sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
+    await expect(deliverOutbox()).rejects.toThrow("acknowledgement write unavailable");
+    spy.mockRestore();
+    expect(row()).toMatchObject({ status: "dispatching", attempts: 1 });
+    row().deliveryLeaseUntilMs = Date.now() - 1;
+    await deliverOutbox(); await deliverOutbox();
+    expect(row().status).toBe("unknown");
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers a crash before dispatch without spending an attempt", async () => {
+    await enqueueOutbox(entry());
+    const original = db.runTransaction.bind(db);
+    const spy = vi.spyOn(db, "runTransaction").mockImplementation(async (callback: any) => original(async (tx: any) => callback({
+      ...tx, set: (ref: any, data: any, options: any) => {
+        if (data.status === "dispatching") throw new Error("crash before dispatch");
+        return tx.set(ref, data, options);
+      },
+    })));
+    await expect(deliverOutbox()).rejects.toThrow("crash before dispatch");
+    spy.mockRestore();
+    expect(row()).toMatchObject({ status: "claimed", attempts: 0 });
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    row().deliveryLeaseUntilMs = Date.now() - 1;
+    sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
+    await deliverOutbox();
+    expect(row()).toMatchObject({ status: "sent", attempts: 1 });
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a late bound receipt after lease expiry without replay", async () => {
+    await enqueueOutbox(entry());
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    sendEmailMock.mockImplementation(async () => { await held; return { sent: true, provider: "resend", messageId: "late" }; });
+    const first = deliverOutbox();
+    await vi.waitFor(() => expect(sendEmailMock).toHaveBeenCalled());
+    row().deliveryLeaseUntilMs = Date.now() - 1;
+    await deliverOutbox();
+    expect(row().status).toBe("unknown");
+    release(); await first;
+    expect(row()).toMatchObject({ status: "sent", deliveryMessageId: "late", attempts: 1 });
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["to", "body", "subject", "replyTo", "deliveryToken"])("does not attach acceptance to changed %s", async field => {
+    await enqueueOutbox(entry());
+    sendEmailMock.mockImplementation(async () => {
+      row()[field] = "successor-value";
+      return { sent: true, provider: "resend", messageId: "old-acceptance" };
+    });
+    await deliverOutbox();
+    expect(row().status).toBe("dispatching");
+    expect(row().deliveryMessageId).toBeUndefined();
+    const receipts = [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.includes("/deliveryReceipts/"));
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0][1]).toMatchObject({ status: "sent", messageId: "old-acceptance" });
+    row().deliveryLeaseUntilMs = Date.now() - 1;
+    await deliverOutbox();
+    expect(row().status).toBe("unknown");
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reentering each transaction callback does not duplicate dispatch", async () => {
+    await enqueueOutbox(entry());
+    const original = db.runTransaction.bind(db);
+    vi.spyOn(db, "runTransaction").mockImplementation(async (callback: any) => {
+      // Retry the callback with discarded writes before its committed execution.
+      await callback({ get: (ref: any) => ref.get(), set: () => undefined });
+      return original(callback);
+    });
+    sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
+    await deliverOutbox();
+    expect(row()).toMatchObject({ status: "sent", attempts: 1 });
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rotates recovery past 101 active claims to an expired claim", async () => {
+    for (let i = 0; i < 102; i++) sharedFakeFirestoreState.docs.set(`captureOutbox/${String(i).padStart(3, "0")}`, {
+      status: "claimed", deliveryLeaseUntilMs: i === 101 ? 0 : Date.now() + 600000,
+    });
+    await reconcileOutboxDeliveries(100);
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/101")?.status).toBe("claimed");
+    await reconcileOutboxDeliveries(100);
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/101")?.status).toBe("pending");
+  });
+});
+
+
+describe("seeded concurrent delivery schedules", () => {
+  it("checks 640 distinct schedules with eight callers, bounded attempts and unknown effects", async () => {
+    const actor = new AsyncLocalStorage<number>();
+    const original = db.runTransaction.bind(db);
+    const traces = new Set<string>();
+    const start = performance.now();
+    const baselineRssKiB = Math.round(process.memoryUsage().rss / 1024);
+    const cpuStart = process.cpuUsage();
+    let providerCalls = 0;
+    for (let seed = 1; seed <= 640; seed++) {
+      sharedFakeFirestoreState.docs.clear();
+      sendEmailMock.mockReset();
+      let random = seed;
+      const next = () => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return random; };
+      const trace: string[] = [];
+      const phases = new Map<number, number>();
+      const spy = vi.spyOn(db, "runTransaction").mockImplementation(async (callback: any) => {
+        const id = actor.getStore() ?? -1;
+        const phase = (phases.get(id) ?? 0) + 1;
+        phases.set(id, phase);
+        await microtasks(next() % 29);
+        trace.push(`${id}:${phase}`);
+        return original(callback);
+      });
+      await enqueueOutbox(entry());
+      row().attempts = seed % 6;
+      const initialAttempts = row().attempts;
+      let calls = 0;
+      const mode = seed % 5;
+      sendEmailMock.mockImplementation(async () => {
+        calls++; providerCalls++;
+        await microtasks(next() % 23);
+        if (mode === 1) return { sent: false, provider: "resend", messageId: null, outcome: "unknown" };
+        if (mode === 2) throw new Error("lost provider response");
+        if (mode === 3 && calls === 1) return { sent: false, provider: "resend", messageId: null, outcome: "not_sent" };
+        if (mode === 4) {
+          row().deliveryLeaseUntilMs = Date.now() - 1;
+          await reconcileOutboxDeliveries();
+        }
+        return { sent: true, provider: "resend", messageId: `ack-${seed}` };
+      });
+      try {
+        await Promise.all(Array.from({ length: 8 }, (_, id) => actor.run(id, async () => {
+          await microtasks(next() % 37);
+          await deliverOutbox();
+          await microtasks(next() % 19);
+          await deliverOutbox();
+        })));
+        expect(calls, `seed ${seed}`).toBeGreaterThan(0);
+        expect(calls, `seed ${seed}`).toBeLessThanOrEqual(mode === 3 ? 2 : 1);
+        expect(row().attempts, `seed ${seed}`).toBe(initialAttempts + calls);
+        expect(row().attempts, `seed ${seed}`).toBeLessThanOrEqual(6);
+        expect(row().status, `seed ${seed}`).toBe(mode === 1 || mode === 2 ? "unknown"
+          : mode === 3 && initialAttempts === 5 ? "failed" : "sent");
+        traces.add(createHash("sha256").update(trace.join(",")).digest("hex"));
+      } finally { spy.mockRestore(); }
+    }
+    expect(traces.size).toBeGreaterThan(500);
+    console.log(JSON.stringify({ runner: "capture-outbox-seeded-scheduler-v1", seeds: 640,
+      distinctTransactionSchedules: traces.size, callersPerSeed: 8, providerCalls,
+      warmRecoveryElapsedMs: Math.round(performance.now() - start), baselineRssKiB,
+      finalRssKiB: Math.round(process.memoryUsage().rss / 1024), cpuMicros: process.cpuUsage(cpuStart),
+      processLifetimeMaxRssKiB: process.resourceUsage().maxRSS,
+      limitation: "In-memory serialized Firestore fake; no live provider/database or process RSS isolation." }));
   });
 });

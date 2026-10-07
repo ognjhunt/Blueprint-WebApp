@@ -1,38 +1,20 @@
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
 /**
- * A message that is not lost because the request that triggered it succeeded.
+ * Durable delivery for site lifecycle and evaluation notices once enqueued.
  *
- * ## The failure this closes
+ * The document id deduplicates notification intent. A transactional claim
+ * fences concurrent request, scheduler and pump callers; a separate dispatch
+ * marker consumes an attempt before the provider call. Expired pre-dispatch
+ * claims can recover, but missing provider acknowledgements remain unknown
+ * until evidence reconciles them. Expiry alone never authorizes another send.
  *
- * Every automation on the intake path is fire-and-forget: pushed into an
- * `automationPromises[]` array and never awaited for durability. So the shape
- * the audit named is live -- the Firestore write lands, the process dies or the
- * email provider times out, and the notification is gone with nothing to retry
- * from. A site confirms a brief, hears nothing, and has no way to know whether
- * we saw it.
- *
- * The fix is the transactional-outbox pattern: the intent to notify is written
- * durably, in the same place as the state change, and delivery is a separate
- * pass that retries until it succeeds. A crash between the write and the send
- * costs latency, not the message.
- *
- * ## Delivery runs on a caller's path, not only a scheduler
- *
- * Same reasoning as `reconcileTeamHolds`: the scheduler lane in this repo is
- * off unless a flag is set, and a notification system that only works when a
- * background job is enabled is one that silently does nothing in a deployment
- * that forgot to enable it. So `deliverOutbox` is called opportunistically from
- * request paths, and a scheduler is an optimisation on top rather than the only
- * thing that makes it work.
- *
- * ## Dedup is the document id
- *
- * The idempotency key is the id, so enqueuing the same event twice -- a retried
- * request, a double-fired workflow -- is one row, and delivering it twice is
- * prevented by the status transition rather than by hoping the send is
- * idempotent (it is not; a second email is a second email).
+ * This does not make producer state changes atomic with enqueueOutbox: callers
+ * must retain their own pending intent for recovery, and enqueueOutbox still
+ * reports both duplicate intent and storage failure as enqueued:false.
  */
 
+import { createHash, randomUUID } from "node:crypto";
+import { automationBatch } from "./automationBatch";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
@@ -74,7 +56,7 @@ export type OutboxKind =
   /** To approved robot teams, when a site lists a new task card. */
   | "robot_team_new_task";
 
-export type OutboxStatus = "pending" | "sent" | "failed" | "cancelled";
+export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled";
 
 export interface OutboxEntry {
   idempotencyKey: string;
@@ -93,6 +75,31 @@ export interface OutboxEntry {
 
 /** Give up sending after this many tries, and say so rather than retrying forever. */
 const MAX_ATTEMPTS = 6;
+const DELIVERY_LEASE_MS = 5 * 60 * 1000;
+
+// Bind the claim to the exact message, including the private owner link.
+function messageDigest(entry: OutboxEntry): string {
+  return createHash("sha256").update(JSON.stringify([
+    entry.idempotencyKey, entry.requestId, entry.kind, entry.to,
+    entry.subject, entry.body, entry.replyTo ?? null,
+  ])).digest("hex");
+}
+
+/** Expiry permits another claim only before the durable dispatch marker.
+ * Once dispatch could have happened, missing acknowledgement stays unknown. */
+export async function reconcileOutboxDeliveries(limit = 20): Promise<void> {
+  if (!db) return;
+  for (const status of ["claimed", "dispatching"] as const) {
+    const rows = await automationBatch(db, db.collection(CAPTURE_OUTBOX_COLLECTION)
+      .where("status", "==", status), `capture_outbox_${status}`, limit);
+    for (const row of rows.docs) await db.runTransaction(async tx => {
+      const current = (await tx.get(row.ref)).data();
+      if (current?.status !== status || !(current.deliveryLeaseUntilMs <= Date.now())) return;
+      tx.set(row.ref, { status: status === "claimed" ? "pending" : "unknown",
+        lastError: status === "claimed" ? "delivery_claim_expired_before_dispatch" : "delivery_outcome_unknown" }, { merge: true });
+    });
+  }
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -159,9 +166,9 @@ export interface OutboxDeliverySummary {
  * which point it is marked `failed` and stops -- an unsendable address should
  * not be retried into the heat death of the universe.
  *
- * Delivery is at-least-once: a provider success followed by a failed status
- * write, or overlapping delivery passes, can resend an email. The document
- * id deduplicates enqueue intents, not non-transactional provider delivery.
+ * A transactional claim fences overlapping passes. Persist dispatch and its
+ * attempt before sending; a missing provider acknowledgement is quarantined,
+ * never treated as permission to send again.
  */
 export async function deliverOutbox(params?: { limit?: number }): Promise<OutboxDeliverySummary> {
   const summary: OutboxDeliverySummary = { examined: 0, sent: 0, failed: 0, exhausted: 0 };
@@ -182,6 +189,7 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileTaskEvaluationNotificationRetries } = await import("./taskEvaluationNotificationRetry");
     await reconcileTaskEvaluationNotificationRetries(db, limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile notification acknowledgements"); }
+  await reconcileOutboxDeliveries(limit);
   const snapshot = await db
     .collection(CAPTURE_OUTBOX_COLLECTION)
     .where("status", "==", "pending")
@@ -189,49 +197,79 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     .get();
 
   for (const doc of snapshot.docs) {
-    const entry = doc.data() as OutboxEntry;
     summary.examined += 1;
-
-    if (!(await taskStatusUpdateIsCurrent(entry))) {
-      await doc.ref.set({ status: "cancelled" }, { merge: true });
-      continue;
-    }
+    const token = randomUUID();
+    const entry = await db.runTransaction(async tx => {
+      const current = (await tx.get(doc.ref)).data() as OutboxEntry | undefined;
+      if (!current || current.status !== "pending") return null;
+      if (current.attempts >= MAX_ATTEMPTS) {
+        tx.set(doc.ref, { status: "failed", lastError: "delivery_attempt_budget_exhausted" }, { merge: true });
+        return null;
+      }
+      tx.set(doc.ref, { status: "claimed", deliveryToken: token,
+        deliveryDigest: messageDigest(current), deliveryLeaseUntilMs: Date.now() + DELIVERY_LEASE_MS }, { merge: true });
+      return current;
+    });
+    if (!entry) continue;
+    const currentNotice = await taskStatusUpdateIsCurrent(entry);
+    const message = brandedEmail({ subject: entry.subject, text: entry.body });
+    const dispatched = await db.runTransaction(async tx => {
+      const current = (await tx.get(doc.ref)).data();
+      if (current?.status !== "claimed" || current.deliveryToken !== token
+        || current.deliveryLeaseUntilMs <= Date.now()) return false;
+      if (messageDigest(current as OutboxEntry) !== messageDigest(entry)) {
+        tx.set(doc.ref, { status: "pending", lastError: "delivery_message_changed" }, { merge: true });
+        return false;
+      }
+      if (!currentNotice) {
+        tx.set(doc.ref, { status: "cancelled" }, { merge: true });
+        return false;
+      }
+      tx.set(doc.ref, { status: "dispatching", attempts: entry.attempts + 1,
+        deliveryLeaseUntilMs: Date.now() + DELIVERY_LEASE_MS }, { merge: true });
+      return true;
+    });
+    if (!dispatched) continue;
     let result: Awaited<ReturnType<typeof sendEmail>>;
     try {
-      const message = brandedEmail({ subject: entry.subject, text: entry.body });
-      result = await sendEmail({
-        to: entry.to,
-        subject: entry.subject,
-        text: message.text,
-        html: message.html,
-        replyTo: entry.replyTo ?? undefined,
-      });
+      result = await sendEmail({ to: entry.to, subject: entry.subject,
+        text: message.text, html: message.html, replyTo: entry.replyTo ?? undefined });
     } catch (error) {
-      result = { sent: false, provider: null, messageId: null, error };
+      result = { sent: false, provider: null, messageId: null, error, outcome: "unknown" };
     }
-
+    const attempts = entry.attempts + 1;
+    const unknown = !result.sent && (result.outcome === "unknown"
+      || (result.provider !== null && result.outcome !== "not_sent"));
+    const status = result.sent ? "sent" : unknown ? "unknown"
+      : attempts >= MAX_ATTEMPTS ? "failed" : "pending";
+    const lastError = result.sent ? null : unknown ? "delivery_outcome_unknown"
+      : result.error instanceof Error ? result.error.message : String(result.error ?? "send failed");
+    const applied = await db.runTransaction(async tx => {
+      const current = (await tx.get(doc.ref)).data();
+      // Keep the old effect's receipt even if a successor changed the message.
+      // The digest binds private bytes without copying them into the receipt.
+      tx.set(doc.ref.collection("deliveryReceipts").doc(token), {
+        token, messageDigest: messageDigest(entry), attempt: attempts,
+        status, provider: result.provider, messageId: result.messageId,
+        observedAtIso: nowIso(),
+      });
+      if (!current || !["dispatching", "unknown"].includes(current.status)
+        || current.deliveryToken !== token || current.deliveryDigest !== messageDigest(entry)
+        || messageDigest(current as OutboxEntry) !== messageDigest(entry)) return false;
+      tx.set(doc.ref, { status, lastError, sentAtIso: result.sent ? nowIso() : null,
+        deliveryProvider: result.provider, deliveryMessageId: result.messageId }, { merge: true });
+      return true;
+    });
+    if (!applied) continue;
     if (result.sent) {
-      await doc.ref.set(
-        { status: "sent", sentAtIso: nowIso(), attempts: entry.attempts + 1, lastError: null },
-        { merge: true },
-      );
       try { await acknowledgeTaskStatusUpdate(entry); }
       catch (error) { logger.warn({ error }, "Status deadline will advance on the next reconciliation"); }
       summary.sent += 1;
-      continue;
-    }
-
-    const attempts = entry.attempts + 1;
-    const lastError = result.error instanceof Error ? result.error.message : String(result.error ?? "send failed");
-    if (attempts >= MAX_ATTEMPTS) {
-      await doc.ref.set({ status: "failed", attempts, lastError }, { merge: true });
+    } else if (status === "failed") {
       summary.exhausted += 1;
-      logger.error(
-        { key: entry.idempotencyKey, requestId: entry.requestId, attempts },
-        "Outbox message exhausted its retries",
-      );
+      logger.error({ key: entry.idempotencyKey, requestId: entry.requestId, attempts },
+        "Outbox message exhausted its retries");
     } else {
-      await doc.ref.set({ attempts, lastError }, { merge: true });
       summary.failed += 1;
     }
   }
