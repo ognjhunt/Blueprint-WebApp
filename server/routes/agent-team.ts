@@ -400,7 +400,7 @@ router.post("/keys/reissue", reissueRateLimiter, async (req: Request, res: Respo
           ...(issued.length ? [""] : []),
           "These teams are connected to a Blueprint account, so their keys are issued from that account:",
           ...managed.map((entry) => `- ${entry.teamName} (${entry.teamId})`),
-          "Sign in and open Settings → Agent access to issue or revoke a key.",
+          "Email hello@tryblueprint.io from the account address to issue or revoke a key.",
         ]
       : []),
     "If you did not request this, revoke any new key or contact hello@tryblueprint.io.",

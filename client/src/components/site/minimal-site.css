@@ -1,10 +1,12 @@
-.minimal-site {
+.minimal-site, .ws-library {
   --ms-paper: #f6f5ef;
   --ms-ink: #22251e;
   --ms-muted: #62645d;
   --ms-green: #203d2e;
   --ms-rule: #babdb3;
   color-scheme: light;
+}
+.minimal-site {
   background: var(--ms-paper);
   color: var(--ms-ink);
   min-height: 100vh;
@@ -13,6 +15,7 @@
 }
 .minimal-site h1, .minimal-site h2, .minimal-site h3 { font-family: inherit; color: inherit; font-weight: 400; }
 .minimal-site a { color: inherit; }
+.ws-library a { color: var(--ms-green); text-decoration: underline; text-underline-offset: 3px; }
 .minimal-site .ms-button, .minimal-site .ms-skip { color: #f6f5ef; }
 .minimal-site a, .minimal-site button { -webkit-tap-highlight-color: transparent; }
 .minimal-site :focus-visible { outline: 2px solid var(--ms-green); outline-offset: 5px; }

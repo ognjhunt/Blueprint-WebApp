@@ -207,7 +207,7 @@ describe("app/Captures", () => {
     render(<Captures />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Captures" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Jobs", exact: true })).toHaveAttribute("href", "/app/tasks");
+    expect(screen.getByRole("link", { name: "Tasks", exact: true })).toHaveAttribute("href", "/app/tasks");
     expect(await screen.findByText("warehouse-tour.mp4")).toBeInTheDocument();
     expect(screen.getByText("Upload not finished")).toBeInTheDocument();
     expect(screen.queryByLabelText("Capture file")).not.toBeInTheDocument();

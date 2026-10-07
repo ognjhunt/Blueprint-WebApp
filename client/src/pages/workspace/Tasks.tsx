@@ -16,28 +16,28 @@ export default function Tasks() {
     <Frame
       query={query}
       active="tasks"
-      title="Your jobs"
+      title="Your tasks"
       action={
         <ActionLink href="/contact/site-operator" primary>
-          Describe a job
+          Show us a task
         </ActionLink>
       }
     >
       {query.data?.role !== "site_operator" && !tasks.length ? (
         <Empty
-          title="Browse site openings"
-          href="/app/opportunities"
-          action="Browse openings"
+          title="Find site tasks"
+          href="/app/library"
+          action="Task library"
         >
-          Openings are available in your robot-team workspace.
+          Site tasks are in the task library.
         </Empty>
       ) : (
         <>
           <input
             className="ws-search"
             type="search"
-            aria-label="Search your jobs"
-            placeholder="Search jobs or sites"
+            aria-label="Search your tasks"
+            placeholder="Search tasks or sites"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -45,12 +45,12 @@ export default function Tasks() {
             <TaskRows tasks={tasks} />
           ) : (
             <Empty
-              title={search ? "No matching jobs" : "Start with one job"}
+              title={search ? "No matching tasks" : "Start with one task"}
               href={search ? undefined : "/contact/site-operator"}
-              action="Describe a job"
+              action="Show us a task"
             >
               {search
-                ? "Try another job name or site."
+                ? "Try another task name or site."
                 : "Request a capture and evaluation for the work you want to automate."}
             </Empty>
           )}

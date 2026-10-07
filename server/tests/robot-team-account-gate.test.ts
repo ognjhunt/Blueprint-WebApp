@@ -258,7 +258,7 @@ describe("the account issues and revokes the agent's keys", () => {
     });
     expect(reissue.status).toBe(202);
     const sent = sendEmail.mock.calls.at(-1)?.[0] as unknown as { text: string };
-    expect(sent.text).toMatch(/Settings → Agent access/);
+    expect(sent.text).toMatch(/Email hello@tryblueprint\.io from the account address to issue or revoke a key/);
     expect(sent.text).not.toMatch(/bpk_/);
   });
 });

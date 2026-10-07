@@ -39,7 +39,7 @@ export const TEAM_ACCOUNT_REQUIRED = {
   error:
     "Connect this team to a verified Blueprint account before paying or running. Create an "
     + "account at /signup/robot-team, verify your email, then connect the team from the plan page "
-    + "or issue a key from Settings → Agent access.",
+    + "or email hello@tryblueprint.io for a key.",
   code: "team_account_required",
 } as const;
 

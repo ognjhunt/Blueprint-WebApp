@@ -9,7 +9,7 @@ export default function RequestStart() {
       navigate(
         userData?.buyerType === "site_operator"
           ? "/app/tasks/new"
-          : "/app/opportunities",
+          : "/app/library",
         { replace: true },
       );
   }, [loading, userData?.buyerType, navigate]);

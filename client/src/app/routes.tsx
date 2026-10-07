@@ -83,6 +83,7 @@ const OpportunityOffers = lazyRoute(() => import("../pages/internal/OpportunityO
 
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/workspace/Overview"));
+const WorkspaceLibrary = lazyRoute(() => import("../pages/workspace/Library"));
 const WorkspaceRequestStart = lazyRoute(() => import("../pages/workspace/RequestStart"));
 const WorkspaceTasks = lazyRoute(() => import("../pages/workspace/Tasks"));
 const WorkspaceTaskDetail = lazyRoute(() => import("../pages/workspace/TaskDetail"));
@@ -103,7 +104,6 @@ const AppTaskEvaluationResultDetail = lazyRoute(
 );
 const AppNativeG1PrivateReview = lazyRoute(() => import("../pages/app/NativeG1PrivateReview"));
 const AppSitePacks = lazyRoute(() => import("../pages/app/SitePacks"));
-const AppPilotOpportunities = lazyRoute(() => import("../pages/workspace/Openings"));
 
 const NotFound = lazyRoute(() => import("../pages/NotFound"));
 
@@ -431,7 +431,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
   { path: "/app/runs", layout: "protected", shell: "bare", component: AppRuns },
   { path: "/app/connect/chatgpt", layout: "protected", shell: "bare", component: ConnectChatGPT },
-  { path: "/app/opportunities", layout: "protected", shell: "bare", component: AppPilotOpportunities },
+  { path: "/app/library", layout: "protected", shell: "bare", component: WorkspaceLibrary },
+  { path: "/app/opportunities", layout: "protected", shell: "bare", component: WorkspaceLibrary },
   { path: "/app/runs/new", layout: "protected", shell: "bare", component: WorkspaceRequestStart },
   { path: "/app/advanced/runs/new", layout: "protected", shell: "bare", component: AppRunIntake },
   { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },

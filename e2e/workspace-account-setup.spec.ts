@@ -92,7 +92,7 @@ for (const type of ["site_operator", "robot_team"] as const) {
       page.getByRole("button", { name: "Try again", exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("link", { name: "Browse openings", exact: true }),
+      page.getByRole("link", { name: "Task library", exact: true }),
     ).toHaveCount(0);
     await expect(
       page.getByText("Robot-team workspace", { exact: true }),
@@ -222,11 +222,11 @@ for (const role of ["site_operator", "robot_team"] as const) {
     await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
     await page.goto("/settings");
     if (role === "robot_team") {
-      await page.getByRole("link", { name: "Browse openings →", exact: true }).click();
-      await expect(page).toHaveURL(/\/app\/opportunities$/);
-      await expect(page.getByRole("heading", { name: "Openings", exact: true })).toBeVisible();
+      await page.getByRole("link", { name: "Task library →", exact: true }).click();
+      await expect(page).toHaveURL(/\/app\/library$/);
+      await expect(page.getByRole("heading", { name: "Task library", exact: true })).toBeVisible();
     } else {
-      await expect(page.getByRole("link", { name: "Browse openings →", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Task library →", exact: true })).toHaveCount(0);
     }
     await page.goto("/settings?setup=1");
     await expect(page.getByRole("heading", { name: "Workspace setup", exact: true })).toBeVisible();

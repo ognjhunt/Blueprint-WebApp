@@ -68,6 +68,8 @@ export type WorkspaceTask = {
   listing?: { approved: boolean; live: boolean } | null;
   /** The reconstructed scene can be opened from the task page. */
   sceneReady?: boolean;
+  /** A real image of the task (scene preview or approved card); null falls back to an illustration. */
+  thumbnailUrl?: string | null;
   potentialMatches: number | null;
   capture: CaptureVisit | null;
   results: WorkspaceResult[];
