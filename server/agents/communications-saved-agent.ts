@@ -306,6 +306,18 @@ export function communicationsMcpCallAllowed(binding: CommunicationsCurrentMcpBi
     : (tool.allowed_tools ?? COMMUNICATIONS_GMAIL_READ_TOOLS).includes(name);
 }
 
+/** The provider also records failed protocol initialization as an mcp_call.
+ * Retain that connection diagnostic for an already declared server; it is
+ * neither an application-tool grant nor evidence that the server was read. */
+export function communicationsMcpConnectionFailure(binding: CommunicationsCurrentMcpBinding, item: any): boolean {
+  if (item?.type !== "mcp_call" || item.name !== "initialize" || item.status !== "failed"
+    || item.output !== null || item.error?.code !== "connection_failed"
+    || !item.arguments || typeof item.arguments !== "object" || Array.isArray(item.arguments)
+    || Object.keys(item.arguments).length !== 0 || typeof item.server_label !== "string") return false;
+  const frozen = communicationsMcpBaseBinding(binding);
+  return frozen.configuration.tools.some(tool => tool.type === "mcp" && tool.server_label === item.server_label);
+}
+
 function communicationsMcpBaseBinding(binding: CommunicationsCurrentMcpBinding): CommunicationsBaseMcpBinding {
   const frozen = verifiedCommunicationsCurrentMcpBinding(binding);
   return frozen.profile === COMMUNICATIONS_MCP_VAULT_READ_PROFILE ? frozen.baseBinding : frozen;

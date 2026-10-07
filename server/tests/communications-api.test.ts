@@ -18,6 +18,7 @@ import { HYPOTHESIS_DRAFTS_FLAG } from "../agents/communications-hypothesis-cont
 import { buildCommunicationsInput } from "../agents/communications-worker";
 import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "../agents/communications-outreach-quality";
 import { founderOutreachFixture } from "./fixtures/founder-outreach";
+import { communicationsMcpCallAllowed } from "../agents/communications-saved-agent";
 const httpStorage = vi.hoisted(() => ({ enabled: false, fail: false, objects: new Map<string, string>() }));
 vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => httpStorage.enabled ? {
   bucketName: "mock-private-http-evidence",
@@ -893,6 +894,78 @@ describe("new-session bounded communications final repair", () => {
       await expect(f.api.reconcileSaved(saved, "job-1")).rejects.toMatchObject({ code: "communications_output_invalid" });
       expect(f.fetchMock.mock.calls.slice(previousCalls).every(([, init]: any[]) => init.method !== "POST")).toBe(true);
     } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("declared MCP connection failure observations", () => {
+  const failedInitialize = { id: "mcp-synthetic-initialize", type: "mcp_call", turn_id: "turn-1", server_label: "notion",
+    name: "initialize", arguments: {}, status: "failed", output: null,
+    error: { code: "connection_failed", message: "Synthetic declared connection unavailable" } };
+  function fixture(item: any) {
+    const f = apiFixture(), original = f.fetchMock.getMockImplementation()!;
+    (f.savedAgent.tools as any[]) = [
+      ["gmail", "https://gmailmcp.googleapis.com/mcp/v1"], ["notion", "https://mcp.notion.com/mcp"],
+      ["firebase", "https://firestore.googleapis.com/mcp"],
+    ].map(([server_label, server_url]) => ({ type: "mcp", server_label, credential_id: `synthetic-${server_label}-credential`,
+      transport: { type: "http", server_url, headers: {} }, request_metadata: {}, allowed_tools: null, required: false, connection_origin: "service" }));
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const path = new URL(String(url)).pathname;
+      if (path === "/v1/vaults") return Response.json({ data: ["gmail", "notion", "firebase"].map(label => ({ id: `vault_mock_${label}`, object: "vault" })), has_more: false });
+      const vault = path.match(/^\/v1\/vaults\/vault_mock_(gmail|notion|firebase)\/credentials$/);
+      if (vault) return Response.json({ data: [{ id: `synthetic-${vault[1]}-credential`, object: "vault.credential", vault_id: `vault_mock_${vault[1]}` }], has_more: false });
+      const response = await original(url, init);
+      if (path.endsWith("/items")) {
+        const page = await response.json(); page.data.unshift(structuredClone(item)); return Response.json(page);
+      }
+      if (path.endsWith("/turns")) {
+        const page = await response.json(); page.data[0].usage = null; return Response.json(page);
+      }
+      return response;
+    });
+    return f;
+  }
+  it.each(["gmail", "notion", "firebase"])("retains failed %s initialization and recovers the exact final with paid inference off", async server_label => {
+    const item = { ...failedInitialize, server_label }, f = fixture(item), result = await f.api.run(f.params);
+    expect(result.checkpoint.nativeMcpItems).toEqual([item]);
+    expect(result.outputSource?.nativeMcpEvidence).toMatchObject({ observedCalls: 1, failedConnections: 1, observedToolCalls: 0 });
+    expect(communicationsMcpCallAllowed(result.checkpoint.gmailMcp!, server_label, "initialize")).toBe(false);
+    expect(result.usage).toBeNull();
+    const postsBefore = f.fetchMock.mock.calls.filter(([, init]: any[]) => init.method === "POST").length;
+    const reserveCount = f.reservePaidDraft.mock.calls.length;
+    const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: false, fetch: f.fetchMock as any,
+      reviewedSavedOutputDigest: result.outputSource!.rawOutputSha256, reservePaidDraft: f.reservePaidDraft });
+    const recovered = await api.reconcileSaved(result.checkpoint, "job-1");
+    expect(recovered?.output).toEqual(result.output);
+    expect(recovered?.outputSource?.rawOutputSha256).toBe(result.outputSource!.rawOutputSha256);
+    expect(recovered?.checkpoint.nativeMcpItems).toEqual([item]);
+    expect(recovered?.usage).toBeNull();
+    expect(f.fetchMock.mock.calls.filter(([, init]: any[]) => init.method === "POST")).toHaveLength(postsBefore);
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(reserveCount);
+    expect(postsBefore).toBe(1);
+  });
+  it.each([
+    { server_label: "foreign" }, { turn_id: "foreign-turn" }, { name: "notion-create-pages" },
+    { status: "completed" }, { output: "unverified server data" }, { arguments: { grant: "read" } },
+    { arguments: null }, { arguments: [] }, { error: { code: "permission_denied" } }, { error: null },
+  ])("rejects unrelated or tool-bearing initialization observations: %j", async change => {
+    const f = fixture({ ...failedInitialize, ...change });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "agents_native_mcp_call_binding_mismatch" });
+    expect(f.calls.filter(call => call.init.method === "POST")).toHaveLength(1);
+  });
+  it.each([["notion", "notion-search"], ["firebase", "get_database"], ["gmail", "get_thread"]])("preserves the existing %s/%s read allowlist", async (server_label, name) => {
+    const item = { ...failedInitialize, server_label, name, status: "completed", output: "synthetic read", error: null };
+    const f = fixture(item), result = await f.api.run(f.params);
+    expect(result.checkpoint.nativeMcpItems).toEqual([item]);
+    expect(result.outputSource?.nativeMcpEvidence).toMatchObject({ failedConnections: 0, observedToolCalls: 1 });
+  });
+  it("refuses a changed retained connection diagnostic on GET-only replay", async () => {
+    const f = fixture(failedInitialize), result = await f.api.run(f.params);
+    const retained = structuredClone(result.checkpoint);
+    (retained.nativeMcpItems![0] as any).error.message = "different diagnostic";
+    const before = f.fetchMock.mock.calls.length;
+    const api = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: false, fetch: f.fetchMock as any });
+    await expect(api.reconcileSaved(retained, "job-1")).rejects.toMatchObject({ code: "agents_native_mcp_call_binding_mismatch" });
+    expect(f.fetchMock.mock.calls.slice(before).every(([, init]: any[]) => init.method !== "POST")).toBe(true);
   });
 });
 

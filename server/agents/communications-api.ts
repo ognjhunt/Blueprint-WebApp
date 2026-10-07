@@ -9,7 +9,7 @@ import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION_DIGES
   verifiedCommunicationsSavedAgent, verifiedCommunicationsHistoryAgent, COMMUNICATIONS_HISTORY_PROFILE,
   COMMUNICATIONS_HISTORY_DEFINITION, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST,
   verifiedCommunicationsCurrentSavedAgent, verifiedCommunicationsCurrentMcpBinding, verifiedCommunicationsCurrentMcpAgent,
-  communicationsMcpDefinition, communicationsMcpCallAllowed, communicationsMcpVaultIds, resolveCommunicationsMcpVaultBinding, type CommunicationsCurrentMcpBinding,
+  communicationsMcpDefinition, communicationsMcpCallAllowed, communicationsMcpConnectionFailure, communicationsMcpVaultIds, resolveCommunicationsMcpVaultBinding, type CommunicationsCurrentMcpBinding,
   communicationsHypothesisConfiguration, communicationsHypothesisDefinition, COMMUNICATIONS_HYPOTHESIS_PROFILE,
   verifiedCommunicationsHypothesisAgent } from "./communications-saved-agent";
 
@@ -1214,7 +1214,8 @@ export class CommunicationsAgentsAPI {
       checkpoint.nativeMcpItems = calls;
       if (saveCheckpoint) await saveCheckpoint({ ...checkpoint });
       if (calls.some(item => !(checkpoint.finalRepairProfile ? turns.some((bound: any) => bound.id === item.turn_id) : item.turn_id === turn.id)
-        || !communicationsMcpCallAllowed(checkpoint.gmailMcp!, item.server_label, item.name))) {
+        || (!communicationsMcpCallAllowed(checkpoint.gmailMcp!, item.server_label, item.name)
+          && !communicationsMcpConnectionFailure(checkpoint.gmailMcp!, item)))) {
         throw new CommunicationsRuntimeError("agents_native_mcp_call_binding_mismatch");
       }
     }
@@ -1243,6 +1244,8 @@ export class CommunicationsAgentsAPI {
         recordRef: `blueprintCommunications/default/jobs/${jobId}`, field: checkpoint.ownerContinuation ? "cancelledContinuation.checkpoint" : "checkpoint",
         profile: checkpoint.gmailMcp!.profile, configurationDigest: checkpoint.gmailMcp!.configurationDigest,
         callsDigest: communicationsDigest(checkpoint.nativeMcpItems), observedCalls: checkpoint.nativeMcpItems.length,
+        failedConnections: checkpoint.nativeMcpItems.filter(item => communicationsMcpConnectionFailure(checkpoint.gmailMcp!, item)).length,
+        observedToolCalls: checkpoint.nativeMcpItems.filter((item: any) => communicationsMcpCallAllowed(checkpoint.gmailMcp!, item.server_label, item.name)).length,
       } } : {}),
     };
     if (checkpoint.finalRepairProfile) {
