@@ -16,7 +16,7 @@ The route now reads the authoritative request/contact and exact outbox row befor
 
 An unchanged normalized team/plan reuses the current recommendation ID. Changed plans still receive new IDs, and booked pilots still return 409. Proposed ID, timestamp and signed link are fixed outside the transaction callback; canonical outbox rows are reused across callback retries. Existing delivery state is never reset by a duplicate request.
 
-The notice key binds request, recommendation ID and SHA256 of the exact trimmed current recipient. A later explicit admin retry after an authoritative recipient correction creates one intent for that recipient while preserving prior delivery evidence. It does not overwrite an old claimed, sent or ambiguous delivery record.
+The notice binds request, recommendation ID and exact current recipient. When the historical recommendation-only key is free, the transaction reserves that key so a delayed old-handler enqueue collides with the same intent. When that key already belongs to a different recipient, an explicit admin retry after a contact correction uses the SHA256 recipient-bound key while preserving prior delivery evidence. It does not overwrite an old claimed, sent or ambiguous delivery record.
 
 `pilotRecommendationNotificationIsCurrent` reads the authoritative request inside the outbox's final dispatch transaction. It permits only the current recommendation, exact current recipient and an unbooked pilot. A missing/replaced/booked source or changed recipient cancels the stale notice before an attempt is consumed. A read/decrypt failure throws, leaving the pre-dispatch claim recoverable. Existing legacy keys are accepted only when their exact current recommendation ID and recipient still match.
 
@@ -56,3 +56,10 @@ Tracked tests and `pilot-notification-source.sha256` provide the canonical code/
 This closes local intent durability and dispatch admission. The final provider request remains an external operation: a source change after the dispatch transaction commits cannot retroactively unsend it. The queue lane records ambiguous provider outcomes rather than retrying blindly. No migration/backfill of recommendations saved before this fix is automatic; an authorized identical-plan retry can create a missing intent without replacing its ID.
 
 Root owns integration of the lifecycle builder, pending-row builder, delivery guard hook and this producer, then typecheck/combined tests and release review. Resume only if review or integration identifies a concrete gap. No production recommendation, email, provider job or operating-graph mutation was performed.
+
+
+## PR925 mixed-version rollout correction
+
+A controlled old-writer pause after source commit exposed a remaining rollout race: the new handler could create a hashed intent before the old handler created its legacy intent, allowing two deliveries. The corrected first-intent write reserves the free legacy key in the same transaction for new records and repairs. Occupied different-recipient legacy rows remain immutable. Row caches bind both reserved key and exact recipient so a Firestore retry observing a contact correction cannot reuse the previous recipient's message.
+
+Before correction: three controlled delayed-writer regressions failed (recommendation repair, booking repair, fresh new booking followed by old-handler retry). After correction: **47 focused tests passed** across 22 recommendation-route, 20 booking and 5 guard tests; `npm run check` passed. Tests also cover occupied legacy keys for another recipient and changed recipients between transaction callback retries. Logs: `work/rollout-before.log`, `work/rollout-after.log`, `work/rollout-typecheck.log`. No provider sends or non-loopback requests occurred. This correction changes neither delivery authorization nor the post-dispatch source-change limitation above.

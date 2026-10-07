@@ -133,8 +133,19 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       // aborts the recommendation; no post-commit enqueue can lose the notice.
       if (!samePlan) transaction.update(ref, { pilot_recommendation: recommendation });
       if (!existing) {
-        if (!rows.has(input.idempotencyKey)) rows.set(input.idempotencyKey, buildOutboxEntry(input));
-        transaction.create(intentRef, rows.get(input.idempotencyKey)!);
+        // Old handlers still enqueue this key after their source write. Reserve
+        // it atomically when free, including on fresh bookings: an old-handler
+        // retry must collide with this intent rather than create a second one.
+        // An occupied different-recipient key remains immutable; that recipient
+        // correction uses its own bound key and the dispatch source guard.
+        const writeInput = legacy.exists ? input : { ...input, idempotencyKey: legacyKey };
+        const writeRef = legacy.exists ? intentRef : legacyRef;
+        // A Firestore retry may observe a corrected recipient even though the
+        // legacy document key stays the same. Never reuse another recipient's
+        // cached message merely because its reserved key matches.
+        const rowKey = JSON.stringify([writeInput.idempotencyKey, writeInput.to]);
+        if (!rows.has(rowKey)) rows.set(rowKey, buildOutboxEntry(writeInput));
+        transaction.create(writeRef, rows.get(rowKey)!);
       } else if (existing.status === "cancelled" && existing.attempts === 0) {
         // A→B→A contact correction can restore an event cancelled before any
         // dispatch. Only this explicit, currently authorized admin retry may

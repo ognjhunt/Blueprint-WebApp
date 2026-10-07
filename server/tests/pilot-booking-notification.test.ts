@@ -12,13 +12,13 @@ const enqueue = vi.hoisted(() => vi.fn(async () => ({ enqueued: true })));
 vi.mock("../utils/taskLifecycleNotifications", async importOriginal => ({ ...(await importOriginal<typeof import("../utils/taskLifecycleNotifications")>()), enqueueTaskLifecycleNotification: enqueue }));
 const router = (await import("../routes/task-listings")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
-const { deliverOutbox } = await import("../utils/captureOutbox");
+const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
 const { TERMS_VERSION } = await import("../../client/src/lib/legalAcceptance");
 
 let server: Server; let base: string;
 const input = { recommendationId: "rec_book", authorized: true };
 const doc = () => state.docs.get("inboundRequests/req1")!;
-const rows = () => [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/"));
+const rows = () => [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/") && key.split("/").length === 2);
 const token = (scope: "owner" | "film" = "owner") => createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope });
 const post = (body: unknown = input, scope: "owner" | "film" = "owner") => fetch(`${base}/owner/${token(scope)}/book`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 beforeEach(async () => {
@@ -171,6 +171,58 @@ describe("durable pilot booking confirmation", () => {
     expect(response.status).toBe(403);
     expect(doc().pilot_booking).toBeUndefined();
     expect(rows()).toHaveLength(0);
+  });
+
+
+  it.each([true, false])("deduplicates delayed old booking enqueue (old state committed first: %s)", async oldCommittedFirst => {
+    if (oldCommittedFirst) state.docs.set("inboundRequests/req1", { ...doc(), pilot_booking: {
+      recommendationId: "rec_book", amountUsd: 2500, termsVersion: TERMS_VERSION,
+      bookedAtIso: "2026-10-01T00:00:00Z", bookedBy: "signed_owner_link",
+    } });
+    let resumeOldWriter!: () => void;
+    const oldWriter = new Promise<void>(resolve => { resumeOldWriter = resolve; }).then(() => enqueueOutbox({
+      idempotencyKey: "req1:pilot_booked:rec_book", requestId: "req1", kind: "pilot_booked",
+      to: "owner@example.test", subject: "Your pilot is booked", body: "Legacy confirmation",
+    }));
+    expect((await post()).status).toBe(200);
+    resumeOldWriter();
+    await oldWriter;
+    await deliverOutbox();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(rows()).toHaveLength(1);
+  });
+
+  it("preserves the old recipient's reserved key while a corrected booking recipient gets its own intent", async () => {
+    await post();
+    const [key, original] = rows()[0];
+    state.docs.delete(key);
+    const legacyKey = "req1:pilot_booked:rec_book";
+    state.docs.set(`captureOutbox/${legacyKey}`, { ...original, idempotencyKey: legacyKey });
+    state.docs.set("inboundRequests/req1", { ...doc(), contact: { email: "corrected@example.test" } });
+    await post();
+    await enqueueOutbox({ idempotencyKey: legacyKey, requestId: "req1", kind: "pilot_booked",
+      to: "corrected@example.test", subject: "Late old writer", body: "Late old writer" });
+    expect(state.docs.get(`captureOutbox/${legacyKey}`)?.to).toBe("owner@example.test");
+    await deliverOutbox();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "corrected@example.test" }));
+  });
+
+
+  it("uses the transaction retry's current recipient when the reserved legacy key is unchanged", async () => {
+    const run = store.runTransaction.bind(store);
+    vi.spyOn(store, "runTransaction").mockImplementationOnce(callback => run(async tx => {
+      await callback({ ...tx, update: () => undefined, create: () => undefined });
+      state.docs.set("inboundRequests/req1", { ...doc(), contact: { email: "retry-recipient@example.test" } });
+      return callback(tx);
+    }));
+    expect((await post()).status).toBe(200);
+    const intents = rows();
+    expect(intents).toHaveLength(1);
+    expect(intents[0][1].to).toBe("retry-recipient@example.test");
+    await deliverOutbox();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "retry-recipient@example.test" }));
   });
 
 });
