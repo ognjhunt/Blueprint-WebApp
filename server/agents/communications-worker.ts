@@ -63,7 +63,7 @@ export type CommunicationsDependencies = {
   learningHooks?: CommunicationsLearningHooks;
   sendAutomatic?: (ledgerId: string) => Promise<{ state: "sent" | "auto_approved" | "failed"; reason?: string }>;
   prepareDraftSave?: () => Promise<SameRunDraftSave>;
-  saveUnsentDraft?: (jobId: string, binding: SameRunDraftSave) => ReturnType<typeof saveCommunicationsUnsentDraft>;
+  saveUnsentDraft?: (jobId: string, binding: SameRunDraftSave, canContinue?: () => boolean) => ReturnType<typeof saveCommunicationsUnsentDraft>;
 };
 
 /** Existing authenticated operator only. A generation/hash-bound company
@@ -161,12 +161,12 @@ export function communicationsRejectedCreateRecoveryOptions(store: Communication
 
 export async function processCommunicationsJob(jobId: string, deps: CommunicationsDependencies,
   recovery?: { expectedOutputSha256: string }, rejectedCreate?: {
-    intent: CommunicationsRejectedCreateRecoveryIntent; expectedCheckpointDigest: string }, continuation?: { authorityRef: CommunicationsOwnerAuthorityRef }) {
+    intent: CommunicationsRejectedCreateRecoveryIntent; expectedCheckpointDigest: string }, continuation?: { authorityRef: CommunicationsOwnerAuthorityRef }, canContinue = () => true) {
   let phase: CommunicationsCancelledContinuation | undefined;
   const saveDraft = async (binding: SameRunDraftSave) => {
     try {
       if (!deps.saveUnsentDraft) throw new Error("gmail_draft_same_run_action_unavailable");
-      return await deps.saveUnsentDraft(jobId, binding);
+      return await deps.saveUnsentDraft(jobId, binding, canContinue);
     } catch (error) {
       // The canonical draft and accounting remain intact. The existing copy
       // binding reconciles unknown ACKs; this run does not claim success.
@@ -708,7 +708,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
     now: () => Date.now(),
     sendAutomatic: executeAutomaticFirstContact,
     prepareDraftSave: () => prepareSameRunDraftSave(db),
-    saveUnsentDraft: (jobId, binding) => saveCommunicationsUnsentDraft(db, jobId, binding),
+    saveUnsentDraft: (jobId, binding, canContinue) => saveCommunicationsUnsentDraft(db, jobId, binding, undefined, undefined, canContinue),
   };
   let savedRecoveryCursor: string | undefined;
   return startCommunicationsQueueLoop(deps, {
@@ -815,7 +815,7 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
       if (!await admit()) return;
       for (const id of await deps.store.dueJobIds()) {
         if (!await admit()) break;
-        await processCommunicationsJob(id, deps);
+        await processCommunicationsJob(id, deps, undefined, undefined, undefined, canContinue);
       }
     } catch (error) {
       logger.warn({ code: error instanceof CommunicationsWorkerLapError ? error.code : "communications_worker_tick_failed" },

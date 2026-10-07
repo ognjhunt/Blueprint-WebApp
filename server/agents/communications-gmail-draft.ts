@@ -84,19 +84,31 @@ export async function prepareSameRunDraftSave(db: FirebaseFirestore.Firestore, n
 }
 
 export async function saveCommunicationsUnsentDraft(db: FirebaseFirestore.Firestore, jobId: string, bound: SameRunDraftSave,
-  now = () => Date.now(), basePorts = configuredGmailDraftPorts()) {
+  now = () => Date.now(), basePorts = configuredGmailDraftPorts(), canContinue = () => true) {
+  if (!canContinue()) fail("gmail_draft_writes_disabled");
   const current = await prepareSameRunDraftSave(db, now, basePorts);
   if (!same(current, bound)) fail("gmail_draft_same_run_direction_changed");
   const job = (await db.doc(`${COMMUNICATIONS_ROOT}/jobs/${jobId}`).get()).data();
   const ledgerId = `communications_${jobId}`, ledger = (await db.doc(`action_ledger/${ledgerId}`).get()).data();
   // Old charged jobs never acquire this prospective action. An existing
   // manually saved draft cannot become an app copy by recovering old output.
-  if (!job || !same(job.checkpoint?.sameRunDraftSave, bound) || !ledger || !job.reviewDigest) fail("gmail_draft_same_run_job_binding_changed");
+  if (!job?.checkpoint?.sameRunDraftSave || !same(job.checkpoint.sameRunDraftSave, bound) || !ledger || !job.reviewDigest) fail("gmail_draft_same_run_job_binding_changed");
   const old = (await db.doc(`${COMMUNICATIONS_ROOT}/gmailDraftBindings/${jobId}`).get()).data();
   const ports: GmailDraftPorts = { ...basePorts, signatureLink: true, copyDirection: { ref: bound.ref, digest: bound.digest },
-    enabled: () => process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "false" && process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED === "false",
+    enabled: () => canContinue() && process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "false" && process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED === "false",
     allowsRevision: (id, revision, digest) => id === jobId && revision === (ledger.draft_revision_id ?? null) && digest === job.reviewDigest,
-    requireCapability: async () => { if (!same(await prepareSameRunDraftSave(db, now, basePorts), bound)) fail("gmail_draft_same_run_direction_changed"); },
+    requireCapability: async () => {
+      if (!canContinue()) fail("gmail_draft_writes_disabled");
+      if (!same(await prepareSameRunDraftSave(db, now, basePorts), bound)) fail("gmail_draft_same_run_direction_changed");
+      const [liveJob, liveLedger] = await Promise.all([
+        db.doc(`${COMMUNICATIONS_ROOT}/jobs/${jobId}`).get(), db.doc(`action_ledger/${ledgerId}`).get(),
+      ]);
+      const saved = liveJob.data(), action = liveLedger.data();
+      if (!canContinue()) fail("gmail_draft_writes_disabled");
+      if (!saved?.checkpoint?.sameRunDraftSave || !same(saved.checkpoint.sameRunDraftSave, bound) || saved.state !== "pending_approval"
+        || saved.reviewDigest !== job.reviewDigest || (saved.draftRevisionId ?? null) !== (ledger.draft_revision_id ?? null)
+        || action?.status !== "pending_approval" || (action.draft_revision_id ?? null) !== (ledger.draft_revision_id ?? null)) fail("gmail_draft_same_run_job_binding_changed");
+    },
     priorContact: async email => await basePorts.priorContact(email) || Boolean(await basePorts.recipientDraftExists?.(email)) };
   const result = await mirrorCommunicationsGmailDraft(db, ledgerId, "Nijel Hunt (same-run unsent draft direction)", {
     expectedReviewDigest: job.reviewDigest, expectedRevisionId: ledger.draft_revision_id ?? null,
@@ -293,7 +305,7 @@ export async function runCommunicationsGmailDraftCopies(db: FirebaseFirestore.Fi
       if (direction.saveWithinRun) {
         const bound = doc.data().checkpoint?.sameRunDraftSave;
         if (!bound) continue; // Historical/manual copies remain excluded.
-        try { await saveCommunicationsUnsentDraft(db, doc.id, bound, now, basePorts); }
+        try { await saveCommunicationsUnsentDraft(db, doc.id, bound, now, basePorts, enabled); }
         catch (error) { logger.warn({ jobId: doc.id, code: error instanceof CommunicationsGmailDraftError ? error.message : "gmail_draft_same_run_readback_pending" }, "Same-run unsent draft waits for its exact durable receipt"); }
         continue;
       }

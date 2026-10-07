@@ -46,7 +46,7 @@ async function setup(role: CommunicationsAudienceRole = "site") {
   }), cancel: vi.fn(async () => true), reconcileSaved: vi.fn(async () => null) };
   const deps: CommunicationsDependencies = { store, api, readResearch: async () => f.snapshot, verifyMailbox: async () => ({}), readThread: async () => f.thread!,
     isSuppressed: async () => false, suppress: async () => ({ persisted: true }), now,
-    prepareDraftSave: () => prepareSameRunDraftSave(db, now, ports), saveUnsentDraft: (id, bound) => saveCommunicationsUnsentDraft(db, id, bound, now, ports) };
+    prepareDraftSave: () => prepareSameRunDraftSave(db, now, ports), saveUnsentDraft: (id, bound, canContinue) => saveCommunicationsUnsentDraft(db, id, bound, now, ports, canContinue) };
   return { ...f, db, job, deps, ports, api };
 }
 describe("one communications run saves and verifies the unsent Gmail draft", () => {
@@ -62,6 +62,14 @@ describe("one communications run saves and verifies the unsent Gmail draft", () 
     const f = await setup(); vi.mocked(f.ports.requireCapability).mockRejectedValue(Error("founder_gmail_draft_capability_missing"));
     expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "blocked" });
     expect(f.api.run).not.toHaveBeenCalled(); expect(f.ports.write).not.toHaveBeenCalled();
+  });
+  it("propagates the active worker lap guard into the immediate save after model output", async () => {
+    const f = await setup(); let continuing = true;
+    vi.mocked(f.ports.priorContact).mockImplementation(async () => { continuing = false; return false; });
+    expect(await processCommunicationsJob(f.job.jobId, f.deps, undefined, undefined, undefined, () => continuing))
+      .toMatchObject({ state: "gmail_draft_pending", gmailDraftCreated: false });
+    expect(f.api.run).toHaveBeenCalledOnce(); expect(f.ports.write).not.toHaveBeenCalled();
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`)).toMatchObject({ state: "pending_approval", output: f.output });
   });
   it("keeps canonical output and accounting intact while an unverified Gmail readback remains pending", async () => {
     const f = await setup(), budgetPath = `${COMMUNICATIONS_ROOT}/draftBudgetState/current`, budget = { activeAdmissionId: "synthetic-unknown-liability", actualModelMicros: 14755 };

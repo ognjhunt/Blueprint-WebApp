@@ -158,6 +158,23 @@ describe("same-run unsent Gmail draft action",()=>{
   const f=await direct();await f.save();vi.mocked(f.ports.find).mockRejectedValue(Error("gmail_draft_readback_content_changed"));
   await expect(f.save()).rejects.toThrow("gmail_draft_unknown_acknowledgement_reconcile_exact_job");expect(f.ports.write).toHaveBeenCalledOnce();
  });
+ it("refuses a restart save when its active worker lap stops during contact lookup",async()=>{
+  const f=await direct();vi.stubEnv("BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED","true");let continuing=true;
+  vi.mocked(f.ports.priorContact).mockImplementation(async()=>{continuing=false;return false;});
+  await runCommunicationsGmailDraftCopies(f.db,()=>communicationsNow,f.ports,()=>continuing);
+  expect(f.ports.write).not.toHaveBeenCalled();
+  expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"refused_before_write",providerWriteSubmitted:false});
+ });
+ it.each(["removed", "replaced"])("refuses a prospective profile %s during awaited contact lookup",async kind=>{
+  const f=await direct();
+  vi.mocked(f.ports.priorContact).mockImplementation(async()=>{
+   const checkpoint=f.db.records.get(`${f.root}/jobs/${f.job.jobId}`).checkpoint;
+   if(kind==="removed")delete checkpoint.sameRunDraftSave;else checkpoint.sameRunDraftSave={...f.binding,digest:"b".repeat(64)};
+   return false;
+  });
+  await expect(f.save()).rejects.toThrow("gmail_draft_same_run_job_binding_changed");expect(f.ports.write).not.toHaveBeenCalled();
+  expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"refused_before_write",providerWriteSubmitted:false});
+ });
 });
 describe("manual Gmail draft copy of the exact canonical revision",()=>{
  it("copies the explicitly scoped original null revision once and refuses unset or edited revisions",async()=>{
