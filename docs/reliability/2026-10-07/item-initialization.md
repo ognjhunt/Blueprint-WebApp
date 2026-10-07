@@ -25,7 +25,7 @@ node node_modules/vitest/vitest.mjs run \
   server/tests/task-item-initialization.test.ts --maxWorkers=1 --minWorkers=1
 ```
 
-The change preserves the existing first-read initialization contract. It does not certify all concurrent inventory mutations: existing owner edit/remove helpers still use whole-record read/modify/write; this patch specifically prevents a stale initializer from overwriting an accepted inventory. It adds no transaction retry callback or new collection/index.
+The initializer change preserves the existing first-read initialization contract and adds no transaction callback or new collection/index. The separate follow-up in `item-mutations.md` addresses the existing owner edit/remove read/modify/write race; the initializer proof above does not stand in for that transaction-retry evidence.
 
 ## Separate advisory: native capture link checks still recover retained work
 

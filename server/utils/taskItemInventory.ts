@@ -187,7 +187,7 @@ export function deriveItemInventory(params: {
 }
 
 async function writeInventory(record: TaskItemInventoryRecord): Promise<void> {
-  if (!db) return;
+  if (!db) throw new Error("item_inventory_store_unavailable");
   await db
     .collection(TASK_ITEM_INVENTORY_COLLECTION)
     .doc(record.requestId)
@@ -254,15 +254,25 @@ function normalizeItem(raw: Partial<TaskItem>): TaskItem {
   };
 }
 
-/** Read the inventory, or start an empty one so the first write has somewhere to go. */
-async function loadOrEmpty(requestId: string): Promise<TaskItemInventoryRecord> {
-  return (
-    (await getItemInventory(requestId)) ?? {
+/** Reapply the owner operation to the latest inventory on transaction retry. */
+async function mutateInventory(
+  requestId: string,
+  mutate: (record: TaskItemInventoryRecord) => void,
+): Promise<TaskItemInventoryRecord> {
+  if (!db) throw new Error("item_inventory_store_unavailable");
+  const ref = db.collection(TASK_ITEM_INVENTORY_COLLECTION).doc(requestId);
+  const updatedAtIso = nowIso();
+  return db.runTransaction(async tx => {
+    const current = (await tx.get(ref)).data();
+    const record: TaskItemInventoryRecord = {
       requestId,
-      items: [],
-      updatedAtIso: nowIso(),
-    }
-  );
+      items: Array.isArray(current?.items) ? current.items.map(normalizeItem) : [],
+      updatedAtIso,
+    };
+    mutate(record);
+    tx.set(ref, { ...record, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    return record;
+  });
 }
 
 /**
@@ -282,37 +292,35 @@ export async function upsertItem(
     quantityHint?: string | null;
   },
 ): Promise<TaskItemInventoryRecord> {
-  const record = await loadOrEmpty(requestId);
+  // A callback may run again after a concurrent photo or owner edit. The same
+  // new item must retain its identity across every attempt of this operation.
+  const itemId = input.itemId?.trim() || `item_${Math.random().toString(36).slice(2, 10)}`;
   const label = input.label.trim();
   const locationNote = input.locationNote?.trim() || null;
   const quantityHint = input.quantityHint?.trim() || null;
 
-  const existing = input.itemId
-    ? record.items.find((item) => item.itemId === input.itemId)
-    : undefined;
+  return mutateInventory(requestId, record => {
+    const existing = record.items.find((item) => item.itemId === itemId);
 
-  if (existing) {
-    existing.label = label;
-    existing.locationNote = locationNote;
-    existing.quantityHint = quantityHint;
-    // A suggestion the operator has edited is now theirs.
-    existing.basis = "operator_added";
-  } else {
-    record.items.push({
-      itemId: input.itemId?.trim() || `item_${Math.random().toString(36).slice(2, 10)}`,
-      label,
-      locationNote,
-      quantityHint,
-      basis: "operator_added",
-      images: [],
-      assetStatus: "pending",
-      assetDetail: null,
-    });
-  }
-
-  record.updatedAtIso = nowIso();
-  await writeInventory(record);
-  return record;
+    if (existing) {
+      existing.label = label;
+      existing.locationNote = locationNote;
+      existing.quantityHint = quantityHint;
+      // A suggestion the operator has edited is now theirs.
+      existing.basis = "operator_added";
+    } else {
+      record.items.push({
+        itemId,
+        label,
+        locationNote,
+        quantityHint,
+        basis: "operator_added",
+        images: [],
+        assetStatus: "pending",
+        assetDetail: null,
+      });
+    }
+  });
 }
 
 /** Remove an item and its image references. The bytes are cleaned up separately. */
@@ -320,11 +328,9 @@ export async function removeItem(
   requestId: string,
   itemId: string,
 ): Promise<TaskItemInventoryRecord> {
-  const record = await loadOrEmpty(requestId);
-  record.items = record.items.filter((item) => item.itemId !== itemId);
-  record.updatedAtIso = nowIso();
-  await writeInventory(record);
-  return record;
+  return mutateInventory(requestId, record => {
+    record.items = record.items.filter((item) => item.itemId !== itemId);
+  });
 }
 
 /**
