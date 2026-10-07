@@ -13,6 +13,7 @@ test-results/
 .tmp/
 .worktrees/
 .pytest_cache/
+.graphify_venv/
 .windsurf/
 
 # Local environment and secrets

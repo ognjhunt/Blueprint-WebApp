@@ -79,6 +79,7 @@
     "qa:polish": "playwright test e2e/brand-polish.spec.ts --reporter=line",
     "qa:operator": "tsx scripts/qa/run-operator-surfaces.ts",
     "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",
+    "graphify:setup": "python3 scripts/graphify/ensure-environment.py",
     "city-launch:plan": "tsx scripts/city-launch/run-deep-research-playbook.ts",
     "city-launch:preflight": "tsx scripts/city-launch/audit-city-launch-readiness.ts",
     "city-launch:verify-closeout": "tsx scripts/city-launch/verify-readiness-closeout.ts",

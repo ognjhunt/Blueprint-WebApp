@@ -94,6 +94,12 @@ npm run smoke:launch:local
 
 Read [`docs/architecture/command-safety-matrix.md`](./docs/architecture/command-safety-matrix.md) before running scripts that can touch live email, provider APIs, Paperclip, Notion, Stripe, Firebase, Render, or production-like targets.
 
+The required architecture refresh is `npm run graphify:pilot:webapp-architecture -- --no-viz`.
+It automatically provisions and reuses the pinned Graphify environment for each checkout;
+fresh sessions need no manual install or environment variable. First use needs Python
+3.10+ with venv/pip and package-download access. See [Graphify setup](./scripts/graphify/README.md)
+for offline reuse, recovery and interpreter overrides.
+
 ## Where Not To Look First
 
 - Do not start with `output/`, `ops/paperclip/reports/`, `.tmp/`, `dist/`, `coverage/`, or generated graph files when deciding current product truth.

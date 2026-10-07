@@ -210,3 +210,4 @@ Rules:
 - If `graphify-out/GRAPH_REPORT.md` exists, you may use it; otherwise fall back to the derived graph workspace above.
 - If `graphify-out/wiki/index.md` exists, navigate it instead of reading raw files
 - After modifying code files in this session, run `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` to refresh the staged architecture pilot and publish the canonical root `graphify-out/` outputs.
+- That command automatically provisions and reuses the pinned repo-local Graphify environment. Do not treat a missing global `graphifyy` install as a blocker; follow `scripts/graphify/README.md` if setup fails. Explicit `BLUEPRINT_GRAPHIFY_PYTHON` interpreters are left unchanged; unusable overrides fall back to pinned setup.
