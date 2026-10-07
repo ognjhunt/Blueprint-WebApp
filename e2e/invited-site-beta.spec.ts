@@ -82,7 +82,6 @@ for (const width of [390, 1440]) {
     await page.goto("/contact/site-operator");
     await page.locator("#start-task").fill("Move sealed cartons from conveyor to pallet.");
     await page.locator("#start-location").fill("Austin, TX");
-    await page.locator("#start-description-authority").check();
     await expect(page.getByText(/Country: United States\./)).toBeVisible();
     await expect(page.locator("#start-region")).toHaveCount(0);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();

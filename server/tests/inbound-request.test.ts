@@ -64,6 +64,18 @@ describe("description authority independent from recording", () => {
     } finally { await stopServer(server); }
   });
 
+  it("accepts a site submission without a name", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `description-noname-${Date.now()}`;
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...descriptionPayload(requestId), firstName: "", lastName: "" }) });
+      expect(response.status).toBe(201);
+    } finally { await stopServer(server); }
+  });
+
   it.each([
     { descriptionAuthority: undefined },
     { descriptionAuthority: { granted: false, statementVersion: "2026-10-06.v1" } },

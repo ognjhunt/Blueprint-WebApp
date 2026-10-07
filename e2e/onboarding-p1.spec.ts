@@ -225,9 +225,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: descr
   await form.locator("#start-task").fill("Move sealed cartons from conveyor to pallet");
   await form.locator("#start-location").fill("Chicago, Illinois");
   await form.locator("#start-email").fill("owner@example.test");
-  await form.locator("#start-name").fill("Pat Lee");
   await form.locator("#start-company").fill("Acme Foods");
-  await form.locator("#start-description-authority").check();
   await expect(form.locator("#start-rights")).not.toBeChecked();
   await expect(form.getByText(/Country: United States\./)).toBeVisible();
   await expect(form.locator("#start-region")).toHaveCount(0);

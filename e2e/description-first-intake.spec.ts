@@ -56,12 +56,8 @@ for (const device of ["desktop", "mobile"] as const) {
       await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet.");
       await page.locator("#start-location").fill("Austin, TX");
       await page.locator("#start-email").fill("qa@example.invalid");
-      await page.locator("#start-name").fill("QA Operator");
       await page.locator("#start-company").fill("Synthetic QA site");
       await expect(page.locator("#start-rights")).not.toBeChecked();
-      await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-      expect(mutations).toHaveLength(0);
-      await page.locator("#start-description-authority").check();
       await expect(page.getByText(/Country: United States\./)).toBeVisible();
       await expect(page.locator("#start-region")).toHaveCount(0);
       await page.getByRole("button", { name: "Start free assessment", exact: true }).click();

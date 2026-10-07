@@ -66,11 +66,6 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-function splitName(value: string) {
-  const parts = value.trim().split(/\s+/);
-  if (parts.length < 2) return { firstName: parts[0] || "", lastName: "—" };
-  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
-}
 
 export function SiteCaptureStart() {
   const { currentUser, loading } = useAuth();
@@ -154,7 +149,10 @@ export function SiteCaptureStart() {
       } : current);
     } catch { /* A status hint cannot substitute for verified receipt. */ }
   }
-  const [selfRecording, setSelfRecording] = useState(true);
+  // One question decides how we will see the task: an upload now, the site's
+  // own phone later, or a Blueprint visit.
+  const [method, setMethod] = useState<"upload" | "phone" | "visit">("phone");
+  const selfRecording = method === "phone";
   const [region, setRegion] = useState<CaptureRegion | "">("");
   const regionManuallySet = useRef(false);
   // The address answers the country, so the country is not a question on the
@@ -171,7 +169,7 @@ export function SiteCaptureStart() {
   // it explain the job, does it cover the scene -- and reused wherever it can be.
   // When it is ticked the video is attached right here, so the form is the
   // whole submission rather than a step before another upload page.
-  const [hasFootage, setHasFootage] = useState(false);
+  const hasFootage = method === "upload";
   const [footage, setFootage] = useState<File | null>(null);
   const [footageError, setFootageError] = useState<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
@@ -198,15 +196,10 @@ export function SiteCaptureStart() {
   }
   // The video is only taken from a site we are cleared to receive it from.
   const footageWanted = hasFootage && region !== "non_us";
-  // When the submitter is not the one who will film — common when outreach
-  // reaches an ops lead at a desk — we send the record-only link straight to
-  // whoever is on the floor, only when the submitter chooses to delegate.
-  const [delegatedFilming, setDelegatedFilming] = useState(false);
-  const [filmerContact, setFilmerContact] = useState("");
+  const rightsShown = method !== "visit";
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
   const [consent, setConsent] = useState(false);
-  const [descriptionAuthority, setDescriptionAuthority] = useState(false);
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
   // Whether the phone handoff below is worth anything here. This form is
@@ -217,7 +210,7 @@ export function SiteCaptureStart() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (operationInFlight.current || state.status === "working" || loading || !descriptionAuthority
+    if (operationInFlight.current || state.status === "working" || loading
       || (footageWanted && !consent)
       || (claudeAuthoringRequested && !claudeConsent)
       || (solAgentsRequested && !solAgentsConsent)) return;
@@ -239,13 +232,13 @@ export function SiteCaptureStart() {
     setState({ status: "working" });
 
     try {
-      const { firstName, lastName } = splitName(read("startName"));
       const headers = await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" }));
       const body = JSON.stringify({
           requestId: requestId.current,
           retryToken: retryToken.current,
-          firstName,
-          lastName,
+          // No name field: emails open without one.
+          firstName: "",
+          lastName: "",
           email: email.toLowerCase(),
           company: read("startCompany"),
           roleTitle: "Site operator",
@@ -269,15 +262,16 @@ export function SiteCaptureStart() {
           captureMode: hasFootage || selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
           hasExistingFootage: footageWanted,
-          filmerContact: !hasFootage && selfRecording && delegatedFilming ? filmerContact.trim() || undefined : undefined,
           // The grant, not just the ticked box: recorded server-side with the
           // sentence version, or the submission is refused.
-          descriptionOnly: !consent,
+          descriptionOnly: !(consent && rightsShown),
+          // Granted by starting: the statement is quoted verbatim next to the
+          // button, like the Terms, and recorded with its version.
           descriptionAuthority: {
-            granted: descriptionAuthority,
+            granted: true,
             statementVersion: DESCRIPTION_AUTHORITY_VERSION,
           },
-          consentAttestation: consent ? {
+          consentAttestation: consent && rightsShown ? {
             granted: true,
             statementVersion: RIGHTS_STATEMENT_VERSION,
           } : null,
@@ -330,7 +324,7 @@ export function SiteCaptureStart() {
         window.sessionStorage.setItem(
           CONTACT_IDENTITY_STORAGE_KEY,
           JSON.stringify({
-            name: read("startName"),
+            name: "",
             email,
             company: read("startCompany"),
           }),
@@ -493,7 +487,7 @@ export function SiteCaptureStart() {
     <form className="ms-form" method="post" onSubmit={submit} aria-label="Start a site capture">
       <fieldset disabled={!interactive} className="contents">
       <label htmlFor="start-task">
-        <span>What is the job?</span>
+        <span>What is the task?</span>
         <span className="ms-field-hint">
           For example, “move sealed cartons from the conveyor onto a pallet.”
         </span>
@@ -529,27 +523,24 @@ export function SiteCaptureStart() {
         </label>
       )}
 
-      <label htmlFor="start-existing-footage" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
-        <input
-          id="start-existing-footage"
-          name="startExistingFootage"
-          type="checkbox"
-          checked={hasFootage}
-          onChange={(event) => {
-            setHasFootage(event.target.checked);
-            if (!event.target.checked) { setFootage(null); setFootageError(null); }
-          }}
-          style={{ width: "auto", minHeight: 0, marginTop: "4px" }}
-        />
-        {/* Reuse before re-record. A recording that already shows the job may
-            also have the coverage a scene needs -- and if it does, asking them
-            to film again would be us making them pay for our workflow having
-            stages. Video only: what we build a scene from is a walkthrough of
-            the work, not stills. */}
-        <span style={{ fontWeight: 400 }}>
-          I already have a video of this job
-        </span>
-      </label>
+      <fieldset className="ms-choice">
+        <legend>How will we see the task?</legend>
+        {([
+          ["upload", "Upload a video now"],
+          ["phone", "Film it later on a phone"],
+          ["visit", "Have Blueprint film it"],
+        ] as const).map(([value, label]) => (
+          <label key={value} htmlFor={`start-method-${value}`} className="ms-check-row">
+            <input id={`start-method-${value}`} type="radio" name="startMethod" value={value}
+              checked={method === value}
+              onChange={() => {
+                setMethod(value);
+                if (value !== "upload") { setFootage(null); setFootageError(null); }
+              }} />
+            <span>{label}</span>
+          </label>
+        ))}
+      </fieldset>
 
       {hasFootage ? (
         // Someone with the video has nothing to schedule and nobody to hand a
@@ -589,73 +580,23 @@ export function SiteCaptureStart() {
             {footage && <span className="ms-field-hint">{formatBytes(footage.size)}. It uploads when you select Start free assessment.</span>}
           </label>
         )
-      ) : (
-        <>
-          <label htmlFor="start-self-recording" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
-            <input
-              id="start-self-recording"
-              name="startSelfRecording"
-              type="checkbox"
-              checked={selfRecording}
-              onChange={(event) => setSelfRecording(event.target.checked)}
-              style={{ width: "auto", minHeight: 0 }}
-            />
-            <span>We will film it ourselves</span>
-          </label>
-
-          {selfRecording && (
-            <label htmlFor="start-delegated-filming" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
-              <input
-                id="start-delegated-filming"
-                type="checkbox"
-                checked={delegatedFilming}
-                onChange={(event) => setDelegatedFilming(event.target.checked)}
-                aria-controls="start-filmer-details"
-                style={{ width: "auto", minHeight: 0 }}
-              />
-              <span>Someone else will record it</span>
-            </label>
-          )}
-
-          {selfRecording && delegatedFilming && (
-            <label id="start-filmer-details" htmlFor="start-filmer">
-              <span>
-                Their email <span className="ms-optional">(optional)</span>
-              </span>
-              <span className="ms-field-hint">
-                Once recording permission is confirmed, add their email and we will send them a record-only link — they can film and upload,
-                and only you can confirm the job brief.
-              </span>
-              <input
-                id="start-filmer"
-                name="startFilmer"
-                type="email"
-                inputMode="email"
-                maxLength={320}
-                placeholder="Their email — optional"
-                value={filmerContact}
-                onChange={(event) => setFilmerContact(event.target.value)}
-              />
-            </label>
-          )}
-        </>
-      )}
+      ) : null}
 
       {/* Show resolved country or the required fallback while entering the job location. */}
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
-          <span>Where would the robot do this job?</span>
+          <span>Where would the robot do this task?</span>
           <span className="ms-field-hint">
             {selfRecording || hasFootage
-              ? "A city is plenty. We only need a street address if we are sending someone."
-              : "A capture operator needs a street address, not a site nickname."}
+              ? "A city is enough to start. We ask for the street address before anyone visits."
+              : "We are sending someone to film it, so we need the street address."}
           </span>
           <LocationAutocomplete
             id="start-location"
             name="startLocation"
             required
             maxLength={300}
-            placeholder={selfRecording || hasFootage ? "City, or a full address" : "Street address"}
+            placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
             onSelectionChange={(place) => {
               if (!regionManuallySet.current) {
                 setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
@@ -708,21 +649,15 @@ export function SiteCaptureStart() {
       <label htmlFor="start-email">
         <span>Work email</span>
         <span className="ms-field-hint">
-          Where we send your job link to add footage, follow progress and review the job brief.
+          Where we send your task link to add footage, follow progress and review the brief.
         </span>
         <input id="start-email" name="startEmail" type="email" required maxLength={320} />
       </label>
 
-      <div className="ms-form-row">
-        <label htmlFor="start-name">
-          <span>Your name</span>
-          <input id="start-name" name="startName" type="text" required autoComplete="name" maxLength={120} />
-        </label>
-        <label htmlFor="start-company">
-          <span>Site or company</span>
-          <input id="start-company" name="startCompany" type="text" required autoComplete="organization" maxLength={200} />
-        </label>
-      </div>
+      <label htmlFor="start-company">
+        <span>Site or company</span>
+        <input id="start-company" name="startCompany" type="text" required autoComplete="organization" maxLength={200} />
+      </label>
 
       </>}
       {currentUser && workspaceType !== undefined && (siteWorkspace
@@ -741,37 +676,27 @@ export function SiteCaptureStart() {
         />
       </div>
 
-      <label htmlFor="start-description-authority" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
-        <input id="start-description-authority" type="checkbox" required checked={descriptionAuthority}
-          onChange={(event) => setDescriptionAuthority(event.target.checked)}
-          style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
-        <span style={{ fontWeight: 400 }}>{DESCRIPTION_AUTHORITY_STATEMENT}</span>
-      </label>
-      <label htmlFor="start-rights" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
-        <input
-          id="start-rights"
-          name="startRights"
-          type="checkbox"
-          required={footageWanted}
-          checked={consent}
-          onChange={(event) => setConsent(event.target.checked)}
-          style={{ width: "auto", minHeight: 0, marginTop: "4px" }}
-        />
-        <span style={{ fontWeight: 400 }}>
-          <span className="ms-field-hint">Required before adding footage; optional for a description.</span>{" "}
-          I am authorized to record this site and to let Blueprint use the recording to build a
-          scene robot teams can evaluate against.
-        </span>
-      </label>
-
-      <p className="ms-form-note">
-        Share only footage you are authorized to use. Robot teams never receive your original recording.
-        {" "}<a href={PRIVACY_URL}>How we process your footage</a>.
-      </p>
-      <p className="ms-form-note">
-        Still arranging recording permission?{" "}
-        You can start with the description and review your brief now.
-      </p>
+      {/* Rights belong where a video is: required with an upload, optional
+          when the site films later (it can confirm then, from the task link). */}
+      {rightsShown && (
+        <label htmlFor="start-rights" className="ms-check-row" style={{ alignItems: "flex-start" }}>
+          <input
+            id="start-rights"
+            name="startRights"
+            type="checkbox"
+            required={footageWanted}
+            checked={consent}
+            onChange={(event) => setConsent(event.target.checked)}
+            style={{ marginTop: "4px" }}
+          />
+          <span style={{ fontWeight: 400 }}>
+            I am authorized to record this site and to let Blueprint use the recording to build a
+            scene robot teams can evaluate against. Robot teams never receive the original video.{" "}
+            <a href={PRIVACY_URL}>How we handle footage</a>.
+            {!footageWanted && <span className="ms-field-hint"> Optional now. You can confirm it later from your task link.</span>}
+          </span>
+        </label>
+      )}
 
       {state.status === "failed" && (
         <p role="alert" style={{ color: "var(--ms-alert, #b00)" }}>
@@ -779,17 +704,10 @@ export function SiteCaptureStart() {
         </p>
       )}
 
-      <p className="ms-field-hint">
-        Next, review and correct your job brief before approving it. Starting is free.
-        We pick the robot team and send you one recommended pilot. You pay {formatPrice(pilotFeeUsd)} only
-        if you book it. No pilot, no fee.
-        {" "}<a href="/pricing#pilot-fee">Fee and replacement policy</a>.
-      </p>
-
       <p className="ms-form-note">
-        By selecting Start free assessment, you agree to our{" "}
-        <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms of Service</a> and{" "}
-        <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a>.
+        Free to start. <a href="/pricing#pilot-fee">No pilot, no fee</a>. By selecting Start free assessment,
+        you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
+        <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm: “{DESCRIPTION_AUTHORITY_STATEMENT}”
       </p>
 
       <button className="ms-button ms-button-large" type="submit" disabled={!interactive || state.status === "working" || loading}>

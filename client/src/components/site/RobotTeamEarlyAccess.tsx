@@ -33,13 +33,10 @@ function ApplicationForm({ email }: { email: string | null }) {
     try {
       const status = await applyForEarlyAccess({
         name: read("name"),
-        email: read("email"),
+        email: email ?? read("email"),
         company: read("company"),
-        website: read("website") || undefined,
         robot: read("robot"),
         workWanted: read("workWanted"),
-        region: read("region") || undefined,
-        pilotPackage: read("pilotPackage") || undefined,
         testSite: read("testSite") || undefined,
         acceptedTerms: true,
       });
@@ -71,9 +68,9 @@ function ApplicationForm({ email }: { email: string | null }) {
   return (
     <form className="ms-form" method="post" onSubmit={submit} aria-label="Early access application">
       <label>Your name<input disabled={!interactive} name="name" autoComplete="name" maxLength={120} required /></label>
-      <label>Work email<input disabled={!interactive} name="email" type="email" autoComplete="email" defaultValue={email ?? ""} maxLength={320} required /></label>
+      {email && <p className="ms-field-hint">Applying as {email}.</p>}
+      {!email && <label>Work email<input disabled={!interactive} name="email" type="email" autoComplete="email" maxLength={320} required /></label>}
       <label>Company<input disabled={!interactive} name="company" autoComplete="organization" maxLength={160} required /></label>
-      <label>Website <span className="ms-field-hint">(optional)</span><input disabled={!interactive} name="website" type="url" placeholder="https://" maxLength={300} /></label>
       <label>What does your robot do?
         <textarea disabled={!interactive} name="robot" rows={3} maxLength={1200} required
           placeholder="Embodiment, gripper, the policy or policies you run, and how you would connect them" />
@@ -81,15 +78,6 @@ function ApplicationForm({ email }: { email: string | null }) {
       <label>What work do you want to test it on?
         <textarea disabled={!interactive} name="workWanted" rows={3} maxLength={1200} required placeholder="e.g. Tote picking in a warehouse, bin to conveyor" />
       </label>
-      <label>Region <span className="ms-field-hint">(optional)</span><input disabled={!interactive} name="region" placeholder="e.g. US, Midwest" maxLength={120} /></label>
-      <details>
-        <summary>Typical physical pilot (optional)</summary>
-        <label>What would it include?
-          <textarea disabled={!interactive} name="pilotPackage" rows={3} maxLength={1200}
-            placeholder="Configuration, installation and support, typical duration, indicative price, and lead time" />
-        </label>
-        <p className="ms-field-hint">This stays private. You confirm any site-specific offer before a customer sees it.</p>
-      </details>
       <label>A site or customer you would want to test at <span className="ms-field-hint">(optional)</span>
         <input disabled={!interactive} name="testSite" placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
       </label>

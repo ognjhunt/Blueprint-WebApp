@@ -47,12 +47,10 @@ test("capture takes the country from the address, asks only when it cannot, and 
   await page.locator("#start-task").fill("Move cartons onto a pallet");
   await page.locator("#start-location").fill("Berlin");
   await page.locator("#start-email").fill("owner@example.test");
-  await page.locator("#start-name").fill("Pat Lee");
   await page.locator("#start-company").fill("Acme Foods");
   // A bare city is ambiguous: its required country is visible before Start.
   await expect(page.locator("#start-region")).toBeVisible();
   await expect(page.locator("#start-region")).toHaveValue("");
-  await page.locator("#start-description-authority").check();
   await page.locator("#start-rights").check();
   // Native required-field validation focuses the already-visible fallback.
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
