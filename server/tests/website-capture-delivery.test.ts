@@ -7,6 +7,7 @@ import {
   buildBrowserDelivery,
   capturedWriteIdentity,
   captureWriteFailureDiagnostic,
+  matchesBrowserDeliveryRecord,
   writeBrowserDelivery,
   publishBrowserDelivery,
 } from "../utils/websiteCaptureDelivery";
@@ -26,6 +27,14 @@ const manifest = {
 };
 
 describe("original browser capture delivery", () => {
+  it.each([deliveryFixture, minuteDeliveryFixture])("rebuilds retained receipt bytes after database map keys are reordered", fixture => {
+    const sorted = <T extends object>(value: T) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) as T;
+    const built = buildBrowserDelivery({ ...fixture.input,
+      video: sorted(fixture.input.video), manifest: sorted(fixture.input.manifest) });
+    expect(built.markerBytes.toString("utf8")).toBe(fixture.marker_json);
+    expect(built.recordBytes.toString("utf8")).toBe(fixture.receipt_json);
+  });
+
   it.each([deliveryFixture, minuteDeliveryFixture])(
     "matches the exact cross-repo Capture consumer fixture without rewriting retained bytes", fixture => {
       const built = buildBrowserDelivery(fixture.input);
@@ -148,7 +157,7 @@ describe("original browser capture delivery", () => {
     expect(() => build({ completedAtIso: "2026-09-29T01:00:00+01:00" })).toThrow();
   });
 
-  it("creates only once and accepts only byte-identical retries", async () => {
+  it("creates only once and accepts matching retained receipt values without rewriting their bytes", async () => {
     const result = buildBrowserDelivery({
       requestId: "r1", sceneId: "site-r1", captureId: "walkthrough-r1",
       rawPrefix: "scenes/site-r1/captures/walkthrough-r1/raw",
@@ -170,8 +179,36 @@ describe("original browser capture delivery", () => {
     const bucket = { file };
     expect(await writeBrowserDelivery(bucket, result)).toBe("created");
     expect(await writeBrowserDelivery(bucket, result)).toBe("matched");
+    const reordered = Buffer.from(JSON.stringify({ ...result.record,
+      raw_video: { crc32c: video.crc32c, size_bytes: video.size_bytes,
+        generation: video.generation, object_name: video.object_name } }, null, 2));
+    stored.set(result.objectName, reordered);
+    metadata.get(result.objectName)!.size = String(reordered.length);
+    expect(await writeBrowserDelivery(bucket, result)).toBe("matched");
+    expect(stored.get(result.objectName)).toEqual(reordered);
     stored.set(result.objectName, Buffer.from("forged"));
     await expect(writeBrowserDelivery(bucket, result)).rejects.toThrow();
+  });
+
+  it("refuses changed receipt values, extra fields and malformed or oversized JSON", () => {
+    const result = buildBrowserDelivery(deliveryFixture.input);
+    for (const record of [
+      { ...result.record, request_id: "another-request" },
+      { ...result.record, raw_video: { ...result.record.raw_video, generation: "999" } },
+      { ...result.record, manifest: { ...result.record.manifest, sha256: "sha256:" + "b".repeat(64) } },
+      { ...result.record, marker_json: "{}" },
+      { ...result.record, marker_sha256: "sha256:" + "b".repeat(64) },
+      { ...result.record, unbound: true },
+    ]) expect(matchesBrowserDeliveryRecord(Buffer.from(JSON.stringify(record)), result.record)).toBe(false);
+    for (const bytes of [Buffer.from("not JSON"), Buffer.alloc(65_537, " ")])
+      expect(matchesBrowserDeliveryRecord(bytes, result.record)).toBe(false);
+  });
+
+  it("refuses duplicate decoded keys in a retained receipt even when JSON.parse would select matching values", () => {
+    const result = buildBrowserDelivery(deliveryFixture.input);
+    const duplicate = Buffer.from(result.recordBytes.toString("utf8").replace(
+      '"request_id":"r1",', '"request_id":"r1","request\\u005fid":"r1",'));
+    expect(matchesBrowserDeliveryRecord(duplicate, result.record)).toBe(false);
   });
 
   it("refuses a V1 marker when V2 has replaced the canonical video before privacy resume", async () => {

@@ -1,7 +1,7 @@
 /** Read-only original website owner and exact producer source observation. */
 import { createHash } from "node:crypto";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { buildBrowserDelivery, capturedWriteIdentity, type BrowserDeliveryRecord,
+import { buildBrowserDelivery, capturedWriteIdentity, matchesBrowserDeliveryRecord, type BrowserDeliveryRecord,
   type WrittenObject } from "./websiteCaptureDelivery";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { bundleDigest, planDigestOf, SITE_CAPTURE_BUNDLE_PLAN_SCHEMA,
@@ -201,7 +201,7 @@ export async function observeWebsiteCaptureOwner(
   const rebuilt = buildBrowserDelivery({ requestId: input.request_id, sceneId: input.scene_id,
     captureId: input.capture_id, rawPrefix: prefix, video: receipt.raw_video,
     manifest: receipt.manifest, completedAtIso: receipt.completed_at_iso });
-  if (!receiptRead.bytes.equals(rebuilt.recordBytes) || !markerRead.bytes.equals(rebuilt.markerBytes)
+  if (!matchesBrowserDeliveryRecord(receiptRead.bytes, rebuilt.record) || !markerRead.bytes.equals(rebuilt.markerBytes)
       || selector.delivery_key !== rebuilt.record.delivery_key) throw new Error("owner_receipt_invalid");
   const selectedVideo = capturedWriteIdentity(receipt.raw_video.object_name,
     await deps.readMetadata(receipt.raw_video.object_name, receipt.raw_video.generation));

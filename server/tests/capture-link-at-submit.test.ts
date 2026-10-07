@@ -690,6 +690,77 @@ describe("saved footage and processing are separate receipts", () => {
     });
   });
 
+  it("verifies a published upload through read-only polling after database map keys are reordered", async () => {
+    seedRequest("req-reordered-receipt", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-reordered-receipt", "original")).status).toBe(201);
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-reordered-receipt") as Record<string, any>;
+      const sorted = (value: object) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)));
+      const pending = session.browser_pending_delivery;
+      pending.video = sorted(pending.video);
+      pending.manifest = sorted(pending.manifest);
+      const before = structuredClone([...sharedFakeFirestoreState.docs]);
+      const versionsBefore = [...storedVersions.keys()];
+      const token = tokenFrom(captureUploadUrlFor("req-reordered-receipt"));
+      for (let i = 0; i < 2; i++) {
+        const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/status`);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
+          state: "ready", holdReason: null, processingRetryAvailable: false });
+      }
+      expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+      expect([...storedVersions.keys()]).toEqual(versionsBefore);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("reads a previously published receipt with reordered JSON maps without rewriting it or granting retry", async () => {
+    seedRequest("req-old-receipt-order", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-old-receipt-order", "original")).status).toBe(201);
+      const entry = [...storedVersions.entries()].find(([key]) => key.includes("/producer_deliveries/"))!;
+      const record = JSON.parse(entry[1].body.toString("utf8"));
+      record.raw_video = Object.fromEntries(Object.entries(record.raw_video).reverse());
+      record.manifest = Object.fromEntries(Object.entries(record.manifest).reverse());
+      const bytes = Buffer.from(JSON.stringify(record, null, 2));
+      entry[1].body = bytes;
+      entry[1].metadata.size = String(bytes.length);
+      const before = structuredClone([...sharedFakeFirestoreState.docs]);
+      const versionsBefore = JSON.stringify([...storedVersions.entries()]);
+      const token = tokenFrom(captureUploadUrlFor("req-old-receipt-order"));
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/status`);
+      expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
+        state: "ready", processingRetryAvailable: false });
+      expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+      expect(JSON.stringify([...storedVersions.entries()])).toBe(versionsBefore);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it.each(["generation", "manifest", "marker", "extra"])("keeps a changed receipt held during read-only polling (%s)", async change => {
+    seedRequest("req-bad-receipt", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-bad-receipt", "original")).status).toBe(201);
+      const entry = [...storedVersions.entries()].find(([key]) => key.includes("/producer_deliveries/"))!;
+      const record = JSON.parse(entry[1].body.toString("utf8"));
+      if (change === "generation") record.raw_video.generation = "999";
+      if (change === "manifest") record.manifest.sha256 = "sha256:" + "b".repeat(64);
+      if (change === "marker") record.marker_json = "{}";
+      if (change === "extra") record.unbound = true;
+      const bytes = Buffer.from(JSON.stringify(record));
+      entry[1].body = bytes;
+      entry[1].metadata.size = String(bytes.length);
+      const before = JSON.stringify([...storedVersions.entries()]);
+      const token = tokenFrom(captureUploadUrlFor("req-bad-receipt"));
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/status`);
+      expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "retained",
+        state: "held", holdReason: "capture_handoff_unverified", processingRetryAvailable: false });
+      expect(JSON.stringify([...storedVersions.entries()])).toBe(before);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("provides a read-only legacy status route without screening or publishing its retained capture", async () => {
     seedRequest("req-readonly-legacy", { disposition: "qualified" });
     screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
