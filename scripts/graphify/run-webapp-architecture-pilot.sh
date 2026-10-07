@@ -9,7 +9,7 @@ MANIFEST_PATH="$WORKSPACE_DIR/corpus.manifest.txt"
 GRAPHIFY_IGNORE_SOURCE="$ROOT_DIR/.graphifyignore"
 ROOT_OUTPUT_DIR="$ROOT_DIR/graphify-out"
 SCAN_DIR=""
-PYTHON_BIN="${BLUEPRINT_GRAPHIFY_PYTHON:-python3}"
+PYTHON_BIN="${BLUEPRINT_GRAPHIFY_PYTHON:-}"
 
 RUN_GRAPHIFY=1
 NO_VIZ=0
@@ -32,8 +32,10 @@ Options:
   --mode <value>   Reserved for future semantic/deep extraction support
   --help           Show this help text
 
-Set BLUEPRINT_GRAPHIFY_PYTHON to an existing isolated interpreter with graphifyy.
-The runner never installs packages or changes that interpreter.
+The runner provisions and reuses the repo's pinned .graphify_venv environment.
+First use needs Python 3.10+ with venv/pip and package-download access.
+Set BLUEPRINT_GRAPHIFY_PYTHON only to override this with an existing interpreter;
+valid overrides are left unchanged, and unusable ones fall back to pinned setup.
 EOF
 }
 
@@ -190,12 +192,30 @@ if [ "$RUN_GRAPHIFY" -eq 0 ]; then
   exit 0
 fi
 
+if [ -n "$PYTHON_BIN" ] && ! "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
+from graphify.analyze import god_nodes, surprising_connections
+from graphify.build import build_from_json
+from graphify.cluster import cluster, score_all
+from graphify.detect import detect
+from graphify.export import to_html, to_json
+from graphify.extract import extract
+from graphify.report import generate
+PY
+then
+  echo "[graphify pilot] explicit interpreter is unusable; selecting the automatic pinned environment" >&2
+  PYTHON_BIN=""
+fi
+
+if [ -z "$PYTHON_BIN" ]; then
+  PYTHON_BIN="$(python3 "$ROOT_DIR/scripts/graphify/ensure-environment.py")"
+fi
+
 if ! "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
 import graphify  # noqa: F401
 PY
 then
   echo "error: graphifyy is unavailable in the selected Python interpreter." >&2
-  echo "Set BLUEPRINT_GRAPHIFY_PYTHON to an existing isolated interpreter with graphifyy." >&2
+  echo "Run python3 scripts/graphify/ensure-environment.py to repair the managed environment." >&2
   exit 1
 fi
 
