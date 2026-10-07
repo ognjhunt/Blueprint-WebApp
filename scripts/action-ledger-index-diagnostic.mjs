@@ -1,0 +1,117 @@
+/** Explicit read-only diagnosis; separately requested immutable receipt archive. */
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { readFileSync, mkdtempSync, openSync, appendFileSync, fsyncSync, closeSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
+const PROJECT = 'blueprint-8c1ca', WORKER = 'srv-d9t8gg1t0dsc73am9q70';
+export const PARENT = `projects/${PROJECT}/databases/(default)/collectionGroups/action_ledger`;
+const OPERATOR_SHA = '5281c83cbffc493d38c078c8beeb82c7e534333a3029fed38d8960e0d7e16f35';
+const OLD_PATH = '/tmp/blueprint-action-ledger-index-g1Gtmj/receipts.jsonl';
+const OLD_SHA = '43debbd20d2e3821e6ce14552aaf775f4b1d43c79e778e3fe7dca0751d652ccd';
+const BUCKET = 'blueprint-8c1ca.appspot.com';
+const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+const refuse = code => { throw Error(code); };
+export function redact(value, secrets = []) {
+  let text = typeof value === 'string' ? value : '';
+  for (const secret of secrets.filter(x => typeof x === 'string' && x.length > 6)) text = text.split(secret).join('[redacted]');
+  return text.replace(/-----BEGIN[^]*?-----END [A-Z ]+-----/g, '[redacted-key]')
+    .replace(/Bearer\s+[^\s"',}]+/gi, 'Bearer [redacted]')
+    .replace(/[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[redacted-token]')
+    .replace(/[A-Za-z0-9+/=_-]{64,}/g, '[redacted-long-value]')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted-email]')
+    .replace(/[\x00-\x1f\x7f]/g, ' ').slice(0, 512);
+}
+export function safeError(error, secrets = []) {
+  const details = typeof error?.details === 'string' ? [redact(error.details, secrets)]
+    : Array.isArray(error?.details) ? error.details.slice(0, 4).map(detail => typeof detail === 'string' ? redact(detail, secrets)
+      : { type: redact(detail?.['@type'], secrets), violations: Array.isArray(detail?.fieldViolations) ? detail.fieldViolations.slice(0, 4).map(row => ({ field: redact(row?.field, secrets), description: redact(row?.description, secrets) })) : [] }) : [];
+  return { apiCode: typeof error?.code === 'number' ? error.code : null, message: redact(error?.message, secrets), details };
+}
+export async function boundedResponse(response, limit = 65536) {
+  if (!response.body?.getReader) refuse('response_transport_unavailable');
+  const reader = response.body.getReader(), chunks = []; let size = 0;
+  try {
+    while (true) { const { done, value } = await reader.read(); if (done) break; size += value.byteLength;
+      if (size > limit) { await reader.cancel(); refuse('response_size_limit'); } chunks.push(Buffer.from(value)); }
+  } finally { reader.releaseLock(); }
+  return Buffer.concat(chunks);
+}
+export async function diagnose({ client, token, record, fetcher = fetch, secrets = [] }) {
+  let code = null;
+  record({ event: 'sdk-list-request', parent: PARENT, pageSize: 100, filterPresent: false, method: 'GET', readOnly: true });
+  try { const [rows, , response] = await client.listIndexes({ parent: PARENT, pageSize: 100 }, { timeout: 10000, retry: null, autoPaginate: false });
+    record({ event: 'sdk-list-result', success: true, firstPageCount: rows.length, furtherPages: Boolean(response?.nextPageToken), completeInventory: false }); return;
+  } catch (error) { const safe = safeError(error, secrets); code = safe.apiCode; record({ event: 'sdk-list-error', ...safe }); }
+  // Compare the documented JSON GET only after INVALID_ARGUMENT, never use a
+  // second transport to evade an IAM denial or change identity/resource scope.
+  if (code !== 3) return;
+  const url = `https://firestore.googleapis.com/v1/${PARENT}/indexes?pageSize=100`;
+  record({ event: 'rest-list-request', parent: PARENT, pageSize: 100, method: 'GET', enumEncodingOption: false, readOnly: true });
+  let response;
+  try { response = await fetcher(url, { method: 'GET', redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }); }
+  catch { record({ event: 'rest-list-unavailable' }); return; }
+  const bytes = await boundedResponse(response); let body;
+  try { body = JSON.parse(bytes); } catch { refuse('rest_json_unavailable'); }
+  if (response.status !== 200) record({ event: 'rest-list-error', httpStatus: response.status, ...safeError(body.error, secrets) });
+  else {
+    if (body.indexes != null && (!Array.isArray(body.indexes) || body.indexes.length > 100)) refuse('rest_page_invalid');
+    record({ event: 'rest-list-result', httpStatus: 200, firstPageCount: body.indexes?.length ?? 0, furtherPages: Boolean(body.nextPageToken), completeInventory: false });
+  }
+  // Deliberately no absence, READY, create or task-continuation conclusion.
+}
+export async function archiveReceipt({ bytes, expectedSha, token, fetcher = fetch, record }) {
+  if (bytes.length > 65536 || !/^[a-f0-9]{64}$/.test(expectedSha) || sha(bytes) !== expectedSha) refuse('archive_source_digest_invalid');
+  const rows = bytes.toString('utf8').trim().split('\n').map(line => JSON.parse(line));
+  if (!rows.length || rows.some(row => !['blueprint.action_ledger_index_operator_receipt.v1', 'blueprint.action_ledger_index_diagnostic_receipt.v1'].includes(row.schema))) refuse('archive_source_schema_invalid');
+  const object = `operations/site-intake/20261007/action-ledger-index/receipts/${expectedSha}.jsonl`;
+  const metadataUrl = `https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${encodeURIComponent(object)}`;
+  const request = (url, options = {}) => fetcher(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Authorization: `Bearer ${token}`, ...(options.headers ?? {}) } });
+  record({ event: 'archive-intent', bucket: BUCKET, object, sha256: expectedSha, ifGenerationMatch: 0, retryAllowed: false });
+  try {
+    const response = await request(`https://storage.googleapis.com/upload/storage/v1/b/${BUCKET}/o?uploadType=media&name=${encodeURIComponent(object)}&ifGenerationMatch=0`, { method: 'POST', headers: { 'Content-Type': 'application/x-ndjson' }, body: bytes });
+    await boundedResponse(response);
+    record({ event: 'archive-acknowledgement', httpStatus: response.status, accepted: response.status === 200 || response.status === 201, existing: response.status === 412 });
+  } catch { record({ event: 'archive-acknowledgement-unknown', retryAllowed: false }); }
+  // Always independently pin metadata and retained content; no second upload.
+  const metadata = await request(metadataUrl, { method: 'GET' });
+  if (metadata.status !== 200) refuse('archive_metadata_unavailable');
+  const row = JSON.parse(await boundedResponse(metadata));
+  if (row.bucket !== BUCKET || row.name !== object || !/^[0-9]+$/.test(row.generation ?? '') || Number(row.size) !== bytes.length) refuse('archive_metadata_mismatch');
+  const content = await request(`${metadataUrl}?alt=media&generation=${row.generation}`, { method: 'GET' });
+  if (content.status !== 200 || sha(await boundedResponse(content)) !== expectedSha) refuse('archive_content_mismatch');
+  record({ event: 'archive-verified', uri: `gs://${BUCKET}/${object}`, generation: row.generation, sha256: expectedSha, bytes: bytes.length });
+}
+export async function main(args = process.argv.slice(2), env = process.env) {
+  const [operatorPath, mode = 'diagnose', diagnosticPath, expectedSha] = args;
+  if (!operatorPath?.startsWith('/tmp/') || !operatorPath.endsWith('.mjs') || !['diagnose', 'archive-original', 'archive-diagnostic'].includes(mode)
+    || (mode === 'archive-diagnostic' ? args.length !== 4 : args.length > 2)) refuse('diagnostic_scope_invalid');
+  if (sha(readFileSync(operatorPath)) !== OPERATOR_SHA) refuse('original_operator_digest_invalid');
+  const operator = await import(pathToFileURL(operatorPath).href);
+  operator.verifyManifest(readFileSync('firestore.indexes.json'));
+  if (env.RENDER_SERVICE_ID !== WORKER || !/^[a-f0-9]{40}$/.test(env.RENDER_GIT_COMMIT ?? '') || env.FIRESTORE_EMULATOR_HOST) refuse('existing_worker_binding_unavailable');
+  let account; try { account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON ?? '{}'); } catch { refuse('existing_firebase_binding_unavailable'); }
+  if (account?.project_id !== PROJECT || account.type !== 'service_account' || !account.private_key || typeof account.client_email !== 'string' || !account.client_email.endsWith('.iam.gserviceaccount.com')) refuse('existing_firebase_binding_unavailable');
+  const directory = mkdtempSync('/tmp/blueprint-action-ledger-index-diagnostic-'), path = `${directory}/receipts.jsonl`, fd = openSync(path, 'wx', 0o600);
+  const record = event => { const row = { schema: 'blueprint.action_ledger_index_diagnostic_receipt.v1', observedAtMs: Date.now(), ...event }; appendFileSync(fd, JSON.stringify(row) + '\n'); fsyncSync(fd); console.log(JSON.stringify(row)); };
+  const watchdog = setTimeout(() => { record({ event: 'stopped', code: 'diagnostic_deadline' }); closeSync(fd); process.exit(2); }, 60000); watchdog.unref();
+  let client;
+  try {
+    const require = createRequire(`${process.cwd()}/package.json`), admin = require('firebase-admin');
+    const token = await admin.credential.cert(account).getAccessToken();
+    record({ event: 'start', mode, deploymentCommit: env.RENDER_GIT_COMMIT, sourceSha256: sha(readFileSync(new URL(import.meta.url))), originalOperatorSha256: OPERATOR_SHA, originalInspectReceiptSha256: OLD_SHA, sdkVersion: require('@google-cloud/firestore/package.json').version, firebaseAdminVersion: admin.SDK_VERSION, receiptPath: path });
+    if (mode === 'diagnose') {
+      ({ client } = operator.tokenBoundClient(require, token));
+      await diagnose({ client, token: token.access_token, record, secrets: [token.access_token, account.private_key, account.client_email, ...account.private_key.split('\n').filter(x => x.length > 20)] });
+    } else {
+      const source = mode === 'archive-original' ? OLD_PATH : diagnosticPath;
+      if (mode === 'archive-diagnostic' && !/^\/tmp\/blueprint-action-ledger-index-diagnostic-[A-Za-z0-9]+\/receipts\.jsonl$/.test(source ?? '')) refuse('archive_source_path_invalid');
+      await archiveReceipt({ bytes: readFileSync(source), expectedSha: mode === 'archive-original' ? OLD_SHA : expectedSha, token: token.access_token, record });
+    }
+    console.log(JSON.stringify({ completed: true, mode, readOnly: mode === 'diagnose', indexMutation: false, indexReadyProven: false, receiptPath: path, receiptSha256: sha(readFileSync(path)) }));
+  } catch (error) {
+    record({ event: 'stopped', code: /^[a-z_]+$/.test(error.message) ? error.message : 'diagnostic_unavailable' }); process.exitCode = 2;
+    console.log(JSON.stringify({ completed: false, indexMutation: false, receiptPath: path, receiptSha256: sha(readFileSync(path)) }));
+  } finally { if (client) await client.close(); clearTimeout(watchdog); closeSync(fd); }
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch(error => { console.error(JSON.stringify({ ok: false, code: /^[a-z_]+$/.test(error.message) ? error.message : 'diagnostic_unavailable' })); process.exitCode = 2; });
