@@ -22,37 +22,22 @@ test("How it works opens its own page from desktop and mobile navigation", async
   }
 });
 
-test("the full task and simulation frames remain readable without overlapping the headline", async ({ page }) => {
+test("the example recommended pilot sits below the headline without overflowing", async ({ page }) => {
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await page.evaluate(() => document.fonts.ready);
-    const images = page.locator(".ms-task-pair img");
-    await expect(images).toHaveCount(2);
-    for (const image of await images.all()) {
-      await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
-      const frame = await image.evaluate((element: HTMLImageElement) => {
-        const rect = element.getBoundingClientRect();
-        return { ratio: rect.width / rect.height, originalRatio: Number(element.getAttribute("width")) / Number(element.getAttribute("height")), height: rect.height, fit: getComputedStyle(element).objectFit };
-      });
-      expect(frame.ratio).toBeCloseTo(frame.originalRatio, 2);
-      expect(frame.height).toBeGreaterThan(150);
-      expect(frame.fit).not.toBe("cover");
-    }
-    const layout = await page.evaluate(() => {
-      const [capture, evaluation] = [...document.querySelectorAll(".ms-task-pair img")].map(element => element.getBoundingClientRect());
-      const headline = document.querySelector("h1")!.getBoundingClientRect();
-      return { captureX: capture.x, captureY: capture.y, captureRight: capture.right, captureBottom: capture.bottom, evaluationX: evaluation.x, evaluationY: evaluation.y, headlineBottom: headline.bottom, overflow: document.documentElement.scrollWidth > innerWidth };
-    });
+    const card = page.locator(".ms-pilot-card");
+    await expect(card.getByRole("tabpanel")).toContainText("Example");
+    await expect(card).toContainText("Book this pilot");
+    await expect(page.locator(".ms-task-pair")).toHaveCount(0);
+    const layout = await page.evaluate(() => ({
+      headlineBottom: document.querySelector("h1")!.getBoundingClientRect().bottom,
+      cardTop: document.querySelector(".ms-pilot-card")!.getBoundingClientRect().top,
+      overflow: document.documentElement.scrollWidth > innerWidth,
+    }));
     expect(layout.overflow).toBe(false);
-    expect(layout.headlineBottom).toBeLessThan(layout.captureY);
-    if (width > 700) {
-      expect(layout.evaluationY).toBeCloseTo(layout.captureY);
-      expect(layout.evaluationX).toBeGreaterThan(layout.captureRight);
-    } else {
-      expect(layout.evaluationX).toBeCloseTo(layout.captureX);
-      expect(layout.evaluationY).toBeGreaterThan(layout.captureBottom);
-    }
+    expect(layout.headlineBottom).toBeLessThan(layout.cardTop);
   }
 });
 

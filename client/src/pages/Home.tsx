@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { TaskEvaluationPair } from "@/components/site/TaskEvaluationPair";
+import { PilotPreview } from "@/components/site/PilotPreview";
 import { SEO } from "@/components/SEO";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
@@ -20,7 +20,7 @@ export default function Home() {
               <p className="ms-task-hero-start">Free to start. No pilot, no fee.</p>
             </div>
           </div>
-          <TaskEvaluationPair />
+          <PilotPreview />
       </section>
 
       <section className="ms-method ms-container" id="how-it-works" aria-label="How it works">
