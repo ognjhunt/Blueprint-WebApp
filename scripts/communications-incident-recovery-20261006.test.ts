@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { CommunicationsAgentsAPI } from '../server/agents/communications-api';
 import { INCIDENT, ROOT, CONTROL, LAP, sha, QUERIES, STOPPED_SOURCE } from './communications-incident-20261006.mjs';
 import { AUDIT, CLEANUP, checkFence, checkEffects, recover, fenceLease, cleanupPhase, archiveFiles, verifyArchive } from './communications-incident-recovery-20261006.mjs';
 import { ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE, ADMISSION_ENTRY_SHA256, ADMISSION_FLAGS } from './communications-incident-admission-20261006.mjs';
 import { mcpReceipt, mcpReadScope } from './communications-incident-mcp-20261006.mjs';
 import { preparePlatform, assembleProof, sequence } from './communications-incident-operator-20261006.mjs';
-import { collectWebSourceProof, WEB_SOURCE_POLICY_DIGEST, WEB_SOURCE_RECIPE } from './communications-incident-web-source-20261007.mjs';
+import { WEB_SOURCE_POLICY_DIGEST, WEB_SOURCE_RECIPE } from './communications-incident-web-source-20261007.mjs';
 
-const CERTIFIED_SOURCE_PROOF = collectWebSourceProof(process.cwd(), execFileSync('git', ['rev-parse', 'HEAD']).toString().trim());
+// Fixed raw Git evidence keeps these offline recovery fixtures independent of
+// unrelated future HEAD changes. Publication compatibility is checked separately.
+const CERTIFIED_SOURCE_PROOF = { schema: 'blueprint.web-runtime-source-proof.v1', repository: 'ognjhunt/Blueprint-WebApp',
+  ...JSON.parse(gunzipSync(readFileSync('scripts/communications-incident-web-source-20261007.fixture.json.gz')).toString()),
+  policyDigest: WEB_SOURCE_POLICY_DIGEST };
 const CERTIFIED_WEB_SOURCE = CERTIFIED_SOURCE_PROOF.commit;
 
 const NOW = 1791307000000;

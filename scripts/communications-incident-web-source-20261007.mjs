@@ -27,6 +27,7 @@ export const WEB_SOURCE_EXCLUSIONS = Object.freeze([
   'scripts/communications-incident-summary-20261006.mjs',
   'scripts/communications-incident-web-source-20261007.mjs',
   'scripts/communications-incident-web-source-20261007.test.ts',
+  'scripts/communications-incident-web-source-20261007.fixture.json.gz',
 ]);
 export const WEB_SOURCE_POLICY_DIGEST = sha({ baseline: WEB_SOURCE_BASELINE,
   inventorySha256: WEB_SOURCE_INVENTORY_SHA256, exclusions: WEB_SOURCE_EXCLUSIONS,

@@ -1,25 +1,40 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve, join } from 'node:path';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { collectWebSourceProof, verifyWebSourceProof, checkWebSourceProof, WEB_SOURCE_POLICY_DIGEST,
+import { deflateSync, gunzipSync } from 'node:zlib';
+import { collectWebSourceProof, verifyWebSourceProof, checkWebSourceProof, WEB_SOURCE_BASELINE, WEB_SOURCE_POLICY_DIGEST,
   WEB_SOURCE_INVENTORY_SHA256, WEB_SOURCE_EXCLUSIONS } from './communications-incident-web-source-20261007.mjs';
 import { sha } from './communications-incident-20261006.mjs';
 
 const git = (...args: string[]) => execFileSync('git', args);
-// HEAD is available in shallow CI checkouts. Its full tracked content must
-// satisfy the fixed ce8 policy even after this source-only repair is merged.
-const head = git('rev-parse', 'HEAD').toString().trim();
-const proof = collectWebSourceProof(process.cwd(), head);
+// Reconstruct only fixed raw commit/tree evidence, without source code or network.
+// Future runtime changes must fail recovery admission, without freezing all CI.
+const fixtureBytes = readFileSync('scripts/communications-incident-web-source-20261007.fixture.json.gz');
+const fixture = JSON.parse(gunzipSync(fixtureBytes).toString());
+const sourceDirectory = mkdtempSync(join(tmpdir(), 'incident-source-baseline-'));
+git('init', '--bare', '--quiet', sourceDirectory);
+for (const object of [{ oid: fixture.commit, base64: fixture.commitBase64, type: 'commit' },
+  ...fixture.trees.map((tree: any) => ({ ...tree, type: 'tree' }))]) {
+  const bytes = Buffer.from(object.base64, 'base64');
+  const raw = Buffer.concat([Buffer.from(`${object.type} ${bytes.length}\0`), bytes]);
+  if (createHash('sha1').update(raw).digest('hex') !== object.oid) throw Error('fixed source object changed');
+  const directory = join(sourceDirectory, 'objects', object.oid.slice(0, 2));
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(join(directory, object.oid.slice(2)), deflateSync(raw));
+}
+afterAll(() => rmSync(sourceDirectory, { recursive: true, force: true }));
+const head = fixture.commit;
+const proof = collectWebSourceProof(sourceDirectory, head);
 const authority = (value: any = proof) => ({ expectedWebCommit: value.commit,
   expectedWebSourcePolicyDigest: WEB_SOURCE_POLICY_DIGEST, expectedWebSourceProofDigest: sha(value) });
 function candidate(path: string, mode = '100644', remove = false) {
   const directory = mkdtempSync(join(tmpdir(), 'incident-source-candidate-'));
   try {
     git('init', '--bare', '--quiet', directory);
-    const objects = resolve(git('rev-parse', '--git-path', 'objects').toString().trim());
+    const objects = join(sourceDirectory, 'objects');
     mkdirSync(join(directory, 'objects/info'), { recursive: true });
     writeFileSync(join(directory, 'objects/info/alternates'), objects + '\n');
     const run = (args: string[], input?: string) => execFileSync('git', ['-C', directory, ...args], { input,
@@ -33,13 +48,17 @@ function candidate(path: string, mode = '100644', remove = false) {
       const blob = run(['hash-object', '-w', '--stdin'], 'synthetic changed content\n').toString().trim();
       run(['update-index', '--add', '--cacheinfo', mode, blob, path]);
     }
-    const tree = run(['write-tree']).toString().trim();
+    const tree = run(['write-tree', '--missing-ok']).toString().trim();
     const commit = run(['commit-tree', tree, '-p', head, '-m', 'Synthetic offline source candidate']).toString().trim();
     return collectWebSourceProof(directory, commit);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 }
 describe('exact immutable Web source policy', () => {
-  it('proves the real current Git commit and complete source-only merged tree', () => {
+  it('pins the offline baseline evidence independently of future HEAD changes', () => {
+    expect(sha(fixtureBytes)).toBe('5ec85be9342ff94a246a910f4f9858e697b4a6ed0c4dc4c53b707cabcf6e310b');
+    expect(head).toBe(WEB_SOURCE_BASELINE);
+  });
+  it('proves the fixed reviewed real Git commit and complete tree offline', () => {
     expect(verifyWebSourceProof(proof)).toEqual({ commit: head, policyDigest: WEB_SOURCE_POLICY_DIGEST,
       inventorySha256: WEB_SOURCE_INVENTORY_SHA256 });
     expect(checkWebSourceProof(proof, authority())).toMatchObject({ commit: head });
