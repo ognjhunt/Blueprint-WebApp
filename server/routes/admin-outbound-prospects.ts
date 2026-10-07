@@ -41,7 +41,7 @@ import { founderMailboxConnectionPlan } from "../agents/communications-connectio
 import { replyFollowupReviewSchema, reviewReplyFollowup } from "../agents/communications-reply-followup";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
 import { communicationsInprocessRecoverySchema, recoverCommunicationsDraftInProcess } from "../agents/communications-inprocess-recovery";
-import { sampleCommunicationsRecoveryMemory } from "../agents/communications-recovery-memory";
+import { sampleCommunicationsRecoveryMemory, assertCommunicationsRecoveryHeadroom, COMMUNICATIONS_RECOVERY_HEADROOM_BYTES } from "../agents/communications-recovery-memory";
 import { verifyFounderMailbox, readFounderThread } from "../agents/communications-gmail";
 import { requireFounderDraftCapability } from "../agents/communications-oauth-store";
 import {
@@ -310,8 +310,14 @@ router.get("/communications/recovery-runtime", async (_req: Request, res: Respon
   const ownerUid = process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID?.trim();
   if (!(await requireOps(res)) || !ownerUid || res.locals.firebaseUser?.uid !== ownerUid) return res.status(403).json({ error: "communications_recovery_owner_required" });
   res.setHeader("Cache-Control", "no-store");
+  const memory = sampleCommunicationsRecoveryMemory("existing_http_process_idle");
+  let headroomAvailable = false;
+  try { assertCommunicationsRecoveryHeadroom(memory); headroomAvailable = true; } catch { /* Measurement cannot authorize bypassing the reserve. */ }
+  const outreachControlsOff = ["BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED", "BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED",
+    "BLUEPRINT_COMMUNICATIONS_SEND_ENABLED", "BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED"].every(key => process.env[key] === "false");
   return res.json({ sourceCommit: process.env.RENDER_GIT_COMMIT ?? null, existingProcess: true,
-    providerKeyConfigured: !!process.env.OPENAI_API_KEY?.trim(), memory: sampleCommunicationsRecoveryMemory("existing_http_process_idle"),
+    providerKeyConfigured: !!process.env.OPENAI_API_KEY?.trim(), memory, headroomAvailable,
+    headroomReserveBytes: COMMUNICATIONS_RECOVERY_HEADROOM_BYTES, outreachControlsOff,
     sent: false, sessionCreated: false, gmailDraftCreated: false });
 });
 

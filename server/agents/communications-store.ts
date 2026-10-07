@@ -192,7 +192,7 @@ export class CommunicationsStore {
       const record = doc.data() as CommunicationsJobRecord;
       return { jobId: doc.id, prospectId: record.prospectId, briefDigest: record.briefDigest, state: record.state,
         attempts: record.attempts, reason: record.reason ?? "communications_blocked", leaseUntil: record.lease?.until ?? 0,
-        expectedCheckpointDigest: communicationsDigest(record.checkpoint), sessionId: record.checkpoint.sessionId,
+        expectedJobDigest: communicationsDigest(record), expectedCheckpointDigest: communicationsDigest(record.checkpoint), sessionId: record.checkpoint.sessionId,
         sessionReconciliationRequired: Boolean(record.checkpoint.createClaimedAt && !record.checkpoint.sessionId) };
     });
   }

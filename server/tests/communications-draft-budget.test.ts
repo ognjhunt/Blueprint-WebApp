@@ -316,6 +316,7 @@ describe("communications-only soft model target and serialized admissions", () =
     const store = new CommunicationsStore(f.db, () => communicationsNow, "observer");
     const visible = await store.blockedJobs(); expect(visible).toHaveLength(20);
     expect(visible[0]).toEqual(expect.objectContaining({ jobId: f.input.jobId,
+      expectedJobDigest: communicationsDigest(f.db.records.get(`${root}/jobs/${f.input.jobId}`)),
       expectedCheckpointDigest: f.input.expectedCheckpointDigest, sessionReconciliationRequired: true, sessionId: null }));
     await reconcileCommunicationsDraftSession(f.db, f.api, f.input, communicationsNow);
     expect(f.db.records.get(`${root}/jobs/${f.input.jobId}`)).toMatchObject({ state: "blocked", attempts: 3,
