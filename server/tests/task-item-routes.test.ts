@@ -16,6 +16,15 @@ import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 /** Records every object saved to storage, so tests can assert bytes landed. */
 const savedObjects: { path: string; bytes: number }[] = [];
 const storageEvents = { afterWrite: undefined as (() => void) | undefined };
+const briefReads = vi.hoisted(() => ({ afterRead: null as null | (() => Promise<void>) }));
+vi.mock("../utils/siteTaskBrief", async importOriginal => {
+  const actual = await importOriginal<typeof import("../utils/siteTaskBrief")>();
+  return { ...actual, getBrief: async (requestId: string) => {
+    const brief = await actual.getBrief(requestId);
+    await briefReads.afterRead?.();
+    return brief;
+  } };
+});
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -89,6 +98,7 @@ beforeEach(async () => {
   sharedFakeFirestoreState.docs.clear();
   savedObjects.length = 0;
   storageEvents.afterWrite = undefined;
+  briefReads.afterRead = null;
   const app = express();
   app.use(express.json());
   app.use("/api/site-task-brief", briefRouter);
@@ -128,6 +138,34 @@ const itemImage = (t: string, itemId: string) =>
   `${baseUrl}/api/self-capture/uploads/${t}/items/${itemId}/image`;
 
 describe("the item list is seeded from the brief, then the operator owns it", () => {
+  it.each(["owner", "film"] as const)("a delayed first %s read cannot replace accepted owner items or photos", async scope => {
+    let reached!: () => void, resume!: () => void;
+    const waiting = new Promise<void>(resolve => { reached = resolve; });
+    const release = new Promise<void>(resolve => { resume = resolve; });
+    briefReads.afterRead = async () => { reached(); await release; };
+    const delayed = fetch(items(token(scope)));
+    await waiting;
+    try {
+      const added = await fetch(items(token("owner")), {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ label: "Blue bins", locationNote: "stacked by the pallet" }),
+      });
+      expect(added.status).toBe(200);
+      const itemId = (await added.json()).items[0].itemId;
+      const form = new FormData();
+      form.append("image", new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/jpeg" }), "photo.jpg");
+      expect((await fetch(itemImage(token("film"), itemId), { method: "POST", body: form })).status).toBe(201);
+      const key = "siteTaskItemInventories/req-1";
+      const accepted = structuredClone(sharedFakeFirestoreState.docs.get(key));
+      expect(accepted.items[0].images).toHaveLength(1);
+      resume();
+      const read = await delayed;
+      expect(read.status).toBe(200);
+      expect(sharedFakeFirestoreState.docs.get(key)).toEqual(accepted);
+      expect((await read.json()).items).toMatchObject([{ itemId, label: "Blue bins", imageCount: 1 }]);
+    } finally { resume(); await delayed; }
+  });
+
   it("suggests items read out of the task description on first read", async () => {
     const body = (await (await fetch(items(token("owner")))).json()) as {
       items: { label: string; basis: string }[];
