@@ -112,15 +112,27 @@ function nowIso() {
  * it means the event was already recorded, and the caller has done its job by
  * asking. Delivery retries use the same durable intent.
  */
-export async function enqueueOutbox(entry: {
-  idempotencyKey: string;
-  requestId: string;
-  kind: OutboxKind;
-  to: string;
-  subject: string;
-  body: string;
-  replyTo?: string | null;
-}): Promise<{ enqueued: boolean }> {
+export type OutboxInput = Pick<OutboxEntry,
+  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo">;
+
+/** Build a durable intent for an owning business transaction. This function
+ * performs no I/O; callers create the row atomically with their state change. */
+export function buildOutboxEntry(entry: OutboxInput): OutboxEntry & {
+  createdAt: FirebaseFirestore.FieldValue;
+} {
+  return {
+    ...entry,
+    replyTo: entry.replyTo ?? null,
+    status: "pending",
+    attempts: 0,
+    createdAtIso: nowIso(),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    sentAtIso: null,
+    lastError: null,
+  };
+}
+
+export async function enqueueOutbox(entry: OutboxInput): Promise<{ enqueued: boolean }> {
   if (!db) return { enqueued: false };
 
   const ref = db.collection(CAPTURE_OUTBOX_COLLECTION).doc(entry.idempotencyKey);
@@ -129,16 +141,7 @@ export async function enqueueOutbox(entry: {
   // the same event is a no-op rather than a second row and eventually a second
   // email.
   try {
-    await ref.create({
-      ...entry,
-      replyTo: entry.replyTo ?? null,
-      status: "pending",
-      attempts: 0,
-      createdAtIso: nowIso(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      sentAtIso: null,
-      lastError: null,
-    });
+    await ref.create(buildOutboxEntry(entry));
     return { enqueued: true };
   } catch (error) {
     // Already queued. The only expected error, and not one worth surfacing.
