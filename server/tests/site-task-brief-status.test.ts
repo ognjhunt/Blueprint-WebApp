@@ -110,6 +110,63 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
   });
 
+  it("does not advance cleanup, restore consent or deliver messages when an existing link is polled after withdrawal", async () => {
+    const existingToken = token();
+    const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
+      ...record, consent_revoked: true, future_processing_allowed: false,
+      request: { ...(record.request as Record<string, unknown>), consent_attestation: { granted: false } },
+      capture_withdrawal: { state: "uploads_stopped_cleanup_pending", deletionConfirmed: false },
+      captureWithdrawalPending: true,
+    });
+    sharedFakeFirestoreState.docs.set("captureOutbox/withdrawal-pending", {
+      requestId: "req-1", state: "pending", attempts: 0,
+    });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+
+    for (let read = 0; read < 3; read++) {
+      expect((await fetch(`${baseUrl}/api/site-task-brief/${existingToken}/status`)).status).toBe(200);
+    }
+
+    expect(deliverOutbox).not.toHaveBeenCalled();
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+  });
+
+  it("isolates each site's status on replay and rejects a token changed to another request", async () => {
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-2", {
+      requestId: "req-2", request: { buyerType: "site_operator", capture_mode: "self_capture" },
+      account_owner_uid: "owner-2", site_task_brief_confirmed_at: "2026-09-18T00:00:00.000Z",
+    });
+    await saveBrief(draftBrief({ requestId: "req-2", summary: "Second site's private task", captureMode: "self_capture", proposed: [] }));
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-2", {
+      world_reconstruction: { state: "ready", assets: { launchUrl: "https://viewer.example/second-site" } },
+    });
+    const ownToken = token();
+    const secondToken = createCaptureUploadToken({ requestId: "req-2", captureId: "cap-2", sceneId: "scene-2" });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+
+    for (const signedToken of [ownToken, secondToken, ownToken, secondToken]) {
+      const response = await fetch(`${baseUrl}/api/site-task-brief/${signedToken}/status`);
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.summary).toBe(signedToken === ownToken ? "Cartons onto a pallet" : "Second site's private task");
+      expect(body.sceneViewUrl).toBe(signedToken === ownToken ? null : "https://viewer.example/second-site");
+    }
+    const [encoded, signature] = ownToken.split(".");
+    const changedPayload = { ...JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")), requestId: "req-2" };
+    const changedToken = `${Buffer.from(JSON.stringify(changedPayload)).toString("base64url")}.${signature}`;
+    const rejected = await fetch(`${baseUrl}/api/site-task-brief/${changedToken}/status`);
+    expect(rejected.status).toBe(404);
+    expect(await rejected.json()).toMatchObject({ code: "capture_token_invalid" });
+    const expiredToken = createCaptureUploadToken({ requestId: "req-2", captureId: "cap-2", sceneId: "scene-2", ttlSeconds: -1 });
+    expect((await fetch(`${baseUrl}/api/site-task-brief/${expiredToken}/status`)).status).toBe(404);
+
+    expect(deliverOutbox).not.toHaveBeenCalled();
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+  });
+
   it("reads assessing while nobody has run against the scene, and already offers the claim", async () => {
     const { code, body } = await status();
     expect(code).toBe(200);
