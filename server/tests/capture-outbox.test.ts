@@ -16,6 +16,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestore as db, sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
 const sendEmailMock = vi.fn();
+const recommendationIsCurrent = vi.hoisted(() => vi.fn(async (_entry: unknown, _transaction: FirebaseFirestore.Transaction) => true));
+vi.mock("../utils/pilotRecommendationNotifications", () => ({
+  pilotRecommendationNotificationIsCurrent: recommendationIsCurrent,
+}));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -57,6 +61,7 @@ afterEach(() => { vi.restoreAllMocks(); });
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
   sendEmailMock.mockReset();
+  recommendationIsCurrent.mockReset().mockResolvedValue(true);
 });
 
 describe("enqueuing is idempotent", () => {
@@ -351,5 +356,55 @@ describe("seeded concurrent delivery schedules", () => {
       finalRssKiB: Math.round(process.memoryUsage().rss / 1024), cpuMicros: process.cpuUsage(cpuStart),
       processLifetimeMaxRssKiB: process.resourceUsage().maxRSS,
       limitation: "In-memory serialized Firestore fake; no live provider/database or process RSS isolation." }));
+  });
+});
+
+
+describe("recommendation authority at dispatch", () => {
+  it("cancels an obsolete recommendation before attempting a send", async () => {
+    await enqueueOutbox(entry({ kind: "pilot_recommended" }));
+    recommendationIsCurrent.mockResolvedValue(false);
+    await deliverOutbox(); await deliverOutbox();
+    expect(row()).toMatchObject({ status: "cancelled", attempts: 0 });
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("checks authority with the dispatch transaction before its first write", async () => {
+    await enqueueOutbox(entry({ kind: "pilot_recommended" }));
+    const original = db.runTransaction.bind(db);
+    let guarded = false;
+    const transactions = new WeakMap<object, { wrote: boolean }>();
+    vi.spyOn(db, "runTransaction").mockImplementation(async (callback: any) => original(async (tx: any) => {
+      const state = { wrote: false };
+      const wrapped = { ...tx, set: (...args: any[]) => { state.wrote = true; return tx.set(...args); } };
+      transactions.set(wrapped, state);
+      return callback(wrapped);
+    }));
+    recommendationIsCurrent.mockImplementation(async (_entry: any, tx: any) => {
+      expect(transactions.get(tx)?.wrote).toBe(false);
+      expect((await tx.get(db.collection("captureOutbox").doc("req-1:brief_confirmed"))).data()?.status).toBe("claimed");
+      guarded = true;
+      return true;
+    });
+    sendEmailMock.mockImplementation(async () => {
+      expect(guarded).toBe(true);
+      return { sent: true, provider: "resend", messageId: "authorized" };
+    });
+    await deliverOutbox();
+    expect(row()).toMatchObject({ status: "sent", attempts: 1 });
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers a source-check outage only by checking current authority again", async () => {
+    await enqueueOutbox(entry({ kind: "pilot_recommended" }));
+    recommendationIsCurrent.mockRejectedValueOnce(new Error("source unavailable"));
+    await expect(deliverOutbox()).rejects.toThrow("source unavailable");
+    expect(row()).toMatchObject({ status: "claimed", attempts: 0 });
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    row().deliveryLeaseUntilMs = Date.now() - 1;
+    recommendationIsCurrent.mockResolvedValue(false);
+    await deliverOutbox();
+    expect(row()).toMatchObject({ status: "cancelled", attempts: 0 });
+    expect(sendEmailMock).not.toHaveBeenCalled();
   });
 });
