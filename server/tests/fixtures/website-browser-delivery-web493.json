@@ -1,0 +1,34 @@
+{
+  "source": {
+    "repo": "ognjhunt/Blueprint-WebApp",
+    "commit": "493b3c42916a12fb6957da98de90a6038a00d0fd",
+    "path": "server/utils/websiteCaptureDelivery.ts",
+    "sha256": "sha256:00ff7ab1de6afaa56d125b040c5f37e7597e79b6b80987737c8084fad23bc0c6"
+  },
+  "synthetic": true,
+  "input": {
+    "requestId": "r1",
+    "sceneId": "site-r1",
+    "captureId": "walkthrough-r1",
+    "rawPrefix": "scenes/site-r1/captures/walkthrough-r1/raw",
+    "video": {
+      "object_name": "scenes/site-r1/captures/walkthrough-r1/raw/walkthrough.mp4",
+      "generation": "18446744073709551615",
+      "size_bytes": 1683,
+      "crc32c": "IEDHlw=="
+    },
+    "manifest": {
+      "object_name": "scenes/site-r1/captures/walkthrough-r1/raw/manifest.json",
+      "generation": "18446744073709551613",
+      "size_bytes": 576,
+      "crc32c": "vcLCwQ==",
+      "sha256": "sha256:8e8136b1a99739297c3ea72ccf68dd3fcf3cb8ab6891b15e8444b1c74b6681f8"
+    },
+    "completedAtIso": "2026-09-28T00:00:00.000Z"
+  },
+  "manifest_json": "{\"schema_version\":\"v1\",\"request_id\":\"r1\",\"scene_id\":\"site-r1\",\"capture_id\":\"walkthrough-r1\",\"site_submission_id\":\"r1\",\"capture_source\":\"browser_self_capture\",\"video_uri\":\"scenes/site-r1/captures/walkthrough-r1/raw/walkthrough.mp4\",\"device_model\":\"browser_self_capture\",\"os_version\":\"unknown\",\"fps_source\":25,\"width\":64,\"height\":64,\"capture_start_epoch_ms\":1,\"has_lidar\":false,\"capture_rights\":{\"derived_scene_generation_allowed\":false,\"data_licensing_allowed\":false,\"capture_contributor_payout_eligible\":false,\"consent_status\":\"unknown\",\"consent_scope\":[],\"consent_notes\":[]}}",
+  "video_base64": "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",
+  "receipt_object_name": "scenes/site-r1/captures/walkthrough-r1/upload/producer_deliveries/browser-video-18446744073709551615.json",
+  "marker_json": "{\n  \"schema_version\": \"v1\",\n  \"scene_id\": \"site-r1\",\n  \"capture_id\": \"walkthrough-r1\",\n  \"raw_prefix\": \"scenes/site-r1/captures/walkthrough-r1/raw\",\n  \"capture_source\": \"browser_self_capture\",\n  \"video_uri\": \"scenes/site-r1/captures/walkthrough-r1/raw/walkthrough.mp4\",\n  \"completed_at_iso\": \"2026-09-28T00:00:00.000Z\",\n  \"producer_delivery\": {\n    \"kind\": \"website_browser_capture_delivery\",\n    \"object_name\": \"scenes/site-r1/captures/walkthrough-r1/upload/producer_deliveries/browser-video-18446744073709551615.json\",\n    \"raw_video_generation\": \"18446744073709551615\",\n    \"delivery_key\": \"sha256:dc438437a2cc47f9ac9bbf0b1fd19781a4dec60869fcbd66a2ae07bae5ae89d0\"\n  }\n}",
+  "receipt_json": "{\"schema_version\":\"website_browser_capture_delivery.v1\",\"request_id\":\"r1\",\"scene_id\":\"site-r1\",\"capture_id\":\"walkthrough-r1\",\"raw_prefix\":\"scenes/site-r1/captures/walkthrough-r1/raw\",\"delivery_key\":\"sha256:dc438437a2cc47f9ac9bbf0b1fd19781a4dec60869fcbd66a2ae07bae5ae89d0\",\"raw_video\":{\"object_name\":\"scenes/site-r1/captures/walkthrough-r1/raw/walkthrough.mp4\",\"generation\":\"18446744073709551615\",\"size_bytes\":1683,\"crc32c\":\"IEDHlw==\"},\"manifest\":{\"object_name\":\"scenes/site-r1/captures/walkthrough-r1/raw/manifest.json\",\"generation\":\"18446744073709551613\",\"size_bytes\":576,\"crc32c\":\"vcLCwQ==\",\"sha256\":\"sha256:8e8136b1a99739297c3ea72ccf68dd3fcf3cb8ab6891b15e8444b1c74b6681f8\"},\"marker_json\":\"{\\n  \\\"schema_version\\\": \\\"v1\\\",\\n  \\\"scene_id\\\": \\\"site-r1\\\",\\n  \\\"capture_id\\\": \\\"walkthrough-r1\\\",\\n  \\\"raw_prefix\\\": \\\"scenes/site-r1/captures/walkthrough-r1/raw\\\",\\n  \\\"capture_source\\\": \\\"browser_self_capture\\\",\\n  \\\"video_uri\\\": \\\"scenes/site-r1/captures/walkthrough-r1/raw/walkthrough.mp4\\\",\\n  \\\"completed_at_iso\\\": \\\"2026-09-28T00:00:00.000Z\\\",\\n  \\\"producer_delivery\\\": {\\n    \\\"kind\\\": \\\"website_browser_capture_delivery\\\",\\n    \\\"object_name\\\": \\\"scenes/site-r1/captures/walkthrough-r1/upload/producer_deliveries/browser-video-18446744073709551615.json\\\",\\n    \\\"raw_video_generation\\\": \\\"18446744073709551615\\\",\\n    \\\"delivery_key\\\": \\\"sha256:dc438437a2cc47f9ac9bbf0b1fd19781a4dec60869fcbd66a2ae07bae5ae89d0\\\"\\n  }\\n}\",\"marker_sha256\":\"sha256:9628e5f9705773355cdb9bf7c64d8a0de6ae1e930d44e365f459b0e7230a85ce\",\"completed_at_iso\":\"2026-09-28T00:00:00.000Z\"}"
+}

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { buildBrowserDelivery } from "../utils/websiteCaptureDelivery";
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { bundleDigest, planDigestOf } from "../utils/siteCaptureBundle";
+import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 
 const sha = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const request = { account_owner_uid: "uid-owner", claimed_at_iso: null,
@@ -52,6 +53,35 @@ function fixture() {
 }
 
 describe("authoritative original website capture owner read", () => {
+  it("binds original marker and producer identities in the existing Pipeline source digest", async () => {
+    const { deps } = fixture();
+    const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
+    const source = Object.fromEntries([
+      "request_id", "scene_id", "capture_id", "bucket", "raw_prefix_uri", "capture_owner",
+      "ownership_record", "consent_attestation", "capture_rights", "completion_marker", "producer_delivery",
+    ].map((key) => [key, observed[key]]));
+    expect(observed.source_projection_digest).toBe(crossRuntimeDigest(source));
+    expect(crossRuntimeDigest({ ...source, completion_marker: {
+      ...observed.completion_marker, generation: "200",
+    } })).not.toBe(observed.source_projection_digest);
+    expect(crossRuntimeDigest({ ...source, producer_delivery: {
+      ...observed.producer_delivery, raw_video: { ...observed.producer_delivery.raw_video, generation: "200" },
+    } })).not.toBe(observed.source_projection_digest);
+  });
+  it("an intact historical browser receipt does not override current withdrawal", async () => {
+    const { deps } = fixture();
+    const originalRead = deps.readRequest;
+    deps.readRequest = async () => {
+      const current = await originalRead();
+      return { ...current, data: { ...current.data, consent_revoked: true } };
+    };
+    const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
+    expect(observed.capture_rights.derived_scene_generation_allowed).toBe(false);
+    expect(observed.capture_rights.data_licensing_allowed).toBe(false);
+    expect(observed.producer_delivery.raw_video.generation).toBe(video.generation);
+  });
   it("selects M1 and V1 even after a later canonical marker/video generation exists", async () => {
     const { deps, objects } = fixture();
     objects.set(`${markerName}@200`, object(markerName, "200", Buffer.from("later marker")));
