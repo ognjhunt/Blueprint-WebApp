@@ -244,6 +244,28 @@ export function createFakeFirestore(state: FakeFirestoreState) {
   return {
     doc: (path: string) => makeDocRef(path.slice(0, path.lastIndexOf("/")), path.slice(path.lastIndexOf("/") + 1)),
     collection: makeCollection,
+    batch: () => {
+      const creates: Array<{ ref: MockDocRef; payload: StoredDoc }> = [];
+      const batch = {
+        create: (ref: MockDocRef, payload: StoredDoc) => { creates.push({ ref, payload: clone(payload) }); return batch; },
+        commit: async () => {
+          // Validate all create preconditions before publishing any writes.
+          // The real SDK commit shape is checked separately; this fake only
+          // supplies deterministic all-or-nothing fixture state for routes.
+          const keys = new Set<string>();
+          for (const { ref } of creates) {
+            const key = docKey(ref.__collection, ref.id);
+            if (keys.has(key) || state.docs.has(key)) {
+              throw Object.assign(new Error("already exists"), { code: "already-exists" });
+            }
+            keys.add(key);
+          }
+          for (const { ref, payload } of creates) state.docs.set(docKey(ref.__collection, ref.id), clone(payload));
+          return [];
+        },
+      };
+      return batch;
+    },
     runTransaction: async <T>(
       updateFn: (tx: {
         get: (ref: MockDocRef) => Promise<{
