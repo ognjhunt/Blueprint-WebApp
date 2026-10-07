@@ -811,54 +811,67 @@ async function resumeStoredCapture(payload: NonNullable<ReturnType<typeof verify
 
 async function respondCaptureUploadStatus(req: Request, res: Response, recoverLegacy: boolean) {
   res.setHeader("Cache-Control", "no-store");
-  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
-  if (!payload) {
-    return res.status(404).json({ error: "This upload link is not valid or has expired." });
-  }
-
-  const authorization = await authorizeCaptureUpload(payload.requestId);
-  // Existing app/legacy consumers still recover through their status polling
-  // contract. Modern browser receipts use the explicit retry route below.
-  if (recoverLegacy) {
-    try {
-      if (await legacyStatusRecoveryAllowed(payload, authorization.allowed)) await resumeStoredCapture(payload);
-    } catch (error) {
-      logger.warn({ error, captureId: payload.captureId }, "Legacy capture status recovery remains held");
+  try {
+    const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+    if (!payload) {
+      return res.status(404).json({ error: "This upload link is not valid or has expired." });
     }
-  }
-  // A returning browser operator should reach the task questions after an
-  // upload, even while the privacy review is holding scene processing.
-  const uploadStatus = await describeBrowserUpload(payload, authorization.allowed);
 
-  // What the Blueprint app needs to record a bundle for this link: the
-  // server-issued ids, the rights binding, and whether something is already
-  // stored. Additive; the browser page ignores it. Absent when storage cannot be
-  // read, which the app treats as "try again", never as "nothing stored".
-  let bundle: Awaited<ReturnType<typeof describeBundleLink>> | null = null;
-  const bundleStorage = resolveBundleStorage();
-  if (bundleStorage) {
-    try {
-      bundle = await describeBundleLink(payload, bundleServiceDeps(bundleStorage));
-    } catch (error) {
-      logger.warn({ error, captureId: payload.captureId }, "Could not describe the app bundle state for a link");
+    const authorization = await authorizeCaptureUpload(payload.requestId);
+    // Existing app/legacy consumers still recover through their status polling
+    // contract. Modern browser receipts use the explicit retry route below.
+    if (recoverLegacy) {
+      try {
+        if (await legacyStatusRecoveryAllowed(payload, authorization.allowed)) await resumeStoredCapture(payload);
+      } catch (error) {
+        logger.warn({ error, captureId: payload.captureId }, "Legacy capture status recovery remains held");
+      }
     }
-  }
+    // A returning browser operator should reach the task questions after an
+    // upload, even while the privacy review is holding scene processing.
+    const uploadStatus = await describeBrowserUpload(payload, authorization.allowed);
 
-  return res.json({
-    ok: true,
-    captureId: payload.captureId,
-    expiresAt: new Date(payload.exp * 1000).toISOString(),
-    accepts: [...ALLOWED_EXTENSIONS],
-    ...(bundle ? { bundle } : {}),
-    state: authorization.allowed && !uploadStatus.processingHold ? "ready" : "held",
-    ...uploadStatus,
-    holdReason: authorization.holdReason ?? uploadStatus.processingHold?.code ?? null,
-    detail: authorization.detail ?? uploadStatus.processingHold?.detail ?? null,
-    blockers: authorization.blockers,
-    openQuestions: authorization.openQuestions,
-    selfCaptureSwitchAvailable: authorization.captureMode === "site_visit" && payload.scope === "owner",
-    recordingConsentAvailable: payload.scope === "owner" && authorization.recordingConsentAvailable === true,
-  });
+    // What the Blueprint app needs to record a bundle for this link: the
+    // server-issued ids, the rights binding, and whether something is already
+    // stored. Additive; the browser page ignores it. Absent when storage cannot be
+    // read, which the app treats as "try again", never as "nothing stored".
+    let bundle: Awaited<ReturnType<typeof describeBundleLink>> | null = null;
+    const bundleStorage = resolveBundleStorage();
+    if (bundleStorage) {
+      try {
+        bundle = await describeBundleLink(payload, bundleServiceDeps(bundleStorage));
+      } catch (error) {
+        logger.warn({ error, captureId: payload.captureId }, "Could not describe the app bundle state for a link");
+      }
+    }
+
+    return res.json({
+      ok: true,
+      captureId: payload.captureId,
+      expiresAt: new Date(payload.exp * 1000).toISOString(),
+      accepts: [...ALLOWED_EXTENSIONS],
+      ...(bundle ? { bundle } : {}),
+      state: authorization.allowed && !uploadStatus.processingHold ? "ready" : "held",
+      ...uploadStatus,
+      holdReason: authorization.holdReason ?? uploadStatus.processingHold?.code ?? null,
+      detail: authorization.detail ?? uploadStatus.processingHold?.detail ?? null,
+      blockers: authorization.blockers,
+      openQuestions: authorization.openQuestions,
+      selfCaptureSwitchAvailable: authorization.captureMode === "site_visit" && payload.scope === "owner",
+      recordingConsentAvailable: payload.scope === "owner" && authorization.recordingConsentAvailable === true,
+    });
+  } catch {
+    // Express 4 does not observe a returned promise rejection. Keep unexpected
+    // dependency/configuration failures on the status channel, not as missing
+    // capture evidence or permission to retry processing.
+    logger.warn("Could not read capture upload status");
+    return res.status(503).json({
+      error: "We could not check this upload right now. Keep your original video and try again shortly.",
+      code: "capture_status_unavailable",
+      retryAllowed: true,
+      processingRetryAvailable: false,
+    });
+  }
 }
 
 /** Safe diagnostic/status read even when an old app or browser upload is held. */
