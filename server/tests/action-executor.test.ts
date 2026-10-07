@@ -1,5 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import type {
   ActionPayload,
@@ -124,6 +126,7 @@ import {
   type ExecuteActionParams,
 } from "../agents/action-executor";
 import { OUTBOUND_PROSPECT_POLICY } from "../agents/action-policies";
+import { createPhase2RoutingPolicy, executePhase2WorkflowActions } from "../agents/phase2-workflow";
 import { reviewOutreachDraft } from "../agents/outreach-review";
 import { outreachDraft, passingOutreachChecks } from "./fixtures/outreach-review";
 
@@ -212,6 +215,68 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
   docIdCounter.value = 0;
+});
+
+describe("retained qualification's indexed status follow-through", () => {
+  const requestId = "synthetic-retained-qualification";
+  const savedOutput = { qualification_state_recommendation: "needs_more_evidence",
+    opportunity_state_recommendation: "not_applicable", confidence: 0.86,
+    requires_human_review: false, automation_status: "completed" };
+  const params = {
+    docRef: { set: mockDocSet } as any,
+    sourceCollection: "inboundRequests", sourceDocId: requestId, lane: "inbound" as const,
+    draftOutput: savedOutput, existingOpsAutomation: { status: "completed", model: "retained-model" },
+    actions: [{ actionKey: "inbound_status_update", actionType: "update_firestore_status" as const,
+      actionPayload: { type: "update_firestore_status" as const, collection: "inboundRequests",
+        docId: requestId, updates: { qualification_state: "needs_more_evidence", status: "needs_more_evidence" } },
+      policy: createPhase2RoutingPolicy("inbound") }],
+  };
+
+  function indexedDailyCount(size: number) {
+    return async (filters: unknown[][]) => {
+      expect(filters).toEqual([
+        ["lane", "==", "inbound_internal_routing"],
+        ["status", "in", ["sent", "auto_approved", "executing"]],
+        ["created_at", ">=", expect.any(Date)],
+      ]);
+      const config = JSON.parse(readFileSync(join(__dirname, "..", "..", "firebase.json"), "utf8"));
+      const manifest = JSON.parse(readFileSync(join(__dirname, "..", "..", config.firestore.indexes), "utf8"));
+      const fields = filters.map(([fieldPath]) => ({ fieldPath, order: "ASCENDING" }));
+      if (!manifest.indexes.some((index: any) => index.collectionGroup === "action_ledger"
+        && index.queryScope === "COLLECTION" && JSON.stringify(index.fields) === JSON.stringify(fields))) {
+        throw Object.assign(new Error("The query requires an index"), { code: 9 });
+      }
+      return { size };
+    };
+  }
+
+  it("resumes only the retained result's action and keeps replay idempotent", async () => {
+    mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] })
+      .mockImplementationOnce(indexedDailyCount(0));
+    const first = await executePhase2WorkflowActions(params);
+    expect(first.lastState).toBe("sent");
+    expect(mockDocUpdate).toHaveBeenCalledWith(expect.objectContaining({ qualification_state: "needs_more_evidence", status: "needs_more_evidence" }));
+    const updatesBeforeReplay = mockDocUpdate.mock.calls.length;
+    mockQueryGet.mockResolvedValueOnce({ empty: false, docs: [{ id: first.records[0].ledger_doc_id,
+      data: () => ({ status: "sent", action_tier: 1 }) }] });
+    const replay = await executePhase2WorkflowActions(params);
+    expect(replay.lastResult?.autoApproveReason).toBe("already_sent");
+    expect(replay.records[0].idempotency_key).toBe(first.records[0].idempotency_key);
+    expect(mockDocUpdate.mock.calls.length).toBe(updatesBeforeReplay);
+    expect(mockQueryGet).toHaveBeenCalledTimes(3);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockSendSlackMessage).not.toHaveBeenCalled();
+  });
+
+  it("preserves the daily cap after the index permits the count", async () => {
+    mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] })
+      .mockImplementationOnce(indexedDailyCount(1_000));
+    const result = await executePhase2WorkflowActions(params);
+    expect(result.lastState).toBe("pending_approval");
+    expect(mockDocUpdate).not.toHaveBeenCalled();
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockSendSlackMessage).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
