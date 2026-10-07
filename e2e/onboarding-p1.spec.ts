@@ -229,9 +229,8 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: descr
   await form.locator("#start-company").fill("Acme Foods");
   await form.locator("#start-description-authority").check();
   await expect(form.locator("#start-rights")).not.toBeChecked();
-  // A typed address has no country yet: the first Start asks for it.
-  await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  await form.locator("#start-region").selectOption("us");
+  await expect(form.getByText(/Country: United States\./)).toBeVisible();
+  await expect(form.locator("#start-region")).toHaveCount(0);
   await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
