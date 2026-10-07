@@ -2,7 +2,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
-import { runWireScenario } from './fixtures/action-ledger-index-list-wire.mjs';
 import { runIndexOperation, PARENT, FIELDS, verifyManifest, tokenBoundClient, main } from './action-ledger-index-operator.mjs';
 
 const name = `${PARENT}/indexes/synthetic`;
@@ -84,9 +83,17 @@ describe('fixed action-ledger index operator', () => {
     expect(c.createIndex).not.toHaveBeenCalled();
   });
   it.each(['ready', 'absent', 'pagination', 'oversized', 'create-denied'])('uses the real installed SDK default-page wire contract: %s', async scenario => {
+    const require = createRequire(import.meta.url), sdkRequire = createRequire(require.resolve('@google-cloud/firestore'));
+    // The whole test suite may have loaded GAX before this fixture.
+    sdkRequire('google-gax/build/src/fallbackServiceStub');
+    const fetchPath = sdkRequire.resolve('node-fetch'), fetchExport = require(fetchPath), originalDefault = fetchExport.default;
+    const originalExport = require.cache[fetchPath].exports;
+    const { runWireScenario } = await import('./fixtures/action-ledger-index-list-wire.mjs');
     const receipt = await runWireScenario(scenario);
     expect(receipt.scenario).toBe(scenario);
     expect(receipt.calls.filter(call => call.path.endsWith('/indexes')).every(call => call.pageSize === null)).toBe(true);
+    expect(require.cache[fetchPath].exports).toBe(originalExport);
+    expect(fetchExport.default).toBe(originalDefault);
   });
   it('refuses pagination loops without creating', async () => {
     const c = fake(); c.listIndexes.mockResolvedValue([[], { pageToken: 'same' }, { nextPageToken: 'same' }]);

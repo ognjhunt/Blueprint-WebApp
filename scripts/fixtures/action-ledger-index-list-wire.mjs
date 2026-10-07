@@ -6,10 +6,9 @@ import { pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
 const sdkRequire = createRequire(require.resolve('@google-cloud/firestore'));
 const fetchPath = sdkRequire.resolve('node-fetch');
-require(fetchPath);
+const fetchExport = require(fetchPath);
 let transport = () => { throw Error('network_escape_refused'); };
-const dispatch = (...args) => transport(...args); dispatch.default = dispatch;
-require.cache[fetchPath].exports = dispatch;
+const dispatch = (...args) => transport(...args);
 export async function runWireScenario(scenario) {
 const source = process.env.BLUEPRINT_TEST_OPERATOR_SOURCE
   ? pathToFileURL(process.env.BLUEPRINT_TEST_OPERATOR_SOURCE) : new URL('../action-ledger-index-operator.mjs', import.meta.url);
@@ -43,12 +42,23 @@ const intercept = async (url, options) => {
 transport = intercept;
 const http = require('node:http'), https = require('node:https');
 const originalHttp = http.request, originalHttps = https.request, originalFetch = globalThis.fetch;
+const originalExport = require.cache[fetchPath].exports, originalDefault = fetchExport.default;
+// Cached GAX retains the export object, then reads .default for each fresh
+// service stub. Preserve that object's identity for cold and preloaded SDKs.
+fetchExport.default = dispatch; require.cache[fetchPath].exports = fetchExport;
 http.request = https.request = globalThis.fetch = () => { throw Error('network_escape_refused'); };
-const { client } = tokenBoundClient(require, { access_token: 'synthetic-access-token', expires_in: 3600 });
-const events = []; let result, error;
-try { result = await runIndexOperation({ client, mode: scenario === 'create-denied' ? 'ensure' : 'inspect', record: event => events.push(event), wait: async () => {}, maxObservations: 1 }); }
+const events = []; let client, result, error;
+try {
+  ({ client } = tokenBoundClient(require, { access_token: 'synthetic-access-token', expires_in: 3600 }));
+  result = await runIndexOperation({ client, mode: scenario === 'create-denied' ? 'ensure' : 'inspect', record: event => events.push(event), wait: async () => {}, maxObservations: 1 });
+}
 catch (caught) { error = { code: caught.message, stage: caught.stage ?? null, apiCode: caught.apiCode ?? null }; }
-finally { await client.close(); http.request = originalHttp; https.request = originalHttps; globalThis.fetch = originalFetch; }
+finally {
+  try { if (client) await client.close(); }
+  finally { fetchExport.default = originalDefault; require.cache[fetchPath].exports = originalExport;
+    transport = () => { throw Error('network_escape_refused'); };
+    http.request = originalHttp; https.request = originalHttps; globalThis.fetch = originalFetch; }
+}
 const posts = calls.filter(call => call.method === 'POST').length;
 assert.equal(posts, scenario === 'create-denied' ? 1 : 0);
 if (scenario === 'oversized') { assert.equal(error?.code, 'index_inventory_limit'); assert(!events.some(event => event.event === 'inventory-complete')); }
