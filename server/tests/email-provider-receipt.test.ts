@@ -19,6 +19,29 @@ afterEach(() => {
 });
 
 describe("email provider receipts", () => {
+  it.each([
+    ["network rejection", "throw", "unknown"],
+    ["accepted but invalid JSON", "invalid", "unknown"],
+    ["accepted without ID", "missing", "unknown"],
+    ["untyped rejection", "untyped", "unknown"],
+    ["server failure", 500, "unknown"],
+    ["timeout", 408, "unknown"],
+    ["rate limit", 429, "not_sent"],
+    ["validation rejection", 422, "not_sent"],
+  ])("classifies %s using the installed SDK", async (_name, mode, outcome) => {
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.RESEND_FROM_EMAIL = "noreply@tryblueprint.io";
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      if (mode === "throw") throw new Error("accepted then connection lost");
+      return new Response(mode === "invalid" ? "not json" : JSON.stringify(
+        mode === "missing" ? {} : mode === "untyped" ? { message: "rejected" }
+          : { message: "rejected", name: "application_error", statusCode: mode }),
+      { status: typeof mode === "number" ? mode : mode === "untyped" ? 400 : 200 });
+    }));
+    const { sendEmail } = await import("../utils/email");
+    expect(await sendEmail({ to: "team@example.com", subject: "s", text: "b" }))
+      .toMatchObject({ sent: false, provider: "resend", messageId: null, outcome });
+  });
   it("returns a Resend acceptance ID and passes sender, reply-to, and correlation tags", async () => {
     process.env.RESEND_API_KEY = "re_test_key";
     process.env.RESEND_FROM_EMAIL = "noreply@tryblueprint.io";

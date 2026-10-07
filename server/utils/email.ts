@@ -22,6 +22,8 @@ export type SendEmailResult = {
   provider: "resend" | null;
   messageId: string | null;
   error?: unknown;
+  /** Absent on legacy callers; unknown never authorizes an automatic retry. */
+  outcome?: "not_sent" | "unknown";
 };
 
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -256,7 +258,15 @@ async function sendViaResend({
       tags: resendTags(sendGridCategories, sendGridCustomArgs),
     });
     if (error || !data?.id) {
-      throw new Error(`Resend rejected email: ${error?.message || "missing email ID"}`);
+      // The SDK converts transport exceptions to error objects with a null
+      // statusCode. Only an explicit 4xx rejection proves non-acceptance;
+      // 5xx, an unreadable response, and missing receipts remain ambiguous.
+      const status = error?.statusCode;
+      const rejected = typeof status === "number" && status >= 400 && status < 500
+        && status !== 408;
+      return { sent: false, provider: "resend", messageId: null,
+        error: new Error(`Resend rejected email: ${error?.message || "missing email ID"}`),
+        outcome: rejected ? "not_sent" : "unknown" };
     }
 
     logger.info(
@@ -298,7 +308,7 @@ async function sendViaResend({
       },
       "Failed to send email via Resend",
     );
-    return { sent: false, provider: "resend", messageId: null, error };
+    return { sent: false, provider: "resend", messageId: null, error, outcome: "unknown" };
   }
 }
 
