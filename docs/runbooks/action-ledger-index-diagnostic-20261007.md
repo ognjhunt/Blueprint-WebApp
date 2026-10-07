@@ -67,6 +67,30 @@ the live error supports removing the override. Its generated
 Use the corrected read-only result for subsequent decisions. Do not guess IAM, retry
 an unknown create or blindly modify parameters.
 
+## Read-only resource-shape diagnosis
+
+The corrected live inspect reached inventory but stopped at
+`index_inventory_scope_invalid`, without absence/READY or an index write. The
+actual resource-name shape has not yet been observed. Do not weaken that guard
+or guess another name format. Use the reviewed diagnostic's separately selected
+mode in the same existing worker Shell:
+
+```bash
+node <verified-diagnostic-path> <verified-corrected-operator-path> diagnose-scope
+```
+
+It makes one fixed-parent SDK ListIndexes GET, default page size, no automatic
+pagination/retry and a10-second timeout. It rejects invalid/over100-row pages.
+It reports at most20distinct shape categories: value types, bounded lengths,
+structural segment count, booleans for expected project/database/collection,
+suffix validity and disallowed character classes, plus recognized queryScope
+enums. It never prints resource IDs, foreign project/collection names, field
+definitions, arbitrary SDK keys, page tokens or document/customer contents.
+Additional shape rows are counted as omitted. Any next page remains unread;
+this is diagnostic evidence and never full inventory, absence or READY proof.
+There is no direct-REST fallback in this mode, even on API failure. The operator
+resource guard and source bytes are unchanged.
+
 ## Explicit company-evidence archival
 
 Archival is a separately selected, specifically requested evidence write.
@@ -77,11 +101,23 @@ retention, credentials, permissions, data or indexes.
 ```bash
 node <verified-diagnostic-path> <verified-original-operator-path> archive-original
 node <verified-diagnostic-path> <verified-original-operator-path> archive-diagnostic <printed-diagnostic-receipt-path> <printed-sha256>
+node <verified-diagnostic-path> <verified-corrected-operator-path> archive-operator <original-operator-receipt-path> <printed-sha256>
 ```
 
 `archive-original` is bound to the exact path/hash above. `archive-diagnostic`
 accepts only the diagnostic's private receipt-path pattern and the exact printed
 SHA-256. Both verify receipt schema/digest and cap bytes at 64 KiB before upload.
+`archive-operator` supports the original operator receipt location directly,
+`/tmp/blueprint-action-ledger-index-<private-id>/receipts.jsonl`. Do not relabel,
+move or copy it into the diagnostic namespace. It reads at most64KiB from an
+owner-private regular file in an owner-private directory, rejects symlinks,
+checks the caller's exact digest and exclusively the operator receipt schema,
+and binds the start row to the reviewed corrected operator source, fixed
+project/parent/worker/manifest and that original receipt path. Unknown row keys,
+mixed schemas and a second start row are refused. Source validation happens
+before token acquisition/upload. Interrupted journals remain valid evidence;
+archival does not infer completion or READY. No arbitrary path is accepted.
+The existing archive-original and archive-diagnostic modes retain their scope.
 Using the same existing Admin token, they make one media-upload request to
 `blueprint-8c1ca.appspot.com`, object:
 

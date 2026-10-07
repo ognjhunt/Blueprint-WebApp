@@ -1,7 +1,8 @@
 /** Explicit read-only diagnosis; separately requested immutable receipt archive. */
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { readFileSync, mkdtempSync, openSync, appendFileSync, fsyncSync, closeSync } from 'node:fs';
+import { readFileSync, mkdtempSync, openSync, appendFileSync, fsyncSync, closeSync, lstatSync, fstatSync, readSync, constants } from 'node:fs';
+import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const PROJECT = 'blueprint-8c1ca', WORKER = 'srv-d9t8gg1t0dsc73am9q70';
@@ -10,6 +11,7 @@ const OPERATOR_SHA = '3ba5285df57483a4302cab6435a6a02d9188768952cad666f020d50710
 const OLD_PATH = '/tmp/blueprint-action-ledger-index-g1Gtmj/receipts.jsonl';
 const OLD_SHA = '43debbd20d2e3821e6ce14552aaf775f4b1d43c79e778e3fe7dca0751d652ccd';
 const BUCKET = 'blueprint-8c1ca.appspot.com';
+const MANIFEST_SHA = '91b3fcdc84a63fbd1c63de6d3f9d12f52f1bed0a9ddcde1d33d474f0e75e6647';
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const refuse = code => { throw Error(code); };
 export function redact(value, secrets = []) {
@@ -65,6 +67,76 @@ export async function diagnose({ client, token, record, fetcher = fetch, secrets
   }
   // Deliberately no absence, READY, create or task-continuation conclusion.
 }
+const valueType = value => value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+function indexShape(row) {
+  const name = row?.name, parts = typeof name === 'string' && name.length <= 4096 ? name.split('/') : [];
+  const structured = parts.length === 8 && parts[0] === 'projects' && parts[2] === 'databases' && parts[4] === 'collectionGroups' && parts[6] === 'indexes';
+  const suffix = structured ? parts[7] : '';
+  const disallowed = suffix.replace(/[A-Za-z0-9._~%-]/g, '');
+  const queryScope = { 0: 'QUERY_SCOPE_UNSPECIFIED', 1: 'COLLECTION', 2: 'COLLECTION_GROUP', 3: 'COLLECTION_RECURSIVE' };
+  return {
+    rowType: valueType(row), fieldsType: valueType(row?.fields),
+    queryScope: typeof row?.queryScope === 'number' ? queryScope[row.queryScope] ?? 'unrecognized-number'
+      : typeof row?.queryScope === 'string' && Object.values(queryScope).includes(row.queryScope) ? row.queryScope : `unrecognized-${valueType(row?.queryScope)}`,
+    name: { type: valueType(name), length: typeof name === 'string' ? Math.min(name.length, 4097) : null,
+      structured, segmentCount: Math.min(parts.length, 10), exactParent: typeof name === 'string' && name.startsWith(`${PARENT}/indexes/`),
+      projectMatches: structured ? parts[1] === PROJECT : null, databaseMatches: structured ? parts[3] === '(default)' : null,
+      collectionMatches: structured ? parts[5] === 'action_ledger' : null, suffixLength: structured ? Math.min(suffix.length, 513) : null,
+      suffixAllowed: structured && /^[A-Za-z0-9._~%-]{1,512}$/.test(suffix),
+      suffixCharacterClasses: [disallowed.includes('=') && 'equals', disallowed.includes(':') && 'colon', /\s/.test(disallowed) && 'whitespace',
+        /[\x00-\x1f\x7f]/.test(disallowed) && 'control', /[^=:\s\x00-\x1f\x7f]/.test(disallowed) && 'other'].filter(Boolean) },
+  };
+}
+export async function diagnoseScope({ client, record, secrets = [] }) {
+  record({ event: 'scope-diagnostic-request', parent: PARENT, readOnly: true, pageSizeOverride: false,
+    expectedResource: `${PARENT}/indexes/<opaque-id>`, expectedSuffix: '1..512 characters from A-Z a-z 0-9 . _ ~ % -' });
+  let rows, response;
+  try { [rows, , response] = await client.listIndexes({ parent: PARENT }, { timeout: 10000, retry: null, autoPaginate: false }); }
+  catch (error) { record({ event: 'scope-diagnostic-error', ...safeError(error, secrets) }); return; }
+  if (!Array.isArray(rows) || rows.length > 100) refuse('sdk_page_limit');
+  const shapes = new Map(); let omittedShapeRows = 0;
+  for (const row of rows) {
+    const shape = indexShape(row), key = JSON.stringify(shape);
+    if (shapes.has(key)) shapes.get(key).count++;
+    else if (shapes.size < 20) shapes.set(key, { shape, count: 1 });
+    else omittedShapeRows++;
+  }
+  record({ event: 'scope-diagnostic-result', firstPageCount: rows.length, furtherPages: Boolean(response?.nextPageToken),
+    shapes: [...shapes.values()], omittedShapeRows, completeInventory: false, indexReadyProven: false });
+}
+export function loadOperatorReceipt(source, expectedSha) {
+  if (!/^\/tmp\/blueprint-action-ledger-index-[A-Za-z0-9]+\/receipts\.jsonl$/.test(source ?? '')) refuse('archive_source_path_invalid');
+  if (!/^[a-f0-9]{64}$/.test(expectedSha ?? '')) refuse('archive_source_digest_invalid');
+  let fd, bytes;
+  try {
+    const directory = lstatSync(dirname(source)), uid = process.getuid();
+    if (!directory.isDirectory() || directory.isSymbolicLink() || directory.uid !== uid || (directory.mode & 0o777) !== 0o700) refuse('archive_source_file_invalid');
+    fd = openSync(source, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const file = fstatSync(fd);
+    if (!file.isFile() || file.uid !== uid || (file.mode & 0o777) !== 0o600 || file.size < 1 || file.size > 65536) refuse('archive_source_file_invalid');
+    const buffer = Buffer.alloc(file.size + 1); let length = 0, read;
+    while (length < buffer.length && (read = readSync(fd, buffer, length, buffer.length - length, length))) length += read;
+    if (length !== file.size || fstatSync(fd).size !== file.size) refuse('archive_source_file_invalid');
+    bytes = buffer.subarray(0, length);
+  } catch { refuse('archive_source_file_invalid'); } finally { if (fd !== undefined) closeSync(fd); }
+  if (sha(bytes) !== expectedSha) refuse('archive_source_digest_invalid');
+  let rows;
+  try { rows = new TextDecoder('utf-8', { fatal: true }).decode(bytes).trim().split('\n').map(line => JSON.parse(line)); }
+  catch { refuse('archive_operator_schema_invalid'); }
+  const start = rows[0];
+  if (start?.schema !== 'blueprint.action_ledger_index_operator_receipt.v1' || start.event !== 'start'
+    || !['inspect', 'ensure'].includes(start.mode) || start.readOnly !== (start.mode === 'inspect') || start.project !== PROJECT || start.parent !== PARENT
+    || start.renderServiceId !== WORKER || !/^[a-f0-9]{40}$/.test(start.deploymentCommit ?? '') || start.scriptSha256 !== OPERATOR_SHA
+    || start.manifestSha256 !== MANIFEST_SHA || start.receiptPath !== source) refuse('archive_operator_binding_invalid');
+  const keys = ['schema', 'observedAtMs', 'event', 'mode', 'readOnly', 'project', 'parent', 'renderServiceId', 'deploymentCommit', 'scriptSha256', 'manifestSha256', 'receiptPath',
+    'count', 'pages', 'targetCount', 'queryScope', 'fields', 'retryAllowed', 'operationName', 'done', 'errorCode', 'indexName', 'state', 'ready', 'acknowledgement', 'code', 'stage', 'permission', 'apiCode'];
+  const events = ['start', 'inventory-complete', 'create-intent', 'create-acknowledged', 'create-acknowledgement-unknown', 'create-already-exists', 'operation-observed', 'index-observed', 'result', 'stopped'];
+  if (rows.length > 128 || rows.some((row, i) => !row || Array.isArray(row) || row.schema !== 'blueprint.action_ledger_index_operator_receipt.v1'
+    || !Number.isSafeInteger(row.observedAtMs) || row.observedAtMs < 1 || !events.includes(row.event) || (i > 0 && row.event === 'start')
+    || Object.keys(row).some(key => !keys.includes(key)))) refuse('archive_operator_schema_invalid');
+  // Interrupted journals remain evidence; no terminal/READY claim is required.
+  return bytes;
+}
 export async function archiveReceipt({ bytes, expectedSha, token, fetcher = fetch, record }) {
   if (bytes.length > 65536 || !/^[a-f0-9]{64}$/.test(expectedSha) || sha(bytes) !== expectedSha) refuse('archive_source_digest_invalid');
   const rows = bytes.toString('utf8').trim().split('\n').map(line => JSON.parse(line));
@@ -88,12 +160,14 @@ export async function archiveReceipt({ bytes, expectedSha, token, fetcher = fetc
   record({ event: 'archive-verified', uri: `gs://${BUCKET}/${object}`, generation: row.generation, sha256: expectedSha, bytes: bytes.length });
 }
 export async function main(args = process.argv.slice(2), env = process.env) {
-  const [operatorPath, mode = 'diagnose', diagnosticPath, expectedSha] = args;
-  if (!operatorPath?.startsWith('/tmp/') || !operatorPath.endsWith('.mjs') || !['diagnose', 'archive-original', 'archive-diagnostic'].includes(mode)
-    || (mode === 'archive-diagnostic' ? args.length !== 4 : args.length > 2)) refuse('diagnostic_scope_invalid');
+  const [operatorPath, mode = 'diagnose', receiptPath, expectedSha] = args;
+  if (!operatorPath?.startsWith('/tmp/') || !operatorPath.endsWith('.mjs') || !['diagnose', 'diagnose-scope', 'archive-original', 'archive-diagnostic', 'archive-operator'].includes(mode)
+    || (['archive-diagnostic', 'archive-operator'].includes(mode) ? args.length !== 4 : args.length > 2)) refuse('diagnostic_scope_invalid');
   if (sha(readFileSync(operatorPath)) !== OPERATOR_SHA) refuse('original_operator_digest_invalid');
   const operator = await import(pathToFileURL(operatorPath).href);
   operator.verifyManifest(readFileSync('firestore.indexes.json'));
+  // Reject unsupported operator input before token acquisition or storage calls.
+  const operatorReceipt = mode === 'archive-operator' ? loadOperatorReceipt(receiptPath, expectedSha) : null;
   if (env.RENDER_SERVICE_ID !== WORKER || !/^[a-f0-9]{40}$/.test(env.RENDER_GIT_COMMIT ?? '') || env.FIRESTORE_EMULATOR_HOST) refuse('existing_worker_binding_unavailable');
   let account; try { account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON ?? '{}'); } catch { refuse('existing_firebase_binding_unavailable'); }
   if (account?.project_id !== PROJECT || account.type !== 'service_account' || !account.private_key || typeof account.client_email !== 'string' || !account.client_email.endsWith('.iam.gserviceaccount.com')) refuse('existing_firebase_binding_unavailable');
@@ -105,15 +179,17 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     const require = createRequire(`${process.cwd()}/package.json`), admin = require('firebase-admin');
     const token = await admin.credential.cert(account).getAccessToken();
     record({ event: 'start', mode, deploymentCommit: env.RENDER_GIT_COMMIT, sourceSha256: sha(readFileSync(new URL(import.meta.url))), originalOperatorSha256: OPERATOR_SHA, originalInspectReceiptSha256: OLD_SHA, sdkVersion: require('@google-cloud/firestore/package.json').version, firebaseAdminVersion: admin.SDK_VERSION, receiptPath: path });
-    if (mode === 'diagnose') {
+    if (mode === 'diagnose' || mode === 'diagnose-scope') {
       ({ client } = operator.tokenBoundClient(require, token));
-      await diagnose({ client, token: token.access_token, record, secrets: [token.access_token, account.private_key, account.client_email, ...account.private_key.split('\n').filter(x => x.length > 20)] });
+      const secrets = [token.access_token, account.private_key, account.client_email, ...account.private_key.split('\n').filter(x => x.length > 20)];
+      if (mode === 'diagnose-scope') await diagnoseScope({ client, record, secrets });
+      else await diagnose({ client, token: token.access_token, record, secrets });
     } else {
-      const source = mode === 'archive-original' ? OLD_PATH : diagnosticPath;
+      const source = mode === 'archive-original' ? OLD_PATH : receiptPath;
       if (mode === 'archive-diagnostic' && !/^\/tmp\/blueprint-action-ledger-index-diagnostic-[A-Za-z0-9]+\/receipts\.jsonl$/.test(source ?? '')) refuse('archive_source_path_invalid');
-      await archiveReceipt({ bytes: readFileSync(source), expectedSha: mode === 'archive-original' ? OLD_SHA : expectedSha, token: token.access_token, record });
+      await archiveReceipt({ bytes: operatorReceipt ?? readFileSync(source), expectedSha: mode === 'archive-original' ? OLD_SHA : expectedSha, token: token.access_token, record });
     }
-    console.log(JSON.stringify({ completed: true, mode, readOnly: mode === 'diagnose', indexMutation: false, indexReadyProven: false, receiptPath: path, receiptSha256: sha(readFileSync(path)) }));
+    console.log(JSON.stringify({ completed: true, mode, readOnly: mode === 'diagnose' || mode === 'diagnose-scope', indexMutation: false, indexReadyProven: false, receiptPath: path, receiptSha256: sha(readFileSync(path)) }));
   } catch (error) {
     record({ event: 'stopped', code: /^[a-z_]+$/.test(error.message) ? error.message : 'diagnostic_unavailable' }); process.exitCode = 2;
     console.log(JSON.stringify({ completed: false, indexMutation: false, receiptPath: path, receiptSha256: sha(readFileSync(path)) }));
