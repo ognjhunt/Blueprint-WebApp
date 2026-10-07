@@ -380,10 +380,10 @@ export function PilotPreview() {
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
-    if (paused || pinned || held) return;
+    if (paused || pinned || held || !inView) return;
     const id = window.setTimeout(() => setActive(i => (i + 1) % examples.length), LOOP * 1000);
     return () => window.clearTimeout(id);
-  }, [active, paused, pinned, held]);
+  }, [active, paused, pinned, held, inView]);
 
   const example = examples[active];
   const t = useSceneClock(!paused && inView, example.site);
