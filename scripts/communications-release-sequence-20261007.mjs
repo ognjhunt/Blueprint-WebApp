@@ -49,6 +49,12 @@ export function predecessorGuard(db, expected) {
   };
 }
 
+export async function retainOwnedIntent(assertLease, retainIntent) {
+  await retainIntent();
+  // Storage waits must not admit an external mutation after ownership was lost.
+  await assertLease();
+}
+
 export async function continuousRelease(steps) {
   await steps.preflight();
   const released = await steps.releaseIncident();
@@ -208,13 +214,13 @@ async function main() {
         // Enable only for this one exact dispatch; restore the existing hold
         // immediately. Parent's writer freeze covers this short dispatch window.
         journal('workflow-restoration-intent', { target, workflow: WORKFLOW, restore: 'disabled_manually' });
-        await retain(['acquire-intent', 'workflow-restoration-intent']);
+        await retainOwnedIntent(assertLease, () => retain(['acquire-intent', 'workflow-restoration-intent']));
         workflowEnabled = true;
         await gh(['workflow', 'enable', WORKFLOW, '--repo', REPO]);
         try {
           await assertLease();
           journal('dispatch-intent', { target, token: owner, atMs: Date.now(), retryAuthorized: false });
-          await retain(['dispatch-intent']);
+          await retainOwnedIntent(assertLease, () => retain(['dispatch-intent']));
           try {
             await gh(['workflow', 'run', WORKFLOW, '--repo', REPO, '--ref', 'main',
               '-f', `ref=${target}`, '-f', 'clear_cache=false', '-f', 'release_hold=true', '-f', `release_token=${owner}`]);

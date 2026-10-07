@@ -6,7 +6,7 @@ import { runInNewContext } from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { sha, CONTROL, LAP } from './communications-incident-20261006.mjs';
-import { boundProof, continuousRelease, packagedLease, predecessorGuard } from './communications-release-sequence-20261007.mjs';
+import { boundProof, continuousRelease, packagedLease, predecessorGuard, retainOwnedIntent } from './communications-release-sequence-20261007.mjs';
 
 let directory: string, Store: any, LeaseChannel: any;
 beforeAll(async () => {
@@ -140,6 +140,20 @@ describe('real packaged canonical release lease consumer', () => {
     expect(f.writes).toHaveLength(1);
     expect(f.docs[CONTROL].lease.expires_at_ms).toBeGreaterThan(0);
     expect(f.status()).toMatchObject({ failed: 1, released: false, heartbeat: null });
+  });
+
+  it('admits zero dispatches when intent retention loses lease ownership', async () => {
+    const f = fixture(); let dispatches = 0;
+    f.steps.deploy = async (assert: any) => {
+      await retainOwnedIntent(assert, async () => {
+        f.docs[CONTROL].lease = { owner: 'research-release:successor', generation: 6698, expires_at_ms: 0 };
+      });
+      dispatches++;
+      return { id: 123 };
+    };
+    await expect(continuousRelease(f.steps)).rejects.toThrow('firestore_lease_lost');
+    expect(dispatches).toBe(0);
+    expect(f.docs[CONTROL].lease.owner).toBe('research-release:successor');
   });
 
   it('never calls normal acquisition when exact incident release was refused', async () => {
