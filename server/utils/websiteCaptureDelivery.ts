@@ -1,6 +1,7 @@
 /** Immutable server-side proof of one browser upload's completed Storage writes. */
 import { createHash } from "node:crypto";
 import { crossRuntimeCanonicalJson, crossRuntimeDigest } from "./crossRuntimeCanonical";
+import { strictBoundedProofJson } from "./strictBoundedProofJson";
 
 const generationPattern = /^[1-9][0-9]{0,19}$/;
 const shaPattern = /^sha256:[a-f0-9]{64}$/;
@@ -125,7 +126,7 @@ function orderedWriteIdentity(value: WrittenObject): WrittenObject {
 export function matchesBrowserDeliveryRecord(bytes: Buffer, expected: BrowserDeliveryRecord): boolean {
   if (bytes.length < 1 || bytes.length > 65_536) return false;
   try {
-    return crossRuntimeCanonicalJson(JSON.parse(bytes.toString("utf8"))) === crossRuntimeCanonicalJson(expected);
+    return crossRuntimeCanonicalJson(strictBoundedProofJson(bytes, 65_536)) === crossRuntimeCanonicalJson(expected);
   } catch { return false; }
 }
 

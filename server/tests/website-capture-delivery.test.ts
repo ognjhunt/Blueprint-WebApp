@@ -204,6 +204,13 @@ describe("original browser capture delivery", () => {
       expect(matchesBrowserDeliveryRecord(bytes, result.record)).toBe(false);
   });
 
+  it("refuses duplicate decoded keys in a retained receipt even when JSON.parse would select matching values", () => {
+    const result = buildBrowserDelivery(deliveryFixture.input);
+    const duplicate = Buffer.from(result.recordBytes.toString("utf8").replace(
+      '"request_id":"r1",', '"request_id":"r1","request\\u005fid":"r1",'));
+    expect(matchesBrowserDeliveryRecord(duplicate, result.record)).toBe(false);
+  });
+
   it("refuses a V1 marker when V2 has replaced the canonical video before privacy resume", async () => {
     const result = buildBrowserDelivery({
       requestId: "r1", sceneId: "site-r1", captureId: "walkthrough-r1",

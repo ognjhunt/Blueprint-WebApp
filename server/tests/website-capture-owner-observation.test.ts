@@ -53,6 +53,21 @@ function fixture() {
 }
 
 describe("authoritative original website capture owner read", () => {
+  it("verifies historical reordered receipt maps and retains the actual pinned bytes and digest", async () => {
+    const { deps, objects } = fixture();
+    const reordered = { ...delivery.record,
+      raw_video: Object.fromEntries(Object.entries(delivery.record.raw_video).reverse()),
+      manifest: Object.fromEntries(Object.entries(delivery.record.manifest).reverse()) };
+    const bytes = Buffer.from(JSON.stringify(reordered, null, 2));
+    objects.set(`${delivery.objectName}@101`, object(delivery.objectName, "101", bytes));
+    const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
+    expect(observed.producer_delivery.server_record).toEqual({ object_name: delivery.objectName,
+      generation: "101", size_bytes: bytes.length, sha256: sha(bytes) });
+    expect(observed.producer_delivery.raw_video.generation).toBe(video.generation);
+    expect(objects.get(`${delivery.objectName}@101`)!.bytes).toEqual(bytes);
+  });
+
   it("binds original marker and producer identities in the existing Pipeline source digest", async () => {
     const { deps } = fixture();
     const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
