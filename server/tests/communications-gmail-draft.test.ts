@@ -8,20 +8,21 @@ vi.mock("../agents/communications-oauth-store", () => ({ requireFounderDraftCapa
 vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () => ({ bucketName: "blueprint-8c1ca.appspot.com",
  info: async () => ({ generation: copyStorage.generation, size: Buffer.byteLength(copyStorage.raw) }), readText: async () => copyStorage.raw }) }));
 import { communicationsFixture, communicationsNow, memoryFirestore, syntheticQualification } from "./fixtures/communications";
-import { launchHypothesisDraft } from "./fixtures/hypothesis";
+import { launchHypothesisDraft, archivedLaunchHypothesisDraft } from "./fixtures/hypothesis";
+import { founderOutreachFixture } from "./fixtures/founder-outreach";
 import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
 import { communicationsDeliveryKey, communicationsDigest } from "../agents/communications-contract";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, runCommunicationsGmailDraftCopies, type GmailDraftPorts } from "../agents/communications-gmail-draft";
 beforeEach(()=>{vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE","Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");capability.mockReset().mockResolvedValue(undefined);});
 afterEach(()=>vi.unstubAllEnvs());
-function fixture(launch = false) {
+function fixture(launch: boolean | "historical" = false) {
  const {job,brief,handoff}=communicationsFixture();
  let { output } = communicationsFixture();
  if (launch) {
   brief.qualification = syntheticQualification();
   brief.contact.recipient = { kind: "inbox", addressee: "the packing team", person: null };
-  output = launchHypothesisDraft(brief);
+  output = launch === "historical" ? archivedLaunchHypothesisDraft(brief) : launchHypothesisDraft(brief);
   job.briefDigest = communicationsDigest(brief);
   const { jobId: _, ...identity } = job;
   job.jobId = communicationsDigest(identity); handoff.briefDigest = job.briefDigest;
@@ -44,9 +45,9 @@ function fixture(launch = false) {
  return{db,job,brief,ledgerId,input,ports,payload,root,receipt,setCopied:(v:any)=>{copied=v;}};
 }
 describe("separate retained recurring Gmail copy direction",()=>{
- it("copies a launch-framed hypothesis only through the exact founder draft scope, with no approval or send", async () => {
-  const f = fixture(true);
-  expect(f.payload.outreachContract?.version).toBe("blueprint.outreach.v3");
+ it.each([true, "historical"] as const)("copies a launch-framed hypothesis (%s) only through the exact founder draft scope, with no approval or send", async launch => {
+  const f = fixture(launch);
+  expect(f.payload.outreachContract?.version).toBe(launch === "historical" ? "blueprint.outreach.v3" : "blueprint.outreach.v4");
   expect(reviewCommunicationsPayload(f.payload, communicationsNow).hardChecksPassed).toBe(true);
   expect(await mirrorCommunicationsGmailDraft(f.db, f.ledgerId, "authenticated-founder", f.input, f.ports, communicationsNow))
    .toMatchObject({ state: "verified", sent: false, approved: false });
@@ -226,8 +227,8 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   const from=full.message.payload.headers.find((header:any)=>header.name==="From");from.value+=" attacker@example.reserved.invalid";
   await expect(ports.find(content,"draft-1")).rejects.toThrow("readback_content_changed");expect(api.users.drafts.send).not.toHaveBeenCalled();expect(api.users.messages.send).not.toHaveBeenCalled();
  });
- it("writes clickable escaped HTML alongside exact canonical plain text and verifies both alternatives",async()=>{
-  const f=fixture();let full:any;
+ it.each(["named", "inbox", "dated", "future"] as const)("copies natural %s paragraphs/signature as exact plain text and escaped HTML, then verifies both alternatives",async kind=>{
+  const f=fixture(), founder=founderOutreachFixture(kind);let full:any;
   const api:any={users:{drafts:{create:vi.fn(async({requestBody}:any,options:any)=>{
    expect(options.retry).toBe(false);
    const raw=Buffer.from(requestBody.message.raw,"base64url").toString("utf8");
@@ -242,7 +243,8 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
    return{data:{id:full.id}};
   }),get:vi.fn(async()=>({data:full})),send:vi.fn()},messages:{send:vi.fn()}}};
   const ports=configuredGmailDraftPorts(api), content:any={jobId:f.job.jobId,reviewDigest:f.input.expectedReviewDigest,payloadDigest:"c".repeat(64),
-   to:f.payload.to,subject:f.payload.subject,body:f.payload.transportBody+"\n<unsafe>&\"'",messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`,mimeProfile:"multipart-alternative-v1"};
+   to:f.payload.to,subject:founder.output.subject,
+   body:appendFirstContactFooter(founder.output.body,f.brief.contact.email)+"\n<unsafe>&\"'",messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`,mimeProfile:"multipart-alternative-v1"};
   await ports.write(content);
   const parts=full.message.payload.parts;
   expect(Buffer.from(parts[0].body.data,"base64url").toString()).toBe(content.body);
@@ -250,6 +252,10 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   expect(html).toContain('<a href="https://tryblueprint.io/">https://tryblueprint.io</a>');
   expect(html).toContain("&lt;unsafe&gt;&amp;&quot;&#39;");expect(html).not.toContain("<unsafe>");
   expect(html).toContain("If you’d rather I don’t follow up, just let me know.");expect(html).not.toContain("Unsubscribe from");
+  expect(html).toContain("<br>\n<br>\n");
+  expect(html).toContain("Thanks,<br>\nNijel Hunt<br>\nBlueprint");
+  expect(html.match(/Nijel Hunt/g)).toHaveLength(1);
+  expect(html).not.toMatch(/<script|<style/);
   expect(await ports.find(content,full.id)).toMatchObject({draftId:full.id,mimeProfile:content.mimeProfile,htmlSha256:createHash("sha256").update(html).digest("hex")});
   const original=structuredClone(full);
   for(const change of ["html","plain","attachment","root_attachment","duplicate","recipient"]){
