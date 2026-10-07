@@ -1,6 +1,7 @@
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
 import { hasCurrentDescriptionAuthority } from "../utils/descriptionAuthority";
-import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { createInboundRequestWithReceipt } from "../utils/inboundRequestCommit";
+import { buildTaskLifecycleNotification, enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { Request, Response, Router } from "express";
 import crypto from "crypto";
 import fs from "node:fs";
@@ -1824,11 +1825,15 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // owners both observe absence and lets the later writer replace the first
     // owner's record. Firestore create carries the absence precondition.
     const requestRef = db.collection("inboundRequests").doc(payload.requestId);
+    const receiptUrl = siteCaptureUrl(buyerType, payload.requestId, captureRegion,
+      hasCurrentDescriptionAuthority(descriptionAuthority));
+    const firstReceipt = receiptUrl ? buildTaskLifecycleNotification({ requestId: payload.requestId,
+      milestone: "task_received", to: emailLower, captureUrl: receiptUrl }) : null;
     try {
-      await requestRef.create({ ...encryptedInboundRequest,
+      await createInboundRequestWithReceipt(db, requestRef, { ...encryptedInboundRequest,
         ...(buyerType === "site_operator" ? { briefReviewPending: true,
           briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
-      });
+      }, firstReceipt);
     } catch (error) {
       const code = (error as { code?: number | string }).code;
       if (code !== 6 && code !== "already-exists") throw error;
@@ -1849,12 +1854,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
       return res.status(HTTP_STATUS.OK).json(recoveredSubmission(existingData));
     }
 
-    // The first event email: the site's private link, so it is in their inbox
-    // and not only on the success screen. Only where a link exists at all.
-    if (buyerType === "site_operator" && siteCaptureUrl(buyerType, payload.requestId, captureRegion, hasCurrentDescriptionAuthority(descriptionAuthority))) {
-      try { await enqueueTaskLifecycleNotification({ requestId: payload.requestId, milestone: "task_received" }); }
-      catch (error) { logger.warn({ error, requestId: payload.requestId }, "Could not queue the task-received email"); }
-    }
+    // The first private-link receipt was committed with the request above.
+    // Delivery remains the outbox worker's responsibility.
 
     // 8a. Draft the task brief, so there is something for the operator to
     // confirm. This is the entry point the Tier 2 mechanism was missing: the
