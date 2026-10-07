@@ -99,11 +99,11 @@ export function siteReplyPromiseBlockers(body: string, readiness?: EvaluationRea
     && atlas?.status !== "unavailable") blockers.push("reply_atlas_blocker_not_evidenced");
   if (/\bAtlas(?: access)?\s+is\s+(?:ready|available|open)\b|\b(?:we can|you can)\s+(?:use|access)\s+Atlas\b/i.test(text)
     && atlas?.status !== "available") blockers.push("reply_atlas_access_not_evidenced");
-  if (/\b(?:we|Blueprint|I)(?:'ll| will| can| could| are able to)\s+(?:provide|supply|deliver|ship|send|reserve)\s+(?:(?:you|a|the|your|our|free|an?|physical)\s+){0,3}(?:robots?|hardware)\b/i.test(text)
+  if (/\b(?:we|Blueprint|I)(?:'ll| will| can| could| are able to)\s+(?:provide|supply|deliver|ship|send|reserve|get|source|bring|offer)\s+(?:(?:you|a|the|your|our|free|an?|physical)\s+){0,3}(?:robots?|hardware)\b/i.test(text)
     || /\b(?:we|Blueprint|I)\s+(?:already )?have\b.{0,50}\b(?:robots?|robot team|hardware)\b.{0,30}\b(?:ready|available|reserved)\b/i.test(text)
     || /\b(?:robots?|robot teams?|hardware)\s+(?:is|are|will be)\s+(?:ready|available|reserved)\b/i.test(text)
-    || /\b(?:we(?:'ll| will)|Blueprint will|I(?:'ll| will))\s+(?:match you|find you (?:a |the )?robot|book (?:a |the |your )?pilot|start (?:a |the |your )?pilot)\b/i.test(text)
-    || /\b(?:your pilot is (?:confirmed|booked)|we have (?:a match|matched you)|you(?:'re| are) matched)\b/i.test(text)) blockers.push("unsupported_reply_commitment");
+    || /\b(?:we|Blueprint|I)(?:'ll| will| can| could)\s+(?:match you|find you (?:a |the )?(?:robot|team)|(?:book|start|reserve|arrange) (?:a |the |your )?pilot)\b/i.test(text)
+    || /\b(?:your pilot is (?:confirmed|booked|scheduled|approved)|we have (?:a match|matched you)|you(?:'re| are) matched)\b/i.test(text)) blockers.push("unsupported_reply_commitment");
   if (/\b(?:we(?:'ll| will| are| expect to)|Blueprint (?:will|is)|I(?:'ll| will| am))\s+(?:launch|launching|open|opening|release|releasing|enable|enabling)\b/i.test(text)
     || /\b(?:evaluation(?: access)?|Atlas(?: access)?)\s+(?:will be|is going to be)\s+(?:available|ready|open)\s+(?:by|on|in|next|tomorrow)\b/i.test(text)) blockers.push("unsupported_reply_launch_date");
   if (/\b(?:we|Blueprint|I)(?:'ll| will| can)\s+(?:evaluate|run|start|schedule|perform|provide)\b[^.!?\n]{0,100}\b(?:next (?:week|month|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)|tomorrow|on (?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)|by (?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)|\d{4}-\d{2}-\d{2})\b/i.test(text)) blockers.push("unsupported_reply_launch_date");

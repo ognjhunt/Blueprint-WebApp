@@ -91,6 +91,9 @@ describe("capability evidence for site communications", () => {
   it.each([
     ["We will supply a robot.", "unsupported_reply_commitment"],
     ["We can provide a robot for your pilot.", "unsupported_reply_commitment"],
+    ["I can get you a robot.", "unsupported_reply_commitment"],
+    ["We can match you with a team.", "unsupported_reply_commitment"],
+    ["Your pilot is scheduled.", "unsupported_reply_commitment"],
     ["We already have a robot team ready for your pilot.", "unsupported_reply_commitment"],
     ["We'll match you with a team.", "unsupported_reply_commitment"],
     ["We will book your pilot.", "unsupported_reply_commitment"],
