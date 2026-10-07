@@ -358,6 +358,16 @@ export default function TaskDetail() {
                     <p className="ws-note">Outcome recorded by your site.</p>
                   )}
                 </div>
+                {!task.archived && !task.pilot.selectedResultId && (
+                  <button
+                    className="ws-link"
+                    type="button"
+                    onClick={() => void openTaskPage()}
+                    disabled={linkState === "working"}
+                  >
+                    Book it on your task page →
+                  </button>
+                )}
                 {!task.archived &&
                   task.pilot.selectedResultId &&
                   task.pilot.state !== "deployed" && (
