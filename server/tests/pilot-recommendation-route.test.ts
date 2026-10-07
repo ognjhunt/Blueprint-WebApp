@@ -14,7 +14,7 @@ const enqueue = vi.hoisted(() => vi.fn(async () => ({ enqueued: true })));
 vi.mock("../utils/taskLifecycleNotifications", async importOriginal => ({ ...(await importOriginal<typeof import("../utils/taskLifecycleNotifications")>()), enqueueTaskLifecycleNotification: enqueue }));
 const sendEmail = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail }));
-const { deliverOutbox } = await import("../utils/captureOutbox");
+const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
 const router = (await import("../routes/admin-robot-teams")).default;
 const listingRouter = (await import("../routes/task-listings")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
@@ -91,7 +91,7 @@ describe("recording Blueprint's recommended pilot", () => {
     const first = await (await post({ ...plan, teamId: "engaged" })).json() as { id: string };
     const retry = await (await post({ ...plan, teamId: "engaged" })).json() as { id: string };
     expect(retry.id).toBe(first.id);
-    expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
+    expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/") && key.split("/").length === 2)).toHaveLength(1);
   });
 
 
@@ -102,7 +102,7 @@ describe("recording Blueprint's recommended pilot", () => {
     })));
     expect((await post({ ...plan, teamId: "engaged" })).status).toBe(503);
     expect(doc().pilot_recommendation).toBeUndefined();
-    expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(0);
+    expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/") && key.split("/").length === 2)).toHaveLength(0);
     expect((await post({ ...plan, teamId: "engaged" })).status).toBe(200);
   });
 
@@ -201,7 +201,7 @@ describe("recording Blueprint's recommended pilot", () => {
       const historical = await seedLegacyIntent(status);
       const retry = await (await post({ ...plan, teamId: "engaged" })).json() as { id: string };
       expect(retry.id).toBe(historical.id);
-      expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
+      expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/") && key.split("/").length === 2)).toHaveLength(1);
       expect(state.docs.get(historical.path)).toEqual(historical.legacy);
       await deliverOutbox();
       expect(sendEmail).toHaveBeenCalledTimes(status === "pending" ? 1 : 0);
@@ -231,6 +231,56 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(state.docs.get(key)).toMatchObject({ status: "pending", attempts: 0 });
     await deliverOutbox();
     expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+
+  it("reserves the old writer's key when repairing its committed recommendation before delayed enqueue", async () => {
+    const { id } = await (await post({ ...plan, teamId: "engaged" })).json() as { id: string };
+    const [savedKey, savedIntent] = [...state.docs.entries()].find(([key]) => key.startsWith("captureOutbox/"))!;
+    // The old handler has committed this exact recommendation but is paused
+    // before its separate enqueue. Keep only that committed source state.
+    state.docs.delete(savedKey);
+    let resumeOldWriter!: () => void;
+    const oldWriter = new Promise<void>(resolve => { resumeOldWriter = resolve; }).then(() => enqueueOutbox({
+      idempotencyKey: `req1:pilot_recommended:${id}`, requestId: "req1", kind: "pilot_recommended",
+      to: "owner@example.test", subject: String(savedIntent.subject), body: String(savedIntent.body),
+    }));
+    const retry = await (await post({ ...plan, teamId: "engaged" })).json() as { id: string };
+    expect(retry.id).toBe(id);
+    resumeOldWriter();
+    await oldWriter;
+    await deliverOutbox();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/") && key.split("/").length === 2)).toHaveLength(1);
+  });
+
+  it("does not alias a changed recipient onto an occupied old-writer key", async () => {
+    const old = await seedLegacyIntent("pending");
+    state.docs.set("inboundRequests/req1", { ...doc(), contact: { email: "corrected@example.test" } });
+    await post({ ...plan, teamId: "engaged" });
+    await enqueueOutbox({ idempotencyKey: `req1:pilot_recommended:${old.id}`, requestId: "req1", kind: "pilot_recommended",
+      to: "corrected@example.test", subject: "Late old writer", body: "Late old writer" });
+    expect(state.docs.get(old.path)?.to).toBe("owner@example.test");
+    await deliverOutbox();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "corrected@example.test" }));
+  });
+
+
+  it("uses the transaction retry's current recipient when the reserved legacy key is unchanged", async () => {
+    const run = store.runTransaction.bind(store);
+    vi.spyOn(store, "runTransaction").mockImplementationOnce(callback => run(async tx => {
+      await callback({ ...tx, update: () => undefined, create: () => undefined });
+      state.docs.set("inboundRequests/req1", { ...doc(), contact: { email: "retry-recipient@example.test" } });
+      return callback(tx);
+    }));
+    expect((await post({ ...plan, teamId: "engaged" })).status).toBe(200);
+    const intents = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/"));
+    expect(intents).toHaveLength(1);
+    expect(intents[0][1].to).toBe("retry-recipient@example.test");
+    await deliverOutbox();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "retry-recipient@example.test" }));
   });
 
 });
