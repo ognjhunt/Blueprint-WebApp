@@ -39,7 +39,7 @@ describe("research learning evidence and privacy contract", () => {
     expect(() => remake(send, { data: { ...send.data, messageId: null } })).toThrow("receipt_missing");
   });
   it("keeps paid classification disabled and curiosity distinct from readiness", () => {
-    expect(CLASSIFICATION_POLICY).toEqual({ model: "claude-haiku-5-5", enabled: false });
+    expect(CLASSIFICATION_POLICY).toEqual({ model: "gpt-6-luna", enabled: false });
     const reply = learningEvent("reply_observed");
     expect(() => remake(reply, { data: { ...reply.data, classification: { label: "curiosity", interest: "pilot_discussion", confidence: 1, method: "human", uncertain: false, objections: [] } } })).toThrow("classification_inconsistent");
     expect(() => remake(reply, { data: { ...reply.data, classification: { label: "interested", interest: "pilot_ready", confidence: 1, method: "model", uncertain: false, objections: [] } } })).toThrow();
