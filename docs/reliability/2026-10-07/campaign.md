@@ -242,3 +242,26 @@ being asked privately for the current handoff; historical release evidence and
 a settled old lease do not clear the next release. Published Pipeline metadata
 is limited to source revision and frozen/running state, without internal receipt
 locators, runtime invocation identifiers or authority/proof references.
+
+
+### One-hour checkpoint (21:45 UTC)
+
+Current exact-head CI is green for Web921/922/923/925/927 and Pipeline2645's
+impacted-test/sentinel gate. Web920 and926 browser checks remain pending. Web920's
+first browser job was cancelled after approximately40 minutes in installation
+without starting tests, then only that job was rerun on the unchanged source.
+The cancelled attempt is not passing evidence, and the retry must complete.
+No test or required check was disabled to unblock it.
+
+[The public release queue snapshot](./release-queue.json) binds PR heads and observed
+checks; newer attempts supersede it. The review/packet branch is a portable
+integration artifact, not a request to merge a giant replacement PR. The owner
+confirmed that a fresh custody handoff is being obtained privately. No campaign
+merge, deployment, listener activation, production task mutation or provider
+canary has occurred. Ready source and successful fixtures do not close those gates.
+
+The assessment-classification finding also remains reproducible at independent
+PR924 head81b45e13: its validator blob is unchanged by the prompt-wrapper update,
+and the original synthetic operator-target-as-measured case still passes. That
+candidate must retain its own unresolved risk; it is not included in this campaign's
+approved18-file production scope.

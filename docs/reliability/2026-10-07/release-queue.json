@@ -1,0 +1,536 @@
+{
+  "observed_at": "2026-10-07T21:43:20.491274+00:00",
+  "boundary": "Public source/CI metadata only. Not deployment approval, lease custody or production journey proof. New attempts supersede this snapshot.",
+  "prs": [
+    {
+      "repository": "ognjhunt/Blueprint-WebApp",
+      "pr": 920,
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/pull/920",
+      "head": "be1e22b2106e790f5fc48100c2c245e15b64afa6",
+      "state": "open",
+      "merged": false,
+      "checks": [
+        {
+          "name": "check",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686249987/job/113014765619"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686249987/job/113014765548"
+        },
+        {
+          "name": "graphify (3.12)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686249987/job/113014765547"
+        },
+        {
+          "name": "rules-emulator",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686249987/job/113014765536"
+        },
+        {
+          "name": "e2e",
+          "status": "in_progress",
+          "conclusion": null,
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686249987/job/113014765398"
+        },
+        {
+          "name": "test",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686249987/job/113014765387"
+        },
+        {
+          "name": "graphify (3.10)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686249987/job/113014765379"
+        },
+        {
+          "name": "graphify (3.14)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686249987/job/113014765251"
+        }
+      ]
+    },
+    {
+      "repository": "ognjhunt/Blueprint-WebApp",
+      "pr": 921,
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/pull/921",
+      "head": "90cd39c96a476d501e23a5b9a07dfa92d4d28b5d",
+      "state": "open",
+      "merged": false,
+      "checks": [
+        {
+          "name": "Observe automatic deployment admission",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689798442/job/113030619062"
+        },
+        {
+          "name": "graphify (3.14)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689798442/job/113026762801"
+        },
+        {
+          "name": "e2e",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689798442/job/113026762784"
+        },
+        {
+          "name": "rules-emulator",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689798442/job/113026762738"
+        },
+        {
+          "name": "test",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689798442/job/113026762623"
+        },
+        {
+          "name": "check",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689798442/job/113026762607"
+        },
+        {
+          "name": "graphify (3.10)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689798442/job/113026762606"
+        },
+        {
+          "name": "graphify (3.12)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689798442/job/113026762540"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689798442/job/113026762232"
+        }
+      ]
+    },
+    {
+      "repository": "ognjhunt/Blueprint-WebApp",
+      "pr": 922,
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/pull/922",
+      "head": "62e9d1521c48d02abb1bd8b83b40a8b97f8538a9",
+      "state": "open",
+      "merged": false,
+      "checks": [
+        {
+          "name": "Observe automatic deployment admission",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690156186/job/113030569069"
+        },
+        {
+          "name": "graphify (3.12)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690156186/job/113027960683"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690156186/job/113027960574"
+        },
+        {
+          "name": "rules-emulator",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690156186/job/113027960569"
+        },
+        {
+          "name": "test",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690156186/job/113027960539"
+        },
+        {
+          "name": "graphify (3.14)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690156186/job/113027960495"
+        },
+        {
+          "name": "graphify (3.10)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690156186/job/113027960443"
+        },
+        {
+          "name": "e2e",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690156186/job/113027960416"
+        },
+        {
+          "name": "check",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690156186/job/113027960374"
+        }
+      ]
+    },
+    {
+      "repository": "ognjhunt/Blueprint-WebApp",
+      "pr": 923,
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/pull/923",
+      "head": "592ea5a3b6666cd7dcc462561ff0d9a4c51cc6ac",
+      "state": "open",
+      "merged": false,
+      "checks": [
+        {
+          "name": "Observe automatic deployment admission",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686723873/job/113021579544"
+        },
+        {
+          "name": "graphify (3.10)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686723873/job/113016587557"
+        },
+        {
+          "name": "rules-emulator",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686723873/job/113016587448"
+        },
+        {
+          "name": "check",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686723873/job/113016587432"
+        },
+        {
+          "name": "graphify (3.14)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686723873/job/113016587391"
+        },
+        {
+          "name": "graphify (3.12)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686723873/job/113016587353"
+        },
+        {
+          "name": "e2e",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686723873/job/113016587333"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686723873/job/113016587222"
+        },
+        {
+          "name": "test",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37686723873/job/113016586966"
+        }
+      ]
+    },
+    {
+      "repository": "ognjhunt/Blueprint-WebApp",
+      "pr": 925,
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/pull/925",
+      "head": "13ea31026b9d89b279b881acf7392aa1e2f290c3",
+      "state": "open",
+      "merged": false,
+      "checks": [
+        {
+          "name": "Observe automatic deployment admission",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690330472/job/113031266436"
+        },
+        {
+          "name": "rules-emulator",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690330472/job/113029062451"
+        },
+        {
+          "name": "graphify (3.10)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690330472/job/113029062211"
+        },
+        {
+          "name": "e2e",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690330472/job/113029062167"
+        },
+        {
+          "name": "test",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690330472/job/113029062127"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690330472/job/113029062092"
+        },
+        {
+          "name": "graphify (3.12)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690330472/job/113029062073"
+        },
+        {
+          "name": "graphify (3.14)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690330472/job/113029062007"
+        },
+        {
+          "name": "check",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37690330472/job/113029061676"
+        }
+      ]
+    },
+    {
+      "repository": "ognjhunt/Blueprint-WebApp",
+      "pr": 926,
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/pull/926",
+      "head": "72b021e89202d2d29ad8871fbfe7347ed78abc19",
+      "state": "open",
+      "merged": false,
+      "checks": [
+        {
+          "name": "rules-emulator",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689990568/job/113027395879"
+        },
+        {
+          "name": "check",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689990568/job/113027395849"
+        },
+        {
+          "name": "graphify (3.10)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689990568/job/113027395829"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689990568/job/113027395793"
+        },
+        {
+          "name": "e2e",
+          "status": "in_progress",
+          "conclusion": null,
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689990568/job/113027395719"
+        },
+        {
+          "name": "graphify (3.12)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689990568/job/113027395705"
+        },
+        {
+          "name": "graphify (3.14)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689990568/job/113027395608"
+        },
+        {
+          "name": "test",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689990568/job/113027395247"
+        }
+      ]
+    },
+    {
+      "repository": "ognjhunt/Blueprint-WebApp",
+      "pr": 927,
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/pull/927",
+      "head": "a004c0cc22ced7bd49cb2457a80a4fb7cd865a96",
+      "state": "open",
+      "merged": false,
+      "checks": [
+        {
+          "name": "Observe automatic deployment admission",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689997491/job/113030495600"
+        },
+        {
+          "name": "graphify (3.14)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689997491/job/113027418504"
+        },
+        {
+          "name": "graphify (3.12)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689997491/job/113027418470"
+        },
+        {
+          "name": "test",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689997491/job/113027418369"
+        },
+        {
+          "name": "e2e",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689997491/job/113027418207"
+        },
+        {
+          "name": "check",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689997491/job/113027418203"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689997491/job/113027418136"
+        },
+        {
+          "name": "graphify (3.10)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689997491/job/113027418081"
+        },
+        {
+          "name": "rules-emulator",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37689997491/job/113027417832"
+        }
+      ]
+    },
+    {
+      "repository": "ognjhunt/BlueprintCapturePipeline",
+      "pr": 2645,
+      "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2645",
+      "head": "4e464e4408c90f8651c3a3b994ca01b6cf71e7db",
+      "state": "open",
+      "merged": false,
+      "checks": [
+        {
+          "name": "SBOM, license, and provenance contract",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113031666023"
+        },
+        {
+          "name": "Impacted test and sentinel gate",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113031479251"
+        },
+        {
+          "name": "Cross-cutting full suite",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030525619"
+        },
+        {
+          "name": "Real protected scene startup on Linux",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030524812"
+        },
+        {
+          "name": "Real registered scratch and cache on Linux",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030524309"
+        },
+        {
+          "name": "Impacted tests and sentinels",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030522900"
+        },
+        {
+          "name": "Ruff and claim lint",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030232119"
+        },
+        {
+          "name": "Module and critical-lane governance",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030232038"
+        },
+        {
+          "name": "Container production contract",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030231982"
+        },
+        {
+          "name": "Typed release contract core",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030231837"
+        },
+        {
+          "name": "GR00T OSCAR external prerequisite pins",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030231785"
+        },
+        {
+          "name": "dependency-security",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030231507"
+        },
+        {
+          "name": "Bandit high and reviewed-medium gate",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030231495"
+        },
+        {
+          "name": "Determine changed test surface",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37690819284/job/113030230027"
+        }
+      ]
+    }
+  ]
+}
