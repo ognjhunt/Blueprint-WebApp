@@ -39,6 +39,9 @@ export const ADMISSION_SOURCE = 'c4db1d2f61970efda3a226c9715345718a2064f5';
 // to ADMISSION_SOURCE. Its actual deployment still needs fresh instance/log
 // evidence and an explicit owner pin; this does not change worker admission.
 export const REVIEWED_WEB_SOURCE = '3c66debc04b0586a4358d59fa380f76d5016fb02';
+// PR889 retains identical index/bootstrap/scheduler Git blobs at c4 and 3c66.
+// The actual live Web revision still requires its own owner pin and receipts.
+export const REVIEWED_LAUNCH_WEB_SOURCE = '85a010acd6ee6235ca8ddc487da290f52c94b310';
 // Independently reproducible: pinned esbuild, exact main source, external packages.
 export const ADMISSION_ENTRY_SHA256 = '69c24029a5d1d087cc10ac6f834f3c22e74a3ef6e058b826f49c168c73f70f17';
 const stat = bytes => {
@@ -209,7 +212,7 @@ export function checkWebWriterFence(web, now, authority) {
   let url; try { url = new URL(logs?.url); } catch { refuse('web_writer_fence_unverified'); }
   if (service?.method !== 'GET' || service.url !== base || !successfulRead(service, authority, now)
     || service.body?.id !== id || service.body.type !== 'web_service'
-    || ![ADMISSION_SOURCE, REVIEWED_WEB_SOURCE].includes(expectedWebCommit)
+    || ![ADMISSION_SOURCE, REVIEWED_WEB_SOURCE, REVIEWED_LAUNCH_WEB_SOURCE].includes(expectedWebCommit)
     || web.deploy?.status !== 'live' || web.deploy?.commit?.id !== expectedWebCommit
     || web.deployReceipt?.method !== 'GET' || web.deployReceipt.url !== `${base}/deploys/${web.deploy.id}`
     || !successfulRead(web.deployReceipt, authority, now) || canonical(web.deployReceipt.body) !== canonical(web.deploy)
