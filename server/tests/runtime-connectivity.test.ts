@@ -14,7 +14,8 @@ beforeEach(() => {
     "DEEPSEEK_API_KEY", "DEEPSEEK_DEFAULT_MODEL", "DEEPSEEK_OPERATOR_THREAD_MODEL", "DEEPSEEK_TIMEOUT_MS",
     "ZAI_API_KEY", "ZAI_DEFAULT_MODEL", "ZAI_OPERATOR_THREAD_MODEL", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
     "ACP_HARNESS_URL", "OPENCLAW_BASE_URL", "BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER",
-    "BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER", "ANTHROPIC_OPERATOR_THREAD_MODEL", "OPENAI_OPERATOR_THREAD_MODEL"]) {
+    "BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER", "ANTHROPIC_OPERATOR_THREAD_MODEL", "OPENAI_OPERATOR_THREAD_MODEL",
+    "OPENAI_DEFAULT_MODEL", "ANTHROPIC_BASE_URL", "BLUEPRINT_OPERATOR_THREAD_PROVIDER"]) {
     vi.stubEnv(name, "");
   }
   vi.stubEnv("CODEX_LOCAL_AVAILABLE", "0");
@@ -27,6 +28,58 @@ afterEach(() => {
 });
 
 describe("runtime connectivity", () => {
+  it.each(["anthropic-key", ""])("keeps the operator smoke on OpenAI Luna when native key is %s", async (key) => {
+    vi.stubEnv("OPENAI_API_KEY", "openai-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", key);
+    vi.stubEnv("OPENAI_DEFAULT_MODEL", "gpt-6-luna");
+    vi.stubEnv("BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER", "openai_responses");
+    runAgentTask.mockImplementation(async (task) => ({
+      status: "completed", provider: task.provider, runtime: task.runtime,
+      model: task.model, output: { reply: "passed" },
+    }));
+    const { getAgentRuntimeConnectionMetadata, runAgentRuntimeSmokeTest } = await import(
+      "../agents/runtime-connectivity"
+    );
+    const metadata = getAgentRuntimeConnectionMetadata();
+    expect(metadata).toMatchObject({
+      provider: "openai_responses", configured: true, auth_configured: true,
+      default_model: "gpt-6-luna",
+      task_providers: { operator_thread: "openai_responses", inbound_qualification: "anthropic_agent_sdk" },
+      task_models: { operator_thread: "gpt-6-luna", inbound_qualification: "claude-haiku-5-5" },
+    });
+    // Exercise both the admin default and CLI's explicit operator model.
+    for (const params of [undefined, { model: metadata.task_models.operator_thread! }]) {
+      const result = await runAgentRuntimeSmokeTest(params);
+      expect(result.final).toMatchObject({ provider: "openai_responses", model: "gpt-6-luna" });
+      expect(runAgentTask).toHaveBeenLastCalledWith(expect.objectContaining({
+        kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses", model: "gpt-6-luna",
+      }));
+    }
+  });
+
+  it("reports and tests an operator provider override separately from global Anthropic", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "openai-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "anthropic-key");
+    vi.stubEnv("OPENAI_DEFAULT_MODEL", "gpt-6-luna");
+    vi.stubEnv("BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER", "anthropic_agent_sdk");
+    vi.stubEnv("BLUEPRINT_OPERATOR_THREAD_PROVIDER", "openai_responses");
+    runAgentTask.mockResolvedValue({ status: "completed", output: { reply: "passed" } });
+    const { getAgentRuntimeConnectionMetadata, runAgentRuntimeSmokeTest } = await import(
+      "../agents/runtime-connectivity"
+    );
+    const metadata = getAgentRuntimeConnectionMetadata();
+    const { getOpenAiTimeoutMs } = await import("../agents/provider-config");
+    expect(metadata).toMatchObject({
+      provider: "openai_responses", fallback_provider: "anthropic_agent_sdk",
+      configured: true, default_model: "gpt-6-luna", timeout_ms: getOpenAiTimeoutMs(),
+      task_providers: { operator_thread: "openai_responses", preview_diagnosis: "anthropic_agent_sdk" },
+    });
+    await runAgentRuntimeSmokeTest({ model: metadata.task_models.operator_thread! });
+    expect(runAgentTask).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses", model: "gpt-6-luna",
+    }));
+  });
+
   it("prefers configured Anthropic runtime metadata when selected", async () => {
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
     process.env.OPENAI_API_KEY = "openai-key";

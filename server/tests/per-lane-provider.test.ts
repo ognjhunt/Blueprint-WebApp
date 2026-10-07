@@ -19,11 +19,13 @@ const ENV_KEYS = [
   "BLUEPRINT_SUPPORT_TRIAGE_PROVIDER",
   "BLUEPRINT_OPERATOR_THREAD_PROVIDER",
   "OPENAI_DEFAULT_MODEL",
+  "OPENAI_INBOUND_QUALIFICATION_MODEL",
   "CODEX_LOCAL_AVAILABLE",
   "DEEPSEEK_API_KEY",
   "ZAI_API_KEY",
   "OPENAI_API_KEY",
   "ANTHROPIC_API_KEY",
+  "ANTHROPIC_BASE_URL",
   "ACP_HARNESS_URL",
   "OPENCLAW_BASE_URL",
 ];
@@ -46,6 +48,7 @@ afterEach(() => {
 
 /** The shape the founder would actually set on Render. */
 function lunaOnQualificationOnly() {
+  process.env.ANTHROPIC_API_KEY = "anthropic-key";
   process.env.DEEPSEEK_API_KEY = "deepseek-key";
   process.env.OPENAI_API_KEY = "openai-key";
   process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
@@ -54,11 +57,11 @@ function lunaOnQualificationOnly() {
 }
 
 describe("per-lane provider override", () => {
-  it("moves one lane to OpenAI and leaves lanes without a default on DeepSeek", async () => {
+  it("migrates an explicit Luna lane to Anthropic and leaves lanes without a default on DeepSeek", async () => {
     lunaOnQualificationOnly();
     const { getStructuredAutomationProvider } = await import("../agents/provider-config");
 
-    expect(getStructuredAutomationProvider("inbound_qualification")).toBe("openai_responses");
+    expect(getStructuredAutomationProvider("inbound_qualification")).toBe("anthropic_agent_sdk");
     expect(getStructuredAutomationProvider("operator_thread")).toBe("deepseek_chat");
     expect(getStructuredAutomationProvider("preview_diagnosis")).toBe("deepseek_chat");
     expect(getStructuredAutomationProvider()).toBe("deepseek_chat");
@@ -71,12 +74,13 @@ describe("per-lane provider override", () => {
     );
 
     const provider = getStructuredAutomationProvider("inbound_qualification");
-    expect(getTaskModelByProvider("inbound_qualification")[provider]).toBe("gpt-6-luna");
+    expect(getTaskModelByProvider("inbound_qualification")[provider]).toBe("claude-haiku-5-5");
   });
 
-  it("sends the lanes that write to people to OpenAI by default, and nothing else", async () => {
+  it("migrates default Luna email lanes to Anthropic by default, and nothing else", async () => {
     process.env.DEEPSEEK_API_KEY = "deepseek-key";
     process.env.OPENAI_API_KEY = "openai-key";
+    process.env.ANTHROPIC_API_KEY = "anthropic-key";
     process.env.BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER = "deepseek_chat";
     vi.resetModules();
     const { describeStructuredAutomationProvider, getStructuredAutomationProvider } = await import(
@@ -85,8 +89,8 @@ describe("per-lane provider override", () => {
 
     for (const lane of ["outbound_outreach", "waitlist_triage", "inbound_qualification", "support_triage", "post_signup_scheduling"] as const) {
       expect(describeStructuredAutomationProvider(lane)).toMatchObject({
-        provider: "openai_responses",
-        reason: "lane_default",
+        provider: "anthropic_agent_sdk",
+        reason: "luna_migration",
       });
     }
     expect(getStructuredAutomationProvider("operator_thread")).toBe("deepseek_chat");
@@ -133,15 +137,15 @@ describe("per-lane provider override", () => {
     });
   });
 
-  it("reports a honoured override as honoured", async () => {
+  it("reports the migrated provider honestly", async () => {
     lunaOnQualificationOnly();
     const { describeStructuredAutomationProvider } = await import("../agents/provider-config");
 
     expect(describeStructuredAutomationProvider("inbound_qualification")).toMatchObject({
-      provider: "openai_responses",
+      provider: "anthropic_agent_sdk",
       lane_request: "openai_responses",
-      lane_request_honored: true,
-      reason: "lane_override",
+      lane_request_honored: false,
+      reason: "luna_migration",
     });
   });
 
@@ -179,18 +183,18 @@ describe("task definitions", () => {
       "../agents/tasks/inbound-qualification"
     );
 
-    expect(inboundQualificationTask.default_provider).toBe("openai_responses");
-    expect(inboundQualificationTask.model_by_provider?.openai_responses).toBe(
-      "gpt-6-luna",
+    expect(inboundQualificationTask.default_provider).toBe("anthropic_agent_sdk");
+    expect(inboundQualificationTask.model_by_provider?.anthropic_agent_sdk).toBe(
+      "claude-haiku-5-5",
     );
   });
 
-  it("puts an email lane on OpenAI and a lane with no default on the global provider", async () => {
+  it("puts a migrated email lane on Anthropic and a lane with no default on the global provider", async () => {
     lunaOnQualificationOnly();
     const { supportTriageTask } = await import("../agents/tasks/support-triage");
     const { previewDiagnosisTask } = await import("../agents/tasks/preview-diagnosis");
 
-    expect(supportTriageTask.default_provider).toBe("openai_responses");
+    expect(supportTriageTask.default_provider).toBe("anthropic_agent_sdk");
     expect(previewDiagnosisTask.default_provider).toBe("deepseek_chat");
   });
 });
@@ -203,11 +207,11 @@ describe("runtime connectivity metadata", () => {
     );
 
     const metadata = getAgentRuntimeConnectionMetadata();
-    expect(metadata.task_providers.inbound_qualification).toBe("openai_responses");
-    expect(metadata.task_providers.support_triage).toBe("openai_responses");
+    expect(metadata.task_providers.inbound_qualification).toBe("anthropic_agent_sdk");
+    expect(metadata.task_providers.support_triage).toBe("anthropic_agent_sdk");
     expect(metadata.task_providers.operator_thread).toBe("deepseek_chat");
-    expect(metadata.task_models.inbound_qualification).toBe("gpt-6-luna");
-    expect(metadata.task_models.outbound_outreach).toBe("gpt-6-luna");
+    expect(metadata.task_models.inbound_qualification).toBe("claude-haiku-5-5");
+    expect(metadata.task_models.outbound_outreach).toBe("claude-haiku-5-5");
     expect(metadata.task_models.operator_thread).toBe("deepseek-v4-pro");
   });
 
@@ -231,13 +235,13 @@ describe("runtime connectivity metadata", () => {
     ]);
   });
 
-  it("reports nothing unhonoured when every lane got what it asked for", async () => {
+  it("surfaces the existing OpenAI override migrated to Anthropic", async () => {
     lunaOnQualificationOnly();
     const { getAgentRuntimeConnectionMetadata } = await import(
       "../agents/runtime-connectivity"
     );
 
-    expect(getAgentRuntimeConnectionMetadata().unhonored_lane_providers).toEqual([]);
+    expect(getAgentRuntimeConnectionMetadata().unhonored_lane_providers).toEqual([expect.objectContaining({ task_kind: "inbound_qualification", using: "anthropic_agent_sdk", reason: "luna_migration" })]);
   });
 });
 
@@ -271,4 +275,14 @@ describe("documented env keys", () => {
       );
     }
   });
+});
+
+
+it("preserves the held operator thread's existing OpenAI Luna fallback", async () => {
+  vi.stubEnv("ANTHROPIC_API_KEY", "offline-native");
+  vi.stubEnv("OPENAI_API_KEY", "offline-openai");
+  vi.stubEnv("BLUEPRINT_OPERATOR_THREAD_PROVIDER", "anthropic_agent_sdk");
+  vi.stubEnv("BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER", "openai_responses");
+  const { getStructuredAutomationFallbackProvider } = await import("../agents/provider-config");
+  expect(getStructuredAutomationFallbackProvider("operator_thread")).toBe("openai_responses");
 });

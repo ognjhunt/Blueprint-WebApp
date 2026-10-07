@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { HAIKU_MODEL, isGpt6Luna, isNativeAnthropicConfigured } from "../utils/anthropicHaikuPricing";
 
 import type { AgentProvider, AgentTaskKind } from "./types";
 
@@ -104,6 +105,10 @@ function boundedPositiveNumber(
 ) {
   const parsed = Number(value ?? fallback);
   return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, maximum) : fallback;
+}
+
+export function getAnthropicTimeoutMs(model?: string) {
+  return boundedPositiveNumber(process.env.ANTHROPIC_TIMEOUT_MS, model === HAIKU_MODEL ? 120_000 : 20_000, 600_000);
 }
 
 export function getOpenAiMaxOutputTokens(): number {
@@ -264,13 +269,13 @@ export function getLaneProviderEnvKey(
 }
 
 /**
- * Lanes that write to a person default to OpenAI.
+ * Email lanes retain their configured OpenAI selection as the routing input.
  *
  * These draft or send email: outbound outreach, waitlist, inbound
- * qualification, support and post-signup scheduling. They run on the OpenAI
- * default model (gpt-6-luna) unless a lane env override says otherwise. When
- * OpenAI is not keyed they fall back to the global chain, and the resolution
- * says so rather than pretending the default held.
+ * qualification, support and post-signup scheduling. The resolver migrates
+ * Luna selections to native Haiku while preserving explicit Sol/other models.
+ * An unavailable original provider still falls through to the global chain;
+ * missing native Anthropic access is reported and never restores Luna.
  */
 const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> = {
   outbound_outreach: "openai_responses",
@@ -291,7 +296,9 @@ export type StructuredProviderResolution = {
     | "lane_request_unrecognized"
     | "lane_default"
     | "lane_default_not_configured"
-    | "global_selection";
+    | "global_selection"
+    | "luna_migration"
+    | "luna_migration_not_configured";
 };
 
 /**
@@ -304,7 +311,7 @@ export type StructuredProviderResolution = {
  * while the config says OpenAI, so the fall-through is reported instead of
  * swallowed. `getAgentRuntimeConnectionMetadata` surfaces it.
  */
-export function describeStructuredAutomationProvider(
+function describeUnmigratedStructuredAutomationProvider(
   taskKind?: AgentTaskKind,
 ): StructuredProviderResolution {
   const laneEnvKey = getLaneProviderEnvKey(taskKind);
@@ -357,10 +364,29 @@ export function describeStructuredAutomationProvider(
   };
 }
 
+/** Luna replacements use native Anthropic, including existing OpenAI lane overrides. */
+export function describeStructuredAutomationProvider(taskKind?: AgentTaskKind): StructuredProviderResolution {
+  const resolution = describeUnmigratedStructuredAutomationProvider(taskKind);
+  const suffix = taskKind ? TASK_MODEL_SUFFIXES[taskKind] : null;
+  const model = (suffix ? process.env[`OPENAI_${suffix}`]?.trim() : null)
+    || process.env.OPENAI_DEFAULT_MODEL?.trim() || DEFAULT_MODELS.openai_responses;
+  // Operator sessions depend on Responses conversation state and their own tool loop.
+  if (taskKind === "operator_thread" || resolution.provider !== "openai_responses" || !isGpt6Luna(model)) return resolution;
+  const configured = isNativeAnthropicConfigured();
+  return { ...resolution, provider: "anthropic_agent_sdk", lane_request_honored: false,
+    reason: configured ? "luna_migration" : "luna_migration_not_configured" };
+}
+
 export function getStructuredAutomationProvider(
   taskKind?: AgentTaskKind,
 ): StructuredProvider {
   return describeStructuredAutomationProvider(taskKind).provider;
+}
+
+/** Resolve explicit task requests before persistence, so provenance names the real provider. */
+export function migrateDirectLunaSelection(kind: AgentTaskKind, provider: AgentProvider, model: string) {
+  return kind !== "operator_thread" && provider === "openai_responses" && isGpt6Luna(model)
+    ? { provider: "anthropic_agent_sdk" as const, model: HAIKU_MODEL } : { provider, model };
 }
 
 function selectGlobalStructuredProvider(): StructuredProvider {
@@ -414,7 +440,8 @@ export function getStructuredAutomationFallbackProvider(
     return Boolean(candidate) && candidate !== selected && array.indexOf(candidate) === index;
   });
 
-  return candidates.find(isProviderConfigured) || null;
+  return candidates.find(candidate => isProviderConfigured(candidate)
+    && !(taskKind !== "operator_thread" && candidate === "openai_responses" && isGpt6Luna(getTaskModelByProvider(taskKind ?? "operator_thread").openai_responses))) || null;
 }
 
 export function getTaskModelByProvider(taskKind: AgentTaskKind) {
@@ -433,7 +460,8 @@ export function getTaskModelByProvider(taskKind: AgentTaskKind) {
       || process.env.OPENAI_DEFAULT_MODEL?.trim()
       || DEFAULT_MODELS.openai_responses,
     anthropic_agent_sdk:
-      (suffix ? process.env[`ANTHROPIC_${suffix}`]?.trim() : null)
+      (describeStructuredAutomationProvider(taskKind).reason.startsWith("luna_migration") ? HAIKU_MODEL : null)
+      || (suffix ? process.env[`ANTHROPIC_${suffix}`]?.trim() : null)
       || process.env.ANTHROPIC_DEFAULT_MODEL?.trim()
       || DEFAULT_MODELS.anthropic_agent_sdk,
     acp_harness:

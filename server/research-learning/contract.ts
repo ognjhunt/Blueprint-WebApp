@@ -6,7 +6,7 @@ export const EVENT_VERSION = "blueprint.research-learning-event.v1";
 export const SNAPSHOT_VERSION = "blueprint.research-learning-snapshot.v1";
 // No model execution or credentials in this slice. Activation needs a separate
 // reviewed implementation, budget and policy version, not an environment toggle.
-export const CLASSIFICATION_POLICY = { model: "gpt-6-luna", enabled: false } as const;
+export const CLASSIFICATION_POLICY = { model: "claude-haiku-5-5", enabled: false } as const;
 export const digest = (value: unknown): string => {
   const canonical = (item: unknown): unknown => Array.isArray(item) ? item.map(canonical)
     : item && typeof item === "object"
