@@ -34,15 +34,16 @@ const CONNECTIVITY_TASK_KINDS = [
 type ConnectivityTaskKind = (typeof CONNECTIVITY_TASK_KINDS)[number];
 
 function runtimeDefaultModel() {
-  const resolution = describeStructuredAutomationProvider();
-  if (resolution.reason.startsWith("luna_migration")) return HAIKU_MODEL;
+  const resolution = describeStructuredAutomationProvider("operator_thread");
   const provider = resolution.provider;
   return getTaskModelByProvider("operator_thread")[provider] || "gpt-5.4";
 }
 
 export function getAgentRuntimeConnectionMetadata() {
-  const provider = getStructuredAutomationProvider();
-  const fallbackProvider = getStructuredAutomationFallbackProvider();
+  // Top-level metadata describes the operator smoke lane; per-task fields
+  // report the separately resolved automation lanes.
+  const provider = getStructuredAutomationProvider("operator_thread");
+  const fallbackProvider = getStructuredAutomationFallbackProvider("operator_thread");
 
   const taskProviders = {} as Record<ConnectivityTaskKind, StructuredProvider>;
   const taskModels = {} as Record<ConnectivityTaskKind, string | null>;
@@ -114,7 +115,7 @@ export async function runAgentRuntimeSmokeTest(params?: {
     kind: "operator_thread",
     provider: connectivity.provider,
     runtime: connectivity.provider,
-    model: params?.model?.trim() || runtimeDefaultModel(),
+    model: params?.model?.trim() || connectivity.default_model,
     input: {
       message:
         'Return JSON only with reply="Agent runtime smoke test passed.", summary="Smoke test completed successfully.", suggested_actions=["Continue integration"], requires_human_review=false.',
