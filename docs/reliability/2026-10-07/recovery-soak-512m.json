@@ -1,0 +1,420 @@
+{
+  "schema": "blueprint.outbox_recovery_resource_soak.v1",
+  "criteria": {
+    "warmupRounds": 1,
+    "measuredRounds": 8,
+    "casesPerRound": 64,
+    "scenarios": 8,
+    "heapUsed": {
+      "maxFinalGrowthBytes": 8388608,
+      "maxSlopeBytesPerRound": 1048576
+    },
+    "rss": {
+      "maxFinalGrowthBytes": 33554432,
+      "maxSlopeBytesPerRound": 4194304
+    },
+    "external": {
+      "maxFinalGrowthBytes": 4194304,
+      "maxSlopeBytesPerRound": 524288
+    },
+    "maxFdGrowth": 2,
+    "ownedTempFiles": 0,
+    "ownedTempBytes": 0,
+    "activeQueueRowsAtCaseEnd": 0,
+    "fakeStoreRowsBetweenCases": 0,
+    "maxCgroupPeakFractionOfLimit": 0.9,
+    "maxOomEventGrowth": 0
+  },
+  "scenarios": [
+    "accepted_overlap",
+    "known_rejection_then_acceptance",
+    "unknown_return",
+    "transport_throw",
+    "pre_dispatch_write_failure",
+    "acceptance_write_failure",
+    "expired_pre_dispatch_claim",
+    "retired_notice_cancelled"
+  ],
+  "warmupCases": 64,
+  "measuredCases": 512,
+  "uniqueScenarioKinds": 8,
+  "repetitionsPerScenarioPerRound": 8,
+  "totalCasesIncludingWarmup": 576,
+  "roundResults": [
+    {
+      "round": 0,
+      "elapsedMs": 949.8200969999998,
+      "cases": 64,
+      "providerCalls": 64,
+      "unknownRowsAsserted": 24,
+      "maximumFixtureRows": 6
+    },
+    {
+      "round": 1,
+      "elapsedMs": 71.71077699999978,
+      "cases": 64,
+      "providerCalls": 64,
+      "unknownRowsAsserted": 24,
+      "maximumFixtureRows": 6
+    },
+    {
+      "round": 2,
+      "elapsedMs": 31.937399999999798,
+      "cases": 64,
+      "providerCalls": 64,
+      "unknownRowsAsserted": 24,
+      "maximumFixtureRows": 6
+    },
+    {
+      "round": 3,
+      "elapsedMs": 34.8838639999999,
+      "cases": 64,
+      "providerCalls": 64,
+      "unknownRowsAsserted": 24,
+      "maximumFixtureRows": 6
+    },
+    {
+      "round": 4,
+      "elapsedMs": 62.47059300000001,
+      "cases": 64,
+      "providerCalls": 64,
+      "unknownRowsAsserted": 24,
+      "maximumFixtureRows": 6
+    },
+    {
+      "round": 5,
+      "elapsedMs": 35.9343259999996,
+      "cases": 64,
+      "providerCalls": 64,
+      "unknownRowsAsserted": 24,
+      "maximumFixtureRows": 6
+    },
+    {
+      "round": 6,
+      "elapsedMs": 35.3330490000003,
+      "cases": 64,
+      "providerCalls": 64,
+      "unknownRowsAsserted": 24,
+      "maximumFixtureRows": 6
+    },
+    {
+      "round": 7,
+      "elapsedMs": 35.586181000000124,
+      "cases": 64,
+      "providerCalls": 64,
+      "unknownRowsAsserted": 24,
+      "maximumFixtureRows": 6
+    },
+    {
+      "round": 8,
+      "elapsedMs": 62.32496600000013,
+      "cases": 64,
+      "providerCalls": 64,
+      "unknownRowsAsserted": 24,
+      "maximumFixtureRows": 6
+    }
+  ],
+  "samples": [
+    {
+      "round": 0,
+      "rss": 104435712,
+      "heapTotal": 37507072,
+      "heapUsed": 33824856,
+      "external": 4431019,
+      "arrayBuffers": 344168,
+      "fdCount": 20,
+      "ownedTemp": {
+        "files": 0,
+        "bytes": 0
+      },
+      "fakeStoreRows": 0,
+      "cgroup": {
+        "path": "/sys/fs/cgroup",
+        "currentBytes": 158699520,
+        "peakBytes": 158830592,
+        "limitBytes": 536870912,
+        "anonBytes": 149762048,
+        "fileBytes": 1245184,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "round": 1,
+      "rss": 104828928,
+      "heapTotal": 37507072,
+      "heapUsed": 34132896,
+      "external": 4430672,
+      "arrayBuffers": 344168,
+      "fdCount": 20,
+      "ownedTemp": {
+        "files": 0,
+        "bytes": 0
+      },
+      "fakeStoreRows": 0,
+      "cgroup": {
+        "path": "/sys/fs/cgroup",
+        "currentBytes": 158961664,
+        "peakBytes": 158961664,
+        "limitBytes": 536870912,
+        "anonBytes": 149762048,
+        "fileBytes": 1245184,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "round": 2,
+      "rss": 105091072,
+      "heapTotal": 37769216,
+      "heapUsed": 34350848,
+      "external": 4430672,
+      "arrayBuffers": 344168,
+      "fdCount": 20,
+      "ownedTemp": {
+        "files": 0,
+        "bytes": 0
+      },
+      "fakeStoreRows": 0,
+      "cgroup": {
+        "path": "/sys/fs/cgroup",
+        "currentBytes": 159223808,
+        "peakBytes": 159223808,
+        "limitBytes": 536870912,
+        "anonBytes": 150315008,
+        "fileBytes": 1245184,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "round": 3,
+      "rss": 105222144,
+      "heapTotal": 38031360,
+      "heapUsed": 34558896,
+      "external": 4430672,
+      "arrayBuffers": 344168,
+      "fdCount": 20,
+      "ownedTemp": {
+        "files": 0,
+        "bytes": 0
+      },
+      "fakeStoreRows": 0,
+      "cgroup": {
+        "path": "/sys/fs/cgroup",
+        "currentBytes": 159223808,
+        "peakBytes": 159223808,
+        "limitBytes": 536870912,
+        "anonBytes": 150315008,
+        "fileBytes": 1245184,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "round": 4,
+      "rss": 105484288,
+      "heapTotal": 38293504,
+      "heapUsed": 34918912,
+      "external": 4430672,
+      "arrayBuffers": 344168,
+      "fdCount": 20,
+      "ownedTemp": {
+        "files": 0,
+        "bytes": 0
+      },
+      "fakeStoreRows": 0,
+      "cgroup": {
+        "path": "/sys/fs/cgroup",
+        "currentBytes": 159485952,
+        "peakBytes": 159485952,
+        "limitBytes": 536870912,
+        "anonBytes": 150732800,
+        "fileBytes": 1245184,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "round": 5,
+      "rss": 105615360,
+      "heapTotal": 38555648,
+      "heapUsed": 34955312,
+      "external": 4430672,
+      "arrayBuffers": 344168,
+      "fdCount": 20,
+      "ownedTemp": {
+        "files": 0,
+        "bytes": 0
+      },
+      "fakeStoreRows": 0,
+      "cgroup": {
+        "path": "/sys/fs/cgroup",
+        "currentBytes": 159748096,
+        "peakBytes": 159748096,
+        "limitBytes": 536870912,
+        "anonBytes": 150732800,
+        "fileBytes": 1245184,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "round": 6,
+      "rss": 106008576,
+      "heapTotal": 39079936,
+      "heapUsed": 35150896,
+      "external": 4430672,
+      "arrayBuffers": 344168,
+      "fdCount": 20,
+      "ownedTemp": {
+        "files": 0,
+        "bytes": 0
+      },
+      "fakeStoreRows": 0,
+      "cgroup": {
+        "path": "/sys/fs/cgroup",
+        "currentBytes": 159973376,
+        "peakBytes": 160010240,
+        "limitBytes": 536870912,
+        "anonBytes": 151146496,
+        "fileBytes": 1245184,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "round": 7,
+      "rss": 106139648,
+      "heapTotal": 39079936,
+      "heapUsed": 35322512,
+      "external": 4430672,
+      "arrayBuffers": 344168,
+      "fdCount": 20,
+      "ownedTemp": {
+        "files": 0,
+        "bytes": 0
+      },
+      "fakeStoreRows": 0,
+      "cgroup": {
+        "path": "/sys/fs/cgroup",
+        "currentBytes": 159973376,
+        "peakBytes": 160010240,
+        "limitBytes": 536870912,
+        "anonBytes": 151146496,
+        "fileBytes": 1245184,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "round": 8,
+      "rss": 106401792,
+      "heapTotal": 39604224,
+      "heapUsed": 35509104,
+      "external": 4430672,
+      "arrayBuffers": 344168,
+      "fdCount": 20,
+      "ownedTemp": {
+        "files": 0,
+        "bytes": 0
+      },
+      "fakeStoreRows": 0,
+      "cgroup": {
+        "path": "/sys/fs/cgroup",
+        "currentBytes": 160497664,
+        "peakBytes": 160497664,
+        "limitBytes": 536870912,
+        "anonBytes": 151719936,
+        "fileBytes": 1245184,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    }
+  ],
+  "trends": {
+    "heapUsed": {
+      "finalGrowthBytes": 1684248,
+      "slopeBytesPerRound": 205039.2
+    },
+    "rss": {
+      "finalGrowthBytes": 1966080,
+      "slopeBytesPerRound": 233745.06666666668
+    },
+    "external": {
+      "finalGrowthBytes": -347,
+      "slopeBytesPerRound": -23.133333333333333
+    }
+  },
+  "elapsedIncludingWarmupMs": 1615.574285,
+  "runtime": {
+    "node": "v24.21.0",
+    "platform": "linux",
+    "arch": "x64",
+    "exposedGc": true,
+    "expectedCgroupMemoryLimitBytes": "536870912"
+  },
+  "limits": [
+    "Actual outbox implementation with in-memory Firestore and fake provider sinks.",
+    "Repeated same-process rounds are not 512 distinct fault scenarios or additional seeded schedules.",
+    "Samples follow explicit GC; they measure retained memory, not allocation peaks or live provider memory.",
+    "Cgroup counters cover the whole container when isolated, otherwise its ambient execution cgroup.",
+    "TMPDIR is redirected during the workload; temp metrics cover that directory, not startup/module caches or global temporary files.",
+    "Per-case fake-store reset models remote persistence and does not prove production database storage is bounded."
+  ],
+  "passed": true
+}
