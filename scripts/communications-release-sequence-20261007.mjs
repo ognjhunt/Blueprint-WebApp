@@ -18,6 +18,47 @@ const PREFIX = 'gs://blueprint-8c1ca.appspot.com/operations/communications/incid
 const MAX_RUN_MS = 60 * 60_000;
 const FILES = ['canonical', 'provider', 'process-proof', 'authority'];
 
+/** Source-bound attestation from the normal CI workflow's own vars context.
+ * A blocked observation leaves ordinary CI green but its confirmation skipped.
+ * This never interprets a denied API response as variable absence.
+ */
+export function workflowAdmission(run, inventory, target, freeze, now = Date.now()) {
+  if (run?.name !== 'CI' || run.path !== '.github/workflows/ci.yml' || run.workflow_id !== 223908310
+    || run.event !== 'push' || run.head_branch !== 'main' || run.head_sha !== target
+    || run.repository?.full_name !== REPO || run.head_repository?.full_name !== REPO
+    || run.status !== 'completed' || run.conclusion !== 'success'
+    || !Number.isSafeInteger(run.id) || !Number.isSafeInteger(run.run_attempt) || run.run_attempt < 1
+    || !Array.isArray(inventory?.jobs) || inventory.total_count !== inventory.jobs.length
+    || inventory.total_count > 100) refuse('deployment_context_provenance_changed');
+  const created = Date.parse(run.created_at);
+  if (!Number.isSafeInteger(created) || created <= 0 || !Number.isSafeInteger(freeze?.heldSinceMs)
+    || freeze.heldSinceMs <= 0 || freeze.heldSinceMs > created || freeze.heldSinceMs > now
+    || typeof freeze.evidenceRef !== 'string' || !freeze.evidenceRef.trim())
+    refuse('github_configuration_writer_freeze_missing');
+  const matches = inventory.jobs.filter(job => job.name === 'Observe automatic deployment admission');
+  if (matches.length !== 1) refuse('deployment_context_observation_missing');
+  const job = matches[0], success = step => step?.status === 'completed' && step.conclusion === 'success';
+  const observations = job.steps?.filter(step => step.name === 'Observe deployment admission in workflow context') ?? [];
+  const confirmations = job.steps?.filter(step => step.name.startsWith('Confirm automatic deployment admission: ')) ?? [];
+  if (job.run_id !== run.id || job.run_attempt !== run.run_attempt || !success(job)
+    || observations.length !== 1 || confirmations.length !== 1 || !success(observations[0]) || !success(confirmations[0]))
+    refuse('deployment_context_observation_missing');
+  const gate = confirmations[0].name.slice('Confirm automatic deployment admission: '.length);
+  if (!['absent', 'literal_false'].includes(gate)) refuse('automatic_deployment_not_held');
+  const start = Date.parse(job.started_at), end = Date.parse(job.completed_at);
+  const readStart = Date.parse(observations[0].started_at), readEnd = Date.parse(observations[0].completed_at);
+  const confirmStart = Date.parse(confirmations[0].started_at), confirmEnd = Date.parse(confirmations[0].completed_at);
+  if (![start, end, readStart, readEnd, confirmStart, confirmEnd].every(Number.isSafeInteger)
+    || created > start || start > readStart || readStart > readEnd || readEnd > confirmStart || confirmStart > confirmEnd || confirmEnd > end
+    || end > now + 5000 || now - readStart > 300_000) refuse('deployment_context_observation_stale');
+  return { schema: 'blueprint.workflow-deployment-admission.v1', target, runId: run.id,
+    runAttempt: run.run_attempt, jobId: job.id, gate,
+    contextReadDuring: { startedAt: observations[0].started_at, completedAt: observations[0].completed_at },
+    contextResolvedAt: null, runCreatedAt: run.created_at, configurationWriterFreeze: freeze,
+    confirmationStep: confirmations[0], job,
+    authentication: 'existing_repository_actions_read', readOnly: true };
+}
+
 export function boundProof(files) {
   const [packet, provider, proof, authority] = FILES.map(name => JSON.parse(files[`${name}.json`]));
   if (sha(files['canonical.json']) !== provider.canonicalFileSha256
@@ -167,6 +208,9 @@ async function main() {
     const files = await proofFiles(input, generation, digest, bucket);
     for (const [name, bytes] of Object.entries(files)) writeFileSync(`${directory}/${name}`, bytes, { mode: 0o600, flag: 'wx' });
     const { proof, authority } = boundProof(files);
+    const configurationFreeze = proof.writerFreezeEvidence?.githubConfiguration;
+    if (!proof.frozenWriters?.includes('github-configuration-writers') || !configurationFreeze)
+      refuse('github_configuration_writer_freeze_missing');
     checkFence(proof, authority, Date.now());
     const { Store, LeaseChannel } = await packagedLease(directory);
     const owner = `research-release:web-worker-${randomUUID()}`;
@@ -177,19 +221,28 @@ async function main() {
       return lease;
     };
     let heldLease;
+    const observeAdmission = async () => {
+      const runs = await api(`actions/workflows/ci.yml/runs?head_sha=${target}&status=completed&per_page=20`);
+      const candidates = runs.workflow_runs.filter(run => run.conclusion === 'success' && run.head_sha === target
+        && run.head_branch === 'main' && run.event === 'push').sort((a, b) => b.id - a.id);
+      if (!candidates.length) refuse('deployment_context_observation_missing');
+      const run = await api(`actions/runs/${candidates[0].id}`);
+      const jobs = await api(`actions/runs/${run.id}/attempts/${run.run_attempt}/jobs?per_page=100`);
+      return workflowAdmission(run, jobs, target, configurationFreeze);
+    };
     const result = await continuousRelease({
       preflight: async () => {
-        const [workflow, head, ci, active, variables] = await Promise.all([
+        const [workflow, head, ci, active] = await Promise.all([
           api(`actions/workflows/${WORKFLOW}`), api('commits/main'),
           api(`actions/workflows/ci.yml/runs?head_sha=${target}&status=completed&per_page=20`),
           api('actions/runs?branch=main&per_page=50'),
-          api('actions/variables?per_page=100'),
         ]);
         if (workflow.state !== 'disabled_manually' || head.sha !== target
           || !ci.workflow_runs.some(run => run.conclusion === 'success' && run.head_sha === target && run.head_branch === 'main')
-          || active.workflow_runs.some(run => run.status !== 'completed' && ['CI', 'Deploy (Render, CI-gated)'].includes(run.name))
-          || variables.total_count > 100 || variables.variables.some(row => row.name === 'BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED'
-            && row.value !== 'false')) refuse('exact_held_release_preflight_failed');
+          || active.workflow_runs.some(run => run.status !== 'completed' && ['CI', 'Deploy (Render, CI-gated)'].includes(run.name)))
+          refuse('exact_held_release_preflight_failed');
+        journal('automatic-admission-before', await observeAdmission());
+        await retain(['automatic-admission-before']);
         journal('preflight', { target, workflowId: workflow.id, workflowState: workflow.state, observedAtMs: Date.now() });
         const archive = await archiveFiles(bucket, files); await verifyArchive(bucket, archive);
         journal('proof-retention', archive);
@@ -230,9 +283,12 @@ async function main() {
         } finally {
           await gh(['workflow', 'disable', WORKFLOW, '--repo', REPO]); workflowEnabled = false;
         }
-        const [restored, variables] = await Promise.all([api(`actions/workflows/${WORKFLOW}`), api('actions/variables?per_page=100')]);
-        if (restored.state !== 'disabled_manually' || variables.total_count > 100
-          || variables.variables.some(row => row.name === 'BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED' && row.value !== 'false')) refuse('release_deploy_hold_not_restored');
+        const restored = await api(`actions/workflows/${WORKFLOW}`);
+        if (restored.state !== 'disabled_manually') refuse('release_deploy_hold_not_restored');
+        // This remains the source-bound context snapshot, not a claim of a new
+        // configuration read. Explicit configuration-writer holds span the run.
+        journal('automatic-admission-restored', await observeAdmission());
+        await retain(['automatic-admission-restored']);
         journal('dispatch-submitted', { target, atMs: Date.now(), retryAuthorized: false });
         const discoveryDeadline = Date.now() + 90_000;
         while (Date.now() - started < MAX_RUN_MS) {

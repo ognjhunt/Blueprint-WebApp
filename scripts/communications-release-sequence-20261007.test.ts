@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { sha, CONTROL, LAP } from './communications-incident-20261006.mjs';
-import { boundProof, continuousRelease, packagedLease, predecessorGuard, retainOwnedIntent } from './communications-release-sequence-20261007.mjs';
+import { boundProof, continuousRelease, packagedLease, predecessorGuard, retainOwnedIntent, workflowAdmission } from './communications-release-sequence-20261007.mjs';
 
 let directory: string, Store: any, LeaseChannel: any;
 beforeAll(async () => {
@@ -184,7 +184,7 @@ describe('private proof byte bindings and real deployment hold consumer', () => 
     const source = node.replace(/          /g, '').replace(/import \{[^\n]+\} from 'node:fs';\n/, '');
     await runInNewContext(`(async () => {${source}})()`, {
       process: { env: { RENDER_API_KEY: 'synthetic', RENDER_SERVICE_ID: 'srv-d4vnmk3e5dus73aiohk0',
-        RENDER_WORKER_SERVICE_ID: 'srv-d9t8gg1t0dsc73am9q70', ...env }, argv: ['node', 'synthetic', 'after'] },
+        RENDER_WORKER_SERVICE_ID: 'srv-d9t8gg1t0dsc73am9q70', DEPLOYMENT_VARIABLE_CONTEXT: '{}', ...env }, argv: ['node', 'synthetic', 'after'] },
       AbortSignal: { timeout: () => null },
       fetch: async (url: string, options: any) => {
         expect(options.redirect).toBe('error'); calls.push(url);
@@ -223,10 +223,77 @@ describe('private proof byte bindings and real deployment hold consumer', () => 
   it('refuses a different valid service binding before issuing any reads', async () => {
     await expect(holdConsumer(undefined, { RENDER_WORKER_SERVICE_ID: 'srv-synthetic-successor' })).rejects.toThrow('outreach_release_service_binding_changed');
   });
+  it.each(['true', 'FALSE', '', null])('blocks current Deploy context value %s before Render I/O', async value => {
+    await expect(holdConsumer(undefined, { DEPLOYMENT_VARIABLE_CONTEXT: JSON.stringify({ BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED: value }) }))
+      .rejects.toThrow('automatic_deployment_not_held');
+  });
   it('rejects a changed effective start command or Render auto deploy', async () => {
     await expect(holdConsumer(undefined, {}, (row: any) => ({ ...row, autoDeploy: 'yes' }))).rejects.toThrow('outreach_release_recipe_changed');
     await expect(holdConsumer(undefined, {}, (row: any) => ({ ...row,
       serviceDetails: { envSpecificDetails: { startCommand: 'node --require synthetic dist/worker.js' } } }))).rejects.toThrow('outreach_release_recipe_changed');
+  });
+});
+
+describe('normal CI context admission through authenticated step identities', () => {
+  const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
+  const code = workflow.split('DEPLOYMENT_VARIABLE_CONTEXT: ${{ toJSON(vars) }}')[1].split("<<'NODE'\n")[1]
+    .split('          NODE')[0].replace(/          /g, '').replace(/import \{[^\n]+\} from 'node:fs';\n/, '');
+  function observe(context: any) {
+    let output = '';
+    runInNewContext(code, { process: { env: { DEPLOYMENT_VARIABLE_CONTEXT: JSON.stringify(context), GITHUB_OUTPUT: 'synthetic' } },
+      appendFileSync: (_path: string, bytes: string) => { output += bytes; } });
+    return output.trim().slice('gate='.length);
+  }
+  function attestation(gate = 'absent') {
+    const target = 'a'.repeat(40), now = Date.parse('2026-10-07T05:00:00Z');
+    const at = (offset: number) => new Date(now + offset).toISOString();
+    const run: any = { id: 123, name: 'CI', path: '.github/workflows/ci.yml', workflow_id: 223908310,
+      event: 'push', head_branch: 'main', head_sha: target, run_attempt: 1, status: 'completed', conclusion: 'success',
+      repository: { full_name: 'ognjhunt/Blueprint-WebApp' }, head_repository: { full_name: 'ognjhunt/Blueprint-WebApp' }, created_at: at(-600_000) };
+    const step = (name: string, start: number, end: number) => ({ name, status: 'completed', conclusion: 'success', started_at: at(start), completed_at: at(end) });
+    const job: any = { id: 456, run_id: 123, run_attempt: 1, name: 'Observe automatic deployment admission',
+      status: 'completed', conclusion: 'success', started_at: at(-10_000), completed_at: at(-5000),
+      steps: [step('Observe deployment admission in workflow context', -9000, -8000),
+        step(`Confirm automatic deployment admission: ${gate}`, -7000, -6000)] };
+    const inventory = { total_count: 1, jobs: [job] }, freeze = { heldSinceMs: now - 700_000, evidenceRef: 'synthetic-parent-freeze' };
+    return { run, job, inventory, target, freeze, now };
+  }
+  it.each([{}, { BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED: 'false' }])('real CI producer admits only the supported off predicate %j', context => {
+    const f = attestation(observe(context)), result = workflowAdmission(f.run, f.inventory, f.target, f.freeze, f.now);
+    expect(result.gate).toBe(Object.hasOwn(context, 'BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED') ? 'literal_false' : 'absent');
+    expect(result.contextResolvedAt).toBeNull();
+  });
+  it.each(['true', 'FALSE', '', false, null])('real CI producer retains %s as blocked and no release mutation occurs', async value => {
+    const a = attestation(observe({ BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED: value })), f = fixture();
+    a.job.steps[1].status = 'completed'; a.job.steps[1].conclusion = 'skipped';
+    f.steps.preflight = () => workflowAdmission(a.run, a.inventory, a.target, a.freeze, a.now);
+    await expect(continuousRelease(f.steps)).rejects.toThrow('deployment_context_observation_missing');
+    expect(f.writes).toHaveLength(0); expect(f.status().deployed).toBe(0);
+  });
+  it('rejects missing, duplicate, old-attempt and PR receipts rather than inferring absence', () => {
+    for (const change of [(f: any) => { f.inventory.jobs = []; f.inventory.total_count = 0; },
+      (f: any) => { f.inventory.jobs.push(f.job); f.inventory.total_count++; },
+      (f: any) => { f.job.run_attempt = 2; }, (f: any) => { f.run.event = 'pull_request'; },
+      (f: any) => { f.job.steps[0].conclusion = 'skipped'; }]) {
+      const f = attestation(); change(f);
+      expect(() => workflowAdmission(f.run, f.inventory, f.target, f.freeze, f.now)).toThrow();
+    }
+  });
+  it('rejects stale observations and a freeze beginning after CI context admission', () => {
+    const f = attestation();
+    expect(() => workflowAdmission(f.run, f.inventory, f.target, f.freeze, f.now + 300_000)).toThrow('deployment_context_observation_stale');
+    expect(() => workflowAdmission(f.run, f.inventory, f.target, { ...f.freeze, heldSinceMs: f.now - 500_000 }, f.now))
+      .toThrow('github_configuration_writer_freeze_missing');
+  });
+  it('admits no mutation for a run created after its observation or a future freeze', async () => {
+    for (const shift of [-2000, 2000]) {
+      const a = attestation(), f = fixture();
+      a.run.created_at = new Date(a.now + shift).toISOString();
+      a.freeze.heldSinceMs = a.now + shift - 1000;
+      f.steps.preflight = () => workflowAdmission(a.run, a.inventory, a.target, a.freeze, a.now);
+      await expect(continuousRelease(f.steps)).rejects.toThrow();
+      expect(f.writes).toHaveLength(0); expect(f.status().deployed).toBe(0);
+    }
   });
 });
 
