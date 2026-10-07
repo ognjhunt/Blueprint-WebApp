@@ -37,7 +37,7 @@ import {
   getItemInventory,
   presentInventory,
   removeItem,
-  saveItemInventory,
+  initializeItemInventory,
   upsertItem,
 } from "../utils/taskItemInventory";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
@@ -959,11 +959,10 @@ router.get("/:token/items", async (req: Request, res: Response) => {
       // from a list to correct rather than a blank one to fill. Seeded once so
       // the suggestions are real items that can receive photos.
       const brief = await getBrief(payload.requestId).catch(() => null);
-      inventory = deriveItemInventory({
+      inventory = await initializeItemInventory(deriveItemInventory({
         requestId: payload.requestId,
         taskSummary: brief?.summary ?? null,
-      });
-      await saveItemInventory(inventory);
+      }));
     }
     return res.status(200).json({
       ok: true,

@@ -202,6 +202,23 @@ export async function saveItemInventory(record: TaskItemInventoryRecord): Promis
   await writeInventory(record);
 }
 
+/** A delayed first read must never replace an inventory accepted meanwhile. */
+export async function initializeItemInventory(record: TaskItemInventoryRecord): Promise<TaskItemInventoryRecord> {
+  if (!db) throw new Error("item_inventory_store_unavailable");
+  try {
+    await db.collection(TASK_ITEM_INVENTORY_COLLECTION).doc(record.requestId).create({
+      ...record, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return record;
+  } catch (error) {
+    const code = (error as { code?: number | string }).code;
+    if (code !== 6 && code !== "already-exists") throw error;
+    const existing = await getItemInventory(record.requestId);
+    if (!existing) throw new Error("item_inventory_changed_during_initialization");
+    return existing;
+  }
+}
+
 export async function getItemInventory(
   requestId: string,
 ): Promise<TaskItemInventoryRecord | null> {
