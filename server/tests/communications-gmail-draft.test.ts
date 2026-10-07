@@ -102,6 +102,30 @@ describe("separate retained recurring Gmail copy direction",()=>{
  });
 });
 describe("manual Gmail draft copy of the exact canonical revision",()=>{
+ it("copies the explicitly scoped original null revision once and refuses unset or edited revisions",async()=>{
+  const f=fixture();
+  delete f.db.records.get(`action_ledger/${f.ledgerId}`).draft_revision_id;
+  delete f.db.records.get(`${f.root}/jobs/${f.job.jobId}`).draftRevisionId;
+  const input={...f.input,expectedRevisionId:null};
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","false");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF","synthetic-owner-reviewed-copy");
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_JOB_ID",f.job.jobId);
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVIEW_DIGEST",input.expectedReviewDigest);
+  for(const marker of ["","undefined","NULL"]){
+   vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVISION_ID",marker);
+   expect(configuredGmailDraftPorts(undefined,"manual_approved_copy").enabled()).toBe(false);
+  }
+  vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_REVISION_ID","null");
+  const manual=configuredGmailDraftPorts(undefined,"manual_approved_copy");
+  expect(manual.allowsRevision(f.job.jobId,f.input.expectedRevisionId,input.expectedReviewDigest)).toBe(false);
+  expect(manual.allowsRevision(f.job.jobId,null,"b".repeat(64))).toBe(false);
+  expect(manual.allowsRevision("b".repeat(64),null,input.expectedReviewDigest)).toBe(false);
+  f.ports.enabled=manual.enabled;f.ports.allowsRevision=manual.allowsRevision;f.ports.requireCapability=manual.requireCapability;
+  await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"synthetic-owner",input,f.ports,communicationsNow);
+  await mirrorCommunicationsGmailDraft(f.db,f.ledgerId,"synthetic-owner",input,f.ports,communicationsNow);
+  expect(f.ports.write).toHaveBeenCalledOnce();
+  expect(f.db.records.get(`${f.root}/gmailDraftBindings/${f.job.jobId}`)).toMatchObject({state:"verified",revisionId:null,sent:false,approved:false});
+ });
  it("admits an explicit exact approved copy with the global automated staging flag off",async()=>{
   const f=fixture();vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFTS_ENABLED","false");
   vi.stubEnv("BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVAL_REF","owner-reviewed-compose-only");
