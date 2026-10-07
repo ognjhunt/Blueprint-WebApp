@@ -285,6 +285,16 @@ describe('normal CI context admission through authenticated step identities', ()
     expect(() => workflowAdmission(f.run, f.inventory, f.target, { ...f.freeze, heldSinceMs: f.now - 500_000 }, f.now))
       .toThrow('github_configuration_writer_freeze_missing');
   });
+  it('admits no mutation for a run created after its observation or a future freeze', async () => {
+    for (const shift of [-2000, 2000]) {
+      const a = attestation(), f = fixture();
+      a.run.created_at = new Date(a.now + shift).toISOString();
+      a.freeze.heldSinceMs = a.now + shift - 1000;
+      f.steps.preflight = () => workflowAdmission(a.run, a.inventory, a.target, a.freeze, a.now);
+      await expect(continuousRelease(f.steps)).rejects.toThrow();
+      expect(f.writes).toHaveLength(0); expect(f.status().deployed).toBe(0);
+    }
+  });
 });
 
 describe('native proof preparation source boundary (offline)', () => {

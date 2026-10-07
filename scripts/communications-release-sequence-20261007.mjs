@@ -31,8 +31,9 @@ export function workflowAdmission(run, inventory, target, freeze, now = Date.now
     || !Array.isArray(inventory?.jobs) || inventory.total_count !== inventory.jobs.length
     || inventory.total_count > 100) refuse('deployment_context_provenance_changed');
   const created = Date.parse(run.created_at);
-  if (!Number.isSafeInteger(created) || !Number.isSafeInteger(freeze?.heldSinceMs)
-    || freeze.heldSinceMs > created || typeof freeze.evidenceRef !== 'string' || !freeze.evidenceRef.trim())
+  if (!Number.isSafeInteger(created) || created <= 0 || !Number.isSafeInteger(freeze?.heldSinceMs)
+    || freeze.heldSinceMs <= 0 || freeze.heldSinceMs > created || freeze.heldSinceMs > now
+    || typeof freeze.evidenceRef !== 'string' || !freeze.evidenceRef.trim())
     refuse('github_configuration_writer_freeze_missing');
   const matches = inventory.jobs.filter(job => job.name === 'Observe automatic deployment admission');
   if (matches.length !== 1) refuse('deployment_context_observation_missing');
@@ -48,7 +49,7 @@ export function workflowAdmission(run, inventory, target, freeze, now = Date.now
   const readStart = Date.parse(observations[0].started_at), readEnd = Date.parse(observations[0].completed_at);
   const confirmStart = Date.parse(confirmations[0].started_at), confirmEnd = Date.parse(confirmations[0].completed_at);
   if (![start, end, readStart, readEnd, confirmStart, confirmEnd].every(Number.isSafeInteger)
-    || start > readStart || readStart > readEnd || readEnd > confirmStart || confirmStart > confirmEnd || confirmEnd > end
+    || created > start || start > readStart || readStart > readEnd || readEnd > confirmStart || confirmStart > confirmEnd || confirmEnd > end
     || end > now + 5000 || now - readStart > 300_000) refuse('deployment_context_observation_stale');
   return { schema: 'blueprint.workflow-deployment-admission.v1', target, runId: run.id,
     runAttempt: run.run_attempt, jobId: job.id, gate,
