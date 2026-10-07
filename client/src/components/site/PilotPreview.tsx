@@ -27,6 +27,52 @@ function Arm({ x, y, tx, ty }: { x: number; y: number; tx: number; ty: number })
   );
 }
 
+/** A bipedal humanoid standing at x on the floor, carrying something in front of it. */
+function Humanoid({ x }: { x: number }) {
+  return (
+    <g {...ink}>
+      <path d={`M${x - 5} 130 L${x - 8} 155 L${x - 5} 177 M${x + 5} 130 L${x + 9} 155 L${x + 7} 177`} strokeWidth={6} />
+      <path d={`M${x - 12} 180 H${x} M${x + 2} 180 H${x + 15}`} strokeWidth={4} />
+      <rect x={x - 11} y={119} width={22} height={12} rx={4} fill={tint} />
+      <path d={`M${x - 14} 79 Q${x - 17} 104 ${x - 10} 121 H${x + 10} Q${x + 17} 104 ${x + 14} 79 Z`} fill={tint} />
+      <path d={`M${x} 71 V78`} />
+      <ellipse cx={x} cy={58} rx={11} ry={13} fill={tint} />
+      <ellipse cx={x + 4} cy={58} rx={6} ry={8} fill="currentColor" />
+      <path d={`M${x - 13} 84 L${x - 6} 104 L${x + 24} 110 M${x + 13} 84 L${x + 20} 102 L${x + 30} 104`} strokeWidth={5} />
+    </g>
+  );
+}
+
+/** A humanoid upper body on a wheeled base, centred at x. */
+function WheeledHumanoid({ x }: { x: number }) {
+  return (
+    <g {...ink}>
+      <rect x={x - 22} y={158} width={44} height={14} rx={4} fill={tint} />
+      <circle cx={x - 13} cy={174} r={6} /><circle cx={x + 13} cy={174} r={6} />
+      <rect x={x - 5} y={126} width={10} height={32} />
+      <rect x={x - 16} y={80} width={32} height={46} rx={8} fill={tint} />
+      <path d={`M${x - 8} 96 H${x + 8}`} />
+      <rect x={x - 11} y={54} width={22} height={24} rx={9} fill={tint} />
+      <rect x={x - 6} y={61} width={14} height={6} rx={3} fill="currentColor" />
+      <path d={`M${x - 15} 86 L${x - 8} 110 L${x + 40} 118 M${x + 15} 86 L${x + 24} 108 L${x + 46} 112`} strokeWidth={5} />
+    </g>
+  );
+}
+
+/** A robot arm on a small driving base, centred at x, reaching toward (tx, ty). */
+function MobileManipulator({ x, tx, ty }: { x: number; tx: number; ty: number }) {
+  return (
+    <g>
+      <g {...ink}>
+        <rect x={x - 24} y={156} width={48} height={18} rx={4} fill={tint} />
+        <circle cx={x - 15} cy={176} r={4} /><circle cx={x + 15} cy={176} r={4} />
+        <rect x={x - 22} y={150} width={8} height={6} rx={1} />
+      </g>
+      <Arm x={x} y={156} tx={tx} ty={ty} />
+    </g>
+  );
+}
+
 function Warehouse() {
   return (
     <g>
@@ -34,13 +80,13 @@ function Warehouse() {
         <rect x={20} y={40} width={110} height={140} />
         {[80, 120, 160].map(y => <path key={y} d={`M20 ${y} H130`} />)}
         {[[28, 52, 28], [70, 58, 22], [34, 94, 26], [82, 100, 20], [40, 136, 24]].map(([x, y, h]) => <rect key={`${x}-${y}`} x={x} y={y} width={32} height={h} fill={tint} />)}
-        <rect x={190} y={128} width={96} height={36} />
-        <path d="M286 128 L300 104" />
-        <circle cx={202} cy={172} r={7} /><circle cx={274} cy={172} r={7} />
-        <rect x={196} y={106} width={38} height={22} fill={tint} />
-        <rect x={240} y={106} width={38} height={22} fill={tint} />
+        <rect x={200} y={128} width={96} height={36} />
+        <path d="M296 128 L308 104" />
+        <circle cx={212} cy={172} r={7} /><circle cx={284} cy={172} r={7} />
+        <rect x={250} y={106} width={38} height={22} fill={tint} />
+        <rect x={174} y={94} width={34} height={20} fill={tint} />
       </g>
-      <Arm x={160} y={180} tx={214} ty={84} />
+      <Humanoid x={160} />
     </g>
   );
 }
@@ -66,20 +112,21 @@ function Laundromat() {
   return (
     <g>
       <g {...ink}>
-        {[28, 106].map(x => (
+        {[18, 92].map(x => (
           <g key={x}>
-            <rect x={x} y={70} width={70} height={110} rx={4} />
-            <path d={`M${x} 92 H${x + 70}`} />
-            <circle cx={x + 35} cy={136} r={24} />
-            <circle cx={x + 35} cy={136} r={15} fill={tint} />
+            <rect x={x} y={70} width={68} height={110} rx={4} />
+            <path d={`M${x} 92 H${x + 68}`} />
+            <circle cx={x + 34} cy={136} r={23} />
+            <circle cx={x + 34} cy={136} r={14} fill={tint} />
           </g>
         ))}
-        <path d="M206 130 H304 M214 130 V180 M296 130 V180" />
-        <rect x={252} y={116} width={40} height={7} fill={tint} />
-        <rect x={252} y={109} width={40} height={7} fill={tint} />
-        <rect x={252} y={102} width={40} height={7} fill={tint} />
+        <path d="M222 124 H306 M230 124 V180 M298 124 V180" />
+        <rect x={232} y={115} width={34} height={9} fill={tint} />
+        <rect x={266} y={110} width={34} height={7} fill={tint} />
+        <rect x={266} y={103} width={34} height={7} fill={tint} />
+        <rect x={266} y={117} width={34} height={7} fill={tint} />
       </g>
-      <Arm x={226} y={130} tx={272} ty={84} />
+      <WheeledHumanoid x={194} />
     </g>
   );
 }
@@ -92,12 +139,12 @@ function Factory() {
         <rect x={36} y={62} width={70} height={56} fill={tint} />
         <rect x={114} y={62} width={16} height={34} />
         <path d="M56 118 V104 H86 V118" />
-        <rect x={176} y={140} width={128} height={12} />
-        {[188, 212, 236, 260, 284].map(x => <circle key={x} cx={x} cy={146} r={3} />)}
-        <path d="M188 152 V180 M292 152 V180" />
-        {[200, 248].map(x => <rect key={x} x={x} y={124} width={24} height={16} fill={tint} />)}
+        <rect x={204} y={140} width={100} height={12} />
+        {[214, 236, 258, 280].map(x => <circle key={x} cx={x} cy={146} r={3} />)}
+        <path d="M214 152 V180 M294 152 V180" />
+        {[222, 264].map(x => <rect key={x} x={x} y={124} width={24} height={16} fill={tint} />)}
       </g>
-      <Arm x={158} y={180} tx={92} ty={86} />
+      <MobileManipulator x={170} tx={108} ty={92} />
     </g>
   );
 }
@@ -120,10 +167,10 @@ function Hotel() {
 }
 
 const examples: Example[] = [
-  { site: "Warehouse", tests: "Moving full totes from the packing line to outbound carts", provide: "A two-hour window, one escort, floor space by line 3", teamProvides: "Robot arm, setup and operation", when: "Two weeks, on dates you approve", uncertain: "Shrink-wrapped totes may need a different gripper", Art: Warehouse },
-  { site: "Café", tests: "Unloading the dish rack and restacking cups and plates", provide: "An after-close window and bench space by the dish station", teamProvides: "Robot arm, setup and operation", when: "One week of evenings", uncertain: "Mixed cup sizes may slow stacking", Art: Cafe },
-  { site: "Laundromat", tests: "Folding towels for wash-and-fold orders", provide: "One folding table for a morning shift", teamProvides: "Robot arm, setup and operation", when: "One week, mornings only", uncertain: "Thin or tangled items may need a person", Art: Laundromat },
-  { site: "Factory", tests: "Loading blanks into one CNC machine and unloading finished parts", provide: "One machine and a setup day with your maintenance lead", teamProvides: "Robot arm, fixtures, setup and operation", when: "Two weeks, on one shift", uncertain: "Parts that arrive in mixed orientations", Art: Factory },
+  { site: "Warehouse", tests: "Moving full totes from the packing line to outbound carts", provide: "A two-hour window, one escort, floor space by line 3", teamProvides: "Humanoid robot, setup and operation", when: "Two weeks, on dates you approve", uncertain: "Shrink-wrapped totes may need a different gripper", Art: Warehouse },
+  { site: "Café", tests: "Unloading the dish rack and restacking cups and plates", provide: "An after-close window and bench space by the dish station", teamProvides: "Fixed robot arm, setup and operation", when: "One week of evenings", uncertain: "Mixed cup sizes may slow stacking", Art: Cafe },
+  { site: "Laundromat", tests: "Folding towels for wash-and-fold orders", provide: "One folding table for a morning shift", teamProvides: "Wheeled humanoid, setup and operation", when: "One week, mornings only", uncertain: "Thin or tangled items may need a person", Art: Laundromat },
+  { site: "Factory", tests: "Loading blanks into one CNC machine and unloading finished parts", provide: "One machine and a setup day with your maintenance lead", teamProvides: "Mobile manipulator, fixtures, setup and operation", when: "Two weeks, on one shift", uncertain: "Parts that arrive in mixed orientations", Art: Factory },
   { site: "Hotel", tests: "Moving linen carts from the laundry room to each floor", provide: "Service elevator access during quiet hours", teamProvides: "Mobile robot, setup and operation", when: "Two weeks, overnight", uncertain: "Busy elevators at checkout time", Art: Hotel },
 ];
 
