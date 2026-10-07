@@ -20,6 +20,10 @@ The notice key binds request, recommendation ID and SHA256 of the exact trimmed 
 
 `pilotRecommendationNotificationIsCurrent` reads the authoritative request inside the outbox's final dispatch transaction. It permits only the current recommendation, exact current recipient and an unbooked pilot. A missing/replaced/booked source or changed recipient cancels the stale notice before an attempt is consumed. A read/decrypt failure throws, leaving the pre-dispatch claim recoverable. Existing legacy keys are accepted only when their exact current recommendation ID and recipient still match.
 
+Migration verification reads the historical recommendation-ID-only outbox key in the same transaction. A matching current-recipient historical pending, sent, unknown, claimed, dispatching or attempted-cancelled record is reused without a second recipient-hashed intent. Independent review found this duplicate risk in the first candidate: six historical-state regressions failed before correction; all pass after. Changed-recipient historical rows do not suppress the explicitly authorized new-recipient intent.
+
+An A→B→A contact correction can leave A's old row cancelled before dispatch. Only an explicit currently authorized recommendation retry can rearm an exact matching `cancelled` row with `attempts === 0`; it never resets attempted, sent, unknown, claimed or dispatching history. This regression also failed before correction. Raw evidence: `work/pilot-migration-before.log` (7 failed / 12 passed) and `work/pilot-migration-after.log` (31 passed across all three focused files).
+
 No new worker scan, collection, index or notification-copy variant was introduced. The reusable write-free lifecycle builder preserves existing copy and signs no new authorization scope; the canonical pending-row builder and dispatch hook are shared with the queue lane.
 
 ## Verification
@@ -34,7 +38,7 @@ npx vitest run server/tests/pilot-recommendation-route.test.ts \
   server/tests/task-lifecycle-notifications.test.ts --maxWorkers=1
 ```
 
-Result: **23 passed** (11 route, 5 source-authority, 7 existing lifecycle tests). The provider is a no-send stub; Firestore is an atomic in-memory fake. No outbound attempts were recorded by the deny-egress preload. The normal `npx vitest run ...` command is portable without the workspace-specific preload in another controlled test environment.
+Result: **31 passed** (19 route, 5 source-authority, 7 existing lifecycle tests). The provider is a no-send stub; Firestore is an atomic in-memory fake. No outbound attempts were recorded by the deny-egress preload. The normal `npx vitest run ...` command is portable without the workspace-specific preload in another controlled test environment.
 
 Coverage includes:
 

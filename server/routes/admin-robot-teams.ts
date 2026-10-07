@@ -113,18 +113,32 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       const input = buildPilotRecommendationNotification({ requestId, recommendation, to, captureUrl });
       const intentRef = db.collection(CAPTURE_OUTBOX_COLLECTION).doc(input.idempotencyKey);
       const intent = await transaction.get(intentRef);
-      if (intent.exists) {
-        const existing = intent.data() as OutboxEntry;
-        if (existing.requestId !== requestId || existing.kind !== "pilot_recommended" || existing.to !== to) {
-          throw new Error("Recommendation notification identity conflict");
-        }
+      const legacyKey = `${requestId}:pilot_recommended:${recommendation.id}`;
+      const legacyRef = db.collection(CAPTURE_OUTBOX_COLLECTION).doc(legacyKey);
+      const legacy = await transaction.get(legacyRef);
+      const matches = (existing: OutboxEntry, key: string) =>
+        existing.idempotencyKey === key && existing.requestId === requestId
+        && existing.kind === "pilot_recommended" && existing.to === to;
+      if (intent.exists && !matches(intent.data() as OutboxEntry, input.idempotencyKey)) {
+        throw new Error("Recommendation notification identity conflict");
       }
+      // The previous writer used only the recommendation ID. Its pending,
+      // acknowledged or ambiguous delivery is the SAME authorized event;
+      // adding a recipient-hashed copy would send that recommendation twice.
+      const reuseLegacy = legacy.exists && matches(legacy.data() as OutboxEntry, legacyKey);
+      const existing = (reuseLegacy ? legacy.data() : intent.data()) as OutboxEntry | undefined;
+      const existingRef = reuseLegacy ? legacyRef : intentRef;
       // All authoritative reads precede writes. Failure to persist either row
       // aborts the recommendation; no post-commit enqueue can lose the notice.
       if (!samePlan) transaction.update(ref, { pilot_recommendation: recommendation });
-      if (!intent.exists) {
+      if (!existing) {
         if (!rows.has(input.idempotencyKey)) rows.set(input.idempotencyKey, buildOutboxEntry(input));
         transaction.create(intentRef, rows.get(input.idempotencyKey)!);
+      } else if (existing.status === "cancelled" && existing.attempts === 0) {
+        // A→B→A contact correction can restore an event cancelled before any
+        // dispatch. Only this explicit, currently authorized admin retry may
+        // rearm it; preserve all attempted/ambiguous/acknowledged histories.
+        transaction.update(existingRef, { status: "pending", lastError: null });
       }
       return { status: "ok", id: recommendation.id } as const;
     });

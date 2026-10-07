@@ -182,4 +182,55 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(rows.find(([, row]) => row.to === "owner@example.test")?.[1]).toMatchObject({ status: "cancelled", attempts: 0 });
   });
 
+
+  async function seedLegacyIntent(status: string) {
+    const { id } = await (await post({ ...plan, teamId: "engaged" })).json() as { id: string };
+    const [key, intent] = [...state.docs.entries()].find(([key]) => key.startsWith("captureOutbox/"))!;
+    state.docs.delete(key);
+    const legacyKey = `req1:pilot_recommended:${id}`;
+    const legacy = { ...intent, idempotencyKey: legacyKey, status,
+      attempts: status === "pending" || status === "claimed" ? 0 : 1,
+      deliveryLeaseUntilMs: Date.now() + 600000, deliveryToken: "legacy-claim-token" };
+    state.docs.set(`captureOutbox/${legacyKey}`, legacy);
+    return { id, path: `captureOutbox/${legacyKey}`, legacy };
+  }
+
+  it.each(["pending", "sent", "unknown", "claimed", "dispatching", "cancelled"])(
+    "reuses historical %s recommendation intent without creating a second email",
+    async status => {
+      const historical = await seedLegacyIntent(status);
+      const retry = await (await post({ ...plan, teamId: "engaged" })).json() as { id: string };
+      expect(retry.id).toBe(historical.id);
+      expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
+      expect(state.docs.get(historical.path)).toEqual(historical.legacy);
+      await deliverOutbox();
+      expect(sendEmail).toHaveBeenCalledTimes(status === "pending" ? 1 : 0);
+    },
+  );
+
+  it("creates a current-recipient intent while cancelling a historical different-recipient intent", async () => {
+    const historical = await seedLegacyIntent("pending");
+    state.docs.set("inboundRequests/req1", { ...doc(), contact: { email: "updated@example.test" } });
+    const retry = await (await post({ ...plan, teamId: "engaged" })).json() as { id: string };
+    expect(retry.id).toBe(historical.id);
+    await deliverOutbox();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "updated@example.test" }));
+    expect(state.docs.get(historical.path)).toMatchObject({ status: "cancelled", attempts: 0 });
+  });
+
+  it("rearms only a zero-attempt cancelled intent when an explicit retry restores its current recipient", async () => {
+    await post({ ...plan, teamId: "engaged" });
+    const [key] = [...state.docs.entries()].find(([key]) => key.startsWith("captureOutbox/"))!;
+    state.docs.set("inboundRequests/req1", { ...doc(), contact: { email: "temporary@example.test" } });
+    await deliverOutbox();
+    expect(state.docs.get(key)).toMatchObject({ status: "cancelled", attempts: 0 });
+    expect(sendEmail).not.toHaveBeenCalled();
+    state.docs.set("inboundRequests/req1", { ...doc(), contact: { email: "owner@example.test" } });
+    expect((await post({ ...plan, teamId: "engaged" })).status).toBe(200);
+    expect(state.docs.get(key)).toMatchObject({ status: "pending", attempts: 0 });
+    await deliverOutbox();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
 });
