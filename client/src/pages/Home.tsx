@@ -3,7 +3,7 @@ import { TaskEvaluationPair } from "@/components/site/TaskEvaluationPair";
 import { SEO } from "@/components/SEO";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
-const description = "Could a robot take over a repetitive task? Show us the task. We find a robot team that can do it and set up a pilot at your site. Free to start. No pilot, no fee.";
+const description = "Could a robot take over a repetitive task? Show us the task. We find a robot team that fits and set up a pilot at your site to test it. Free to start. No pilot, no fee.";
 
 export default function Home() {
   return (
@@ -13,7 +13,7 @@ export default function Home() {
           <div className="ms-task-hero-intro">
             <h1 id="hero-title">Could a robot take over a repetitive task?</h1>
             <div className="ms-task-hero-actions">
-              <p>Show us the task. We find a robot team that can do it and set up a pilot at your site.</p>
+              <p>Show us the task. We find a robot team that fits and set up a pilot at your site to test it.</p>
               <div className="ms-task-hero-links">
                 <a className="ms-button" href="/contact/site-operator">Show us a task <ArrowRight size={21} strokeWidth={1.5} aria-hidden="true" /></a>
               </div>
@@ -27,7 +27,7 @@ export default function Home() {
         <ol className="ms-steps">
           <li><p className="ms-step-head"><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Show us the task</span></p><p>Describe it or film it on your phone.</p></li>
           <li><p className="ms-step-head"><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>We find the right robot</span></p><p>We test it with robot teams and pick one that fits.</p></li>
-          <li><p className="ms-step-head"><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Book the pilot</span></p><p>One click. We handle the rest.</p></li>
+          <li><p className="ms-step-head"><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Book the pilot</span></p><p>One click. We coordinate the rest.</p></li>
         </ol>
         <a className="ms-method-link" href="/how-it-works#warehouse-task">See the warehouse walkthrough <ArrowRight size={16} aria-hidden="true" /></a>
       </section>

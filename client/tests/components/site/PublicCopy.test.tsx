@@ -40,7 +40,7 @@ describe("public managed-pilot copy", () => {
     expect(container).toHaveTextContent(/We find the right robot/i);
     expect(container).toHaveTextContent(/No pilot, no fee/i);
     expect(container).toHaveTextContent(/Book the pilot/i);
-    expect(container).toHaveTextContent(/One click\. We handle the rest/i);
+    expect(container).toHaveTextContent(/One click\. We coordinate the rest/i);
     for (const link of screen.getAllByRole("link", { name: "For robot teams" })) expect(link).toHaveAttribute("href", "/contact/robot-team");
 
     // Withdrawn products, legacy package prices, and outcome guarantees stay absent.

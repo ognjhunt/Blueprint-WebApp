@@ -24,6 +24,6 @@ describe("Site-led homepage", () => {
     expect(steps).toHaveLength(3);
     expect(steps[0]).toHaveTextContent(/Show us the task.*Describe it or film it on your phone\./);
     expect(steps[1]).toHaveTextContent(/We find the right robot.*We test it with robot teams and pick one that fits\./);
-    expect(steps[2]).toHaveTextContent(/Book the pilot.*One click\. We handle the rest\./);
+    expect(steps[2]).toHaveTextContent(/Book the pilot.*One click\. We coordinate the rest\./);
   });
 });

@@ -12,5 +12,5 @@ test("homepage speaks to sites, with robot teams one nav link away", async ({ pa
   await expect(main.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
   await expect(main.getByText("Free to start. No pilot, no fee.")).toBeVisible();
   await expect(main.getByRole("link", { name: /robot-team beta|early access/i })).toHaveCount(0);
-  await expect(main.getByText("One click. We handle the rest.")).toBeVisible();
+  await expect(main.getByText("One click. We coordinate the rest.")).toBeVisible();
 });
