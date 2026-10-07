@@ -10,7 +10,7 @@ vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () =
 import { communicationsFixture, communicationsNow, memoryFirestore, syntheticQualification } from "./fixtures/communications";
 import { launchHypothesisDraft, archivedLaunchHypothesisDraft } from "./fixtures/hypothesis";
 import { founderOutreachFixture } from "./fixtures/founder-outreach";
-import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
+import { appendFirstContactFooter, appendUnsentDraftFooter } from "../agents/communications-first-contact-footer";
 import { communicationsDeliveryKey, communicationsDigest } from "../agents/communications-contract";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, runCommunicationsGmailDraftCopies,
@@ -343,7 +343,7 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   }),get:vi.fn(async()=>({data:full})),send:vi.fn()},messages:{send:vi.fn()}}};
   const ports=configuredGmailDraftPorts(api), content:any={jobId:f.job.jobId,reviewDigest:f.input.expectedReviewDigest,payloadDigest:"c".repeat(64),
    to:f.payload.to,subject:founder.output.subject,
-   body:appendFirstContactFooter(founder.output.body,f.brief.contact.email)+"\n<unsafe>&\"'",messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`,mimeProfile:kind === "direct" ? "multipart-signature-link-v2" : "multipart-alternative-v1"};
+   body:(kind === "direct" ? appendUnsentDraftFooter : appendFirstContactFooter)(founder.output.body,f.brief.contact.email)+"\n<unsafe>&\"'",messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`,mimeProfile:kind === "direct" ? "multipart-signature-link-v2" : "multipart-alternative-v1"};
   await ports.write(content);
   const parts=full.message.payload.parts;
   const plain=Buffer.from(parts[0].body.data,"base64url").toString();
@@ -352,7 +352,11 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   expect(html).toContain(kind === "direct" ? '<a href="https://tryblueprint.io/" style="color:#0000ee;text-decoration:underline">Blueprint</a>' : '<a href="https://tryblueprint.io/">https://tryblueprint.io</a>');
   if(kind === "direct"){expect(html.match(/<a /g)).toHaveLength(1);expect(html).not.toMatch(/<img|utm_|tracking|redirect|<button/);}
   expect(html).toContain("&lt;unsafe&gt;&amp;&quot;&#39;");expect(html).not.toContain("<unsafe>");
-  expect(html).toContain("If you’d rather I don’t follow up, just let me know.");expect(html).not.toContain("Unsubscribe from");
+  expect(html).toContain(kind === "direct" ? "Commercial outreach. Reply “no thanks” to stop all marketing emails from Blueprint." : "If you’d rather I don’t follow up, just let me know.");expect(html).not.toContain("Unsubscribe from");
+  if(kind === "direct")for(const rendered of [plain,html]){
+   expect(rendered).toContain("Commercial outreach. Reply “no thanks” to stop all marketing emails from Blueprint.");
+   expect(rendered.match(/Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000/g)).toHaveLength(1);
+  }
   expect(html).toContain("<br>\n<br>\n");
   expect(html).toContain(kind === "direct" ? "Thanks,<br>\nNijel Hunt<br>\n<a" : "Thanks,<br>\nNijel Hunt<br>\nBlueprint");
   expect(html.match(/Nijel Hunt/g)).toHaveLength(1);

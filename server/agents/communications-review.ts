@@ -4,7 +4,7 @@ import {
 } from "./communications-contract";
 import { reviewOutreachDraft, OUTREACH_SEMANTIC_CHECKS, type OutreachReviewResult } from "./outreach-review";
 import { appendCommercialEmailFooter } from "../utils/email-suppression";
-import { appendCommunicationsFooter, appendFirstContactFooter } from "./communications-first-contact-footer";
+import { appendCommunicationsFooter, appendFirstContactFooter, appendUnsentDraftFooter } from "./communications-first-contact-footer";
 import { siteReplyPromiseBlockers } from "./communications-readiness";
 
 export const COMMUNICATIONS_REPLY_CHECKS = {
@@ -44,8 +44,9 @@ export function reviewCommunicationsPayload(payload: Record<string, unknown>, no
     || payload.transportBody === appendCommunicationsFooter(output.body, brief.contact.email, scope));
   let firstContactFooter = false;
   if (!knownFooter) {
-    try { firstContactFooter = [false, true].some(legacy =>
-      payload.transportBody === appendFirstContactFooter(output.body, brief.contact.email, savedPostalLine, legacy)); }
+    try { firstContactFooter = payload.transportBody === appendUnsentDraftFooter(output.body, brief.contact.email, savedPostalLine)
+      || [false, true].some(legacy =>
+        payload.transportBody === appendFirstContactFooter(output.body, brief.contact.email, savedPostalLine, legacy)); }
     catch { /* Missing owner config refuses new automatic sends, never import. */ }
   }
   if (!knownFooter && !firstContactFooter) blockers.push("transport_body_changed");

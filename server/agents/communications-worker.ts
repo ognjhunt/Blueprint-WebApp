@@ -35,7 +35,7 @@ import { requestNativeContactResearch, readNativeContactDiscovery, verifyExistin
 import { automaticFirstContactEnabled, firstContactGeography, ROUTINE_COMMUNICATIONS_POLICY,
   routineCommunicationsContentBlockers } from "./communications-first-contact";
 import { executeAutomaticFirstContact } from "./communications-send";
-import { appendCommunicationsFooter, appendFirstContactFooter, firstContactPostalLine } from "./communications-first-contact-footer";
+import { appendCommunicationsFooter, appendFirstContactFooter, appendUnsentDraftFooter, firstContactPostalLine } from "./communications-first-contact-footer";
 import { CommunicationsDraftBudgetError, reserveCommunicationsDraft, recordCommunicationsDraftUsage,
   reconcileCommunicationsDraftCost, claimCommunicationsRejectedCreateDraftBudget, claimCommunicationsCancelledContinuationBudget,
   assertCommunicationsContinuationBudget } from "./communications-draft-budget";
@@ -352,7 +352,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const provenance = automatic ? (await deps.store.db.doc("blueprintCommunications/default").collection("researchSources").doc(job.briefDigest).get()).data() : null;
     const recipientGeography = automatic ? firstContactGeography(provenance, brief, deps.now()) : null;
     const assemble = (output: CommunicationsOutput) => buildCommunicationsPayload(job, brief, thread, output, automatic, recipientGeography,
-      claimed.checkpoint.evaluationReadiness);
+      claimed.checkpoint.evaluationReadiness, !!claimed.checkpoint.sameRunDraftSave);
     const assertRepairAllowed = async () => {
       if (hypothesis && !hypothesisDraftsEnabled()) throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
       // Repair cannot refresh or replace consequential context. The original
@@ -536,12 +536,13 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
 }
 
 export function buildCommunicationsPayload(job: CommunicationsJob, brief: CommunicationsBrief, thread: VerifiedThread | null,
-  output: CommunicationsOutput, automatic: boolean, recipientGeography: ReturnType<typeof firstContactGeography>, evaluationReadiness?: EvaluationReadiness): ActionPayload {
+  output: CommunicationsOutput, automatic: boolean, recipientGeography: ReturnType<typeof firstContactGeography>, evaluationReadiness?: EvaluationReadiness, sameRunDraftSave = false): ActionPayload {
   const incoming = thread?.messages.find(message => message.gmailMessageId === job.inboundMessageId);
   return {
     type: "send_email", to: brief.contact.email.toLowerCase(), from: FOUNDER_MAILBOX, replyTo: FOUNDER_MAILBOX,
     subject: output.subject, body: output.body, emailTransport: "founder_gmail",
     transportBody: automatic ? appendFirstContactFooter(output.body, brief.contact.email)
+      : sameRunDraftSave ? appendUnsentDraftFooter(output.body, brief.contact.email)
       : appendCommunicationsFooter(output.body, brief.contact.email),
     commercialEmail: true, emailSuppressionScope: "growth_campaign",
     unsubscribeUrl: buildUnsubscribeUrl({ email: brief.contact.email, scope: automatic ? "all" : "growth_campaign", campaignId: `communications_${job.jobId}` }),
