@@ -81,6 +81,8 @@ function indexShape(row) {
     name: { type: valueType(name), length: typeof name === 'string' ? Math.min(name.length, 4097) : null,
       structured, segmentCount: Math.min(parts.length, 10), exactParent: typeof name === 'string' && name.startsWith(`${PARENT}/indexes/`),
       projectMatches: structured ? parts[1] === PROJECT : null, databaseMatches: structured ? parts[3] === '(default)' : null,
+      projectTokenKind: structured ? parts[1] === PROJECT ? 'expected-id' : /^[0-9]+$/.test(parts[1]) ? 'decimal-number' : 'other-id' : null,
+      collectionTokenKind: structured ? parts[5] === 'action_ledger' ? 'expected-id' : parts[5] === '-' ? 'wildcard' : 'other-id' : null,
       collectionMatches: structured ? parts[5] === 'action_ledger' : null, suffixLength: structured ? Math.min(suffix.length, 513) : null,
       suffixAllowed: structured && /^[A-Za-z0-9._~%-]{1,512}$/.test(suffix),
       suffixCharacterClasses: [disallowed.includes('=') && 'equals', disallowed.includes(':') && 'colon', /\s/.test(disallowed) && 'whitespace',
@@ -92,7 +94,8 @@ export async function diagnoseScope({ client, record, secrets = [] }) {
     expectedResource: `${PARENT}/indexes/<opaque-id>`, expectedSuffix: '1..512 characters from A-Z a-z 0-9 . _ ~ % -' });
   let rows, response;
   try { [rows, , response] = await client.listIndexes({ parent: PARENT }, { timeout: 10000, retry: null, autoPaginate: false }); }
-  catch (error) { record({ event: 'scope-diagnostic-error', ...safeError(error, secrets) }); return; }
+  catch (error) { record({ event: 'scope-diagnostic-error', apiCode: typeof error?.code === 'number' ? error.code : null,
+    stage: 'list', permission: 'datastore.indexes.list' }); return; }
   if (!Array.isArray(rows) || rows.length > 100) refuse('sdk_page_limit');
   const shapes = new Map(); let omittedShapeRows = 0;
   for (const row of rows) {
@@ -111,7 +114,8 @@ export function loadOperatorReceipt(source, expectedSha) {
   try {
     const directory = lstatSync(dirname(source)), uid = process.getuid();
     if (!directory.isDirectory() || directory.isSymbolicLink() || directory.uid !== uid || (directory.mode & 0o777) !== 0o700) refuse('archive_source_file_invalid');
-    fd = openSync(source, constants.O_RDONLY | constants.O_NOFOLLOW);
+    // A FIFO can block before fstat and before the CLI watchdog is installed.
+    fd = openSync(source, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     const file = fstatSync(fd);
     if (!file.isFile() || file.uid !== uid || (file.mode & 0o777) !== 0o600 || file.size < 1 || file.size > 65536) refuse('archive_source_file_invalid');
     const buffer = Buffer.alloc(file.size + 1); let length = 0, read;

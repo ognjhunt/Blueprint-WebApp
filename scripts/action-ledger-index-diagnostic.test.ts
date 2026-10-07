@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, symlinkSync, readFileSync } from 'node:fs';
 import * as diagnostic from './action-ledger-index-diagnostic.mjs';
 import { diagnose, safeError, boundedResponse, archiveReceipt, PARENT } from './action-ledger-index-diagnostic.mjs';
@@ -194,6 +195,14 @@ describe('scope-only diagnosis and exact operator receipt input', () => {
       expect(() => diagnostic.loadOperatorReceipt(`${directory}/receipts.jsonl`, wrong.expectedSha)).toThrow('archive_source_file_invalid');
     } finally { rmSync(directory, { recursive: true }); rmSync(other, { recursive: true }); }
   });
+  it('the actual archive CLI rejects a private FIFO before authentication within its bounded child test', () => {
+    const proof = JSON.parse(process.env.BLUEPRINT_TEST_FIFO_PROOF
+      ? readFileSync(process.env.BLUEPRINT_TEST_FIFO_PROOF, 'utf8')
+      : execFileSync('python3', [new URL('./fixtures/action-ledger-index-operator-fifo.py', import.meta.url).pathname], { timeout: 5000, encoding: 'utf8' }));
+    expect(proof).toMatchObject({ passed: true, exitCode: 2, code: 'archive_source_file_invalid', beforeAuthentication: true });
+    expect(proof.sourceSha256).toBe(createHash('sha256').update(readFileSync(new URL('./action-ledger-index-diagnostic.mjs', import.meta.url))).digest('hex'));
+    expect(proof.elapsedSeconds).toBeLessThan(1.5);
+  });
   async function actualMain(args: string[], transport: any) {
     const require = createRequire(import.meta.url), sdk = createRequire(require.resolve('@google-cloud/firestore'));
     const fetchPath = sdk.resolve('node-fetch'), fetchExport = require(fetchPath), originalDefault = fetchExport.default;
@@ -260,5 +269,19 @@ describe('scope-only diagnosis and exact operator receipt input', () => {
     expect(shape).toMatchObject({ queryScope: 'COLLECTION_GROUP', name: { projectMatches: false, collectionMatches: false } });
     expect(JSON.stringify(result.rows)).not.toContain('private-project'); expect(JSON.stringify(result.rows)).not.toContain('private-collection');
     expect(JSON.stringify(result.rows)).not.toContain('private-id');
+  });
+  it('the actual SDK scope error never retains provider resource names, field paths or error detail', async () => {
+    let calls = 0;
+    const result = await actualMain(['diagnose-scope'], async (url: string, options: any) => {
+      calls++; const uri = new URL(url);
+      expect(uri.hostname).toBe('firestore.googleapis.com'); expect(options.method).toBe('GET');
+      return response({ error: { code: 400, status: 'INVALID_ARGUMENT', message: 'private-resource-name private-field-path',
+        details: [{ '@type': 'type.googleapis.com/google.rpc.BadRequest', fieldViolations: [{ field: 'private-field-path', description: 'private-resource-name' }] }] } }, 400);
+    });
+    expect(calls).toBe(1);
+    expect(result.rows.find(row => row.event === 'scope-diagnostic-error')).toMatchObject({ apiCode: 3, stage: 'list', permission: 'datastore.indexes.list' });
+    expect(result.rows.some(row => row.event === 'scope-diagnostic-result')).toBe(false);
+    expect(JSON.stringify(result.rows)).not.toContain('private-resource-name'); expect(JSON.stringify(result.rows)).not.toContain('private-field-path');
+    expect(JSON.stringify(result.rows)).not.toContain('fieldViolations');
   });
 });

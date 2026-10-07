@@ -90,6 +90,11 @@ Additional shape rows are counted as omitted. Any next page remains unread;
 this is diagnostic evidence and never full inventory, absence or READY proof.
 There is no direct-REST fallback in this mode, even on API failure. The operator
 resource guard and source bytes are unchanged.
+Project token categories distinguish a decimal number from the expected ID;
+collection token categories distinguish the expected ID from a wildcard or
+another ID. These are shape evidence only, never authorization to accept an
+alias. API failures log only stable list stage/permission/code, no raw provider
+error text or response rows.
 
 ## Explicit company-evidence archival
 
@@ -118,6 +123,9 @@ mixed schemas and a second start row are refused. Source validation happens
 before token acquisition/upload. Interrupted journals remain valid evidence;
 archival does not infer completion or READY. No arbitrary path is accepted.
 The existing archive-original and archive-diagnostic modes retain their scope.
+The leaf is opened nonblocking before file-type inspection so a private FIFO
+cannot hang before authentication/the watchdog. A real FIFO actual-CLI child
+regression has its own1.5-second deadline and supplies no provider credentials.
 Using the same existing Admin token, they make one media-upload request to
 `blueprint-8c1ca.appspot.com`, object:
 
