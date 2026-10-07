@@ -152,16 +152,29 @@ function Factory() {
 function Hotel() {
   return (
     <g {...ink}>
-      <rect x={24} y={34} width={104} height={146} />
-      <path d="M76 52 V180 M24 52 H128" />
-      <circle cx={140} cy={104} r={5} />
-      <rect x={196} y={104} width={100} height={60} rx={6} />
-      {[118, 130, 142].map(y => <path key={y} d={`M206 ${y} H286`} />)}
-      <circle cx={210} cy={172} r={7} /><circle cx={282} cy={172} r={7} />
-      <rect x={150} y={120} width={36} height={46} rx={6} fill={tint} />
-      <rect x={158} y={108} width={20} height={12} rx={3} />
-      <circle cx={158} cy={172} r={7} /><circle cx={178} cy={172} r={7} />
-      <path d="M186 132 H196" />
+      {/* Service elevator: floor display, parted doors, call buttons. */}
+      <rect x={20} y={36} width={100} height={144} />
+      <rect x={20} y={36} width={100} height={20} fill={tint} />
+      <path d="M62 50 l4 -8 l4 8 z M76 42 l4 8 l4 -8 z" fill="currentColor" />
+      <path d="M70 56 V180 M28 64 V180 M112 64 V180" />
+      <rect x={128} y={98} width={12} height={24} rx={3} />
+      <path d="M131 108 l3 -5 l3 5 M131 113 l3 5 l3 -5" />
+      {/* Delivery robot: driving base, mast and a screen face. */}
+      <rect x={146} y={154} width={52} height={18} rx={6} fill={tint} />
+      <circle cx={158} cy={175} r={5} /><circle cx={186} cy={175} r={5} />
+      <rect x={168} y={110} width={8} height={44} fill={tint} />
+      <rect x={158} y={90} width={28} height={20} rx={5} fill={tint} />
+      <circle cx={167} cy={100} r={2} fill="currentColor" /><circle cx={177} cy={100} r={2} fill="currentColor" />
+      <path d="M198 163 H212" />
+      {/* Linen cart with folded sheets and towels stacked above the rim. */}
+      <path d="M212 110 V166 H300 V110" />
+      <path d="M212 138 H300" />
+      <rect x={218} y={98} width={36} height={12} rx={2} fill={tint} />
+      <rect x={220} y={86} width={32} height={12} rx={2} fill={tint} />
+      <rect x={258} y={102} width={36} height={8} rx={2} fill={tint} />
+      <rect x={258} y={94} width={36} height={8} rx={2} fill={tint} />
+      <rect x={258} y={86} width={36} height={8} rx={2} fill={tint} />
+      <circle cx={224} cy={174} r={6} /><circle cx={288} cy={174} r={6} />
     </g>
   );
 }
