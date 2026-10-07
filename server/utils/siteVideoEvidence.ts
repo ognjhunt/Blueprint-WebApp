@@ -37,6 +37,7 @@ import { logger } from "../logger";
 import type { InboundRequest, SiteVideoEvidenceSummary } from "../types/inbound-request";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { isSiteVideoEvidenceApplied, isSiteVideoEvidenceEnabled } from "../config/env";
+import { measuredVideoCycles, timestampedVideoObservations } from "./siteVideoObservationClaims";
 
 function nowIso() {
   return new Date().toISOString();
@@ -75,8 +76,9 @@ export function summariseVideoEvidence(
   output: SiteVideoEvidenceOutput,
   model: string,
 ): SiteVideoEvidenceSummary {
+  const cycles = measuredVideoCycles(output);
   const byStance = (stance: "contradicts" | "corroborates") =>
-    output.observations
+    timestampedVideoObservations(output)
       .filter((observation) => observation.stance === stance)
       .map((observation) => ({
         field_id: observation.field_id,
@@ -90,8 +92,8 @@ export function summariseVideoEvidence(
     contradictions: byStance("contradicts"),
     corroborations: byStance("corroborates"),
     not_evidenced: output.not_evidenced,
-    measured_cycle_seconds: output.cycle_measurement.median_cycle_seconds,
-    measured_cycle_band: output.cycle_measurement.implied_band,
+    measured_cycle_seconds: cycles.seconds,
+    measured_cycle_band: cycles.band,
     people_relationship_to_work: output.people_present.relationship_to_work,
     privacy_flag: output.privacy_flag,
     summary: output.summary,
