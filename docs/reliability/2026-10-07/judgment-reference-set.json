@@ -3,9 +3,9 @@
   "created_at_utc": "2026-10-07",
   "base_commit": "efd2e6858",
   "status": "development_only",
-  "scope": "Small provenance reference inventory; not a model accuracy benchmark.",
+  "scope": "Small provenance inventory with provisional sampled-frame observations of existing simulation videos; not a model accuracy benchmark.",
   "independent_real_site_labeled_clips": 0,
-  "holdout_status": "No untouched adjudicated holdout exists in this set. All reviewed cases are development/regression material.",
+  "holdout_status": "No untouched adjudicated holdout exists. Source outcome labels were known before frame inspection; all references are development/regression material.",
   "references": [
     {
       "reference_id": "cup-simulation-00-pi05-external",
@@ -13,7 +13,60 @@
       "content_sha256": "sha256:f89db9ce6e8eee9028fdd0d806327a4fc3bea422942da57db11c1fe9aea95331",
       "size_bytes": 4236757,
       "evidence_class": "recorded_simulation",
-      "semantic_inspection": "not_performed",
+      "semantic_inspection": {
+        "status": "provisional_sampled_frame_inspection",
+        "reviewer": "Codex judgment lane; not independent adjudicator",
+        "source_outcome_labels_seen_before_inspection": true,
+        "method": "ffmpeg decode of exact frame indices; 480px-wide frames in row-major 3x3 contact sheet inspected visually",
+        "frame_indices": [
+          0,
+          8,
+          16,
+          24,
+          32,
+          40,
+          48,
+          56,
+          62
+        ],
+        "presentation_timestamps_seconds": [
+          0,
+          2,
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          15.5
+        ],
+        "media_duration_seconds": 15.75,
+        "source_frame_rate": "4/1",
+        "source_frame_count": 63,
+        "inspected_frame_count": 9,
+        "full_motion_review": false,
+        "observations": [
+          {
+            "at_seconds": 0,
+            "observation": "Upright cup-shaped object is beside a green circular marker; gripper is above the table."
+          },
+          {
+            "at_seconds": 4,
+            "observation": "The cup-shaped object is lying sideways to the right of the green marker."
+          },
+          {
+            "at_seconds": 15.5,
+            "observation": "The object remains sideways in the final sampled frame."
+          }
+        ],
+        "unknowns": [
+          "Whether exact task success thresholds were met",
+          "Contact force, grasp stability, containment and collision metrics",
+          "Any physical-world performance",
+          "Complete repetition boundaries and reset semantics between cycles"
+        ],
+        "outcome_label_adjudication": "not_performed; existing source labels retained separately"
+      },
       "label_source": "client/public/proof/cup-evaluation/provenance.json",
       "source_manifest_sha256": "sha256:408680083be226f7b41c3638b07a8815902d631e09505832c1fb11054d27a367",
       "source_reported_outcome": "moved_below_success_contract",
@@ -21,7 +74,8 @@
       "check": "local_bytes_match_source_manifest",
       "permitted_use": [
         "artifact_integrity",
-        "evidence_class_preservation"
+        "evidence_class_preservation",
+        "provisional_visual_development_reference"
       ],
       "excluded_use": [
         "physical_success",
@@ -36,7 +90,60 @@
       "content_sha256": "sha256:f95ef207c67c81ac28c5520db2eac7a0e68b1769f93a1119540d3be86ebcbe34",
       "size_bytes": 4207584,
       "evidence_class": "recorded_simulation",
-      "semantic_inspection": "not_performed",
+      "semantic_inspection": {
+        "status": "provisional_sampled_frame_inspection",
+        "reviewer": "Codex judgment lane; not independent adjudicator",
+        "source_outcome_labels_seen_before_inspection": true,
+        "method": "ffmpeg decode of exact frame indices; 480px-wide frames in row-major 3x3 contact sheet inspected visually",
+        "frame_indices": [
+          0,
+          8,
+          16,
+          24,
+          32,
+          40,
+          48,
+          56,
+          62
+        ],
+        "presentation_timestamps_seconds": [
+          0,
+          2,
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          15.5
+        ],
+        "media_duration_seconds": 15.75,
+        "source_frame_rate": "4/1",
+        "source_frame_count": 63,
+        "inspected_frame_count": 9,
+        "full_motion_review": false,
+        "observations": [
+          {
+            "at_seconds": 0,
+            "observation": "Upright cup-shaped object is beside a green circular marker; gripper is above the table."
+          },
+          {
+            "at_seconds": 6,
+            "observation": "The cup-shaped object appears sideways to the right of the green marker, with the gripper nearby."
+          },
+          {
+            "at_seconds": 15.5,
+            "observation": "The object remains sideways in the final sampled frame."
+          }
+        ],
+        "unknowns": [
+          "Whether exact task success thresholds were met",
+          "Contact force, grasp stability, containment and collision metrics",
+          "Any physical-world performance",
+          "Complete repetition boundaries and reset semantics between cycles"
+        ],
+        "outcome_label_adjudication": "not_performed; existing source labels retained separately"
+      },
       "label_source": "client/public/proof/cup-evaluation/provenance.json",
       "source_manifest_sha256": "sha256:408680083be226f7b41c3638b07a8815902d631e09505832c1fb11054d27a367",
       "source_reported_outcome": "moved_below_success_contract",
@@ -44,7 +151,8 @@
       "check": "local_bytes_match_source_manifest",
       "permitted_use": [
         "artifact_integrity",
-        "evidence_class_preservation"
+        "evidence_class_preservation",
+        "provisional_visual_development_reference"
       ],
       "excluded_use": [
         "physical_success",
@@ -59,7 +167,60 @@
       "content_sha256": "sha256:74dc11c0be03ebc218b68e666f772cf167ed512bdaa804b7f12e97130110abf1",
       "size_bytes": 4066388,
       "evidence_class": "recorded_simulation",
-      "semantic_inspection": "not_performed",
+      "semantic_inspection": {
+        "status": "provisional_sampled_frame_inspection",
+        "reviewer": "Codex judgment lane; not independent adjudicator",
+        "source_outcome_labels_seen_before_inspection": true,
+        "method": "ffmpeg decode of exact frame indices; 480px-wide frames in row-major 3x3 contact sheet inspected visually",
+        "frame_indices": [
+          0,
+          8,
+          16,
+          24,
+          32,
+          40,
+          48,
+          56,
+          62
+        ],
+        "presentation_timestamps_seconds": [
+          0,
+          2,
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          15.5
+        ],
+        "media_duration_seconds": 15.75,
+        "source_frame_rate": "4/1",
+        "source_frame_count": 63,
+        "inspected_frame_count": 9,
+        "full_motion_review": false,
+        "observations": [
+          {
+            "at_seconds": 0,
+            "observation": "Upright cup-shaped object is beside a green circular marker."
+          },
+          {
+            "at_seconds": 6,
+            "observation": "Gripper is next to the upright object."
+          },
+          {
+            "at_seconds": 15.5,
+            "observation": "The gripper has moved away; the object is upright beside the green marker."
+          }
+        ],
+        "unknowns": [
+          "Whether exact task success thresholds were met",
+          "Contact force, grasp stability, containment and collision metrics",
+          "Any physical-world performance",
+          "Complete repetition boundaries and reset semantics between cycles"
+        ],
+        "outcome_label_adjudication": "not_performed; existing source labels retained separately"
+      },
       "label_source": "client/public/proof/cup-evaluation/provenance.json",
       "source_manifest_sha256": "sha256:408680083be226f7b41c3638b07a8815902d631e09505832c1fb11054d27a367",
       "source_reported_outcome": "moved_below_success_contract",
@@ -67,7 +228,8 @@
       "check": "local_bytes_match_source_manifest",
       "permitted_use": [
         "artifact_integrity",
-        "evidence_class_preservation"
+        "evidence_class_preservation",
+        "provisional_visual_development_reference"
       ],
       "excluded_use": [
         "physical_success",
@@ -82,7 +244,60 @@
       "content_sha256": "sha256:ceef1db20948d8dab3842e2628c48774123a8f33fe16e6966df813afac2391d1",
       "size_bytes": 4282564,
       "evidence_class": "recorded_simulation",
-      "semantic_inspection": "not_performed",
+      "semantic_inspection": {
+        "status": "provisional_sampled_frame_inspection",
+        "reviewer": "Codex judgment lane; not independent adjudicator",
+        "source_outcome_labels_seen_before_inspection": true,
+        "method": "ffmpeg decode of exact frame indices; 480px-wide frames in row-major 3x3 contact sheet inspected visually",
+        "frame_indices": [
+          0,
+          8,
+          16,
+          24,
+          32,
+          40,
+          48,
+          56,
+          62
+        ],
+        "presentation_timestamps_seconds": [
+          0,
+          2,
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          15.5
+        ],
+        "media_duration_seconds": 15.75,
+        "source_frame_rate": "4/1",
+        "source_frame_count": 63,
+        "inspected_frame_count": 9,
+        "full_motion_review": false,
+        "observations": [
+          {
+            "at_seconds": 0,
+            "observation": "Upright cup-shaped object is beside a green circular marker."
+          },
+          {
+            "at_seconds": 8,
+            "observation": "Gripper is next to the object; its position relative to the green marker differs from the opening frame."
+          },
+          {
+            "at_seconds": 15.5,
+            "observation": "The upright object is at the green marker; gripper remains nearby."
+          }
+        ],
+        "unknowns": [
+          "Whether exact task success thresholds were met",
+          "Contact force, grasp stability, containment and collision metrics",
+          "Any physical-world performance",
+          "Complete repetition boundaries and reset semantics between cycles"
+        ],
+        "outcome_label_adjudication": "not_performed; existing source labels retained separately"
+      },
       "label_source": "client/public/proof/cup-evaluation/provenance.json",
       "source_manifest_sha256": "sha256:408680083be226f7b41c3638b07a8815902d631e09505832c1fb11054d27a367",
       "source_reported_outcome": "pushed_and_settled",
@@ -90,7 +305,8 @@
       "check": "local_bytes_match_source_manifest",
       "permitted_use": [
         "artifact_integrity",
-        "evidence_class_preservation"
+        "evidence_class_preservation",
+        "provisional_visual_development_reference"
       ],
       "excluded_use": [
         "physical_success",
@@ -105,7 +321,60 @@
       "content_sha256": "sha256:dd88ca9327b71ac22ecc9bf3f34b53eb257158cd195816ab5b2e70c8ff1c675f",
       "size_bytes": 4718842,
       "evidence_class": "recorded_simulation",
-      "semantic_inspection": "not_performed",
+      "semantic_inspection": {
+        "status": "provisional_sampled_frame_inspection",
+        "reviewer": "Codex judgment lane; not independent adjudicator",
+        "source_outcome_labels_seen_before_inspection": true,
+        "method": "ffmpeg decode of exact frame indices; 480px-wide frames in row-major 3x3 contact sheet inspected visually",
+        "frame_indices": [
+          0,
+          8,
+          16,
+          24,
+          32,
+          40,
+          48,
+          56,
+          62
+        ],
+        "presentation_timestamps_seconds": [
+          0,
+          2,
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          15.5
+        ],
+        "media_duration_seconds": 15.75,
+        "source_frame_rate": "4/1",
+        "source_frame_count": 63,
+        "inspected_frame_count": 9,
+        "full_motion_review": false,
+        "observations": [
+          {
+            "at_seconds": 0,
+            "observation": "Upright cup-shaped object is beside a green circular marker."
+          },
+          {
+            "at_seconds": 12,
+            "observation": "Gripper is beside the upright object near the green marker."
+          },
+          {
+            "at_seconds": 15.5,
+            "observation": "Gripper has moved away; upright object is near the green marker, displaced from its opening position."
+          }
+        ],
+        "unknowns": [
+          "Whether exact task success thresholds were met",
+          "Contact force, grasp stability, containment and collision metrics",
+          "Any physical-world performance",
+          "Complete repetition boundaries and reset semantics between cycles"
+        ],
+        "outcome_label_adjudication": "not_performed; existing source labels retained separately"
+      },
       "label_source": "client/public/proof/cup-evaluation/provenance.json",
       "source_manifest_sha256": "sha256:408680083be226f7b41c3638b07a8815902d631e09505832c1fb11054d27a367",
       "source_reported_outcome": "collision_or_containment_failure",
@@ -113,7 +382,8 @@
       "check": "local_bytes_match_source_manifest",
       "permitted_use": [
         "artifact_integrity",
-        "evidence_class_preservation"
+        "evidence_class_preservation",
+        "provisional_visual_development_reference"
       ],
       "excluded_use": [
         "physical_success",
@@ -128,7 +398,60 @@
       "content_sha256": "sha256:04bb678d03997a1b8572f27b34bd8248b5c2a95f408d50ee7b9af3c6a1c83753",
       "size_bytes": 4677191,
       "evidence_class": "recorded_simulation",
-      "semantic_inspection": "not_performed",
+      "semantic_inspection": {
+        "status": "provisional_sampled_frame_inspection",
+        "reviewer": "Codex judgment lane; not independent adjudicator",
+        "source_outcome_labels_seen_before_inspection": true,
+        "method": "ffmpeg decode of exact frame indices; 480px-wide frames in row-major 3x3 contact sheet inspected visually",
+        "frame_indices": [
+          0,
+          8,
+          16,
+          24,
+          32,
+          40,
+          48,
+          56,
+          62
+        ],
+        "presentation_timestamps_seconds": [
+          0,
+          2,
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          15.5
+        ],
+        "media_duration_seconds": 15.75,
+        "source_frame_rate": "4/1",
+        "source_frame_count": 63,
+        "inspected_frame_count": 9,
+        "full_motion_review": false,
+        "observations": [
+          {
+            "at_seconds": 0,
+            "observation": "Upright cup-shaped object is beside a green circular marker."
+          },
+          {
+            "at_seconds": 12,
+            "observation": "Object position is closer to the green marker than at the opening, with the gripper immediately above it."
+          },
+          {
+            "at_seconds": 15.5,
+            "observation": "Object remains upright at the green marker with the gripper close above it."
+          }
+        ],
+        "unknowns": [
+          "Whether exact task success thresholds were met",
+          "Contact force, grasp stability, containment and collision metrics",
+          "Any physical-world performance",
+          "Complete repetition boundaries and reset semantics between cycles"
+        ],
+        "outcome_label_adjudication": "not_performed; existing source labels retained separately"
+      },
       "label_source": "client/public/proof/cup-evaluation/provenance.json",
       "source_manifest_sha256": "sha256:408680083be226f7b41c3638b07a8815902d631e09505832c1fb11054d27a367",
       "source_reported_outcome": "moved_below_success_contract",
@@ -136,7 +459,8 @@
       "check": "local_bytes_match_source_manifest",
       "permitted_use": [
         "artifact_integrity",
-        "evidence_class_preservation"
+        "evidence_class_preservation",
+        "provisional_visual_development_reference"
       ],
       "excluded_use": [
         "physical_success",
@@ -215,6 +539,24 @@
       "content_sha256": "sha256:bd3e8c2be8f653f1024c0e6f3e8c45505a4af81078808a9e493a0dd89cad35cd",
       "check": "local_file_read_and_hashed",
       "authority": "test_fixture_only"
+    },
+    {
+      "canonical_path": "server/utils/siteVideoObservationClaims.ts",
+      "content_sha256": "sha256:dfe33fa1602d2755eb21ee8fb8dc3c912a98da8905f5c7a6e44455fe97bf1595",
+      "check": "local_file_read_and_hashed",
+      "authority": "source_contract_not_live_truth"
+    },
+    {
+      "canonical_path": "server/utils/siteVideoEvidence.ts",
+      "content_sha256": "sha256:7325b0bec06667c4d463a2e54ebbf33115f2c50990b4d8ca6c33529d6b302d06",
+      "check": "local_file_read_and_hashed",
+      "authority": "source_contract_not_live_truth"
+    },
+    {
+      "canonical_path": "server/utils/siteTaskBriefReading.ts",
+      "content_sha256": "sha256:7cc426bcb2c21e799490c20421570526797ecabcc85e13d49e72382f42116286",
+      "check": "local_file_read_and_hashed",
+      "authority": "source_contract_not_live_truth"
     }
   ],
   "canonical_recovery": "Restore this file and relative canonical paths from Blueprint-owned Git; verify SHA-256. Do not rely on conversation or Library availability. Missing user video bytes remain a named recovery gap."
