@@ -9,7 +9,7 @@
  * typed location remains ambiguous. That fallback is visible before Start,
  * because the country decides whether we may collect footage at all.
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
@@ -162,6 +162,30 @@ describe("SiteCaptureStart and the country", () => {
       resolveDetails?.({ address_components: [{ short_name: "DE", types: ["country"] }] }, "OK");
       expect(await screen.findByText(/Country: United States\./)).toBeInTheDocument();
       expect(region()).toBeNull();
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it("preserves an explicit country correction made while Google details are pending", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    let resolveDetails: ((place: unknown, status: string) => void) | undefined;
+    vi.stubGlobal("google", { maps: { places: {
+      AutocompleteService: class {
+        getPlacePredictions(_request: unknown, callback: Function) {
+          callback([{ description: "Berlin, Germany", place_id: "berlin-id" }], "OK");
+        }
+      },
+      PlacesService: class {
+        getDetails(_request: unknown, callback: typeof resolveDetails) { resolveDetails = callback; }
+      },
+    } } });
+    try {
+      render(<SiteCaptureStart />);
+      fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
+      fireEvent.mouseDown(await screen.findByText("Berlin, Germany"));
+      fireEvent.change(region()!, { target: { value: "us" } });
+      await act(async () => resolveDetails?.({ address_components: [{ short_name: "DE", types: ["country"] }] }, "OK"));
+      expect(region()!.value).toBe("us");
+      expect(screen.queryByText(/Country: Outside the United States\./)).toBeNull();
     } finally { vi.unstubAllEnvs(); }
   });
 

@@ -156,7 +156,7 @@ export function SiteCaptureStart() {
   }
   const [selfRecording, setSelfRecording] = useState(true);
   const [region, setRegion] = useState<CaptureRegion | "">("");
-  const [regionManuallySet, setRegionManuallySet] = useState(false);
+  const regionManuallySet = useRef(false);
   // The address answers the country, so the country is not a question on the
   // page. It opens when the operator asks to correct it, or when a typed
   // address never resolved to a country and we cannot go on without one.
@@ -657,13 +657,13 @@ export function SiteCaptureStart() {
             maxLength={300}
             placeholder={selfRecording || hasFootage ? "City, or a full address" : "Street address"}
             onSelectionChange={(place) => {
-              if (!regionManuallySet) {
+              if (!regionManuallySet.current) {
                 setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
                 if (place) setCountryOpen(!place.countryCode);
               }
             }}
             onInputChange={(text) => {
-              if (regionManuallySet) return;
+              if (regionManuallySet.current) return;
               const country = inferLocationCountryCode(text);
               setRegion(country ? (country === "US" ? "us" : "non_us") : "");
               setCountryOpen(!country && text.trim().length > 0);
@@ -680,7 +680,7 @@ export function SiteCaptureStart() {
               ref={regionSelect}
               value={region}
               required
-              onChange={(event) => { setRegion(event.target.value as CaptureRegion); setRegionManuallySet(!!event.target.value); }}
+              onChange={(event) => { regionManuallySet.current = !!event.target.value; setRegion(event.target.value as CaptureRegion); }}
             >
               <option value="">Choose country</option>
               {captureRegionOptions.map((option) => (
