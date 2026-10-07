@@ -12,10 +12,38 @@ import { reserveCommunicationsDraft, recordCommunicationsDraftUsage, reconcileCo
   claimCommunicationsRejectedCreateDraftBudget, claimCommunicationsCancelledContinuationBudget,
   assertCommunicationsContinuationBudget, type CommunicationsRejectedCreateDraftBudgetClaim } from "../agents/communications-draft-budget";
 import { communicationsDigest } from "../agents/communications-contract";
-import { CommunicationsStore } from "../agents/communications-store";
+import { CommunicationsStore, COMMUNICATIONS_SAVED_RECOVERY_REQUESTER } from "../agents/communications-store";
 const root = "blueprintCommunications/default", digest = "a".repeat(64);
 const usage = { input_tokens: 1000, output_tokens: 200, total_tokens: 1200,
   input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 100 } };
+
+describe("durable saved-output recovery discovery", () => {
+  it.each(["blocked", "queued", "running", "retry", "pending_approval"])("retains the owned %s handoff on reload without changing business state", async state => {
+    const f = communicationsFixture(), db = memoryFirestore();
+    const savedOutputRecovery = { rawOutputSha256: "a".repeat(64), ownerAction: { actorUid: "synthetic-owner",
+      sourceCommit: "b".repeat(40), originalJobDigest: "c".repeat(64), requestDigest: "d".repeat(64) } };
+    const record = { ...f.job, state, attempts: 2, checkpoint: { sessionId: "synthetic-existing-session", turnId: "synthetic-existing-turn" }, retryRequestedBy: COMMUNICATIONS_SAVED_RECOVERY_REQUESTER,
+      savedOutputRecovery, lease: { owner: "original-recovery", until: state === "running" ? communicationsNow + 1000 : 0 } };
+    db.records.set(`${root}/jobs/${f.job.jobId}`, record);
+    db.records.set(`${root}/draftBudgetState/current`, { activeAdmissionId: null });
+    const before = structuredClone([...db.records]);
+    const visible = await new CommunicationsStore(db, () => communicationsNow, "read-only-observer").blockedJobs();
+    expect(visible).toHaveLength(1);
+    expect(visible[0]).toMatchObject({ jobId: f.job.jobId, state, attempts: 2, savedOutputRecovery,
+      sessionId: record.checkpoint.sessionId, expectedJobDigest: communicationsDigest(record),
+      expectedCheckpointDigest: communicationsDigest(record.checkpoint), leaseUntil: record.lease.until });
+    expect([...db.records]).toEqual(before);
+  });
+  it("does not expose unrelated queued jobs or completed recoveries as a resumable handoff", async () => {
+    const f = communicationsFixture(), db = memoryFirestore();
+    for (const [id, extra] of Object.entries({ unowned: { state: "queued", retryRequestedBy: COMMUNICATIONS_SAVED_RECOVERY_REQUESTER },
+      unrelated: { state: "queued", retryRequestedBy: "another-operator", savedOutputRecovery: { ownerAction: { actorUid: "other" } } },
+      completed: { state: "sent", retryRequestedBy: COMMUNICATIONS_SAVED_RECOVERY_REQUESTER, savedOutputRecovery: { ownerAction: { actorUid: "owner" } } } })) {
+      db.records.set(`${root}/jobs/${id}`, { ...f.job, jobId: id, ...extra });
+    }
+    expect(await new CommunicationsStore(db, () => communicationsNow, "observer").blockedJobs()).toEqual([]);
+  });
+});
 
 describe("one owner-authorized phase inside the existing unresolved hold", () => {
   function continuationBudget() {
@@ -316,6 +344,7 @@ describe("communications-only soft model target and serialized admissions", () =
     const store = new CommunicationsStore(f.db, () => communicationsNow, "observer");
     const visible = await store.blockedJobs(); expect(visible).toHaveLength(20);
     expect(visible[0]).toEqual(expect.objectContaining({ jobId: f.input.jobId,
+      expectedJobDigest: communicationsDigest(f.db.records.get(`${root}/jobs/${f.input.jobId}`)),
       expectedCheckpointDigest: f.input.expectedCheckpointDigest, sessionReconciliationRequired: true, sessionId: null }));
     await reconcileCommunicationsDraftSession(f.db, f.api, f.input, communicationsNow);
     expect(f.db.records.get(`${root}/jobs/${f.input.jobId}`)).toMatchObject({ state: "blocked", attempts: 3,
