@@ -179,6 +179,11 @@ jobs:
       - name: Run tests
         run: npm run test:coverage
 
+      - name: Verify site reliability evidence and validator controls
+        run: |
+          node --test scripts/reliability/verify-site.test.mjs
+          node scripts/reliability/verify-site.mjs
+
       - name: Verify tests did not mutate tracked files
         run: |
           set -euo pipefail

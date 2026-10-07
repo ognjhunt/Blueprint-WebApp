@@ -17,11 +17,11 @@ All commands used one Vitest worker, the existing dependencies, fake external si
 | Existing adjacent workflows | `communications-gmail-draft.test.ts`, `communications-reviewed-research.test.ts`, `robot-team-early-access.test.ts`, `communications-inprocess-recovery.test.ts`, `render-deploy-ci-contract.test.ts` | 119 passed |
 | Unknown model outcome, accounting and capability provenance | `communications-agent.test.ts`, `communications-draft-budget.test.ts`, `robot-team-registry.test.ts` | 14 passed; 200 deselected |
 
-The portable invocation prefix is:
+The portable invocation prefix below uses the versioned coordinator guard (create `work/` first). Historical execution used the scratch guard recorded above:
 
 ```bash
-NODE_OPTIONS='--require /workspace/work/reliability-baseline/deny-egress.cjs' \
-BLUEPRINT_TEST_EGRESS_LOG=/workspace/work/backend-contracts/work/invariant-egress.jsonl \
+NODE_OPTIONS="--require=$PWD/scripts/reliability/deny-egress.cjs" \
+BLUEPRINT_TEST_EGRESS_LOG="$PWD/work/invariant-egress.jsonl" \
 node node_modules/vitest/vitest.mjs run <suite paths> --maxWorkers=1 --minWorkers=1
 ```
 
