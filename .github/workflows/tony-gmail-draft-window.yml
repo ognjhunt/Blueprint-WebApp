@@ -43,7 +43,7 @@ jobs:
     steps:
       # Inline, reviewed code only: no checkout, install, arbitrary endpoint,
       # credential output or mutation. The Tony configuration job is excluded.
-      - name: GET only the two known instance inventories and three admission flags
+      - name: GET only the fixed instance inventories and release hold settings
         env:
           INCIDENT_REF: ${{ inputs.incident_ref }}
           REVIEWED_SOURCE: ${{ inputs.reviewed_source }}
@@ -53,7 +53,7 @@ jobs:
           import { mkdirSync, writeFileSync } from 'node:fs';
           import { createHash } from 'node:crypto';
           if (process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || process.env.GITHUB_REPOSITORY !== 'ognjhunt/Blueprint-WebApp'
-            || process.env.GITHUB_REF !== 'refs/heads/codex/outreach-incident-held-inspect-20261006'
+            || process.env.GITHUB_REF !== 'refs/heads/codex/outreach-held-release-diagnostics-20261007'
             || process.env.INCIDENT_REF !== 'c4db1d2f61970efda3a226c9715345718a2064f5'
             || !/^[a-f0-9]{40}$/.test(process.env.REVIEWED_SOURCE ?? '') || process.env.REVIEWED_SOURCE !== process.env.GITHUB_SHA) throw Error('reviewed_incident_inspection_scope_unverified');
           const key = process.env.RENDER_API_KEY;
@@ -64,6 +64,11 @@ jobs:
             ['daily-enabled', worker, 'env-vars/BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED'],
             ['communications-enabled', worker, 'env-vars/BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED'],
             ['web-ops-enabled', web, 'env-vars/BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB'],
+            ['worker-bootstrap-disabled', worker, 'env-vars/BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP'],
+            ['web-bootstrap-disabled', web, 'env-vars/BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP'],
+            ['worker-forward-only', worker, 'env-vars/BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER'],
+            ['worker-node-options', worker, 'env-vars/NODE_OPTIONS'],
+            ['web-node-options', web, 'env-vars/NODE_OPTIONS'],
           ];
           const directory = `${process.env.RUNNER_TEMP}/communications-incident-inventory`;
           mkdirSync(directory, { mode: 0o700 });
@@ -84,7 +89,12 @@ jobs:
                 || (row.ready !== undefined && typeof row.ready !== 'boolean')
                 || Object.keys(row).some(field => !['id', 'createdAt', 'status', 'ready'].includes(field)))) throw Error('instance_response_shape_unverified');
             } else if (response.status === 200) {
-              if (body?.key !== path.slice('env-vars/'.length) || !['false', 'true', '0', '1'].includes(body.value) || Object.keys(body).some(field => !['key', 'value'].includes(field))) throw Error('fixed_flag_response_shape_unverified');
+              const nodeOptions = path === 'env-vars/NODE_OPTIONS';
+              if (body?.key !== path.slice('env-vars/'.length) || typeof body.value !== 'string'
+                || (!nodeOptions && !['false', 'true', '0', '1'].includes(body.value))
+                || Object.keys(body).some(field => !['key', 'value'].includes(field))) throw Error('fixed_flag_response_shape_unverified');
+              // Only retain empty/configured status; NODE_OPTIONS may contain private paths.
+              if (nodeOptions) body = { key: body.key, empty: body.value === '' };
             } else {
               // Keep authenticated absence without retaining arbitrary error bytes.
               body = null;
@@ -92,7 +102,7 @@ jobs:
             const rawBodySha256 = createHash('sha256').update(raw).digest('hex');
             const receipt = { method: 'GET', url, status: response.status, body, observedAtMs: Date.now(), rawBodySha256,
               requestId: response.headers.get('render-request-id'), responseDate: response.headers.get('date') };
-            if (response.status === 200) writeFileSync(`${directory}/${name}-body.json`, raw, { mode: 0o600, flag: 'wx' });
+            if (response.status === 200 && path !== 'env-vars/NODE_OPTIONS') writeFileSync(`${directory}/${name}-body.json`, raw, { mode: 0o600, flag: 'wx' });
             receipts.push({ name, ...receipt });
           }
           const packet = { schema: 'blueprint.render-incident-ci-receipts.v1', incident: 'lap259-20261006', parentThread: '01a0fe81-486b-7714-9e81-983a66bd80c4',
