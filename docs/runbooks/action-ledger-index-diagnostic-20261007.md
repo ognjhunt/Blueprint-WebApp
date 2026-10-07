@@ -26,7 +26,8 @@ node <verified-diagnostic-path> <verified-original-operator-path> diagnose
 
 This command makes one SDK ListIndexes GET of the same fixed parent with
 pageSize 100, no filter, no autopagination/retries and a 10-second timeout.
-It retains bounded, redacted `message` and whitelisted `details` rather than
+It retains bounded, redacted `message` and whitelisted field violations from
+decoded SDK `statusDetails` or direct REST `details` rather than
 only a generic unavailable code. Headers/config/credentials are never logged.
 Known token/key/email values, bearer strings, JWTs, long encoded values and
 control characters are removed. Error detail is diagnostic evidence, not an
@@ -36,7 +37,10 @@ Only after code 3, it compares one documented direct JSON GET of the **same**
 project/default database/action_ledger parent, pageSize 100 and the **same**
 existing Firebase Admin token, without the SDK's generated enum-encoding
 option. It does not switch transport after an IAM denial or change identity,
-scopes, credentials or project. Responses are bounded at 64 KiB. There is no
+scopes, credentials or project. Direct REST and archive responses are bounded at
+64 KiB. The SDK decoder buffers its response before sanitization; its first-page
+request is bounded by pageSize 100 and a 10-second timeout, without an independent
+SDK response-byte cap. Retained error detail remains bounded. There is no
 index mutation path. First-page success is never full-inventory/absence/READY
 proof and cannot authorize creation or task continuation.
 

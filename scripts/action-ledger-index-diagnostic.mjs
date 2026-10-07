@@ -23,9 +23,13 @@ export function redact(value, secrets = []) {
     .replace(/[\x00-\x1f\x7f]/g, ' ').slice(0, 512);
 }
 export function safeError(error, secrets = []) {
-  const details = typeof error?.details === 'string' ? [redact(error.details, secrets)]
-    : Array.isArray(error?.details) ? error.details.slice(0, 4).map(detail => typeof detail === 'string' ? redact(detail, secrets)
-      : { type: redact(detail?.['@type'], secrets), violations: Array.isArray(detail?.fieldViolations) ? detail.fieldViolations.slice(0, 4).map(row => ({ field: redact(row?.field, secrets), description: redact(row?.description, secrets) })) : [] }) : [];
+  // GAX exposes decoded protobuf Any values as statusDetails. Never serialize
+  // encoded Any.value, ErrorInfo.metadata, headers or the entire SDK error.
+  const candidates = [error?.statusDetails, error?.details].flatMap(value => typeof value === 'string' ? [value] : Array.isArray(value) ? value.slice(0, 4) : []);
+  const details = candidates.map(detail => typeof detail === 'string' ? redact(detail, secrets)
+    : Array.isArray(detail?.fieldViolations) || typeof detail?.['@type'] === 'string'
+      ? { type: redact(detail?.['@type'], secrets), violations: Array.isArray(detail?.fieldViolations) ? detail.fieldViolations.slice(0, 4).map(row => ({ field: redact(row?.field, secrets), description: redact(row?.description, secrets) })) : [] }
+      : null).filter(detail => detail !== null).slice(0, 4);
   return { apiCode: typeof error?.code === 'number' ? error.code : null, message: redact(error?.message, secrets), details };
 }
 export async function boundedResponse(response, limit = 65536) {

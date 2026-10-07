@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { diagnose, safeError, boundedResponse, archiveReceipt, PARENT } from './action-ledger-index-diagnostic.mjs';
 const token = 'synthetic-existing-access-token';
 const response = (body: any, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -14,6 +15,23 @@ describe('read-only index API diagnosis and explicit receipt archival', () => {
   it('bounds messages, details and response bytes', async () => {
     expect(safeError({ message: 'x '.repeat(1000) }).message.length).toBeLessThanOrEqual(512);
     await expect(boundedResponse(new Response('x'.repeat(65537)))).rejects.toThrow('response_size_limit');
+  });
+  it('retains decoded field violations from the installed SDK public error decoder', () => {
+    const require = createRequire(import.meta.url);
+    const sdkRequire = createRequire(require.resolve('@google-cloud/firestore'));
+    const { GoogleError } = sdkRequire('google-gax');
+    const decoded = GoogleError.parseHttpError({ error: { code: 400, status: 'INVALID_ARGUMENT', message: 'Request contains an invalid argument.', details: [
+      { '@type': 'type.googleapis.com/google.rpc.BadRequest', fieldViolations: [{ field: '$alt', description: `unsupported enum encoding ${token}` }] },
+      { '@type': 'type.googleapis.com/google.rpc.ErrorInfo', reason: 'SYNTHETIC', domain: 'synthetic', metadata: { credential: token, email: 'user@example.com' } },
+    ] } });
+    expect(decoded.code).toBe(3);
+    expect(decoded.statusDetails[0].fieldViolations[0].field).toBe('$alt');
+    const safe = safeError(decoded, [token]);
+    expect(safe.details[0].violations).toEqual([{ field: '$alt', description: 'unsupported enum encoding [redacted]' }]);
+    expect(JSON.stringify(safe)).not.toContain(token);
+    expect(JSON.stringify(safe)).not.toContain('credential');
+    expect(JSON.stringify(safe)).not.toContain('type_url');
+    expect(JSON.stringify(safe)).not.toContain('user@example.com');
   });
   it('makes exactly one same-parent documented GET after code3 and never a create', async () => {
     const client = { listIndexes: vi.fn().mockRejectedValue({ code: 3, message: 'bad parameter' }), createIndex: vi.fn() };
