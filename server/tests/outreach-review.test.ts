@@ -161,6 +161,28 @@ describe("first-contact outreach review", () => {
     expect(reviewOutreachDraft({ ...outreachDraft, body }).blockers).toContain("blueprint_identity_required_before_offer");
   });
 
+  it.each(["I'm building Blueprint", "I’m building Blueprint", "I am building Blueprint"])("recognizes the founder introduction %s before an offer with a closing signature", introduction => {
+    const contract = { ...outreachContract, senderIdentity: "Synthetic Founder\nBlueprint" };
+    const body = outreachDraft.body.replace(outreachContract.senderIdentity, introduction) + "\n\n" + contract.senderIdentity;
+    const result = reviewOutreachDraft({ ...outreachDraft, contract, body });
+    expect(result.hardChecksPassed).toBe(true);
+    expect(validateOutreachSemanticReview(result, undefined)).toBe("outreach_semantic_review_required");
+    expect(reviewOutreachDraft({ ...outreachDraft, contract, body: body.replace(contract.senderIdentity, "") }).blockers)
+      .toContain("review_anchor_missing_from_body");
+  });
+
+  it.each(["", "I saw Blueprint", "I am not building Blueprint", "I'm building Blueprintish", 'Someone wrote "I\'m building Blueprint".', "Someone wrote “I'm building Blueprint”."])("keeps footer-only or unrelated Blueprint mentions insufficient: %s", mention => {
+    const contract = { ...outreachContract, senderIdentity: "Synthetic Founder\nBlueprint" };
+    const body = outreachDraft.body.replace(outreachContract.senderIdentity, mention) + "\n\n" + contract.senderIdentity;
+    expect(reviewOutreachDraft({ ...outreachDraft, contract, body }).blockers).toContain("blueprint_identity_required_before_offer");
+  });
+
+  it("rejects a founder introduction after the offer even when the closing signature is present", () => {
+    const contract = { ...outreachContract, senderIdentity: "Synthetic Founder\nBlueprint" };
+    const body = outreachDraft.body.replace(outreachContract.senderIdentity, "") + "\n\nI'm building Blueprint\n" + contract.senderIdentity;
+    expect(reviewOutreachDraft({ ...outreachDraft, contract, body }).blockers).toContain("blueprint_identity_required_before_offer");
+  });
+
   it("separates site-led learning from promises of participation, capacity, or a fee-triggering match", () => {
     for (const workflow of [
       { ...outreachContract.workflow, briefKind: "qualified_match" },

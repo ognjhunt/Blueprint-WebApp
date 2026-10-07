@@ -263,7 +263,13 @@ export function reviewOutreachDraft(draft: OutreachDraft): OutreachReviewResult 
   const openingClaim = opening.kind === "cold" ? opening.publicDetail.claim : opening.claim;
   const anchors = [contract.senderIdentity, contract.value.offer, contract.value.limits, contract.question, contract.recipientChoice];
   if (!/\bBlueprint\b/.test(contract.senderIdentity)) blockers.push("blueprint_identity_required");
-  if (draft.body.indexOf(contract.senderIdentity) > draft.body.indexOf(contract.value.offer)) {
+  // A closing signature still binds the exact sender anchor below. The owner’s
+  // explicit introduction can disclose Blueprint before the offer in prose.
+  const founderIntroduction = [...draft.body.matchAll(/\bI(?:['’]m| am)\s+building\s+Blueprint\b/g)]
+    .find(match => !/["'“”‘’]/.test(draft.body[match.index! - 1] ?? ""));
+  const offerAt = draft.body.indexOf(contract.value.offer);
+  if (draft.body.indexOf(contract.senderIdentity) > offerAt
+    && (!founderIntroduction || founderIntroduction.index + founderIntroduction[0].length > offerAt)) {
     blockers.push("blueprint_identity_required_before_offer");
   }
   const teamSources = contract.workflow.teamFeasibilitySources;
