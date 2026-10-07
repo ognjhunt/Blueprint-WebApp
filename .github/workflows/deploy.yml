@@ -203,9 +203,17 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+          DEPLOYMENT_VARIABLE_CONTEXT: ${{ toJSON(vars) }}
         run: |
           cat > /tmp/outreach-release-holds.mjs <<'NODE'
           import { mkdirSync, writeFileSync } from 'node:fs';
+          const rawContext = process.env.DEPLOYMENT_VARIABLE_CONTEXT;
+          if (!rawContext || rawContext.length > 256_000) throw Error('deployment_context_unavailable');
+          const context = JSON.parse(rawContext), name = 'BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED';
+          if (!context || Array.isArray(context) || typeof context !== 'object') throw Error('deployment_context_unavailable');
+          const automaticAdmission = !Object.hasOwn(context, name) ? 'absent'
+            : context[name] === 'false' ? 'literal_false' : 'blocked';
+          if (automaticAdmission === 'blocked') throw Error('automatic_deployment_not_held');
           if (process.env.RENDER_SERVICE_ID !== 'srv-d4vnmk3e5dus73aiohk0'
             || process.env.RENDER_WORKER_SERVICE_ID !== 'srv-d9t8gg1t0dsc73am9q70') {
             throw Error('outreach_release_service_binding_changed');
@@ -251,7 +259,8 @@ jobs:
           mkdirSync('/tmp/deploy-evidence', { recursive: true });
           writeFileSync(`/tmp/deploy-evidence/outreach-release-holds-${process.argv[2]}.json`, JSON.stringify({
             schema: 'blueprint.outreach-release-holds.v1', readOnly: true,
-            sendsAuthorized: false, paidAdmissionAuthorized: false, receipts,
+            sendsAuthorized: false, paidAdmissionAuthorized: false, automaticAdmission,
+            contextReadAtMs: Date.now(), contextResolvedAt: null, receipts,
           }, null, 2) + '\n');
           NODE
 
@@ -484,6 +493,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
           RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+          DEPLOYMENT_VARIABLE_CONTEXT: ${{ toJSON(vars) }}
         run: node /tmp/outreach-release-holds.mjs after
 
       - name: Upload deployment evidence

@@ -13,7 +13,9 @@ Oct6 session cleanup, activate research or communications, or send outreach.
 ## One execution command
 
 Run from this reviewed Web checkout on the existing cloud controller with its
-already bound Firebase and GitHub credentials. No credentials are copied into
+already bound Firebase and GitHub credentials. On the saved cloud's Node 24,
+use `node --use-env-proxy` so the public version read uses its existing proxy.
+No credentials are copied into
 the worker. Before starting, the parent supplies one authentic fresh native
 proof packet using the existing incident operator; the actual process inventory
 cannot be reconstructed or restamped from an earlier packet.
@@ -41,7 +43,7 @@ For a private four-file directory containing `canonical.json`, `provider.json`,
 `process-proof.json`, and `authority.json`:
 
 ```sh
-node scripts/communications-release-sequence-20261007.mjs release \
+node --use-env-proxy scripts/communications-release-sequence-20261007.mjs release \
   /tmp/actual-fresh-native-release-proof EXACT_GREEN_MAIN_SHA \
   /tmp/new-continuous-release-output
 ```
@@ -49,7 +51,7 @@ node scripts/communications-release-sequence-20261007.mjs release \
 Alternatively, give a generation-pinned company-storage manifest:
 
 ```sh
-node scripts/communications-release-sequence-20261007.mjs release \
+node --use-env-proxy scripts/communications-release-sequence-20261007.mjs release \
   gs://blueprint-8c1ca.appspot.com/operations/communications/incident-20261006/ACTUAL_OBJECT \
   EXACT_GREEN_MAIN_SHA /tmp/new-continuous-release-output \
   ACTUAL_MANIFEST_GENERATION ACTUAL_MANIFEST_SHA256
@@ -65,6 +67,33 @@ in company storage; none belong in public commits.
 There are no parent relay steps after initial proof admission. The command
 checks exact green main, the disabled deployment workflow, no active competing
 main CI/deployment, and automatic deployment admission absent/literal false.
+The normal CI workflow observes its own `vars` context after the existing five
+checks. With no checkout, secret or API request, it classifies this one key as
+`absent`, `literal_false`, or `blocked`. Only the first two execute a dynamically
+named confirmation step. A blocked value leaves ordinary CI green and supplies
+no usable release confirmation. No other variable values are retained.
+
+The controller reads the actual job and steps through its existing authorized
+Actions API binding. It checks exact main/push/CI identity, source SHA, current
+attempt, complete job inventory, unique successful producer/confirmation steps,
+and bounded step timestamps. Missing, skipped, stale or ambiguous observations
+reject before any lease mutation. This supported workflow-context observation
+does not call the denied Variables API or treat HTTP403 as absence. The
+authenticated metadata receipt is archived privately before fence release.
+
+GitHub supplies a workflow context before execution; a successful confirmation
+does not prove when configuration was resolved or lock future changes. Parent's
+actual configuration-writer hold must start before that CI run is created and
+span the release. Record it using the existing owner-direction/proof flow:
+include `github-configuration-writers` in `frozenWriters`, and retain
+`writerFreezeEvidence.githubConfiguration` with the actual integer
+`heldSinceMs` and nonempty `evidenceRef`. Keep existing freeze evidence fields.
+The native preparer already preserves these proof fields; it creates no hold
+evidence or new authority. Missing or late hold evidence rejects admission.
+For an old confirmation, the existing Actions operator can rerun only this
+read-only observation job; it must preserve the hold covering the original run's
+context admission. The controller never refreshes or dispatches it automatically.
+
 It retains the proof, invokes the existing `fenceLease(..., 'release-fence', ...)`,
 retains acquisition intent, and checks the exact released predecessor inside
 every normal acquire transaction retry. A successor is never overwritten even
@@ -89,7 +118,10 @@ auto-deploy off. No config is repaired or inferred by the operator.
 
 Automatic post-CI deployment additionally requires the explicit repository
 variable `BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED=true`. Its default is off; this
-operator requires absence or literal false and never writes that variable.
+operator requires observed context absence or literal false and never writes
+that variable. The held deployment guard also checks its own context before and
+after deployment. Those are context observations, not fresh configuration GETs;
+continuity depends on the explicitly evidenced configuration-writer hold.
 This machine gate prevents unrelated CI from deploying during the brief workflow
 enable window. The parent continues to hold other authenticated deploy writers.
 

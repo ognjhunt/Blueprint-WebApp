@@ -280,3 +280,34 @@ jobs:
           path: dist/public/version.json
           if-no-files-found: ignore
           retention-days: 7
+
+  deployment-admission:
+    name: Observe automatic deployment admission
+    needs: [check, rules-emulator, test, e2e, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      # The same repository/organization vars scope as Deploy, with no
+      # environment, checkout, secrets, API requests or control mutations.
+      # Retain only a fixed classification in the authenticated step identity;
+      # an empty configured value is not absence and arbitrary values stay private.
+      - name: Observe deployment admission in workflow context
+        id: admission
+        env:
+          DEPLOYMENT_VARIABLE_CONTEXT: ${{ toJSON(vars) }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const raw = process.env.DEPLOYMENT_VARIABLE_CONTEXT;
+          if (!raw || raw.length > 256_000) throw Error('deployment_context_unavailable');
+          const context = JSON.parse(raw);
+          if (!context || Array.isArray(context) || typeof context !== 'object') throw Error('deployment_context_unavailable');
+          const name = 'BLUEPRINT_AUTOMATIC_DEPLOY_ENABLED';
+          const gate = !Object.hasOwn(context, name) ? 'absent'
+            : context[name] === 'false' ? 'literal_false' : 'blocked';
+          appendFileSync(process.env.GITHUB_OUTPUT, `gate=${gate}\n`);
+          NODE
+      - name: "Confirm automatic deployment admission: ${{ steps.admission.outputs.gate }}"
+        if: steps.admission.outputs.gate == 'absent' || steps.admission.outputs.gate == 'literal_false'
+        run: echo 'The workflow context satisfies the held release predicate.'
