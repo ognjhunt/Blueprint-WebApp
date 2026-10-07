@@ -217,7 +217,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
   it("retains the completion-marker fallback for app bundles without a browser walkthrough", async () => {
     storage.objects.set("scenes/scene-1/captures/cap-1/raw/capture_upload_complete.json",
       { generation: "1", size: "2", crc32c: "AAAAAA==" });
-    expect((await status()).body.captureReceived).toBe(true);
+    expect((await status()).body).toMatchObject({ captureReceived: true, uploadState: "retained" });
   });
 
   it("refuses a saved receipt belonging to a different scene", async () => {

@@ -851,11 +851,13 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         code: "task_status_unavailable" });
     }
     let hasStoredCapture = upload.captureReceived;
+    let uploadState = upload.uploadState;
     if (!hasStoredCapture && storageAdmin) {
       // Completed app bundles need not use the browser walkthrough filename.
       const bucketName = process.env.FIREBASE_STORAGE_BUCKET?.trim() || "blueprint-8c1ca.appspot.com";
       hasStoredCapture = await storedCaptureMarkerExists(storageAdmin.bucket(bucketName) as never,
         `scenes/${payload.sceneId}/captures/${payload.captureId}/raw`);
+      if (hasStoredCapture) uploadState = "retained";
     }
 
     const reconstruction = captureSession?.exists
@@ -887,7 +889,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // Retention alone is not an active review or permission to process. The
     // desktop must show the same hold as the phone while preserving the saved
     // receipt (and must never ask for a replacement recording in that state).
-    if (status.decision === "footage_received" && (upload.processingHold || upload.uploadState !== "processing_ready")) {
+    if (status.decision === "footage_received" && (upload.processingHold || uploadState !== "processing_ready")) {
       status.headline = upload.processingHold?.detail
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";
       status.operatorAction = null;
@@ -909,7 +911,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       status,
       // Retention only: a saved recording does not prove processing started.
       captureReceived: hasStoredCapture,
-      uploadState: upload.uploadState,
+      uploadState,
       processingHold: upload.processingHold ?? null,
       // Whether coverage is checked automatically or by a person, so the page
       // says which one happens.
