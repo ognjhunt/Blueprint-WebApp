@@ -41,7 +41,8 @@ export default function TaskDetail() {
     [selection, setSelection] = useState<WorkspaceResult | null>(null),
     [details, setDetails] = useState<WorkspaceResult | null>(null),
     [editing, setEditing] = useState(false),
-    [linkState, setLinkState] = useState<"idle" | "working" | "failed">("idle");
+    [linkState, setLinkState] = useState<"idle" | "working">("idle"),
+    [linkError, setLinkError] = useState("");
   const endpoint = `/tasks/${encodeURIComponent(taskId || "")}`;
   // The task page is where the brief is reviewed or edited, footage is added
   // and the scene is opened. The emailed link expires; the account mints a
@@ -49,11 +50,15 @@ export default function TaskDetail() {
   async function openTaskPage() {
     if (linkState === "working") return;
     setLinkState("working");
+    setLinkError("");
     try {
-      const { url } = await query.request<{ url: string }>(`${endpoint}/task-link`, "POST", {});
+      const { url } = await query.request<{ url: string }>(`${endpoint}/task-link`, "POST", {}, { timeoutMs: 15000 });
+      if (typeof url !== "string" || !url.trim()) throw new Error("The task page link was missing. Please try again.");
       window.location.assign(url);
-    } catch {
-      setLinkState("failed");
+    } catch (error) {
+      setLinkError(error instanceof Error ? error.message : "The task page could not be opened. Please try again.");
+    } finally {
+      setLinkState("idle");
     }
   }
   return (
@@ -120,8 +125,8 @@ export default function TaskDetail() {
               >
                 {linkState === "working" ? "Opening…" : "Open your task page"}
               </button>
-              {linkState === "failed" && (
-                <p role="alert">The task page could not be opened. Try again.</p>
+              {linkError && (
+                <p role="alert">{linkError}</p>
               )}
             </div>
           )}
