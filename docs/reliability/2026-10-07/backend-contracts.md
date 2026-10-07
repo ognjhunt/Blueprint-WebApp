@@ -19,8 +19,8 @@ Independent review also identified `GET /api/site-claim/:token` awaiting Firesto
 | `GET /api/site-task-brief/:token/status` | Same signed identity; brief/request/screening and generation-bound upload evidence | Reads only; no outbox delivery, privacy retry, completion marker write, consent renewal or spend. Changed route. |
 | `GET /api/site-task-brief/:token/items` | Signed link; item inventory | Can seed inventory. Do not classify all GET routes as read-only. |
 | `POST /api/site-task-brief/:token/confirm` | Owner scope; transactional brief digest recheck and request update | Operator attestation, coverage review intent, screening email and Slack. |
-| `GET /api/self-capture-upload/:token/status` | Signed capture identity; live upload permission and saved browser/app evidence | Modern browser diagnostic read. Shared reader extracted; semantics preserved. |
-| `GET /api/self-capture-upload/:token` | Same identity, current and original rights | Legacy recovery can screen privacy and publish completion. Not a read-only production probe. |
+| `GET /api/self-capture/uploads/:token/status` | Signed capture identity; live upload permission and saved browser/app evidence | Modern browser diagnostic read. Shared reader extracted; semantics preserved. |
+| `GET /api/self-capture/uploads/:token` | Same identity, current and original rights | Legacy recovery can screen privacy and publish completion. Not a read-only production probe. |
 | `POST .../:token/recording-consent` | Owner scope, current literal consent version; Firestore transaction | First prospective recording grant only; no old-receipt consent repair or processing. |
 | Browser multipart/parts upload and completion | Signed destination + live rights; write reservations, object generation preconditions, durable browser receipt | Writes bytes, privacy processing and downstream completion; never a live diagnostic. |
 | `POST .../:token/processing-retry` | Exact retained video/manifest and original/current grants | Can screen/publish existing capture; never inferred from polling. |
