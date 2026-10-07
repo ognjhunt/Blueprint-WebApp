@@ -57,6 +57,9 @@ attempts returned HTTP 403; it independently inspected the local synthetic
 before/after renders above. Original attachments and their private identifiers
 remain private. Public implementation recovery uses the checked-in source,
 fixtures, PNGs and measured browser checks.
+The repository can regenerate implementation proof but cannot independently
+restore the private original attachments. No approved private archival
+destination or recovery route was supplied, so no archival transfer was performed.
 
 ## Validation and reproduction
 
