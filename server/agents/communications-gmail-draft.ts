@@ -11,7 +11,6 @@ import { requireFounderDraftCapability } from "./communications-oauth-store";
 import { extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
 import { resolveBundleStorage } from "../utils/siteCaptureBundleStorage";
 import { logger } from "../logger";
-import { firstContactPostalLine } from "./communications-first-contact-footer";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const requestSchema = z.object({ expectedReviewDigest: hash, expectedRevisionId: hash.nullable(), mode: z.enum(["write", "reconcile"]).default("write") }).strict();
@@ -79,7 +78,6 @@ export async function prepareSameRunDraftSave(db: FirebaseFirestore.Firestore, n
   if (process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED !== "false" || process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED !== "false") fail("gmail_draft_same_run_requires_send_off");
   const direction = await gmailDraftCopyDirection(db, now);
   if (!direction?.saveWithinRun) fail("gmail_draft_same_run_direction_missing");
-  if (!firstContactPostalLine()) fail("first_contact_postal_footer_unavailable");
   await basePorts.requireCapability(); await basePorts.verifyMailbox();
   if (!same(await gmailDraftCopyDirection(db, now), direction)) fail("gmail_draft_copy_direction_changed");
   return { version: "same-run-unsent-draft-v1", ref: direction.ref, digest: direction.digest };

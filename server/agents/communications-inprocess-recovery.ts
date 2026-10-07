@@ -23,6 +23,7 @@ let pendingSettlement: Awaited<ReturnType<typeof claimCommunicationsWorkerLap>> 
 const stableCheckpointDigest = (checkpoint: CommunicationsCheckpoint) => communicationsDigest({
   ...communicationsContinuationSessionBinding(checkpoint), turnId: checkpoint.turnId, framingVersion: checkpoint.framingVersion,
   draftProfile: checkpoint.draftProfile, draftWritingGuidance: checkpoint.draftWritingGuidance ?? null,
+  ...(checkpoint.unsentDraftFooterProfile ? { unsentDraftFooterProfile: checkpoint.unsentDraftFooterProfile } : {}),
 });
 
 /** Explicit authenticated owner action. Reuses the worker consumer in this

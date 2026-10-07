@@ -606,7 +606,7 @@ describe("Blueprint-owned communications queue", () => {
     expect(input).toMatchObject({ emailContentTrust: "untrusted_data", currentApproval: { state: "not_requested" } });
     expect(f.db.records.get(`outboundProspects/${f.brief.prospectId}`).stage).toBe("contacted");
   });
-  it.each(["Please don’t follow up.", "No further follow-ups, please.", "No thanks", "No, thanks.\n\nSynthetic signature"])("honors the offered reply opt-out: %s", async body => {
+  it.each(["Please don’t follow up.", "No further follow-ups, please.", "No thanks", "No, thanks.\n-- \nSynthetic signature"])("honors the offered reply opt-out: %s", async body => {
     const f = await setup("reply"); f.thread!.messages[1].body = body;
     expect((await processCommunicationsJob(f.job.jobId, f.deps)).state).toBe("opted_out");
     expect(f.deps.suppress).toHaveBeenCalledWith(f.brief.contact.email, "Correlated opt-out reply message-in-1");
@@ -617,6 +617,7 @@ describe("Blueprint-owned communications queue", () => {
   it("does not infer an opt-out from a longer conversational no-thanks reply", async () => {
     const f = await setup("reply");
     expect(isOptOut({ ...f.thread!.messages[1], body: "No thanks today, but can you explain the learning pilot?" })).toBe(false);
+    expect(isOptOut({ ...f.thread!.messages[1], body: "No thanks.\n\nCould we revisit this in January?" })).toBe(false);
   });
   it("honors newer correlated opt-out when older reply work was queued", async () => {
     const f = await setup("reply");
