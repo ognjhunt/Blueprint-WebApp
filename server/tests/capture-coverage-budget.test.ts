@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore, storageAdmin: null }));
 import { reserveCaptureCoverageInference } from "../utils/captureCoverageInferenceBudget";
+import { inferenceProgrammeContextDigest } from "../utils/inferenceProgrammeAdmission";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { SITE_ASSESSMENT_MODEL } from "../agents/provider-config";
@@ -91,5 +92,159 @@ describe("normal coverage durable inference allowance", () => {
   });
   it("requires the durable review claim instead of an untracked direct call", async () => {
     await expect(reserveCaptureCoverageInference("gemini-3.8-flash", {})).rejects.toThrow("claim_required");
+  });
+});
+
+
+describe("server-owned programme baseline controls", () => {
+  it("does not admit optional coverage on a programme-bound request", async () => {
+    sharedFakeFirestoreState.docs.get("inboundRequests/one").inference_program_id = "programme-one";
+    await expect(reserveCaptureCoverageInference("gemini-3.8-flash", metadata)).rejects.toThrow("inference_programme_coverage_deferred");
+    expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.includes("/budget-"))).toBe(false);
+  });
+  it("requires canonical programme authority before SDK reservation", async () => {
+    sharedFakeFirestoreState.docs.get("inboundRequests/one").inference_program_id = "programme-one";
+    sharedFakeFirestoreState.docs.set(path, { ...sharedFakeFirestoreState.docs.get(path), attempts: 0 });
+    sharedFakeFirestoreState.docs.set("agentRuns/assessment-one", { task_kind: "site_assessment", status: "running",
+      input: { input: { context: { request_id: "one" } } } });
+    await expect(reserveCaptureCoverageInference(SITE_ASSESSMENT_MODEL, {
+      capture_id: metadata.capture_id, assessment_run_id: "assessment-one", assessment_request_id: "one", assessment_source: source,
+      assessment_video_sha256: "a".repeat(64),
+    }, "openai", {})).rejects.toThrow("inference_programme_authority_invalid");
+  });
+});
+
+
+describe("programme-bound actual reservation transaction", () => {
+  const programmePath = "inferencePrograms/programme-one";
+  const assessmentMetadata = { capture_id: metadata.capture_id, assessment_run_id: "assessment-one",
+    assessment_request_id: "one", assessment_source: source, assessment_video_sha256: "a".repeat(64) };
+  const budgetPath = `captureCoverageReviews/budget-${humanDecisionDigest({ capture_id: metadata.capture_id })}`;
+  const read = (path: string): any => sharedFakeFirestoreState.docs.get(path);
+  beforeEach(() => {
+    read("inboundRequests/one").inference_program_id = "programme-one";
+    read(path).attempts = 0;
+    sharedFakeFirestoreState.docs.set("agentRuns/assessment-one", { task_kind: "site_assessment", status: "running",
+      input: { input: { context: { request_id: "one" } } } });
+    sharedFakeFirestoreState.docs.set(programmePath, { schema_version: "inference_program.v1", status: "active",
+      authority_ref: "synthetic-test-approval", ledger_sha256: `sha256:${"b".repeat(64)}`, request_id: "one", capture_id: metadata.capture_id,
+      context_digest: inferenceProgrammeContextDigest(read("inboundRequests/one"), brief), video_sha256: "a".repeat(64),
+      expires_at_ms: Date.now() + 60000, cap_micro_usd: 5000000, slots: [
+        { id: "original-gem", provider: "gemini", model: "gemini-3.8-flash", reserved_micro_usd: 1818624, state: "unknown" },
+        { id: "original-sol", provider: "openai", model: SITE_ASSESSMENT_MODEL, reserved_micro_usd: 331920, state: "recorded" },
+        ...[1, 2, 3].map(n => ({ id: `held-sol-${n}`, provider: "openai", model: SITE_ASSESSMENT_MODEL, reserved_micro_usd: 331920, state: "held" })),
+        // Synthetic future-authority control only: no production programme or amendment is written.
+        { id: "new-gem", provider: "gemini", model: "gemini-3.8-flash", reserved_micro_usd: 1818624, state: "held" },
+      ] });
+  });
+  const sol = () => reserveCaptureCoverageInference(SITE_ASSESSMENT_MODEL, assessmentMetadata, "openai", {});
+  it("atomically reuses three held Sol slots without changing retained aggregate exposure and denies a fourth", async () => {
+    const originals = structuredClone(read(programmePath).slots.slice(0, 2));
+    for (let n = 0; n < 3; n++) {
+      const call = await sol();
+      expect(read(programmePath).slots.filter((row: any) => row.state === "admitted")).toHaveLength(1);
+      expect(read(budgetPath).inference_program_id).toBe("programme-one");
+      await call.record({ input_tokens: 100, output_tokens: 10 });
+    }
+    await expect(sol()).rejects.toThrow("inference_programme_slot_unavailable");
+    expect(read(programmePath).slots.slice(0, 2)).toEqual(originals);
+    expect(read(programmePath).slots.reduce((sum: number, row: any) => sum + row.reserved_micro_usd, 0)).toBe(4964928);
+    expect(read(budgetPath).calls).toBe(3);
+    expect(read(programmePath).producer_source_digest).toBe(humanDecisionDigest(source));
+  });
+  it("uses the separately held Gemini slot without adopting the original uncertain call", async () => {
+    const call = await reserveCaptureCoverageInference("gemini-3.8-flash", assessmentMetadata);
+    await call.record(usage);
+    expect(read(programmePath).slots[0].state).toBe("unknown");
+    expect(read(programmePath).slots[5].state).toBe("recorded");
+  });
+  it("unknown usage retains the admitted slot and capture pending token across restart", async () => {
+    const call = await sol(); const token = read(budgetPath).pending_token;
+    await call.record(undefined);
+    expect(read(budgetPath).pending_token).toBe(token);
+    expect(read(programmePath).slots[2].state).toBe("admitted");
+    await expect(sol()).rejects.toThrow("coverage_budget_cost_unresolved");
+  });
+  it.each(["remove", "replace"])("never falls back to unbound admission after programme reference %s", async change => {
+    const call = await sol(); await call.record({ input_tokens: 100, output_tokens: 10 });
+    if (change === "remove") delete read("inboundRequests/one").inference_program_id;
+    else read("inboundRequests/one").inference_program_id = "other";
+    await expect(sol()).rejects.toThrow("inference_programme_binding_changed");
+    expect(read(budgetPath).calls).toBe(1);
+  });
+  it.each(["context", "brief", "video", "expired", "cap", "duplicate", "model"])("rejects %s authority defects before either reservation write", async defect => {
+    if (defect === "context") read("inboundRequests/one").request.taskDescription = "Changed task";
+    if (defect === "brief") read("siteTaskBriefs/one").summary = "Changed brief";
+    if (defect === "video") read(programmePath).video_sha256 = "c".repeat(64);
+    if (defect === "expired") read(programmePath).expires_at_ms = Date.now() - 1;
+    if (defect === "cap") read(programmePath).cap_micro_usd = 4964927;
+    if (defect === "duplicate") read(programmePath).slots[3].id = read(programmePath).slots[2].id;
+    if (defect === "model") read(programmePath).slots[2].model = "other-model";
+    await expect(sol()).rejects.toThrow("inference_programme_");
+    expect(read(budgetPath)).toBeUndefined();
+    expect(read(programmePath).slots.every((row: any) => row.state !== "admitted")).toBe(true);
+  });
+  it("rejects changed current producer source after the first pinned admission", async () => {
+    const call = await sol(); await call.record({ input_tokens: 100, output_tokens: 10 });
+    const changed = { ...source, key: "replacement" };
+    read("inboundRequests/one").capture_privacy_source_bound_decision.producer_source = changed;
+    await expect(reserveCaptureCoverageInference(SITE_ASSESSMENT_MODEL, { ...assessmentMetadata, assessment_source: changed }, "openai", {}))
+      .rejects.toThrow("inference_programme_binding_changed");
+    expect(read(budgetPath).calls).toBe(1);
+  });
+  it("rejects authority amount replacement between known calls", async () => {
+    const call = await sol(); await call.record({ input_tokens: 100, output_tokens: 10 });
+    read(programmePath).slots[3].reserved_micro_usd -= 1;
+    await expect(sol()).rejects.toThrow("inference_programme_authority_changed");
+    expect(read(budgetPath).calls).toBe(1);
+  });
+  it("never adopts reset original or consumed slots as fresh authority", async () => {
+    for (let n = 0; n < 3; n++) { const call = await sol(); await call.record({ input_tokens: 100, output_tokens: 10 }); }
+    for (const slot of read(programmePath).slots) if (slot.provider === "openai") slot.state = "held";
+    await expect(sol()).rejects.toThrow("inference_programme_slot_unavailable");
+    expect(read(budgetPath).calls).toBe(3);
+  });
+  it.each(["expired", "revoked", "authority", "context", "source", "token", "history", "withdrawal", "future_processing"])("rechecks %s after reservation immediately before dispatch", async change => {
+    const call = await sol(); const pending = read(budgetPath).pending_token;
+    if (change === "expired") vi.spyOn(Date, "now").mockReturnValue(read(programmePath).expires_at_ms + 1);
+    if (change === "revoked") read(programmePath).status = "revoked";
+    if (change === "authority") read(programmePath).slots[3].reserved_micro_usd -= 1;
+    if (change === "context") read("inboundRequests/one").request.taskDescription = "Changed task";
+    if (change === "source") read("inboundRequests/one").capture_privacy_source_bound_decision.producer_source.key = "replacement";
+    if (change === "token") read(programmePath).slots[2].admission_token = "other";
+    if (change === "history") read(budgetPath).inference_programme_admitted_slot_ids = [];
+    if (change === "withdrawal") read("inboundRequests/one").consent_revoked = true;
+    if (change === "future_processing") read("inboundRequests/one").capture_rights = { future_processing_allowed: false };
+    try {
+      // Old runtime has no pre-dispatch guard; its reservation would proceed.
+      await expect((call as any).assertDispatchAllowed?.() ?? Promise.resolve()).rejects.toThrow("inference_programme_");
+    } finally { vi.restoreAllMocks(); }
+    expect(read(budgetPath).pending_token).toBe(pending);
+    expect(read(programmePath).slots[2].state).toBe("admitted");
+  });
+  it("allows an unchanged bound reservation and keeps ordinary dispatch admission unchanged", async () => {
+    const call = await sol(); await call.assertDispatchAllowed();
+    expect(read(budgetPath).pending_token).toBeTruthy();
+    await call.record({ input_tokens: 100, output_tokens: 10 });
+    sharedFakeFirestoreState.docs.clear(); seed();
+    const ordinary = await reserveCaptureCoverageInference("gemini-3.8-flash", metadata);
+    await ordinary.assertDispatchAllowed();
+  });
+  it("records already dispatched known usage after expiry and revocation, without releasing reservations", async () => {
+    const call = await sol(); read(programmePath).status = "revoked";
+    // Expiry of the retained timestamp occurs naturally; authority bytes are not changed.
+    vi.spyOn(Date, "now").mockReturnValue(read(programmePath).expires_at_ms + 1);
+    try { await call.record({ input_tokens: 100, output_tokens: 10 }); }
+    finally { vi.restoreAllMocks(); }
+    expect(read(programmePath).slots[2].state).toBe("recorded");
+    expect(read(programmePath).slots[2].reserved_micro_usd).toBe(331920);
+    expect(read(budgetPath).pending_token).toBeNull();
+    await expect(sol()).rejects.toThrow("inference_programme_authority_invalid");
+  });
+  it("does not clear pending accounting when the admitted slot's retained amount changes", async () => {
+    const call = await sol(); const token = read(budgetPath).pending_token;
+    read(programmePath).slots[2].reserved_micro_usd = 331919;
+    await expect(call.record({ input_tokens: 100, output_tokens: 10 })).rejects.toThrow("inference_programme_admission_changed");
+    expect(read(budgetPath).pending_token).toBe(token);
   });
 });
