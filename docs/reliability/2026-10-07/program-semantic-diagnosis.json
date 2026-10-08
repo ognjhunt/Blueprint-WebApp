@@ -128,5 +128,13 @@
   "candidate_commit": "e048c74e7eeaf44996ce17a0e24b48d8d985104d",
   "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/941",
   "independent_review_commit": "496a3532",
-  "replay": "Use program-replay.md stale-source section; no private source or live provider required."
+  "replay": "Use program-replay.md stale-source section; no private source or live provider required.",
+  "historical_snapshot": true,
+  "successor": {
+    "PR": 942,
+    "merged_deployed_sha": "d21721d94aad50c0314d2e10875c3b022841c689",
+    "source_scope": "explicit non-current published knowledge rejected in every recursive factual claim placement; known error retained",
+    "proof": "program-semantic-sdk.md; program-release.json assessment_claim_placement_followup",
+    "limits": "Video-event/robot-value entailment still unverified and two counterexamples remain admitted"
+  }
 }

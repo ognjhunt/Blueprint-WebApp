@@ -55,7 +55,7 @@
       "script_sha256": "306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b",
       "claim_ceiling": "Exact serving identity, paired deployment receipts, health/readiness and ordinary local-draft reload only; no production submission/upload/worker/assessment/notification path."
     },
-    "current_independently_verified_serving_sha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+    "current_independently_verified_serving_sha": "d21721d94aad50c0314d2e10875c3b022841c689",
     "initial940_receipts_are_historical": true
   },
   "pipeline": {
@@ -85,13 +85,13 @@
       "production_promotion_state_at_0657_utc": "success_all4_shards_and_CPU_aggregate"
     },
     "latest_independent_identity": {
-      "observed_at_utc": "2026-10-08T07:00:23+00:00",
-      "active_release_commit": "cc876af25389de934f57c08b33421987f9e3328d",
-      "serving_source_commit": "cc876af25389de934f57c08b33421987f9e3328d",
+      "observed_at_utc": "2026-10-08T07:49:01+00:00",
+      "active_release_commit": "4cb97edeb5fabcac30a14a4576a896a6a22941a3",
+      "serving_source_commit": "4cb97edeb5fabcac30a14a4576a896a6a22941a3",
       "commit_proven": true,
       "blockers": [],
-      "private_raw_receipt_sha256": "c4063dcb63cc2a609f2729ce6f9a7a7b25a5890cf65c4e6051f6ceedb55826d1",
-      "claim_ceiling": "deployed_service_identity_only; full4cbtestpromotion_success_does_not_change_serving_identity"
+      "private_raw_receipt_sha256": "5839ce1626e2c6d0a43ae83dbb9f84bb6ed61126519da2c33bb4545ca0b2058c",
+      "claim_ceiling": "deployed_service_identity_only; a56owner_targetrepair_not_yet_serving"
     },
     "owner_target_preparation_followup": {
       "pull_request": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648",
@@ -114,10 +114,40 @@
       "source_and_replay_manifest_sha256": "2cd25fab12d53e9b3d5646c64bf1843075a69579d3e7068eed492cca543f1804",
       "release_owner": "existing_cloud_coordinator_no_competing_root_promotion",
       "claim_ceiling": "code_approved_not_deployed_until_actual_receipts",
-      "source_release_authorization": "withheld_for_exacta25_due_to_material_legacy_absent_target_authority_finding",
+      "source_release_authorization": "scoped_ff45_source_approved_currentchecks_pass_pendingprotectedmerge_exact_main_promotion_deploy",
       "status_correction": "Priorunknown_explicit_targetapprovalwas_scoped; legacyabsent/nullconfirmeddefaultsseal_task_owner_actualproducer_native_lineage. One-line universalproposal_onlycandidateunderindependentreview; no current newhead merge claim.",
       "finding_comment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054895177",
-      "approval_correction_comment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054973277"
+      "approval_correction_comment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054973277",
+      "final_candidate_head": "ff45e8f9ecfed4f6d5f2e10fa95d514036beca65",
+      "final_candidate_parent": "a25bddbe20c32bebfe77a97c640ea500097979e4",
+      "final_candidate_change": "Website-generated fixed development authority is alwaysproposal_only, including absent/null owner targets; genuine independent confirmed contracts unchanged",
+      "final_PR_ci_run": 37744246751,
+      "final_PR_selected_gate": "success_existing_skips_not_claimed_executed",
+      "cloud_independent_review_receipt": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054996878",
+      "local_author_consistency_review": "exact remoteff45 runtime byte-identical to local pending correction; test sources differ, receipts separately bounded",
+      "local_correction_manifest_sha256": "28d7c58496e03452ba0077eab54436b6df8246540fa6692e0bab420e719564df",
+      "final_independent_review": {
+        "review_commit": "f9e297a1",
+        "head": "ff45e8f9ecfed4f6d5f2e10fa95d514036beca65",
+        "state": "scoped_source_approval_restored",
+        "baseline": "2of2fail_at_authority_projection; earlierfull_false_seal_lineageattributedcloud",
+        "candidate": "8own_target_plus4genuine_confirmation_proposal_controls12of12pass",
+        "manifest_sha256": "96763362cf302147b1ff820c084589d8b1880ebe11d3c48e48ff0ce84de35801",
+        "baseline_log_sha256": "a2440a10e8fd4b363a278ae8b680bd7bc0f3431c537aa8ca9053542cd0d6c6b8",
+        "candidate_log_sha256": "55e77754519906d4a9ca792f6108c0bc7b165e5ae68975358f86cf850d085477"
+      },
+      "merged_sha": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+      "merged_at_utc": "2026-10-08T07:41:50Z",
+      "required_main_CI": {
+        "run_id": 37745039594,
+        "state": "success"
+      },
+      "production_promotion": {
+        "run_id": 37745085909,
+        "started_at_utc": "2026-10-08T07:42:20Z",
+        "state_at_0749_utc": "in_progress"
+      },
+      "release_state": "code_complete_merged_promotion_in_progress_not_deployed"
     }
   },
   "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored.",
@@ -184,6 +214,54 @@
       "private_result_sha256": "c2b2aee36f4c2ae0fbf3cc1c8ea154374d4aaef1a95fdbac2f71845b90107847",
       "screenshot_sha256": "6a59b9bbd4aef3cb9f898c7a217c0e0add22bbe0ea848c85539dc07df88a9294",
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return only; no backend job, upload durability, assessment, worker or notification result proven."
-    }
+    },
+    "historical_release": true
+  },
+  "assessment_claim_placement_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/942",
+    "head": "a980884bb19a5481e2b9303db3c92a05d47fd048",
+    "parent": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+    "source_sha256": "509fa43bb86fadcacccf4d3d9a8b219197d63c0a86e356145066b54ce9e3ed01",
+    "diff": "2files; sameexplicitcurrentfalsepublished-sourcevetoinallrecursiveplacements; knownerrorcompatibility",
+    "author_replay": "same15placementtests_baseline7fail8pass_candidate15pass;6relevant191pass_typecheck_graphify_pass",
+    "sdk_120": "original120inputs264attempts;12stalejobsacceptedbefore_rejectedafter;allsource_tool_inputhashesidentical;48originalsemantictruthlabelsremainPROVISIONALunscored",
+    "CI_run": 37744881987,
+    "state": "deployed_and_identity_presentation_verified",
+    "claim_ceiling": "explicitapplicabilityadmission_only;no_prose_video_fieldtruthproof",
+    "review_commit": "e359506c",
+    "review_comment": "https://github.com/ognjhunt/Blueprint-WebApp/pull/942#issuecomment-6055196520",
+    "independent_review": "approved_exacta980",
+    "PR_CI_state": "success_executed_required_contexts_e2e_existing_skip",
+    "merged_sha": "d21721d94aad50c0314d2e10875c3b022841c689",
+    "merged_at_utc": "2026-10-08T07:47:10Z",
+    "main_CI_run": 37745598120,
+    "main_CI_state": "success",
+    "deployment_workflow": 37745915549,
+    "deployment_workflow_state": "success",
+    "render_web": {
+      "deployment_id": "dep-db3kmk3ncjis73aqa5kg",
+      "sha": "d21721d94aad50c0314d2e10875c3b022841c689",
+      "state": "live",
+      "finished_at_utc": "2026-10-08T07:53:25.682665Z"
+    },
+    "render_worker": {
+      "deployment_id": "dep-db3kmkdg1s2s73arrav0",
+      "sha": "d21721d94aad50c0314d2e10875c3b022841c689",
+      "state": "live",
+      "finished_at_utc": "2026-10-08T07:54:00.098987Z"
+    },
+    "independent_root_smoke": {
+      "started_at_utc": "2026-10-08T07:55:20.487Z",
+      "completed_at_utc": "2026-10-08T07:55:23.014Z",
+      "result": "presentation_passed",
+      "receipt_path": "output/reliability-program/deployed-candidate-d21721d9/result.json",
+      "receipt_sha256": "48c18596713035bdec5605278c93e4439605e3db83094b7d64f9634ed466823c",
+      "script_sha256": "306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b",
+      "intake_posts": 0,
+      "paid_calls": 0,
+      "customer_notifications": 0,
+      "claim_ceiling": "GET-only version/health and local synthetic draft return; deployed source admission not invoked through live assessment."
+    },
+    "local_source_continuity": "Root production client/server bytes match current origin/main d217; supplemental tests/docs remain separate."
   }
 }

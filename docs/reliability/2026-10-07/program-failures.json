@@ -399,7 +399,7 @@
       "rootCause": "Current UI always supplies successCriteria; preparation veto treats every supplied target object as requiring scorer translation before scene-only geometry. Legacy passing fixture omitted mandatory current-UI object. Native staged fixed defaults also use owner confirmed authority, requiring coherent preservation of the unverified owner targets rather than veto removal alone.",
       "minimizedReproducer": "Actual owner-link confirm clear gate answers for unknown/null and explicit owner95percent/30seconds -> operator_stated qualified context -> actual registered geometric compiler -> sole translation_required needs_input. Legacy omitted context control intake_ready.",
       "repair": "Permits existing scene-only/no-policy geometry preparation; preserves supplied targets as proposal_only/unverified through canonical staging. Independent actual rigid sealing and articulated confirmed-contract consumers refuse unverified authority. No universal gate claim.",
-      "releaseStatus": "changes_required_material_legacy_absent_target_authority_finding",
+      "releaseStatus": "merged_a56_mainCI_pass_fullpromotion_inprogress_deploypending",
       "claim_ceiling": "Disposable actual-handler/compiler/native-consumer proof; no paid provider, physical evaluation or customer happy-path completion.",
       "candidateCommit": "a25bddbe20c32bebfe77a97c640ea500097979e4",
       "candidatePR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648",
@@ -417,7 +417,30 @@
         "limitations": "Isolated CPU modules with synthetic fixtures; not universal performance-route execution, GPU policies or customer completion"
       },
       "reviewCorrection": "Unknown/explicit staged targets refused correctly, but reallegacyabsent/null fixeddefaultsremainconfirmed/task_owner. Prior narrow approval does not authorize release ofa25; unchanged full-lineage counterexample retained bysolecloudowner, universalproposal_onlycandidate20checks passed pending exacthead review.",
-      "correctionComment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054973277"
+      "correctionComment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054973277",
+      "finalRepair": "Website-generated fixeddevelopmentauthorityuniversallyproposal_only, absent/null/supplied; sourcepreserved, separatetrulyconfirmedcontractsunchanged",
+      "finalHead": "ff45e8f9ecfed4f6d5f2e10fa95d514036beca65",
+      "finalIndependentReview": "f9e297a1:baseline2fails_candidate12pass; exactscopeandearlierfullsealattributionretained",
+      "mergedSHA": "a56f9d240058f038060bd6aa89efcef3ff5f12e5"
+    },
+    {
+      "id": "ASSESS-STALE-PLACEMENT-001",
+      "severity": "P1_for_internal_advisory_applicability_quality",
+      "owner": "assessment_cases; independent_review; solecloudreleaseowner",
+      "invariant": "Publishedpresentclaims cannotbypass explicitnon-current sources byclaimplacement",
+      "baselineRevision": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+      "rootCause": "Deployedexplicitcurrent:falsecheck limitedto known objects; recursivelystillvisitedjob/otherclaims withoutsameapplicabilityveto",
+      "minimizedReproducer": "original12stale-job typed SDK cases accepted; selfcontained7additionalplacementcontrols failonexacteda",
+      "candidateCommit": "a980884bb19a5481e2b9303db3c92a05d47fd048",
+      "candidatePR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/942",
+      "repair": "Applysamepublishedexplicitbooleanfalseveto everywhere; knownerrorcodepreserved, unknown/estimatehistoricalbytesretained, nodate/missing/stringcoercion",
+      "candidateRetest": "same15placementtestsallpass; relevant191pass; original12staleSDKvariantsrejectonsameinputs264attemptedstatesreceiptsunchanged",
+      "releaseStatus": "deployed_d217_exact_identity_and_draft_presentation_verified; applicability_guard_execution_offline_only",
+      "claim_ceiling": "ScriptedSDKtool/admissionproof, nottruth/video/performanceaccuracy; existing2entailmentdefectsremain",
+      "mergedSHA": "d21721d94aad50c0314d2e10875c3b022841c689",
+      "independentReview": "e359506c_exacta980; same7failures\u219215placements+neighborspass",
+      "deployedSHA": "d21721d94aad50c0314d2e10875c3b022841c689",
+      "postDeployEvidence": "program-release.json assessment_claim_placement_followup; rootreceipt48c18596713035bdec5605278c93e4439605e3db83094b7d64f9634ed466823c"
     }
   ],
   "dependencies": [

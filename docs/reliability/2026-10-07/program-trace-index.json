@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-08T06:40:00Z",
+  "updated_at_utc": "2026-10-08T08:05:12Z",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -8,7 +8,8 @@
     "journey_unique": 42,
     "intercepted_ui_separate": 12,
     "semantic_model_judgments": 0,
-    "offline_supplemental_cross_tab": 16
+    "offline_supplemental_cross_tab": 16,
+    "semantic_scripted_sdk_variants_attempted": 120
   },
   "layers": {
     "normal_ui": "actual Express + Firestore emulator; fake filesystem objects, model and local mail",
@@ -1020,5 +1021,428 @@
         "sha256": "0d1277b8f27e83ddee57e1a0c1df4896660e2959874808276fda5724bc749674"
       }
     ]
+  },
+  "cloud_durable_worker_boundary_receipt": {
+    "received_export_path": "output/reliability-program/cloud-worker-export.json",
+    "received_export_sha256": "8ff9f25d5a2fa607bf146027c094f1154e798e8f471da9578b8ebe8355237b53",
+    "owner_original_export_sha256": "ac595fb081993279c9b61c7d371a7483d8af252e2b3d712ea704d3c952e32405",
+    "public_sanitized_receipt": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940#issuecomment-6054630135",
+    "owner_independent_privacy_review": true,
+    "case_count": 20,
+    "passed": 20,
+    "normal_ui": 0,
+    "completed_customer_assessments": 0,
+    "repeat": 3,
+    "runtime_sha": "c34ce0be7595c7835a4825a1a980c030b3f9dcf5",
+    "source_continuity_to_8b": "owner verified seven runtime file hashes; not fresh8b/eda execution",
+    "layer": "actualExpress HTTP intake+Firestoreemulator durableoutbox+separateworkerprocess+loopbackfakeResendHTTP receipts",
+    "provider_mode": "fakeprovider; noexternalmodelorcustomer notification",
+    "cross_catalog_semantic_dedup": "not established; no addition to prior42unique-layered trace assertion. This establishes a separate20 durable-worker execution layer, replacing no original frozen case definitions.",
+    "replay": {
+      "cwd": "/workspace/reliability-b",
+      "runner": "scripts/qa/reliability-queue-emulator.mjs",
+      "runnerSha256": "79735e42251b55a61b3222beaec362e15d70b849e9f90b5a7f517d07365c80c0",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/local/bin:/usr/bin:/bin NODE_ENV=test FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 RELIABILITY_BACKEND_ROOT=/workspace/reliability-main RELIABILITY_WORKER_ROOT=/workspace/reliability-main node scripts/qa/reliability-queue-emulator.mjs",
+      "setup": "ownBnamespace/demo-blueprint-reliability-b and4182only; preserveB/emulatoroutput before repeat; sourcehash/pid metadata; fakeprovider only; no otherowner fixtures",
+      "scope": "same20semantic cases repeated; not20new samples"
+    },
+    "portable_runner_gap": "runner hash/replay retained, but source presently only owning cloud workspace; transfer canonical runner needed for independent continuation",
+    "cases": [
+      {
+        "journeyId": "B-journey-happy-single-submit",
+        "parameters": {
+          "scenario": "happy",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification sent"
+        ],
+        "status": "passed",
+        "latencyMs": 18384.024524,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-happy-duplicate-submit",
+        "parameters": {
+          "scenario": "happy",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification sent"
+        ],
+        "status": "passed",
+        "latencyMs": 15044.922987999995,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-rejected-recovery-single-submit",
+        "parameters": {
+          "scenario": "rejected-recovery",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification sent"
+        ],
+        "status": "passed",
+        "latencyMs": 15189.776407000005,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-rejected-recovery-duplicate-submit",
+        "parameters": {
+          "scenario": "rejected-recovery",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification sent"
+        ],
+        "status": "passed",
+        "latencyMs": 14914.643937000008,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-unknown-quarantine-single-submit",
+        "parameters": {
+          "scenario": "unknown-quarantine",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 9860.067034000007,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-unknown-quarantine-duplicate-submit",
+        "parameters": {
+          "scenario": "unknown-quarantine",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 6103.342669999998,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-crash-after-claim-single-submit",
+        "parameters": {
+          "scenario": "crash-after-claim",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification sent"
+        ],
+        "status": "passed",
+        "latencyMs": 14480.33432400001,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-crash-after-claim-duplicate-submit",
+        "parameters": {
+          "scenario": "crash-after-claim",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification sent"
+        ],
+        "status": "passed",
+        "latencyMs": 14730.996240000008,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-crash-after-dispatch-single-submit",
+        "parameters": {
+          "scenario": "crash-after-dispatch",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 11527.77868399999,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-crash-after-dispatch-duplicate-submit",
+        "parameters": {
+          "scenario": "crash-after-dispatch",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 9016.713470999995,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-crash-after-acceptance-single-submit",
+        "parameters": {
+          "scenario": "crash-after-acceptance",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 14543.526133999985,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-crash-after-acceptance-duplicate-submit",
+        "parameters": {
+          "scenario": "crash-after-acceptance",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 9441.953906999988,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-concurrent-workers-single-submit",
+        "parameters": {
+          "scenario": "concurrent-workers",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification sent"
+        ],
+        "status": "passed",
+        "latencyMs": 15671.111879000004,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-concurrent-workers-duplicate-submit",
+        "parameters": {
+          "scenario": "concurrent-workers",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification sent"
+        ],
+        "status": "passed",
+        "latencyMs": 10505.288676000026,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-retired-notice-single-submit",
+        "parameters": {
+          "scenario": "retired-notice",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification cancelled"
+        ],
+        "status": "passed",
+        "latencyMs": 15110.554116000014,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-retired-notice-duplicate-submit",
+        "parameters": {
+          "scenario": "retired-notice",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification cancelled"
+        ],
+        "status": "passed",
+        "latencyMs": 15318.566084999999,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-changed-message-single-submit",
+        "parameters": {
+          "scenario": "changed-message",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 3531.073787000001,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-changed-message-duplicate-submit",
+        "parameters": {
+          "scenario": "changed-message",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 9081.924395999988,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-ack-write-failure-single-submit",
+        "parameters": {
+          "scenario": "ack-write-failure",
+          "producerMode": "single-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 9333.906768999994,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      },
+      {
+        "journeyId": "B-journey-ack-write-failure-duplicate-submit",
+        "parameters": {
+          "scenario": "ack-write-failure",
+          "producerMode": "duplicate-submit"
+        },
+        "expectedTransitions": [
+          "HTTP intake persisted",
+          "durable outbox boundary",
+          "notification unknown"
+        ],
+        "status": "passed",
+        "latencyMs": 14613.483160000003,
+        "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
+      }
+    ]
+  },
+  "scripted_sdk_120_existing_variants": {
+    "catalog": "program-semantic-variants.json",
+    "runner": "server/tests/site-assessment-mutations-sdk.test.ts",
+    "doc": "program-semantic-sdk.md",
+    "baseline_runtime": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+    "candidate_runtime": "a980884bb19a5481e2b9303db3c92a05d47fd048",
+    "candidate_source_sha256": "509fa43bb86fadcacccf4d3d9a8b219197d63c0a86e356145066b54ce9e3ed01",
+    "fixture_sha256": "7d3f86a4b91b0e61e2517730260cd1d6901cdb0098febae1c02d4b4a77d14731",
+    "generated": 120,
+    "deduplicated": 120,
+    "attempted": 120,
+    "before_attempts": 264,
+    "after_attempts": 264,
+    "repeats_new_unique": 0,
+    "source_tool_receipts_and_actual_semantic_inputs_equal": true,
+    "original_structural_controls_passed": 72,
+    "original_semantic_partial_unscored": 48,
+    "explicit_corrected_applicability_controls_passed": 12,
+    "changed_stale_unique": 12,
+    "changed_stale_attempts": 12,
+    "original_truth_labels_changed": false,
+    "new_model_accuracy_samples": 0,
+    "provider_mode": "scripted_model_video_history_callbacks",
+    "layer": "actual_SDK_runner_tool_loop_no_storage",
+    "paid_provider_calls": 0,
+    "customer_publications": 0,
+    "baseline_receipt_sha256": "3fcb39997d98120ece896f34c62d52e9893193b338a8c7d5982ed90123c97a0a",
+    "candidate_receipt_sha256": "3cae823de4ae182c201027f58eaac2136f93bf425452e5ce692515d840f93f04",
+    "private_paths": [
+      "output/reliability-program/semantic-sdk-120/results.json",
+      "output/reliability-program/semantic-sdk-120-candidate/results.json"
+    ],
+    "counting": "same120frozenstates; overlapsdirectvalidatorcases; do notaddanother120or528independentcases",
+    "limitations": "No pixels, naturalproviderjudgment, storage, publication or humantruth; synthetic source intervals/claims retained."
+  },
+  "selected_repaired_stale_job_repetitions": {
+    "runner": "server/tests/site-assessment-mutations-sdk.test.ts",
+    "supplemental_reporting_correction": "ab9b2df3433574e8918fcadbc3bfa74fdc14bc5b",
+    "attempts": 3,
+    "existing_unique_cases": 1,
+    "new_unique_cases": 0,
+    "disagreement": 0,
+    "scripted_determinism_not_natural_model_nondeterminism": true,
+    "runs": [
+      {
+        "run": 1,
+        "sha256": "5e217dbcfc4a94c4d98a5346b8ecea538e9a42d1734585f433f59925017024dd",
+        "case_id": "J-stale_specifications-e83af5c28bb3",
+        "semantic_hash": "e83af5c28bb3fd8b1f8228e5090863e3c9f41390adc618dd564f1512c99a0b11",
+        "actual_input_hash": "1d9df2fe5a9dfdc2365d31e7c7a087260300965d9ee5b29131eccb42765fa853",
+        "attempted": 1,
+        "applicability_passed": 1,
+        "unattempted": 119,
+        "semantic_partial": 1,
+        "model_accuracy_scored": 0,
+        "paid_calls": 0
+      },
+      {
+        "run": 2,
+        "sha256": "a4f360f758e6c734a9a67906ea9ade13322fdf4f9bf1e51f35088bd41f26240c",
+        "case_id": "J-stale_specifications-e83af5c28bb3",
+        "semantic_hash": "e83af5c28bb3fd8b1f8228e5090863e3c9f41390adc618dd564f1512c99a0b11",
+        "actual_input_hash": "1d9df2fe5a9dfdc2365d31e7c7a087260300965d9ee5b29131eccb42765fa853",
+        "attempted": 1,
+        "applicability_passed": 1,
+        "unattempted": 119,
+        "semantic_partial": 1,
+        "model_accuracy_scored": 0,
+        "paid_calls": 0
+      },
+      {
+        "run": 3,
+        "sha256": "76edf08393df32056c1f0cfa6400643c38597e65323a5b84f54bc349e2924fa7",
+        "case_id": "J-stale_specifications-e83af5c28bb3",
+        "semantic_hash": "e83af5c28bb3fd8b1f8228e5090863e3c9f41390adc618dd564f1512c99a0b11",
+        "actual_input_hash": "1d9df2fe5a9dfdc2365d31e7c7a087260300965d9ee5b29131eccb42765fa853",
+        "attempted": 1,
+        "applicability_passed": 1,
+        "unattempted": 119,
+        "semantic_partial": 1,
+        "model_accuracy_scored": 0,
+        "paid_calls": 0
+      }
+    ],
+    "scope": "same264fullrunsemantic/inputhash; sourceexacta980; noadmissiontruthlabelchange",
+    "initial_filter_correction": "Over-anchored parameterized test filter matchedzero tests; logs retained, no attemptedcase or executioncredit. Corrected exact ID ran in3freshprocesses."
+  },
+  "owned_local_service_closeout": {
+    "observed_at_utc": "2026-10-08T08:03:55Z",
+    "original_owned_processes_stopped": true,
+    "receipt_sha256": "7d73cfb6de1ba9b00f249013c414b2958e02a2398530d5bceaf2626bb6f04d46",
+    "full_database_export_observed": false,
+    "claim_ceiling": "Existing per-case state summaries and traces retained, not a full DB snapshot; replay uses fresh disposable fixtures",
+    "other_owner_services_touched": false
   }
 }

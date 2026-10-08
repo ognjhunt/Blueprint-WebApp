@@ -1,65 +1,25 @@
-# Initial-window decision — scoped release verified; evaluation partial
+# Initial-window decision: verified workflow repairs, evaluation partial
 
-This is an interim decision, not full-goal completion. The initial closeout is
-2026-10-08 08:21:46 UTC. PR #940 is the combined WebApp reliability release, followed by scoped stale-source PR941; the
-coordinator's separate branch retains runnable cases and independent receipts.
-Do not add the parallel owner's overlapping catalog/traces to these counts.
+Updated 2026-10-08 07:56 UTC. Initial closeout: 08:21:46 UTC. The full goal is not complete. Required targets and acceptance thresholds remain unchanged; corrections and overlapping evidence stay explicit in the trace index and failure ledger.
 
-**Code:** Reviewed backend repairs cover upload-part byte integrity, uncertain
-notification receipts, recovery fairness, decrypted recipients, revoked sessions,
-withdrawal/current-notice authority, terminal result fences and source admission.
-The reviewed intake repair preserves account/authoring scope, frozen retry
-identity, cross-tab ordering and clear fences. The crash checkpoint and the subsequently discovered unsubmitted-draft reload defect both pass matched native before/after checks. The scoped source is independently approved at8baba7d and merged in PR940 atd8988ab3. Required main CI and the existing paired deployment passed at that exact merged SHA. Independent production checks verified both live Render receipts, matching serving identity before/after, health/readiness 200 and all four synthetic draft fields retained on ordinary reload with consent unchecked. No production intake was submitted.
+WebApp PR940 repaired demonstrated loss of draft/retry identity, upload byte-integrity and recovery defects, uncertain notifications, revoked-session access and required-result admission. Independent review, required checks and paired deployment passed. PR941 subsequently rejected explicitly superseded knowledge supporting known published facts. That eda83741 release is now historical. Current merged d21721d9 is independently verified serving on both web and worker, with GET-only production smoke proving draft return, fresh consent, health and matching version. No production intake or notification was sent.
 
-**Evaluation:** 300 distinct offline conditions pass, 30 per frozen family;
-16 cross-tab additions are separate. There are 22 normal-UI traces through actual
-Express and native Firestore emulator with local fake object/provider/mail
-boundaries, plus 20 different in-memory worker traces: 42 distinct layered traces.
-Twelve API-intercepted browser cases are a separate layer. Repeats and the older
-640 scheduler permutations add no unique journeys. These counts do not establish
-final SDK assessment publication or production provider reliability.
+PR942 closes the same stale-source bypass in the remaining claim sections. It is independently approved, merged and deployed at d21721d9. Exact-main CI and paired deployment passed; both live receipts and a fresh GET-only draft/identity smoke were independently verified. The same seven placement failures reproduce on prior main and pass on the candidate, with historical context and current-source controls preserved.
 
-The new semantic catalog has 120 distinct PROVISIONAL evidence states, with independently checked expectations and lineage. Semantic model evaluation remains unscored. Earlier 120 topic-multiplied packets are only 15 structural source conditions and are not another semantic dataset.
+Pipeline PR2648 is code-complete and merged at a56f9d24. Normal confirmation always supplies owner success criteria, which previously stopped safe geometry preparation. The repair permits the existing scene-only/no-policy path while retaining owner targets as unverified proposals. A later review exposed false confirmation of fixed development controls when targets were absent/null; the corrected final head ff45 now uses proposal-only authority for every such website-generated control. Same-case before/after checks and genuine confirmed-contract neighbors pass. Current main CI is green; the exact-main full production promotion run is in progress. The latest independent service GET at 07:49:01 proves the preceding 4cb97ed release is serving, not a56 yet.
 
-The same 30 scripted SDK diagnostics now have 28 structural admission passes and two demonstrated semantic defects. The baseline accepted a superseded specification as current, invented a completed video event absent from the admitted observations, and claimed 50 m reach from a qualified 1 m field. Deployed PR941 rejects the explicit superseded-source case. The false video event and wrong-field claim remain admitted and are P1 quality defects for the internal advisory path. This is synthetic source/packet evidence, not measured live-model incidence; no current customer publication is established. Qualified citations alone do not verify their sentences.
+Executed evidence is separated by layer:
 
-One actual isolated Sol SDK call used eleven provisional sampled-frame textual
-observations of the one authorized dishwasher source. Its unchanged packet is
-conservative about missing physical evidence but fails candidate admission for
-published/video provenance classification. It is neither continuous video
-perception nor a successful candidate customer assessment. Gemini exposure from
-the earlier failed host boundary remains unknown; no retry occurred. Usage and
-the $0.0327325 local price estimate are separate from absent dollar billing proof.
+- 300 distinct offline conditions pass, thirty per frozen infrastructure family. Sixteen additional cross-tab cases are separate. The larger scoped test totals include these cases and neighboring assertions, not extra journeys.
+- 22 normal-UI traces use actual Express and a native Firestore emulator, with fake object/provider boundaries and local notification sinks. Five selected cases each have three reviewed candidate attempts. Forced browser termination has matched failure/pass evidence. Twenty additional coordinator worker traces use in-memory persistence and are labeled accordingly.
+- A separately owned catalog has twenty persisted intake/outbox traces through an actual emulator and separate worker processes, including crashes, duplicate submission and uncertain delivery. Its third-repeat receipts are retained. It is not added to overlapping coordinator counts; no upload or full assessment completion is claimed from this boundary layer. Portable runner transfer remains pending.
+- Twelve intercepted-API browser cases are separate. The old 640 scheduler permutations constitute one schedule layer, not 640 independent journeys.
+- All 120 frozen provisional semantic states now traverse the actual Agents SDK with scripted callbacks: 264 attempts per matched run. Seventy-two original structural controls pass; forty-eight original semantic labels remain partial and unscored. All twelve stale-job variants change from admitted to rejected on identical input/source/tool receipts. Repeats and corrected admission assertions add no independent samples or human truth labels.
 
-Only one real-site source is authorized, versus the unchanged 12–24 target; there
-are zero current human timestamp labels and no untouched holdout. Existing six
-recorded simulations are explicitly separate. No accuracy denominator or
-statistical certification is claimed. Outdated human approval gates do not hold
-the engineering work; these are current evidence limits on quality claims.
+Two consequential synthetic entailment counterexamples remain admitted: a video event absent from the source observations, and an incorrect robot value from an otherwise qualified field. They remain open P1 issues for the internal advisory assessment path. Qualified citations and passing software checks do not establish sentence truth, physical suitability or natural-model accuracy.
 
-**Deployment:** WebApp web and worker now serve exact merged eda83741 (PR941), which retains the reviewed PR940 d8988ab3 repairs. Both releases have independent paired receipts and no-submit draft-return smoke evidence. The no-submit production reload smoke passed at 06:48:57–06:48:59UTC; the same baseline smoke lost all fourfields. Deployment workflow37739286731 and required main CI37738528838 passed.
-Required-stage Pipeline code is deployed and its serving identity independently
-verified at cc876af25389de934f57c08b33421987f9e3328d. That read-only identity check
-does not prove a live customer Pipeline job. Exact WebApp merge/deployed receipts and the bounded post-deployment smoke are retained in `program-release.json` and `program-deployed-smoke.md`.
+The reference set contains one authorized real-site video, versus the unchanged 12–24 target, zero current human timestamp labels and no untouched holdout. Six recorded simulations remain separate. One isolated Sol SDK call used provisional text from sampled frames; Gemini produced no usable retained analysis and its earlier acceptance/charge remains unknown. Existing-provider read-only reconciliation was inconclusive. The primary ledger and reserved headroom remain unchanged; no paid retry occurred. The local Sol price estimate is not a dollar billing receipt.
 
-**Bounded beta:** No assessment-quality recommendation yet. A workflow-only
-recommendation must name supported browsers/recovery flows and the final executed
-access, withdrawal, idempotency and status checks; retain P2 exclusions, owners and
-recovery steps. The native forced-kill automatic form return passes three candidate attempts and fails three matched pre-checkpoint attempts. The later P1 fresh-draft reload case also passes3 independent attempts with both stores retained and one actual intercepted intake request. The scoped workflow repair is deployed and the ordinary draft-return path is live-verified. A broader end-to-end workflow beta recommendation still requires the final joined customer qualification/publication proof; local emulators and in-memory workers cannot substitute for that gate. Unsupported measurement/capability and citation
-entailment probes constrain the assessment claim separately. Customer learning
-and conversations continue under their existing permissions; this program adds
-no outreach or blanket incident freeze.
+No assessment-quality beta recommendation is supported. Scoped workflow repairs are deployed, but a broader end-to-end beta requires the joined normal-customer path to finish through durable processing and customer-visible qualification/publication, plus current assessment-quality evidence. The retained joined trace reaches actual extraction, SDK coverage, notification, owner confirmation and Pipeline preflight; it does not finish the final assessment. Ordinary customer learning continues under its existing permissions, with no new campaign or blanket freeze.
 
-Canonical replay setup is in `program-replay.md`; frozen catalog, source hashes,
-results and review corrections are in the compact inventory/trace/review files.
-Private raw material remains in authorized ignored local storage and the sole
-assessment owner's company export/recovery manifest. No bearer links, credentials
-or raw customer footage belong in CI or public reports.
-
-The scoped PR941 candidate changes the same 30 SDK diagnostics from 27 structural admission passes/3 semantic defects to 28 admission passes/2 remaining semantic defects. Seven separate applicability controls pass and an independent176-check replay passes. The V9 correction is explicit and all original30 semantic input hashes remain unchanged. These scripted callbacks do not provide real-model/video accuracy or additional independent sources.
-
-The Pipeline owner-target preparation repair in PR2648 is independently approved at exact a25bddbe; merge and exact-main production promotion/deployment remain pending. Normal-UI confirmation retains a mandatory success-criteria object, which the prior compiler blocked before geometry. The candidate retains owner targets as unverified proposals while allowing existing scene-only/no-policy preparation. Four actual rigid and articulated consumer controls refuse unconfirmed authority; baseline four cases fail and candidate16 focused checks pass. This is isolated CPU-module proof, with no full joined customer assessment or performance outcome claimed.
-
-Three selected SDK counterexamples were each replayed three additional times at the deployed-equivalent source hash. The stale-source rejection and both open false admissions reproduced on every scripted attempt, with no disagreement. These add zero unique cases and no natural-model nondeterminism or accuracy evidence; the harness passes by asserting the retained admissions, while the two semantic cases remain failures.
-
-A later independent full-lineage diagnostic found a material legacy absent/null target authority gap in Pipelinea25: fixed development defaults can seal as owner-confirmed through the actual native adapter. The earlier approval covers supplied unknown/explicit cases only. Release of a25 is on hold; a one-line universal proposal-only correction is passing scoped checks and undergoing new exact-head review. The original transport-limited probe and corrected synthetic geometry probe are retained, not hidden.
+Use `program-replay.md`, `program-semantic-sdk.md`, the frozen inventory, trace index, release receipts and independent review record to reproduce the bounded claims. Raw traces and provider artifacts stay in authorized private storage; public summaries contain no bearer links, private capture identifiers or customer footage. Source approval, merge, deployment and customer outcome remain separate decisions.
