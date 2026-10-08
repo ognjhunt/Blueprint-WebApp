@@ -1593,3 +1593,41 @@ customer assessment is established. No new timer, service, migration, index or
 extra test framework was introduced. Final exact-head checks and release/actual
 configured-runtime verification remain required; source approval does not
 promote the unconfigured worker to readiness.
+
+
+## Independent ordinary owner-return recovery review — df764f7b
+
+Approved exact integrated candidate
+`df764f7ba11f7c51d3f7d69ba5a5839e7d50a554`, consisting of previously reviewed
+36bffa1a plus the sixteen-line test-only strengthening from author
+`1fe30ac0c5295f5f6a76c22d163f41f5d851219e`. All seventeen retained runtime
+hashes match both36bffa1a and finaldf764f7b; the integrated test is byte-identical
+to the author test, SHA-256
+`6243cc97567ff9aff69497265307920e92d2c6b0ff08cbf25dddd09e72937b21`.
+Receipt `f6dd31c177419c7b41d59b31cc5c58e5279bf6442bbcd92b86cc2bc3efdbbbba`
+and all three linked baseline/candidate/typecheck logs were independently hash
+checked. The baseline deliberately combines the old671 owner route with the
+fixed postcommit queue/publisher; it is not a whole671 execution claim. Its
+one selected attempted case fails the missing return-wake assertion, seven
+checks unattempted, log
+`c646d97b06a94cc71236f1df1bd6090a890815ef21a005c3e3f7f9c56c9edf7f`.
+Candidate8/8 and typecheck pass, candidate log
+`8419e05ce451972e8884fe5ef06a26ff30d30cb528c29754359193bf17b27026`.
+
+The same joined case first completes actual SDK/private-writer publication,
+then simulates lost final publication by changing only job/pointer state and
+packet-hash projection. The canonical run/private packet survive. Actual
+owner-token HTTP status polling wakes bounded reconciliation and returns ready
+without increasing the two scripted SDK responses or one scripted Gemini call.
+Withdrawal subsequently returns empty authority-ended evidence and no new wake.
+The claim is canonical-result reconciliation after a simulated projection gap,
+not an actual interrupted Firestore commit, process crash or production recovery
+experiment. No new unique case or journey credit is assigned.
+
+Existing fake Firestore, in-memory generation-pinned objects, seven-byte
+synthetic video, scripted providers, inline private persistence and SSR limits
+remain. Source and this connected offline execution are approved; exact-head CI,
+merge, configured-runtime deployment and live affected-result verification are
+separate gates. Reported configuration presence does not establish provider
+authentication or real video assessment quality. No extra tests or live provider
+calls were performed for this test-only delta.
