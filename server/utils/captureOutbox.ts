@@ -32,6 +32,7 @@ export type OutboxKind =
   | "task_received"
   | "video_received"
   | "scene_ready"
+  | "preparation_needs_attention"
   | "listing_live"
   | "screening_cleared"
   | "screening_not_now"
@@ -68,6 +69,8 @@ export interface OutboxEntry {
   subject: string;
   body: string;
   replyTo?: string | null;
+  /** Exact source/context event identity for preparation dispatch authority. */
+  preparationEventId?: string;
   status: OutboxStatus;
   attempts: number;
   createdAtIso: string;
@@ -81,10 +84,13 @@ const DELIVERY_LEASE_MS = 5 * 60 * 1000;
 
 // Bind the claim to the exact message, including the private owner link.
 function messageDigest(entry: OutboxEntry): string {
-  return createHash("sha256").update(JSON.stringify([
+  const fields = [
     entry.idempotencyKey, entry.requestId, entry.kind, entry.to,
     entry.subject, entry.body, entry.replyTo ?? null,
-  ])).digest("hex");
+  ];
+  // Preserve the exact historical tuple for every existing retained lease.
+  if (entry.preparationEventId !== undefined) fields.push(entry.preparationEventId);
+  return createHash("sha256").update(JSON.stringify(fields)).digest("hex");
 }
 
 /** Expiry permits another claim only before the durable dispatch marker.
@@ -115,7 +121,7 @@ function nowIso() {
  * asking. Delivery retries use the same durable intent.
  */
 export type OutboxInput = Pick<OutboxEntry,
-  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo">;
+  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId">;
 
 /** Build a durable intent for an owning business transaction. This function
  * performs no I/O; callers create the row atomically with their state change. */
@@ -186,6 +192,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileSceneReadyNotifications } = await import("./taskLifecycleNotifications");
     await reconcileSceneReadyNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile scene-ready notices"); }
+  try {
+    const { reconcileWebsitePreparationNotifications } = await import("./taskLifecycleNotifications");
+    await reconcileWebsitePreparationNotifications(Math.min(limit, 1));
+  } catch { logger.warn({ code: "website_preparation_reconcile_unavailable" }, "Could not reconcile preparation notices"); }
   try {
     const { reconcileAgentRunResultNotifications } = await import("./agentRunResultNotifications");
     await reconcileAgentRunResultNotifications(limit);

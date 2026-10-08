@@ -18,6 +18,11 @@ import type { Server } from "node:http";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
+const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
+  state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
+})) }));
+vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparationStatus: preparation.read }));
+
 const storage = vi.hoisted(() => ({
   objects: new Map<string, { generation: string; size: string; crc32c: string; bytes?: Buffer }>(),
   failure: null as Error | null,
@@ -115,6 +120,25 @@ async function status() {
 }
 
 describe("GET /api/site-task-brief/:token/status", () => {
+  it("PREP-UI-001 shows verified preparation failure through the customer handler", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { code, body } = await status();
+    expect(code).toBe(200);
+    expect(preparation.read).toHaveBeenCalledWith("req-1", "cap-1");
+    expect(body.status).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
+    expect(body.status.headline).toContain("Job preparation encountered a problem.");
+    expect(body.status.headline).toContain("bp-prep-1234567890abcdef");
+    expect(body.status.headline).not.toMatch(/are preparing|results are in/i);
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+  });
+  it("PREP-UI-002 keeps preparation readback outside film-link scope", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
+    const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
+    expect((await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).status).toBe(200);
+    expect(preparation.read).not.toHaveBeenCalled();
+  });
   function savedRecording(kind: "stored" | "held" | "published", scope: "owner" | "film" = "owner") {
     const identity = { requestId: "req-1", sceneId: "site-req-1", captureId: "walkthrough-req-1" };
     const objectName = `scenes/${identity.sceneId}/captures/${identity.captureId}/raw/walkthrough.mp4`;

@@ -39,6 +39,7 @@ import { getBrief } from "../utils/siteTaskBrief";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
+import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
 import { listRunsForScene, loadSceneScreening } from "../utils/agentEvalRuns";
 import type {
   InboundRequestStored,
@@ -532,6 +533,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     }
     const captureSession = await db!.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get();
     const reconstruction = captureSession.data()?.world_reconstruction;
+    const preparationStatus = !consentRevoked && captureSession.data()?.website_preparation
+      ? await loadCurrentWebsitePreparationStatus(requestId, `walkthrough-${requestId}`) : null;
     const scenePreviewReady = !consentRevoked && reconstruction?.state === "ready"
       && [reconstruction?.assets?.launchUrl, reconstruction?.assets?.panoUrl].some((value: unknown) => {
         try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password; }
@@ -556,6 +559,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         consentRevoked,
         scenePreviewReady,
         scenePreparationFailed: reconstruction?.state === "failed",
+        preparationStatus,
         stage,
         screening: await loadSceneScreening(requestId).catch(() => null),
         site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,

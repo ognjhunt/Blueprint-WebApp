@@ -34,6 +34,7 @@ import {
 import { describeSiteVideoEvidenceConfig } from "./utils/siteVideoEvidenceConfig";
 import { firebaseAuthProxy } from "./utils/firebaseAuthProxy";
 import { captureOwnerRawBody } from "./utils/captureOwnerRawBody";
+import { websitePreparationRawBody } from "./routes/internal-website-preparation";
 
 const env = validateEnv();
 
@@ -212,9 +213,11 @@ app.use(
   express.json({ limit: process.env.SELF_CAPTURE_BUNDLE_PLAN_BODY_LIMIT || "8mb", verify: captureRawBody }),
 );
 app.use(captureOwnerRawBody);
+app.use(websitePreparationRawBody);
 const defaultJsonBody = express.json({ limit: defaultBodyLimit, verify: captureRawBody });
 app.use((req, res, next) => {
-  if ((req as Request & { captureOwnerBodyAdmitted?: boolean }).captureOwnerBodyAdmitted) return next();
+  const admitted = req as Request & { captureOwnerBodyAdmitted?: boolean; websitePreparationBodyAdmitted?: boolean };
+  if (admitted.captureOwnerBodyAdmitted || admitted.websitePreparationBodyAdmitted) return next();
   return defaultJsonBody(req, res, next);
 });
 app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
