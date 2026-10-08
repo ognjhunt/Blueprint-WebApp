@@ -2,17 +2,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore, storageAdmin: null }));
+import { SiteAssessmentBudget, normalizeSiteAssessmentUsage } from "../agents/adapters/site-assessment-budget";
 import { reserveCaptureCoverageInference } from "../utils/captureCoverageInferenceBudget";
-import { inferenceProgrammeContextDigest } from "../utils/inferenceProgrammeAdmission";
+import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
+import { inferenceProgrammeContextDigest, inferenceProgrammeAmendmentStateDigest } from "../utils/inferenceProgrammeAdmission";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { SITE_ASSESSMENT_MODEL } from "../agents/provider-config";
 
-const source = { kind: "browser_pending", key: "source-one" }, brief = { summary: "Move racks" };
+const publishedPending:BrowserPending={schema_version:"website_browser_pending.v1",request_id:"one",scene_id:"site-one",capture_id:"walkthrough-one",state:"published",completed_at_iso:"2026-10-08T00:00:00Z",
+ video:{object_name:"scenes/site-one/captures/walkthrough-one/raw/walkthrough.mov",generation:"1",size_bytes:7,crc32c:"AAAAAA=="},manifest:{object_name:"scenes/site-one/captures/walkthrough-one/raw/manifest.json",generation:"2",size_bytes:100,crc32c:"AAAAAA==",sha256:`sha256:${"a".repeat(64)}`}};
+const source = { kind: "browser_pending", key: browserPendingDecisionKey(publishedPending) }, brief = { summary: "Move racks" };
 const metadata = { capture_id: "walkthrough-one", review_id: "a".repeat(64), coverage_claim_token: "owned-claim" };
 const path = `captureCoverageReviews/${metadata.review_id}`;
 const usage = { promptTokenCount: 100, candidatesTokenCount: 10, thoughtsTokenCount: 0 };
 function seed() {
+  sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-one",{browser_pending_delivery:structuredClone(publishedPending)});
   sharedFakeFirestoreState.docs.set(path, { state: "running", attempts: 1, claim_token: "owned-claim", captureId: metadata.capture_id,
     requestId: "one", binding: { source, brief_digest: humanDecisionDigest(brief) } });
   sharedFakeFirestoreState.docs.set("siteTaskBriefs/one", brief);
@@ -161,8 +166,29 @@ describe("programme-bound actual reservation transaction", () => {
     const {grantInferenceProgrammeAuthorityAmendment}=await import("../utils/captureCoverageInferenceBudget");
     return grantInferenceProgrammeAuthorityAmendment({programmeId:"programme-one",expectedAuthorityDigest:read(budgetPath).inference_programme_authority_digest,
       expectedTechnicalReceiptDigest:read(programmePath).technical_continuations[0].receipt_sha256,amendmentIdentity:"approved-budget-amendment",
+      expectedRawRequestDigest:inferenceProgrammeAmendmentStateDigest(read("inboundRequests/one")),expectedUploadSessionDigest:inferenceProgrammeAmendmentStateDigest(read("captureUploadSessions/walkthrough-one")),
       authorityRef:"synthetic-new-human-approval",operatorRef:"synthetic-authorized-operator",approvalReceiptSha256:`sha256:${"c".repeat(64)}`,effectiveCapMicroUsd:5300000,...extra});
   };
+  it("amended Gemini headroom prices unexplained total tokens conservatively instead of assuming missing thoughts are zero",async()=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();await amend();
+    const call=await reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini");
+    await call.record({promptTokenCount:114,candidatesTokenCount:10,totalTokenCount:12400});
+    const recorded=read(programmePath).amended_calls[0];expect(recorded.usage_output_tokens).toBe(12286);
+    expect(recorded.usage_pricing_status).toBe("unattributed_total_upper_bound");
+    expect(recorded.usage_estimate_micro_usd).toBe(Math.ceil(((114*.75+12286*3.75)/1e6)*1e6));
+    await (await sol()).assertDispatchAllowed();
+  });
+  it.each(["account-presence","privacy","session","reservation","stored","missing-expected"])("operator amendment rejects %s changed since inspected facts",async defect=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();
+    const input:any={expectedRawRequestDigest:inferenceProgrammeAmendmentStateDigest(read("inboundRequests/one")),expectedUploadSessionDigest:inferenceProgrammeAmendmentStateDigest(read("captureUploadSessions/walkthrough-one"))};
+    if(defect==="account-presence")read("inboundRequests/one").account_owner_uid=null;
+    if(defect==="privacy")read("inboundRequests/one").capture_privacy_source_bound_decision.operator_note="changed private review";
+    if(defect==="session")read("captureUploadSessions/walkthrough-one").browser_pending_delivery.video.generation="9";
+    if(defect==="reservation")read("captureUploadSessions/walkthrough-one").browser_upload_reservation={id:"new-upload"};
+    if(defect==="stored")read("captureUploadSessions/walkthrough-one").browser_stored_upload={id:"new-source"};
+    if(defect==="missing-expected")input.expectedRawRequestDigest=undefined;
+    const before=structuredClone(read(programmePath));await expect(amend(input)).rejects.toThrow("amendment_invalid");expect(read(programmePath)).toEqual(before);
+  });
   it("explicit budget amendment preserves old unknowns and clock, then reconciles new calls without a Gemini count quota",async()=>{
     reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();
     const original=structuredClone(read(programmePath)),before=structuredClone(read(budgetPath));
@@ -450,4 +476,30 @@ describe("programme-bound actual reservation transaction", () => {
     await expect(call.record({ input_tokens: 100, output_tokens: 10 })).rejects.toThrow("inference_programme_admission_changed");
     expect(read(budgetPath).pending_token).toBe(token);
   });
+});
+
+describe("provider usage normalization retains unexplained exposure",()=>{
+ it.each([
+  [{promptTokenCount:114,candidatesTokenCount:10,totalTokenCount:12400},12286,"unattributed_total_upper_bound"],
+  [{promptTokenCount:114,candidatesTokenCount:10,thoughtsTokenCount:0,totalTokenCount:12400},12286,"unattributed_total_upper_bound"],
+  [{promptTokenCount:114,candidatesTokenCount:10},null,"unknown"],
+  [{promptTokenCount:114,candidatesTokenCount:10,thoughtsTokenCount:0,totalTokenCount:123},null,"unknown"],
+  [{promptTokenCount:114,candidatesTokenCount:10,thoughtsTokenCount:0,totalTokenCount:"124"},null,"unknown"],
+  [{promptTokenCount:114,candidatesTokenCount:10,thoughtsTokenCount:0,totalTokenCount:124},10,"reported_complete"],
+  [{promptTokenCount:114,candidatesTokenCount:10,thoughtsTokenCount:7,totalTokenCount:131},17,"reported_complete"],
+  [{promptTokenCount:114,candidatesTokenCount:10,thoughtsTokenCount:-1,totalTokenCount:124},null,"unknown"],
+ ])("normalizes actual counter shape %j conservatively",(raw,output,status)=>{
+  const budget=new SiteAssessmentBudget();budget.authorize("gemini","gemini-3.8-flash");budget.record("gemini","gemini-3.8-flash",{usage:raw});
+  expect(budget.calls[0].usage).toBe(raw);expect(budget.calls[0].output_tokens).toBe(output);expect(budget.calls[0].usage_pricing_status).toBe(status);
+  expect(budget.calls[0].cost_usd===null).toBe(output===null);expect(normalizeSiteAssessmentUsage("gemini",raw).status).toBe(status);
+  const artifacts=budget.artifacts();expect(artifacts.usage_samples[0].priced_output_tokens).toBe(output);
+  expect(artifacts.usage_samples[0].usage_pricing_status).toBe(status);
+  expect(artifacts.usage.completion_tokens).toBe(status==="unattributed_total_upper_bound"?null:output);
+  expect(artifacts.provider_responses[0].output_tokens).toBe(status==="unattributed_total_upper_bound"?null:output);
+ });
+ it("unexplained output above the admitted ceiling cannot settle or release pending exposure",()=>{
+  const budget=new SiteAssessmentBudget();budget.authorize("gemini","gemini-3.8-flash");
+  expect(()=>budget.record("gemini","gemini-3.8-flash",{usage:{promptTokenCount:114,candidatesTokenCount:10,totalTokenCount:33000}})).toThrow("actual_cost_exceeds_reservation");
+  expect(budget.calls[0].cost_usd).toBeNull();expect(budget.artifacts().inference_reservation.unknown_usage_reserved_cost_usd).toBe(1.818624);
+ });
 });

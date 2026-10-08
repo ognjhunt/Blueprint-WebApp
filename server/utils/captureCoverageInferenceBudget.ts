@@ -1,6 +1,7 @@
 import type { Transaction } from "firebase-admin/firestore";
-import { admitInferenceProgramme, inferenceProgrammeAmendment, effectiveInferenceProgrammeSlots, hasInferenceProgramme, inferenceProgrammeId, inferenceProgrammeContextDigest, validateInferenceProgramme, inferenceProgrammeAuthorityDigest, acceptsReconciledCaptureHistory, validatedAssessmentRecoveries, assertInferenceProgrammeClock, INFERENCE_TECHNICAL_WINDOW_MS, type AssessmentRecovery } from "./inferenceProgrammeAdmission";
+import { admitInferenceProgramme, inferenceProgrammeAmendment, inferenceProgrammeAmendmentStateDigest, effectiveInferenceProgrammeSlots, hasInferenceProgramme, inferenceProgrammeId, inferenceProgrammeContextDigest, validateInferenceProgramme, inferenceProgrammeAuthorityDigest, acceptsReconciledCaptureHistory, validatedAssessmentRecoveries, assertInferenceProgrammeClock, INFERENCE_TECHNICAL_WINDOW_MS, type AssessmentRecovery } from "./inferenceProgrammeAdmission";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
 import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget";
@@ -217,7 +218,7 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
             throw new Error("inference_programme_admission_changed");
           tx.set(admission.programmeRef, { slots: programme.slots.map(row => row.id === slot.id ? { ...row, state: "recorded",
             usage_estimate_micro_usd: Math.ceil(admission.budget.calls[0].cost_usd! * 1e6) } : row),
-            ...(programme.authority_amendments ? {amended_calls: inferenceProgrammeAmendment(programme,state)!.calls.map(call=>call.admission_token===token ? {...call,state:"recorded",usage_estimate_micro_usd:Math.ceil(admission.budget.calls[0].cost_usd!*1e6),usage_input_tokens:admission.budget.calls[0].input_tokens,usage_output_tokens:admission.budget.calls[0].output_tokens,priced_at_ms:admission.budget.calls[0].priced_at_ms}:call)}:{}) }, { merge: true });
+            ...(programme.authority_amendments ? {amended_calls: inferenceProgrammeAmendment(programme,state)!.calls.map(call=>call.admission_token===token ? {...call,state:"recorded",usage_estimate_micro_usd:Math.ceil(admission.budget.calls[0].cost_usd!*1e6),usage_input_tokens:admission.budget.calls[0].input_tokens,usage_output_tokens:admission.budget.calls[0].output_tokens,priced_at_ms:admission.budget.calls[0].priced_at_ms,usage_metadata:admission.budget.calls[0].usage,usage_pricing_status:admission.budget.calls[0].usage_pricing_status}:call)}:{}) }, { merge: true });
         }
         tx.set(budgetRef, { pending_token: null, last_usage_estimate_usd: admission.budget.calls[0].cost_usd,
           updated_at_ms: Date.now() }, { merge: true });
@@ -392,20 +393,26 @@ export async function grantInferenceProgrammeTechnicalContinuation(input: { prog
 /** Explicit trusted operator amendment; no route, renewal, original-slot rewrite, or dispatch. */
 export async function grantInferenceProgrammeAuthorityAmendment(input:{programmeId:string;expectedAuthorityDigest:string;
   expectedTechnicalReceiptDigest:string;amendmentIdentity:string;authorityRef:string;operatorRef:string;
-  approvalReceiptSha256:string;effectiveCapMicroUsd:5300000}) {
+  approvalReceiptSha256:string;effectiveCapMicroUsd:5300000;expectedRawRequestDigest:string;expectedUploadSessionDigest:string}) {
   if(!db||!/^[A-Za-z0-9._-]{1,120}$/.test(input.programmeId)||!/^[A-Za-z0-9._-]{1,120}$/.test(input.amendmentIdentity)
     ||typeof input.authorityRef!=="string"||!input.authorityRef.trim()||input.authorityRef.length>500
     ||typeof input.operatorRef!=="string"||!input.operatorRef.trim()||input.operatorRef.length>500
-    ||!/^sha256:[a-f0-9]{64}$/.test(input.approvalReceiptSha256)||input.effectiveCapMicroUsd!==5300000)
+    ||!/^sha256:[a-f0-9]{64}$/.test(input.approvalReceiptSha256)||input.effectiveCapMicroUsd!==5300000
+    ||!/^[a-f0-9]{64}$/.test(input.expectedRawRequestDigest)||!/^[a-f0-9]{64}$/.test(input.expectedUploadSessionDigest))
     throw new Error("inference_programme_amendment_invalid");
   return db.runTransaction(async tx=>{
     const ref=db!.collection("inferencePrograms").doc(input.programmeId),programme=validateInferenceProgramme((await tx.get(ref)).data());
     const budgetRef=db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({capture_id:programme.capture_id})}`);
-    const [budgetSnap,requestSnap,briefSnap]=await Promise.all([tx.get(budgetRef),tx.get(db!.collection("inboundRequests").doc(programme.request_id)),tx.get(db!.collection("siteTaskBriefs").doc(programme.request_id))]);
-    const state=budgetSnap.data(),request=requestSnap.data(),digest=inferenceProgrammeAuthorityDigest(programme);
+    const [budgetSnap,requestSnap,briefSnap,sessionSnap]=await Promise.all([tx.get(budgetRef),tx.get(db!.collection("inboundRequests").doc(programme.request_id)),tx.get(db!.collection("siteTaskBriefs").doc(programme.request_id)),tx.get(db!.collection("captureUploadSessions").doc(programme.capture_id))]);
+    const state=budgetSnap.data(),request=requestSnap.data(),session=sessionSnap.data(),pending=session?.browser_pending_delivery as BrowserPending|undefined,digest=inferenceProgrammeAuthorityDigest(programme);
     assertInferenceProgrammeClock(programme,state);
     const technical:any=programme.technical_continuations?.[0];
-    if(digest!==input.expectedAuthorityDigest||input.authorityRef===programme.authority_ref||!technical||technical.receipt_sha256!==input.expectedTechnicalReceiptDigest
+    if(inferenceProgrammeAmendmentStateDigest(request)!==input.expectedRawRequestDigest||inferenceProgrammeAmendmentStateDigest(session)!==input.expectedUploadSessionDigest
+      ||!pending||pending.schema_version!=="website_browser_pending.v1"||pending.state!=="published"||pending.request_id!==programme.request_id||pending.capture_id!==programme.capture_id
+      ||session?.browser_upload_reservation||session?.browser_stored_upload
+      ||request?.capture_privacy_source_bound_decision?.producer_source?.kind!=="browser_pending"
+      ||browserPendingDecisionKey(pending)!==request.capture_privacy_source_bound_decision.producer_source.key
+      ||digest!==input.expectedAuthorityDigest||input.authorityRef===programme.authority_ref||!technical||technical.receipt_sha256!==input.expectedTechnicalReceiptDigest
       ||technical.effective_expires_at_ms<=Date.now()||!state||state.inference_program_id!==input.programmeId
       ||state.inference_programme_authority_digest!==digest||state.capture_id!==programme.capture_id||request?.inference_program_id!==input.programmeId
       ||!projectWebsiteCaptureRights(request).derived_scene_generation_allowed||request?.capture_privacy_source_bound_decision?.proceeded!==true
@@ -424,7 +431,7 @@ export async function grantInferenceProgrammeAuthorityAmendment(input:{programme
     if(programme.capture_history_reconciliation){const history=await tx.get(db!.collection("captureCoverageReviews").where("captureId","==",programme.capture_id).limit(100));
       if(!acceptsReconciledCaptureHistory(programme,programme.request_id,programme.capture_id,history.docs.map(r=>({id:r.id,data:r.data()}))))throw new Error("inference_programme_amendment_invalid");}
     const content={schema_version:"inference_programme_authority_amendment.v1",identity:input.amendmentIdentity,authority_ref:input.authorityRef,operator_ref:input.operatorRef,
-      approval_receipt_sha256:input.approvalReceiptSha256,programme_id:input.programmeId,original_authority_digest:digest,original_authority_ref:programme.authority_ref,
+      approval_receipt_sha256:input.approvalReceiptSha256,grant_raw_request_digest:input.expectedRawRequestDigest,grant_upload_session_digest:input.expectedUploadSessionDigest,programme_id:input.programmeId,original_authority_digest:digest,original_authority_ref:programme.authority_ref,
       original_expires_at_ms:programme.expires_at_ms,technical_receipt_sha256:technical.receipt_sha256,effective_expires_at_ms:technical.effective_expires_at_ms,
       request_id:programme.request_id,capture_id:programme.capture_id,context_digest:programme.context_digest,video_sha256:programme.video_sha256,source_digest:programme.producer_source_digest,
       ledger_sha256:programme.ledger_sha256,original_cap_micro_usd:programme.cap_micro_usd,effective_cap_micro_usd:input.effectiveCapMicroUsd,granted_at_ms:Date.now(),

@@ -7,7 +7,7 @@ vi.mock("../logger", () => ({logger:{warn:vi.fn(),info:vi.fn(),error:vi.fn()}}))
 import { retrySiteAssessment, describeSiteAssessmentRetry } from "../utils/siteAssessmentQueue";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
-import { inferenceProgrammeContextDigest } from "../utils/inferenceProgrammeAdmission";
+import { inferenceProgrammeContextDigest, inferenceProgrammeAmendmentStateDigest } from "../utils/inferenceProgrammeAdmission";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { reserveCaptureCoverageInference, grantInferenceProgrammeTechnicalContinuation } from "../utils/captureCoverageInferenceBudget";
@@ -128,6 +128,7 @@ it("budget amendment enables exact two-call failed recovery using one original h
  const old=structuredClone(read(`agentRuns/${oldRun}`)),before=structuredClone(read(programmePath));
  await grantInferenceProgrammeAuthorityAmendment({programmeId:"retry-programme",expectedAuthorityDigest:read(budgetPath).inference_programme_authority_digest,
   expectedTechnicalReceiptDigest:before.technical_continuations[0].receipt_sha256,amendmentIdentity:"approved-budget-amendment",authorityRef:"synthetic-new-human-approval",
+  expectedRawRequestDigest:inferenceProgrammeAmendmentStateDigest(read(`inboundRequests/${requestId}`)),expectedUploadSessionDigest:inferenceProgrammeAmendmentStateDigest(read(`captureUploadSessions/${captureId}`)),
   operatorRef:"synthetic-authorized-operator",approvalReceiptSha256:`sha256:${"c".repeat(64)}`,effectiveCapMicroUsd:5300000});
  expect((await describeSiteAssessmentRetry(requestId,access)).available).toBe(true);
  const accepted=await retry();const job=read(`siteAssessmentJobs/${jobId}`);job.state="running";job.claim_id="new-claim";

@@ -1,4 +1,5 @@
 import { humanDecisionDigest } from "./human-reply-admission";
+import { priceSiteAssessmentUsage } from "../agents/adapters/site-assessment-budget";
 import { SITE_ASSESSMENT_MODEL } from "../agents/provider-config";
 
 const fields = ["buyerType", "taskDescription", "whatGoesWrong", "taskStatement", "details", "operatingConstraints",
@@ -177,7 +178,7 @@ export function inferenceProgrammeAmendment(programme: Programme, state: any) {
     || receipt_sha256 !== humanDecisionDigest(content) || !/^[A-Za-z0-9._-]{1,120}$/.test(row.identity)
     || typeof row.authority_ref !== "string" || !row.authority_ref.trim() || row.authority_ref.length > 500
     || typeof row.operator_ref !== "string" || !row.operator_ref.trim() || row.operator_ref.length > 500
-    || !/^sha256:[a-f0-9]{64}$/.test(row.approval_receipt_sha256)
+    || !/^sha256:[a-f0-9]{64}$/.test(row.approval_receipt_sha256)||!hash(row.grant_raw_request_digest)||!hash(row.grant_upload_session_digest)
     || row.original_authority_digest !== inferenceProgrammeAuthorityDigest(programme)
     || row.original_authority_ref !== programme.authority_ref || row.authority_ref === programme.authority_ref || row.original_expires_at_ms !== programme.expires_at_ms
     || row.technical_receipt_sha256 !== technical?.receipt_sha256 || row.effective_expires_at_ms !== technical?.effective_expires_at_ms
@@ -205,8 +206,10 @@ export function inferenceProgrammeAmendment(programme: Programme, state: any) {
   const ids = new Set<string>(), tokens = new Set<string>(), originals = new Set<string>();
   let exposure = programme.slots.reduce((sum,slot)=>sum+slot.reserved_micro_usd,0);
   for (const call of calls) {
+    if(!call)throw new Error("inference_programme_amendment_invalid");
     const slot = programme.slots.find(s=>s.id===call.original_slot_id);
     const before = row.slot_snapshot.find((s:any)=>s.id===call.original_slot_id);
+    const priced=priceSiteAssessmentUsage(call.provider,call.usage_metadata,call.priced_at_ms);
     if (!call || typeof call.id !== "string" || !/^[A-Za-z0-9._-]{1,120}$/.test(call.id) || ids.has(call.id)
       || typeof call.admission_token !== "string" || !call.admission_token || tokens.has(call.admission_token)
       || typeof call.run_id !== "string" || !call.run_id || !amount(call.reserved_micro_usd)
@@ -215,8 +218,8 @@ export function inferenceProgrammeAmendment(programme: Programme, state: any) {
       || (call.state === "recorded" && (!Number.isSafeInteger(call.usage_input_tokens) || call.usage_input_tokens<0
         || !Number.isSafeInteger(call.usage_output_tokens)||call.usage_output_tokens<0||!Number.isSafeInteger(call.priced_at_ms)||call.priced_at_ms<row.granted_at_ms||call.priced_at_ms>Date.now()
         || !Number.isSafeInteger(call.usage_estimate_micro_usd) || call.usage_estimate_micro_usd < 0 || call.usage_estimate_micro_usd > call.reserved_micro_usd
-        || call.usage_estimate_micro_usd!==Math.ceil(((call.usage_input_tokens*(call.provider==="openai"?2.5:call.priced_at_ms<Date.parse("2027-01-01T00:00:00Z")?.75:1.5)
-          +call.usage_output_tokens*(call.provider==="openai"?10:call.priced_at_ms<Date.parse("2027-01-01T00:00:00Z")?3.75:7.5))/1e6)*1e6)))
+        || priced.cost_usd===null||call.usage_input_tokens!==priced.input_tokens||call.usage_output_tokens!==priced.output_tokens||call.usage_pricing_status!==priced.status
+        || call.usage_estimate_micro_usd!==Math.ceil(priced.cost_usd*1e6)))
       || (call.original_slot_id && (!slot || before?.state !== "held" || originals.has(slot.id)
         || slot.state !== call.state || slot.admission_token !== call.admission_token || slot.run_id !== call.run_id
         || slot.provider !== call.provider || slot.model !== call.model || slot.reserved_call_micro_usd !== call.reserved_micro_usd)))
@@ -293,4 +296,9 @@ export function assertInferenceProgrammeClock(programme: Programme, state?: any,
 export function hasActiveInferenceProgrammeAmendment(value: unknown, state: any) {
   const programme=validateInferenceProgramme(value);assertInferenceProgrammeClock(programme,state);
   return inferenceProgrammeAmendment(programme,state)!==null;
+}
+
+/** Operator preflight fingerprints exact raw privacy/account-presence and published-session facts. */
+export function inferenceProgrammeAmendmentStateDigest(value: unknown) {
+  return humanDecisionDigest(value ?? null);
 }
