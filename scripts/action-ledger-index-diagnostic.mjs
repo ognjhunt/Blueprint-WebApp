@@ -7,11 +7,11 @@ import { pathToFileURL } from 'node:url';
 
 const PROJECT = 'blueprint-8c1ca', WORKER = 'srv-d9t8gg1t0dsc73am9q70';
 export const PARENT = `projects/${PROJECT}/databases/(default)/collectionGroups/action_ledger`;
-const OPERATOR_SHA = 'ba1e24ddef8e560114560cc938ec764815bcd57671f58ff9fe9c4ae11c48b096';
+const OPERATOR_SHA = '654c31f561ded07d54c8e477f725f210c09af5699902c538949008921bfcc93d';
 const OLD_PATH = '/tmp/blueprint-action-ledger-index-g1Gtmj/receipts.jsonl';
 const OLD_SHA = '43debbd20d2e3821e6ce14552aaf775f4b1d43c79e778e3fe7dca0751d652ccd';
 const BUCKET = 'blueprint-8c1ca.appspot.com';
-const MANIFEST_SHA = '91b3fcdc84a63fbd1c63de6d3f9d12f52f1bed0a9ddcde1d33d474f0e75e6647';
+const MANIFEST_SHA = '6a027ae610c35d0def5d5ce105abae6679f0d5d340d20b000cb14235eaa5fab7';
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const refuse = code => { throw Error(code); };
 export function redact(value, secrets = []) {

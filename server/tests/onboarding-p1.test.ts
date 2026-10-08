@@ -173,7 +173,7 @@ describe("owner authorization and durable demand", () => {
     team("suppressed@arm.example", "approved");
     state.docs.set("email_suppressions/suppressed@arm.example", { suppressed_scopes: ["optional_updates"] });
     state.docs.set("inboundRequests/req1", record({ public_task_listing: undefined }) as never);
-    const alerts = () => [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_new_task:req1:"));
+    const alerts = () => [...state.docs.entries()].filter(([key, value]) => key.startsWith("captureOutbox/") && value.kind === "robot_team_new_task" && value.requestId === "req1");
     const post = () => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: true, details: { ...details, opportunity: "open" }, consent: true }) });
     expect((await post()).status).toBe(200);
     await resumeNewJobFanout();
