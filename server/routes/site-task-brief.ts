@@ -941,10 +941,17 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
         : null;
 
+    const siteAdvisory = payload.scope === "owner"
+      ? await loadCurrentSiteAdvisory(payload.requestId, payload.captureId, { expectedOwnerUid: request?.account_owner_uid ?? null }) : null;
+    if (siteAdvisory?.state === "queued" || siteAdvisory?.state === "running") {
+      // Only an authorized, current-source read can wake the existing queue.
+      void import("../utils/siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1))
+        .catch(() => logger.warn("Site advisory return-visit wake unavailable"));
+    }
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
-      siteAdvisory: payload.scope === "owner" ? await loadCurrentSiteAdvisory(payload.requestId, payload.captureId, { expectedOwnerUid: request?.account_owner_uid ?? null }) : null,
+      siteAdvisory,
       status,
       // Retention only: a saved recording does not prove processing started.
       captureReceived: hasStoredCapture,
