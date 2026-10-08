@@ -260,6 +260,7 @@ function isProspectOutreach(scope?: { lane?: string; source_collection?: string;
  * drafting worker recorded as an outreach-ready hypothesis (send_authority "none"), whatever its payload. */
 function communicationsHypothesisRefusal(payload: ActionPayload, ledger?: Record<string, any>) {
   if (ledger && (ledger.send_authority === "none" || ledger.qualification_tier === "outreach_ready")) return OUTREACH_READY_SEND_REFUSAL;
+  if (payload.communicationsDraftOnly) return "footerless_draft_requires_delivery_review";
   return isCommunicationsPayload(payload) ? outreachReadySendRefusal((payload.communications as any)?.brief) : null;
 }
 

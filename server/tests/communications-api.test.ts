@@ -16,7 +16,7 @@ import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
 import { hydrateAgentEvidence } from "../agents/private-evidence";
 import { HYPOTHESIS_DRAFTS_FLAG } from "../agents/communications-hypothesis-controls";
 import { buildCommunicationsInput } from "../agents/communications-worker";
-import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "../agents/communications-outreach-quality";
+import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "../agents/communications-outreach-quality";
 import { founderOutreachFixture } from "./fixtures/founder-outreach";
 import { communicationsMcpCallAllowed } from "../agents/communications-saved-agent";
 const httpStorage = vi.hoisted(() => ({ enabled: false, fail: false, objects: new Map<string, string>() }));
@@ -1137,7 +1137,8 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(consumed.firstTouchFraming.questionIsSuggestion).toBe(true);
     expect(consumed.firstTouchFraming.question).not.toContain("why");
     if (hypothesis) {
-      expect(posted.agent.instructions).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+      expect(posted.agent.instructions).toContain(LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+      expect(consumed.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
       expect(posted.agent.instructions).toContain('version:"blueprint.outreach.v4"');
       expect(posted.agent.instructions).toContain("Anchors may overlap naturally");
       expect(result.outputSource?.definitionVersion).toBe("blueprint.communications-definition.v21");

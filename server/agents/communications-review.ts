@@ -49,7 +49,9 @@ export function reviewCommunicationsPayload(payload: Record<string, unknown>, no
         payload.transportBody === appendFirstContactFooter(output.body, brief.contact.email, savedPostalLine, legacy)); }
     catch { /* Missing owner config refuses new automatic sends, never import. */ }
   }
-  if (!knownFooter && !firstContactFooter) blockers.push("transport_body_changed");
+  const unsentOnly = payload.communicationsDraftOnly === "founder-footerless-v2"
+    && payload.transportBody === output.body.trimEnd();
+  if (!knownFooter && !firstContactFooter && !unsentOnly) blockers.push("transport_body_changed");
   if (job.prospectId !== brief.prospectId || job.briefId !== brief.briefId || job.briefDigest !== communicationsDigest(brief)) {
     blockers.push("research_brief_mismatch");
   }

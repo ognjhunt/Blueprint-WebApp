@@ -502,9 +502,9 @@ export class CommunicationsStore {
       // that every approval and send path refuses, labelled so the queue shows no approve control.
       const hypothesis = outreachReadySendRefusal(communicationsBriefSchema.parse(brief.data())) !== null
         || outreachReadySendRefusal((payload.communications as any)?.brief) !== null;
-      let authority = hypothesis ? null : proposedAuthority;
+      let authority = hypothesis || payload.communicationsDraftOnly ? null : proposedAuthority;
       if (record.automationPolicyVersion !== ROUTINE_COMMUNICATIONS_POLICY.version || record.cancelledContinuation) authority = null;
-      const prospective = !hypothesis && !record.cancelledContinuation && record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
+      const prospective = !hypothesis && !payload.communicationsDraftOnly && !record.cancelledContinuation && record.automationPolicyVersion === ROUTINE_COMMUNICATIONS_POLICY.version && !existing.exists;
       let refusal: string | null = null;
       if (prospective && !authority) {
         const quality = reviewCommunicationsPayload(payload, this.now());
@@ -556,8 +556,8 @@ export class CommunicationsStore {
         source_collection: "outboundProspects", source_doc_id: job.prospectId,
         action_payload: payload, draft_output: { ...output, requires_human_review: !prospective, category: "communications" },
         status: policyBlocked ? "failed" : state,
-        approval_reason: hypothesis ? OUTREACH_READY_SEND_REFUSAL : policyBlocked ? refusal : automatic ? null : "requires_human_review",
-        ...(hypothesis ? { qualification_tier: "outreach_ready", send_authority: "none" } : {}),
+        approval_reason: hypothesis ? OUTREACH_READY_SEND_REFUSAL : payload.communicationsDraftOnly ? "footerless_draft_requires_delivery_review" : policyBlocked ? refusal : automatic ? null : "requires_human_review",
+        ...(hypothesis ? { qualification_tier: "outreach_ready", send_authority: "none" } : payload.communicationsDraftOnly ? { send_authority: "none" } : {}),
         auto_approve_reason: automatic ? authority?.kind : null,
         ...(automatic ? { first_contact_authority: authority, first_contact_authority_digest: authorityDigest } : {}),
         approved_by: null, approved_at: null, rejected_by: null, rejected_reason: null,

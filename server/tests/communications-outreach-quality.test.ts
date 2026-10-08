@@ -18,7 +18,7 @@ describe("prospective founder outreach quality (offline fixtures)", () => {
     expect(input.researchBrief).toEqual(f.brief);
     expect(input.firstTouchPolicy).toContain("Unknown automation, manual work");
     expect(input.firstTouchPolicy).toContain("recipient-site conflicts remain held");
-    expect(input.firstTouchPolicy).toContain("A dated announcement is dated background");
+    expect(input.firstTouchPolicy).toContain("Keep dated announcements dated");
     const { output } = parseCommunicationsOutput(JSON.stringify(f.output));
     const payload = buildCommunicationsPayload(f.job, f.brief, null, output, false, null);
     expect(reviewCommunicationsPayload(payload, communicationsNow)).toMatchObject({ hardChecksPassed: true, blockers: [] });
@@ -32,7 +32,7 @@ describe("prospective founder outreach quality (offline fixtures)", () => {
       expect(output.body).toContain("2020 announcement");
       expect(input.researchBrief.facts[0]).toMatchObject({ publishedAt: "2020-03-01", assertionScope: "as_of_background" });
     }
-    if (kind === "future") expect(output.body).toContain("just to prepare for later");
+    if (kind === "future") expect(output.body).toContain("help plan for later");
   });
   it.each([
     ["a person guessed for a general inbox", "Hi Alex,", "hypothesis_recipient_greeting_mismatch"],
