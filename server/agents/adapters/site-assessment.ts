@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { OpenAIProvider } from "@openai/agents";
 import { dbAdmin as db, storageAdmin } from "../../../client/src/lib/firebaseAdmin";
-import { decryptInboundRequestForAdmin } from "../../utils/field-encryption";
+import { decryptInboundRequestForAdmin, isEncryptedField } from "../../utils/field-encryption";
 import { browserPendingDecisionKey, loadBrowserPending, type BrowserPending } from "../../utils/websiteBrowserPending";
 import { projectWebsiteCaptureRights } from "../../utils/websiteTaskContext";
 import { toSiteRequirement } from "../../utils/siteMatchRun";
@@ -182,9 +182,10 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     const messages: SiteAssessmentInput["operator_messages"] = [];
     let priorPacket: Record<string, any> | undefined;
     for (const field of ["taskDescription", "whatGoesWrong", "taskStatement", "operatingConstraints", "details"] as const) {
-      const text = request.request[field];
+      const text = request.request[field], stored = raw.request?.[field];
       // Decryption may add display defaults; only stored assertions are evidence.
-      if (raw.request?.[field] && typeof text === "string" && text.trim()) messages.push({ id: `site:${field}`, text,
+      const recorded = typeof stored === "string" ? Boolean(stored.trim()) : isEncryptedField(stored);
+      if (recorded && typeof text === "string" && text.trim()) messages.push({ id: `site:${field}`, text,
         source_ref: `inboundRequests/${input.context.request_id}/request/${field}` });
     }
     for (const field of ["operatorTaskDetails", "successCriteria", "operatorAnswers"] as const) {
