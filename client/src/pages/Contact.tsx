@@ -7,6 +7,7 @@ import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
+import { RobotScene } from "@/components/site/PilotPreview";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { TaskBrowse } from "@/components/site/TaskBrowse";
 
@@ -34,16 +35,8 @@ export default function Contact() {
           </div>
           <div className="ms-beta-example">
             <figure>
-              <img
-                src="/illustrations/task-evaluation/03-humanoid-evaluation.webp"
-                srcSet="/illustrations/task-evaluation/03-humanoid-evaluation-840.webp 840w, /illustrations/task-evaluation/03-humanoid-evaluation.webp 1672w"
-                sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 1000px) calc(100vw - 64px), (max-width: 1536px) 52vw, 734px"
-                width={1672}
-                height={941}
-                fetchPriority="high"
-                alt="Illustrative simulation view: a humanoid supports a blue case above the empty tray pocket in a digital cutaway of the same warehouse workstation."
-              />
-              <figcaption className="ms-imagery-caption">Illustrative simulation view · Robot configuration shown as an example.</figcaption>
+              <RobotScene className="robot-scene" label="Illustration: a humanoid lifts a tote from a shelf, walks it to a cart and sets it down." />
+              <figcaption className="ms-imagery-caption">Illustrative scene · Robot configuration shown as an example.</figcaption>
             </figure>
           </div>
         </section>

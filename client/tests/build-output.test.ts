@@ -98,7 +98,8 @@ describe("build output", () => {
     for (const route of ["sign-in", "signup/business", "forgot-password"]) {
       const html = fs.readFileSync(distPath(route, "index.html"), "utf8");
       expect(html).toContain("auth-shell");
-      expect(html).toContain("/images/site-led/auth/packing.webp");
+      expect(html).toContain('class="robot-scene"');
+      expect(html).toContain("Illustrative scene");
       expect((html.match(/id="main-content"/g) || []).length).toBe(1);
       expect(html).not.toContain("Access Control Suite");
       expect(html).not.toContain("Why Exact-Site Context Matters");
@@ -265,8 +266,8 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Test your robot on real site jobs.");
     expect(robotHtml).toContain("Free evaluations for invited teams.");
-    expect(robotHtml).toContain("Illustrative simulation view");
-    expect(robotHtml).toContain("/illustrations/task-evaluation/03-humanoid-evaluation.webp");
+    expect(robotHtml).toContain("Illustrative scene · Robot configuration shown as an example.");
+    expect(robotHtml).toContain('class="robot-scene"');
     // The application is public; tasks and executable plans still wait for
     // server access approval.
     expect(robotHtml).not.toContain("Already have a robot policy to evaluate?");

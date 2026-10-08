@@ -5,8 +5,8 @@
 .auth-content { position: relative; z-index: 1; min-width: 0; padding-block: 55px 75px; }
 .auth-shell h1 { font-size: clamp(42px, 4.2vw, 64px); letter-spacing: -.055em; line-height: 1.08; font-weight: 400; margin: 0; }
 .auth-description { font-size: 17px; line-height: 1.65; color: var(--ms-muted); margin-top: 18px; }
-.auth-art { position: sticky; align-self: start; top: 100px; min-width: 0; height: min(850px, calc(100vh - 130px)); }
-.auth-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 57%; mix-blend-mode: multiply; }
+.auth-art { position: sticky; align-self: start; top: 100px; min-width: 0; height: min(850px, calc(100vh - 130px)); display: flex; align-items: center; justify-content: center; }
+.auth-art .robot-scene { width: 100%; max-width: 480px; }
 .auth-art span { position: absolute; right: 14px; bottom: 15px; font-size: 9px; color: var(--ms-muted); }
 .auth-footer { border-top: 1px solid #d7dbd0; padding-block: 21px; display: flex; align-items: center; justify-content: space-between; gap: 24px; font-size: 11px; color: var(--ms-muted); }
 .auth-footer nav { display: flex; gap: 24px; }
@@ -93,7 +93,6 @@
   .auth-progress { gap: 17px; }
   .auth-progress li { font-size: 11px; gap: 6px; }
 }
-.auth-art::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #f6f5ef, transparent 13%), linear-gradient(0deg, #f6f5ef, transparent 10%), linear-gradient(180deg, #f6f5ef, transparent 5%); }
 .auth-art span { z-index: 1; }
 .auth-step-actions > .runway-cta:last-child { margin-left: auto; }
 @media (max-width: 760px) { .auth-step-actions > .runway-cta:last-child { margin-left: 0; width: 100%; } }

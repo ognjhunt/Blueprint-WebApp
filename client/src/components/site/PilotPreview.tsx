@@ -439,3 +439,28 @@ export function PilotPreview() {
     </section>
   );
 }
+
+/**
+ * The warehouse loop alone, for pages that carry the robot without the pilot card.
+ * It holds the still frame under reduced motion and pauses while scrolled out of view.
+ */
+export function RobotScene({ label, className }: { label: string; className?: string }) {
+  const artRef = useRef<SVGSVGElement>(null);
+  const [inView, setInView] = useState(true);
+  const [reducedMotion] = useState(() => typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches));
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined" || !artRef.current) return;
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting));
+    observer.observe(artRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const t = useSceneClock(!reducedMotion && inView, "warehouse");
+  return (
+    <svg ref={artRef} className={className} viewBox="0 0 320 196" role="img" aria-label={label}>
+      <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      <Warehouse t={t} />
+    </svg>
+  );
+}

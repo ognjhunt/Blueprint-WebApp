@@ -74,6 +74,8 @@
 .ms-beta-copy .ms-button { font-size: 15px; min-height: 55px; margin-top: 28px; }
 .ms-beta-copy > p.ms-beta-free { font-size: 12px; line-height: 1.65; margin-top: 16px; max-width: 46ch; }
 .ms-beta-example { min-width: 0; }
+.robot-scene { display: block; width: 100%; height: auto; color: var(--ms-green); }
+.ms-beta-example .robot-scene { max-width: 560px; }
 .ms-beta-embodiments { font-size: 14px; line-height: 1.6; color: var(--ms-muted); border-top: 1px solid var(--ms-rule); padding-top: 18px; margin-top: 22px; }
 .ms-beta-access { border-top: 1px solid var(--ms-rule); scroll-margin-top: 24px; }
 @media (max-width: 1200px) {

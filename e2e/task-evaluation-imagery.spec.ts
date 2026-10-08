@@ -49,7 +49,7 @@ test("both audience actions lead to their working intake and the beta action rea
   await page.goto("/");
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "For robot teams" }).click();
   await expect(page.locator("h1")).toHaveText("Test your robot on real site jobs.");
-  await expect(page.getByRole("img", { name: /Illustrative simulation view: a humanoid/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Illustration: a humanoid lifts a tote/ })).toBeVisible();
   await page.getByRole("link", { name: "Join the robot-team beta" }).click();
   await expect(page).toHaveURL(/#robot-team-access$/);
   await expect(page.getByLabel("Your name", { exact: true })).toBeVisible();

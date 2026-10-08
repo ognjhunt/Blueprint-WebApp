@@ -18,7 +18,7 @@ for (const width of [1440, 390]) {
       await expect(page.locator("#main-content")).toHaveCount(1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await expect(page.getByText(/Access Control Suite|Why Exact-Site Context Matters|Secure Access Portal/)).toHaveCount(0);
-      if (width === 1440) await expect(page.locator(".auth-art img")).toBeVisible();
+      if (width === 1440) await expect(page.locator(".auth-art .robot-scene")).toBeVisible();
     }
   });
 }
