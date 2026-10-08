@@ -2543,3 +2543,61 @@ send is activated. Current provider authentication, the actual owner assessment,
 charge settlement, customer usefulness and full-program readiness remain
 separate evidence gates. Review performed no new production run, source change,
 provider call or data mutation.
+
+
+## Independent supplemental native SDK/browser review — 6e13d2e9
+
+Approved bounded test-only source and evidence at immutable
+`6e13d2e9c71a9f9ad9a72f8abe8e9764a79ad731`, parent exact783. Two changed
+paths add the opt-in browser harness and its config selector; production source
+is unchanged. Reviewer checked clean author tree and catalog runtime blobs
+against Git783. Receipt v2 SHA-256
+`749356f2de1bfdc5b30444178494d9b66eb4151d950ea0d27345e3fbc0fc04c0`
+retains the original `b80bea07` receipt and all77 linked artifacts; every hash
+passed independent verification. The scored source `b2b6cc8b` and final
+`83e8ddca` differ only by three erased type casts. Independent installed-esbuild
+transformation produces identical JavaScript hash
+`45ffb35047d0120dbd41140d46ab0f935cbf31e0f3edb389fdb61229786a6a28`.
+Final typecheck and required Graphify pass. No final-source browser rerun is
+falsely inferred from the typecheck.
+
+Frozen two supplemental semantic cases execute three times each:6/6 scored
+passes, 80.10s test time, zero original300/40 credit. Ordinary browser UI starts
+one intake, uploads owned synthetic bytes through real handlers, and reads the
+authorized source-bound advisory from real SDK/runtime/private persistence and
+customer GET/UI. Firestore is the native disposable loopback emulator; object
+storage is a durable local fake. OpenAI model and Gemini video transports are
+scripted, and ancillary inbound qualification/enrichment and external transports
+are mocked. Actual queue and private writer are exercised. Completion polling
+manually invokes real tickSiteAssessments(2), so autonomous scheduler activation
+is unproven. Isolated routing retains actual owner-token checks but does not
+prove the complete production global middleware topology.
+
+Every retained run has a completed advisory job/run, matching source/context
+and packet digest, three internal reservations, ready customer advisory and
+physical workflow still needs_clarification. Scripted calls are two Sol and one
+Gemini per attempt; reconciliation adds none. Each logical task_received and
+video_received milestone is sent once to the strict local sink. These are
+simulated provider measurements, not live latency, pricing or delivery proof.
+
+The interruption case literally SIGKILLs Chromium at the held object-write
+boundary and reopens the same native profile through the ordinary saved-job
+return. All three pre-termination native document-view hashes match, with one
+intake and no assessment job yet. The server already received the request bytes
+and is released to finish storage afterward: interrupted-chunk resumption is
+not demonstrated. No worker restart or expired-link renewal is exercised. The
+own synthetic fixture matches catalog SHA
+`711b569076054c4a8ec03f7119eecb7359737d287869ca9f428cab89b2076708`;
+independent ffprobe sees H264,320x240,60 frames,2s and no audio. Its exact bytes
+and copy setup are retained. This adds no human reference or perception label.
+
+Earlier emulator setup refusal, fixture-bucket mismatch and incorrect observer
+expectations remain separate failed/partial records; they are not quietly
+converted to product fixes. Native emulator export is absent; retained native
+document views and fake objects are not an importable native snapshot. Raw
+local bearer traces remain ignored/private, corrected to0700 directories and
+0600 files; current listener inspection finds neither owned port active.
+Replay requires existing disposable emulator, cached browser/runtime and the
+retained synthetic fixture, with the documented cleared environment. No paid
+call, production/customer mutation, mail, real video interpretation, human
+quality scoring or whole-goal readiness follows from this approval.
