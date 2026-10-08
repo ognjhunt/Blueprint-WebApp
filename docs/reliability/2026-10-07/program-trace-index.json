@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-08T08:05:12Z",
+  "updated_at_utc": "2026-10-08T08:17:41.848127+00:00",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -1034,7 +1034,7 @@
     "completed_customer_assessments": 0,
     "repeat": 3,
     "runtime_sha": "c34ce0be7595c7835a4825a1a980c030b3f9dcf5",
-    "source_continuity_to_8b": "owner verified seven runtime file hashes; not fresh8b/eda execution",
+    "source_continuity_to_8b": "Seven owner-reported file hashes support source continuity only; historical loaded backend unproven, no fresh8b/eda/d217 execution.",
     "layer": "actualExpress HTTP intake+Firestoreemulator durableoutbox+separateworkerprocess+loopbackfakeResendHTTP receipts",
     "provider_mode": "fakeprovider; noexternalmodelorcustomer notification",
     "cross_catalog_semantic_dedup": "not established; no addition to prior42unique-layered trace assertion. This establishes a separate20 durable-worker execution layer, replacing no original frozen case definitions.",
@@ -1044,9 +1044,10 @@
       "runnerSha256": "79735e42251b55a61b3222beaec362e15d70b849e9f90b5a7f517d07365c80c0",
       "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/local/bin:/usr/bin:/bin NODE_ENV=test FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 RELIABILITY_BACKEND_ROOT=/workspace/reliability-main RELIABILITY_WORKER_ROOT=/workspace/reliability-main node scripts/qa/reliability-queue-emulator.mjs",
       "setup": "ownBnamespace/demo-blueprint-reliability-b and4182only; preserveB/emulatoroutput before repeat; sourcehash/pid metadata; fakeprovider only; no otherowner fixtures",
-      "scope": "same20semantic cases repeated; not20new samples"
+      "scope": "same20semantic cases repeated; not20new samples",
+      "command_provenance": "Reconstructed from declared configuration and source; not retained exact historical shell argv"
     },
-    "portable_runner_gap": "runner hash/replay retained, but source presently only owning cloud workspace; transfer canonical runner needed for independent continuation",
+    "portable_runner_gap": "Canonical four-file archived harness now verified in company Git45a5728; fixed /workspace layout required. Published bootstrap differs from final declared bootstrap, so exact historical backend reconstruction remains unproven.",
     "cases": [
       {
         "journeyId": "B-journey-happy-single-submit",
@@ -1348,7 +1349,20 @@
         "latencyMs": 14613.483160000003,
         "boundaryOutcome": "durable intake/notification worker boundary verified; upload/assessment absent"
       }
-    ]
+    ],
+    "runtime_sha_scope": "Worker runtime attested; backend loaded revision independently unproven. Post-run launch declaration lacks backend PID/environment/SHA attestation and timestamped snapshots.",
+    "canonical_replay_source": {
+      "git_commit": "45a5728d2952dd8e5f2933ceb5099fa47bfbcbbf",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/tree/45a5728d2952dd8e5f2933ceb5099fa47bfbcbbf",
+      "documentation": "https://github.com/ognjhunt/Blueprint-WebApp/blob/45a5728d2952dd8e5f2933ceb5099fa47bfbcbbf/docs/reliability/2026-10-08/queue-replay.md",
+      "manifest_sha256": "47f83a52368ec2252113e43fbc250eeeca3338447e95cd9ce912f3148d7158ca",
+      "linked_files_hashes_verified": 4,
+      "publication_is_source_only": true,
+      "new_execution_credit": 0,
+      "backend_runtime_attested_sha": null,
+      "historical_exact_argv_receipt_available": false,
+      "archived_bootstrap_differs_from_final_launch_record": true
+    }
   },
   "scripted_sdk_120_existing_variants": {
     "catalog": "program-semantic-variants.json",

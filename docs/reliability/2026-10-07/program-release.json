@@ -159,6 +159,12 @@
       "disposition": "One unchanged failed-job retry triggered by coordinator; original attempt retained, no assertion weakening, no product nondeterminism claim",
       "retry_result": "pending",
       "source": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37745039226"
+    },
+    "release_ownership_acknowledgment": {
+      "owner": "existing_cloud_coordinator",
+      "state": "sole_owner_retained; no root competing deploy",
+      "executor": "Recovered07:59UTC according to owner",
+      "remaining_interface_issue": "canonical deployment interface; exact promotion still pending"
     }
   },
   "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored.",
