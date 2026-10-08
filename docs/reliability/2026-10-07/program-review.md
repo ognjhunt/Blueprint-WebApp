@@ -2264,3 +2264,19 @@ journey credit, paid call or production grant occurred. Source approval does not
 authorize an unchecked operator invocation, prove real Firestore contention,
 settle historical charges or establish a successful live assessment. Protected
 exact-head checks and release remain separate gates.
+
+
+## Independent continuation release-head continuity — 6f194040
+
+Approved immutable release candidate `6f1940408f8380e81ae9f2cc8f0987e50572a3d5`.
+Its protected recovery parent `6c1d2466261c67de7809b4b0012a71dd1a404956` has
+exactly the reviewed recovery tree `796af2fcdd8007a395ade7df9b12abe8ce619414`.
+The complete candidate tree `7fb7d3d9c469e647a751962551ed0fffe6664f4f` is
+identical to approved continuation `5208cbf3`, and all four source/test hashes
+match receipt `96d70f738e09e273cd0544fdc603eaee49991456b62ab1aa4d864ec46c8f0280`.
+The release worktree is clean and only those four files change from its parent.
+No new behavior or evidence layer follows from the cherry-pick. Prior focused
+execution and bounded review apply without another identical-byte rerun.
+Protected exact-head checks, deployment and a separately verified explicit
+operator invocation remain required; no live grant, provider call or customer
+assessment is established by this continuity approval.
