@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
 const seam = vi.hoisted(() => ({ current: true, unavailable: false, send: vi.fn(),
-  authority: vi.fn(), drain: vi.fn(async () => ({enqueued: 0, pending: 0})) }));
+  decryptUnavailable: false, authority: vi.fn(), drain: vi.fn(async () => ({enqueued: 0, pending: 0})) }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const {sharedFakeFirestore, FAKE_FIELD_DELETE} = await import("./helpers/fake-firestore");
   return {default: {firestore: {FieldValue: {serverTimestamp: () => "SERVER_TIMESTAMP", delete: () => FAKE_FIELD_DELETE}}},
@@ -13,7 +13,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 vi.mock("../logger", () => ({logger: {info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn()}}));
 vi.mock("../utils/email", () => ({sendEmail: seam.send}));
-vi.mock("../utils/field-encryption", () => ({decryptFieldValue: async (value: string) => value}));
+vi.mock("../utils/field-encryption", () => ({decryptFieldValue: async (value: string) => {
+  if (seam.decryptUnavailable) throw Error("isolated encryption unavailable"); return value;
+}}));
 vi.mock("../utils/websitePreparationStatus", () => ({
   canNotifyCurrentWebsitePreparationIssue: seam.authority,
   drainPendingWebsitePreparationNotifications: seam.drain,
@@ -28,7 +30,7 @@ const key = `r1:preparation_needs_attention:sha256_${"a".repeat(64)}`;
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
   sharedFakeFirestoreState.docs.set("inboundRequests/r1", {contact: {email: "owner@example.test"}});
-  seam.current = true; seam.unavailable = false;
+  seam.current = true; seam.unavailable = false; seam.decryptUnavailable = false;
   seam.authority.mockReset().mockImplementation(async () => {
     if (seam.unavailable) throw Error("website_preparation_unavailable");
     return seam.current;
@@ -97,5 +99,18 @@ describe("source/context preparation notice uses existing durable outbox", () =>
     await deliverOutbox(); await deliverOutbox();
     expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({status: "unknown", attempts: 1});
     expect(seam.send).toHaveBeenCalledTimes(1);
+  });
+  it("PREP-NOTICE-008 contact correction cancels private-link delivery to the old recipient", async () => {
+    await enqueueTaskLifecycleNotification(params);
+    sharedFakeFirestoreState.docs.set("inboundRequests/r1", {contact: {email: "corrected@example.test"}});
+    await deliverOutbox();
+    expect(seam.send).not.toHaveBeenCalled();
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({status: "cancelled", attempts: 0});
+  });
+  it("PREP-NOTICE-009 recipient read/decrypt uncertainty stays recoverable without send", async () => {
+    await enqueueTaskLifecycleNotification(params); seam.decryptUnavailable = true;
+    await expect(deliverOutbox()).rejects.toThrow();
+    expect(seam.send).not.toHaveBeenCalled();
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({status: "claimed", attempts: 0});
   });
 });

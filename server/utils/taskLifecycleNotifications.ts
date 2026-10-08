@@ -127,11 +127,18 @@ export async function enqueueTaskLifecycleNotification(params: {
   const requestId = params.requestId.trim();
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
   if (!snapshot.exists) return { enqueued: false, reason: "request_missing" };
+  // New private-link notices bind recipient admission as well as source.
+  // Older notice kinds retain their existing ordering and authority behavior.
+  let preparationRecipient: string | undefined;
+  if (params.milestone === "preparation_needs_attention") {
+    try { preparationRecipient = String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim(); }
+    catch { throw new Error("website_preparation_recipient_unavailable"); }
+  }
   if (!(await taskLifecycleNotificationIsCurrent({ requestId, kind: params.milestone,
-    ...(params.milestone === "preparation_needs_attention" ? {preparationEventId: params.eventId} : {}) }))) {
+    ...(params.milestone === "preparation_needs_attention" ? {preparationEventId: params.eventId, to: preparationRecipient} : {}) }))) {
     return { enqueued: false, reason: "consent_withdrawn" };
   }
-  const to = String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim();
+  const to = preparationRecipient ?? String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     return { enqueued: false, reason: "contact_missing" };
   }
