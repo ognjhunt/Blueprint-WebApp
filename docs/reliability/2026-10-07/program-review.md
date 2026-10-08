@@ -3027,3 +3027,27 @@ writer cannot revive its cancelled result afterward. Typecheck, Graphify and
 portability terminal results are retained. These fake-store/source-verifier
 executions establish the scoped code behavior, with no new unique coverage,
 browser, OS-restart, deployed customer recovery or provider outcome proof.
+
+### Bounded e9 release identity readback
+
+Fresh independent Render get_deploy reads confirm both web and worker LIVE at
+`e9bb371680452845c6629f53b9786a219530aaab`, finishing21:04:57.978884Z and
+21:05:27.281311Z respectively. The protected native responses are retained under
+`output/reliability-program/customer-policy/reviewer-e9-native.json`, SHA
+`4bb93dddc60c33009435b50ab61f42d8f982bfc6d5db25ee30c40a180ff792da`.
+Fresh GitHub reads confirm mainCI37841943657 attempt2 and deployment37843835680
+SUCCESS at that exact SHA; all nine application checks and the additional
+automatic-admission observer succeed. Retained independent CI/deploy read hashes
+are `d723b293e2ccad61a2701848e77c03d063b13aa9559c317dfb86bead8c0802cb`
+and `ce38d397d85166572d84c436d399605d006a79792163ef968f94fced4849e783`.
+The initial screenshot-protocol failure remains retained; success follows one
+unchanged debug job rerun. All eight PR965 paths are byte-identical to reviewed
+71afa6e9; this readback does not repeat source or provider evaluation.
+
+The coordinator receipt `b693ab87bda4dd5159224fd7c34aab74611a3d08be1fe65c8cf244c181d47505`
+is explicitly a transcription, not native evidence. Its21:06:27 public version,
+health and ready observations were inspected with that attribution; this review
+does not promote them to independent fresh public reads. No additional browser
+smoke, affected recovery, upload-memory peak or assessment execution was run.
+Serving identity and release checks do not resolve the interrupted live run,
+unknown provider outcome, forthcoming memory/recovery fixes or reference quality.
