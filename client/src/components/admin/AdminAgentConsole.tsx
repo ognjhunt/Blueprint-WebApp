@@ -328,7 +328,10 @@ export default function AdminAgentConsole() {
       const response = await fetch("/api/admin/agent/sessions", {
         headers: await withAgentHeaders({}),
       });
-      if (!response.ok) throw new Error("Failed to fetch agent sessions");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        throw new Error(`Failed to fetch agent sessions (${response.status})${typeof failure?.error === "string" ? `: ${failure.error.slice(0, 500)}` : ""}`);
+      }
       return response.json();
     },
   });
@@ -537,7 +540,10 @@ export default function AdminAgentConsole() {
         headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error("Failed to create session");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        throw new Error(`Failed to create session (${response.status})${typeof failure?.error === "string" ? `: ${failure.error.slice(0, 500)}` : ""}`);
+      }
       return response.json() as Promise<{ ok: boolean; session: AgentSessionRecord }>;
     },
     onSuccess: (data) => {
@@ -1943,6 +1949,11 @@ export default function AdminAgentConsole() {
                 )}
                 Create session
               </button>
+              {createSessionMutation.error ? (
+                <p role="alert" className="text-sm text-red-400">
+                  {createSessionMutation.error instanceof Error ? createSessionMutation.error.message : "Failed to create session"}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -1952,6 +1963,11 @@ export default function AdminAgentConsole() {
               <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Sessions</h2>
             </div>
             <div className="mt-4 space-y-2">
+              {sessionsQuery.error ? (
+                <p role="alert" className="text-sm text-red-400">
+                  {sessionsQuery.error instanceof Error ? sessionsQuery.error.message : "Failed to fetch agent sessions"}
+                </p>
+              ) : null}
               {sessionsQuery.isLoading ? (
                 <p className="text-sm text-runway-faint">Loading sessions...</p>
               ) : (sessionsQuery.data?.sessions || []).length === 0 ? (

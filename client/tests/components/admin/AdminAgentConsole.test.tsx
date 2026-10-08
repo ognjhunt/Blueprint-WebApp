@@ -361,4 +361,27 @@ describe("AdminAgentConsole", () => {
     expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url).endsWith("/messages") && init?.method === "POST")).toBe(false);
   });
 
+  it("shows the rejected session response without retrying creation or running inference", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === "/api/admin/agent/sessions" && init?.method === "POST"
+      ? Promise.resolve(new Response(JSON.stringify({ error: "Invalid CSRF token" }), { status: 403 }))
+      : original(input, init));
+    renderConsole();
+    await screen.findAllByText(/Ops thread/i);
+    fireEvent.click(screen.getByRole("button", { name: /^Create session$/i }));
+    expect(await screen.findByText("Failed to create session (403): Invalid CSRF token")).toHaveAttribute("role", "alert");
+    expect(vi.mocked(fetch).mock.calls.filter(([url, init]) => String(url) === "/api/admin/agent/sessions" && init?.method === "POST")).toHaveLength(1);
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url).endsWith("/messages") && init?.method === "POST")).toBe(false);
+  });
+
+  it("shows session-list failures instead of presenting them only as an empty list", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === "/api/admin/agent/sessions" && !init?.method
+      ? Promise.resolve(new Response(JSON.stringify({ error: "Admin access required" }), { status: 403 }))
+      : original(input, init));
+    renderConsole();
+    expect(await screen.findByText("Failed to fetch agent sessions (403): Admin access required")).toHaveAttribute("role", "alert");
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url) === "/api/admin/agent/sessions" && init?.method === "POST")).toBe(false);
+  });
+
 });
