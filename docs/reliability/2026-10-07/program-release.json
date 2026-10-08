@@ -1558,5 +1558,63 @@
     "state": "protected_merged;latestmainCI_pending;notdeployed",
     "fixture": "Gitowned_synthetic2secondH264_13037bytes_60frames;byteidenticalregeneration",
     "claim_ceiling": "Removed22minaptsetup;assertionskept/missingfixturefail. No realvideo_reference_or_originalcase_credit_or_controlled_performanceclaim."
+  },
+  "current_verified_pipeline_release": "0a17f52d23f233376b9944a6df49101491581f6c",
+  "pipeline_canonical_0a": {
+    "PR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2650",
+    "merge_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
+    "reviewed_head": "3a2897bb36e9ef0273381eee0f5903f338467a99",
+    "source_review": "93723d29",
+    "promotion_run": 37808897987,
+    "promotion_state": "success_exact34115_tests_zero_skips",
+    "official_provenance_run": 37819709003,
+    "official_artifact": 11568622637,
+    "official_provenance_sha256": "ece46dadd7c1da7be24bc2be48993951bbf5b218539dd75d4f1b47f0d0c14fbe",
+    "state": "deployed_and_independently_verified_bounded_identity_health_and_preserved_controls",
+    "deployment_completed_at_utc": "2026-10-08T18:22:06.400504+00:00",
+    "deploy_receipt_sha256": "4d6c569f63ea6f50d7881b19da551288132757c63702f1aa956b6f2d9167bb22",
+    "terminal_receipt_sha256": "3eca64d6bedfbe898d6b201e70d61373df3cf3c33455fbf0b34bc051c55d452b",
+    "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72",
+    "postdeploy_observed_at_utc": "2026-10-08T18:24:47.399984+00:00",
+    "deployment_review": "a4772f6f",
+    "readbacks": [
+      "source_and_active_clean_exact0a",
+      "serving_loopback_version_HTTP200_exact0a_commit_proven",
+      "health_HTTP200",
+      "intake_active",
+      "installed_official_provenance_byte_identical",
+      "installed_deployment_receipt_byte_identical",
+      "pubsub_timer_and_service_inactive_no_next",
+      "dispatcher_disabled_inactive_no_next"
+    ],
+    "first_attempt": {
+      "exit_code": 2,
+      "cause": "TargetGitobject_absent_in_clean_server_clone_before_staging;installer_fetch_is_later_than_stage",
+      "diagnosis_sha256": "179fd5722eada84747e01398bd49cd1f389d5616a3f60cf504e16671fe2295b2",
+      "corrected_prerequisite": "Existingclone_gitfetch_origin_main_without_reset_or_checkout",
+      "fetch_sha256": "cfa002fce623df504a988c3509ae394d09dd46621dcfc81515e2b4f08c620757"
+    },
+    "provider_mutation_performed": false,
+    "preserve_configured_controls_state": true,
+    "original_case_credit": 0,
+    "private_folder": "output/reliability-program/pipeline-canonical-0a",
+    "claim_ceiling": "Releaseidentity_health_officialprovenance_preservedcontrols_only;no_final_customer_callback_notification_perception_or_paid_execution_proof"
+  },
+  "web783_containing_release": {
+    "sha": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+    "included_PRs": [
+      960,
+      966
+    ],
+    "main_CI": 37822867694,
+    "main_CI_observed": "nine_applicable_jobs_passed_observe_in_progress",
+    "deploy_run": 37824096778,
+    "deploy_state": "failed_before_trigger_at_healthy_rollback_snapshot",
+    "reason": "deployment_already_active",
+    "failed_log_sha256": "c801ae75d21a774ac59e256a01010889919c3eb9104643d2b7b08e0d8802e46a",
+    "competing_metadata": "WEB service_updated priorae deployment dep-db3tvrc9v7es738dfjdg alreadyinprogress",
+    "next_action": "Wait_existing_configuration_deploy_terminal_then_verify_healthy_paired_predecessor_and_replay_existing_CI_gated_release_once",
+    "new_runtime_configuration_by_root": false,
+    "deployed_claim": false
   }
 }

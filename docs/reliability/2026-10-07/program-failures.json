@@ -888,7 +888,7 @@
     "correction": "Compare exact existing source-bound/legacy privacy and account attachment field presence/value in the same create-only transaction. Unclaimed owner remains unclaimed; no new account gate or privacy rewrite."
   },
   "pipeline_acceptance_receipt_followup": {
-    "state": "actual_before_failure_independently_reviewed_repair_protected_merged_fresh_promotion_pending",
+    "state": "reviewed_repair_deployed_and_independently_verified_exact0a",
     "severity": "P1_affected_status_transport_release_blocking_before_repair_deployment",
     "owner": "queue_recovery_with_independent_review_and_coordinator",
     "source": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2649#discussion_r4220778060",
@@ -903,7 +903,10 @@
     "commit": "3a2897bb36e9ef0273381eee0f5903f338467a99",
     "merge_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "review": "93723d29",
-    "next_action": "Fresh exact0a mandatory production promotion/provenance then preserved-control canonical deployment and actual serving proof. No old91 receipt reuse.",
-    "live_incidence": "unproven;91 never canonically deployed bythisprogramme"
+    "next_action": "Retain bounded canonical release proof; actual joined customer status/notification and assessment remain separate unproven gates",
+    "live_incidence": "unproven;91 never canonically deployed bythisprogramme",
+    "deployment_review": "a4772f6f",
+    "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
+    "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   }
 }
