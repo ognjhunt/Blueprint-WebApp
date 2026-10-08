@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { OpenAIProvider } from "@openai/agents";
 import { dbAdmin as db, storageAdmin } from "../../../client/src/lib/firebaseAdmin";
-import { decryptInboundRequestForAdmin } from "../../utils/field-encryption";
+import { decryptInboundRequestForAdmin, isEncryptedField } from "../../utils/field-encryption";
 import { browserPendingDecisionKey, loadBrowserPending, type BrowserPending } from "../../utils/websiteBrowserPending";
 import { projectWebsiteCaptureRights } from "../../utils/websiteTaskContext";
 import { toSiteRequirement } from "../../utils/siteMatchRun";
@@ -196,8 +196,10 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     const messages: SiteAssessmentInput["operator_messages"] = [];
     let priorPacket: Record<string, any> | undefined;
     for (const field of ["taskDescription", "whatGoesWrong", "taskStatement", "operatingConstraints", "details"] as const) {
-      const text = request.request[field];
-      if (typeof text === "string" && text.trim()) messages.push({ id: `site:${field}`, text,
+      const text = request.request[field], stored = raw.request?.[field];
+      // Decryption may add display defaults; only stored assertions are evidence.
+      const recorded = typeof stored === "string" ? Boolean(stored.trim()) : isEncryptedField(stored);
+      if (recorded && typeof text === "string" && text.trim()) messages.push({ id: `site:${field}`, text,
         source_ref: `inboundRequests/${input.context.request_id}/request/${field}` });
     }
     for (const field of ["operatorTaskDetails", "successCriteria", "operatorAnswers"] as const) {
@@ -211,12 +213,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       const packet = retained.artifacts?.site_assessment_packet;
       if (packet?.request_id !== input.context.request_id) throw new Error("site_assessment_conversation_request_mismatch");
       priorPacket = packet;
-      for (const source of packet.sources ?? []) if (source.kind === "operator" && source.canonical_ref.startsWith("agentRuns/")) {
-        messages.push({ id: source.source_id.replace(/^operator:/, ""), text: source.content, source_ref: source.canonical_ref });
-      }
     }
-    messages.push({ id: `conversation:${host.runId}`, text: `Supplied operator conversation (speaker identity unverified): ${input.message}`,
-      source_ref: `agentRuns/${host.runId}/input/input/message` });
     const experimentSources = host.experiment ? await host.experiment.prepare({ ...sourceAdmission,
       experiment_context_digest: inferenceProgrammeContextDigest(raw, brief), producer_source: privacy.producer_source,
       operator_messages_sha256: videoAnalysisOperatorDigest(messages) }) : undefined;
@@ -224,7 +221,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     const provider = new OpenAIProvider({ useResponses: true,
       openAIClient: client as unknown as NonNullable<ConstructorParameters<typeof OpenAIProvider>[0]>["openAIClient"] });
     instance = await createSiteAssessmentAgent({ request_id: input.context.request_id, operator_messages: messages,
-      prior_assessment: priorPacket?.assessment,
+      task_instruction: input.message, prior_assessment: priorPacket?.assessment,
       video: { source_id: pending.capture_id, source_ref: videoRef,
         url, sha256: videoSha, duration_seconds: bound.duration_seconds }, site_requirement: toSiteRequirement(request) }, {
       history_access: await (async () => {
