@@ -17,6 +17,8 @@ const results: Array<Record<string, unknown>> = [];
 afterAll(() => {
   const output = process.env.RELIABILITY_C_SDK_OUTPUT;
   if (!output) return;
+  const attemptedCaseIds = new Set(results.map(row => row.caseId));
+  const unattemptedCaseIds = cases.filter(row => !attemptedCaseIds.has(row.caseId)).map(row => row.caseId);
   writeFileSync(`${output}/results.json`, JSON.stringify({
     schema: "blueprint.judgment-sdk-supplement.v2", codeSha,
     admissionAssertionVersion: "published-applicability.v2",
@@ -30,11 +32,12 @@ afterAll(() => {
     originalFamiliesRelationshipsSplitsAndSemanticHashesUnchanged: true,
     layer: "actual_SDK_runner_tool_loop_no_storage", providerMode: "scripted_model_video_history_callbacks",
     generated: cases.length, deduplicated: new Set(cases.map(row => row.semanticHash)).size,
-    attempted: new Set(results.map(row => row.caseId)).size,
+    attempted: attemptedCaseIds.size,
+    unattempted: unattemptedCaseIds.length, unattemptedCaseIds,
     structuralPassed: new Set(results.filter(row => row.status === "passed").map(row => row.caseId)).size,
     structuralFailed: new Set(results.filter(row => row.status === "failed").map(row => row.caseId)).size,
     semanticPartial: new Set(results.filter(row => row.status === "partial").map(row => row.caseId)).size,
-    correctedApplicabilityControls: { attempted: 12,
+    correctedApplicabilityControls: { attempted: new Set(results.filter(row => row.family === "stale_specifications").map(row => row.caseId)).size,
       passed: new Set(results.filter(row => row.family === "stale_specifications" && row.applicabilityAdmissionStatus === "passed").map(row => row.caseId)).size,
       failed: new Set(results.filter(row => row.family === "stale_specifications" && row.applicabilityAdmissionStatus === "failed").map(row => row.caseId)).size },
     skipped: 0, blocked: 0, invocationCount: results.length,

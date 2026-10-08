@@ -55,3 +55,23 @@ All 120 existing states and 264 scripted attempts execute: 72 original structura
 Candidate ignored receipt `output/reliability-program/semantic-sdk-120-candidate/results.json` SHA256 `3cae823de4ae182c201027f58eaac2136f93bf425452e5ce692515d840f93f04`; adjacent `sdk.log` retains the 120-test result. Production baseline placement replay is seven failures/eight passes; candidate 15/15 passes. Six focused production suites pass 191/191, including the unchanged 30 SDK diagnostics. Typecheck, Graphify and diff check pass in the production worktree. These are overlapping evidence layers, not another set of independent semantic variants.
 
 Replay the supplemental command above only with the recursive applicability repair present. Root owns independent review, required CI, merge and exact deployed verification. Two semantic entailment defects remain open; historical contextual facts and missing capabilities are not silently turned into unsupported fit conclusions.
+
+## Filtered replay accounting correction
+
+The supplemental report previously hardcoded 12 attempted applicability controls, which overstated a filtered replay. It now derives distinct attempted stale cases from actual results and lists the count and IDs of generated cases left unattempted. This is a report correction only: frozen fixtures, labels, repeat selections, runtime and full-120 receipts are unchanged. `skipped` remains the count of attempted cases skipped by the harness; cases excluded by Vitest's test filter appear under `unattempted`.
+
+Three fresh sanitized processes each executed the unchanged `J-stale_specifications-e83af5c28bb3` case. Every receipt reports generated/deduplicated 120/120, attempted 1, unattempted 119, corrected applicability attempted/passed/failed 1/1/0, one SDK invocation and one semantic-partial case. All three reject with `assessment_published_source_not_current`. They share semantic hash `e83af5c28bb3fd8b1f8228e5090863e3c9f41390adc618dd564f1512c99a0b11` and actual-input hash `1d9df2fe5a9dfdc2365d31e7c7a087260300965d9ee5b29131eccb42765fa853`, matching the prior full candidate receipt. This is repeatability of one scripted admission case, with zero new unique cases, live calls or accuracy samples.
+
+| Private receipt beneath `output/reliability-program/` | SHA256 |
+| --- | --- |
+| `semantic-sdk-selected-stale-verified-1/results.json` | `5e217dbcfc4a94c4d98a5346b8ecea538e9a42d1734585f433f59925017024dd` |
+| `semantic-sdk-selected-stale-verified-2/results.json` | `a4f360f758e6c734a9a67906ea9ade13322fdf4f9bf1e51f35088bd41f26240c` |
+| `semantic-sdk-selected-stale-verified-3/results.json` | `76edf08393df32056c1f0cfa6400643c38597e65323a5b84f54bc349e2924fa7` |
+
+The two full-120 receipt hashes above were checked and remain unchanged. Preliminary overly anchored filters selected zero tests (Vitest's parameterized name includes quotes); their logs remain preserved in `semantic-sdk-selected-stale-repeat-{1,2,3}` and `semantic-sdk-selected-stale-exact-1`, excluded from execution counts. Replay with a fresh private output directory and verify that a one-result receipt exists:
+
+```bash
+umask 077
+case_output=$(mktemp -d output/reliability-program/semantic-sdk-selected-stale-replay.XXXXXX)
+env -i PATH="$PATH" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test RELIABILITY_C_SDK_OUTPUT="$case_output" ./node_modules/.bin/vitest run server/tests/site-assessment-mutations-sdk.test.ts -t 'J-stale_specifications-e83af5c28bb3' --maxWorkers=1 --minWorkers=1
+```
