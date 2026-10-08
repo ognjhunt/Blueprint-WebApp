@@ -29,7 +29,7 @@ import {
   type VideoUploadResult,
 } from "@/lib/selfCaptureVideo";
 import { useAuth } from "@/contexts/AuthContext";
-import { clearSiteCaptureDraft, readSiteCaptureDraft, siteCaptureDraftKey, writeSiteCaptureDraft, type SiteCaptureDraft } from "@/lib/siteCaptureDraft";
+import { clearSiteCaptureDraft, readSiteCaptureDraft, siteCaptureDraftKey, writeSiteCaptureDraft, withSiteCaptureSubmissionLock, type SiteCaptureDraft } from "@/lib/siteCaptureDraft";
 
 /**
  * Same sentence version the screening form records: the attestation names the
@@ -87,8 +87,8 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
     return () => { mounted.current = false; };
   }, []);
   const [storageAvailable, setStorageAvailable] = useState(true);
-  function persist() {
-    if (mounted.current && !loading) setStorageAvailable(writeSiteCaptureDraft(draftKey, draft.current));
+  function persist(options: { rejectedBody?: string } = {}) {
+    if (mounted.current && !loading) setStorageAvailable(writeSiteCaptureDraft(draftKey, draft.current, options));
   }
   function forget() {
     clearSiteCaptureDraft(draftKey);
@@ -263,6 +263,18 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (operationInFlight.current || loading) return;
+    const latest = readSiteCaptureDraft(draftKey);
+    if (latest) {
+      draft.current = latest;
+      requestId.current = latest.requestId;
+      retryToken.current = latest.retryToken;
+      if (latest.saved) {
+        setState(latest.saved as Extract<State, { status: "done" }>);
+        if (typeof latest.saved.captureUrl === "string") void refreshReceivedVideo(latest.saved.captureUrl);
+        return;
+      }
+    }
     if (operationInFlight.current || state.status === "working" || loading
       || (!draft.current.submittedBody && footageWanted && !consent)
       || (claudeAuthoringRequested && !claudeConsent)
@@ -286,8 +298,8 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
 
     try {
       const headers = await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" }));
-      const recoveringSave = Boolean(draft.current.submittedBody);
-      const body = draft.current.submittedBody || JSON.stringify({
+      let recoveringSave = Boolean(draft.current.submittedBody);
+      let body = draft.current.submittedBody || JSON.stringify({
           requestId: requestId.current,
           retryToken: retryToken.current,
           // No name field: emails open without one.
@@ -345,8 +357,32 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
       });
       // Persist before dispatch: a lost response retries the exact saved request.
       saveFields();
-      draft.current.submittedBody = body;
-      persist();
+      const shouldDispatch = await withSiteCaptureSubmissionLock(draftKey, () => {
+        if (!mounted.current) return false;
+        const fresh = readSiteCaptureDraft(draftKey);
+        if (fresh) {
+          draft.current = fresh;
+          requestId.current = fresh.requestId;
+          retryToken.current = fresh.retryToken;
+          if (fresh.saved) {
+            setState(fresh.saved as Extract<State, { status: "done" }>);
+            if (typeof fresh.saved.captureUrl === "string") void refreshReceivedVideo(fresh.saved.captureUrl);
+            return false;
+          }
+          if (fresh.submittedBody) {
+            body = fresh.submittedBody;
+            recoveringSave = true;
+          } else {
+            // Two freshly opened tabs may initially have different empty-draft identities.
+            const payload = JSON.parse(body);
+            body = JSON.stringify({ ...payload, requestId: fresh.requestId, retryToken: fresh.retryToken });
+          }
+        }
+        draft.current.submittedBody = body;
+        persist();
+        return true;
+      });
+      if (!shouldDispatch || !mounted.current) return;
       const post = (url: string) => fetch(url, { method: "POST", credentials: "include", headers, body });
       // Unknown type (the lookup is still in flight or failed) still tries the
       // workspace first; a refusal falls back with the same answers intact.
@@ -367,7 +403,7 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
         if (response.status === 400 || response.status === 422) {
           // These responses reject validation before creation; corrections may rebuild the body.
           delete draft.current.submittedBody;
-          persist();
+          persist({ rejectedBody: body });
         }
         analyticsEvents.contactFormError("capture_start");
         setState({

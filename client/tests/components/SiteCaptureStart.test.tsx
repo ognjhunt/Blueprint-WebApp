@@ -712,3 +712,39 @@ it("recomputes an inferred country after restoring and editing a draft", () => {
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin, Germany" } });
   expect(screen.getByText(/Country: Outside the United States/)).toBeInTheDocument();
 });
+
+
+it("restores all anonymous required fields before the first create attempt", () => {
+  const first = render(<SiteCaptureStart />);
+  for (const [id, value] of [["start-task", "Move sealed cartons"], ["start-location", "Austin TX"], ["start-email", "qa@example.invalid"], ["start-company", "Owned QA"]]) {
+    fireEvent.change(document.querySelector(`#${id}`)!, { target: { value } });
+  }
+  first.unmount();
+  render(<SiteCaptureStart />);
+  for (const [id, value] of [["start-task", "Move sealed cartons"], ["start-location", "Austin TX"], ["start-email", "qa@example.invalid"], ["start-company", "Owned QA"]]) {
+    expect(document.querySelector<HTMLInputElement>(`#${id}`)!.value).toBe(value);
+  }
+});
+
+it("A-R-033 v2 a pre-mounted tab replays the same uncertain request despite edited answers", async () => {
+  fetchMock.mockImplementation(async (url: string) => {
+    if (url.startsWith("/api/self-capture")) return { ok: true, json: async () => ({ captureReceived: false }) };
+    return postsTo("/api/inbound-request").length === 1
+      ? { ok: false, status: 503, json: async () => ({ message: "Uncertain save" }) }
+      : { ok: true, status: 201, json: async () => ({ captureUrl: "/capture-upload/tok.signed" }) };
+  });
+  const first = render(<SiteCaptureStart />);
+  for (const [id, value] of [["start-task", "Original task"], ["start-location", "Austin TX"], ["start-email", "qa@example.invalid"], ["start-company", "Owned QA"]]) {
+    fireEvent.change(first.container.querySelector(`#${id}`)!, { target: { value } });
+  }
+  const second = render(<SiteCaptureStart />);
+  fireEvent.change(second.container.querySelector("#start-task")!, { target: { value: "Other task in stale tab" } });
+  fireEvent.submit(first.container.querySelector("form")!);
+  await screen.findByText("Uncertain save");
+  fireEvent.change(second.container.querySelector("#start-company")!, { target: { value: "Another edit after dispatch" } });
+  fireEvent.submit(second.container.querySelector("form")!);
+  await screen.findByRole("link", { name: "Review your job brief" });
+  const posts = postsTo("/api/inbound-request");
+  expect(posts).toHaveLength(2);
+  expect(posts[1][1].body).toBe(posts[0][1].body);
+});

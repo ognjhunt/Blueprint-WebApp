@@ -13,7 +13,7 @@ export type SiteCaptureDraft = {
   saved?: Record<string, unknown>;
 };
 export function siteCaptureDraftKey(accountId?: string | null) {
-  return `bp-site-capture-draft-v1:${accountId || "anonymous"}`;
+  return `bp-site-capture-draft-v1:${accountId ? `account:${accountId}` : "anonymous"}`;
 }
 function validSaved(saved: Record<string, unknown> | undefined): boolean {
   if (!saved) return true;
@@ -39,7 +39,7 @@ function validSubmitted(draft: SiteCaptureDraft): boolean {
       && body.requestId === draft.requestId && body.retryToken === draft.retryToken);
   } catch { return false; }
 }
-export function readSiteCaptureDraft(key: string, now = Date.now()): SiteCaptureDraft | null {
+function readRecord(key: string, now: number): SiteCaptureDraft | null {
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
@@ -56,16 +56,55 @@ export function readSiteCaptureDraft(key: string, now = Date.now()): SiteCapture
       return null;
     }
     return draft;
-  } catch { return null; }
+  } catch {
+    try { window.localStorage.removeItem(key); } catch { /* Storage may be unavailable. */ }
+    return null;
+  }
 }
-export function writeSiteCaptureDraft(key: string, draft: SiteCaptureDraft): boolean {
+export function readSiteCaptureDraft(key: string, now = Date.now()): SiteCaptureDraft | null {
+  const saved = readRecord(`${key}:saved`, now);
+  const submitted = readRecord(`${key}:submitted`, now);
+  const base = readRecord(key, now);
+  // Protected snapshots survive an autosave from a tab mounted before dispatch.
+  const draft = saved?.saved ? saved : submitted?.submittedBody ? submitted : base;
+  if (!draft) return null;
+  if (!draft.saved && submitted?.submittedBody && submitted.requestId === draft.requestId
+    && submitted.retryToken === draft.retryToken) draft.submittedBody = submitted.submittedBody;
+  return draft;
+}
+export function writeSiteCaptureDraft(key: string, draft: SiteCaptureDraft, options: { rejectedBody?: string } = {}): boolean {
   try {
-    const value = JSON.stringify(draft);
+    const latest = readSiteCaptureDraft(key);
+    if (latest && (latest.saved || latest.submittedBody) && (latest.requestId !== draft.requestId || latest.retryToken !== draft.retryToken)) return false;
+    let next = { ...draft };
+    const rejectedMatches = Boolean(options.rejectedBody && latest?.requestId === draft.requestId
+      && latest.retryToken === draft.retryToken && latest.submittedBody === options.rejectedBody);
+    if (latest?.saved && !next.saved) next = latest;
+    else if (latest?.submittedBody && !next.saved && !rejectedMatches) next.submittedBody = latest.submittedBody;
+    if (rejectedMatches && !next.saved) delete next.submittedBody;
+    if (next.saved) {
+      delete next.submittedBody;
+    }
+    const value = JSON.stringify(next);
     if (value.length > 32_768) return false;
+    if (next.saved) {
+      window.localStorage.setItem(`${key}:saved`, value);
+      window.localStorage.removeItem(`${key}:submitted`);
+    } else if (next.submittedBody) window.localStorage.setItem(`${key}:submitted`, value);
+    else if (rejectedMatches) window.localStorage.removeItem(`${key}:submitted`);
     window.localStorage.setItem(key, value);
     return true;
   } catch { return false; }
 }
+export async function withSiteCaptureSubmissionLock<T>(key: string, action: () => T): Promise<T> {
+  // Modern browsers serialize the tiny local freeze across tabs. No network is held under the lock.
+  if (typeof navigator !== "undefined" && navigator.locks?.request) {
+    return navigator.locks.request(key, action);
+  }
+  return action();
+}
 export function clearSiteCaptureDraft(key: string) {
-  try { window.localStorage.removeItem(key); } catch { /* Storage may be disabled. */ }
+  for (const storageKey of [key, `${key}:submitted`, `${key}:saved`]) {
+    try { window.localStorage.removeItem(storageKey); } catch { /* Storage may be disabled. */ }
+  }
 }

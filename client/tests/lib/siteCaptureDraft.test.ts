@@ -36,3 +36,89 @@ it.each(returnCases)("$caseId return $scope $condition", ({ scope, condition, ag
   if (valid) expect(result).toEqual(draft);
   if (!valid && condition !== "wrong-account") expect(localStorage.getItem(key)).toBeNull();
 });
+
+it("A-R-031 v2 stale autosave cannot erase an uncertain submitted request", () => {
+  const key = siteCaptureDraftKey();
+  const original = { ...make(), createdAt: Date.now() };
+  const submittedBody = JSON.stringify({ requestId: original.requestId, retryToken: original.retryToken });
+  writeSiteCaptureDraft(key, { ...original, submittedBody });
+  writeSiteCaptureDraft(key, { ...original, fields: { startTask: "Edited in an already open tab" } });
+  expect(readSiteCaptureDraft(key)?.submittedBody).toBe(submittedBody);
+});
+
+it("A-R-032 v2 stale autosave cannot erase an acknowledged recovery route", () => {
+  const key = siteCaptureDraftKey();
+  const original = { ...make(), createdAt: Date.now() };
+  const saved = { status: "done", email: "qa@example.invalid", regionApproved: true, hasFootage: false,
+    selfRecording: true, uploaded: "none", processingRetryAvailable: false, linkOnlyNote: null,
+    uploadMessage: null, captureUrl: "/capture-upload/synthetic-original", workspaceUrl: null };
+  writeSiteCaptureDraft(key, { ...original, saved });
+  writeSiteCaptureDraft(key, original);
+  expect(readSiteCaptureDraft(key)?.saved).toEqual(saved);
+});
+
+it("A-R-034 v2 expired submitted and saved snapshots cannot resurrect recovery", () => {
+  const key = siteCaptureDraftKey();
+  const original = { ...make(), createdAt: Date.now() };
+  writeSiteCaptureDraft(key, { ...original, submittedBody: JSON.stringify({ requestId: original.requestId, retryToken: original.retryToken }) });
+  expect(readSiteCaptureDraft(key, original.createdAt + SITE_CAPTURE_DRAFT_TTL_MS)).toBeNull();
+  expect(localStorage.getItem(`${key}:submitted`)).toBeNull();
+});
+
+it("A-R-035 v2 explicit clear removes every scoped recovery snapshot", () => {
+  const key = siteCaptureDraftKey("owned-account");
+  const original = { ...make(), createdAt: Date.now() };
+  writeSiteCaptureDraft(key, { ...original, submittedBody: JSON.stringify({ requestId: original.requestId, retryToken: original.retryToken }) });
+  clearSiteCaptureDraft(key);
+  expect([key, `${key}:submitted`, `${key}:saved`].every(k => localStorage.getItem(k) === null)).toBe(true);
+});
+
+it("A-R-036 v2 a rejection of different bytes cannot erase the current uncertain request", () => {
+  const key = siteCaptureDraftKey();
+  const original = { ...make(), createdAt: Date.now() };
+  const submittedBody = JSON.stringify({ requestId: original.requestId, retryToken: original.retryToken });
+  writeSiteCaptureDraft(key, { ...original, submittedBody });
+  writeSiteCaptureDraft(key, original, { rejectedBody: `${submittedBody} ` });
+  expect(readSiteCaptureDraft(key)?.submittedBody).toBe(submittedBody);
+});
+
+it("A-R-037 v2 matching validation rejection permits a corrected request", () => {
+  const key = siteCaptureDraftKey();
+  const original = { ...make(), createdAt: Date.now() };
+  const submittedBody = JSON.stringify({ requestId: original.requestId, retryToken: original.retryToken });
+  writeSiteCaptureDraft(key, { ...original, submittedBody });
+  writeSiteCaptureDraft(key, original, { rejectedBody: submittedBody });
+  expect(readSiteCaptureDraft(key)?.submittedBody).toBeUndefined();
+  const corrected = JSON.stringify({ requestId: original.requestId, retryToken: original.retryToken, taskDescription: "Corrected" });
+  writeSiteCaptureDraft(key, { ...original, submittedBody: corrected });
+  expect(readSiteCaptureDraft(key)?.submittedBody).toBe(corrected);
+});
+
+it("A-R-038 v2 an incompatible stale identity cannot overwrite a protected request", () => {
+  const key = siteCaptureDraftKey();
+  const original = { ...make(), createdAt: Date.now() };
+  const submittedBody = JSON.stringify({ requestId: original.requestId, retryToken: original.retryToken });
+  writeSiteCaptureDraft(key, { ...original, submittedBody });
+  expect(writeSiteCaptureDraft(key, { ...original, requestId: "capture-0987654321098765" })).toBe(false);
+  expect(readSiteCaptureDraft(key)?.submittedBody).toBe(submittedBody);
+});
+
+it("A-R-039 v2 protected submitted identity wins over a conflicting stale base", () => {
+  const key = siteCaptureDraftKey();
+  const original = { ...make(), createdAt: Date.now() };
+  const submittedBody = JSON.stringify({ requestId: original.requestId, retryToken: original.retryToken });
+  writeSiteCaptureDraft(key, { ...original, submittedBody });
+  localStorage.setItem(key, JSON.stringify({ ...original, requestId: "capture-0987654321098765" }));
+  expect(readSiteCaptureDraft(key)?.requestId).toBe(original.requestId);
+  expect(readSiteCaptureDraft(key)?.submittedBody).toBe(submittedBody);
+});
+
+it("A-R-040 v2 a changed retry credential cannot corrupt a protected request", () => {
+  const key = siteCaptureDraftKey();
+  const original = { ...make(), createdAt: Date.now() };
+  const submittedBody = JSON.stringify({ requestId: original.requestId, retryToken: original.retryToken });
+  writeSiteCaptureDraft(key, { ...original, submittedBody });
+  expect(writeSiteCaptureDraft(key, { ...original, retryToken: "09876543210987654321098765432109ab" })).toBe(false);
+  expect(readSiteCaptureDraft(key)?.retryToken).toBe(original.retryToken);
+  expect(readSiteCaptureDraft(key)?.submittedBody).toBe(submittedBody);
+});

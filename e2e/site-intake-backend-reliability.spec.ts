@@ -12,7 +12,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
   await mkdir(output, { recursive: true });
   let context: BrowserContext;
   const start = async () => {
-    context = await chromium.launchPersistentContext(profile, { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE, headless: true });
+    context = await chromium.launchPersistentContext(profile, { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE, headless: true, extraHTTPHeaders: { "X-Forwarded-For": `192.0.2.${index + 1}` } });
     // External browser requests are blocked; application API uses real loopback handlers.
     await context.route("**/*", async route => {
       const host = new URL(route.request().url()).hostname;
@@ -24,19 +24,27 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
   };
   let page = await start();
   let submittedBodies: string[] = [];
-  let requestId: string | null = null;
-  const record = () => page.on("request", request => {
+  const responseDiagnostics: Array<{ httpStatus: number; message?: string; code?: string }> = [];
+  const record = () => {
+    page.on("response", async response => {
+      if (new URL(response.url()).pathname === "/api/inbound-request") {
+        const payload = await response.json().catch(() => ({}));
+        responseDiagnostics.push({ httpStatus: response.status(), message: payload.message || payload.error, code: payload.code });
+      }
+    });
+    page.on("request", request => {
     if (new URL(request.url()).pathname === "/api/inbound-request" && request.method() === "POST") {
       submittedBodies.push(request.postData()!);
-      requestId = JSON.parse(request.postData()!).requestId;
+
     }
   });
+  };
   record();
   try {
     await page.goto("http://127.0.0.1:4181/contact/site-operator");
     await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet.");
     await page.locator("#start-location").fill(parameters.location);
-    await page.locator("#start-email").fill("qa@example.invalid");
+    await page.locator("#start-email").fill(`reliability-${index + 1}@example.invalid`);
     await page.locator("#start-company").fill("Owned synthetic reliability fixture");
     await page.locator(`#start-method-${parameters.method}`).check();
     if (parameters.boundary === "draft-reload") {
@@ -57,6 +65,9 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
         return route.continue();
       });
     }
+    await expect(page.locator("#start-email")).toHaveValue(`reliability-${index + 1}@example.invalid`);
+    await expect(page.locator("#start-location")).toHaveValue(parameters.location);
+    await expect(page.getByText(parameters.location.startsWith("Austin") ? /Country: United States\./ : /Country: Outside the United States\./)).toBeVisible();
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     if (parameters.boundary === "lost-response") {
       await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
@@ -97,6 +108,14 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       privateIdentifiersRedacted: true, providerDispatch: false, notifications: "durable-outbox-only/no-delivery",
     }, null, 2));
     await context!.tracing.stop({ path: path.join(output, `A-J-${index + 1}.zip`) });
+  } catch (error) {
+    await context!.tracing.stop({ path: path.join(output, `A-J-${index + 1}-failed.zip`) }).catch(() => undefined);
+    await page.screenshot({ path: path.join(output, `A-J-${index + 1}-failed.png`), fullPage: true }).catch(() => undefined);
+    await writeFile(path.join(output, `A-J-${String(index + 1).padStart(3, "0")}-failure.json`), JSON.stringify({
+      caseId: `A-J-${String(index + 1).padStart(3, "0")}`, parameters, responseDiagnostics,
+      submittedRequests: submittedBodies.length, status: "failed", privateIdentifiersRedacted: true,
+    }, null, 2));
+    throw error;
   } finally {
     await context!.close();
     await rm(profile, { recursive: true, force: true });

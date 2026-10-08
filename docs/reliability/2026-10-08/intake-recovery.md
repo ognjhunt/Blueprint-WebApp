@@ -13,7 +13,13 @@ Anonymous recovery relies on possession of the browser profile; it does not prov
 identity isolation on a shared device. Both draft and saved-job views provide an
 explicit clear action. Clearing device recovery does not cancel/delete server work.
 
-An uncertain create retries the exact original request. A confirmed validation
+An uncertain create retries the exact original request. Protected submission and
+acknowledgement snapshots prevent autosaves from a pre-mounted tab erasing recovery.
+The submit action adopts the latest same-account receipt or exact submitted body.
+Modern browsers with Web Locks serialize the small local freeze across tabs;
+no network operation holds that lock. Browsers without Web Locks retain server
+idempotency and sequential/reload recovery, but truly simultaneous differing-answer
+submissions across tabs are outside the verified browser guarantee. A confirmed validation
 rejection allows corrections with the same identity. Replayed saves cannot upload
 newly selected footage under the original description/authority. The saved recovery
 route is written before video transfer; return checks the storage receipt before
