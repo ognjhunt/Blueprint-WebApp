@@ -8,7 +8,6 @@ import { LocationAutocomplete } from "@/components/site/LocationAutocomplete";
 import {
   captureRegionHeldNotice,
   captureRegionNotice,
-  captureRegionOptions,
   isApprovedCaptureRegion,
   type CaptureRegion,
 } from "@/data/captureResidency";
@@ -247,16 +246,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
   const [method, setMethod] = useState<"upload" | "phone" | "visit">(initial.draft.method);
   const selfRecording = method === "phone";
   const [region, setRegion] = useState<CaptureRegion | "">(initial.draft.region);
-  const regionManuallySet = useRef(initial.draft.regionManuallySet);
-  // The address answers the country, so the country is not a question on the
-  // page. It opens when the operator asks to correct it, or when a typed
-  // address never resolved to a country and we cannot go on without one.
-  const [countryOpen, setCountryOpen] = useState(Boolean(initial.draft.location && !initial.draft.region));
-  const [countryPrompted, setCountryPrompted] = useState(false);
-  const regionSelect = useRef<HTMLSelectElement>(null);
-  useEffect(() => {
-    if (countryPrompted) regionSelect.current?.focus();
-  }, [countryPrompted]);
+  // The address is the only place the country comes from. An address that does
+  // not resolve to one is flagged at Start, next to the address itself.
+  const [countryMissing, setCountryMissing] = useState(false);
   // Asked because it changes what we say next, not to route them into a
   // different funnel. Existing footage gets assessed for both purposes -- does
   // it explain the job, does it cover the scene -- and reused wherever it can be.
@@ -302,7 +294,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
     setMethod(other.draft.method); setRegion(other.draft.region);
-    regionManuallySet.current = other.draft.regionManuallySet;
     setPending(other.pending);
     if (changed && resetChanged) {
       setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
@@ -315,7 +306,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
       task: field("startTask"), location: field("startLocation"), email: field("startEmail"), company: field("startCompany"),
-      method, region, regionManuallySet: regionManuallySet.current,
+      method, region, regionManuallySet: false,
     } });
   }
   useEffect(() => { retainDraft(); }, [interactive, method, region]);
@@ -341,8 +332,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
-      setMethod("phone"); setRegion(""); regionManuallySet.current = false;
-      setCountryOpen(false); setFootage(null); setFootageError(null); setCaptureReceived(false);
+      setMethod("phone"); setRegion(""); setCountryMissing(false); setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
       setClearStatus("done");
@@ -363,11 +353,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       || (!retained && footageWanted && !consent)
       || (!retained && claudeAuthoringRequested && !claudeConsent)
       || (!retained && solAgentsRequested && !solAgentsConsent)) return;
-    // A typed address that never resolved to a country: ask now, once, rather
-    // than guess. The country decides whether we may collect footage at all.
+    // The address has to say which country it is in. The country decides whether
+    // we may collect footage at all, so we do not guess it.
     if (!retained && !region) {
-      setCountryOpen(true);
-      setCountryPrompted(true);
+      setCountryMissing(true);
+      document.querySelector<HTMLInputElement>("#start-location")?.focus();
       return;
     }
     if (!retained && footageWanted && !footage) return;
@@ -792,7 +782,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
         )
       ) : null}
 
-      {/* Show resolved country or the required fallback while entering the job location. */}
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
           <span>Where would the robot do this task?</span>
@@ -809,49 +798,24 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
             maxLength={300}
             placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
             onSelectionChange={(place) => {
-              if (!regionManuallySet.current) {
-                setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
-                if (place) setCountryOpen(!place.countryCode);
-              }
+              setCountryMissing(false);
+              setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
             }}
             onInputChange={(text) => {
-              if (regionManuallySet.current) return;
+              setCountryMissing(false);
               const country = inferLocationCountryCode(text);
               setRegion(country ? (country === "US" ? "us" : "non_us") : "");
-              setCountryOpen(!country && text.trim().length > 0);
             }}
           />
         </label>
 
-        {countryOpen ? (
-          <label htmlFor="start-region">
-            <span>Which country is the site in?</span>
-            <select
-              id="start-region"
-              name="startRegion"
-              ref={regionSelect}
-              value={region}
-              required
-              onChange={(event) => { regionManuallySet.current = !!event.target.value; setRegion(event.target.value as CaptureRegion); }}
-            >
-              <option value="">Choose country</option>
-              {captureRegionOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : region ? (
-          <p className="ms-field-hint" style={{ margin: 0 }}>
-            Country: {captureRegionOptions.find((option) => option.value === region)?.label}.{" "}
-            <button type="button" className="ms-text-link" style={{ font: "inherit" }} onClick={() => setCountryOpen(true)}>
-              Change
-            </button>
+        {countryMissing && !region && (
+          <p className="ms-error" role="alert" style={{ margin: 0 }}>
+            Add the country to the address, for example Sacramento, California, United States.
           </p>
-        ) : null}
+        )}
 
-        {(countryOpen || region === "non_us") && (
+        {region === "non_us" && (
           <p className="ms-field-hint" style={{ margin: 0 }}>{captureRegionNotice}</p>
         )}
       </div>

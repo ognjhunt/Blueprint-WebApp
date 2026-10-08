@@ -67,7 +67,8 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     }
     await expect(page.locator("#start-email")).toHaveValue(`reliability-${index + 1}@example.invalid`);
     await expect(page.locator("#start-location")).toHaveValue(parameters.location);
-    await expect(page.getByText(parameters.location.startsWith("Austin") ? /Country: United States\./ : /Country: Outside the United States\./)).toBeVisible();
+    if (parameters.location.startsWith("Austin")) await expect(page.locator("#start-region")).toHaveCount(0);
+    else await expect(page.getByText(/During the beta we can only take walkthroughs/)).toBeVisible();
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     if (parameters.boundary === "lost-response") {
       await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
