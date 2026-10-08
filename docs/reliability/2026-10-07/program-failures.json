@@ -598,8 +598,9 @@
     {
       "id": "DEP-FREE-ADVISORY-JOIN",
       "owner": "coordinator_with_intake_recovery_and_queue_recovery",
-      "state": "implementation_active",
-      "detail": "Current normal upload has no site_assessment dispatch/canonical customer publication/authorized reader. Native simulation is separate, not this advisory prerequisite. Root binds exact current source, request and optional brief to durable job/claim; A reader/UI, B existing-worker dispatcher. No additional paid dispatch."
+      "state": "offline_connected_execution_reviewed;existing_worker_hook_repair_and_release_pending",
+      "detail": "PR948 implements current-source SDK dispatch, canonical private result and owner-authorized safe report. One real SDK/handler joined case passed with simulated providers/storage; independent review a5e724a3. Current live launch-only worker skips opsScheduler hook; narrow existing-tick repair active. No live video analysis established.",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/948"
     }
   ],
   "coordination": {

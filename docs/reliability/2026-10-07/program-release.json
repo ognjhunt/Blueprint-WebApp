@@ -55,9 +55,9 @@
       "script_sha256": "306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b",
       "claim_ceiling": "Exact serving identity, paired deployment receipts, health/readiness and ordinary local-draft reload only; no production submission/upload/worker/assessment/notification path."
     },
-    "current_independently_verified_serving_sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
+    "current_independently_verified_serving_sha": "d0f6727077aae3b164c8e5c8444b53470ba123ec",
     "initial940_receipts_are_historical": true,
-    "current_receipt_key": "preview_preparation_status_followup"
+    "current_receipt_key": "assessment_continuation_followup"
   },
   "pipeline": {
     "merged_required_stage_fix": "cc876af25389de934f57c08b33421987f9e3328d",
@@ -611,12 +611,68 @@
   "assessment_continuation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/947",
     "head": "2595c31aa05ce215038671dd02a4976e87fda857",
-    "state": "code_committed_focused_checks_passed;independent_review_and_required_CI_finishing;not_merged_or_deployed",
+    "state": "reviewed_merged_deployed_and_verified_serving_identity_and_safe_presentation",
     "CI": 37782417012,
     "before": "same9controls_at3f:6failed3passed",
     "candidate": "9controls+34overlappingneighborspassed;3selectedcontrols_repeated3freshprocesses",
     "budget_changed": false,
     "paid_calls": 0,
-    "scope": "Useful fourth targeted video probe, explicit authority preserved, deadline before/after admission, two non-novel exact-item probes stop fresh dispatch; no natural semantic accuracy or publication proof."
+    "scope": "Useful fourth targeted video probe, explicit authority preserved, deadline before/after admission, two non-novel exact-item probes stop fresh dispatch; no natural semantic accuracy or publication proof.",
+    "merged_sha": "d0f6727077aae3b164c8e5c8444b53470ba123ec",
+    "merged_at_utc": "2026-10-08T13:22:22Z",
+    "main_CI": {
+      "run_id": 37783828995,
+      "conclusion": "success"
+    },
+    "deploy_workflow": {
+      "run_id": 37784910208,
+      "conclusion": "success"
+    },
+    "render_receipts": [
+      {
+        "role": "web",
+        "deployment_id": "dep-db3pm560tbcc738fpekg",
+        "status": "live",
+        "sha": "d0f6727077aae3b164c8e5c8444b53470ba123ec",
+        "finished_at_utc": "2026-10-08T13:34:02.761372Z"
+      },
+      {
+        "role": "worker",
+        "deployment_id": "dep-db3pm559fdbs73eossog",
+        "status": "live",
+        "sha": "d0f6727077aae3b164c8e5c8444b53470ba123ec",
+        "finished_at_utc": "2026-10-08T13:34:11.147682Z"
+      }
+    ],
+    "private_receipt_sha256": "89a36dbc58382c5668a681966083864ee946df27a18f53763d6b87daa7e3fb33",
+    "safe_smoke": {
+      "checks_passed": 18,
+      "result_sha256": "a0124749dc99ea41a1fc8c67d4816202581bdbaa84cadff35b34b8d1bb86858c",
+      "script_sha256": "ea03c76daa4f2cde69efc4939ec52a1715e0e8305648c2d03b6999d9cfa1f56c",
+      "completed_at_utc": "2026-10-08T13:34:36.399Z",
+      "intake_mutations": 0,
+      "paid_provider_calls": 0,
+      "notification_sends": 0
+    },
+    "independent_release_review_commit": "ec42934c",
+    "claim_ceiling": "Current serving identity, paired worker/web release and safe draft/clear UI; no live assessment/provider/perception proof."
+  },
+  "customer_advisory_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/948",
+    "head": "ee3d72a12ce8fcf4e2a88a1bf354ec43d6f009d5",
+    "state": "reviewed_offline_connected_execution;worker_hook_implemented;required_final_CI_active;not_merged_or_deployed",
+    "CI": 37786164546,
+    "connected_receipt_sha256": "8506cd4f214c7d84945fa87086cd3d9a8afc14af56aeac2130d119d59377e690",
+    "independent_connected_review_commit": "a5e724a3",
+    "connected_layer": "Actual normal publication/job/claim/runtime/SDK/private inline writer/owner GET/SSR; fakeFirestore/GCS and scriptedOpenAI/Gemini; no object-offload persistence, full browser, live perception or production durability proof.",
+    "new_unique_case_credit": 0,
+    "paid_provider_calls": 0,
+    "runtime_gap": "Live worker startup says launch forwarder only; broader opsScheduler capture_outbox hook is not reached. Narrow hook into existing forwarder tick is being repaired; no broader workers/config flags activated.",
+    "previous_joined_head_CI": {
+      "run_id": 37785307196,
+      "head": "caa51535802245f36081095cdef0b8062bc0233a",
+      "conclusion": "success"
+    },
+    "worker_hook": "Existing launch-forwarder5s startup/interval now lazy-ticks2advisories only when site-video enabled; no newtimer/broadops/flag/spend change. Samebaseline selectedcase fails0ticks; candidate7/7+typecheckPASS."
   }
 }
