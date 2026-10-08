@@ -179,3 +179,18 @@ env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test BLUEPRIN
 ```
 
 Do not connect an external diagnostic CDP client during execution. The worker case uses an explicit test-only dispatcher hold, manual ticks and an after-private-commit pause. Actual SDK/private writer/native Firestore records and owner bindings are exercised; objects, provider responses and notification delivery are local fakes. This proves neither live video accuracy, live provider pricing nor production automatic scheduling. Raw bearer traces stay private; no full emulator export/import is claimed. Receipt `cf2e771faa214eb66b4279995a0f8b26168b884314e2ed863ee3bac1c36cac42` indexes 154 retained artifacts and the exact frozen source pins.
+
+
+## Retained189 public smoke and actual customer recovery
+
+Company Git branch `codex/reliability-advisory-longrun-20261008` retains exact observer source68dac0ef3a76247cdee9fdfd229bf4597f2f7556 (script SHA25cccefcced8f05a3f3805cd73873f4a70191958c16c1b2da0e97d3ae67b31ff). Its one actual run is **presentation_failed**, with21other checks/all9Clear controls passed. Do not overwrite the retained failed result, silently remove the historical seven-day-copy assertion, or rerun to hide failure. Public GET/localdraft evidence is separate from the actual customer/provider recovery.
+
+With that source, existing Node22.21.1/dependencies/cached Chromium, use a fresh output folder:
+
+```bash
+env -i PATH="/Users/nijelhunt_1/.nvm/versions/node/v22.21.1/bin:/opt/homebrew/bin:/usr/bin:/bin" HOME="/Users/nijelhunt_1" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=1 node node_modules/tsx/dist/cli.mjs scripts/reliability/verify-deployed.ts --expected-sha 189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9 --mode candidate --verify-clear --output output/reliability-program/deployed-fresh-replay
+```
+
+Expected189 is historical: a later deployment must fail this identity check. Review the actual containing release/contract before deliberately selecting a new expected SHA; no production rollback is required to inspect the retained evidence. The runner blocks nonGET/external traffic, submits no intake and uses no credentials/provider/email.
+
+Eleven preserved smoke files and their hashes are at private `/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/public-smoke-189-68dac0ef/preservation-index.json` (SHAc09c9f4a028afbdfa952924bebad39439861ddb89dcd68606d98847ec0e9620a),0700/0600. This preserves originals outside the removable author worktree. Actual customer recovery has its separate private final `normal-assessment-combined189-terminal-20261008.json` export SHAeecb9eb0b7de8c16194e487b80cab8d6a328adfb3a289381b90ac2faf14ba19f in the existing dishwasher reconciliation folder; linked observable/readback/UI/retirement/runtime/notices receipts support inspection without another model call. Neither command nor artifact is an accuracy certificate.
