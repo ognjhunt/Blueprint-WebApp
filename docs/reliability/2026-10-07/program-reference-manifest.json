@@ -268,5 +268,33 @@
     "reference_video_floor_unchanged": 12,
     "eligible_additional_sources": 0,
     "accounting": "Unknowns/fulloriginalreservationsretained;APIerrororhealthydeploymentdoesnotestablishzerobilling."
+  },
+  "current_supplied_video_local_pixel_observation": {
+    "source_sha256": "c549b3b358fb3abe4248c81d20f28794e398ae2685fbbae990851941e639fedd",
+    "bytes": 60035801,
+    "duration_seconds": 30.078333,
+    "private_observation_path": "/private/tmp/blueprint-owner-evidence-20261008/output/reliability-program/customer-evidence-handoff-diagnosis/reference-frames/provisional-agent-observation.json",
+    "observation_sha256": "96e7ad9f0acda987098e4dbef1f3233e2e5b3291b9bb32413769af2227947524",
+    "sampling_seconds": [
+      0,
+      6,
+      12,
+      18,
+      24,
+      29
+    ],
+    "label_status": "PROVISIONAL_agent_observation;not_human_reviewed_truth",
+    "observed_scope": "Six actual local pixel samples show open dishwasher, racks/dishware and hand contact; sparse samples cannot prove action sequence or task completion",
+    "forbidden_inferences": [
+      "No invented measurements",
+      "No unsupported robot capability or suitability",
+      "No dish loading/unloading or full cycle claim from sparse frames",
+      "No negative capability inference from missing evidence"
+    ],
+    "new_video_credit": 0,
+    "current_human_label_credit": 0,
+    "live_provider_calls": 0,
+    "heldout": false,
+    "privacy": "Local owned video/frames only0700/0600;notuploaded;original owner records/retained footage untouched"
   }
 }
