@@ -140,9 +140,13 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
   });
   it("redacts access URLs, secrets, personal emails and hidden reasoning without fabricating zero usage", () => {
     const clean = sanitizeExperiment({ authorization: "private", url: "https://example.invalid/signed?key=secret", text: "See https://example.invalid/x?token=secret and synthetic@example.invalid",
-      output: [{ type: "reasoning", encrypted_content: "hidden" }, { type: "message", content: "visible" }], usage: null });
+      output: [{ type: "reasoning", encrypted_content: "hidden" }, { type: "thinking", content: "hidden" },
+        { thought: true, text: "hidden" }, { type: "message", content: "visible", reasoning_content: "hidden",
+          chain_of_thought: "hidden", thinking: "hidden" }], usage: { reasoning_tokens: 42 } });
     expect(JSON.stringify(clean)).not.toContain("secret"); expect(JSON.stringify(clean)).not.toContain("hidden");
-    expect(clean.text).toContain("[redacted-email]"); expect(clean.usage).toBeNull();
+    expect(clean.text).toContain("[redacted-email]"); expect(clean.usage.reasoning_tokens).toBe(42);
+    expect(clean.output).toEqual([{ type: "message", content: "visible" }]);
+    expect(sanitizeExperiment({ content: { thought: true, text: "hidden" } })).toEqual({ content: null });
   });
   it("shows material section differences and cost/latency without asserting quality", () => {
     const run = (missing: string[]) => ({ mode: "saved-evidence", wall_ms: 100, source, versions: { analysis_sha256: "same" },

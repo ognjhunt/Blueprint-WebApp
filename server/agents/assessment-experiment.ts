@@ -42,9 +42,11 @@ export function sanitizeExperiment(value: unknown): any {
     .replace(/https?:\/\/[^\s"<>]+/g, url => { try { const parsed = new URL(url); parsed.search = ""; parsed.hash = ""; parsed.username = ""; parsed.password = ""; return parsed.toString(); } catch { return "[redacted-url]"; } })
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted-email]")
     .replace(/\b(?:sk|AIza)[-_A-Za-z0-9]{16,}\b/g, "[redacted-key]");
-  if (Array.isArray(value)) return value.filter(item => !(item && typeof item === "object" && (item.type === "reasoning" || item.thought === true))).map(sanitizeExperiment);
+  if (Array.isArray(value)) return value.filter(item => !(item && typeof item === "object"
+    && (/^(reasoning|thinking|thought|chain_of_thought)$/i.test(item.type ?? "") || item.thought === true))).map(sanitizeExperiment);
+  if (value && typeof value === "object" && (/^(reasoning|thinking|thought|chain_of_thought)$/i.test(value.type ?? "") || value.thought === true)) return null;
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key]) =>
-    !/^(authorization|cookie|headers|api.?key|secret|token|encrypted_content|reasoning|thought|signed.?url|url)$/i.test(key))
+    !/^(authorization|cookie|headers|api.?key|secret|token|encrypted_content|reasoning|reasoning_content|chain_of_thought|thinking|thought|signed.?url|url)$/i.test(key))
     .map(([key, item]) => [key, sanitizeExperiment(item)]));
   return value;
 }
