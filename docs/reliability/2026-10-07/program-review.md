@@ -830,3 +830,46 @@ and explicitly advisory decisions; it does not close natural-model reasoning,
 video perception, human truth-label, measurement or robot-suitability evaluation.
 Required exact-head checks, merge, deployment and actual connected customer
 result remain distinct release-owner evidence gates.
+
+
+**Installed compiler smoke and stage-three boundary: bounded retained evidence verified.**
+Installed smoke script SHA256
+`50933962d699dbcbf31d4f36d53bd4b012a99d15ee68d3e3250831180cf10f54`
+and actual live receipt
+`0a9981e8cc28fd330ca8b4aebe7a31a1eb3328e04c9aae7dedf3c61dcaf418ac`
+match. The retained cleared-environment installed child exits zero at
+10:50:43 UTC, with before/after a56 and compiler SHA256
+`570ee667e0af5a869fb455175c835e386db7a7dea532fd2caa60d34508a93ae9`
+matching exact company Git. Both unknown and explicit synthetic owner targets
+remain unchanged, untranslated, scene_preparation, policies empty and
+development_only. The local tightened smoke reports the same bounded result.
+
+The reviewed script installs provider/storage-import and socket/subprocess
+refusals before runtime imports, confines observed filesystem mutations to its
+new temporary root, checks both rename/link/symlink endpoints and metadata
+mutations, and cleans that disposable root. These guards support this specific
+controlled smoke; they are not a general security sandbox. No production
+customer record, materializer, daemon workflow, native publication or provider
+execution was exercised. Synthetic fixture spend/rights fields confer no actual
+program budget or dispatch authority. This demonstrates installed compiler
+behavior for two fixture states, not the normal authenticated customer journey.
+
+Stage-three manifest SHA256
+`fc3fb7762a09351345926bbe70bae14e2fa390ba83ca103c89017918a9905c71`
+was independently checked: all nineteen linked probe/source/log hashes and
+lengths, eleven exact-Git source identities and both trace-evidence hashes
+match. The final two-case log and traces reach the actual Astra no-cost
+component through an explicitly injected local runner seam. It refuses missing
+completed authoring; stage-one/two checkpoints remain, stage-three completion
+is absent. The real publication guard rejects the partial outputs for missing
+replacement_authoring_receipt before publisher invocation or writes. Eleven
+neighbor checks use separate isolated fixtures/mocked native boundaries and
+are not a joined native execution claim. Initial seam/setup failures remain
+retained.
+
+No new runtime defect or catalog/journey credit follows from this expected
+dependency refusal. The construction queue remains pending, and the outer
+worker failure transition is explicitly unexecuted. Full authoring, native
+qualification/publication, customer-status recovery and final customer result
+remain unproven. Reviewer work was read-only retained-evidence inspection, with
+no additional live invocation or source mutation.
