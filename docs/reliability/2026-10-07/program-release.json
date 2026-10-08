@@ -1516,5 +1516,17 @@
     "state": "pairedLIVE_18safe_checks_independentlyverified8054fd49;superseded_byae",
     "render_receipt_sha256": "bf4dffe7a041ff02986b33818eddc7b498cde88a009d98353bdab9541daa1f7f",
     "smoke_sha256": "98be157ed1f1eda6e691e4847c12fd76296b317bc13d2dec808369b075df8a0b"
+  },
+  "communications_session_limit_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/966",
+    "reviewed_head": "d59c96e441e9f4a20263576dd2cd6e8d451006c8",
+    "independent_review": "1c188766",
+    "required_PR_CI": 37821069092,
+    "required_PR_CI_conclusion": "success",
+    "state": "reviewed_dormant_source_codecomplete;merge_held_during_pinnedae_owner_operation",
+    "minimized_baseline": "triplemutatedlimit11vsretained10digest accepted",
+    "retest": "sameunchangedcounterexample nowrefused;3compatibilityneighborspass",
+    "independent_receipt_sha256": "73e4a97140b82a4bae87e2c2cd35fc33627745e12a6c4c8e2eec92bdac66ad7e",
+    "claim_ceiling": "Dormant prospective binding/retainedexposure only; no limitselected/hardinvoiceguarantee/customercampaign/provider/Gmail activation"
   }
 }
