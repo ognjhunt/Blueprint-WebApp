@@ -665,7 +665,12 @@
     "pipeline_merged_at": "2026-10-08T15:12:59Z",
     "pipeline_main_CI": 37798891223,
     "pipeline_production_promotion_run": 37798996014,
-    "pipeline_production_promotion_state": "active_exact91_workflowdispatch_reason_production_deployment_promotion"
+    "pipeline_production_promotion_state": "success_exact91_all_four_shards_and_CPU_aggregate_34111_nodeIDs_zero_skips",
+    "pipeline_provenance_run": 37806429499,
+    "pipeline_provenance_state": "success_official_exact91_artifact",
+    "pipeline_provenance_artifact_id": 11563625441,
+    "pipeline_provenance_sha256": "fbfb0f08afad2022857d04278b55a6fe2aacdd58b22d3d583803e6a908a93993",
+    "pipeline_canonical_deploy_state": "not_started_pending_current_receipt_fencing_review_of_bot_P1"
   },
   "assessment_continuation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/947",
@@ -912,6 +917,16 @@
         "receipt_sha256": "db402e8809999a3e5b2abf8822d7b5a2f94cb896904555788bcde99438fe4244"
       },
       "remaining_gate": "actualreviewedpickerreleasepairedLIVE,normalvisiblefilechooser,newsourceprivacy/rightsadmission,actualSDK/provider/customerresult"
+    },
+    "history_embedding_preflight": {
+      "state": "actual_read_only_current_authority_check_passed_no_embedding_dispatch_eligible",
+      "receipt_sha256": "2006767e17b2307f93d21f4cb56faf4fa860cdd39f3698e63b5328e9b3ff4270",
+      "history_access_eligible": true,
+      "global_settings_document_exists": false,
+      "global_embedding_authority_enabled": false,
+      "provider_calls": 0,
+      "writes": 0,
+      "conditional_source_gap": "Offline actual tool/fake-provider replay inherits global embedding authority if later present. Config-dependent P2 retained; no current live incidence or customer-run gate."
     }
   },
   "beta_presentation_followup": {
@@ -1066,7 +1081,14 @@
     "review": "root independent minimal actual diff clears exacthead",
     "validation": "existing10POSTBUILDpublic browser +13artifact +build +Graphify pass; no assertion changes",
     "CI": 37801665489,
-    "state": "reviewed_required_CI_active; not merged/deployed"
+    "state": "independently_reviewed_required_PR_CI_passed_protected_merged_release_pending",
+    "required_executed_contexts_passed": 9,
+    "merge_sha": "b3e25e42d2acf3528bef920fd849bc329ac6a04b",
+    "merged_at": "2026-10-08T16:04:47Z",
+    "main_CI": 37805959542,
+    "main_CI_state": "pending_at_2026-10-08T16:17Z",
+    "e2e_delay": "Successful existing apt ffmpeg setup took19min21sec for94.1MB; no retry or repair.",
+    "native_e2e_log_sha256": "3d8f91a3e502aa56ad5c60b31433327794b0cff8743837284bb2186c2fc44a68"
   },
   "historical_shared_aa_release": {
     "sha": "aa919afc052f32897fedb513dff1b00165418ffb",
@@ -1122,5 +1144,13 @@
     "merged_at": "2026-10-08T15:55:20Z",
     "required_PR_CI_conclusion": "success",
     "main_CI": 37804694834
+  },
+  "latest_pending_main_release": {
+    "sha": "b3e25e42d2acf3528bef920fd849bc329ac6a04b",
+    "CI": 37805959542,
+    "state": "pending_behind_4f_main_e2e_fixture_generator_setup_at16:17UTC",
+    "source_continuity": "Six programme guard/adapter/picker/test/CI blobs match reviewed f6 and b182",
+    "new_customer_execution": false,
+    "claim_ceiling": "Merged source and completed exact PR checks only. Last independently verified paired LIVE remains195."
   }
 }

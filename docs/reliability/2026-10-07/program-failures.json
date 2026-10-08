@@ -610,6 +610,21 @@
         "neighbors_passed": 3,
         "unknown": "supersededunitjobcancelled,notclaimedpass"
       }
+    },
+    {
+      "id": "PROGRAMME-HISTORY-EMBEDDING-SCOPE-001",
+      "severity": "P2_config_dependent",
+      "owner": "queue_recovery_with_coordinator",
+      "state": "offline_reproduced_current_production_authority_absent_no_live_incidence",
+      "invariant": "Internal programme calls must not inherit unrelated provider spending authority",
+      "root_cause": "Programme adapter preserves history read grant; actual history search may load global embedding authority and dispatch embedding providers outside Sol/Gemini slots.",
+      "before": "Exact f6 actual history tool with memory database and fake provider made one index plus one query embedding call; both usage unknown.",
+      "receipt_sha256": "a1d9a1c6dd6c61e5e65feff6a599c281d83048862e8f00d05dec7bc88daad67d",
+      "actual_preflight_sha256": "2006767e17b2307f93d21f4cb56faf4fa860cdd39f3698e63b5328e9b3ff4270",
+      "current_eligibility": "History read grant eligible; global embedding settings absent, no embedding dispatch eligible.",
+      "fix": null,
+      "next_action": "Programme-only host suppression of inherited embedding providers if enabled use enters scope; preserve authorized lexical search/fetch and ordinary behaviour. No global authority mutation or new current-run prerequisite.",
+      "new_case_credit": 0
     }
   ],
   "dependencies": [
@@ -761,5 +776,15 @@
     "packet_sha256": "da7347729025b8e832bb3539a9143f4003d8c5b4197df4187bc868fe1f73259d",
     "operator_source_sha256": "f2a0358db7062298aec812f831c105d58d06744d64cc0a2a963cb4a485964260",
     "correction": "Compare exact existing source-bound/legacy privacy and account attachment field presence/value in the same create-only transaction. Unclaimed owner remains unclaimed; no new account gate or privacy rewrite."
+  },
+  "pipeline_acceptance_receipt_followup": {
+    "state": "source_concern_confirmed_actual_offline_reproducer_and_independent_review_active",
+    "severity": "P1_candidate_affected_transport_only",
+    "owner": "queue_recovery_with_independent_review_and_coordinator",
+    "source": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2649#discussion_r4220778060",
+    "finding": "Old retained receipt may acknowledge already newer pending delivery because current canonical revision/attempt/digest/state are not compared; existing same-document fence handles only concurrent rewrite.",
+    "canonical91_deploy_started": false,
+    "unrelated_web_advisory_blocked": false,
+    "provider_calls": 0
   }
 }
