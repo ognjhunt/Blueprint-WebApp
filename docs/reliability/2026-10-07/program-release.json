@@ -1360,7 +1360,7 @@
     "helper_head": "42bc50ad960b7639792bf8ae79a0973d85445f2e",
     "UI_head": "d66f083e",
     "root_route_head": "07ca3c73",
-    "state": "required_PR_CI_running;final_independent_source_approved;not_deployed",
+    "state": "protected_merged;latestmainCIrunning;not_deployed",
     "helper_checks": 80,
     "route_status_checks": 42,
     "UI_component_checks": 33,
@@ -1374,7 +1374,16 @@
     "integrated_intercepted_UI_checks": 5,
     "private_receipt_sha256": "52984df65d7dba08516943814c32687cdeb5a8a6821e602a845a37fb5e9b2c1e",
     "independent_review_commit": "89079733a",
-    "independent_review_state": "exact1e0e_bounded_source_approved;independent18helpers7UI1joinedpass"
+    "independent_review_state": "exact1e0e_bounded_source_approved;independent18helpers7UI1joinedpass",
+    "merge_sha": "6c1d2466261c67de7809b4b0012a71dd1a404956",
+    "merged_at_utc": "2026-10-08T17:35:47Z",
+    "required_PR_CI_conclusion": "success",
+    "applicable_PR_jobs_passed": 9,
+    "CI_unit_passed": 9176,
+    "CI_unit_skipped": 7,
+    "CI_terminal_log_sha256": "75dd06cb22f3f605e863549b3f9b5e9c8385d1172b95258962fac08c4c658932",
+    "CI_browser": "operator_fakeauth1;workspace18;invitedintercepted2;private_intercepted5;scoped_intake14;overlapping_supplemental_not_unique",
+    "main_CI": 37817794563
   },
   "historical_shared_3a_release": {
     "sha": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
