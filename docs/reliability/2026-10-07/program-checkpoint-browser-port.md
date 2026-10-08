@@ -21,4 +21,4 @@ env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" \
   --config playwright.reliability-intake.config.ts --grep 'UI-CROSS-TAB-00[34]'
 ```
 
-Remove `--grep` for all 12 original cases. Final candidate evaluation remains pending the exact runtime repair; historical receipts must not be relabeled as that candidate.
+Remove `--grep` for all 12 original cases. Exact repaired client revision `8baba7d231c09fe5302af9016e60b75f287bee8d` subsequently passed the unchanged frozen v2 contracts: selected003/004 2/2, full suite 12/12, and selected repeat 2/2. This is 12 unique cases and 16 passed attempts; each affected case ran three times, with no disagreement observed. The runtime owner guarded noninteractive autosave and reran it once interactive. The candidate E2E source, four client files, each native trace and result receipt are fingerprinted in the JSON companion. Exact overlay typecheck passed, source fingerprints were reverified after execution, and author source bytes were restored. The original884 failures remain historical evidence and were not upgraded. Simulated transport/status APIs still limit this result to the intercepted UI/checkpoint layer.

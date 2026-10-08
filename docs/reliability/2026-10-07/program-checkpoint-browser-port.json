@@ -80,5 +80,144 @@
       "test_definition_source": "native Playwright trace embedded source"
     }
   ],
-  "status": "test-port complete; exact884 reload defect reproduced; candidate replay pending runtime repair"
+  "status": "exact8b candidate passed frozen v2 contracts; historical884 failure receipts preserved",
+  "candidate_source": {
+    "runtime_client_git_sha": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+    "source_sha256": {
+      "client/src/components/site/SiteCaptureStart.tsx": "c94d8aac950e6dc0616f66b770849b6d1f33218aa78133b6762fb235825db368",
+      "client/src/lib/siteCaptureDraft.ts": "45dbdfbdb0eb5df69711703d521b44796522b48ff9bf70ec870f77dcfed7ee62",
+      "client/src/lib/siteCaptureDurability.ts": "14cae68c96d26f791431ecdb000397bc42c38161cae1098788cd8fb1f6345087",
+      "client/src/contexts/AuthContext.tsx": "bceeb8ea22c8791863e63d135268059db8c5d450428c5bdec3fcd25e9796ae4c"
+    },
+    "test_definition_sha256": "2602ab648d99b70a0b2a393d02c4efc3fe144bc39359941540a610b8c6ca1023",
+    "frozen_at": "2026-10-08T06:32:06.252934+00:00",
+    "case_version": "blueprint.checkpoint-browser-port.v2",
+    "new_unique": 0
+  },
+  "candidate_runs": [
+    {
+      "run": "candidate-selected",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "attempted": 2,
+      "new_unique": 0,
+      "elapsed_ms": 19605.47,
+      "results_sha256": "1ea472e8a3b26e1e02a367493ab9bd48711a7c464ca54acf40c48741373ee10a",
+      "test_definition_sha256": "2602ab648d99b70a0b2a393d02c4efc3fe144bc39359941540a610b8c6ca1023",
+      "native_traces": [
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-selected/reliability-program-intake-01ba7-before-fresh-explicit-Start/trace.zip",
+          "sha256": "241da62145b02756491446ae0d7e0b52c57fcf06aecd71bbef588b7670c81c3a"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-selected/reliability-program-intake-45f6c--next-step-without-dispatch/trace.zip",
+          "sha256": "103d74453c64374981688a2ac91ff6649345c07953cc47a98737457899a2a727"
+        }
+      ]
+    },
+    {
+      "run": "candidate-full12",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "attempted": 12,
+      "new_unique": 0,
+      "elapsed_ms": 47676.611000000004,
+      "results_sha256": "918e91dbf126f5c9ce53740b54482fcfea61146113da39b3bb9e40f7e7f17289",
+      "test_definition_sha256": "2602ab648d99b70a0b2a393d02c4efc3fe144bc39359941540a610b8c6ca1023",
+      "native_traces": [
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-01ba7-before-fresh-explicit-Start/trace.zip",
+          "sha256": "924e45fd4a50a3c8462c8a5083504c39cbf7ae03f5453035f7e89226f3a255b6"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-12ded-d-recover-original-identity/trace.zip",
+          "sha256": "270f6d3098be99f7d4d54acc69049a7af5e575d35ef4ec2661709142b0c22550"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-15624-provider-s-draft-or-consent/trace.zip",
+          "sha256": "287613661920d0ef98cbc9ec0214c61db82bca1853c02a8fb95c4c58fdca80fb"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-45f6c--next-step-without-dispatch/trace.zip",
+          "sha256": "fee33d69f4f3e6645f080f0cdaac044c49d4268d47bbd08cb1a706c4ad266e64"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-56e22-eserve-winner-across-reload/trace.zip",
+          "sha256": "3af87c546cee445a7a3f58e45c206b8fafe3637b46a3fdf8959419b46e428148"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-6fac8-nd-fields-remain-repairable/trace.zip",
+          "sha256": "5c90a5f4d7df3a39c02980d4adf85a9d1e940fe6e7e116d17728fa84b9d0c7a2"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-830eb-job-and-renews-expired-link/trace.zip",
+          "sha256": "7279de785e106c5ba0baaeaaf7eea23dbf27e524213f8a149e80beb0032987dc"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-8e207-ft-without-renewing-consent/trace.zip",
+          "sha256": "a71d2d80ce07691a91b89547b4c8037db3ff12c912450b2180126c18daf56eeb"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-9c4c9--returns-to-the-same-intake/trace.zip",
+          "sha256": "74a4169a1cb2db69d85cf95d283b994b5f3c6aebd75712d31708765a38741b9e"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-ad0c7-asquerade-as-upload-receipt/trace.zip",
+          "sha256": "f5e4522cb82538b0e288ea7d646cdfce3f150dc7a57ce014dc5b1ab8cb941dfa"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-b64b6-ares-exact-frozen-authority/trace.zip",
+          "sha256": "4257fa83a11a81f9d34a8690fe73474ec2633043461ab635d6eb318daf75970c"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-full12/reliability-program-intake-d0aa4-ches-one-logical-submission/trace.zip",
+          "sha256": "21b87ad97bdf856e0684e941cd087cd54e3843394791996ac897339ea489ef82"
+        }
+      ]
+    },
+    {
+      "run": "candidate-selected-repeat",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "attempted": 2,
+      "new_unique": 0,
+      "elapsed_ms": 6599.241,
+      "results_sha256": "657c402b0ad0be7c72b2aa68166a667c7b395aadd22c53973c04d9e90b95a413",
+      "test_definition_sha256": "2602ab648d99b70a0b2a393d02c4efc3fe144bc39359941540a610b8c6ca1023",
+      "native_traces": [
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-selected-repeat/reliability-program-intake-01ba7-before-fresh-explicit-Start/trace.zip",
+          "sha256": "ee6a4fc0635f45680e0440c1bef6240af69d17b64bfa6162232591501d5b1c99"
+        },
+        {
+          "path": "output/reliability-program/checkpoint-browser-port/candidate-selected-repeat/reliability-program-intake-45f6c--next-step-without-dispatch/trace.zip",
+          "sha256": "ca2d6af317b064b6336f0eada78cd107d1da9be695787a3fec3df7b6ea33e50f"
+        }
+      ]
+    }
+  ],
+  "candidate_counts": {
+    "unique_cases": 12,
+    "attempted": 16,
+    "passed": 16,
+    "failed": 0,
+    "selected_cases_attempts_each": 3,
+    "new_unique_cases": 0
+  },
+  "checks": {
+    "candidate_typecheck": "PASS exact8b client overlay held until completion",
+    "candidate_typecheck_log_sha256": "cac4641f604577738681f4f70c0ded3f441c0562d5814768106527214a0f49d4",
+    "graphify": "PASS after test40eff changes on restored author source",
+    "graphify_log_sha256": "8057939694c6284a0c986b2430d183db940bc0e889598228eb7d04044967d42d",
+    "source_post_execution_verified_sha256": {
+      "client/src/components/site/SiteCaptureStart.tsx": "c94d8aac950e6dc0616f66b770849b6d1f33218aa78133b6762fb235825db368",
+      "client/src/lib/siteCaptureDraft.ts": "45dbdfbdb0eb5df69711703d521b44796522b48ff9bf70ec870f77dcfed7ee62",
+      "client/src/lib/siteCaptureDurability.ts": "14cae68c96d26f791431ecdb000397bc42c38161cae1098788cd8fb1f6345087",
+      "client/src/contexts/AuthContext.tsx": "bceeb8ea22c8791863e63d135268059db8c5d450428c5bdec3fcd25e9796ae4c"
+    }
+  },
+  "candidate_finished_at": "2026-10-08T06:34:17.337895+00:00"
 }
