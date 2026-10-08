@@ -152,7 +152,7 @@
   "shortfall": 11,
   "human_reference_gate": "partial_one_authorized_source_zero_current_human_timestamp_labels",
   "baseline_and_candidate_live_model_runs": 0,
-  "dishwasher": "user-selected local source admitted for one approved SDK/Gemini analysis; sole executor existing dishwasher task; no model execution yet established by this manifest",
+  "dishwasher": "Both native worker and local preflights passed; approved single Gemini stage dispatched by sole owner, actual SDK Sol synthesis follows on pinned deployed baseline. Terminal output/receipts/cost remain pending; dispatch is not completion.",
   "holdout": "none; all existing source families are development/regression and pre-exposed",
   "rubric": {
     "factual_support": "fail invented consequential event/measurement/capability",

@@ -426,5 +426,78 @@
       "server/tests/reliability-program-journeys.browser.ts": "6501a98d4f65a0aab48ca725df2a88f0b5a6ee874563117263f4f2ad58b86215",
       "server/tests/reliability-program-worker-resume.browser.ts": "3f7d2a0f0173dcbdab114516d366d77f7adb356648828466101a8e5d1e8467cd"
     }
+  },
+  "selected_repetitions": {
+    "selected_ids": [
+      "UI-006",
+      "UI-019",
+      "UI-020",
+      "UI-021"
+    ],
+    "attempts_per_selected_case": 3,
+    "disagreements": 0,
+    "additional_unique_cases": 0,
+    "runs": [
+      {
+        "run_id": "journeys-20261008T050521396Z",
+        "result_sha256": "037753f56746422549b669c38874b2ade6f8035c30885624342bac3d16719410",
+        "attempted": 21,
+        "passed": 21,
+        "unselected": 0,
+        "case_ids": [
+          "UI-001",
+          "UI-002",
+          "UI-003",
+          "UI-004",
+          "UI-005",
+          "UI-006",
+          "UI-007",
+          "UI-008",
+          "UI-009",
+          "UI-010",
+          "UI-011",
+          "UI-012",
+          "UI-013",
+          "UI-014",
+          "UI-015",
+          "UI-016",
+          "UI-017",
+          "UI-018",
+          "UI-019",
+          "UI-020",
+          "UI-021"
+        ],
+        "latency_ms": 104727
+      },
+      {
+        "run_id": "journeys-20261008T050750449Z",
+        "result_sha256": "7a4fd0be1dd94a2f981f475f6e01a9e2d46c69c0be7c65f756d0141924fe82a9",
+        "attempted": 4,
+        "passed": 4,
+        "unselected": 17,
+        "case_ids": [
+          "UI-006",
+          "UI-019",
+          "UI-020",
+          "UI-021"
+        ],
+        "latency_ms": 36522
+      },
+      {
+        "run_id": "journeys-20261008T050850708Z",
+        "result_sha256": "a4845fd4b91d620f52f30894d75b23fd693357536e1aba20e96348946065ca92",
+        "attempted": 4,
+        "passed": 4,
+        "unselected": 17,
+        "case_ids": [
+          "UI-006",
+          "UI-019",
+          "UI-020",
+          "UI-021"
+        ],
+        "latency_ms": 54881
+      }
+    ],
+    "limit": "Three exact-source selected traces; deterministic fake provider, not model nondeterminism.17unselected in each targeted repeat are not skipped scored cases in full21run."
   }
 }
