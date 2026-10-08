@@ -2827,3 +2827,61 @@ Cleanup records bind-free owned ports; no full emulator export is claimed.
 Production middleware topology, live providers/notifications, real video quality,
 expired-link renewal and customer readiness remain outside this evidence. These
 receipts do not verify the newer owner-evidence source through the native journey.
+
+
+### Local assessment iteration — PR965 / 71afa6e9
+
+Read-only independent source review approves the bounded engineering tool at
+`71afa6e9be803a19d40893d527122d98ac8fbeb4`, compared with current canonical
+main `2b1852050dfcad4ec88e8a1a7566c3442b7c5800`. The eight-path diff adds a
+CLI, private local accounting/evidence/comparison helper and scoped tests,
+with narrow adapter/core seams. The author checkout was clean and unchanged
+by the reviewer. No new tests, provider calls, credentials, runtime or release
+mutations were performed.
+
+Ordinary production hosts retain canonical accounting. The explicitly trusted
+experiment host substitutes local durable accounting only, preserving original
+source generation/bytes, manifest/marker, current capture/session, rights,
+privacy and context checks before model calls. There is no public experiment
+endpoint, scheduler, customer job/result mutation, notification or automatic
+retry. Existing task instructions remain non-citable; only recorded request and
+brief assertions populate operator sources. Experiments do not mint signed
+video access URLs and suppress optional paid history embeddings. Recorded
+unknown responses and admitted unanswered calls are retained without monetary
+approval/cap gates; retention expiry still stops new dispatch as a data-use
+boundary. This tool's local records do not reconcile or reset earlier production
+calls.
+
+Saved evidence checks request/capture/source key, immutable video reference,
+bytes/hash/duration, recorded-statement digest, current analysis implementation,
+model request, exact question/inspection, parsed raw response, timestamps and
+content digest. A cache miss cannot silently dispatch Gemini in saved mode.
+Canonical parser normalization preserves harmless extra raw metadata while
+rejecting changed admitted observations. These consistency hashes do not
+independently authenticate a locally supplied provider receipt or certify its
+observations. The CLI assumes trusted authorized engineering inputs; saved
+analysis remains provisional evidence, not human truth. Assessment-only prose
+changes and source-compatible reuse do not prove output quality improvement.
+
+Outputs are standard private JSON/log/Markdown with durable pre-dispatch
+accounting and code/dependency hashes. Sanitization removes named credentials,
+URL query access material, personal email addresses and hidden reasoning.
+Retention permission and filesystem privacy remain explicit operator obligations;
+no automatic expiry deletion is claimed. Run creation refuses an existing run
+folder, and final accounting errors remain failed/unresolved rather than zero
+cost. Arbitrary exception bodies/stacks are not returned. Comparison retains
+wrapper versus assessment failure and explicitly requires operator truth review.
+
+Inspected offline logs include historical84/84 scoped checks, terminal typecheck
+and Graphify. Owner-source log hash is
+`03a0b75371dc07e021cc37d9785e6a7da46ce16a01d1027f77a23af7fcff6b59`;
+main974 typecheck hash is
+`cac4641f604577738681f4f70c0ded3f441c0562d5814768106527214a0f49d4`.
+The retained pr965-final-state receipt still names historical8a4a56b9; neither
+that CI nor unbound earlier local counts are promoted to exact71afa execution.
+Fresh exact-head required checks remain a separate release gate. No real
+fresh/saved provider run, authenticated generation, customer integration,
+perception improvement, production readiness or new original coverage credit
+is established by this review. Replay is the existing documented
+assessment:iterate command and retained tests; it needs existing authorized
+source access and explicit local retention permission.
