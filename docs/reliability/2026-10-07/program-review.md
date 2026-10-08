@@ -1542,3 +1542,54 @@ positive presence booleans do not establish authenticated provider availability.
 No extra test or paid probe was requested/performed for this logging-only delta.
 Final exact-head required checks, deployment and observed affected behavior
 remain release gates.
+
+
+## Independent configured-web advisory dispatch review — 36bffa1a
+
+Approved exact combined candidate
+`36bffa1ab5a58565730edf868e77b2788d6060cb`: reviewed67177887 plus root
+return-wake `c24b7194f3b63085215fc50b5ea4b92fcc57f715` and author postcommit
+changes `3611fdd56b8a23f4b08bd86b7db88586ecffd8fd`. Current worker UI
+inspection found its site-video flag and recognized Gemini aliases absent;
+worker credential transfer/global automation activation was not authorized or
+performed. The supported web process now wakes the existing queue after a
+successful newly-published original walkthrough commit. It does not await the
+SDK or turn provider success into an upload receipt. Replay of an already
+published source is not backfilled, and import/dispatch errors use safe constant
+logging. The queue returns its existing active-pass promise without changing
+claim, source, rights, unknown-provider replay or durable cost admission.
+
+Authorized owner/account return handlers also wake a bounded existing pass only
+after the current source/owner-fenced helper returns queued/running. Film,
+withdrawn, stale owner/source and unavailable timeout results do not wake from
+that read. The helper itself remains observational and late work remains
+read-only. The intentional handler change means a queued-owner status GET may
+start already-authorized background provider work; it must not be described or
+used as an effect-free production diagnostic. Existing immutable intent and
+fresh source/spending admission authorize dispatch, rather than the GET alone.
+Safe anonymous no-submit deployment smoke remains separate.
+
+The same existing joined publication case was explicitly strengthened from
+manual initial reconciliation to automatic postcommit wake, adding no unique
+case credit. Unchanged671 runtime fails the automatic-wake assertion with zero
+ticks (one attempted, seven unattempted), log
+`fe55acfe6ac0f67500f0cf2097bdf36a3086f0b5c183754b00e2abd75874336c`;
+final author file8/8 passes, log
+`875aa41736e039ae91317ea1107b4478b87886acd284d2f8c4ddf87ae638f5f1`.
+Receipt `405516d7b0b7f3815bb8cf306cb6e43bb802d24cf24c943d0fe20c91608c8529`
+retains exact baseline/owned-delta overlay provenance, including the existing
+walkthrough-only guard. Its seventeen baseline hashes, sixteen unchanged/matching
+final candidate hashes, final test hash and linked logs were checked; the final
+signed-route return-wake delta is separately reviewed rather than mislabeled as
+part of that older overlay. Actual final36bffa source executes the same SDK,
+canonical private writer, owner GET/SSR and existing worker controls15/15,
+`advisory-automatic-web-integrated.log` SHA-256
+`63a12c59fe62afe20c21bda38e6c2e9abd628ead98c3fcf548958abd5dd05835`.
+
+All prior fake-database/generation-object, scripted-provider, synthetic seven-byte
+video, inline-writer and static-rendering limits remain. No live credentials,
+provider call, new allowance, browser journey, real video perception or deployed
+customer assessment is established. No new timer, service, migration, index or
+extra test framework was introduced. Final exact-head checks and release/actual
+configured-runtime verification remain required; source approval does not
+promote the unconfigured worker to readiness.
