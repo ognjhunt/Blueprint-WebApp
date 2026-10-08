@@ -260,7 +260,8 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     return { ...base, status: "completed", output: packet.assessment,
       artifacts: { site_assessment_packet: packet, site_assessment_packet_sha256: digest(packet), source_admission: sourceAdmission, capture_inference_reservations: captureReservations, ...budget.artifacts() } };
   } catch (error) {
-    host.experiment?.record_error?.(error);
+    // Diagnostics must never replace the original result or its retained reservations.
+    try { host.experiment?.record_error?.(error); } catch {}
     const code = errorField(error, "message");
     const message = error instanceof Error && typeof code === "string" && assessmentErrorCodes.has(code) ? code : "site_assessment_failed";
     return { ...base, status: message === "site_assessment_cancelled" ? "cancelled" : "failed", error: message,

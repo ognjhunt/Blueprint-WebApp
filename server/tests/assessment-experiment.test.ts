@@ -122,10 +122,11 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
   it("runs the real command's two explicit denial paths and writes readable nonzero results without model dispatch", () => {
     const file = ledger(), dir = path.dirname(file), input = path.join(dir, "input.json");
     writeExperimentJson(input, { message: "Synthetic offline plumbing", context: { request_id: source.request_id } });
-    const command = (mode: string, extra: string[]) => {
-      const output = path.join(dir, mode + "-" + extra.length);
-      const env = { ...process.env, NODE_ENV: "test", BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP: "true", OPENAI_API_KEY: "",
-        GEMINI_API_KEY: "", GOOGLE_GENERATIVE_AI_API_KEY: "", GOOGLE_AI_STUDIO_API_KEY: "", FIREBASE_SERVICE_ACCOUNT_JSON: "",
+    let commands = 0;
+    const command = (mode: string, extra: string[], configured = false) => {
+      const output = path.join(dir, mode + "-" + commands++);
+      const env = { ...process.env, NODE_ENV: "test", BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP: "true", OPENAI_API_KEY: configured ? "synthetic-not-a-provider-key" : "",
+        GEMINI_API_KEY: configured ? "synthetic-not-a-provider-key" : "", GOOGLE_GENERATIVE_AI_API_KEY: "", GOOGLE_AI_STUDIO_API_KEY: "", FIREBASE_SERVICE_ACCOUNT_JSON: "",
         GOOGLE_APPLICATION_CREDENTIALS: "", GOOGLE_CLOUD_PROJECT: "", K_SERVICE: "", FUNCTION_TARGET: "" };
       const execution = spawnSync(path.resolve("node_modules/.bin/tsx"), ["scripts/site-assessment-iterate.ts", "--mode", mode,
         "--input", input, "--output", output, ...extra], { encoding: "utf8", env });
@@ -139,6 +140,8 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     expect(command("saved-evidence", ["--evidence", path.join(dir, "not-borrowed.json")]).error.code).toBe("experiment_explicit_provider_approval_required");
     expect(command("fresh-video", ["--approved-budget", file]).error.code).toBe("experiment_openai_credential_missing");
     expect(command("saved-evidence", ["--evidence", path.join(dir, "not-borrowed.json"), "--approved-budget", file]).error.code).toBe("experiment_openai_credential_missing");
+    const admitted = command("fresh-video", ["--approved-budget", file], true);
+    expect(admitted.result?.error, JSON.stringify(admitted.error)).toBe("site_assessment_lane_unavailable");
     expect(JSON.parse(fs.readFileSync(file, "utf8")).slots.every((slot: any) => slot.state === "held")).toBe(true);
   });
   it("retains the unchanged production pricing reservation", () => {
