@@ -91,15 +91,24 @@ export function bindBrowserAssessmentSource(requestId: string, record: Record<st
 export { SiteAssessmentBudget } from "./site-assessment-budget";
 import { SiteAssessmentBudget } from "./site-assessment-budget";
 
-/** Trusted local experiment host changes reservation persistence only. All live source checks remain below. */
+/** Trusted local host substitutes persistence, with optional explicit context omission. All live source checks remain below. */
 export interface SiteAssessmentExperiment {
   mode: "saved-evidence" | "fresh-video";
+  model_context?: "video-only";
   prepare: (source: Record<string, any>) => Promise<NonNullable<SiteAssessmentOptions["retained_video_sources"]>>;
   reserve: (...args: Parameters<typeof reserveCaptureCoverageInference>) => Promise<{
     receipt: Record<string, unknown>; assertDispatchAllowed(): Promise<void>; record(usage: unknown): Promise<void>;
   }>;
   analyze_video?: SiteAssessmentOptions["analyze_video"];
   record_error?: (error: unknown) => void;
+}
+/** Diagnostic suppression only: never changes admitted video, identity, rights or stored context. */
+export function assessmentModelContext(input: SiteAssessmentInput, context?: "video-only"): SiteAssessmentInput {
+  if (context === undefined) return input;
+  if (context !== "video-only") throw new Error("experiment_model_context_invalid");
+  return { ...input, operator_messages: [], prior_assessment: undefined, task_instruction: undefined,
+    site_requirement: { spec: {}, serviceArea: null,
+      location: { label: null, city: null, state: null, country: null }, taskFamily: null } };
 }
 export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void>;
   experiment?: SiteAssessmentExperiment }): Promise<AgentResult> {
@@ -214,16 +223,18 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       if (packet?.request_id !== input.context.request_id) throw new Error("site_assessment_conversation_request_mismatch");
       priorPacket = packet;
     }
+    const modelInput = assessmentModelContext({ request_id: input.context.request_id, operator_messages: messages,
+      task_instruction: input.message, prior_assessment: priorPacket?.assessment,
+      video: { source_id: pending.capture_id, source_ref: videoRef,
+        url, sha256: videoSha, duration_seconds: bound.duration_seconds }, site_requirement: toSiteRequirement(request) }, host.experiment?.model_context);
     const experimentSources = host.experiment ? await host.experiment.prepare({ ...sourceAdmission,
       experiment_context_digest: inferenceProgrammeContextDigest(raw, brief), producer_source: privacy.producer_source,
-      operator_messages_sha256: videoAnalysisOperatorDigest(messages) }) : undefined;
+      model_context: host.experiment.model_context ?? "production",
+      operator_messages_sha256: videoAnalysisOperatorDigest(modelInput.operator_messages) }) : undefined;
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: "https://api.openai.com/v1", maxRetries: 0, timeout: getOpenAiTimeoutMs() });
     const provider = new OpenAIProvider({ useResponses: true,
       openAIClient: client as unknown as NonNullable<ConstructorParameters<typeof OpenAIProvider>[0]>["openAIClient"] });
-    instance = await createSiteAssessmentAgent({ request_id: input.context.request_id, operator_messages: messages,
-      task_instruction: input.message, prior_assessment: priorPacket?.assessment,
-      video: { source_id: pending.capture_id, source_ref: videoRef,
-        url, sha256: videoSha, duration_seconds: bound.duration_seconds }, site_requirement: toSiteRequirement(request) }, {
+    instance = await createSiteAssessmentAgent(modelInput, {
       history_access: await (async () => {
         const access = await getCompanyHistoryAccess(task);
         // Experiments authorize Sol/Gemini only. Preserve read scope, suppress optional paid embeddings.

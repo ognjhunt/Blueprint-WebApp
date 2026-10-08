@@ -22,6 +22,7 @@ const inputSchema = z.object({ message: z.string().min(1).max(8000),
   retention: experimentRetention.optional(),
   video_binding: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().positive() }).strict().optional(),
   execution_scope: z.literal("read-only-preflight").optional(),
+  model_context: z.literal("video-only").optional(),
   local_video: z.object({ path: z.string().min(1), sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().positive() }).strict().optional(),
 }).strict();
 const readJson = (file: string) => JSON.parse(fs.readFileSync(file, "utf8"));
@@ -132,13 +133,15 @@ async function main() {
     run.stage = "production_adapter_admission";
     run.scope = { reused_stage: values.mode === "saved-evidence" ? "Gemini observations" : null,
       upload_retested: false, customer_workflow_retested: false, business_writes: false, embeddings: "disabled; authorized lexical history remains",
-      reservation_persistence: "dedicated run-local accounting; no spending gates", model_substitution: false };
-    const { local_video, video_binding, execution_scope, retention, ...taskInput } = input;
+      reservation_persistence: "dedicated run-local accounting; no spending gates", model_substitution: false,
+      model_context: input.model_context ?? "production", context_omitted: input.model_context === "video-only",
+      production_context_parity: input.model_context !== "video-only" };
+    const { local_video, video_binding, execution_scope, retention, model_context, ...taskInput } = input;
     const task = { kind: "site_assessment", input: taskInput, provider: "openai_responses", runtime: "openai_agents_sdk", model: SITE_ASSESSMENT_MODEL,
       definition: siteAssessmentTask, tool_policy: { ...siteAssessmentTask.tool_policy, allowed_domains: ["api.openai.com", "generativelanguage.googleapis.com", "storage.googleapis.com"],
         isolated_runtime_required: false }, metadata: {} } as any;
     run.result = await runSiteAssessmentTask(task, { runId, assertActive: async () => retainFailure(async () => accounting!.assertActive()), assertCostAllowed: async () => retainFailure(async () => accounting!.assertActive()),
-      experiment: { record_error: error => { run.error ??= failure(error); run.failure_stage ??= run.stage; }, mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
+      experiment: { model_context, record_error: error => { run.error ??= failure(error); run.failure_stage ??= run.stage; }, mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
         run.source = source; accounting!.bind(source);
         if (source.video_sha256 !== expectedVideo.sha256 || source.video_bytes !== expectedVideo.bytes) throw Error("experiment_uploaded_video_binding_changed");
         run.stage = "evidence_binding";

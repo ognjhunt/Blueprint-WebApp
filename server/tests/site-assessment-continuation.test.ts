@@ -26,6 +26,27 @@ const observation = (n: number) => ({ summary: `Reading ${n}`, observations: [{ 
   start_seconds: n, end_seconds: n + 1, uncertainty: null }], not_observable: ['Success criterion'] });
 beforeEach(() => { vi.clearAllMocks(); vi.stubEnv('GEMINI_API_KEY', 'noncredential-offline-fixture'); vi.stubEnv('BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD', '5'); });
 describe('assessment continuation policy (scripted SDK, no provider dispatch)', () => {
+  it('recovers string null optional search fields without bypassing real cursor or access checks', async () => {
+    let turn = 0;
+    const scripted: Model = { async getResponse() {
+      turn++;
+      return { usage: new Usage(), output: turn < 3 ? [{ type: 'function_call' as const, callId: `search-${turn}`, name: 'search_robot_knowledge',
+        arguments: JSON.stringify({ query: 'visible manipulation', city: 'null', task: null, company: 'null', kind: null,
+          cursor: turn === 1 ? 'null' : 'invalid-real-cursor' }) }]
+        : [{ type: 'message' as const, role: 'assistant' as const, status: 'completed' as const,
+          content: [{ type: 'output_text' as const, text: JSON.stringify(final) }] }] };
+    }, async *getStreamedResponse() { throw Error('not_used'); } };
+    const history = vi.fn(async (_name, args) => args.cursor
+      ? { ok: false, error: 'company_history_cursor_changed' } : { ok: true, rows: [], next_cursor: null });
+    const access = { principalId: 'retained-scope', companyWide: false, expiresAt: '2099-01-01T00:00:00Z' };
+    const agent = await createSiteAssessmentAgent({ ...input, operator_messages: [] }, {
+      history_access: access, model: scripted, history_tool: history, authorize_model_call: async () => {} });
+    const packet = await agent.run();
+    expect(history.mock.calls[0]).toEqual(['search_company_history', { query: 'visible manipulation', filters: {}, page_size: 20 }, access]);
+    expect(history.mock.calls[1][1]).toHaveProperty('cursor', 'invalid-real-cursor');
+    expect(packet.tool_receipts.map(row => (row.result as any).ok)).toEqual([true, false]);
+    expect(packet.sources.some(row => row.kind === 'operator')).toBe(false);
+  });
   it('continues past twelve SDK turns while new evidence remains available', async () => {
     let n = 0; const analyze = vi.fn(async () => ({ evidence: observation(++n), receipt: { mode: 'offline' } }));
     const authorize = vi.fn(async () => {});

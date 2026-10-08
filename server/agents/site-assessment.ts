@@ -303,9 +303,15 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         company: z.string().nullable(), kind: z.string().nullable(), cursor: z.string().nullable().describe("Null for a new or restarted search; otherwise the exact next_cursor returned for this unchanged query and filters. Never invent a cursor.") }),
       execute: async args => {
         if (!options.history_access) return retained("search_robot_knowledge", args, { ok: false, error: "knowledge_scope_unavailable" });
-        const filters = Object.fromEntries(["city", "task", "company", "kind"].flatMap(key => args[key as "city"] ? [[key, args[key as "city"]]] : []));
+        // Some valid SDK responses spell nullable fields as the string "null".
+        // Recover only that absence marker; real cursors still undergo backend binding checks.
+        const optional = (value: string | null) => value?.trim().toLowerCase() === "null" ? null : value;
+        const filters = Object.fromEntries(["city", "task", "company", "kind"].flatMap(key => {
+          const value = optional(args[key as "city"]); return value ? [[key, value]] : [];
+        }));
+        const cursor = optional(args.cursor);
         return retained("search_robot_knowledge", args, await history("search_company_history",
-          { query: args.query, filters, page_size: 20, ...(args.cursor ? { cursor: args.cursor } : {}) }, options.history_access));
+          { query: args.query, filters, page_size: 20, ...(cursor ? { cursor } : {}) }, options.history_access));
       },
     }),
     tool({ name: "fetch_robot_knowledge", description: "Fetch one original authorized record by the exact record_id returned by search. Inspect source hash, original check date, scope, corrections and unknowns; cite the returned source_id.",

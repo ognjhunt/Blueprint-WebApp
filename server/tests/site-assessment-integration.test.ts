@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bindBrowserAssessmentSource, SiteAssessmentBudget } from "../agents/adapters/site-assessment";
+import { assessmentModelContext, bindBrowserAssessmentSource, SiteAssessmentBudget } from "../agents/adapters/site-assessment";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { extractAgentCostTelemetry } from "../utils/agentCostTelemetry";
@@ -22,6 +22,21 @@ const telemetry = (budget: SiteAssessmentBudget) => extractAgentCostTelemetry({ 
   provider: "openai_responses", model: "gpt-6.1-sol", artifacts: budget.artifacts() });
 
 describe("site assessment integration boundaries", () => {
+  it("omits job hints only for an explicit diagnostic while preserving source identity and original input", () => {
+    const input = { request_id: "one", operator_messages: [{ id: "owner", text: "Named task", source_ref: "stored-owner" }],
+      task_instruction: "Named host task", prior_assessment: { status: "assessment" } as any,
+      video: { source_id: "walkthrough-one", source_ref: "gs://admitted-source#generation=1", url: "", sha256: "a".repeat(64), duration_seconds: 30 },
+      site_requirement: { spec: { job: "named" }, serviceArea: "named", taskFamily: "named",
+        location: { label: "named", city: "named", state: "named", country: "named" } } };
+    expect(assessmentModelContext(input)).toBe(input);
+    const diagnostic = assessmentModelContext(input, "video-only");
+    expect(diagnostic.request_id).toBe(input.request_id); expect(diagnostic.video).toBe(input.video);
+    expect(diagnostic.operator_messages).toEqual([]); expect(diagnostic.prior_assessment).toBeUndefined();
+    expect(diagnostic.task_instruction).toBeUndefined(); expect(diagnostic.site_requirement).toEqual({ spec: {}, serviceArea: null,
+      taskFamily: null, location: { label: null, city: null, state: null, country: null } });
+    expect(input.operator_messages[0].text).toBe("Named task");
+    expect(() => assessmentModelContext(input, "replace-video" as any)).toThrow("experiment_model_context_invalid");
+  });
   it("retains cache-write exposure while calls continue without a spending cap", () => {
     vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "0.61");
     const budget = new SiteAssessmentBudget();
