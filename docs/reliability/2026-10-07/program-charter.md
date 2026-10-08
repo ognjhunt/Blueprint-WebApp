@@ -178,3 +178,23 @@ After freezing that run, both harnesses added an empty external-KMS configuratio
 pin. Removing only that line reconstructs both executed source hashes, retained
 under the private run sources directory. The run used env-i without KMS; assertions
 and runtime code did not change. A final pinned replay is recorded separately.
+
+## Scoped browser capability decision, 2026-10-08 05:22 UTC
+
+New multi-tab regressions demonstrate stale autosave authority replacement and
+late acknowledgements resurrecting explicitly cleared local work. The repaired
+fresh-intake path serializes autosave/freeze/acknowledgement/refusal/clear under a
+secure-context origin Web Lock and requires available local persistence. Missing
+capabilities refuse before dispatch with another-browser/existing support-contact
+guidance; a saved-link fallback is offered only when already available. This
+consequential duplicate/lost-work control applies to the evaluated intake path;
+existing private-link upload routes and parallel customer conversations retain
+their own authority. No new customer/provider budget gate is introduced.
+
+Observed browser coverage is native Chromium profile return and mobile browser
+emulation. Safari, private-session persistence and immediate forced-kill draft
+durability are not certified. Baseline production1b8d810 has no persistent draft
+helper: unrepaired v1 unconditional writers were never deployed, so no legacy
+production persistent-writer incident is inferred. Floors/severity/acceptance
+criteria remain unchanged; sixteen new offline and four intercepted browser
+counterexamples are supplemental, not retroactive additions to the frozen300.

@@ -19,5 +19,19 @@
   "reference_real_site_sources": 1,
   "reference_min": 12,
   "reference_source_shortfall": 11,
-  "semantic_expectations_status": "PROVISIONAL_agent_checked_source_admission; no truth inheritance"
+  "semantic_expectations_status": "PROVISIONAL_agent_checked_source_admission; no truth inheritance",
+  "separate_semantic_catalog": {
+    "path": "program-semantic-variants.json",
+    "schema": "provisional.v2",
+    "generated": 120,
+    "deduplicated": 120,
+    "typed_raw_unique": 120,
+    "model_attempted": 0,
+    "model_passed": 0,
+    "model_failed": 0,
+    "unscored": 120,
+    "independent_expectation_review": true,
+    "label_scope": "Invented source packets, PROVISIONAL; no human truth or physical video added",
+    "corrections": "Narrow supported statements separated from broader forbidden assertions before any scoring; no inherited labels"
+  }
 }
