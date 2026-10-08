@@ -41,6 +41,7 @@ test("UI-RETURN-002 close tab and return preserves draft, without renewing conse
   await expect(returning.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
   await expect(returning.locator("#start-rights")).not.toBeChecked();
   await returning.getByRole("button", {name: "Clear this browser's draft"}).click();
+  await expect(returning.getByRole("status").filter({hasText:"has been cleared"})).toBeVisible();
   await returning.reload(); await expect(returning.locator("#start-task")).toHaveValue("");
 });
 test("UI-RETURN-003 browser storage restore returns acknowledged same job and renews expired link", async ({ page, browser }) => {
@@ -243,4 +244,66 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
       await expect(returning.getByRole("heading",{name:"Your recording is in."})).toHaveCount(0);
     } finally {await resumedBrowser.close();}
   } finally {await firstBrowser.close();}
+});
+
+// A held real WebLock makes the clear/leave boundary deterministic without
+// replacing IndexedDB or intercepting any persistence calls.
+async function holdRecoveryLock(context: import("@playwright/test").BrowserContext) {
+  const holder=await context.newPage();await holder.goto("/contact/site-operator");
+  await expect(holder.locator("#start-task")).toBeEnabled();
+  await holder.evaluate(()=>{
+    (window as any).reliabilityHeld=false;
+    void navigator.locks.request("bp-site-capture:v1:anonymous:default",async()=>{
+      (window as any).reliabilityHeld=true;
+      await new Promise<void>(resolve=>{(window as any).reliabilityRelease=resolve;});
+    });
+  });
+  await expect.poll(()=>holder.evaluate(()=>(window as any).reliabilityHeld)).toBe(true);
+  return {release:()=>holder.evaluate(()=>(window as any).reliabilityRelease()),holder};
+}
+async function recoveryMirrors(page:Page) {
+  return page.evaluate(async()=>{
+    const key="bp-site-capture:v1:anonymous:default", local=JSON.parse(localStorage.getItem(key)!);
+    const durable=await new Promise<any>((resolve,reject)=>{
+      const request=indexedDB.open("blueprint-site-capture-recovery-v1",1);
+      request.onerror=()=>reject(request.error);
+      request.onupgradeneeded=()=>{request.transaction!.abort();reject(new Error("Expected existing recovery database"));};
+      request.onsuccess=()=>{const db=request.result,tx=db.transaction("recovery","readonly"),read=tx.objectStore("recovery").get(key);
+        read.onsuccess=()=>resolve(read.result);read.onerror=()=>reject(read.error);tx.oncomplete=()=>db.close();tx.onabort=()=>{db.close();reject(tx.error);};};
+    });
+    return {local,durable};
+  });
+}
+test("UI-CLEAR-001 acknowledged clear commits both stores before reload",async({page,context})=>{
+  await page.goto("/contact/site-operator");await fill(page);
+  await expect.poll(async()=>(await recoveryMirrors(page)).durable.value.draft.task).toBe("Move sealed cartons to the pallet");
+  const lock=await holdRecoveryLock(context),original=await recoveryMirrors(page);
+  await page.getByRole("button",{name:"Clear this browser's draft"}).click();
+  await expect(page.getByRole("status").filter({hasText:"Clearing this browser's draft"})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Clearing…",exact:true})).toBeDisabled();
+  await expect(page.locator("#start-task")).toBeDisabled();
+  await expect(page.getByRole("button",{name:"Start free assessment"})).toBeDisabled();
+  await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toHaveCount(0);
+  expect(await recoveryMirrors(page)).toEqual(original);
+  await lock.release();await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toBeVisible();
+  await expect(page.locator("#start-task")).toHaveValue("");
+  const cleared=await recoveryMirrors(page);expect(cleared.durable.retired).toBe(false);expect(cleared.durable.value).toEqual(cleared.local);
+  expect(cleared.local.requestId).not.toBe(original.local.requestId);expect(cleared.local.pending).toBeNull();
+  for(const field of ["task","location","email","company"])expect(cleared.local.draft[field]).toBe("");
+  await page.reload();await expect(page.locator("#start-task")).toHaveValue("");
+  const returned=await recoveryMirrors(page);expect(returned.local.requestId).toBe(cleared.local.requestId);expect(returned.durable.value).toEqual(returned.local);
+  await expect(lock.holder.locator("#start-task")).toHaveValue("");
+});
+test("UI-CLEAR-002 reload before clear acknowledgement preserves unretired draft",async({page,context})=>{
+  await page.goto("/contact/site-operator");await fill(page);
+  await expect.poll(async()=>(await recoveryMirrors(page)).durable.value.draft.task).toBe("Move sealed cartons to the pallet");
+  const lock=await holdRecoveryLock(context),original=await recoveryMirrors(page);
+  await page.getByRole("button",{name:"Clear this browser's draft"}).click();
+  await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toHaveCount(0);
+  const loaded=page.waitForEvent("domcontentloaded"),navigation=page.reload();
+  await loaded;await lock.release();await navigation;
+  await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
+  const returned=await recoveryMirrors(page);expect(returned.local.requestId).toBe(original.local.requestId);expect(returned.local.draft).toEqual(original.local.draft);
+  expect(returned.durable.value).toEqual(returned.local);expect(returned.durable.retired).toBe(false);
+  await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toHaveCount(0);
 });

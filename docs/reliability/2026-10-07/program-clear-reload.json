@@ -1,0 +1,325 @@
+{
+  "schema": "blueprint.clear-reload.v2",
+  "frozen_at": "2026-10-08T11:06:41.755849+00:00",
+  "baseline_sha": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be",
+  "existing_case": "UI-RETURN-002",
+  "contract_correction": "Await actual user-visible durable completion before asserting acknowledged clear survives reload; preserve immediate-reload CI failure and add interrupted-before-ACK neighbor. No arbitrary sleep.",
+  "supplemental_cases": [
+    {
+      "id": "UI-CLEAR-001",
+      "condition": "Real origin WebLock held by second tab while clear intent waits; busy controls/no success; release and durable completion then reload, both stores fresh empty identity.",
+      "semantic_condition_sha256": "531ad5a5c4c84f82cc6aa1ae6a40ec744740939f5f1d85a1d6bd40e78bd2db59"
+    },
+    {
+      "id": "UI-CLEAR-002",
+      "condition": "Same real held lock; clear intent followed by literal immediate reload before ACK; release lock; original durable draft remains and no completion was shown.",
+      "semantic_condition_sha256": "851678486df546bf64330fee4cd6f53e69b1a1d2e2cce0d6b83594936086fc9f"
+    }
+  ],
+  "expected_unique_delta": 2,
+  "layer": "actual Chromium UI/local IndexedDB; API intercepted; no backend/provider evidence",
+  "repeats_selected": 3,
+  "source_sha256": {
+    "client/src/components/site/SiteCaptureStart.tsx": "c94d8aac950e6dc0616f66b770849b6d1f33218aa78133b6762fb235825db368",
+    "client/src/lib/siteCaptureDraft.ts": "45dbdfbdb0eb5df69711703d521b44796522b48ff9bf70ec870f77dcfed7ee62",
+    "client/src/lib/siteCaptureDurability.ts": "14cae68c96d26f791431ecdb000397bc42c38161cae1098788cd8fb1f6345087"
+  },
+  "ci_failure": "main run37766871316 job113276689429; original UI002 clear-click/immediate-reload received old task for12sec",
+  "test_definition_sha256": "7a4d4723787fef3119c0ffcb3a6c3dace13268dec96d1a820efa7b89233c1986",
+  "corrections": [
+    {
+      "reason": "First held-lock interruption probe released immediately after sending navigation, before old document ended; clear could commit legitimately. Correct boundary awaits new-document DOMContentLoaded before release. Capture original mirrors after second-tab mount autosaves drain into held lock, avoiding timestamps from unrelated mount save.",
+      "frozen_at": "2026-10-08T11:07:37.911143+00:00",
+      "original_attempts": "held-baseline2failed; UI001 missing progress; UI002 boundary probe invalid for cancellation because release preceded old document end."
+    }
+  ],
+  "candidate_frozen_at": "2026-10-08T11:10:48.398835+00:00",
+  "candidate_source_sha256": {
+    "client/src/components/site/SiteCaptureStart.tsx": "98b277068837ac9d89fffbc0d306f1193e8b9d6e72beebdab642c1227a170581",
+    "client/tests/components/SiteCaptureStart.durability.test.tsx": "cfd7007ca83ff6b9c5ebaedb0e13fd20797e0df705501564135c260d9100b329",
+    "e2e/reliability-program-intake.spec.ts": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+  },
+  "product_change": "Every existing Clear control exposes pending/completed/failure; fresh submission/edits blocked during clear; successful completion follows both-store commit. UI002 retains reload-empty assertion after semantic durable acknowledgement.",
+  "runs": [
+    {
+      "name": "unchanged-8c6",
+      "phase": "unchanged-original-case",
+      "attempted": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "elapsed_ms": 18268.441,
+      "results_sha256": "9db46730426bed8c56cb9b0445e3fa526e6ca0e31e01618265a91e9b90aa68d6",
+      "traces": [
+        {
+          "path": "output/reliability-program/clear-reload/unchanged-8c6/reliability-program-intake-8e207-ft-without-renewing-consent/trace.zip",
+          "sha256": "dbc6de9084f63311cf13cf9c3cdf5f499ea2b3426a2ad51fd13f34c730eabfab",
+          "executed_test_definition_sha256": "2602ab648d99b70a0b2a393d02c4efc3fe144bc39359941540a610b8c6ca1023"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/unchanged-8c6/reliability-program-intake-8e207-ft-without-renewing-consent-repeat1/trace.zip",
+          "sha256": "afce71e9c99ce5063e525236078b63357018a1377fbb0dbe11cd990aca2dcdd8",
+          "executed_test_definition_sha256": "2602ab648d99b70a0b2a393d02c4efc3fe144bc39359941540a610b8c6ca1023"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/unchanged-8c6/reliability-program-intake-8e207-ft-without-renewing-consent-repeat2/trace.zip",
+          "sha256": "58258d9cdbd6ac196c7e7f3831d4e277512c89da77aead50683bc103ea935ad5",
+          "executed_test_definition_sha256": "2602ab648d99b70a0b2a393d02c4efc3fe144bc39359941540a610b8c6ca1023"
+        }
+      ]
+    },
+    {
+      "name": "held-baseline",
+      "phase": "initial-diagnostic-harness",
+      "attempted": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "elapsed_ms": 38105.935,
+      "results_sha256": "5ba2ebb0769b83f624f37656efa8a2c86893f5be906fc3705ece8b37f1eb73b7",
+      "traces": [
+        {
+          "path": "output/reliability-program/clear-reload/held-baseline/reliability-program-intake-4fdd0-t-preserves-unretired-draft/trace.zip",
+          "sha256": "8f07c399746a0ceaec3206fc8ddc3ca42962b0fdd35fdb247adb4bc77bd91b0c",
+          "executed_test_definition_sha256": "dbfdd7a9ba176bcb38644a0fe39ac23e72ba5706acb3a957d3057533544f378e"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/held-baseline/reliability-program-intake-811ae-s-both-stores-before-reload/trace.zip",
+          "sha256": "82a5af090217f7ce7b3377b7fb83112b794016a5fe3e9976c9f0a8d29e71c478",
+          "executed_test_definition_sha256": "dbfdd7a9ba176bcb38644a0fe39ac23e72ba5706acb3a957d3057533544f378e"
+        }
+      ]
+    },
+    {
+      "name": "interruption-baseline-v2",
+      "phase": "corrected-baseline",
+      "attempted": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "elapsed_ms": 10217.505,
+      "results_sha256": "d46aaab825603098a3966e4143dc18183187a78092dd510d111d812fabdcf36c",
+      "traces": [
+        {
+          "path": "output/reliability-program/clear-reload/interruption-baseline-v2/reliability-program-intake-4fdd0-t-preserves-unretired-draft/trace.zip",
+          "sha256": "1b73ff4b302dd481d244ca887dc284a1287175bd3495240a01a7e5af7019fcaf",
+          "executed_test_definition_sha256": "7a4d4723787fef3119c0ffcb3a6c3dace13268dec96d1a820efa7b89233c1986"
+        }
+      ]
+    },
+    {
+      "name": "ack-baseline-v2",
+      "phase": "corrected-baseline",
+      "attempted": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "elapsed_ms": 20682.876,
+      "results_sha256": "1fa5d7dd6d2d695981aeffa72b6af800d4fa5e9ec4d5b298c059c98d57d11626",
+      "traces": [
+        {
+          "path": "output/reliability-program/clear-reload/ack-baseline-v2/reliability-program-intake-811ae-s-both-stores-before-reload/trace.zip",
+          "sha256": "15ba1ad7322dad7d0edcc5732c4ddfc7a9401ee12006c2c5c9f672380ca334e4",
+          "executed_test_definition_sha256": "7a4d4723787fef3119c0ffcb3a6c3dace13268dec96d1a820efa7b89233c1986"
+        }
+      ]
+    },
+    {
+      "name": "candidate-selected",
+      "phase": "candidate",
+      "attempted": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "elapsed_ms": 37596.4,
+      "results_sha256": "f9a5cd0bca10b186fce4eac44264a2fdbc248beb5728eb5551357271ab2e586c",
+      "traces": [
+        {
+          "path": "output/reliability-program/clear-reload/candidate-selected/reliability-program-intake-4fdd0-t-preserves-unretired-draft/trace.zip",
+          "sha256": "2e9ac957cfca2068ade7508d72e8bc254307697c1972bb980014a911f28451c6",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-selected/reliability-program-intake-4fdd0-t-preserves-unretired-draft-repeat1/trace.zip",
+          "sha256": "33a860752ae31918ed61ca844b8220354beef7e4b5dbf9746c978b154faa86fb",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-selected/reliability-program-intake-4fdd0-t-preserves-unretired-draft-repeat2/trace.zip",
+          "sha256": "865858cdbc3c3d744fe06e4e38aba0f284bac6f0818dc4561b220cdd149844d6",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-selected/reliability-program-intake-811ae-s-both-stores-before-reload/trace.zip",
+          "sha256": "d091507b252f3199fa7a58ca6656618aba32569bed52d23fd61d87b2295a2517",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-selected/reliability-program-intake-811ae-s-both-stores-before-reload-repeat1/trace.zip",
+          "sha256": "01cb0975cc9cbe11f29112c20de46ccf95fdb30d4e81d7f37736649bacc8d346",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-selected/reliability-program-intake-811ae-s-both-stores-before-reload-repeat2/trace.zip",
+          "sha256": "c3adecf03e0e151a485d7d9bbc2f0925476739f571594bb81e45f37efab873af",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-selected/reliability-program-intake-8e207-ft-without-renewing-consent/trace.zip",
+          "sha256": "de85fff9c2789b66800704c69da2e0afc5f58b2e250acabf9d86350554fafdf6",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-selected/reliability-program-intake-8e207-ft-without-renewing-consent-repeat1/trace.zip",
+          "sha256": "36cc2528b7da1ca621e939b248a43b73ef5e0caff5c1985f8c6983a66fa35ba9",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-selected/reliability-program-intake-8e207-ft-without-renewing-consent-repeat2/trace.zip",
+          "sha256": "f5c2025edd8b79722cef1d6a9f69f368149f9195d4721d07fd877fcb944f9e99",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        }
+      ]
+    },
+    {
+      "name": "candidate-full14",
+      "phase": "candidate",
+      "attempted": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "elapsed_ms": 41840.251000000004,
+      "results_sha256": "d688132e82b038d0683bfdd093cc0b316076deff964d27e733afc6450f4d15af",
+      "traces": [
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-01ba7-before-fresh-explicit-Start/trace.zip",
+          "sha256": "d3c8b5f59751044e847d4f97c4f82b2c7598fdc55cb9d0d5ebe0744007c62711",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-12ded-d-recover-original-identity/trace.zip",
+          "sha256": "33752d023b2e25d8fd21ec2371cffce048f40c0e7dd60b40835de04aeb428e50",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-15624-provider-s-draft-or-consent/trace.zip",
+          "sha256": "fb69fd63cf6fe56e6942fbaf0834811c7d6ebb99d2e23806ce72d7b52713bc2a",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-45f6c--next-step-without-dispatch/trace.zip",
+          "sha256": "bb8ac6522b4c1bda40d9d335d380fb921cb82ed6e3df8cf9c049598d50d1aae2",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-4fdd0-t-preserves-unretired-draft/trace.zip",
+          "sha256": "779075e58f8c4efe9067e8142491720b86a4daf4ef31129fca1e012d3dc92a71",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-56e22-eserve-winner-across-reload/trace.zip",
+          "sha256": "99a9c649492a7de0d871da4326517d31a27595ef6c9ff69fb26b0669e31be139",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-6fac8-nd-fields-remain-repairable/trace.zip",
+          "sha256": "b6261c31278910458be2aa93715f19efa84e95275396dd04bc241cfc9c0b50bb",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-811ae-s-both-stores-before-reload/trace.zip",
+          "sha256": "77e7b1da0a6df0e108939b1d7cadab28557af3307ebe79ab7ad188f8e3fef259",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-830eb-job-and-renews-expired-link/trace.zip",
+          "sha256": "d736406ea0f66fff279060debcf993a41976fd94c6b3f91a42328ae0e196298c",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-8e207-ft-without-renewing-consent/trace.zip",
+          "sha256": "6832566707b43397145763102c3213380907fdb5d334cc4e7474ad395d3ffd0a",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-9c4c9--returns-to-the-same-intake/trace.zip",
+          "sha256": "63a631e3376150997aff1956932070b1e10a5d04cbaf1780c045ddffcde2f9c7",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-ad0c7-asquerade-as-upload-receipt/trace.zip",
+          "sha256": "e67fc127ead7bc48b982a322b4a0fb855a39965704c5100b0bc6fea0e266f202",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-b64b6-ares-exact-frozen-authority/trace.zip",
+          "sha256": "157ffe432d3a4935e683d48d62f30c61c558320ba790d25204821e29d01ad1c3",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        },
+        {
+          "path": "output/reliability-program/clear-reload/candidate-full14/reliability-program-intake-d0aa4-ches-one-logical-submission/trace.zip",
+          "sha256": "01b417240ef4e678bfcea074484abfd52e333f3cb8b65675a2dad203b95b8e32",
+          "executed_test_definition_sha256": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+        }
+      ]
+    }
+  ],
+  "candidate_counts": {
+    "unique_browser_cases": 14,
+    "existing_browser_cases": 12,
+    "new_supplemental_cases": 2,
+    "attempted": 23,
+    "passed": 23,
+    "failed": 0,
+    "selected_cases_attempts_each": 4,
+    "repeat_attempts_not_unique": true
+  },
+  "candidate_source_sha256_after_execution": {
+    "client/src/components/site/SiteCaptureStart.tsx": "98b277068837ac9d89fffbc0d306f1193e8b9d6e72beebdab642c1227a170581",
+    "client/tests/components/SiteCaptureStart.durability.test.tsx": "2c2bc05356b776571527f6b4dc68573f62e14bc2a619f9fe05ca633ead74065d",
+    "e2e/reliability-program-intake.spec.ts": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+  },
+  "unit_runs": [
+    {
+      "name": "unit-baseline",
+      "description": "2 new component expectations failed;2 existing passed",
+      "log_sha256": "f6e0b31e5c612858208d5f52599dc0b986c9cd3e43c4854d0e6db5ed351660d2"
+    },
+    {
+      "name": "unit-candidate",
+      "description": "initial candidate4passed",
+      "log_sha256": "203e500f8c436b917ccbd5630b1ac871ee76dcdac6243fb1a2b076e5a77cd7d1"
+    },
+    {
+      "name": "unit-candidate-v2",
+      "description": "shared feedback candidate4passed; intermediate source, not final acceptance",
+      "log_sha256": "2252588c7c50caba642e31b38ba8c7ca6429d99592e7d02230c8c6e96f8b9788"
+    },
+    {
+      "name": "neighbors",
+      "description": "227passed1 new testsetup failure because signed-in form lacks email field; no runtime defect; literal testfixture corrected",
+      "log_sha256": "17b95791e29d170680657299c8b48ba8ebb9027aef5d172b67d45b61d97d3aec"
+    },
+    {
+      "name": "neighbors-final",
+      "description": "final seven files228passed",
+      "log_sha256": "05153e269bad2fdbffe539e9018cb142cc2195f676cf48803cfedc34ea926afe"
+    }
+  ],
+  "verdict": "P2 missing pending/completion/failure feedback repaired; unacknowledged reload cancellation reproduced. No acknowledged-clear resurrection observed. Required-main CI failure still awaits new PR checks/merge/deploy.",
+  "privacy_scope": "Only device recovery is cleared; saved job/provider retention not deleted. No provider calls, real mails, production mutation or sensitive footage.",
+  "checks": {
+    "typecheck-final": {
+      "status": "PASS",
+      "log_sha256": "cac4641f604577738681f4f70c0ded3f441c0562d5814768106527214a0f49d4"
+    },
+    "Graphify": {
+      "status": "PASS",
+      "log_sha256": "ca03d1fa7cb54ecd6c6c17b95b2af1e464617bf453b16bad947ede07ff02badd"
+    },
+    "diffcheck": {
+      "status": "PASS"
+    }
+  },
+  "replay": "env -i PATH=\"$PATH\" HOME=\"$HOME\" TMPDIR=\"${TMPDIR:-/tmp}\" RELIABILITY_INTAKE_OUTPUT=output/reliability-program/clear-reload/replay node node_modules/@playwright/test/cli.js test --config playwright.reliability-intake.config.ts"
+}

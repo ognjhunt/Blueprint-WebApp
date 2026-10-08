@@ -71,12 +71,27 @@ function formatBytes(bytes: number) {
 }
 
 
+type ClearStatus = "idle" | "working" | "done" | "failed";
+function ClearDraftControl({status,onClear,disabled=false}:{status:ClearStatus;onClear:()=>void;disabled?:boolean}) {
+  return <>
+    <button type="button" className="ms-text-link" disabled={disabled || status === "working"} onClick={onClear}>
+      {status === "working" ? "Clearing…" : "Clear this browser's draft"}
+    </button>
+    {status === "working" && <p role="status" className="ms-field-hint">Clearing this browser's draft. Wait for confirmation before leaving this page.</p>}
+    {status === "done" && <p role="status" className="ms-field-hint">This browser's draft has been cleared.</p>}
+    {status === "failed" && <p role="alert" className="ms-field-hint">We could not confirm that this browser's draft was cleared. Stay on this page and try again before leaving a shared device.</p>}
+  </>;
+}
+
 export function SiteCaptureStart() {
   const { currentUser, loading } = useAuth();
   const authoring = typeof window === "undefined" ? "default"
     : new URLSearchParams(window.location.search).get("authoring") || "default";
   const storageKey = loading ? null : siteCaptureDraftKey(currentUser?.uid ?? null, authoring);
   const [hydrated, setHydrated] = useState<{key: string; ready: boolean} | null>(null);
+  const [clearState, setClearState] = useState<{key: string; status: ClearStatus} | null>(null);
+  const clearingScope = useRef<string | null>(null), currentScope = useRef(storageKey);
+  currentScope.current = storageKey;
   useEffect(() => {
     let active = true;
     if (storageKey) void hydrateSiteCaptureRecovery(storageKey, () => active)
@@ -84,22 +99,31 @@ export function SiteCaptureStart() {
       .catch(() => { if (active) setHydrated({key: storageKey, ready: false}); });
     return () => { active = false; };
   }, [storageKey]);
+  useEffect(() => {
+    if (hydrated?.ready && clearState?.key === hydrated.key && clearState.status === "done") setClearState(null);
+  }, [hydrated, clearState]);
   if (loading || !storageKey || hydrated?.key !== storageKey) return <p role="status">Loading your account and saved draft…</p>;
   if (!hydrated.ready) return <div className="ms-form">
     <p role="status">This browser could not safely check saved recovery details. Use your emailed private job link to return, or a supported browser with local storage enabled.</p>
-    <button type="button" className="ms-text-link" onClick={async () => {
+    <ClearDraftControl status={clearState?.key === storageKey ? clearState.status : "idle"} onClear={async () => {
+      if (clearingScope.current === storageKey) return;
+      const scope = storageKey;
+      clearingScope.current = scope; setClearState({key: scope, status: "working"});
       try {
-        const saved = await withSiteCaptureRecoveryLock(storageKey, () => resetSiteCaptureRecoveryDurably(storageKey, newSiteCaptureRecovery()));
-        if (saved) setHydrated({key: storageKey, ready: true});
-      } catch { /* Keep the recovery route and scoped failure visible. */ }
-    }}>Clear this browser's draft</button>
+        const saved = await withSiteCaptureRecoveryLock(scope, () => currentScope.current === scope && resetSiteCaptureRecoveryDurably(scope, newSiteCaptureRecovery()));
+        if (currentScope.current !== scope) return;
+        setClearState({key: scope, status: saved ? "done" : "failed"});
+        if (saved) setHydrated({key: scope, ready: true});
+      } catch { if (currentScope.current === scope) setClearState({key: scope, status: "failed"}); }
+      finally { if (clearingScope.current === scope) clearingScope.current = null; }
+    }} />
     <p className="ms-field-hint">Clearing removes only this device's recovery. It does not cancel or delete a saved job.</p>
   </div>;
   // Identity changes discard later UI updates and prevent starting another upload.
-  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} />;
+  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} cleared={clearState?.key === storageKey && clearState.status === "done"} />;
 }
 
-function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
+function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: string | null; cleared?: boolean }) {
   const { currentUser, loading } = useAuth();
   const [stored] = useState(() => readSiteCaptureRecovery(storageKey));
   const [recoveryUnavailable, setRecoveryUnavailable] = useState(() => !stored && hasSiteCaptureRecoveryBytes(storageKey));
@@ -107,6 +131,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
   const recovery = useRef<SiteCaptureRecovery>(initial);
   const [pending, setPending] = useState(initial.pending);
   const [storageAvailable, setStorageAvailable] = useState(true);
+  const [clearStatus, setClearStatus] = useState<ClearStatus>(cleared ? "done" : "idle");
   const [resetVersion, setResetVersion] = useState(0);
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
@@ -281,7 +306,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
     }
   }
   function retainDraft() {
-    if (!interactive || recoveryUnavailable || recovery.current.pending || !formRef.current) return;
+    if (!interactive || clearStatus === "working" || recoveryUnavailable || recovery.current.pending || !formRef.current) return;
     const data = new FormData(formRef.current);
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
@@ -301,17 +326,24 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
   }, [storageKey]);
   async function forgetDraft() {
     if (operationInFlight.current) return;
+    operationInFlight.current = true;
+    setClearStatus("working");
     const fresh = newSiteCaptureRecovery();
     try {
       const saved = await withSiteCaptureRecoveryLock(storageKey, () => active.current && resetSiteCaptureRecoveryDurably(storageKey, fresh));
-      if (!saved || !active.current) { setStorageAvailable(false); return; }
-    } catch { setStorageAvailable(false); return; }
-    recovery.current = fresh;
-    requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
-    setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
-    setMethod("phone"); setRegion(""); regionManuallySet.current = false;
-    setCountryOpen(false); setFootage(null); setFootageError(null); setCaptureReceived(false);
-    setResetVersion(value => value + 1);
+      if (!active.current) return;
+      if (!saved) { setStorageAvailable(false); setClearStatus("failed"); return; }
+      recovery.current = fresh;
+      requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
+      setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
+      setMethod("phone"); setRegion(""); regionManuallySet.current = false;
+      setCountryOpen(false); setFootage(null); setFootageError(null); setCaptureReceived(false);
+      setResetVersion(value => value + 1);
+      // A completion is visible only after both stores commit the fresh authority.
+      setClearStatus("done");
+    } catch {
+      if (active.current) { setStorageAvailable(false); setClearStatus("failed"); }
+    } finally { operationInFlight.current = false; }
   }
   // Whether the phone handoff below is worth anything here. This form is
   // filled in from whatever device is at hand, including the phone that is
@@ -540,7 +572,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
   if (state.status === "done") {
     return (
       <div className="ms-form" aria-live="polite">
-        <p><button type="button" className="ms-text-link" onClick={forgetDraft}>Clear this browser's draft</button></p>
+        <ClearDraftControl status={clearStatus} onClear={forgetDraft} />
         <p className="ms-field-hint">Clearing this browser does not delete your saved job. Keep your private link to return.</p>
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
@@ -645,7 +677,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
   }
 
   return (
-    <form key={resetVersion} ref={formRef} className="ms-form" method="post" onSubmit={submit} onChange={retainDraft} aria-label="Start a site capture">
+    <form key={resetVersion} ref={formRef} className="ms-form" method="post" onSubmit={submit} onChange={() => { if (clearStatus !== "working") setClearStatus("idle"); retainDraft(); }} aria-label="Start a site capture">
       {pending && state.status !== "working" && <div aria-live="polite">
         <p className="ms-field-hint">{pending.acknowledged ? "Your job is saved. Return to the same job to check its current status." : "This submission may already be saved. Recover the same job before starting another."}</p>
         <button type="button" className="ms-button" disabled={!interactive || loading} onClick={() => void submit()}>
@@ -657,8 +689,8 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
       {recoveryUnavailable && <p role="status" className="ms-field-hint">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
       {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
       <p className="ms-field-hint">You can recover this draft here for up to seven days. On a shared device, clear this browser's draft when finished.</p>
-      <button type="button" className="ms-text-link" disabled={state.status === "working"} onClick={forgetDraft}>Clear this browser's draft</button>
-      <fieldset disabled={!interactive || recoveryUnavailable || Boolean(pending)} className="contents">
+      <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
+      <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className="contents">
       <label htmlFor="start-task">
         <span>What is the task?</span>
         <span className="ms-field-hint">
@@ -883,7 +915,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm: “{DESCRIPTION_AUTHORITY_STATEMENT}”
       </p>
 
-      <button className="ms-button ms-button-large" type="submit" disabled={!interactive || state.status === "working" || loading}>
+      <button className="ms-button ms-button-large" type="submit" disabled={!interactive || state.status === "working" || clearStatus === "working" || loading}>
         {state.status !== "working" ? "Start free assessment"
           : uploadPercent !== null ? `Uploading video… ${uploadPercent}%` : "Working…"}
       </button>
