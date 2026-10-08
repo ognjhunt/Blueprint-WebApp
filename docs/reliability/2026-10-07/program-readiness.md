@@ -23,7 +23,7 @@ The new semantic catalog has 120 genuinely distinct PROVISIONAL evidence states,
 with independently checked expectations and lineage. Semantic model evaluation
 is unscored. Earlier 120 topic-multiplied packets are only 15 structural source
 conditions; they are not another semantic dataset. The exact884 assessment SDK suite has27 passed structural admission diagnostics and three semantic partials. Source
-qualification cannot verify that a sentence matches a cited field or video event. The current SDK replay demonstrates three synthetic internal-advisory P1 counterexamples: a superseded specification presented as current, a completed video event absent from the admitted observations, and a 50 m capability claim citing a qualified 1 m field. These false claims were admitted by the current guard. The explicit stale-applicability repair is in progress; the other two remain open assessment-quality defects. No current customer publication or live-model incidence is established.
+qualification cannot verify that a sentence matches a cited field or video event. The current SDK replay demonstrates three synthetic internal-advisory P1 counterexamples: a superseded specification presented as current, a completed video event absent from the admitted observations, and a 50 m capability claim citing a qualified 1 m field. These false claims were admitted by the current guard. The explicit stale-applicability repair is independently reviewed in PR941, with matched before/after checks; protected merge and deployment remain pending; the other two remain open assessment-quality defects. No current customer publication or live-model incidence is established.
 
 One actual isolated Sol SDK call used eleven provisional sampled-frame textual
 observations of the one authorized dishwasher source. Its unchanged packet is
@@ -57,3 +57,5 @@ results and review corrections are in the compact inventory/trace/review files.
 Private raw material remains in authorized ignored local storage and the sole
 assessment owner's company export/recovery manifest. No bearer links, credentials
 or raw customer footage belong in CI or public reports.
+
+The scoped PR941 candidate changes the same30 SDK diagnostics from27 structural admission passes/3 semantic defects to28 admission passes/2 remaining semantic defects. Seven separate applicability controls pass and an independent176-check replay passes. The V9 correction is explicit and all original30 semantic input hashes remain unchanged. These scripted callbacks do not provide real-model/video accuracy or additional independent sources.

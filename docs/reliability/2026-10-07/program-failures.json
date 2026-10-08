@@ -348,9 +348,14 @@
       "semanticCaseHash": "1d232863fd3dab545cf69ad32f0aac5f80e93cd1dad53b2792000f194e5c612f",
       "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
       "violatedClaim": "Known published current2m reach cites a record explicitly current:false with retained correction current1m.",
-      "releaseStatus": "in_progress_narrow_explicit_applicability_guard",
+      "releaseStatus": "code_repaired_independently_reviewed_PR941_CI_in_progress_not_yet_merged_deployed",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
-      "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations."
+      "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
+      "candidateCommit": "e048c74e7eeaf44996ce17a0e24b48d8d985104d",
+      "candidateSourceSha256": "a889137a97af596aeeb4f90a320993bb7765e4bf43b8a03af232ea3460edcfba",
+      "repair": "Reject known published claims citing explicitly boolean current:false knowledge; retain historical metadata/unknown/estimate; no age cutoff or sentence entailment.",
+      "candidateRetest": "Exact unchanged30 SDK diagnostics:28 admission passes/2 other semantic false-admission defects. Seven controls baseline6/7 ->candidate7/7. Independent176/176 checks; original case hashes unchanged with explicit V9 expectation correction.",
+      "candidatePR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/941"
     },
     {
       "id": "ASSESS-VIDEO-ENTAILMENT-001",
@@ -406,7 +411,8 @@
       "id": "DEP-LIVE-RUNTIME",
       "owner": "existing_dishwasher_task",
       "state": "partial_completed_Gemini_unknown_no_automatic_retry",
-      "detail": "One isolated actual Sol SDK call over provisional frame text completed; no continuous video or usable Gemini evidence. Gemini exposure/cost remains unknown with reserved headroom; no paid retry or real customer email. Current guard rejects unchanged baseline packet."
+      "detail": "One isolated actual Sol SDK call over provisional frame text completed; no continuous video or usable Gemini evidence. Gemini exposure/cost remains unknown with reserved headroom; no paid retry or real customer email. Current guard rejects unchanged baseline packet.",
+      "read_only_reconciliation": "Completed non-billable existing-provider GET/UI checks; no correlated receipt and inconclusive negative logs/files. Original unknown reservation/primary ledger unchanged, no retry."
     }
   ],
   "coordination": {

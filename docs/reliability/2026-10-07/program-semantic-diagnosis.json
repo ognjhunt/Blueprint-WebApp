@@ -1,0 +1,132 @@
+{
+  "schema": "blueprint.semantic-partial-diagnosis.v1",
+  "applicable_main": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+  "branch": "codex/reliability-stale-spec-20261008",
+  "baseline_source_sha256": "67a51a0d7a2164464d07fe983522857c180eaf8caa6539d824eaf47a91a8d1c4",
+  "candidate_source_sha256": "a889137a97af596aeeb4f90a320993bb7765e4bf43b8a03af232ea3460edcfba",
+  "prompt_unchanged": true,
+  "prompt_sha256": "e3e128a1498f5d5785dc6c4a5c64bf39ae14d8192d799a25c63383885a96900c",
+  "execution_layer": "Actual SDK Runner and tool loop; scripted model/video callbacks; no storage/customer publication",
+  "provider_calls_live": 0,
+  "private_customer_or_dishwasher_records_accessed": false,
+  "findings": [
+    {
+      "case_id": "V2-corrected-knowledge-current-spec",
+      "source_field": "assessment.known[0]",
+      "actual_scripted_claim": {
+        "text": "The robot currently has a 2 m reach",
+        "basis": "published",
+        "evidence": [
+          {
+            "source_id": "knowledge:fixture-spec",
+            "at_seconds": null
+          }
+        ]
+      },
+      "applicable_invariant": "Explicitly corrected/non-current knowledge cannot establish a current known published specification.",
+      "fixture_source_condition": "knowledge.record.current=false; knowledge.record.content.reachM=2; correction says current reach is 1 m",
+      "classification": "demonstrated unsupported claim relative to explicit synthetic sources; no live model/customer publication proved",
+      "conditional_severity": "P1 if promoted as customer fact or consequential robot-fit/completion evidence; actual diagnostic affects packet admission only",
+      "baseline_result": "assessment_packet_accepted",
+      "candidate_result": "rejected",
+      "candidate_error": "assessment_known_published_source_not_current",
+      "semantic_input_hash": "1d232863fd3dab545cf69ad32f0aac5f80e93cd1dad53b2792000f194e5c612f",
+      "same_semantic_input_hash_after": true,
+      "remaining_limitation": "No general text entailment, real video perception or natural-model accuracy is established.",
+      "safe_next_action": "Retain superseded source metadata as historical/unknown context; obtain current specification before promoting a known published fact."
+    },
+    {
+      "case_id": "V2-conflicting-owner-spec-video",
+      "source_field": "assessment.job[0]",
+      "actual_scripted_claim": {
+        "text": "The bin stacking task visibly completed successfully",
+        "basis": "observed",
+        "evidence": [
+          {
+            "source_id": "video:fixture-video:f6d3f9e91626",
+            "at_seconds": 8
+          }
+        ]
+      },
+      "applicable_invariant": "Observed motion must not become fabricated task completion; conflicts and unknowns stay visible.",
+      "fixture_source_condition": "video.observations[0].finding=Bin moves onto table; not_observable contains Bin stacking/Task completion; owner says stacking absent; knowledge defines success as stacking",
+      "classification": "demonstrated unsupported claim relative to explicit synthetic sources; no live model/customer publication proved",
+      "conditional_severity": "P1 if promoted as customer fact or consequential robot-fit/completion evidence; actual diagnostic affects packet admission only",
+      "baseline_result": "assessment_packet_accepted",
+      "candidate_result": "assessment_packet_accepted",
+      "candidate_error": null,
+      "semantic_input_hash": "414589b1f854d99d33dbfafbdcbffe4ad870d074f51ea69938f1024ea666f0de",
+      "same_semantic_input_hash_after": true,
+      "remaining_limitation": "No general text entailment, real video perception or natural-model accuracy is established.",
+      "safe_next_action": "Keep semantic partial status. Bound customer claims to inspectable admitted observations/spec fields; a field/observation claim-binding repair requires a separately scoped contract change, not another timestamp assertion."
+    },
+    {
+      "case_id": "V5-admitted-field-wrong-claim",
+      "source_field": "assessment.known[0]",
+      "actual_scripted_claim": {
+        "text": "The robot has a published 50 m reach",
+        "basis": "published",
+        "evidence": [
+          {
+            "source_id": "robotTeam:fixture-team",
+            "at_seconds": null
+          }
+        ]
+      },
+      "applicable_invariant": "Qualified citation must not turn a 1 m capability into an unsupported 50 m specification.",
+      "fixture_source_condition": "robot_registry.capability.reachM=1; fieldProvenance.reachM.grade=published; named source present",
+      "classification": "demonstrated unsupported claim relative to explicit synthetic sources; no live model/customer publication proved",
+      "conditional_severity": "P1 if promoted as customer fact or consequential robot-fit/completion evidence; actual diagnostic affects packet admission only",
+      "baseline_result": "assessment_packet_accepted",
+      "candidate_result": "assessment_packet_accepted",
+      "candidate_error": null,
+      "semantic_input_hash": "34d08adecdc8b5d74282d5230f758915ee909622ed9c1b3b6b0d4382c3bcff42",
+      "same_semantic_input_hash_after": true,
+      "remaining_limitation": "No general text entailment, real video perception or natural-model accuracy is established.",
+      "safe_next_action": "Keep semantic partial status. Bound customer claims to inspectable admitted observations/spec fields; a field/observation claim-binding repair requires a separately scoped contract change, not another timestamp assertion."
+    }
+  ],
+  "original_30_sdk_baseline": {
+    "attempted": 30,
+    "structural_guard_pass": 27,
+    "semantic_partial": 3
+  },
+  "candidate_same_30": {
+    "attempted": 30,
+    "structural_guard_pass": 28,
+    "semantic_partial": 2
+  },
+  "new_neighbor_controls": {
+    "attempted": 7,
+    "baseline_passed": 6,
+    "baseline_failed": 1,
+    "candidate_passed": 7
+  },
+  "focused_checks": {
+    "files": 5,
+    "passed": 176,
+    "failed": 0,
+    "typecheck_exit": 0,
+    "graphify_exit": 0,
+    "diff_check_exit": 0
+  },
+  "expectation_correction": [
+    {
+      "caseId": "V2-corrected-knowledge-current-spec",
+      "baselineExpectedError": null,
+      "candidateExpectedError": "assessment_known_published_source_not_current",
+      "baselineSemanticOnly": true,
+      "candidateSemanticOnly": false,
+      "reason": "Known published facts cannot cite explicitly non-current knowledge; historical context remains retained."
+    }
+  ],
+  "expectation_definition_policy": "Original V8 scenario objects and inputs unchanged. V9 adds a separately recorded assertion override for exactly one stale-source case; no input/hash changed. Semantic hash includes unchanged original scenario, admitted evidence and scripted outputs, not the V9 label override.",
+  "all_30_semantic_hashes_unchanged": true,
+  "known_guard_scope": "assessment.known + basis published + source.kind knowledge + source.content.current===false. Current fact means known placement, not inferred prose. No age cutoff, textual current detector, measurement/general entailment gate or flag coercion introduced. Historical/unknown/estimate context remains retained.",
+  "original_120_truth_label_status": "unchanged PROVISIONAL; no human holdout or real model scoring",
+  "publication_gate": "No live/model-quality success or bounded-beta assessment readiness follows; root owns release/accountability. This slice removes one explicit stale-source promotion path only.",
+  "candidate_commit": "e048c74e7eeaf44996ce17a0e24b48d8d985104d",
+  "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/941",
+  "independent_review_commit": "496a3532",
+  "replay": "Use program-replay.md stale-source section; no private source or live provider required."
+}

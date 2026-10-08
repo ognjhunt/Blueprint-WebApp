@@ -208,5 +208,23 @@
     "candidate_packet_admission": "rejected_assessment_published_source_required_on_exact_unmodified_packet",
     "packet_sha256": "5062da05b8b454c2a304d82e62dab9d45cd90d608a8a3cf2b5c43e2e792d21c7",
     "raw_export_access": "Private company object export retained; direct authenticated download403; same-authority native worker recovered matching bytes locally without expanded access. Canonical private export/recovery manifest held by sole run owner."
+  },
+  "provider_reconciliation": {
+    "observed_at_utc": "2026-10-08T06:57:49Z",
+    "mode": "existing authorized provider UI and GET-only receipt/account inspection",
+    "new_paid_dispatch": 0,
+    "new_video_upload": 0,
+    "ledger_changed": false,
+    "request_level_acceptance_receipt_found": false,
+    "files_list_http": 200,
+    "files_list_count": 0,
+    "log_search_results": 0,
+    "generate_content_logging": "off",
+    "cost_account_view": "aggregate; may lag more than24hours; not attributed to this run",
+    "unknown_reservation_usd": 1.818624,
+    "conclusion": "inconclusive; absent logs/files do not prove no acceptance or zero charge",
+    "private_files_get_receipt_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "private_reconciliation_manifest_sha256": "bfea33ad6d68887370015412404620d481178fb61c8d6e728fa7daeca9c05410",
+    "recovery": "Original sole owner retains restricted reconciliation directory alongside canonical assessment export; replacement owner can use existing authorization. No keys, private IDs or media included here."
   }
 }

@@ -79,7 +79,17 @@
       "main_required_ci": "success",
       "production_promotion_run": 37734995667,
       "production_promotion_state_at_0648_utc": "in_progress;shards0_and3_success;shards1_and2_in_progress",
-      "serving_identity_claim": "Last independent actual service GET remains cc876; do not substitute merge SHA for serving proof."
+      "serving_identity_claim": "Last independent actual service GET remains cc876; do not substitute merge SHA for serving proof.",
+      "production_promotion_state_at_0657_utc": "success_all4_shards_and_CPU_aggregate"
+    },
+    "latest_independent_identity": {
+      "observed_at_utc": "2026-10-08T07:00:23+00:00",
+      "active_release_commit": "cc876af25389de934f57c08b33421987f9e3328d",
+      "serving_source_commit": "cc876af25389de934f57c08b33421987f9e3328d",
+      "commit_proven": true,
+      "blockers": [],
+      "private_raw_receipt_sha256": "c4063dcb63cc2a609f2729ce6f9a7a7b25a5890cf65c4e6051f6ceedb55826d1",
+      "claim_ceiling": "deployed_service_identity_only; full4cbtestpromotion_success_does_not_change_serving_identity"
     }
   },
   "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored.",
@@ -88,5 +98,17 @@
     "findings": 0,
     "receipt_sha256": "2fbc657ed7df0c1538406e20bd470739d4d07f31261359f9e8e1e9bf3e81b6aa",
     "claim_ceiling": "Static explicit canonical references only; not remote artifact access or complete migration."
+  },
+  "assessment_followup": {
+    "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/941",
+    "reviewed_head": "e048c74e7eeaf44996ce17a0e24b48d8d985104d",
+    "parent_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+    "status": "independently_reviewed_required_PR_CI_in_progress",
+    "production_state": "Current exactserved d898 does not yet include this narrow applicability veto",
+    "claim_ceiling": "Explicit stale-source current-known-fact rejection only; two proved synthetic entailment defects remain open.",
+    "graphify_root_refresh": {
+      "outcome": "pass",
+      "receipt_sha256": "3dd634993f83819dc2934d57f86d2ccf595eef1fd133998dbf473c3495e679a0"
+    }
   }
 }
