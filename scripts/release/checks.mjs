@@ -5,9 +5,14 @@ import { pathToFileURL } from 'node:url';
 // Only explicitly bounded, non-authority content enters the short path.
 // Unknown paths, auth, budget, storage, dependencies and CI always fail to full.
 export function releaseScope(files) {
-  return files.length > 0 && files.every(file =>
-    /^(client\/src\/data\/(deploymentMarket|qualifyingEnvironments)\.ts|client\/src\/lib\/captureGroundedLanguage\.ts)$/.test(file)
-  ) ? 'content' : 'full';
+  if (!files.length) return 'full';
+  const content = /^(client\/src\/data\/(deploymentMarket|qualifyingEnvironments)\.ts|client\/src\/lib\/captureGroundedLanguage\.ts)$/;
+  if (files.every(file => content.test(file))) return 'content';
+  // Backend/helper releases get their dependency-related tests plus the fixed
+  // safety floor. Route composition, UI, rules, migrations, dependencies,
+  // workflow and unknown paths retain full browser/integration verification.
+  const targetedCode = /^(server\/(utils|agents)\/.+\.ts|client\/src\/lib\/.+\.ts|server\/routes\/client-runtime-config\.ts|server\/tests\/.+\.test\.ts|client\/tests\/lib\/.+\.test\.ts)$/;
+  return files.every(file => targetedCode.test(file) || content.test(file)) ? 'code' : 'full';
 }
 export function changedFiles(base) {
   execFileSync('git', ['rev-parse', '--verify', `${base}^{commit}`]);
@@ -19,7 +24,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const base = process.env.RELEASE_BASE;
   // A missing/zero push base is deliberately broad, never an empty green test run.
   const files = base && !/^0+$/.test(base) ? changedFiles(base) : [];
-  const scope = releaseScope(files);
+  const scope = files.some(file => !existsSync(file)) ? 'full' : releaseScope(files);
   if (mode === 'scope') {
     if (!process.env.GITHUB_OUTPUT) throw Error('github_output_missing');
     appendFileSync(process.env.GITHUB_OUTPUT, `scope=${scope}\n`);
@@ -29,10 +34,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (scope === 'full') execFileSync('npm', ['run','test:coverage'], {stdio:'inherit'});
     else {
       const safety = ['server/tests/auth-middleware.test.ts','server/tests/agent-spend-policy.test.ts',
-        'server/tests/agent-spend-atomic.test.ts','server/tests/capture-owner-route-auth.test.ts'];
+        'server/tests/agent-spend-atomic.test.ts','server/tests/capture-owner-route-auth.test.ts',
+        'server/tests/agent-spend-ledger.test.ts','server/tests/agent-private-evidence.test.ts',
+        'server/tests/agent-task-prompts.test.ts'];
       for (const file of [...files, ...safety]) if (!existsSync(file)) throw Error(`release_file_missing:${file}`);
       // --passWithNoTests is deliberately absent: no related coverage fails closed.
-      execFileSync('npx', ['vitest','related','--run',...files], {stdio:'inherit'});
+      const sources = files.filter(file => !/\.(test|spec)\.[tj]sx?$/.test(file));
+      const changedTests = files.filter(file => /\.(test|spec)\.[tj]sx?$/.test(file));
+      if (sources.length) execFileSync('npx', ['vitest','related','--run',...sources], {stdio:'inherit'});
+      if (changedTests.length) execFileSync('npx', ['vitest','run',...changedTests], {stdio:'inherit'});
       execFileSync('npx', ['vitest','run',...safety], {stdio:'inherit'});
     }
     console.log(JSON.stringify({scope,elapsedMs:Date.now()-start}));

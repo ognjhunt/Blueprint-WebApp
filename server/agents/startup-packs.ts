@@ -112,12 +112,14 @@ export async function listStartupPacks(limit = 50) {
   return snapshot.docs.map((doc) => doc.data() as StartupPackRecord);
 }
 
-export async function getStartupPack(startupPackId: string) {
+export async function getStartupPack(startupPackId: string, version?: number) {
   if (!db || !startupPackId) {
     return null;
   }
 
-  const doc = await db.collection(STARTUP_PACK_COLLECTION).doc(startupPackId).get();
+  const collection = version === undefined ? STARTUP_PACK_COLLECTION : `${STARTUP_PACK_COLLECTION}/${startupPackId}/revisions`;
+  const id = version === undefined ? startupPackId : String(version);
+  const doc = await db.collection(collection).doc(id).get();
   if (!doc.exists) {
     return null;
   }
@@ -195,7 +197,10 @@ export async function createStartupPack(params: {
   };
 
   if (db) {
-    await db.collection(STARTUP_PACK_COLLECTION).doc(startupPackId).set(record);
+    await db.runTransaction(async transaction => {
+      transaction.create(db!.collection(STARTUP_PACK_COLLECTION).doc(startupPackId), record);
+      transaction.create(db!.collection(`${STARTUP_PACK_COLLECTION}/${startupPackId}/revisions`).doc("1"), record);
+    });
     const saved = await getStartupPack(startupPackId);
     if (saved) {
       return saved;
@@ -208,6 +213,7 @@ export async function createStartupPack(params: {
 export async function updateStartupPack(
   startupPackId: string,
   params: {
+    expected_version?: number;
     name?: string;
     description?: string;
     repo_doc_paths?: string[];
@@ -231,13 +237,21 @@ export async function updateStartupPack(
     return null;
   }
 
-  const existing = await getStartupPack(startupPackId);
-  if (!existing) {
-    return null;
-  }
-
-  await db.collection(STARTUP_PACK_COLLECTION).doc(startupPackId).set(
-    {
+  const firestore = db;
+  const ref = firestore.collection(STARTUP_PACK_COLLECTION).doc(startupPackId);
+  return firestore.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return null;
+    const existing = snapshot.data() as StartupPackRecord;
+    const version = existing.version || 1;
+    if (params.expected_version !== undefined && params.expected_version !== version) {
+      throw new Error("startup_pack_version_conflict");
+    }
+    const revisions = firestore.collection(`${STARTUP_PACK_COLLECTION}/${startupPackId}/revisions`);
+    const priorRef = revisions.doc(String(version));
+    const prior = await transaction.get(priorRef);
+    const next: StartupPackRecord = {
+      ...existing,
       ...(params.name !== undefined ? { name: params.name.trim() } : {}),
       ...(params.description !== undefined
         ? { description: params.description.trim() }
@@ -280,9 +294,10 @@ export async function updateStartupPack(
       },
       updated_at: nowTimestamp(),
       version: (existing.version || 1) + 1,
-    },
-    { merge: true },
-  );
-
-  return getStartupPack(startupPackId);
+    };
+    if (!prior.exists) transaction.create(priorRef, existing);
+    transaction.create(revisions.doc(String(next.version)), next);
+    transaction.set(ref, next);
+    return next;
+  });
 }

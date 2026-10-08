@@ -226,6 +226,33 @@ jobs:
 
           node /tmp/outreach-release-holds.mjs before
 
+      - name: Checkout exact verified release code
+        if: steps.ref.outputs.stale != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.deploy_ref }}
+          persist-credentials: false
+
+      - name: Capture healthy rollback predecessor
+        if: steps.ref.outputs.stale != 'true'
+        id: predecessor
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+          ROLLBACK_TARGET_FILE: /tmp/deploy-evidence/rollback-target.json
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node scripts/release/render-rollback.mjs snapshot
+          previous_sha=$(node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync("/tmp/deploy-evidence/rollback-target.json", "utf8")).sha)')
+          green_runs=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${previous_sha}&status=completed" --jq '[.workflow_runs[] | select(.conclusion=="success" and .head_branch=="main" and .event=="push")] | length')
+          if [ "${green_runs}" -eq 0 ]; then
+            echo "::error::Healthy predecessor lacks exact main CI proof; refusing release."
+            exit 1
+          fi
+
       - name: Trigger exact-SHA Render deploy through API (fail-closed)
         if: steps.ref.outputs.stale != 'true'
         id: render
@@ -235,8 +262,18 @@ jobs:
           RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
           CLEAR_CACHE: ${{ github.event.inputs.clear_cache }}
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          if [ "${EVENT_NAME}" != "workflow_dispatch" ]; then
+            main_head=$(gh api "repos/${REPO}/commits/main" --jq .sha)
+            if [ "${DEPLOY_REF}" != "${main_head}" ]; then
+              echo "::error::Main changed after admission; refusing a stale release before mutation."
+              exit 1
+            fi
+          fi
           if [ -z "${RENDER_API_KEY:-}" ]; then
             echo "::error::RENDER_API_KEY secret is not set. Deploys fail closed. See docs/runbooks/ci-gated-deploy-2026-07-16.md."
             exit 1
@@ -334,6 +371,7 @@ jobs:
             fi
             echo "Render accepted ${label} deploy ${TRIGGERED_DEPLOY_ID} for ${DEPLOY_REF}."
           }
+          echo "mutation_started=true" >> "${GITHUB_OUTPUT}"
           trigger_deploy "${RENDER_SERVICE_ID}" web
           web_deploy_id="${TRIGGERED_DEPLOY_ID}"
           trigger_deploy "${RENDER_WORKER_SERVICE_ID}" worker
@@ -343,6 +381,7 @@ jobs:
           echo "API acceptance is NOT deployment success; both exact-SHA deploy records are verified below."
 
       - name: Verify deployment completed at the exact SHA
+        id: verification
         if: steps.ref.outputs.stale != 'true'
         env:
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
@@ -446,6 +485,17 @@ jobs:
             echo "::error::GET /health/ready returned ${ready_code}; the deployed commit is live but the service is not launch-ready."
             exit 1
           fi
+
+      - name: Restore healthy predecessor after failed release
+        if: >-
+          failure() && steps.predecessor.outcome == 'success' && steps.render.outputs.mutation_started == 'true' &&
+          (steps.render.outcome == 'failure' || steps.verification.outcome == 'failure')
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+          ROLLBACK_TARGET_FILE: /tmp/deploy-evidence/rollback-target.json
+        run: node scripts/release/render-rollback.mjs restore
 
       - name: Verify outreach release holds remain off
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_hold == 'true'
