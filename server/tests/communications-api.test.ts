@@ -144,7 +144,20 @@ describe("portable communications Agents API", () => {
     expect(f.reservePaidDraft).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, 10);
     const posted = JSON.parse(String(f.calls.find(c => c.init.method === "POST")!.init.body));
     expect(posted.spend_control).toEqual({ limit: 10 });
+    expect(posted.metadata.blueprint_communications_spend_limit_cents).toBe("10");
     expect(result.checkpoint.sessionSpendLimitCents).toBe(10);
+    await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 11 } }))
+      .rejects.toThrow("spend_limit_binding_mismatch");
+    const readback = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await readback(url, init);
+      if (new URL(String(url)).pathname.endsWith("/session-1")) {
+        return Response.json({ ...await response.json(), spend_control: { limit: 11 } });
+      }
+      return response;
+    });
+    // Increasing both the checkpoint and provider setting cannot change the
+    // frozen create's limit without a different bound request/admission.
     await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 11 } }))
       .rejects.toThrow("spend_limit_binding_mismatch");
     const old = apiFixture(), historical = await old.api.run(old.params);

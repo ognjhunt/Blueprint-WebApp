@@ -705,6 +705,7 @@ export class CommunicationsAgentsAPI {
           blueprint_communications_definition: definition.version,
           blueprint_communications_instructions_digest: definition.instructionsDigest,
           ...(checkpoint.writingProfile ? { blueprint_communications_writing_profile: checkpoint.writingProfile } : {}),
+          ...(checkpoint.sessionSpendLimitCents !== undefined ? { blueprint_communications_spend_limit_cents: String(checkpoint.sessionSpendLimitCents) } : {}),
           ...(hypothesis ? { blueprint_communications_draft_profile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) },
       }),
     } : { headers: { Accept: "text/event-stream" } }, checkpoint.finalRepairProfile ? this.repairDeadline(checkpoint) - Date.now() : undefined);
@@ -1067,9 +1068,11 @@ export class CommunicationsAgentsAPI {
       || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const session = await this.json(path, 256000);
-    if ((checkpoint.sessionSpendLimitCents !== undefined || session.spend_control?.limit != null)
+    if ((checkpoint.sessionSpendLimitCents !== undefined || session.spend_control?.limit != null
+      || session.metadata?.blueprint_communications_spend_limit_cents !== undefined)
       && (!Number.isSafeInteger(checkpoint.sessionSpendLimitCents) || checkpoint.sessionSpendLimitCents! < 1
-        || session.spend_control?.limit !== checkpoint.sessionSpendLimitCents)) {
+        || session.spend_control?.limit !== checkpoint.sessionSpendLimitCents
+        || session.metadata?.blueprint_communications_spend_limit_cents !== String(checkpoint.sessionSpendLimitCents))) {
       throw new CommunicationsRuntimeError("agents_session_spend_limit_binding_mismatch");
     }
     if (checkpoint.executionWindow !== undefined || session.metadata?.blueprint_communications_execution_window_digest !== undefined) {
