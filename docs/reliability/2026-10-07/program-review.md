@@ -358,3 +358,56 @@ The initial Invalid Chai harness failure and zero-attempt setup diagnostic remai
 retained. These are historical results; final `88476cb8` source requires its own
 replay rather than relabeling earlier receipts. Firestore is an emulator, objects
 and providers are simulated, and no live video-analysis quality follows.
+
+The final checkpoint exposed two outdated intercepted-browser assertions: a
+retired acknowledgement now fails before old-page success, and missing WebLocks
+now blocks before form rendering. Prior 10-pass/two-failed traces are retained;
+their downstream invariants were not reached. The proposed test-only port keeps
+fresh identity/body/reload/explicit new Start assertions, adds both-store equality,
+and keeps no-dispatch plus supported-browser and actual contact-link guidance.
+It changes assertions to match the reviewed checkpoint contract, not case IDs,
+meaningful conditions, unique denominators or safety thresholds.
+
+An independent same-fields neighbor checked whether the stale old recovery
+button could dispatch a fresh identity. It did not: only the original POST was
+observed, no new success appeared, and both recovery stores stayed byte-identical.
+Receipt SHA256 is `5a26d22e84f1b94adabcd594024fc24314d16addacad4963c50dd164d6600478`.
+Actual Chromium/WebLocks/IndexedDB run against intercepted APIs; this diagnostic
+has no durable backend and earns no scored unique journey credit. An initial
+probe failed before the intended fault because it did not await asynchronous
+clear; that partial harness diagnostic remains retained. The stale recovery
+control and unconditional emailed-link suggestion for a fresh visitor are P2
+clarity items. No silent new-intake defect was established by this probe.
+
+**Reopened: INTAKE-HYDRATION-AUTOSAVE-001, P1, exact `88476cb8`.**
+Affected client approval is withdrawn. The ported clear/reload case reached an
+actual lost-draft boundary: restored DOM fields remain populated, but initial
+autosave runs while `interactive=false` disables the enclosing fieldset.
+FormData omits its controls, and autosave writes an empty draft to both stores.
+The subsequent explicit Start body disagrees with that draft, so canonical
+validation safely refuses dispatch. This violates draft survival and recovery;
+it is not an obsolete assertion or a reason to weaken the new Start expectation.
+The runtime owner is the combined release coordinator. A guarded autosave repair
+and identical native failing/passing replay are required before client release.
+Backend admission/privacy/dispatch guards and the canonical rollback repair
+remain approved. Previously green unit, 300-case and joined journey layers did
+not exercise this exact unsubmitted-draft reload and do not override this finding.
+
+Independent ordinary one-tab native replay confirms the same P1 without a clear
+race: all four fields were saved in both stores, then reload kept them displayed
+while emptying both saved drafts under the same identity. Explicit Start was
+refused before POST. Baseline receipt SHA256
+`4bc9e942ae3fa55a444a9feda6dc11f4389ccef3db3622a7dc53341d416b2e4f`
+and exact-source probe are retained under private reviewer output. The test-only
+contract port `40eff62c6f01b7e92ca2b40a00d5c6fdd83fd537` is approved: all
+11 source/receipt/count checks match, original cases/thresholds remain, author
+restore is clean, and the final 003 baseline fails at stored-draft equality.
+It makes no repaired-candidate claim.
+
+UI022 pre-checkpoint comparison also preserves the same frozen condition: three
+`8ccc99cc` client-source attempts fail automatic native crash return against the
+same backend; three checkpoint attempts pass. The selected originals are
+unattempted and repeats remain one condition. Old source hashes, create/upload
+and fresh-return transitions and final candidate restoration were independently
+checked. This reinforces a scoped crash-recovery repair, with emulator/fake
+provider limits; it does not resolve the separately reopened plain-draft P1.
