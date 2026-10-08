@@ -111,3 +111,16 @@ it("CROSS-TAB-016 retired pending authority cannot freeze under the fresh cleare
   await expect(freezeSiteCaptureRecovery(key,old)).rejects.toThrow("changed in another tab");
   expect(readSiteCaptureRecovery(key)).toEqual(fresh);
 });
+it("DURABILITY-VALIDATION-001 invalid frozen body preserves exact prior recovery bytes", async () => {
+  const helper = await import("@/lib/siteCaptureDraft");
+  const previous = frozen(); previous.pending = null;
+  await helper.writeSiteCaptureRecoveryDurably(key, previous);
+  const bytes = localStorage.getItem(key);
+  const invalid = { ...previous, pending: { endpoint: "/api/inbound-request" as const, acknowledged: false,
+    body: JSON.stringify({ requestId: previous.requestId, retryToken: previous.retryToken, buyerType: "site_operator",
+      taskStatement: "A different task", siteLocation: previous.draft.location, captureRegion: previous.draft.region }) } };
+  await expect(helper.writeSiteCaptureRecoveryDurably(key, invalid)).rejects.toThrow("could not be read");
+  expect(localStorage.getItem(key)).toBe(bytes);
+  expect(readSiteCaptureRecovery(key)).toEqual(previous);
+  expect(durability.rows.get(key)?.value).toEqual(previous);
+});
