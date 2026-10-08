@@ -1980,5 +1980,19 @@
       "new_provider_retry": false,
       "original_catalog_credit": 0
     }
+  },
+  "local_assessment_iteration_release": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/965",
+    "reviewed_head": "71afa6e9be803a19d40893d527122d98ac8fbeb4",
+    "independent_review": "0e2fd29a",
+    "PR_CI": 37838664060,
+    "PR_CI_state": "all9applicablejobsSUCCESSincludingE2E",
+    "merge_sha": "e9bb371680452845c6629f53b9786a219530aaab",
+    "merged_at_utc": "2026-10-08T20:46:21Z",
+    "main_CI": 37841943657,
+    "main_CI_state": "in_progress_at20:47",
+    "deployment": "unverified;current2bretained",
+    "provider_execution": "No CLIinference;originalnormaloperationOOMkilled;unknownGemoutcomeheld",
+    "scope": "Existingproductionadapteriteration/saved-evidence/fresh-video/preflight/comparison; no alternateagent, no new originalprogram case credit"
   }
 }
