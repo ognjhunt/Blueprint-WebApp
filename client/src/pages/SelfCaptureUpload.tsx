@@ -674,7 +674,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           {descriptionFirst && <button type="button" className="ms-text-link" aria-expanded={addingFootage}
             onClick={() => setAddingFootage(current => !current)}>Add footage when you are ready (optional)</button>}
           {(!descriptionFirst || addingFootage) && <div>
-          {!saved && (
+          {(!saved || upload.status === "done") && (
             <input
               ref={inputRef}
               type="file"
@@ -705,6 +705,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     : "A few answers can help define the job while review continues."}
                 </p>
               </div>
+              {upload.status === "done" && (
+                <p>
+                  <button type="button" className="ms-text-link" onClick={() => inputRef.current?.click()}>
+                    Upload a new recording
+                  </button>
+                </p>
+              )}
               {upload.status === "processing_pending" && upload.processingRetryAvailable && (
                 <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
