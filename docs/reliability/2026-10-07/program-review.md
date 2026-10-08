@@ -3435,3 +3435,25 @@ three nonGET and three external requests were blocked, zero attempted intake
 mutations, isolated context cleaned. This is a retained copy-criterion failure,
 not a passing presentation run or evidence of failed durability. No rerun,
 threshold rewrite, provider call or business write occurred in review.
+
+
+### Final bounded service memory samples — 189
+
+Retained native runtime receipt
+`42a61a841d340c9766ecb04e14fa5e725c0d238c7e839d302ecab630384b9a19`
+was independently hash-verified and its summary recomputed from raw responses.
+The23:08:34.355–23:20:49.294UTC query contains13 minute samples: maximum
+514678800 bytes(490.84MiB), last23:20:34.355 sample418398200 bytes(399.02MiB).
+All13 reported memory limits are2147483600 bytes with one instance. The bounded
+event response contains zero rows for the three requested event types with
+limit10; this is not universal absence proof. Preserve earlier mid-run sample
+records separately.
+
+These are whole-service samples, not instantaneous peak, assessment-only
+allocation, concurrency safety or leak proof. The receipt's early
+post_completion_samples label is not independently established:23:11 was
+still running, first retained terminal read23:13:16, and completed_at serialized
+as an empty object. Later23:13:34 onward samples follow confirmed terminal
+observation; the raw sample values/window remain valid without assigning an
+unproven earlier completion time. No additional API/provider or business
+mutation occurred in this review.
