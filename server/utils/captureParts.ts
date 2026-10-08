@@ -42,11 +42,12 @@ import { capturedWriteIdentity, type WrittenObject } from "./websiteCaptureDeliv
 const COMPOSE_FANOUT = 32;
 
 export interface PartsBucket {
-  file(path: string): {
+  file(path: string, options?: { generation: string }): {
     save(data: Buffer, options?: unknown): Promise<unknown>;
     exists(): Promise<[boolean]>;
     delete(options?: unknown): Promise<unknown>;
-    getMetadata(): Promise<[{ size?: string | number }]>;
+    getMetadata(): Promise<[{ size?: string | number; generation?: string | number }]>;
+    download(): Promise<[Buffer]>;
   };
   getFiles(options: { prefix: string }): Promise<[Array<{ name: string }>]>;
   combine(sources: string[], destination: string,
@@ -102,11 +103,25 @@ export async function savePart(params: {
   index: number;
   body: Buffer;
 }): Promise<void> {
-  await params.bucket
-    .file(partPath(params.rawPrefix, params.index))
+  const name = partPath(params.rawPrefix, params.index);
+  const file = params.bucket.file(name);
+  try {
     // `application/octet-stream`, not the video type: a part is not a playable
     // video and labelling it as one invites something to try.
-    .save(params.body, { contentType: "application/octet-stream", resumable: false });
+    await file.save(params.body, { contentType: "application/octet-stream", resumable: false,
+      preconditionOpts: { ifGenerationMatch: 0 } });
+  } catch (error) {
+    if ((error as { code?: unknown })?.code !== 412) throw error;
+    // A retried acknowledgement may reuse identical bytes. A late or changed
+    // chunk must never overwrite an already acknowledged part of the video.
+    const [metadata] = await file.getMetadata();
+    const generation = metadata.generation;
+    if (typeof generation !== "string" || !/^[1-9][0-9]{0,19}$/.test(generation)
+      || Number(metadata.size) !== params.body.length) throw new Error("capture_part_conflict");
+    const [stored] = await params.bucket.file(name, { generation }).download();
+    const [current] = await file.getMetadata();
+    if (!stored.equals(params.body) || current.generation !== generation) throw new Error("capture_part_conflict");
+  }
 }
 
 export type CompositionResult =

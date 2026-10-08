@@ -1,0 +1,22 @@
+# Supplemental transport and status evidence
+
+This slice adds **60 executed semantic cases** to the reliability program: 30 upload transport, 30 generation-bound customer status/publication. Definitions in `server/tests/helpers/reliability-transport-status-cases.ts` were frozen before baseline scoring. Cases vary reached fault boundaries and durable evidence, never identifiers, arbitrary seeds or assertion counts. Canonical catalog, source hashes, counts and minimized failure ledger: `program-transport-status.json` beside this document. Raw traces remain ignored locally under `output/reliability-program/transport-status/` and can be regenerated.
+
+**Baseline: 57/60; candidate: 60/60.** The three failures are one root cause: a same-length conflicting duplicate chunk overwrote previously acknowledged bytes. Actual `composeParts` then returned success and wrote a different complete-video SHA256 with the original total size, so the route's size check would not detect this corruption. The minimized counterexamples preserve original/persisted chunk hashes and expected/actual composed hashes, with equal sizes of 30/330/650 bytes. Fixtures are synthetic transport bytes, not a claim about playable-video accuracy or any production incident.
+
+**TRANSPORT-DUPLICATE-001 / P1:** lost integrity of acknowledged customer work. `captureParts.savePart` now creates each part only once. A 412 duplicate reads exact generation-pinned bytes, compares equality and verifies the current generation still matches. Identical retries succeed; different content or a replacement race cannot overwrite or acknowledge the original source. The actual part route returns 409 with `capture_part_conflict`, stops automatic retry and directs the customer to use the original video. The repair preserves paths/contracts and introduces no migration, new service or paid calls. It cannot recover or certify chunks overwritten before this release; no production data was touched.
+
+Upload cases exercise 3, 33 and 65 parts, which change compose rounds rather than serve as seed multipliers. Ten reached scenarios are complete/reordered arrival; missing first/middle/last; identical/conflicting duplicate; intermediate/final compose failure; and destination generation conflict. Composition checks actual persisted bytes, ordering, 32 source fanout, missing indexes, original-part retention and destination preservation. No utility completion writes a processing marker by itself.
+
+Status cases use actual `describeBrowserUpload` and generation-bound video/manifest/producer-marker checks, with source-specific faults for held, published and interrupted stored-upload records. Missing or changed video/manifest/marker/receipt cannot create a verified processing-ready state. Retained data stays separate from completion; current/original consent and actor authorization constrain retry. These checks do not certify assessment semantics or provider completion. The fixtures use the existing in-memory object and serialized Firestore fakes, with a composition/generation shim. They do not establish real GCS transport, Firebase durability, browser termination or live latency.
+
+The 60 catalog cases passed across three candidate runs with no disagreement; repeats add zero independent cases. **138/138 focused checks** passed, including 60 catalog cases, two additional regression neighbors and existing parts, browser pending/delivery, status-failure and manifest tests. The two neighbors exercise the actual route callback's 409 and a generation replacement during duplicate readback; they do not add to the 60 case floor. Typecheck passed. Independent review and integration/release checks remain coordinator gates; canonical Graphify refresh belongs to the combined integration checkout.
+
+Replay from the repository root with normal installed Node dependencies; no credentials or provider setup is needed:
+
+```bash
+npx vitest run server/tests/reliability-program-transport-status.test.ts --maxWorkers=1
+npm run check
+```
+
+Use `RELIABILITY_TRANSPORT_STATUS_OUTPUT=output/reliability-program/transport-status/replay-name` to retain distinct private outputs. Each trace identifies stable case ID/hash, execution layer, elapsed local-fake time and observed composition/readback/status events. Those measurements are not live provider performance or billing evidence. Use the stable ID in the machine catalog with `-t` for a minimized replay. Code source hashes distinguish tested dirty runtime from HEAD; the integration owner records exact merged/deployed SHAs and receipts.

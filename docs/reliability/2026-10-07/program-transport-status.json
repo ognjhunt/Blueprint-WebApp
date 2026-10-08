@@ -1,0 +1,1104 @@
+{
+  "schemaVersion": "blueprint-reliability-transport-status.v1",
+  "cases": [
+    {
+      "id": "RTS-upload_transport-d16118561cdc",
+      "hash": "d16118561cdc3b6f5e9cac1c6b959cbe11b425987a26f8fabca45dd66cf2b3ad",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "complete",
+        "parts": 3
+      },
+      "expected": "Compose byte-for-byte in index order with at most32 sources per call; identical retries are idempotent; report exact write identity",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-de5072b8263c",
+      "hash": "de5072b8263c1fd1f36c14cc66bc3ba81e6f9d1e0649985987962bf9669ced76",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "complete",
+        "parts": 33
+      },
+      "expected": "Compose byte-for-byte in index order with at most32 sources per call; identical retries are idempotent; report exact write identity",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-481ba64e27a5",
+      "hash": "481ba64e27a5fa67cfd33cad4489d5cda60889cde41cc56f5686ef6b55aa774e",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "complete",
+        "parts": 65
+      },
+      "expected": "Compose byte-for-byte in index order with at most32 sources per call; identical retries are idempotent; report exact write identity",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-b185dd6b3b0b",
+      "hash": "b185dd6b3b0be07b237978499c06e8c34bfcca61f72bcfbeb0e25c636b853ceb",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "reordered_arrival",
+        "parts": 3
+      },
+      "expected": "Compose byte-for-byte in index order with at most32 sources per call; identical retries are idempotent; report exact write identity",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-750f2fc2ca7b",
+      "hash": "750f2fc2ca7bb461944763c6b3686bacc76bb1209e99281a966d1c435813e439",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "reordered_arrival",
+        "parts": 33
+      },
+      "expected": "Compose byte-for-byte in index order with at most32 sources per call; identical retries are idempotent; report exact write identity",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-1510bc72c1ba",
+      "hash": "1510bc72c1ba20efcfb1b77a70d65a9fb99c687acbb9bf3b571b6ef4db1c62f0",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "reordered_arrival",
+        "parts": 65
+      },
+      "expected": "Compose byte-for-byte in index order with at most32 sources per call; identical retries are idempotent; report exact write identity",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-de3a70c9683c",
+      "hash": "de3a70c9683c10ade5c019d5d0702871d511fee2c33bb0da5682a4d13eb577a3",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "missing_first",
+        "parts": 3
+      },
+      "expected": "Name exact missing index; no final video or completion published",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-56dccbafeac9",
+      "hash": "56dccbafeac9a39264635578be843eb00aa11d3dc7a5bc0324416b6937e81a0f",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "missing_first",
+        "parts": 33
+      },
+      "expected": "Name exact missing index; no final video or completion published",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-5e7cf2be8a12",
+      "hash": "5e7cf2be8a12ba8fdc0f80d8f6cfa6b06942da3b8eaf97fafa6366871a3f7183",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "missing_first",
+        "parts": 65
+      },
+      "expected": "Name exact missing index; no final video or completion published",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-1ed70731f4ec",
+      "hash": "1ed70731f4ec0c8562cad0488a513204cf985f890e13e6bee0a24d08c95f8669",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "missing_middle",
+        "parts": 3
+      },
+      "expected": "Name exact missing index; no final video or completion published",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-6395ebb9e92a",
+      "hash": "6395ebb9e92a17c96fd26bce07e6732cc8e6585299921ed0a07716f8412968e9",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "missing_middle",
+        "parts": 33
+      },
+      "expected": "Name exact missing index; no final video or completion published",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-e598bd927912",
+      "hash": "e598bd927912ae77c924ee0a9a0530cf2eca39dac77c445c4d2cef0e0b674e32",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "missing_middle",
+        "parts": 65
+      },
+      "expected": "Name exact missing index; no final video or completion published",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-503c99e37637",
+      "hash": "503c99e3763720ec076826540c8ab288d6d21197ea52f25964e583a40d5a2a4f",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "missing_last",
+        "parts": 3
+      },
+      "expected": "Name exact missing index; no final video or completion published",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-4b78c453095a",
+      "hash": "4b78c453095a0135638b00caa13cc180f9826a1cca09a5ff425377969d912aa9",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "missing_last",
+        "parts": 33
+      },
+      "expected": "Name exact missing index; no final video or completion published",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-91d3254676d8",
+      "hash": "91d3254676d828e62b5be4cecbfb18d1c864669833347d561c754f83f223ff6d",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "missing_last",
+        "parts": 65
+      },
+      "expected": "Name exact missing index; no final video or completion published",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-815e817e3def",
+      "hash": "815e817e3def564f6c448fb002ef39603f2d55c176ecfce5e2d5f84e91a189e1",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "duplicate_identical",
+        "parts": 3
+      },
+      "expected": "Compose byte-for-byte in index order with at most32 sources per call; identical retries are idempotent; report exact write identity",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-e042bca0a2a5",
+      "hash": "e042bca0a2a5589686477043fcde777806941c32f23b43823bdf22dd844927d8",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "duplicate_identical",
+        "parts": 33
+      },
+      "expected": "Compose byte-for-byte in index order with at most32 sources per call; identical retries are idempotent; report exact write identity",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-9403132ed3d1",
+      "hash": "9403132ed3d1b1632d54c07b53f4770c3350257b9a16b9aa063e6f82a7bf3250",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "duplicate_identical",
+        "parts": 65
+      },
+      "expected": "Compose byte-for-byte in index order with at most32 sources per call; identical retries are idempotent; report exact write identity",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-29181743445d",
+      "hash": "29181743445dd6b77e00a2d48ca16660f720f123bb21737d8067ba945444f4b4",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "duplicate_conflicting",
+        "parts": 3
+      },
+      "expected": "Acknowledged original chunk bytes survive a conflicting duplicate; reject conflict; later composition retains original byte order",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-325513ab31fc",
+      "hash": "325513ab31fcca1edfc86c07cd6544f8aa7e8d6760c000e6875829a30bda0b6e",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "duplicate_conflicting",
+        "parts": 33
+      },
+      "expected": "Acknowledged original chunk bytes survive a conflicting duplicate; reject conflict; later composition retains original byte order",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-e962976f2cd2",
+      "hash": "e962976f2cd2b15057b1577d58afe6d8bc9491f9ca42f78717af3795d2851666",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "duplicate_conflicting",
+        "parts": 65
+      },
+      "expected": "Acknowledged original chunk bytes survive a conflicting duplicate; reject conflict; later composition retains original byte order",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-ede05ca98b98",
+      "hash": "ede05ca98b981c77c519f612557b40b5fd27800f39f09f1a762e73f47eda98c1",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "intermediate_failure",
+        "parts": 3
+      },
+      "expected": "Injected compose boundary is reached and fails; keep original parts and any prior destination; no successful composition result",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-9f3bd9f5b0ba",
+      "hash": "9f3bd9f5b0ba9017e1db77db88adb1ada84403f4d5a5fe3cd357405f233dc9b3",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "intermediate_failure",
+        "parts": 33
+      },
+      "expected": "Injected compose boundary is reached and fails; keep original parts and any prior destination; no successful composition result",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-b7f799874167",
+      "hash": "b7f7998741670821fef4d21c442f85861d3a4a675603f219b4851d68102a49f4",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "intermediate_failure",
+        "parts": 65
+      },
+      "expected": "Injected compose boundary is reached and fails; keep original parts and any prior destination; no successful composition result",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-d420082b5539",
+      "hash": "d420082b5539f1124df29e69b544a2fc9942b4596e1eefbf5beb579e38057e8c",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "final_failure",
+        "parts": 3
+      },
+      "expected": "Injected compose boundary is reached and fails; keep original parts and any prior destination; no successful composition result",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-dcff4b36a2c0",
+      "hash": "dcff4b36a2c00ced54185c0119727e28e3a7b7038fc75bb329c35b7fcb5a486e",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "final_failure",
+        "parts": 33
+      },
+      "expected": "Injected compose boundary is reached and fails; keep original parts and any prior destination; no successful composition result",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-e592dacf9941",
+      "hash": "e592dacf9941841bd67fd2af848e6a0228b6b911a520a701c58c818e5fd154ff",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "final_failure",
+        "parts": 65
+      },
+      "expected": "Injected compose boundary is reached and fails; keep original parts and any prior destination; no successful composition result",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-e50c6064470d",
+      "hash": "e50c6064470dd003f093809a34ec8c711dbe6611fadb9736c1fd4866d0c534a9",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "destination_generation_conflict",
+        "parts": 3
+      },
+      "expected": "Injected compose boundary is reached and fails; keep original parts and any prior destination; no successful composition result",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-6da0d82ede07",
+      "hash": "6da0d82ede070c1ad1f63aa1dd6ba34c48c025a0e456adbc089a2b20eaf8a94b",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "destination_generation_conflict",
+        "parts": 33
+      },
+      "expected": "Injected compose boundary is reached and fails; keep original parts and any prior destination; no successful composition result",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-upload_transport-d8259aa9fdf7",
+      "hash": "d8259aa9fdf71d8bb593555ad2503a588c8b4ea498f0d11d32d2db7caa8510cc",
+      "family": "upload_transport",
+      "parameters": {
+        "scenario": "destination_generation_conflict",
+        "parts": 65
+      },
+      "expected": "Injected compose boundary is reached and fails; keep original parts and any prior destination; no successful composition result",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-f9b477a23916",
+      "hash": "f9b477a23916d6156793a76860ea2cc534445df1f78c3aa0f0792410851ad977",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "healthy"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-97b494570248",
+      "hash": "97b4945702484b869ed059cb01f2b004466d75d9b2905496391a6339ad66a0fb",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "video_absent"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-d255edc5ef05",
+      "hash": "d255edc5ef05b4efda09acce3d63597f683d4390558185cdba0a0e878180f29f",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "video_generation_changed"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-218a03147705",
+      "hash": "218a03147705454345c54e20b8d171411074674036fdbf5c220e830a1cdd1173",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "video_size_mismatch"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-9fb59becc477",
+      "hash": "9fb59becc477357d5bf61a4a560a48a9907beebb0402cfe5de9cdc241323529d",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "video_crc_mismatch"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-c9b7044b8e70",
+      "hash": "c9b7044b8e7035802bb1e29a60784160eb05a80b7166c1f319f218c4abcbaf43",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "cross_request"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-bd3a2cf33046",
+      "hash": "bd3a2cf330461dd876d7a735cf2c824352d19a2de52def136e36f060a1615ecb",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "manifest_missing"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-1d6dd034a0d5",
+      "hash": "1d6dd034a0d5b06f743034a6fa8416bf574c78afd569c2b8e15f89c3113d0a3e",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "manifest_changed"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-af89cb2cb9bc",
+      "hash": "af89cb2cb9bc34b65a84d008fff9cbefdc3e279b14eb2fa5bd52f6b96f01f2a0",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "current_consent_withdrawn"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-9b55fff29ef3",
+      "hash": "9b55fff29ef35d70ebcc82e9185f1f4482aa4b352a55c53dfc410234922e02dc",
+      "family": "status_publication",
+      "parameters": {
+        "state": "held",
+        "scenario": "original_grant_absent"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-c52ec28412b5",
+      "hash": "c52ec28412b5575f7c8893ddda8cd926523029de68ec5c2279cba4b5f16e2710",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "healthy"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-fd320ec1aeee",
+      "hash": "fd320ec1aeee2f97fd8dacce53c4835037d6bcef3b2d8a0d5ad7e63aedfea983",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "video_absent"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-b3a44231f93b",
+      "hash": "b3a44231f93b3fbc6f63cd7d3cdb7531af27a6173db8dd32494968737c71fab9",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "video_generation_changed"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-943f52ebc9b9",
+      "hash": "943f52ebc9b96c1d68cebe39d92790a3a060c25efff2f88c88e0aed33bb8284c",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "video_crc_mismatch"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-fe96ee6d3a16",
+      "hash": "fe96ee6d3a160879523938b321623ad137f16968d7bc1a2295ebb9a1c596cf46",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "cross_request"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-f361565e8c80",
+      "hash": "f361565e8c8061f483b3c1676a95c247db23c60ea6dbef3d6b6c7e86af0668d0",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "manifest_missing"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-affd013b3e21",
+      "hash": "affd013b3e21659e4d3eb11d45871573993d4a0cd814f171c5f288f05f4a1085",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "manifest_changed"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-a4f778cd1fba",
+      "hash": "a4f778cd1fba5dc4019b4b1682f723860b1f6de6c13dd85ee3126a41ba5f86cf",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "marker_missing"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-5bc14f786711",
+      "hash": "5bc14f786711805f113d5b92a2b5368a0369275f5bd1cb554daf7b23f2fbbdc8",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "receipt_changed"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-00103d0327ad",
+      "hash": "00103d0327adef2f2b13e79050da0f563a74ec7adbb1289222b6e32d09565206",
+      "family": "status_publication",
+      "parameters": {
+        "state": "published",
+        "scenario": "current_consent_withdrawn"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-279ac25378c5",
+      "hash": "279ac25378c50a1e170cde2e322c01b85395b7fc8f7e7e43776ee133397de474",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "healthy"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-ae190cd33af4",
+      "hash": "ae190cd33af4eb042d4777d87885e3ec3f3f0d284d88e10b3d470ad4de680bb1",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "video_absent"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-3cdee6088daf",
+      "hash": "3cdee6088daf751bf77c27d9849a361b7aaa9ca64e073ad0d4bccf73cc256ae0",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "video_generation_changed"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-30e01deebe74",
+      "hash": "30e01deebe74bce047c45e9f4f25fffed650ccfbe50ad160a159e62193e3f7be",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "video_size_mismatch"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-e9690cf53451",
+      "hash": "e9690cf53451d891715749419c4903b371f5bb8793fcd036f23062cee606e69a",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "video_crc_mismatch"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-ce948ea090c7",
+      "hash": "ce948ea090c78a583fb58115924f1f423a3c564026f914eacb3d8a5ba00036a9",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "cross_request"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-25d36cbdf5f6",
+      "hash": "25d36cbdf5f621b25d7ad17320ad89c5b27524a831dd52079cc0569a3a427bc6",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "saved_manifest_hash_changed"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-36d175f1bedc",
+      "hash": "36d175f1bedcad93a006779c524f4cc0216209ad1d623ed77765b8736a62ea98",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "current_consent_withdrawn"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-c270b52bb96c",
+      "hash": "c270b52bb96c1caae74b2cdc596b5775551e4b03613b19728f71a0d18ce7e8a8",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "original_grant_absent"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    },
+    {
+      "id": "RTS-status_publication-ca5f698dd477",
+      "hash": "ca5f698dd477f3e41ae23be984695243e1701e4f42d9f8f9b200381e0df26598",
+      "family": "status_publication",
+      "parameters": {
+        "state": "stored",
+        "scenario": "disallowed_actor"
+      },
+      "expected": "Customer status follows current generation-bound durable video/manifest/marker evidence; absent/changed proofs never produce processing-ready; current and original consent bound retry; retained evidence stays distinguishable from completion",
+      "labelVersion": "blueprint-reliability-transport-status.v1",
+      "layer": "actual-handler-functions/in-memory-object-storage-and-serialized-firestore-fakes",
+      "seed": null,
+      "source": "synthetic-local-byte-and-status-fixture",
+      "split": "regression-development",
+      "faultReachability": "Each source-specific fault has state/readback/call-boundary assertions in the runner; no unreachable cross-product branches credited."
+    }
+  ],
+  "replay": "npx vitest run server/tests/reliability-program-transport-status.test.ts --maxWorkers=1",
+  "sourceHashes": {
+    "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
+    "server/routes/self-capture-uploads.ts": "af6a0c9981c362f706270c7a7d6ccaab038e9e29b9046177d96abd8d63440d52",
+    "server/utils/websiteBrowserUploadStatus.ts": "7abd380d7709b8159fb8f02485281fd1c10a886857470cebb2e24f9bb5f88d8a",
+    "server/utils/websiteBrowserPending.ts": "34352f9c72b16be77bbdda2122543f448ff7f49926dae9694095560a5621b9eb",
+    "server/tests/helpers/reliability-transport-status-cases.ts": "9a7545d55a10b854360c6de967555d372d8b0f63ced7fd016c8c131eb2760aa0",
+    "server/tests/reliability-program-transport-status.test.ts": "41a3e02a15ff05c9569cffe0abc488682556829ebab7eb77fa7e258c2247bab2"
+  },
+  "limitation": "Actual business functions with in-memory object/Firebase fakes; no live provider, network interruption, video decoding, browser termination or production latency proof.",
+  "liveProviderCalls": 0,
+  "liveProviderCostUsd": null,
+  "baselineSha": "c79cc3bd6c526be820f161bbad97d2e91379c684",
+  "scope": "30 upload transport +30 generation-bound customer status/publication semantic cases",
+  "generated": 60,
+  "deduplicated": 60,
+  "baseline": {
+    "attempted": 60,
+    "passed": 57,
+    "failed": 3,
+    "skipped": 0,
+    "blocked": 0,
+    "partiallyExecuted": 0
+  },
+  "candidate": {
+    "attempted": 60,
+    "passed": 60,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "partiallyExecuted": 0
+  },
+  "byFamily": {
+    "upload_transport": {
+      "generated": 30,
+      "baselinePassed": 27,
+      "baselineFailed": 3,
+      "candidatePassed": 30
+    },
+    "status_publication": {
+      "generated": 30,
+      "baselinePassed": 30,
+      "baselineFailed": 0,
+      "candidatePassed": 30
+    }
+  },
+  "repeats": {
+    "candidateRuns": 3,
+    "casesPerRun": 60,
+    "extraIndependentCasesFromRepeats": 0,
+    "disagreement": 0
+  },
+  "neighborChecks": {
+    "passed": 138,
+    "failed": 0,
+    "note": "Includes62 checks in supplemental runner(60 catalog rows+2 neighbors), existing parts, browser pending/delivery, status failure and manifest checks. Two added neighbors are not independent case credits."
+  },
+  "storageMode": "existing FakeGcsBucket + generation-pinned composition shim and serialized FakeFirestore",
+  "providerMode": "none; no model, email or live storage dispatch",
+  "failureLedger": [
+    {
+      "id": "TRANSPORT-DUPLICATE-001",
+      "severity": "P1",
+      "invariant": "Acknowledged customer upload bytes cannot be silently replaced by a duplicate event",
+      "rootCause": "captureParts.savePart writes the shared part index without a create-only precondition; same-length conflicting duplicate overwrites original and composes a changed video while total size remains unchanged",
+      "owner": "queue_recovery",
+      "baselineFailingCaseIds": [
+        "RTS-upload_transport-29181743445d",
+        "RTS-upload_transport-325513ab31fc",
+        "RTS-upload_transport-e962976f2cd2"
+      ],
+      "minimizedReplay": "npx vitest run server/tests/reliability-program-transport-status.test.ts --maxWorkers=1 -t RTS-upload_transport-29181743445d",
+      "repair": "Create-only part save. A412 retries only identical generation-pinned bytes; changed bytes/current-generation race rejects without overwriting. Actual route returns409 fixed conflict code and original-video next step.",
+      "retainedCounterexamples": [
+        {
+          "caseId": "RTS-upload_transport-29181743445d",
+          "byteEvidence": [
+            {
+              "event": "duplicate-readback",
+              "index": 1,
+              "errorCode": null,
+              "originalSha256": "e18149585c3e864b510ae210f91f9780b70d5ba7f8552a5507d77828fc0f7af1",
+              "persistedSha256": "5b09369749b5240d619e70883c4c89030708917c1b2f5f81e2dc1094c451fff9"
+            },
+            {
+              "event": "composed-readback",
+              "expectedSize": 30,
+              "actualSize": 30,
+              "expectedSha256": "2fbe0deed9ca9f59637df330cdb55f8dad2d56372da4e7eb794b3aaf7bb33254",
+              "actualSha256": "1369a7a474dc7f3a93409a3623412f1e1faf870f42c874397fb0bb0332079dbf"
+            }
+          ]
+        },
+        {
+          "caseId": "RTS-upload_transport-325513ab31fc",
+          "byteEvidence": [
+            {
+              "event": "duplicate-readback",
+              "index": 16,
+              "errorCode": null,
+              "originalSha256": "b78ba1dbd3e77fbe37a93125a4d74270c1b9077a03fb39dc590e5c72d7c48c66",
+              "persistedSha256": "5b09369749b5240d619e70883c4c89030708917c1b2f5f81e2dc1094c451fff9"
+            },
+            {
+              "event": "composed-readback",
+              "expectedSize": 330,
+              "actualSize": 330,
+              "expectedSha256": "f166a61c3ccfa6ca16ac44b4751f38723d00fc21c80434ef8d7cdd26dc961840",
+              "actualSha256": "6f7efc0be550e23bec01d3705950027a84bbfc162cacc19ee45a8bd06fb197d5"
+            }
+          ]
+        },
+        {
+          "caseId": "RTS-upload_transport-e962976f2cd2",
+          "byteEvidence": [
+            {
+              "event": "duplicate-readback",
+              "index": 32,
+              "errorCode": null,
+              "originalSha256": "3fbc94bfca96f2b484a42ce2a51708c0a2c2cc04acfd61dfeb5b0ae86654bebe",
+              "persistedSha256": "5b09369749b5240d619e70883c4c89030708917c1b2f5f81e2dc1094c451fff9"
+            },
+            {
+              "event": "composed-readback",
+              "expectedSize": 650,
+              "actualSize": 650,
+              "expectedSha256": "84174305e871dc872967c69ab9b4f68bcedc60c62a098d7d83775a7435897749",
+              "actualSha256": "c8c20b83bf6fb7a54282fbc7b41b3d9ab1c495df5f4b39db1a267539baa14431"
+            }
+          ]
+        }
+      ],
+      "candidateRetest": "All3 same-length corruption cases pass; identical duplicate and generation-replacement neighbors pass; persisted bytes retain original SHA256",
+      "limitations": "Synthetic byte fixtures prove transport integrity failure, not video-perception behavior. Repair does not recover or certify previously overwritten parts. No production records were faulted or migrated.",
+      "releaseStatus": "Scoped code-tested; independent review/integration checks/merge/deploy owned by coordinator"
+    }
+  ],
+  "rawEvidence": "output/reliability-program/transport-status/ (ignored local files; replayable without credentials)",
+  "sourceHashPolicy": "HEAD plus exact tested runtime/helper/runner SHA256; uncommitted tested source is identified by sourceHashes."
+}
