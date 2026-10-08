@@ -2091,5 +2091,16 @@
       "final_owner_report_and_root_readback_agree": true
     },
     "independent_review": "3f95e4ac"
+  },
+  "provisional_video_output_spotcheck": {
+    "receipt_sha256": "4aaf41fa362effdddad138ca057374120adadccc17c7ae2d99768da10cc6b530",
+    "private_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/provisional-output-check-189/claim-check.json",
+    "type": "AIonly_nonblinded_selectedframecheck",
+    "sampled_frames": 16,
+    "source_videos": 1,
+    "new_sample_case_credit": 0,
+    "human_gold": false,
+    "summary": "Sampled rack/door movements and readableWhirlpool brand consistent. Apparent bowl/mug mismatch; Gemini latchclaim strongerthansampledproof, customerreport appropriately leaveslatchverificationunknown. No inventedmeasurement/certifiedrobotcapability detected incheckedcustomerpacket.",
+    "scope": "Selectedframe/agentreview supports debugging only; no fullperceptionaccuracy denominator orhumanreview."
   }
 }

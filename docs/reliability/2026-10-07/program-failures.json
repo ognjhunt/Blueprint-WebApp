@@ -1020,9 +1020,11 @@
       "receipt_sha256": "c96840cc38ac0e95ae68210f22f84d1f41fc9ad814d0a9abf46324d0139b6e40",
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/981",
       "CI": 37859788980,
-      "release_status": "reviewed_PR_required_CI_running_not_merged_deployed",
+      "release_status": "protected_merged_containingmainCI_pending",
       "live_uptake": "unverified; no additional paid run planned",
-      "new_unique_case_credit": 0
+      "new_unique_case_credit": 0,
+      "merge_sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+      "main_CI": 37860325293
     }
   ],
   "dependencies": [
