@@ -24,8 +24,26 @@ function snapshotDigest(value: unknown): string {
   return digest(JSON.stringify(sorted(JSON.parse(JSON.stringify(value)))));
 }
 
+type CommitDiagnostic = { schema_version: "agent_evidence_commit_diagnostic.v1"; stage: "firestore_commit";
+  grpc_code: number | null; projection_bytes: number; offloaded: boolean; max_depth: number; nested_arrays: boolean };
+
+// Structural telemetry only: never retain exception prose or private field paths.
+function evidenceShape(value: unknown, depth = 0): { max_depth: number; nested_arrays: boolean } {
+  const children = Array.isArray(value) ? value : plain(value) ? Object.values(value) : [];
+  return children.reduce((shape, child) => {
+    const next = evidenceShape(child, depth + 1);
+    return { max_depth: Math.max(shape.max_depth, next.max_depth),
+      nested_arrays: shape.nested_arrays || next.nested_arrays || (Array.isArray(value) && Array.isArray(child)) };
+  }, { max_depth: depth, nested_arrays: false });
+}
+
+function fitsFirestoreShape(value: unknown): boolean {
+  const shape = evidenceShape(value);
+  return shape.max_depth <= 20 && !shape.nested_arrays;
+}
+
 export class AgentEvidenceError extends Error {
-  constructor(readonly code: string, readonly scope: Scope, readonly evidenceReference?: Reference, readonly recovery?: { sourceDigest: string; metadata: RecordData; accountingIdentity?: RecordData }) {
+  constructor(readonly code: string, readonly scope: Scope, readonly evidenceReference?: Reference, readonly recovery?: { sourceDigest: string; metadata: RecordData; accountingIdentity?: RecordData }, readonly diagnostic?: CommitDiagnostic) {
     super(`${code}: ${scope.collection}/${scope.id}`);
     this.name = "AgentEvidenceError";
   }
@@ -54,7 +72,8 @@ export function requiresMutationReconciliation(record: RecordData): boolean {
 export async function projectAgentEvidence(record: RecordData, scope: Scope, storage = resolveBundleStorage()): Promise<RecordData> {
   const projected = { ...record, agent_evidence_ref: null, agent_evidence_accounting_sha256: null, agent_evidence_accounting_identity: null,
     mutation_reconciliation_required: requiresMutationReconciliation(record) };
-  if (byteSize(projected) <= AGENT_DOCUMENT_BYTE_BUDGET) return projected;
+  // Retain Standard-compatible depth and array shape, regardless of JSON size.
+  if (byteSize(projected) <= AGENT_DOCUMENT_BYTE_BUDGET && fitsFirestoreShape(projected)) return projected;
   if (!storage) throw new AgentEvidenceError("agent_evidence_storage_unavailable", scope);
   const fields = payloadFields[scope.collection].filter(field => record[field] !== undefined);
   const payload = Object.fromEntries(fields.map(field => [field, record[field]]));
@@ -89,7 +108,7 @@ export async function projectAgentEvidence(record: RecordData, scope: Scope, sto
     resolved_model: typeof record.artifacts?.openrouter_model === "string" ? record.artifacts.openrouter_model : record.model ?? null,
     sha256,
   };
-  if (byteSize(result) > AGENT_DOCUMENT_BYTE_BUDGET) throw new AgentEvidenceError("agent_evidence_controls_too_large", scope);
+  if (byteSize(result) > AGENT_DOCUMENT_BYTE_BUDGET || !fitsFirestoreShape(result)) throw new AgentEvidenceError("agent_evidence_controls_too_large", scope);
   return result;
 }
 
@@ -178,7 +197,7 @@ export async function persistAgentEvidence(document: Document, scope: Scope, upd
     if (typeof database?.runTransaction !== "function") {
       // Small legacy test transports can retain native merge behavior. Never
       // synthesize false controls or attempt a non-atomic evidence migration.
-      if (rawPrior.agent_evidence_ref || byteSize(merged) > AGENT_DOCUMENT_BYTE_BUDGET) throw new AgentEvidenceError("agent_evidence_atomic_writer_unavailable", scope);
+      if (rawPrior.agent_evidence_ref || byteSize(merged) > AGENT_DOCUMENT_BYTE_BUDGET || !fitsFirestoreShape(merged)) throw new AgentEvidenceError("agent_evidence_atomic_writer_unavailable", scope);
       await document.set(updates, { merge: true });
       return;
     }
@@ -194,10 +213,26 @@ export async function persistAgentEvidence(document: Document, scope: Scope, upd
       // Recursive merge would retain private fields that were offloaded.
       transaction.set(document, projection);
       return true;
-    }); } catch { throw new AgentEvidenceError("agent_evidence_firestore_commit_failed", scope, verifiedReference, recovery); }
+    }); } catch (error) {
+      const code = error && typeof error === "object" ? Object.getOwnPropertyDescriptor(error, "code")?.value : null;
+      throw new AgentEvidenceError("agent_evidence_firestore_commit_failed", scope, verifiedReference, recovery, {
+        schema_version: "agent_evidence_commit_diagnostic.v1", stage: "firestore_commit",
+        grpc_code: typeof code === "number" && Number.isInteger(code) && code >= 1 && code <= 16 ? code : null,
+        projection_bytes: byteSize(projection), offloaded: Boolean(verifiedReference), ...evidenceShape(projection),
+      });
+    }
     if (committed) return;
   }
   throw new AgentEvidenceError("agent_evidence_concurrent_update", scope, verifiedReference, recovery);
+}
+
+function preserveCancelledControls(data: RecordData, updates: RecordData): RecordData {
+  if (data.status !== "cancelled") return updates;
+  const next = { ...updates };
+  for (const field of ["status", "error", "outcome_evaluation", "completed_at", "cancelled_at", "approval_reason"]) {
+    if (Object.hasOwn(data, field)) next[field] = data[field]; else delete next[field];
+  }
+  return next;
 }
 
 // A completed provider response must remain discoverable even if its initial
@@ -206,6 +241,7 @@ export async function persistAgentEvidence(document: Document, scope: Scope, upd
 export async function persistAgentEvidenceFailure(document: Document, scope: Scope, updates: RecordData,
   error: unknown, database?: { runTransaction: (...args: any[]) => Promise<any> }) {
   const proof = error instanceof AgentEvidenceError && error.scope.collection === scope.collection && error.scope.id === scope.id ? error : null;
+  const diagnostic = proof?.diagnostic ? { agent_evidence_diagnostic: proof.diagnostic } : {};
   if (proof?.evidenceReference && proof.recovery && typeof database?.runTransaction === "function") {
     try {
       const linked = await database.runTransaction(async (transaction: any) => {
@@ -213,8 +249,12 @@ export async function persistAgentEvidenceFailure(document: Document, scope: Sco
         const data = current.exists ? current.data() : {};
         const sameVerifiedProof = Boolean(data.agent_evidence_ref) && snapshotDigest(data.agent_evidence_ref) === snapshotDigest(proof.evidenceReference);
         if (!sameVerifiedProof && snapshotDigest(data) !== proof.recovery!.sourceDigest) return false;
-        transaction.set(document, { ...updates,
-          ...(data.status === "cancelled" ? { status: "cancelled" } : {}),
+        // A committed completed proof is stronger than a lost acknowledgement.
+        if (sameVerifiedProof && data.status === "completed") {
+          if (requiresMutationReconciliation(updates)) transaction.set(document, { mutation_reconciliation_required: true }, { merge: true });
+          return true;
+        }
+        transaction.set(document, { ...preserveCancelledControls(data, updates), ...diagnostic,
           agent_evidence_ref: proof.evidenceReference,
           agent_evidence_accounting_sha256: proof.evidenceReference!.sha256,
           metadata: proof.recovery!.metadata, ...(proof.recovery!.accountingIdentity ? { agent_evidence_accounting_identity: proof.recovery!.accountingIdentity } : {}), agent_accounting_incomplete: false,
@@ -224,6 +264,21 @@ export async function persistAgentEvidenceFailure(document: Document, scope: Sco
       if (linked) return true;
     } catch { /* Keep compact controls and returned verified proof below. */ }
   }
-  await document.set({ ...updates, agent_accounting_incomplete: true }, { merge: true });
+  if (typeof database?.runTransaction === "function") {
+    await database.runTransaction(async (transaction: any) => {
+      const current = await transaction.get(document), data = current.exists ? current.data() : {};
+      // A failed old write cannot replace a newer result or cancellation. Only
+      // an unresolved business mutation may add its monotonic quarantine marker.
+      if ((proof?.recovery && snapshotDigest(data) !== proof.recovery.sourceDigest)
+        || (!proof?.recovery && data.status === "completed")) {
+        if (requiresMutationReconciliation(updates)) transaction.set(document, { mutation_reconciliation_required: true }, { merge: true });
+        return;
+      }
+      transaction.set(document, { ...preserveCancelledControls(data, updates), ...diagnostic, agent_accounting_incomplete: true }, { merge: true });
+    });
+  } else {
+    const current = await document.get();
+    await document.set({ ...preserveCancelledControls(current.exists ? current.data() : {}, updates), ...diagnostic, agent_accounting_incomplete: true }, { merge: true });
+  }
   return false;
 }

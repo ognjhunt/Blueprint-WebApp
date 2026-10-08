@@ -160,7 +160,8 @@ describe("private agent evidence", () => {
     await persistAgentEvidenceFailure(document, scope, { mutation_reconciliation_required: true, error: "pending old proof" }, failure, database);
     expect(saved.agent_evidence_ref).toEqual(latestReference);
     expect(saved.mutation_reconciliation_required).toBe(true);
-    expect(saved.agent_accounting_incomplete).toBe(true);
+    // The independently newer verified proof keeps its own accounting complete.
+    expect(saved.agent_accounting_incomplete).toBeUndefined();
   });
   it("does not replace a newer generation even when the payload hash is unchanged", async () => {
     let saved: any = { id: scope.id, status: "running" };
