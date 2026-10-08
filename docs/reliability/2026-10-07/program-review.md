@@ -982,3 +982,30 @@ real database durability, native execution, customer assessment publication,
 notification and semantic video accuracy remain unproven. No new case/journey
 credit or production action follows from reviewer inspection. The full customer
 assessment gate remains incomplete; this bounded advisory result cannot close it.
+
+
+**Final 362 receipt continuity verified read-only.**
+Author final362-evidence.json SHA256
+`663e461b5d30799afd26262a5e633e565cd568e46f81e0129955c51bb460414e`
+matches exact approved UI source. All twenty-three final native trace and
+embedded test-definition hashes and both result JSON counts match: fourteen
+unique intercepted browser cases, twenty-three passing attempts. These final
+362 runs remain separate from historical 811 results. Nine component checks,
+typecheck, Graphify, ownership and export-log hashes match retained bytes.
+
+The selected existing emulator UI-006/UI-020 result and catalog hashes match:
+two pass, nineteen of twenty-one catalog cases unattempted. All fifteen recorded
+execution source hashes match files; twelve production-source hashes match
+exact 362 Git. Real handlers and Firestore emulator are exercised with fake
+object/provider/local-mail services. UI-020 explicitly records orderly CDP
+browser close, not SIGKILL. Its thirteen-document/four-fake-object readbacks
+match retained lengths and hashes. UI-006 has retained per-case summary/digests;
+its raw snapshot was superseded, so full raw replay evidence is not claimed.
+
+Full emulator export failed and produced zero export files; partial top-level
+readback is not a complete export. Ownership/log receipts match, and reviewer
+read-only process inspection finds the owned emulator PID absent. Historical
+bind-free checks are author-attested, not newly executed by reviewer. No new
+case/journey credit, live provider behavior, assessment publication or overall
+completion follows from these repetitions. Required remote checks and deployed
+clear behavior remain separate release gates.
