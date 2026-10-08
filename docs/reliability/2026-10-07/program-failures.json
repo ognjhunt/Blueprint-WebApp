@@ -590,6 +590,19 @@
       "required_CI_run": 37790170932,
       "new_unique_case_credit": 0,
       "scope_limit": "CPU/helper import and durability semantics; no hosted final gate, deployed status delivery, provider or customer job result yet."
+    },
+    {
+      "id": "RETURN-REPLACEMENT-PICKER-001",
+      "severity": "P2",
+      "invariant": "Supported return flows provide an explicit recovery route without silently replacing acknowledged customer work",
+      "rootCause": "Saved upload view unmounted its file input and exposed no visible replacement action",
+      "owner": "intake_recovery",
+      "baseline": "Exact4d mounted Chromium return/reload case fails on missing visible control; retained JSON01860d209315d6771db94cc430d49687abac347df0ed38f88c175cd7b47371e3",
+      "repair": "Keep picker mounted for done state and offer Upload a new recording; preserve receipt and brief until file selection, then use existing guarded same-token transport",
+      "retest": "Candidate4/4 actual intercepted-API browser cases +26component checks/typecheck/Graphify pass",
+      "review": "937bf913 approves exactc29f9c4c",
+      "releaseStatus": "PR957 requiredCI37802404014 active; not merged/deployed",
+      "limitation": "Synthetic MP4 and intercepted APIs; actual replacement backend and video analysis not yet proved; no original coverage credit"
     }
   ],
   "dependencies": [
@@ -730,5 +743,16 @@
     "qualification": "needs_conversation",
     "customer_assessment_publications": 0,
     "claim_ceiling": "Real handlers/durability/SDK and Pipeline boundaries in isolated fixture with simulated providers; no fabricated qualifying facts/funding/completion. Final joined happy path remains unproven."
+  },
+  "programme_packet_review": {
+    "state": "minimal correction prepared_no_writes_final_review_pending",
+    "finding": "Prepared operator transaction4388/d41 did not snapshot/recheck raw existing privacy decision or exact account attachment state",
+    "impact": "No demonstrated paid dispatch bypass; runtime guard still applies. Correct packet/transaction source binding before canonical attachment.",
+    "owner": "existing dishwasher run owner",
+    "next_action": "Independent exact corrected packet/source review, replacement UI release, authorized owner import/normal upload.",
+    "prior_state": "material bounded import precondition correction requested; no production import",
+    "packet_sha256": "da7347729025b8e832bb3539a9143f4003d8c5b4197df4187bc868fe1f73259d",
+    "operator_source_sha256": "f2a0358db7062298aec812f831c105d58d06744d64cc0a2a963cb4a485964260",
+    "correction": "Compare exact existing source-bound/legacy privacy and account attachment field presence/value in the same create-only transaction. Unclaimed owner remains unclaimed; no new account gate or privacy rewrite."
   }
 }
