@@ -1546,7 +1546,11 @@
     "passed": 1,
     "new_case_or_journey_credit": 0,
     "packet_admin_readback_sha256": "f920caa04e40e245976bd4861ddfa23380a83c048b8daaa8cec4ff9463f80c0d",
-    "reader_statuses": {"anonymous": 401, "non_admin": 403, "admin": 200},
+    "reader_statuses": {
+      "anonymous": 401,
+      "non_admin": 403,
+      "admin": 200
+    },
     "customer_status": "Selected actual signed customer GET remains byte-identical confirm_brief with no results after completed internal advisory",
     "scripted_SDK_calls": 2,
     "live_provider_calls": 0,
@@ -1559,12 +1563,24 @@
     "owner_worktree_branch": "codex/reliability-clear-20261008",
     "private_manifest_path": "output/reliability-program/clear-reload/final362-evidence.json",
     "manifest_sha256": "663e461b5d30799afd26262a5e633e565cd568e46f81e0129955c51bb460414e",
-    "native_intercepted_API_UI": {"unique_cases": 14, "attempts": 23, "passed": 23, "failed": 0, "repeat_note": "Full 14 plus three selected cases repeated three times. Separate from historical 811 results and from backend journey floor."},
+    "native_intercepted_API_UI": {
+      "unique_cases": 14,
+      "attempts": 23,
+      "passed": 23,
+      "failed": 0,
+      "repeat_note": "Full 14 plus three selected cases repeated three times. Separate from historical 811 results and from backend journey floor."
+    },
     "local_component_controls": 9,
     "independent_component_controls": 11,
     "control_count_note": "Overlapping author/reviewer checks are not summed as independent cases.",
     "selected_existing_normal_UI_replay": {
-      "cases": ["UI-006", "UI-020"], "attempted": 2, "passed": 2, "other_catalog_cases_unattempted": 19,
+      "cases": [
+        "UI-006",
+        "UI-020"
+      ],
+      "attempted": 2,
+      "passed": 2,
+      "other_catalog_cases_unattempted": 19,
       "layer": "Normal Chromium UI with actual Express handlers and native isolated Firestore emulator; fake object/provider, simulated coverage-agent result, local notification sink",
       "interruption": "Orderly CDP browser close mid-write and profile return, not SIGKILL or OS crash",
       "durable_readback": "UI-020 retains 13 actual document and four fake-object JSON readbacks with matching hashes. UI-006 has retained per-case summary/digests only; its raw snapshot was superseded by the next case.",
@@ -1574,5 +1590,22 @@
     "export": "Existing emulator export failed; zero export files. No complete database snapshot claimed.",
     "cleanup": "Owned Java PID stopped; runner closed owned Vite/Chrome. Author verified ports by bind; reviewer independently confirmed PID absent without rebinding.",
     "independent_review_commit": "505b61d1"
+  },
+  "customer_failure_contract": {
+    "baseline_versions": {
+      "webapp": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+      "pipeline": "a56f9d240058f038060bd6aa89efcef3ff5f12e5"
+    },
+    "private_manifest": "output/reliability-program/customer-failure-contract/manifest.json",
+    "manifest_sha256": "2da5c7877089073be7d3745edcfb0743777e2d823c92310d19b888c6f9324036",
+    "layer": "Actual WebApp handlers/worker/HMAC transport with fake database and synthetic Pipeline status; separate existing Pipeline synthetic refusal controls.",
+    "worker_owner_boundary_passed": 2,
+    "pipeline_refusal_neighbors_passed": 5,
+    "new_unique_credit": 0,
+    "new_journey_credit": 0,
+    "live_provider_calls": 0,
+    "observed": "Owner SceneIntakeForm exposes blocked pipeline status; normal signed/workspace customer job projection has no intake failure input. Not universal absence or demonstrated false completion.",
+    "next_boundary": "Upstream website preparation may fail before prepared-scene WebApp record creation. Actual construction stage3 refusal is downstream in normal flow, but retained local probe bypassed WebApp intake. Trace original source-bound writer before choosing status bridge.",
+    "review": "independent verification in progress"
   }
 }

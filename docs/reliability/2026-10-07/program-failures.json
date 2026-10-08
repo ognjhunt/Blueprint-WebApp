@@ -479,7 +479,7 @@
       "releaseStatus": "deployed_d217_exact_identity_and_draft_presentation_verified; applicability_guard_execution_offline_only",
       "claim_ceiling": "ScriptedSDKtool/admissionproof, nottruth/video/performanceaccuracy; existing2entailmentdefectsremain",
       "mergedSHA": "d21721d94aad50c0314d2e10875c3b022841c689",
-      "independentReview": "e359506c_exacta980; same7failures→15placements+neighborspass",
+      "independentReview": "e359506c_exacta980; same7failures\u219215placements+neighborspass",
       "deployedSHA": "d21721d94aad50c0314d2e10875c3b022841c689",
       "postDeployEvidence": "program-release.json assessment_claim_placement_followup; rootreceipt48c18596713035bdec5605278c93e4439605e3db83094b7d64f9634ed466823c"
     },
@@ -521,6 +521,29 @@
       "independentPostDeploymentReview": "53cc9f8e",
       "postDeployEvidence": "resultSHA46fd5f44d0a92eb9f200c1818fbb24d90e5262758339922a88ed7eb17df06bcf;18checksalltrue includingactualdurableACK/fresh-emptyidentity/reload;0intakesubmissions",
       "finalSourceRetest": "Exact362 source:14intercepted nativecases/23passedattempts,9componentcontrols,tsc+Graphify;independent11overlappingcontrols+3native;2selectedexistingnormalUI/emulatorcasespassed/no newjourneycredit. Exportfailed/zeroexportbytes, rawlimitations explicit."
+    },
+    {
+      "id": "CUSTOMER-PREVIEW-FAILURE-001",
+      "severity": "P2",
+      "owner": "existing_dishwasher_task;coordinator_release",
+      "state": "independently_reviewed_PR945_required_CI_running",
+      "invariant": "Customer status reflects persisted preparation results without falsely promising ongoing work.",
+      "baseline_sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+      "reproducer": "Two actual HTTP handlers with disposable database/object/notification fakes: confirmed covered request + current world_reconstruction.state failed returns ongoing assessing copy.",
+      "baseline_receipt_sha256": "cef5584cb14bd3ce788531ae1a543aa3acfae572343abfe52be83f733b328eef",
+      "baseline_failures": 2,
+      "root_cause": "Both status readers forwarded ready-only preview state; the shared projector could not distinguish a persisted preparation failure.",
+      "fix": "Forward only a current-state boolean; safe preparation-failure headline; preserve withdrawal, coverage/brief/account/disposition and actual screening result precedence; no raw error or invented retry API.",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/945",
+      "reviewed_head": "15cc916e64738f9a8b6c91d679c31f83b6e97e85",
+      "candidate_receipt_sha256": "4c355ba144a0d28d88f19b191ba0f403e8b4086fd88170c775ae757e90406b4e",
+      "candidate_assertions_passed": 131,
+      "independent_review_receipt_sha256": "132ec3dd33745aa4afe3e70585657e9049a16506417bfcbd4c943f10c42db253",
+      "reviewed_code_test_diff_sha256": "8a13360faa3d1275ced22c72004d0f3bc5cc25e08fff7d6e807526d748467155",
+      "required_CI_run": 37773679243,
+      "merged_sha": null,
+      "deployed_sha": null,
+      "scope_limit": "Existing persisted preview failures only. Normal Pipeline website visual-scene callback publishes ready only; blocked-state delivery/final robot result not repaired or proven by this slice. No live failed customer record asserted, no new unique coverage credit."
     }
   ],
   "dependencies": [
