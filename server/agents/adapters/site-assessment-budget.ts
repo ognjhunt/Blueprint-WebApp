@@ -1,7 +1,7 @@
-import { getGeminiVideoModel, getOpenAiMaxOutputTokens, SITE_ASSESSMENT_MODEL } from "../provider-config";
+import { getGeminiVideoModel, SITE_ASSESSMENT_MODEL } from "../provider-config";
 
 type Call = { provider: "openai" | "gemini"; model: string; reserved_usd: number;
-  usage: unknown; response: unknown; cost_usd: number | null; input_tokens: number | null; output_tokens: number | null; priced_at_ms?: number; input_ceiling:number; output_ceiling:number; usage_pricing_status?:string; above_estimate?:boolean };
+  usage: unknown; response: unknown; cost_usd: number | null; input_tokens: number | null; output_tokens: number | null; priced_at_ms?: number; input_ceiling:number; output_ceiling:number | null; output_estimate:number; usage_pricing_status?:string; above_estimate?:boolean };
 const counter = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 /** Provider totals can bound unattributed tokens, but do not establish that they were thoughts. */
 export function normalizeSiteAssessmentUsage(provider:"openai"|"gemini",usage:any) {
@@ -37,7 +37,8 @@ export class SiteAssessmentBudget {
   }
   readonly cap = null;
   readonly inputCeiling = 100000;
-  readonly maxOutput = Math.min(8192, getOpenAiMaxOutputTokens());
+  // Historical reference estimate only; it is never passed to the provider.
+  readonly outputEstimate = 8192;
   authorize(provider: "openai" | "gemini", model: string, request?: unknown) {
     if ((provider === "openai" && model !== SITE_ASSESSMENT_MODEL)
       || (provider === "gemini" && (model !== getGeminiVideoModel() || model !== "gemini-3.8-flash"))) {
@@ -46,9 +47,9 @@ export class SiteAssessmentBudget {
     // Sol: uncached input plus a conservative cache-write ceiling. Flash:
     // full 1,048,576-token context and 32768 output at its announced post-2026 ceiling.
     // Pricing sources are retained below; these are estimates, never invoices.
-    const reserved = provider === "openai" ? (this.inputCeiling * 2.5 + this.maxOutput * 10) / 1e6
+    const reserved = provider === "openai" ? (this.inputCeiling * 2.5 + this.outputEstimate * 10) / 1e6
       : (1_048_576 * 1.5 + 32768 * 7.5) / 1e6;
-    this.calls.push({ provider, model, reserved_usd: reserved, usage: null, response: null, cost_usd: null, input_tokens: null, output_tokens: null, input_ceiling:provider==="openai"?this.inputCeiling:1048576, output_ceiling:provider==="openai"?this.maxOutput:32768 });
+    this.calls.push({ provider, model, reserved_usd: reserved, usage: null, response: null, cost_usd: null, input_tokens: null, output_tokens: null, input_ceiling:provider==="openai"?this.inputCeiling:1048576, output_ceiling:provider==="openai"?null:32768, output_estimate:provider==="openai"?this.outputEstimate:32768 });
   }
   record(provider: "openai" | "gemini", model: string, response: any) {
     const call = this.calls.at(-1);
@@ -61,7 +62,7 @@ export class SiteAssessmentBudget {
       call.cost_usd=normalized.cost_usd;
       // A response above the estimate is observable accounting, not authority
       // to interrupt an otherwise authorized customer operation.
-      if(normalized.input_tokens!>call.input_ceiling||normalized.output_tokens!>call.output_ceiling||normalized.cost_usd>call.reserved_usd)
+      if(normalized.input_tokens!>call.input_ceiling||normalized.output_tokens!>call.output_estimate||normalized.cost_usd>call.reserved_usd)
         call.above_estimate = true;
     }
   }
@@ -72,17 +73,21 @@ export class SiteAssessmentBudget {
       ? this.calls.reduce((sum, call) => sum + call[key]!, 0) : null;
     const reportedCost = this.calls.filter(call => call.cost_usd !== null).reduce((sum, call) => sum + call.cost_usd!, 0);
     const unknown = this.calls.filter(call => call.cost_usd === null);
+    const unboundedUnknown = unknown.some(call => call.output_ceiling === null);
     return { provider_responses: this.calls.map(call=>({...call,priced_input_tokens:call.input_tokens,priced_output_tokens:call.output_tokens,output_tokens:call.usage_pricing_status==="unattributed_total_upper_bound"?null:call.output_tokens})), usage_samples: this.calls.map(call => ({ provider: call.provider, model: call.model,
       input_tokens: call.input_tokens, output_tokens: call.usage_pricing_status==="unattributed_total_upper_bound"?null:call.output_tokens,
       priced_input_tokens:call.input_tokens,priced_output_tokens:call.output_tokens,usage_pricing_status:call.usage_pricing_status, above_estimate:call.above_estimate ?? false, estimated_total_cost_usd: call.cost_usd,
-      reserved_max_cost_usd: call.reserved_usd, raw_usage: call.usage })),
+      reserved_max_cost_usd: call.output_ceiling === null ? null : call.reserved_usd,
+      reserved_cost_estimate_usd: call.reserved_usd, output_ceiling: call.output_ceiling, raw_usage: call.usage })),
       known_usage_subtotals: { estimated_total_cost_usd: reportedCost }, usage_detail_status: "partial",
       usage: { calls: this.calls.length, prompt_tokens: total("input_tokens"), completion_tokens: upperBound ? null : total("output_tokens"),
         cost_usd: known ? reportedCost : null, estimated_total_cost_usd: known ? reportedCost : null },
       cost_status: known ? (upperBound ? "usage_upper_bound_pricing_estimate":"reported_usage_pricing_estimate") : "usage_missing",
       inference_reservation: { hard_cost_cap_usd: null, spending_gated: false, committed_exposure_usd: this.committedExposureUsd, known_reported_cost_usd: reportedCost,
-        reconciled_cost_status: known ? (upperBound ? "usage_upper_bound_pricing_estimate":"reported_usage_pricing_estimate") : "includes_worst_case_reservations",
-        projected_max_cost_per_call_usd: Math.max(0, ...unknown.map(call => call.reserved_usd)),
+        reconciled_cost_status: known ? (upperBound ? "usage_upper_bound_pricing_estimate":"reported_usage_pricing_estimate")
+          : unboundedUnknown ? "includes_unbounded_output_estimates" : "includes_worst_case_reservations",
+        projected_max_cost_per_call_usd: unboundedUnknown ? null : Math.max(0, ...unknown.map(call => call.reserved_usd)),
+        openai_output_token_cap: null, reservation_estimates_are_upper_bounds: !this.calls.some(call => call.output_ceiling === null),
         unknown_usage_reserved_cost_usd: this.calls.filter(call => call.cost_usd === null).reduce((sum, call) => sum + call.reserved_usd, 0),
         reconciled_cost_usd: this.calls.reduce((sum, call) => sum + (call.cost_usd ?? call.reserved_usd), 0),
         pricing_sources: ["https://openai.com/index/introducing-gpt-6-1-sol/", "https://ai.google.dev/gemini-api/docs/pricing"],
@@ -90,4 +95,3 @@ export class SiteAssessmentBudget {
     };
   }
 }
-

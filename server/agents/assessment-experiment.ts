@@ -165,6 +165,8 @@ export function openExperimentLedger(file: string, requestId: string, runId: str
       const accounting = new SiteAssessmentBudget(); accounting.authorize(provider, model, request);
       const reserved = accounting.calls[0].reserved_usd, token = randomUUID();
       const slot = { id: token, provider, model, state: "admitted", reserved_call_micro_usd: Math.ceil(reserved * 1e6),
+        reservation_is_upper_bound: accounting.calls[0].output_ceiling !== null,
+        output_token_cap: accounting.calls[0].output_ceiling,
         usage_estimate_micro_usd: null, usage: null, metadata: sanitizeExperiment(metadata) };
       state.slots.push(slot); writeExperimentJson(file, state);
       const receipt = { provider, run_id: runId, slot_id: token, reserved_usd: reserved,

@@ -186,4 +186,14 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     const budget = new SiteAssessmentBudget(); budget.authorize("gemini", "gemini-3.8-flash");
     expect(budget.calls[0].reserved_usd).toBe(1.818624);
   });
+  it("prices Sol output above the historical estimate without imposing a response ceiling or claiming an unknown upper bound", () => {
+    const budget = new SiteAssessmentBudget(); budget.authorize("openai", "gpt-6.1-sol");
+    expect(budget.artifacts().inference_reservation).toMatchObject({openai_output_token_cap:null,
+      projected_max_cost_per_call_usd:null,reconciled_cost_status:"includes_unbounded_output_estimates",
+      reservation_estimates_are_upper_bounds:false});
+    expect(budget.artifacts().usage_samples[0].reserved_max_cost_usd).toBeNull();
+    budget.record("openai", "gpt-6.1-sol", {usage:{input_tokens:100,output_tokens:20000,total_tokens:20100}});
+    expect(budget.artifacts().usage).toMatchObject({completion_tokens:20000,cost_usd:0.20025});
+    expect(budget.calls[0]).toMatchObject({output_ceiling:null,above_estimate:true});
+  });
 });

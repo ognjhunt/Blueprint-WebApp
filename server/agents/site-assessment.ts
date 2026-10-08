@@ -348,7 +348,8 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
   };
   const agent = new Agent({ name: "Site assessment", model, instructions: SITE_ASSESSMENT_INSTRUCTIONS,
     tools: options.allowed_tools ? tools.filter(tool => options.allowed_tools!.includes(tool.name)) : tools,
-    modelSettings: { reasoning: { effort: "medium" }, parallelToolCalls: false, maxTokens: options.max_output_tokens ?? 8192, store: false,
+    modelSettings: { reasoning: { effort: "medium" }, parallelToolCalls: false,
+      ...(options.max_output_tokens === undefined ? {} : { maxTokens: options.max_output_tokens }), store: false,
       providerData: { service_tier: "default" } },
     outputType: siteAssessmentOutputSchema });
   return {

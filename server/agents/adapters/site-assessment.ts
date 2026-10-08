@@ -14,7 +14,7 @@ import { verifiedPendingManifest, verifiedPendingMarker } from "../../utils/webs
 import { isSiteVideoEvidenceEnabled } from "../../config/env";
 import { hydrateAgentEvidence, requiresMutationReconciliation } from "../private-evidence";
 import { getCompanyHistoryAccess } from "../operator-tools";
-import { getGeminiVideoModel, getOpenAiMaxOutputTokens, getOpenAiTimeoutMs } from "../provider-config";
+import { getGeminiVideoModel, getOpenAiTimeoutMs } from "../provider-config";
 import { createSiteAssessmentAgent, SITE_ASSESSMENT_MODEL, type SiteAssessmentInput, type SiteAssessmentOptions, videoAnalysisOperatorDigest } from "../site-assessment";
 import { siteAssessmentTaskInput } from "../tasks/site-assessment";
 import type { AgentResult, NormalizedAgentTask } from "../types";
@@ -231,7 +231,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
           model: "text-embedding-3-small", dimensions: 1536, maxInputCharacters: 1 } } : access;
       })(), model: task.model, model_provider: provider,
       video_bytes: { body: video.body, byteLength: video.body.length, contentType: video.contentType },
-      max_output_tokens: budget.maxOutput, allowed_tools: task.tool_policy.allowed_actions,
+      allowed_tools: task.tool_policy.allowed_actions,
       assert_video_processing_allowed: async () => {
         await host.assertActive(); await assertSourceCurrent();
       },

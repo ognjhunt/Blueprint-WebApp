@@ -54,9 +54,12 @@ describe("site assessment integration boundaries", () => {
     budget.authorize("gemini", "gemini-3.8-flash");
     budget.record("gemini", "gemini-3.8-flash", { text: "Incomplete", usage: null });
     const row = telemetry(budget);
-    expect(row.spend_accounting_status).toBe("reserved_unknown");
-    expect(row.spend_reservation?.unknown_calls).toBe(2);
-    expect(row.conservative_spend_usd).toBeCloseTo(0.0035 + budget.calls[1].reserved_usd + budget.calls[2].reserved_usd);
+    expect(row.spend_accounting_status).toBe("unresolved");
+    expect(row.spend_reservation).toBeNull();
+    expect(row.conservative_spend_usd).toBeNull();
+    expect(budget.artifacts().known_usage_subtotals.estimated_total_cost_usd).toBeCloseTo(0.0035);
+    expect(budget.artifacts().inference_reservation.unknown_usage_reserved_cost_usd)
+      .toBeCloseTo(budget.calls[1].reserved_usd + budget.calls[2].reserved_usd);
     expect(budget.artifacts().provider_responses[2].response).toEqual({ text: "Incomplete", usage: null });
   });
   it("preserves configured model identity while cap and unknown-cost thresholds do not deny calls", () => {
@@ -67,6 +70,9 @@ describe("site assessment integration boundaries", () => {
     budget.authorize("openai", "gpt-6.1-sol", {});
     expect(() => budget.authorize("openai", "gpt-6.1-sol", {})).not.toThrow();
     expect(budget.calls).toHaveLength(3);
-    expect(telemetry(budget).conservative_spend_usd).toBeCloseTo(budget.calls.reduce((sum,call)=>sum+call.reserved_usd,0));
+    expect(telemetry(budget).conservative_spend_usd).toBeNull();
+    expect(telemetry(budget).spend_accounting_status).toBe("unresolved");
+    expect(budget.artifacts().inference_reservation.unknown_usage_reserved_cost_usd)
+      .toBeCloseTo(budget.calls.reduce((sum,call)=>sum+call.reserved_usd,0));
   });
 });
