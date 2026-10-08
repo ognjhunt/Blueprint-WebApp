@@ -955,3 +955,30 @@ checks and zero intake mutation. Reviewer did not invoke production. Required
 remote checks, final merged/serving identity and deployed affected behavior
 remain release-owner gates. This approval proves neither a backend job nor
 assessment/provider/notification correctness or overall program completion.
+
+
+**Bounded advisory persistence/reader follow-up; no journey credit.**
+Retained manifest SHA256
+`55efc24fc40569be070061ea22af0ea0407563c051503d460dc778a8d54e610b`
+under output/reliability-program/assessment-joined-followup matches. Independent
+checks verify all twenty-two file hashes/lengths and nine canonical 8c6 source
+identities. Exact deterministic quoted-module relocation regenerates the
+executed producer copy; canonical function bodies remain unchanged.
+
+The one final-v2 retained test executes the actual SDK Runner/search loop with
+two scripted model callbacks and no video read/live provider. An explicitly
+injected adapter-return seam transports its packet through actual session/run
+and private-evidence functions using an in-memory fake database/storage. The
+protected admin read returns the identical packet hash. Real role middleware
+returns anonymous 401/customer 403/admin 200 with already-verified test claims;
+Firebase token verification is not exercised. The tested signed customer status
+body is identical before/after and remains confirm_brief. Completed internal
+advisory work therefore does not fabricate customer completion in this fixture.
+
+Initial collection/storage setup failures and an older v1 execution remain
+separate from final v2. This is a reader/status boundary observation, not a
+universal claim about every customer route. Browser/source/rights admission,
+real database durability, native execution, customer assessment publication,
+notification and semantic video accuracy remain unproven. No new case/journey
+credit or production action follows from reviewer inspection. The full customer
+assessment gate remains incomplete; this bounded advisory result cannot close it.
