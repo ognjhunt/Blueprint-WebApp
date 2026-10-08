@@ -501,3 +501,44 @@ remains unproven; the reference-source and human-label shortfalls remain explici
 There is no independent approval for assessment-quality beta, broad end-to-end
 beta or full-goal completion. Existing authorized customer conversations remain
 independent of these specific evidence limits.
+
+
+**Scoped source approval: `e048c74e7eeaf44996ce17a0e24b48d8d985104d` over deployed d898.**
+The three-file stale-applicability repair adds one narrow admission rule: a known
+published claim cannot cite a knowledge record explicitly marked boolean
+`current:false`. The actual SDK returns the same source wrapper that this guard
+checks. Unknown and estimated historical context remains usable; source/claim
+bytes remain untouched. Current/missing/string-valued applicability, independent
+current siblings and older timestamps receive no invented age cutoff or coercion.
+The diff changes no authentication, provider dispatch, storage contract, budget,
+notification or private-video exposure. No material independent finding remains
+for this scope.
+
+Independent exact-function extraction from both Git revisions reproduces the
+same seven meaningful controls: deployed d898 admits the unsupported known claim
+(6/7); e048 rejects it with `assessment_known_published_source_not_current` and
+passes 7/7. All originals remain unchanged. Baseline source SHA256 is
+`67a51a0d7a2164464d07fe983522857c180eaf8caa6539d824eaf47a91a8d1c4`; candidate is
+`a889137a97af596aeeb4f90a320993bb7765e4bf43b8a03af232ea3460edcfba`. Minimized
+private receipt SHA256 is
+`362f00e6856245059451c9aa5c5e5f4687930ffcec9dd4f711d7210f6a6dae71`.
+
+The independent candidate five-file replay passes 176/176 checks, receipt SHA256
+`1bd93ef84e3b076e98a43e69f27423692b4aaf47b640446d38b27e1989c12624`. Its actual
+SDK Runner result receipt is
+`74111bf5a38c0390a91e1ee51a3e21590fbb41a385302aca3acaf60f790245c9`: 28 admission
+conditions pass and two semantic counterexamples remain partial/admitted. All
+30 IDs, semantic hashes, returned source/tool receipts and scripted provider
+outputs exactly match the retained baseline. The V9 expectation correction is
+explicit; it changes one admission expectation without changing its input,
+counting a new case or relabeling the original baseline. These are isolated
+scripted callbacks, not paid model/video perception or customer publication.
+
+`ASSESS-STALE-APPLICABILITY-001` is code-repaired for this explicit known/published
+knowledge boundary, pending its own protected merge/deployment verification.
+`ASSESS-VIDEO-ENTAILMENT-001` and `ASSESS-FIELD-ENTAILMENT-001` still admit false
+claims and remain consequential internal-advisory quality defects. The rule
+does not validate sentences, all other claim locations/bases, current-spec
+completeness or measured robot suitability. Full assessment/beta readiness and
+joined customer qualification/publication remain unapproved. Reviewer production
+trees remain clean; no runtime source was edited for this review.
