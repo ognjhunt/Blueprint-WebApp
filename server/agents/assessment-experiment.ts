@@ -4,33 +4,17 @@ import path from "node:path";
 import { z } from "zod";
 import { SiteAssessmentBudget } from "./adapters/site-assessment-budget";
 import type { SiteAssessmentExperiment } from "./adapters/site-assessment";
-import { admitInferenceProgramme, inferenceProgrammeAuthorityDigest, validateInferenceProgramme } from "../utils/inferenceProgrammeAdmission";
-import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { getGeminiVideoModel } from "./provider-config";
 
 export const experimentHash = (value: unknown) => createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
 const sha = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
-const providerLimit = z.object({ cap_usd: z.number().finite().nonnegative().max(100), max_calls: z.number().int().min(0).max(100) }).strict();
-const experimentApproval = z.object({
-  allocation_id: z.string().regex(/^assessment-experiment-[A-Za-z0-9._-]{1,80}$/),
-  purpose: z.literal("site-assessment-iteration"),
-  providers: z.object({ openai: providerLimit, gemini: providerLimit }).strict(),
-  retention: z.object({ local_evidence_allowed: z.literal(true), authority_ref: z.string().min(1), expires_at_ms: z.number().int().positive() }).strict(),
-}).strict();
-
-/** Uses the existing programme slots and model reservations, not a second pricing/budget implementation. */
-export function validateExperimentAllocation(value: unknown) {
-  const programme = validateInferenceProgramme(value);
-  const approval = experimentApproval.parse(programme.experiment);
-  if (approval.retention.expires_at_ms <= Date.now()) throw Error("experiment_retention_expired");
-  if (programme.expires_at_ms <= Date.now()) throw Error("inference_programme_expired");
-  for (const provider of ["openai", "gemini"] as const) {
-    const slots = programme.slots.filter(slot => slot.provider === provider);
-    if (slots.length > approval.providers[provider].max_calls || slots.reduce((sum, slot) => sum + slot.reserved_micro_usd, 0)
-      > Math.floor(approval.providers[provider].cap_usd * 1e6)) throw Error("experiment_provider_allocation_exceeds_approval");
-  }
-  return { programme, approval };
+export const experimentRetention = z.object({ local_evidence_allowed: z.literal(true),
+  authority_ref: z.string().min(1), expires_at_ms: z.number().int().positive() }).strict();
+export function validateExperimentRetention(value: unknown) {
+  const retention = experimentRetention.parse(value);
+  if (retention.expires_at_ms <= Date.now()) throw Error("experiment_retention_expired");
+  return retention;
 }
 
 /** Atomic, private and durable before dispatch. A crashed process leaves its admitted slot consumed. */
@@ -81,7 +65,7 @@ const savedEvidence = z.object({
     video_ref: z.string().startsWith("gs://"), video_sha256: hash, video_bytes: z.number().int().positive(), duration_seconds: z.number().positive() }).strict(),
   operator_messages_sha256: hash, analysis_sha256: hash, model_requested: z.string().min(1), model_versions: z.array(z.string().min(1)),
   started_at: z.string().datetime(), completed_at: z.string().datetime(),
-  retention: experimentApproval.shape.retention,
+  retention: experimentRetention,
   sources: z.array(z.any()).min(1), responses: z.array(z.any()).min(1), content_sha256: hash,
 }).strict();
 type Evidence = z.infer<typeof savedEvidence>;
@@ -142,66 +126,59 @@ export async function captureSavedEvidence(result: any, source: Record<string, a
   return evidence;
 }
 
-/** Local persistence of existing inference_program.v1; no customer capture-budget or agentRuns writes. */
-export function openExperimentAllocation(file: string, requestId: string, runId: string, mode: SiteAssessmentExperiment["mode"]) {
-  const absolute = fs.realpathSync(file), lock = `${absolute}.lock`;
-  const fd = fs.openSync(lock, "wx", 0o600); fs.writeFileSync(fd, runId); fs.fsyncSync(fd); fs.closeSync(fd);
+/** Run-local accounting I/O only. No approval file, dollar cap, call allowance or spending denial. */
+export function openExperimentLedger(file: string, requestId: string, runId: string, mode: SiteAssessmentExperiment["mode"], retention: unknown) {
+  const permission = validateExperimentRetention(retention);
   let bound: Record<string, any> | undefined, stop: string | undefined;
-  try {
-    const { programme, approval } = validateExperimentAllocation(JSON.parse(fs.readFileSync(absolute, "utf8")));
-    if (programme.request_id !== requestId) throw Error("experiment_request_mismatch");
-    if (programme.slots.some(slot => slot.state === "unknown" || slot.state === "admitted")) throw Error("experiment_charge_unresolved");
-    if (mode === "saved-evidence" && !programme.slots.some(slot => slot.provider === "openai" && slot.state === "held")) throw Error("experiment_sol_allowance_required");
-    const authority = inferenceProgrammeAuthorityDigest(programme), approvalDigest = experimentHash(approval);
-    const read = () => {
-      const checked = validateExperimentAllocation(JSON.parse(fs.readFileSync(absolute, "utf8")));
-      if (inferenceProgrammeAuthorityDigest(checked.programme) !== authority || experimentHash(checked.approval) !== approvalDigest) throw Error("experiment_authority_changed");
-      return checked.programme;
-    };
-    return {
-      approval,
-      bind(source: Record<string, any>) {
-        if (programme.capture_id !== source.capture_id || programme.video_sha256 !== source.video_sha256
-          || programme.context_digest !== source.experiment_context_digest
-          || programme.producer_source_digest !== humanDecisionDigest(source.producer_source)) throw Error("experiment_source_binding_changed");
-        bound = source;
-      },
-      pause(reason: string) { stop = reason; },
-      assertActive() { if (stop) throw Error(stop); read(); },
-      status: () => ({ pause_reason: stop ?? null, slots: read().slots }),
-      reserve: (async (model: string, metadata: Record<string, unknown> = {}, provider = "gemini", request?: unknown) => {
-        if (!bound || stop) throw Error(stop ?? "experiment_source_not_bound");
-        if (mode === "saved-evidence" && provider === "gemini") throw Error("experiment_saved_evidence_miss");
-        const current = read();
-        if (current.slots.some(slot => slot.state === "unknown" || slot.state === "admitted")) throw Error("experiment_charge_unresolved");
-        const exposure = current.slots.filter(slot => slot.state !== "held").reduce((sum, slot) => sum + slot.reserved_micro_usd / 1e6, 0);
-        const budget = new SiteAssessmentBudget(exposure); budget.authorize(provider, model, request);
-        const reserved = budget.calls[0].reserved_usd, token = randomUUID();
-        const admitted = admitInferenceProgramme(current, { requestId, captureId: bound.capture_id,
-          contextDigest: bound.experiment_context_digest, videoSha256: bound.video_sha256,
-          sourceDigest: humanDecisionDigest(bound.producer_source), provider, model, reservedMicroUsd: Math.ceil(reserved * 1e6), token, runId });
-        writeExperimentJson(absolute, { ...current, slots: admitted.slots });
-        const receipt = { provider, allocation_id: approval.allocation_id, slot_id: admitted.slotId, reserved_usd: reserved,
-          cap_usd: approval.providers[provider].cap_usd, capture_exposure_usd: exposure + reserved, persistence: "local_inference_program.v1" };
-        const assertSlot = () => {
-          const value = read(), slot = value.slots.find(row => row.id === admitted.slotId);
-          if (!slot || slot.state !== "admitted" || slot.admission_token !== token || slot.run_id !== runId) throw Error("experiment_admission_changed");
-          return value;
-        };
-        return { receipt, async assertDispatchAllowed() { assertSlot(); }, async record(usage: unknown) {
-          budget.record(provider, model, { usage });
-          const value = assertSlot(), cost = budget.calls[0].cost_usd;
-          writeExperimentJson(absolute, { ...value, slots: value.slots.map(slot => slot.id === admitted.slotId
-            ? { ...slot, state: cost === null ? "unknown" : "recorded", usage_estimate_micro_usd: cost === null ? null : Math.ceil(cost * 1e6), usage: sanitizeExperiment(usage) } : slot) });
-        } };
-      }) as SiteAssessmentExperiment["reserve"],
-      close() { fs.unlinkSync(lock); },
-    };
-  } catch (error) { fs.unlinkSync(lock); throw error; }
+  const state: { schema_version: string; request_id: string; run_id: string; source_digest: string | null; slots: any[] } = {
+    schema_version: "site_assessment_accounting.v1", request_id: requestId, run_id: runId, source_digest: null, slots: [] };
+  if (fs.existsSync(file)) throw Error("experiment_accounting_exists");
+  writeExperimentJson(file, state);
+  const read = () => {
+    const current = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (current.schema_version !== state.schema_version || current.request_id !== requestId || current.run_id !== runId
+      || current.source_digest !== state.source_digest || experimentHash(current.slots) !== experimentHash(state.slots)) throw Error("experiment_accounting_changed");
+    return current;
+  };
+  return {
+    retention: permission,
+    bind(source: Record<string, any>) {
+      read();
+      if (source.request_id !== requestId || (bound && experimentHash(bound) !== experimentHash(source))) throw Error("experiment_source_binding_changed");
+      bound = source; state.source_digest = experimentHash(source); writeExperimentJson(file, state);
+    },
+    pause(reason: string) { stop = reason; },
+    assertActive() { if (stop) throw Error(stop); read(); validateExperimentRetention(permission); },
+    status: () => ({ pause_reason: stop ?? null, spending_gates: false, ...read() }),
+    reserve: (async (model: string, metadata: Record<string, unknown> = {}, provider = "gemini", request?: unknown) => {
+      if (!bound || stop) throw Error(stop ?? "experiment_source_not_bound");
+      if (mode === "saved-evidence" && provider === "gemini") throw Error("experiment_saved_evidence_miss");
+      read(); validateExperimentRetention(permission);
+      const accounting = new SiteAssessmentBudget(); accounting.authorize(provider, model, request);
+      const reserved = accounting.calls[0].reserved_usd, token = randomUUID();
+      const slot = { id: token, provider, model, state: "admitted", reserved_call_micro_usd: Math.ceil(reserved * 1e6),
+        usage_estimate_micro_usd: null, usage: null, metadata: sanitizeExperiment(metadata) };
+      state.slots.push(slot); writeExperimentJson(file, state);
+      const receipt = { provider, run_id: runId, slot_id: token, reserved_usd: reserved,
+        spending_gates: false, persistence: "local_run_accounting" };
+      const assertSlot = () => {
+        const value = read(), current = value.slots.find((row: any) => row.id === token);
+        if (!current || current.state !== "admitted") throw Error("experiment_accounting_changed");
+      };
+      return { receipt, async assertDispatchAllowed() { assertSlot(); validateExperimentRetention(permission); }, async record(usage: unknown) {
+        assertSlot(); accounting.record(provider, model, { usage });
+        const cost = accounting.calls[0].cost_usd;
+        Object.assign(slot, { state: cost === null ? "unknown" : "recorded",
+          usage_estimate_micro_usd: cost === null ? null : Math.ceil(cost * 1e6), usage: sanitizeExperiment(usage) });
+        writeExperimentJson(file, state);
+      } };
+    }) as SiteAssessmentExperiment["reserve"],
+    close() { read(); },
+  };
 }
 
 export function experimentCostStatus(run: any): string {
-  if (run.allocation_read_error || run.allocation_close_error) return "experiment_ledger_reconciliation_required";
+  if (run.accounting_read_error || run.accounting_close_error || run.allocation_read_error || run.allocation_close_error) return "experiment_ledger_reconciliation_required";
   return run.result?.artifacts?.cost_status ?? (run.provider_call_may_have_happened
     ? "provider_usage_or_charge_unresolved" : "no_new_provider_dispatch");
 }
@@ -213,7 +190,7 @@ export function compareAssessmentRuns(before: any, after: any) {
     return { mode: run.mode, status: run.status ?? run.result?.status, assessment_status: run.result?.status ?? null, assessment: assessment ?? null,
       verification: packet?.verification ?? null, source_binding: run.source ?? null, versions: run.versions,
       cost_status: experimentCostStatus(run), cost: run.result?.artifacts?.inference_reservation ?? null,
-      allocation: run.allocation ?? null, usage: run.result?.artifacts?.usage ?? null, wall_ms: run.wall_ms };
+      accounting: run.accounting ?? run.allocation ?? null, usage: run.result?.artifacts?.usage ?? null, wall_ms: run.wall_ms };
   };
   const left = projection(before), right = projection(after);
   const sections = ["status", "job", "objects_motions_conditions_variations", "operator_success", "known", "estimates", "missing", "approaches", "next_action", "questions"];

@@ -5,20 +5,21 @@ import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { z } from "zod";
-import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentVersions, openExperimentAllocation,
+import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentVersions, openExperimentLedger, experimentRetention,
   sanitizeExperiment, validateSavedEvidence, writeExperimentJson } from "../server/agents/assessment-experiment";
 
 const help = `Usage:
-  npm run assessment:iterate -- --mode saved-evidence --input INPUT.json --evidence EVIDENCE.json --approved-budget ALLOCATION.json --output NEW_RUN_DIR
-  npm run assessment:iterate -- --mode fresh-video --input INPUT.json --approved-budget ALLOCATION.json --output NEW_RUN_DIR
+  npm run assessment:iterate -- --mode saved-evidence --input INPUT.json --evidence EVIDENCE.json --output NEW_RUN_DIR
+  npm run assessment:iterate -- --mode fresh-video --input INPUT.json --output NEW_RUN_DIR
   npm run assessment:iterate -- --preflight --input INPUT.json --output NEW_RUN_DIR
   npm run assessment:iterate -- --compare BEFORE_DIR AFTER_DIR --output NEW_COMPARISON.json
 Saved evidence still calls paid Sol. Fresh video calls paid Sol + Gemini. No automatic retry or customer writes.
 --preflight reads only the exact request metadata, configuration presence and optional local-video hash.
-See docs/site-assessment-iteration.md for the existing inference_program.v1 allocation and proof limits.`;
+See docs/site-assessment-iteration.md for source/retention requirements and proof limits. No spending approval or cap file is required.`;
 const sha = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
 const inputSchema = z.object({ message: z.string().min(1).max(8000),
   context: z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/) }).strict(),
+  retention: experimentRetention.optional(),
   execution_scope: z.literal("read-only-preflight").optional(),
   local_video: z.object({ path: z.string().min(1), sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().positive() }).strict().optional(),
 }).strict();
@@ -58,7 +59,7 @@ function failureWithoutCause(error: unknown) {
 
 async function main() {
   const { values, positionals } = parseArgs({ options: { mode: { type: "string" }, input: { type: "string" }, output: { type: "string" },
-    evidence: { type: "string" }, "approved-budget": { type: "string" }, compare: { type: "boolean" }, preflight: { type: "boolean" }, help: { type: "boolean" } }, allowPositionals: true });
+    evidence: { type: "string" }, compare: { type: "boolean" }, preflight: { type: "boolean" }, help: { type: "boolean" } }, allowPositionals: true });
   if (values.help) { console.log(help); return; }
   if (!values.output) throw Error("experiment_output_required");
   if (values.compare) {
@@ -71,12 +72,12 @@ async function main() {
   const output = path.resolve(values.output);
   fs.mkdirSync(path.dirname(output), { recursive: true, mode: 0o700 }); fs.mkdirSync(output, { mode: 0o700 });
   const started = Date.now(), startedAt = new Date(started).toISOString(), runId = `assessment-experiment-${randomUUID()}`;
-  let allocation: ReturnType<typeof openExperimentAllocation> | undefined;
+  let accounting: ReturnType<typeof openExperimentLedger> | undefined;
   const run: Record<string, any> = { schema_version: "site_assessment_experiment.v1", run_id: runId, mode: values.mode ?? "preflight", started_at: startedAt,
     status: "failed", stage: "input", provider_call_may_have_happened: false, output_retention: "private_local_sanitized" };
   try {
     if (!values.input || positionals.length) throw Error("experiment_input_required");
-    if (values.preflight ? Boolean(values.mode || values.evidence || values["approved-budget"])
+    if (values.preflight ? Boolean(values.mode || values.evidence)
       : !["saved-evidence", "fresh-video"].includes(values.mode ?? "")) throw Error("experiment_mode_invalid");
     if (!values.preflight && (values.mode === "saved-evidence") !== Boolean(values.evidence)) throw Error("experiment_evidence_mode_invalid");
     const input = inputSchema.parse(readJson(values.input));
@@ -108,13 +109,12 @@ async function main() {
         local_video_is_not_upload_acceptance: true };
       run.status = "preflight_only"; return;
     }
-    run.stage = "experiment_allocation";
-    if (!values["approved-budget"]) throw Error("experiment_explicit_provider_approval_required");
-    allocation = openExperimentAllocation(values["approved-budget"], input.context.request_id, runId, values.mode as "saved-evidence" | "fresh-video");
-    run.allocation_id = allocation.approval.allocation_id;
     run.stage = "credentials";
     if (!run.configuration.openai_present) throw Error("experiment_openai_credential_missing");
     if (values.mode === "fresh-video" && !run.configuration.gemini_present) throw Error("experiment_gemini_credential_missing");
+    run.stage = "retention_permission";
+    accounting = openExperimentLedger(path.join(output, "accounting.json"), input.context.request_id, runId, values.mode as "saved-evidence" | "fresh-video", input.retention);
+    run.spending_gates = false;
     const retainFailure = async <T>(action: () => Promise<T>): Promise<T> => {
       try { return await action(); } catch (error) { run.error = failure(error); throw error; }
     };
@@ -124,34 +124,34 @@ async function main() {
     run.stage = "production_adapter_admission";
     run.scope = { reused_stage: values.mode === "saved-evidence" ? "Gemini observations" : null,
       upload_retested: false, customer_workflow_retested: false, business_writes: false, embeddings: "disabled; authorized lexical history remains",
-      reservation_persistence: "dedicated local existing inference_program.v1", model_substitution: false };
-    const { local_video, execution_scope, ...taskInput } = input;
+      reservation_persistence: "dedicated run-local accounting; no spending gates", model_substitution: false };
+    const { local_video, execution_scope, retention, ...taskInput } = input;
     const task = { kind: "site_assessment", input: taskInput, provider: "openai_responses", runtime: "openai_agents_sdk", model: SITE_ASSESSMENT_MODEL,
       definition: siteAssessmentTask, tool_policy: { ...siteAssessmentTask.tool_policy, allowed_domains: ["api.openai.com", "generativelanguage.googleapis.com", "storage.googleapis.com"],
         isolated_runtime_required: false }, metadata: {} } as any;
-    run.result = await runSiteAssessmentTask(task, { runId, assertActive: async () => retainFailure(async () => allocation!.assertActive()), assertCostAllowed: async () => retainFailure(async () => allocation!.assertActive()),
+    run.result = await runSiteAssessmentTask(task, { runId, assertActive: async () => retainFailure(async () => accounting!.assertActive()), assertCostAllowed: async () => retainFailure(async () => accounting!.assertActive()),
       experiment: { record_error: error => { run.error ??= failure(error); run.failure_stage ??= run.stage; }, mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
-        run.source = source; allocation!.bind(source);
+        run.source = source; accounting!.bind(source);
         if (input.local_video && (source.video_sha256 !== input.local_video.sha256 || source.video_bytes !== input.local_video.bytes)) throw Error("experiment_uploaded_video_binding_changed");
         run.stage = "evidence_binding";
         const sources = evidence ? await validateSavedEvidence(evidence, source, run.versions) : [];
         run.stage = "assessment_sdk"; return sources;
       }), reserve: async (...args) => {
         run.stage = `${args[2] ?? "gemini"}_admission`;
-        const reservation = await retainFailure(() => allocation!.reserve(...args));
+        const reservation = await retainFailure(() => accounting!.reserve(...args));
         run.provider_call_may_have_happened = true; // Conservative: reservation is durable, response may be lost.
         run.stage = `${args[2] ?? "gemini"}_provider`;
-        run.allocation = allocation!.status(); run.allocation_snapshot_at = new Date().toISOString();
+        run.accounting = accounting!.status(); run.accounting_snapshot_at = new Date().toISOString();
         writeExperimentJson(path.join(output, "run.json"), sanitizeExperiment(run));
         return reservation;
       }, ...(values.mode === "saved-evidence" ? { analyze_video: async () => {
-        allocation!.pause("experiment_saved_evidence_miss");
+        accounting!.pause("experiment_saved_evidence_miss");
         throw Error("experiment_saved_evidence_miss");
       } } : {}) } });
     run.status = run.result.status;
     if (values.mode === "fresh-video" && run.source) {
       run.stage = "evidence_retention";
-      const saved = await captureSavedEvidence(run.result, run.source, run.versions, allocation.approval.retention, startedAt);
+      const saved = await captureSavedEvidence(run.result, run.source, run.versions, accounting.retention, startedAt);
       if (saved) { writeExperimentJson(path.join(output, "evidence.json"), saved); run.reusable_evidence = "evidence.json"; }
       else run.reusable_evidence = "not_available_or_redaction_changed_evidence";
     }
@@ -160,18 +160,18 @@ async function main() {
   } catch (error) { run.status = "failed"; run.error = failure(error); process.exitCode = 1; }
   finally {
     run.completed_at = new Date().toISOString(); run.wall_ms = Date.now() - started;
-    if (allocation) {
-      try { run.allocation = allocation.status(); run.allocation_snapshot_at = new Date().toISOString(); }
-      catch (error) { run.allocation_read_error = failure(error); run.status = "failed"; run.stage = "allocation_finalization"; process.exitCode = 1; }
-      try { allocation.close(); }
-      catch (error) { run.allocation_close_error = failure(error); run.status = "failed"; run.stage = "allocation_finalization"; process.exitCode = 1; }
+    if (accounting) {
+      try { run.accounting = accounting.status(); run.accounting_snapshot_at = new Date().toISOString(); }
+      catch (error) { run.accounting_read_error = failure(error); run.status = "failed"; run.stage = "accounting_finalization"; process.exitCode = 1; }
+      try { accounting.close(); }
+      catch (error) { run.accounting_close_error = failure(error); run.status = "failed"; run.stage = "accounting_finalization"; process.exitCode = 1; }
     }
     run.cost_status = experimentCostStatus(run);
     writeExperimentJson(path.join(output, "run.json"), sanitizeExperiment(run));
     const packet = run.result?.artifacts?.site_assessment_packet;
     if (packet) writeExperimentJson(path.join(output, "assessment.json"), sanitizeExperiment(packet.assessment));
-    const code = run.error?.code ?? run.allocation_read_error?.code ?? run.allocation_close_error?.code ?? run.allocation?.pause_reason ?? run.result?.error ?? "none";
-    fs.writeFileSync(path.join(output, "summary.md"), `Mode: ${run.mode}\nStatus: ${run.status}\nStage: ${run.stage}\nError: ${code}\nWall time: ${run.wall_ms} ms\nProvider call may have happened: ${run.provider_call_may_have_happened}\nCost status: ${run.cost_status}\nKnown usage price estimate: ${run.result?.artifacts?.inference_reservation?.known_reported_cost_usd ?? "unavailable"}\nUnknown reserved exposure: ${run.result?.artifacts?.inference_reservation?.unknown_usage_reserved_cost_usd ?? "see allocation slots"}\n${run.mode === "saved-evidence" ? "Reuses fixed Gemini evidence; does not retest upload, perception or full integration. Still invokes paid production Sol.\n" : "No upload/customer acceptance or independently verified model quality is established by this experiment.\n"}`, { mode: 0o600 });
+    const code = run.error?.code ?? run.accounting_read_error?.code ?? run.accounting_close_error?.code ?? run.accounting?.pause_reason ?? run.result?.error ?? "none";
+    fs.writeFileSync(path.join(output, "summary.md"), `Mode: ${run.mode}\nStatus: ${run.status}\nStage: ${run.stage}\nError: ${code}\nWall time: ${run.wall_ms} ms\nProvider call may have happened: ${run.provider_call_may_have_happened}\nCost status: ${run.cost_status}\nKnown usage price estimate: ${run.result?.artifacts?.inference_reservation?.known_reported_cost_usd ?? "unavailable"}\nUnknown reserved exposure: ${run.result?.artifacts?.inference_reservation?.unknown_usage_reserved_cost_usd ?? "see accounting records"}\n${run.mode === "saved-evidence" ? "Reuses fixed Gemini evidence; does not retest upload, perception or full integration. Still invokes paid production Sol.\n" : "No upload/customer acceptance or independently verified model quality is established by this experiment.\n"}`, { mode: 0o600 });
     console.log(`${run.status}: ${code}. Inspect ${path.join(output, "summary.md")}`);
   }
 }

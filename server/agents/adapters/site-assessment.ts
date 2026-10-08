@@ -95,7 +95,9 @@ import { SiteAssessmentBudget } from "./site-assessment-budget";
 export interface SiteAssessmentExperiment {
   mode: "saved-evidence" | "fresh-video";
   prepare: (source: Record<string, any>) => Promise<NonNullable<SiteAssessmentOptions["retained_video_sources"]>>;
-  reserve: typeof reserveCaptureCoverageInference;
+  reserve: (...args: Parameters<typeof reserveCaptureCoverageInference>) => Promise<{
+    receipt: Record<string, unknown>; assertDispatchAllowed(): Promise<void>; record(usage: unknown): Promise<void>;
+  }>;
   analyze_video?: SiteAssessmentOptions["analyze_video"];
   record_error?: (error: unknown) => void;
 }
@@ -104,7 +106,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
   const base = { provider: task.provider, runtime: task.runtime, model: task.model, tool_mode: task.tool_policy.mode,
     requires_human_review: true, requires_approval: false };
   const budget = new SiteAssessmentBudget();
-  let captureAdmission: Awaited<ReturnType<typeof reserveCaptureCoverageInference>> | undefined;
+  let captureAdmission: Awaited<ReturnType<SiteAssessmentExperiment["reserve"]>> | undefined;
   const captureReservations: unknown[] = [];
   let instance: Awaited<ReturnType<typeof createSiteAssessmentAgent>> | undefined;
   let sourceAdmission: Record<string, unknown> | null = null;
