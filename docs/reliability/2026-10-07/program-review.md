@@ -3504,3 +3504,30 @@ output and unchanged rejection fences, not live Sol uptake, useful knowledge
 results or perception quality. No new journey credit, automatic retry,
 provider/production mutation or reviewer suite was added. Required exact-head
 CI, merge and deployment remain separate.
+
+
+### Independent bounded cursor-release identity — 15c01402
+
+Merged15c014026d03e53149fb81e328a2d5e52ba9c97f contains reviewed7793de99
+as an ancestor; both authored core/test blobs match3ae5395a/7e61d1b7 exactly.
+This carries that narrow approval without inheriting unrelated973/980 source
+approvals. Protected building/source receipt81f5673e retains the initial
+status and source pins separately from final LIVE proof.
+
+Fresh purpose-built native Render reads confirm web/worker LIVE at exact15,
+finishing23:44:10.960907Z/23:44:55.089293Z. Web service metadata reports
+plan1c-2g and one instance. Native main37860325293 and trueDeploy37860839878
+are terminal SUCCESS at exact15; the resolution-only workflow is not used as
+deployment proof. Independent public GETs return version15, built23:42:37.283Z,
+health healthy and readiness ready/blocker_count0, all HTTP200. Normalized
+fixed-metadata receiptcd5f74d85f89c8778b4632fc6c3db16108feacce70a52e68c163aa17e44c9b56
+and public receipt4f1176f7eb3ebade9344da230fa66093508b33bca65a1b2007905788ba9b96cc
+remain private0700/0600. They derive from actual fresh responses, not a
+restamped coordinator transcript.
+
+This clears serving/source identity and reported service plan only. No new
+model uptake, knowledge relevance, perception truth, peak memory, customer
+result or additional provider authority is established. The accepted189
+customer execution remains historical actual evidence, not retroactively a15
+trial. No new public draft smoke, provider/email/customer action or Render
+mutation occurred in review.
