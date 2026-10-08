@@ -110,7 +110,9 @@ SOPs/docs matter only if actually returned by a tool or supplied as evidence; do
 
 Separate observed, operator_stated, published, measured, estimate and unknown claims. Engineering hypotheses
 may be estimates with explicit assumptions; do not use pretrained memory as verified robot specifications.
-Every factual claim needs returned source IDs; video observations need timestamps. Search excerpts alone are
+Every factual claim needs returned source IDs; observed claims must cite timestamps within returned observed
+intervals, never estimated or not-visible events. Operator statements and video are not published specifications.
+Search excerpts alone are
 not admitted citations. Unobservable weight, force, friction, hygiene and economics need evidence or questions.
 Prefer the smallest action that resolves the decision: another view, a measurement, sourced research, a bounded
 physical trial, a fixture/process change or keeping manual work. A robot is not required as an answer.
@@ -303,9 +305,27 @@ export function validateAssessmentEvidence(assessment: SiteAssessment, sources: 
       for (const ref of value.evidence) {
         const source = sources.get(ref.source_id);
         if (!source) throw new Error("assessment_unknown_source_id");
-        if (ref.at_seconds !== null && (source.kind !== "video" || duration === null || ref.at_seconds > duration)) throw new Error("assessment_reference_timestamp_invalid");
+        if (ref.at_seconds !== null && (!Number.isFinite(ref.at_seconds) || ref.at_seconds < 0
+          || source.kind !== "video" || duration === null || ref.at_seconds > duration)) throw new Error("assessment_reference_timestamp_invalid");
         if (value.basis === "observed" && (source.kind !== "video" || ref.at_seconds === null)) throw new Error("assessment_observation_timestamp_required");
+        if (value.basis === "observed") {
+          const reading = videoObservationSchema.safeParse((source.content as { evidence?: unknown } | null)?.evidence);
+          // A model estimate or an invisible event cannot become an observation
+          // merely because its citation ID exists. This is admissibility only:
+          // an observed interval still does not prove the claim's meaning.
+          const supportedInterval = reading.success && reading.data.observations.some(item =>
+            item.basis === "observed" && item.start_seconds !== null
+            && Number.isFinite(item.start_seconds) && item.start_seconds >= 0
+            && item.start_seconds <= ref.at_seconds
+            && (item.end_seconds === null ? ref.at_seconds === item.start_seconds
+              : Number.isFinite(item.end_seconds) && item.end_seconds >= item.start_seconds
+                && item.end_seconds <= duration! && ref.at_seconds <= item.end_seconds));
+          if (!supportedInterval) throw new Error("assessment_observation_interval_required");
+        }
         if (value.basis === "operator_stated" && source.kind !== "operator") throw new Error("assessment_operator_source_required");
+        if (value.basis === "published" && (source.kind === "operator" || source.kind === "video")) {
+          throw new Error("assessment_published_source_required");
+        }
       }
     }
     Object.values(value).forEach(inspect);

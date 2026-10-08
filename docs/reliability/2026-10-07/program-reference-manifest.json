@@ -1,0 +1,149 @@
+{
+  "schema": "blueprint.reliability-reference-manifest.v1",
+  "inventory_date": "2026-10-07",
+  "references": [
+    {
+      "reference_id": "cup-simulation-00-pi05-external",
+      "canonical_path": "client/public/proof/cup-evaluation/00-pi05-external.mp4",
+      "evidence_class": "recorded_simulation",
+      "exists": true,
+      "sha256": "f89db9ce6e8eee9028fdd0d806327a4fc3bea422942da57db11c1fe9aea95331",
+      "matches_prior_manifest": true,
+      "split": "development_regression",
+      "label_status": "PROVISIONAL_previous_agent_sampled_frames",
+      "rights_status": "existing_company_public_fixture; no new external upload; source license not independently re-adjudicated",
+      "allowed_use": [
+        "local_integrity",
+        "source-admission regression"
+      ],
+      "excluded_use": [
+        "real-site perception accuracy",
+        "physical proof",
+        "human gold",
+        "untouched holdout"
+      ]
+    },
+    {
+      "reference_id": "cup-simulation-00-groot-external",
+      "canonical_path": "client/public/proof/cup-evaluation/00-groot-external.mp4",
+      "evidence_class": "recorded_simulation",
+      "exists": true,
+      "sha256": "f95ef207c67c81ac28c5520db2eac7a0e68b1769f93a1119540d3be86ebcbe34",
+      "matches_prior_manifest": true,
+      "split": "development_regression",
+      "label_status": "PROVISIONAL_previous_agent_sampled_frames",
+      "rights_status": "existing_company_public_fixture; no new external upload; source license not independently re-adjudicated",
+      "allowed_use": [
+        "local_integrity",
+        "source-admission regression"
+      ],
+      "excluded_use": [
+        "real-site perception accuracy",
+        "physical proof",
+        "human gold",
+        "untouched holdout"
+      ]
+    },
+    {
+      "reference_id": "cup-simulation-02-pi05-external",
+      "canonical_path": "client/public/proof/cup-evaluation/02-pi05-external.mp4",
+      "evidence_class": "recorded_simulation",
+      "exists": true,
+      "sha256": "74dc11c0be03ebc218b68e666f772cf167ed512bdaa804b7f12e97130110abf1",
+      "matches_prior_manifest": true,
+      "split": "development_regression",
+      "label_status": "PROVISIONAL_previous_agent_sampled_frames",
+      "rights_status": "existing_company_public_fixture; no new external upload; source license not independently re-adjudicated",
+      "allowed_use": [
+        "local_integrity",
+        "source-admission regression"
+      ],
+      "excluded_use": [
+        "real-site perception accuracy",
+        "physical proof",
+        "human gold",
+        "untouched holdout"
+      ]
+    },
+    {
+      "reference_id": "cup-simulation-02-groot-external",
+      "canonical_path": "client/public/proof/cup-evaluation/02-groot-external.mp4",
+      "evidence_class": "recorded_simulation",
+      "exists": true,
+      "sha256": "ceef1db20948d8dab3842e2628c48774123a8f33fe16e6966df813afac2391d1",
+      "matches_prior_manifest": true,
+      "split": "development_regression",
+      "label_status": "PROVISIONAL_previous_agent_sampled_frames",
+      "rights_status": "existing_company_public_fixture; no new external upload; source license not independently re-adjudicated",
+      "allowed_use": [
+        "local_integrity",
+        "source-admission regression"
+      ],
+      "excluded_use": [
+        "real-site perception accuracy",
+        "physical proof",
+        "human gold",
+        "untouched holdout"
+      ]
+    },
+    {
+      "reference_id": "cup-simulation-04-pi05-external",
+      "canonical_path": "client/public/proof/cup-evaluation/04-pi05-external.mp4",
+      "evidence_class": "recorded_simulation",
+      "exists": true,
+      "sha256": "dd88ca9327b71ac22ecc9bf3f34b53eb257158cd195816ab5b2e70c8ff1c675f",
+      "matches_prior_manifest": true,
+      "split": "development_regression",
+      "label_status": "PROVISIONAL_previous_agent_sampled_frames",
+      "rights_status": "existing_company_public_fixture; no new external upload; source license not independently re-adjudicated",
+      "allowed_use": [
+        "local_integrity",
+        "source-admission regression"
+      ],
+      "excluded_use": [
+        "real-site perception accuracy",
+        "physical proof",
+        "human gold",
+        "untouched holdout"
+      ]
+    },
+    {
+      "reference_id": "cup-simulation-04-groot-external",
+      "canonical_path": "client/public/proof/cup-evaluation/04-groot-external.mp4",
+      "evidence_class": "recorded_simulation",
+      "exists": true,
+      "sha256": "04bb678d03997a1b8572f27b34bd8248b5c2a95f408d50ee7b9af3c6a1c83753",
+      "matches_prior_manifest": true,
+      "split": "development_regression",
+      "label_status": "PROVISIONAL_previous_agent_sampled_frames",
+      "rights_status": "existing_company_public_fixture; no new external upload; source license not independently re-adjudicated",
+      "allowed_use": [
+        "local_integrity",
+        "source-admission regression"
+      ],
+      "excluded_use": [
+        "real-site perception accuracy",
+        "physical proof",
+        "human gold",
+        "untouched holdout"
+      ]
+    }
+  ],
+  "human_reviewed_real_site_count": 0,
+  "real_site_target_min": 12,
+  "shortfall": 12,
+  "human_reference_gate": "blocked_missing_rights_admitted_real_site_set_and_current_human_observation_labels",
+  "baseline_and_candidate_live_model_runs": 0,
+  "dishwasher": "not accessed by this lane; coordinator owns current authorization and source recovery",
+  "holdout": "none; all existing source families are development/regression and pre-exposed",
+  "rubric": {
+    "factual_support": "fail invented consequential event/measurement/capability",
+    "contradictions": "retain opposing source assertions and source dates",
+    "uncertainty": "differentiate observable, owner-stated, published, estimated, unknown",
+    "citation_entailment": "source existence does not imply claim truth",
+    "abstention": "ask for smallest decision-changing missing observation or measurement",
+    "next_action": "bounded useful action without unsupported robot exclusion",
+    "capability": "unknown capability cannot prove incompatibility"
+  },
+  "canonical_recovery": "Blueprint-owned Git paths; verify hashes; retained raw video remains local. This manifest grants no new provider upload rights."
+}

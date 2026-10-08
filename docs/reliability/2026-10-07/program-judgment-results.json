@@ -1,0 +1,577 @@
+{
+  "schema": "blueprint.judgment-source-admission-results.v1",
+  "baseline_revision": "1b8d810ec117b93fe52fd323be052ddafa7070db",
+  "catalog_sha256": "d42de005a70b0d9ed338c613984e654a47e51a1e91d1d2997cdeacc3b26bf748",
+  "candidate_source_sha256": "913fc0ff3201a4f4507e29c21367bb123c0acf2c722845223e63291bf2f769fb",
+  "layer": "offline_real_production_validator_synthetic_sources",
+  "baseline": {
+    "generated": 120,
+    "deduplicated": 120,
+    "attempted": 120,
+    "passed": 64,
+    "failed": 56,
+    "skipped": 0,
+    "blocked": 0
+  },
+  "candidate": {
+    "generated": 120,
+    "deduplicated": 120,
+    "attempted": 120,
+    "passed": 120,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "repetitions_per_case": 3,
+    "total_attempts": 360
+  },
+  "checks": {
+    "focused_suites": {
+      "files": 5,
+      "passed": 152,
+      "failed": 0
+    },
+    "typecheck_initial_invocation_exit": 0,
+    "typecheck_followup": "passed_exit_0",
+    "graphify_exit": 0,
+    "diff_check_exit": 0
+  },
+  "provider_calls": 0,
+  "perception_accuracy": "not_evaluated",
+  "semantic_entailment": "not_evaluated",
+  "real_model_comparison": "not_run",
+  "human_reference_labels": 0,
+  "local_compute_latency_not_customer_latency": true,
+  "receipts": [
+    {
+      "path": "output/reliability-program/judgment/baseline.log",
+      "sha256": "43204f830b7534b2dcdcc6b24d902202539c968564268f70ad2caa83cafb3b60"
+    },
+    {
+      "path": "output/reliability-program/judgment/baseline-results.json",
+      "sha256": "0ffb180e7210db231a39dc9f2bd84dde8ce3ffd7bf4aac235153c5b20f87dd4c"
+    },
+    {
+      "path": "output/reliability-program/judgment/final-candidate.log",
+      "sha256": "86a763eff98c4a4560158161af33c9985d07ef937904b4450d17cca00f0ea512"
+    },
+    {
+      "path": "output/reliability-program/judgment/results.json",
+      "sha256": "14a5a2895dce5b21eb52e766c8e75f9f16b393fe7167c449d2eea843df598ccb"
+    },
+    {
+      "path": "output/reliability-program/judgment/graphify.log",
+      "sha256": "0cbdc8db57c3e2799db98d4bf153dfa075d9c5c2104138dda665d5b735a22bb9"
+    },
+    {
+      "path": "output/reliability-program/judgment/typecheck.log",
+      "sha256": "cac4641f604577738681f4f70c0ded3f441c0562d5814768106527214a0f49d4"
+    }
+  ],
+  "failures": [
+    {
+      "id": "JUD-action-occluded-estimate",
+      "semantic_hash": "7c3ed1c270a0a27cd068ddbcf98a151217da96955568b80e723b6b50df639584",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-action-absent-action",
+      "semantic_hash": "146aa71c14e8dfa69a624a39b427828a9e09bda1125fbfb43c3d9a22b76b69d3",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-action-crop-before",
+      "semantic_hash": "f2571a0875f82b3ae50dbaf76ebf45561f8f919da65c9dcd9c7b89bdedc0dd71",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-action-crop-after",
+      "semantic_hash": "0a8c95f41c881e10876d17f17bd3ab6ae55bfa4629219d6a74ade4cf7cb25d90",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-action-reordered-interval",
+      "semantic_hash": "7b466faa0774f91489766aa49b057250a29a0269995b50ef10c6694231c49e61",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-action-owner-is-not-published",
+      "semantic_hash": "3e15b0c4125afad9ea0b899e4c7622f1b9b32c374c7cc13d10faaf542e003c5e",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-action-video-is-not-published",
+      "semantic_hash": "f89b85e3e03679bd1adb1fdad600f35acac54e80e12436e82d7eb4e380a4e80a",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-completion-occluded-estimate",
+      "semantic_hash": "8eb1d9103b33e0f2539ba330719c1ee5a2ef697e53b939057d051ca7e5c38dd2",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-completion-absent-action",
+      "semantic_hash": "66470b04f3ae01de309925f6295909d742781e767eed8b1f33e849aad977a992",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-completion-crop-before",
+      "semantic_hash": "44e1b9682cb1d44f88b495feeca2aadd73aa2ccab54048f25365ef57fe392f64",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-completion-crop-after",
+      "semantic_hash": "7ef9b3eef79b26c478ad762d990f23f7eee7af19002d183cf24ebbbfe2eeab9a",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-completion-reordered-interval",
+      "semantic_hash": "cc54d71c14d853bcc93136ed8d0ed247597deafb5e7da67133b8115b955a80d7",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-completion-owner-is-not-published",
+      "semantic_hash": "ba3dbe0c59336ea2f180f01e8fd106de8b29841755faa5cecb1662b61a2fc5cd",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-completion-video-is-not-published",
+      "semantic_hash": "e3d9fa305d373845519c00bb8b75a03f43d2f52bdf0b89c1bb3baad24ac135ff",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-dimension-occluded-estimate",
+      "semantic_hash": "7586c7d0fc9c4dad2c8cd8e5b145919d6ffaa92cdf9375053cdb61ad5bc53cba",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-dimension-absent-action",
+      "semantic_hash": "ae676c132cbd8d315511e26851b984013c3df52f883b996d5be477c630147d50",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-dimension-crop-before",
+      "semantic_hash": "0d05fff7fd0f35911b8f70edf7df5593e3e272de08e69c17f337551d405451a9",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-dimension-crop-after",
+      "semantic_hash": "566ddb5516d7e78f4e6ebff4adedd9f9447ce1d11367b76f2c1886a194a21db5",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-dimension-reordered-interval",
+      "semantic_hash": "b406d8599c3a0c4c03d2753ea6c390247c493b542761fcca19634f05ac61f763",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-dimension-owner-is-not-published",
+      "semantic_hash": "4c811bf59508b0b448b84cdd8db7450cee3fd9398769ee328d6c9947f60deaed",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-dimension-video-is-not-published",
+      "semantic_hash": "86c15e8a3cba4c043b7f5455d3e0729b1f263c881de0dfbb53d42c91f19118a5",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-mass-occluded-estimate",
+      "semantic_hash": "2de83ed6d69332fbd9c40a2fd5a5fab9758fc7539cc5e3d97e4e3e04115f6f25",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-mass-absent-action",
+      "semantic_hash": "998c734cf9949cda4e08204528aa5bf5e3138a18f527a10721f80b22c4ed7174",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-mass-crop-before",
+      "semantic_hash": "575968f345be5647fada15aebf8d13cc070f0588c006a804a3bdeeca72905c9a",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-mass-crop-after",
+      "semantic_hash": "8af7e75e849e13c38916b3dfb6c0bcc2f3b5b701851e5e664b149c78d6bf8f00",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-mass-reordered-interval",
+      "semantic_hash": "323fdbe6afdf6f33875ff6750af8e3ddcc0be16cbe2e33e21ef6fe6ddf4b70f5",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-mass-owner-is-not-published",
+      "semantic_hash": "029ab0c299527c1e06eef2ffb107f49c186c093b60ada6b57787239379550106",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-mass-video-is-not-published",
+      "semantic_hash": "d0aa2e91421aa74e835bd486d8541e13644477436084c2d65c5a06020142df37",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-force-occluded-estimate",
+      "semantic_hash": "796e39d47fc0897627134b758c544c9db86f6aaf725776e5e5761a8e6fd8576d",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-force-absent-action",
+      "semantic_hash": "b11d297598cca7d13a0e32a48314976cc308216f0236c74ff2e36e93f6b32e2f",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-force-crop-before",
+      "semantic_hash": "45e7855e583a57729d438e6d59833c81fbcae721f553e7fee2bf3fa19a8dac34",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-force-crop-after",
+      "semantic_hash": "0e5c5453ed6e859e9d3c181702dcf5a20473da8196ed24cb1f03fbc3202ceafe",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-force-reordered-interval",
+      "semantic_hash": "d96256e66de7a3ba61a1cb79934fa0254e95e6190985e87fba70c31bae6a35ff",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-force-owner-is-not-published",
+      "semantic_hash": "e8c381cf69c4438666953b5a6a13c1e0b416c8474e6970ee668430f4724edebd",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-force-video-is-not-published",
+      "semantic_hash": "f9b8b38c8ca4c0a93fe216ae6ec4b1759b86ada70d6d1b7f402ddf2b3374efd5",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-reach-occluded-estimate",
+      "semantic_hash": "4daddb29b92ad082fb68104ca94c77954bdefaad42701c524c3118749a7bef72",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-reach-absent-action",
+      "semantic_hash": "e275c249d802c960f8a7dad015cd80256df3793a070fee24bf0844b36072d863",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-reach-crop-before",
+      "semantic_hash": "4a13ef2b0911f93cb2dad1f69168f0a25cd806a6d4061617fc7d5d4da1f74a50",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-reach-crop-after",
+      "semantic_hash": "b3c21bfb170b5aea19415fc3dfa935af857da5963b2b5fa8b7157c946392faa3",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-reach-reordered-interval",
+      "semantic_hash": "28baf56fe8d2fac868594d0e6c9018113d5b45c4d030dd1a0117499ea0259b45",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-reach-owner-is-not-published",
+      "semantic_hash": "be435a153d27d3577bbff3ed7283951fd4d3bc0804198de7e73d02f7e1eeaec6",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-reach-video-is-not-published",
+      "semantic_hash": "f9d95ab586af62dc2ed8fd10fb6fb839f367c08d8ad654211d4b2d4e369172b6",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-hygiene-occluded-estimate",
+      "semantic_hash": "11a06db68e7bd44af4dad994dc399ce7e0b7f22d614eba1183ce3cd79c86f381",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-hygiene-absent-action",
+      "semantic_hash": "fe84e300e95ca61cbce286ecfedb1682025e2004f41ed1d07c15325dafcb0eff",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-hygiene-crop-before",
+      "semantic_hash": "9936a85017b663b57204d6644cb1c1089b6856c5c5d4af08414985767996a35f",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-hygiene-crop-after",
+      "semantic_hash": "495d0469f05d32a1b82c9bbc573e3aba31a7e515d988bb3af2ee8026c38cc7ca",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-hygiene-reordered-interval",
+      "semantic_hash": "5921a4488f4ba73e749f4466aa3d42a27cb2847720d3fea448153aac4b0a7357",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-hygiene-owner-is-not-published",
+      "semantic_hash": "c00aea92cf569a98242cf9f90361b40bcfe812ac9f4c1647e553a62c36f98218",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-hygiene-video-is-not-published",
+      "semantic_hash": "18f35f6c7a5730b8716d21179af67f43c449d759feecfcf9cf64082e55119894",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-capability-occluded-estimate",
+      "semantic_hash": "1c06385c5183776e13bffb27e1b3e545188947606da27fe3b8add1c799c9cb6e",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-capability-absent-action",
+      "semantic_hash": "995d90f3553b5343a322cde11116a348d87ba6cc3081a7b8282d877682a78994",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-capability-crop-before",
+      "semantic_hash": "6bbac6becdb946e6fdb90db2b4a5ebd771d66aed9330ed508cad1c5789a4920a",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-capability-crop-after",
+      "semantic_hash": "efd4f23d11a918b35dc9a5d95d9ca4fc216ab18f020c1c7fc1449510e07bdd45",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-capability-reordered-interval",
+      "semantic_hash": "f306b8d1f66e4e01fedf32610267f21ce6260e6434ee233704b021613555510f",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-capability-owner-is-not-published",
+      "semantic_hash": "99ab4199af258d62c1843c1d59647a760d61bf7393d1afbcf51790c9e8e9011d",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    },
+    {
+      "id": "JUD-capability-video-is-not-published",
+      "semantic_hash": "649eabe4a740f07c14a64910daca2d6b9094acbb0b2fbadc30239869d1983a8e",
+      "attempted": true,
+      "admitted": true,
+      "expected_admitted": false,
+      "passed": false,
+      "error": null
+    }
+  ],
+  "recovery": "Restore company-owned Git catalog and source; replay documented Vitest command. Raw receipts are ignored in lane worktree; hashes and baseline failing IDs remain portable here."
+}
