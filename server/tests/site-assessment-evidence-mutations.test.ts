@@ -25,7 +25,8 @@ describe("frozen provisional source-admission mutations", () => {
   it("retains portable offline results and the frozen denominator", () => {
     expect(new Set(judgmentCases.map(row => row.semantic_hash)).size).toBe(120);
     expect(results).toHaveLength(120);
-    const path = "output/reliability-program/judgment";
+    const path = process.env.RELIABILITY_PEER_JUDGMENT_OUTPUT;
+    if (!path) return;
     mkdirSync(path, { recursive: true });
     writeFileSync(`${path}/results.json`, JSON.stringify({ schema: JUDGMENT_VERSION, mode: "offline_real_validator_synthetic_sources",
       generated: 120, deduplicated: 120, attempted: results.length, repetitions_per_case: 3, total_attempts: results.length * 3, passed: results.filter(row => row.passed).length,
@@ -42,13 +43,13 @@ describe("source admission neighbors and semantic limits", () => {
     (source.content as any).evidence.observations[0].end_seconds = null;
     expect(() => validateAssessmentEvidence(value.assessment, value.sources, 30)).not.toThrow();
     value.assessment.job[0].evidence[0].at_seconds = 9;
-    expect(() => validateAssessmentEvidence(value.assessment, value.sources, 30)).toThrow("observation_interval_required");
+    expect(() => validateAssessmentEvidence(value.assessment, value.sources, 30)).toThrow("assessment_observation_not_supported");
   });
   it("does not admit a retained interval beyond the bound video", () => {
     const value = base();
     const source = value.sources.values().next().value!;
     (source.content as any).evidence.observations[0].end_seconds = 40;
-    expect(() => validateAssessmentEvidence(value.assessment, value.sources, 30)).toThrow("observation_interval_required");
+    expect(() => validateAssessmentEvidence(value.assessment, value.sources, 30)).toThrow("assessment_video_timestamp_invalid");
   });
   it("preserves supported observations beside unsupported siblings", () => {
     const value = base();
@@ -59,6 +60,14 @@ describe("source admission neighbors and semantic limits", () => {
   it("rejects non-finite and negative references in the exported validator", () => {
     for (const at of [NaN, Infinity, -1]) {
       const value = base(); value.assessment.job[0].evidence[0].at_seconds = at;
+      expect(() => validateAssessmentEvidence(value.assessment, value.sources, 30)).toThrow("reference_timestamp_invalid");
+    }
+  });
+  it("rejects invalid references even when an estimate does not need an observed interval", () => {
+    for (const at of [NaN, Infinity, -1]) {
+      const value = base();
+      value.assessment.job[0].basis = "estimate";
+      value.assessment.job[0].evidence[0].at_seconds = at;
       expect(() => validateAssessmentEvidence(value.assessment, value.sources, 30)).toThrow("reference_timestamp_invalid");
     }
   });

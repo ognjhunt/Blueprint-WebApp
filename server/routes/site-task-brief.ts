@@ -54,6 +54,7 @@ import { runSiteMatch } from "../utils/siteMatchRun";
 import type { InboundRequest, InboundRequestStored, SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { describeBrowserUpload } from "../utils/websiteBrowserUploadStatus";
+import { projectWebsiteCaptureRights, loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { storedCaptureMarkerExists } from "../utils/captureParts";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
@@ -66,6 +67,28 @@ import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
 
 const router = Router();
+
+// Status and same-inbox renewal remain inspectable after withdrawal. Every
+// other signed-link operation reads or derives capture material, or changes
+// its review. Mixed-source brief/item data cannot safely be separated here.
+router.use("/:token", async (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  if (req.path === "/status" || req.path === "/fresh-link") return next();
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) return next(); // Existing handlers retain invalid/scope errors.
+  try {
+    const rights = await loadWebsiteCaptureRights(payload.requestId);
+    if (rights.consent_revoked) return res.status(409).json({
+      code: "capture_processing_not_authorized",
+      error: "Recording consent was withdrawn. Capture-derived review and changes are unavailable. Your job is retained; contact Blueprint if you need help.",
+    });
+    return next();
+  } catch {
+    return res.status(503).json({ code: "capture_authorization_unavailable",
+      error: "Recording permission could not be checked. Keep your original files and try again shortly." });
+  }
+});
+
 
 router.get("/:token/clarification", async (req, res) => {
   const payload = verifyCaptureUploadToken(String(req.params.token));
@@ -110,6 +133,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   account_owner_uid?: string | null;
   site_task_triage?: { disposition?: string | null } | null;
   siteName?: string | null;
+  captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
 } | null> {
   if (!db) return null;
   const snap = await db.collection("inboundRequests").doc(requestId).get();
@@ -127,6 +151,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   const contactEmail = await plain(contact?.email);
   const contactFirstName = await plain(contact?.firstName);
   return {
+    captureRights: projectWebsiteCaptureRights(data),
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
@@ -864,7 +889,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       ? (captureSession.data()?.world_reconstruction as Record<string, any> | undefined)
       : undefined;
     const sceneViewUrl =
-      payload.scope !== "film" && reconstruction?.state === "ready"
+      Boolean(request) && !request?.captureRights.consent_revoked && payload.scope !== "film" && reconstruction?.state === "ready"
         ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
           || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
         : null;
@@ -876,10 +901,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         site_task_next_update_iso: request?.site_task_next_update_iso ?? null,
         briefDrafted: Boolean(brief),
         hasStoredCapture,
+        consentRevoked: request?.captureRights.consent_revoked,
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
         stage,
-        screening,
+        screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.site_task_triage ?? null,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
@@ -889,7 +915,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // Retention alone is not an active review or permission to process. The
     // desktop must show the same hold as the phone while preserving the saved
     // receipt (and must never ask for a replacement recording in that state).
-    if (status.decision === "footage_received" && (upload.processingHold || uploadState !== "processing_ready")) {
+    if (!request?.captureRights.consent_revoked && status.decision === "footage_received" && (upload.processingHold || uploadState !== "processing_ready")) {
       status.headline = upload.processingHold?.detail
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";
       status.operatorAction = null;
@@ -916,7 +942,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // Whether coverage is checked automatically or by a person, so the page
       // says which one happens.
       footageReviewAutomated: isSiteVideoEvidenceEnabled(),
-      summary: brief?.summary ?? null,
+      summary: request?.captureRights.consent_revoked ? null : brief?.summary ?? null,
       claimUrl,
       sceneViewUrl,
     });

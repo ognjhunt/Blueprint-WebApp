@@ -13,6 +13,7 @@ import { captureUploadUrlFor } from "./captureUploadToken";
 import { enqueueOutbox, CAPTURE_OUTBOX_COLLECTION, type OutboxKind } from "./captureOutbox";
 import { decryptFieldValue } from "./field-encryption";
 import { EMAIL_SIGN_OFF } from "./emailLayout";
+import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -114,11 +115,14 @@ export async function enqueueTaskLifecycleNotification(params: {
   eventId?: string;
   /** One clause of event detail for the body, e.g. "12 of 50 episodes succeeded". */
   detail?: string;
-}): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" }> {
+}): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
   const requestId = params.requestId.trim();
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
   if (!snapshot.exists) return { enqueued: false, reason: "request_missing" };
+  if (!(await taskLifecycleNotificationIsCurrent({ requestId, kind: params.milestone }))) {
+    return { enqueued: false, reason: "consent_withdrawn" };
+  }
   const to = String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     return { enqueued: false, reason: "contact_missing" };
