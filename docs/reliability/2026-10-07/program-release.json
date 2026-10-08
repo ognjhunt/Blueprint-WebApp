@@ -603,7 +603,7 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+  "current_verified_webapp_release": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
     "state": "WebApp_deployed;Pipeline_reviewed_protected_merged;exact_main_CI_and_promotion_active;actual_mapping_blocked",
@@ -1887,24 +1887,55 @@
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   },
   "current_verified_web_release": {
-    "sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc",
-    "verified_by": "coordinator; final combined independent verification pending",
-    "main_CI": 37855033647,
+    "sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+    "independent_review": "73d0bd67",
+    "source_tree_review": "98738005",
+    "main_CI": 37856452795,
     "main_CI_conclusion": "success",
-    "deployment_workflow": 37855941733,
+    "deployment_workflow": 37856783421,
     "deployment_conclusion": "success",
     "web": {
-      "id": "dep-db41sdijnfac73b7nipg",
+      "id": "dep-db420dmi0phs73emv6u0",
       "status": "live",
-      "finished_at": "2026-10-08T22:52:40.420655Z"
+      "finished_at": "2026-10-08T23:01:28.047466Z",
+      "plan": "1c-2g",
+      "instances": 1
     },
     "worker": {
-      "id": "dep-db41sdqj9qps73frjvj0",
+      "id": "dep-db420do473hc73cc81eg",
       "status": "live",
-      "finished_at": "2026-10-08T22:53:29.34656Z"
+      "finished_at": "2026-10-08T23:02:13.779473Z"
     },
-    "public_version_sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc",
-    "claim_ceiling": "Exact native pair and public version; 978 storage pending; no new customer retry/report yet"
+    "independent_public": {
+      "observed_at": "2026-10-08T23:04:30Z",
+      "version_sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+      "health": 200,
+      "ready": 200,
+      "blockers": 0
+    },
+    "presentation_smoke": {
+      "result": "PARTIAL_existing_v2_selector_contract_obsolete",
+      "receipt_sha256": "bf31a0783e34bc63fc389da83680a1f2c1e5163c304df0b8f55148a2fdd39670",
+      "four_fields_restore": true,
+      "country_text_absent": true,
+      "start_rights_absent": true,
+      "limit": "Currentclient absence established; incomplete probe not claimedPASS/customerconsentbug; v3harnessonlycorrection inprogress"
+    },
+    "claim_ceiling": "Independently verified live paired source189/main CI/deploy/public metadata; actual same-job provider run and durable customer report completed. Human-checked video accuracy/physical execution/notification delivery remain unproven.",
+    "presentation_smoke_v3": {
+      "source_commit": "68dac0ef3a76247cdee9fdfd229bf4597f2f7556",
+      "script_sha256": "25cccefcced8f05a3f3805cd73873f4a70191958c16c1b2da0e97d3ae67b31ff",
+      "result": "presentation_failed",
+      "result_sha256": "99497542cbb15020b001ee6c308975a990b7f4a5c8596c71e00b1c13f92b4699",
+      "receipt_sha256": "9ea6b94f75e66151d0ae16a515d7768e1231a6bced61e5dac44f362921584ab8",
+      "draft_region_no_pending_agreement_pass": true,
+      "durable_clear_checks_passed": 9,
+      "intake_POST_attempts": 0,
+      "failure": "Historical seven-day visible copy expectation absent from current189 UI. Failure retained; no blind rerun or rewritten green result.",
+      "counting": "Existing guarded public presentation scenario; no additional independent customer journey/provider evidence.",
+      "independent_review": "a0a42dd4",
+      "other_checks_passed": 21
+    }
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2114,7 +2145,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-08T22:13:00Z",
+  "updated_at_utc": "2026-10-08T23:20:00Z",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -2124,7 +2155,8 @@
     "outcome": "Fresh2 terminal21:32:25.560 and saved1 terminal21:36:40.999; actual0pendingnewlocalcalls; localactorreturnedtooriginalUIowner. Qualitysourcechangesofflineonly; customerretryclearedafter39release.",
     "verification_ceiling": "Local live analysis cannot prove deployed customer UI, cloud512Mi headroom, perception accuracy or gold labels",
     "recorded_at_utc": "2026-10-08T21:21:27Z",
-    "current_handoff": "Original customer run terminal failed/all new calls recorded. Next serial local fresh+saved same-source validation cleared after exact independent source review; no customer writes or deployment mid-call; return actor before customer retry."
+    "current_handoff": "Original customer run terminal failed/all new calls recorded. Next serial local fresh+saved same-source validation cleared after exact independent source review; no customer writes or deployment mid-call; return actor before customer retry.",
+    "current": "Original customer operation terminal; exclusive actor/release window ended; no further dispatch required for closeout."
   },
   "memory_capacity_decision": {
     "kind": "Direct human manual upgrade; native service verification obtained; cloud workflow adequacy not proven",
@@ -2302,8 +2334,8 @@
   },
   "current_release_candidates": {
     "observed_at_utc": "2026-10-08T22:34:45Z",
-    "customer_action_clearance": false,
-    "paid_actors": "all_prior_operations_terminal; original_customer_owner_held_until_verified_combined_release",
+    "customer_action_clearance": true,
+    "paid_actors": "OriginalownerSOLE afterfreshcanonical/source/consent preflight; localCLIheld; shareddeploymentsheldonlyduringactualpaidoperation",
     "PR979": {
       "head": "196131153b6df2e48f674422a4040387f742c236",
       "review": "31930a43",
@@ -2444,5 +2476,99 @@
       "receipt_sha256": "ff23bf64e59d2baa7a7da091c9537e391e152df39fa06347f4bccf5fce64f0c5"
     },
     "claim_ceiling": "Exact source/service/public health only; storage978 still unmerged and originalcustomer retry held"
-  }
+  },
+  "historical_8ce_verified_web_release": {
+    "sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc",
+    "verified_by": "coordinator; final combined independent verification pending",
+    "main_CI": 37855033647,
+    "main_CI_conclusion": "success",
+    "deployment_workflow": 37855941733,
+    "deployment_conclusion": "success",
+    "web": {
+      "id": "dep-db41sdijnfac73b7nipg",
+      "status": "live",
+      "finished_at": "2026-10-08T22:52:40.420655Z"
+    },
+    "worker": {
+      "id": "dep-db41sdqj9qps73frjvj0",
+      "status": "live",
+      "finished_at": "2026-10-08T22:53:29.34656Z"
+    },
+    "public_version_sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc",
+    "claim_ceiling": "Exact native pair and public version; 978 storage pending; no new customer retry/report yet"
+  },
+  "current_normal_UI_combined_retry": {
+    "source_sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+    "normal_visible_click_at_utc": "2026-10-08T23:08:34.355Z",
+    "job_started_at_utc": "2026-10-08T23:08:38.553Z",
+    "persisted_completed_at_utc": "2026-10-08T23:11:58.928Z",
+    "terminal_read_at_utc": "2026-10-08T23:13:16.616Z",
+    "job_state": "COMPLETED",
+    "run_state": "COMPLETED",
+    "canonical_pointer_state": "COMPLETED",
+    "assessment_status": "needs_operator_input",
+    "current_source_and_consent_verified": true,
+    "source_changed": false,
+    "new_intake_or_upload": false,
+    "additional_UI_clicks": 0,
+    "sole_actor": "original dishwasher owner",
+    "provider_mode": "real deployed handlers, durable Firestore and private object storage, actual OpenAI Agents SDK/Sol and Gemini video provider",
+    "current_calls": {
+      "sol_recorded": 10,
+      "gemini_recorded": 1,
+      "pending": 0
+    },
+    "usage_pricing_estimate_USD": 0.17061075,
+    "billing_invoice": false,
+    "gemini_returned_usage_at_utc": "2026-10-08T23:10:27.886Z",
+    "persisted_customer_report": "Owner authorized normal UI report rendered; independent a0a42dd4 validates canonical packet digest/call bindings/observable export. Reviewer screenshot proves needscheck only, not full detailed UI text.",
+    "private_evidence": {
+      "bytes": 322791,
+      "generation": "1791501117606389",
+      "sha256": "2a025a5a5477f45d37296a04ab503ceeb995ca6f364547c9e73be703018dc834",
+      "full_roundtrip_same_sha_generation_bytes": true
+    },
+    "terminal_receipt": {
+      "path": "/Users/nijelhunt_1/Documents/Codex/2026-10-07/task-3/dishwasher-isolated-analysis/reconciliation/normal-assessment-receipt-2026-10-08T23-13-16-616Z.json",
+      "sha256": "8555d17874145549e26b2656b8d88aea05d5d28a3baa36a3ca3dd8bf22d91e4b"
+    },
+    "prior_failed_run_retirement_receipt_sha256": "cb66786dcfbca16d56cf953b7e2eaad2f86b35fcefe01404d970c544bca8a249",
+    "old_four_call_rows_and_budget_history_preserved": true,
+    "original_unknown_costs": "unchanged; not zero/refunded",
+    "source_sample_credit": 1,
+    "limit": "One evolving same-source recovery trace, with intake/upload on older code and final retry on189. Execution and durable publication do not establish human-checked perception truth, physical execution, robot fit or notifications. Periodic memory samples do not prove instantaneous peak/concurrency/leak freedom.",
+    "independent_terminal_review": "a0a42dd4",
+    "observable_export_sha256": "d8570b124676ef44aca43691f14b354d22404225e80450804266b98d6d15be50",
+    "readback_limit": "Owner actual verified privateGCS fullbyte readback retained; independent reviewer reconstructed packet digest and checked observable projection/reader code. Raw322791bundle not locally retained for reviewer rehash; no new GCS fetch.",
+    "historic_call_limit": "Allfour previouscall docs unchanged at retirement23:13:48 proof. Final currentrun query contains11currentcalls, not a fresh combined historicalquery."
+  },
+  "historical_running_189_at_2311": {
+    "source_sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+    "normal_visible_click_at_utc": "2026-10-08T23:08:34.355Z",
+    "preflight": "Fresh23:06:50 canonical/current source/rights/callrowdigest true; four prior rows RECORDED/no pending; no oldledger rewrite",
+    "source_changed": false,
+    "new_intake_or_upload": false,
+    "additional_UI_clicks": 0,
+    "sole_actor": "originaldishwasherowner",
+    "observation_at_utc": "2026-10-08T23:11:13Z",
+    "job_state": "RUNNING",
+    "run_state": "RUNNING",
+    "gemini_returned_usage_at_utc": "2026-10-08T23:10:27.886Z",
+    "gemini_usage": {
+      "priced_input_tokens": 5106,
+      "priced_output_tokens": 1695,
+      "usage_derived_USD_estimate": 0.01018575
+    },
+    "current_calls_at_last_read": {
+      "gemini_recorded": 1,
+      "sol_recorded": 8,
+      "sol_admitted": 1
+    },
+    "admission_ceiling": "Internal ADMITTED is not external provider acceptance; returned usage establishes completed response",
+    "persisted_customer_report": "not_yet_verified",
+    "memory": "Native minute samples through23:11:11 max484069380bytes/about462MiB;2GB/oneinstance; no returned failed/restarted/available events in boundedwindow; notinstantaneouspeak/agent-only/universalabsence",
+    "receipt_sha256": "fcc435cc56b050561db02b3c8ac4259fd07f6810bfc309e55d8ea96ac2fe9076",
+    "limit": "One evolving actual same-source recovery case; no independent video/sample credit, no success from UIack or runningstate"
+  },
+  "historical_verified_webapp_release_alias": "783feb64213e78b5c219763e2fb2232b8390ba1c"
 }

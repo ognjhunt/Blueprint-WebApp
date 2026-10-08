@@ -1231,7 +1231,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-08T22:35:19Z",
+  "current_state_observed_at_utc": "2026-10-08T23:20:00Z",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T21:47:57.021Z",
   "customer_financial_policy": {
@@ -1276,7 +1276,7 @@
     "applicable_revision": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
     "reproducer": "Actual normal same-job UI retry on2GB; Gemini and all3Sol responses recorded, then evidence transaction failure; exact native exception discarded by writer.",
     "terminal_receipt_sha256": "35283a48ccbd53d96fccd0baacd1706bf1f8779ddfbb32231d048d021908fb8a",
-    "state": "source_reviewed_required_CI_executing_customer_recovery_predicate_under_repair",
+    "state": "reviewed_merged_deployed_and_actual_same_source_recovery_passed",
     "isolated_neighbor": "Installed Firestore SDK rejects a250-byte depth24 document that current byte-only projection retains inline; minimized before/after under review. This does not establish the native customer failure cause.",
     "root_cause": "Unresolved: native transaction cause was discarded. No claim that final output ceiling caused this error.",
     "paid_retry": "Customer retry held technically until reviewed save repair deployed; serial independent local validation separately authorized.",
@@ -1298,6 +1298,48 @@
       "severity": "P1 affected recovery path",
       "baseline": "Existingcontrol with exact35283 failedcommit shape cannot expose retry; retained private witness.",
       "candidate": "Narrow same-source failedpersistence checkpoint from strict canonicalrun/job/claim/currentauthority+fullyboundrecorded/unknowncalls; no fabricated oldartifact or zerocharge inference. Underimplementation/review."
-    }
+    },
+    "actual_deployed_retest": {
+      "source_sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+      "normal_visible_click_at_utc": "2026-10-08T23:08:34.355Z",
+      "job_started_at_utc": "2026-10-08T23:08:38.553Z",
+      "persisted_completed_at_utc": "2026-10-08T23:11:58.928Z",
+      "terminal_read_at_utc": "2026-10-08T23:13:16.616Z",
+      "job_state": "COMPLETED",
+      "run_state": "COMPLETED",
+      "canonical_pointer_state": "COMPLETED",
+      "assessment_status": "needs_operator_input",
+      "current_source_and_consent_verified": true,
+      "source_changed": false,
+      "new_intake_or_upload": false,
+      "additional_UI_clicks": 0,
+      "sole_actor": "original dishwasher owner",
+      "provider_mode": "real deployed handlers, durable Firestore and private object storage, actual OpenAI Agents SDK/Sol and Gemini video provider",
+      "current_calls": {
+        "sol_recorded": 10,
+        "gemini_recorded": 1,
+        "pending": 0
+      },
+      "usage_pricing_estimate_USD": 0.17061075,
+      "billing_invoice": false,
+      "gemini_returned_usage_at_utc": "2026-10-08T23:10:27.886Z",
+      "persisted_customer_report": "Owner authorized normal UI report rendered; independent a0a42dd4 validates canonical packet digest/call bindings/observable export. Reviewer screenshot proves needscheck only, not full detailed UI text.",
+      "private_evidence": {
+        "bytes": 322791,
+        "generation": "1791501117606389",
+        "sha256": "2a025a5a5477f45d37296a04ab503ceeb995ca6f364547c9e73be703018dc834",
+        "full_roundtrip_same_sha_generation_bytes": true
+      },
+      "terminal_receipt": {
+        "path": "/Users/nijelhunt_1/Documents/Codex/2026-10-07/task-3/dishwasher-isolated-analysis/reconciliation/normal-assessment-receipt-2026-10-08T23-13-16-616Z.json",
+        "sha256": "8555d17874145549e26b2656b8d88aea05d5d28a3baa36a3ca3dd8bf22d91e4b"
+      },
+      "prior_failed_run_retirement_receipt_sha256": "cb66786dcfbca16d56cf953b7e2eaad2f86b35fcefe01404d970c544bca8a249",
+      "old_four_call_rows_and_budget_history_preserved": true,
+      "original_unknown_costs": "unchanged; not zero/refunded",
+      "source_sample_credit": 1,
+      "limit": "One evolving same-source recovery trace, with intake/upload on older code and final retry on189. Execution and durable publication do not establish human-checked perception truth, physical execution, robot fit or notifications. Periodic memory samples do not prove instantaneous peak/concurrency/leak freedom."
+    },
+    "causal_limit": "Same-source local SDK depth/arrays failure reproduced and fixed. The earlier cloud transaction payload/native cause was discarded; successful189 retry does not retrospectively recover it."
   }
 }
