@@ -312,6 +312,7 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
 
 /** Referential checks cannot establish that a model's interpretation is true. */
 export function validateAssessmentEvidence(assessment: SiteAssessment, sources: ReadonlyMap<string, Source>, duration: number | null) {
+  const knownClaims = new Set(assessment.known);
   const inspect = (value: any): void => {
     if (!value || typeof value !== "object") return;
     if (Array.isArray(value)) { value.forEach(inspect); return; }
@@ -338,7 +339,12 @@ export function validateAssessmentEvidence(assessment: SiteAssessment, sources: 
         // receipt. Their timing/appearance or reported measurements retain their own basis.
         if (value.basis === "measured" && !["knowledge", "robot_registry"].includes(source.kind)) throw new Error("assessment_measured_source_required");
         if (["published", "measured"].includes(value.basis) && source.kind === "knowledge") {
-          const record = source.content as { content?: unknown } | null;
+          const record = source.content as { content?: unknown; current?: unknown } | null;
+          // Known published facts require present applicability. Retain explicitly
+          // superseded records for historical context/unknowns; age alone is no veto.
+          if (value.basis === "published" && knownClaims.has(value) && record?.current === false) {
+            throw new Error("assessment_known_published_source_not_current");
+          }
           const content = record && typeof record === "object" && "content" in record ? record.content : record;
           if (content === null || content === undefined || (typeof content === "string" && !content.trim())
             || (typeof content === "object" && !Object.keys(content).length)) throw new Error("assessment_knowledge_content_required");

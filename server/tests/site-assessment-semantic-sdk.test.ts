@@ -41,6 +41,11 @@ const scenarios = [
   { id: "V8-observed-ruler-control", mode: "ruler_control", steps: ["video"], expectedError: null, semanticOnly: false },
   { id: "V8-estimated-dimension-control", mode: "dimension_estimate_control", steps: ["video"], expectedError: null, semanticOnly: false },
 ];
+// V9 changes admission of exactly one frozen V8 case. Its original scenario,
+// inputs, semantic identity and baseline outcome remain unchanged above.
+const expectationCorrections = [{ caseId: "V2-corrected-knowledge-current-spec", baselineExpectedError: null,
+  candidateExpectedError: "assessment_known_published_source_not_current", baselineSemanticOnly: true,
+  candidateSemanticOnly: false, reason: "Known published facts cannot cite explicitly non-current knowledge; historical context remains retained." }];
 const codeSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const results: Array<Record<string, unknown>> = [];
 const historyRecord = (content: unknown, current = true) => ({ record_id: "fixture-spec", kind: "robot_capability", source_ref: "synthetic/specification",
@@ -54,7 +59,8 @@ afterAll(() => {
   const output = process.env.RELIABILITY_C_V2_OUTPUT;
   if (output) writeFileSync(`${output}/${process.env.RELIABILITY_C_V2_RUN ?? "results"}.json`, JSON.stringify({ codeSha,
     sourceCodeSha256: createHash("sha256").update(readFileSync(new URL("../agents/site-assessment.ts", import.meta.url))).digest("hex"),
-    labelVersion: "C-semantic-sdk.v8", labelStatus: "PROVISIONAL synthetic fixture expectations; v2 expectations amended explicitly in C/v5 and C/v8 manifests", layer: "actual_SDK_runner_tool_loop_no_storage",
+    labelVersion: "C-semantic-sdk.v9", baselineDefinitionVersion: "C-semantic-sdk.v8", expectationCorrections,
+    labelStatus: "PROVISIONAL synthetic fixture expectations; one V8 admission expectation explicitly corrected in V9", layer: "actual_SDK_runner_tool_loop_no_storage",
     providerMode: "scripted_model_and_video_callbacks", liveProviderCalls: 0, knownCostUsd: 0,
     publicationMeaning: "Actual Runner finalOutput parsed and accepted into portable assessment packet; no adapter/database/customer publication executed",
     results }, null, 2) + "\n");
@@ -63,6 +69,9 @@ afterAll(() => {
 describe("actual SDK source-primitive semantic diagnostics", () => {
   it.each(scenarios)("$id", async scenario => {
     const mode = scenario.mode;
+    const correction = expectationCorrections.find(row => row.caseId === scenario.id);
+    const expectedError = correction?.candidateExpectedError ?? scenario.expectedError;
+    const semanticOnly = correction ? correction.candidateSemanticOnly : scenario.semanticOnly;
     const knownRegistry = ["estimate_control", "published_control", "measured_control", "self_reported_control", "published_as_measured", "missing_named_provenance", "wrong_field_claim", "object_capability", "array_capability", "boolean_capability"].includes(mode);
     const inferred = ["inferred_registry", "inferred_estimate_control"].includes(mode);
     const team: RobotTeamRecord = { id: "fixture-team", name: "Synthetic Team", status: "prospect",
@@ -133,11 +142,12 @@ describe("actual SDK source-primitive semantic diagnostics", () => {
     let error: string | null = null, packet: unknown = null;
     try { packet = await instance.run(); } catch (e) { error = e instanceof Error ? e.message : "non_error"; }
     const semanticHash = createHash("sha256").update(JSON.stringify({ scenario, admittedEvidence: instance.evidence(), structuredProviderOutputs: providerOutputs })).digest("hex");
-    results.push({ caseId: scenario.id, semanticHash, status: scenario.semanticOnly ? "partial" : error === scenario.expectedError ? "passed" : "failed",
-      actual: error ? "rejected" : "assessment_packet_accepted", error, expectedError: scenario.expectedError,
-      semanticOnly: scenario.semanticOnly, attempted: true, repeat: 1, latencyMs: performance.now() - start,
+    results.push({ caseId: scenario.id, semanticHash, status: semanticOnly ? "partial" : error === expectedError ? "passed" : "failed",
+      actual: error ? "rejected" : "assessment_packet_accepted", error, expectedError,
+      baselineExpectedError: scenario.expectedError, baselineSemanticOnly: scenario.semanticOnly,
+      semanticOnly, attempted: true, repeat: 1, latencyMs: performance.now() - start,
       codeSha, providerMode: "scripted_model_and_video_callbacks", modelCallsScripted: modelCalls, videoCallbacksScripted: videoCalls,
       liveProviderCalls: 0, knownCostUsd: 0, sourcesAndToolReceipts: instance.evidence(), packet, structuredProviderOutputs: providerOutputs });
-    expect(error).toBe(scenario.expectedError);
+    expect(error).toBe(expectedError);
   });
 });
