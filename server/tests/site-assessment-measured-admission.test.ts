@@ -13,11 +13,10 @@ const input = { request_id: "fixture-request", operator_messages: [{ id: "owner"
   source_ref: "inboundRequests/fixture-request/request/taskDescription" }], video: videoInput,
   site_requirement: { spec: {}, serviceArea: null, location: { label: null, city: null, state: null, country: null }, taskFamily: null } };
 
-function fixture(options: { probes?: number; beforeUpload?: "withdrawn" | "stale"; revokeAfterCount?: boolean } = {}) {
+function fixture(options: { probes?: number; beforeUpload?: "withdrawn" | "stale"; revokeAfterUpload?: boolean } = {}) {
   const events: string[] = [], bounds: any[] = [], providerResponses: any[] = [];
   const probes = options.probes ?? 1;
   let turn = 0, uploads = 0, sourceCurrent = true;
-  const countBodies: string[] = [];
   const fetcher = vi.fn(async (raw: RequestInfo | URL, init: RequestInit = {}) => {
     const url = String(raw);
     if (!url.startsWith("https://generativelanguage.googleapis.com/")) throw Error("external_network_refused");
@@ -27,19 +26,13 @@ function fixture(options: { probes?: number; beforeUpload?: "withdrawn" | "stale
     }
     if (url.includes("/upload?fixture=")) {
       events.push("upload:bytes");expect(init.body).toBe(bytes);
+      if (options.revokeAfterUpload) sourceCurrent = false;
       return new Response(JSON.stringify({ file: { name: `files/fixture-${uploads}`, state: "ACTIVE", mimeType: "video/mp4",
         uri: `https://generativelanguage.googleapis.com/v1beta/files/fixture-${uploads}` } }), { status: 200 });
     }
-    if (url.includes(":countTokens")) {
-      events.push("count");
-      const { model, ...generation } = JSON.parse(String(init.body)).generateContentRequest;
-      expect(model).toMatch(/^models\/gemini-/);countBodies.push(JSON.stringify(generation));
-      if (options.revokeAfterCount) sourceCurrent = false;
-      return new Response(JSON.stringify({ totalTokens: 110 + uploads }), { status: 200 });
-    }
+    if (url.includes(":countTokens")) throw Error("unexpected_budget_prerequisite");
     if (url.includes(":generateContent")) {
-      events.push("generate");expect(events.at(-2)).toBe("authorize:gemini");
-      expect(String(init.body)).toBe(countBodies.at(-1));
+      events.push("generate");expect(events.at(-2)).toBe("source:guard");
       const index = uploads - 1;
       return new Response(JSON.stringify({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify({
         summary: `Scripted synthetic marker ${index}`, observations: [{ category: "motion", finding: `Synthetic marker ${index} changes position`,
@@ -73,18 +66,17 @@ function fixture(options: { probes?: number; beforeUpload?: "withdrawn" | "stale
     events.push(`authorize:${provider}`);
     if (provider === "gemini") {
       if (!sourceCurrent) throw Error("fixture_authority_revoked");
-      expect(request.inference_bound).toMatchObject({ provider: "gemini", source_sha256: sourceSha,
-        method: "count_tokens_same_payload", input_tokens: 110 + uploads, max_output_tokens: 32768 });
-      expect(request.inference_bound.payload_sha256).toBe(createHash("sha256").update(countBodies.at(-1)!).digest("hex"));
+      expect(request).toMatchObject({ bytes: bytes.length, duration_seconds: videoInput.duration_seconds });
       bounds.push(request);
     }
   });
   return { events, bounds, fetcher, authorize, providerResponses,
     async run() {
       const instance = await createSiteAssessmentAgent(input, { history_access: null, authorize_model_call: authorize,
-        video_bytes: { body: bytes, byteLength: bytes.length, contentType: "video/mp4" }, bound_video_requests: true,
-        assert_video_upload_allowed: async () => {
+        video_bytes: { body: bytes, byteLength: bytes.length, contentType: "video/mp4" },
+        assert_video_processing_allowed: async () => {
           events.push("source:guard");if (options.beforeUpload) throw Error(`fixture_${options.beforeUpload}`);
+          if (!sourceCurrent) throw Error("fixture_authority_revoked");
         }, record_model_response: async (provider, _model, response) => {
           events.push(`record:${provider}`);if (provider === "gemini") providerResponses.push(response);
         } });
@@ -93,13 +85,13 @@ function fixture(options: { probes?: number; beforeUpload?: "withdrawn" | "stale
 }
 
 afterEach(() => { vi.restoreAllMocks();vi.unstubAllGlobals();vi.unstubAllEnvs(); });
-describe("SDK measured Gemini admission bridge", () => {
-  it("retains four distinct source readings through real SDK, exact counted admission and generation", async () => {
+describe("SDK source-bound Gemini accounting bridge", () => {
+  it("retains four distinct source readings without a spending quota through real SDK and Gemini generation", async () => {
     const f = fixture({ probes: 4 });const { result } = await f.run();
     expect(f.events.filter(event => event === "sol")).toHaveLength(5);
     expect(f.bounds).toHaveLength(4);expect(f.providerResponses).toHaveLength(4);
-    expect(f.events.filter(event => ["source:guard", "upload:start", "upload:bytes", "count", "authorize:gemini", "generate", "delete", "record:gemini"].includes(event)))
-      .toEqual(Array.from({ length: 4 }, () => ["source:guard", "upload:start", "upload:bytes", "count", "authorize:gemini", "generate", "delete", "record:gemini"]).flat());
+    expect(f.events.filter(event => ["source:guard", "upload:start", "upload:bytes", "authorize:gemini", "generate", "delete", "record:gemini"].includes(event)))
+      .toEqual(Array.from({ length: 4 }, () => ["authorize:gemini", "source:guard", "upload:start", "upload:bytes", "source:guard", "generate", "delete", "record:gemini"]).flat());
     const videos = result.sources.filter(source => source.kind === "video");expect(videos).toHaveLength(4);
     expect(videos.every(source => source.sha256 === sourceSha && source.canonical_ref === videoInput.source_ref)).toBe(true);
     expect(result.assessment.job).toHaveLength(4);expect(result.verification.source_bound_claims).toBe(4);
@@ -112,18 +104,18 @@ describe("SDK measured Gemini admission bridge", () => {
   it.each(["withdrawn", "stale"] as const)("refuses %s authority before uploading a source", async beforeUpload => {
     const f = fixture({ beforeUpload });const { result } = await f.run();
     expect(f.events).toContain("source:guard");expect(f.fetcher).not.toHaveBeenCalled();
-    expect(f.bounds).toHaveLength(0);expect(f.providerResponses).toHaveLength(0);
+    expect(f.bounds).toHaveLength(1);expect(f.providerResponses).toHaveLength(0);
     expect(result.assessment.status).toBe("needs_operator_input");expect(result.assessment.job).toEqual([]);
     expect(result.assessment.known).toEqual([]);expect(result.assessment.approaches).toEqual([]);
     expect(result.sources.filter(source => source.kind === "video")).toHaveLength(0);
     expect(result.verification.source_bound_claims).toBe(0);
   });
 
-  it("refuses authority revoked after count, prevents generation and deletes the upload", async () => {
-    const f = fixture({ revokeAfterCount: true });const { result } = await f.run();
-    expect(f.events).toContain("count");expect(f.events).toContain("authorize:gemini");expect(f.events).not.toContain("generate");
+  it("refuses authority revoked during upload, prevents generation and deletes the upload", async () => {
+    const f = fixture({ revokeAfterUpload: true });const { result } = await f.run();
+    expect(f.events).toContain("upload:bytes");expect(f.events).toContain("authorize:gemini");expect(f.events).not.toContain("generate");
     expect(f.events.filter(event => event === "delete")).toHaveLength(1);
-    expect(f.bounds).toHaveLength(0);expect(f.providerResponses).toHaveLength(0);
+    expect(f.bounds).toHaveLength(1);expect(f.providerResponses).toHaveLength(0);
     expect(result.assessment.status).toBe("needs_operator_input");expect(result.assessment.job).toEqual([]);
     expect(result.assessment.known).toEqual([]);expect(result.assessment.approaches).toEqual([]);
     expect(result.sources.filter(source => source.kind === "video")).toHaveLength(0);

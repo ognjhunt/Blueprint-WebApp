@@ -41,108 +41,31 @@ const noSleep = async () => undefined;
 const callsTo = (fetcher: ReturnType<typeof gemini>, match: (url: string, init: RequestInit) => boolean) =>
   fetcher.mock.calls.filter(([url, init]) => match(url as string, (init ?? {}) as RequestInit));
 
-describe("exact static inference authorization", () => {
-  it("authorizes the counted identical STATIC payload before generation", async () => {
-    const request: any = { ...input, processingMode: "STATIC", samplingFps: 2, maxOutputTokens: 8_192 };
-    const beforeGenerate = vi.fn(async () => {
-      request.prompt = "Changed after count; must not change the authorized payload.";
-      request.model = "gemini-changed-after-count";
-    });
-    const underlying = gemini(() => new Response(JSON.stringify({ candidates: [{ finishReason: "STOP",
-      content: { parts: [{ text: "{}" }] } }] }), { status: 200 }));
-    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
-      if (url.includes(":countTokens")) return new Response(JSON.stringify({ totalTokens: 123 }), { status: 200 });
-      if (url.includes(":generateContent")) expect(beforeGenerate).toHaveBeenCalledTimes(1);
-      return underlying(url, init);
-    });
+describe("current source recheck before video generation", () => {
+  it.each(["STATIC", "AGENTIC"] as const)("rechecks %s source without a token-count budget prerequisite and freezes generation", async processingMode => {
+    const request: any = { ...input, processingMode, samplingFps: 2 };
+    const beforeGenerate = vi.fn(async () => { request.prompt = "changed"; request.model = "changed-model"; });
     request.beforeGenerate = beforeGenerate;
-    const result = await analyseAgenticVideo(request, fetcher, noSleep);
-    expect(beforeGenerate).toHaveBeenCalledTimes(1);
-    const bound = (beforeGenerate.mock.calls as unknown[][])[0][0] as any;
-    const counted = fetcher.mock.calls.find(([url]) => url.includes(":countTokens"))!;
-    const generated = fetcher.mock.calls.find(([url]) => url.includes(":generateContent"))!;
-    const body = (generated[1] as RequestInit).body as string;
-    expect(JSON.parse((counted[1] as RequestInit).body as string)).toEqual({ generateContentRequest: {
-      model: `models/${input.model}`, ...JSON.parse(body),
-    } });
-    expect(JSON.parse(body).contents[0].parts[0].text).toBe(input.prompt);
-    expect((counted[1] as RequestInit).method).toBe("POST");
-    expect(counted[0]).toContain(`${input.model}:countTokens`);
-    expect(generated[0]).toContain(`${input.model}:generateContent`);
-    expect(result.processing.model_version).toBe(input.model);
-    expect(JSON.stringify(bound)).not.toContain(input.apiKey);
-    expect(JSON.stringify(bound)).not.toContain(file("ACTIVE").uri);
-    expect(bound).toEqual({ inference_bound: {
-      schema_version: "site_assessment_inference_bound.v1", provider: "gemini", model: input.model,
-      source_sha256: createHash("sha256").update(bytes).digest("hex"),
-      payload_sha256: createHash("sha256").update(body).digest("hex"),
-      input_tokens: 123, max_output_tokens: 8_192, method: "count_tokens_same_payload",
-    } });
-    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
-  });
-
-  it("refuses an opt-in output bound above 32768 before upload or any provider request", async () => {
-    const beforeGenerate = vi.fn(async () => undefined);
-    const fetcher = gemini(() => reply([{ text: "{}" }]));
-    await expect(analyseAgenticVideo({ ...input, processingMode: "STATIC", maxOutputTokens: 32_769,
-      beforeGenerate } as any, fetcher, noSleep)).rejects.toThrow();
-    expect(beforeGenerate).not.toHaveBeenCalled();expect(fetcher).not.toHaveBeenCalled();
-  });
-
-  it.each([undefined, 0, -1, 1.5, "123", 1_048_577])("refuses invalid counted tokens %s before authorization or generation, with cleanup", async totalTokens => {
-    const beforeGenerate = vi.fn(async () => undefined);
-    const underlying = gemini(() => reply([{ text: "{}" }]));
-    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) =>
-      url.includes(":countTokens") ? new Response(JSON.stringify({ totalTokens }), { status: 200 }) : underlying(url, init));
-    await expect(analyseAgenticVideo({ ...input, processingMode: "STATIC", beforeGenerate } as any, fetcher, noSleep)).rejects.toThrow();
-    expect(beforeGenerate).not.toHaveBeenCalled();
-    expect(callsTo(fetcher, url => url.includes(":generateContent"))).toHaveLength(0);
-    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
-  });
-
-  it.each(["provider refusal", "malformed response"])("protects count error content for %s and cleans up without generation", async failure => {
-    const privateBody = "private-signed-url-and-api-key-do-not-expose";
-    const beforeGenerate = vi.fn(async () => undefined);
-    const underlying = gemini(() => reply([{ text: "{}" }]));
-    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => url.includes(":countTokens")
-      ? new Response(privateBody, { status: failure === "provider refusal" ? 403 : 200 }) : underlying(url, init));
-    const caught = await analyseAgenticVideo({ ...input, processingMode: "STATIC", beforeGenerate } as any, fetcher, noSleep).catch(error => error);
-    expect(caught).toBeInstanceOf(Error);expect(caught.message).not.toContain(privateBody);
-    expect(beforeGenerate).not.toHaveBeenCalled();
-    expect(callsTo(fetcher, url => url.includes(":generateContent"))).toHaveLength(0);
-    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
-  });
-
-  it("stops at callback denial after counting and still deletes the uploaded video", async () => {
-    const beforeGenerate = vi.fn(async () => { throw new Error("authorization_denied"); });
-    const underlying = gemini(() => reply([{ text: "{}" }]));
-    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) =>
-      url.includes(":countTokens") ? new Response(JSON.stringify({ totalTokens: 1 }), { status: 200 }) : underlying(url, init));
-    await expect(analyseAgenticVideo({ ...input, processingMode: "STATIC", beforeGenerate } as any, fetcher, noSleep)).rejects.toThrow("authorization_denied");
-    expect(beforeGenerate).toHaveBeenCalledTimes(1);
-    expect(callsTo(fetcher, url => url.includes(":countTokens"))).toHaveLength(1);
-    expect(callsTo(fetcher, url => url.includes(":generateContent"))).toHaveLength(0);
-    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
-  });
-
-  it("uses conservative callback authorization for AGENTIC without a static token bound", async () => {
-    const beforeGenerate = vi.fn(async () => undefined);
     const underlying = gemini(() => reply([...trace, { text: "{}" }]));
     const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (url.includes(":countTokens")) throw new Error("unexpected_budget_prerequisite");
       if (url.includes(":generateContent")) expect(beforeGenerate).toHaveBeenCalledTimes(1);
       return underlying(url, init);
     });
-    await analyseAgenticVideo({ ...input, beforeGenerate } as any, fetcher, noSleep);
-    expect((beforeGenerate.mock.calls as unknown[][])[0][0]).toBeUndefined();
+    await analyseAgenticVideo(request, fetcher, noSleep);
+    const generated = fetcher.mock.calls.find(([url]) => url.includes(":generateContent"))!;
+    expect(generated[0]).toContain(`${input.model}:generateContent`);
+    expect(JSON.parse(String(generated[1].body)).contents[0].parts[0].text).toBe(input.prompt);
     expect(callsTo(fetcher, url => url.includes(":countTokens"))).toHaveLength(0);
     expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
   });
-
-  it("keeps STATIC calls without the opt-in callback on the original provider path", async () => {
-    const fetcher = gemini(() => reply([{ text: "{}" }]));
-    await analyseAgenticVideo({ ...input, processingMode: "STATIC" }, fetcher, noSleep);
-    expect(callsTo(fetcher, url => url.includes(":countTokens"))).toHaveLength(0);
-    expect(callsTo(fetcher, url => url.includes(":generateContent"))).toHaveLength(1);
+  it.each(["STATIC", "AGENTIC"] as const)("refuses withdrawn %s evidence before generation and cleans up", async processingMode => {
+    const beforeGenerate = vi.fn(async () => { throw new Error("source_withdrawn"); });
+    const fetcher = gemini(() => reply([...trace, { text: "{}" }]));
+    await expect(analyseAgenticVideo({ ...input, processingMode, beforeGenerate }, fetcher, noSleep)).rejects.toThrow("source_withdrawn");
+    expect(beforeGenerate).toHaveBeenCalledTimes(1);
+    expect(callsTo(fetcher, url => url.includes(":generateContent"))).toHaveLength(0);
+    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
   });
 });
 

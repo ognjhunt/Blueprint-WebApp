@@ -147,6 +147,7 @@ it.each(["ordinary", "programme-bound"])("ADVISORY-PRODUCER-001 joined actual SD
       ],
     });
   }
+  const historicalProgramme = structuredClone(state.docs.get("inferencePrograms/synthetic-programme"));
   const put=(name:string,generation:string,body:Buffer,contentType="application/json")=>seams.objects.set(name,{generation,crc32c:"AAAAAA==",bytes:body,contentType});
   put(joined.video.object_name,joined.video.generation,Buffer.from("video-1"),"video/mp4");put(joined.manifest.object_name,joined.manifest.generation,bytes);
   const delivery=buildBrowserDelivery({requestId:joined.request_id,sceneId:joined.scene_id,captureId:joined.capture_id,
@@ -193,8 +194,12 @@ it.each(["ordinary", "programme-bound"])("ADVISORY-PRODUCER-001 joined actual SD
       const programme = state.docs.get("inferencePrograms/synthetic-programme")!;
       expect(programme.slots.find((slot:any) => slot.id === "original-gemini").state).toBe("unknown");
       expect(programme.slots.find((slot:any) => slot.id === "original-sol-1").state).toBe("recorded");
-      expect(programme.slots.filter((slot:any) => slot.state === "held")).toHaveLength(1);
-      expect(programme.slots.filter((slot:any) => slot.run_id === job.run_id && slot.state === "recorded")).toHaveLength(3);
+      expect(programme.slots.filter((slot:any) => slot.state === "held")).toHaveLength(4);
+      expect(programme).toEqual(historicalProgramme);
+      const newCalls = [...state.docs.entries()].filter(([key, value]) => key.includes("/calls/") && value.run_id === job.run_id);
+      expect(newCalls).toHaveLength(3);
+      expect(newCalls.every(([,value]) => ["recorded", "unknown"].includes(value.state))).toBe(true);
+      expect(run.artifacts.capture_inference_reservations.every((row:any) => row.spending_gated === false)).toBe(true);
       expect(programme.slots.reduce((total:number, slot:any) => total + slot.reserved_micro_usd, 0)).toBe(4_964_928);
     }
     const express=(await import("express")).default;const {createServer}=await import("node:http");

@@ -378,6 +378,32 @@ describe("agent session runtime", () => {
     expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
   }, 20_000);
 
+  it.each(["site_assessment", "capture_coverage", "capture_video_privacy", "inbound_qualification"] as const)("records %s execution without a rolling-spend approval or cost-evidence prerequisite", async kind => {
+    privateStorage.available = true;
+    const runtime = await import("../agents/runtime");
+    const original = structuredClone(await runOpenAIResponsesTask.getMockImplementation()!());
+    runOpenAIResponsesTask.mockResolvedValueOnce({ ...original, raw_output_text: "retained".repeat(200_000),
+      artifacts: { usage: { prompt_tokens: 100_000, completion_tokens: 100, total_tokens: 100_100, cost_usd: 2 } } });
+    await runtime.runAgentTask({ kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses", input: { message: "Prior spend" } }, { dispatchQueuedOnFinish: false });
+    const paid = [...fake.store.agentRuns.values()].find(row => row.agent_evidence_ref)!;
+    paid.created_at = new Date().toISOString();
+    vi.stubEnv("BLUEPRINT_AGENT_COST_STOP_DAY_USD", "0.001");
+    privateStorage.objects.clear(); // Unavailable previous cost evidence is not source evidence for this job.
+    runOpenAIResponsesTask.mockClear(); runSiteAssessmentTask.mockClear();
+    if (kind === "site_assessment") runSiteAssessmentTask.mockImplementationOnce(async (task, host) => {
+      await host.assertActive(); await host.assertCostAllowed();
+      return { status: "completed", provider: task.provider, runtime: task.runtime, model: task.model,
+        tool_mode: "api", requires_human_review: true, requires_approval: false, artifacts: { usage: { calls: 1, cost_usd: null } } };
+    });
+    const result = await runtime.runAgentTask({ kind, provider: "openai_responses", runtime: "openai_responses",
+      input: { message: "Process this authorized fixture", context: { request_id: "one" } } }, { dispatchQueuedOnFinish: false });
+    expect(result.status).toBe("completed");
+    if (kind === "site_assessment") expect(runSiteAssessmentTask).toHaveBeenCalledTimes(1);
+    else expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
+    expect(result.artifacts?.inference_not_invoked).not.toBe(true);
+    expect(fake.store.agentRuns.get(paid.id || [...fake.store.agentRuns.keys()][0])?.status).not.toBe("deleted");
+  }, 20_000);
+
   it("strictly hydrates large queued input before dispatch", async () => {
     privateStorage.available = true;
     const runtime = await import("../agents/runtime");
