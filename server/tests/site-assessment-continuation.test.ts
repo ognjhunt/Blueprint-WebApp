@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { createSiteAssessmentAgent, type SiteAssessment } from '../agents/site-assessment';
 import { SiteAssessmentBudget } from '../agents/adapters/site-assessment-budget';
 import { analyseAgenticVideo } from '../agents/adapters/gemini-video';
+import { createCompanyHistoryTools } from '../research-learning/company-history';
 vi.mock('../agents/adapters/gemini-video', () => ({
   analyseAgenticVideo: vi.fn(), openVideo: vi.fn(), GeminiVideoError: class extends Error {},
 }));
@@ -28,23 +29,35 @@ beforeEach(() => { vi.clearAllMocks(); vi.stubEnv('GEMINI_API_KEY', 'noncredenti
 describe('assessment continuation policy (scripted SDK, no provider dispatch)', () => {
   it('recovers string null optional search fields without bypassing real cursor or access checks', async () => {
     let turn = 0;
-    const scripted: Model = { async getResponse() {
+    const invalid = { query: 'visible manipulation', city: 'Chicago', task: null, company: 'fixture-company', kind: 'hypothesis', cursor: '<opaque next_cursor>' };
+    const readRestart = (value: unknown): any => {
+      if (typeof value === 'string') { try { return readRestart(JSON.parse(value)); } catch { return undefined; } }
+      if (!value || typeof value !== 'object') return undefined;
+      if ('retry_arguments' in value) return (value as any).retry_arguments;
+      for (const child of Object.values(value)) { const found = readRestart(child); if (found) return found; }
+    };
+    const scripted: Model = { async getResponse(request) {
       turn++;
-      return { usage: new Usage(), output: turn < 3 ? [{ type: 'function_call' as const, callId: `search-${turn}`, name: 'search_robot_knowledge',
-        arguments: JSON.stringify({ query: 'visible manipulation', city: 'null', task: null, company: 'null', kind: null,
-          cursor: turn === 1 ? 'null' : 'invalid-real-cursor' }) }]
+      const args = turn === 1 ? { ...invalid, city: 'null', company: 'null', cursor: 'null' }
+        : turn === 2 ? invalid : readRestart(request.input) ?? invalid;
+      return { usage: new Usage(), output: turn < 4 ? [{ type: 'function_call' as const, callId: `search-${turn}`, name: 'search_robot_knowledge', arguments: JSON.stringify(args) }]
         : [{ type: 'message' as const, role: 'assistant' as const, status: 'completed' as const,
           content: [{ type: 'output_text' as const, text: JSON.stringify(final) }] }] };
     }, async *getStreamedResponse() { throw Error('not_used'); } };
-    const history = vi.fn(async (_name, args) => args.cursor
-      ? { ok: false, error: 'company_history_cursor_changed' } : { ok: true, rows: [], next_cursor: null });
     const access = { principalId: 'retained-scope', companyWide: false, expiresAt: '2099-01-01T00:00:00Z' };
+    const backend = createCompanyHistoryTools({ doc: () => ({ get: async () => ({ exists: false }) }) } as any, access, {
+      load: async () => ({ records: [], diagnostics: [], coverage: ['synthetic-empty-authorized-corpus'] }), now: () => '2098-01-01T00:00:00Z',
+    });
+    const history = vi.fn(backend);
     const agent = await createSiteAssessmentAgent({ ...input, operator_messages: [] }, {
       history_access: access, model: scripted, history_tool: history, authorize_model_call: async () => {} });
     const packet = await agent.run();
-    expect(history.mock.calls[0]).toEqual(['search_company_history', { query: 'visible manipulation', filters: {}, page_size: 20 }, access]);
-    expect(history.mock.calls[1][1]).toHaveProperty('cursor', 'invalid-real-cursor');
-    expect(packet.tool_receipts.map(row => (row.result as any).ok)).toEqual([true, false]);
+    expect(history.mock.calls[0].slice(0, 2)).toEqual(['search_company_history', { query: invalid.query, filters: { kind: 'hypothesis' }, page_size: 20 }]);
+    expect(history.mock.calls[1][1]).toHaveProperty('cursor', invalid.cursor);
+    expect(packet.tool_receipts[1].result).toMatchObject({ ok: false, error: 'company_history_cursor_changed', retry_arguments: { ...invalid, cursor: null } });
+    expect((packet.tool_receipts[1].result as any).action).toContain('cursor: null');
+    expect(history.mock.calls[2][1]).toEqual({ query: invalid.query, filters: { city: 'Chicago', company: 'fixture-company', kind: 'hypothesis' }, page_size: 20 });
+    expect(packet.tool_receipts.map(row => (row.result as any).ok)).toEqual([true, false, true]);
     expect(packet.sources.some(row => row.kind === 'operator')).toBe(false);
   });
   it('continues past twelve SDK turns while new evidence remains available', async () => {
