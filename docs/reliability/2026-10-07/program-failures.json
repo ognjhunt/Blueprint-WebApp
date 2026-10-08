@@ -371,7 +371,7 @@
       "semanticCaseHash": "414589b1f854d99d33dbfafbdcbffe4ad870d074f51ea69938f1024ea666f0de",
       "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
       "violatedClaim": "Observed completed bin stacking cites only bin-to-table movement; task completion not observable and owner/spec stacking absent.",
-      "releaseStatus": "candidate_reviewed_and_merged_8c6f020e;deployment_pending_current_d217",
+      "releaseStatus": "scoped_repair_reviewed_merged8c6_deployed_descendant_d78; SDK_publication_behavior_scripted_offline_not_live_perception",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
       "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
       "currentBaselineReconfirmation": {
@@ -387,7 +387,9 @@
       "candidateSourceSha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
       "candidateRetest": "Originalraw/source/semantic hashes preserved; publishedfalsefact becomesunknown/recovery; selected-source positiveSDK case3freshprocesses; no natural-model/video truth claim",
       "independentReview": "1980443a exacta49 scopedpublicationboundary approved",
-      "mergedSHA": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be"
+      "mergedSHA": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be",
+      "deployedSHA": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+      "postDeployEvidence": "program-release.json durable_clear_followup and assessment_evidence_binding_followup; exact deployed source hash5a; no real-provider assessment execution claim"
     },
     {
       "id": "ASSESS-FIELD-ENTAILMENT-001",
@@ -400,7 +402,7 @@
       "semanticCaseHash": "34d08adecdc8b5d74282d5230f758915ee909622ed9c1b3b6b0d4382c3bcff42",
       "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
       "violatedClaim": "Known published50m reach cites registry reachM:1 whose field provenance is otherwise qualified.",
-      "releaseStatus": "candidate_reviewed_and_merged_8c6f020e;deployment_pending_current_d217",
+      "releaseStatus": "scoped_repair_reviewed_merged8c6_deployed_descendant_d78; SDK_publication_behavior_scripted_offline_not_live_perception",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
       "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
       "currentBaselineReconfirmation": {
@@ -416,7 +418,9 @@
       "candidateSourceSha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
       "candidateRetest": "Originalraw/source/semantic hashes preserved; publishedfalsefact becomesunknown/recovery; selected-source positiveSDK case3freshprocesses; no natural-model/video truth claim",
       "independentReview": "1980443a exacta49 scopedpublicationboundary approved",
-      "mergedSHA": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be"
+      "mergedSHA": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be",
+      "deployedSHA": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+      "postDeployEvidence": "program-release.json durable_clear_followup and assessment_evidence_binding_followup; exact deployed source hash5a; no real-provider assessment execution claim"
     },
     {
       "id": "WEBSITE-OWNER-TARGET-PREPARATION-001",
@@ -475,7 +479,7 @@
       "releaseStatus": "deployed_d217_exact_identity_and_draft_presentation_verified; applicability_guard_execution_offline_only",
       "claim_ceiling": "ScriptedSDKtool/admissionproof, nottruth/video/performanceaccuracy; existing2entailmentdefectsremain",
       "mergedSHA": "d21721d94aad50c0314d2e10875c3b022841c689",
-      "independentReview": "e359506c_exacta980; same7failures\u219215placements+neighborspass",
+      "independentReview": "e359506c_exacta980; same7failures→15placements+neighborspass",
       "deployedSHA": "d21721d94aad50c0314d2e10875c3b022841c689",
       "postDeployEvidence": "program-release.json assessment_claim_placement_followup; rootreceipt48c18596713035bdec5605278c93e4439605e3db83094b7d64f9634ed466823c"
     },
@@ -491,15 +495,32 @@
       "candidateCommit": "36225435c6eb10f38614b39b2394dba612a8c2a5",
       "candidatePR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/944",
       "review_findings": [
-        {"id": "CLEAR-SCOPE-ABA", "severity": "P2", "baseline": "81183b1f7f5543f87682d00d597fbe2ee6500ce2", "evidence": "Author and independent FIFO WebLock component replay both fail: an old unreadable-recovery Clear revives after account A to B to A and displays completion. Returning A hydration queues behind it; no new-A editing, new-work loss, or cross-account exposure was demonstrated.", "repair_state": "Scope epoch cancels old intent even after return; exact 36225435 independent same-case retest passes"},
-        {"id": "CLEAR-RETRY-COPY", "severity": "P2", "baseline": "81183b1f7f5543f87682d00d597fbe2ee6500ce2", "evidence": "Author and independent component replay both fail: committed retry retains prior cannot-save warning. The flag controls warning copy, not submit admission.", "repair_state": "Committed reset restores storageAvailable; exact 36225435 independent failure/retry retest passes"}
+        {
+          "id": "CLEAR-SCOPE-ABA",
+          "severity": "P2",
+          "baseline": "81183b1f7f5543f87682d00d597fbe2ee6500ce2",
+          "evidence": "Author and independent FIFO WebLock component replay both fail: an old unreadable-recovery Clear revives after account A to B to A and displays completion. Returning A hydration queues behind it; no new-A editing, new-work loss, or cross-account exposure was demonstrated.",
+          "repair_state": "Scope epoch cancels old intent even after return; exact 36225435 independent same-case retest passes"
+        },
+        {
+          "id": "CLEAR-RETRY-COPY",
+          "severity": "P2",
+          "baseline": "81183b1f7f5543f87682d00d597fbe2ee6500ce2",
+          "evidence": "Author and independent component replay both fail: committed retry retains prior cannot-save warning. The flag controls warning copy, not submit admission.",
+          "repair_state": "Committed reset restores storageAvailable; exact 36225435 independent failure/retry retest passes"
+        }
       ],
       "candidateRetest": "Three unchanged local UI-RETURN-002 baseline attempts passed; deterministic held-lock feedback expectation failed before repair. Candidate full 14 intercepted-API browser cases plus selected three cases repeated three times passed: 14 unique cases, 23 attempts. 228 component/helper neighbors passed. Original CI failure and invalid first cancellation-boundary probe retained.",
       "case_contract_correction": "Versioned supplemental acknowledgment contract: UI-RETURN-002 now waits for actual visible durable completion before its original reload-empty assertion. UI-CLEAR-001 checks pending/fresh committed authority; UI-CLEAR-002 explicitly reloads before acknowledgment and confirms no false success and retained unretired draft. No arbitrary sleep or new coverage credit for repeats.",
-      "releaseStatus": "CANDIDATE_36225435_independently_approved; final_required_PR_CI_37769934452_in_progress; no deployment or lucky rerun",
+      "releaseStatus": "reviewed_merged_d78; required_PR_and_main_CI_success; paired_deployed_and_actual_clear_UI_verified",
       "independentReview": "019149b5; exact source SHA c554cd1f48080ce40cd2d429c4d03b746b2510a9740e23ba83beae45776b868a; 11 scoped controls including matched failures plus three native browser cases passed",
       "new_case_credit": 0,
-      "scope_limit": "Native Chromium IndexedDB/WebLock behavior with intercepted APIs and simulated component stores. No production fault, customer mutation, paid provider call, real notification, or backend assessment proof. P2 feedback finding does not hold unrelated customer learning."
+      "scope_limit": "Native Chromium IndexedDB/WebLock behavior with intercepted APIs and simulated component stores. No production fault, customer mutation, paid provider call, real notification, or backend assessment proof. P2 feedback finding does not hold unrelated customer learning.",
+      "mergedSHA": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+      "deployedSHA": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+      "independentPostDeploymentReview": "53cc9f8e",
+      "postDeployEvidence": "resultSHA46fd5f44d0a92eb9f200c1818fbb24d90e5262758339922a88ed7eb17df06bcf;18checksalltrue includingactualdurableACK/fresh-emptyidentity/reload;0intakesubmissions",
+      "finalSourceRetest": "Exact362 source:14intercepted nativecases/23passedattempts,9componentcontrols,tsc+Graphify;independent11overlappingcontrols+3native;2selectedexistingnormalUI/emulatorcasespassed/no newjourneycredit. Exportfailed/zeroexportbytes, rawlimitations explicit."
     }
   ],
   "dependencies": [

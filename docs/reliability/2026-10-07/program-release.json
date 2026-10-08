@@ -55,8 +55,9 @@
       "script_sha256": "306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b",
       "claim_ceiling": "Exact serving identity, paired deployment receipts, health/readiness and ordinary local-draft reload only; no production submission/upload/worker/assessment/notification path."
     },
-    "current_independently_verified_serving_sha": "d21721d94aad50c0314d2e10875c3b022841c689",
-    "initial940_receipts_are_historical": true
+    "current_independently_verified_serving_sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+    "initial940_receipts_are_historical": true,
+    "current_receipt_key": "durable_clear_followup"
   },
   "pipeline": {
     "merged_required_stage_fix": "cc876af25389de934f57c08b33421987f9e3328d",
@@ -428,7 +429,7 @@
     "remaining_specific_dependencies": [
       "Two open internal advisory citation-entailment P1 counterexamples",
       "Full normal-UI customer assessment/publication join",
-      "Reference target12\u201324 versus1authorized source;0current human timestamp labels/0untouched holdout",
+      "Reference target12–24 versus1authorized source;0current human timestamp labels/0untouched holdout",
       "No usable retained Gemini video analysis and acceptance/charge remains unknown",
       "Pipeline exact-main full lane, aggregate/provenance and protected deployment/live verification"
     ],
@@ -445,7 +446,7 @@
     "runtime_source_sha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
     "contract": "site_assessment.v2; legacyunverified; originalmodelpacketretainedprivate",
     "scope": "Selected-source factual rendering and explicitunverified/advisory recovery; notNLP/perception/feasibility truth",
-    "state": "merged_code_complete; reviewed_descendant_d78_main_CI_success_and_paired_deployment_in_progress",
+    "state": "deployed_as_reviewed_descendant_d78; source_identity_verified; scripted_actual_SDK_behavior_offline_only",
     "independent_review_commit": "1980443a",
     "reviewer_manifest_sha256": "fc5cbb02d4f0a0b313af59c0168c4711bcf7acd01511c52db36cb9f3f0cbaeb1",
     "independent_checks": "65focused+4neighbors;matchedtwoP1originalinputs/source/scriptedoutputs;positiveSDKreceiptsmatch3freshprocesses;17serializedstrictobjects",
@@ -468,8 +469,12 @@
       "retained_log_sha256": "4bb96f1f984a3205019c242145e04ba36bb8c14682e414bec7b6edd3a5b740d3",
       "owner": "intake_recovery; coordinator; independent_review",
       "rerun_or_bypass": false,
-      "status": "Retained failure diagnosed as missing durable-clear acknowledgment. Reviewed PR944 repair merged d78; its exact-main CI remains the next gate."
-    }
+      "status": "Historical red 8c6 retained; diagnosed/repaired in reviewed PR944; descendant d78 mainCI success and deployed local clear behavior verified"
+    },
+    "deployed_sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+    "descendant_main_CI_run": 37770897943,
+    "descendant_main_CI_state": "success",
+    "deployment_receipt_key": "durable_clear_followup"
   },
   "durable_clear_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/944",
@@ -481,7 +486,10 @@
     "source_sha256": "c554cd1f48080ce40cd2d429c4d03b746b2510a9740e23ba83beae45776b868a",
     "parent_assessment_source_sha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
     "merged_source_hashes_verified": true,
-    "independent_review_commits": ["019149b5", "505b61d1"],
+    "independent_review_commits": [
+      "019149b5",
+      "505b61d1"
+    ],
     "independent_review_scope": "Actual diff, matched failing controls, native browser checks and final trace/source/readback hashes; no full customer-assessment claim",
     "private_final_manifest_sha256": "663e461b5d30799afd26262a5e633e565cd568e46f81e0129955c51bb460414e",
     "required_PR_CI_run": 37769934452,
@@ -489,10 +497,42 @@
     "required_main_CI_run": 37770897943,
     "required_main_CI_state": "completed_success_2026-10-08T11:42:28Z",
     "deployment_workflow_run": 37771834921,
-    "deployment_workflow_state": "in_progress",
-    "paired_deployments": {"web": {"id": "dep-db3o3do473hc73eo8gh0", "sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219", "observed_status": "build_in_progress"}, "worker": {"id": "dep-db3o3drtqb8s73epbsj0", "sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219", "observed_status": "build_in_progress"}},
-    "state": "merged_code_complete; exact_main_green; paired_deployment_and_live_clear_verification_pending",
+    "deployment_workflow_state": "completed_success",
+    "paired_deployments": {
+      "web": {
+        "id": "dep-db3o3do473hc73eo8gh0",
+        "sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+        "observed_status": "live",
+        "finished_at_utc": "2026-10-08T11:45:34.784719Z"
+      },
+      "worker": {
+        "id": "dep-db3o3drtqb8s73epbsj0",
+        "sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+        "observed_status": "live",
+        "finished_at_utc": "2026-10-08T11:45:37.847665Z"
+      }
+    },
+    "state": "deployed_and_independently_verified; affected_local_clear_flow_passed; full_customer_assessment_not_proven",
     "new_unique_journey_credit": 0,
-    "deployed_clear_smoke": {"source_commit": "3514114eddaa320f6de02ede8923e6a2a4af4a58", "script_sha256": "ea03c76daa4f2cde69efc4939ec52a1715e0e8305648c2d03b6999d9cfa1f56c", "contract": "Optional --verify-clear receipt v2; fresh anonymous synthetic local browser; all non-GET/external traffic aborted; no customer backend mutation", "executed": false}
+    "deployed_clear_smoke": {
+      "source_commit": "3514114eddaa320f6de02ede8923e6a2a4af4a58",
+      "script_sha256": "ea03c76daa4f2cde69efc4939ec52a1715e0e8305648c2d03b6999d9cfa1f56c",
+      "contract": "Optional --verify-clear receipt v2; fresh anonymous synthetic local browser; all non-GET/external traffic aborted; no customer backend mutation",
+      "executed": true,
+      "started_at_utc": "2026-10-08T11:45:55.381Z",
+      "completed_at_utc": "2026-10-08T11:46:00.451Z",
+      "result": "presentation_passed",
+      "private_result_path": "output/reliability-program/deployed-candidate-d78b73f7/result.json",
+      "result_sha256": "46fd5f44d0a92eb9f200c1818fbb24d90e5262758339922a88ed7eb17df06bcf",
+      "checks_passed": 18,
+      "clear_acknowledgment_passed": true,
+      "blocked_non_GET": 2,
+      "blocked_external": 3,
+      "intake_submissions_attempted": 0,
+      "claim_ceiling": "Actual deployed local draft/clear/return and identity/health only; no backend job/upload/assessment/worker/provider/notification outcome"
+    },
+    "deployed_sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+    "paired_receipt_sha256": "e604f88c5ca1baf4efc583d714ded9f9dea34be51c390eba8933de44327613f2",
+    "independent_post_deployment_review": "53cc9f8e"
   }
 }
