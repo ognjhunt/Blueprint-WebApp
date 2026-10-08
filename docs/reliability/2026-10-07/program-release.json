@@ -290,7 +290,7 @@
       "canonical_receipt_sha256": "b6b5a1b896b0d9d89b0101a90d82c3c76da5e5bacd9fb3f97ee2bb2f0af5bb75",
       "claim_ceiling": "Canonical provenance and current deployed service identity; no affected customer job or assessment run invoked."
     },
-    "receipt_fence_followup_at_1750_utc": {
+    "receipt_fence_followup_at_1749_utc": {
       "sha": "0a17f52d23f233376b9944a6df49101491581f6c",
       "mandatory_promotion": 37808897987,
       "observed": "three_shards_success;shard2_live;aggregate_and_official_provenance_pending",
