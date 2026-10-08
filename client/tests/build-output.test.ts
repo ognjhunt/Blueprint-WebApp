@@ -249,20 +249,18 @@ describe("build output", () => {
       expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
     }
     expect(siteHtml).toContain("Start with one task.");
-    // The published site form keeps the task and consent, without the retired
-    // screening interview. These assertions inspect actual prerendered HTML.
-    expect(siteHtml).toContain("What is the task?");
+    // Device recovery must hydrate before an editable site form exists. The
+    // dedicated browser intake lane checks its task/consent/required fields.
+    // Static HTML must expose loading and cannot submit a fresh identity.
+    expect(siteHtml).toContain("Loading your account and saved draft");
+    expect(siteHtml).not.toContain('aria-label="Start a site capture"');
+    expect(siteHtml).not.toContain('id="start-task"');
     expect(siteHtml).toContain("Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.");
     expect(siteHtml).toContain("How this works");
-    expect(siteHtml).toContain("How will we see the task?");
-    expect(siteHtml).toContain('id="start-method-phone"');
     // The country comes from the address; its select opens only to correct it.
     expect(siteHtml).not.toContain('id="start-region"');
     expect(siteHtml).not.toContain('id="start-name"');
-    expect(siteHtml).toMatch(/<input[^>]*id="start-company"[^>]*required/);
-    expect(siteHtml).toContain('id="start-rights"');
     expect(siteHtml).not.toContain('id="start-description-authority"');
-    expect(siteHtml).toContain("I am authorized to share this job description");
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Test your robot on real site jobs.");
