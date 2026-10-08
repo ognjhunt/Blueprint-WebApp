@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { admitPublishedResearch, runCommunicationsIntake, runCommunicationsContactRefresh, RESEARCH_WORK_ITEMS } from "../agents/communications-intake";
 import { sameOperatorUrl, contactUnknowns, publishedPublicContact, extractBusinessContact } from "../agents/communications-contact-evidence";
@@ -12,10 +12,15 @@ import { communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { publishedResearchFixture } from "./fixtures/published-research";
 import type { ContactPage } from "../agents/communications-contact-fetch";
 import { CONTACT_RESEARCH_PAGE_LIMIT } from "../agents/communications-contact-fetch";
+
 import { hidingStyle } from "../agents/communications-contact-visibility";
 import { readFileSync } from "node:fs";
 import { requestNativeContactResearch, readNativeContactDiscovery } from "../agents/communications-contact-research";
 import { runCommunicationsFactRefresh } from "../agents/communications-fact-refresh";
+
+// Keep fixed synthetic evidence and production-default Date reads on one clock.
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(communicationsNow); });
+afterEach(() => { vi.useRealTimers(); });
 
 const htmlPage = (url: string, body: string, checkedAt = new Date(communicationsNow).toISOString()): ContactPage => ({
   requestedUrl: url, finalUrl: url, redirects: [], checkedAt, status: 200, contentType: "text/html; charset=utf-8", bodyBase64: Buffer.from(body).toString("base64"),
