@@ -1,0 +1,28 @@
+{
+  "schema": "blueprint.reliability.release-evidence.v1",
+  "webapp": {
+    "baseline_sha": "1b8d810ec117b93fe52fd323be052ddafa7070db",
+    "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+    "merge_status": "pending_combined_source_review_and_required_checks",
+    "deployment_status": "not_dispatched_by_this_owner"
+  },
+  "pipeline": {
+    "merged_required_stage_fix": "cc876af25389de934f57c08b33421987f9e3328d",
+    "observed_at_utc": "2026-10-08T05:25:55+00:00",
+    "active_release_commit": "cc876af25389de934f57c08b33421987f9e3328d",
+    "serving_source_commit": "cc876af25389de934f57c08b33421987f9e3328d",
+    "commit_proven": true,
+    "blockers": [],
+    "claim_ceiling": "deployed_service_identity_only",
+    "recent_matching_deploy_receipt": {
+      "mtime": 1791436077,
+      "name": "iteration_cc876af25389_door.json",
+      "source_commit": "cc876af25389de934f57c08b33421987f9e3328d",
+      "status": "deployed"
+    },
+    "private_raw_receipt_sha256": "3536b08a3a640d16acd8fad59f0587915838ba3e5710e586f13e17591bc51617",
+    "command": "existing scripts/operator_door.py status (GET only; script sourced from current origin/main; existing credentials)",
+    "verification": "Independent authenticated operator status invokes host.version() -> configured intake version URL; serving identity matches active release and deployment receipt. No live required-stage fault or customer job was injected."
+  },
+  "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored."
+}

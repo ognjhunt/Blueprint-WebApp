@@ -1,13 +1,14 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-08T05:06:24.568942+00:00",
+  "updated_at_utc": "2026-10-08T05:38:04.781271+00:00",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 21,
     "additional_fake_worker": 20,
     "journey_unique": 41,
-    "intercepted_ui_separate": 8,
-    "semantic_model_judgments": 0
+    "intercepted_ui_separate": 12,
+    "semantic_model_judgments": 0,
+    "offline_supplemental_cross_tab": 16
   },
   "layers": {
     "normal_ui": "actual Express + Firestore emulator; fake filesystem objects, model and local mail",
@@ -499,5 +500,44 @@
       }
     ],
     "limit": "Three exact-source selected traces; deterministic fake provider, not model nondeterminism.17unselected in each targeted repeat are not skipped scored cases in full21run."
+  },
+  "post_cross_tab_run": {
+    "run_id": "journeys-20261008T052844203Z",
+    "attempted": 21,
+    "passed": 21,
+    "failed": 0,
+    "source_sha256": {
+      "client/src/components/site/SiteCaptureStart.tsx": "36c8f42ae0851553e7b730b687e54b5ed6bf8eaa7536ac8ea586a1905b5da0f0",
+      "client/src/lib/siteCaptureDraft.ts": "253ed07f4c113a9af8be5f05ce4a46eddaa214811b23bc85d7a801ac4ac721c3",
+      "server/routes/inbound-request.ts": "2dffc5ce36621aeabdca5d0b786fa3286a5990e910b2e85880aa9a97005dbfa0",
+      "server/routes/self-capture-uploads.ts": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5",
+      "server/routes/site-task-brief.ts": "bde24ec8f158186012b98aaeb6569970cccee8349dbe9a6734f1a713897bb4e8",
+      "server/utils/captureCoverageQueue.ts": "0eb2815b4b04547bc53535a22f5d7d4ad7f4f957b772895f91e795e0c412a2bb",
+      "server/utils/captureCoverageReview.ts": "6ead77441d464256ea03bf419ad4b2b73851ea910f793a5a139c84535cf80eb2",
+      "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+      "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
+      "server/utils/field-encryption.ts": "64750f58b6e9010b686562633dbf04e8983c1ce39a9f9fa87e1153499049d2b2",
+      "server/utils/captureOutbox.ts": "181e76a41c8d7649e77302a58c0ba06ebe710f311cc42cc29490112e5ae672ed",
+      "server/agents/tasks/capture-coverage.ts": "9a25383f12ccd1c0a056c8cccac4900b7bf7d1f2ea45ba3fe825eae79bcb7bee",
+      "server/tests/helpers/reliability-local-storage.ts": "1f0f5cc4c3fa4719577db645d75c37b73a6a3062377653d36374636b726aae88",
+      "server/tests/reliability-program-journeys.browser.ts": "6501a98d4f65a0aab48ca725df2a88f0b5a6ee874563117263f4f2ad58b86215",
+      "server/tests/reliability-program-worker-resume.browser.ts": "3f7d2a0f0173dcbdab114516d366d77f7adb356648828466101a8e5d1e8467cd"
+    },
+    "result_sha256": "f40fefaf657041fbd96036ac908c93b72731ed3ed21495259569a5535db1d9eb",
+    "latency_ms": 92112,
+    "layer": "actual Express/Firestore emulator + fake object/model/localmail",
+    "limit": "Validates new client slice against existing root backend; combined940runtime replay stillrequired."
+  },
+  "cross_tab_intercepted_ui": {
+    "generated": 4,
+    "deduplicated": 4,
+    "attempted": 4,
+    "passed": 4,
+    "additional_repeat_attempts": 12,
+    "full_intercepted_catalog": 12,
+    "layer": "API-intercepted browser only; separate from normal-UI emulator and worker journeys",
+    "runtime_author_commit": "d1033932f926ebcc8e873f2ccc6a07468af9634b",
+    "full_result_sha256": "89dc73425c87d4fc3da5061f46de0b0e3afe21a21a8ed1080c809dd231cbb8f6",
+    "repeat_result_sha256": "5f396cb72e12253eae5c457073cee9ae1ea4f4d3a0df11d4c30966f68650cae0"
   }
 }
