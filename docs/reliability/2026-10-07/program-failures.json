@@ -602,8 +602,8 @@
     {
       "id": "DEP-SPEND",
       "owner": "coordinator",
-      "state": "original_one_run_authority_only;additional_normal_journey_authority_not_verified",
-      "detail": "Original $5 one-run authority: at most4Sol/1Gem, no automatic paid retries/no test emails. Shared original full reservations3.146304 remain, including unknown Gemini1.818624; unused headroom1.853696 is not sufficient authority for another normal-route assessment. No reservation release or invoice inference.",
+      "state": "exact_normal_run_amendment_verified;reviewed_guard_release_pending",
+      "detail": "Original $5 total remains. Verified parent human approval14:53:03UTC authorizes legitimate existing task claim, current supplied video normal upload, one additional Gemini attempt and up to3already-reserved Sol calls, status emails only to the approved owner address. Original unknown Gemini and all prior reserved exposure retained. No optional coverage/reconstruction, external recipient notices or extra calls. Guard must pass independent review, required checks and live release verification before the single execution owner dispatches.",
       "normal_route_preflight": {
         "private_audit_sha256": "8311050cd84db5c2a3a99c8299162bb1cd835dbfa32516ff4196cde20a5594a5",
         "privacy": "0provider_calls;unscreened_not_a_visual_review",
@@ -617,14 +617,38 @@
         "scope": "Default SDK can take more turns; coverage JSON continuations and retries are separately admitted. New intake also invokes qualification and operator notices. Verify existing-owned normal upload route and exact authorized notification destination; no broad outbox dispatch or configuration change."
       },
       "programme_seam": {
-        "state": "scoped_source_repair_in_progress;no_production_authority_or_paid_dispatch",
+        "state": "independent_source_approved71controls;PR953_required_CI_active",
         "observed_gap": "Existing capture reservation transaction does not read or consume shared programme held slots. Optional coverage must be deferred before claiming to avoid introducing an unresolved historical attempt.",
         "repair_scope": "Server-owned optional request programme ref; default-denied existingFirestore record; same-transaction bound held-slot admission with immutable full reservations; default customer behavior unchanged.",
         "source_and_control_manifest_sha256": "06cdec583bf51739f7fb81e8cfcb5216db216bbe7e91b8fee1b68283539fbd6a",
         "original_prefix_usd": 3.146304,
         "conditional_with_one_new_Gemini_slot_usd": 4.964928,
         "conditional_headroom_usd": 0.035072,
-        "conditions": "Reuse up to3existingheldSol slots without double count; retain oldGemunknown; one newGem slot needs explicit amendment. Accounting feasibility is not paid permission or a completion guarantee."
+        "conditions": "Direct human exact amendment verified. Reuse up to3heldSol slots, preserve original unknownGem and all reserved history; one additionalGem; total upper reserved exposure4.964928USD. Current consent/source/owner and historical capture eligibility still required. No production authority record/provider effects.",
+        "authority": "Direct human yes-i-approve in parent14:53:03UTC, sourceSentinel_a67f6dab711881918978f849f68f2f8a; exact prior bundle14:50:13 and accepted14:52:47 relayed by authorized existing owner. No provider effect from this approval receipt.",
+        "calls_allowed": "1additionalGemini+up_to3existingheldSol;oneaccountableexecutionowner;noautomaticadditionalretry",
+        "notices_allowed": "Job-status messages only to verified existing owner inbox; no other recipient or outreach.",
+        "remaining_engineering": "Required CI, protected merge, paired deployment and exact serving verification; separate real historical capture uncertainty must be reconciled before any admission.",
+        "head_sha": "10d62e9a06e6b57b7652149aad2367eaecff5682",
+        "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/953",
+        "required_CI_run": 37797951016,
+        "independent_review_commit": "cf5f3f86",
+        "focused_checks": 71,
+        "new_unique_case_credit": 0,
+        "final_receipt_sha256": "b5ce0c1123e255109d763e862d053bb419db5a9d965a920901dbcefcec9cf570"
+      },
+      "historical_capture_eligibility": {
+        "state": "blocked_pending_exact_history_reconciliation",
+        "capture_budget_exists": false,
+        "coverage_review_count": 1,
+        "retained_attempts": 3,
+        "retained_state": "waiting_prerequisite",
+        "scoped_matching_sdk_rows": 0,
+        "query_limit_reached": false,
+        "unknown_is_not_zero": true,
+        "root_cause": "Existing historical-attempt guard rejects missing budget. Review state/null can also follow caught provider errors, so it cannot prove zero dispatch. Preserve history; no counter reset or zero seed.",
+        "private_receipt_sha256": "ba44feda5a40611c5c99556c70ef785b221c65155996b2c8c4bc40c6fc4a968a",
+        "owner": "existing dishwasher execution task"
       }
     },
     {
@@ -635,12 +659,12 @@
       "normal_route_owner_preflight": {
         "reported_by": "existing_authorized_dishwasher_owner",
         "actual_read_layer": "FirebaseAuth_and_UID_filtered_Firestore_GET_with_existing_ADC;no_customer_status_GET",
-        "state": "contact_and_current_terms_verified;normal_owner_link_and_claim_action_pending",
+        "state": "legitimate_owner_and_claim_routes_verified;normal_claim_action_authorized_not_yet_executed",
         "verified_account_enabled": true,
         "historical_dishwasher_account_owner_binding": "absent",
         "other_owned_records_not_reused": true,
         "contact_email_match": "verified_with_existing_KMS_envelope_and_in_place_ADC;no_keyexport_or_newgrant",
-        "rights_clearance_proven": false,
+        "rights_clearance_proven": true,
         "private_claim_receipt_sha256": "9dc611757f3d1fd4cd489063e8ea614bb61ea7579a3520585fe22c5b7fa44e15",
         "production_writes": 0,
         "provider_calls": 0,
@@ -648,7 +672,9 @@
         "claim_route_requirements": "Existing valid token, verified matching contact email and accepted terms; no token mint/direct owner assignment or credential transfer performed.",
         "current_case_terms_recognized": true,
         "new_terms_acceptance_required_for_existing_claim": false,
-        "latest_evidence": "Authorized existing owner reports actual contact match and canonical current Terms recognized by backend/UI. Prior9dc611receipt remains historical; updated safe receipt pending. No owner binding write performed."
+        "latest_evidence": "Existing issued owner link and legitimate claim preflight200; exact case/currentTerms/verifiedcontactmatch andcanonicalrights valid. Existing upload statusGET withrecoverLegacy=false200 ready acceptsMOV; its captureReceived belongs to historical different video, not current supplied bytes. No claim/upload/state/provider/notice write.",
+        "latest_route_receipt_sha256": "52762b19749d3b38cd870184c31357833d9c306dd354dbe55de152c867407959",
+        "upload_route_receipt_sha256": "f5143c15fb7dbc8d6306c56e78efcf79656c6e2e8dafc413639c0cb006df94ae"
       }
     },
     {

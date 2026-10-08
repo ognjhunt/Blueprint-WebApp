@@ -855,5 +855,28 @@
       "notification_sends": 0
     },
     "claim_ceiling": "Native web/worker exact-SHA deployment and current-main CI only; earlier5f safe18presentation receipt remains historical. No dc4publicUI/provider/customerassessment proof."
+  },
+  "programme_admission_followup": {
+    "state": "source_reviewed;required_CI_active;not_deployed",
+    "head_sha": "10d62e9a06e6b57b7652149aad2367eaecff5682",
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/953",
+    "independent_review_commit": "cf5f3f86",
+    "required_CI_run": 37797951016,
+    "focused_checks": 71,
+    "typecheck": "pass",
+    "graphify": "pass",
+    "receipt_sha256": "b5ce0c1123e255109d763e862d053bb419db5a9d965a920901dbcefcec9cf570",
+    "claim_ceiling": "Scripted provider/fake store proof only; no production authority writes/paid calls. Real historical capture uncertainty remains an independent admission blocker."
+  },
+  "beta_presentation_followup": {
+    "state": "protected_merged;exact_main_CI_active;deployment_pending",
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/951",
+    "reviewed_head": "709c44fb77198e3d96b28faedd34ae06b2b8d24c",
+    "merge_sha": "aa919afc052f32897fedb513dff1b00165418ffb",
+    "merged_at": "2026-10-08T15:03:31Z",
+    "required_PR_CI": 37795958298,
+    "required_PR_contexts_passed": 9,
+    "main_CI": 37797594624,
+    "claim_ceiling": "Presentation/manual admission release, not assessment-quality beta readiness."
   }
 }
