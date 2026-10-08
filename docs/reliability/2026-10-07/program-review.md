@@ -714,3 +714,28 @@ documentation exposes only synthetic case IDs and hashes. Current readiness
 keeps full goal partial, two admitted entailment P1s open, reference-quality
 shortfalls explicit, and pending releases distinct from deployed evidence.
 No material reporting or privacy finding remains for this scoped correction.
+
+
+**Bounded next-chain diagnostic evidence reviewed, Pipeline exact `a56f9d240058f038060bd6aa89efcef3ff5f12e5`.**
+Manifest SHA256 `04da09356c73b34d37039ec011273f9d4ab3389949cba648798d24a0c75ae4e1`
+under output/reliability-program/nextchain-a56 matches. Independent read-only
+verification matches all 27 linked source/probe/log/trace hashes and lengths,
+all 18 captured source files against exact Git identities, and all 12 actual
+stage-one/two output artifacts against their trace hashes and lengths. The
+final log records two passing unknown/explicit-target diagnostics; both traces
+report completed_prefix, stage_limit stage-2, whole_run_completed false,
+proposal_only authority, untranslated owner targets, zero provider mutations
+and zero performance-owner seal calls. The probe instruments the actual rigid
+seal bindings and provider runner to fail on invocation, rather than accepting
+a synthetic success response at those boundaries.
+
+This supports no demonstrated moved owner-seal blocker in the executed local
+geometry prefix, with canonical targets retained. Source trace separates later
+geometry publication from episode owner sealing; that read does not prove the
+unexecuted path will complete. Fake object storage, scripted fixture release
+identity and inert local toolchain remain explicit. Earlier diagnostic setup
+failures are preserved. No stage-three/six completion, full native publication,
+authenticated customer readback, live a56 promotion, real-provider performance,
+human quality or new catalog/journey credit follows. This reviewer inspected
+retained execution rather than rerunning the broader suites; the manifest's
+disposable archive/probe command is the bounded replay route.
