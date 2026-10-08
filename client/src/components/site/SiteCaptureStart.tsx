@@ -29,7 +29,10 @@ import {
   type VideoUploadResult,
 } from "@/lib/selfCaptureVideo";
 import { useAuth } from "@/contexts/AuthContext";
-import { clearSiteCaptureDraft, readSiteCaptureDraft, siteCaptureDraftKey, writeSiteCaptureDraft, withSiteCaptureSubmissionLock, type SiteCaptureDraft } from "@/lib/siteCaptureDraft";
+import { newSiteCaptureRecovery, readSiteCaptureRecovery, writeSiteCaptureRecovery,
+  hydrateSiteCaptureRecovery, writeSiteCaptureRecoveryDurably, resetSiteCaptureRecoveryDurably,
+  forgetSiteCaptureRecovery, hasSiteCaptureRecoveryBytes, siteCaptureDraftKey, withSiteCaptureRecoveryLock,
+  freezeSiteCaptureRecovery, type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
 
 /**
  * Same sentence version the screening form records: the attestation names the
@@ -69,39 +72,66 @@ function formatBytes(bytes: number) {
 
 
 export function SiteCaptureStart() {
-  const auth = useAuth();
-  if (auth.loading) return <p role="status">Loading your account…</p>;
-  return <SiteCaptureForm key={auth.currentUser?.uid || "anonymous"} {...auth} />;
+  const { currentUser, loading } = useAuth();
+  const authoring = typeof window === "undefined" ? "default"
+    : new URLSearchParams(window.location.search).get("authoring") || "default";
+  const storageKey = loading ? null : siteCaptureDraftKey(currentUser?.uid ?? null, authoring);
+  const [hydrated, setHydrated] = useState<{key: string; ready: boolean} | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (storageKey) void hydrateSiteCaptureRecovery(storageKey, () => active)
+      .then(() => { if (active) setHydrated({key: storageKey, ready: true}); })
+      .catch(() => { if (active) setHydrated({key: storageKey, ready: false}); });
+    return () => { active = false; };
+  }, [storageKey]);
+  if (loading || !storageKey || hydrated?.key !== storageKey) return <p role="status">Loading your account and saved draft…</p>;
+  if (!hydrated.ready) return <div className="ms-form">
+    <p role="status">This browser could not safely check saved recovery details. Use your emailed private job link to return, or a supported browser with local storage enabled.</p>
+    <button type="button" className="ms-text-link" onClick={async () => {
+      try {
+        const saved = await withSiteCaptureRecoveryLock(storageKey, () => resetSiteCaptureRecoveryDurably(storageKey, newSiteCaptureRecovery()));
+        if (saved) setHydrated({key: storageKey, ready: true});
+      } catch { /* Keep the recovery route and scoped failure visible. */ }
+    }}>Clear this browser's draft</button>
+    <p className="ms-field-hint">Clearing removes only this device's recovery. It does not cancel or delete a saved job.</p>
+  </div>;
+  // Identity changes discard later UI updates and prevent starting another upload.
+  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} />;
 }
 
-function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
-  const draftKey = siteCaptureDraftKey(currentUser?.uid);
-  const draft = useRef<SiteCaptureDraft>(readSiteCaptureDraft(draftKey) || {
-    version: 1, createdAt: Date.now(), requestId: `capture-${crypto.randomUUID()}`,
-    retryToken: crypto.randomUUID(), fields: {}, method: "phone", region: "",
-  });
-  const formRef = useRef<HTMLFormElement>(null);
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => { mounted.current = false; };
-  }, []);
+function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
+  const { currentUser, loading } = useAuth();
+  const [stored] = useState(() => readSiteCaptureRecovery(storageKey));
+  const [recoveryUnavailable, setRecoveryUnavailable] = useState(() => !stored && hasSiteCaptureRecoveryBytes(storageKey));
+  const [initial] = useState(() => stored ?? newSiteCaptureRecovery());
+  const recovery = useRef<SiteCaptureRecovery>(initial);
+  const [pending, setPending] = useState(initial.pending);
   const [storageAvailable, setStorageAvailable] = useState(true);
-  function persist(options: { rejectedBody?: string } = {}) {
-    if (mounted.current && !loading) setStorageAvailable(writeSiteCaptureDraft(draftKey, draft.current, options));
+  const [resetVersion, setResetVersion] = useState(0);
+  const active = useRef(true);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  async function retain(next: SiteCaptureRecovery, releasePendingBody?: string) {
+    recovery.current = next;
+    try {
+      const result = await withSiteCaptureRecoveryLock(storageKey, async () => {
+        if (!active.current) return {saved: false, latest: null};
+        const saved = await writeSiteCaptureRecoveryDurably(storageKey, next, {releasePendingBody});
+        return { saved, latest: readSiteCaptureRecovery(storageKey) };
+      });
+      if (!active.current) return;
+      // A rejected stale autosave adopts the whole winner, not just its identity.
+      if (result.latest && (result.latest.pending || result.latest.requestId !== next.requestId)) {
+        if (!operationInFlight.current) adoptRecovery(result.latest);
+        else recovery.current = result.latest;
+      }
+      setStorageAvailable(result.saved || Boolean(result.latest?.pending));
+      return result.saved;
+    } catch { if (active.current) setStorageAvailable(false); }
+    return false;
   }
-  function forget() {
-    clearSiteCaptureDraft(draftKey);
-    window.location.reload();
-  }
-  function saveFields() {
-    if (!formRef.current || loading) return;
-    const data = new FormData(formRef.current);
-    for (const name of ["startTask", "startLocation", "startEmail", "startCompany"]) {
-      draft.current.fields[name] = String(data.get(name) || "");
-    }
-    persist();
-  }
+  useEffect(() => {
+    if (storageKey && !recoveryUnavailable) void retain(recovery.current);
+  }, [storageKey]);
   const [interactive, setInteractive] = useState(false);
   useEffect(() => setInteractive(true), []);
   // A scoped development entry link exposes the optional Claude disclosure.
@@ -138,23 +168,11 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
   // The phone's recording has landed on the server. The laptop then stops
   // being a handoff and becomes the place to do the next step.
   const [captureReceived, setCaptureReceived] = useState(false);
-  const requestId = useRef(draft.current.requestId);
+  const requestId = useRef(initial.requestId);
   // Separate from the public record identifier: only this form can recover
   // the capture link if the server saved the job but its response was lost.
-  const retryToken = useRef(draft.current.retryToken);
-  const [state, setState] = useState<State>(() => draft.current.saved
-    ? draft.current.saved as Extract<State, { status: "done" }> : { status: "idle" });
-  useEffect(() => {
-    if (state.status === "done") {
-      draft.current.saved = state;
-      delete draft.current.submittedBody;
-      draft.current.fields = {};
-      persist();
-    }
-  }, [state]);
-  useEffect(() => {
-    if (state.status === "done" && state.captureUrl) void refreshReceivedVideo(state.captureUrl);
-  }, []);
+  const retryToken = useRef(initial.retryToken);
+  const [state, setState] = useState<State>({ status: "idle" });
   const operationInFlight = useRef(false);
   const [retryingProcessing, setRetryingProcessing] = useState(false);
   const [retryingVideo, setRetryingVideo] = useState(false);
@@ -184,6 +202,7 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
     if (!token) return;
     try {
       const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/status`);
+      if (!response.ok || !active.current) return;
       const outcome = receivedVideoResult(await response.json().catch(() => null));
       if (!outcome) return;
       setCaptureReceived(true);
@@ -196,22 +215,14 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
   }
   // One question decides how we will see the task: an upload now, the site's
   // own phone later, or a Blueprint visit.
-  const [method, setMethod] = useState<"upload" | "phone" | "visit">(draft.current.method);
+  const [method, setMethod] = useState<"upload" | "phone" | "visit">(initial.draft.method);
   const selfRecording = method === "phone";
-
-  const [region, setRegion] = useState<CaptureRegion | "">(draft.current.region);
-  const regionManuallySet = useRef(draft.current.regionManuallySet === true);
-  useEffect(() => {
-    if (loading) return;
-    draft.current.method = method;
-    draft.current.region = region;
-    draft.current.regionManuallySet = regionManuallySet.current;
-    persist();
-  }, [method, region, loading]);
+  const [region, setRegion] = useState<CaptureRegion | "">(initial.draft.region);
+  const regionManuallySet = useRef(initial.draft.regionManuallySet);
   // The address answers the country, so the country is not a question on the
   // page. It opens when the operator asks to correct it, or when a typed
   // address never resolved to a country and we cannot go on without one.
-  const [countryOpen, setCountryOpen] = useState(false);
+  const [countryOpen, setCountryOpen] = useState(Boolean(initial.draft.location && !initial.draft.region));
   const [countryPrompted, setCountryPrompted] = useState(false);
   const regionSelect = useRef<HTMLSelectElement>(null);
   useEffect(() => {
@@ -255,42 +266,81 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
   const [consent, setConsent] = useState(false);
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  function adoptRecovery(other: SiteCaptureRecovery, resetChanged = true) {
+    const changed = recovery.current.requestId !== other.requestId
+      || recovery.current.pending?.body !== other.pending?.body;
+    recovery.current = other;
+    requestId.current = other.requestId; retryToken.current = other.retryToken;
+    setMethod(other.draft.method); setRegion(other.draft.region);
+    regionManuallySet.current = other.draft.regionManuallySet;
+    setPending(other.pending);
+    if (changed && resetChanged) {
+      setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
+      setFootage(null); setResetVersion(value => value + 1);
+    }
+  }
+  function retainDraft() {
+    if (recoveryUnavailable || recovery.current.pending || !formRef.current) return;
+    const data = new FormData(formRef.current);
+    const field = (name: string) => String(data.get(name) ?? "");
+    retain({ ...recovery.current, savedAt: Date.now(), draft: {
+      task: field("startTask"), location: field("startLocation"), email: field("startEmail"), company: field("startCompany"),
+      method, region, regionManuallySet: regionManuallySet.current,
+    } });
+  }
+  useEffect(() => { retainDraft(); }, [method, region]);
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== storageKey || operationInFlight.current) return;
+      const other = readSiteCaptureRecovery(storageKey);
+      if (other && (other.pending || other.requestId !== requestId.current)) adoptRecovery(other);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [storageKey]);
+  async function forgetDraft() {
+    if (operationInFlight.current) return;
+    const fresh = newSiteCaptureRecovery();
+    try {
+      const saved = await withSiteCaptureRecoveryLock(storageKey, () => active.current && resetSiteCaptureRecoveryDurably(storageKey, fresh));
+      if (!saved || !active.current) { setStorageAvailable(false); return; }
+    } catch { setStorageAvailable(false); return; }
+    recovery.current = fresh;
+    requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
+    setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
+    setMethod("phone"); setRegion(""); regionManuallySet.current = false;
+    setCountryOpen(false); setFootage(null); setFootageError(null); setCaptureReceived(false);
+    setResetVersion(value => value + 1);
+  }
   // Whether the phone handoff below is worth anything here. This form is
   // filled in from whatever device is at hand, including the phone that is
   // about to do the filming -- and a code pointing a phone at itself is not a
   // handoff, it is noise in front of the button that already works.
   const onAPhone = isLikelyPhone();
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (operationInFlight.current || loading) return;
-    const latest = readSiteCaptureDraft(draftKey);
-    if (latest) {
-      draft.current = latest;
-      requestId.current = latest.requestId;
-      retryToken.current = latest.retryToken;
-      if (latest.saved) {
-        setState(latest.saved as Extract<State, { status: "done" }>);
-        if (typeof latest.saved.captureUrl === "string") void refreshReceivedVideo(latest.saved.captureUrl);
-        return;
-      }
-    }
-    if (operationInFlight.current || state.status === "working" || loading
-      || (!draft.current.submittedBody && footageWanted && !consent)
-      || (claudeAuthoringRequested && !claudeConsent)
-      || (solAgentsRequested && !solAgentsConsent)) return;
+  async function submit(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const retained = recovery.current.pending;
+    if (recoveryUnavailable || operationInFlight.current || state.status === "working" || loading
+      || (!retained && footageWanted && !consent)
+      || (!retained && claudeAuthoringRequested && !claudeConsent)
+      || (!retained && solAgentsRequested && !solAgentsConsent)) return;
     // A typed address that never resolved to a country: ask now, once, rather
     // than guess. The country decides whether we may collect footage at all.
-    if (!region) {
+    if (!retained && !region) {
       setCountryOpen(true);
       setCountryPrompted(true);
       return;
     }
-    if (footageWanted && !footage && !draft.current.submittedBody) return;
+    if (!retained && footageWanted && !footage) return;
 
-    const data = new FormData(event.currentTarget);
-    const read = (key: string) => String(data.get(key) ?? "").trim();
-    const email = currentUser?.email || read("startEmail");
+    const data = new FormData(formRef.current!);
+    const operationRecovery = recovery.current;
+    let savedAnswers = retained ? JSON.parse(retained.body) as Record<string, unknown> : null;
+    const savedFields: Record<string, string> = { startTask: "taskStatement", startLocation: "siteLocation", startEmail: "email", startCompany: "company" };
+    const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
+    let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
 
     operationInFlight.current = true;
@@ -298,10 +348,9 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
 
     try {
       const headers = await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" }));
-      let recoveringSave = Boolean(draft.current.submittedBody);
-      let body = draft.current.submittedBody || JSON.stringify({
-          requestId: requestId.current,
-          retryToken: retryToken.current,
+      let body = retained?.body ?? JSON.stringify({
+          requestId: operationRecovery.requestId,
+          retryToken: operationRecovery.retryToken,
           // No name field: emails open without one.
           firstName: "",
           lastName: "",
@@ -355,42 +404,38 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
             sourcePageUrl: typeof window === "undefined" ? null : window.location.href,
           },
       });
-      // Persist before dispatch: a lost response retries the exact saved request.
-      saveFields();
-      const shouldDispatch = await withSiteCaptureSubmissionLock(draftKey, () => {
-        if (!mounted.current) return false;
-        const fresh = readSiteCaptureDraft(draftKey);
-        if (fresh) {
-          draft.current = fresh;
-          requestId.current = fresh.requestId;
-          retryToken.current = fresh.retryToken;
-          if (fresh.saved) {
-            setState(fresh.saved as Extract<State, { status: "done" }>);
-            if (typeof fresh.saved.captureUrl === "string") void refreshReceivedVideo(fresh.saved.captureUrl);
-            return false;
-          }
-          if (fresh.submittedBody) {
-            body = fresh.submittedBody;
-            recoveringSave = true;
-          } else {
-            // Two freshly opened tabs may initially have different empty-draft identities.
-            const payload = JSON.parse(body);
-            body = JSON.stringify({ ...payload, requestId: fresh.requestId, retryToken: fresh.retryToken });
-          }
-        }
-        draft.current.submittedBody = body;
-        persist();
-        return true;
-      });
-      if (!shouldDispatch || !mounted.current) return;
-      const post = (url: string) => fetch(url, { method: "POST", credentials: "include", headers, body });
+      if (!active.current) return;
       // Unknown type (the lookup is still in flight or failed) still tries the
       // workspace first; a refusal falls back with the same answers intact.
-      let savedToWorkspace = Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team";
-      let response = await post(savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request");
+      let savedToWorkspace = retained ? retained.endpoint === "/api/workspace/capture-start"
+        : Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team";
+      let endpoint: "/api/workspace/capture-start" | "/api/inbound-request" = savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request";
+      let frozen;
+      try {
+        frozen = await freezeSiteCaptureRecovery(storageKey, {...operationRecovery, pending:{body,endpoint,acknowledged:false}}, () => active.current);
+      } catch (error) {
+        setStorageAvailable(false);
+        setState({status:"failed",message:error instanceof Error ? error.message : "This browser cannot safely retain your submission. No job was submitted."});
+        return;
+      }
+      if (!active.current) return;
+      const recoveredSubmission = Boolean(retained) || frozen.adopted;
+      adoptRecovery(frozen.value, frozen.adopted);
+      body = frozen.value.pending!.body; endpoint = frozen.value.pending!.endpoint;
+      savedAnswers = JSON.parse(body); email = String(savedAnswers!.email ?? "");
+      savedToWorkspace = endpoint === "/api/workspace/capture-start";
+      const submissionRegion = frozen.value.draft.region;
+      const submissionFootageWanted = frozen.value.draft.method === "upload" && submissionRegion !== "non_us";
+      const post = (url: string) => fetch(url, { method: "POST", credentials: "include", headers, body });
+      let response = await post(endpoint);
+      if (!active.current) return;
       if (savedToWorkspace && response.status === 403) {
         savedToWorkspace = false;
+        const fallbackSaved = await retain({ ...frozen.value, pending: { body, endpoint: "/api/inbound-request", acknowledged: false } });
+        if (!fallbackSaved) {setState({status:"failed",message:"This draft changed in another tab. Reload and review the current draft before starting."});return;}
+        setPending(recovery.current.pending);
         response = await post("/api/inbound-request");
+        if (!active.current) return;
       }
 
       const result = (await response.json().catch(() => ({}))) as {
@@ -399,22 +444,31 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
         error?: string;
       };
 
+      if (!active.current) return;
       if (!response.ok) {
-        if (response.status === 400 || response.status === 422) {
-          // These responses reject validation before creation; corrections may rebuild the body.
-          delete draft.current.submittedBody;
-          persist({ rejectedBody: body });
+        // Definitive validation refusal can be corrected. Uncertain 5xx/429
+        // responses retain the original identity and exact accepted authority.
+        if ([400, 401, 403, 422].includes(response.status)) {
+          await retain({ ...frozen.value, pending: null }, body); setPending(recovery.current.pending);
         }
         analyticsEvents.contactFormError("capture_start");
         setState({
           status: "failed",
           message:
-            result.message || result.error
+            (typeof result.message === "string" && result.message.trim() ? result.message.slice(0, 1000) : null)
+            || (typeof result.error === "string" && result.error.trim() ? result.error.slice(0, 1000) : null)
             || "We could not save that. Please try again, or email hello@tryblueprint.io.",
         });
         return;
       }
 
+      const acknowledgementSaved = await retain({ ...frozen.value, pending: { ...frozen.value.pending!, acknowledged: true } });
+      if (!active.current) return;
+      if (!acknowledgementSaved) {
+        setState({status: "failed", message: "Your job may already be saved, but this browser could not retain its confirmation. Recover the same job here or use your emailed private link before sending the video."});
+        return;
+      }
+      setPending(recovery.current.pending);
       analyticsEvents.contactFormSubmit("capture_start");
       // The screening form lower on the page shares this storage: nobody
       // types their identity twice on one page.
@@ -432,25 +486,8 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
       }
 
       const captureUrl = typeof result.captureUrl === "string" ? result.captureUrl : null;
-      const submitted = JSON.parse(body) as {
-        email: string; captureRegion: CaptureRegion; captureMode: string; hasExistingFootage: boolean;
-      };
-      const regionApproved = isApprovedCaptureRegion(submitted.captureRegion);
+      const regionApproved = isApprovedCaptureRegion(submissionRegion);
 
-      const saved: Extract<State, { status: "done" }> = {
-        status: "done", workspaceUrl: savedToWorkspace ? `/app/tasks/${requestId.current}` : null,
-        linkOnlyNote: currentUser && !savedToWorkspace
-          ? `This account is not a site workspace, so this site is saved to the link we email ${submitted.email}. You can claim it from that link later.` : null,
-        captureUrl, selfRecording: submitted.captureMode === "self_capture", email: submitted.email, regionApproved,
-        hasFootage: submitted.hasExistingFootage, uploaded: submitted.hasExistingFootage ? "failed" : "none",
-        uploadMessage: submitted.hasExistingFootage ? "The upload was interrupted. Check the job page before selecting your original file again." : null,
-        processingRetryAvailable: false,
-      };
-      // Save the recovery route before the potentially long video transfer.
-      draft.current.saved = saved;
-      delete draft.current.submittedBody;
-      draft.current.fields = {};
-      persist();
       // The job is saved; now the video, through the same token route the
       // capture page uses. A failure here never loses the submission: the
       // success screen offers the link to send it again.
@@ -458,7 +495,7 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
       let uploadMessage: string | null = null;
       let processingRetryAvailable = false;
       const captureToken = captureUrl ? captureTokenFromUrl(captureUrl) : null;
-      if (!recoveringSave && submitted.hasExistingFootage && footage && regionApproved && captureToken) {
+      if (!recoveredSubmission && submissionFootageWanted && footage && regionApproved && captureToken) {
         setUploadPercent(0);
         const outcome = await uploadSelfCaptureVideo(captureToken, footage, setUploadPercent);
         uploaded = outcome.status;
@@ -467,13 +504,29 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
         if (outcome.status !== "failed") setCaptureReceived(true);
       }
 
+      if (!active.current) return;
+      if (recoveredSubmission && submissionFootageWanted) {
+        uploaded = "failed";
+        uploadMessage = "Check the saved video's status on your job page. If it was interrupted, select your original video there.";
+      }
       setState({
-        ...saved,
-        uploaded: recoveringSave && saved.hasFootage ? "failed" : uploaded,
-        uploadMessage: recoveringSave && saved.hasFootage ? saved.uploadMessage : uploadMessage,
+        status: "done",
+        workspaceUrl: savedToWorkspace ? `/app/tasks/${requestId.current}` : null,
+        linkOnlyNote: currentUser && !savedToWorkspace
+          ? `This account is not a site workspace, so this site is saved to the link we email ${email}. You can claim it from that link later.`
+          : null,
+        captureUrl,
+        selfRecording: frozen.value.draft.method !== "visit",
+        email,
+        regionApproved,
+        hasFootage: submissionFootageWanted,
+        uploaded,
+        uploadMessage,
         processingRetryAvailable,
       });
+      if (recoveredSubmission && captureUrl) void refreshReceivedVideo(captureUrl);
     } catch {
+      if (!active.current) return;
       setState({
         status: "failed",
         message: "We could not reach Blueprint. Please try again shortly.",
@@ -487,7 +540,8 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
   if (state.status === "done") {
     return (
       <div className="ms-form" aria-live="polite">
-        <p className="ms-field-hint">This private job link is saved on this device. It expires from recovery after 24 hours and is removed when you next visit. <button type="button" className="ms-text-link" onClick={forget}>Clear this device’s saved job</button> Clearing removes only device recovery; it does not cancel or delete your job.</p>
+        <p><button type="button" className="ms-text-link" onClick={forgetDraft}>Clear this browser's draft</button></p>
+        <p className="ms-field-hint">Clearing this browser does not delete your saved job. Keep your private link to return.</p>
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
         {!state.hasFootage && state.captureUrl && !captureReceived ? (
@@ -591,17 +645,26 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
   }
 
   return (
-    <form ref={formRef} className="ms-form" method="post" onChange={saveFields} onSubmit={submit} aria-label="Start a site capture">
-      <fieldset disabled={!interactive} className="contents">
-      <p className="ms-field-hint">Your draft is saved privately on this device. It expires from recovery after 24 hours and is removed when you next visit. <button type="button" className="ms-text-link" onClick={forget}>Clear this device’s draft</button> Clearing removes only device recovery; it does not cancel or delete a job already saved. Retry an unconfirmed save before clearing.</p>
-      {!storageAvailable && <p role="status">This browser cannot save your draft for return visits. Keep your private job link after submitting.</p>}
-      {draft.current.submittedBody && <p role="status">A previous save is unconfirmed. Start free assessment will retry the same job with its original answers.</p>}
+    <form key={resetVersion} ref={formRef} className="ms-form" method="post" onSubmit={submit} onChange={retainDraft} aria-label="Start a site capture">
+      {pending && state.status !== "working" && <div aria-live="polite">
+        <p className="ms-field-hint">{pending.acknowledged ? "Your job is saved. Return to the same job to check its current status." : "This submission may already be saved. Recover the same job before starting another."}</p>
+        <button type="button" className="ms-button" disabled={!interactive || loading} onClick={() => void submit()}>
+          {pending.acknowledged ? "Return to saved job" : "Recover saved job"}
+        </button>
+        <p className="ms-field-hint">Job reference: {requestId.current}</p>
+      </div>}
+      {state.status === "failed" && pending && <p role="alert">{state.message}</p>}
+      {recoveryUnavailable && <p role="status" className="ms-field-hint">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
+      {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
+      <p className="ms-field-hint">You can recover this draft here for up to seven days. On a shared device, clear this browser's draft when finished.</p>
+      <button type="button" className="ms-text-link" disabled={state.status === "working"} onClick={forgetDraft}>Clear this browser's draft</button>
+      <fieldset disabled={!interactive || recoveryUnavailable || Boolean(pending)} className="contents">
       <label htmlFor="start-task">
         <span>What is the task?</span>
         <span className="ms-field-hint">
           For example, “move sealed cartons from the conveyor onto a pallet.”
         </span>
-        <textarea id="start-task" name="startTask" required maxLength={2000} rows={4} defaultValue={draft.current.fields.startTask || ""} />
+        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} required maxLength={2000} rows={4} />
       </label>
 
       {claudeAuthoringRequested && (
@@ -704,7 +767,7 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
           <LocationAutocomplete
             id="start-location"
             name="startLocation"
-            defaultValue={draft.current.fields.startLocation || ""}
+            defaultValue={recovery.current.draft.location}
             required
             maxLength={300}
             placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
@@ -762,12 +825,12 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
         <span className="ms-field-hint">
           Where we send your task link to add footage, follow progress and review the brief.
         </span>
-        <input id="start-email" name="startEmail" type="email" required maxLength={320} defaultValue={draft.current.fields.startEmail || ""} />
+        <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required maxLength={320} />
       </label>
 
       <label htmlFor="start-company">
         <span>Site or company</span>
-        <input id="start-company" name="startCompany" type="text" required autoComplete="organization" maxLength={200} defaultValue={draft.current.fields.startCompany || ""} />
+        <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} required autoComplete="organization" maxLength={200} />
       </label>
 
       </>}
@@ -809,11 +872,10 @@ function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
         </label>
       )}
 
-      {state.status === "failed" && (
-        <p role="alert" style={{ color: "var(--ms-alert, #b00)" }}>
-          {state.message}
-        </p>
-      )}
+      {state.status === "failed" && !pending && <>
+        <p role="alert" style={{ color: "var(--ms-alert, #b00)" }}>{state.message}</p>
+        <p className="ms-field-hint">Job reference: {requestId.current}</p>
+      </>}
 
       <p className="ms-form-note">
         Free to start. <a href="/pricing#pilot-fee">No pilot, no fee</a>. By selecting Start free assessment,

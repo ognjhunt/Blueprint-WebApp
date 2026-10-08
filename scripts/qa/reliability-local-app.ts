@@ -40,7 +40,10 @@ app.use('/api/self-capture/uploads', uploads); app.use('/api/site-task-brief', b
 app.get('/api/reliability/health', (_req, res) => res.json({ layer: 'real-handlers/firebase-emulators/no-provider', project, code: 'local working tree', providerDispatchEnabled: false, schedulersEnabled: false, notificationDeliveryEnabled: false }));
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Route outside scoped reliability harness' }));
 const output = path.resolve('/workspace/reliability-program/emulator-ui'); await mkdir(path.join(output, 'no-env'), { recursive: true });
-const vite = await createVite({ configFile: false, root: path.resolve('client'), envDir: path.join(output, 'no-env'), cacheDir: path.join(output, 'vite-cache'), plugins: [react(), theme()], resolve: { alias: { '@': path.resolve('client/src') } }, server: { middlewareMode: true, fs: { allow: [path.resolve('.'), path.resolve('node_modules')] } }, appType: 'spa' });
+// Concurrent scoped runners share no Vite cache or default HMR listener.
+// Reuse this app's loopback server; source changes are tested by an explicit relaunch.
+const server = http.createServer(app);
+const vite = await createVite({ configFile: false, root: path.resolve('client'), envDir: path.join(output, 'no-env'), cacheDir: path.join(output, `vite-cache-${port}`), plugins: [react(), theme()], resolve: { alias: { '@': path.resolve('client/src') } }, server: { middlewareMode: true, hmr: { server }, watch: null, fs: { allow: [path.resolve('.'), path.resolve('node_modules')] } }, appType: 'spa' });
 app.use(vite.middlewares);
-const server = http.createServer(app); server.listen(port, '127.0.0.1', () => console.log(`Disposable reliability UI listening on http://127.0.0.1:${port}`));
+server.listen(port, '127.0.0.1', () => console.log(`Disposable reliability UI listening on http://127.0.0.1:${port}`));
 for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, async () => { server.closeAllConnections(); await vite.close(); server.close(() => process.exit(0)); });
