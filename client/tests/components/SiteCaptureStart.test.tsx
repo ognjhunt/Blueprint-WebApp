@@ -777,3 +777,26 @@ it("A-R-033 v2 a pre-mounted tab replays the same uncertain request despite edit
   expect(posts).toHaveLength(2);
   expect(posts[1][1].body).toBe(posts[0][1].body);
 });
+it("RETURN-PERSISTED-RELOAD-001 keeps restored fields in both stores before submitting the same intake", async () => {
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ok: true, status: 201,
+    json: async () => init?.method === "POST" ? {captureUrl: "/capture-upload/fixture.signed"} : {features: []}}));
+  const first = await renderReady(<SiteCaptureStart />);
+  for (const [id, value] of [["start-task", "Restored task"], ["start-location", "Austin TX"],
+    ["start-email", "fixture@example.invalid"], ["start-company", "Owned fixture"]]) {
+    fireEvent.change(document.querySelector(`#${id}`)!, {target: {value}});
+  }
+  await act(async () => {});
+  const key = "bp-site-capture:v1:anonymous:default";
+  const previous = JSON.parse(localStorage.getItem(key)!);
+  expect(previous.draft.task).toBe("Restored task");
+  first.unmount(); await renderReady(<SiteCaptureStart />);
+  expect(document.querySelector("#start-task")).toHaveValue("Restored task");
+  const restored = JSON.parse(localStorage.getItem(key)!);
+  expect(restored.draft).toEqual(previous.draft);
+  expect(durability.rows.get(key)?.value?.draft).toEqual(previous.draft);
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("heading", {name: "Your job description is saved."});
+  expect(postsTo("/api/inbound-request")).toHaveLength(1);
+  expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({requestId: previous.requestId,
+    retryToken: previous.retryToken, taskStatement: "Restored task"});
+});

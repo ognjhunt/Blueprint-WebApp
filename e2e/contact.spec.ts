@@ -12,13 +12,20 @@ test.beforeEach(async ({ page }) => {
 
 test("prerendered intake stays inactive while its scripts are unavailable", async ({ page }) => {
   test.skip(process.env.BLUEPRINT_E2E_STATIC !== "1", "Requires the production prerendered HTML.");
+  const intakeRequests: string[] = [];
+  page.on("request", request => { if (/\/api\/(?:inbound-request|workspace\/capture-start|self-capture\/uploads)/.test(request.url())) intakeRequests.push(request.method()); });
   await page.route("**/*", route => route.request().resourceType() === "script"
     ? route.abort()
     : route.continue());
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("form", { name: "Start a site capture" })).toHaveAttribute("method", "post");
-  await expect(page.locator("#start-email")).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Start free assessment", exact: true })).toBeDisabled();
+  // Browser-local recovery is unavailable without scripts; preserve inactivity
+  // rather than render a fresh, uncontrolled intake identity.
+  await expect(page.getByRole("status")).toHaveText(/Loading your account and saved draft/);
+  await expect(page.getByRole("form", { name: "Start a site capture" })).toHaveCount(0);
+  await expect(page.locator("#start-email")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Start free assessment", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", {name: /talk to a person/i})).toHaveAttribute("href", /^mailto:/);
+  expect(intakeRequests).toEqual([]);
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
 });
 

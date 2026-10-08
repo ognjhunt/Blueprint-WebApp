@@ -9,10 +9,18 @@
  * conversation. These pin the order of what remains: the form first, the
  * explanation closed, and each persona pointing at the other.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
+// Explicit unit store contract; native durability is covered by the separate browser lane.
+const durability = vi.hoisted(() => ({ rows: new Map<string, any>() }));
+vi.mock("@/lib/siteCaptureDurability", () => ({
+  readDurableSiteCaptureRecovery: async (key: string) => durability.rows.get(key) ?? null,
+  writeDurableSiteCaptureRecovery: async (key: string, value: any) => { durability.rows.set(key, { value: JSON.parse(JSON.stringify(value)), retired: false }); },
+  retireDurableSiteCaptureRecovery: async (key: string) => { durability.rows.set(key, { value: null, retired: true }); },
+  durableSiteCaptureRecoveryKeys: async () => [...durability.rows.keys()],
+}));
 let mockLocation = "/contact/site-operator";
 vi.mock("wouter", () => ({ useLocation: () => [mockLocation, vi.fn()] }));
 vi.mock("@/lib/csrf", () => ({
@@ -20,6 +28,8 @@ vi.mock("@/lib/csrf", () => ({
 }));
 
 beforeEach(() => {
+  durability.rows.clear(); localStorage.clear();
+  vi.stubGlobal("navigator", { userAgent: navigator.userAgent, locks: {request: async (_key: string, action: () => unknown) => action()} });
   mockLocation = "/contact/site-operator";
   vi.stubGlobal(
     "fetch",
@@ -27,10 +37,12 @@ beforeEach(() => {
   );
 });
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe("the site page", () => {
-  it("leads with the capture form and keeps the explanation behind a closed disclosure", () => {
+  it("leads with the capture form and keeps the explanation behind a closed disclosure", async () => {
     render(<Contact />);
-    const form = screen.getByRole("form", { name: "Start a site capture" });
+    const form = await screen.findByRole("form", { name: "Start a site capture" });
     const how = screen.getByText("How this works");
     expect(form.compareDocumentPosition(how) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect((how.closest("details") as HTMLDetailsElement).open).toBe(false);

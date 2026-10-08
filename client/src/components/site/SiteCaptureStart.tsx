@@ -281,7 +281,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
     }
   }
   function retainDraft() {
-    if (recoveryUnavailable || recovery.current.pending || !formRef.current) return;
+    if (!interactive || recoveryUnavailable || recovery.current.pending || !formRef.current) return;
     const data = new FormData(formRef.current);
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
@@ -289,7 +289,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
       method, region, regionManuallySet: regionManuallySet.current,
     } });
   }
-  useEffect(() => { retainDraft(); }, [method, region]);
+  useEffect(() => { retainDraft(); }, [interactive, method, region]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== storageKey || operationInFlight.current) return;
