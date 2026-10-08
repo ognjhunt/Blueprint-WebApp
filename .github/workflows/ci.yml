@@ -282,6 +282,12 @@ jobs:
       - name: Verify private site links and retained capture handoff
         run: npm run test:site-reliability:browser
 
+      - name: Ensure video fixture generator for intake interruption coverage
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+
+      - name: Verify scoped intake draft and same-job return recovery
+        run: npx playwright test --config playwright.reliability-intake.config.ts
+
       - name: Upload Playwright report
         if: ${{ always() && hashFiles('playwright-report/**') != '' }}
         continue-on-error: true

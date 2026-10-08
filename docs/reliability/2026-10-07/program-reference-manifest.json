@@ -127,14 +127,32 @@
         "human gold",
         "untouched holdout"
       ]
+    },
+    {
+      "reference_id": "program-dishwasher-source-001",
+      "evidence_class": "user_supplied_real_site_video",
+      "exists": true,
+      "source_hash_location": "authorized private run ledger, excluded from public report",
+      "rights_status": "user selected local footage and approved one provider analysis; no broader reuse or sharing inferred",
+      "allowed_use": [
+        "one approved SDK/Gemini analysis",
+        "local integrity verification"
+      ],
+      "split": "development_regression",
+      "label_status": "PROVISIONAL_no_current_human_timestamp_labels",
+      "excluded_use": [
+        "human gold",
+        "untouched holdout",
+        "statistical certification"
+      ]
     }
   ],
   "human_reviewed_real_site_count": 0,
   "real_site_target_min": 12,
-  "shortfall": 12,
-  "human_reference_gate": "blocked_missing_rights_admitted_real_site_set_and_current_human_observation_labels",
+  "shortfall": 11,
+  "human_reference_gate": "partial_one_authorized_source_zero_current_human_timestamp_labels",
   "baseline_and_candidate_live_model_runs": 0,
-  "dishwasher": "not accessed by this lane; coordinator owns current authorization and source recovery",
+  "dishwasher": "user-selected local source admitted for one approved SDK/Gemini analysis; sole executor existing dishwasher task; no model execution yet established by this manifest",
   "holdout": "none; all existing source families are development/regression and pre-exposed",
   "rubric": {
     "factual_support": "fail invented consequential event/measurement/capability",
@@ -145,5 +163,15 @@
     "next_action": "bounded useful action without unsupported robot exclusion",
     "capability": "unknown capability cannot prove incompatibility"
   },
-  "canonical_recovery": "Blueprint-owned Git paths; verify hashes; retained raw video remains local. This manifest grants no new provider upload rights."
+  "canonical_recovery": "Blueprint-owned Git paths; verify hashes; retained raw video remains local. This manifest grants no new provider upload rights.",
+  "real_site_source_count": 1,
+  "corrections": [
+    {
+      "version": 2,
+      "reason": "current coordinator source authorization and independent coverage review; original lane snapshot retained in Git",
+      "prior_real_site_source_count": 0,
+      "new_real_site_source_count": 1,
+      "target_min_unchanged": 12
+    }
+  ]
 }

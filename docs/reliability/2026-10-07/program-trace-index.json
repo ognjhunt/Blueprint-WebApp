@@ -1,0 +1,430 @@
+{
+  "schema": "blueprint.reliability.trace-index.v1",
+  "updated_at_utc": "2026-10-08T05:06:24.568942+00:00",
+  "counts": {
+    "offline_unique": 300,
+    "normal_ui_emulator": 21,
+    "additional_fake_worker": 20,
+    "journey_unique": 41,
+    "intercepted_ui_separate": 8,
+    "semantic_model_judgments": 0
+  },
+  "layers": {
+    "normal_ui": "actual Express + Firestore emulator; fake filesystem objects, model and local mail",
+    "additional_worker": "fake Firestore/object/model/mail; snapshots are not process restarts",
+    "intercepted_ui": "API-intercepted frontend recovery; not actual backend persistence"
+  },
+  "scored_ui": {
+    "run_id": "journeys-20261008T045920118Z",
+    "result_sha256": "f47f76b702ee3ec980674fdda197d549eb1813a86337028ba7c4aada17e52a99",
+    "generated": 21,
+    "deduplicated": 21,
+    "attempted": 21,
+    "passed": 21,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "partially_executed": 0,
+    "live_provider_calls": 0,
+    "live_cost_usd": 0,
+    "simulated_cost_usd": null,
+    "latency_ms": {
+      "sum": 120094,
+      "by_case": {
+        "UI-001": 7609,
+        "UI-002": 3847,
+        "UI-003": 3281,
+        "UI-004": 3183,
+        "UI-005": 3254,
+        "UI-006": 4128,
+        "UI-007": 4494,
+        "UI-008": 4101,
+        "UI-009": 4181,
+        "UI-010": 5021,
+        "UI-011": 3919,
+        "UI-012": 2320,
+        "UI-013": 3171,
+        "UI-014": 3333,
+        "UI-015": 3587,
+        "UI-016": 4673,
+        "UI-017": 4214,
+        "UI-018": 2681,
+        "UI-019": 5611,
+        "UI-020": 9350,
+        "UI-021": 34136
+      }
+    },
+    "source_sha256": {
+      "client/src/components/site/SiteCaptureStart.tsx": "cec05194b35bb3f34c92aad341d074925cab9f8e1027340a66fe42d09e91c065",
+      "client/src/lib/siteCaptureDraft.ts": "9362e28df170e41652ae3c5e56d27409368c13290be98f499f9b2018af580ed0",
+      "server/routes/inbound-request.ts": "2dffc5ce36621aeabdca5d0b786fa3286a5990e910b2e85880aa9a97005dbfa0",
+      "server/routes/self-capture-uploads.ts": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5",
+      "server/routes/site-task-brief.ts": "bde24ec8f158186012b98aaeb6569970cccee8349dbe9a6734f1a713897bb4e8",
+      "server/utils/captureCoverageQueue.ts": "0eb2815b4b04547bc53535a22f5d7d4ad7f4f957b772895f91e795e0c412a2bb",
+      "server/utils/captureCoverageReview.ts": "6ead77441d464256ea03bf419ad4b2b73851ea910f793a5a139c84535cf80eb2",
+      "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+      "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
+      "server/utils/field-encryption.ts": "64750f58b6e9010b686562633dbf04e8983c1ce39a9f9fa87e1153499049d2b2",
+      "server/utils/captureOutbox.ts": "181e76a41c8d7649e77302a58c0ba06ebe710f311cc42cc29490112e5ae672ed",
+      "server/agents/tasks/capture-coverage.ts": "9a25383f12ccd1c0a056c8cccac4900b7bf7d1f2ea45ba3fe825eae79bcb7bee",
+      "server/tests/helpers/reliability-local-storage.ts": "1f0f5cc4c3fa4719577db645d75c37b73a6a3062377653d36374636b726aae88",
+      "server/tests/reliability-program-journeys.browser.ts": "6019877ebb5df45d984795289f20cbd3a34b61bb01e14bed506eecdf26d3d26c",
+      "server/tests/reliability-program-worker-resume.browser.ts": "46fc0850d3bc28319c73cf60f498bdbf9c0f415d678083e94351c8b6a6fe49cb"
+    },
+    "traces": [
+      {
+        "id": "UI-001",
+        "condition": "phone_desktop",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 9,
+          "object_count": 0,
+          "document_sha256": "ab4c224ccfc7573cff7782e9dcfb33dad30a14c084bd858a141c58a192cd84c3",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 2
+      },
+      {
+        "id": "UI-002",
+        "condition": "phone_mobile",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 9,
+          "object_count": 0,
+          "document_sha256": "178c385eb2f81894ff1ea273b509e4eb4c1025d526c56726b876e1a614ea5d0c",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 2
+      },
+      {
+        "id": "UI-003",
+        "condition": "visit_us",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 9,
+          "object_count": 0,
+          "document_sha256": "cc0f7c6e3c910f6643dcbe825c29a765a517b6586f871cdad319e8d3fa2e006d",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 2
+      },
+      {
+        "id": "UI-004",
+        "condition": "visit_non_us",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 9,
+          "object_count": 0,
+          "document_sha256": "58daaf134b372f2e5e60abedca155a2b87076f0ebec380b4bfbb9b43ffbea295",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 2
+      },
+      {
+        "id": "UI-005",
+        "condition": "phone_non_us",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 9,
+          "object_count": 0,
+          "document_sha256": "426b3ed0bdaa16dd70634e4250b38399f319f4ee7cbebea4b6af77acceb70e78",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 2
+      },
+      {
+        "id": "UI-006",
+        "condition": "upload_clear_desktop",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 13,
+          "object_count": 4,
+          "document_sha256": "2b47ad764ed2702a4886c1cced04e1cb9daed302a11c089ff5957bb8c3ed0c4a",
+          "objects_sha256": "d337c1931f44e8ac9de79019ec1815b5de176b88a103212a7b75be04f3eadbea"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 1,
+        "notification_calls_local_sink": 4
+      },
+      {
+        "id": "UI-007",
+        "condition": "upload_clear_mobile",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 13,
+          "object_count": 4,
+          "document_sha256": "11a0efe8f60ae28eb5d12f5f52608b50455b1334ac526899010ff35db16e3328",
+          "objects_sha256": "c3ca3ce8abe77334795d3553ffb67cbcaf1f558faa5242302c4fc3b31e94cb69"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 1,
+        "notification_calls_local_sink": 4
+      },
+      {
+        "id": "UI-008",
+        "condition": "upload_privacy_held",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 11,
+          "object_count": 2,
+          "document_sha256": "aa111209b685cf7b734821c64f4844e39ba5dde86db277668ea8cf4c9bccce19",
+          "objects_sha256": "59e7581d1fc9492c95a70e6334f183daafacdcccba28f0e97274dfb10779d9a4"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 3
+      },
+      {
+        "id": "UI-009",
+        "condition": "upload_privacy_unknown",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 11,
+          "object_count": 2,
+          "document_sha256": "5c368c59781f86c210f458799c6f23d4b468441c9fe41f611a7f038d7b26411f",
+          "objects_sha256": "39a0ae0310cf94d814012c9a2a8fedeaca4da2a348513bc2c278e267b55bb83b"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 3
+      },
+      {
+        "id": "UI-010",
+        "condition": "upload_manifest_retry",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 13,
+          "object_count": 4,
+          "document_sha256": "b378121124d321a75002826dff4db73170eb843ab9b870a76c3bab2474fbd276",
+          "objects_sha256": "e5ac464b7047ac100096d065b99291a5227bb46707686e5f808f1c3f223f91bb"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 1,
+        "notification_calls_local_sink": 4
+      },
+      {
+        "id": "UI-011",
+        "condition": "upload_storage_unavailable",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 10,
+          "object_count": 0,
+          "document_sha256": "14dcd10b432b9201b9e5010d899feda430a55b2b3394987d05353ab6644c804b",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 2
+      },
+      {
+        "id": "UI-012",
+        "condition": "missing_email",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 0,
+          "object_count": 0,
+          "document_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 0
+      },
+      {
+        "id": "UI-013",
+        "condition": "unknown_country",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 0,
+          "object_count": 0,
+          "document_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 0
+      },
+      {
+        "id": "UI-014",
+        "condition": "missing_task",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 0,
+          "object_count": 0,
+          "document_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 0
+      },
+      {
+        "id": "UI-015",
+        "condition": "invalid_video_extension",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 0,
+          "object_count": 0,
+          "document_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 0
+      },
+      {
+        "id": "UI-016",
+        "condition": "double_click",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 9,
+          "object_count": 0,
+          "document_sha256": "4eed9dcce0f1175b8936ba9ab998f9d84c95966bd82688c3811dd661708e4b7c",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 2
+      },
+      {
+        "id": "UI-017",
+        "condition": "slow_create",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 9,
+          "object_count": 0,
+          "document_sha256": "ff03d76985534891f0ba326e7d02094a0687148fb66a69d623f20fe06ba4af3a",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 2
+      },
+      {
+        "id": "UI-018",
+        "condition": "create_error_body",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 0,
+          "object_count": 0,
+          "document_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 0
+      },
+      {
+        "id": "UI-019",
+        "condition": "lost_response_reload",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 9,
+          "object_count": 0,
+          "document_sha256": "d3468c14d6e62ff42e4bce413063d82887f8c63f4b69645353e1f3be1274c52a",
+          "objects_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "browser_termination": null,
+        "provider_calls_simulated": 0,
+        "notification_calls_local_sink": 2
+      },
+      {
+        "id": "UI-020",
+        "condition": "browser_termination_upload_return",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 13,
+          "object_count": 4,
+          "document_sha256": "b095760402476f423fa00d050cd47c801eacdda98f4c9c49f62fcce7b33c459b",
+          "objects_sha256": "5a7ac4ea4979e0b1d03b756e1202e0a140f5d455039be2fc0422371d950152b8"
+        },
+        "browser_termination": "orderly-CDP-browser-close-native-profile-mid-object-write",
+        "provider_calls_simulated": 1,
+        "notification_calls_local_sink": 4
+      },
+      {
+        "id": "UI-021",
+        "condition": "forced_termination_email_return_worker_restart",
+        "result": "passed",
+        "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+        "durable": {
+          "documents": 13,
+          "object_count": 4,
+          "document_sha256": "cdfc4a5c64b46a87082492b7471aa63b5490495545039e7ad91c992a5e7b196c",
+          "objects_sha256": "9b7fb4df0d74a0397fd95323150bb15fd56f1363c01c69fd2f44eda74942d088"
+        },
+        "browser_termination": "SIGKILL-queued-email-return-with-fresh-worker-process",
+        "provider_calls_simulated": 1,
+        "notification_calls_local_sink": 4
+      }
+    ]
+  },
+  "retention": {
+    "raw_root": "output/reliability-program",
+    "run_relative_path": "output/reliability-program/journeys/runs/journeys-20261008T045920118Z/results.json",
+    "policy_days": 30,
+    "automatic_deletion_verified": false,
+    "export_route": "Copy private ignored run directory and source snapshots to authorized replacement workspace; catalogs and sanitized index remain company Git"
+  },
+  "limitations": [
+    "No final site assessment SDK publication in UI layer",
+    "No production GCS, provider inference, live notifications or Admin authentication proof",
+    "SIGKILL automatic local draft recovery not established",
+    "Dishwasher paid analysis accounted separately by its sole owner; unknown charges are not zero",
+    "Initial scored v3 pre-pin sources retained with explicit correction; final pinned run source hashes match current files."
+  ],
+  "final_pinned_run": {
+    "run_id": "journeys-20261008T050521396Z",
+    "result_sha256": "037753f56746422549b669c38874b2ade6f8035c30885624342bac3d16719410",
+    "passed": 21,
+    "failed": 0,
+    "latency_ms": 104727,
+    "source_sha256": {
+      "client/src/components/site/SiteCaptureStart.tsx": "cec05194b35bb3f34c92aad341d074925cab9f8e1027340a66fe42d09e91c065",
+      "client/src/lib/siteCaptureDraft.ts": "9362e28df170e41652ae3c5e56d27409368c13290be98f499f9b2018af580ed0",
+      "server/routes/inbound-request.ts": "2dffc5ce36621aeabdca5d0b786fa3286a5990e910b2e85880aa9a97005dbfa0",
+      "server/routes/self-capture-uploads.ts": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5",
+      "server/routes/site-task-brief.ts": "bde24ec8f158186012b98aaeb6569970cccee8349dbe9a6734f1a713897bb4e8",
+      "server/utils/captureCoverageQueue.ts": "0eb2815b4b04547bc53535a22f5d7d4ad7f4f957b772895f91e795e0c412a2bb",
+      "server/utils/captureCoverageReview.ts": "6ead77441d464256ea03bf419ad4b2b73851ea910f793a5a139c84535cf80eb2",
+      "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+      "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
+      "server/utils/field-encryption.ts": "64750f58b6e9010b686562633dbf04e8983c1ce39a9f9fa87e1153499049d2b2",
+      "server/utils/captureOutbox.ts": "181e76a41c8d7649e77302a58c0ba06ebe710f311cc42cc29490112e5ae672ed",
+      "server/agents/tasks/capture-coverage.ts": "9a25383f12ccd1c0a056c8cccac4900b7bf7d1f2ea45ba3fe825eae79bcb7bee",
+      "server/tests/helpers/reliability-local-storage.ts": "1f0f5cc4c3fa4719577db645d75c37b73a6a3062377653d36374636b726aae88",
+      "server/tests/reliability-program-journeys.browser.ts": "6501a98d4f65a0aab48ca725df2a88f0b5a6ee874563117263f4f2ad58b86215",
+      "server/tests/reliability-program-worker-resume.browser.ts": "3f7d2a0f0173dcbdab114516d366d77f7adb356648828466101a8e5d1e8467cd"
+    }
+  }
+}

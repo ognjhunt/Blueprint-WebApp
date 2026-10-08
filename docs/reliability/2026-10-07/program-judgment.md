@@ -4,9 +4,9 @@ Owner: assessment lane; coordinator owns integration/release. ADP scope: partner
 
 ## Frozen scope and denominator
 
-`program-judgment.json` freezes 120 synthetic source-admission mutations: 15 documented evidence/source conditions crossed with eight consequential claim topics (action, completion, dimension, mass, force, reach, hygiene, capability). The actual production validator executes on each synthetic packet. Stable IDs, semantic SHA-256 values, source relationship, expected admission, provisional labels, and development/regression split are retained. Parameters were fixed in `scripts/reliability/judgment-cases.ts` before the baseline run; the portable JSON was materialized before repair. Acceptance is 120/120 admission controls with raw claim bytes preserved. Thresholds were not changed after failures.
+`program-judgment.json` freezes 120 synthetic topic/source packets: 15 documented evidence/source conditions crossed with eight consequential claim topics (action, completion, dimension, mass, force, reach, hygiene, capability). The actual production validator executes on each synthetic packet. Stable IDs, semantic SHA-256 values, source relationship, expected admission, provisional labels, and development/regression split are retained. Parameters were fixed in `scripts/reliability/judgment-cases.ts` before the baseline run; the portable JSON was materialized before repair. Acceptance is 120/120 admission controls with raw claim bytes preserved. Thresholds were not changed after failures.
 
-This is 120 claim/source mutations, **not 120 independent videos, natural model outputs, base journeys, or perception samples**. Eight topics exercise consequential claim types but the guard does not inspect prose semantics. These cases do not contribute to the infrastructure, browser journey, upload transport, or publication denominators. All labels are PROVISIONAL agent-checked controls, awaiting independent review of their meaning. No untouched human-labeled holdout exists; no holdout was tuned.
+These 120 generated topic/source packets reduce to 15 unique executable structural conditions, **not 120 independent videos, natural model outputs, base journeys, or perception samples**. Eight topics exercise consequential claim types but the guard does not inspect prose semantics. These cases do not contribute to the infrastructure, browser journey, upload transport, or publication denominators. All labels are PROVISIONAL agent-checked controls, awaiting independent review of their meaning. No untouched human-labeled holdout exists; no holdout was tuned.
 
 ## Reproduced failures and repair
 
@@ -15,7 +15,7 @@ This is 120 claim/source mutations, **not 120 independent videos, natural model 
 | `JUD-action-occluded-estimate`, `JUD-action-absent-action`, crop/reorder siblings | P1 evidence provenance: a model-estimated/invisible or uncited-time event can be promoted to observed; deterministic isolated reproduction | Validator checked citation existence and clip duration, without checking a returned observed interval | Baseline admitted unsupported claim; repaired validator rejects it |
 | `JUD-capability-owner-is-not-published`, video sibling | P1 evidence attribution: unsupported source class can become published robot/spec evidence; deterministic isolated reproduction | No published-source-kind check | Baseline admitted owner/video as published; repaired validator requires a knowledge/registry source |
 
-The 120-case baseline executed 120, passed 64, failed 56, skipped 0, blocked 0. The same frozen 120 execute and pass after repair. Final replay repeats every case three times (360 attempts, still 120 unique); deterministic outcomes agree. This does not measure stochastic model disagreement. Neighbor cases cover a point observation with no interval end, zero time, interval beyond duration, supported siblings, nonfinite/negative references, and the unverified-entailment boundary. Existing SDK scripted tool loop, source admission/accounting, video provenance and cycle suites also pass: **152/152 checks** across five files. This total includes the 120 mutations, catalog-retention check, five new neighbors and 26 existing checks; it is not a count of unique journeys.
+The 120-case baseline executed 120, passed 64, failed 56, skipped 0, blocked 0. The same frozen 120 execute and pass after repair. Final replay repeats every case three times (360 packet attempts, still 15 executable structural conditions); deterministic outcomes agree. This does not measure stochastic model disagreement. Neighbor cases cover a point observation with no interval end, zero time, interval beyond duration, supported siblings, nonfinite/negative references, and the unverified-entailment boundary. Existing SDK scripted tool loop, source admission/accounting, video provenance and cycle suites also pass: **152/152 checks** across five files. This total includes the 120 mutations, catalog-retention check, five new neighbors and 26 existing checks; it is not a count of unique journeys.
 
 The repair preserves source packets and throws safe existing-style validation codes; it adds no migration, storage, auth or spending service. Observed claims must reference a returned observed interval; null-end observations support only their exact start. Operator statements/video cannot become published specifications. Knowledge/registry citation admission still does not establish that a field is genuinely published, measured, fresh, or true.
 
@@ -25,9 +25,9 @@ The repair preserves source packets and throws safe existing-style validation co
 
 ## Reference manifest and remaining gate
 
-`program-reference-manifest.json` verifies six existing local recorded-simulation clips against the prior reference manifest; all six hashes match. Existing provisional sampled-frame descriptions remain attributed to the previous agent, not new human review. Clips are local development/regression fixtures and source licenses were not independently re-adjudicated for new transmission. No footage was sent anywhere. There are zero independently human-observed real-site labels and no untouched holdout. The minimum 12 real-site reference target has a shortfall of 12. The coordinator owns the newly selected dishwasher source and its current authorization; this lane did not reuse the other owner's fixture or budget.
+`program-reference-manifest.json` verifies six existing local recorded-simulation clips against the prior reference manifest; all six hashes match. Existing provisional sampled-frame descriptions remain attributed to the previous agent, not new human review. Clips are local development/regression fixtures and source licenses were not independently re-adjudicated for new transmission. No footage was sent anywhere. There are zero independently human-observed real-site labels and no untouched holdout. At the lane snapshot, the minimum 12 real-site reference target had a shortfall of 12. The coordinator now has one user-selected local dishwasher source admitted for the separately approved one-run analysis; the source-count shortfall is 11, and there are still zero current human timestamp labels. The coordinator owns the newly selected dishwasher source and its current authorization; this lane did not reuse the other owner's fixture or budget.
 
-The smallest quality dependency is a rights-admitted local/company-controlled source plus current owner observation labels (single review explicitly acceptable); live model execution additionally requires current program provider budget approval. Historical human gates are not reactivated. Offline source repairs can ship independently with honest semantic limits.
+The smallest quality dependency is a rights-admitted local/company-controlled source plus current owner observation labels (single review explicitly acceptable); the one current dishwasher analysis has a separate approved $5 total, and its sole executor is resolving runtime credential availability. Historical human gates are not reactivated. Offline source repairs can ship independently with honest semantic limits.
 
 ## Replay and recovery
 
@@ -42,3 +42,16 @@ bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz
 The mutation test writes ignored raw results to `output/reliability-program/judgment/results.json`. Retained baseline/candidate logs and results stay in the lane worktree under that same ignored folder; tracked `program-judgment-results.json` binds their hashes and counts for review. Restore source/catalog/manifests from Blueprint-owned Git and replay; no Library/session identity is canonical. Existing MP4 paths and hashes are in the reference manifest. Traces contain synthetic source IDs, no bearer links, video bytes, credentials or customer details.
 
 Status: scoped code/test slice complete pending independent review and coordinator release. Assessment quality evaluation is partial/blocked by the specified reference/paid-run dependencies; no deployment or bounded-beta recommendation is asserted by this lane.
+
+## Independent accounting correction, v2
+
+The original 120-packet catalog and raw receipts stay unchanged and replayable.
+An independent reviewer established that claim prose is not read by this guard:
+the eight topics do not multiply executable behavior. Distinct structural
+conditions: 15; baseline 8 pass/7 fail, candidate 15 pass (packet results remain
+64/56 and 120/0 respectively). This corrects the unique-coverage interpretation;
+it does not lower the 120 semantic-judgment target or convert provisional labels
+to human truth. Source types and intervals are enforced; semantic entailment,
+physical measurement, contradictions, freshness and robot capability remain
+unscored. The executable invented-completion diagnostic still passes admission,
+which demonstrates the gap rather than satisfying assessment quality.

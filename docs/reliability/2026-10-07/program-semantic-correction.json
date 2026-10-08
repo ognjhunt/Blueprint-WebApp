@@ -1,0 +1,23 @@
+{
+  "schema": "blueprint.semantic-accounting-correction.v2",
+  "original_catalog_retained": true,
+  "generated_provisional_topic_packets": 120,
+  "distinct_executable_structural_conditions": 15,
+  "baseline_structural": {
+    "passed": 8,
+    "failed": 7
+  },
+  "candidate_structural": {
+    "passed": 15,
+    "failed": 0
+  },
+  "basis": "independent reviewer inspection and isolated validator replay; original packet receipts retained",
+  "semantic_model_judgments_executed": 0,
+  "semantic_target_unchanged": 120,
+  "perception_accuracy": null,
+  "human_reviewed_real_site_labels": 0,
+  "reference_real_site_sources": 1,
+  "reference_min": 12,
+  "reference_source_shortfall": 11,
+  "semantic_expectations_status": "PROVISIONAL_agent_checked_source_admission; no truth inheritance"
+}

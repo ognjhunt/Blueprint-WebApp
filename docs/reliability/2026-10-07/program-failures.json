@@ -1,0 +1,220 @@
+{
+  "schema": "blueprint.reliability.failure-ledger.v1",
+  "run_id": "reliability-program-20261007",
+  "baseline_sha": "1b8d810ec117b93fe52fd323be052ddafa7070db",
+  "findings": [
+    {
+      "id": "REL-QUEUE-001",
+      "severity": "P2",
+      "invariant": "Durable recovery must not delay ready customer work behind skipped queue rows",
+      "rootCause": "Description recovery queries first limit pending documents; active held leases fill the batch while later ready work is skipped",
+      "minimizedReproducer": "Place aaa-held with a future lease before rq ready. Invoke recoverCaptureReviews({limit:1}) twice. Ready rq must be completed or budget-exhausted review-required, while held lease remains unchanged.",
+      "baselineFailingCaseIds": [
+        "RQ-worker_lifecycle-dc1138faa35c",
+        "RQ-worker_lifecycle-6ad083c22e29",
+        "RQ-worker_lifecycle-3bda8976df4d"
+      ],
+      "repair": "Reuse existing durable automationBatch cursor with immediate exhausted-cursor wrap",
+      "source": "server/utils/captureReviewRecovery.ts",
+      "candidateRetest": "3/3 formerly failing starvation budget variants pass, neighboring recovery and all 150 cases green",
+      "owner": "queue_recovery",
+      "releaseStatus": "code-tested; independent review, merge/deployment owned by coordinator",
+      "limitation": "Repeated-pass starvation while preceding leases remain held; this replay does not prove permanent loss under bounded normal leases. Serialized fake Firestore, not live index or process-restart proof."
+    },
+    {
+      "id": "REL-QUEUE-002",
+      "severity": "P2",
+      "invariant": "Malformed provider output cannot publish false notification completion or hide an uncertain consequential effect",
+      "rootCause": "Outbox trusts adapter sent flag without validating provider acknowledgement identity; null output escapes after durable dispatch",
+      "minimizedReproducer": "Return sent:true with messageId null/empty/numeric or return null from fake email adapter. Durable result must be unknown and a second pass must never resend.",
+      "baselineFailingCaseIds": [
+        "RQ-provider_failures-2d30fc8cef04",
+        "RQ-provider_failures-13ff6bb886f5",
+        "RQ-provider_failures-9d37ba8690e5",
+        "RQ-provider_failures-2ccd61790648",
+        "RQ-provider_failures-0da32a57fc69",
+        "RQ-provider_failures-fb4d5844d2b6",
+        "RQ-provider_failures-5e482e87402c",
+        "RQ-provider_failures-620dc86968a8",
+        "RQ-provider_failures-54fa675eb204",
+        "RQ-provider_failures-94f1e7c8f95a",
+        "RQ-provider_failures-31d266283986",
+        "RQ-provider_failures-02837f68cbc5"
+      ],
+      "repair": "Normalize malformed acceptance/null result to an unknown safe result before receipt publication",
+      "source": "server/utils/captureOutbox.ts",
+      "candidateRetest": "12/12 formerly failing malformed-provider budget variants pass, valid acceptance/rejection/outcome-unknown and stale receipts remain green",
+      "owner": "queue_recovery",
+      "releaseStatus": "code-tested; independent review, merge/deployment owned by coordinator",
+      "limitation": "Synthetic malformed-adapter counterexample; no evidence that production Resend has returned this malformed shape"
+    },
+    {
+      "id": "TRANSPORT-DUPLICATE-001",
+      "severity": "P1",
+      "invariant": "Acknowledged customer upload bytes cannot be silently replaced by a duplicate event",
+      "rootCause": "captureParts.savePart writes the shared part index without a create-only precondition; same-length conflicting duplicate overwrites original and composes a changed video while total size remains unchanged",
+      "owner": "queue_recovery",
+      "baselineFailingCaseIds": [
+        "RTS-upload_transport-29181743445d",
+        "RTS-upload_transport-325513ab31fc",
+        "RTS-upload_transport-e962976f2cd2"
+      ],
+      "minimizedReplay": "npx vitest run server/tests/reliability-program-transport-status.test.ts --maxWorkers=1 -t RTS-upload_transport-29181743445d",
+      "repair": "Create-only part save. A412 retries only identical generation-pinned bytes; changed bytes/current-generation race rejects without overwriting. Actual route returns409 fixed conflict code and original-video next step. Existing support address and job-link fallback covers customers without a retained local recording.",
+      "retainedCounterexamples": [
+        {
+          "caseId": "RTS-upload_transport-29181743445d",
+          "byteEvidence": [
+            {
+              "event": "duplicate-readback",
+              "index": 1,
+              "errorCode": null,
+              "originalSha256": "e18149585c3e864b510ae210f91f9780b70d5ba7f8552a5507d77828fc0f7af1",
+              "persistedSha256": "5b09369749b5240d619e70883c4c89030708917c1b2f5f81e2dc1094c451fff9"
+            },
+            {
+              "event": "composed-readback",
+              "expectedSize": 30,
+              "actualSize": 30,
+              "expectedSha256": "2fbe0deed9ca9f59637df330cdb55f8dad2d56372da4e7eb794b3aaf7bb33254",
+              "actualSha256": "1369a7a474dc7f3a93409a3623412f1e1faf870f42c874397fb0bb0332079dbf"
+            }
+          ]
+        },
+        {
+          "caseId": "RTS-upload_transport-325513ab31fc",
+          "byteEvidence": [
+            {
+              "event": "duplicate-readback",
+              "index": 16,
+              "errorCode": null,
+              "originalSha256": "b78ba1dbd3e77fbe37a93125a4d74270c1b9077a03fb39dc590e5c72d7c48c66",
+              "persistedSha256": "5b09369749b5240d619e70883c4c89030708917c1b2f5f81e2dc1094c451fff9"
+            },
+            {
+              "event": "composed-readback",
+              "expectedSize": 330,
+              "actualSize": 330,
+              "expectedSha256": "f166a61c3ccfa6ca16ac44b4751f38723d00fc21c80434ef8d7cdd26dc961840",
+              "actualSha256": "6f7efc0be550e23bec01d3705950027a84bbfc162cacc19ee45a8bd06fb197d5"
+            }
+          ]
+        },
+        {
+          "caseId": "RTS-upload_transport-e962976f2cd2",
+          "byteEvidence": [
+            {
+              "event": "duplicate-readback",
+              "index": 32,
+              "errorCode": null,
+              "originalSha256": "3fbc94bfca96f2b484a42ce2a51708c0a2c2cc04acfd61dfeb5b0ae86654bebe",
+              "persistedSha256": "5b09369749b5240d619e70883c4c89030708917c1b2f5f81e2dc1094c451fff9"
+            },
+            {
+              "event": "composed-readback",
+              "expectedSize": 650,
+              "actualSize": 650,
+              "expectedSha256": "84174305e871dc872967c69ab9b4f68bcedc60c62a098d7d83775a7435897749",
+              "actualSha256": "c8c20b83bf6fb7a54282fbc7b41b3d9ab1c495df5f4b39db1a267539baa14431"
+            }
+          ]
+        }
+      ],
+      "candidateRetest": "All3 same-length corruption cases pass; identical duplicate and generation-replacement neighbors pass; persisted bytes retain original SHA256",
+      "limitations": "Synthetic byte fixtures prove transport integrity failure, not video-perception behavior. Repair does not recover or certify previously overwritten parts. No production records were faulted or migrated.",
+      "releaseStatus": "Scoped code-tested; independent review/integration checks/merge/deploy owned by coordinator"
+    },
+    {
+      "id": "INTAKE-RETURN-001",
+      "severity": "P1",
+      "owner": "intake_recovery",
+      "invariant": "Draft and same-job recovery survive reload/return",
+      "rootCause": "Draft, request and retry identity were only in mounted memory",
+      "minimizedReproducer": "RETURN001/RETURN002/RETURN003, retained baseline three failing component cases; production GET-only draft reload also failed",
+      "repair": "Account/authoring-scoped local draft and exact frozen submission; existing authorized same-ID renewal; fresh consent for new actions",
+      "candidateRetest": "90/90 catalog,127focused checks,8intercepted browser traces; production candidate pending",
+      "source": "a4a74c1d;089890f6",
+      "releaseStatus": "reviewed;not_merged_not_deployed"
+    },
+    {
+      "id": "ASSESS-SOURCE-001",
+      "severity": "P1",
+      "owner": "assessment_cases",
+      "invariant": "Observations, owner assertions and published sources remain distinct",
+      "rootCause": "Admission checked citation presence without returned observed interval or published source class",
+      "minimizedReproducer": "120topic packets reduce15conditions;baseline7failing shapes",
+      "repair": "Observed interval and source-kind admission guard",
+      "candidateRetest": "15structural conditions pass;120packets pass; semantic truth remains unscored",
+      "source": "58b2a958",
+      "releaseStatus": "reviewed;not_merged_not_deployed"
+    },
+    {
+      "id": "NOTIFY-ENCRYPTED-001",
+      "severity": "P2",
+      "owner": "queue_recovery",
+      "invariant": "Actionable failure reaches customer with safe recovery",
+      "rootCause": "Coverage-shortfall queue intent casts encrypted contact.email as plaintext string",
+      "minimizedReproducer": "UI021 first fresh-worker receipt, encrypted recipient object accepted by permissive fake sink",
+      "repair": "Existing decryptFieldValue unwraps destination and greeting at enqueue; encrypted canonical record remains unchanged. Missing key safely warns/skips, without claiming durable notification retry.",
+      "candidateRetest": "Baseline2/4; candidate4/4 strict encrypted/legacy/withdrawn/unavailable-key fixtures. Coordinator115/115 access/outbox/notification checks. Strict native emulator UI006 baseline failed recipient type object; v3 candidate21/21 passed.",
+      "releaseStatus": "independently_reviewed;not_merged_not_deployed",
+      "source": "3d2f9acc"
+    },
+    {
+      "id": "RETURN-FORCED-KILL-001",
+      "severity": "P2_scope_limited",
+      "owner": "coordinator",
+      "invariant": "Return route survives supported interruptions",
+      "rootCause": "Recent localStorage writes can disappear on forced Chromium kill before browser disk flush; backend acknowledged job and upload survive",
+      "minimizedReproducer": "retained native SIGKILL automatic-local-return diagnostic-v4 failed; no local pending recovery button",
+      "repair": "No browser crash durability repair claimed; strict queued private-link recovery passes scored v3 UI021.",
+      "candidateRetest": "Orderly native-profile CDP close/reopen UI020 and SIGKILL queued-link/fresh-worker UI021 pass scored v3; automatic immediate-crash local draft return remains failed/unproven.",
+      "releaseStatus": "P2 tracked; excludes automatic forced-kill draft recovery from any beta claim",
+      "nextAction": "Evaluate strict browser persistence or explicit current account/email recovery only if this supported-scope requirement is adopted; do not claim localStorage crash durability"
+    },
+    {
+      "id": "INTAKE-MULTITAB-001",
+      "severity": "P1",
+      "owner": "intake_recovery",
+      "invariant": "Stale tab cannot replace another tab frozen retry identity or create a second intake",
+      "rootCause": "writeSiteCaptureRecovery overwrites pending authority; storage listener only adopts same mounted requestId",
+      "minimizedReproducer": "Independent source finding; scoped before/after runtime and two-tab reproducer in progress",
+      "repair": "Port cross-tab lock/re-read and monotonic frozen authority from independently developed PR940 into authoring-scoped/no-bearer schema",
+      "releaseStatus": "repair_in_progress;release_blocking_for_multitab_path",
+      "candidateRetest": "pending"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "DEP-REFERENCE",
+      "owner": "coordinator",
+      "state": "partial",
+      "detail": "One user-selected source approved for one analysis; zero current human timestamp labels; minimum source shortfall11. Old human gates not revived; current semantic accuracy remains unresolved."
+    },
+    {
+      "id": "DEP-SPEND",
+      "owner": "coordinator",
+      "state": "approved",
+      "detail": "User approved separate $5 USD total for one dishwasher SDK+Gemini analysis: max4 GPT-6.1Sol, max1 Gemini3.8Flash, no automatic paid retries/no test emails. Existing dishwasher owner assigned sole live executor, original unknown costs separate."
+    },
+    {
+      "id": "DEP-JOINED",
+      "owner": "coordinator",
+      "state": "coverage_layer_executed;assessment_layer_unproven",
+      "detail": "21/21 strict normal-UI cases actual Express/Firestore emulator;20/20 additional fake-storage/worker traces. Fake objects/model/local mail throughout; final SDK assessment publication absent. Full pinned-file repetition in progress."
+    },
+    {
+      "id": "DEP-LIVE-RUNTIME",
+      "owner": "existing_dishwasher_task",
+      "state": "in_progress",
+      "detail": "Existing local Gemini and worker OpenAI split-stage host being reviewed; newapproved$5 single ledger. No extra provider budget/campaign."
+    }
+  ],
+  "coordination": {
+    "parallel_pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+    "owner_chat_title": "Improve Blueprint reliability",
+    "status": "one combined release through PR940; local supplemental source not merged independently",
+    "count_policy": "Keep catalogs separate until semantic deduplication; do not add overlapping programs counts",
+    "required_integration": "Preserve PR940 authentication/withdrawal/current-notification-authority/Pipeline fences and local scoped recovery/receipt uncertainty/upload-byte protections"
+  }
+}
