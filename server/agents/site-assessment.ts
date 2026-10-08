@@ -79,8 +79,10 @@ type Source = {
 };
 export interface SiteAssessmentInput {
   request_id: string;
-  /** Existing workflow owner supplies the conversation; no new session store. */
+  /** Recorded site assertions; task instructions are never citation sources. */
   operator_messages: Array<{ id: string; text: string; source_ref: string }>;
+  /** Host assessment request, not an owner statement or factual evidence. */
+  task_instruction?: string;
   video: { source_id: string; source_ref: string; url: string; sha256: string; duration_seconds: number } | null;
   site_requirement: SiteRequirement;
   /** Previous assistant output is question context, never new factual proof. */
@@ -119,6 +121,8 @@ Use analyze_site_video for an initial factual reading, then probe specific ambig
 them changes the assessment. You decide what to ask Gemini; Gemini supplies observations, not robot decisions.
 Reuse supplied retained video findings when their bytes match this video. Prior assessment text supplies question
 context only; its claims need admitted sources. Supplied conversation does not verify speaker identity.
+The task_instruction is a host request, never an operator statement or citable evidence.
+When recorded operator statements are absent, do not invent them; assess the admitted video and retain unknowns.
 Start with auto processing at 2 FPS. For a specific unresolved event, choose agentic inspection or static
 4 FPS when temporal detail matters. Retain sampling limits; a second look cannot recover unrecorded evidence.
 Compare what the operator says with what is actually visible. Door/rack movement is not evidence of dish loading.
@@ -168,7 +172,7 @@ Write plain English, keep each field brief, and include no unnecessary internal 
 
 /** One SDK agent. No scheduler, UI, handoff hierarchy, hosted sandbox or new database. */
 export async function createSiteAssessmentAgent(input: SiteAssessmentInput, options: SiteAssessmentOptions) {
-  if (!input.request_id.trim() || !input.operator_messages.length) throw new Error("assessment_input_required");
+  if (!input.request_id.trim() || (!input.operator_messages.length && !input.video)) throw new Error("assessment_input_required");
   if (input.video && (!input.video.source_id.trim() || !input.video.source_ref.trim()
     || !Number.isFinite(input.video.duration_seconds) || input.video.duration_seconds <= 0
     || !/^(sha256:)?[a-f0-9]{64}$/.test(input.video.sha256))) throw new Error("assessment_video_binding_invalid");
@@ -352,7 +356,7 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
     async run() {
       const runner = new Runner({ tracingDisabled: true });
       const result = await runner.run(agent, JSON.stringify({ request_id: input.request_id,
-        prior_assessment: input.prior_assessment ?? null,
+        task_instruction: input.task_instruction ?? null, prior_assessment: input.prior_assessment ?? null,
         evidence_sources: [...sources.values()], video: input.video ? { source_id: input.video.source_id,
           sha256: input.video.sha256, duration_seconds: input.video.duration_seconds } : null,
         site_requirement: input.site_requirement }), { maxTurns: options.max_turns ?? 12 });
