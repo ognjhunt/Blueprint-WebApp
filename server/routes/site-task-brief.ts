@@ -1,4 +1,5 @@
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
+import { describeSiteAssessmentRetry } from "../utils/siteAssessmentQueue";
 /**
  * The brief an operator reads, and the confirmation that makes it binding.
  *
@@ -943,6 +944,25 @@ router.get("/:token/status", async (req: Request, res: Response) => {
 
     const siteAdvisory = payload.scope === "owner"
       ? await loadCurrentSiteAdvisory(payload.requestId, payload.captureId, { expectedOwnerUid: request?.account_owner_uid ?? null }) : null;
+    // Availability is a read-only inspection of the same durable authority
+    // the explicit retry uses. An advisory failure alone never grants a run.
+    const noRetry = { available: false, job_id: null, run_id: null };
+    let retry: { available: boolean; job_id: string | null; run_id: string | null } = noRetry;
+    if (payload.scope === "owner" && !payload.supplement && request && !request.captureRights.consent_revoked
+      && payload.captureId === `walkthrough-${payload.requestId}` && payload.sceneId === `site-${payload.requestId}`
+      && siteAdvisory?.state === "needs_review") {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        retry = await Promise.race([describeSiteAssessmentRetry(payload.requestId, fresh => {
+          const current = verifyCaptureUploadToken(String(req.params.token || ""));
+          if (!current || current.scope !== "owner" || current.supplement || current.requestId !== payload.requestId
+            || current.captureId !== payload.captureId || current.sceneId !== payload.sceneId
+            || (fresh.account_owner_uid ?? null) !== (request.account_owner_uid ?? null)
+            || !projectWebsiteCaptureRights(fresh).derived_scene_generation_allowed) throw Error("advisory_retry_not_authorized");
+        }), new Promise<typeof retry>(resolve => { timer = setTimeout(() => resolve(noRetry), 4000); })]);
+      } catch { retry = noRetry; }
+      finally { clearTimeout(timer); }
+    }
     if (siteAdvisory?.state === "queued" || siteAdvisory?.state === "running") {
       // Only an authorized, current-source read can wake the existing queue.
       void import("../utils/siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1))
@@ -952,6 +972,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       ok: true,
       scope: payload.scope,
       siteAdvisory,
+      assessment_retry_available: retry.available,
+      assessment_job_id: retry.available ? retry.job_id : null,
+      assessment_run_id: retry.available ? retry.run_id : null,
       status,
       // Retention only: a saved recording does not prove processing started.
       captureReceived: hasStoredCapture,
