@@ -2679,3 +2679,90 @@ no secret or private footage is needed. No original300/40 or human-reference
 credit is added. This approves bounded source/count/accounting admission only,
 not invoiced cost, video accuracy, operator authorization authenticity, actual
 paid execution, customer usefulness or whole-program completion.
+
+### Superseding spending policy and retained accounting — b426d099
+
+Independent source approval applies to exact
+`b426d0991c1cf34e5acbdaf62ce7c97be0d225dc`. The human's later instruction
+removes spending approval and monetary cap gates from customer service work.
+The preceding b7 review is historical evidence under the superseded policy;
+it does not authorize the current financial policy. This slice removes those
+gates for site assessment, capture coverage, capture video privacy and inbound
+qualification. Unrelated operator-thread controls are unchanged. Operational
+SDK turn, time and no-progress limits remain.
+
+The reviewer inspected the runtime, OpenAI/Gemini adapters, assessment core,
+budget, recovery and queue diffs. Current source, consent, active claim and
+dispatch fences remain. Durable call intents preserve the original token,
+reserved exposure and raw usage. A received response with unknown usage can
+finish that action without inventing zero cost; a no-response exception retains
+its pending intent until explicit recovery. Old programme records remain
+historical and are not rewritten, refunded or used as admission prerequisites.
+Unattributed output retains its uncertainty and null completion-token count;
+above-estimate usage is recorded separately and raises exposure once.
+
+Review found that a terminal failed coverage or assessment owner could leave
+the pending token blocking distinct work. The final helper is byte-identical to
+independently reviewed `a3494df72be169ef227bb8fe55f789ccb2d45e44`, source hash
+`2b32c2a84d1f3f60aa5ba313eb361c31f9c909c31ebdba919f01582f86794e6b`.
+Retirement now requires the exact terminal failed/cancelled owner and distinct
+target, preserves the old call as unknown with full exposure, and fences late
+dispatch/accounting. A still-running matching SDK owner overrides a terminal
+review. Missing or ambiguous ownership remains fenced. Completed owners without
+publication/usage proof and missing legacy call records remain explicit
+reconciliation limitations, not proof of zero work.
+
+The reviewer executed existing scoped checks: 37/37 accounting/retry/SDK bridge,
+8/8 selected runtime/OpenAI controls, then 33/33 final helper neighbors. These
+overlap and are not independent coverage totals. Three retained private owner
+probes fail on e556 and pass on the repair; their source and log hashes were
+inspected, without adding committed tests or original coverage credit. Private
+pending-owner receipt hash is
+`932faa7e78dcd408f1b108157a92ad0e4153a9e5f870b69f9fd91f3941494e0f`.
+Earlier policy and above-estimate receipts respectively match
+`e957c63a38d451626004ac13fb7877bc592907fe9ed69684172b272e9a47c9c9`
+and `b237cdafdf1822cd0555110cf02309e190822549d9f56f566f6160b114fbb5cf`.
+
+Root's final b426 existing focused run is 168/168, log hash
+`b90cbfdf455ea235e10f6dea79e176ee3098b631d2db20dfd53ca3d5710b162f`;
+terminal typecheck, Graphify and static portability checks passed. The earlier
+e556 broad run remains red and retained (14 failed, 9151 passed, 7 skipped,
+1 error); it is not replaced by this focused green result. Current main ancestry
+is preserved through merge c0bf. Borrowed browser test/config work in the
+accounting worktree was preserved. At this review, required CI37835615540 and
+current native replay were still pending; backend-only CI skips do not establish
+browser execution. This is source approval only, with no deployment, paid/live
+execution, video perception, human-reference quality or whole-goal completion
+claim. Replay uses the existing tests named in the private spending-gate-removal
+and pending-owner receipts, with fake database/provider seams as recorded.
+
+### Customer decision projection — bb49c9d8 / PR971
+
+Independent bounded source approval applies to exact
+`bb49c9d875b5c1387960103e1ef0e259fc5b3252`: only
+`siteAssessmentPublic.ts` and its existing test file change. Reader access,
+canonical packet storage and DTO authority are unchanged. The projection keeps
+useful task-specific requests and unknowns while factual reasons retain the
+existing source rendering. Raw model prose remains protected separately.
+
+The reviewer reproduced two unsupported question presuppositions on df7: a
+claimed robot lifting capacity and an already-reserved pilot. Both appeared with
+no sources. The same pure projection on bb49 refuses both and retains a safe
+unknown, without publishing either assertion. The retained df7 observation hash
+is `864491a77ef35e4d5849b8e1734896df6cf7a9a76bb9c45c5daee304b4cd8075`.
+The reviewer independently ran the existing final 14 checks; all passed.
+Head-bound proof hash
+`e5bf23e0f10d8959a02a0860f7354356e26a19fe6c21fa5ae696d04e7a320184`
+binds actual source/test bytes, final 39 checks including 25 neighbors, and
+terminal typecheck, portability and Graphify evidence. Historical attempts are
+not summed as coverage. Replay uses the existing site-assessment-public test
+and the private customer-decision observation; no provider or browser journey
+is asserted.
+
+Request-form and side-clause text checks address these concrete counterexamples;
+they are not a semantic truth validator. Raw operator assertion entailment,
+reference quality and perception remain partial. Approval does not establish
+universal prevention of unsupported capability/commitment claims, assessment
+usefulness, production execution or deployment. Required exact-head release
+checks and live verification remain the coordinator's separate gates. Neither
+slice adds original300/40 or human-reference credit.
