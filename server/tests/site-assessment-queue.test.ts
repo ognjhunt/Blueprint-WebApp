@@ -1,14 +1,22 @@
 // @vitest-environment node
 import { beforeEach, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
-const seams = vi.hoisted(() => ({ enabled: true, coverageActive: false, run: vi.fn(), manifest: vi.fn(), marker: vi.fn() }));
+const seams = vi.hoisted(() => ({ objects: new Map<string, any>(), enabled: true, coverageActive: false, run: vi.fn(), manifest: vi.fn(), marker: vi.fn() }));
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore, storageAdmin: null }));
-vi.mock("../config/env", () => ({ isSiteVideoEvidenceEnabled: () => seams.enabled }));
+vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
+ default: { firestore: {FieldValue: {serverTimestamp: () => "SERVER_TIMESTAMP", delete: () => undefined}}},
+ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,
+ storageAdmin: {bucket: (name = "blueprint-8c1ca.appspot.com") => ({name, file: (object: string, options?: any) => {
+   const get = () => {const row=seams.objects.get(object);if(!row || options?.generation && options.generation!==row.generation) throw Error("synthetic_object_missing");return row;};
+   return {getMetadata: async()=>[{name:object,...get(),size:String(get().bytes.length)}], download: async()=>[get().bytes], exists: async()=>[seams.objects.has(object)],
+    getSignedUrl: async()=>["https://example.invalid/scripted-no-fetch"], save: async()=>{throw Error("unexpected_object_write")}, delete: async()=>{throw Error("unexpected_object_delete")}};
+ }})}
+}));
+vi.mock("../config/env", async () => ({ ...await vi.importActual("../config/env"), isSiteVideoEvidenceEnabled: () => seams.enabled }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: seams.run }));
 vi.mock("../utils/captureCoverageQueue", () => ({ isCoverageReviewActive: () => seams.coverageActive }));
-vi.mock("../utils/websiteBrowserUploadStatus", () => ({ verifiedPendingManifest: seams.manifest, verifiedPendingMarker: seams.marker, originalManifestConsent: () => true }));
-vi.mock("../logger", () => ({ logger: { warn: vi.fn() } }));
+vi.mock("../utils/websiteBrowserUploadStatus", async () => ({ ...await vi.importActual("../utils/websiteBrowserUploadStatus"), verifiedPendingManifest: seams.manifest, verifiedPendingMarker: seams.marker }));
+vi.mock("../logger", () => ({ attachRequestMeta: (x:any)=>x, logger: { info:vi.fn(), warn: vi.fn(), error:vi.fn(), debug:vi.fn() } }));
 import { publishBrowserPending, browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
@@ -20,7 +28,7 @@ const request = () => ({ request: { buyerType: "site_operator", capture_mode: "s
   consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-10-08T00:00:00.000Z" } },
   capture_privacy_source_bound_decision: { capture_id: pending.capture_id, proceeded: true, eligibility: "unscreened",
     producer_source: { kind: "browser_pending", key: browserPendingDecisionKey(pending) } } });
-beforeEach(() => { seams.enabled = true; seams.coverageActive = false; seams.run.mockReset(); seams.manifest.mockReset().mockResolvedValue("synthetic-manifest"); seams.marker.mockReset().mockResolvedValue(true); state.docs.clear(); state.docs.set(`inboundRequests/${pending.request_id}`, request());
+beforeEach(() => { seams.enabled = true; seams.coverageActive = false; seams.run.mockReset(); seams.manifest.mockReset().mockResolvedValue(JSON.stringify({capture_rights:{derived_scene_generation_allowed:true,consent_status:"granted",consent_revoked:false}})); seams.marker.mockReset().mockResolvedValue(true); seams.objects.clear(); state.docs.clear(); state.docs.set(`inboundRequests/${pending.request_id}`, request());
   state.docs.set(`captureUploadSessions/${pending.capture_id}`, { browser_pending_delivery: pending }); });
 it("ADVISORY-PRODUCER-001 normal new publication durably creates one source-bound advisory intent", async () => {
   await publishBrowserPending(pending);
@@ -103,3 +111,75 @@ it("does not backfill already-published sources or publish an in-memory-only ans
   await reconcileSiteAssessments();expect(state.docs.get(key)?.state).toBe("needs_review");
   expect(state.docs.get(key)?.packet_sha256).toBeNull();
 });
+
+it("ADVISORY-PRODUCER-001 joined actual SDK persistence and authorized owner publication (scripted providers)", async () => {
+  const { OpenAIProvider, Usage, setTracingDisabled } = await import("@openai/agents");
+  setTracingDisabled(true); // No provider telemetry for this offline joined control.
+  const gemini = await import("../agents/adapters/gemini-video");
+  const { buildBrowserDelivery } = await import("../utils/websiteCaptureDelivery");
+  const { projectWebsiteCaptureRights } = await import("../utils/websiteTaskContext");
+  const joined = structuredClone(pending);
+  const raw = {...request(), contact:{firstName:"Synthetic",lastName:"Fixture",email:"synthetic@example.invalid",roleTitle:"Owner",company:"Synthetic fixture"}};
+  const bytes = Buffer.from(JSON.stringify({request_id: joined.request_id, scene_id:joined.scene_id, capture_id:joined.capture_id,
+    video_uri:joined.video.object_name,duration_seconds:10,capture_source:"browser_self_capture",capture_rights:projectWebsiteCaptureRights(raw)}));
+  joined.manifest.size_bytes=bytes.length;joined.manifest.sha256=`sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+  raw.capture_privacy_source_bound_decision.producer_source.key=browserPendingDecisionKey(joined);
+  state.docs.set(`inboundRequests/${joined.request_id}`,raw);
+  state.docs.set(`captureUploadSessions/${joined.capture_id}`,{browser_pending_delivery:joined});
+  const put=(name:string,generation:string,body:Buffer,contentType="application/json")=>seams.objects.set(name,{generation,crc32c:"AAAAAA==",bytes:body,contentType});
+  put(joined.video.object_name,joined.video.generation,Buffer.from("video-1"),"video/mp4");put(joined.manifest.object_name,joined.manifest.generation,bytes);
+  const delivery=buildBrowserDelivery({requestId:joined.request_id,sceneId:joined.scene_id,captureId:joined.capture_id,
+    rawPrefix:joined.video.object_name.slice(0,joined.video.object_name.lastIndexOf("/")),video:joined.video,manifest:joined.manifest,completedAtIso:joined.completed_at_iso});
+  put(`${delivery.record.raw_prefix}/capture_upload_complete.json`,"30",delivery.markerBytes);put(delivery.objectName,"31",delivery.recordBytes);
+  const realUpload=await vi.importActual<typeof import("../utils/websiteBrowserUploadStatus")>("../utils/websiteBrowserUploadStatus");
+  seams.manifest.mockImplementation(realUpload.verifiedPendingManifest);seams.marker.mockImplementation(realUpload.verifiedPendingMarker);
+  vi.stubEnv("OPENAI_API_KEY","synthetic-no-provider");vi.stubEnv("GEMINI_API_KEY","synthetic-no-provider");
+  let calls=0;
+  const modelSpy=vi.spyOn(OpenAIProvider.prototype,"getModel").mockResolvedValue({
+    async getResponse(input:any) {
+      calls++;
+      const source=JSON.stringify(input.input).match(/video:walkthrough-advisory-fixture:[a-f0-9]{12}/)?.[0];
+      const packet={status:"needs_operator_input",job:[{text:"PRIVATE fabricated robot success",basis:"observed",evidence:[{source_id:source,at_seconds:2,selector:{kind:"video_observation",observation_index:0,field_path:null}}]}],
+        objects_motions_conditions_variations:[],operator_success:[],known:[],estimates:[],missing:[],approaches:[],questions:[],
+        next_action:{kind:"ask_operator",action:"Clarify success",why:{text:"Success criteria unknown",basis:"unknown",evidence:[]}}};
+      return {output:calls===1?[{type:"function_call",callId:"joined-video-call",name:"analyze_site_video",arguments:JSON.stringify({question:"What moves?",processing:"auto",sampling_fps:2})}]:[{type:"message",role:"assistant",status:"completed",content:[{type:"output_text",text:JSON.stringify(packet)}]}],usage:new Usage(),providerData:{usage:{input_tokens:20,output_tokens:10}}} as any;
+    },async *getStreamedResponse(){throw Error("unexpected_stream");}
+  } as any);
+  const videoSpy=vi.spyOn(gemini,"analyseAgenticVideo").mockResolvedValue({text:JSON.stringify({summary:"Carton movement",observations:[{category:"motion",finding:"A carton moves",basis:"observed",start_seconds:1,end_seconds:3,uncertainty:"Hands partly occluded"}],not_observable:["weight"]}),
+    usage:{promptTokenCount:20,candidatesTokenCount:10,thoughtsTokenCount:0,totalTokenCount:30},processing:{mode:"static",sampling_fps_requested:2,media_tool_calls:0,media_tool_responses:0}} as any);
+  let server:any;
+  const originalFetch=globalThis.fetch;
+  const fetchGuard=vi.spyOn(globalThis,"fetch").mockImplementation((url,options)=> {
+    if(new URL(String(url)).hostname!=="127.0.0.1") throw Error("unexpected_external_network");
+    return originalFetch(url,options);
+  });
+  try {
+    seams.run.mockImplementation(async(task,options)=>(await vi.importActual<typeof import("../agents/runtime")>("../agents/runtime")).runAgentTask(task,options));
+    await publishBrowserPending(joined);
+    const {reconcileSiteAssessments}=await import("../utils/siteAssessmentQueue");await reconcileSiteAssessments();
+    const [key,job]=selectedJob();
+    expect(job.state,JSON.stringify(state.docs.get(`agentRuns/${job.run_id}`))).toBe("completed");
+    expect(calls).toBe(2);expect(videoSpy).toHaveBeenCalledTimes(1);
+    const run=state.docs.get(`agentRuns/${job.run_id}`)!;
+    expect(run.artifacts.source_admission).toMatchObject({advisory_job_id:key.split("/")[1],context_digest:job.context_digest,source_key:browserPendingDecisionKey(joined),video_sha256:createHash("sha256").update(Buffer.from("video-1")).digest("hex")});
+    expect(run.artifacts.capture_inference_reservations).toHaveLength(3);
+    const express=(await import("express")).default;const {createServer}=await import("node:http");
+    const app=express();app.use(express.json());app.use("/api/site-task-brief",(await import("../routes/site-task-brief")).default);
+    server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+    const {createCaptureUploadToken}=await import("../utils/captureUploadToken");
+    const token=createCaptureUploadToken({requestId:joined.request_id,sceneId:joined.scene_id,captureId:joined.capture_id});
+    const read=()=>fetch(`http://127.0.0.1:${server.address().port}/api/site-task-brief/${token}/status`);
+    const response=await read();expect(response.status).toBe(200);const body=await response.json();
+    expect(body.siteAdvisory?.state).toBe("ready");expect(JSON.stringify(body.siteAdvisory)).toContain("A carton moves");
+    expect(JSON.stringify(body.siteAdvisory)).not.toMatch(/PRIVATE|fabricated|gs:\/\/|signed-no-fetch|raw_model_assessment/);
+    const {renderToStaticMarkup}=await import("react-dom/server");const {createElement}=await import("react");
+    const {SiteAdvisoryReport}=await import("../../client/src/components/site/SiteAdvisoryReport");
+    const html=renderToStaticMarkup(createElement(SiteAdvisoryReport,{advisory:body.siteAdvisory}));expect(html).toContain("Video analysis");expect(html).toContain("A carton moves");
+    await reconcileSiteAssessments();expect(calls).toBe(2);
+    state.docs.get(`inboundRequests/${joined.request_id}`)!.consent_revoked=true;
+    const withdrawn=await(await read()).json();expect(withdrawn.siteAdvisory.state).toBe("authority_ended");expect(withdrawn.siteAdvisory.sections).toEqual([]);
+  } finally {
+    modelSpy.mockRestore();videoSpy.mockRestore();fetchGuard.mockRestore();vi.unstubAllEnvs();
+    if(server)await new Promise<void>(resolve=>server.close(()=>resolve()));
+  }
+},30000);
