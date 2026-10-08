@@ -225,4 +225,26 @@ test.describe("native strict recovery controls", () => {
             else
                 fn.call(this, event); }); } }); let active = true; const hydration = h.hydrateSiteCaptureRecovery(key, () => active); await ready; const cleared = await h.clearSiteCaptureRecoveryForAccount(uid); if (cancel)
             active = false; release(); await hydration; Object.defineProperty(IDBTransaction.prototype, 'oncomplete', descriptor); const row = h.readSiteCaptureRecovery(key), mirror = await m.readDurableSiteCaptureRecovery(key); return { cleared, localPresent: !!row, mirrorPresent: !!mirror, onlyEmptyDraft: row ? Object.values(row.draft).filter(v => typeof v === 'string').every(v => v === '' || v === 'phone') : true, noPending: !row?.pending }; }, cancel); expect(result.cleared).toBe(true); expect(result.localPresent).toBe(!cancel); expect(result.mirrorPresent).toBe(!cancel); expect(result.onlyEmptyDraft).toBe(true); expect(result.noPending).toBe(true); });
+    test("A-IDB-10 invalidpending rejection preserves both stores", async ({ page }) => {
+        const result = await page.evaluate(async () => {
+            const h = await import("/src/lib/siteCaptureDraft.ts"), m = await import("/src/lib/siteCaptureDurability.ts");
+            const key = h.siteCaptureDraftKey(null, "owned-invalid-pending");
+            await h.hydrateSiteCaptureRecovery(key);
+            const good = h.readSiteCaptureRecovery(key);
+            good.draft.task = "Owned retained task";
+            await h.withSiteCaptureRecoveryLock(key, () => h.writeSiteCaptureRecoveryDurably(key, good));
+            const before = localStorage.getItem(key), beforeMirror = JSON.stringify(await m.readDurableSiteCaptureRecovery(key));
+            const bad = {...good, pending: {endpoint: "/api/inbound-request", acknowledged: false,
+                body: JSON.stringify({requestId: good.requestId, retryToken: good.retryToken, buyerType: "site_operator",
+                    taskStatement: "Conflicting task", siteLocation: good.draft.location, captureRegion: good.draft.region})}};
+            let rejected = false;
+            try { await h.withSiteCaptureRecoveryLock(key, () => h.writeSiteCaptureRecoveryDurably(key, bad)); }
+            catch { rejected = true; }
+            return {rejected, localPreserved: localStorage.getItem(key) === before,
+                mirrorPreserved: JSON.stringify(await m.readDurableSiteCaptureRecovery(key)) === beforeMirror,
+                stillReadable: h.readSiteCaptureRecovery(key)?.draft.task === good.draft.task};
+        });
+        expect(result).toEqual({rejected:true, localPreserved:true, mirrorPreserved:true, stillReadable:true});
+    });
+
 });
