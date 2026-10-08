@@ -579,7 +579,7 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+  "current_verified_webapp_release": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
     "state": "WebApp_deployed;Pipeline_reviewed_protected_merged;exact_main_CI_and_promotion_active;actual_mapping_blocked",
@@ -831,44 +831,53 @@
     }
   },
   "latest_shared_main_release": {
-    "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
-    "main_CI": 37808257513,
+    "sha": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
+    "main_CI": 37813658515,
     "main_CI_conclusion": "success",
-    "executed_CI_jobs_passed": 10,
-    "deploy_workflow": 37809643803,
+    "deploy_workflow": 37814303542,
     "deploy_conclusion": "success",
-    "state": "independently_verified_paired_native_LIVE_exact_source_and18safe_UI_checks",
+    "state": "paired_native_LIVE_and18safe_clear_UI_checks_verified",
     "render_receipts": [
       {
-        "service_id": "srv-d4vnmk3e5dus73aiohk0",
-        "deployment_id": "dep-db3sbhijnfac738jlsm0",
-        "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+        "commit": {
+          "createdAt": "2026-10-08T17:03:52Z",
+          "id": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
+          "message": "Retain safe private site assessment exception diagnostics (#962)"
+        },
+        "createdAt": "2026-10-08T17:09:10.872968Z",
+        "finishedAt": "2026-10-08T17:12:15.089843Z",
+        "id": "dep-db3ssdk9v7es7389nagg",
+        "startedAt": "2026-10-08T17:09:10.832084Z",
         "status": "live",
-        "finished_at": "2026-10-08T16:35:58.847329Z"
+        "trigger": "api",
+        "updatedAt": "2026-10-08T17:12:51.463882Z"
       },
       {
-        "service_id": "srv-d9t8gg1t0dsc73am9q70",
-        "deployment_id": "dep-db3sbhvlk1mc73co24ig",
-        "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+        "commit": {
+          "createdAt": "2026-10-08T17:03:52Z",
+          "id": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
+          "message": "Retain safe private site assessment exception diagnostics (#962)"
+        },
+        "createdAt": "2026-10-08T17:09:11.543884Z",
+        "finishedAt": "2026-10-08T17:12:10.705411Z",
+        "id": "dep-db3ssdqjnfac73anhn40",
+        "startedAt": "2026-10-08T17:09:11.536518Z",
         "status": "live",
-        "finished_at": "2026-10-08T16:36:21.087114Z"
+        "trigger": "api",
+        "updatedAt": "2026-10-08T17:12:10.705729Z"
       }
     ],
-    "private_render_receipt_sha256": "9409daccfa18bde0b483efd8ce17dc428aee8e3470ec051921d9b32ad99b5c15",
+    "private_render_receipt_sha256": "4fff34d6839d727a2df045573c80f1f256e13daae4bf5ad56ceddc43c9ba28b1",
     "public_smoke": {
-      "result_sha256": "7ae41728fbba02f233e00a4d60d3f6498aa4541fe17a087da2bcf35790867143",
-      "outcome": "presentation_passed",
+      "result_sha256": "5436bd7be5e67611841cc053cb9eb1ae4a88ca705974cf29a7da077b21743191",
       "checks_passed": 18,
-      "serving_sha_before": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
-      "serving_sha_after": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
-      "completed_at": "2026-10-08T16:37:37.234Z",
+      "serving_sha_before": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
+      "serving_sha_after": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
       "intake_mutations": 0,
       "provider_calls": 0,
       "notification_sends": 0
     },
-    "source_continuity_receipt_sha256": "b1e0ea657817805e2e3ec2babc6f326854eba1ca97993c085749ad5190bda1c2",
-    "independent_release_review": "3a22c08a",
-    "claim_ceiling": "Serving reviewed source and18safe local-draft/health checks. Real supplied-MOV path has separately begun; no provider/customer result established by release smoke."
+    "claim_ceiling": "Exact source/paired native deployment and safe health/local-draft/clear UI. Does not establish a successful provider assessment."
   },
   "programme_admission_followup": {
     "state": "independently_reviewed_required_PR_and_main_CI_passed_protected_merged_paired_deployed_safe_UI_verified",
@@ -1274,7 +1283,89 @@
     "applicable_executed_checks_passed": 8,
     "E2E": "skipped by existing backend-only scope",
     "main_CI": 37811970708,
-    "state": "protected_merged_latest_main_CI_running; not yet deployed",
-    "effects": "Source release only. No actual draft regeneration, Gmail, budgets, flags, providers or customer records changed."
+    "state": "paired_LIVE055_and18safe_clear_checks_verified;superseded_by3a",
+    "effects": "Source release only. No actual draft regeneration, Gmail, budgets, flags, providers or customer records changed.",
+    "deploy_workflow": 37812436914,
+    "clear_smoke_sha256": "0a514814316948ced54e6ba400d2549b3ff2061a9e83249cd65a38862fc3a235"
+  },
+  "historical_shared_9a_release": {
+    "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+    "main_CI": 37808257513,
+    "main_CI_conclusion": "success",
+    "executed_CI_jobs_passed": 10,
+    "deploy_workflow": 37809643803,
+    "deploy_conclusion": "success",
+    "state": "independently_verified_paired_native_LIVE_exact_source_and18safe_UI_checks",
+    "render_receipts": [
+      {
+        "service_id": "srv-d4vnmk3e5dus73aiohk0",
+        "deployment_id": "dep-db3sbhijnfac738jlsm0",
+        "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+        "status": "live",
+        "finished_at": "2026-10-08T16:35:58.847329Z"
+      },
+      {
+        "service_id": "srv-d9t8gg1t0dsc73am9q70",
+        "deployment_id": "dep-db3sbhvlk1mc73co24ig",
+        "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+        "status": "live",
+        "finished_at": "2026-10-08T16:36:21.087114Z"
+      }
+    ],
+    "private_render_receipt_sha256": "9409daccfa18bde0b483efd8ce17dc428aee8e3470ec051921d9b32ad99b5c15",
+    "public_smoke": {
+      "result_sha256": "7ae41728fbba02f233e00a4d60d3f6498aa4541fe17a087da2bcf35790867143",
+      "outcome": "presentation_passed",
+      "checks_passed": 18,
+      "serving_sha_before": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+      "serving_sha_after": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+      "completed_at": "2026-10-08T16:37:37.234Z",
+      "intake_mutations": 0,
+      "provider_calls": 0,
+      "notification_sends": 0
+    },
+    "source_continuity_receipt_sha256": "b1e0ea657817805e2e3ec2babc6f326854eba1ca97993c085749ad5190bda1c2",
+    "independent_release_review": "3a22c08a",
+    "claim_ceiling": "Serving reviewed source and18safe local-draft/health checks. Real supplied-MOV path has separately begun; no provider/customer result established by release smoke."
+  },
+  "sdk_diagnostics_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/962",
+    "reviewed_head": "bd5196eea0337c75cd35dcd34ff42e1ddf6b86ef",
+    "review_commit": "0bb2bd73",
+    "merge_sha": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
+    "matched_baseline": "7fail_2guardpass",
+    "candidate": "14pass",
+    "required_PR_CI": 37812851192,
+    "state": "paired_native_LIVE_and18safe_clear_UI_checks_verified",
+    "claim_ceiling": "Safe private exception metadata; past discarded exception and unknown cost remain unreconciled."
+  },
+  "sdk_schema_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/963",
+    "reviewed_head": "33c6c11ff889e41a69b93f0cc6e4d3651db1fc1f",
+    "review_commit": "0d12f8a0",
+    "merge_sha": "1364d24e489571bc971dbc247df5fa9e2ae7d0ac",
+    "required_PR_CI": 37814730883,
+    "main_CI": 37815291942,
+    "main_CI_conclusion": "success",
+    "deployment_workflow": 37815734024,
+    "state": "protected_merged_deploy_executing;not_yet_verified_LIVE",
+    "candidate_assessment_checks": 346,
+    "actual_SDK_request_baseline": "unsupported_not_keyword_from_optional_nullable_selector",
+    "repair": "fresh_required_nullable_selector;legacy_optional_decoder_preserved",
+    "candidate_capture_sha256": "750ba3a90b118903776fe1448b9bce1e785deca8f8cb457f3da4fdca87576695",
+    "provider_calls": 0,
+    "claim_ceiling": "Offline installed SDK serialization defect/repaired request. No retrospective live rejection cause or real API acceptance established."
+  },
+  "advisory_recovery_followup": {
+    "helper_head": "42bc50ad960b7639792bf8ae79a0973d85445f2e",
+    "UI_head": "d66f083e",
+    "root_route_head": "07ca3c73",
+    "state": "integrated_actual_HTTP_SDK_worker_replay_in_progress;not_released",
+    "helper_checks": 80,
+    "route_status_checks": 42,
+    "UI_component_checks": 33,
+    "UI_intercepted_browser_checks": 5,
+    "unique_original_case_credit": 0,
+    "unknown_exposure": "Full old reservation retained; same logical job/new fenced run, explicit owner action only. No live retry/TTL adjustment."
   }
 }
