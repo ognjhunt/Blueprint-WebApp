@@ -36,7 +36,7 @@ function currentAuthority(job: Pick<SiteAssessmentJob, "request_id" | "capture_i
 
 /** Called only inside the first actual held→published transaction. No backfill. */
 export async function enqueueNewPublishedSiteAssessment(tx: FirebaseFirestore.Transaction, pending: BrowserPending) {
-  if (!db || !isSiteVideoEvidenceEnabled()) return;
+  if (!db || !isSiteVideoEvidenceEnabled() || pending.capture_id !== `walkthrough-${pending.request_id}`) return;
   const requestRef = db.collection("inboundRequests").doc(pending.request_id);
   const [request, brief] = await Promise.all([tx.get(requestRef), tx.get(db.collection("siteTaskBriefs").doc(pending.request_id))]);
   const raw = request.data(), ownerContext = brief.exists ? brief.data()! : null;
