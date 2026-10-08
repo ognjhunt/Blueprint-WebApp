@@ -1281,3 +1281,39 @@ gates. Retained source commands and portable JSON/log/source artifacts provide
 replay; no redundant suite was run during this trace review. Current independent
 process inspection found zero matching bridge Python processes. This is bounded
 local integration evidence, not a full customer assessment or readiness decision.
+
+
+## Independent continuation policy review — 2595c31a
+
+Approved the exact three-file continuation slice
+`2595c31aa05ce215038671dd02a4976e87fda857`; the untracked next-integration
+context helper is outside this approval. The default three-fresh-video-call quota
+is removed while explicit host allowances, current admission/source/rights and
+spending reservations, exact-call cache and twelve SDK turns remain. The
+new-dispatch deadline is checked before and after asynchronous admission for
+Sol and the default Gemini adapter; in-flight work is not claimed cancelled.
+Two consecutive fresh probes adding no unseen exact typed items stop further
+fresh probes. Normalized retained items seed that heuristic; summary wording,
+ordering and combinations of existing items do not reset it. This is an exact
+item heuristic, not semantic novelty, video perception or truth verification.
+
+An independent immutable disposable archive executed the nine existing scoped
+controls once: 9/9 passed, receipt SHA-256
+`4c13479ea48d9d57517d1e3587fdd8a959ddd29c25a7a82ac886808ae5fb47c7`,
+private `output/reliability-program/reviewer/continuation-2595.json`.
+Retained baseline receipt `b4f4c11da5a667ac9cd3e30fa274a111c9abbe6a7e252e97c32da7f4cf025ebd`
+records six failures/three passes; final focused receipt
+`a9241982d1b58fe909fb539e879ae2cde2884ce86b922aef2457f4d6e2b031e3`
+records nine passes. The later title correction changes no assertions.
+The 43-check neighbor receipt
+`d4b78c47056c10ff9a13160e915dda607fd4ce22384d3828be7f6eaba092bcfb`
+overlaps those nine. Each of three retained selected processes has three
+attempted passes and six unattempted controls; repetitions add no independent
+case credit. The Graphify terminal log is
+`cf21ca295ef3bc6464b5deee4d692b6e38c7cdc8875ae55d31c8356592894fc2`.
+
+Execution uses the actual SDK runner and cost-admission/accounting code with
+scripted model and Gemini adapter results. No paid provider call, real video
+analysis, customer publication, increased spending authority or deployment is
+established. This approval covers the bounded continuation policy; required
+release checks and the separate customer adapter integration remain distinct.
