@@ -15,6 +15,7 @@ beforeEach(()=>sharedFakeFirestoreState.docs.clear());
 describe('live versioned prompt context', () => {
   it('next resolution sees an update and rollback without rebuilding or provider calls', async () => {
     const pack = await createStartupPack({name:'Instructions',operator_notes:'Use concise copy.'});
+    await expect(updateStartupPack(pack.id,{operator_notes:"unguarded"})).rejects.toThrow("expected_version_required_for_prompt_update");
     const read = () => resolveStartupContext({startupContext:{startupPackIds:[pack.id]}});
     expect((await read()).operator_notes).toContain('Use concise copy.');
     await updateStartupPack(pack.id,{operator_notes:'Use detailed copy.',expected_version:1});

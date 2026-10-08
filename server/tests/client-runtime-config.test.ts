@@ -155,7 +155,7 @@ describe("client runtime config endpoint (R052)", () => {
       const put = await fetch(`${baseUrl}/api/admin/client-runtime-config`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ killSwitch: true, minSupportedVersion: "2.0.0", message: "Rollout paused." }),
+        body: JSON.stringify({ killSwitch: true, minSupportedVersion: "2.0.0", message: "Rollout paused.", expectedRevision: 0 }),
       });
       expect(put.status).toBe(200);
       const putPayload = (await put.json()) as { config: Record<string, unknown> };
@@ -218,6 +218,7 @@ describe("versioned message updates", () => {
     try {
       const put = (body: unknown) => fetch(`${baseUrl}/api/admin/client-runtime-config`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      expect((await put({ message: "unguarded" })).status).toBe(400);
       expect((await put({ message: "first", expectedRevision: 0 })).status).toBe(200);
       expect((await put({ message: "stale", expectedRevision: 0 })).status).toBe(409);
       expect(state.docs.get("appConfig/clientRuntime")?.message).toBe("first");

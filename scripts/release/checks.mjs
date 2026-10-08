@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-// Only explicitly bounded, non-authority content enters the short path.
-// Unknown paths, auth, budget, storage, dependencies and CI always fail to full.
+// Explicit content and backend/helper paths use related tests plus safety tests.
+// Unknown paths, route composition, UI, rules, dependencies and CI fail to full.
 export function releaseScope(files) {
   if (!files.length) return 'full';
   const content = /^(client\/src\/data\/(deploymentMarket|qualifyingEnvironments)\.ts|client\/src\/lib\/captureGroundedLanguage\.ts)$/;

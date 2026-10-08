@@ -138,6 +138,9 @@ adminRouter.put("/", async (req: Request, res: Response) => {
   try {
     const ref = db.collection(CLIENT_RUNTIME_CONFIG_COLLECTION).doc(CLIENT_RUNTIME_CONFIG_DOC_ID);
     const expectedRevision = req.body.expectedRevision;
+    if (validation.value.message !== undefined && expectedRevision === undefined) {
+      return res.status(400).json({ error: "expectedRevision is required for message updates" });
+    }
     if (expectedRevision !== undefined && (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)) {
       return res.status(400).json({ error: "expectedRevision must be a non-negative integer" });
     }

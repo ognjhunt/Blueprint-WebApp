@@ -233,6 +233,9 @@ export async function updateStartupPack(
     };
   },
 ) {
+  if (params.operator_notes !== undefined && params.expected_version === undefined) {
+    throw new Error("expected_version_required_for_prompt_update");
+  }
   if (!db) {
     return null;
   }
