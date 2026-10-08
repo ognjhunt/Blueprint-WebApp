@@ -579,7 +579,7 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+  "current_verified_webapp_release": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
     "state": "WebApp_deployed;Pipeline_reviewed_protected_merged;exact_main_CI_and_promotion_active;actual_mapping_blocked",
@@ -831,41 +831,44 @@
     }
   },
   "latest_shared_main_release": {
-    "sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
-    "main_CI": 37801137055,
+    "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+    "main_CI": 37808257513,
     "main_CI_conclusion": "success",
-    "deploy_workflow": 37802266614,
+    "executed_CI_jobs_passed": 10,
+    "deploy_workflow": 37809643803,
     "deploy_conclusion": "success",
-    "state": "paired_native_LIVE_and_exact_serving_safe_UI_verified",
+    "state": "independently_verified_paired_native_LIVE_exact_source_and18safe_UI_checks",
     "render_receipts": [
       {
         "service_id": "srv-d4vnmk3e5dus73aiohk0",
-        "deployment_id": "dep-db3rhfcs728c73fv9j50",
-        "sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+        "deployment_id": "dep-db3sbhijnfac738jlsm0",
+        "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
         "status": "live",
-        "finished_at": "2026-10-08T15:40:34.443474Z"
+        "finished_at": "2026-10-08T16:35:58.847329Z"
       },
       {
         "service_id": "srv-d9t8gg1t0dsc73am9q70",
-        "deployment_id": "dep-db3rhfmi0phs73baaekg",
-        "sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+        "deployment_id": "dep-db3sbhvlk1mc73co24ig",
+        "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
         "status": "live",
-        "finished_at": "2026-10-08T15:40:32.543585Z"
+        "finished_at": "2026-10-08T16:36:21.087114Z"
       }
     ],
-    "private_render_receipt_sha256": "236f6adfc5a541d6efacd0232c9b413a35d08d33a00519d07d63af8315f0b741",
+    "private_render_receipt_sha256": "9409daccfa18bde0b483efd8ce17dc428aee8e3470ec051921d9b32ad99b5c15",
     "public_smoke": {
-      "result_sha256": "62a736e0c0c677105a57e305319596a5255b2d3326babd68415fcec5484592c4",
+      "result_sha256": "7ae41728fbba02f233e00a4d60d3f6498aa4541fe17a087da2bcf35790867143",
       "outcome": "presentation_passed",
       "checks_passed": 18,
-      "serving_sha_before": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
-      "serving_sha_after": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
-      "completed_at": "2026-10-08T15:41:23.067Z",
+      "serving_sha_before": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+      "serving_sha_after": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+      "completed_at": "2026-10-08T16:37:37.234Z",
       "intake_mutations": 0,
       "provider_calls": 0,
       "notification_sends": 0
     },
-    "claim_ceiling": "18safe production presentation/localdraft checks and pairedLIVEsource identity. No actual customer upload/model assessment/notification invocation."
+    "source_continuity_receipt_sha256": "b1e0ea657817805e2e3ec2babc6f326854eba1ca97993c085749ad5190bda1c2",
+    "independent_release_review": "3a22c08a",
+    "claim_ceiling": "Serving reviewed source and18safe local-draft/health checks. Real supplied-MOV path has separately begun; no provider/customer result established by release smoke."
   },
   "programme_admission_followup": {
     "state": "independently_reviewed_required_PR_and_main_CI_passed_protected_merged_paired_deployed_safe_UI_verified",
@@ -917,7 +920,22 @@
         "checks_passed": 7,
         "receipt_sha256": "db402e8809999a3e5b2abf8822d7b5a2f94cb896904555788bcde99438fe4244"
       },
-      "remaining_gate": "actualreviewedpickerreleasepairedLIVE,normalvisiblefilechooser,newsourceprivacy/rightsadmission,actualSDK/provider/customerresult"
+      "remaining_gate": "diagnose first SDK boundary; scoped reviewed repair; authorized recovery and actual provider/customer result",
+      "real_UI_execution": {
+        "state": "normal_UI_exact_MOV_durably_published_then_first_SDK_step_failed",
+        "source_rehash": "approved source SHA/60035801 bytes matched",
+        "preupload_readback_sha256": "43509f7f9e8b7c44c0fff167e9c291887241ae24d8a410eeccae61cc7cd024fd",
+        "checks_passed": 9,
+        "claim_boundary": "Durable normal upload and safe failure visibility proved. No successful SDK assessment, Gemini video analysis, provider acceptance, zero charge, retry or notification delivery claimed.",
+        "receipt_sha256": "7f0a412a7f6d3b39dc53647a22454cf0d067b5d078fb4ee4ffcef0bf498a883d",
+        "receipt_checked_at": "2026-10-08T16:42:10.910Z",
+        "customer_status": "needs_review",
+        "run_status": "failed",
+        "customer_safe_error": "site_assessment_failed",
+        "first_Sol_slot": "admitted_without_returned_response_or_usage_acceptance_unknown",
+        "new_Gemini_slot": "held_no_admission_in_this_receipt",
+        "tool_receipts": 0
+      }
     },
     "history_embedding_preflight": {
       "state": "actual_read_only_current_authority_check_passed_no_embedding_dispatch_eligible",
@@ -1036,7 +1054,7 @@
     "claim_ceiling": "Prospectiveformatter/defaultlinksource plus scriptedmailcontrols; no actualGmaildraftverification or extraoutreachauthority."
   },
   "replacement_upload_followup": {
-    "state": "independently_reviewed_all9_required_PR_checks_passed_protected_merged;exact_main_CI_active_not_deployed",
+    "state": "reviewed_protected_merged_paired9a_deployed_source_verified;real_owner_upload_started_outcome_pending",
     "owner": "intake_recovery",
     "baseline_sha": "4d0deb46db836237a6b50ed60120efb387e30e31",
     "scope": "Existing normalreturnverifiedoldvideo hides replacementpicker; explicitvisibleaffordance required forapprovedfreshMOV normalUI",
@@ -1067,13 +1085,16 @@
     "required_PR_CI_conclusion": "success",
     "required_executed_contexts_passed": 9,
     "main_CI": 37804520799,
-    "main_CI_state": "active",
+    "main_CI_state": "success_historical4f",
     "release_descendant": {
       "sha": "3221a58d98915d975ca7ee841e9f76641ee2183d",
       "main_CI": 37804694834,
-      "state": "pending_existingserialCI",
-      "source_continuity": "All6reviewedguard/picker/test/workflowGitblobIDs match exactly; no LIVEclaim"
-    }
+      "state": "cancelled_while_pending_superseded_not_passed",
+      "source_continuity": "All6reviewedguard/picker/test/workflowGitblobIDs match exactly; no LIVEclaim",
+      "claim_ceiling": "Historical source snapshot only; true latest9a release recorded separately."
+    },
+    "deployed_descendant": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+    "live_release_review": "3a22c08a"
   },
   "beta_copy_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/956",
@@ -1082,14 +1103,18 @@
     "review": "root independent minimal actual diff clears exacthead",
     "validation": "existing10POSTBUILDpublic browser +13artifact +build +Graphify pass; no assertion changes",
     "CI": 37801665489,
-    "state": "independently_reviewed_required_PR_CI_passed_protected_merged_release_pending",
+    "state": "reviewed_merged_paired9a_deployed_and_GET_only_presentation_verified",
     "required_executed_contexts_passed": 9,
     "merge_sha": "b3e25e42d2acf3528bef920fd849bc329ac6a04b",
     "merged_at": "2026-10-08T16:04:47Z",
     "main_CI": 37805959542,
-    "main_CI_state": "pending_at_2026-10-08T16:17Z",
+    "main_CI_state": "b3_cancelled_while_pending_superseded_not_passed",
     "e2e_delay": "Successful existing apt ffmpeg setup took19min21sec for94.1MB; no retry or repair.",
-    "native_e2e_log_sha256": "3d8f91a3e502aa56ad5c60b31433327794b0cff8743837284bb2186c2fc44a68"
+    "native_e2e_log_sha256": "3d8f91a3e502aa56ad5c60b31433327794b0cff8743837284bb2186c2fc44a68",
+    "deployed_descendant": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+    "live_verification_at": "2026-10-08T16:40:35.943Z",
+    "live_receipt_sha256": "e6a4d9a733b0e4b96cbf85eb4456dbfcf54bf204066185ef298d86d6b9cd349d",
+    "live_scope": "Approved conditional pilot paragraphs, desktop/mobile navigation, manual intake, redirect and safe errors; zero production mutations. Verifier-only timing corrections retained with failed diagnostics."
   },
   "historical_shared_aa_release": {
     "sha": "aa919afc052f32897fedb513dff1b00165418ffb",
@@ -1139,17 +1164,23 @@
     "repair": "One existingms-check-row class attribute; noCSS/payload/defaultchanges",
     "independent_review": "rootminimalactualdiffcleared",
     "CI": 37803516597,
-    "state": "all9requiredPRchecks_passed_protectedmerged;exact_main_CI_pending_not_deployed",
+    "state": "reviewed_required_PR_and_latest_main_CI_passed_merged_paired9a_deployed_actual_GET_DOM_verified",
     "dishwasher_gate": false,
     "merge_sha": "3221a58d98915d975ca7ee841e9f76641ee2183d",
     "merged_at": "2026-10-08T15:55:20Z",
     "required_PR_CI_conclusion": "success",
-    "main_CI": 37804694834
+    "main_CI": 37804694834,
+    "deployed_descendant": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+    "actual_checkbox": "20x20pixels,row,unchecked,nonrequired,enabled",
+    "own_closeout_sha256": "0a1c0c82f394e698634e83670d04b663e7a2bc6da810d7ea37393e2288c59279",
+    "own_DOM_sha256": "5a7fe5e8fddae3739ef7603f01aa60c5f8df7d5db7e90837aceab1a9d30e19a8",
+    "signed_in_preference_save": "not_live_exercised",
+    "writes_or_sends": 0
   },
   "latest_pending_main_release": {
     "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
     "CI": 37808257513,
-    "state": "first_CI_actively_executing_at16:28UTC",
+    "state": "completed_success_true_paired9a_LIVE_verified;historical_pending_snapshot_retained",
     "source_continuity": "Six programme guard/adapter/picker/test/CI blobs match reviewed f6 and b182",
     "new_customer_execution": false,
     "claim_ceiling": "Merged source and completed exact PR checks only. Last independently verified paired LIVE remains195.",
@@ -1186,5 +1217,50 @@
     "provider_calls": 0,
     "new_original_case_credit": 0,
     "limitation": "Fresh canonical receipt/current ledger fenced under supported monotonic revision writers. No guarantee against arbitrary out-of-contract raw rewrites; newer callback may cause one redundant idempotent next-scan wake."
+  },
+  "historical_shared_195_release": {
+    "sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+    "main_CI": 37801137055,
+    "main_CI_conclusion": "success",
+    "deploy_workflow": 37802266614,
+    "deploy_conclusion": "success",
+    "state": "paired_native_LIVE_and_exact_serving_safe_UI_verified",
+    "render_receipts": [
+      {
+        "service_id": "srv-d4vnmk3e5dus73aiohk0",
+        "deployment_id": "dep-db3rhfcs728c73fv9j50",
+        "sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+        "status": "live",
+        "finished_at": "2026-10-08T15:40:34.443474Z"
+      },
+      {
+        "service_id": "srv-d9t8gg1t0dsc73am9q70",
+        "deployment_id": "dep-db3rhfmi0phs73baaekg",
+        "sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+        "status": "live",
+        "finished_at": "2026-10-08T15:40:32.543585Z"
+      }
+    ],
+    "private_render_receipt_sha256": "236f6adfc5a541d6efacd0232c9b413a35d08d33a00519d07d63af8315f0b741",
+    "public_smoke": {
+      "result_sha256": "62a736e0c0c677105a57e305319596a5255b2d3326babd68415fcec5484592c4",
+      "outcome": "presentation_passed",
+      "checks_passed": 18,
+      "serving_sha_before": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+      "serving_sha_after": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+      "completed_at": "2026-10-08T15:41:23.067Z",
+      "intake_mutations": 0,
+      "provider_calls": 0,
+      "notification_sends": 0
+    },
+    "claim_ceiling": "18safe production presentation/localdraft checks and pairedLIVEsource identity. No actual customer upload/model assessment/notification invocation."
+  },
+  "stale_deploy_workflow_observation": {
+    "run": 37808501147,
+    "workflow_metadata_head": "9a96add5",
+    "conclusion": "success",
+    "actual_action": "Refused stale successful4fCI because currentmain9a; no Render deploy triggered.",
+    "log_sha256": "3a912b65f051785524b965707b66949eb110c50d8d03b9b7076c80882305cbc7",
+    "true_release_run": 37809643803
   }
 }
