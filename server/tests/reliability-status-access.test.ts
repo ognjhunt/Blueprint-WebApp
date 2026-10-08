@@ -186,7 +186,10 @@ describe("D generated withdrawal publication cases", () => {
 });
 
 it("renews an expired private link into the same job using only the stored inbox", async () => {
-  const expired = createCaptureUploadToken({requestId:"req-1",captureId:"cap-1",sceneId:"scene-1",ttlSeconds:-1});
+  // Use the website's actual canonical identity, and retain video across renewal.
+  const objectName = "scenes/site-req-1/captures/walkthrough-req-1/raw/walkthrough.mp4";
+  storage.objects.set(objectName, {generation:"17",size:"5",crc32c:"AAAAAA=="});
+  const expired = createCaptureUploadToken({requestId:"req-1",captureId:"walkthrough-req-1",sceneId:"site-req-1",ttlSeconds:-1});
   expect((await fetch(`${baseUrl}/api/site-task-brief/${expired}/status`)).status).toBe(404);
   const response = await fetch(`${baseUrl}/api/site-task-brief/${expired}/fresh-link`, {method:"POST",
     headers:{"Content-Type":"application/json"},body:JSON.stringify({email:"attacker@example.test",requestId:"other"})});
@@ -200,7 +203,7 @@ it("renews an expired private link into the same job using only the stored inbox
   const renewed = new URL(renewedUrl!).pathname.split("/").pop()!;
   const reopened = await fetch(`${baseUrl}/api/site-task-brief/${renewed}/status`);
   expect(reopened.status).toBe(200);
-  expect((await reopened.json()).summary).toBe("Cartons onto a pallet");
+  expect(await reopened.json()).toMatchObject({summary:"Cartons onto a pallet",captureReceived:true,uploadState:"retained"});
   const receipt = await response.json();
   expect(JSON.stringify(receipt)).not.toContain("acme");
   const invalid = await fetch(`${baseUrl}/api/site-task-brief/forged/fresh-link`,{method:"POST"});
