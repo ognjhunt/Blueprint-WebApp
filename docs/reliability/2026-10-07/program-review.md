@@ -2986,3 +2986,44 @@ source/context, private-writer or pending-capture interfaces. The aa bounded sou
 approval therefore carries forward to44ac, with unchanged retained execution
 provenance and limitations. No test rerun or new execution/deployment proof is
 claimed; final protected checks and release verification remain separate.
+
+### Existing Gemini upload fixture compatibility — a24902ce
+
+Independent source approval applies to `a24902ce475f3ca013d57b056bd2138c82ce1aa5`,
+only the existing measured-admission fixture after reviewed eeef. The Gemini
+runtime has no byte diff. The fixture consumes bounded upload-stream chunks and
+checks shared backing bytes, offsets, size, SHA, Content-Length and duplex before
+the original revocation and file receipt. Original four-Gemini/five-Sol,
+evidence, usage, refusal, no-generation and deletion assertions remain intact.
+Receipt `d46492fa807ac7e8789e634853b277b1f927978e5fb694ed467de68a99ef4855`
+and all six linked files plus both immutable Git blobs match. The retained
+unchanged-runtime fixture baseline is two failures/two passes; candidate four
+passes and terminal typecheck/Graphify/portability are retained. This fixes a
+test transport assumption, with no new case, provider or deployed-result credit.
+The separate initial CI timeout remains outside this fixture clearance;
+protected exact-head checks remain required.
+
+### Already-stranded explicit recovery correction — 858eb379
+
+Independent source approval applies to `858eb379cac3d8e746ed19f86d3d3cad65bba0ac`
+on integrated44ac. The prior aa/44 approval covered prospective running-job
+retirement; it did not cover the observed already-needs_review job with its
+old agent run still RUNNING. This correction is explicit rather than a silent
+extension of that earlier evidence. Read-only availability now computes a
+verified abandonment proposal without changing the old run. Only an explicit
+retry commits cancellation, the abandonment receipt, full UNKNOWN call archive
+and the same job's new run in one transaction, after current access, source,
+claim, context, original30-minute age, canonical call intent and history reads.
+Ordinary cancellations and uncertain ownership remain unavailable. No new timer,
+terminal-row scan, automatic provider replay, refund or zero-usage claim occurs.
+
+Receipt `858c4a286e8d9cffddc8d4172d83759c41224312256866c5aa3df13293ef6e1b`,
+all ten linked artifacts and both immutable source blobs were independently
+verified; the author tree is clean. The retained actual stranded-shape probes
+fail two/pass one on aa and pass all three on this candidate; final focused
+checks pass42 existing plus3 private probes. The availability probe confirms the
+old run remains RUNNING before the explicit retry, and the late actual private
+writer cannot revive its cancelled result afterward. Typecheck, Graphify and
+portability terminal results are retained. These fake-store/source-verifier
+executions establish the scoped code behavior, with no new unique coverage,
+browser, OS-restart, deployed customer recovery or provider outcome proof.
