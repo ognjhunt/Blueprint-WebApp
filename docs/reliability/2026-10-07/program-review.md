@@ -1974,3 +1974,39 @@ prerequisite, not a customer transport result or an assertion bypass. The
 original failure remains retained; a fresh exact-head protected CI run is
 required. Current PR head matches b18234b4 with fresh checks queued at review.
 No additional suite, production action or deployment approval was performed.
+
+
+## Independent canonical programme attachment readback review
+
+Approved bounded execution receipt
+`8f73ac57ca9d21781b9c7e65f83d08df5a2b1438b9f43d2dc836c6c43d018fc8`
+and its append-only event journal
+`cbaa4a87af33287c6bbac31ac2c451dc60312b0e50733d91cd5fe2be2e7d0fb3`.
+Exact reviewed packetda734772 and operatorf2a0358d hashes match retained bytes.
+Four ordered journal events record reviewed preflight, transaction start,
+commit and verified readback; their packet/operator identity, two-write result
+and six final checks match the execution receipt. The transaction committed
+15:47:14.114UTC following fresh preconditions, then finished verified readback
+15:47:14.207UTC. Retained real canonical programme data equals the complete
+approved packet record; its sorted canonical-JSON SHA-256
+`38446f67548de69dae426dd81390f4439545b12a2ea0482c4189e63600349646`
+recomputes correctly, and request reference equals that exact programme.
+Programme create/update timestamps agree.
+
+All six checks independently compare equal: programme record, request reference,
+absent/unclaimed account attachment, current source-bound privacy, legacy
+privacy and original ledger. Six slots still reserve4,964,928 micro-USD within
+the5,000,000 cap, original unknown slot intact. The original ledger remains
+byte-identical60444b61. Receipt and journal have mode0600 and retain private
+canonical paths for recovery/readback; identities and raw privacy are not
+repeated here. Reviewed deployed195a4019 guard identity is the separate release
+receipt already recorded above.
+
+This approves the observed create-only programme plus request-reference
+attachment, with unrelated writes reported zero. The operator invoked no
+provider, capture, owner claim or assessment wake; reviewer performed no new
+live call or write. It is not proof of a subsequent upload, current source
+admission, paid dispatch, settlement, returned assessment or notification.
+Those results and actual usage must be verified separately; retained historical
+unknown usage was neither erased nor converted to zero. No additional case or
+journey credit or full-program readiness follows from this import.
