@@ -326,6 +326,7 @@ export function verifyFounderReplyAnchor(binding: CommunicationsFounderReplyBind
 export const communicationsJobSchema = z.object({
   jobId: id, prospectId: id, briefId: id, briefDigest: z.string().regex(/^[a-f0-9]{64}$/),
   intent: z.enum(["outreach", "reply"]), inboundMessageId: id.nullable(),
+  regenerationOf: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 }).strict();
 export type CommunicationsJob = z.infer<typeof communicationsJobSchema>;
 export type ThreadMessage = {

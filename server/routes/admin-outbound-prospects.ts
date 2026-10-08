@@ -41,7 +41,7 @@ import { founderMailboxConnectionPlan } from "../agents/communications-connectio
 import { replyFollowupReviewSchema, reviewReplyFollowup } from "../agents/communications-reply-followup";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
 import { communicationsInprocessRecoverySchema } from "../agents/communications-inprocess-recovery";
-import { enqueueSavedRecovery, cancelSavedRecovery, SAVED_RECOVERY_REQUESTS, SAVED_RECOVERY_WORKER, SAVED_RECOVERY_FRESH_MS, SAVED_RECOVERY_CONTROLS, type SavedRecoveryReadiness, type SavedRecoveryRequest } from "../agents/communications-saved-recovery-queue";
+import { enqueueSavedRecovery, cancelSavedRecovery, assertSavedRecoveryWorker, SAVED_RECOVERY_REQUESTS, SAVED_RECOVERY_WORKER, SAVED_RECOVERY_FRESH_MS, SAVED_RECOVERY_CONTROLS, type SavedRecoveryReadiness, type SavedRecoveryRequest } from "../agents/communications-saved-recovery-queue";
 import { assertCommunicationsRecoveryHeadroom, COMMUNICATIONS_RECOVERY_HEADROOM_BYTES } from "../agents/communications-recovery-memory";
 import { verifyFounderMailbox } from "../agents/communications-gmail";
 import { requireFounderDraftCapability } from "../agents/communications-oauth-store";
@@ -243,6 +243,37 @@ router.post("/:prospectId/communications", async (req: Request, res: Response) =
     const job = await store.enqueue({ ...parsed.data, prospectId, briefDigest: communicationsDigest(brief) });
     return res.status(202).json({ ok: true, job, sent: false, gmailDraftCreated: false });
   } catch { return res.status(409).json({ error: "communications_context_missing_or_invalid" }); }
+});
+
+/** Owner selects one canonical draft; the existing worker performs inference.
+ * This request never grants approval, changes worker flags, or writes Gmail. */
+router.post("/:prospectId/communications/generate", async (req: Request, res: Response) => {
+  const ownerUid = process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID?.trim();
+  if (!(await requireOps(res)) || !ownerUid || res.locals.firebaseUser?.uid !== ownerUid) return res.status(403).json({ error: "communications_draft_owner_required" });
+  if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
+  const parsed = z.object({
+    briefId: z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/), expectedBriefDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedSourceCommit: z.string().regex(/^[a-f0-9]{40}$/), sessionSpendLimitCents: z.number().int().positive().max(Math.floor(Number.MAX_SAFE_INTEGER / 10000)),
+    regenerationOf: z.string().regex(/^[a-f0-9]{64}$/).optional(), expectedJobDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  }).strict().refine(value => Boolean(value.regenerationOf) === Boolean(value.expectedJobDigest)).safeParse(req.body);
+  const prospectId = String(req.params.prospectId ?? "");
+  if (!parsed.success || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(prospectId)) return res.status(400).json({ error: "communications_draft_request_invalid" });
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    if (parsed.data.expectedSourceCommit !== process.env.RENDER_GIT_COMMIT) throw Error("communications_draft_runtime_changed");
+    const readiness = (await db.doc(SAVED_RECOVERY_WORKER).get()).data() as SavedRecoveryReadiness | undefined;
+    // Outreach controls belong to the worker; its source-bound heartbeat validates them.
+    assertSavedRecoveryWorker(readiness, parsed.data.expectedSourceCommit, ownerUid, Date.now());
+    if (readiness?.serviceId === process.env.RENDER_SERVICE_ID) throw Error("communications_draft_requires_existing_worker");
+    await requireFounderDraftCapability(); await verifyFounderMailbox();
+    const { expectedSourceCommit, ...input } = parsed.data;
+    const job = await new CommunicationsStore(db).requestDraft({ ...input, prospectId, sourceCommit: expectedSourceCommit }, ownerUid);
+    return res.status(202).json({ ok: true, jobId: job.jobId, state: job.state, request: job.manualDraftRequest,
+      executionPlacement: "existing_background_worker", sent: false, gmailDraftCreated: false });
+  } catch (error) {
+    const code = error instanceof Error && /^communications_[a-z_]+$/.test(error.message) ? error.message : "communications_draft_context_unavailable";
+    return res.status(409).json({ error: code });
+  }
 });
 
 router.get("/:prospectId/communications", async (req: Request, res: Response) => {

@@ -1,4 +1,4 @@
-import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
+import { authAdmin, dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "../utils/email-suppression";
 import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
@@ -45,6 +45,9 @@ import { runCommunicationsGmailDraftCopies, prepareSameRunDraftSave, saveCommuni
 import { founderSentRepliesAllowed, runCommunicationsFounderSentObserver } from "./communications-founder-sent-observer";
 import { claimCommunicationsWorkerLap, CommunicationsWorkerLapError, COMMUNICATIONS_WORKER_LAP_RENEW_MS,
   type CommunicationsWorkerLap } from "./communications-release-lease";
+import { savedRecoveryWorkerReadiness } from "./communications-saved-recovery-worker";
+import { assertSavedRecoveryWorker } from "./communications-saved-recovery-queue";
+import { requireFounderDraftCapability } from "./communications-oauth-store";
 
 type CommunicationsLearningHooks = Pick<ReturnType<typeof createNativeLearningHooks>, "prepareNativeJob" | "afterNativeWork">;
 type PreparedLearning = Awaited<ReturnType<CommunicationsLearningHooks["prepareNativeJob"]>>;
@@ -196,7 +199,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     : await deps.store.claim(jobId, recovery?.expectedOutputSha256);
   if (!claimed) return { state: "no_op" };
   const job = communicationsJobSchema.parse(Object.fromEntries(Object.entries(claimed).filter(([key]) =>
-    ["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"].includes(key))));
+    ["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId", "regenerationOf"].includes(key))));
   let heartbeat: ReturnType<typeof setInterval> | undefined, deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   let renewal: Promise<void> | undefined, leaseError: unknown, cancellation: Promise<boolean> | undefined;
   let observing = false;
@@ -713,8 +716,10 @@ export async function communicationsResearchReleaseAllowsTick(db: Pick<FirebaseF
 
 /** Intake uses the existing worker flag; paid drafting has its separate gate. */
 export function startCommunicationsWorker(): () => Promise<void> {
-  if (process.env.BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED !== "true"
-    || !dbAdmin) return async () => undefined;
+  if (!dbAdmin) return async () => undefined;
+  const ordinaryWorker = process.env.BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED === "true";
+  if (!ordinaryWorker && (!process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_OAUTH_OWNER_UID?.trim()
+    || !process.env.OPENAI_API_KEY?.trim())) return async () => undefined;
   const db = dbAdmin;
   const store = new CommunicationsStore(db);
   const allowPaidInference = process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true";
@@ -740,7 +745,9 @@ export function startCommunicationsWorker(): () => Promise<void> {
   let savedRecoveryCursor: string | undefined;
   return startCommunicationsQueueLoop(deps, {
     claimLap: () => claimCommunicationsWorkerLap(db, deps.now),
+    requestedDrafts: canContinue => runRequestedCommunicationsDrafts(db, deps, canContinue),
     observeFounderSends: async canContinue => {
+    if (!ordinaryWorker) return;
     // Read-only and default off: flag, send-off state, owner direction and
     // durable read capability all gate it before any Gmail call.
     try {
@@ -752,7 +759,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
       logger.warn({ code }, "Founder-sent observation waits for its owner direction and read capability");
     }
   }, intake: async canContinue => {
-    if (!canContinue()) return;
+    if (!ordinaryWorker || !canContinue()) return;
     await runCommunicationsFactRefresh(db);
     if (!canContinue()) return;
     // Bound-thread opt-outs run before unrelated intake and the paid gate.
@@ -773,13 +780,71 @@ export function startCommunicationsWorker(): () => Promise<void> {
     if (!canContinue()) return;
     await runScreenContactRefresh(screenDeps);
   }, recoverSavedDrafts: async canContinue => {
+    if (!ordinaryWorker) return;
     savedRecoveryCursor = await runCommunicationsSavedDraftRecovery(deps, canContinue, savedRecoveryCursor);
-  }, copyDrafts: canContinue => runCommunicationsGmailDraftCopies(db, undefined, undefined, canContinue), processJobs: allowPaidInference });
+  }, copyDrafts: canContinue => ordinaryWorker ? runCommunicationsGmailDraftCopies(db, undefined, undefined, canContinue) : Promise.resolve(), processJobs: ordinaryWorker && allowPaidInference });
+}
+
+/** Explicit owner requests use the existing job, lease, budget and learning
+ * path. Scheduled intake, sends and Gmail copies remain separately gated. */
+async function runRequestedCommunicationsDrafts(db: FirebaseFirestore.Firestore, deps: CommunicationsDependencies, canContinue: () => boolean) {
+  const page = await db.doc("blueprintCommunications/default").collection("jobs").where("manualDraftRequest.state", "==", "requested").limit(5).get();
+  for (const row of page.docs) {
+    if (!canContinue()) return;
+    const original = row.data() as CommunicationsJobRecord, request = original.manualDraftRequest!;
+    if ((original.nextAttemptAt ?? 0) > deps.now() || (original.lease?.until ?? 0) > deps.now()) continue;
+    const assertCurrent = async () => {
+      if (!canContinue()) throw Error("communications_draft_worker_not_admitted");
+      assertSavedRecoveryWorker(savedRecoveryWorkerReadiness(deps.now()), request.sourceCommit, request.actorUid, deps.now());
+      if (!authAdmin) throw Error("communications_draft_owner_unavailable");
+      const owner = await authAdmin.getUser(request.actorUid);
+      if (owner.disabled || !(owner.customClaims?.admin === true || owner.customClaims?.ops === true
+        || ["admin", "ops"].includes(owner.customClaims?.role)
+        || Array.isArray(owner.customClaims?.roles) && owner.customClaims.roles.some((role: unknown) => role === "admin" || role === "ops"))) throw Error("communications_draft_owner_changed");
+      const current = (await row.ref.get()).data() as CommunicationsJobRecord | undefined;
+      const job = communicationsJobSchema.parse(Object.fromEntries(Object.entries(original).filter(([key]) =>
+        ["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId", "regenerationOf"].includes(key))));
+      const { jobId, ...identity } = job;
+      const currentIdentity = current && communicationsJobSchema.parse(Object.fromEntries(Object.entries(current).filter(([key]) =>
+        ["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId", "regenerationOf"].includes(key))));
+      if (!current || communicationsDigest(currentIdentity) !== communicationsDigest(job) || current.intent !== "outreach" || !["queued", "running", "retry", "pending_approval"].includes(current.state)
+        || communicationsDigest(current.manualDraftRequest) !== communicationsDigest(request)
+        || current.checkpoint.sessionSpendLimitCents !== request.sessionSpendLimitCents
+        || jobId !== communicationsDigest(identity)
+        || request.requestDigest !== communicationsDigest({ job: identity, actorUid: request.actorUid,
+          sourceCommit: request.sourceCommit, sessionSpendLimitCents: request.sessionSpendLimitCents })) throw Error("communications_draft_request_changed");
+      if (!canContinue()) throw Error("communications_draft_worker_not_admitted");
+    };
+    try {
+      await assertCurrent();
+      if (original.state === "pending_approval") { await row.ref.update({ "manualDraftRequest.state": "completed" }); continue; }
+      await requireFounderDraftCapability(); await deps.verifyMailbox(); await assertCurrent();
+      const api: CommunicationsAgentsAPI = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference: true,
+        fetch: async (url, init) => { await assertCurrent(); return fetch(url, init); },
+        reservePaidDraft: async (jobId, digest, cents) => {
+          await assertCurrent();
+          await reconcileCommunicationsDraftCost(db, api, deps.now());
+          await assertCurrent();
+          return reserveCommunicationsDraft(db, jobId, digest, deps.now(), cents);
+        }, recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, deps.now()),
+      });
+      const result = await processCommunicationsJob(original.jobId, { ...deps, api,
+        sendAutomatic: undefined, prepareDraftSave: undefined, saveUnsentDraft: undefined }, undefined, undefined, undefined, canContinue);
+      // Native retries preserve the charged checkpoint and its frozen context.
+      // Terminal diagnostics remain inspectable; no uncertain create is reset.
+      if (!["retry", "queued", "no_op"].includes(result.state)) await row.ref.update({ "manualDraftRequest.state": result.state === "pending_approval" ? "completed" : "failed" });
+    } catch (error) {
+      const code = error instanceof Error && /^communications_[a-z_]+$/.test(error.message) ? error.message : "communications_draft_request_unavailable";
+      await row.ref.update({ "manualDraftRequest.state": "failed", "manualDraftRequest.error": code });
+      logger.warn({ code, jobId: original.jobId }, "Owner-requested communications draft retained for recovery");
+    }
+  }
 }
 
 /** Stop admission immediately, then await the active job and its durable writes. */
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
   options: { canStartTick?: () => Promise<boolean>; claimLap?: () => Promise<CommunicationsWorkerLap | null>;
+    requestedDrafts?: (canContinue: () => boolean) => Promise<void>;
     observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: (canContinue: () => boolean) => Promise<void>;
     recoverSavedDrafts?: (canContinue: () => boolean) => Promise<void>;
     copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
@@ -823,6 +888,8 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
       if (!await admit()) return;
       try { await options.observeFounderSends?.(canContinue); }
       catch { logger.warn({ code: "communications_founder_sent_observer_unavailable" }, "Founder-sent observation waits for its owner direction and read capability"); }
+      if (!await admit()) return;
+      await options.requestedDrafts?.(canContinue);
       if (!await admit()) return;
       await options.recoverSavedDrafts?.(canContinue);
       if (!await admit()) return;
