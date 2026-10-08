@@ -3457,3 +3457,25 @@ as an empty object. Later23:13:34 onward samples follow confirmed terminal
 observation; the raw sample values/window remain valid without assigning an
 unproven earlier completion time. No additional API/provider or business
 mutation occurred in this review.
+
+
+### Retained complete customer display and notice boundary
+
+New linked exportf7ecbad1 and screenshotba0a5801 actually show the completed
+owner report's task-specific question: “What exact sequence and final state
+should the test achieve?”, its consequence for trial acceptance/reopening,
+and a proposed clarification next step. Video/site statements are visibly
+qualified as unverified, with no calibrated measurement or robot-suitability
+claim. This extends the earlier safe-crop-only display evidence; it does not
+score perception correctness or establish physical completion.
+
+All10 compact terminal links independently hash-match. Current compact file
+SHAeecb9eb0b7de8c16194e487b80cab8d6a328adfb3a289381b90ac2faf14ba19f
+differs from the initially supplieda7a531fb; review binds inspected current
+bytes only and that mismatch was reported to the coordinator. Notice receipt
+f65d510e matches its declared digest. Its two retained sent markers are
+task_received/video_received from October7; both were created/sent before
+this assessment, with zero current-assessment rows/sends, no scheduled check-in
+and complete bounded empty child-receipt queries. It supports no assessment-ready
+email, fresh mail transport or human inbox read claim. No additional API,
+provider, UI action or business mutation occurred during review.
