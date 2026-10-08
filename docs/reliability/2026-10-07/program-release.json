@@ -1501,8 +1501,9 @@
     "prepared_packet_sha256": "5cee9e0708f7dd57f428008832a663468a66c267336cf62daaea2f802041d3e2",
     "prepared_caller_sha256": "a01900809f8b28e7f4fa6b4c14d2007c31090a4651d385b965897bf10d3b64d4",
     "prepared_effective_window": "fixed90minutes;notregenerated",
-    "actual_grant": "pending_no_receipt",
-    "paid_execution": "pending_no_receipt"
+    "actual_grant": "first_caller_exit1_beforehelperinvocation;no_canonicalreceipt;readonly_localinterop_diagnosis_active",
+    "paid_execution": "pending_no_receipt",
+    "paired_release_pin": "ae_pinned_until_soleowner_terminal_or_unknown_result"
   },
   "historical_shared_1364_release": {
     "sha": "1364d24e489571bc971dbc247df5fa9e2ae7d0ac",

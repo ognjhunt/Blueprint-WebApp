@@ -706,7 +706,7 @@
       "id": "COMMS-DORMANT-SPEND-BINDING-001",
       "severity": "P2_dormant_prospective_source;no_live_incidence",
       "owner": "existing_communications_owner;independent_review/root_release",
-      "state": "independent_counterexample_demonstrated;author_repair_pending;PR966_not_merged",
+      "state": "originalcounterexample_now_refused_by_independentlyreviewed_d59c;requiredCI_active;source_unmerged_pinnedae",
       "invariant": "Provider session readback cannot exceed the retained native reservation through incoherent checkpoint mutation",
       "source_head": "a96e5939bd3ac0acbd9781a8c6a1d28e6fb2df95",
       "counterexample": "original10cent reservation digest;changecheckpoint+providerlimit+providermetadata to11;actualfakeproviderAPIrun resolves instead of refusing",
@@ -715,7 +715,12 @@
       "log_sha256": "8596844c5a2bd1b6aac119e497eb8f02c55ab9e5503073493f0cd95579bf9bf5",
       "scope": "dormantoptin source;no originalprogramme/helper sharedfiles;not a blanket release/customerlearningfreeze",
       "paid_calls": 0,
-      "original_unique_case_credit": 0
+      "original_unique_case_credit": 0,
+      "repaired_head": "d59c96e441e9f4a20263576dd2cd6e8d451006c8",
+      "independent_review": "1c188766",
+      "retest": "sameoriginalcounterexample_plusmatching_missingbase_legacycontrols4PASS;other136unattempted",
+      "repair": "prospective frozenbase+selectedlimit finaldigest;recomputeboundedreadback;legacyabsentsemanticsunchanged",
+      "independent_author_receipt_sha256": "73e4a97140b82a4bae87e2c2cd35fc33627745e12a6c4c8e2eec92bdac66ad7e"
     }
   ],
   "dependencies": [
