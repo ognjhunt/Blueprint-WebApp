@@ -1682,3 +1682,39 @@ provider assessment, Pipeline deployment/mapping or full customer journey.
 The release ledger's still-pending/null deployed fields were flagged to the
 coordinator for a bounded identity update; Pipeline and affected-result gates
 must remain explicit.
+
+
+## Independent bounded PR948 release verification — 5f29d12b
+
+Verified observed release
+`5f29d12b1d4577e7ee79cdad142fa5f8a0674a38`: its entire Git tree equals
+reviewed df764f7b, tree4998ea7e592b364bf54587dd7c9305c488398b22.
+Read-only GitHub confirms mainCI37790171409 and CI-gated deployment37791163081
+SUCCESS on that exact SHA. Both retained Render receipts are LIVE on5f29d12b,
+web finished14:20:09UTC and worker14:20:14UTC; receipt SHA-256
+`604e27d71cc056c92493dfbea606cd6eb6689e704bb971d03c6e8c2f41c02fed`.
+Existing safe no-submit smoke14:20:39–42UTC passes all eighteen checks, serving
+identity before/after matches, zero attempted intake mutations, two non-GET
+and three external requests blocked. Result SHA-256
+`3250ce17ff870296b92d49be400454c8df6c59c52b912facc4488c3169408292`;
+private screenshot and unchanged reviewed ea03c76d script hashes verified.
+
+Filtered constant startup log14:20:27UTC, receipt
+`7843a1965d32a6d203729df722cde4cef2e11db410d3cdfa7ffe2329e3d4696d`,
+reports launch-forward enabled, site-video disabled, OpenAI credential configured
+and recognized Gemini credentials absent for the observed worker. Source logging
+fields match the deployed tree and contain only four booleans plus constant
+metadata, no credential values. Attribution uses the paired worker deployment
+and subsequent service log timing; the log itself has no commit assertion.
+This does not establish authenticated OpenAI availability, web-process provider
+configuration, any Gemini execution or worker advisory admission. The disabled
+site-video worker does not run that advisory hook; web-trigger evidence remains
+the separately reviewed scripted connected execution.
+
+Approved serving identity, safe local draft presentation/clear behavior and
+observed worker configuration metadata only. No live video perception, customer
+assessment publication, notification delivery, reference quality, full journey
+or program completion is established by this release. Main has subsequently
+advanced to dc4db4e0 via separate authorized work; this is a historical observed
+5f29d12b release receipt, not a statement that latest main or its deployment is
+verified. No additional suite, provider probe or production mutation was run.
