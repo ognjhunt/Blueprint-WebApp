@@ -1820,3 +1820,52 @@ reject changed or additional exposure, and receive separate source/import
 verification. No new case or journey credit, replay suite or live mutation was
 performed. Full programme readiness and customer assessment quality remain
 separate.
+
+
+## Independent exact-history admission extension review — f6a0a7dc
+
+Approved exact immutable source
+`f6a0a7dc3ba7fa6868804d18e2ab1d602d96db51`, parent10d62e9a, three files.
+Git blobs match the reviewed frozen helper3879d65f, budget849ee7d and test0d1d7236
+SHA-256 fingerprints. Accepted server-owned operator reconciliation binds exact
+request/capture, sorted review set, attempts and meaningful original snapshot
+fields, including full producer source/brief binding, claim token, timestamp,
+state, reason and finding. Missing, truncated, changed, additional or running
+history refuses. The receipt itself joins immutable programme authority; caller
+metadata cannot substitute for canonical acceptance. Its receipt/hash/reviewer
+fields validate structure and binding, not external approval-document truth.
+Actual reviewed historical evidence remains the separate preceding record.
+
+Reviewer identified a dispatch/continuation window: the initial implementation
+checked other SDK exposure only before creating the capture budget. Its matched
+counterexample recorded BOTH dispatch and continuation as allowed after a new
+capture-linked SDK run appeared. Final code repeats bounded capture-linked and
+existing same-request assessment/offload checks before continuation reservation
+and immediately before dispatch for accepted-history programmes. Only the
+current exact SDK run is permitted; query limits, other runs and hydration
+uncertainty refuse. The final fence also rereads exact coverage history. This
+does not authorize a second historical run or exempt its cost. Ordinary requests
+and programme requests without this history exception retain existing behavior.
+
+Receipt
+`91eac714282ab0e3c94d926939c20942364a7e779e2b747ed51750c5b5adb9ed`
+source/baseline/log hashes independently match. Original10d first-admission
+counterexample fails; the SDK-window baseline log
+`e1f9041d28cca1b11a70b4a7f6e572d7b28c8283cf64304af9aa749a0e57a48f`
+preserves both bad outcomes. Final53/53 budget checks pass, typecheck, required
+Graphify and static portability pass. Reviewer independently executed only the
+direct positive first-reservation and SDK-window cases:2/2 pass,51 unattempted.
+Parent integrated85/85 budget/audit/actual-scripted-SDK queue checks pass, log
+`6013aedb347f72a3184ef750e2e8e80f97e58be8362c0d7c2dbfeb0bbc29d44d`.
+These overlapping counts are not added as independent coverage. Firestore and
+providers remain fake/scripted in this evidence.
+
+Historical attempts remain three; no reset, zero-budget seed, refund or
+uncertainty clearing was introduced. Known matching in-flight usage remains
+recordable; refusal retains reserved exposure. The original isolated Gemini
+unknown and unrelated qualification usage remain unresolved. No production
+authority import or paid call occurred for this review. Canonical evidence
+import, protected CI/merge/deployment and the specifically authorized live
+result require their own verification. This source approval proves neither
+video perception nor whole-program readiness, and provides no cancellation or
+zero-race guarantee after the last host check and remote HTTP dispatch.
