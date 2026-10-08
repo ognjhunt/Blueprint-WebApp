@@ -1,6 +1,7 @@
 /** Disposable child worker: actual outbox + Firestore emulator, fake SDK HTTP sink. */
 import { appendFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+if (process.env.NODE_ENV !== "test" || process.env.BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP !== "1" || process.env.CODEX_LOCAL_AVAILABLE !== "0") throw new Error("Local secrets/env/model bootstrap prohibited");
 const project = process.env.GOOGLE_CLOUD_PROJECT;
 if (project !== "demo-blueprint-reliability-b" || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080"
   || process.env.FIREBASE_STORAGE_EMULATOR_HOST !== "127.0.0.1:9199") throw new Error("B disposable emulator required");
