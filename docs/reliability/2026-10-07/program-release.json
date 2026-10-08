@@ -1401,7 +1401,8 @@
       "dep-db3tch7f3r2c73dh2a7g",
       "dep-db3tcheb7d7c739icb0g"
     ],
-    "claim_ceiling": "Paired release identity and GET/local-draft/Clear behavior only; no actual owner retry, live perception, provider acceptance, billing settlement or customer assessment completion."
+    "claim_ceiling": "Paired release identity and GET/local-draft/Clear behavior only; no actual owner retry, live perception, provider acceptance, billing settlement or customer assessment completion.",
+    "independent_deployed_review": "8054fd49"
   },
   "historical_shared_3a_release": {
     "sha": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
