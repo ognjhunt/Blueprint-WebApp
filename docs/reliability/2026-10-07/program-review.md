@@ -2346,3 +2346,43 @@ or callback delivery proof. Bounded source and official promotion/provenance
 requirements are supported; canonical installation, installed receipt identity,
 serving status and preserved paused-state readback remain separate gates. Review
 made no production changes, provider calls or live fault injection.
+
+
+## Independent communications prospective-limit finding — PR966 a96e5939
+
+Source approval is held for the new prospective session-limit readback binding
+at `a96e5939bd3ac0acbd9781a8c6a1d28e6fb2df95` over recovery parent6c.
+Fresh native PR diff hash `b301857a` matches the supplied review diff: three
+communications runtime files and two existing test files, with no assessment
+shared-file change. Native exact-head CI `37818606905` is successful with eight
+executed check jobs; E2E and automatic deployment admission are skipped.
+Those checks do not override the minimized binding counterexample.
+
+`readBoundDraftSession` compares the current checkpoint's selected cents,
+provider spend-control limit and provider limit metadata to each other. It
+does not establish that the three still match the original reservation or
+recomputed frozen create digest. Reviewer isolated exact6c regular Git files,
+overlaid the five exact GitHub a96 source/test bytes and extended only the
+existing scripted API fixture in that disposable snapshot. One control fails:
+a 10-cent reserved session is accepted after changing the checkpoint and both
+provider limit fields to11, while retaining the original request digest. The
+API returns a successful result instead of binding refusal. Mocked fetch and
+reservation callbacks execute; there is no live provider or communications send.
+The original added two-field mutation test leaves provider metadata at10 and
+therefore masks this three-field mismatch. A repair must bind the selected limit
+to the frozen request/admission identity while preserving absent/null historical
+uncapped compatibility. Hashes and the independently reproduced synthetic log
+are retained privately under `output/reliability-program/comms966-review-minimizer.log`;
+the disposable test title is `review minimizer binds changed checkpoint and
+provider limit metadata to original reservation`.
+
+Global retained holds, cross-midnight deduction and no automatic refund are
+otherwise consistent with the stated conservative accounting scope. No caller
+selects the new limit, so this finding establishes a dormant prospective binding
+defect, not observed live spending, campaign authorization or customer impact.
+The initial isolated archive attempt failed before execution on an unrelated
+absolute skill symlink; extraction was corrected to regular Git files only.
+The single probe then failed as expected, with139 existing cases unattempted;
+no coverage credit or broad suite result is inferred. No source, activation,
+provider configuration or draft/send authority was changed. Unrelated assessment
+and canonical Pipeline release work remains outside this source finding.
