@@ -46,6 +46,17 @@ const videoObservationSchema = z.object({
   })),
   not_observable: z.array(z.string()),
 });
+/** Identical timestamp admission applies to fresh and persisted provider observations. */
+function validateVideoObservations(value: unknown, duration: number) {
+  const evidence = videoObservationSchema.parse(value);
+  for (const item of evidence.observations) {
+    if ((item.start_seconds ?? 0) > duration || (item.end_seconds ?? 0) > duration
+      || (item.start_seconds !== null && item.end_seconds !== null && item.end_seconds < item.start_seconds)
+      || (item.basis === "observed" && item.start_seconds === null)) throw new Error("assessment_video_timestamp_invalid");
+  }
+  return evidence;
+}
+
 type VideoAnalysis = { evidence: z.infer<typeof videoObservationSchema>; receipt: Record<string, unknown> };
 type VideoInspection = { processing: "auto" | "static" | "agentic"; sampling_fps: 1 | 2 | 4 };
 type Source = {
@@ -142,7 +153,7 @@ export async function createSiteAssessmentAgent(input: SiteAssessmentInput, opti
     if (!input.video || source.kind !== "video" || source.sha256 !== input.video.sha256
       || source.canonical_ref !== input.video.source_ref) throw new Error("assessment_retained_video_binding_invalid");
     const value = source.content as VideoAnalysis & { question: string } & VideoInspection;
-    videoObservationSchema.parse(value.evidence);
+    validateVideoObservations(value.evidence, input.video.duration_seconds);
     sources.set(source.source_id, source);
     videoCache.set(hash({ question: value.question, processing: value.processing, sampling_fps: value.sampling_fps }), value);
   }
@@ -200,12 +211,7 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
           if (videoCalls >= (options.max_video_calls ?? 3)) return retained("analyze_site_video", args, { ok: false, error: "video_call_limit", action: "Use retained findings or ask for the missing observation." });
           videoCalls++;
           result = await readVideo(question, inspection);
-          result.evidence = videoObservationSchema.parse(result.evidence);
-          for (const item of result.evidence.observations) {
-            if ((item.start_seconds ?? 0) > input.video.duration_seconds || (item.end_seconds ?? 0) > input.video.duration_seconds
-              || (item.start_seconds !== null && item.end_seconds !== null && item.end_seconds < item.start_seconds)
-              || (item.basis === "observed" && item.start_seconds === null)) throw new Error("assessment_video_timestamp_invalid");
-          }
+          result.evidence = validateVideoObservations(result.evidence, input.video.duration_seconds);
           videoCache.set(cacheKey, result);
         }
         const source_id = `video:${input.video.source_id}:${cacheKey.slice(0, 12)}`;
@@ -305,6 +311,17 @@ export function validateAssessmentEvidence(assessment: SiteAssessment, sources: 
         if (!source) throw new Error("assessment_unknown_source_id");
         if (ref.at_seconds !== null && (source.kind !== "video" || duration === null || ref.at_seconds > duration)) throw new Error("assessment_reference_timestamp_invalid");
         if (value.basis === "observed" && (source.kind !== "video" || ref.at_seconds === null)) throw new Error("assessment_observation_timestamp_required");
+        if (value.basis === "observed") {
+          const content = source.content as { evidence?: unknown };
+          const evidence = validateVideoObservations(content?.evidence, duration!);
+          // A citation must point to an admitted visible interval. This still cannot
+          // establish sentence entailment or whether the provider saw the event correctly.
+          if (!evidence.observations.some(item => item.basis === "observed" && item.start_seconds !== null
+            && ref.at_seconds >= item.start_seconds && ref.at_seconds <= (item.end_seconds ?? item.start_seconds))) {
+            throw new Error("assessment_observation_not_supported");
+          }
+        }
+        if (value.basis === "published" && !["knowledge", "robot_registry"].includes(source.kind)) throw new Error("assessment_published_source_required");
         if (value.basis === "operator_stated" && source.kind !== "operator") throw new Error("assessment_operator_source_required");
       }
     }
