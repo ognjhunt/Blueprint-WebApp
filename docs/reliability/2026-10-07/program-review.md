@@ -1369,3 +1369,50 @@ edits invalidate the old pointer; automatic reassessment after clarification is
 not established by first-publication dispatch. No physical qualification, robot
 suitability, assessment quality, deployment or whole-program completion claim
 follows from this source approval.
+
+
+## Independent connected advisory execution review — 81e5ddf1 / 7489ee75
+
+Approved the bounded joined execution evidence in test-only author commit
+`81e5ddf1077d6d36f0716d99886566774b1e0d2f` against approved production source
+`7489ee755748c43adb131668dce06fe022dd1bb7`. Receipt
+`output/reliability-program/advisory-producer-discovery/queue-sdk-joined-receipt.json`
+SHA-256 `8506cd4f214c7d84945fa87086cd3d9a8afc14af56aeac2130d119d59377e690`
+was independently checked: all thirteen runtime hashes match immutable Git,
+test hash `e0f368824cb5ecc77dad8e2f870da2769745c02351f91f76a16ef9739fabd049`
+matches the committed test, and all six linked setup/final/typecheck log hashes
+match retained bytes. The final source file passes eight checks, including one
+joined extension of the existing publication semantic case. This adds zero
+original program case/journey credit; eight checks are not eight journeys.
+
+The test imports and invokes actual `runAgentTask`, adapter and Agents SDK;
+it does not return a fabricated completed packet from a runtime stub. New source
+publication commits the queue intent, claims a canonical run, executes the video
+tool using scripted Gemini data, records three internal cost admissions/usage
+fixtures, persists through the actual private canonical writer, and reopens the
+stored run before publishing the result pointer. The real signed owner Express
+GET and source renderer then produce the DTO and static React HTML. The scripted
+model's fabricated robot-success prose stays private; the visible text derives
+from the retained observation with uncertainty. Reconciliation dispatches no
+second model call; withdrawal suppresses public sections.
+
+Database transactions and object generations are in-memory doubles, and the
+video is an invented seven-byte placeholder. Canonical persistence here executes
+the small-record inline private writer on the fake database; object-store saves
+are forbidden, so private-object offload durability is not established. The
+OpenAI model and Gemini perception transports are scripted, SDK tracing disabled,
+and unexpected external `fetch` is rejected. There is no paid provider invoice,
+real video perception, real Firebase/GCS durability, browser navigation, native
+qualification, physical performance or production execution proof. Static
+rendering is not a browser workflow. The two provider-dispatch seams and their
+usage values remain simulated; observed local latency is not live latency.
+
+Initial missing-module/contact setup failures and final placeholder-manifest
+neighbor failures remain in the receipt, followed by the corrected final source
+8/8 pass. None are relabeled as earlier successful journeys. The reader and
+queue regression baseline proofs described above remain separate; a full joined
+pre-fix run was not invented. No extra test framework, cases or redundant suite
+was added during this review. Required CI, merge, exact deployment and deployed
+customer behavior remain release-owner verification gates. This closes the
+bounded offline connected-execution review, not the whole reliability goal or
+assessment-quality evaluation.
