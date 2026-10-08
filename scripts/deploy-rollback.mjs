@@ -74,7 +74,11 @@ try {
     throw new Error("Refusing rollback on a dirty worktree. Commit, stash, or move local changes first.");
   }
 
-  const commits = read("git", ["rev-list", "--reverse", `${target}..HEAD`])
+  run("git", ["merge-base", "--is-ancestor", target, "HEAD"], { stdio: "ignore" });
+  const merges = read("git", ["rev-list", "--merges", `${target}..HEAD`]);
+  if (merges) throw new Error("Rollback range includes merge commits; prepare an explicit reviewed revert instead.");
+  // Reverse chronological order preserves dependencies while undoing a chain.
+  const commits = read("git", ["rev-list", `${target}..HEAD`])
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);

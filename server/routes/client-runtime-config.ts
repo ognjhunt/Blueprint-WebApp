@@ -96,6 +96,16 @@ adminRouter.get("/", async (_req: Request, res: Response) => {
   if (!(await requireAdmin(res))) {
     return res.status(403).json({ error: "Admin access required" });
   }
+  if (_req.query.revision !== undefined) {
+    const revision = String(_req.query.revision);
+    if (!/^(0|[1-9][0-9]{0,14})$/.test(revision)) return res.status(400).json({ error: "Invalid revision" });
+    if (!db) return res.status(503).json({ error: "Config store unavailable" });
+    const snapshot = await db.collection(CLIENT_RUNTIME_CONFIG_COLLECTION).doc(CLIENT_RUNTIME_CONFIG_DOC_ID)
+      .collection("revisions").doc(revision).get();
+    if (!snapshot.exists) return res.status(404).json({ error: "Revision unavailable" });
+    return res.status(200).json({ ok: true, schema: CLIENT_RUNTIME_ENDPOINT_SCHEMA,
+      config: normalizeClientRuntimeConfig(snapshot.data() || {}), source: "firestore" });
+  }
   const payload = await loadClientRuntimeConfig();
   return res.status(200).json({
     ok: true,
@@ -126,19 +136,28 @@ adminRouter.put("/", async (req: Request, res: Response) => {
   const updatedBy = context.email || context.uid || "admin";
 
   try {
-    await db
-      .collection(CLIENT_RUNTIME_CONFIG_COLLECTION)
-      .doc(CLIENT_RUNTIME_CONFIG_DOC_ID)
-      .set(
-        {
-          ...validation.value,
-          updatedBy,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAtIso: new Date().toISOString(),
-        },
-        { merge: true },
-      );
+    const ref = db.collection(CLIENT_RUNTIME_CONFIG_COLLECTION).doc(CLIENT_RUNTIME_CONFIG_DOC_ID);
+    const expectedRevision = req.body.expectedRevision;
+    if (expectedRevision !== undefined && (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)) {
+      return res.status(400).json({ error: "expectedRevision must be a non-negative integer" });
+    }
+    await db.runTransaction(async transaction => {
+      const current = await transaction.get(ref);
+      const previous = normalizeClientRuntimeConfig(current.data() || {});
+      if (expectedRevision !== undefined && expectedRevision !== previous.revision) {
+        throw new Error("config_revision_conflict");
+      }
+      const next = { ...previous, ...validation.value, revision: previous.revision + 1,
+        updatedBy, updatedAt: admin.firestore.FieldValue.serverTimestamp(), updatedAtIso: new Date().toISOString() };
+      // Retain both the legacy predecessor and each new revision atomically.
+      if (previous.revision === 0) transaction.set(ref.collection("revisions").doc("0"), previous);
+      transaction.create(ref.collection("revisions").doc(String(next.revision)), next);
+      transaction.set(ref, next);
+    });
   } catch (error) {
+    if (error instanceof Error && error.message === "config_revision_conflict") {
+      return res.status(409).json({ error: "Config changed; reload before updating" });
+    }
     logger.error({ error }, "Failed to update client runtime config");
     return res.status(500).json({ error: "Failed to update config" });
   }

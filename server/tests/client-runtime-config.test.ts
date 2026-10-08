@@ -14,6 +14,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const makeDoc = (collection: string, id: string) => {
     const key = `${collection}/${id}`;
     return {
+      collection: (name: string) => ({ doc: (child: string) => makeDoc(`${collection}/${id}/${name}`, child) }),
       get: async () => ({
         exists: state.docs.has(key),
         data: () => state.docs.get(key),
@@ -36,7 +37,14 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
       },
     },
     get dbAdmin() {
-      return state.dbAvailable ? { collection } : null;
+      return state.dbAvailable ? { collection, runTransaction: async (fn: any) => {
+        const writes: Array<() => Promise<void>> = [];
+        const result = await fn({ get: (ref: any) => ref.get(),
+          set: (ref: any, payload: any) => writes.push(() => ref.set(payload)),
+          create: (ref: any, payload: any) => writes.push(() => ref.set(payload)) });
+        for (const write of writes) await write();
+        return result;
+      } } : null;
     },
     authAdmin: null,
   };
@@ -200,5 +208,24 @@ describe("client runtime config endpoint (R052)", () => {
     } finally {
       await stopServer(server);
     }
+  });
+});
+
+
+describe("versioned message updates", () => {
+  it("retains revisions and rejects stale writes without changing current copy", async () => {
+    const { server, baseUrl } = await startServer({ uid: "admin", email: "admin@blueprint.com", admin: true });
+    try {
+      const put = (body: unknown) => fetch(`${baseUrl}/api/admin/client-runtime-config`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      expect((await put({ message: "first", expectedRevision: 0 })).status).toBe(200);
+      expect((await put({ message: "stale", expectedRevision: 0 })).status).toBe(409);
+      expect(state.docs.get("appConfig/clientRuntime")?.message).toBe("first");
+      const archived = await fetch(`${baseUrl}/api/admin/client-runtime-config?revision=0`);
+      expect((await archived.json()).config.message).toBe("");
+      expect((await put({ message: "", expectedRevision: 1 })).status).toBe(200);
+      expect(state.docs.get("appConfig/clientRuntime")?.revision).toBe(2);
+      expect(state.docs.get("appConfig/clientRuntime/revisions/1")?.message).toBe("first");
+    } finally { await stopServer(server); }
   });
 });
