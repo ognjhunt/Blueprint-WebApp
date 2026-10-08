@@ -226,7 +226,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: descr
   await form.locator("#start-location").fill("Chicago, Illinois");
   await form.locator("#start-email").fill("owner@example.test");
   await form.locator("#start-company").fill("Acme Foods");
-  await expect(form.locator("#start-rights")).not.toBeChecked();
+  await expect(form.locator("#start-rights")).toHaveCount(0);
   await expect(form.locator("#start-region")).toHaveCount(0);
   await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toBeVisible();

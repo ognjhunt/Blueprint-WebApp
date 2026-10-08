@@ -282,13 +282,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
   }
   // The video is only taken from a site we are cleared to receive it from.
   const footageWanted = hasFootage && region !== "non_us";
-  const rightsShown = method !== "visit";
-  // The rights checkbox is tracked so the grant itself is transmitted — a
-  // required-only checkbox was a legal act the server never heard about.
   const [taskForPreview, setTaskForPreview] = useState(initial.draft.task);
   const [privateHandling, setPrivateHandling] = useState(initial.draft.privateHandling ?? false);
   const publicDraft = anonymizedOpportunityDraft(taskForPreview);
-  const [consent, setConsent] = useState(false);
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -301,7 +297,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     setMethod(other.draft.method); setRegion(other.draft.region);
     setPending(other.pending);
     if (changed && resetChanged) {
-      setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
+      setClaudeConsent(false); setSolAgentsConsent(false);
       setFootage(null); setResetVersion(value => value + 1);
     }
   }
@@ -336,7 +332,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       setStorageAvailable(true);
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
-      setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
+      setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
       setMethod("phone"); setRegion(""); setCountryMissing(false);
       setPrivateHandling(false); setTaskForPreview("");
       setFootage(null); setFootageError(null); setCaptureReceived(false);
@@ -357,7 +353,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     event?.preventDefault();
     const retained = recovery.current.pending;
     if (recoveryUnavailable || operationInFlight.current || state.status === "working" || loading
-      || (!retained && footageWanted && !consent)
       || (!retained && claudeAuthoringRequested && !claudeConsent)
       || (!retained && solAgentsRequested && !solAgentsConsent)) return;
     // The address has to say which country it is in. The country decides whether
@@ -376,8 +371,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
-    if (!retained && !read("startTask") && !(consent && rightsShown)) {
-      setState({ status: "failed", message: "Add a video or a short explanation of the work. If you will film later, confirm the recording rights to start without an explanation." });
+    if (!retained && !read("startTask") && !footageWanted) {
+      setState({ status: "failed", message: "Add a short explanation of the work to start." });
       return;
     }
 
@@ -415,16 +410,16 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
           captureMode: hasFootage || selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
           hasExistingFootage: footageWanted,
-          // The grant, not just the ticked box: recorded server-side with the
-          // sentence version, or the submission is refused.
-          descriptionOnly: !(consent && rightsShown),
+          // Starting with footage is the recording grant: the Terms state it and
+          // it is recorded server-side with the sentence version.
+          descriptionOnly: !footageWanted,
           // Granted by starting: the statement is quoted verbatim next to the
           // button, like the Terms, and recorded with its version.
           descriptionAuthority: {
             granted: true,
             statementVersion: DESCRIPTION_AUTHORITY_VERSION,
           },
-          consentAttestation: consent && rightsShown ? {
+          consentAttestation: footageWanted ? {
             granted: true,
             statementVersion: RIGHTS_STATEMENT_VERSION,
           } : null,
@@ -695,7 +690,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       {state.status === "failed" && pending && <p role="alert">{state.message}</p>}
       {recoveryUnavailable && <p role="status" className="ms-field-hint">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
       {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
-      <p className="ms-field-hint">You can recover this draft here for up to seven days. On a shared device, clear this browser's draft when finished.</p>
       <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
       <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className="contents">
       <label htmlFor="start-task">
@@ -803,11 +797,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
           <span>Where would the robot do this task?</span>
-          <span className="ms-field-hint">
-            {selfRecording || hasFootage
-              ? "A city is enough to start. We ask for the street address before anyone visits."
-              : "We are sending someone to film it, so we need the street address."}
-          </span>
+          {!(selfRecording || hasFootage) && (
+            <span className="ms-field-hint">We are sending someone to film it, so we need the street address.</span>
+          )}
           <LocationAutocomplete
             id="start-location"
             name="startLocation"
@@ -848,7 +840,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       </label>
 
       <label htmlFor="start-company">
-        <span>Site or company</span>
+        <span>Company</span>
         <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} required autoComplete="organization" maxLength={200} />
       </label>
 
@@ -869,27 +861,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
         />
       </div>
 
-      {/* Rights belong where a video is: required with an upload, optional
-          when the site films later (it can confirm then, from the task link). */}
-      {rightsShown && (
-        <label htmlFor="start-rights" className="ms-check-row" style={{ alignItems: "flex-start" }}>
-          <input
-            id="start-rights"
-            name="startRights"
-            type="checkbox"
-            required={footageWanted}
-            checked={consent}
-            onChange={(event) => setConsent(event.target.checked)}
-            style={{ marginTop: "4px" }}
-          />
-          <span style={{ fontWeight: 400 }}>
-            I am authorized to record this site and to let Blueprint use the recording to build a
-            scene robot teams can evaluate against. Robot teams never receive the original video.{" "}
-            <a href={PRIVACY_URL}>How we handle footage</a>.
-            {!footageWanted && <span className="ms-field-hint"> Optional now. You can confirm it later from your task link.</span>}
-          </span>
-        </label>
-      )}
 
       {state.status === "failed" && !pending && <>
         <p role="alert" style={{ color: "var(--ms-alert, #b00)" }}>{state.message}</p>

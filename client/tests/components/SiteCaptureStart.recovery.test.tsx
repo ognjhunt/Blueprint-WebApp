@@ -55,13 +55,18 @@ beforeEach(() => {
   });
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
-it("RETURN-001: restores the draft after remount and leaves recording consent unchecked", async () => {
-  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-rights")!);
+it("RETURN-001: restores the draft after remount", async () => {
+  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-method-upload")!);
   view.unmount(); await renderReady(<SiteCaptureStart />);
   expect(document.querySelector("#start-task")).toHaveValue("Move sealed cartons");
   expect(document.querySelector("#start-location")).toHaveValue("Austin, TX");
   expect(document.querySelector("#start-email")).toHaveValue("operator@example.test");
-  expect(document.querySelector("#start-rights")).not.toBeChecked();
+});
+it("RETURN-001b: a phone capture restores without any recording checkbox", async () => {
+  const view = await renderReady(<SiteCaptureStart />); fill();
+  view.unmount(); await renderReady(<SiteCaptureStart />);
+  expect(document.querySelector("#start-task")).toHaveValue("Move sealed cartons");
+  expect(document.querySelector("#start-rights")).toBeNull();
 });
 it("RETURN-002: recovers a lost intake response across remount without another identity", async () => {
   const view = await renderReady(<SiteCaptureStart />); fill(); submit();
@@ -73,11 +78,10 @@ it("RETURN-002: recovers a lost intake response across remount without another i
   expect(sent[1].body).toEqual(original);
 });
 it("RETURN-003: account changes discard mounted anonymous fields and retry authority", async () => {
-  const view = await renderReady(<SiteCaptureStart />); fill();
+  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-method-upload")!);
   identity.user = {uid: "other-account", email: "other@example.test", getIdToken: async () => "fixture"};
   await act(async () => { view.rerender(<SiteCaptureStart />); });
   expect(document.querySelector("#start-task")).toHaveValue("");
-  expect(document.querySelector("#start-rights")).not.toBeChecked();
 });
 it("RETURN-004: an acknowledged upload recovers without requiring lost File bytes or uploading again", async () => {
   const upload = await import("@/lib/selfCaptureVideo");
@@ -88,7 +92,7 @@ it("RETURN-004: an acknowledged upload recovers without requiring lost File byte
   });
   const view=await renderReady(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
-  fireEvent.click(document.querySelector("#start-rights")!);submit();
+  submit();
   await screen.findByRole("heading",{name:"Your job is saved. Check your video upload."});
   view.unmount();await renderReady(<SiteCaptureStart />);
   fireEvent.click(screen.getByRole("button",{name:"Return to saved job"}));
@@ -105,7 +109,7 @@ it("ACCESS-004: late intake acceptance after account switch cannot start origina
   });
   const view=await renderReady(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
-  fireEvent.click(document.querySelector("#start-rights")!);submit();
+  submit();
   await vi.waitFor(()=>expect(sent).toHaveLength(1));
   identity.user={uid:"another-owner",email:"another@example.test",getIdToken:async()=>"fixture"}; view.rerender(<SiteCaptureStart />);
   accept({ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})});
@@ -139,7 +143,6 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
   });
   await renderReady(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
-  fireEvent.click(document.querySelector("#start-rights")!);
   // A competing tab shares the hydrated identity and freezes through the real helper.
   await act(async () => {});
   const winner=helper.readSiteCaptureRecovery(helper.siteCaptureDraftKey(null,"default"))!;winner.draft={...winner.draft,method:"phone",task:"Winning description",location:"Austin, TX",region:"us",email:"winner@example.test"};

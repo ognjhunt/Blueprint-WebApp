@@ -57,7 +57,7 @@ for (const device of ["desktop", "mobile"] as const) {
       await page.locator("#start-location").fill("Austin, TX");
       await page.locator("#start-email").fill("qa@example.invalid");
       await page.locator("#start-company").fill("Synthetic QA site");
-      await expect(page.locator("#start-rights")).not.toBeChecked();
+      await expect(page.locator("#start-rights")).toHaveCount(0);
       await expect(page.locator("#start-region")).toHaveCount(0);
       await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
       await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toBeVisible();
