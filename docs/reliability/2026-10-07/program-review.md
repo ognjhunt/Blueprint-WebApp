@@ -3185,3 +3185,44 @@ live retry or deployment was executed by this review; protected release and
 actual customer recovery remain separate gates. Future unbounded run policy
 must remain compatible with stale-claim recovery so elapsed wall time cannot
 retire demonstrably active work.
+
+### Current-claim progress and failed evidence-commit recovery — e72f3f43
+
+Independent source approval applies to `e72f3f43b89a807c45fdd60588ac2f7b2f801a94`
+on39cdf0cc, four existing source/test files only. Recent durable admissions or
+received-response records protect the exact canonical run/claim/job/source/context
+from retirement based solely on total run age. Reading the accounting parent
+also fences concurrent admission/record writes in the transaction. A silent
+single remote action exceeding30 minutes still does not establish liveness;
+this is an inactivity policy, not indefinite-provider or native race proof.
+
+The reviewer found future call timestamps could still justify abandonment even
+though rejected as progress. The corrected source fences admissions within run
+start/current time, failed-commit checkpoints within start/recorded/current time,
+and cancelled receipt replay within its original start/retirement interval.
+The original future negative again exercises retirement and retry, preserving
+the old run/calls and denying retry; its earlier failing receipt remains retained.
+
+The narrow failed-commit fallback requires the exact known commit error,
+incomplete accounting, no artifact/ref, current needs-review job/claim, current
+rights/access/context and published generation-bound source, no pending action,
+and a complete nonempty canonical query of recorded/unknown calls agreeing on
+video hash. It derives only local recovery provenance, creates no lost answer,
+and preserves the failed run, raw usage, calls, exposure and history. Existing
+transaction/current-source and late-claim fences remain; financial gates were
+not reintroduced. The source identity carries generation/CRC/size/manifest
+binding; optional source video SHA is checked when present.
+
+Receipt `707355d4ca24162a5f09a39063668255ec3d2f1577c2768c267f3fb0c6a9eed2`
+and manifest `2f0c7e5f29c7a7dfb5f75f9b0cba3538c7ef79a5280727dd22126ee51a2754fe`
+were independently checked against all36 linked hashes/byte counts and four
+immutable/base Git blobs. Final42 existing controls pass, with typecheck,
+Graphify and static portability checks successful. Baseline failures and fixture
+corrections are retained; expanded initial uncommitted test snapshots were not
+preserved, so identical-final-test baseline execution is not claimed. An earlier
+combined SDK run failed two controls, later unreproduced; its cause remains
+unclassified and is not declared fixed. Safe diagnostic classes add no raw
+exception prose. Memory stores/scripted providers are disclosed, with no new
+journey credit, live provider, native database/browser, perception or customer
+recovery proof. Integration, protected release and the actual failed customer's
+explicit recovery remain separate gates.
