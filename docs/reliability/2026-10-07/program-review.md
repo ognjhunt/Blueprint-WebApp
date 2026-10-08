@@ -1869,3 +1869,39 @@ import, protected CI/merge/deployment and the specifically authorized live
 result require their own verification. This source approval proves neither
 video perception nor whole-program readiness, and provides no cancellation or
 zero-race guarantee after the last host check and remote HTTP dispatch.
+
+
+## Independent explicit replacement-upload control review — c29f9c4c
+
+Approved exact two-file source
+`c29f9c4ca5c2476748f4440acd4384d853ca5f72` against4d0deb46. The valid-link,
+completed-upload view retains the existing file input and exposes a visible
+“Upload a new recording” button. Selecting uses the existing same-token upload
+transport, operation-in-flight and link-generation guards. Merely opening the
+picker does not reset the acknowledged source or confirm the brief. Pending,
+held, checking and invalid-link branches remain unchanged. No server access,
+consent, source admission, private-link renewal or provider policy was modified.
+
+Receipt
+`fa67080baedb42472f68cc9a0f06686372577afcc26ba5792014e361b3e059a1`
+source/log hashes match exact Git bytes. Retained baseline native browser result
+`01860d209315d6771db94cc430d49687abac347df0ed38f88c175cd7b47371e3`
+and trace
+`cd96bb6588451d4d07f5aff81afbc6ae4c4a7b32130d56acb206fe4a107fa386`
+show the same returning/reloaded owner case failing on the missing visible
+affordance before upload. Candidate native result
+`e162b07aceff7f05b0cfef486aeba384d602a50029287c2f3f6f15b6ac67d934`
+passes4/4: one supplemental replacement case plus three existing private-link
+neighbors. The new case clicks the visible control, obtains an actual browser
+file chooser, decodes generated MP4 metadata and submits exactly one intercepted
+upload POST on the same private identity, with no brief-confirmation request.
+Existing component26/26, typecheck and required Graphify logs pass. No additional
+reviewer rerun or framework was needed.
+
+This is actual Chromium with intercepted APIs and owned synthetic pixels. It
+does not prove durable backend replacement, actual customer footage processing,
+provider execution, notification delivery or native assessment. The supplemental
+case is separate from the frozen original coverage denominator. Protected final
+CI, merge/deployment and the affected deployed UI observation remain release
+gates; the historical receipt and free assessment do not supply spending or
+sharing authority for a new live run.
