@@ -1009,3 +1009,32 @@ bind-free checks are author-attested, not newly executed by reviewer. No new
 case/journey credit, live provider behavior, assessment publication or overall
 completion follows from these repetitions. Required remote checks and deployed
 clear behavior remain separate release gates.
+
+
+**Final WebApp release and affected clear UI verified at d78b73f7.**
+Independent read-only GitHub API inspection confirms main CI 37770897943 and
+CI-gated Render deploy 37771834921 both completed successfully for exact
+`d78b73f7661593fd12fd63ae9fbcfc3a739f6219`. Its client clear source c554cd1f
+and assessment source 5a5365c6 match previously reviewed/executed bytes.
+Retained paired Render LIVE receipt SHA256
+`e604f88c5ca1baf4efc583d714ded9f9dea34be51c390eba8933de44327613f2`
+matches both services at that commit, observed 11:45:39 UTC on October 8.
+
+Reviewed smoke source ea03c76d was actually run 11:45:55–11:46:00 UTC. Result
+SHA256 `46fd5f44d0a92eb9f200c1818fbb24d90e5262758339922a88ed7eb17df06bcf`
+matches the private retained report; all eighteen checks are true. Serving
+identity is unchanged before/after; health and readiness pass. The ordinary
+anonymous synthetic form restores its draft, then the actual clear control
+acknowledges committed fresh empty recovery in both local stores. Reload retains
+the same fresh request identity, empty fields and unchecked consent. Two non-GET
+and three external requests are blocked; zero intake mutations are attempted.
+The isolated context is cleaned and closed. Screenshot hash and private mode
+0600 match; it shows the synthetic restored draft, not an assessment result.
+
+This supports deployed-and-verified intake clear acknowledgment/local return
+behavior and exact web/worker deployment identity. Assessment source is deployed
+and its offline SDK controls remain separately proven; no live-provider
+assessment, normal customer assessment publication, upload/backend durability,
+notification delivery, human-reference quality or full-program completion is
+established by this smoke. Reviewer performed receipt/source/API inspection only,
+with no additional production browser run, source edit or coverage credit.
