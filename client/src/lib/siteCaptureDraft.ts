@@ -79,10 +79,10 @@ export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureR
     }
     // Persist only the named recovery fields: no File objects or bearer URL
     // can ride along on a future caller's spread object.
-    const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+    const { task, location, email, company, method, region, regionManuallySet, privateHandling } = value.draft;
     window.localStorage.setItem(key, JSON.stringify({
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, company, method, region, regionManuallySet },
+      draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     }));
     return true;

@@ -58,7 +58,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   await page.getByRole("button", { name: "Try assessment again", exact: true }).click();
   await expect.poll(() => retries.length).toBe(2);
   expect(retries[1]).toEqual(retries[0]);
-  await expect(page.getByText("Your video is saved and its job assessment is queued.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Your video is saved. Blueprint is preparing your job assessment; nothing more is needed from you right now.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toHaveCount(0);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
