@@ -28,7 +28,9 @@ vi.mock("../utils/lifecycle-cadence", () => ({ createLifecycleCadenceForInboundR
 vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => null) }));
 vi.mock("../agents", () => ({ runInboundQualificationForRequest: vi.fn(async () => null) }));
 const base = "http://127.0.0.1:42878";
-const output = path.resolve("output/reliability-program/sdk-browser");
+const workerPhase = process.env.RELIABILITY_SDK_WORKER_PHASE;
+const restartOnly = process.env.RELIABILITY_ASSESSMENT_RESTART_ONLY === "1";
+const output = path.resolve(restartOnly ? "output/reliability-program/sdk-worker-browser" : "output/reliability-program/sdk-browser");
 const retained = path.join(output, `run-${new Date().toISOString().replace(/[^0-9TZ]/g, "")}`);
 const fixture = path.resolve("output/reliability-program/sdk-browser-pattern.mp4");
 const cases = [["SDK-UI-001", "upload_happy"], ["SDK-UI-002", "browser_termination_upload_return"]] as const;
@@ -37,6 +39,8 @@ let server: Server, vite: ChildProcess, activeCase = "";
 const requests: { method: string; route: string; status: number }[] = [];
 let context: BrowserContext, page: Page;
 let modelSpy: any, videoSpy: any, fetchGuard: any;
+let parentWakeSpy:any;
+const deferredParentWakes:(()=>void)[]=[];
 let responseIndex = 0;
 let chrome: ChildProcess | undefined;
 async function stopBrowser(signal: NodeJS.Signals = "SIGTERM") {
@@ -81,6 +85,7 @@ async function fill() {
 function requestRows() { return [...state.docs.entries()].filter(([key]) => key.startsWith("inboundRequests/")); }
 beforeAll(async () => {
   fs.mkdirSync(retained, { recursive: true });
+  if(restartOnly){fs.chmodSync(output,0o700);fs.chmodSync(retained,0o700);}
   expect(emulatorMode).toBe(true);
   const sourcePaths = ["server/tests/reliability-program-assessment.browser.ts", "server/tests/helpers/reliability-local-storage.ts", "server/agents/runtime.ts", "server/agents/adapters/site-assessment.ts", "server/utils/siteAssessmentQueue.ts", "server/agents/private-evidence.ts", "server/utils/siteAssessmentPublic.ts", "server/routes/inbound-request.ts", "server/routes/self-capture-uploads.ts", "server/routes/site-task-brief.ts", "client/src/components/site/SiteCaptureStart.tsx", "client/src/pages/SelfCaptureUpload.tsx"];
   const catalog = {schema_version:"sdk_browser_join.v1", frozen_at:new Date().toISOString(), code_sha:execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(),
@@ -88,7 +93,13 @@ beforeAll(async () => {
     video_sha256:createHash("sha256").update(fs.readFileSync(fixture)).digest("hex"),
     layer:"normal-ui/real-handlers/native-Firestore-emulator/durable-fake-objects/actual-SDK/scripted-provider-transports/local-mail",
     cases:cases.map(([id,condition])=>({id,condition,repeats:3,split:"development_regression",hash:createHash("sha256").update(JSON.stringify({id,condition,version:1})).digest("hex"),expected:"one durable intake and source; actual SDK result persisted, current authorized customer report, local notification once; no actual task/perception/robot proof"})), original_journey_credit:0};
-  fs.writeFileSync(path.join(retained,"catalog.json"),JSON.stringify(catalog,null,2));
+  if(!restartOnly) fs.writeFileSync(path.join(retained,"catalog.json"),JSON.stringify(catalog,null,2));
+  if (restartOnly) fs.writeFileSync(path.join(retained,"restart-catalog.json"),JSON.stringify({schema_version:"sdk_worker_browser.v1",frozen_at:new Date().toISOString(),sources:catalog.sources,code_sha:catalog.code_sha,video_sha256:catalog.video_sha256,
+    fault_seams:["TESTONLY parent/web tick deferred before claim in this case only", "actual private writer delegated then held after native completed-run readback before queue acknowledgement"],
+    recovery:"fresh process executes ordinary cursor-wrap scan and subsequent tick; no cursor/job reset",
+    observer_corrections:["attempt1 parent dispatcher won before child; isolated child ownership via explicit fault seam", "attempt2 first recovery scan wrapped durable cursor; record and execute next ordinary tick"],
+    case:{id:"SDK-UI-003",condition:"native-worker-SIGKILL-after-private-run-commit-before-queue-publication",repeats:3,hash:createHash("sha256").update("SDK-UI-003:after-private-commit-before-queue-ack:v1").digest("hex"),
+      expected:"normal UI upload; real SDK/private writer in separate process; literal SIGKILL after native completed-run readback while job running; fresh process publishes retained result with zero new model calls; current customer report and once per logical notification"},original_case_credit:0},null,2));
   vi.stubEnv("BLUEPRINT_CAPTURE_BUCKET","local-reliability-fixture");
   vi.stubEnv("APP_URL", base); vi.stubEnv("VITE_PUBLIC_APP_URL", base);
   vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "true");
@@ -111,13 +122,20 @@ beforeAll(async () => {
   });
   const localFetch=globalThis.fetch;
   fetchGuard=vi.spyOn(globalThis,"fetch").mockImplementation((url,options)=>{if(new URL(typeof url==="string"?url:url instanceof URL?url.href:url.url).hostname!=="127.0.0.1") throw Error("external_network_refused"); return localFetch(url,options);});
+  if (workerPhase) { reloadObjects();await refreshDocumentView();return; }
+  if(restartOnly) {
+    // TEST ONLY: isolate dispatch into fresh workers while preserving the real
+    // producer/intent commit. Default six cases retain their normal web wakeups.
+    parentWakeSpy=vi.spyOn(await import("../utils/siteAssessmentQueue"),"tickSiteAssessments")
+      .mockImplementation(()=>new Promise<void>(resolve=>deferredParentWakes.push(resolve)));
+  }
   const inbound = (await import("../routes/inbound-request")).default;
   const uploads = (await import("../routes/self-capture-uploads")).default;
   const brief = (await import("../routes/site-task-brief")).default;
   const { csrfCookieHandler, csrfProtection } = await import("../middleware/csrf");
   const app = express(); app.use(express.json());
   app.use((req, res, next) => {
-    Object.defineProperty(req, "ip", {value: `192.0.2.${cases.findIndex(([id]) => id === activeCase) + 1}`});
+    Object.defineProperty(req, "ip", {value: `192.0.2.${restartOnly?3:cases.findIndex(([id]) => id === activeCase) + 1}`});
     const method = req.method, route = req.path.replace(/\/[A-Za-z0-9_-]{80,}\.[A-Za-z0-9_-]+/g, "/[local-token]");
     res.on("finish", () => requests.push({ method, route, status: res.statusCode }));
     next();
@@ -140,17 +158,101 @@ beforeAll(async () => {
   vite = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--config", "vite.reliability-program.config.ts", "--port", "42878"], { env, stdio: ["ignore", log, log] });
   await vi.waitFor(async () => expect((await fetch(base)).status).toBe(200), { timeout: 60_000, interval: 200 });
 });
-beforeEach(async () => { await clearEmulator(); resetStorage(); providers.privacy = "cleared"; providers.calls = 0; providers.sent.length = 0;
+beforeEach(async () => { if(workerPhase)return; await clearEmulator(); resetStorage(); providers.privacy = "cleared"; providers.calls = 0; providers.sent.length = 0;
   providers.errors.length = 0; responseIndex=0; videoSpy.mockClear(); requests.length = 0;
+  parentWakeSpy?.mockClear();
   fs.rmSync(path.join(output, "profile"), { recursive: true, force: true });
+});
+
+// Same test module in an independent Vitest OS process. Existing actual writers
+// and queue execute; the observer pauses only after a verified native commit.
+if (workerPhase) it("fresh SDK worker process",async()=>{
+  const control=process.env.RELIABILITY_SDK_WORKER_CONTROL!;
+  const queue=await import("../utils/siteAssessmentQueue");
+  if(workerPhase==="persist-and-pause") {
+    const evidence=await import("../agents/private-evidence");const actual=evidence.persistAgentEvidence;
+    vi.spyOn(evidence,"persistAgentEvidence").mockImplementation(async(...args)=>{
+      await actual(...args);
+      if(args[1].collection==="agentRuns" && args[2].status==="completed") {
+        const stored=await (database as any).collection("agentRuns").doc(args[1].id).get();
+        expect(stored.data()?.status).toBe("completed");await refreshDocumentView();
+        const job=[...state.docs].find(([key])=>key.startsWith("siteAssessmentJobs/"))!;
+        expect(job[1].state).toBe("running");
+        fs.writeFileSync(`${control}-committed.json`,JSON.stringify({schema_version:"sdk_worker_commit.v1",pid:process.pid,phase:workerPhase,job:job[1],run:stored.data(),sol_calls:providers.calls,gem_calls:videoSpy.mock.calls.length,durable:durableSummary()},null,2));
+        await new Promise<void>(()=>{});
+      }
+    });
+  }
+  const ticks:Record<string,unknown>[]=[];
+  await queue.tickSiteAssessments(2);await refreshDocumentView();
+  let job=[...state.docs].find(([key])=>key.startsWith("siteAssessmentJobs/"))!;
+  ticks.push({state:job[1].state,cursor:state.docs.get("automationCursors/site_assessments"),sol_calls:providers.calls,gem_calls:videoSpy.mock.calls.length});
+  if(workerPhase==="recover"&&job[1].state==="running") {
+    // The crashed pass retained its scan cursor. The next ordinary empty sweep
+    // clears that cursor; another real tick revisits the retained completed run.
+    expect(providers.calls).toBe(0);expect(videoSpy).not.toHaveBeenCalled();
+    await queue.tickSiteAssessments(2);await refreshDocumentView();job=[...state.docs].find(([key])=>key.startsWith("siteAssessmentJobs/"))!;
+    ticks.push({state:job[1].state,cursor:state.docs.get("automationCursors/site_assessments"),sol_calls:providers.calls,gem_calls:videoSpy.mock.calls.length});
+  }
+  expect(job[1].state).toBe("completed");expect(providers.calls).toBe(0);expect(videoSpy).not.toHaveBeenCalled();
+  fs.writeFileSync(`${control}-recovered.json`,JSON.stringify({schema_version:"sdk_worker_recovery.v1",pid:process.pid,phase:workerPhase,ticks,job:job[1],sol_calls:providers.calls,gem_calls:videoSpy.mock.calls.length,durable:durableSummary()},null,2));
+});
+
+if(restartOnly&&!workerPhase) describe("fresh worker restart joined customer path",()=>{
+ for(let repeat=1;repeat<=3;repeat++) it(`SDK-UI-003 after-private-commit worker restart repeat${repeat}`,async()=>{
+  activeCase="SDK-UI-003";const started=Date.now();let result="failed",child:ChildProcess|undefined;
+  const control=path.join(retained,`worker-${repeat}`);const workerReceipts:Record<string,unknown>[]=[];const processEvidence:Record<string,unknown>[]=[];
+  const launch=(phase:string)=>{
+    const env:Record<string,string>={};for(const key of["PATH","HOME","TMPDIR"])if(process.env[key])env[key]=process.env[key]!;
+    Object.assign(env,{NODE_ENV:"test",BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP:"true",RELIABILITY_FIRESTORE_EMULATOR:"1",FIRESTORE_EMULATOR_HOST:"127.0.0.1:8085",RELIABILITY_ASSESSMENT_ONLY:"1",RELIABILITY_ASSESSMENT_RESTART_ONLY:"1",RELIABILITY_SDK_WORKER_PHASE:phase,RELIABILITY_SDK_WORKER_CONTROL:control});
+    const fd=fs.openSync(`${control}-${phase}.log`,"w");
+    child=spawn(process.execPath,["node_modules/vitest/vitest.mjs","run","--config","vitest.reliability-program.config.ts","--pool=forks","--maxWorkers=1","--minWorkers=1","-t","fresh SDK worker process"],{env,stdio:["ignore",fd,fd]});fs.closeSync(fd);
+    return child;
+  };
+  try{
+    await openBrowser();await context.tracing.start({screenshots:true,snapshots:true});await fill();
+    await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
+    await vi.waitFor(async()=>{await refreshDocumentView();expect(requestRows()).toHaveLength(1);expect([...state.docs.values()].some(row=>row.schema_version==="site_assessment_job.v1"&&row.state==="queued")).toBe(true);},{timeout:20000});
+    const requestId=requestRows()[0][0].split("/")[1];expect(providers.calls).toBe(0);expect(videoSpy).not.toHaveBeenCalled();
+    const first=launch("persist-and-pause");
+    await vi.waitFor(()=>{if(first.exitCode!==null)throw Error(`worker exited before checkpoint ${first.exitCode}`);expect(fs.existsSync(`${control}-committed.json`)).toBe(true);},{timeout:40000});
+    const committed=JSON.parse(fs.readFileSync(`${control}-committed.json`,"utf8"));expect(committed.pid).not.toBe(process.pid);expect(committed.sol_calls).toBe(2);expect(committed.gem_calls).toBe(1);workerReceipts.push(committed);
+    // The Vitest fork hosting the actual SDK is killed, then its launcher reaps it.
+    const actualParent=Number(execFileSync("ps",["-p",String(committed.pid),"-o","ppid="],{encoding:"utf8"}).trim());expect(actualParent).toBe(first.pid);
+    processEvidence.push({launcher_pid:first.pid,worker_pid:committed.pid,worker_ppid:actualParent,signal:"SIGKILL",at:new Date().toISOString()});
+    process.kill(committed.pid,"SIGKILL");await new Promise<void>(resolve=>first.once("exit",code=>{processEvidence.push({launcher_pid:first.pid,exit_code:code});resolve();}));
+    await refreshDocumentView();const preAck=[...state.docs.values()].find(row=>row.schema_version==="site_assessment_job.v1")!;expect(preAck.state).toBe("running");
+    const second=launch("recover");await new Promise<void>((resolve,reject)=>{second.once("error",reject);second.once("exit",code=>code===0?resolve():reject(Error(`recovery worker exited ${code}`)));});
+    const recovered=JSON.parse(fs.readFileSync(`${control}-recovered.json`,"utf8"));expect(recovered.pid).not.toBe(committed.pid);expect(recovered.pid).not.toBe(process.pid);expect(recovered.job.run_id).toBe(committed.job.run_id);expect(recovered.sol_calls).toBe(0);expect(recovered.gem_calls).toBe(0);workerReceipts.push(recovered);processEvidence.push({launcher_pid:second.pid,worker_pid:recovered.pid,phase:"recover",exit_code:second.exitCode});
+    reloadObjects();await refreshDocumentView();
+    await vi.waitFor(async()=>expect(page.url().includes("/capture-upload/")||await page.locator('a[href*="/capture-upload/"]').count()>0).toBe(true),{timeout:20000});
+    const href=page.url().includes("/capture-upload/")?page.url():await page.locator('a[href*="/capture-upload/"]').first().getAttribute("href");await page.goto(href!);
+    const token=href!.split("/capture-upload/")[1].split("?")[0];
+    const status=await page.evaluate(async token=>{const response=await fetch(`/api/site-task-brief/${token}/status`);return{http:response.status,body:await response.json()};},token);
+    expect(status.http).toBe(200);expect(status.body.siteAdvisory.state).toBe("ready");expect(status.body.status.stage).not.toBe("completed");
+    await page.reload();await page.getByRole("heading",{name:"What remains uncertain",exact:true}).waitFor();
+    const {hydrateAgentEvidence}=await import("../agents/private-evidence");const raw=await(database as any).collection("agentRuns").doc(recovered.job.run_id).get();
+    const hydrated=await hydrateAgentEvidence(raw.data(),{collection:"agentRuns",id:recovered.job.run_id});expect(hydrated.artifacts.site_assessment_packet_sha256).toBe(recovered.job.packet_sha256);expect(hydrated.artifacts.capture_inference_reservations).toHaveLength(3);
+    expect(requestRows()).toHaveLength(1);expect(requestRows()[0][0]).toBe(`inboundRequests/${requestId}`);expect(providers.calls).toBe(0);expect(videoSpy).not.toHaveBeenCalled();
+    const {deliverOutbox}=await import("../utils/captureOutbox");await deliverOutbox();await deliverOutbox();await refreshDocumentView();
+    const notices=[...state.docs.values()].filter(row=>["task_received","video_received"].includes(row.kind as string)&&row.status==="sent");expect(notices.filter(row=>row.kind==="task_received")).toHaveLength(1);expect(notices.filter(row=>row.kind==="video_received")).toHaveLength(1);
+    expect(providers.sent.filter(row=>row.to==="sdk-ui-003@example.com").map(row=>row.subject).sort()).toEqual(notices.map(row=>row.subject).sort());
+    fs.writeFileSync(`${control}-customer-result.json`,JSON.stringify({requestId,job:recovered.job,run:hydrated,status:status.body,durable:durableSummary()},null,2));result="passed";
+  }finally{
+    if(child&&child.exitCode===null)child.kill("SIGTERM");await refreshDocumentView();
+    if(page&&!page.isClosed())await page.screenshot({path:path.join(retained,`SDK-UI-003-${repeat}-${result}.png`)}).catch(()=>{});
+    await context?.tracing.stop({path:path.join(retained,`SDK-UI-003-${repeat}-trace.zip`)}).catch(()=>{});
+    traces.push({id:"SDK-UI-003",repeat,result,latency_ms:Date.now()-started,worker_restart:true,worker_receipts:workerReceipts,process_evidence:processEvidence,parent_web_wake_deferred_testonly:true,parent_wakes:parentWakeSpy.mock.calls.length,parent_model_calls:providers.calls,parent_gem_calls:videoSpy.mock.calls.length,transitions:structuredClone(requests),errors:[...providers.errors],durable:durableSummary()});await stopBrowser();
+  }
+ });
 });
 afterAll(async()=>{
   await stopBrowser(); vite?.kill("SIGTERM"); if(server){server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
-  const report={schema_version:"sdk_browser_results.v1",generated_unique:2,deduplicated_unique:2,attempted_unique:new Set(traces.map(row=>row.id)).size,attempted:traces.length,passed:traces.filter(row=>row.result==="passed").length,failed:traces.filter(row=>row.result!=="passed").length,live_provider_calls:0,live_cost_usd:0,simulated_cost_usd:null,traces};
+  const report={schema_version:"sdk_browser_results.v1",generated_unique:restartOnly?1:2,deduplicated_unique:restartOnly?1:2,attempted_unique:new Set(traces.map(row=>row.id)).size,attempted:traces.length,passed:traces.filter(row=>row.result==="passed").length,failed:traces.filter(row=>row.result!=="passed").length,live_provider_calls:0,live_cost_usd:0,simulated_cost_usd:null,traces};
   fs.writeFileSync(path.join(retained,"results.json"),JSON.stringify(report,null,2));
-  modelSpy?.mockRestore();videoSpy?.mockRestore();fetchGuard?.mockRestore();if(emulatorMode)await (database as any).terminate();vi.unstubAllEnvs();
+  parentWakeSpy?.mockRestore();for(const resolve of deferredParentWakes)resolve();modelSpy?.mockRestore();videoSpy?.mockRestore();fetchGuard?.mockRestore();if(emulatorMode)await (database as any).terminate();vi.unstubAllEnvs();
 });
-describe("supplemental normal UI through native persistence and actual SDK",()=>{
+if(!restartOnly&&!workerPhase) describe("supplemental normal UI through native persistence and actual SDK",()=>{
  for(const [id,kind] of cases) for(let repeat=1;repeat<=3;repeat++) it(`${id} ${kind} repeat${repeat}`,async()=>{
   activeCase=id;const started=Date.now();let result="failed";
   try {
