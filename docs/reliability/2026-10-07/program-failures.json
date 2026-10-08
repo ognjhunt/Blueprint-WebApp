@@ -839,11 +839,14 @@
       "baseline_result": "2FAIL onb426",
       "candidate_result": "same2PASS plus39existing checks onbf01;merged5f7dsourcehashesidentical",
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/974",
-      "state": "independent_source_approval_received;CI/integration_checks_pending",
+      "state": "independently_reviewed_protected_merged974;native_deployment_pending",
       "receipt_sha256": "e18609a5d8ed80343448b6d874b8199879c5d4383a021aa48e5ca29ac44dd710",
       "limits": "Inherited source removal reviewed bydiff, no separate resume fixture;no live perception or customer incidence;historical packets preserved",
       "paid_provider_calls": 0,
-      "original_unique_case_credit": 0
+      "original_unique_case_credit": 0,
+      "merge_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+      "independent_review_commit": "65511d15",
+      "required_CI": 37837684542
     }
   ],
   "dependencies": [

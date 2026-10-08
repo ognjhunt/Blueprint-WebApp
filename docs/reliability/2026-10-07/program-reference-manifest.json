@@ -275,14 +275,6 @@
     "duration_seconds": 30.078333,
     "private_observation_path": "/private/tmp/blueprint-owner-evidence-20261008/output/reliability-program/customer-evidence-handoff-diagnosis/reference-frames/provisional-agent-observation.json",
     "observation_sha256": "96e7ad9f0acda987098e4dbef1f3233e2e5b3291b9bb32413769af2227947524",
-    "sampling_seconds": [
-      0,
-      6,
-      12,
-      18,
-      24,
-      29
-    ],
     "label_status": "PROVISIONAL_agent_observation;not_human_reviewed_truth",
     "observed_scope": "Six actual local pixel samples show open dishwasher, racks/dishware and hand contact; sparse samples cannot prove action sequence or task completion",
     "forbidden_inferences": [
@@ -295,6 +287,15 @@
     "current_human_label_credit": 0,
     "live_provider_calls": 0,
     "heldout": false,
-    "privacy": "Local owned video/frames only0700/0600;notuploaded;original owner records/retained footage untouched"
+    "privacy": "Local owned video/frames only0700/0600;notuploaded;original owner records/retained footage untouched",
+    "requested_seek_seconds": [
+      0,
+      6,
+      12,
+      18,
+      24,
+      29
+    ],
+    "exact_decoded_frame_timestamps_retained": false
   }
 }

@@ -1847,8 +1847,16 @@
     "private_receipt_path": "/private/tmp/blueprint-owner-evidence-20261008/output/reliability-program/customer-evidence-handoff-diagnosis/receipt.json",
     "private_receipt_sha256": "e18609a5d8ed80343448b6d874b8199879c5d4383a021aa48e5ca29ac44dd710",
     "checks": "same2isolatedprobes FAIL before/PASS after;39 existing checks;no additional unique credit",
-    "state": "draft_published;independent_source_approval_received;integration_checks_and_required_CI_pending",
+    "state": "independently_reviewed_protected_merged974;native_deployment_pending",
     "scope": "two source files;host instruction non-citable;canonical stored owner assertions only;generated display defaults excluded;video-only intake preserved",
-    "paid_provider_calls": 0
+    "paid_provider_calls": 0,
+    "merge_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+    "merged_at_utc": "2026-10-08T20:16:48Z",
+    "required_PR_CI": 37837684542,
+    "required_PR_CI_conclusion": "success;8applicablejobs;E2E/observer skips not executions",
+    "independent_review_commit": "65511d15",
+    "integration_receipt_sha256": "d45d97350d76fc97eabfec400be6bae63de0a2c8b035a63bed290ed2b2dd612c",
+    "main_CI": 37838250275,
+    "main_CI_state": "pending_at_observation"
   }
 }
