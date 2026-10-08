@@ -85,7 +85,7 @@ export function acceptsReconciledCaptureHistory(programme: any, requestId: strin
 
 export function admitInferenceProgramme(value: unknown, binding: { requestId: string; captureId: string; contextDigest: string;
   videoSha256: unknown; sourceDigest: string; provider: "openai" | "gemini"; model: string; reservedMicroUsd: number;
-  token: string; runId: string; eligibleSlotIds?: string[]; admittedSlotIds?: string[]; captureState?: any }) {
+  token: string; runId: string; requestBound?: unknown; eligibleSlotIds?: string[]; admittedSlotIds?: string[]; captureState?: any }) {
   const programme = validateInferenceProgramme(value);
   assertInferenceProgrammeClock(programme, binding.captureState);
   if (programme.request_id !== binding.requestId || programme.capture_id !== binding.captureId
@@ -96,8 +96,15 @@ export function admitInferenceProgramme(value: unknown, binding: { requestId: st
     && (programme.expires_at_ms > Date.now() || programme.technical_continuations?.[0]?.remaining_slot_ids?.includes(row.id))
     && (!binding.eligibleSlotIds || binding.eligibleSlotIds.includes(row.id)) && !binding.admittedSlotIds?.includes(row.id) && row.provider === binding.provider && row.model === binding.model
     && row.reserved_micro_usd >= binding.reservedMicroUsd);
-  if (!slot) throw new Error("inference_programme_slot_unavailable");
-  return { slotId: slot.id, slotReservation: slot.reserved_micro_usd, authorityDigest: inferenceProgrammeAuthorityDigest({ ...programme, producer_source_digest: binding.sourceDigest }), slots: programme.slots.map(row => row.id === slot.id ? { ...row, state: "admitted" as const,
+  const amendment = inferenceProgrammeAmendment(programme,binding.captureState);
+  const additional = !slot && amendment ? {id:`amended-${humanDecisionDigest({token:binding.token})}`,provider:binding.provider,model:binding.model,
+    reserved_micro_usd:binding.reservedMicroUsd,state:"held" as const}:null;
+  const selected=slot??additional;
+  if (!selected) throw new Error("inference_programme_slot_unavailable");
+  if(amendment && amendment.exposure+(slot?0:binding.reservedMicroUsd)>amendment.receipt.effective_cap_micro_usd)throw new Error("inference_programme_cap_invalid");
+  const amendedCall=amendment?{id:selected.id,...(slot?{original_slot_id:slot.id}:{}),provider:binding.provider,model:binding.model,
+    reserved_micro_usd:binding.reservedMicroUsd,reserved_call_micro_usd:binding.reservedMicroUsd,...(binding.requestBound?{inference_bound:binding.requestBound}:{}),state:"admitted",admission_token:binding.token,run_id:binding.runId}:null;
+  return { slotId: selected.id, slotReservation: selected.reserved_micro_usd, amendedCalls: amendment ? [...amendment.calls,amendedCall] : null, supplemental:!!additional, authorityDigest: inferenceProgrammeAuthorityDigest({ ...programme, producer_source_digest: binding.sourceDigest }), slots: programme.slots.map(row => row.id === selected.id ? { ...row, state: "admitted" as const,
     admission_token: binding.token, run_id: binding.runId, reserved_call_micro_usd: binding.reservedMicroUsd } : row),
     producer_source_digest: binding.sourceDigest };
 }
@@ -130,7 +137,7 @@ export function validatedAssessmentRecoveries(state: any, programme: Programme):
   let prior: AssessmentRecovery | undefined;
   for (const row of rows) {
     const { receipt_sha256, ...content } = row ?? {};
-    const slot = programme.slots.find(slot => slot.id === row?.slot_id);
+    const slot = effectiveInferenceProgrammeSlots(programme,state).find(slot => slot.id === row?.slot_id);
     if (!row || row.schema_version !== "site_assessment_recovery.v1" || receipt_sha256 !== humanDecisionDigest(content)
       || !/^[A-Za-z0-9._-]{1,120}$/.test(row.retry_identity) || !/^advisory-[a-f0-9]{64}$/.test(row.job_id)
       || row.request_id !== programme.request_id || row.capture_id !== programme.capture_id
@@ -149,15 +156,94 @@ export function validatedAssessmentRecoveries(state: any, programme: Programme):
       || slot?.state !== "unknown" || slot.run_id !== row.previous_run_id || slot.admission_token !== row.admission_token
       || slot.provider !== row.provider || slot.model !== row.model || slot.reserved_micro_usd !== row.reserved_micro_usd
       || slot.reserved_call_micro_usd !== row.reserved_call_micro_usd
-      || !state.inference_programme_admitted_slot_ids?.includes(row.slot_id)) throw new Error("advisory_retry_unavailable");
+      || !(state.inference_programme_admitted_slot_ids?.includes(row.slot_id) || state.inference_programme_amended_admitted_slot_ids?.includes(row.slot_id))) throw new Error("advisory_retry_unavailable");
     runs.add(row.previous_run_id); tokens.add(row.admission_token); prior = row;
   }
   return rows;
 }
 
+/** Explicit server-owned amendment; original authority and clock receipts remain byte-identical. */
+export function inferenceProgrammeAmendment(programme: Programme, state: any) {
+  if (programme.authority_amendments === undefined) {
+    if(state?.inference_programme_amendment_digest)throw new Error("inference_programme_amendment_invalid");
+    return null;
+  }
+  const receipts: any = programme.authority_amendments;
+  const row = Array.isArray(receipts) && receipts.length === 1 ? receipts[0] : null;
+  const { receipt_sha256, ...content } = row ?? {};
+  const technical: any = programme.technical_continuations?.[0];
+  const snapshot = row?.capture_snapshot;
+  if (!row || row.schema_version !== "inference_programme_authority_amendment.v1"
+    || receipt_sha256 !== humanDecisionDigest(content) || !/^[A-Za-z0-9._-]{1,120}$/.test(row.identity)
+    || typeof row.authority_ref !== "string" || !row.authority_ref.trim() || row.authority_ref.length > 500
+    || typeof row.operator_ref !== "string" || !row.operator_ref.trim() || row.operator_ref.length > 500
+    || !/^sha256:[a-f0-9]{64}$/.test(row.approval_receipt_sha256)
+    || row.original_authority_digest !== inferenceProgrammeAuthorityDigest(programme)
+    || row.original_authority_ref !== programme.authority_ref || row.authority_ref === programme.authority_ref || row.original_expires_at_ms !== programme.expires_at_ms
+    || row.technical_receipt_sha256 !== technical?.receipt_sha256 || row.effective_expires_at_ms !== technical?.effective_expires_at_ms
+    || row.request_id !== programme.request_id || row.capture_id !== programme.capture_id
+    || row.context_digest !== programme.context_digest || row.video_sha256 !== programme.video_sha256
+    || row.source_digest !== programme.producer_source_digest || row.ledger_sha256 !== programme.ledger_sha256
+    || row.original_cap_micro_usd !== programme.cap_micro_usd || row.effective_cap_micro_usd !== 5300000
+    || !Number.isSafeInteger(row.granted_at_ms) || row.granted_at_ms < 1 || row.granted_at_ms > Date.now()
+    || !Array.isArray(row.slot_snapshot) || row.slot_snapshot.length !== programme.slots.length
+    || !state || state.inference_program_id !== row.programme_id || state.inference_programme_authority_digest !== row.original_authority_digest
+    || state.inference_programme_amendment_digest !== receipt_sha256
+    || !snapshot || !Number.isSafeInteger(snapshot.calls) || snapshot.calls < 1 || !Number.isFinite(snapshot.exposure_usd) || snapshot.exposure_usd <= 0
+    || !Array.isArray(snapshot.eligible_slot_ids)||!Array.isArray(snapshot.admitted_slot_ids)||!Array.isArray(snapshot.recovery_digests)
+    || !Array.isArray(state.inference_programme_admitted_slot_ids)||!Array.isArray(state.inference_programme_amended_admitted_slot_ids)
+    || !Array.isArray(programme.amended_calls)||new Set(row.slot_snapshot.map((s:any)=>s?.id)).size!==programme.slots.length
+    || state.calls < snapshot.calls || state.exposure_usd < snapshot.exposure_usd || state.cap_usd !== snapshot.cap_usd
+    || humanDecisionDigest(state.inference_programme_eligible_slot_ids) !== humanDecisionDigest(snapshot.eligible_slot_ids)
+    || snapshot.admitted_slot_ids.some((id: string) => !state.inference_programme_admitted_slot_ids?.includes(id))
+    || humanDecisionDigest((state.assessment_recoveries ?? []).slice(0,snapshot.recovery_digests.length).map((r:any)=>r.receipt_sha256)) !== humanDecisionDigest(snapshot.recovery_digests))
+    throw new Error("inference_programme_amendment_invalid");
+  const calls: any[] = Array.isArray(programme.amended_calls) ? programme.amended_calls : [];
+  if (calls.length >= 100 || state.calls !== snapshot.calls + calls.length
+    || humanDecisionDigest(state.inference_programme_amended_admitted_slot_ids ?? []) !== humanDecisionDigest(calls.filter(c=>!c.original_slot_id).map(c=>c.id).sort()))
+    throw new Error("inference_programme_amendment_invalid");
+  const ids = new Set<string>(), tokens = new Set<string>(), originals = new Set<string>();
+  let exposure = programme.slots.reduce((sum,slot)=>sum+slot.reserved_micro_usd,0);
+  for (const call of calls) {
+    const slot = programme.slots.find(s=>s.id===call.original_slot_id);
+    const before = row.slot_snapshot.find((s:any)=>s.id===call.original_slot_id);
+    if (!call || typeof call.id !== "string" || !/^[A-Za-z0-9._-]{1,120}$/.test(call.id) || ids.has(call.id)
+      || typeof call.admission_token !== "string" || !call.admission_token || tokens.has(call.admission_token)
+      || typeof call.run_id !== "string" || !call.run_id || !amount(call.reserved_micro_usd)
+      || call.reserved_call_micro_usd !== call.reserved_micro_usd || !["admitted","recorded","unknown"].includes(call.state)
+      || !((call.provider === "openai" && call.model === SITE_ASSESSMENT_MODEL) || (call.provider === "gemini" && call.model === "gemini-3.8-flash"))
+      || (call.state === "recorded" && (!Number.isSafeInteger(call.usage_input_tokens) || call.usage_input_tokens<0
+        || !Number.isSafeInteger(call.usage_output_tokens)||call.usage_output_tokens<0||!Number.isSafeInteger(call.priced_at_ms)||call.priced_at_ms<row.granted_at_ms||call.priced_at_ms>Date.now()
+        || !Number.isSafeInteger(call.usage_estimate_micro_usd) || call.usage_estimate_micro_usd < 0 || call.usage_estimate_micro_usd > call.reserved_micro_usd
+        || call.usage_estimate_micro_usd!==Math.ceil(call.usage_input_tokens*(call.provider==="openai"?2.5:call.priced_at_ms<Date.parse("2027-01-01T00:00:00Z")?.75:1.5)
+          +call.usage_output_tokens*(call.provider==="openai"?10:call.priced_at_ms<Date.parse("2027-01-01T00:00:00Z")?3.75:7.5))))
+      || (call.original_slot_id && (!slot || before?.state !== "held" || originals.has(slot.id)
+        || slot.state !== call.state || slot.admission_token !== call.admission_token || slot.run_id !== call.run_id
+        || slot.provider !== call.provider || slot.model !== call.model || slot.reserved_call_micro_usd !== call.reserved_micro_usd)))
+      throw new Error("inference_programme_amendment_invalid");
+    ids.add(call.id);tokens.add(call.admission_token);if(slot) originals.add(slot.id);
+    const retained = call.state === "recorded" ? call.usage_estimate_micro_usd : call.reserved_micro_usd;
+    exposure += slot ? retained-slot.reserved_micro_usd : retained;
+  }
+  for (const before of row.slot_snapshot) {
+    const slot=programme.slots.find(s=>s.id===before.id);
+    if(!slot || (before.state === "held" ? (slot.state !== "held" && !originals.has(slot.id))
+      : !([before.state,...(before.state === "admitted" ? ["unknown","recorded"]:[])].includes(slot.state)
+        && (slot.admission_token??null)===before.admission_token && (slot.run_id??null)===before.run_id
+        && (slot.reserved_call_micro_usd??null)===before.reserved_call_micro_usd))) throw new Error("inference_programme_amendment_invalid");
+  }
+  if(!Number.isSafeInteger(exposure)||exposure<0||exposure>row.effective_cap_micro_usd)throw new Error("inference_programme_cap_invalid");
+  return { receipt:row,calls,exposure, supplementalCalls:calls.filter(c=>!c.original_slot_id).length };
+}
+export function effectiveInferenceProgrammeSlots(programme: Programme, state: any) {
+  const amendment=inferenceProgrammeAmendment(programme,state);
+  return [...programme.slots,...(amendment?.calls.filter(c=>!c.original_slot_id)??[])];
+}
+
 export const INFERENCE_TECHNICAL_WINDOW_MS = 2 * 60 * 60_000;
 /** A canonical operator attestation changes only the clock, never original spending authority. */
 export function assertInferenceProgrammeClock(programme: Programme, state?: any, dispatchSlotId?: string) {
+  const amendment = inferenceProgrammeAmendment(programme,state);
   const receipts = programme.technical_continuations;
   if (receipts !== undefined) {
     const row = Array.isArray(receipts) && receipts.length === 1 ? receipts[0] : null;
@@ -180,8 +266,8 @@ export function assertInferenceProgrammeClock(programme: Programme, state?: any,
       || !state || state.inference_program_id !== row.programme_id || state.inference_programme_authority_digest !== row.original_authority_digest
       || !snapshot || !Number.isSafeInteger(snapshot.calls) || snapshot.calls < 1 || !Number.isFinite(snapshot.exposure_usd) || snapshot.exposure_usd <= 0
       || !Number.isSafeInteger(state.calls) || !Number.isFinite(state.exposure_usd) || !Array.isArray(snapshot.eligible_slot_ids) || !Array.isArray(snapshot.admitted_slot_ids) || !Array.isArray(snapshot.recovery_digests)
-      || state.calls < snapshot.calls || state.calls > snapshot.calls + row.remaining_slot_ids.length
-      || state.exposure_usd < snapshot.exposure_usd || state.cap_usd !== snapshot.cap_usd || state.exposure_usd > state.cap_usd
+      || state.calls < snapshot.calls || state.calls > snapshot.calls + row.remaining_slot_ids.length + (amendment?.supplementalCalls ?? 0)
+      || state.exposure_usd < snapshot.exposure_usd || state.cap_usd !== snapshot.cap_usd || (!amendment && state.exposure_usd > state.cap_usd)
       || !sameIds(state.inference_programme_eligible_slot_ids, snapshot.eligible_slot_ids)
       || !Array.isArray(state.inference_programme_admitted_slot_ids)
       || snapshot.admitted_slot_ids?.some((id: string) => !state.inference_programme_admitted_slot_ids.includes(id))
@@ -199,7 +285,12 @@ export function assertInferenceProgrammeClock(programme: Programme, state?: any,
       || !row.slot_snapshot.some((slot: any) => slot.id === id && slot.state === "held"))) throw new Error("inference_programme_continuation_invalid");
     if (programme.expires_at_ms <= Date.now()) {
       if (row.effective_expires_at_ms <= Date.now()) throw new Error("inference_programme_expired");
-      if (dispatchSlotId && !row.remaining_slot_ids.includes(dispatchSlotId)) throw new Error("inference_programme_continuation_slot_unavailable");
+      if (dispatchSlotId && !row.remaining_slot_ids.includes(dispatchSlotId) && !amendment?.calls.some(c=>c.id===dispatchSlotId && !c.original_slot_id)) throw new Error("inference_programme_continuation_slot_unavailable");
     }
   } else if (programme.expires_at_ms <= Date.now()) throw new Error("inference_programme_expired");
+}
+
+export function hasActiveInferenceProgrammeAmendment(value: unknown, state: any) {
+  const programme=validateInferenceProgramme(value);assertInferenceProgrammeClock(programme,state);
+  return inferenceProgrammeAmendment(programme,state)!==null;
 }

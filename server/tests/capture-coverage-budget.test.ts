@@ -157,6 +157,84 @@ describe("programme-bound actual reservation transaction", () => {
       continuationIdentity: "explicit-window-one", authorityRef: "synthetic-test-approval", operatorRef: "synthetic-authorized-operator",
       effectiveExpiresAtMs: Date.now() + 7200000, ...extra });
   };
+  const amend=async(extra:Record<string,any>={})=>{
+    const {grantInferenceProgrammeAuthorityAmendment}=await import("../utils/captureCoverageInferenceBudget");
+    return grantInferenceProgrammeAuthorityAmendment({programmeId:"programme-one",expectedAuthorityDigest:read(budgetPath).inference_programme_authority_digest,
+      expectedTechnicalReceiptDigest:read(programmePath).technical_continuations[0].receipt_sha256,amendmentIdentity:"approved-budget-amendment",
+      authorityRef:"synthetic-new-human-approval",operatorRef:"synthetic-authorized-operator",approvalReceiptSha256:`sha256:${"c".repeat(64)}`,effectiveCapMicroUsd:5300000,...extra});
+  };
+  it("explicit budget amendment preserves old unknowns and clock, then reconciles new calls without a Gemini count quota",async()=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();
+    const original=structuredClone(read(programmePath)),before=structuredClone(read(budgetPath));
+    const receipt=await amend();expect(await amend()).toEqual(receipt);expect(read(programmePath).slots).toEqual(original.slots);
+    expect(read(programmePath).technical_continuations).toEqual(original.technical_continuations);
+    expect(read(budgetPath)).toMatchObject(before);
+    vi.spyOn(Date,"now").mockReturnValue(original.expires_at_ms+1);
+    try {for(let n=0;n<4;n++){const call=await reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini");await call.assertDispatchAllowed();await call.record(usage);}
+    expect(read(programmePath).amended_calls).toHaveLength(4);expect(read(programmePath).amended_calls.filter((c:any)=>!c.original_slot_id)).toHaveLength(3);
+    expect(read(programmePath).slots.slice(0,2)).toEqual(original.slots.slice(0,2));expect(read(programmePath).expires_at_ms).toBe(original.expires_at_ms);
+    expect(read(budgetPath).inference_programme_authority_digest).toBe(before.inference_programme_authority_digest);
+    expect(read(budgetPath).calls).toBe(before.calls+4);expect(read(budgetPath).exposure_usd).toBeGreaterThan(5);
+    }finally{vi.restoreAllMocks();}
+  });
+  it.each(["identity","approval","digest","technical","source","context","cap","expiry","revocation"])("refuses %s amendment or stale dispatch without authority reset",async defect=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();
+    const input:any={};if(defect==="identity")input.amendmentIdentity="bad /";if(defect==="approval")input.approvalReceiptSha256="missing";
+    if(defect==="digest")input.expectedAuthorityDigest="f".repeat(64);if(defect==="technical")input.expectedTechnicalReceiptDigest="f".repeat(64);
+    if(defect==="source")read("inboundRequests/one").capture_privacy_source_bound_decision.producer_source={kind:"browser_pending",key:"changed"};
+    if(defect==="context")read("inboundRequests/one").request.taskDescription="changed";if(defect==="cap")input.effectiveCapMicroUsd=5300001;
+    if(defect==="expiry")vi.spyOn(Date,"now").mockReturnValue(read(programmePath).technical_continuations[0].effective_expires_at_ms+1);
+    if(defect==="revocation")read(programmePath).status="revoked";
+    const before=structuredClone(read(programmePath));try{await expect(amend(input)).rejects.toThrow();expect(read(programmePath)).toEqual(before);}finally{vi.restoreAllMocks();}
+  });
+  it("amended unknown calls retain full headroom and changed receipts fail closed",async()=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();await amend();
+    const gem=await reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini");await gem.record(undefined);
+    await expect(sol()).rejects.toThrow("cost_unresolved");expect(read(programmePath).amended_calls[0].state).toBe("admitted");
+    read(programmePath).authority_amendments[0].effective_cap_micro_usd=6000000;
+    await expect(gem.assertDispatchAllowed()).rejects.toThrow("amendment_invalid");
+    await expect(gem.record(usage)).rejects.toThrow("accounting_mismatch");expect(read(budgetPath).pending_token).toBeTruthy();
+  });
+  it("only amended bound video requests use counted input while ordinary callers retain the full ceiling",async()=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();await amend();
+    const request={inference_bound:{schema_version:"site_assessment_inference_bound.v1",provider:"gemini",model:"gemini-3.8-flash",source_sha256:"a".repeat(64),
+      payload_sha256:"b".repeat(64),input_tokens:1000,max_output_tokens:32768,method:"count_tokens_same_payload"}};
+    const call=await reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini",request);
+    expect(call.receipt.reserved_usd).toBeCloseTo(.24726);await call.assertDispatchAllowed();await call.record(usage);
+    const current=read(programmePath).amended_calls[0];expect(current.usage_input_tokens).toBe(100);
+    current.usage_estimate_micro_usd=0;await expect(sol()).rejects.toThrow("amendment_invalid");
+  });
+  it("bound video provenance and token ceilings cannot bypass amendment admission",async()=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();await amend();
+    const bound={schema_version:"site_assessment_inference_bound.v1",provider:"gemini",model:"gemini-3.8-flash",source_sha256:"a".repeat(64),payload_sha256:"b".repeat(64),
+      input_tokens:1000,max_output_tokens:32768,method:"count_tokens_same_payload"};
+    await expect(reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini",{inference_bound:{...bound,source_sha256:"f".repeat(64)}})).rejects.toThrow("binding_changed");
+    await expect(reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini",{inference_bound:{...bound,input_tokens:0}})).rejects.toThrow("input_budget_exceeded");
+    expect(read(budgetPath).pending_token).toBeNull();
+  });
+  it("late original known accounting remains valid after amendment expiry and revocation without retrospective refund",async()=>{
+    reconcilePreProviderHistory();const first=await sol();await continueClock();const before=structuredClone(read(programmePath));await amend();
+    read(programmePath).status="revoked";vi.spyOn(Date,"now").mockReturnValue(before.technical_continuations[0].effective_expires_at_ms+1);
+    try{await first.record({input_tokens:100,output_tokens:10});expect(read(programmePath).amended_calls).toHaveLength(0);
+      expect(read(programmePath).slots[2].state).toBe("recorded");expect(read(budgetPath).exposure_usd).toBe(.33192);
+      await expect(sol()).rejects.toThrow();}finally{vi.restoreAllMocks();}
+  });
+  it.each(["removed","replay-change","call-reset","expired","revoked","unknown-full"])("amended %s never creates dispatch headroom or changes original authority",async defect=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();await amend();
+    const next=await sol();
+    if(defect==="removed")delete read(programmePath).authority_amendments;
+    if(defect==="call-reset")read(programmePath).amended_calls=[];
+    if(defect==="expired")vi.spyOn(Date,"now").mockReturnValue(read(programmePath).technical_continuations[0].effective_expires_at_ms+1);
+    if(defect==="revoked")read(programmePath).status="revoked";
+    try {
+      if(defect==="replay-change")await expect(amend({authorityRef:"different-approval"})).rejects.toThrow("amendment_invalid");
+      else if(defect==="unknown-full"){
+        // The new call is still admitted: its full reserve cannot fund a second concurrent dispatch.
+        await next.record(undefined);await expect(sol()).rejects.toThrow("cost_unresolved");
+      }else await expect(next.assertDispatchAllowed()).rejects.toThrow();
+      expect(read(budgetPath).pending_token).toBeTruthy();
+    }finally{vi.restoreAllMocks();}
+  });
   it("explicit technical continuation admits remaining held slots without rewriting original expiry or accounting", async () => {
     reconcilePreProviderHistory();const first = await sol();await first.record({input_tokens:100,output_tokens:10});
     const before = structuredClone(read(budgetPath)), original = structuredClone(read(programmePath));

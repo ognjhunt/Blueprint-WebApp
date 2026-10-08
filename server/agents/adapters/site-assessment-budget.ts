@@ -1,7 +1,7 @@
 import { getGeminiVideoModel, getOpenAiMaxOutputTokens, SITE_ASSESSMENT_MODEL } from "../provider-config";
 
 type Call = { provider: "openai" | "gemini"; model: string; reserved_usd: number;
-  usage: unknown; response: unknown; cost_usd: number | null; input_tokens: number | null; output_tokens: number | null };
+  usage: unknown; response: unknown; cost_usd: number | null; input_tokens: number | null; output_tokens: number | null; priced_at_ms?: number };
 const counter = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 const configuredPositive = (value: string | undefined, fallback: number, maximum: number) => {
   const parsed = Number(value ?? fallback);
@@ -11,10 +11,12 @@ const configuredPositive = (value: string | undefined, fallback: number, maximum
 /** Reuses the existing inference cap; unknown paid calls retain their exposure. */
 export class SiteAssessmentBudget {
   readonly calls: Call[] = [];
-  constructor(private readonly committedExposureUsd = 0) {
+  constructor(private readonly committedExposureUsd = 0, internalCapUsd?: number) {
+    this.cap = internalCapUsd ?? configuredPositive(process.env.BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD, 5, 100);
+    if(!Number.isFinite(this.cap)||this.cap<=0||this.cap>100)throw new Error("site_assessment_exposure_invalid");
     if (!Number.isFinite(committedExposureUsd) || committedExposureUsd < 0) throw new Error("site_assessment_exposure_invalid");
   }
-  readonly cap = configuredPositive(process.env.BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD, 5, 100);
+  readonly cap: number;
   readonly inputCeiling = Math.floor(configuredPositive(process.env.BLUEPRINT_OPENAI_AGENT_MAX_INPUT_TOKENS, 100000, 100000));
   readonly maxOutput = Math.min(8192, getOpenAiMaxOutputTokens());
   authorize(provider: "openai" | "gemini", model: string, request?: unknown) {
@@ -30,8 +32,13 @@ export class SiteAssessmentBudget {
     // Sol: uncached input plus a conservative cache-write ceiling. Flash:
     // full 1,048,576-token context and 32768 output at its announced post-2026 ceiling.
     // Pricing sources are retained below; these are estimates, never invoices.
+    const bound=(request as any)?.inference_bound;
+    if(bound!==undefined && (provider!=="gemini" || bound.schema_version!=="site_assessment_inference_bound.v1" || bound.provider!==provider || bound.model!==model
+      || !/^[a-f0-9]{64}$/.test(bound.source_sha256) || !/^[a-f0-9]{64}$/.test(bound.payload_sha256) || bound.method!=="count_tokens_same_payload"
+      || !Number.isSafeInteger(bound.input_tokens)||bound.input_tokens<1||bound.input_tokens>1048576
+      || !Number.isSafeInteger(bound.max_output_tokens)||bound.max_output_tokens<1||bound.max_output_tokens>32768))throw new Error("site_assessment_input_budget_exceeded");
     const reserved = provider === "openai" ? (this.inputCeiling * 2.5 + this.maxOutput * 10) / 1e6
-      : (1_048_576 * 1.5 + 32768 * 7.5) / 1e6;
+      : ((bound?.input_tokens ?? 1_048_576) * 1.5 + (bound?.max_output_tokens ?? 32768) * 7.5) / 1e6;
     if (this.committedExposureUsd + this.calls.reduce((sum, call) => sum + (call.cost_usd ?? call.reserved_usd), 0) + reserved > this.cap) {
       throw new Error("site_assessment_inference_cost_cap");
     }
@@ -47,7 +54,8 @@ export class SiteAssessmentBudget {
     const output = visibleOutput !== null && thoughts !== null ? visibleOutput + thoughts : null;
     call.input_tokens = input; call.output_tokens = output;
     if (input !== null && output !== null) {
-      const flashInputRate = Date.now() < Date.parse("2027-01-01T00:00:00Z") ? 0.75 : 1.5;
+      call.priced_at_ms = Date.now();
+      const flashInputRate = call.priced_at_ms < Date.parse("2027-01-01T00:00:00Z") ? 0.75 : 1.5;
       const flashOutputRate = flashInputRate * 5;
       // Missing cache-write detail retains the highest admitted input rate.
       // Never release this exposure at the cheaper ordinary-input rate.

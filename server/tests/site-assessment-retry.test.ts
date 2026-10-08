@@ -116,3 +116,25 @@ it.each(["receipt","old-source","slot-reset","brief-rotation"])("refuses %s afte
  }
  expect(read(budgetPath).calls).toBe(1);expect(read(budgetPath).exposure_usd).toBe(0.33192);
 });
+
+it("budget amendment enables exact two-call failed recovery using one original held Sol plus approved pool",async()=>{
+ const {grantInferenceProgrammeAuthorityAmendment}=await import("../utils/captureCoverageInferenceBudget");
+ await oldCall.record({input_tokens:100,output_tokens:10});
+ await grantInferenceProgrammeTechnicalContinuation({programmeId:"retry-programme",expectedAuthorityDigest:read(budgetPath).inference_programme_authority_digest,
+  continuationIdentity:"current-fixed-window",authorityRef:"synthetic-authority",operatorRef:"synthetic-authorized-operator",effectiveExpiresAtMs:Date.now()+7200000});
+ read(`agentRuns/${oldRun}`).status="running";oldCall=await reserveCaptureCoverageInference("gpt-6.1-sol",metadata(oldRun),"openai",{});
+ read(`agentRuns/${oldRun}`).artifacts.capture_inference_reservations=[oldCall.receipt];read(`agentRuns/${oldRun}`).status="failed";
+ expect((await describeSiteAssessmentRetry(requestId,access)).available).toBe(false);
+ const old=structuredClone(read(`agentRuns/${oldRun}`)),before=structuredClone(read(programmePath));
+ await grantInferenceProgrammeAuthorityAmendment({programmeId:"retry-programme",expectedAuthorityDigest:read(budgetPath).inference_programme_authority_digest,
+  expectedTechnicalReceiptDigest:before.technical_continuations[0].receipt_sha256,amendmentIdentity:"approved-budget-amendment",authorityRef:"synthetic-new-human-approval",
+  operatorRef:"synthetic-authorized-operator",approvalReceiptSha256:`sha256:${"c".repeat(64)}`,effectiveCapMicroUsd:5300000});
+ expect((await describeSiteAssessmentRetry(requestId,access)).available).toBe(true);
+ const accepted=await retry();const job=read(`siteAssessmentJobs/${jobId}`);job.state="running";job.claim_id="new-claim";
+ state.docs.set(`agentRuns/${accepted.run_id}`,{task_kind:"site_assessment",status:"running",metadata:{capture_id:captureId,advisory_job_id:jobId},input:{input:{context:{request_id:requestId}}}});
+ for(const provider of ["openai","gemini","openai"] as const){const call=await reserveCaptureCoverageInference(provider==="openai"?"gpt-6.1-sol":"gemini-3.8-flash",metadata(accepted.run_id),provider,{});
+  await call.assertDispatchAllowed();await call.record(provider==="openai"?{input_tokens:100,output_tokens:10}:{promptTokenCount:100,candidatesTokenCount:10,thoughtsTokenCount:0});}
+ expect(read(`agentRuns/${oldRun}`)).toEqual(old);expect(read(programmePath).slots.slice(0,2)).toEqual(before.slots.slice(0,2));
+ expect(read(programmePath).slots.find((c:any)=>c.id==="held-sol-2").state).toBe("unknown");expect(read(programmePath).amended_calls).toHaveLength(3);
+ expect(read(budgetPath).assessment_recoveries).toHaveLength(1);await expect(oldCall.record({input_tokens:100,output_tokens:10})).rejects.toThrow();
+});
