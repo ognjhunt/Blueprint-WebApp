@@ -782,6 +782,12 @@
       "current_followup": {
         "state": "repaired_independently_reviewed_protected_merged970;native_deployment_pending",
         "cost_evidence": "Conservative accounting, not live invoice or zero-unknown assumption"
+      },
+      "release_followup": {
+        "deployed_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+        "native_pair": "bothLIVE/sourceidentity/healthreadyverified",
+        "deployment_workflow": 37839216462,
+        "affected_live_customer_behavior": "next original-owner operation cleared;notyet completed atthisobservation"
       }
     },
     {
@@ -802,6 +808,12 @@
         "same_case_result": "3FAILe556\u21923PASSa349 plus33existing",
         "receipt_sha256": "932faa7e78dcd408f1b108157a92ad0e4153a9e5f870b69f9fd91f3941494e0f",
         "limitations": "Missing/running/ambiguous owners remain fenced;old full unknown exposure retained;completed-owner/lost receipt ambiguity remains explicit"
+      },
+      "release_followup": {
+        "deployed_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+        "native_pair": "bothLIVE/sourceidentity/healthreadyverified",
+        "deployment_workflow": 37839216462,
+        "affected_live_customer_behavior": "next original-owner operation cleared;notyet completed atthisobservation"
       }
     },
     {
@@ -827,6 +839,12 @@
         "state": "exactbb49_independently_reviewed_protected_merged971;native_deployment_pending",
         "evidence": "Both source-free presupposition counterexamples now excluded;39author/14independent checks overlap",
         "limits": "Lexical/structural control is not citation entailment, video accuracy or universal robot capability proof"
+      },
+      "release_followup": {
+        "deployed_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+        "native_pair": "bothLIVE/sourceidentity/healthreadyverified",
+        "deployment_workflow": 37839216462,
+        "affected_live_customer_behavior": "next original-owner operation cleared;notyet completed atthisobservation"
       }
     },
     {
@@ -846,7 +864,13 @@
       "original_unique_case_credit": 0,
       "merge_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
       "independent_review_commit": "65511d15",
-      "required_CI": 37837684542
+      "required_CI": 37837684542,
+      "release_followup": {
+        "deployed_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+        "native_pair": "bothLIVE/sourceidentity/healthreadyverified",
+        "deployment_workflow": 37839216462,
+        "affected_live_customer_behavior": "next original-owner operation cleared;notyet completed atthisobservation"
+      }
     }
   ],
   "dependencies": [
@@ -1076,7 +1100,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-08T20:13:41.983045+00:00",
+  "current_state_observed_at_utc": "2026-10-08T20:29:11.180123+00:00",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T19:14:22Z",
   "customer_financial_policy": {
@@ -1087,7 +1111,7 @@
     "scope": "Customer assessment, capture coverage, video privacy and inbound qualification source gates; existing accounting remains. No unrelated infrastructure, access expansion, outreach or historical zero-cost inference.",
     "candidate_head": "b426d0991c1cf34e5acbdaf62ce7c97be0d225dc",
     "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/970",
-    "state": "independently_reviewed_protected_merged970;native_deployment_pending",
+    "state": "independently_reviewed_protected_merged970;deployed_containing2b_native_pair_verified",
     "old_amendment": "The unpublished $5.30 amendment and STATIC cost-admission proposal are superseded as customer prerequisites; original records and unknown liabilities remain historical/read-only.",
     "required_checks": {
       "PR_run": 37835615540,

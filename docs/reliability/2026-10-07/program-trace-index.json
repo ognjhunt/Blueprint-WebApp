@@ -1622,10 +1622,10 @@
     "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
   },
   "current_evaluation_snapshot": {
-    "updated_at_utc": "2026-10-08T20:14:34.350302+00:00",
+    "updated_at_utc": "2026-10-08T20:29:11.180123+00:00",
     "original_frozen_counts_unchanged": true,
-    "verified_web_release": "8cb532f757c0d899cdd51617cb1c82a3c6acc42c",
-    "release_review": "Native8cb identity/readiness;earlier783 browser release proof ef527e88 remains historical",
+    "verified_web_release": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+    "release_review": "Bounded source0ccd/65511 +nativepair/source/health readback;directcustomerprovideroutcome pending",
     "original_normal_UI_emulator_coverage_traces": 22,
     "additional_in_memory_worker_traces": 20,
     "supplemental_real_SDK_HTTP_worker_recovery": "actualhandlers+inmemoryFirestore/fakeobjects+scriptedSDKproviders;passed",
@@ -1638,7 +1638,7 @@
     "reference_sources": 1,
     "current_human_labels": 0,
     "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero.",
-    "reviewed_pending_release": "970dd and9719e protectedmerged;PR9745f independentlysourceapproved/CIactive",
+    "reviewed_pending_release": "970/971/974 nowdeployed2b;relatedCLI965sourceapproved71/exactCIstillrunning/no competingoperation",
     "canonical_native_receipt_sha256": "cf2e771faa214eb66b4279995a0f8b26168b884314e2ed863ee3bac1c36cac42"
   },
   "supplemental_native_sdk_browser_join": {
@@ -1784,5 +1784,53 @@
     "reference_sources": 1,
     "current_human_labels": 0,
     "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero."
+  },
+  "current_verified_web_release_readback": {
+    "observed_at_utc": "2026-10-08T20:29:11.180123+00:00",
+    "sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+    "containing_PRs": [
+      970,
+      971,
+      974
+    ],
+    "main_CI": 37838250275,
+    "main_CI_conclusion": "success",
+    "CI_counts": {
+      "changed_file_checks_passed": 4818,
+      "changed_file_checks_skipped": 6,
+      "separate_overlapping_safety_checks_passed": 86,
+      "unique_journey_credit": 0,
+      "E2E": "skipped on backend-only2b;preceding51fUIrunE2EPASS separately"
+    },
+    "deployment_workflow": 37839216462,
+    "deployment_workflow_conclusion": "success",
+    "web": {
+      "deploy_id": "dep-db3vo31srm7s73ad01c0",
+      "state": "live",
+      "finished_at_utc": "2026-10-08T20:27:42.462759Z"
+    },
+    "worker": {
+      "deploy_id": "dep-db3vo3bbc2fs73c4icv0",
+      "state": "live",
+      "finished_at_utc": "2026-10-08T20:27:48.790933Z"
+    },
+    "public_readback": {
+      "version_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+      "built_at_iso": "2026-10-08T20:25:30.512Z",
+      "version_http": 200,
+      "health_http": 200,
+      "health_timestamp": "2026-10-08T20:27:59.357Z",
+      "ready_http": 200,
+      "ready_blocker_count": 0,
+      "ready_timestamp": "2026-10-08T20:28:16.963Z"
+    },
+    "source_continuity": "Actual core adapter/agent/runtime/accounting/publication diff5f..current2b empty;latestreviewed source deployed",
+    "independent_reviews": [
+      "0ccd85ff",
+      "65511d15"
+    ],
+    "verification_ceiling": "Native pair/source identity and health/ready;not a new public-form browser proof or provider/video assessment result",
+    "original_provider_actor": "Existing dishwasher owner cleared for ONE normal same-job UI run;CLI paid actor held;no new intake/reupload/notification or monetary gate",
+    "provider_dispatch_by_root": 0
   }
 }

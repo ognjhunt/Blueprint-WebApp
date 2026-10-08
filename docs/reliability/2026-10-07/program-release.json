@@ -1739,7 +1739,7 @@
     "scope": "Customer assessment, capture coverage, video privacy and inbound qualification source gates; existing accounting remains. No unrelated infrastructure, access expansion, outreach or historical zero-cost inference.",
     "candidate_head": "b426d0991c1cf34e5acbdaf62ce7c97be0d225dc",
     "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/970",
-    "state": "independently_reviewed_protected_merged970;native_deployment_pending",
+    "state": "independently_reviewed_protected_merged970;deployed_containing2b_native_pair_verified",
     "old_amendment": "The unpublished $5.30 amendment and STATIC cost-admission proposal are superseded as customer prerequisites; original records and unknown liabilities remain historical/read-only.",
     "required_checks": {
       "PR_run": 37835615540,
@@ -1814,7 +1814,9 @@
       "main_CI": 37836444298,
       "required_checks": "success;8 applicable jobs;E2E skipped",
       "independent_review": "0ccd85ff",
-      "state": "protected_merged;not_yet_native_deployed"
+      "state": "protected_merged;deployed_containing2b_native_pair_identity_verified",
+      "previous_state": "protected_merged;not_yet_native_deployed",
+      "deployed_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800"
     },
     "customer_publication": {
       "PR": 971,
@@ -1824,7 +1826,9 @@
       "main_CI": 37836652578,
       "required_checks": "success;8 applicable jobs;E2E skipped",
       "independent_review": "0ccd85ff",
-      "state": "protected_merged;not_yet_native_deployed"
+      "state": "protected_merged;deployed_containing2b_native_pair_identity_verified",
+      "previous_state": "protected_merged;not_yet_native_deployed",
+      "deployed_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800"
     },
     "deployment_observation": {
       "current_main": "51f05260faf71a646bd6eae605e164ae1428f33e",
@@ -1847,7 +1851,7 @@
     "private_receipt_path": "/private/tmp/blueprint-owner-evidence-20261008/output/reliability-program/customer-evidence-handoff-diagnosis/receipt.json",
     "private_receipt_sha256": "e18609a5d8ed80343448b6d874b8199879c5d4383a021aa48e5ca29ac44dd710",
     "checks": "same2isolatedprobes FAIL before/PASS after;39 existing checks;no additional unique credit",
-    "state": "independently_reviewed_protected_merged974;native_deployment_pending",
+    "state": "reviewed_protected_merged_deployed2b_native_pair_identity_verified",
     "scope": "two source files;host instruction non-citable;canonical stored owner assertions only;generated display defaults excluded;video-only intake preserved",
     "paid_provider_calls": 0,
     "merge_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
@@ -1857,7 +1861,8 @@
     "independent_review_commit": "65511d15",
     "integration_receipt_sha256": "d45d97350d76fc97eabfec400be6bae63de0a2c8b035a63bed290ed2b2dd612c",
     "main_CI": 37838250275,
-    "main_CI_state": "pending_at_observation"
+    "main_CI_state": "success",
+    "previous_state": "independently_reviewed_protected_merged974;native_deployment_pending"
   },
   "current_provider_catalog_access": {
     "timestamp": "2026-10-08T20:17:22.594Z",
@@ -1880,5 +1885,53 @@
     "inference_dispatched": false,
     "upload_dispatched": false,
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
+  },
+  "current_verified_web_release": {
+    "observed_at_utc": "2026-10-08T20:29:11.180123+00:00",
+    "sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+    "containing_PRs": [
+      970,
+      971,
+      974
+    ],
+    "main_CI": 37838250275,
+    "main_CI_conclusion": "success",
+    "CI_counts": {
+      "changed_file_checks_passed": 4818,
+      "changed_file_checks_skipped": 6,
+      "separate_overlapping_safety_checks_passed": 86,
+      "unique_journey_credit": 0,
+      "E2E": "skipped on backend-only2b;preceding51fUIrunE2EPASS separately"
+    },
+    "deployment_workflow": 37839216462,
+    "deployment_workflow_conclusion": "success",
+    "web": {
+      "deploy_id": "dep-db3vo31srm7s73ad01c0",
+      "state": "live",
+      "finished_at_utc": "2026-10-08T20:27:42.462759Z"
+    },
+    "worker": {
+      "deploy_id": "dep-db3vo3bbc2fs73c4icv0",
+      "state": "live",
+      "finished_at_utc": "2026-10-08T20:27:48.790933Z"
+    },
+    "public_readback": {
+      "version_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+      "built_at_iso": "2026-10-08T20:25:30.512Z",
+      "version_http": 200,
+      "health_http": 200,
+      "health_timestamp": "2026-10-08T20:27:59.357Z",
+      "ready_http": 200,
+      "ready_blocker_count": 0,
+      "ready_timestamp": "2026-10-08T20:28:16.963Z"
+    },
+    "source_continuity": "Actual core adapter/agent/runtime/accounting/publication diff5f..current2b empty;latestreviewed source deployed",
+    "independent_reviews": [
+      "0ccd85ff",
+      "65511d15"
+    ],
+    "verification_ceiling": "Native pair/source identity and health/ready;not a new public-form browser proof or provider/video assessment result",
+    "original_provider_actor": "Existing dishwasher owner cleared for ONE normal same-job UI run;CLI paid actor held;no new intake/reupload/notification or monetary gate",
+    "provider_dispatch_by_root": 0
   }
 }
