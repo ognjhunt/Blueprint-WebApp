@@ -1,5 +1,5 @@
 import type { Transaction } from "firebase-admin/firestore";
-import { admitInferenceProgramme, hasInferenceProgramme, inferenceProgrammeId, inferenceProgrammeContextDigest, validateInferenceProgramme, inferenceProgrammeAuthorityDigest, acceptsReconciledCaptureHistory } from "./inferenceProgrammeAdmission";
+import { admitInferenceProgramme, hasInferenceProgramme, inferenceProgrammeId, inferenceProgrammeContextDigest, validateInferenceProgramme, inferenceProgrammeAuthorityDigest, acceptsReconciledCaptureHistory, validatedAssessmentRecoveries, type AssessmentRecovery } from "./inferenceProgrammeAdmission";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -9,16 +9,40 @@ import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
 
 /** Accepted zero-provider review history never authorizes a second or unknown SDK run. */
-async function assertReconciledRunHistory(tx: Transaction, captureId: string, runId: string, requestId: string) {
+async function assertReconciledRunHistory(tx: Transaction, captureId: string, runId: string, requestId: string,
+  state?: Record<string, any>, programme?: any) {
+  const receipts = programme && state ? validatedAssessmentRecoveries(state, programme) : [];
+  const accounted = async (id: string, raw: Record<string, any>) => {
+    const receipt = receipts.find(row => row.previous_run_id === id);
+    if (!receipt) return false;
+    const run: any = await hydrateAgentEvidence(raw, { collection: "agentRuns", id });
+    const job = (await tx.get(db!.collection("siteAssessmentJobs").doc(receipt.job_id))).data();
+    const bound = run.artifacts?.source_admission, intent = run.artifacts?.capture_inference_reservations?.at(-1);
+    return run.task_kind === "site_assessment" && run.status === "failed" && run.metadata?.capture_id === captureId
+      && run.metadata?.advisory_job_id === receipt.job_id && run.input?.input?.context?.request_id === requestId
+      && run.input?.input?.context?.advisory_job_id === receipt.job_id
+      && run.input?.input?.context?.advisory_claim_id === receipt.previous_claim_id
+      && bound?.request_id === requestId && bound?.capture_id === captureId && bound?.advisory_job_id === receipt.job_id
+      && bound?.source_key === receipt.source_key && bound?.context_digest === receipt.advisory_context_digest
+      && bound?.video_sha256 === receipt.video_sha256
+      && intent?.provider === receipt.provider && Math.ceil(intent?.reserved_usd * 1e6) === receipt.reserved_call_micro_usd
+      && intent?.capture_exposure_usd === receipt.capture_exposure_usd && intent?.cap_usd === state?.cap_usd
+      && job?.run_id === runId
+      && job?.source_key === receipt.source_key && job?.context_digest === receipt.advisory_context_digest
+      && humanDecisionDigest(job.retry_history) === humanDecisionDigest(receipts);
+  };
   const [runs, assessments] = await Promise.all([
     tx.get(db!.collection("agentRuns").where("metadata.capture_id", "==", captureId).limit(100)),
     tx.get(db!.collection("agentRuns").where("task_kind", "==", "site_assessment").limit(100)),
   ]);
-  if (runs.docs.length >= 100 || assessments.docs.length >= 100 || runs.docs.some(row => row.id !== runId))
+  const unrelatedRuns = await Promise.all(runs.docs.filter(row => row.id !== runId).map(async row => !(await accounted(row.id, row.data()))));
+  if (runs.docs.length >= 100 || assessments.docs.length >= 100 || unrelatedRuns.some(Boolean))
     throw new Error("coverage_budget_historical_exposure_unresolved");
-  const otherAssessments = await Promise.all(assessments.docs.filter(row => row.id !== runId).map(async row =>
-    hydrateAgentEvidence(row.data(), { collection: "agentRuns", id: row.id })));
-  if (otherAssessments.some(row => row.input?.input?.context?.request_id === requestId))
+  const otherAssessments = await Promise.all(assessments.docs.filter(row => row.id !== runId).map(async row => ({ id: row.id,
+    data: await hydrateAgentEvidence(row.data(), { collection: "agentRuns", id: row.id }), raw: row.data() })));
+  const uncovered = await Promise.all(otherAssessments.filter(row => row.data.input?.input?.context?.request_id === requestId)
+    .map(async row => !(await accounted(row.id, row.raw))));
+  if (uncovered.some(Boolean))
     throw new Error("coverage_budget_historical_exposure_unresolved");
 }
 
@@ -71,8 +95,8 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
     }
     if (state && (state.capture_id !== captureId || !Number.isFinite(state.exposure_usd) || state.exposure_usd < 0
       || !Number.isSafeInteger(state.calls) || state.calls < 1)) throw new Error("coverage_budget_state_invalid");
-    if (state && programme?.capture_history_reconciliation)
-      await assertReconciledRunHistory(tx, captureId, assessmentRunId as string, requestId);
+    if (state && (programme?.capture_history_reconciliation || state.assessment_recoveries))
+      await assertReconciledRunHistory(tx, captureId, assessmentRunId as string, requestId, state, programme);
     if (!state) {
       const [prior, runs, assessments] = await Promise.all([
         tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", captureId).limit(100)),
@@ -142,8 +166,10 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
         const programme = validateInferenceProgramme(programmeSnap.data());
         if (programme.expires_at_ms <= Date.now()) throw new Error("inference_programme_expired");
         const privacy = request?.capture_privacy_source_bound_decision || request?.capture_privacy_screen;
+        if (programme.capture_history_reconciliation || state?.assessment_recoveries) {
+          await assertReconciledRunHistory(tx, captureId, assessmentRunId as string, admission.requestId, state, programme);
+        }
         if (programme.capture_history_reconciliation) {
-          await assertReconciledRunHistory(tx, captureId, assessmentRunId as string, admission.requestId);
           const history = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", captureId).limit(100));
           if (!acceptsReconciledCaptureHistory(programme, admission.requestId, captureId,
             history.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("inference_programme_history_changed");
@@ -192,4 +218,95 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
       });
     },
   };
+}
+
+/** Read/validate before any retry writes. Only a full-reserve unknown disposition is prepared. */
+export async function prepareAssessmentRecovery(tx: Transaction, input: {
+  requestId: string; jobId: string; captureId: string; previousRunId: string; previousClaimId: string | null; newRunId: string; retryIdentity: string;
+  sourceKey: string; contextDigest: string; request: Record<string, any>; brief: Record<string, any> | null;
+}) {
+  const budgetRef = db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: input.captureId })}`);
+  const programmeId = inferenceProgrammeId(input.request);
+  const programmeRef = db!.collection("inferencePrograms").doc(programmeId);
+  const [budgetSnap, programmeSnap, runSnap] = await Promise.all([tx.get(budgetRef), tx.get(programmeRef),
+    tx.get(db!.collection("agentRuns").doc(input.previousRunId))]);
+  const state = budgetSnap.data(), programme = validateInferenceProgramme(programmeSnap.data());
+  const run: any = await hydrateAgentEvidence(runSnap.data() ?? {}, { collection: "agentRuns", id: input.previousRunId });
+  const bound = run.artifacts?.source_admission, intent = run.artifacts?.capture_inference_reservations?.at(-1);
+  const slot = programme.slots.find(row => row.admission_token === state?.pending_token);
+  if (!state || state.schema_version !== "capture_coverage_inference_budget.v1" || state.capture_id !== input.captureId || state.inference_program_id !== programmeId
+    || state.inference_programme_authority_digest !== inferenceProgrammeAuthorityDigest(programme)
+    || state.last_assessment_run_id !== input.previousRunId || !state.pending_token
+    || !Number.isFinite(state.exposure_usd) || state.exposure_usd <= 0 || !Number.isSafeInteger(state.calls) || state.calls < 1
+    || state.cap_usd !== new SiteAssessmentBudget().cap || state.exposure_usd > state.cap_usd
+    || programme.expires_at_ms <= Date.now() || programme.request_id !== input.requestId || programme.capture_id !== input.captureId
+    || programme.context_digest !== inferenceProgrammeContextDigest(input.request, input.brief)
+    || programme.producer_source_digest !== humanDecisionDigest(input.request.capture_privacy_source_bound_decision?.producer_source)
+    || run.status !== "failed" || run.task_kind !== "site_assessment" || run.metadata?.capture_id !== input.captureId
+    || run.metadata?.advisory_job_id !== input.jobId || run.input?.input?.context?.request_id !== input.requestId
+    || !input.previousClaimId || run.input?.input?.context?.advisory_job_id !== input.jobId
+    || run.input?.input?.context?.advisory_claim_id !== input.previousClaimId
+    || bound?.request_id !== input.requestId || bound?.capture_id !== input.captureId || bound?.advisory_job_id !== input.jobId
+    || bound?.source_key !== input.sourceKey || bound?.context_digest !== input.contextDigest || bound?.video_sha256 !== programme.video_sha256
+    || programme.slots.filter(row => row.admission_token === state?.pending_token).length !== 1
+    || slot?.state !== "admitted" || slot.run_id !== input.previousRunId || !slot.admission_token
+    || intent?.provider !== slot.provider || Math.ceil(intent?.reserved_usd * 1e6) !== slot.reserved_call_micro_usd
+    || intent?.capture_exposure_usd !== state.exposure_usd || intent?.cap_usd !== state.cap_usd
+    || !Number.isSafeInteger(slot.reserved_call_micro_usd) || slot.reserved_call_micro_usd! <= 0 || slot.reserved_call_micro_usd! > slot.reserved_micro_usd
+    || !Array.isArray(state.inference_programme_eligible_slot_ids) || !Array.isArray(state.inference_programme_admitted_slot_ids)
+    || new Set(state.inference_programme_eligible_slot_ids).size !== state.inference_programme_eligible_slot_ids.length
+    || new Set(state.inference_programme_admitted_slot_ids).size !== state.inference_programme_admitted_slot_ids.length
+    || state.inference_programme_eligible_slot_ids.some((id: unknown) => typeof id !== "string" || !programme.slots.some(row => row.id === id))
+    || state.inference_programme_admitted_slot_ids.some((id: unknown) => !state.inference_programme_eligible_slot_ids.includes(id))
+    || !state.inference_programme_admitted_slot_ids.includes(slot.id)) throw new Error("advisory_retry_unavailable");
+  const history = validatedAssessmentRecoveries(state, programme);
+  await assertReconciledRunHistory(tx, input.captureId, input.previousRunId, input.requestId, state, programme);
+  if (programme.capture_history_reconciliation) {
+    const rows = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", input.captureId).limit(100));
+    if (!acceptsReconciledCaptureHistory(programme, input.requestId, input.captureId,
+      rows.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("advisory_retry_unavailable");
+  }
+  const budget = new SiteAssessmentBudget(state.exposure_usd); budget.authorize("openai", "gpt-6.1-sol", {});
+  const sol = Math.ceil(budget.calls[0].reserved_usd * 1e6);
+  const gemBudget = new SiteAssessmentBudget(); gemBudget.authorize("gemini", "gemini-3.8-flash");
+  const gem = Math.ceil(gemBudget.calls[0].reserved_usd * 1e6);
+  const held = programme.slots.filter(row => row.state === "held" && state.inference_programme_eligible_slot_ids.includes(row.id)
+    && !state.inference_programme_admitted_slot_ids.includes(row.id));
+  if (held.filter(row => row.provider === "openai" && row.model === "gpt-6.1-sol" && row.reserved_micro_usd >= sol).length < 2
+    || !held.some(row => row.provider === "gemini" && row.model === "gemini-3.8-flash" && row.reserved_micro_usd >= gem)
+    || state.exposure_usd + (sol * 2 + gem) / 1e6 > state.cap_usd) throw new Error("advisory_retry_unavailable");
+  const content = { schema_version: "site_assessment_recovery.v1" as const, retry_identity: input.retryIdentity, job_id: input.jobId,
+    request_id: input.requestId, capture_id: input.captureId, previous_run_id: input.previousRunId, previous_claim_id: input.previousClaimId!, new_run_id: input.newRunId,
+    source_key: input.sourceKey, source_digest: programme.producer_source_digest!, context_digest: programme.context_digest,
+    advisory_context_digest: input.contextDigest, video_sha256: programme.video_sha256, programme_id: programmeId,
+    authority_digest: state.inference_programme_authority_digest, slot_id: slot.id, admission_token: slot.admission_token,
+    provider: slot.provider, model: slot.model, reserved_micro_usd: slot.reserved_micro_usd,
+    reserved_call_micro_usd: slot.reserved_call_micro_usd!, capture_calls: state.calls,
+    capture_exposure_usd: state.exposure_usd, created_at_ms: Date.now() };
+  const receipt: AssessmentRecovery = { ...content, receipt_sha256: humanDecisionDigest(content) };
+  return { receipt, budgetRef, programmeRef, budgetUpdate: { pending_token: null, assessment_recoveries: [...history, receipt] },
+    programmeUpdate: { slots: programme.slots.map(row => row.id === slot.id ? { ...row, state: "unknown" } : row) } };
+}
+
+/** Identity replay remains a fresh authority read, never a cached access grant. */
+export async function assertAssessmentRecoveryReplay(tx: Transaction, input: { requestId: string; captureId: string;
+  jobId: string; runId: string; sourceKey: string; contextDigest: string; request: Record<string, any>; brief: Record<string, any> | null;
+  receipt: AssessmentRecovery }) {
+  const [budgetSnap, programmeSnap] = await Promise.all([
+    tx.get(db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: input.captureId })}`)),
+    tx.get(db!.collection("inferencePrograms").doc(inferenceProgrammeId(input.request))),
+  ]);
+  const state = budgetSnap.data(), programme = validateInferenceProgramme(programmeSnap.data());
+  if (programme.expires_at_ms <= Date.now() || programme.request_id !== input.requestId || programme.capture_id !== input.captureId
+    || programme.context_digest !== inferenceProgrammeContextDigest(input.request, input.brief)
+    || programme.producer_source_digest !== humanDecisionDigest(input.request.capture_privacy_source_bound_decision?.producer_source)
+    || !validatedAssessmentRecoveries(state, programme).some(row => row.receipt_sha256 === input.receipt.receipt_sha256
+      && row.job_id === input.jobId && row.new_run_id === input.runId && row.source_key === input.sourceKey
+      && row.advisory_context_digest === input.contextDigest)) throw new Error("advisory_retry_unavailable");
+  await assertReconciledRunHistory(tx, input.captureId, input.runId, input.requestId, state, programme);
+  if (programme.capture_history_reconciliation) {
+    const history = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", input.captureId).limit(100));
+    if (!acceptsReconciledCaptureHistory(programme, input.requestId, input.captureId,
+      history.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("advisory_retry_unavailable");
+  }
 }

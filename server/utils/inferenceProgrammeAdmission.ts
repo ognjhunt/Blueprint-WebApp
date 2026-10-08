@@ -111,3 +111,45 @@ export function inferenceProgrammeAuthorityDigest(value: unknown) {
     slots: row.slots.map(slot => ({ id: slot.id, provider: slot.provider, model: slot.model, reserved_micro_usd: slot.reserved_micro_usd }))
       .sort((left, right) => left.id.localeCompare(right.id)) });
 }
+
+export type AssessmentRecovery = {
+  schema_version: "site_assessment_recovery.v1"; retry_identity: string; job_id: string;
+  request_id: string; capture_id: string; previous_run_id: string; previous_claim_id: string; new_run_id: string;
+  source_key: string; source_digest: string; context_digest: string; advisory_context_digest: string;
+  video_sha256: string; programme_id: string; authority_digest: string;
+  slot_id: string; admission_token: string; provider: "openai" | "gemini"; model: string;
+  reserved_micro_usd: number; reserved_call_micro_usd: number;
+  capture_calls: number; capture_exposure_usd: number; created_at_ms: number; receipt_sha256: string;
+};
+/** Canonical unknown receipts preserve full exposure; they are not provider usage receipts. */
+export function validatedAssessmentRecoveries(state: any, programme: Programme): AssessmentRecovery[] {
+  const rows = state?.assessment_recoveries ?? [];
+  if (!Array.isArray(rows) || rows.length >= 100) throw new Error("advisory_retry_unavailable");
+  const runs = new Set<string>(), tokens = new Set<string>();
+  let prior: AssessmentRecovery | undefined;
+  for (const row of rows) {
+    const { receipt_sha256, ...content } = row ?? {};
+    const slot = programme.slots.find(slot => slot.id === row?.slot_id);
+    if (!row || row.schema_version !== "site_assessment_recovery.v1" || receipt_sha256 !== humanDecisionDigest(content)
+      || !/^[A-Za-z0-9._-]{1,120}$/.test(row.retry_identity) || !/^advisory-[a-f0-9]{64}$/.test(row.job_id)
+      || row.request_id !== programme.request_id || row.capture_id !== programme.capture_id
+      || row.programme_id !== state.inference_program_id || row.authority_digest !== inferenceProgrammeAuthorityDigest(programme)
+      || row.context_digest !== programme.context_digest || row.video_sha256 !== programme.video_sha256
+      || row.source_digest !== programme.producer_source_digest || !hash(row.advisory_context_digest)
+      || typeof row.source_key !== "string" || !row.source_key
+      || !/^[A-Za-z0-9._-]{1,200}$/.test(row.previous_run_id) || !/^[A-Za-z0-9._-]{1,200}$/.test(row.new_run_id)
+      || row.new_run_id !== `site-assessment-retry-${humanDecisionDigest({ jobId: row.job_id, previousRunId: row.previous_run_id, retryIdentity: row.retry_identity })}`
+      || typeof row.previous_claim_id !== "string" || !row.previous_claim_id
+      || (prior && (row.previous_run_id !== prior.new_run_id || row.capture_calls <= prior.capture_calls || row.job_id !== prior.job_id))
+      || row.previous_run_id === row.new_run_id || runs.has(row.previous_run_id) || tokens.has(row.admission_token)
+      || !Number.isSafeInteger(row.capture_calls) || row.capture_calls < 1 || row.capture_calls > state.calls
+      || !Number.isFinite(row.capture_exposure_usd) || row.capture_exposure_usd <= 0 || row.capture_exposure_usd > state.exposure_usd
+      || !Number.isSafeInteger(row.created_at_ms) || row.created_at_ms < 1
+      || slot?.state !== "unknown" || slot.run_id !== row.previous_run_id || slot.admission_token !== row.admission_token
+      || slot.provider !== row.provider || slot.model !== row.model || slot.reserved_micro_usd !== row.reserved_micro_usd
+      || slot.reserved_call_micro_usd !== row.reserved_call_micro_usd
+      || !state.inference_programme_admitted_slot_ids?.includes(row.slot_id)) throw new Error("advisory_retry_unavailable");
+    runs.add(row.previous_run_id); tokens.add(row.admission_token); prior = row;
+  }
+  return rows;
+}
