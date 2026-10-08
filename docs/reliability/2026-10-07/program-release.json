@@ -1990,9 +1990,31 @@
     "merge_sha": "e9bb371680452845c6629f53b9786a219530aaab",
     "merged_at_utc": "2026-10-08T20:46:21Z",
     "main_CI": 37841943657,
-    "main_CI_state": "in_progress_at20:47",
+    "main_CI_state": "attempt1FAILEDChromiumscreenshotprotocol;other8jobsPASS;oneunchangeddebugE2Eattempt2dispatchedafterdiagnosis,notyetpassed",
     "deployment": "unverified;current2bretained",
     "provider_execution": "No CLIinference;originalnormaloperationOOMkilled;unknownGemoutcomeheld",
     "scope": "Existingproductionadapteriteration/saved-evidence/fresh-video/preflight/comparison; no alternateagent, no new originalprogram case credit"
+  },
+  "live_OOM_repairs": {
+    "observed_at_utc": "2026-10-08T20:57:37Z",
+    "memory": {
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/975",
+      "head": "eeefb7e947c50ec590322664ffc00b5f359bcb83",
+      "review": "2dec985f",
+      "receipt_sha256": "1a910388fe1780e7385116340d15f1240c3f26ca5ac8387f674f1b27f7551e2b",
+      "checks": "21existingprovidercontrolsPASS;types/Graphify/portabilityPASS;requiredPRtestactive",
+      "limit": "OneverifiedsourceBufferresident;onefullBodyInitcopyavoided;livepeaknotyetverified"
+    },
+    "recovery": {
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/976",
+      "reviewed_head": "aa519244fcfaff656d11e06150b76f5b223b8a55",
+      "integrated_head": "44ac4f54e4cbbf6531be20f272995cf50e29b356",
+      "review": "2dec985f;6d1507b0independentemptydiff/interfacecontinuity",
+      "receipt_sha256": "ac29e7b83d381e362099483182d05fd7eb4832109e74488a81c8ef19e73b5ccc",
+      "checks": "same3probesbaseline2FAIL1PASS\u21923PASS;42existingcontrolsPASS;types/Graphify/portabilityPASS;requiredPRtestactive",
+      "limit": "Fake-store/directrecoveryproof;30minlease/fullunknownpreserved;noautoreplay;ordinarycancelledstillnonretryable"
+    },
+    "deployment": "neitherrepairmerged/deployedatthisread;production2b",
+    "original_case_credit": 0
   }
 }

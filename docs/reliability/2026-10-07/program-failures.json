@@ -876,7 +876,7 @@
       "id": "REL-ABANDONED-ASSESSMENT-RUN-RECOVERY",
       "severity": "P1 affected customer recovery; live incidence under reconciliation",
       "owner": "queue_recovery; root integration/release; original dishwasher owner live read-only reconciliation",
-      "state": "actualOOMproven;source_recovery_gap_inspected;minimized_replay_inprogress",
+      "state": "scopedsource_repaired_independentlyreviewed_PR976;requiredchecksactive;notdeployed",
       "violated_invariant": "Worker recovery must remain inspectable and provide explicit same-job recovery without silently replaying uncertain providers.",
       "source_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
       "source_findings": [
@@ -918,7 +918,51 @@
         "Provider acceptance/cost/output unknown.",
         "Lease has not expired at last current read; no production fault injection or business write."
       ],
-      "next_action": "Retain minimized existing offline control; repair durable ownership/unknown outcome checkpoint and explicit recovery with independent review.",
+      "next_action": "PassrequiredheadCI,protectedmerge/pairedrelease,thenverifyordinarysamejobrecovery;noautomaticpaidreplay.",
+      "new_case_credit": 0,
+      "minimized_reproducer": "Retainedsame3directexistingprobes:expiredcanonicalrunningclaim;29minliveclaim;actualprivatewriterlatecompletion.",
+      "baseline_result": "2FAIL/1liveleasePASS on2b",
+      "candidate_result": "same3PASSplus42existingcontrols;fake-storeproofnotlive",
+      "fix_commit": "aa519244fcfaff656d11e06150b76f5b223b8a55",
+      "integrated_head": "44ac4f54e4cbbf6531be20f272995cf50e29b356",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/976",
+      "review": "2dec985f/6d1507b0"
+    },
+    {
+      "id": "REL-VERIFIED-BUFFER-GEMINI-UPLOAD-COPY",
+      "severity": "P1 affectedliveassessment;allocationcontributionbounded",
+      "owner": "intake_recovery;rootrelease",
+      "state": "reviewedPR975;requiredCIactive;notdeployed",
+      "root_cause": "NormalSDKreadPinned passesverifiedwholeBuffer;nativefetchBufferBodyInitcopiesentiremedia despiteexistingURLstreamfix.",
+      "live_evidence": "Render512MiOOMkill20:30:57.621493Z; fullmemorypeak/individualallocationcausalityunproven.",
+      "minimized_reproducer": "Existingno-networkNode22synthetic60035801-byteRequest:BufferarrayBufferdelta60093280;stream57479.",
+      "receipt_sha256": "37e283937afdf2ebc495e35efb80b391783190dc3c0d3ea6643132c85d37a5eb",
+      "fix_commit": "eeefb7e947c50ec590322664ffc00b5f359bcb83",
+      "candidate_result": "ExistinguploadcontrolbaselineFAIL\u219221existingcontrolsPASS;actualnativeRequeststreamidentity/chunkoriginalbufferoffset/SHAchecks.",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/975",
+      "review": "2dec985f",
+      "limitation": "One60MBverifiedBufferstillresident;livepeak/successnotyetproven.",
+      "new_case_credit": 0
+    },
+    {
+      "id": "REL-CI-MOBILE-CAPTURE-PROTOCOL",
+      "severity": "P2 CIavailability;noappassertionfailureproven",
+      "owner": "rootCIrelease;intake_recoverydiagnostic",
+      "state": "attempt1retained;singleunchangeddebugCIretryinprogress",
+      "evidence": "e9mainCI37841943657job113533371062 mobile390fullPagescreenshotChromiumProtocolUnablecapture;78PASS13SKIP1FAIL.",
+      "source_continuity": "PublicUI/selectedexistingtestunchangedfrompassedPR71.",
+      "diagnostic": "OneexistingselectedlocalcasePASSfirstattemptwithretainedtrace;notreproducednotfixed.",
+      "next_action": "InspectoneunchangeddebugCIattempt2;nofurtherluckyrerunsifitfails;retainfirstfailure/nondeterminism.",
+      "new_case_credit": 0
+    },
+    {
+      "id": "REL-COVERAGE-ABANDONED-SDK-OWNER",
+      "severity": "P2 optionalcoverageavailability;nofalsecompletion/replayproven",
+      "owner": "queue_recovery",
+      "state": "source_inspected;separateaffectedpathunrepaired",
+      "evidence": "captureCoverageQueue30minreclaimcreatesnewclaim;priorSDKRUNNINGownerpendingmutexblocksproviderreplay;nomatchingstaleterminalizer.",
+      "limit": "Notactualcurrentdishwasheradvisoryrepair;noadditionalexecutedrepro/currentproductionincidence.",
+      "next_action": "Minimizeexistingcoverage-restartcontrolafteractualadvisoryrelease;retainnoautoreplay/fullunknown.",
       "new_case_credit": 0
     }
   ],
