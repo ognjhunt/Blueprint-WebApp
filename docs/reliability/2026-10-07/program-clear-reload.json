@@ -321,5 +321,37 @@
       "status": "PASS"
     }
   },
-  "replay": "env -i PATH=\"$PATH\" HOME=\"$HOME\" TMPDIR=\"${TMPDIR:-/tmp}\" RELIABILITY_INTAKE_OUTPUT=output/reliability-program/clear-reload/replay node node_modules/@playwright/test/cli.js test --config playwright.reliability-intake.config.ts"
+  "replay": "env -i PATH=\"$PATH\" HOME=\"$HOME\" TMPDIR=\"${TMPDIR:-/tmp}\" RELIABILITY_INTAKE_OUTPUT=output/reliability-program/clear-reload/replay node node_modules/@playwright/test/cli.js test --config playwright.reliability-intake.config.ts",
+  "account_scope_supplement": {
+    "layer": "component with explicitly simulated durability",
+    "unique_browser_cases_added": 0,
+    "new_component_checks": 2,
+    "targeted_file_checks": 8,
+    "passed": 8,
+    "runtime_source_sha256_unchanged": "98b277068837ac9d89fffbc0d306f1193e8b9d6e72beebdab642c1227a170581",
+    "test_definition_sha256": "14e4e261d2e28c3078280e8a71bb94d9b328bbfe043f92d9f239042387853336",
+    "log_sha256": "568973d1b7c6b97e7a29e80747ba28e32193ecf9085db8861d40b35c5ee09798",
+    "conditions": [
+      "queued ordinary clear account changes before its scoped lock callback; old draft/new scope survive without misplaced completion",
+      "queued unreadable recovery clear account changes before its scoped callback; new anonymous recovery and old unreadable bytes survive"
+    ]
+  },
+  "review_followup": {
+    "frozen_at": "2026-10-08T11:23:15.509304+00:00",
+    "baseline_runtime_sha": "81183b1f7f5543f87682d00d597fbe2ee6500ce2",
+    "baseline2failed7skipped_log_sha256": "574d069bcc29a3a85529b9eb05c005f0e34f6fbcee387c53b10bab7dd885786a",
+    "findings": [
+      "P2 old unavailable-clear intent revives after FIFO same-key A\u2192B\u2192A; no new A editing/data loss claimed",
+      "P2 successful clear retry retains stale storage warning"
+    ],
+    "repair": "Scoped monotonic epoch fences canceled wrapper mutation and completion; successful ordinary commit clears stale storage warning. Persistence helpers unchanged.",
+    "final_component9passed_log_sha256": "639a0d242e2da6bb2b4a73261ab7c4914bb9002631e817611ef3efaa585242f3",
+    "final_source_sha256": {
+      "client/src/components/site/SiteCaptureStart.tsx": "c554cd1f48080ce40cd2d429c4d03b746b2510a9740e23ba83beae45776b868a",
+      "client/tests/components/SiteCaptureStart.durability.test.tsx": "d9cf001c29a22fea12d5096dce92e6c888257e37773e4bb24f39cf504a8b5a95",
+      "e2e/reliability-program-intake.spec.ts": "ed9446ab7bf8e7110fc611dee19b55a14b23c7659da2d32516b8bc4f686aa0ec"
+    },
+    "browser_unique_added": 0,
+    "final_native_replay": "pending immutable repair source"
+  }
 }

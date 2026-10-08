@@ -100,6 +100,9 @@ it('failed clear explicitly reports failure without presenting completion or era
     expect(screen.queryByText(/has been cleared/)).not.toBeInTheDocument();
     expect(document.querySelector('#start-task')).toHaveValue('Retain after failed retirement');
     expect(localStorage.getItem(key)).toBe(before);
+    state.retireFailure=false;fireEvent.click(screen.getByRole('button',{name:"Clear this browser's draft"}));
+    await screen.findByText(/This browser's draft has been cleared/);
+    expect(screen.queryByText(/cannot safely save or coordinate recovery details/)).not.toBeInTheDocument();
 });
 it('completed-job clear also exposes pending state until device recovery is committed', async () => {
     fetchMock.mockImplementation(async (_url,init)=>({ok:true,status:200,json:async()=>init?.method==='POST'?{captureUrl:'/capture-upload/owned-clear-fixture'}:{workspaceType:'site_operator',features:[]}}));
@@ -122,4 +125,51 @@ it('unreadable recovery clear reports failure and acknowledged retry mounts a fr
     await act(async()=>{await release!();});await screen.findByText(/This browser's draft has been cleared/);
     expect(document.querySelector('#start-task')).toHaveValue('');
     const fresh=JSON.parse(localStorage.getItem(key)!);expect(state.rows.get(key).value).toEqual(fresh);expect(fresh.pending).toBeNull();
+});
+it('account switch cancels queued ordinary clear without clearing or acknowledging the new scope', async () => {
+    const view=render(<SiteCaptureStart />);await ready();
+    fireEvent.change(document.querySelector('#start-task')!,{target:{value:'Old account retained when its queued clear is canceled'}});await act(async()=>{});
+    const oldKey=siteCaptureDraftKey('old-owned-fixture','default'),oldBefore=localStorage.getItem(oldKey);
+    hold=true;fireEvent.click(screen.getByRole('button',{name:"Clear this browser's draft"}));await screen.findByText(/Clearing this browser's draft/);
+    state.user=null;view.rerender(<SiteCaptureStart />);await ready();
+    fireEvent.change(document.querySelector('#start-task')!,{target:{value:'New anonymous work must survive old completion'}});await act(async()=>{});
+    const newKey=siteCaptureDraftKey(null,'default'),newBefore=localStorage.getItem(newKey);
+    await act(async()=>{await release!();});
+    expect(localStorage.getItem(oldKey)).toBe(oldBefore);expect(localStorage.getItem(newKey)).toBe(newBefore);
+    expect(document.querySelector('#start-task')).toHaveValue('New anonymous work must survive old completion');
+    expect(screen.queryByText(/has been cleared/)).not.toBeInTheDocument();
+});
+it('account switch cancels queued unreadable-recovery clear without overwriting new recovery', async () => {
+    const oldKey=siteCaptureDraftKey('old-owned-fixture','default');localStorage.setItem(oldKey,'invalid-owned-account-recovery');
+    const view=render(<SiteCaptureStart />);await screen.findByText(/could not safely check saved recovery details/);
+    hold=true;fireEvent.click(screen.getByRole('button',{name:"Clear this browser's draft"}));await screen.findByText(/Clearing this browser's draft/);
+    state.user=null;view.rerender(<SiteCaptureStart />);await ready();
+    fireEvent.change(document.querySelector('#start-task')!,{target:{value:'Separate account owns these answers'}});await act(async()=>{});
+    const newKey=siteCaptureDraftKey(null,'default'),newBefore=localStorage.getItem(newKey);
+    await act(async()=>{await release!();});
+    expect(localStorage.getItem(oldKey)).toBe('invalid-owned-account-recovery');expect(localStorage.getItem(newKey)).toBe(newBefore);
+    expect(document.querySelector('#start-task')).toHaveValue('Separate account owns these answers');
+    expect(screen.queryByText(/has been cleared/)).not.toBeInTheDocument();
+});
+
+it('FIFO queued unavailable clear stays canceled after account A to B to A', async () => {
+    const oldUser=state.user,key=siteCaptureDraftKey('old-owned-fixture','default');localStorage.setItem(key,'invalid-owned-recovery-before-old-intent');
+    const view=render(<SiteCaptureStart />);await screen.findByText(/could not safely check saved recovery details/);
+    // Model the real same-key FIFO, rather than allowing returning-A hydration
+    // or editing to jump the clear queue. No new A work is claimed erased.
+    const queues=new Map<string,Promise<unknown>>();
+    vi.stubGlobal('navigator',{userAgent:'fixture',locks:{request:(scope:string,action:()=>unknown)=>{
+      const request=(queues.get(scope)??Promise.resolve()).then(action);queues.set(scope,request.catch(()=>{}));return request;
+    }}});
+    let unlock!:()=>void;
+    const blocker=navigator.locks.request(key,()=>new Promise<void>(resolve=>{unlock=resolve;}));
+    await vi.waitFor(()=>expect(unlock).toBeDefined());
+    fireEvent.click(screen.getByRole('button',{name:"Clear this browser's draft"}));await screen.findByText(/Clearing this browser's draft/);
+    state.user=null;view.rerender(<SiteCaptureStart />);await ready();
+    state.user=oldUser;view.rerender(<SiteCaptureStart />);
+    expect(screen.getByText(/Loading your account and saved draft/)).toBeVisible();
+    await act(async()=>{unlock();await blocker;});
+    await screen.findByText(/could not safely check saved recovery details/);
+    expect(localStorage.getItem(key)).toBe('invalid-owned-recovery-before-old-intent');
+    expect(screen.queryByText(/has been cleared/)).not.toBeInTheDocument();
 });

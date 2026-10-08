@@ -89,9 +89,12 @@ export function SiteCaptureStart() {
     : new URLSearchParams(window.location.search).get("authoring") || "default";
   const storageKey = loading ? null : siteCaptureDraftKey(currentUser?.uid ?? null, authoring);
   const [hydrated, setHydrated] = useState<{key: string; ready: boolean} | null>(null);
-  const [clearState, setClearState] = useState<{key: string; status: ClearStatus} | null>(null);
-  const clearingScope = useRef<string | null>(null), currentScope = useRef(storageKey);
-  currentScope.current = storageKey;
+  const [clearState, setClearState] = useState<{key: string; epoch: number; status: ClearStatus} | null>(null);
+  const clearingScope = useRef<{key: string; epoch: number} | null>(null);
+  const currentScope = useRef({key: storageKey, epoch: 0});
+  // Returning to the same account cannot revive an intent canceled on departure.
+  if (currentScope.current.key !== storageKey) currentScope.current = {key: storageKey, epoch: currentScope.current.epoch + 1};
+  const clearStatus = clearState?.key === storageKey && clearState.epoch === currentScope.current.epoch ? clearState.status : "idle";
   useEffect(() => {
     let active = true;
     if (storageKey) void hydrateSiteCaptureRecovery(storageKey, () => active)
@@ -105,22 +108,23 @@ export function SiteCaptureStart() {
   if (loading || !storageKey || hydrated?.key !== storageKey) return <p role="status">Loading your account and saved draft…</p>;
   if (!hydrated.ready) return <div className="ms-form">
     <p role="status">This browser could not safely check saved recovery details. Use your emailed private job link to return, or a supported browser with local storage enabled.</p>
-    <ClearDraftControl status={clearState?.key === storageKey ? clearState.status : "idle"} onClear={async () => {
-      if (clearingScope.current === storageKey) return;
-      const scope = storageKey;
-      clearingScope.current = scope; setClearState({key: scope, status: "working"});
+    <ClearDraftControl status={clearStatus} onClear={async () => {
+      const intent = {key: storageKey, epoch: currentScope.current.epoch};
+      if (clearingScope.current?.key === intent.key && clearingScope.current.epoch === intent.epoch) return;
+      const isCurrent = () => currentScope.current.key === intent.key && currentScope.current.epoch === intent.epoch;
+      clearingScope.current = intent; setClearState({...intent, status: "working"});
       try {
-        const saved = await withSiteCaptureRecoveryLock(scope, () => currentScope.current === scope && resetSiteCaptureRecoveryDurably(scope, newSiteCaptureRecovery()));
-        if (currentScope.current !== scope) return;
-        setClearState({key: scope, status: saved ? "done" : "failed"});
-        if (saved) setHydrated({key: scope, ready: true});
-      } catch { if (currentScope.current === scope) setClearState({key: scope, status: "failed"}); }
-      finally { if (clearingScope.current === scope) clearingScope.current = null; }
+        const saved = await withSiteCaptureRecoveryLock(intent.key, () => isCurrent() && resetSiteCaptureRecoveryDurably(intent.key, newSiteCaptureRecovery()));
+        if (!isCurrent()) return;
+        setClearState({...intent, status: saved ? "done" : "failed"});
+        if (saved) setHydrated({key: intent.key, ready: true});
+      } catch { if (isCurrent()) setClearState({...intent, status: "failed"}); }
+      finally { if (clearingScope.current === intent) clearingScope.current = null; }
     }} />
     <p className="ms-field-hint">Clearing removes only this device's recovery. It does not cancel or delete a saved job.</p>
   </div>;
   // Identity changes discard later UI updates and prevent starting another upload.
-  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} cleared={clearState?.key === storageKey && clearState.status === "done"} />;
+  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} cleared={clearStatus === "done"} />;
 }
 
 function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: string | null; cleared?: boolean }) {
@@ -333,6 +337,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       const saved = await withSiteCaptureRecoveryLock(storageKey, () => active.current && resetSiteCaptureRecoveryDurably(storageKey, fresh));
       if (!active.current) return;
       if (!saved) { setStorageAvailable(false); setClearStatus("failed"); return; }
+      setStorageAvailable(true);
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
