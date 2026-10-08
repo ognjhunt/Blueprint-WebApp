@@ -10,6 +10,8 @@ import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 import { projectCurrentSiteJobDecision } from "../utils/siteJobDecision";
 import { brandedEmail, EMAIL_SIGN_OFF } from "../utils/emailLayout";
+import { assessmentCustomerStatementRefs, siteCustomerStatementDigest } from "../utils/siteCustomerStatements";
+import { prepareCustomerReplySiteAssessment, tickSiteAssessments } from "../utils/siteAssessmentQueue";
 
 /** The existing communications agent, attached to an inbound job rather than an
  * invented outbound research prospect. No send or paid-call authority is added. */
@@ -261,24 +263,85 @@ export async function refreshSiteJobReplies(db: FirebaseFirestore.Firestore, req
   const replies = thread.messages.filter(m => m.from === row.recipient && Date.parse(m.receivedAt) > Date.parse(anchor.receivedAt)
     && (m.inReplyTo === anchor.rfcMessageId || m.references.includes(anchor.rfcMessageId)));
   let saved = 0;
+  let assessmentContinuation: string = "no_new_reply";
+  const verified: Array<{ statement_id: string; digest: string }> = [];
   for (const reply of replies) {
     if (isOptOut(reply)) await ports.suppress(row.recipient);
     const statement = { messageId: reply.gmailMessageId, text: authorText(reply.body), rawBody: reply.body, receivedAt: reply.receivedAt, from: reply.from,
-      source: `gmail:${thread.threadId}:${reply.gmailMessageId}`, communicationId: id, trust: "customer_statement_requires_interpretation_not_commitment" };
-    await db.runTransaction(async tx => {
+      source: `gmail:${thread.threadId}:${reply.gmailMessageId}`, communicationId: id, trust: "customer_statement_requires_interpretation_not_commitment",
+      assessmentBinding: { schema_version: "site_customer_statement_binding.v1", thread_id: thread.threadId,
+        anchor_rfc_message_id: anchor.rfcMessageId, send_receipt_digest: communicationsDigest(row.sendReceipt) } };
+    if (!statement.text.trim()) continue;
+    const ingested = await db.runTransaction(async tx => {
       const statementRef = db.doc(`inboundRequests/${requestId}/customerStatements/${communicationsDigest({ messageId: reply.gmailMessageId })}`), jobRef = db.doc(`inboundRequests/${requestId}`);
       const [existing, job] = await Promise.all([tx.get(statementRef), tx.get(jobRef)]);
-      if (existing.exists) return;
       const current = job.data();
       if (!current) fail("job_not_found", 404);
       const currentRecipient = email(await decryptFieldValue(current.contact?.email ?? ""));
       if (currentRecipient !== row.recipient) fail("job_customer_changed");
-      tx.create(statementRef, statement);
-      const update: Record<string, unknown> = { customerConversation: [...(Array.isArray(current.customerConversation) ? current.customerConversation : []).slice(-19), statement],
+      // Recheck the exact sent anchor before writing canonical email evidence.
+      const currentCommunication = (await tx.get(ref)).data();
+      if (!currentCommunication?.sendReceipt || communicationsDigest(currentCommunication.sendReceipt) !== communicationsDigest(row.sendReceipt)
+        || currentCommunication?.recipient !== row.recipient) fail("job_sent_message_not_verified");
+      const prior = existing.data();
+      if (prior?.assessmentBinding) {
+        // One immutable Gmail message can reference several sent anchors.
+        // Reopening it through another question must not rebind active evidence.
+        const fields = ["messageId", "text", "rawBody", "receivedAt", "from", "source", "trust"];
+        if (communicationsDigest(fields.map(key => prior[key])) !== communicationsDigest(fields.map(key => statement[key]))
+          || prior.assessmentBinding.schema_version !== "site_customer_statement_binding.v1"
+          || !/^[a-f0-9]{64}$/.test(prior.communicationId ?? "")) fail("job_sent_message_not_verified");
+        const retainedCommunication = (await tx.get(db.doc(`inboundRequests/${requestId}/communications/${prior.communicationId}`))).data();
+        const receipt = retainedCommunication?.sendReceipt, retainedAnchor = receipt && thread.messages.find(message =>
+          message.gmailMessageId === receipt.messageId && message.rfcMessageId === receipt.rfcMessageId
+          && message.from === FOUNDER_MAILBOX && message.to.length === 1 && message.to[0] === row.recipient
+          && message.body.trim() === retainedCommunication?.output?.body?.trim());
+        if (!retainedAnchor || retainedCommunication?.recipient !== row.recipient || receipt.threadId !== thread.threadId
+          || prior.assessmentBinding.thread_id !== thread.threadId || communicationsDigest(receipt) !== prior.assessmentBinding.send_receipt_digest
+          || retainedAnchor.rfcMessageId !== prior.assessmentBinding.anchor_rfc_message_id
+          || Date.parse(reply.receivedAt) <= Date.parse(retainedAnchor.receivedAt)
+          || !(reply.inReplyTo === retainedAnchor.rfcMessageId || reply.references.includes(retainedAnchor.rfcMessageId)))
+          fail("job_sent_message_not_verified");
+        tx.set(ref, { answerReceived: true, lastReplyAt: Date.parse(currentCommunication.lastReplyAt) >= Date.parse(reply.receivedAt)
+          ? currentCommunication.lastReplyAt : reply.receivedAt }, { merge: true });
+        return { saved: false, statementRef: { statement_id: statementRef.id, digest: siteCustomerStatementDigest(prior) } };
+      }
+      // Upgrade legacy records only from a fresh verified thread read, and
+      // never overwrite a row already admitted to an assessment's context.
+      if (assessmentCustomerStatementRefs(current).some(value => value.statement_id === statementRef.id)) fail("job_sent_message_not_verified");
+      tx.set(statementRef, statement);
+      const conversation = Array.isArray(current.customerConversation) ? current.customerConversation : [];
+      const update: Record<string, unknown> = { customerConversation: [...conversation.filter(value => value?.messageId !== statement.messageId).slice(-19), statement],
         customerAnswerReviewRequired: true, customerAnswerNextOwner: "Blueprint", customerAnswerNextAction: "Read the customer's answer and continue the job; request another fact only if it changes the decision." };
       tx.set(jobRef, update, { merge: true });
-      tx.set(ref, { lastReplyAt: reply.receivedAt, answerReceived: true }, { merge: true }); saved++;
+      tx.set(ref, { lastReplyAt: reply.receivedAt, answerReceived: true }, { merge: true });
+      return { saved: true, statementRef: { statement_id: statementRef.id, digest: siteCustomerStatementDigest(statement) } };
     });
+    if (ingested.saved) saved++;
+    verified.push(ingested.statementRef);
   }
-  return { saved, nextOwner: "Blueprint", reviewRequired: saved > 0 };
+  if (verified.length && !replies.some(isOptOut) && !(await ports.suppressed(row.recipient))) {
+    const selected = verified.slice(-20);
+    assessmentContinuation = await db.runTransaction(async tx => {
+      const [job, currentCommunication, ...statements] = await Promise.all([
+        tx.get(db.doc(`inboundRequests/${requestId}`)), tx.get(ref),
+        ...selected.map(value => tx.get(db.doc(`inboundRequests/${requestId}/customerStatements/${value.statement_id}`))),
+      ]);
+      const current = job.data();
+      if (!current || email(await decryptFieldValue(current.contact?.email ?? "")) !== row.recipient) fail("job_customer_changed");
+      if (currentCommunication.data()?.recipient !== row.recipient || !currentCommunication.data()?.sendReceipt
+        || communicationsDigest(currentCommunication.data()?.sendReceipt) !== communicationsDigest(row.sendReceipt)
+        || statements.some((value, index) => !value.exists || siteCustomerStatementDigest(value.data()!) !== selected[index].digest))
+        fail("job_sent_message_not_verified");
+      const continuation = await prepareCustomerReplySiteAssessment(db, tx, requestId, current, selected);
+      continuation.commit();
+      return continuation.state;
+    });
+  } else if (verified.length) {
+    assessmentContinuation = "customer_suppressed";
+  }
+  // Only the ordinary production worker consumes the durable new job. Tests
+  // and local assessment experiments never call this email-ingestion path.
+  if (assessmentContinuation === "queued") void tickSiteAssessments(1);
+  return { saved, nextOwner: "Blueprint", reviewRequired: saved > 0, assessmentContinuation };
 }

@@ -9,6 +9,7 @@ import { automationBatch } from "./automationBatch";
 import { prepareAssessmentRecovery, assertAssessmentRecoveryReplay, prepareAssessmentAbandonment, hasRecentAssessmentProgress } from "./captureCoverageInferenceBudget";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { logger } from "../logger";
+import { assessmentCustomerStatementRefs, type SiteCustomerStatementRef } from "./siteCustomerStatements";
 
 export const SITE_ASSESSMENT_JOBS = "siteAssessmentJobs";
 type State = "queued" | "running" | "completed" | "needs_review" | "authority_ended";
@@ -21,6 +22,13 @@ const RUN_LEASE_MS = 30 * 60_000;
 const sha = (packet: unknown) => createHash("sha256").update(JSON.stringify(packet)).digest("hex");
 const pointer = (jobId: string, job: SiteAssessmentJob) => ({ job_id: jobId,
   source_key: job.source_key, context_digest: job.context_digest, state: job.state });
+const queuedJob = (pending: BrowserPending, contextDigest: string): SiteAssessmentJob => {
+  const sourceKey = browserPendingDecisionKey(pending), id = advisoryJobId(pending.request_id, sourceKey, contextDigest);
+  return { schema_version: "site_assessment_job.v1", request_id: pending.request_id, capture_id: pending.capture_id,
+    source_key: sourceKey, context_digest: contextDigest, scene_id: pending.scene_id, state: "queued",
+    run_id: `site-assessment-${id.slice("advisory-".length)}`, claim_id: null, packet_sha256: null,
+    correlation_id: `bp-advisory-${id.slice("advisory-".length, "advisory-".length + 16)}` };
+};
 
 function currentAuthority(job: Pick<SiteAssessmentJob, "request_id" | "capture_id" | "source_key" | "context_digest">,
   raw: Record<string, any> | undefined, brief: Record<string, any> | null, session: Record<string, any> | undefined) {
@@ -47,13 +55,54 @@ export async function enqueueNewPublishedSiteAssessment(tx: FirebaseFirestore.Tr
   if (!currentAuthority(candidate, raw, ownerContext, { browser_pending_delivery: { ...pending, state: "published" } })) return;
   const id = advisoryJobId(pending.request_id, sourceKey, contextDigest);
   const ref = db.collection(SITE_ASSESSMENT_JOBS).doc(id), prior = await tx.get(ref);
-  const job: SiteAssessmentJob = prior.exists ? prior.data() as SiteAssessmentJob : {
-    schema_version: "site_assessment_job.v1", ...candidate, scene_id: pending.scene_id, state: "queued",
-    run_id: `site-assessment-${id.slice("advisory-".length)}`, claim_id: null, packet_sha256: null,
-    correlation_id: `bp-advisory-${id.slice("advisory-".length, "advisory-".length + 16)}`,
-  };
+  const job: SiteAssessmentJob = prior.exists ? prior.data() as SiteAssessmentJob : queuedJob(pending, contextDigest);
   if (!prior.exists) tx.set(ref, { ...job, created_at_ms: Date.now() });
   tx.set(requestRef, { site_advisory: pointer(id, job) }, { merge: true });
+}
+
+/** Stage a distinct assessment after an actual verified email answer. All
+ * transaction reads finish before the caller writes the canonical statement.
+ * An active or failed assessment is not silently retried or superseded. */
+export async function prepareCustomerReplySiteAssessment(store: FirebaseFirestore.Firestore,
+  tx: FirebaseFirestore.Transaction, requestId: string, record: Record<string, any>, statements: SiteCustomerStatementRef[]) {
+  const none = (state: "disabled" | "already_current" | "waiting_for_assessment" | "source_unavailable") => ({ state, commit: () => {} });
+  if (!isSiteVideoEvidenceEnabled()) return none("disabled");
+  const refs = assessmentCustomerStatementRefs(record);
+  assessmentCustomerStatementRefs({ site_assessment_customer_statements: statements });
+  if (!statements.length || statements.every(statement => refs.some(ref => ref.statement_id === statement.statement_id
+    && ref.digest === statement.digest))) return none("already_current");
+  const previousId = record.site_advisory?.job_id;
+  if (typeof previousId !== "string" || !/^advisory-[a-f0-9]{64}$/.test(previousId)) return none("source_unavailable");
+  const captureId = `walkthrough-${requestId}`;
+  const [previousSnap, briefSnap, sessionSnap] = await Promise.all([
+    tx.get(store.doc(`${SITE_ASSESSMENT_JOBS}/${previousId}`)), tx.get(store.doc(`siteTaskBriefs/${requestId}`)),
+    tx.get(store.doc(`captureUploadSessions/${captureId}`)),
+  ]);
+  const previous = previousSnap.data() as SiteAssessmentJob | undefined, brief = briefSnap.data() ?? null;
+  if (!previous || previous.schema_version !== "site_assessment_job.v1" || previous.request_id !== requestId
+    || previous.capture_id !== captureId || previousId !== advisoryJobId(requestId, previous.source_key, previous.context_digest)
+    || record.site_advisory.source_key !== previous.source_key || record.site_advisory.context_digest !== previous.context_digest)
+    return none("source_unavailable");
+  if (previous.state !== "completed") return none("waiting_for_assessment");
+  const pending = currentAuthority(previous, record, brief, sessionSnap.data());
+  if (!pending) return none("source_unavailable");
+  const oldRun = (await tx.get(store.doc(`agentRuns/${previous.run_id}`))).data();
+  if (oldRun?.status !== "completed" || oldRun.task_kind !== "site_assessment") return none("waiting_for_assessment");
+  const incomingIds = new Set(statements.map(statement => statement.statement_id));
+  const nextRefs = [...refs.filter(ref => !incomingIds.has(ref.statement_id)), ...statements].slice(-20);
+  const nextRecord = { ...record, site_assessment_customer_statements: nextRefs };
+  const contextDigest = advisoryContextDigest(nextRecord, brief), job = queuedJob(pending, contextDigest);
+  if (!currentAuthority(job, nextRecord, brief, sessionSnap.data())) return none("source_unavailable");
+  const id = advisoryJobId(requestId, job.source_key, contextDigest), jobRef = store.doc(`${SITE_ASSESSMENT_JOBS}/${id}`);
+  const existing = await tx.get(jobRef), selected = existing.exists ? existing.data() as SiteAssessmentJob : job;
+  if (selected.request_id !== requestId || selected.capture_id !== captureId || selected.source_key !== job.source_key
+    || selected.context_digest !== contextDigest || selected.schema_version !== "site_assessment_job.v1")
+    throw new Error("site_assessment_customer_statement_binding_invalid");
+  return { state: "queued" as const, job_id: id, commit: () => {
+    if (!existing.exists) tx.set(jobRef, { ...selected, created_at_ms: Date.now() });
+    tx.set(store.doc(`inboundRequests/${requestId}`), { site_assessment_customer_statements: nextRefs,
+      site_advisory: pointer(id, selected) }, { merge: true });
+  } };
 }
 
 let activePass: Promise<void> | null = null;
