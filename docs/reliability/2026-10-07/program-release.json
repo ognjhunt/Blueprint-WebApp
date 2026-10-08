@@ -1672,5 +1672,59 @@
       "Gemini": 1
     },
     "scope_limit": "Remaining reservations alone cannot establish a completed normal SDK sequence; no slot split/reclassification/refund/new spending or alternate sequence performed."
+  },
+  "supplemental_native_sdk_browser_join": {
+    "state": "code_complete_independently_reviewed_supplemental_execution",
+    "source_commit": "6e13d2e9c71a9f9ad9a72f8abe8e9764a79ad731",
+    "runtime_base_sha": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+    "independent_review_commit": "69f53c50",
+    "case_ids": [
+      "SDK-UI-001",
+      "SDK-UI-002"
+    ],
+    "generated_unique": 2,
+    "deduplicated_unique": 2,
+    "attempted_unique": 2,
+    "attempts": 6,
+    "passed_attempts": 6,
+    "failed_scored_attempts": 0,
+    "repeats_per_case": 3,
+    "original_catalog_credit": 0,
+    "layer": "normal UI / real handlers / native Firestore emulator / durable fake objects / actual SDK / scripted OpenAI and Gemini / local notifications",
+    "worker_scheduling": "actual queue manually ticked; no autonomous scheduling proof",
+    "browser_interruption": "literal SIGKILL after received media bytes before object acknowledgement; server released to finish; same native browser profile returns to same intake",
+    "production_middleware": "actual mounted token handlers; partial global middleware topology",
+    "provider_mode": "scripted only",
+    "live_provider_calls": 0,
+    "live_cost_usd": 0,
+    "simulated_cost_usd": null,
+    "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/reliability-sdk-browser-join-20261008/Blueprint-WebApp/output/reliability-program/sdk-browser/receipt-v2.json",
+    "receipt_sha256": "749356f2de1bfdc5b30444178494d9b66eb4151d950ea0d27345e3fbc0fc04c0",
+    "catalog_sha256": "42f29b12ff6431495318517a6af12a00d963e8b49a43d0e66bd818f87ba39ca2",
+    "results_sha256": "4f697978d838dfe53ceb5063b14ab13f052cd1eb97c804af46eb0915dc97dbb5",
+    "artifact_hashes_verified": 77,
+    "corrections": "Preparation/observer failures retained. Three final erased type casts have independently verified identical executable JavaScript to the six scored attempts. Distinct task_received and video_received notifications each sent once.",
+    "limits": [
+      "no live provider/video accuracy",
+      "no worker restart",
+      "no chunk resume",
+      "no expired-link renewal",
+      "no native emulator export/import snapshot",
+      "no full production middleware or autonomous scheduler proof"
+    ],
+    "privacy": "raw synthetic bearer-token traces private, directories0700/files0600; no public CI trace upload"
+  },
+  "approved_programme_amendment_preparation": {
+    "state": "authorized_source_implementation_and_review_in_progress_not_deployed_or_applied",
+    "total_cap_micro_usd": 5300000,
+    "authority_receipt_sha256": "37ee142426423bd602af8fb14a334ee11ba9b169f76cabed4e8f3fc1d9968874",
+    "direct_approval_verified": true,
+    "parent_broader_call_policy": "relayed budget/time/progress direction; no arbitrary small Gemini quota",
+    "original_unknown_and_accepted_reservations": "retained in full; only validated post-grant known usage may replace future headroom",
+    "existing_effective_expiry_utc": "2026-10-08T19:24:35.921Z",
+    "expiry_extended": false,
+    "production_effects": 0,
+    "post_configuration_authentication": "unverified",
+    "count_tokens_bound": "new source under review; exact frozen static request only, agentic conservative fallback; not billing proof"
   }
 }
