@@ -170,7 +170,7 @@ describe("programme-bound actual reservation transaction", () => {
     expect(read(programmePath).technical_continuations).toEqual(original.technical_continuations);
     expect(read(budgetPath)).toMatchObject(before);
     vi.spyOn(Date,"now").mockReturnValue(original.expires_at_ms+1);
-    try {for(let n=0;n<4;n++){const call=await reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini");await call.assertDispatchAllowed();await call.record(usage);}
+    try {for(let n=0;n<4;n++){const call=await reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini");await call.assertDispatchAllowed();await call.record({...usage,promptTokenCount:114});}
     expect(read(programmePath).amended_calls).toHaveLength(4);expect(read(programmePath).amended_calls.filter((c:any)=>!c.original_slot_id)).toHaveLength(3);
     expect(read(programmePath).slots.slice(0,2)).toEqual(original.slots.slice(0,2));expect(read(programmePath).expires_at_ms).toBe(original.expires_at_ms);
     expect(read(budgetPath).inference_programme_authority_digest).toBe(before.inference_programme_authority_digest);

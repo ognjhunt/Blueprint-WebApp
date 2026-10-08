@@ -215,8 +215,8 @@ export function inferenceProgrammeAmendment(programme: Programme, state: any) {
       || (call.state === "recorded" && (!Number.isSafeInteger(call.usage_input_tokens) || call.usage_input_tokens<0
         || !Number.isSafeInteger(call.usage_output_tokens)||call.usage_output_tokens<0||!Number.isSafeInteger(call.priced_at_ms)||call.priced_at_ms<row.granted_at_ms||call.priced_at_ms>Date.now()
         || !Number.isSafeInteger(call.usage_estimate_micro_usd) || call.usage_estimate_micro_usd < 0 || call.usage_estimate_micro_usd > call.reserved_micro_usd
-        || call.usage_estimate_micro_usd!==Math.ceil(call.usage_input_tokens*(call.provider==="openai"?2.5:call.priced_at_ms<Date.parse("2027-01-01T00:00:00Z")?.75:1.5)
-          +call.usage_output_tokens*(call.provider==="openai"?10:call.priced_at_ms<Date.parse("2027-01-01T00:00:00Z")?3.75:7.5))))
+        || call.usage_estimate_micro_usd!==Math.ceil(((call.usage_input_tokens*(call.provider==="openai"?2.5:call.priced_at_ms<Date.parse("2027-01-01T00:00:00Z")?.75:1.5)
+          +call.usage_output_tokens*(call.provider==="openai"?10:call.priced_at_ms<Date.parse("2027-01-01T00:00:00Z")?3.75:7.5))/1e6)*1e6)))
       || (call.original_slot_id && (!slot || before?.state !== "held" || originals.has(slot.id)
         || slot.state !== call.state || slot.admission_token !== call.admission_token || slot.run_id !== call.run_id
         || slot.provider !== call.provider || slot.model !== call.model || slot.reserved_call_micro_usd !== call.reserved_micro_usd)))
