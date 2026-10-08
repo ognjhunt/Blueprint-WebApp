@@ -1905,3 +1905,56 @@ case is separate from the frozen original coverage denominator. Protected final
 CI, merge/deployment and the affected deployed UI observation remain release
 gates; the historical receipt and free assessment do not supply spending or
 sharing authority for a new live run.
+
+
+## Independent private programme packet and operator review
+
+Cleared corrected private attachment packet SHA-256
+`da7347729025b8e832bb3539a9143f4003d8c5b4197df4187bc868fe1f73259d`
+and operator source
+`f2a0358db7062298aec812f831c105d58d06744d64cc0a2a963cb4a485964260`
+for the specifically authorized dishwasher programme. Superseded packet4388b0f5
+and sourced41a7175 lacked an explicit snapshot comparison for current privacy
+and account attachment; the correction compares presence and value inside the
+same transaction, preserving absent/unclaimed ownership without assigning a
+UID or rewriting privacy. Imported privacy and actual upload-source admission
+remain distinct: this packet reserves authority for the authorized recording;
+the adapter must admit the subsequently uploaded current source before dispatch.
+
+Six typed slots retain the original unknown Gemini exposure and recorded Sol
+call, three previously held Sol slots and the specifically authorized additional
+Gemini slot. Aggregate reserved exposure4,964,928 micro-USD stays within the
+5,000,000 cap,35,072 headroom; corrected expiry17:40:12.183UTC. Original ledger
+`60444b617d9e5597a491e9961ac02075488495a8ee0a4d018838441713fbbdc3`
+is unchanged, and actual supplied video bytes match the packet video SHA.
+Authority scope follows the coordinator-verified human amendment, not a new
+permission inferred from an unknown charge. Exact accepted coverage-history
+receipt, raw deployment receipt, review set and reviewed helper hashes match.
+No historical attempts or provider uncertainty are reset.
+
+Default operator entrypoint prepares/read-validates only. The explicitly invoked
+attachment requires the exact reviewed packet bytes, rechecks original ledger,
+fresh verified/non-disabled owner identity, current rights/context/contact,
+privacy/account snapshots, pending-upload snapshot, full review history and
+absence of prior programme reference/budget/jobs/runs/in-flight upload. All
+transaction reads precede the only writes: create-only programme record and
+server-owned request reference. Existing programme or changed state refuses.
+There is no automatic model invocation, claim, backfill, consent rewrite or
+notification send. Private packet/source retain mode0600; company-owned
+Firestore record plus retained portable JSON and original ledger are the
+canonical import/export route once executed. No import was performed by review;
+its actual atomic receipt and readback must still be verified.
+
+Required exact-main CI37801137055 and gated deploy37802266614 independently
+report success at195a4019b563a7a1f765822e8e3a2e7c673ae313. Relevant programme
+helper/budget/queue/adapter Git bytes equal reviewedf6a0a7dc. Paired native Render
+LIVE receipt
+`236f6adfc5a541d6efacd0232c9b413a35d08d33a00519d07d63af8315f0b741`
+reports both services at that exact SHA. Existing safe no-submit smoke
+`62a736e0c0c677105a57e305319596a5255b2d3326babd68415fcec5484592c4`
+passes eighteen checks with serving identity before/after matching; screenshot
+and unchanged reviewed script hashes match. Three non-GET and three external
+requests were blocked, zero intake mutations attempted. This verifies deployed
+guard identity and local draft presentation only, not live provider availability,
+record attachment, customer upload durability or assessment perception.
+No paid call, production write or additional case credit occurred for review.
