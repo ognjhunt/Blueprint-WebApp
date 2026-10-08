@@ -97,6 +97,7 @@ export interface SiteAssessmentExperiment {
   prepare: (source: Record<string, any>) => Promise<NonNullable<SiteAssessmentOptions["retained_video_sources"]>>;
   reserve: typeof reserveCaptureCoverageInference;
   analyze_video?: SiteAssessmentOptions["analyze_video"];
+  record_error?: (error: unknown) => void;
 }
 export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void>;
   experiment?: SiteAssessmentExperiment }): Promise<AgentResult> {
@@ -259,6 +260,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     return { ...base, status: "completed", output: packet.assessment,
       artifacts: { site_assessment_packet: packet, site_assessment_packet_sha256: digest(packet), source_admission: sourceAdmission, capture_inference_reservations: captureReservations, ...budget.artifacts() } };
   } catch (error) {
+    host.experiment?.record_error?.(error);
     const code = errorField(error, "message");
     const message = error instanceof Error && typeof code === "string" && assessmentErrorCodes.has(code) ? code : "site_assessment_failed";
     return { ...base, status: message === "site_assessment_cancelled" ? "cancelled" : "failed", error: message,

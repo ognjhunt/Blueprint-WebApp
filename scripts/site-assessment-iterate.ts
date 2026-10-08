@@ -32,12 +32,27 @@ function codeIdentity() {
     node: process.version, sdk_version: readJson(path.resolve("node_modules/@openai/agents/package.json")).version };
 }
 function failure(error: unknown) {
+  const own = (key: string) => { try { return error && typeof error === "object" ? Object.getOwnPropertyDescriptor(error, key)?.value : undefined; } catch { return undefined; } };
+  const status = own("status"), code = own("code"), cause = own("cause");
   const row = error instanceof Error ? error : Error("experiment_unknown_error");
   // Never retain arbitrary exception prose/stack/body. Owned codes and schema paths are enough to repair input.
-  const message = /^(experiment_|inference_programme_|site_assessment_|assessment_)[a-z0-9_]+$/.test(row.message) ? row.message : "experiment_failed";
-  return { code: message, exception_class: row instanceof z.ZodError ? "ZodError" : row instanceof SyntaxError ? "SyntaxError" : "Error",
+  const message = /^(experiment_|inference_programme_|site_assessment_|assessment_|gemini_video_)[a-z0-9_]+$/.test(row.message) ? row.message : "experiment_failed";
+  const providerCode = typeof code === "string" && /^(gemini_video_[a-z0-9_]+|invalid_request_error|rate_limit_exceeded|context_length_exceeded|invalid_api_key|insufficient_quota|server_error|model_not_found|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN)$/.test(code) ? code : null;
+  return { code: message, provider_error_code: providerCode,
+    http_status: typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+    cause: cause && cause !== error ? failureWithoutCause(cause) : undefined,
+    exception_class: row instanceof z.ZodError ? "ZodError" : row instanceof SyntaxError ? "SyntaxError" : "Error",
     issues: row instanceof z.ZodError ? row.issues.map(issue => ({ path: issue.path, code: issue.code })) : undefined,
-    system_code: ["ENOENT", "EEXIST", "EACCES"].includes((row as any).code) ? (row as any).code : undefined };
+    system_code: ["ENOENT", "EEXIST", "EACCES"].includes(code) ? code : undefined };
+}
+
+function failureWithoutCause(error: unknown) {
+  // Cause may cycle or have hostile getters. Only its own status/code/builtin class is retained.
+  const copy = new Error("experiment_cause_unavailable");
+  if (error instanceof TypeError) Object.defineProperty(copy, "name", { value: "TypeError" });
+  for (const key of ["status", "code"]) { try { const value = Object.getOwnPropertyDescriptor(error, key)?.value;
+    if (value !== undefined) Object.defineProperty(copy, key, { value }); } catch {} }
+  return failure(copy);
 }
 
 async function main() {
@@ -114,7 +129,7 @@ async function main() {
       definition: siteAssessmentTask, tool_policy: { ...siteAssessmentTask.tool_policy, allowed_domains: ["api.openai.com", "generativelanguage.googleapis.com", "storage.googleapis.com"],
         isolated_runtime_required: false }, metadata: {} } as any;
     run.result = await runSiteAssessmentTask(task, { runId, assertActive: async () => retainFailure(async () => allocation!.assertActive()), assertCostAllowed: async () => retainFailure(async () => allocation!.assertActive()),
-      experiment: { mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
+      experiment: { record_error: error => { run.error ??= failure(error); }, mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
         run.source = source; allocation!.bind(source);
         if (input.local_video && (source.video_sha256 !== input.local_video.sha256 || source.video_bytes !== input.local_video.bytes)) throw Error("experiment_uploaded_video_binding_changed");
         run.stage = "evidence_binding";
