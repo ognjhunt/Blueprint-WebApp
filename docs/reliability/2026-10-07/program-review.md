@@ -1718,3 +1718,63 @@ or program completion is established by this release. Main has subsequently
 advanced to dc4db4e0 via separate authorized work; this is a historical observed
 5f29d12b release receipt, not a statement that latest main or its deployment is
 verified. No additional suite, provider probe or production mutation was run.
+
+
+## Independent programme-bound inference admission review — 10d62e9a
+
+Approved exact source
+`10d62e9a06e6b57b7652149aad2367eaecff5682` against currentdc4, with prior
+seven-file implementation5db057ac and final adapter-only ordering correction.
+Ordinary requests without a programme reference retain their existing allowance.
+A present reference, including malformed/null values, cannot silently fall back
+to ordinary admission. Programme records and request references remain
+server-owned: client inbound-request writes and unmatched programme collection
+access are denied, no public creation/import endpoint was added, and normal
+request writers project supported fields rather than copying this authority.
+Retained authority reference/ledger hash fields are shape/binding checked; this
+is not independent authentication of an external approval document. Creating a
+production programme remains a separate authorized, provenance-verified action.
+
+Reservation reads all current authority before writes and atomically consumes
+one eligible held slot plus the existing capture budget. It binds request,
+capture, actual adapter-computed video SHA, task/brief digest and current producer
+source. Immutable programme amounts/identity and initially eligible minus
+monotonically admitted IDs prevent reset/reuse of consumed or historical slots.
+All reserved exposure remains counted; unknown usage remains pending. Known
+in-flight usage can settle only the matching admitted token/slot even after
+revocation or natural expiry. Optional coverage defers before claim and cannot
+consume advisory programme authority. No provider reservation or source guard
+was bypassed to resolve missing historical accounting.
+
+Reviewer identified the reservation-to-dispatch authority window. Final helper
+rechecks active/unexpired programme, current rights/source/context, immutable
+authority/history and exact pending slot; final adapter records the reserved
+receipt, performs its current host/source fence, then awaits that programme
+guard LAST before its admission callback returns. No subsequent adapter await
+reopens the avoidable window. This bounds admission; it is not remote provider
+cancellation after HTTP starts or a zero-race guarantee against later changes.
+Denied dispatch does not manufacture a refund or clear uncertainty.
+
+Original five baseline controls fail on actualdc4 runtime (thirty unattempted);
+seven dispatch controls fail on the retained pre-guard helper; two rights
+controls fail on its retained pre-rights snapshot. Baseline/source/log bindings
+were independently checked. Parent receipt
+`a4a4071a9b4ebf24faf855834db9ad89d2d801f9fd6578e9639af3efb2a0f2c7`
+and dispatch receipt
+`1938afd4296b5302487c7dcf0601087fa0675dd87405affcbe8089cc8ac0a6fa`
+retain these explicit source overlays. Final same focused budget/audit/queue
+files71/71 pass, log
+`5df90ba38d478847ee816a5baabffbb4530a57e42192f8fc252056dc08de18eb`;
+typecheck and required Graphify pass, Graphify log
+`37d67de6d3eacab6beead0a903d83e25a400603e96627bf9e3ee0e674137daba`.
+Two variants strengthen the existing actual SDK/private-writer/customer-reader
+case with ordinary versus programme-bound admission; providers, Firestore and
+generation object storage remain scripted/fake. No additional original semantic
+case or journey credit, native Firestore contention or live provider proof.
+
+No real programme record, paid dispatch or canonical authority write was
+performed for review. The real capture's retained missing-budget historical
+attempts remain unresolved and still block admission; source approval cannot
+erase them. Human spending authorization, historical reconciliation, required
+exact-head CI/merge/deployment and affected live result verification remain
+separate gates. This is not full programme readiness or video-quality approval.
