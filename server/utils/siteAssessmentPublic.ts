@@ -20,8 +20,30 @@ const actions: Record<string, string> = {
   process_change: "Evaluate a workflow or fixture change after reviewing the requirements.",
   no_robot: "Keep manual work as an option while clarifying unresolved requirements.",
 };
-const scrub = (value: string) => value.replace(/(?:https?:\/\/|gs:\/\/)[^\s]+|Bearer\s+[^\s]+/gi, "[private reference omitted]");
-/** Re-render factual wording from selected retained evidence, never persisted free-form model prose. */
+const scrub = (value: string) => value.replace(/(?:https?:\/\/|gs:\/\/)[^\s]+|Bearer\s+[^\s]+|\b[^\s@]+@[^\s@]+\.[^\s@]+/gi, "[private reference omitted]");
+// This DTO has no factual bindings for free-form action/question clauses.
+// Admit a narrow request form, not arbitrary declarations under a "proposal"
+// prefix. These checks do not establish semantic truth or robot suitability.
+const firstClause = (value: string) => value.replace(/\s+/g, " ").split(/(?<=[.!?])\s+|;|\b(?:because|since|given that|therefore)\b/i)[0].trim();
+const assertionTerms = /\b(?:booked|scheduled|confirmed|completed|published|approved|certified|guaranteed|proven|passed|capable|safely|suitable|ready)\b/i;
+const assertionVerbs = /\b(?:is|are|was|were|has|have|had|can|cannot|could|will|would|does|did)\b/i;
+const questionForm = /^(?:what|which|how (?:many|much|long|often))\b/i;
+// Without clause-level citations, admit one task/requirement query, not a
+// relative clause or personal assertion smuggled into its premise.
+const hasSideClause = (value: string) => /[,;:]|\b(?:that|which|whose|where|when|we|they|I|he|she|it)\b/i.test(value);
+const requestClause = (value: string): string | null => {
+  const text = firstClause(value);
+  return /^(?:measure|confirm|inspect|check|research|investigate|compare|record|define|ask|identify|obtain|plan|prepare|consider|evaluate|test)\b/i.test(text)
+    && !hasSideClause(text) && !assertionTerms.test(text) && !assertionVerbs.test(text) ? text : null;
+};
+const uncertaintyClause = (value: string): string | null => {
+  const text = firstClause(value);
+  const remainder = text.replace(/\b(?:is|are|was|were)\s+(?:unknown|unverified|uncertain|unresolved|not (?:measured|established|provided|visible|observed|confirmed))\b/gi, "")
+    .replace(/\b(?:could|would|may) change\b/gi, "");
+  return /\b(?:unknown|unverified|uncertain|unresolved|not (?:measured|established|provided|visible|observed|confirmed)|(?:could|would|may) change)\b/i.test(text)
+    && !hasSideClause(text) && !assertionTerms.test(remainder) && !assertionVerbs.test(remainder) ? text : null;
+};
+/** Facts use selected retained evidence; proposals and unanswered questions remain labeled reasoning. */
 export function projectCustomerSiteAdvisory(packet: Record<string, any>, correlationId: string, admittedDuration: number | null = null): SiteAdvisory {
   if (packet.schema_version !== "site_assessment.v2" || !Array.isArray(packet.sources) || packet.sources.length > 100
     || Buffer.byteLength(JSON.stringify(packet)) > 1_000_000) throw Error("site_advisory_packet_invalid");
@@ -29,8 +51,16 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
   const duration = packet.sources.find((source: any) => source.kind === "video")?.content?.duration_seconds
     ?? packet.video_duration_seconds ?? null;
   // Video interval validation needs the original admitted duration, supplied by the reader.
-  const rendered = renderSourceBoundAssessment(siteAssessmentSchema.parse(packet.raw_model_assessment), sources as any,
+  const raw = siteAssessmentSchema.parse(packet.raw_model_assessment);
+  const rendered = renderSourceBoundAssessment(raw, sources as any,
     admittedDuration ?? duration);
+  const privateReferences = [packet.request_id, ...packet.sources.flatMap((source: any) => [source.source_id, source.canonical_ref, source.sha256])]
+    .filter((value): value is string => typeof value === "string" && value.length > 0).sort((a, b) => b.length - a.length);
+  const customerText = (value: string): string | null => {
+    if (!value.trim() || value.length > 4000) return null;
+    for (const reference of privateReferences) value = value.split(reference).join("[private reference omitted]");
+    return scrub(value).trim();
+  };
   const result = empty("ready", correlationId);
   const titles: Record<string, string> = { job: "The job", objects_motions_conditions_variations: "What the evidence shows",
     operator_success: "The site's success criteria", known: "Supported information" };
@@ -38,7 +68,7 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
     const claims = ((rendered.assessment as any)[field] as any[]).filter(claim => claim.verification_status === "source_bound")
       .slice(0, 12).flatMap(claim => {
         if (typeof claim.text !== "string" || claim.text.length > 4000) return [];
-        return [{ text: scrub(claim.text), basis: claim.basis, verificationStatus: "source_bound" as const, evidence: claim.evidence.map((reference: any) => ({
+        return [{ text: customerText(claim.text)!, basis: claim.basis, verificationStatus: "source_bound" as const, evidence: claim.evidence.map((reference: any) => ({
           kind: reference.selector?.kind === "video_observation" ? "video" : reference.selector?.kind === "operator_statement" ? "operator" : "specification",
           atSeconds: reference.at_seconds ?? null,
         })) }];
@@ -48,8 +78,29 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
   result.unknowns = ["Video analysis and supplied statements are not independently verified measurements or proof of robot suitability."];
   if (rendered.verification.unverified_claims || rendered.verification.interpretation_claims || rendered.assessment.status === "needs_operator_input")
     result.unknowns.push("Some job facts and interpretations remain unresolved. Clarify them before choosing an approach.");
-  result.nextAction = rendered.assessment.status === "needs_operator_input" ? actions.ask_operator
-    : actions[rendered.assessment.next_action.kind] ?? actions.research;
+  for (const claim of rendered.assessment.missing) {
+    const retained = (claim as any).verification_status === "source_bound" ? claim.text
+      : claim.basis === "unknown" ? uncertaintyClause(claim.text) : null;
+    const text = retained && customerText(retained);
+    if (text) result.unknowns.push(`Unresolved: ${text}`);
+  }
+  for (const question of rendered.assessment.questions) {
+    const clause = firstClause(question.question);
+    if (!questionForm.test(clause) || hasSideClause(clause.replace(questionForm, "")) || assertionTerms.test(clause)) continue;
+    const text = customerText(`${clause.replace(/[.!?]+$/, "")}?`), effect = firstClause(question.decision_it_changes);
+    const consequence = !hasSideClause(effect.replace(/^(?:whether|which|what|how)\b/i, "")) && !assertionTerms.test(effect)
+      && (/^(?:whether|which|what|how)\b/i.test(effect) || !assertionVerbs.test(effect))
+      ? customerText(effect) : null;
+    if (text) result.unknowns.push(`Question to resolve: ${text} ${consequence ? `Decision it changes: ${consequence}` : "Decision consequence remains unverified."}`);
+  }
+  const action = rendered.assessment.next_action;
+  const proposed = !rendered.verification.unverified_claims && action.kind === raw.next_action.kind
+    ? requestClause(raw.next_action.action) : null;
+  result.nextAction = `Recommended next step (proposal): ${(proposed && customerText(proposed)) || actions[action.kind] || actions.research}`;
+  const retainedReason = ["unknown", "estimate"].includes(action.why.basis) ? uncertaintyClause(action.why.text) : action.why.text;
+  const reason = retainedReason && customerText(retainedReason);
+  if (reason) result.nextAction += ` ${["unknown", "estimate"].includes(action.why.basis) ? "Reasoning to check" : "Why"}: ${reason}`;
+  result.unknowns = [...new Set(result.unknowns)];
   return result;
 }
 
