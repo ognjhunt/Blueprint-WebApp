@@ -25,7 +25,22 @@ function fixture(options: { probes?: number; beforeUpload?: "withdrawn" | "stale
       return new Response("{}", { status: 200, headers: { "x-goog-upload-url": `https://generativelanguage.googleapis.com/upload?fixture=${uploads}` } });
     }
     if (url.includes("/upload?fixture=")) {
-      events.push("upload:bytes");expect(init.body).toBe(bytes);
+      events.push("upload:bytes");expect(init.body).toBeInstanceOf(ReadableStream);
+      expect(init).toMatchObject({ duplex: "half", headers: expect.objectContaining({ "Content-Length": String(bytes.length) }) });
+      const reader = (init.body as ReadableStream<Uint8Array>).getReader();
+      const uploadedHash = createHash("sha256");
+      let uploadedBytes = 0;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        expect(value.byteLength).toBeLessThanOrEqual(64 * 1024);
+        expect(value.buffer).toBe(bytes.buffer);
+        expect(value.byteOffset).toBe(bytes.byteOffset + uploadedBytes);
+        uploadedHash.update(value);
+        uploadedBytes += value.byteLength;
+      }
+      expect(uploadedBytes).toBe(bytes.length);
+      expect(uploadedHash.digest("hex")).toBe(sourceSha);
       if (options.revokeAfterUpload) sourceCurrent = false;
       return new Response(JSON.stringify({ file: { name: `files/fixture-${uploads}`, state: "ACTIVE", mimeType: "video/mp4",
         uri: `https://generativelanguage.googleapis.com/v1beta/files/fixture-${uploads}` } }), { status: 200 });

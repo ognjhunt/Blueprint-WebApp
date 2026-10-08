@@ -82,7 +82,26 @@ describe("agentic video provider contract", () => {
       "X-Goog-Upload-Header-Content-Type": "video/mp4" }) });
     const [upload] = callsTo(fetcher, (url) => url === UPLOAD_URL);
     expect(upload[1]).toMatchObject({ headers: expect.objectContaining({ "X-Goog-Upload-Command": "upload, finalize" }) });
-    expect((upload[1] as RequestInit).body).toBe(bytes);
+    const uploadBody = (upload[1] as RequestInit).body;
+    expect(uploadBody).toBeInstanceOf(ReadableStream);
+    // Construct the request without sending it: stream extraction retains the
+    // same body, whereas fetch copies a Buffer body before any network I/O.
+    const uploadRequest = new Request(UPLOAD_URL, upload[1] as RequestInit);
+    expect(uploadRequest.body).toBe(uploadBody);
+    const reader = uploadRequest.body!.getReader();
+    const uploadedHash = createHash("sha256");
+    let uploadedBytes = 0;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      expect(value.byteLength).toBeLessThanOrEqual(64 * 1024);
+      expect(value.buffer).toBe(bytes.buffer);
+      expect(value.byteOffset).toBe(bytes.byteOffset + uploadedBytes);
+      uploadedHash.update(value);
+      uploadedBytes += value.byteLength;
+    }
+    expect(uploadedBytes).toBe(bytes.byteLength);
+    expect(uploadedHash.digest("hex")).toBe(createHash("sha256").update(bytes).digest("hex"));
     expect(upload[1]).toMatchObject({ duplex: "half",
       headers: expect.objectContaining({ "Content-Length": String(bytes.byteLength) }) });
     expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && (init.method ?? "GET") === "GET")).toHaveLength(2);

@@ -70,15 +70,30 @@ type UploadedVideo = { name: string; uri: string; mimeType: string };
  * so the only copy that outlives the call is the one the site uploaded to us.
  */
 /**
- * The clip as it goes to Gemini. A body whose length the link declared is a
- * stream, piped from storage into the upload without ever being held: on the
- * website's 512MB instance a 60MB phone clip held twice (once read, once
- * copied by fetch for the upload) was enough to kill the process.
+ * The clip as it goes to Gemini. Linked clips with a declared length stream
+ * from storage; the source-verified SDK path retains one Buffer. Upload that
+ * Buffer as bounded views so fetch does not make another full media copy.
  */
 export interface VideoSource {
   body: Buffer | ReadableStream<Uint8Array>;
   byteLength: number;
   contentType: string;
+}
+
+function videoUploadBody(body: VideoSource["body"]): ReadableStream<Uint8Array> {
+  if (!Buffer.isBuffer(body)) return body;
+  let offset = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset === body.byteLength) {
+        controller.close();
+        return;
+      }
+      const end = Math.min(offset + 64 * 1024, body.byteLength);
+      controller.enqueue(body.subarray(offset, end));
+      offset = end;
+    },
+  }, { highWaterMark: 0 });
 }
 
 async function uploadVideoFile(input: {
@@ -111,7 +126,7 @@ async function uploadVideoFile(input: {
       "Content-Length": String(input.video.byteLength),
     },
     signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-    body: input.video.body,
+    body: videoUploadBody(input.video.body),
     duplex: "half",
   } as RequestInit);
   if (!finish.ok) {
