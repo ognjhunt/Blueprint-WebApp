@@ -106,3 +106,9 @@ npm run check
 ```
 
 These checks are **OFFLINE / NO MODEL-QUALITY EVIDENCE**.
+
+## Customer follow-through
+
+The normal assessment has four read tools. It proposes actions and questions; the local iteration command never launches Pipeline work or sends customer messages. In the existing `/admin/robot-team-access` job communications section, staff can load the current scrubbed assessment and select an open question into the existing communications agent's draft form. Loading and selecting do not invoke a model or send. Drafting requires the existing reviewed customer-context binding; delivery still requires the exact reviewed draft, current context, recipient/thread binding, enabled send configuration and suppression checks. Natural replies are imported by the existing verified-email path with provenance and duplicate protection.
+
+The follow-through change has focused offline coverage for question selection → existing draft API, source-checked assessment context, revocation, exact sends, duplicate delivery protection and natural replies. Existing task-context/preparation contracts retain unknowns and independent source/rights checks. These are not proof of live email delivery or Pipeline execution. Automatic reply-triggered assessment continuation and the specific authorized preparation/launch handoff remain pending the integration owner's current customer evidence-save/recovery release; changing context-bound jobs during that recovery is intentionally sequenced afterward. A recommendation is never recorded as a launch receipt.

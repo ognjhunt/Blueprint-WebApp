@@ -53,6 +53,9 @@ export async function loadSiteJobCommunicationsContext(db: FirebaseFirestore.Fir
   const context = { requestId, recipient, captureConsentWithdrawn: revoked, taskStatement: String(await decryptFieldValue(record.request?.taskStatement ?? record.request?.taskDescription ?? "")),
     brief: b ? { summary: b.summary ?? null, proposed: b.proposed ?? [], unresolved: b.unresolved ?? [], successCriteria: b.successCriteria ?? null,
       confirmedBy: b.confirmedBy ?? null, confirmedAtIso: b.confirmedAtIso ?? null, operatorAnswers: b.operatorAnswers ?? {}, operatorUnknown: b.operatorUnknown ?? [] } : null,
+    // Already source-checked and scrubbed by the existing customer projection;
+    // its questions/unknowns are proposals, never launch or send authority.
+    assessment: assessment?.state === "ready" ? assessment : null,
     answers: revoked ? {} : gateAnswersOnFile(record), recommendation: revoked ? null : record.pilot_recommendation ?? null,
     acceptance: record.pilot_booking ?? null, decision: revoked ? null : projectCurrentSiteJobDecision(record, b, assessment),
     customerStatements: Array.isArray(record.customerConversation) ? record.customerConversation.slice(-20) : [] };

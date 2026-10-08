@@ -1,11 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { memoryFirestore } from "./fixtures/communications";
 import { CommunicationsAgentsAPI } from "../agents/communications-api";
 import { draftSiteJobCommunication, loadSiteJobCommunicationsContext, refreshSiteJobReplies, sendReviewedSiteJobCommunication, type SiteJobCommunicationsPorts } from "../agents/communications-site-job";
 import { communicationsDigest, type CommunicationsOutput, type VerifiedThread } from "../agents/communications-contract";
 
 vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: async (v: unknown) => v }));
-vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: async () => ({ schemaVersion: "site_customer_advisory.v1", state: "unavailable", correlationId: null, sections: [], unknowns: [], nextAction: null }) }));
+const advisory = vi.hoisted(() => ({ load: vi.fn(async () => ({ schemaVersion: "site_customer_advisory.v1", state: "unavailable", correlationId: null, sections: [], unknowns: [] as string[], nextAction: null as string | null })) }));
+vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: advisory.load }));
+afterEach(() => advisory.load.mockClear());
 function fixture() {
   const db = memoryFirestore(new Map([
     ["inboundRequests/job-1", { contact: { email: "site@example.com" }, request: { taskStatement: "Unload dishes" }, siteTaskGates: { sameTask: "yes" },
@@ -26,6 +28,24 @@ function fixture() {
   return { db, output, ports, run, request };
 }
 describe("inbound job communications uses the existing agent and actual email evidence", () => {
+  it("passes current source-checked assessment questions to the existing agent without send authority", async () => {
+    const f = fixture();
+    const current = { schemaVersion: "site_customer_advisory.v1", state: "ready", correlationId: null, sections: [],
+      unknowns: ["Question to resolve: What final state defines success? Decision consequence remains unverified."],
+      nextAction: "Recommended next step (proposal): Define acceptance." };
+    advisory.load.mockResolvedValue(current);
+    try {
+      await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
+      const input = JSON.parse(f.run.mock.calls[0][0].input);
+      expect(input.siteJob.context.assessment).toEqual(current);
+      expect(input.currentApproval.sendsAuthorized).toBe(false);
+      expect(f.ports.send).not.toHaveBeenCalled();
+      f.db.records.get("inboundRequests/job-1").consent_revoked = true;
+      expect((await loadSiteJobCommunicationsContext(f.db, "job-1")).context.assessment).toBeNull();
+    } finally {
+      advisory.load.mockResolvedValue({ schemaVersion: "site_customer_advisory.v1", state: "unavailable", correlationId: null, sections: [], unknowns: [], nextAction: null });
+    }
+  });
   it("retains one agent output/checkpoint on the same job and reuses HTTP retries", async () => {
     const f = fixture(), request = await f.request();
     const first = await draftSiteJobCommunication(f.db, "job-1", "operator-1", request, f.ports);
